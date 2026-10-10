@@ -7,10 +7,15 @@ const STORAGE_KEY = 'ui-buff-view';
 export class BuffViewPreferenceService {
   readonly mode = signal<BuffViewMode>(storedMode());
 
+  /** Moves the buff display on to its next way of drawing buffs, and remembers the choice. */
   cycle(): void {
     this.set(nextBuffViewMode(this.mode()));
   }
 
+  /**
+   * Chooses how buffs are drawn and writes it to localStorage. Where storage refuses, it still
+   * holds for this session.
+   */
   set(mode: BuffViewMode): void {
     this.mode.set(mode);
     try {

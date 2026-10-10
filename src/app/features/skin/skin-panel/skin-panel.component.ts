@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, effect, ElementRef, inject, viewChi
 import { SkinService, SkinSnapshot } from '@axe/application/ui/skin.service';
 import { scopedTokens } from '@axe/domain/ui/skin-alias';
 import { SkinPickerComponent } from '@axe/features/skin/skin-picker/skin-picker.component';
+import { DiceMatComponent } from '@axe/ui/components/dice-roll-stage/dice-mat.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /**
@@ -17,7 +18,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 @Component({
   selector: 'app-skin-panel',
   templateUrl: './skin-panel.component.html',
-  imports: [TranslocoModule, SkinPickerComponent],
+  imports: [TranslocoModule, SkinPickerComponent, DiceMatComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SkinPanelComponent {
@@ -28,6 +29,7 @@ export class SkinPanelComponent {
   protected readonly live = this.skins.live;
   protected readonly tryingOn = this.skins.tryingOn;
   protected readonly paper = this.skins.editedLayers;
+  protected readonly mat = this.skins.editedMat;
 
   /** What the seat was wearing when this opened, which is what the way back leads to. */
   private readonly worn: SkinSnapshot = this.skins.snapshot();

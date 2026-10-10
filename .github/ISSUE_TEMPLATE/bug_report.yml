@@ -7,14 +7,14 @@ body:
     attributes:
       value: |
         バグ報告ありがとうございます。再現に必要な情報をできるだけ埋めてください。
-        セキュリティに関わる問題は Issue ではなく非公開で報告してください。
+        セキュリティに関わる問題はIssueではなく非公開で報告してください。
 
   - type: checkboxes
     id: preflight
     attributes:
       label: 確認事項
       options:
-        - label: 既存の Issue に同じ報告がないか検索した
+        - label: 既存のIssueに同じ報告がないか検索した
           required: true
         - label: 最新バージョンでも再現することを確認した（できる範囲で）
           required: false
@@ -59,7 +59,7 @@ body:
     id: scope
     attributes:
       label: 影響範囲
-      description: 関係する機能・領域を選択してください（Conventional Commits の scope に対応）。
+      description: 関係する機能・領域を選択してください（Conventional Commitsのscopeに対応）。
       multiple: true
       options:
         - chat
@@ -84,7 +84,7 @@ body:
   - type: dropdown
     id: role
     attributes:
-      label: P2P 接続時の役割
+      label: P2P接続時の役割
       description: 不具合発生時の接続状況を選択してください。
       options:
         - 単独（接続なし）
@@ -99,7 +99,7 @@ body:
     attributes:
       label: 同時接続人数
       description: 発生時に接続していたおおよその人数。
-      placeholder: 例）3 人
+      placeholder: 例）3人
     validations:
       required: false
 
@@ -107,7 +107,7 @@ body:
     id: version
     attributes:
       label: バージョン
-      description: package.json の version、または画面に表示されているバージョン。
+      description: package.jsonのversion、または画面に表示されているバージョン。
       placeholder: 例）1.8.0
     validations:
       required: false

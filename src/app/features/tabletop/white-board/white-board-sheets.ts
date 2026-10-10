@@ -32,18 +32,22 @@ export function layerFor(scene: MapScene, kind: MapLayer['kind'], activeId?: str
   return made;
 }
 
+/** The sheet a pen stroke goes on, chosen as `layerFor` chooses, adding one when none will take it. */
 export function freehandLayer(scene: MapScene, activeId?: string | null): FreehandLayer {
   return layerFor(scene, 'freehand', activeId) as FreehandLayer;
 }
 
+/** The sheet a line, arrow or shape goes on, chosen as `layerFor` chooses, adding one when none will take it. */
 export function shapeLayer(scene: MapScene, activeId?: string | null): ShapeLayer {
   return layerFor(scene, 'shape', activeId) as ShapeLayer;
 }
 
+/** The sheet written words go on, chosen as `layerFor` chooses, adding one when none will take it. */
 export function textLayer(scene: MapScene, activeId?: string | null): TextLayer {
   return layerFor(scene, 'text', activeId) as TextLayer;
 }
 
+/** The sheet a picture goes on, chosen as `layerFor` chooses, adding one when none will take it. */
 export function imageLayer(scene: MapScene, activeId?: string | null): ImageLayer {
   return layerFor(scene, 'image', activeId) as ImageLayer;
 }
@@ -113,6 +117,7 @@ export function groupNames(scene: MapScene): string[] {
   return [...names];
 }
 
+/** Files a sheet under a bundle by name; an empty name takes it out of any bundle. */
 export function fileUnder(layer: MapLayer, group: string): void {
   layer.group = group.length > 0 ? group : undefined;
 }
@@ -124,6 +129,7 @@ export function renameGroup(scene: MapScene, from: string, to: string): void {
   }
 }
 
+/** Shows or hides every sheet in a bundle together; the empty name means the sheets in no bundle. */
 export function showGroup(scene: MapScene, name: string, visible: boolean): void {
   for (const layer of scene.layers) {
     if ((layer.group ?? '') === name) layer.visible = visible;

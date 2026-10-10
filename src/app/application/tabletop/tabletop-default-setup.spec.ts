@@ -1,8 +1,10 @@
 import { makeDefaultTabletopObjects } from '@axe/application/tabletop/tabletop-default-setup';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { DEFAULT_STATUS_AILMENT_NAMES } from '@axe/domain/character/builtin-status-ailments';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
+import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
 import { Party } from '@axe/domain/party/party';
 
 describe('the pieces a first table is set out with', () => {
@@ -116,6 +118,33 @@ describe('the pieces a first table is set out with', () => {
   it('slows the hurt one of a pair that is quick alike', () => {
     expect(statOf(sample('モンスターA'), '敏捷度')).toBe(statOf(sample('モンスターB'), '敏捷度'));
     expect(walkOf('モンスターB')).toBeLessThan(walkOf('モンスターA'));
+  });
+
+  describe('what the room is set out to be read by', () => {
+    it('hands the room the samples’ own display items', () => {
+      expect(DataSummarySetting.instance.dataTags).toEqual([
+        'HP',
+        'MP',
+        '敏捷度',
+        '器用度',
+        '筋力',
+        '生命力',
+        '知力',
+        '精神力',
+      ]);
+    });
+
+    it('gives the table those and the states a room keeps', () => {
+      const tags = DataSummarySetting.instance.tableDataTags;
+
+      expect(tags.slice(0, 8)).toEqual(DataSummarySetting.instance.dataTags);
+      expect(tags.slice(8)).toEqual([...DEFAULT_STATUS_AILMENT_NAMES]);
+    });
+
+    it('reads the order off how quick everybody is, which is what the samples are built for', () => {
+      expect(DataSummarySetting.instance.sortTag).toBe('敏捷度');
+      expect(DataSummarySetting.instance.sortOrder).toBe(SortOrder.DESC);
+    });
   });
 
   it('starts everybody whole', () => {

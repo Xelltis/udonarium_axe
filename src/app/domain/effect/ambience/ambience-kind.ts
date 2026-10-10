@@ -73,14 +73,17 @@ const AMBIENCE_KIND_SET = new Set<string>(Object.keys(PALETTES));
 
 export const DEFAULT_AMBIENCE_DENSITY = 0.6;
 
+/** Whether a value names one of the known ambience kinds. */
 export function isAmbienceKind(value: unknown): value is AmbienceKind {
   return typeof value === 'string' && AMBIENCE_KIND_SET.has(value);
 }
 
+/** The value as an ambience kind, or the fallback (fog unless given) for anything unknown, such as saved data. */
 export function ambienceKindOf(value: unknown, fallback: AmbienceKind = 'fog'): AmbienceKind {
   return isAmbienceKind(value) ? value : fallback;
 }
 
+/** The kind's own particle and shadow colours, used wherever no colour has been chosen. */
 export function ambiencePalette(kind: AmbienceKind): AmbiencePalette {
   return PALETTES[kind];
 }
@@ -91,6 +94,7 @@ export function ambienceColorOf(kind: AmbienceKind, color: string): string {
   return trimmed.length > 0 ? trimmed : PALETTES[kind].primary;
 }
 
+/** The density kept between 0 and 1; a value that is not a number reads as the default density. */
 export function ambienceDensityOf(value: number): number {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return DEFAULT_AMBIENCE_DENSITY;

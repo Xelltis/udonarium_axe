@@ -13,6 +13,7 @@ export const VIEW_MODE_STORAGE_KEY = 'ui-view-mode';
 export class ViewModePreferenceService {
   readonly mode = signal<ViewMode>(stored());
 
+  /** Chooses how this reader looks at the table and writes it down in this browser. */
   choose(mode: ViewMode): void {
     this.mode.set(mode);
     try {

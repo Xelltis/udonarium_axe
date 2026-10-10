@@ -1,0 +1,99 @@
+import { computed, inject, Injectable } from '@angular/core';
+import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatReaction } from '@axe/domain/chat/chat-reaction';
+import { stampOf, stampOrder } from '@axe/domain/chat/stamp-catalog';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+
+/** One stamp on a line: how many put it on, who they are, and whether the reader is among them. */
+export interface ReactionTally {
+  readonly stampId: string;
+  readonly count: number;
+  readonly names: readonly string[];
+  readonly mine: boolean;
+}
+
+/**
+ * The stamps put on lines of chat, and putting them on.
+ *
+ * The reader only ever writes to their own record for a line, made the first time they answer it
+ * and taken away once they have taken every stamp back off.
+ */
+@Injectable({ providedIn: 'root' })
+export class ChatReactionService {
+  private readonly objectStore = inject(ObjectStore);
+  private readonly objectChange = inject(ObjectChangeService);
+  private readonly stampRules = inject(StampRulesService);
+
+  private readonly byMessage = computed(
+    () => {
+      this.objectChange.collectionOf(ChatReaction.aliasName)();
+      const byMessage = new Map<string, ChatReaction[]>();
+      for (const reaction of this.objectStore.getObjects<ChatReaction>(ChatReaction)) {
+        this.objectChange.versionOf(reaction.identifier)();
+        const records = byMessage.get(reaction.messageIdentifier);
+        if (records) records.push(reaction);
+        else byMessage.set(reaction.messageIdentifier, [reaction]);
+      }
+      return byMessage;
+    },
+    { equal: () => false }
+  );
+
+  /**
+   * The stamps on a line, each once with how many put it on, who and whether the reader did, the
+   * ones that come with the app first in the order they are offered. A stamp this version does not
+   * know is left out.
+   */
+  talliesOf(messageIdentifier: string): ReactionTally[] {
+    const records = this.byMessage().get(messageIdentifier) ?? [];
+    this.objectChange.trackMyCursor();
+    const myUserId = PeerCursor.myUserId;
+    const tallies = new Map<string, { names: string[]; mine: boolean }>();
+    for (const record of records) {
+      for (const stampId of record.stampIds) {
+        if (!stampOf(stampId)) continue;
+        const tally = tallies.get(stampId) ?? { names: [], mine: false };
+        tally.names.push(nameOf(record));
+        tally.mine ||= record.userId === myUserId;
+        tallies.set(stampId, tally);
+      }
+    }
+    return [...tallies]
+      .map(([stampId, tally]) => ({ stampId, count: tally.names.length, names: tally.names, mine: tally.mine }))
+      .sort((a, b) => stampOrder(a.stampId) - stampOrder(b.stampId) || a.stampId.localeCompare(b.stampId));
+  }
+
+  /**
+   * Puts a stamp on a line for the reader, or takes it off where they put it on already. Whether it
+   * is now on; false too, with nothing changed, for a stamp this version does not know, a line the
+   * reader is not shown, or before a room has been joined. A stamp the room does not let be put on
+   * is not put on, though one put on before can still be taken off.
+   */
+  toggle(message: ChatMessage, stampId: string): boolean {
+    const userId = PeerCursor.myUserId;
+    if (userId.length < 1 || !stampOf(stampId) || !message.isShownInChat) return false;
+
+    const name = PeerCursor.myCursor?.name ?? '';
+    const existing = this.byMessage()
+      .get(message.identifier)
+      ?.find((each) => each.userId === userId);
+    const puttingOn = !existing?.stampIds.includes(stampId);
+    if (puttingOn && !this.stampRules.allows('reaction', stampId)) return false;
+    const record = existing ?? ChatReaction.create(message.identifier, userId, name);
+    if (name.length > 0 && record.userName !== name) record.userName = name;
+
+    const on = record.toggle(stampId);
+    if (record.stampIds.length < 1) record.destroy();
+    return on;
+  }
+}
+
+/** Who a record is by: their name as they are now, or as it was when they answered, after they left. */
+function nameOf(record: ChatReaction): string {
+  const present = PeerCursor.findByUserId(record.userId)?.name ?? '';
+  if (present.length > 0) return present;
+  return record.userName.length > 0 ? record.userName : record.userId.slice(0, 6);
+}

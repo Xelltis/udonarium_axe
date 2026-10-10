@@ -16,8 +16,8 @@ test.describe('インベントリの一括移動 (multi-move)', () => {
 
   test('一括移動ボタンを押すと multi-move バーが現れること', async ({ page }) => {
     await page.locator('game-object-inventory button[title="一括移動"]').click();
-    // multi-move バー左端の見出し span。 material-icons の ligature "open_with" が
-    // 同じノードのテキストに含まれるので、anchor は使わず substring match。
+    // multi-moveバー左端の見出しspan。material-iconsのligature "open_with"が
+    // 同じノードのテキストに含まれるので、anchorは使わずsubstring matchにする。
     await expect(
       page
         .locator('game-object-inventory')
@@ -26,7 +26,7 @@ test.describe('インベントリの一括移動 (multi-move)', () => {
     ).toBeVisible({
       timeout: 5000,
     });
-    // 移動先ボタン (3 件: 共有/個人/墓場)
+    // 移動先ボタン（3件: 共有/個人/墓場）
     await expect(page.locator('game-object-inventory').getByRole('button', { name: /共有/ })).toBeVisible();
     await expect(page.locator('game-object-inventory').getByRole('button', { name: /個人/ })).toBeVisible();
     await expect(page.locator('game-object-inventory').getByRole('button', { name: /墓場/ })).toBeVisible();

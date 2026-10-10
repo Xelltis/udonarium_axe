@@ -72,6 +72,18 @@ describe('cheapestPath()', () => {
     expect(cheapestPath(GRID, at(1, 1), at(2, 2), 2, open, owed)).toEqual([at(1, 1), at(2, 2)]);
   });
 
+  it('refuses a goal the piece may not stand on, but runs over it to somewhere beyond', () => {
+    const taken = at(2, 1);
+    const crossing = { restsAt: (index: number) => index !== taken };
+
+    expect(cheapestPath(GRID, at(1, 1), taken, 8, open, crossing)).toBeNull();
+    expect(cheapestPath(GRID, at(1, 1), at(3, 1), 8, open, crossing)).toEqual([at(1, 1), taken, at(3, 1)]);
+  });
+
+  it('lets a piece stay on the ground it already stands on', () => {
+    expect(cheapestPath(GRID, at(1, 1), at(1, 1), 6, open, { restsAt: () => false })).toEqual([at(1, 1)]);
+  });
+
   it('may end on ground that ends a walk, but never carries on through it', () => {
     const sticky = new Set<number>();
     for (let row = 0; row < 12; row++) sticky.add(at(2, row));

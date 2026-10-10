@@ -1,4 +1,4 @@
-import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
+import type { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 
 export interface Vec3 {
   x: number;
@@ -19,6 +19,12 @@ export interface SurfaceDims {
   wallHeightPx: number;
 }
 
+/**
+ * The local axes of a table face in world space: its origin corner, the directions its x and y run,
+ * and the normal pointing into the room.
+ *
+ * A wall's origin is at its top edge with y running down. Anything that is not a wall is the floor.
+ */
 export function surfaceFrame(surface: TableSurface, dims: SurfaceDims): SurfaceFrame {
   const { widthPx, depthPx, wallHeightPx } = dims;
   switch (surface) {
@@ -60,6 +66,7 @@ export function surfaceFrame(surface: TableSurface, dims: SurfaceDims): SurfaceF
   }
 }
 
+/** Where a point on a table face lands in world space, lifted `heightAbove` pixels off the face. */
 export function surfacePointTo3D(
   surface: TableSurface,
   localX: number,
@@ -75,6 +82,9 @@ export function surfacePointTo3D(
   };
 }
 
+/**
+ * The bearing on the table, in degrees, that points from a face into the room. The floor gives 0.
+ */
 export function surfaceInwardDirection(surface: TableSurface): number {
   const n = surfaceFrame(surface, { widthPx: 0, depthPx: 0, wallHeightPx: 0 }).normal;
   return (Math.atan2(n.y, n.x) * 180) / Math.PI;

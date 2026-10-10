@@ -65,6 +65,10 @@ const PROFILE_FIELDS: { key: string; label: string }[] = [
   { key: 'playerName', label: 'PL' },
 ];
 
+/**
+ * Whether the pasted json is a character from that service in the one system it has a dedicated
+ * profile for, told by a `characterName` alongside `sttStr` and `bonusStr`.
+ */
 export function isYtsheetSw25Character(parsed: unknown): boolean {
   if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
   const record = parsed as Record<string, unknown>;
@@ -214,6 +218,14 @@ function buildPalette(record: Record<string, unknown>, params: ImportedParam[]):
   return lines.join('\n');
 }
 
+/**
+ * Builds the imported model from that service's character in its profiled system, or null for
+ * anything else.
+ *
+ * Abilities with their bonuses, resistances, initiative and movement become parameters and HP and
+ * MP resources; skill levels, combat feats, weapons, armour and the profile become sections; and
+ * the palette offers ability rolls and each weapon's hit and damage rolls.
+ */
 export function buildYtsheetSw25Character(parsed: unknown): ImportedCharacter | null {
   if (!isYtsheetSw25Character(parsed)) return null;
   const record = parsed as Record<string, unknown>;

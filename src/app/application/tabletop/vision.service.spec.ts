@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import { VisionService } from '@axe/application/tabletop/vision.service';
+import { GUEST_PERSONA, VisionService } from '@axe/application/tabletop/vision.service';
 import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { PERF_VISION_SCENE, perfCounters } from '@axe/core/util/perf-counters';
+import { PERF_VISION_CELLS_MISS, PERF_VISION_SCENE, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -12,6 +12,7 @@ import { ensureFogMemoryOn, fogMemoryOn } from '@axe/domain/tabletop/fog/fog-mem
 import { FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import type { WallFace } from '@axe/domain/tabletop/vision-scene';
 import { VisionType } from '@axe/domain/tabletop/vision-types';
@@ -488,6 +489,129 @@ describe('VisionService', () => {
     expect(service.isTokenVisible(enemy)).toBe(false);
   });
 
+  it('lists a piece on the table only where it is drawn, and anything off the table always', () => {
+    makeMyCursor('p1', PeerRole.Player);
+    makeDarkTable();
+
+    const enemy = GameCharacter.create('Enemy', 1, '');
+    enemy.owner = 'enemy';
+    enemy.location.name = 'table';
+    enemy.location.x = 800;
+    enemy.location.y = 800;
+    expect(service.mayBeListed(enemy)).toBe(false);
+
+    enemy.location.name = 'graveyard';
+    expect(service.mayBeListed(enemy)).toBe(true);
+  });
+
+  it('lists every piece to the game master, even in the dark', () => {
+    makeMyCursor('gm', PeerRole.GameMaster);
+    makeDarkTable();
+    const enemy = GameCharacter.create('Enemy', 1, '');
+    enemy.owner = 'enemy';
+    enemy.location.name = 'table';
+    enemy.location.x = 800;
+    enemy.location.y = 800;
+    expect(service.mayBeListed(enemy)).toBe(true);
+  });
+
+  it('tells the game master which pieces the players can see, not what the game master sees', () => {
+    makeMyCursor('gm', PeerRole.GameMaster);
+    makeDarkTable();
+
+    const hero = GameCharacter.create('Hero', 1, '');
+    hero.owner = 'p1';
+    hero.visionType = VisionType.NORMAL;
+    hero.location.name = 'table';
+    hero.location.x = 100;
+    hero.location.y = 100;
+
+    const lurker = GameCharacter.create('Lurker', 1, '');
+    lurker.owner = '';
+    lurker.location.name = 'table';
+    lurker.location.x = 800;
+    lurker.location.y = 800;
+
+    expect(service.isTokenVisible(lurker)).toBe(true);
+    expect(service.isSeenByParty(lurker)).toBe(false);
+
+    lurker.location.name = 'graveyard';
+    expect(service.isSeenByParty(lurker)).toBe(true);
+  });
+
+  describe('a bank of fog rolled across the board', () => {
+    function partyAndEnemy(fogBlocksSight: boolean | null): GameCharacter {
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+
+      const hero = GameCharacter.create('Hero', 1, '');
+      hero.owner = 'p1';
+      hero.visionType = VisionType.DARKVISION;
+      hero.visionRange = 20;
+      hero.location = { name: 'table', x: 100, y: 500 };
+
+      const enemy = GameCharacter.create('Enemy', 1, '');
+      enemy.owner = 'enemy';
+      enemy.location = { name: 'table', x: 700, y: 500 };
+
+      if (fogBlocksSight !== null) {
+        const fog = TableAmbience.create('霧', 'fog', 2, 20);
+        fog.location = { name: 'table', x: 400, y: 0 };
+        fog.blocksSight = fogBlocksSight;
+        table.appendChild(fog);
+      }
+      return enemy;
+    }
+
+    it('leaves the far side of the board in sight where there is no fog at all', () => {
+      expect(service.isSeenByParty(partyAndEnemy(null))).toBe(true);
+    });
+
+    it('leaves it in sight where the fog is only a look', () => {
+      expect(service.isSeenByParty(partyAndEnemy(false))).toBe(true);
+    });
+
+    it('hides whoever stands on the far side of it', () => {
+      expect(service.isSeenByParty(partyAndEnemy(true))).toBe(false);
+    });
+  });
+
+  describe('a pool of darkness dropped on a lit floor', () => {
+    function enemyInThe(brightness: string): GameCharacter {
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+
+      // A lamp bright enough to light the whole room, so what hides the enemy is the pool and
+      // nothing else.
+      const hero = GameCharacter.create('Hero', 1, '');
+      hero.owner = 'p1';
+      hero.visionType = VisionType.NORMAL;
+      hero.visionRange = 20;
+      hero.lightEnabled = true;
+      hero.lightBrightRadius = 20;
+      hero.lightDimRadius = 20;
+      hero.location = { name: 'table', x: 100, y: 500 };
+
+      const enemy = GameCharacter.create('Enemy', 1, '');
+      enemy.owner = 'enemy';
+      enemy.location = { name: 'table', x: 500, y: 500 };
+
+      const pool = TableAmbience.create('闇', 'fog', 4, 4);
+      pool.location = { name: 'table', x: 450, y: 450 };
+      pool.brightness = brightness;
+      table.appendChild(pool);
+      return enemy;
+    }
+
+    it('hides whoever stands in it, though a lamp is shining straight at them', () => {
+      expect(service.isSeenByParty(enemyInThe('dark'))).toBe(false);
+    });
+
+    it('hides nobody where the patch only dims the light rather than putting it out', () => {
+      expect(service.isSeenByParty(enemyInThe('dim'))).toBe(true);
+    });
+  });
+
   it('counts glowing terrain as a light and never lets it shadow itself', () => {
     makeMyCursor('p1', PeerRole.Player);
     const table = makeDarkTable();
@@ -504,6 +628,34 @@ describe('VisionService', () => {
     expect(scene!.lights.some((l) => l.dimPx === 6 * 50)).toBe(true);
     expect(scene!.lightSegments).toHaveLength(0);
     expect(scene!.sightSegments.length).toBeGreaterThan(4);
+  });
+
+  describe.each([
+    ['square', GridType.SQUARE],
+    ['hex', GridType.HEX_VERTICAL],
+  ])('a terrain on a %s table looked at by somebody else', (_, gridType) => {
+    it('is read again for a player the game master looks through', () => {
+      addPeer('p1', PeerRole.Player);
+      makeMyCursor('gm', PeerRole.GameMaster);
+      const table = makeDarkTable();
+      table.gridType = gridType;
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      pc.location.x = 500;
+      pc.location.y = 500;
+      pc.visionRange = 4;
+      table.appendChild(pc);
+      const wall = Terrain.create('wall', 2, 1, 1, 'wall.png', 'floor.png');
+      wall.location.x = 800;
+      wall.location.y = 800;
+      table.appendChild(wall);
+
+      const asMaster = service.terrainFogCover(wall)!.brightness[0];
+      service.previewAsUserId.set('p1');
+      const asPlayer = service.terrainFogCover(wall)!.brightness[0];
+
+      expect(asPlayer).toBeLessThan(asMaster);
+    });
   });
 
   it('lets the game master look through the eyes of a player', () => {
@@ -543,6 +695,134 @@ describe('VisionService', () => {
     expect(viewer.userId).toBe('guest-2');
     expect(viewer.isGameMaster).toBe(false);
     expect(viewer.visionOwnerIds).toContain('player-3');
+  });
+
+  describe('looking as a guest with none connected', () => {
+    it('gives the game master the sight any guest would have', () => {
+      addPeer('player-3', PeerRole.Player);
+      makeMyCursor('gm-x', PeerRole.GameMaster);
+      service.previewAsUserId.set(GUEST_PERSONA);
+
+      const viewer = service.viewer();
+      expect(viewer.isGameMaster).toBe(false);
+      expect(viewer.visionOwnerIds).toEqual(['player-3']);
+    });
+
+    it('works with the game master alone in the room, as offline', () => {
+      makeMyCursor('gm-x', PeerRole.GameMaster);
+      service.previewAsUserId.set(GUEST_PERSONA);
+
+      const viewer = service.viewer();
+      expect(viewer.isGameMaster).toBe(false);
+      expect(viewer.visionOwnerIds).toEqual([]);
+    });
+
+    it('does not look through the game masters own pieces', () => {
+      makeMyCursor('gm-x', PeerRole.GameMaster);
+      service.previewAsUserId.set(GUEST_PERSONA);
+
+      expect(service.viewer().visionOwnerIds).not.toContain('gm-x');
+    });
+  });
+
+  describe.each([
+    ['square', GridType.SQUARE],
+    ['hex', GridType.HEX_VERTICAL],
+  ])('a piece changed on a %s table', (_, gridType) => {
+    let character: GameCharacter;
+
+    async function announce(identifier: string): Promise<void> {
+      objectChanged$.emit({ aliasName: 'character', identifier, isSendFromSelf: true });
+      await vi.advanceTimersByTimeAsync(GEOMETRY_THROTTLE);
+    }
+
+    beforeEach(async () => {
+      vi.useFakeTimers();
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+      table.gridType = gridType;
+      character = GameCharacter.create('c', 1, '');
+      character.location.x = 100;
+      character.location.y = 100;
+      character.owner = 'p1';
+      for (let round = 0; round < 3; round++) {
+        await vi.advanceTimersByTimeAsync(GEOMETRY_THROTTLE);
+        service.scene();
+      }
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('keeps the scene when nothing the scene is made of has changed', async () => {
+      const before = service.scene();
+      perfCounters.enabled = true;
+      perfCounters.clear();
+
+      character.name = 'renamed';
+      await announce(character.identifier);
+
+      expect(service.scene()).toBe(before);
+      expect(perfCounters.drain().get(PERF_VISION_SCENE)).toBeUndefined();
+    });
+
+    it('builds the scene again when the piece moves', async () => {
+      const before = service.scene();
+
+      character.location.x = 300;
+      await announce(character.identifier);
+
+      const after = service.scene();
+      expect(after).not.toBe(before);
+      expect(after!.visionSources.find((source) => source.sourceId === character.identifier)?.x).toBe(325);
+    });
+
+    it('builds it again when the piece is lit', async () => {
+      character.lightEnabled = true;
+      await announce(character.identifier);
+
+      expect(service.scene()!.lights.map((light) => light.sourceId)).toContain(character.identifier);
+    });
+
+    describe('with more than one pair of eyes on it', () => {
+      let other: GameCharacter;
+
+      beforeEach(async () => {
+        character.visionRange = 4;
+        other = GameCharacter.create('d', 1, '');
+        other.location.x = 600;
+        other.location.y = 600;
+        other.owner = 'p1';
+        other.visionRange = 4;
+        await announce(character.identifier);
+        service.sharedVisibleCells();
+      });
+
+      it('works the cells out again only for the eyes that moved', async () => {
+        perfCounters.enabled = true;
+        perfCounters.clear();
+
+        character.location.x = 150;
+        await announce(character.identifier);
+        service.sharedVisibleCells();
+
+        expect(perfCounters.drain().get(PERF_VISION_CELLS_MISS)).toBe(1);
+      });
+
+      it("keeps the reader's view as it was when a monster nobody looks through moves", async () => {
+        const monster = GameCharacter.create('m', 1, '');
+        monster.isNpc = true;
+        monster.visionRange = 4;
+        await announce(monster.identifier);
+        const before = service.overlayVision();
+
+        monster.location.x = 350;
+        await announce(monster.identifier);
+
+        expect(service.overlayVision()).toBe(before);
+      });
+    });
   });
 
   describe('what is remembered while the scene holds still', () => {
@@ -993,8 +1273,8 @@ describe('VisionService', () => {
       addPeer('p2', PeerRole.Player);
       // The torch-bearing piece belongs to the other player; the reader has none. Their
       // brightness must follow the party's sight, as the fog itself does - asked any other
-      // way, a reader with no eyes was answered with 'whatever a lamp touches', and every
-      // brazier on the map lit its own walls for them.
+      // way, a reader with no eyes would be answered with 'whatever a lamp touches', and every
+      // brazier on the map would light its own walls for them.
       const grid = cellGridOf(20, 20, 50, GridType.SQUARE);
       const all = new CellBits(cellCount(grid));
       for (let i = 0; i < cellCount(grid); i++) all.set(i);

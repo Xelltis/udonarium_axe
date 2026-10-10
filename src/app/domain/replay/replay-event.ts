@@ -1,6 +1,6 @@
 import { PeerRole } from '@axe/domain/peer/peer-role';
 
-export const REPLAY_FORMAT_VERSION = 2;
+export const REPLAY_FORMAT_VERSION = 3;
 
 export const ReplayEventKind = {
   ChatMessage: 'chat.message',
@@ -24,6 +24,7 @@ export const ReplayEventKind = {
   VoteFinish: 'vote.finish',
   MediaSoundEffect: 'media.se',
   MediaBgm: 'media.bgm',
+  MediaBackgroundSound: 'media.bgs',
   MediaCutIn: 'media.cutin',
   EffectCast: 'effect.cast',
   VnScene: 'vn.scene',
@@ -89,6 +90,13 @@ export interface ReplayEvent {
   targetId?: string;
   detail: Readonly<Record<string, unknown>>;
   patch?: ReplayPatch;
+  /**
+   * On the arrival of a piece, the parts that arrived with it, such as its HP and other data, each
+   * made by its own patch. Recordings before format 3 told each part as an event of its own.
+   */
+  parts?: readonly ReplayPatch[];
+  /** On the removal of a piece, the parts taken away with it. */
+  removedParts?: readonly string[];
   signal?: ReplaySignal;
   visibility: ReplayVisibility;
   merged?: number;
@@ -130,10 +138,17 @@ export interface ReplayViewer {
 /** The kinds that only sound alongside a move or a roll and are no event themselves. The sound is kept and no row is shown. */
 const INCIDENTAL_KINDS: ReadonlySet<ReplayEventKind> = new Set([ReplayEventKind.MediaSoundEffect]);
 
+/** Whether events of this kind are only a sound accompanying another event, played back but given no row. */
 export function isIncidentalReplayEvent(kind: ReplayEventKind): boolean {
   return INCIDENTAL_KINDS.has(kind);
 }
 
+/**
+ * Whether a viewer may see an event in the recording.
+ *
+ * Public events are for everyone and the game master sees everything. An event for the game
+ * master is hidden from the rest, and one sent directly is seen by its recipients and its sender.
+ */
 export function canViewReplayEvent(event: ReplayEvent, viewer: ReplayViewer): boolean {
   const visibility = event.visibility;
   if (visibility.kind === 'public') return true;
@@ -142,6 +157,11 @@ export function canViewReplayEvent(event: ReplayEvent, viewer: ReplayViewer): bo
   return visibility.to.includes(viewer.userId) || event.actorId === viewer.userId;
 }
 
+/**
+ * The snapshot in force at a point in the recording: the one taken latest at or before it.
+ *
+ * Of two taken at the same point, the later in the list wins. Null when none had been taken yet.
+ */
 export function resolveSnapshotAt<T extends { sinceSeq: number }>(snapshots: readonly T[], seq: number): T | null {
   let resolved: T | null = null;
   for (const snapshot of snapshots) {
@@ -151,6 +171,7 @@ export function resolveSnapshotAt<T extends { sinceSeq: number }>(snapshots: rea
   return resolved ?? null;
 }
 
+/** How a user stood at a point in the recording: their name, role and picture then. Null before they appear. */
 export function findActorAt(
   manifest: Pick<ReplayManifest, 'actors'>,
   userId: string,
@@ -162,6 +183,7 @@ export function findActorAt(
   );
 }
 
+/** How an object stood at a point in the recording, with the name and owner it had then. Null before it appears. */
 export function findTargetAt(
   manifest: Pick<ReplayManifest, 'targets'>,
   identifier: string,

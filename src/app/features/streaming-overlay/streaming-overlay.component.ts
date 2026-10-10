@@ -94,6 +94,7 @@ export class StreamingOverlayComponent {
       isDirect: message.isDirect,
       isSecret: message.isSecret,
       isDisplayable: message.isDisplayable,
+      isPseudoDeleted: message.isPseudoDeleted,
     };
   }
 }

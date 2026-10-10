@@ -19,6 +19,7 @@ const AUTO_EFFECT_IDENTIFIERS: Record<ResourceChangeKind, Record<ResourceChangeS
   },
 };
 
+/** The identifier of the built-in effect that plays by itself for a change of this kind and size. */
 export function autoEffectIdentifier(kind: ResourceChangeKind, severity: ResourceChangeSeverity): string {
   return AUTO_EFFECT_IDENTIFIERS[kind][severity];
 }

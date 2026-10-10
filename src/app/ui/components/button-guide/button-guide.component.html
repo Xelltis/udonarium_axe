@@ -1,0 +1,23 @@
+@for (hung of bubbles(); track $index) {
+  <span
+    class="bg-ui-accent pointer-events-none absolute z-20 w-px opacity-70"
+    [style.left.px]="hung.drop.left"
+    [style.top.px]="hung.drop.top"
+    [style.height.px]="hung.drop.height"
+  ></span>
+  <span
+    class="bg-ui-accent pointer-events-none absolute z-20 h-px opacity-70"
+    [style.left.px]="hung.run.left"
+    [style.top.px]="hung.run.top"
+    [style.width.px]="hung.run.width"
+  ></span>
+  <span
+    class="bg-ui-elevated border-ui-accent text-ui-text rounded-ui shadow-ui-sm pointer-events-none absolute z-20 box-border h-5.5 border border-solid px-2.5 py-0.5 text-[11px]/4 font-normal tracking-normal whitespace-nowrap"
+    data-testid="button-guide-label"
+    [style.top.px]="hung.bubble.top"
+    [style.bottom.px]="hung.bubble.bottom"
+    [style.left.px]="hung.bubble.left"
+    [style.right.px]="hung.bubble.right"
+    >{{ hung.label }}</span
+  >
+}

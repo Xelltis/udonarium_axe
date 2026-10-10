@@ -193,6 +193,7 @@ export function appendCurse(
   }
 }
 
+/** A barrier: a pulsing dome over the target with a slowly turning ring at its feet. */
 export function appendBarrier(
   sprites: EffectSprite[],
   prefix: string,
@@ -278,6 +279,12 @@ export function appendWarp(
   });
 }
 
+/**
+ * A burst: two shock rings spreading along the ground, a flash of spikes and a fading scorch.
+ *
+ * Also what an effect kind with no painter of its own falls back to, so a new kind at least shows
+ * something.
+ */
 export function appendBurst(
   sprites: EffectSprite[],
   prefix: string,
@@ -322,6 +329,11 @@ export function appendBurst(
   });
 }
 
+/**
+ * The glowing bed under a flame, pulsing on the ground.
+ *
+ * The flames themselves are particles drawn elsewhere; this is only the part laid down as a sprite.
+ */
 export function appendFlame(
   sprites: EffectSprite[],
   prefix: string,
@@ -348,6 +360,10 @@ export function appendFlame(
   });
 }
 
+/**
+ * A healing circle: a turning magic circle with an inner ring, and rings rising up through the
+ * target.
+ */
 export function appendHeal(
   sprites: EffectSprite[],
   prefix: string,
@@ -406,6 +422,13 @@ export function appendHeal(
   }
 }
 
+/**
+ * A lightning strike from the sky: a jagged channel with branches, a flash and a scorch on the
+ * ground.
+ *
+ * The channel is one drawing animated to run downwards, and it is gone once the strike part of the
+ * effect is over.
+ */
 export function appendBolt(
   sprites: EffectSprite[],
   prefix: string,
@@ -458,6 +481,10 @@ export function appendBolt(
   });
 }
 
+/**
+ * A freeze: snowflake shards drawn in to the target, ice spikes bursting out of the ground, and a
+ * frost ring.
+ */
 export function appendFrost(
   sprites: EffectSprite[],
   prefix: string,
@@ -529,6 +556,7 @@ export function appendFrost(
   });
 }
 
+/** A nova: two wide shock rings, with a bright flash and a horizontal streak at the start. */
 export function appendNova(
   sprites: EffectSprite[],
   prefix: string,
@@ -573,6 +601,7 @@ export function appendNova(
   }
 }
 
+/** A vortex: a spiral turning on the ground with two rings about it. */
 export function appendVortex(
   sprites: EffectSprite[],
   prefix: string,
@@ -616,6 +645,7 @@ export function appendVortex(
   }
 }
 
+/** The pulsing pool under a miasma. The drifting cloud itself is particles drawn elsewhere. */
 export function appendMiasma(
   sprites: EffectSprite[],
   prefix: string,
@@ -643,6 +673,7 @@ export function appendMiasma(
   });
 }
 
+/** An aura: a magic circle under the target, rings pulsing outwards and spikes circling it. */
 export function appendAura(
   sprites: EffectSprite[],
   prefix: string,

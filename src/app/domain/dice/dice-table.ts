@@ -10,6 +10,10 @@ export class DiceTable extends ObjectNode {
 
   text: string = '';
 
+  /**
+   * The palette holding the table's entries, one `number:result` to a line, or null when it has
+   * none.
+   */
   get diceTablePalette(): DiceTablePalette | null {
     for (const child of this.children) {
       if (child instanceof DiceTablePalette) {
@@ -19,6 +23,7 @@ export class DiceTable extends ObjectNode {
     return null;
   }
 
+  /** Makes and initializes a blank dice table with an example palette of six entries. */
   static create(): DiceTable {
     const diceTable: DiceTable = new DiceTable();
     diceTable.name = '白紙のダイス表';

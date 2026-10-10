@@ -61,8 +61,9 @@ describe('FirstPersonService', () => {
     return character;
   }
 
+  /** A wall two cells high, which is more than a piece steps over. */
   function block(x: number, y: number, width: number, depth: number): Terrain {
-    const terrain = Terrain.create('壁', width, depth, 1, 'stone', 'slab');
+    const terrain = Terrain.create('壁', width, depth, 2, 'stone', 'slab');
     terrain.location = { name: 'table', x, y };
     table.appendChild(terrain);
     return terrain;

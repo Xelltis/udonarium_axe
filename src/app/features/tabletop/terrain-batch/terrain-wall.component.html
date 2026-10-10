@@ -1,0 +1,18 @@
+@if (pools().length > 0 || silhouettes().length > 0) {
+  <div class="pointer-events-none absolute inset-0 overflow-hidden backface-hidden">
+    @for (pool of pools(); track $index) {
+      <div
+        class="pointer-events-none absolute backface-hidden"
+        [style.background-image]="'url(' + wallUrl() + ')'"
+        [ngStyle]="poolStyle(pool)"
+      ></div>
+    }
+    @for (sil of silhouettes(); track $index) {
+      <div
+        class="pointer-events-none absolute backface-hidden"
+        [style.background-image]="silhouetteBackground(sil)"
+        [ngStyle]="silhouetteStyle(sil)"
+      ></div>
+    }
+  </div>
+}

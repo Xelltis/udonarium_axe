@@ -15,6 +15,10 @@ const CATALOG_IDENTIFIER = 'StatusAilmentCatalog';
 @SyncObject('status-ailment-catalog')
 export class StatusAilmentCatalog extends ObjectNode {
   private static _instance: StatusAilmentCatalog;
+  /**
+   * The room's single catalog: the one in the object store, or one made and initialized under the
+   * fixed identifier when there is none yet.
+   */
   static get instance(): StatusAilmentCatalog {
     const stored = ObjectStore.instance.get<StatusAilmentCatalog>(CATALOG_IDENTIFIER);
     if (stored) return (StatusAilmentCatalog._instance = stored);
@@ -23,6 +27,10 @@ export class StatusAilmentCatalog extends ObjectNode {
     return StatusAilmentCatalog._instance;
   }
 
+  /**
+   * The states the catalog holds, read from its one-to-a-line text. Assigning a list rewrites that
+   * text, which travels with the room.
+   */
   get ailments(): StatusAilment[] {
     return parseStatusAilments(`${this.value}`);
   }
@@ -31,6 +39,10 @@ export class StatusAilmentCatalog extends ObjectNode {
     this.value = formatStatusAilments(list);
   }
 
+  /**
+   * Reads a catalog from room data into the room's existing catalog and destroys the copy that was
+   * loaded, so there is only ever one.
+   */
   override parseInnerXml(element: Element) {
     super.parseInnerXml(element);
     // Updates the one the room already has rather than standing beside it, as the summary

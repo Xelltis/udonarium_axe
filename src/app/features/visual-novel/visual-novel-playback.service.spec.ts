@@ -102,7 +102,9 @@ describe('VisualNovelPlaybackService', () => {
       const secret = tab.chatMessages[tab.chatMessages.length - 1];
       say('その間の発言', character.identifier);
 
+      beMe('roller');
       TestBed.inject(ChatMessageService).discloseMessage(secret);
+      beMe('reader');
       TestBed.inject(ObjectChangeService).notifyChanged(tab.identifier);
 
       expect(playback.messages().map((message) => message.text)).toEqual(['その間の発言', '隠しダイス → 6']);
@@ -118,6 +120,15 @@ describe('VisualNovelPlaybackService', () => {
 
       expect(playback.logMessages()).toHaveLength(1);
     });
+  });
+
+  it('leaves a pseudo-deleted line out of the script, on the screen of the one who said it too', () => {
+    say('取り消したい台詞', character.identifier);
+    say('そのあとの台詞', character.identifier);
+    tab.chatMessages[0].pseudoDelete(5000);
+    TestBed.inject(ObjectChangeService).notifyChanged(tab.identifier);
+
+    expect(playback.logMessages().map((message) => message.text)).toEqual(['そのあとの台詞']);
   });
 
   it('reads what the game master says as themselves', () => {

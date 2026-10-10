@@ -16,9 +16,9 @@ test.describe('キャラクターのフラグ切替', () => {
   });
 
   test('「インベントリ非表示」を ON にした後、メニュー項目のチェックが checked に変わること', async ({ page }) => {
-    // context-menu は action.name 先頭の ☐/☑ を span から strip し、代わりに
-    // input[type=checkbox][checked?] を描画する。トグル後の状態は li 内のチェック
-    // ボックスが checked になっていることで確認する。
+    // context-menuはaction.name先頭の☐/☑をspanからstripし、代わりに
+    // input[type=checkbox][checked?]を描画する。トグル後の状態は、li内のチェック
+    // ボックスがcheckedになっていることで確認する。
     const menu = await reopenCharacterMenu(page);
     await menu.locator('li', { hasText: 'インベントリ非表示' }).click();
     const menuAfter = await reopenCharacterMenu(page);
@@ -39,7 +39,7 @@ test.describe('キャラクターのフラグ切替', () => {
     await menu.locator('li', { hasText: 'インベントリ非表示' }).click();
     await openPanel(page, 'インベントリ');
     await expect(page.locator('game-object-inventory input[name="tab"]')).toHaveCount(4, { timeout: 5000 });
-    // 非表示キャラは opacity-50 が付与される (DOM 上には残っている)。
+    // 非表示キャラはopacity-50が付与される（DOM上には残っている）。
     const items = page.locator('game-object-inventory [data-testid="inventory-item"]');
     const hidden = items.filter({ has: page.locator('.opacity-50, [class*="opacity-50"]') });
     await expect(hidden.first()).toBeAttached({ timeout: 5000 });

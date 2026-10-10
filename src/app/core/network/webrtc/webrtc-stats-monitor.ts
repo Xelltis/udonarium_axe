@@ -12,12 +12,20 @@ export class WebRTCStatsMonitor {
 
   private constructor() {}
 
+  /**
+   * Starts polling a connection's WebRTC stats, updating them once straight away.
+   *
+   * Every monitored connection is polled together, every two seconds plus one per connection up to
+   * eight. A connection found closed is dropped at the next poll, and a poll that updated or
+   * dropped anything emits the peer stats event.
+   */
   static add(connection: WebRTCConnection) {
     this.monitoringConnections.add(connection);
     connection.updateStatsAsync();
     this.restart();
   }
 
+  /** Stops polling a connection's stats; once none is left, polling ends at the next scheduled poll. */
   static remove(connection: WebRTCConnection) {
     this.monitoringConnections.delete(connection);
   }

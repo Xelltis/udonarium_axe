@@ -1,6 +1,7 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { effectCast$ } from '@axe/core/event/domain-events';
+import { VolumeType } from '@axe/core/storage/audio-player';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_EFFECT_FRAME, perfCounters } from '@axe/core/util/perf-counters';
 import { EffectCast, normalizeEffectCast } from '@axe/domain/effect/effect-cast';
@@ -59,6 +60,12 @@ export class EffectPlaybackService {
   private readonly _persistentSources = signal<ReadonlySet<string>>(new Set());
   private shakeTimer: ReturnType<typeof setTimeout> | null = null;
 
+  /**
+   * Keeps the effect draw loop running on behalf of a named source, or lets that source go.
+   *
+   * Standing effects and table ambience each hold the loop under their own name, so one letting go
+   * does not stop it for the other.
+   */
   setPersistent(source: string, persistent: boolean): void {
     this._persistentSources.update((current) => {
       if (current.has(source) === persistent) return current;
@@ -84,6 +91,13 @@ export class EffectPlaybackService {
     });
   }
 
+  /**
+   * Plays a cast on this screen, from the broadcast or from a local preview.
+   *
+   * A cast that cannot be read, or names no preset in the room, plays nothing and answers null. Its
+   * sounds play even with motion turned off, but nothing is drawn and the answer is null. At most
+   * 12 casts run at once; the oldest is dropped.
+   */
   play(raw: unknown): ActiveEffectCast | null {
     const cast = normalizeEffectCast(raw);
     if (!cast) return null;
@@ -142,12 +156,12 @@ export class EffectPlaybackService {
   private scheduleLaunchSound(preset: EffectPreset): void {
     for (const delay of launchSoundTimes(preset)) {
       if (delay <= 0) {
-        SoundEffect.playLocal(preset.soundIdentifier);
+        SoundEffect.playLocal(preset.soundIdentifier, VolumeType.EFFECT);
         continue;
       }
       const timer = setTimeout(() => {
         this.impactTimers.delete(timer);
-        SoundEffect.playLocal(preset.soundIdentifier);
+        SoundEffect.playLocal(preset.soundIdentifier, VolumeType.EFFECT);
       }, delay);
       this.impactTimers.add(timer);
     }
@@ -158,7 +172,7 @@ export class EffectPlaybackService {
     for (const delay of impactSoundTimes(preset)) {
       const timer = setTimeout(() => {
         this.impactTimers.delete(timer);
-        SoundEffect.playLocal(preset.impactSoundIdentifier);
+        SoundEffect.playLocal(preset.impactSoundIdentifier, VolumeType.EFFECT);
       }, delay);
       this.impactTimers.add(timer);
     }

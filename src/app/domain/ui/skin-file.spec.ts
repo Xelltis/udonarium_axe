@@ -32,6 +32,24 @@ describe('writing a skin out to a file', () => {
   it('says nothing about pictures when there are none', () => {
     expect(readSkinFile(writeSkinFile(RECIPE, 'light', 'a', []))?.layers).toEqual([]);
   });
+
+  it('carries the mat the dice land on, with its picture', () => {
+    const written = writeSkinFile(RECIPE, 'dark', 'a', [], {
+      color: '#1f4d3a',
+      packed: { layer: { ...LAYER, id: 'm', name: 'mat.png', fit: 'cover' }, entry: 'mat-m.png' },
+    });
+
+    expect(readSkinFile(written)?.mat).toEqual({
+      color: '#1f4d3a',
+      layer: { file: 'mat-m.png', name: 'mat.png', opacity: 60, fit: 'cover', anchor: 'top-left' },
+    });
+  });
+
+  it('carries a mat of colour alone', () => {
+    const written = writeSkinFile(RECIPE, 'dark', 'a', [], { color: '#5c1f1f', packed: null });
+
+    expect(readSkinFile(written)?.mat).toEqual({ color: '#5c1f1f', layer: null });
+  });
 });
 
 describe('reading a skin someone was handed', () => {
@@ -88,6 +106,23 @@ describe('reading a skin someone was handed', () => {
       fit: 'cover',
       anchor: 'center',
     });
+  });
+
+  it('reads a file from before mats were offered as having none', () => {
+    const before = JSON.stringify({ kind: SKIN_FILE_MARKER, version: 1, mode: 'light', recipe: RECIPE, layers: [] });
+
+    expect(readSkinFile(before)?.mat).toBeNull();
+  });
+
+  it('pulls a mat from elsewhere into range, dropping a picture that names no file', () => {
+    const wild = JSON.stringify({
+      kind: SKIN_FILE_MARKER,
+      mode: 'light',
+      recipe: RECIPE,
+      mat: { color: 'chartreuse', layer: { opacity: 50 } },
+    });
+
+    expect(readSkinFile(wild)?.mat).toEqual({ color: '#3e424a', layer: null });
   });
 
   it('reads a ladder it does not know as the light one', () => {

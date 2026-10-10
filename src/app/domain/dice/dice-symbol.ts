@@ -18,6 +18,8 @@ export enum DiceType {
 export class DiceSymbol extends OwnedTabletopObject {
   @SyncVar() isLock: boolean = false;
   @SyncVar() hideName: boolean = false;
+  /** Whether this die has been spent. A die is no less a die for it; it is only marked as done. */
+  @SyncVar() isUsed: boolean = false;
 
   @SyncVar() face: string = '0';
   @SyncVar() owner: string = '';
@@ -35,6 +37,7 @@ export class DiceSymbol extends OwnedTabletopObject {
   @SyncVar() specifyKomaImageFlag: boolean = false;
   @SyncVar('komaImageHeignt') komaImageHeight: number = 100;
 
+  /** How many cells the die spans, kept in its common data. 1 when unset. */
   get size(): number {
     return this.getCommonValue('size', 1);
   }
@@ -42,24 +45,35 @@ export class DiceSymbol extends OwnedTabletopObject {
     this.setCommonValue('size', size);
   }
 
+  /** The names of the die's faces in order, read from its picture elements. */
   get faces(): string[] {
     return this.imageDataElement?.children.map((element) => (element as DataElement).name) ?? [];
   }
+  /**
+   * The picture of the face showing, or of the first face when the one showing has none. The empty
+   * image for a die with no faces.
+   */
   override get imageFile(): ImageFile {
     if (this.faces.length) return this.getImageFile(this.face) ?? this.getImageFile(this.faces[0]) ?? ImageFile.Empty;
     return ImageFile.Empty;
   }
 
+  /**
+   * Whether the local user may read the face: the die has no owner, or it belongs to the local
+   * user.
+   */
   get isVisible(): boolean {
     return !this.hasOwner || this.isMine;
   }
 
+  /** Turns the die to a random face and returns that face. Empty for a die with no faces. */
   diceRoll(): string {
     const faces = this.faces;
     this.face = 0 < faces.length ? faces[Math.floor(Math.random() * faces.length)] : '';
     return this.face;
   }
 
+  /** Replaces the die's faces with those of the given type and turns it to the first of them. */
   setDicetype(type: DiceType) {
     this.makeDiceFace(type);
   }
@@ -112,6 +126,10 @@ export class DiceSymbol extends OwnedTabletopObject {
     return faces;
   }
 
+  /**
+   * Makes and initializes a die with a name, a size and the faces of a type. Its face elements take
+   * identifiers built from the die's own.
+   */
   static create(name: string, type: DiceType, size: number, identifier?: string): DiceSymbol {
     const object: DiceSymbol = identifier ? new DiceSymbol(identifier) : new DiceSymbol();
 

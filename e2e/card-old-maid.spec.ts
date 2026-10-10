@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openTableContextMenu, waitAppReady } from './helpers';
+import { openPanel, openTableContextMenu, waitAppReady } from './helpers';
 
 async function createCardStack(page: Page) {
   const menu = await openTableContextMenu(page);
@@ -9,7 +9,7 @@ async function createCardStack(page: Page) {
 }
 
 async function openHandRail(page: Page) {
-  await page.locator('app-pl-toolbar button[title="手札を開閉"]').click();
+  await openPanel(page, '手札');
   await expect(page.locator('app-hand-rail .hand-rail')).toBeVisible({ timeout: 5000 });
 }
 

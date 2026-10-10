@@ -75,6 +75,11 @@ export class CutInTimelineComponent {
   readonly zoom = input(1);
 
   readonly seek = output<number>();
+  /**
+   * A key or a sound pressed and let go without moving: where the playhead is wanted, which,
+   * unlike scrubbing, is no reason to stop a playing preview.
+   */
+  readonly cue = output<number>();
   readonly selectLayer = output<CutInLayer>();
   readonly moveKey = output<{ layer: CutInLayer; fromMs: number; toMs: number }>();
   readonly trimLayer = output<{ layer: CutInLayer; startMs: number; endMs: number }>();
@@ -223,6 +228,13 @@ export class CutInTimelineComponent {
     if (this.scrubbing) this.seek.emit(this.momentAt(event));
   }
 
+  /**
+   * The end of a press on the timeline.
+   *
+   * A key or a sound let go where it was taken cues the playhead onto it, which is where the
+   * buttons that take one away act; a double click, the other way to take one away, is not there
+   * to be had on a touch screen.
+   */
   protected onPointerUp(event: PointerEvent): void {
     (event.target as HTMLElement | null)?.releasePointerCapture?.(event.pointerId);
     this.scrubbing = false;
@@ -235,14 +247,19 @@ export class CutInTimelineComponent {
 
     const draggedSound = this.soundDrag;
     this.soundDrag = null;
-    if (draggedSound && draggedSound.toMs !== draggedSound.fromMs) {
-      this.moveSound.emit(draggedSound);
+    if (draggedSound) {
+      if (draggedSound.toMs !== draggedSound.fromMs) this.moveSound.emit(draggedSound);
+      else this.cue.emit(draggedSound.fromMs);
       return;
     }
 
     const dragged = this.keyDrag;
     this.keyDrag = null;
-    if (!dragged || dragged.toMs === dragged.fromMs) return;
+    if (!dragged) return;
+    if (dragged.toMs === dragged.fromMs) {
+      this.cue.emit(dragged.fromMs);
+      return;
+    }
 
     this.moveKey.emit({ layer: dragged.layer, fromMs: dragged.fromMs, toMs: dragged.toMs });
   }

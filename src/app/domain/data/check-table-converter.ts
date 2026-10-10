@@ -34,6 +34,13 @@ function tokenizeLine(text: string, startIdx: number): { tokens: Token[]; nextId
   return { tokens, nextIdx: idx };
 }
 
+/**
+ * Splits check-table text into table blocks (lines with `|` separators) and plain lines, with each `[ ]` or
+ * `[x]` box turned into a check token.
+ *
+ * Boxes are numbered across the whole text in reading order, so a token's index is the one
+ * {@link toggleCheckbox} takes. Full-width brackets, bars and x count the same as their ASCII forms.
+ */
 export function parseCheckTable(raw: string): Block[] {
   const lines = raw.split('\n');
   const blocks: Block[] = [];
@@ -68,6 +75,12 @@ export function parseCheckTable(raw: string): Block[] {
   return blocks;
 }
 
+/**
+ * Flips the check box at the given reading-order index and returns the rewritten text.
+ *
+ * The box is written back in ASCII as `[]` or `[x]` whatever form it had; an index past the last box leaves
+ * the text unchanged.
+ */
 export function toggleCheckbox(raw: string, targetIdx: number): string {
   let idx = 0;
   return raw.replace(/[[［]([xXｘＸ]?)[\]］]/g, (match, inner) => {
@@ -77,6 +90,14 @@ export function toggleCheckbox(raw: string, targetIdx: number): string {
   });
 }
 
+/**
+ * Builds a table-view section from check-table text, with one group per row and a check or text field per
+ * cell.
+ *
+ * A header row names the columns, and an empty last header cell turns that column into row names. Each plain
+ * line becomes a row of its own. Text with nothing in it still yields a single empty row so the table can be
+ * edited.
+ */
 export function createStructuredCheckTableElement(name: string, raw: string): DataElement {
   const tableElement = DataElement.create(name, '', {
     [DataElementAttribute.ROLE]: DataElementRole.SECTION,
@@ -100,6 +121,7 @@ export function createStructuredCheckTableElement(name: string, raw: string): Da
   return tableElement;
 }
 
+/** Whether an element is an old single-field check table or markdown note that can become a structured table. */
 export function isLegacyCheckTableElement(element: DataElement): boolean {
   if (element.children.length > 0) return false;
   return (
@@ -110,12 +132,21 @@ export function isLegacyCheckTableElement(element: DataElement): boolean {
   );
 }
 
+/** How many legacy check tables anywhere under a sheet's detail element would be converted, without changing it. */
 export function countConvertibleCheckTableElements(detailElement: DataElement): number {
   const targets: DataElement[] = [];
   collectConvertibleCheckTableElements(detailElement.children, targets);
   return targets.length;
 }
 
+/**
+ * Replaces every legacy check table under a sheet's detail element with a structured table and returns how
+ * many were replaced.
+ *
+ * A table directly under the detail element or inside a section takes the old field's place; one nested
+ * deeper is placed after its top-level ancestor, keeping several from the same ancestor in order. The old
+ * elements are destroyed, which syncs to the other peers.
+ */
 export function convertLegacyCheckTableElements(detailElement: DataElement): number {
   const targets: DataElement[] = [];
   collectConvertibleCheckTableElements(detailElement.children, targets);

@@ -72,6 +72,10 @@ export class DisclosureControlComponent {
     return object.owner ?? '';
   });
 
+  /**
+   * Gives the object to the user chosen in the owner menu, or to nobody for an empty id, and shares
+   * the change; ignored without permission to set the owner.
+   */
   setOwner(userId: string): void {
     const object = this.object();
     if (!this.disclosureService.canSetOwner(object)) return;
@@ -79,6 +83,10 @@ export class DisclosureControlComponent {
     object.update();
   }
 
+  /**
+   * The users the owner menu offers: this user first, then every other connected user, each named
+   * by their cursor or a short id.
+   */
   ownerCandidates(): OwnerCandidate[] {
     const candidates: OwnerCandidate[] = [];
     const myCursor = PeerCursor.myCursor;
@@ -91,6 +99,7 @@ export class DisclosureControlComponent {
     return candidates;
   }
 
+  /** The translation key for a disclosure mode's button. */
   modeLabelKey(mode: DisclosureMode): string {
     switch (mode) {
       case DisclosureMode.GameMaster:
@@ -102,6 +111,10 @@ export class DisclosureControlComponent {
     }
   }
 
+  /**
+   * Sets who the object is disclosed to (everyone, selected players or the game master only) and
+   * shares the change; ignored without permission to edit it.
+   */
   setMode(mode: DisclosureMode): void {
     const object = this.object();
     if (!this.disclosureService.canEdit(object)) return;
@@ -109,11 +122,19 @@ export class DisclosureControlComponent {
     object.update();
   }
 
+  /**
+   * Whether the object is disclosed to this user under the selected-players mode, which ticks their
+   * checkbox.
+   */
   isDisclosedTo(userId: string): boolean {
     this.objectChange.versionOf(this.object().identifier)();
     return this.object().disclosureUserIds.includes(userId);
   }
 
+  /**
+   * Adds a player to the object's selected audience or takes them off it, and shares the change;
+   * ignored without permission to edit it.
+   */
   toggleUser(userId: string): void {
     const object = this.object();
     if (!this.disclosureService.canEdit(object)) return;
@@ -121,6 +142,10 @@ export class DisclosureControlComponent {
     object.update();
   }
 
+  /**
+   * The connected players who can be picked for the selected audience, leaving out this user and
+   * game masters, who see everything anyway.
+   */
   audienceCandidates(): AudienceCandidate[] {
     const candidates: AudienceCandidate[] = [];
     for (const context of Network.peerContexts) {

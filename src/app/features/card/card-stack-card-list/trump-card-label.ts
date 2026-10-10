@@ -13,6 +13,13 @@ export interface TrumpCardLabel {
   suitColor: TrumpSuitColor;
 }
 
+/**
+ * Reads a playing-card image name as the suit symbol and rank shown in the card list.
+ *
+ * A suit letter (`c`, `d`, `h`, `s`) and a two-digit rank from 01 to 13 is a card, with 11 to 13
+ * read as Jack, Queen and King; `x01` and `x02` are the two jokers. Hearts and diamonds are red,
+ * clubs and spades black. Anything else is null.
+ */
 export function parseTrumpCardCode(code: string): TrumpCardLabel | null {
   if (code === 'x01') return { suit: '🃏', rank: '1', suitColor: 'none' };
   if (code === 'x02') return { suit: '🃏', rank: '2', suitColor: 'none' };
@@ -27,6 +34,10 @@ export function parseTrumpCardCode(code: string): TrumpCardLabel | null {
   return { suit, rank, suitColor };
 }
 
+/**
+ * The same playing-card name as one short label such as `♥Queen`, or null when it is not a playing
+ * card.
+ */
 export function formatTrumpCardCode(code: string): string | null {
   const label = parseTrumpCardCode(code);
   return label ? `${label.suit}${label.rank}` : null;

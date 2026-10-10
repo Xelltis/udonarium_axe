@@ -2,7 +2,12 @@ import { inject, TestBed } from '@angular/core/testing';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-display-preference.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
+import { emitXmlLoaded } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { xml2element } from '@axe/core/util/xml-util';
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { Party } from '@axe/domain/party/party';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -18,6 +23,34 @@ describe('TabletopService', () => {
   it('should be created', inject([TabletopService], (service: TabletopService) => {
     expect(service).toBeTruthy();
   }));
+
+  describe('a character brought in from a file', () => {
+    afterEach(() => {
+      for (const character of ObjectStore.instance.getObjects(GameCharacter)) character.destroy();
+      for (const party of ObjectStore.instance.getObjects(Party)) party.destroy();
+      PeerCursor.myCursor = null!;
+    });
+
+    it('belongs to the one who brought it in, not to whoever saved it', () => {
+      TestBed.inject(TabletopService);
+      PeerCursor.createMyCursor().userId = 'the-dropper';
+
+      emitXmlLoaded({ xmlElement: xml2element('<character owner="whoever-saved-it"></character>')! });
+
+      const [character] = ObjectStore.instance.getObjects(GameCharacter);
+      expect(character.owner).toBe('the-dropper');
+    });
+
+    it('joins no party, even one in this room under the name it was saved with', () => {
+      TestBed.inject(TabletopService);
+      new Party('party-1').initialize();
+
+      emitXmlLoaded({ xmlElement: xml2element('<character partyIdentifier="party-1"></character>')! });
+
+      const [character] = ObjectStore.instance.getObjects(GameCharacter);
+      expect(character.partyIdentifier).toBe('');
+    });
+  });
 
   describe('lightSources', () => {
     it('brings the lights of the table being looked at, and leaves the other table its own', async () => {

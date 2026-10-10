@@ -15,6 +15,10 @@ export interface CellRect {
   height: number;
 }
 
+/**
+ * The `col,row` key a painted cell is known by, which is the form largestRectangles reads and
+ * rectCells writes.
+ */
 export function cellKeyOf(col: number, row: number): string {
   return `${col},${row}`;
 }

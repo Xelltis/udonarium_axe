@@ -14,6 +14,7 @@ import { buildMkCharasheetCharacter } from '@axe/domain/character/import/system-
 import { buildNechroCharasheetCharacter } from '@axe/domain/character/import/system-profiles/nechro-charasheet-profile';
 import { buildNw3CharasheetCharacter } from '@axe/domain/character/import/system-profiles/nw3-charasheet-profile';
 import { buildParablaCharasheetCharacter } from '@axe/domain/character/import/system-profiles/parabla-charasheet-profile';
+import { fillFromGeneral } from '@axe/domain/character/import/system-profiles/profile-fill';
 import { buildRyutamaCharasheetCharacter } from '@axe/domain/character/import/system-profiles/ryutama-charasheet-profile';
 import { buildSengenCharasheetCharacter } from '@axe/domain/character/import/system-profiles/sengen-charasheet-profile';
 import { buildSwordWorldCharasheetCharacter } from '@axe/domain/character/import/system-profiles/swordworld-charasheet-profile';
@@ -40,15 +41,28 @@ const BUILDERS: Record<string, (parsed: unknown) => ImportedCharacter | null> = 
   utakaze: buildUtakazeCharasheetCharacter,
 };
 
+/**
+ * Reads an archive sheet with the profile for its system token, falling back to the general parser.
+ *
+ * A system with no dedicated profile is read with `labelMap`, or with the headings generated for
+ * that system when none is given, and is given the system's dice bot where one is known.
+ */
 export function parseCharasheetCharacterForSystem(
   parsed: unknown,
   labelMap?: Record<string, string>
 ): ImportedCharacter | null {
-  const build = BUILDERS[charasheetGameOf(parsed)];
-  if (build) return build(parsed);
-
   const game = charasheetGameOf(parsed);
-  const character = parseCharasheetCharacter(parsed, labelMap ?? charasheetLabelMap(game));
+  // Read generally first, so that whatever the profile does not speak for is still there to fill
+  // in with rather than being lost along with everything else the profile did not mention.
+  const general = parseCharasheetCharacter(parsed, labelMap ?? charasheetLabelMap(game));
+
+  const build = BUILDERS[game];
+  if (build) {
+    const profile = build(parsed);
+    if (profile) return fillFromGeneral(profile, general);
+  }
+
+  const character = general;
   if (character && character.dicebot.trim() === '') {
     character.dicebot = resolveCharasheetDicebot(game);
   }

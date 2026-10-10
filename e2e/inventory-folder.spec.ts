@@ -31,7 +31,7 @@ async function putFirstInFolder(page: Page, folderName: string) {
 }
 
 test.describe('インベントリの検索とフォルダ', () => {
-  // フォルダはテーブルタブには効かないので、共有タブに 1 体だけ置いた状態から始める。
+  // フォルダはテーブルタブでは使えないので、共有タブに1体だけ置いた状態から始める。
   const listed = 1;
 
   test.beforeEach(async ({ page }) => {
@@ -88,7 +88,7 @@ test.describe('インベントリの検索とフォルダ', () => {
     const search = page.locator('inventory-filter-panel input[name="inventory-search"]');
     await expect(search).toBeVisible({ timeout: 5000 });
 
-    // 一括で流し込むと ngModel が拾わないので、読み手と同じように打ち込む。
+    // 一括で流し込むとngModelが拾わないので、人と同じように打ち込む。
     await search.click();
     await search.pressSequentially('該当しないはずの名前zzz');
     await expect(items(page)).toHaveCount(0);

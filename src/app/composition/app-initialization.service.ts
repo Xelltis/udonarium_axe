@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
 import { AppConfigService } from '@axe/composition/app-config.service';
 import { initializeNetworkMessaging } from '@axe/core/network/network-messaging';
@@ -12,6 +13,7 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
+import { keepFocusFromZoomingOnAppleTouch } from '@axe/core/util/apple-input-zoom';
 import { Alarm } from '@axe/domain/alarm/alarm';
 import { createDefaultStatusAilments } from '@axe/domain/character/builtin-status-ailments';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -22,7 +24,9 @@ import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { createDefaultEffectPresets } from '@axe/domain/effect/builtin-effect-presets';
 import { EffectPresetSet } from '@axe/domain/effect/effect-preset-set';
 import { AudioTag } from '@axe/domain/media/audio-tag';
+import { BackgroundSound } from '@axe/domain/media/background-sound';
 import { createDefaultCutIns } from '@axe/domain/media/builtin-cut-ins';
+import { registerBuiltinMaterials } from '@axe/domain/media/builtin-materials';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { Playlist } from '@axe/domain/media/playlist';
@@ -55,7 +59,15 @@ export class AppInitializationService {
   private readonly statusAilmentCatalog = inject(StatusAilmentCatalog);
   private readonly ngSelectConfig = inject(NgSelectConfig);
   private readonly keyboardInset = inject(KeyboardInsetService);
+  private readonly personalVolumes = inject(PersonalVolumeService);
 
+  /**
+   * Starts the app once at launch, before any room is used.
+   *
+   * Sets up networking, file sharing and object sync, then creates the room-wide objects every
+   * room starts with (dice bot, jukebox, default chat tabs, preset sounds, effects, cut-ins and
+   * status ailments) and the local user's cursor, restoring a stored identity if there is one.
+   */
   initialize(): void {
     initializeNetworkMessaging();
     this.fileArchiver.initialize();
@@ -65,6 +77,7 @@ export class AppInitializationService {
     this.appConfigService.initialize();
     this.pointerDeviceService.initialize();
     this.keyboardInset.initialize();
+    keepFocusFromZoomingOnAppleTouch(document, navigator);
     this.ngSelectConfig.appendTo = 'body';
 
     this.tableSelecter.initialize();
@@ -78,6 +91,7 @@ export class AppInitializationService {
     this.initializeAudioPresets();
     this.initializeEffectPresets();
     this.initializeCutIns();
+    this.initializeMaterials();
     this.initializeStatusAilments();
     this.initializePeerCursor();
   }
@@ -92,6 +106,10 @@ export class AppInitializationService {
     createDefaultCutIns(this.imageStorage);
   }
 
+  private initializeMaterials(): void {
+    registerBuiltinMaterials(this.imageStorage);
+  }
+
   private initializeStatusAilments(): void {
     createDefaultStatusAilments(this.statusAilmentCatalog);
   }
@@ -103,6 +121,11 @@ export class AppInitializationService {
 
     const jukebox = new Jukebox('Jukebox');
     jukebox.initialize();
+    this.personalVolumes.restore();
+    AudioSharingSystem.instance.preferredIdentifiers = () => [
+      ...(jukebox.audioIdentifier.length > 0 ? [jukebox.audioIdentifier] : []),
+      ...BackgroundSound.playing().map((sound) => sound.audioIdentifier),
+    ];
 
     const playlist = new Playlist('Playlist');
     playlist.initialize();

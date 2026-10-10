@@ -1,13 +1,13 @@
 <script setup lang="ts">
 const steps = [
-  { title: 'SkyWay でアプリを作成', body: 'App ID と Secret を控える', note: '無料枠あり' },
+  { title: 'SkyWayでアプリを作成', body: 'App IDとSecretを控える', note: '無料枠あり' },
   {
     title: 'バックエンドをデプロイ',
     body: 'App ID / Secret / 許可オリジンを環境変数に',
-    note: 'Workers・Vercel・PHP など',
+    note: 'Workers・Vercel・PHPなど',
   },
-  { title: 'フロントエンドを配置', body: 'リリース zip を静的ホスティングに置く', note: 'ビルド不要' },
-  { title: '接続先を設定', body: 'assets/config.json の backend.url を書き換える', note: '1 行だけ' },
+  { title: 'フロントエンドを配置', body: 'リリースzipを静的ホスティングに置く', note: 'ビルド不要' },
+  { title: '接続先を設定', body: 'assets/config.jsonのbackend.urlを書き換える', note: '1行だけ' },
 ];
 </script>
 

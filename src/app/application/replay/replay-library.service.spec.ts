@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { ReplayLibraryService } from '@axe/application/replay/replay-library.service';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import {
@@ -24,6 +25,7 @@ import {
   type ReplayManifest,
 } from '@axe/domain/replay/replay-event';
 import { decodeReplayKeyframe, encodeReplayKeyframe } from '@axe/domain/replay/replay-keyframe';
+import { buildLongReplayFixture, SHORT_SESSION } from '@axe/testing/replay-fixtures';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const manifest: ReplayManifest = {
@@ -193,6 +195,58 @@ describe('ReplayLibraryService', () => {
     expect(loaded.manifest?.roomName).toBe('第一夜');
   });
 
+  it('hides the values of a hidden piece in a recording written before parts followed their piece', async () => {
+    const fixture = buildLongReplayFixture(SHORT_SESSION);
+    const id = (await store.createRecording({ roomName: 'fixture', startedAt: fixture.manifest.startedAt }))!;
+    await store.appendChunk({
+      recordingId: id,
+      index: 0,
+      seqStart: 1,
+      seqEnd: fixture.events.length,
+      eventCount: fixture.events.length,
+      bytes: encodeReplayEvents(fixture.events),
+    });
+    for (const keyframe of fixture.keyframes) {
+      const blob = new Blob([encodeReplayKeyframe(keyframe.objects) as BlobPart]);
+      await store.putKeyframe({ recordingId: id, seq: keyframe.seq, at: keyframe.at, blob });
+    }
+    await store.updateRecording(id, { manifest: encodeReplayManifest(fixture.manifest) });
+
+    const { events } = await service.load(id);
+
+    const hiddenValues = events.filter((e) => e.targetId?.startsWith('pc-0-'));
+    expect(hiddenValues.length).toBeGreaterThan(0);
+    expect(hiddenValues.every((e) => e.visibility.kind === 'gm-only')).toBe(true);
+  });
+
+  it('trusts a recording written by the current recorder to have flagged its parts itself', async () => {
+    const id = (await store.createRecording({ roomName: '第一夜', startedAt: manifest.startedAt }))!;
+    const removal: ReplayEvent = {
+      ...event(1),
+      kind: ReplayEventKind.ObjectRemove,
+      targetId: 'hp',
+      detail: {},
+    };
+    await store.appendChunk({
+      recordingId: id,
+      index: 0,
+      seqStart: 1,
+      seqEnd: 1,
+      eventCount: 1,
+      bytes: encodeReplayEvents([removal]),
+    });
+    const board = encodeReplayKeyframe([
+      { identifier: 'hero', aliasName: 'character', syncData: {} },
+      { identifier: 'hp', aliasName: 'data', syncData: { parentIdentifier: 'hero' } },
+    ]);
+    await store.putKeyframe({ recordingId: id, seq: 0, at: manifest.startedAt, blob: new Blob([board as BlobPart]) });
+    await store.updateRecording(id, { manifest: encodeReplayManifest(manifest) });
+
+    const { events } = await service.load(id);
+
+    expect(events[0].detail).toEqual({});
+  });
+
   it('returns the nearest keyframe at or before a point', async () => {
     const meta = await seedRecording();
     expect(await firstIdentifierOf((await service.keyframeBefore(meta.id, 1))?.blob)).toBe('a');
@@ -259,6 +313,19 @@ describe('ReplayLibraryService', () => {
     expect(await service.import(new File(['zip'], 'replay.zip'))).not.toBeNull();
     expect(load).not.toHaveBeenCalled();
     expect(addImage).not.toHaveBeenCalled();
+  });
+
+  it('takes a sound in under the name it was packed with', async () => {
+    const entries = [
+      { name: 'manifest.json', type: 'application/json', blob: new Blob([JSON.stringify(manifest)]) },
+      { name: 'events/000.msgpack', type: '', blob: new Blob([encodeReplayEvents([event(1)]) as BlobPart]) },
+      { name: 'assets/戦闘曲.mp3', type: 'audio/mp3', blob: new Blob(['mp3'], { type: 'audio/mp3' }) },
+    ];
+    vi.spyOn(archiver, 'readZipEntriesAsync').mockResolvedValue(entries);
+    const addAudio = vi.spyOn(TestBed.inject(AudioStorage), 'addAsync').mockResolvedValue(null as never);
+
+    expect(await service.import(new File(['zip'], 'replay.zip'))).not.toBeNull();
+    expect((addAudio.mock.calls[0][0] as File).name).toBe('戦闘曲.mp3');
   });
 
   it('exports nothing without a manifest', async () => {

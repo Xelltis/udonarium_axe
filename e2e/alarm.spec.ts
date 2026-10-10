@@ -5,7 +5,7 @@ import { waitAppReady } from './helpers';
 test.describe('アラームメニュー', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
-    // chat-window 内のアラームボタン (歯車左の鈴アイコン)
+    // chat-window内のアラームボタン（歯車左の鈴アイコン）
     await page.locator('chat-window button[title="アラーム"]').click();
     await expect(page.locator('app-alarm-menu')).toBeVisible({ timeout: 5000 });
   });
@@ -34,8 +34,8 @@ test.describe('アラームメニュー', () => {
   });
 
   test('「自分を含める」を外すと対象 0 人になりセットボタンが disabled になること', async ({ page }) => {
-    // includSelf=true が既定なので、最初は自分 1 人がカウントされている。
-    // それを外すと selectedNum===0 となり「セット」が無効化される。
+    // includSelf=trueが既定なので、最初は自分1人がカウントされている。
+    // それを外すとselectedNum===0となり「セット」が無効化される。
     const includeSelf = page.locator('app-alarm-menu input[name="includSelf"]');
     await includeSelf.uncheck();
     const setBtn = page.locator('app-alarm-menu').getByRole('button', { name: /セット/ });

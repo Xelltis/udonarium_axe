@@ -16,6 +16,11 @@ describe('clipPoints()', () => {
     expect(clipPoints('none')).toEqual([]);
   });
 
+  it('cuts nothing off a layer under a name it does not know', () => {
+    expect(clipPoints('trapezoid')).toEqual([]);
+    expect(clipPoints('constructor')).toEqual([]);
+  });
+
   it('leaves a round one to the browser rather than to corners', () => {
     expect(clipPoints('circle')).toEqual([]);
     expect(clipCss('circle')).toContain('ellipse');
@@ -123,6 +128,10 @@ describe('clipPoints()', () => {
 describe('clipCss()', () => {
   it('says nothing for a layer keeping its own box', () => {
     expect(clipCss('none')).toBe('');
+  });
+
+  it('says nothing for a layer under a name it does not know', () => {
+    expect(clipCss('trapezoid')).toBe('');
   });
 
   it('writes the corners out as a polygon', () => {

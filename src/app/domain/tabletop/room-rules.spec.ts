@@ -7,6 +7,7 @@ import {
   ROOM_RULE_DEFAULTS,
   ROOM_RULE_GROUPS,
   RoomRules,
+  RoomRuleValues,
   writeRuleFlag,
   writeRuleNumber,
   writeRuleText,
@@ -18,12 +19,21 @@ const table: RoomRules = {
   moveDiagonally: false,
   diagonalMove: 'none',
   piecesShareCells: false,
+  samePartyPassage: 'pass',
+  otherPartyPassage: 'block',
+  noPartyPassage: 'cost',
+  piecePassageCost: 2,
+  sizeSlipsPast: true,
+  squeezes: true,
+  jumpCells: 3,
+  handTracesWay: true,
   pieceImageInCell: false,
   moveRangeAlways: true,
   zocAlways: true,
   cellDistance: 5,
   cellDistanceUnit: 'foot',
   zocMode: 'stop',
+  hostilityBy: 'party',
   zocRange: 2,
   zocExtraCost: 3,
   zocEngages: false,
@@ -149,6 +159,38 @@ describe('resolveRoomRules()', () => {
     expect(resolveRoomRules({ diagonalMove: 'sideways' }, table).diagonalMove).toBe(table.diagonalMove);
     expect(resolveRoomRules({ diagonalMove: 'sideways' }, { moveDiagonally: true }).diagonalMove).toBe('equal');
   });
+
+  it('reads a table that only ever said pieces share cells as letting one stand on another', () => {
+    const older = { piecesShareCells: true };
+
+    expect(resolveRoomRules(null, older).samePartyPassage).toBe('share');
+    expect(resolveRoomRules(null, older).otherPartyPassage).toBe('share');
+    expect(resolveRoomRules(null, older).noPartyPassage).toBe('share');
+  });
+
+  it('reads a table that said pieces keep off one another as shutting every side out', () => {
+    const older = { piecesShareCells: false };
+
+    expect(resolveRoomRules(null, older).samePartyPassage).toBe('block');
+    expect(resolveRoomRules(null, older).otherPartyPassage).toBe('block');
+    expect(resolveRoomRules(null, older).noPartyPassage).toBe('block');
+  });
+
+  it('lets the room tell the sides apart over a table that only said whether', () => {
+    const settled = resolveRoomRules({ samePartyPassage: 'cost', otherPartyPassage: 'block' }, older());
+
+    expect(settled.samePartyPassage).toBe('cost');
+    expect(settled.otherPartyPassage).toBe('block');
+    expect(settled.noPartyPassage).toBe('share');
+  });
+
+  it('holds a room to a way of crossing the table knows', () => {
+    expect(resolveRoomRules({ samePartyPassage: 'sidle' }, older()).samePartyPassage).toBe('share');
+  });
+
+  function older(): Partial<RoomRuleValues> {
+    return { piecesShareCells: true };
+  }
 
   it('holds a room to a mode the table knows', () => {
     expect(resolveRoomRules({ zocMode: 'nonsense' as RoomRules['zocMode'] }, table).zocMode).toBe(

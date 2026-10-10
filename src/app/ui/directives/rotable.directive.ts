@@ -45,6 +45,12 @@ export class RotableDirective {
   }
 
   private _rotate: number = 0;
+  /**
+   * The angle the element is shown turned to, in degrees.
+   *
+   * Setting it redraws at once, and within a few frames emits `rotable.valueChange` and writes
+   * the angle to the piece, which syncs it.
+   */
   get rotate(): number {
     return this._rotate;
   }
@@ -137,6 +143,10 @@ export class RotableDirective {
     }, this);
   }
 
+  /**
+   * Starts listening for presses on the element and draws it at the piece's angle, or at the
+   * bound value when there is no piece.
+   */
   initialize() {
     this.input = new InputHandler(this.nativeElement);
     this.input.onStart = (e) => this.onInputStart(e);
@@ -151,6 +161,7 @@ export class RotableDirective {
     }
   }
 
+  /** Ends a turn in progress, forgets what was grabbed and turns the glide animation back on. */
   cancel() {
     this.input?.cancel();
     this.grabbingElement = null;
@@ -161,6 +172,12 @@ export class RotableDirective {
     return !this.rolePermission.canEditTabletop;
   }
 
+  /**
+   * Called when the element is pressed; starts a turn when the press is on a grab handle.
+   *
+   * A disabled element, a read-only role, a press outside the handles, and a middle or right
+   * press all cancel instead.
+   */
   onInputStart(e: MouseEvent | TouchEvent) {
     this.grabbingElement = e.target as HTMLElement;
     if (
@@ -184,6 +201,10 @@ export class RotableDirective {
     this.setAnimatedTransition(false);
   }
 
+  /**
+   * Called on each pointer move during a turn; turns the element towards the pointer about its
+   * middle, keeping the angle it was grabbed at.
+   */
   onInputMove(e: MouseEvent | TouchEvent) {
     if (this.input?.isGrabbing && !this.pointerDeviceService.isDragging) {
       return this.cancel();
@@ -205,6 +226,7 @@ export class RotableDirective {
     this.rotate = angle;
   }
 
+  /** Called when a turn is let go: ends it, snaps the angle, and emits `rotable.onend`. */
   onInputEnd(e: MouseEvent | TouchEvent) {
     if (this.isDisable() || this.isReadOnly) return this.cancel();
     e.stopPropagation();
@@ -214,6 +236,7 @@ export class RotableDirective {
     this.onend.emit(e as PointerEvent);
   }
 
+  /** Called when a context menu is opened during a turn: ends it and snaps the angle. */
   onContextMenu(e: MouseEvent | TouchEvent) {
     if (this.isDisable()) return this.cancel();
     if (e.cancelable) e.preventDefault();
@@ -230,6 +253,12 @@ export class RotableDirective {
     return ((rad * 180) / Math.PI - rotateOffset) % 360;
   }
 
+  /**
+   * Rounds the angle to the nearest of `polygonal` equal steps round a circle.
+   *
+   * A custom range snaps to quarter turns, and a range that asks for fine steps to 240 of them.
+   * A count of one or less leaves the angle alone.
+   */
   snapToPolygonal(polygonal: number = 24) {
     if (polygonal <= 1) return;
     if (this.tabletopObject instanceof RangeArea) {

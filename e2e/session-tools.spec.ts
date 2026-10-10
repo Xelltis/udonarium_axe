@@ -14,7 +14,12 @@ test.describe('セッション進行まわり', () => {
   });
 
   test('リプレイは記録が無いことを伝えたうえで読み込み口を出すこと', async ({ page }) => {
-    await openPanel(page, 'リプレイ');
+    // リプレイは部屋設定の「ユーティリティ」タブから開く。
+    await openPanel(page, '部屋設定');
+    const settings = page.locator('room-settings-panel');
+    await expect(settings).toBeVisible({ timeout: 15000 });
+    await settings.locator('[data-testid="room-settings-tab-utility"]').click();
+    await settings.locator('[data-testid="room-settings-replay"]').click();
 
     const replay = page.locator('app-replay-workspace');
     await expect(replay).toBeVisible({ timeout: 15000 });
@@ -35,11 +40,12 @@ test.describe('セッション進行まわり', () => {
     await expect(snapshot).toContainText('まだスナップショットがありません');
 
     await snapshot.getByRole('button', { name: /今すぐ保存/ }).click();
-    // 保存できたら世代の数え上げが動く。
-    await expect(snapshot).not.toContainText('まだスナップショットがありません', { timeout: 10000 });
+    // 保存できたら世代の数え上げが動く。部屋全体をzipにまとめるので、ブラウザを並べて
+    // 流していると普段の0.3秒が10秒を超えることがある。
+    await expect(snapshot).not.toContainText('まだスナップショットがありません', { timeout: 30000 });
   });
 
-  test('インベントリを最小化すると行動順ウィジェットになり、卓上のコマが並ぶこと', async ({ page }) => {
+  test('インベントリをラウンド表示に切り替えると行動順だけに縮み、卓上のコマが並ぶこと', async ({ page }) => {
     const names = await page.locator('game-character [data-testid="piece-name"]').allInnerTexts();
     expect(names.length).toBeGreaterThan(0);
 
@@ -47,17 +53,13 @@ test.describe('セッション進行まわり', () => {
     const inventory = page.locator('game-object-inventory');
     await expect(inventory).toBeVisible({ timeout: 10000 });
 
-    // 最小化ボタンは浮いているツールバーの下に入ることがある。
-    await page
-      .locator('ui-panel')
-      .filter({ hasText: 'インベントリ' })
-      .locator('button')
-      .filter({ hasText: /^\s*remove\s*$/ })
-      .first()
-      .dispatchEvent('click');
-
-    // 一覧の絞り込みタブが畳まれ、手番送りの操作に入れ替わる。
+    // 表示の切り替えはタイトルバーの一つのボタンで、リッチ → 簡略（表） → ラウンドと巡る。
+    // ボタンは浮いているツールバーの下に入ることがある。
     const panel = page.locator('ui-panel').filter({ hasText: 'インベントリ' });
+    await panel.locator('button[title="リッチ表示"]').dispatchEvent('click');
+    await panel.locator('button[title="簡略表示（表）"]').dispatchEvent('click');
+
+    await expect(panel.locator('button[title="ラウンド表示"]')).toHaveCount(1, { timeout: 10000 });
     await expect(panel).toContainText('hourglass_bottom', { timeout: 10000 });
     await expect(panel).toContainText('restart_alt');
     await expect(panel).not.toContainText('墓場');

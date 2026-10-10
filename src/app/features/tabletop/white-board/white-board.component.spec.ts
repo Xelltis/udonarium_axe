@@ -1,5 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { AnimatedImageService } from '@axe/application/media/animated-image.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_DESERIALIZE_SCENE, perfCounters } from '@axe/core/util/perf-counters';
@@ -13,6 +16,7 @@ import { serializeScene } from '@axe/features/map-editor/model/serialize';
 import { WhiteBoardComponent } from '@axe/features/tabletop/white-board/white-board.component';
 import { createBoardScene } from '@axe/features/tabletop/white-board/white-board-scene';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 
 describe('WhiteBoardComponent', () => {
   let fixture: ComponentFixture<WhiteBoardComponent>;
@@ -47,6 +51,38 @@ describe('WhiteBoardComponent', () => {
 
   afterEach(() => {
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
+  });
+
+  it('opens its details from the face lying over it, which is what a pointer on the board is over', () => {
+    fixture.detectChanges();
+
+    const triggers = fixture.debugElement.queryAll(By.directive(TooltipDirective));
+    const own = triggers.filter((trigger) => trigger.injector.get(TooltipDirective).tabletopObject() === board);
+    expect(own).toHaveLength(1);
+    expect((own[0].nativeElement as HTMLElement).getAttribute('data-surface')).toBe(board.identifier);
+  });
+
+  it('wears a picture that arrived after the board did, without the board being moved', () => {
+    // The bytes of a picture follow the name of it, so the arrival has to move the view too;
+    // otherwise the board would stand blank for everybody else until somebody dragged it.
+    const before = component.imageUrl();
+
+    const element = board.imageDataElement?.getFirstElementByName('imageIdentifier');
+    element!.value = 'board-picture';
+    ImageStorage.instance.add(
+      ImageFile.create({
+        identifier: 'board-picture',
+        name: 'test-board',
+        type: 'image/png',
+        blob: null,
+        url: './assets/images/test-board.png',
+        thumbnail: { type: '', blob: null, url: '' },
+      })
+    );
+    TestBed.inject(ObjectChangeService).fileVersion.update((version) => version + 1);
+
+    expect(component.imageUrl()).not.toBe(before);
+    expect(component.imageUrl()).toContain('test-board');
   });
 
   it('parses its drawing only when the drawing itself changes', async () => {

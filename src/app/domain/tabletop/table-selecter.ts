@@ -7,6 +7,10 @@ import { GameTable } from '@axe/domain/tabletop/game-table';
 @SyncObject('TableSelecter')
 export class TableSelecter extends GameObject {
   private static _instance: TableSelecter;
+  /**
+   * The room's one table selecter: the synced one once it has arrived, otherwise a local one made
+   * on first use.
+   */
   static get instance(): TableSelecter {
     const stored = ObjectStore.instance.get<TableSelecter>('TableSelecter');
     if (stored) return (TableSelecter._instance = stored);
@@ -19,6 +23,10 @@ export class TableSelecter extends GameObject {
   private cleanups: (() => void)[] = [];
 
   // GameObject Lifecycle
+  /**
+   * Starts following table selection: the table chosen becomes the viewed one and is marked
+   * selected, and the one before is unmarked.
+   */
   override onStoreAdded() {
     super.onStoreAdded();
     this.cleanups.push(
@@ -31,12 +39,19 @@ export class TableSelecter extends GameObject {
   }
 
   // GameObject Lifecycle
+  /** Stops following table selection. */
   override onStoreRemoved() {
     super.onStoreRemoved();
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
   }
 
+  /**
+   * The table being viewed, or null when the room has no table.
+   *
+   * When the chosen table cannot be found it falls back to the first table, and adopts that one as
+   * chosen, announcing the selection, if the stored choice was empty or deleted.
+   */
   get viewTable(): GameTable | null {
     let table: GameTable | null = ObjectStore.instance.get<GameTable>(this.viewTableIdentifier);
     if (!table) {

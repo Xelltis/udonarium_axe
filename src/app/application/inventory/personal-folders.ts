@@ -13,6 +13,12 @@ function storageKey(roomId: string): string {
   return roomId.length > 0 ? `${STORAGE_PREFIX}.${roomId}` : STORAGE_PREFIX;
 }
 
+/**
+ * The personal inventory tab's folders kept in this browser for a room.
+ *
+ * Empty without storage or when what is stored cannot be read, and anything that is not a non-empty
+ * string is dropped. An empty room id reads the entry kept outside any room.
+ */
 export function readPersonalFolders(storage: Storage | null, roomId: string): string[] {
   if (!storage) return [];
   try {
@@ -24,6 +30,10 @@ export function readPersonalFolders(storage: Storage | null, roomId: string): st
   }
 }
 
+/**
+ * Keeps the personal inventory tab's folders in this browser for a room. A storage that refuses the
+ * write is ignored.
+ */
 export function writePersonalFolders(storage: Storage | null, roomId: string, folderPaths: readonly string[]): void {
   if (!storage) return;
   try {

@@ -1,4 +1,7 @@
 import { inject, Injectable } from '@angular/core';
+import { ChatReactionService } from '@axe/application/chat/chat-reaction.service';
+import { StampPackService } from '@axe/application/chat/stamp-pack.service';
+import { stampLabel } from '@axe/application/chat/stamp-words';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { Network } from '@axe/core/index';
@@ -18,10 +21,16 @@ import { PromiseQueue } from '@axe/core/util/promise-queue';
 import { xml2element } from '@axe/core/util/xml-util';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { ChatLogImages, exportChatLog } from '@axe/domain/chat/chat-log-export';
-import { ChatLogImageSrcResolver, ChatLogTab, ChatLogTextDecoder } from '@axe/domain/chat/chat-log-exporter';
+import {
+  ChatLogExporter,
+  ChatLogImageSrcResolver,
+  ChatLogTab,
+  ChatLogTextDecoder,
+} from '@axe/domain/chat/chat-log-exporter';
 import { ChatLogLabels, ChatLogScope } from '@axe/domain/chat/chat-log-rich';
-import { ChatLogStyle } from '@axe/domain/chat/chat-log-style';
+import { ChatLogStyle, isPlainChatLogStyle } from '@axe/domain/chat/chat-log-style';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { AudioTagList } from '@axe/domain/media/audio-tag-list';
 import { carriedImagesOf } from '@axe/domain/media/carried-images';
@@ -30,6 +39,22 @@ import { Config } from '@axe/domain/peer/config';
 import { Room } from '@axe/domain/peer/room';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 type UpdateCallback = (percent: number) => void;
+
+/**
+ * What an attribute naming a picture is called, rather than a list of the ones thought of.
+ *
+ * A save carries the pictures the room points at and finds them by walking its own XML, so a
+ * picture named by an attribute nobody looks for is left behind: the room comes back with the
+ * thing it was hanging on gone. A list has to be added to whenever a picture is, and a list
+ * that misses the four walls brings the room back with blank walls and every piece standing on
+ * one with nowhere to be drawn. The name is the rule instead, as it already is for a replay.
+ */
+const IMAGE_ATTRIBUTE = /ImageIdentifier$|^imageIdentifier$/;
+
+/** Several pictures under one name, which is its own spelling and read on its own terms. */
+const ATTACHMENT_IMAGE_ATTRIBUTE = 'attachmentImageIdentifiers';
+/** The attributes that name stamps, a line's own or those put on a line, a space between each. */
+const STAMP_ATTRIBUTE = /^stamps?$/;
 
 const CHAT_LOG_IMAGE_DECODE_LIMIT = 4;
 
@@ -45,6 +70,8 @@ export class SaveDataService {
   private readonly dataSummarySetting = inject(DataSummarySetting);
   private readonly statusAilmentCatalog = inject(StatusAilmentCatalog);
   private readonly translate = inject(TRANSLATE_FN);
+  private readonly chatReactions = inject(ChatReactionService);
+  private readonly stampPacks = inject(StampPackService);
 
   // The exporter would write a raw `@i18n:key:{params}` message, as system notices are,
   // so the translated text is substituted before it gets there.
@@ -52,14 +79,34 @@ export class SaveDataService {
 
   private static queue: PromiseQueue = new PromiseQueue('SaveDataServiceQueue');
 
+  /**
+   * Saves the whole room as a zip download, named with a timestamp and reporting progress as a
+   * percentage.
+   *
+   * The archive holds the room, chat, config, summary setting and status catalogue as XML, with the
+   * pictures they refer to and the audio list. Saves are queued, so one never overlaps another.
+   */
   saveRoomAsync(fileName: string = '', updateCallback?: UpdateCallback): Promise<void> {
     return SaveDataService.queue.add(() => this._saveRoomAsync(fileName, updateCallback));
   }
 
+  /**
+   * Builds the same archive as `saveRoomAsync` as a blob, without downloading it. Used for room
+   * snapshots; queued with the saves.
+   */
   createRoomArchiveAsync(): Promise<Blob> {
     return SaveDataService.queue.add(() => this.fileArchiver.createZipBlobAsync(this.buildRoomFiles(false)));
   }
 
+  /**
+   * Archive files for the wanted pictures and audio: each loaded picture and each sound held here
+   * as a file, with the picture and audio tag lists.
+   *
+   * Pictures still loading are left out, as is hidden audio and a sound whose bytes this browser
+   * does not hold, such as one only linked to. A sound goes in under the name it was added with,
+   * so it is read back under that name, with an extension for its kind where the name has none
+   * and a number added where two share a name.
+   */
   buildAssetFiles(wanted: { images: ReadonlySet<string>; audios: ReadonlySet<string> }): File[] {
     const files: File[] = [];
     const images = this.imageStorage.images.filter(
@@ -72,6 +119,11 @@ export class SaveDataService {
     files.push(new File([this.convertToXml(ImageTagList.create(images))], 'imagetag.xml', { type: 'text/plain' }));
 
     const audios = this.audioStorage.audios.filter((audio) => !audio.isHidden && wanted.audios.has(audio.identifier));
+    const taken = new Set(files.map((file) => file.name.toLowerCase()));
+    for (const audio of audios) {
+      const file = createAudioArchiveFile(audio, taken);
+      if (file) files.push(file);
+    }
     files.push(new File([this.convertToXml(AudioTagList.create(audios))], 'audiotag.xml', { type: 'text/plain' }));
     return files;
   }
@@ -118,6 +170,13 @@ export class SaveDataService {
     return files;
   }
 
+  /**
+   * Saves one object, such as a character, table or chat tab, as a zip download with the pictures
+   * it refers to.
+   *
+   * The file is named with a timestamp and progress is reported as a percentage. Queued with the
+   * other saves.
+   */
   saveGameObjectAsync(
     gameObject: GameObject,
     fileName: string = 'xml_data',
@@ -193,24 +252,24 @@ export class SaveDataService {
     if (!xmlElement) return files;
 
     const images: { [identifier: string]: ImageFile | null } = {};
-    let imageElements = xmlElement.ownerDocument.querySelectorAll('*[type="image"]');
+    const imageElements = xmlElement.ownerDocument.querySelectorAll('*[type="image"]');
 
     for (let i = 0; i < imageElements.length; i++) {
       const identifier = imageElements[i].innerHTML;
       images[identifier] = this.imageStorage.get(identifier);
     }
 
-    imageElements = xmlElement.ownerDocument.querySelectorAll(
-      '*[imageIdentifier], *[backgroundImageIdentifier], *[attachmentImageIdentifiers]'
-    );
-
-    for (let i = 0; i < imageElements.length; i++) {
-      const identifier = imageElements[i].getAttribute('imageIdentifier');
-      if (identifier) images[identifier] = this.imageStorage.get(identifier);
-      const backgroundImageIdentifier = imageElements[i].getAttribute('backgroundImageIdentifier');
-      if (backgroundImageIdentifier)
-        images[backgroundImageIdentifier] = this.imageStorage.get(backgroundImageIdentifier);
-      const attachmentImageIdentifiers = imageElements[i].getAttribute('attachmentImageIdentifiers') ?? '';
+    for (const element of Array.from(xmlElement.ownerDocument.querySelectorAll('*'))) {
+      for (const { name, value } of Array.from(element.attributes)) {
+        if (!value) continue;
+        if (IMAGE_ATTRIBUTE.test(name)) images[value] = this.imageStorage.get(value);
+        if (!STAMP_ATTRIBUTE.test(name)) continue;
+        for (const stampId of value.split(/\s+/)) {
+          const ref = stampOf(stampId);
+          if (ref?.kind === 'image') images[ref.imageIdentifier] = this.imageStorage.get(ref.imageIdentifier);
+        }
+      }
+      const attachmentImageIdentifiers = element.getAttribute(ATTACHMENT_IMAGE_ATTRIBUTE) ?? '';
       for (const attachmentImageIdentifier of this.parseAttachmentImageIdentifiers(attachmentImageIdentifiers)) {
         if (attachmentImageIdentifier) {
           images[attachmentImageIdentifier] = this.imageStorage.get(attachmentImageIdentifier);
@@ -238,18 +297,33 @@ export class SaveDataService {
     return rawValue.split(/\n+/);
   }
 
+  /**
+   * Downloads chat tabs as an HTML log named after the room, with portraits and attachments shrunk
+   * and embedded, or as a `.txt` file of plain text for the `text` style.
+   *
+   * Asked to leave out deleted lines, it leaves out their pictures as well.
+   */
   async saveChatLog(
     style: ChatLogStyle,
     scope: ChatLogScope,
     tabs: readonly ChatLogTab[],
-    label: string
+    label: string,
+    options: { omitDeleted?: boolean } = {}
   ): Promise<void> {
-    const images = await this.prepareChatLogImages(tabs);
-    const text = this.renderChatLog(style, scope, tabs, images);
+    const logTabs = options.omitDeleted ? ChatLogExporter.withoutDeleted(tabs) : tabs;
+    const plain = isPlainChatLogStyle(style);
+    const images = plain ? SaveDataService.NO_CHAT_LOG_IMAGES : await this.prepareChatLogImages(logTabs);
+    const text = this.renderChatLog(style, scope, logTabs, images);
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    downloadBlob(blob, this.appendTimestamp(`${this.chatLogRoomName()}_log_${label}`) + '.html');
+    downloadBlob(blob, this.appendTimestamp(`${this.chatLogRoomName()}_log_${label}`) + (plain ? '.txt' : '.html'));
   }
 
+  private static readonly NO_CHAT_LOG_IMAGES: ChatLogImages = { resolver: () => '', registryScript: '' };
+
+  /**
+   * Renders chat tabs as a log, an HTML page using images already prepared by `prepareChatLogImages`
+   * or plain text for the `text` style, without downloading anything.
+   */
   renderChatLog(style: ChatLogStyle, scope: ChatLogScope, tabs: readonly ChatLogTab[], images: ChatLogImages): string {
     const body = exportChatLog(style, scope, tabs, {
       imageSrcResolver: images.resolver,
@@ -259,8 +333,15 @@ export class SaveDataService {
       labels: this.chatLogLabels(),
       lang: document.documentElement.lang || undefined,
       exportedAt: Date.now(),
+      reactionsOf: (messageIdentifier) =>
+        this.chatReactions.talliesOf(messageIdentifier).map((tally) => ({
+          label: stampLabel(tally.stampId, this.translate, (imageIdentifier) =>
+            this.stampPacks.nameOf(imageIdentifier)
+          ),
+          count: tally.count,
+        })),
     });
-    return SaveDataService.injectImageRegistry(body, images.registryScript);
+    return isPlainChatLogStyle(style) ? body : SaveDataService.injectImageRegistry(body, images.registryScript);
   }
 
   private chatLogRoomName(): string {
@@ -273,6 +354,7 @@ export class SaveDataService {
     return {
       secret: label('secret'),
       edited: label('edited'),
+      pseudoDeleted: label('pseudoDeleted'),
       quote: label('quote'),
       reply: label('reply'),
       critical: label('critical'),
@@ -283,6 +365,7 @@ export class SaveDataService {
       everyTab: label('everyTab'),
       messages: (count) => label('messages', { count }),
       exportedWith: label('exportedWith'),
+      reactions: label('reactions'),
     };
   }
 
@@ -397,4 +480,39 @@ export class SaveDataService {
 
     return fileName + `_${year}-${month}-${day}_${hours}${minutes}`;
   }
+}
+
+const AUDIO_EXTENSION_OF_TYPE: Readonly<Record<string, string>> = {
+  'audio/mpeg': 'mp3',
+  'audio/mp3': 'mp3',
+  'audio/wav': 'wav',
+  'audio/wave': 'wav',
+  'audio/x-wav': 'wav',
+  'audio/aac': 'm4a',
+  'audio/mp4': 'm4a',
+  'audio/x-m4a': 'm4a',
+  'audio/ogg': 'ogg',
+  'audio/opus': 'opus',
+  'audio/flac': 'flac',
+  'audio/x-flac': 'flac',
+};
+
+/**
+ * A sound as a file of its own, under the name it was added with and an extension that is read
+ * back as a sound, numbered where the name is `taken` already. Null when its bytes are not held
+ * here or its kind has no such extension.
+ */
+function createAudioArchiveFile(audio: AudioFile, taken: Set<string>): File | null {
+  const blob = audio.blob;
+  if (!blob) return null;
+  const dot = audio.name.lastIndexOf('.');
+  const named = dot > 0 ? audio.name.slice(dot + 1).toLowerCase() : '';
+  const isSoundName = MimeType.type(`sound.${named}`).startsWith('audio/');
+  const extension = isSoundName ? named : AUDIO_EXTENSION_OF_TYPE[blob.type];
+  if (!extension) return null;
+  const stem = (isSoundName ? audio.name.slice(0, dot) : audio.name).trim() || audio.identifier;
+  let name = `${stem}.${extension}`;
+  for (let copy = 2; taken.has(name.toLowerCase()); copy++) name = `${stem} (${copy}).${extension}`;
+  taken.add(name.toLowerCase());
+  return new File([blob], name, { type: MimeType.type(`sound.${extension}`) });
 }

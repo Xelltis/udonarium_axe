@@ -67,6 +67,10 @@ export class TableTouchGesture {
     this.initializeGesture();
   }
 
+  /**
+   * Stops listening to touches on the table for good, dropping any timers still waiting and giving
+   * the element back its own touch action.
+   */
   destroy() {
     this.clearTappedPanTimer();
     this.clearLongPressTimer();

@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { waitAppReady } from './helpers';
+import { openFabMenu, openPanel, waitAppReady } from './helpers';
 
 /**
  * The GM toolbar is the only way into several panels, and none of them had
@@ -44,9 +44,24 @@ test.describe('GM ツールバー', () => {
     await expect(list).toContainText(names[0].trim());
   });
 
+  test('テーブル関連の小窓のマップエディターとマップ生成は、GM にだけ出ること', async ({ page }) => {
+    await openFabMenu(page);
+    await page.locator('[data-testid="fab-entry-table"]').click();
+    const table = page.locator('[data-testid="fab-submenu-table"]');
+    await expect(table.getByTestId('fab-entry-tableSetting')).toBeVisible();
+    await expect(table.getByTestId('fab-entry-mapEditor')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+
+    await becomeGm(page);
+    await page.locator('[data-testid="fab-entry-table"]').click();
+    await expect(table.getByTestId('fab-entry-mapEditor')).toBeVisible();
+    await expect(table.getByTestId('fab-entry-dungeonGenerator')).toBeVisible();
+    await expect(page.locator('app-gm-toolbar [title="マップエディター"]')).toHaveCount(0);
+  });
+
   test('マップエディターがキャンバスごと開くこと', async ({ page }) => {
     await becomeGm(page);
-    await tool(page, 'マップエディター').dispatchEvent('click');
+    await openPanel(page, 'マップエディター');
 
     const editor = page.locator('app-map-editor-panel');
     await expect(editor).toBeVisible({ timeout: 15000 });
@@ -65,7 +80,7 @@ test.describe('GM ツールバー', () => {
 
   test('バフマネージャーが開くこと', async ({ page }) => {
     await becomeGm(page);
-    await tool(page, 'バフマネージャー').dispatchEvent('click');
+    await openPanel(page, 'バフマネージャー');
     await expect(page.locator('app-buff-manager-panel')).toBeVisible({ timeout: 10000 });
   });
 

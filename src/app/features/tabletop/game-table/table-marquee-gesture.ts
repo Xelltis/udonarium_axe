@@ -43,10 +43,20 @@ export class TableMarqueeGesture {
 
   constructor(private readonly toTablePoint: ScreenToTablePoint) {}
 
+  /**
+   * Whether a marquee is open and the pointer has gone far enough to be dragging it out, rather
+   * than holding still after the long press.
+   */
   get isDragging(): boolean {
     return this.active && this.dragged;
   }
 
+  /**
+   * Starts the long press that opens a marquee, dropping any marquee before it.
+   *
+   * Only a primary press without Ctrl, Alt or Meta is taken up, which is what the answer says. The
+   * marquee opens once the press has been held long enough, a little sooner for touch and pen.
+   */
   arm(event: PointerEvent | MouseEvent): boolean {
     this.cancel();
     this.dragged = false;
@@ -74,6 +84,10 @@ export class TableMarqueeGesture {
     this.onMarqueeStart?.(point, modifiers);
   }
 
+  /**
+   * Follows the pointer: before the marquee opens, straying too far calls the long press off, and
+   * once it is open the marquee is stretched to the pointer.
+   */
   updatePointer(screenX: number, screenY: number): void {
     if (!this.active) {
       if (this.timer != null) {
@@ -93,6 +107,12 @@ export class TableMarqueeGesture {
     this.onMarqueeUpdate?.(point);
   }
 
+  /**
+   * Closes the marquee and hands its rectangle to the end handler, with the Shift and Ctrl keys as
+   * they are at release.
+   *
+   * Says whether a marquee was open; a press let go before it opened is simply called off.
+   */
   release(event?: PointerEvent | MouseEvent): boolean {
     if (!this.active) {
       this.cancel();
@@ -115,6 +135,7 @@ export class TableMarqueeGesture {
     return true;
   }
 
+  /** Calls off the marquee, or the long press waiting to open one, without selecting anything. */
   cancel(): void {
     if (this.timer != null) {
       clearTimeout(this.timer);
@@ -130,10 +151,12 @@ export class TableMarqueeGesture {
     this.currentTablePoint = null;
   }
 
+  /** Whether a marquee is open. */
   get isActive(): boolean {
     return this.active;
   }
 
+  /** Whether a long press is under way that will open a marquee if it is held. */
   get isArmed(): boolean {
     return this.timer != null;
   }

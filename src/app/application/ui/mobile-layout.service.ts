@@ -15,11 +15,21 @@ export interface MobileLayoutState {
 
 const DEFAULT_STATE: MobileLayoutState = { prefersDesktop: false, tableRatio: DEFAULT_TABLE_RATIO };
 
+/**
+ * Keeps the share of the mobile layout given to the table within its bounds. A non-finite ratio
+ * gives the default.
+ */
 export function clampTableRatio(ratio: number): number {
   if (!Number.isFinite(ratio)) return DEFAULT_TABLE_RATIO;
   return Math.min(Math.max(ratio, MIN_TABLE_RATIO), MAX_TABLE_RATIO);
 }
 
+/**
+ * Reads the mobile layout state kept in localStorage.
+ *
+ * Missing or mistyped fields take their defaults, the table ratio is clamped, and text that is not
+ * JSON gives the defaults outright.
+ */
 export function parseMobileLayoutState(raw: string | null): MobileLayoutState {
   if (!raw) return DEFAULT_STATE;
   try {
@@ -66,14 +76,20 @@ export class MobileLayoutService {
     });
   }
 
+  /** Keeps the desktop layout on a compact screen. Remembered in this browser. */
   useDesktopLayout(): void {
     this.prefersDesktop.set(true);
   }
 
+  /** Goes back to the mobile layout wherever the screen is compact. Remembered in this browser. */
   useMobileLayout(): void {
     this.prefersDesktop.set(false);
   }
 
+  /**
+   * Sets how much of the mobile layout the table takes, clamped to its bounds and remembered in
+   * this browser.
+   */
   setTableRatio(ratio: number): void {
     this.tableRatio.set(clampTableRatio(ratio));
   }

@@ -1,5 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import {
@@ -10,7 +13,11 @@ import {
   DataElementType,
   DataElementViewMode,
 } from '@axe/domain/data/data-element';
-import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
+import { IN_DATA_ELEMENT_SHEET } from '@axe/features/data-element/game-data-element/data-element-sheet-host';
+import {
+  GameDataElementComponent,
+  STEP_COMMIT_MS,
+} from '@axe/features/data-element/game-data-element/game-data-element.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function createDragEvent(clientY: number = 15): DragEvent {
@@ -48,6 +55,51 @@ describe('GameDataElementComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('a long text being edited', () => {
+    function edit(fieldType: string): HTMLElement {
+      const field = DataElement.create('効果', '判定に成功した', {
+        [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+        [DataElementAttribute.FIELD_TYPE]: fieldType,
+      });
+      fixture.componentRef.setInput('isEdit', true);
+      fixture.componentRef.setInput('gameDataElement', field);
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('gets ten lines of its own under the row, which it can be stretched from', () => {
+      const host = edit(DataElementFieldType.LONG_TEXT);
+      const content = host.querySelector('.elm-value-content')!;
+      const textarea = host.querySelector('textarea[name="data-value"]')!;
+
+      expect(content.classList.contains('gde-editing')).toBe(false);
+      expect(content.classList).toContain('row-start-2');
+      expect(textarea.classList).toContain('min-h-[calc(10lh+0.5rem+2px)]');
+      expect(textarea.classList).toContain('resize-y');
+      expect(textarea.classList).toContain('whitespace-pre-wrap');
+    });
+
+    it('leaves the other kinds of field on the one line beside the buttons', () => {
+      const content = edit(DataElementFieldType.TEXT).querySelector('.elm-value-content')!;
+
+      expect(content.classList.contains('gde-editing')).toBe(true);
+      expect(content.classList.contains('row-start-2')).toBe(false);
+    });
+
+    it('is drawn as before outside editing', () => {
+      const field = DataElement.create('効果', '判定に成功した', {
+        [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+        [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.LONG_TEXT,
+      });
+      fixture.componentRef.setInput('gameDataElement', field);
+      fixture.detectChanges();
+      const textarea = (fixture.nativeElement as HTMLElement).querySelector('textarea[name="data-value"]')!;
+
+      expect(textarea.classList).toContain('resize-none');
+      expect(textarea.classList.contains('resize-y')).toBe(false);
+    });
   });
 
   describe('the icon picker', () => {
@@ -171,6 +223,43 @@ describe('GameDataElementComponent', () => {
 
       expect(component.canSaveAsTemplate()).toBe(false);
       expect(component.elementTemplates()).toEqual([]);
+    });
+  });
+
+  describe('moving the structure from the menu held on its handle', () => {
+    function openMenuOn(element: DataElement, isEdit = true) {
+      vi.spyOn(TestBed.inject(PointerDeviceService), 'isAllowedToOpenContextMenu', 'get').mockReturnValue(true);
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+      fixture.componentRef.setInput('isEdit', isEdit);
+      fixture.componentRef.setInput('gameDataElement', element);
+      fixture.detectChanges();
+      component.onStructureHandleContextMenu(new MouseEvent('contextmenu', { cancelable: true }));
+      return open;
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('moves an item up past the one before it, for a screen that cannot drag it', () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      const parent = DataElement.create('parent', '');
+      for (const name of ['first', 'second', 'third']) parent.appendChild(DataElement.create(name, ''));
+
+      const open = openMenuOn(parent.children[2] as DataElement);
+      const actions = open.mock.calls[0][1] as ContextMenuAction[];
+      actions.find((action) => action.name === t('common.reorder.up'))?.action?.();
+
+      expect(parent.children.map((child) => child.name)).toEqual(['first', 'third', 'second']);
+    });
+
+    it('offers nothing while the sheet is not being edited', () => {
+      const parent = DataElement.create('parent', '');
+      for (const name of ['first', 'second']) parent.appendChild(DataElement.create(name, ''));
+
+      const open = openMenuOn(parent.children[1] as DataElement, false);
+
+      expect(open).not.toHaveBeenCalled();
     });
   });
 
@@ -883,48 +972,6 @@ describe('GameDataElementComponent', () => {
       expect(component.value).toBe(0);
     });
 
-    it('writes the maximum onto the attribute', () => {
-      const element = DataElement.create('Str', 10, {
-        fieldType: DataElementFieldType.NUMBER,
-      });
-      fixture.componentRef.setInput('isEdit', true);
-      fixture.componentRef.setInput('gameDataElement', element);
-      fixture.detectChanges();
-
-      (component as unknown as { maxText: number }).maxText = 100;
-      expect(element.getAttribute(DataElementAttribute.MAX)).toBe('100');
-    });
-
-    it('stores the bounds as attributes even when they arrive as numbers', () => {
-      const element = DataElement.create('Str', 10, {
-        fieldType: DataElementFieldType.NUMBER,
-      });
-      fixture.componentRef.setInput('isEdit', true);
-      fixture.componentRef.setInput('gameDataElement', element);
-      fixture.detectChanges();
-
-      // the accessor hands the setter a parsed number
-      (component as unknown as { maxText: number }).maxText = 300;
-      (component as unknown as { minText: number }).minText = 0;
-
-      expect(element.getAttribute(DataElementAttribute.MAX)).toBe('300');
-      expect(element.getAttribute(DataElementAttribute.MIN)).toBe('0');
-    });
-
-    it('removes the attribute when a bound is cleared', () => {
-      const element = DataElement.create('Str', 10, {
-        fieldType: DataElementFieldType.NUMBER,
-        max: '300',
-      });
-      fixture.componentRef.setInput('isEdit', true);
-      fixture.componentRef.setInput('gameDataElement', element);
-      fixture.detectChanges();
-
-      (component as unknown as { maxText: null }).maxText = null;
-
-      expect(element.getAttribute(DataElementAttribute.MAX)).toBe('');
-    });
-
     it('keeps an unsaved edit through a change to another attribute', async () => {
       const element = DataElement.create('HP', 0, {
         currentValue: 0,
@@ -938,7 +985,8 @@ describe('GameDataElementComponent', () => {
       component.value = 50;
       expect(component.value).toBe(50);
 
-      component.minText = '0';
+      element.setAttribute(DataElementAttribute.MIN, '0');
+      TestBed.inject(ObjectChangeService).notifyChanged(element.identifier);
       fixture.detectChanges();
       await Promise.resolve();
       await new Promise((resolve) => queueMicrotask(() => resolve(null)));
@@ -973,28 +1021,7 @@ describe('GameDataElementComponent', () => {
       expect(component.getSelectOptions()).toEqual(['人間', 'エルフ', 'ドワーフ']);
     });
 
-    it('stores the field metadata as attributes', () => {
-      const element = DataElement.create('種族', '人間', { fieldType: DataElementFieldType.SELECT });
-      fixture.componentRef.setInput('isEdit', true);
-      fixture.componentRef.setInput('gameDataElement', element);
-      fixture.detectChanges();
-
-      component.choicesText = '人間\nエルフ';
-      component.unitText = '点';
-      component.minText = '0';
-      component.maxText = '100';
-
-      expect(element.getAttribute(DataElementAttribute.CHOICES)).toBe('人間\nエルフ');
-      expect(element.getAttribute(DataElementAttribute.UNIT)).toBe('点');
-      expect(element.getAttribute(DataElementAttribute.MIN)).toBe('0');
-      expect(element.getAttribute(DataElementAttribute.MAX)).toBe('100');
-
-      component.unitText = '';
-
-      expect(element.getAttribute(DataElementAttribute.UNIT)).toBe('');
-    });
-
-    it('sets the cell metadata from the advanced settings', () => {
+    it('offers the advanced settings to a cell of a table', () => {
       const table = DataElement.create('技能表', '', {
         role: DataElementRole.SECTION,
         viewMode: DataElementViewMode.TABLE,
@@ -1011,23 +1038,9 @@ describe('GameDataElementComponent', () => {
       fixture.detectChanges();
 
       expect(component.shouldShowFieldOptions()).toBe(true);
-
-      component.columnLabelText = 'G';
-      component.columnGroupText = '技巧';
-      component.tableCellText = '技巧-身体';
-      component.isGapCell = true;
-
-      expect(cell.getAttribute(DataElementAttribute.COLUMN_LABEL)).toBe('G');
-      expect(cell.getAttribute(DataElementAttribute.COLUMN_GROUP)).toBe('技巧');
-      expect(cell.getAttribute(DataElementAttribute.CELL_TEXT)).toBe('技巧-身体');
-      expect(cell.getAttribute(DataElementAttribute.CELL_KIND)).toBe('gap');
-
-      component.isGapCell = false;
-
-      expect(cell.getAttribute(DataElementAttribute.CELL_KIND)).toBe('');
     });
 
-    it('sets the row heading from there too', () => {
+    it('offers the table settings to a table being edited', () => {
       const table = DataElement.create('技能表タイプ2', '', {
         role: DataElementRole.SECTION,
         viewMode: DataElementViewMode.TABLE,
@@ -1038,10 +1051,6 @@ describe('GameDataElementComponent', () => {
       fixture.detectChanges();
 
       expect(component.shouldShowContainerOptions()).toBe(true);
-
-      component.rowHeaderLabelText = '技能';
-
-      expect(table.getAttribute(DataElementAttribute.ROW_HEADER_LABEL)).toBe('技能');
     });
 
     it('keeps the formula of a calculated field', () => {
@@ -1149,25 +1158,6 @@ describe('GameDataElementComponent', () => {
       expect(component.shouldShowFieldOptions()).toBe(true);
     });
 
-    it('switches the full-size pop-up on and off', () => {
-      const element = DataElement.create('参考画像', '', { fieldType: DataElementFieldType.IMAGE });
-      fixture.componentRef.setInput('isEdit', true);
-      fixture.componentRef.setInput('gameDataElement', element);
-      fixture.detectChanges();
-
-      expect(component.isImagePopupOriginal()).toBe(false);
-
-      component.toggleImagePopupOriginal();
-
-      expect(component.isImagePopupOriginal()).toBe(true);
-      expect(element.getAttribute(DataElementAttribute.IMAGE_POPUP_ORIGINAL)).toBe('true');
-
-      component.toggleImagePopupOriginal();
-
-      expect(component.isImagePopupOriginal()).toBe(false);
-      expect(element.getAttribute(DataElementAttribute.IMAGE_POPUP_ORIGINAL)).toBe('');
-    });
-
     it('puts that switch in the advanced settings', () => {
       const element = DataElement.create('参考画像', '', { fieldType: DataElementFieldType.IMAGE });
       fixture.componentRef.setInput('isEdit', true);
@@ -1228,89 +1218,240 @@ describe('GameDataElementComponent', () => {
     });
   });
 
-  describe('what a resource does when it moves', () => {
-    function resourceField(): DataElement {
-      return DataElement.create('HP', 200, {
+  describe('the slider over what is left of a resource', () => {
+    function resourceField(attributes: Record<string, string> = {}): DataElement {
+      const field = DataElement.create('HP', 20, {
+        [DataElementAttribute.ROLE]: DataElementRole.FIELD,
         type: DataElementType.NUMBER_RESOURCE,
-        currentValue: 200,
-        [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.RESOURCE,
+        ...attributes,
       });
+      field.currentValue = 12;
+      return field;
     }
 
-    it('is asked about only for a resource', () => {
-      fixture.componentRef.setInput('gameDataElement', DataElement.create('メモ', 'テキスト'));
-      expect(component.canShowChangeFeedback()).toBe(false);
-
-      fixture.componentRef.setInput('gameDataElement', resourceField());
-      expect(component.canShowChangeFeedback()).toBe(true);
-    });
-
-    it('starts out neither seen nor heard', () => {
-      fixture.componentRef.setInput('gameDataElement', resourceField());
-
-      expect(component.playsEffectOnChange()).toBe(false);
-      expect(component.playsSoundOnChange()).toBe(false);
-    });
-
-    it('turns each one on and off again', () => {
-      const element = resourceField();
-      fixture.componentRef.setInput('gameDataElement', element);
-
-      component.toggleChangeEffect();
-      expect(component.playsEffectOnChange()).toBe(true);
-      component.toggleChangeEffect();
-      expect(component.playsEffectOnChange()).toBe(false);
-
-      component.toggleChangeSound();
-      expect(component.playsSoundOnChange()).toBe(true);
-      component.toggleChangeSound();
-      expect(component.playsSoundOnChange()).toBe(false);
-    });
-
-    it('picks the sound of flesh or of a machine', () => {
-      const element = resourceField();
-      fixture.componentRef.setInput('gameDataElement', element);
-
-      expect(component.soundSetOnChange()).toBe('flesh');
-
-      component.setSoundSetOnChange('mech');
-      expect(component.soundSetOnChange()).toBe('mech');
-      expect(element.getAttribute(DataElementAttribute.CHANGE_SOUND_SET)).toBe('mech');
-
-      component.setSoundSetOnChange('flesh');
-      expect(component.soundSetOnChange()).toBe('flesh');
-    });
-
-    it('offers the type only once the sound is on, showing what is stored', async () => {
-      const element = resourceField();
-      element.setAttribute(DataElementAttribute.CHANGE_SOUND_SET, 'mech');
-      fixture.componentRef.setInput('isEdit', true);
-      fixture.componentRef.setInput('gameDataElement', element);
+    function show(field: DataElement, options: { isEdit?: boolean; isValueLocked?: boolean } = {}): void {
+      fixture.componentRef.setInput('isEdit', options.isEdit ?? false);
+      fixture.componentRef.setInput('isValueLocked', options.isValueLocked ?? false);
+      fixture.componentRef.setInput('gameDataElement', field);
       fixture.detectChanges();
-      component.fieldOptionsOpen.set(true);
+    }
+
+    const slider = () =>
+      fixture.nativeElement.querySelector('[data-testid="resource-slider"]') as HTMLInputElement | null;
+
+    function drag(to: number, letGo: boolean): void {
+      const input = slider()!;
+      input.value = String(to);
+      input.dispatchEvent(new Event('input'));
+      if (letGo) input.dispatchEvent(new Event('change'));
       fixture.detectChanges();
+    }
 
-      const query = () => fixture.nativeElement.querySelector('select[name="data-change-sound-set"]');
-      expect(query()).toBeNull();
+    it('is drawn under the values of a resource set to have one, from 0 up to its maximum', () => {
+      show(resourceField({ [DataElementAttribute.RESOURCE_SLIDER]: 'true' }));
 
-      component.toggleChangeSound();
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      const select = query() as HTMLSelectElement;
-      expect(select).toBeTruthy();
-      expect(select.value).toBe('mech');
+      expect(slider()).not.toBeNull();
+      expect(slider()!.min).toBe('0');
+      expect(slider()!.max).toBe('20');
+      expect(slider()!.value).toBe('12');
     });
 
-    it('leaves anything that is not a resource alone', () => {
-      const note = DataElement.create('メモ', 'テキスト');
-      fixture.componentRef.setInput('gameDataElement', note);
+    it('is not drawn for a resource not set to have one', () => {
+      show(resourceField());
 
-      component.toggleChangeSound();
-      component.setSoundSetOnChange('mech');
-
-      expect(note.getAttribute(DataElementAttribute.CHANGE_SOUND)).toBe('');
-      expect(note.getAttribute(DataElementAttribute.CHANGE_SOUND_SET)).toBe('');
+      expect(slider()).toBeNull();
     });
+
+    it('runs down to the lowest point the resource is set to fall to', () => {
+      show(resourceField({ [DataElementAttribute.RESOURCE_SLIDER]: 'true', [DataElementAttribute.MIN_BASE]: '-5' }));
+
+      expect(slider()!.min).toBe('-5');
+    });
+
+    it('shows where it is being dragged in the box beside it and writes nothing yet', () => {
+      vi.useFakeTimers();
+      try {
+        const field = resourceField({ [DataElementAttribute.RESOURCE_SLIDER]: 'true' });
+        show(field);
+
+        drag(5, false);
+        vi.advanceTimersByTime(200);
+
+        expect(component.currentValue).toBe(5);
+        expect(Number(field.currentValue)).toBe(12);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('writes where it is let go as what is left, and leaves the maximum alone', () => {
+      vi.useFakeTimers();
+      try {
+        const field = resourceField({ [DataElementAttribute.RESOURCE_SLIDER]: 'true' });
+        show(field);
+
+        drag(5, true);
+        vi.advanceTimersByTime(200);
+
+        expect(Number(field.currentValue)).toBe(5);
+        expect(Number(field.value)).toBe(20);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('cannot be moved while the values are locked', () => {
+      show(resourceField({ [DataElementAttribute.RESOURCE_SLIDER]: 'true' }), { isValueLocked: true });
+
+      expect(slider()!.disabled).toBe(true);
+    });
+
+    it('is turned on and off among the field options', () => {
+      const field = resourceField();
+      show(field, { isEdit: true });
+      component.toggleFieldOptions();
+      fixture.detectChanges();
+      const option = fixture.nativeElement.querySelector('input[name="data-resource-slider"]') as HTMLInputElement;
+
+      option.click();
+      expect(field.getAttribute(DataElementAttribute.RESOURCE_SLIDER)).toBe('true');
+
+      option.click();
+      expect(field.getAttribute(DataElementAttribute.RESOURCE_SLIDER)).toBe('');
+    });
+  });
+});
+
+describe('GameDataElementComponent on a sheet', () => {
+  let component: GameDataElementComponent;
+  let fixture: ComponentFixture<GameDataElementComponent>;
+
+  function show(element: DataElement, options: { inSheet?: boolean; isEdit?: boolean } = {}): HTMLElement {
+    TestBed.configureTestingModule({
+      imports: [GameDataElementComponent],
+      providers: [
+        ...TEST_PROVIDERS,
+        ...(options.inSheet === false ? [] : [{ provide: IN_DATA_ELEMENT_SHEET, useValue: true }]),
+      ],
+    });
+    fixture = TestBed.createComponent(GameDataElementComponent);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('isEdit', options.isEdit ?? false);
+    fixture.componentRef.setInput('gameDataElement', element);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  function hp(current = 12): DataElement {
+    const field = DataElement.create('HP', 20, {
+      [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+      [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.RESOURCE,
+      type: DataElementType.NUMBER_RESOURCE,
+    });
+    field.currentValue = current;
+    return field;
+  }
+
+  const press = (host: HTMLElement, testId: string) =>
+    (host.querySelector(`[data-testid="${testId}"]`) as HTMLButtonElement).click();
+
+  it('puts ± beside a resource read on a sheet', () => {
+    const host = show(hp());
+
+    expect(host.querySelector('[data-testid="step-down"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="step-up"]')).not.toBeNull();
+  });
+
+  it('puts none beside a row outside a sheet, or one being edited', () => {
+    expect(show(hp(), { inSheet: false }).querySelector('[data-testid="step-down"]')).toBeNull();
+    TestBed.resetTestingModule();
+    expect(show(hp(), { isEdit: true }).querySelector('[data-testid="step-down"]')).toBeNull();
+  });
+
+  it('writes a run of presses as one change, once the presses stop', () => {
+    vi.useFakeTimers();
+    try {
+      const field = hp(12);
+      const host = show(field);
+      const writes = vi.fn();
+      const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(field), 'currentValue');
+      Object.defineProperty(field, 'currentValue', {
+        configurable: true,
+        get: () => descriptor!.get!.call(field),
+        set: (value) => {
+          writes(value);
+          descriptor!.set!.call(field, value);
+        },
+      });
+
+      press(host, 'step-down');
+      vi.advanceTimersByTime(200);
+      press(host, 'step-down');
+      vi.advanceTimersByTime(200);
+      press(host, 'step-down');
+      expect(component.currentValue).toBe(9);
+      expect(writes).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(STEP_COMMIT_MS);
+
+      expect(writes).toHaveBeenCalledTimes(1);
+      expect(Number(descriptor!.get!.call(field))).toBe(9);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('greys out the + of a resource at its maximum', () => {
+    const host = show(hp(20));
+    fixture.detectChanges();
+
+    expect((host.querySelector('[data-testid="step-up"]') as HTMLButtonElement).disabled).toBe(true);
+    expect((host.querySelector('[data-testid="step-down"]') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('steps a number within its bounds', () => {
+    vi.useFakeTimers();
+    try {
+      const field = DataElement.create('筋力', 5, {
+        [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+        [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.NUMBER,
+        min: '0',
+        max: '6',
+      });
+      const host = show(field);
+
+      press(host, 'step-up');
+      press(host, 'step-up');
+      vi.advanceTimersByTime(STEP_COMMIT_MS);
+
+      expect(Number(field.value)).toBe(6);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('asks a phone for the number pad where the value never goes below zero', () => {
+    const field = DataElement.create('筋力', 5, {
+      [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+      [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.NUMBER,
+      min: '0',
+    });
+
+    expect(show(field).querySelector('input[name="data-value"]')?.getAttribute('inputmode')).toBe('decimal');
+  });
+  it('puts an add at the end of a group being edited on a sheet, and none outside a sheet', () => {
+    const group = DataElement.create('基本', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+    group.appendChild(DataElement.create('HP', 10, { [DataElementAttribute.ROLE]: DataElementRole.FIELD }));
+
+    expect(show(group, { isEdit: true }).querySelector('[data-testid="group-add-field"]')).not.toBeNull();
+    TestBed.resetTestingModule();
+    expect(show(group, { isEdit: true, inSheet: false }).querySelector('[data-testid="group-add-field"]')).toBeNull();
+  });
+
+  it('opens the editor from the name or the "⋯" of a row being edited on a sheet', () => {
+    const host = show(hp(), { isEdit: true });
+
+    expect(host.querySelector('[data-testid="row-name-button"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="row-more"]')).not.toBeNull();
   });
 });

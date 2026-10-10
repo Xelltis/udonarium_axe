@@ -2,7 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 
 import { waitAppReady } from './helpers';
 
-/** ウィジェットの表示状態は localStorage 由来なので、読み込み前に仕込んでバーを出しておく。 */
+/** ウィジェットの表示状態はlocalStorage由来なので、読み込み前に仕込んでバーを出しておく。 */
 async function showHotbar(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem('ui-widgets', JSON.stringify({ hotbar: true }));

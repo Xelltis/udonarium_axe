@@ -41,6 +41,13 @@ export class ObjectPanelService {
   private readonly t = inject(TRANSLATE_FN);
   private readonly injector = inject(Injector);
 
+  /**
+   * Opens the sheet panel for a piece and selects that piece on the table.
+   *
+   * The panel is placed by `place`, around the pointer when no point is given, and carries a button
+   * to move it into a window of its own. `host` is the layer of such a window, which the panel is
+   * drawn into instead of the table when given.
+   */
   openSheet(
     object: CharacterSheetTarget,
     title: string,
@@ -63,6 +70,7 @@ export class ObjectPanelService {
     else this.panelService.openLazy(load, option, (component) => (component.tabletopObject = object));
   }
 
+  /** Opens a character's sheet at the usual size, titled with the character's name when it has one. */
   openCharacterSheet(character: GameCharacter, place: ObjectPanelPlace = {}, host?: ViewContainerRef): void {
     const title = character.name.length
       ? this.t('feature.character.panel.sheetWithName', { name: character.name })
@@ -70,6 +78,11 @@ export class ObjectPanelService {
     this.openSheet(character, title, CHARACTER_SHEET_SIZE, { offset: CHARACTER_SHEET_OFFSET, ...place }, host);
   }
 
+  /**
+   * Opens the chat palette of a character, centred on the pointer unless `place` says otherwise.
+   *
+   * Like the sheet, it can be moved into a window of its own, and `host` draws it into one.
+   */
   openChatPalette(character: GameCharacter, place: ObjectPanelPlace = {}, host?: ViewContainerRef): void {
     const load = () =>
       import('@axe/features/chat/chat-palette/chat-palette.component').then((m) => m.ChatPaletteComponent);
@@ -88,6 +101,11 @@ export class ObjectPanelService {
     else this.panelService.openLazy(load, option, (component) => component.character.set(character));
   }
 
+  /**
+   * Opens the remote controller for a character, near the pointer unless `place` says otherwise.
+   *
+   * Like the sheet, it can be moved into a window of its own, and `host` draws it into one.
+   */
   openRemoteController(character: GameCharacter, place: ObjectPanelPlace = {}, host?: ViewContainerRef): void {
     const load = () =>
       import('@axe/features/controller/remote-controller/remote-controller.component').then(

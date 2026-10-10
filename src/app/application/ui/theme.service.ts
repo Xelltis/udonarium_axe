@@ -54,6 +54,7 @@ export class ThemeService {
     }
   }
 
+  /** Moves the theme on through auto, dark and light. The choice is written to localStorage. */
   cycle() {
     const idx = THEME_ORDER.indexOf(this.theme());
     this.theme.set(THEME_ORDER[(idx + 1) % THEME_ORDER.length]);

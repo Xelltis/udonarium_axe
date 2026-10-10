@@ -1,9 +1,16 @@
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
-export interface Lockable {
-  isLock: boolean;
+/** The two names the lock flag goes by: most pieces call it `isLock`, a terrain `isLocked`. */
+interface LockFlags {
+  isLock?: unknown;
+  isLocked?: unknown;
 }
 
-export function isLockable(obj: TabletopObject): obj is TabletopObject & Lockable {
-  return typeof (obj as unknown as Partial<Lockable>).isLock === 'boolean';
+/**
+ * Whether a tabletop object is locked in place, so that a caller moving several at once leaves it
+ * behind.
+ */
+export function isLockedInPlace(obj: TabletopObject): boolean {
+  const flags = obj as unknown as LockFlags;
+  return flags.isLock === true || flags.isLocked === true;
 }

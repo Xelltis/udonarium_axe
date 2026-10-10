@@ -16,6 +16,10 @@ export interface DiceChatToken {
   name: string;
 }
 
+/**
+ * Finds the `dice:` token in a chat line, or null when there is none. The name may come back empty,
+ * meaning whoever spoke.
+ */
 export function parseDiceChatToken(text: string): DiceChatToken | null {
   const matched = TOKEN_PATTERN.exec(text);
   if (!matched) return null;

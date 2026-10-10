@@ -113,6 +113,69 @@ describe('CutInTimelineComponent', () => {
     expect(component.ticks()[0].ms).toBe(0);
   });
 
+  describe('a key or a sound pressed and let go where it stands', () => {
+    type PressApi = PointerApi & {
+      onSoundRowDown(event: PointerEvent): void;
+      onPointerUp(event: PointerEvent): void;
+    };
+
+    it('cues the playhead onto the key, where the buttons that take a key away act', () => {
+      const layer = makeLayer('立ち絵', { tracks: encodeCutInTracks({ x: [{ t: 800, v: 100 }] }) });
+      show([layer]);
+      const cues: number[] = [];
+      const seeks: number[] = [];
+      const moved: unknown[] = [];
+      component.cue.subscribe((ms) => cues.push(ms));
+      component.seek.subscribe((ms) => seeks.push(ms));
+      component.moveKey.subscribe((key) => moved.push(key));
+
+      const row = component.rows()[0];
+      const api = component as unknown as PressApi;
+      api.onRowDown(pointer(row.keys[0].x), row);
+      api.onPointerUp(pointer(row.keys[0].x));
+
+      expect(cues).toEqual([800]);
+      expect(seeks).toEqual([]);
+      expect(moved).toEqual([]);
+    });
+
+    it('cues the playhead onto the sound in the same way', () => {
+      show([makeLayer('背景')]);
+      fixture.componentRef.setInput('sounds', [{ t: 600, a: 'se', v: 1 }]);
+      fixture.detectChanges();
+      const cues: number[] = [];
+      const seeks: number[] = [];
+      component.cue.subscribe((ms) => cues.push(ms));
+      component.seek.subscribe((ms) => seeks.push(ms));
+
+      const x = component.soundMarks()[0].x;
+      const api = component as unknown as PressApi;
+      api.onSoundRowDown(pointer(x));
+      api.onPointerUp(pointer(x));
+
+      expect(cues).toEqual([600]);
+      expect(seeks).toEqual([]);
+    });
+
+    it('seeks rather than cues where the press lands on no key, as scrubbing does', () => {
+      const layer = makeLayer('立ち絵', { tracks: encodeCutInTracks({ x: [{ t: 800, v: 100 }] }) });
+      show([layer]);
+      const cues: number[] = [];
+      const seeks: number[] = [];
+      component.cue.subscribe((ms) => cues.push(ms));
+      component.seek.subscribe((ms) => seeks.push(ms));
+
+      const row = component.rows()[0];
+      const x = row.keys[0].x + 60;
+      const api = component as unknown as PressApi;
+      api.onRowDown(pointer(x), row);
+      api.onPointerUp(pointer(x));
+
+      expect(seeks).toHaveLength(1);
+      expect(cues).toEqual([]);
+    });
+  });
+
   describe('dragging a band by one of its ends', () => {
     it('follows the pointer rather than being held to where the end already is', () => {
       const layer = makeLayer('文字', { startMs: 500, endMs: 1500 });
@@ -125,7 +188,7 @@ describe('CutInTimelineComponent', () => {
       api.onRowDown(pointer(row.left), row);
       api.onPointerMove(pointer(row.left + 4));
 
-      // Four pixels is inside the magnet's reach, so the band's own end used to pull it back.
+      // Four pixels is inside the magnet's reach, so the band's own end must not pull it back.
       expect(trimmed).toHaveLength(1);
       expect(trimmed[0].startMs).toBeGreaterThan(500);
     });

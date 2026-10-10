@@ -1,0 +1,182 @@
+<div class="text-ui-text flex flex-col gap-3.5 px-3.5 py-3 text-[13px]">
+  <p class="text-ui-muted m-0 text-xs/relaxed">{{ 'feature.dice.myDice.hint' | transloco }}</p>
+
+  <div class="flex flex-col gap-1.5">
+    @if (tryFrame(); as frame) {
+      <div data-testid="my-dice-try-out">
+        <dice-tray-frame [messageIdentifier]="frame.key" [frame]="frame" />
+      </div>
+    }
+    <button
+      type="button"
+      class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 inline-flex cursor-pointer items-center gap-1 self-end border border-solid bg-transparent px-2 py-0.5 text-[12px] transition-colors hover:shadow-none"
+      data-testid="my-dice-roll-again"
+      (click)="roll()"
+    >
+      <i class="material-icons text-[14px]!">casino</i>{{ 'feature.dice.myDice.rollAgain' | transloco }}
+    </button>
+  </div>
+
+  <section class="flex flex-col gap-1.5">
+    <h3 class="text-ui-muted m-0 text-[11px] font-semibold tracking-wider">
+      {{ 'feature.dice.myDice.material' | transloco }}
+    </h3>
+    <div class="grid grid-cols-4 gap-1.5" role="radiogroup">
+      @for (material of materials; track material) {
+        <button
+          type="button"
+          role="radio"
+          class="rounded-ui-sm border-ui-border-panel text-ui-text hover:border-ui-accent hover:bg-ui-hover aria-checked:border-ui-accent aria-checked:bg-ui-accent-bg aria-checked:text-ui-accent m-0 cursor-pointer border border-solid bg-transparent px-1 py-1.5 text-[12px] transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40"
+          [attr.aria-checked]="look().material === material"
+          [attr.data-testid]="'my-dice-material-' + material"
+          [disabled]="look().picture !== ''"
+          (click)="choose(material)"
+        >
+          {{ 'feature.dice.myDice.material_' + material | transloco }}
+        </button>
+      }
+    </div>
+    @if (look().picture !== '') {
+      <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.dice.myDice.pictureMakesResin' | transloco }}</p>
+    }
+    @if (glassDrawnAsResin()) {
+      <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.dice.myDice.glassDrawnLightly' | transloco }}</p>
+    }
+  </section>
+
+  <section class="flex flex-col gap-1.5" data-testid="my-dice-picture">
+    <h3 class="text-ui-muted m-0 text-[11px] font-semibold tracking-wider">
+      {{ 'feature.dice.myDice.picture' | transloco }}
+    </h3>
+    <div class="flex items-center gap-2">
+      @if (pictureUrl(); as url) {
+        <img
+          class="rounded-ui-sm size-12 shrink-0 border border-solid border-black/25 object-cover"
+          data-testid="my-dice-picture-shown"
+          [src]="url"
+          alt=""
+        />
+      }
+      <label
+        class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:text-ui-accent w-fit cursor-pointer border border-solid px-2.5 py-1 text-[12px] transition-colors"
+      >
+        {{ (look().picture ? 'feature.dice.myDice.changePicture' : 'feature.dice.myDice.choosePicture') | transloco }}
+        <input
+          type="file"
+          class="hidden"
+          accept="image/*"
+          data-testid="my-dice-picture-file"
+          (change)="takePicture($event)"
+        />
+      </label>
+      @if (look().picture) {
+        <button
+          type="button"
+          class="rounded-ui-sm text-ui-dim hover:text-ui-danger cursor-pointer border-none bg-transparent px-1 text-[12px]"
+          data-testid="my-dice-picture-remove"
+          (click)="removePicture()"
+        >
+          {{ 'feature.dice.myDice.removePicture' | transloco }}
+        </button>
+      }
+    </div>
+    @if (look().picture) {
+      <div class="grid grid-cols-2 gap-1.5" role="radiogroup">
+        @for (fit of fits; track fit) {
+          <button
+            type="button"
+            role="radio"
+            class="rounded-ui-sm border-ui-border-panel text-ui-text hover:border-ui-accent hover:bg-ui-hover aria-checked:border-ui-accent aria-checked:bg-ui-accent-bg aria-checked:text-ui-accent m-0 cursor-pointer border border-solid bg-transparent px-1 py-1.5 text-[12px] transition-colors hover:shadow-none"
+            [attr.aria-checked]="look().pictureFit === fit"
+            [attr.data-testid]="'my-dice-picture-fit-' + fit"
+            (click)="fitPicture(fit)"
+          >
+            {{ 'feature.dice.myDice.fit_' + fit | transloco }}
+          </button>
+        }
+      </div>
+    }
+    @if (trouble(); as trouble) {
+      <p class="text-ui-danger m-0 text-[11px]" data-testid="my-dice-picture-trouble">
+        {{ 'feature.dice.myDice.trouble_' + trouble | transloco }}
+      </p>
+    }
+    <p class="text-ui-dim m-0 text-[11px] leading-relaxed">{{ 'feature.dice.myDice.pictureHint' | transloco }}</p>
+  </section>
+
+  <section class="flex flex-col gap-1.5">
+    <h3 class="text-ui-muted m-0 text-[11px] font-semibold tracking-wider">
+      {{ 'feature.dice.myDice.body' | transloco }}
+    </h3>
+    <label class="flex cursor-pointer items-center gap-1.5 text-[12px]">
+      <input
+        type="checkbox"
+        data-testid="my-dice-body-follows-roll"
+        [checked]="look().body === ''"
+        (change)="followRollColor($event)"
+      />
+      {{ 'feature.dice.myDice.bodyFollowsRoll' | transloco }}
+    </label>
+    @if (look().body !== '') {
+      <div class="flex flex-wrap items-center gap-1.5">
+        @for (color of bodySwatches; track color) {
+          <button
+            type="button"
+            class="size-5 shrink-0 cursor-pointer rounded-full border border-solid border-black/25 p-0 transition-transform hover:scale-125"
+            [class]="look().body === color ? 'shadow-[0_0_0_2px_var(--ui-accent)]' : ''"
+            [style.background-color]="color"
+            [attr.aria-label]="color"
+            (click)="setBody(color)"
+          ></button>
+        }
+        <input
+          class="rounded-ui-sm h-5 w-7 shrink-0 cursor-pointer border border-solid border-black/25 p-0"
+          type="color"
+          name="my-dice-body"
+          [value]="look().body"
+          [title]="'feature.dice.myDice.pickColor' | transloco"
+          (change)="setBody(colorFrom($event))"
+        />
+      </div>
+    }
+  </section>
+
+  <section class="flex flex-col gap-1.5">
+    <h3 class="text-ui-muted m-0 text-[11px] font-semibold tracking-wider">
+      {{ 'feature.dice.myDice.ink' | transloco }}
+    </h3>
+    <label class="flex cursor-pointer items-center gap-1.5 text-[12px]">
+      <input
+        type="checkbox"
+        data-testid="my-dice-ink-auto"
+        [checked]="look().ink === ''"
+        (change)="inkByItself($event)"
+      />
+      {{ 'feature.dice.myDice.inkAuto' | transloco }}
+    </label>
+    @if (look().ink !== '') {
+      <div class="flex flex-wrap items-center gap-1.5">
+        @for (color of inkSwatches; track color) {
+          <button
+            type="button"
+            class="size-5 shrink-0 cursor-pointer rounded-full border border-solid border-black/25 p-0 transition-transform hover:scale-125"
+            [class]="look().ink === color ? 'shadow-[0_0_0_2px_var(--ui-accent)]' : ''"
+            [style.background-color]="color"
+            [attr.aria-label]="color"
+            (click)="setInk(color)"
+          ></button>
+        }
+        <input
+          class="rounded-ui-sm h-5 w-7 shrink-0 cursor-pointer border border-solid border-black/25 p-0"
+          type="color"
+          name="my-dice-ink"
+          [value]="look().ink"
+          [title]="'feature.dice.myDice.pickColor' | transloco"
+          (change)="setInk(colorFrom($event))"
+        />
+      </div>
+    }
+  </section>
+
+  <p class="text-ui-dim m-0 text-[11px] leading-relaxed">{{ 'feature.dice.myDice.seenByAll' | transloco }}</p>
+</div>

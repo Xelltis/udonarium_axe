@@ -10,18 +10,25 @@ export interface ElementPlacement {
   element: DataElement;
 }
 
+/** The outermost data element above this one, such as a character's detail sheet; the element itself at the top. */
 export function findOwnerRootElement(element: DataElement): DataElement {
   let current = element;
   while (current.parent instanceof DataElement) current = current.parent;
   return current;
 }
 
+/**
+ * The object, such as a character, whose sheet holds this element and so keeps its saved templates.
+ *
+ * Null for an element inside a saved template, which is why a template cannot be saved from a template.
+ */
 export function findElementTemplateOwner(element: DataElement): ObjectNode | null {
   const top = findOwnerRootElement(element);
   if (top.name === ELEMENT_TEMPLATES_NAME) return null;
   return top.parent;
 }
 
+/** The element holding an object's saved templates, or null when nothing has been saved on it yet. */
 export function findElementTemplateHolder(owner: ObjectNode): DataElement | null {
   for (const child of owner.children) {
     if (child instanceof DataElement && child.name === ELEMENT_TEMPLATES_NAME) return child;
@@ -29,10 +36,12 @@ export function findElementTemplateHolder(owner: ObjectNode): DataElement | null
   return null;
 }
 
+/** The templates saved on an object, in the order they were saved; empty when there are none. */
 export function readElementTemplates(owner: ObjectNode): DataElement[] {
   return [...(findElementTemplateHolder(owner)?.children ?? [])];
 }
 
+/** An object's top-level data elements that make up its sheet, leaving out the saved-template holder. */
 export function sheetElementsOf(owner: ObjectNode): DataElement[] {
   return owner.children.filter(
     (child): child is DataElement => child instanceof DataElement && child.name !== ELEMENT_TEMPLATES_NAME
@@ -46,6 +55,12 @@ function copyElementTree(element: DataElement): DataElement | null {
   return null;
 }
 
+/**
+ * Saves a copy of an element and everything under it as a template on the object, and returns the copy.
+ *
+ * The holder is created on the first save, and the copy is renamed if another template already has its
+ * name. Both are synced to the other peers. Returns null when the element could not be copied.
+ */
 export function saveElementTemplate(owner: ObjectNode, element: DataElement): DataElement | null {
   let holder = findElementTemplateHolder(owner);
   if (!holder) {
@@ -59,6 +74,11 @@ export function saveElementTemplate(owner: ObjectNode, element: DataElement): Da
   return template;
 }
 
+/**
+ * A copy of a saved template, named so it does not clash with the children of the parent it is meant for.
+ *
+ * The copy is not added anywhere; the caller places it. Returns null when the template could not be copied.
+ */
 export function buildElementTemplate(template: DataElement, parent: DataElement): DataElement | null {
   const element = copyElementTree(template);
   if (!element) return null;
@@ -76,11 +96,18 @@ function gatherFieldsIntoGroup(section: DataElement): void {
   for (const field of fields) group.appendChild(field);
 }
 
+/**
+ * Fixes an element's section, group or field role to match where it now sits on the sheet.
+ *
+ * An element that becomes a section has its loose fields gathered into a new group, since a section lists
+ * groups rather than fields.
+ */
 export function settleElementRole(element: DataElement): void {
   element.syncFieldRoleToHierarchy();
   if (element.fieldRole === DataElementRole.SECTION) gatherFieldsIntoGroup(element);
 }
 
+/** Adds a copy of a template to the end of a sheet's detail element with its role settled, or null if it cannot. */
 export function appendElementTemplateToSheet(detail: DataElement, template: DataElement): ElementPlacement | null {
   const element = buildElementTemplate(template, detail);
   if (!element) return null;
@@ -89,6 +116,11 @@ export function appendElementTemplateToSheet(detail: DataElement, template: Data
   return { parent: detail, element };
 }
 
+/**
+ * A copy of an element and everything under it, named so it does not clash with the parent's children.
+ *
+ * The copy is not added anywhere; the caller places it. Returns null when the element could not be copied.
+ */
 export function duplicateDataElement(element: DataElement, parent: DataElement): DataElement | null {
   const copy = copyElementTree(element);
   if (!copy) return null;

@@ -44,6 +44,7 @@ const PROFILE_FIELDS: { key: string; label: string }[] = [
   { key: 'sex', label: '性別' },
 ];
 
+/** Whether the pasted json is an archive sheet under the `gracre` system token. */
 export function isGracreCharasheetCharacter(parsed: unknown): boolean {
   return isCharasheetGame(parsed, 'gracre');
 }
@@ -78,6 +79,13 @@ function buildPalette(record: Record<string, unknown>, params: ImportedParam[]):
   return lines.join('\n');
 }
 
+/**
+ * Builds the imported model from a `gracre` archive sheet, or null for any other sheet.
+ *
+ * Ability bonuses become parameters; actions, feats, magic and the profile become sections; and the
+ * palette offers a 2d6 roll for each ability bonus plus the action and evasion rolls the sheet
+ * writes out.
+ */
 export function buildGracreCharasheetCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isGracreCharasheetCharacter(parsed)) return null;
   const record = parsed as Record<string, unknown>;

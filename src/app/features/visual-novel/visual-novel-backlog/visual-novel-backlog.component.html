@@ -59,6 +59,7 @@
         [class.cursor-pointer]="editingIdentifier() !== entry.message.identifier"
         [attr.data-vn-log-id]="entry.message.identifier"
         (click)="editingIdentifier() === entry.message.identifier ? null : jumpTo(entry.message.identifier)"
+        (contextmenu)="onEntryContextMenu($event, entry)"
       >
         <span class="rounded-ui-sm bg-ui-elevated size-9 shrink-0 overflow-hidden">
           @if (entry.imageUrl.length > 0) {
@@ -200,7 +201,9 @@
               </span>
             </span>
           } @else {
-            <span class="text-ui-text line-clamp-3 text-[13px] whitespace-pre-line">{{ entry.text }}</span>
+            <span class="text-ui-text line-clamp-3 text-[13px] whitespace-pre-line"
+              ><ruby-text [parts]="entry.parts"
+            /></span>
           }
         </span>
       </div>

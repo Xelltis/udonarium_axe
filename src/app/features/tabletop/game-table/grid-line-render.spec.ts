@@ -12,6 +12,7 @@ function createCanvasMock() {
     stroke: vi.fn(),
     strokeRect: vi.fn(),
     save: vi.fn(),
+    setTransform: vi.fn(),
     restore: vi.fn(),
     translate: vi.fn(),
     transform: vi.fn(),
@@ -90,6 +91,39 @@ describe('GridLineRender', () => {
       new GridLineRender(canvas).renderViewport(100, 100, 50, GridType.SQUARE, '#000', '#000', 0, 0, false);
 
       expect(context.fillText).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('a grid held to fewer pixels than the board it covers', () => {
+    it('draws the same lines on a canvas scaled down to match', () => {
+      const { canvas, context } = createCanvasMock();
+
+      new GridLineRender(canvas, 0.5).renderViewport(100, 100, 50, GridType.SQUARE, '#000', '#000', 25, 75);
+
+      expect(canvas.width).toBe(50);
+      expect(canvas.height).toBe(50);
+      expect(context.setTransform).toHaveBeenCalledWith(0.5, 0, 0, 0.5, 0, 0);
+      expect(context.strokeRect).toHaveBeenCalledWith(-25, -25, 50, 50);
+    });
+
+    it('holds a whole board to fewer pixels as well', () => {
+      const { canvas, context } = createCanvasMock();
+
+      new GridLineRender(canvas, 0.25).render(4, 3, 50, GridType.SQUARE, '#000', '#000');
+
+      expect(canvas.width).toBe(50);
+      expect(canvas.height).toBe(38);
+      expect(context.setTransform).toHaveBeenCalledWith(0.25, 0, 0, 0.25, 0, 0);
+    });
+
+    it('leaves a board drawn at its own size exactly as it was', () => {
+      const { canvas, context } = createCanvasMock();
+
+      new GridLineRender(canvas).render(4, 3, 50, GridType.SQUARE, '#000', '#000');
+
+      expect(canvas.width).toBe(200);
+      expect(canvas.height).toBe(150);
+      expect(context.setTransform).not.toHaveBeenCalled();
     });
   });
 });

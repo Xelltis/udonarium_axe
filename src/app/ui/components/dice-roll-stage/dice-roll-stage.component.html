@@ -1,0 +1,17 @@
+@if (frames().length > 0) {
+  <div
+    class="mt-1.5 gap-1"
+    [class]="
+      layout() === 'column'
+        ? 'flex flex-col'
+        : frames().length > 1
+          ? 'grid w-[min(52rem,84vw,72vh)] grid-cols-2'
+          : 'grid w-[min(26rem,80vw)]'
+    "
+    [attr.data-dice-wide]="layout() === 'grid' && frames().length > 1 ? '' : null"
+  >
+    @for (frame of frames(); track frame.key) {
+      <dice-tray-frame [messageIdentifier]="messageIdentifier()" [frame]="frame" />
+    }
+  </div>
+}

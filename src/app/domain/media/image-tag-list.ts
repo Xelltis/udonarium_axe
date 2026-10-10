@@ -10,11 +10,13 @@ export class ImageTagList extends ObjectNode implements InnerXml {
   private identifiers: string[] = [];
 
   // GameObject Lifecycle
+  /** Takes the list straight back out of the store, so it is never shared with the room. */
   override onStoreAdded() {
     super.onStoreAdded();
     ObjectStore.instance.remove(this); // ObjectStoreには登録しない
   }
 
+  /** The tags of the listed pictures, each written once. A picture that has no tag is skipped. */
   override innerXml(): string {
     const parts: string[] = [];
     for (const identifier of new Set(this.identifiers)) {
@@ -24,6 +26,7 @@ export class ImageTagList extends ObjectNode implements InnerXml {
     return parts.join('');
   }
 
+  /** A holder for writing the tags of the given pictures into a saved room or zip as `imagetag.xml`. */
   static create(images: ImageFile[]): ImageTagList {
     const imageTagList = new ImageTagList();
 

@@ -1,0 +1,32 @@
+@if (box(); as box) {
+  <div
+    class="absolute overflow-hidden"
+    data-testid="white-board-face"
+    [style.left.px]="box.left"
+    [style.top.px]="box.top"
+    [style.width.px]="box.width"
+    [style.height.px]="box.height"
+  >
+    <div class="absolute inset-0" [style.opacity]="opacity()" [style.background-color]="color()"></div>
+    @if (imageUrl().length > 0) {
+      <div
+        class="pointer-events-none absolute inset-0 bg-contain bg-center bg-no-repeat"
+        [style.background-image]="'url(' + imageUrl() + ')' | safe: 'style'"
+      ></div>
+    }
+    @for (picture of livePictures(); track picture.id) {
+      <img
+        class="pointer-events-none absolute"
+        [src]="picture.url | safe: 'resourceUrl'"
+        [style.left.px]="picture.left"
+        [style.top.px]="picture.top"
+        [style.width.px]="picture.width"
+        [style.height.px]="picture.height"
+        [style.transform]="picture.transform"
+        [style.opacity]="picture.opacity"
+        alt=""
+        draggable="false"
+      />
+    }
+  </div>
+}

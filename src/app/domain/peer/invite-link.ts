@@ -11,6 +11,12 @@ export interface InviteLinkParams {
   overlay: boolean;
 }
 
+/**
+ * The link to share so others can join a room, carrying its id, name and, when set, password, role and overlay
+ * flag in the URL hash.
+ *
+ * The password is only masked so it does not read plainly in the link; anyone holding the link can recover it.
+ */
 export function buildInviteLink(baseUrl: string, params: InviteLinkParams): string {
   const query = new URLSearchParams();
   query.set('r', params.roomId);
@@ -24,6 +30,12 @@ export function buildInviteLink(baseUrl: string, params: InviteLinkParams): stri
   return `${baseUrl}${INVITE_HASH_PREFIX}${query.toString()}`;
 }
 
+/**
+ * Reads a room invitation from a URL hash.
+ *
+ * Null when the hash is not an invitation or lacks the room id or name. An unknown role reads as no role, and
+ * a password that cannot be unmasked reads as empty.
+ */
 export function parseInviteLink(hash: string): InviteLinkParams | null {
   if (!hash.startsWith(INVITE_HASH_PREFIX)) return null;
 
@@ -43,11 +55,13 @@ export function parseInviteLink(hash: string): InviteLinkParams | null {
   };
 }
 
+/** Masks a room password with the salt as URL-safe base64; this hides it from a glance, not from anyone. */
 export function encodeInvitePassword(password: string, salt: string): string {
   const bytes = new TextEncoder().encode(password);
   return toBase64Url(maskBytes(bytes, salt));
 }
 
+/** Unmasks a password written by {@link encodeInvitePassword}; empty when the text is not valid for that salt. */
 export function decodeInvitePassword(encoded: string, salt: string): string {
   const bytes = fromBase64Url(encoded);
   if (!bytes) return '';

@@ -29,6 +29,27 @@ describe('InventoryViewPreferenceService', () => {
     expect(service().mode()).toBe('rich');
   });
 
+  it('opens an inventory with its folders open until the reader says otherwise', () => {
+    expect(service().foldsOnOpen()).toBe(false);
+  });
+
+  it('remembers that an inventory is to open folded up', () => {
+    service().setFoldsOnOpen(true);
+
+    expect(service().foldsOnOpen()).toBe(true);
+    expect(localStorage.getItem('ui-inventory-folded')).toBe('1');
+  });
+
+  it('remembers being told to stop folding them', () => {
+    const preference = service();
+    preference.setFoldsOnOpen(true);
+
+    preference.setFoldsOnOpen(false);
+
+    expect(preference.foldsOnOpen()).toBe(false);
+    expect(localStorage.getItem('ui-inventory-folded')).toBe('');
+  });
+
   it('holds for the session where the browser refuses to write', () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('refused');

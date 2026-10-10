@@ -3,10 +3,10 @@ import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuAction, ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
-import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { buildCopyAction, buildLockToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -43,7 +43,7 @@ export class GameObjectListPanelComponent {
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly tabletopService = inject(TabletopService);
-  private readonly selectionSignalService = inject(SelectionSignalService);
+  private readonly tableFocus = inject(TableFocusService);
   private readonly npcDrag = inject(NpcDragService);
   protected readonly t = inject(TRANSLATE_FN);
 
@@ -272,7 +272,7 @@ export class GameObjectListPanelComponent {
   }
 
   private focusRow(row: ObjectRow): void {
-    this.selectionSignalService.focusToCoordinate(row.object.location.x, row.object.location.y);
+    this.tableFocus.focusOn(row.object);
   }
 
   private openDetail(object: TabletopObject): void {

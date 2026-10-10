@@ -1,5 +1,11 @@
 import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 
+/**
+ * Adds the name, the given size values and the opacity to a piece's common data.
+ *
+ * The opacity is stored as a resource whose maximum and current value both start at the given
+ * amount. The piece's data elements must already have been created.
+ */
 export function appendPieceDataElements(
   target: { identifier: string; commonDataElement: DataElement | null },
   name: string,

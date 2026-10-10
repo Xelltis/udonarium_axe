@@ -13,10 +13,10 @@ test.describe('チャットウィンドウ', () => {
   });
 
   test('チャットタブを切り替えられること', async ({ page }) => {
-    // ラジオ自体は class="peer hidden" で display:none、ラベル内のピル div を
-    // クリックすると関連するラジオが checked になる。
+    // ラジオ自体はclass="peer hidden"でdisplay:none。ラベル内のピルdivを
+    // クリックすると関連するラジオがcheckedになる。
     await chatTabPill(page, 'サブタブ').click();
-    const subTabRadio = page.locator('chat-window input[name="chat-tab"]').nth(1);
+    const subTabRadio = page.locator('chat-window input[name^="chat-tab"]').nth(1);
     await expect(subTabRadio).toBeChecked();
   });
 
@@ -105,7 +105,7 @@ test.describe('チャットでダイスロール', () => {
     await textarea.fill('2d6');
     await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
     await expect(textarea).toHaveValue('');
-    // 送信ログには「2d6」エコーも残るため、DiceBot の結果メッセージで一意化する
+    // 送信ログには「2d6」のエコーも残るため、DiceBotの結果メッセージで一意化する
     await expect(page.locator('chat-tab').getByText(/DiceBot.*\(2D6\)/)).toBeVisible({ timeout: 10000 });
   });
 });
@@ -139,9 +139,9 @@ test.describe('チャットタブ設定パネル', () => {
   test('新しいタブを追加できること', async ({ page }) => {
     await openChatSettingsMenuItem(page, 'タブ設定');
     await expect(page.locator('app-chat-tab-setting')).toBeVisible({ timeout: 5000 });
-    const initialTabCount = await page.locator('chat-window input[name="chat-tab"]').count();
+    const initialTabCount = await page.locator('chat-window input[name^="chat-tab"]').count();
     await page.locator('app-chat-tab-setting button[title="タブを追加"]').click();
-    await expect(page.locator('chat-window input[name="chat-tab"]')).toHaveCount(initialTabCount + 1, {
+    await expect(page.locator('chat-window input[name^="chat-tab"]')).toHaveCount(initialTabCount + 1, {
       timeout: 5000,
     });
   });
@@ -241,6 +241,9 @@ test.describe('チャットログのスクロール枠', () => {
   });
 
   test('ログを遡ると最新メッセージへ移動するボタンが出ること', async ({ page }) => {
+    // Sixty lines are sent one at a time, about a third of a second each in WebKit, which with
+    // the page's own start can run past the default thirty seconds.
+    test.setTimeout(90_000);
     const textarea = page.locator('textarea.chat-input');
     const send = page.locator('chat-input').getByRole('button', { name: '送信' });
     for (let i = 0; i < 60; i++) {

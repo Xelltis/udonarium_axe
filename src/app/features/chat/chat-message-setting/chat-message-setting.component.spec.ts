@@ -1,10 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
+import { AudioFile } from '@axe/core/storage/audio-file';
+import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { SYSTEM_CHAT_TAB_IDENTIFIER } from '@axe/domain/chat/constants';
+import { PresetSound } from '@axe/domain/media/sound-effect';
 import { ChatMessageSettingComponent } from '@axe/features/chat/chat-message-setting/chat-message-setting.component';
-import { ChatSoundEventHandlerService } from '@axe/features/chat/chat-sound-event-handler.service';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ChatMessageSettingComponent', () => {
@@ -193,13 +197,32 @@ describe('ChatMessageSettingComponent', () => {
       expect(preferences.soundOfTab('all').type).toBe('cyber');
     });
 
-    it('plays what a type sounds like when asked', () => {
-      const preview = vi.spyOn(TestBed.inject(ChatSoundEventHandlerService), 'preview').mockImplementation(() => {});
+    it('plays what a type sounds like when asked, through the notification channel', () => {
+      PresetSound.chatNotify1 = 'notify1';
+      vi.spyOn(AudioStorage.instance, 'get').mockImplementation(
+        (identifier: string) => ({ identifier }) as unknown as AudioFile
+      );
+      const play = vi.spyOn(AudioPlayer, 'play').mockImplementation(() => {});
 
       root().querySelector<HTMLButtonElement>('button[name="chatSoundPreview-all"]')!.click();
 
-      expect(preview).toHaveBeenCalledWith('notify1', 0.5);
+      expect(play).toHaveBeenCalledWith(
+        expect.objectContaining({ identifier: 'notify1' }),
+        0.5,
+        VolumeType.NOTIFICATION
+      );
+      PresetSound.chatNotify1 = '';
+      vi.restoreAllMocks();
     });
+  });
+
+  it('opens every one of the reader’s sound settings from the sound section', () => {
+    const open = vi.spyOn(TestBed.inject(RoomPanelService), 'open').mockImplementation(() => {});
+
+    root().querySelector<HTMLButtonElement>('[data-testid="chat-open-sound-settings"]')!.click();
+
+    expect(open).toHaveBeenCalledWith('soundSettings');
+    vi.restoreAllMocks();
   });
 
   it('keeps the scope for next time', () => {

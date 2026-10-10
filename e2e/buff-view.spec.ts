@@ -17,7 +17,7 @@ test.describe('バフ編集ビュー (game-character-buff-view)', () => {
   });
 
   test('バフが 0 件のキャラには「バフ・デバフは登録されていません」が出ること', async ({ page }) => {
-    // createCharacter で作った新規キャラはバフ 0 件。表示行がある場合は何もしない。
+    // createCharacterで作った新規キャラはバフ0件。表示行がある場合は何もしない。
     const items = page.locator('game-character-buff-view [game-data-element-buff]');
     if ((await items.count()) === 0) {
       await expect(
@@ -44,7 +44,7 @@ test.describe('バフ編集ビュー (game-character-buff-view)', () => {
   });
 
   test('バフ名入力欄に値を入力できること', async ({ page }) => {
-    // 最初のバフ (data-elm-name) を編集。
+    // 最初のバフ（data-elm-name）を編集。
     const nameInputs = page.locator('game-character-buff-view input[name="data-elm-name"]');
     await expect(nameInputs.first()).toBeVisible({ timeout: 5000 });
     const first = nameInputs.first();
@@ -81,7 +81,7 @@ test.describe('バフ編集ビュー (game-character-buff-view)', () => {
 
   test('「バフを削除」ボタンで該当行が消えること', async ({ page }) => {
     const before = await page.locator('game-character-buff-view [game-data-element-buff]').count();
-    // 最初のバフのゴミ箱アイコン (title="バフを削除")
+    // 最初のバフのゴミ箱アイコン（title="バフを削除"）
     await page.locator('game-character-buff-view button[title="バフを削除"]').first().click();
     await expect
       .poll(() => page.locator('game-character-buff-view [game-data-element-buff]').count(), {

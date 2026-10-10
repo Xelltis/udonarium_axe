@@ -10,10 +10,12 @@ import {
   inject,
   Injector,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
+import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
@@ -35,14 +37,19 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { ChatBookmarkListComponent } from '@axe/features/chat/chat-bookmark/chat-bookmark-list.component';
+import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
 import { editsTextInPlace } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatMessageSettingComponent } from '@axe/features/chat/chat-message-setting/chat-message-setting.component';
 import { ChatPortraitComponent } from '@axe/features/chat/chat-portrait/chat-portrait.component';
+import { isChatSearchShortcut } from '@axe/features/chat/chat-search/chat-search';
+import { ChatSearchBarComponent } from '@axe/features/chat/chat-search/chat-search-bar.component';
 import { ChatStreamPanelService } from '@axe/features/chat/chat-stream/chat-stream-panel.service';
 import { ChatTabComponent } from '@axe/features/chat/chat-tab/chat-tab.component';
 import { ChatTabSettingComponent } from '@axe/features/chat/chat-tab-setting/chat-tab-setting.component';
 import { ChatTabStripComponent } from '@axe/features/chat/chat-tab-strip/chat-tab-strip.component';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -69,19 +76,27 @@ const AT_BOTTOM_THRESHOLD_PX = 8;
     SafePipe,
     TranslocoModule,
     ChatTabStripComponent,
+    ChatSearchBarComponent,
+    ChatBookmarkListComponent,
   ],
   host: {
     class: 'block h-full min-h-0 min-w-0',
     tabindex: '-1',
     '(keydown.control.arrowleft)': 'switchTabByKey($event, -1)',
     '(keydown.control.arrowright)': 'switchTabByKey($event, 1)',
+    '(keydown)': 'onWindowKeydown($event)',
+    '(pointerenter)': 'listenForSearchWhileHovered()',
+    '(pointerleave)': 'stopListeningForSearch()',
   },
+  // One of these to a window, so answering a line in this one puts the caret in this one.
+  providers: [ChatComposeService],
 })
 export class ChatWindowComponent {
   chatMessageService = inject(ChatMessageService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly panelService = inject(PanelService);
+  private readonly roomPanels = inject(RoomPanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly chatStreamPanel = inject(ChatStreamPanelService);
@@ -91,6 +106,7 @@ export class ChatWindowComponent {
   private readonly tabletopService = inject(TabletopService);
   private readonly chatTickerSelection = inject(ChatTickerSelectionService);
   private readonly chatSpeaker = inject(ChatSpeakerService);
+  private readonly chatBookmarks = inject(ChatBookmarkService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
@@ -105,6 +121,10 @@ export class ChatWindowComponent {
     this.chatSpeaker.set(sendFrom);
   }
 
+  /**
+   * The dice bot system chat lines are rolled with, shared through the chat message service;
+   * 'DiceBot' when none is chosen.
+   */
   get gameType(): string {
     return !this.chatMessageService.gameType ? 'DiceBot' : this.chatMessageService.gameType;
   }
@@ -113,6 +133,12 @@ export class ChatWindowComponent {
   }
 
   private readonly _chatTabidentifier = signal('');
+  /**
+   * The identifier of the chat tab this window shows.
+   *
+   * Changing it tells the active-tab service, retitles the panel and, when the tab really changed,
+   * scrolls the log to the bottom.
+   */
   get chatTabidentifier(): string {
     return this._chatTabidentifier();
   }
@@ -126,11 +152,124 @@ export class ChatWindowComponent {
 
   private readonly logScroll = viewChild.required<ElementRef<HTMLDivElement>>('logScroll');
   readonly chatTabRef = viewChild(ChatTabComponent);
+  private readonly searchBar = viewChild(ChatSearchBarComponent);
+  private readonly bookmarkList = viewChild(ChatBookmarkListComponent);
+
+  /** Whether the box that finds words in the tab is open. */
+  readonly searchOpen = signal(false);
+
+  /** Whether the list of the room's marks on chat lines is open. */
+  readonly bookmarksOpen = signal(false);
+
+  /** How many marks this reader can see, shown on the button that opens their list. */
+  readonly bookmarkCount = computed(() => this.chatBookmarks.entries().length);
+
+  /** Brings a line the search lands on into view, through the tab drawing the log. */
+  readonly revealLine = (message: ChatMessage): Promise<HTMLElement | null> =>
+    this.chatTabRef()?.reveal(message) ?? Promise.resolve(null);
+
+  /**
+   * Ctrl+F (⌘F on a Mac) inside the window opens its search in place of the browser's find, which
+   * cannot see the lines of a long log that are not drawn.
+   */
+  onWindowKeydown(event: KeyboardEvent): void {
+    if (!isChatSearchShortcut(event)) return;
+    event.preventDefault();
+    this.openSearch();
+  }
+
+  /** Opens the search, or puts the caret back in it with what is typed picked out. */
+  openSearch(): void {
+    this.bookmarksOpen.set(false);
+    const bar = this.searchBar();
+    if (bar) {
+      bar.focus();
+      return;
+    }
+    this.searchOpen.set(true);
+    afterNextRender(() => this.searchBar()?.focus(), { injector: this.injector });
+  }
+
+  /** Closes the search, takes its marks away, and hands the keyboard back to the chat input. */
+  closeSearch(): void {
+    this.searchOpen.set(false);
+    const host = this.hostElement.nativeElement;
+    (host.querySelector<HTMLElement>('textarea.chat-input') ?? host).focus();
+  }
+
+  /** Opens the search from its button, or closes it when it is open. */
+  toggleSearch(): void {
+    if (this.searchOpen()) this.closeSearch();
+    else this.openSearch();
+  }
+
+  /** Opens the list of marks from its button, in place of the search, or closes it when it is open. */
+  toggleBookmarks(): void {
+    if (this.bookmarksOpen()) {
+      this.closeBookmarks();
+      return;
+    }
+    this.searchOpen.set(false);
+    this.bookmarksOpen.set(true);
+    afterNextRender(() => this.bookmarkList()?.focus(), { injector: this.injector });
+  }
+
+  /** Closes the list of marks and hands the keyboard back to the chat input. */
+  closeBookmarks(): void {
+    this.bookmarksOpen.set(false);
+    const host = this.hostElement.nativeElement;
+    (host.querySelector<HTMLElement>('textarea.chat-input') ?? host).focus();
+  }
+
+  /**
+   * Goes to the line a mark is on: the window turns to its tab, the log is drawn around it however
+   * far up it is, and the line is flashed. The list closes, so it does not stand over the line.
+   */
+  async jumpToBookmark(message: ChatMessage): Promise<void> {
+    this.bookmarksOpen.set(false);
+    const tab = message.parent;
+    if (!(tab instanceof ChatTab)) return;
+    if (this.chatTabidentifier !== tab.identifier) {
+      this.chatTabidentifier = tab.identifier;
+      // Turning to a tab sends the log to its foot a task later; the line is sought after that.
+      await new Promise<void>((resolve) => setTimeout(resolve));
+      await new Promise<void>((resolve) => afterNextRender(() => resolve(), { injector: this.injector }));
+    }
+    const line = await this.revealLine(message);
+    if (line) this.chatTabRef()?.flash(message);
+  }
+
+  private searchKeysDocument: Document | null = null;
+
+  /**
+   * While the pointer is over the window, Ctrl+F opens its search even though the keyboard is
+   * elsewhere, as it is after a click on the table. The window's own key handler sees it first when
+   * the keyboard is in the window.
+   */
+  listenForSearchWhileHovered(): void {
+    const document = this.hostElement.nativeElement.ownerDocument;
+    if (this.searchKeysDocument === document) return;
+    this.stopListeningForSearch();
+    document.addEventListener('keydown', this.onHoveredKeydown);
+    this.searchKeysDocument = document;
+  }
+
+  /** Leaves Ctrl+F to the browser again once the pointer has left the window. */
+  stopListeningForSearch(): void {
+    this.searchKeysDocument?.removeEventListener('keydown', this.onHoveredKeydown);
+    this.searchKeysDocument = null;
+  }
+
+  private readonly onHoveredKeydown = (event: KeyboardEvent): void => {
+    if (event.defaultPrevented || !isChatSearchShortcut(event)) return;
+    event.preventDefault();
+    this.openSearch();
+  };
 
   /**
    * Bound to the window rather than to the input: a tab nobody may speak in renders no textarea,
-   * and the shortcut used to live on that textarea, so arriving at such a tab left no way back
-   * out by keyboard. Focus follows to the window when the input goes away.
+   * so a shortcut living on that textarea would leave no way back out of such a tab by keyboard.
+   * Focus follows to the window when the input goes away.
    */
   switchTabByKey(event: Event, direction: number): void {
     if (editsTextInPlace(event.target)) return;
@@ -139,6 +278,10 @@ export class ChatWindowComponent {
     if (!this.canSpeakCurrentTab()) this.hostElement.nativeElement.focus();
   }
 
+  /**
+   * Moves to the next or previous tab the reader may view, wrapping around at either end; does
+   * nothing when the current tab is not among them.
+   */
   chatTabSwitchRelative(direction: number) {
     const chatTabs = this.visibleChatTabs();
     const index = chatTabs.findIndex((elm) => elm.identifier == this.chatTabidentifier);
@@ -245,6 +388,18 @@ export class ChatWindowComponent {
       }
     }, this.destroyRef);
     queueMicrotask(() => this.updatePanelTitle());
+    // The title carries a count where the reader asked for one, so it is retitled as lines come
+    // and go rather than only as the tab is switched. Nothing is watched while none is asked
+    // for: a room saying a hundred lines an hour would be retitling a title that never changes.
+    effect(() => {
+      const counts = this.chatPrefs.showMessageCount();
+      const tab = this.chatTab();
+      if (counts && tab) {
+        this.objectChange.collectionOf(ChatMessage.aliasName)();
+        this.objectChange.versionOf(tab.identifier)();
+      }
+      untracked(() => this.updatePanelTitle());
+    });
     effect(() => {
       const tab = this.chatTab();
       if (!tab) {
@@ -275,6 +430,7 @@ export class ChatWindowComponent {
     });
     this.panelService.activated$.subscribe(() => this.onPanelShown(), this.destroyRef);
     this.destroyRef.onDestroy(() => {
+      this.stopListeningForSearch();
       if (this.scrollListener && this.panelService.scrollablePanel) {
         this.panelService.scrollablePanel.removeEventListener('scroll', this.scrollListener);
       }
@@ -315,17 +471,29 @@ export class ChatWindowComponent {
     }
   }
 
+  /**
+   * Follows the log down when the chat tab adds a message, and rechecks how near the bottom it sits
+   * when auto-follow is off.
+   */
   onAddMessage() {
     this.scrollToBottom();
     if (!this.chatPrefs.autoFollowScroll()) this.refreshNearBottom();
   }
 
+  /** Jumps the log to the newest message and clears the new-message notice, from its button. */
   onClickScrollToBottom() {
     this.hasNewMessage.set(false);
     this.newMessageCount.set(0);
     this.scrollToBottom(true);
   }
 
+  /**
+   * Scrolls the log to the newest message and marks the tab as read.
+   *
+   * Without force it acts only while the log is following new messages, and moves the scroll only
+   * when auto-follow is on in the chat preferences. The scroll waits a tick, and calls within that
+   * tick are merged into one.
+   */
   scrollToBottom(isForce: boolean = false) {
     if (isForce) this.isAutoScroll = true;
     if (!this.isAutoScroll) return;
@@ -350,27 +518,43 @@ export class ChatWindowComponent {
     }, 0);
   }
 
+  /**
+   * Decides whether the log keeps following new messages, which it does only while scrolled to the
+   * bottom.
+   */
   checkAutoScroll() {
     const distance = this.distanceFromBottom();
     if (distance == null) return;
     this.isAutoScroll = distance <= AT_BOTTOM_THRESHOLD_PX;
   }
 
+  /**
+   * Titles the panel after the current tab and hands the tab to the panel; falls back to the plain
+   * chat window title without one.
+   */
   updatePanelTitle() {
     const tab = this.chatTab();
-    if (tab) {
-      this.panelService.title = this.t('feature.chat.window.titleWithTab', { tab: tab.name });
-      this.panelService.chatTab = tab;
-    } else {
+    if (!tab) {
       this.panelService.title = this.t('common.panel.chatWindow');
       this.panelService.chatTab = null;
+      return;
     }
+    const title = this.t('feature.chat.window.titleWithTab', { tab: tab.name });
+    this.panelService.title = this.chatPrefs.showMessageCount()
+      ? this.t('feature.chat.window.titleWithCount', { title, count: tab.countDisplayableMessages() })
+      : title;
+    this.panelService.chatTab = tab;
   }
 
+  /**
+   * Retitles the panel after a tab is selected; the title is read from the current tab, not from
+   * the identifier.
+   */
   onSelectedTab(_identifier: string) {
     this.updatePanelTitle();
   }
 
+  /** Opens the chat tab settings panel near the pointer, with the current tab selected. */
   showTabSetting() {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
@@ -381,24 +565,13 @@ export class ChatWindowComponent {
     component.selectedTab.set(this.chatTab());
   }
 
+  /** Opens the dice table settings panel near the pointer, loading it on first use. */
   showDiceTableSetting() {
     const coordinate = this.pointerDeviceService.pointers[0];
-    const option: PanelOption = {
-      title: this.t('feature.chat.window.diceTableSetting'),
-      left: coordinate.x + 50,
-      top: coordinate.y - 450,
-      width: 650,
-      height: 400,
-    };
-    this.panelService.openLazy(
-      () =>
-        import('@axe/features/dice/dice-table-setting/dice-table-setting.component').then(
-          (m) => m.DiceTableSettingComponent
-        ),
-      option
-    );
+    this.roomPanels.open('diceTableSetting', { left: coordinate.x + 50, top: coordinate.y - 450 });
   }
 
+  /** Opens the chat message settings panel near the pointer for the current tab. */
   showChatSetting() {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
@@ -412,6 +585,7 @@ export class ChatWindowComponent {
     component.chatTabidentifier = this.chatTabidentifier;
   }
 
+  /** Opens the vote menu near the pointer for the current tab, loading it on first use. */
   showVoteMenu() {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
@@ -428,6 +602,7 @@ export class ChatWindowComponent {
     );
   }
 
+  /** Opens the alarm menu near the pointer, loading it on first use. */
   showAlarmMenu() {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
@@ -461,9 +636,21 @@ export class ChatWindowComponent {
     return objects;
   }
 
+  /**
+   * Sends a line from the chat input to the current tab.
+   *
+   * Character references in the text are filled in from the speaker. A line that targets characters
+   * is sent once for each targeted piece on the table, filled in against that piece and tagged with
+   * its name, with the parts that change the speaker's own resources or buffs taken out after the
+   * first copy so they apply once; with nothing targeted, the line says so. Nothing is sent when
+   * the reader may not speak in the tab. A line marked for the ticker is also shown there. A stamp
+   * with nothing said goes as a line of its own, with nothing read out of the words standing in for
+   * it; a stamp with words goes under them, the line going through all the rest as any line does.
+   */
   sendChat(value: ChatOutgoing) {
     const tab = this.chatTab();
     if (tab && !canRoleSpeakTab(tab, PeerCursor.myRole)) return;
+    if (tab && this.chatMessageService.sendLoneStamp(tab, value)) return;
     if (tab) {
       let outtext = '';
       let objects: GameCharacter[];
@@ -534,7 +721,9 @@ export class ChatWindowComponent {
         attachmentImageIdentifiers,
         value.replyTo,
         value.quoteOf,
-        { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' }
+        { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' },
+        undefined,
+        value.stamp
       );
       if (value.toTicker) this.chatTickerSelection.showMessage(sent.identifier);
     }

@@ -82,6 +82,7 @@ export class LightSourceComponent {
     );
   }
 
+  /** The size of one grid cell on the current table in pixels, which the light's icon is drawn at. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -156,23 +157,34 @@ export class LightSourceComponent {
     return `translateZ(${lift}px) ${facing}`.replace(/\s{2,}/g, ' ');
   });
 
+  /** Plays the pick-up sound when the light starts being dragged or turned. */
   onMove() {
     SoundEffect.play(PresetSound.cardPick);
   }
 
+  /** Plays the put-down sound when a drag or turn of the light ends. */
   onMoved() {
     SoundEffect.play(PresetSound.cardPut);
   }
 
+  /** Turns the light to the angle the rotate handle reports, which aims a cone light. */
   onRotated(degree: number) {
     this.lightSource().rotate = degree;
   }
 
+  /** Stops the browser's native drag, so only the movable directive moves the light. */
   onDragstart(e: Event) {
     e.preventDefault();
     e.stopPropagation();
   }
 
+  /**
+   * Opens the light's context menu at the pointer.
+   *
+   * When several pieces are selected the shared selection menu opens instead. Seen from above with
+   * a radial menu style chosen, it opens as a radial menu. The follow list offers the characters
+   * visible on the table.
+   */
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();

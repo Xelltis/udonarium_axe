@@ -1,10 +1,10 @@
 name: Deploy
 
-# 環境ごと (production / public) に S3 同期 + CloudFront invalidation を行う
-# reusable workflow。release.yml から workflow_call で呼び出される。
+# 環境ごと（production / public）にS3同期とCloudFront invalidationを行う
+# reusable workflow。release.ymlからworkflow_callで呼び出される。
 #
-# `environment` input が GitHub Environments の名前と対応していて、
-# Secrets はその環境からのみ解決される。各環境に下記 5 つの Secret を登録する:
+# `environment` inputがGitHub Environmentsの名前と対応していて、
+# Secretsはその環境からのみ解決される。各環境に次の5つのSecretを登録する。
 #   - AWS_REGION
 #   - AWS_S3_BUCKET
 #   - AWS_DEPLOY_ROLE_ARN
@@ -19,7 +19,7 @@ on:
         required: true
         type: string
       ref:
-        description: 'デプロイ対象の Git ref (タグ推奨: v1.2.3)'
+        description: 'デプロイ対象のGit ref（タグ推奨: v1.2.3）'
         required: true
         type: string
 
@@ -70,7 +70,7 @@ jobs:
           test -s dist/assets/config.json
 
       - name: Configure AWS credentials (OIDC AssumeRole)
-        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
@@ -80,20 +80,20 @@ jobs:
         env:
           BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         run: |
-          # axe_*.zip は GitHub Release 用なので S3 には載せない
+          # axe_*.zipはGitHub Release用なのでS3には載せない
           aws s3 sync dist/ "s3://$BUCKET/" \
             --delete \
             --exclude "axe_*.zip" \
             --cache-control "public, max-age=31536000, immutable"
 
-          # ハッシュが付かないファイルは即時反映させたいので revalidate
+          # ハッシュが付かないファイルは即時反映させたいのでrevalidate
           aws s3 cp dist/index.html "s3://$BUCKET/index.html" \
             --cache-control "public, max-age=0, must-revalidate" \
             --content-type "text/html; charset=utf-8"
           aws s3 cp dist/assets/config.json "s3://$BUCKET/assets/config.json" \
             --cache-control "public, max-age=0, must-revalidate" \
             --content-type "application/json"
-          # 翻訳ファイルもハッシュが付かず同名で差し替わるため revalidate
+          # 翻訳ファイルもハッシュが付かず同名で差し替わるためrevalidate
           aws s3 cp dist/assets/i18n/ "s3://$BUCKET/assets/i18n/" \
             --recursive \
             --cache-control "public, max-age=0, must-revalidate" \

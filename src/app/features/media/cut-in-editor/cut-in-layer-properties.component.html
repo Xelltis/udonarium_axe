@@ -41,6 +41,19 @@
     @if (layer.kind === 'image') {
       <label
         class="text-ui-muted flex cursor-pointer items-center gap-1 py-0.5 text-[11px] select-none [&_input]:size-3.5 [&_input]:[accent-color:var(--ui-accent)]"
+        [title]="'feature.media.cutInEditor.portraitSlotHint' | transloco"
+      >
+        <input
+          type="checkbox"
+          name="cut-in-layer-portrait-slot"
+          data-testid="cut-in-portrait-slot"
+          [(ngModel)]="portraitSlot"
+          [attr.disabled]="!isEditable() ? '' : null"
+        />
+        {{ 'feature.media.cutInEditor.portraitSlot' | transloco }}
+      </label>
+      <label
+        class="text-ui-muted flex cursor-pointer items-center gap-1 py-0.5 text-[11px] select-none [&_input]:size-3.5 [&_input]:[accent-color:var(--ui-accent)]"
       >
         <input
           type="checkbox"
@@ -84,6 +97,18 @@
         [placeholder]="'feature.media.cutInEditor.textPlaceholder' | transloco"
         [attr.disabled]="!isEditable() ? '' : null"
       ></textarea>
+      <div class="flex items-center gap-1.5">
+        <button
+          type="button"
+          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 text-[11px] transition-[background,color] disabled:cursor-default disabled:opacity-50"
+          data-testid="cut-in-insert-speaker-name"
+          [disabled]="!isEditable()"
+          (click)="insertSpeakerName()"
+        >
+          {{ 'feature.media.cutInEditor.insertSpeakerName' | transloco }}
+        </button>
+        <span class="text-ui-dim text-[10px]">{{ 'feature.media.cutInEditor.speakerNameHint' | transloco }}</span>
+      </div>
       <div class="grid grid-cols-[3.6rem_minmax(0,1fr)] items-center gap-x-1.5 gap-y-1">
         <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.fontSize' | transloco }}</label>
         <input
@@ -170,6 +195,64 @@
           />
           {{ 'feature.media.cutInEditor.vertical' | transloco }}
         </label>
+        <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.letterMotion' | transloco }}</label>
+        <select
+          class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid p-1 text-[12px] outline-none disabled:opacity-50"
+          name="cut-in-layer-letter-motion"
+          data-testid="cut-in-letter-motion"
+          [(ngModel)]="letterMotion"
+          [attr.disabled]="!isEditable() ? '' : null"
+        >
+          @for (motion of letterMotions; track motion) {
+            <option [value]="motion">
+              {{ 'feature.media.cutInEditor.letterMotions.' + (motion || 'none') | transloco }}
+            </option>
+          }
+        </select>
+        <div class="col-start-2 flex flex-wrap gap-1">
+          @for (motion of letterPresets; track motion) {
+            <button
+              type="button"
+              class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 text-[11px] transition-[background,color] disabled:cursor-default disabled:opacity-50"
+              [class.border-ui-accent!]="letterMotion === motion"
+              [class.text-ui-accent!]="letterMotion === motion"
+              [attr.aria-pressed]="letterMotion === motion"
+              [attr.data-testid]="'cut-in-letter-preset-' + motion"
+              [disabled]="!isEditable()"
+              (click)="useLetterPreset(motion)"
+            >
+              {{ 'feature.media.cutInEditor.letterMotions.' + motion | transloco }}
+            </button>
+          }
+        </div>
+        @if (letterTakesStagger) {
+          <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.letterStagger' | transloco }}</label>
+          <input
+            class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid px-1.5 py-1 text-right text-[12px] outline-none disabled:opacity-50"
+            name="cut-in-layer-letter-stagger"
+            type="number"
+            min="0"
+            max="1000"
+            step="10"
+            [placeholder]="'feature.media.cutInEditor.letterDefault' | transloco"
+            [(ngModel)]="letterStaggerMs"
+            [attr.disabled]="!isEditable() ? '' : null"
+          />
+        }
+        @if (letterTakesDuration) {
+          <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.letterDuration' | transloco }}</label>
+          <input
+            class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid px-1.5 py-1 text-right text-[12px] outline-none disabled:opacity-50"
+            name="cut-in-layer-letter-duration"
+            type="number"
+            min="0"
+            max="3000"
+            step="50"
+            [placeholder]="'feature.media.cutInEditor.letterDefault' | transloco"
+            [(ngModel)]="letterDurationMs"
+            [attr.disabled]="!isEditable() ? '' : null"
+          />
+        }
         <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.fontFamily' | transloco }}</label>
         <input
           class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid px-1.5 py-1 text-[12px] outline-none disabled:opacity-50"
@@ -178,6 +261,23 @@
           [placeholder]="'feature.media.cutInEditor.fontFamilyPlaceholder' | transloco"
           [attr.disabled]="!isEditable() ? '' : null"
         />
+        <div class="col-start-2 flex flex-wrap gap-1">
+          @for (preset of fontPresets; track preset.id) {
+            <button
+              type="button"
+              class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 text-[11px] transition-[background,color] disabled:cursor-default disabled:opacity-50"
+              [class.border-ui-accent!]="fontFamily === preset.fontFamily"
+              [class.text-ui-accent!]="fontFamily === preset.fontFamily"
+              [style.font-family]="preset.fontFamily || null"
+              [attr.aria-pressed]="fontFamily === preset.fontFamily"
+              [attr.data-testid]="'cut-in-font-' + preset.id"
+              [disabled]="!isEditable()"
+              (click)="useFontPreset(preset)"
+            >
+              {{ 'feature.media.cutInEditor.fontPresets.' + preset.id | transloco }}
+            </button>
+          }
+        </div>
       </div>
     }
 

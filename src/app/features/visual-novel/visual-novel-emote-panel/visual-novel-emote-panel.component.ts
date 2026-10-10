@@ -13,9 +13,9 @@ import { TranslocoModule } from '@jsverse/transloco';
 /**
  * What the next line will be staged as.
  *
- * Kept apart from the display settings it used to share a balloon with: this is touched line
- * by line while a scene is played, those are settled once and left alone. Together they made
- * one tall column to scroll past every time an expression was wanted.
+ * Kept apart from the display settings: this is touched line by line while a scene is played,
+ * those are settled once and left alone. Together they would make one tall column to scroll past
+ * every time an expression is wanted.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -40,14 +40,19 @@ export class VisualNovelEmotePanelComponent {
   readonly selectedEmotionMark = this.selection.emotionMark;
   readonly selectedExit = this.selection.exited;
 
+  /** The character drawn for an emotion mark's button; empty for no mark. */
   emotionMarkLabel(mark: VnEmotionMark): string {
     return mark === 'none' ? '' : VN_EMOTION_MARK_CHARS[mark];
   }
 
+  /**
+   * Puts every staging choice for the next line back to its default, from the panel's reset button.
+   */
   resetEmote(): void {
     this.selection.reset();
   }
 
+  /** Marks the next line as one the speaker leaves the stage on, or clears that mark. */
   toggleSelectedExit(): void {
     this.selection.toggleExit();
   }

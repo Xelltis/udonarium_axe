@@ -1,0 +1,148 @@
+<div
+  class="border-ui-border-panel text-ui-accent mx-0 mt-0 mb-2 flex items-center gap-1.25 border-b border-solid pb-1.25 text-[0.72em] font-semibold tracking-[0.06em] uppercase [&_.material-icons]:text-[14px]!"
+>
+  <i class="material-icons">portrait</i>{{ 'feature.inventory.sheet.portrait' | transloco }}
+</div>
+<div
+  class="border-ui-border-panel bg-ui-elevated group rounded-ui-sm relative mx-auto aspect-3/4 max-h-[45dvh] w-full shrink-0 cursor-pointer overflow-hidden border-2 border-solid"
+  (click)="changePortrait(komaImageIndex())"
+  [title]="
+    (isCompact() ? 'feature.inventory.sheet.portraitClickHintTouch' : 'feature.inventory.sheet.portraitClickHint')
+      | transloco
+  "
+>
+  @if (komaImageFile().url) {
+    <img
+      class="block size-full object-contain"
+      [src]="komaImageFile().url | safe: 'resourceUrl'"
+      [alt]="'feature.inventory.sheet.portraitAlt' | transloco"
+    />
+  } @else {
+    <div class="text-ui-dim flex size-full items-center justify-center [&_.material-icons]:text-[4em]!">
+      <i class="material-icons">person</i>
+    </div>
+  }
+  <div
+    class="absolute inset-0 flex items-center justify-center bg-black/45 text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 [&_.material-icons]:text-[2em]!"
+  >
+    <i class="material-icons">edit</i>
+  </div>
+</div>
+
+<div
+  class="border-ui-border-panel text-ui-accent my-2 flex items-center gap-1.25 border-b border-solid pb-1.25 text-[0.72em] font-semibold tracking-[0.06em] uppercase [&_.material-icons]:text-[14px]!"
+>
+  <i class="material-icons">photo_library</i>{{ 'feature.inventory.sheet.portraits' | transloco }}
+</div>
+<div class="flex flex-wrap gap-1">
+  @for (portrait of portraitImages(); track portrait.index) {
+    <div
+      class="border-ui-border-panel bg-ui-elevated text-ui-dim hover:border-ui-text-muted relative flex size-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[3px] border-2 border-solid transition-[border-color] duration-[0.12s] [&_.material-icons]:text-base!"
+      [class.border-ui-accent!]="portrait.index === komaImageIndex()"
+      (click)="setKomaIndex(portrait.index)"
+      [title]="
+        portrait.name || ('feature.inventory.sheet.portraitIndexTitle' | transloco: { index: portrait.index + 1 })
+      "
+    >
+      @if (portrait.imageFile.url) {
+        <img class="block size-full object-cover" [src]="portrait.imageFile.url | safe: 'resourceUrl'" alt="" />
+      } @else {
+        <i class="material-icons">image</i>
+      }
+      @if (portrait.index === komaImageIndex()) {
+        <div
+          class="bg-ui-accent pointer-events-none absolute right-0 bottom-0 flex size-3.5 items-center justify-center rounded-tl-xs text-white [&_.material-icons]:text-[10px]!"
+        >
+          <i class="material-icons">person_pin</i>
+        </div>
+      }
+    </div>
+  }
+  <button
+    class="border-ui-accent bg-ui-accent-bg text-ui-accent hover:bg-ui-accent-glow flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border border-dashed transition-[background] [&_.material-icons]:text-[18px]!"
+    type="button"
+    [title]="'feature.inventory.sheet.addPortraitTitle' | transloco"
+    (click)="addPortrait()"
+  >
+    <i class="material-icons">add</i>
+  </button>
+</div>
+@if (portraitImages().length) {
+  <label
+    class="flex min-w-0 items-center gap-1.5 text-[0.78em]"
+    [title]="'feature.inventory.sheet.portraitNameHint' | transloco"
+  >
+    <i class="material-icons text-ui-dim text-[14px]!">label</i>
+    <input
+      type="text"
+      class="border-ui-border-input bg-ui-input text-ui-text focus:border-ui-accent min-w-0 flex-1 rounded-sm border border-solid px-1 py-0.5 outline-none"
+      size="1"
+      [value]="portraitName()"
+      (change)="setPortraitName($event)"
+      [placeholder]="'feature.inventory.sheet.portraitNamePlaceholder' | transloco"
+    />
+  </label>
+}
+<div class="flex flex-wrap gap-1">
+  @if (portraitImages().length > 1) {
+    <button
+      class="bg-ui-danger-bg border-ui-danger text-ui-danger rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
+      type="button"
+      [title]="'feature.inventory.sheet.removePortraitTitle' | transloco"
+      (click)="removePortrait(komaImageIndex())"
+    >
+      <i class="material-icons">delete</i>
+    </button>
+  }
+  <button
+    class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
+    type="button"
+    (click)="showImportImages()"
+  >
+    <i class="material-icons">file_copy</i>{{ 'feature.inventory.sheet.import' | transloco }}
+  </button>
+  @if (portraitImages().length) {
+    <button
+      class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
+      type="button"
+      data-testid="portrait-cut-in-fit"
+      [title]="'feature.inventory.sheet.cutInFitOpenHint' | transloco"
+      (click)="openCutInFit()"
+    >
+      <i class="material-icons">crop</i>{{ 'feature.inventory.sheet.cutInFit' | transloco }}
+    </button>
+  }
+</div>
+
+<div class="border-ui-border-panel mt-0.5 flex flex-col gap-1.25 border-t border-solid pt-1.5">
+  <div
+    class="border-ui-border-panel text-ui-accent mt-0 mb-2 flex items-center gap-1.25 border-b border-solid pb-1.25 text-[0.72em] font-semibold tracking-[0.06em] uppercase [&_.material-icons]:text-[14px]!"
+  >
+    <i class="material-icons">chat</i>{{ 'feature.inventory.sheet.chatPosition' | transloco }}
+  </div>
+  <div class="flex min-w-0 flex-wrap items-center gap-1.5 gap-y-0.75 text-[0.82em]">
+    <div class="border-ui-border-panel rounded-ui-sm inline-flex items-stretch overflow-hidden border border-solid">
+      <button
+        type="button"
+        class="bg-ui-elevated text-ui-muted hover:not-disabled:bg-ui-hover hover:not-disabled:text-ui-text flex size-5.5 cursor-pointer items-center justify-center border-none p-0 text-[1em] leading-none transition-[background,color] disabled:cursor-not-allowed disabled:opacity-30"
+        (click)="setPortraitPos(portraitPosIndex() - 1)"
+        [disabled]="portraitPosIndex() <= 0"
+      >
+        ‹
+      </button>
+      <span
+        class="bg-ui-input text-ui-text border-ui-border-panel flex h-5.5 min-w-[2em] items-center justify-center border-x border-solid px-1 text-center text-[0.9em] font-semibold"
+        >{{ portraitPosIndex() }}</span
+      >
+      <button
+        type="button"
+        class="bg-ui-elevated text-ui-muted hover:not-disabled:bg-ui-hover hover:not-disabled:text-ui-text flex size-5.5 cursor-pointer items-center justify-center border-none p-0 text-[1em] leading-none transition-[background,color] disabled:cursor-not-allowed disabled:opacity-30"
+        (click)="setPortraitPos(portraitPosIndex() + 1)"
+        [disabled]="portraitPosIndex() >= maxPosition"
+      >
+        ›
+      </button>
+    </div>
+    <span class="text-ui-muted shrink-0 text-[0.78em] whitespace-nowrap">/ {{ maxPosition }}</span>
+  </div>
+</div>

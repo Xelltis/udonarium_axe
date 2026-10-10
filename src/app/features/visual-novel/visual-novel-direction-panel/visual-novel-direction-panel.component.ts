@@ -9,8 +9,8 @@ import { TranslocoModule } from '@jsverse/transloco';
  * What the game master does to the scene everybody is looking at.
  *
  * Apart from the display settings, which are each reader's own: these reach the whole table.
- * They used to sit in the same strip as the controls for reading and for speaking, where they
- * were three unlabelled icons among twenty.
+ * In the same strip as the controls for reading and for speaking they would be three unlabelled
+ * icons among twenty.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -26,6 +26,11 @@ export class VisualNovelDirectionPanelComponent {
 
   readonly transitionOptions = VN_STAGE_TRANSITIONS;
 
+  /**
+   * Clears the stage of the tab being read, for everybody: a notice goes into the log, and nothing
+   * said before it stays on the stage. Only the game master may do it, and with no tab nothing
+   * happens.
+   */
   resetStage(): void {
     const tab = this.playback.chatTab();
     if (tab) this.scene.resetStage(tab);

@@ -38,10 +38,42 @@
   }
 </ng-template>
 <div
-  class="pointer-events-none absolute inset-0 -m-1.25 bg-cover bg-center bg-no-repeat [&.is-filter]:filter-[blur(5px)] [&.is-filter]:will-change-[filter] [&.is-filter]:after:block [&.is-filter]:after:size-full [&.is-filter]:after:content-[''] [&.is-filter.black]:after:bg-[hsl(0,0%,10%)] [&.is-filter.black]:after:filter-[opacity(0.3)] [&.is-filter.white]:after:bg-[hsl(0,0%,97%)] [&.is-filter.white]:after:filter-[opacity(0.2)]"
+  class="pointer-events-none absolute inset-0 -m-1.25 bg-cover bg-center bg-no-repeat [&.is-filter]:filter-[blur(5px)] [&.is-filter]:will-change-[filter] [&.is-filter]:after:block [&.is-filter]:after:size-full [&.is-filter]:after:content-[''] [&.is-filter.black]:after:bg-[hsl(0,0%,10%)] [&.is-filter.black]:after:opacity-30 [&.is-filter.white]:after:bg-[hsl(0,0%,97%)] [&.is-filter.white]:after:opacity-20"
   [ngClass]="[backgroundFilterType ? 'is-filter' : '', backgroundFilterType]"
   [style.background-image]="'url(' + backgroundImage.url + ')' | safe: 'style'"
 ></div>
+<!--
+  The backdrops: pictures laid across the screen behind the table, each moved a little for the
+  camera by the frame that moves the table. Following the camera less is what makes one look further away.
+-->
+@if (backdropLayerViews().length) {
+  <div class="pointer-events-none absolute inset-0 overflow-hidden" data-testid="backdrop-layers">
+    @for (layer of backdropLayerViews(); track layer.identifier) {
+      <div class="absolute inset-x-0" data-testid="backdrop-layer" [ngStyle]="layer.frameStyle">
+        <div
+          class="absolute top-0 left-0 h-full"
+          data-testid="backdrop-layer-follow"
+          [ngStyle]="layer.followStyle"
+          [appBackdrop]="layer.place"
+        >
+          <div
+            class="absolute inset-0"
+            data-testid="backdrop-layer-sheet"
+            [class.bg-layer-drift]="layer.drifts"
+            [ngStyle]="layer.style"
+          ></div>
+        </div>
+        <img
+          class="pointer-events-none absolute size-0 opacity-0"
+          alt=""
+          data-testid="backdrop-layer-probe"
+          [src]="layer.imageUrl | safe: 'resourceUrl'"
+          (load)="onBackgroundLayerImageLoad(layer.imageIdentifier, $event)"
+        />
+      </div>
+    }
+  </div>
+}
 <div
   class="absolute inset-0 m-auto block size-full touch-manipulation overflow-hidden select-none [-moz-user-drag:none] [-webkit-user-drag:none] perspective-[3000px]"
   [style.perspective]="isOrthographicProjection() ? 'none' : null"
@@ -182,12 +214,10 @@
       }
       @if (terrainsBySurface().floor.length) {
         <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-          <div
-            class="pointer-events-none absolute size-px transform-[translate3d(0,0,0)] will-change-[opacity] backface-hidden transform-3d"
-          ></div>
-          @for (terrain of terrainsBySurface().floor; track terrain.identifier) {
+          @for (terrain of floorTerrainsDrawnAlone(); track terrain.identifier) {
             <terrain class="absolute will-change-transform backface-visible transform-3d" [terrain]="terrain"></terrain>
           }
+          <terrain-batch-layer />
         </div>
       }
       @for (beamGrid of beamTopGrids(); track beamGrid.identifier) {
@@ -212,13 +242,6 @@
         <game-table-mask class="absolute will-change-transform backface-visible transform-3d" [gameTableMask]="mask">
         </game-table-mask>
       }
-      @for (scratchMask of tableScratchMasks(); track scratchMask.identifier) {
-        <game-table-scratch-mask
-          class="absolute will-change-transform backface-visible transform-3d"
-          [gameTableScratchMask]="scratchMask"
-        >
-        </game-table-scratch-mask>
-      }
       @for (ambience of ambiences(); track ambience.identifier) {
         <table-ambience
           class="absolute will-change-transform backface-visible transform-3d"
@@ -227,9 +250,6 @@
       }
       @if (textNotesBySurface().floor.length) {
         <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-          <div
-            class="pointer-events-none absolute size-px transform-[translate3d(0,0,0)] will-change-[opacity] backface-hidden transform-3d"
-          ></div>
           @for (textNote of textNotesBySurface().floor; track textNote.identifier) {
             <text-note
               class="absolute will-change-transform backface-visible transform-3d"
@@ -273,17 +293,6 @@
           }"
         ></coin>
       }
-      <div>
-        <div
-          class="pointer-events-none absolute size-px transform-[translate3d(0,0,0)] will-change-[opacity] backface-hidden transform-3d"
-        ></div>
-        @for (cursor of peerCursors(); track cursor.identifier) {
-          <peer-cursor
-            class="absolute will-change-transform backface-visible transform-3d"
-            [cursor]="cursor"
-          ></peer-cursor>
-        }
-      </div>
       @for (range of ranges(); track range.identifier) {
         <range class="absolute will-change-transform backface-visible transform-3d" [range]="range"></range>
       }
@@ -299,9 +308,6 @@
       }
       @if (diceSymbolsBySurface().floor.length) {
         <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-          <div
-            class="pointer-events-none absolute size-px transform-[translate3d(0,0,0)] will-change-[opacity] backface-hidden transform-3d"
-          ></div>
           @for (diceSymbol of diceSymbolsBySurface().floor; track diceSymbol.identifier) {
             <dice-symbol
               class="absolute will-change-transform backface-visible transform-3d"
@@ -313,9 +319,6 @@
       }
       @if (charactersBySurface().floor.length) {
         <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-          <div
-            class="pointer-events-none absolute size-px transform-[translate3d(0,0,0)] will-change-[opacity] backface-hidden transform-3d"
-          ></div>
           @for (character of charactersBySurface().floor; track character.identifier) {
             <game-character
               class="absolute will-change-transform backface-visible transform-3d"
@@ -326,9 +329,6 @@
         </div>
       }
       <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-        <div
-          class="pointer-events-none absolute size-px transform-[translate3d(0,0,0)] will-change-[opacity] backface-hidden transform-3d"
-        ></div>
         @for (cursor of peerCursors(); track cursor.identifier) {
           <peer-cursor
             class="absolute will-change-transform backface-visible transform-3d"
@@ -342,8 +342,10 @@
       <table-fog-air-overlay class="contents"></table-fog-air-overlay>
       <table-vision-volume-overlay class="contents"></table-vision-volume-overlay>
       <table-move-block-overlay class="contents"></table-move-block-overlay>
+      <table-move-cost-overlay class="contents"></table-move-cost-overlay>
       <table-trigger-overlay class="contents"></table-trigger-overlay>
       <table-move-range-overlay class="contents"></table-move-range-overlay>
+      <table-altitude-guide-overlay class="contents"></table-altitude-guide-overlay>
       <table-target-overlay class="contents"></table-target-overlay>
       <table-effect-overlay class="contents"></table-effect-overlay>
       <effect-target-overlay class="contents"></effect-target-overlay>
@@ -352,6 +354,7 @@
   </div>
 </div>
 <table-weather-overlay></table-weather-overlay>
+<table-dice-overlay></table-dice-overlay>
 @if (screenFlash()) {
   <div class="animate-effect-flash pointer-events-none absolute inset-0 z-10" [style.background]="screenFlash()"></div>
 }
@@ -389,6 +392,23 @@
       }
     </div>
     <span class="text-ui-muted min-w-0 text-[0.86em] leading-snug">{{ movePlanHintKey() | transloco }}</span>
+  </div>
+}
+<!--
+  Said in the same band the planned move speaks from, and only when that band is quiet, so a
+  piece in hand never has two things talking over each other at the foot of the screen.
+-->
+@if (holdHint(); as hint) {
+  <div
+    class="bg-ui-panel shadow-ui-md text-ui-muted pointer-events-none absolute bottom-28 left-1/2 z-160 flex max-w-[92vw] -translate-x-1/2 items-center gap-2 rounded-full px-4 py-1.5 text-[0.86em] leading-snug opacity-95"
+    data-testid="hold-hint"
+  >
+    <i class="material-icons text-ui-dim text-[15px]!">mouse</i>
+    <span class="min-w-0">{{ hint.footing | transloco }}</span>
+    @if (hint.lift) {
+      <span class="text-ui-dim">/</span>
+      <span class="min-w-0">{{ hint.lift | transloco }}</span>
+    }
   </div>
 }
 @if (isPickingEffectTarget()) {

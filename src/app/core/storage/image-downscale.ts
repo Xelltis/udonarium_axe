@@ -123,6 +123,13 @@ function loadImage(src: string, timeoutMs: number = LOAD_TIMEOUT_MS): Promise<HT
 
 const SKIP_WEBP_CONVERT = new Set(['image/gif', 'image/apng', 'image/webp', 'image/svg+xml']);
 
+/**
+ * Re-encodes an added image as WebP, or PNG where the browser cannot write WebP, when that comes
+ * out smaller, and otherwise hands the original back.
+ *
+ * GIF, APNG, animated PNG, WebP and SVG are left alone so animation and vectors survive, as is
+ * anything that is not an image or does not decode in time.
+ */
 export async function convertBlobToWebP(blob: Blob, loadTimeoutMs?: number): Promise<Blob> {
   if (!blob || blob.size === 0) return blob;
 
@@ -163,6 +170,11 @@ export async function convertBlobToWebP(blob: Blob, loadTimeoutMs?: number): Pro
   }
 }
 
+/**
+ * Whether PNG bytes carry an animation, told by an acTL chunk before the first image data.
+ *
+ * Only the chunks inside the bytes given are read, so the start of the file is enough.
+ */
 export function isAnimatedPng(buffer: ArrayBuffer): boolean {
   if (buffer.byteLength < 8) return false;
   const view = new DataView(buffer);

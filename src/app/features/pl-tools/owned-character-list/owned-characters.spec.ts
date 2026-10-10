@@ -2,6 +2,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import {
   isOnTable,
   isOwnedByUser,
+  selectClaimableCharacters,
   selectControllableCharacters,
   selectOwnedCharacters,
 } from '@axe/features/pl-tools/owned-character-list/owned-characters';
@@ -65,6 +66,20 @@ describe('owned-characters', () => {
     it('is true only for one on the table', () => {
       expect(isOnTable(makeCharacter('me', 'table'))).toBe(true);
       expect(isOnTable(makeCharacter('me', 'common'))).toBe(false);
+    });
+  });
+
+  describe('selectClaimableCharacters', () => {
+    it('offers the unclaimed ones on the table, and none owned or off it', () => {
+      const free = makeCharacter('', 'table');
+      const characters = [
+        free,
+        makeCharacter('me', 'table'),
+        makeCharacter('', 'common'),
+        makeCharacter('', 'graveyard'),
+      ];
+
+      expect(selectClaimableCharacters(characters)).toEqual([free]);
     });
   });
 });

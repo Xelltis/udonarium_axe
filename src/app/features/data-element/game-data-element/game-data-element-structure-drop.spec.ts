@@ -5,6 +5,7 @@ import {
   canDropStructureElement,
   getElementDepth,
   getSubtreeDepth,
+  listMoveTargets,
   MAX_STANDARD_DEPTH,
   resolveDropPosition,
 } from '@axe/features/data-element/game-data-element/game-data-element-structure-drop';
@@ -147,5 +148,50 @@ describe('resolveDropPosition', () => {
   it('falls back without a rectangle to measure', () => {
     const target = DataElement.create('s', '', { role: DataElementRole.SECTION });
     expect(resolveDropPosition(null, 0, target)).toBe('inside');
+  });
+});
+
+describe('listMoveTargets', () => {
+  function sheet(): { detail: DataElement; hp: DataElement; skills: DataElement; action: DataElement } {
+    const detail = DataElement.create('detail', '');
+    const resources = DataElement.create('リソース', '', { role: DataElementRole.SECTION });
+    const basic = DataElement.create('基本', '', { role: DataElementRole.GROUP });
+    const hp = DataElement.create('HP', '10', { role: DataElementRole.FIELD });
+    const skills = DataElement.create('スキル', '', { role: DataElementRole.SECTION });
+    const action = DataElement.create('アクション', '', { role: DataElementRole.GROUP });
+    detail.appendChild(resources);
+    resources.appendChild(basic);
+    basic.appendChild(hp);
+    detail.appendChild(skills);
+    skills.appendChild(action);
+    return { detail, hp, skills, action };
+  }
+
+  it('offers a field every other group, named by its path', () => {
+    const { hp, action } = sheet();
+
+    expect(listMoveTargets(hp)).toEqual([{ element: action, path: ['スキル', 'アクション'] }]);
+  });
+
+  it('offers a group the other sections', () => {
+    const { action } = sheet();
+
+    expect(listMoveTargets(action).map((target) => target.path)).toEqual([['リソース'], ['リソース', '基本']]);
+  });
+
+  it('never offers an element its own subtree', () => {
+    const { skills, action } = sheet();
+    const inner = DataElement.create('内側', '', { role: DataElementRole.GROUP });
+    action.appendChild(inner);
+
+    expect(listMoveTargets(action).map((target) => target.element)).not.toContain(inner);
+    expect(listMoveTargets(skills)).toEqual([]);
+  });
+
+  it('offers nothing to an element off the sheet', () => {
+    const loose = DataElement.create('メモ', '', { role: DataElementRole.FIELD });
+    DataElement.create('グループ', '', { role: DataElementRole.GROUP }).appendChild(loose);
+
+    expect(listMoveTargets(loose)).toEqual([]);
   });
 });

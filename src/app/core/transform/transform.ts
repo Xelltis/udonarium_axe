@@ -27,6 +27,7 @@ export class Transform {
     this.initialize(element);
   }
 
+  /** Lets go of the element and resets the own matrix, as when the instance goes back to a pool. */
   clear(): Transform {
     this.element = null;
     this.matrix.identity();
@@ -72,6 +73,13 @@ export class Transform {
     return this;
   }
 
+  /**
+   * Converts a point in page coordinates to this element's coordinates, through every CSS
+   * transform and perspective above it.
+   *
+   * The result lies on the element plane, so a pointer over a tilted table lands on its surface.
+   * The layout is the one captured when the transform was made or reinitialised.
+   */
   globalToLocal(x: number, y: number, z: number = 0): IPoint3D {
     const ret: IPoint3D = { x: x, y: y, z: z, w: 1 };
     this.inverseSceneTransform.unproject(ret, ret);
@@ -79,6 +87,10 @@ export class Transform {
     return ret;
   }
 
+  /**
+   * Converts a point in this element's coordinates to page coordinates, using the layout captured
+   * when the transform was made or reinitialised.
+   */
   localToGlobal(x: number, y: number, z: number = 0): IPoint3D {
     const ret: IPoint3D = { x: x, y: y, z: z, w: 1 };
     this.sceneTransform.project(ret, ret);
@@ -86,6 +98,44 @@ export class Transform {
     return ret;
   }
 
+  /**
+   * The matrix a point of this element goes through to reach the page: every transform and
+   * perspective above it, and the element's own border box, as a CSS `matrix3d()` lists its numbers.
+   * A point's place on the page is its x and y over its w, as `localToGlobal` gives it.
+   */
+  sceneMatrix(out: Matrix3D = new Matrix3D()): Matrix3D {
+    const m = this.sceneTransform;
+    out.setData([
+      m.m11,
+      m.m12,
+      m.m13,
+      m.m14,
+      m.m21,
+      m.m22,
+      m.m23,
+      m.m24,
+      m.m31,
+      m.m32,
+      m.m33,
+      m.m34,
+      m.m41,
+      m.m42,
+      m.m43,
+      m.m44,
+    ]);
+    return out.appendPosition(
+      this.paddingLeft - this.marginLeft - this.borderLeft,
+      this.paddingTop - this.marginTop - this.borderTop,
+      0
+    );
+  }
+
+  /**
+   * Converts a point in this element's coordinates into another element's, building a transform for
+   * the other element and throwing it away afterwards.
+   *
+   * When converting repeatedly, keep a transform for the target and use `localToLocalUsing`.
+   */
   localToLocal(x: number, y: number, z: number, to: HTMLElement): IPoint3D {
     const transformer: Transform = new Transform(to);
     const ret = this.localToLocalUsing(x, y, z, transformer);

@@ -10,6 +10,7 @@ interface InventoryContextMenuCallbacks {
   showDetail: (character: GameCharacter) => void;
   showChatPalette: (character: GameCharacter) => void;
   showRemoteController: (character: GameCharacter) => void;
+  focusOnTable: (gameObject: TabletopObject) => void;
   cloneGameObject: (gameObject: TabletopObject) => void;
   deleteGameObject: (gameObject: TabletopObject) => void;
   setFolder: (gameObject: TabletopObject, folderPath: string) => void;
@@ -21,6 +22,13 @@ export interface InventoryFolderAssignCallbacks {
   createFolder: () => void;
 }
 
+/**
+ * The menu for filing pieces into a folder.
+ *
+ * Each known folder gets an entry, with the current one marked, followed by a new folder entry and
+ * a remove-from-folder entry. The removal is left out when the pieces are already unfiled; a null
+ * current path stands for several pieces at once and always offers it.
+ */
 export function buildInventoryFolderAssignMenu(
   currentPath: string | null,
   folderPaths: readonly string[],
@@ -56,6 +64,13 @@ export interface InventoryFolderContextMenuCallbacks {
   expandAll: () => void;
 }
 
+/**
+ * The context menu of a folder heading in the inventory.
+ *
+ * Rename, new subfolder and delete appear only for a named folder and a seat that may edit, and
+ * the subfolder entry is dropped at the depth limit. Selecting the folder's pieces appears while
+ * picking several; collapsing and expanding every folder are always offered.
+ */
 export function buildInventoryFolderContextMenu(
   folderPath: string,
   isMultiMove: boolean,
@@ -100,6 +115,14 @@ export function buildInventoryFolderContextMenu(
   return actions;
 }
 
+/**
+ * The context menu of a piece's row in the inventory.
+ *
+ * It opens the sheet, finds the piece on the table when it is there, and outside the graveyard
+ * opens the chat palette and remote controller and hides or shows the row in the inventory. It
+ * then offers the folder submenu, a move to each other location, delete for a piece in the
+ * graveyard, and copy.
+ */
 export function buildInventoryObjectContextMenu(
   gameObject: TabletopObject,
   inventoryService: GameObjectInventoryService,
@@ -114,6 +137,13 @@ export function buildInventoryObjectContextMenu(
     name: t('feature.character.contextMenu.showDetail'),
     action: () => callbacks.showDetail(gameObject as GameCharacter),
   });
+
+  if (gameObject.location.name === 'table') {
+    actions.push({
+      name: t('feature.inventory.contextMenu.showOnTable'),
+      action: () => callbacks.focusOnTable(gameObject),
+    });
+  }
 
   if (gameObject.location.name !== 'graveyard') {
     actions.push({
@@ -201,6 +231,12 @@ interface MultiMoveContextMenuCallbacks {
   multiDelete: () => void;
 }
 
+/**
+ * The menu for the pieces picked in multi-select.
+ *
+ * It offers a move to each location other than the tab on view, and delete when that tab is the
+ * graveyard. Each entry leaves multi-select once it has run.
+ */
 export function buildInventoryMultiMoveContextMenu(
   selectedTab: string,
   callbacks: MultiMoveContextMenuCallbacks,

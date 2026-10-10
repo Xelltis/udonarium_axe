@@ -34,6 +34,10 @@ export interface LightSourceContextMenuModel {
   radialGroups: ContextMenuRadialGroup[];
 }
 
+/**
+ * The flat list of entries for a light's context menu, as `buildLightSourceContextMenuModel` builds
+ * them, without the radial grouping.
+ */
 export function buildLightSourceContextMenu(
   light: LightSource,
   gridSize: number,
@@ -45,6 +49,14 @@ export function buildLightSourceContextMenu(
   return buildLightSourceContextMenuModel(light, gridSize, characters, onEdit, t, onSkin).actions;
 }
 
+/**
+ * Builds a light's context menu, both as a flat list and grouped for the radial menu.
+ *
+ * The entries act on the light directly: following a character, switching it on or off, applying a
+ * preset (which also switches it on), altitude, lock, copy and delete. Settings go through
+ * `onEdit`, and the skin entry is offered only when `onSkin` is given. The follow list ticks the
+ * character the light follows.
+ */
 export function buildLightSourceContextMenuModel(
   light: LightSource,
   gridSize: number,

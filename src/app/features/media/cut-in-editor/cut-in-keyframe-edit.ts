@@ -35,6 +35,7 @@ const RESTING: Record<CutInTrackName, keyof CutInLayer> = {
   crumble: 'crumble',
 };
 
+/** The value a track holds on the layer itself when no key applies, taken as 0 when it is not a number. */
 export function restingValue(layer: CutInLayer, track: CutInTrackName): number {
   const value = Number(layer[RESTING[track]]);
   return Number.isFinite(value) ? value : 0;
@@ -48,6 +49,7 @@ function writeTracks(layer: CutInLayer, tracks: CutInTrackSet): void {
   layer.tracks = encodeCutInTracks(tracks);
 }
 
+/** A copy of a track's keys, safe to change without touching the layer; empty when the track has none. */
 export function keysOf(layer: CutInLayer, track: CutInTrackName): CutInKey[] {
   return [...(layer.trackSet[track] ?? [])];
 }
@@ -57,6 +59,7 @@ export function valueAt(layer: CutInLayer, track: CutInTrackName, ms: number): n
   return sampleTrack(layer.trackSet[track], ms, restingValue(layer, track));
 }
 
+/** Whether a track has a key standing at a moment. */
 export function hasKeyAt(layer: CutInLayer, track: CutInTrackName, ms: number): boolean {
   return keyIndexAt(layer.trackSet[track], ms) >= 0;
 }
@@ -175,7 +178,7 @@ export function setEasingAtMoment(layer: CutInLayer, ms: number, easing: CutInEa
  *
  * A pose worked out once — where a layer sits, how far round, how faint — is often wanted
  * again later in the scene, or on a layer beside it. Copying the moment rather than each
- * of nine fields is what every editor offers, and there was no way to do it here at all.
+ * of nine fields is what every editor offers.
  */
 export interface CutInPose {
   readonly values: Readonly<Record<CutInTrackName, number>>;
@@ -183,6 +186,7 @@ export interface CutInPose {
   readonly moving: readonly CutInTrackName[];
 }
 
+/** Takes the layer's pose at a moment: every track's value there, and which tracks have keys. */
 export function poseAt(layer: CutInLayer, ms: number): CutInPose {
   const values = {} as Record<CutInTrackName, number>;
   const moving: CutInTrackName[] = [];

@@ -1,3 +1,5 @@
+import { ShadeStop } from '@axe/domain/tabletop/terrain-batch/batch-shade';
+
 /**
  * A texture darkened to the brightness asked for, without a filter.
  *
@@ -147,8 +149,7 @@ export const DEFAULT_SHADE_RGB = '0,0,0';
 /**
  * A colour written `#rrggbb` or `#rgb`, as the three parts `rgba()` takes.
  *
- * Anything it cannot read comes back as black, which is what dimming meant before a table
- * could say otherwise.
+ * Anything it cannot read comes back as black, the shade of a table that names none.
  */
 export function shadeRgbOf(color: string | null | undefined): string {
   if (!color) return DEFAULT_SHADE_RGB;
@@ -172,4 +173,23 @@ function assemble(layers: readonly ShadeLayer[], url: string, texture: TextureLa
       'background-repeat': [...layers.map(() => 'no-repeat'), texture.repeat].join(', '),
     },
   };
+}
+
+/**
+ * A face darkened by brightnesses given at points across it, as one gradient running left to
+ * right; null where it darkens nothing.
+ *
+ * Unlike {@link shadedBackgroundGrid}, the points are placed by the caller, in pixels, so two
+ * given at the same point change the shade there at once.
+ */
+export function shadeAlongGradient(stops: readonly ShadeStop[], shade: string = DEFAULT_SHADE_RGB): string | null {
+  if (stops.length === 0 || stops.every((stop) => !(1 - stop.value > 0.0005))) return null;
+  if (stops.length === 1) {
+    const flat = `rgba(${shade},${clampAlpha(1 - stops[0].value)})`;
+    return `linear-gradient(${flat}, ${flat})`;
+  }
+  const parts = stops.map(
+    (stop) => `rgba(${shade},${clampAlpha(1 - stop.value)}) ${Math.round(stop.at * 1000) / 1000}px`
+  );
+  return `linear-gradient(to right, ${parts.join(', ')})`;
 }

@@ -1,14 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
-import { DataElement } from '@axe/domain/data/data-element';
+import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
@@ -61,6 +66,42 @@ describe('GameObjectInventoryComponent', () => {
     await expectPanelDragRecovery(GameObjectInventoryComponent);
   });
 
+  describe('moving the round', () => {
+    function beSeat(role: PeerRole): void {
+      PeerCursor.myCursor = { role, identifier: 'seat-cursor' } as PeerCursor;
+    }
+
+    async function draw(): Promise<string[]> {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      return [...(fixture.nativeElement as HTMLElement).querySelectorAll('i.material-icons')].map(
+        (icon) => icon.textContent?.trim() ?? ''
+      );
+    }
+
+    it('draws a spectator no way to press it', async () => {
+      beSeat(PeerRole.Guest);
+
+      const icons = await draw();
+
+      expect(icons).not.toContain('fast_forward');
+      expect(icons).not.toContain('fast_rewind');
+      expect(icons).not.toContain('restart_alt');
+      expect(icons).not.toContain('chevron_right');
+    });
+
+    it('draws it for a player', async () => {
+      beSeat(PeerRole.Player);
+
+      const icons = await draw();
+
+      expect(icons).toContain('fast_forward');
+      expect(icons).toContain('fast_rewind');
+      expect(icons).toContain('restart_alt');
+      expect(icons).toContain('chevron_right');
+    });
+  });
+
   describe('the round shown side by side', () => {
     function putOnTable(name: string, party = ''): GameCharacter {
       const character = GameCharacter.create(name, 1, '');
@@ -74,6 +115,24 @@ describe('GameObjectInventoryComponent', () => {
 
       expect(component.turnSides()).toEqual([]);
       expect(component.currentTurnSide()).toBe('');
+    });
+
+    it('names on the round only the pieces this reader can see, and no side made only of the unseen', () => {
+      const heroes = new Party();
+      heroes.name = '味方';
+      heroes.initialize();
+      const monsters = new Party();
+      monsters.name = '敵';
+      monsters.initialize();
+      putOnTable('勇者', heroes.identifier);
+      putOnTable('闇の魔物', monsters.identifier);
+      Config.instance.turnOrderMode = 'faction';
+      vi.spyOn(TestBed.inject(VisionService), 'mayBeListed').mockImplementation(
+        (character) => character.name !== '闇の魔物'
+      );
+
+      expect(component.turnSides().map((group) => group.name)).toEqual(['味方']);
+      expect(component.turnOrderList().map((piece) => piece.name)).toEqual(['勇者']);
     });
 
     it('gathers the pieces under the party each is on', () => {
@@ -102,7 +161,7 @@ describe('GameObjectInventoryComponent', () => {
       putOnTable('魔物', monsters.identifier);
       Config.instance.turnOrderMode = 'faction';
       Config.instance.factionSkipUnassigned = true;
-      TestBed.inject(PanelService).isMinimized.set(true);
+      TestBed.inject(PanelService).isShrunk.set(true);
 
       fixture.detectChanges();
       await fixture.whenStable();
@@ -290,6 +349,65 @@ describe('GameObjectInventoryComponent', () => {
 
       component.toggleFolder('第1話');
       expect(component.isFolderCollapsed('第1話')).toBe(false);
+    });
+
+    describe('opening with the folders folded up, where this reader asked for that', () => {
+      /** A second inventory, opened after the reader has said how they want one opened. */
+      function opened(): GameObjectInventoryComponent {
+        const second = TestBed.createComponent(GameObjectInventoryComponent);
+        second.detectChanges();
+        return second.componentInstance;
+      }
+
+      it('opens a room of folders folded up', () => {
+        const goblin = putInShared('ゴブリン');
+        goblin.folderName = '第1話';
+        TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
+
+        const panel = opened();
+        panel.selectTab.set('common');
+        TestBed.tick();
+
+        expect(panel.isFolderCollapsed('第1話')).toBe(true);
+      });
+
+      it('leaves the pieces in no folder where they were', () => {
+        const goblin = putInShared('ゴブリン');
+        goblin.folderName = '第1話';
+        putInShared('村長');
+        TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
+
+        const panel = opened();
+        panel.selectTab.set('common');
+        TestBed.tick();
+
+        expect(panel.isFolderCollapsed('')).toBe(false);
+      });
+
+      it('opens them as it always has where nobody asked', () => {
+        const goblin = putInShared('ゴブリン');
+        goblin.folderName = '第1話';
+
+        const panel = opened();
+        panel.selectTab.set('common');
+        TestBed.tick();
+
+        expect(panel.isFolderCollapsed('第1話')).toBe(false);
+      });
+
+      it('leaves a folder the reader opens afterwards open', () => {
+        const goblin = putInShared('ゴブリン');
+        goblin.folderName = '第1話';
+        TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
+        const panel = opened();
+        panel.selectTab.set('common');
+        TestBed.tick();
+
+        panel.toggleFolder('第1話');
+        TestBed.tick();
+
+        expect(panel.isFolderCollapsed('第1話')).toBe(false);
+      });
     });
 
     it('opens every folder while a search is on, without forgetting what was folded', () => {
@@ -722,6 +840,20 @@ describe('GameObjectInventoryComponent', () => {
         PeerCursor.myCursor = originalCursor;
       });
 
+      it('lists no piece the table keeps from this reader, not even while moving several at once', () => {
+        bePlayer();
+        putOnTable('村長');
+        putOnTable('闇の魔物');
+        vi.spyOn(TestBed.inject(VisionService), 'mayBeListed').mockImplementation(
+          (character) => character.name !== '闇の魔物'
+        );
+
+        expect(component.filteredRows().map((row) => row.object.name)).toEqual(['村長']);
+
+        component.isMultiMove.set(true);
+        expect(component.filteredRows().map((row) => row.object.name)).toEqual(['村長']);
+      });
+
       it('keeps every piece until the master filters', () => {
         beGameMaster();
         putOnTable('村長');
@@ -813,9 +945,35 @@ describe('GameObjectInventoryComponent', () => {
         expect(tableRows()).toHaveLength(2);
       });
 
+      it('writes a resource in the colour the theme chose, not one of its own', () => {
+        putOnTable('ゴブリン');
+        TestBed.inject(GameObjectInventoryService).tableDataTag = 'HP';
+        component.setViewMode('table');
+        fixture.detectChanges();
+
+        const value = tableRows()[0].querySelector('input[name="table-current-value"]') as HTMLElement;
+        expect(value).toBeTruthy();
+        // Nothing written on the element itself: a colour written here would be written over the
+        // theme's, and a dark theme would be handed a grey meant for a pale one.
+        expect(value.style.color).toBe('');
+      });
+
+      it('still writes a sanity that has fallen in its warning colour', () => {
+        const haunted = putOnTable('探索者');
+        haunted.detailDataElement!.appendChild(
+          DataElement.create('SAN', 100, { type: DataElementType.NUMBER_RESOURCE, currentValue: 40 })
+        );
+        TestBed.inject(GameObjectInventoryService).tableDataTag = 'SAN';
+        component.setViewMode('table');
+        fixture.detectChanges();
+
+        const value = tableRows()[0].querySelector('input[name="table-current-value"]') as HTMLElement;
+        expect(value.style.color).not.toBe('');
+      });
+
       it('gives the heading and every row the same columns', () => {
-        // The heading and the rows have to agree on where a column starts. They did not while
-        // each row was a grid of its own, sizing its columns to whatever it happened to hold.
+        // The heading and the rows have to agree on where a column starts, which they cannot do
+        // while each row is a grid of its own, sizing its columns to whatever it happens to hold.
         putOnTable('ゴブリン');
         putOnTable('オーク');
         TestBed.inject(GameObjectInventoryService).tableDataTag = 'HP MP 敏捷度';
@@ -890,8 +1048,23 @@ describe('GameObjectInventoryComponent', () => {
         }
       });
 
-      it('says so when there is nothing to make columns of', () => {
+      it('works the columns out from the pieces when the room has named none', () => {
+        // The sample sheet marks its two pools to show on the piece, so those lead.
         putOnTable('ゴブリン');
+        TestBed.inject(GameObjectInventoryService).tableDataTag = '';
+        component.setViewMode('table');
+        fixture.detectChanges();
+
+        expect(tableRows()).toHaveLength(1);
+        expect(
+          component
+            .inventoryTable()
+            .columns.map((column) => column.name)
+            .slice(0, 2)
+        ).toEqual(['HP', 'MP']);
+      });
+
+      it('says so when there is nothing to make columns of', () => {
         TestBed.inject(GameObjectInventoryService).tableDataTag = '';
         component.setViewMode('table');
         fixture.detectChanges();
@@ -923,7 +1096,7 @@ describe('GameObjectInventoryComponent', () => {
     });
 
     it('keeps a button for making a folder beside the list it makes one in', () => {
-      // It stood in the search row, and went with it when the search moved to a panel of its own.
+      // The search has a panel of its own, so this button stands beside the list instead.
       putInShared('ゴブリン');
       component.selectTab.set('common');
       fixture.detectChanges();
@@ -1184,7 +1357,7 @@ describe('GameObjectInventoryComponent', () => {
       it('walks round the ways of reading it and back again', () => {
         fixture.detectChanges();
         const asked: boolean[] = [];
-        TestBed.inject(PanelService).minimizeRequest$.subscribe((minimized) => asked.push(minimized));
+        TestBed.inject(PanelService).shrinkRequest$.subscribe((shrunk) => asked.push(shrunk));
 
         TestBed.inject(PanelService).headerControls()[0].press();
         expect(component.viewMode()).toBe('table');
@@ -1196,10 +1369,22 @@ describe('GameObjectInventoryComponent', () => {
         expect(asked).toEqual([false, true]);
       });
 
+      it('stays on its list when folded to its bar, the turn order being a way of showing it apart from that', () => {
+        fixture.detectChanges();
+
+        TestBed.inject(PanelService).isMinimized.set(true);
+
+        expect(component.isRoundView()).toBe(false);
+
+        TestBed.inject(PanelService).isShrunk.set(true);
+
+        expect(component.isRoundView()).toBe(true);
+      });
+
       it('asks the frame to shrink rather than shrinking itself', () => {
         fixture.detectChanges();
         const asked: boolean[] = [];
-        TestBed.inject(PanelService).minimizeRequest$.subscribe((minimized) => asked.push(minimized));
+        TestBed.inject(PanelService).shrinkRequest$.subscribe((shrunk) => asked.push(shrunk));
 
         component.setViewMode('round');
         component.setViewMode('rich');
@@ -1234,7 +1419,7 @@ describe('GameObjectInventoryComponent', () => {
         component.isMultiMove.set(true);
         fixture.detectChanges();
 
-        // Moving nowhere used to close the bar and play a sound, which reads as a move that
+        // Moving nowhere would close the bar and play a sound, which reads as a move that
         // happened.
         expect(actions().length).toBeGreaterThan(0);
         for (const action of actions()) expect(action.disabled).toBe(true);
@@ -1250,6 +1435,69 @@ describe('GameObjectInventoryComponent', () => {
       });
     });
 
+    describe('pressing a row inside a movable panel', () => {
+      const originalCursor = PeerCursor.myCursor;
+      const presses = ['mousedown', 'touchstart'] as const;
+
+      function beSeat(role: PeerRole): void {
+        PeerCursor.myCursor = {
+          role,
+          identifier: 'seat-cursor',
+          isGameMaster: role === PeerRole.GameMaster,
+        } as PeerCursor;
+      }
+
+      async function pressReachesPanel(type: (typeof presses)[number]): Promise<boolean> {
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const row = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="inventory-item"]');
+        expect(row).not.toBeNull();
+        const panel = fixture.nativeElement as HTMLElement;
+        let reached = false;
+        const listener = () => (reached = true);
+        panel.addEventListener(type, listener);
+        row!.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
+        panel.removeEventListener(type, listener);
+        return reached;
+      }
+
+      afterEach(() => {
+        PeerCursor.myCursor = originalCursor;
+      });
+
+      it('keeps the panel still when a player presses a row they can file into a folder', async () => {
+        beSeat(PeerRole.Player);
+        putInShared('ゴブリン');
+        component.selectTab.set('common');
+
+        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(false);
+      });
+
+      it('keeps the panel still when the game master presses a row they can hand over', async () => {
+        beSeat(PeerRole.GameMaster);
+        putOnTable('ゴブリン');
+        component.selectTab.set('table');
+
+        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(false);
+      });
+
+      it('lets a player move the panel by a row on a tab without folders', async () => {
+        beSeat(PeerRole.Player);
+        putOnTable('ゴブリン');
+        component.selectTab.set('table');
+
+        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(true);
+      });
+
+      it('lets a guest move the panel by a row they may not file', async () => {
+        beSeat(PeerRole.Guest);
+        putInShared('ゴブリン');
+        component.selectTab.set('common');
+
+        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(true);
+      });
+    });
+
     it('ticks only the rows the search left when everything is selected', () => {
       putOnTable('ゴブリン');
       putOnTable('村長');
@@ -1260,6 +1508,48 @@ describe('GameObjectInventoryComponent', () => {
 
       expect(component.multiMoveTargets().size).toBe(1);
       expect(component.filteredRows()[0].identifier).toBe([...component.multiMoveTargets()][0]);
+    });
+  });
+
+  describe('showing a piece on the table', () => {
+    function onTheWall(): GameCharacter {
+      const character = GameCharacter.create('壁のぬし', 1, '');
+      character.location = { name: 'table', x: 120, y: 80, surface: 'north-wall' };
+      return character;
+    }
+
+    function spyOnFocus() {
+      return vi.spyOn(TestBed.inject(TableFocusService), 'focusOn').mockImplementation(() => undefined);
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('shows a piece from its menu through the table focus', () => {
+      const piece = onTheWall();
+      const focusOn = spyOnFocus();
+      TestBed.inject(PointerDeviceService).primeForContextMenu(0, 0);
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+
+      component.onContextMenu(new MouseEvent('contextmenu'), piece);
+      const name = TestBed.inject(TRANSLATE_FN)('feature.inventory.contextMenu.showOnTable');
+      open.mock.calls[0][1].find((action) => action.name === name)?.action?.();
+
+      expect(focusOn).toHaveBeenCalledWith(piece);
+    });
+
+    it('shows a piece on a double click through the table focus', () => {
+      const piece = onTheWall();
+      const focusOn = spyOnFocus();
+      const row = document.createElement('div');
+      row.addEventListener('dblclick', (event) =>
+        (component as unknown as { focusToObject(e: Event, o: GameCharacter): void }).focusToObject(event, piece)
+      );
+
+      row.dispatchEvent(new MouseEvent('dblclick'));
+
+      expect(focusOn).toHaveBeenCalledWith(piece);
     });
   });
 });

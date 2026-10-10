@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-display-preference.service';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { CutInListComponent } from '@axe/features/media/cut-in-list/cut-in-list.component';
@@ -30,6 +32,69 @@ describe('CutInListComponent', () => {
 
   it('should be created', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('a seat that is only watching', () => {
+    function beSeat(role: PeerRole): void {
+      PeerCursor.myCursor = { role, identifier: 'seat-cursor' } as PeerCursor;
+    }
+
+    it('makes no cut-in', () => {
+      beSeat(PeerRole.Guest);
+
+      component.createCutIn();
+
+      expect(component.getCutIns()).toHaveLength(0);
+    });
+
+    it('throws none away', () => {
+      beSeat(PeerRole.Player);
+      component.createCutIn();
+      const made = component.selectedCutIn!;
+      beSeat(PeerRole.Guest);
+
+      component.delete();
+
+      expect(component.getCutIns().map((cutIn) => cutIn.identifier)).toContain(made.identifier);
+    });
+
+    it('is handed the editors with nothing to change', () => {
+      beSeat(PeerRole.Player);
+      component.createCutIn();
+      expect(component.isEditable).toBe(true);
+
+      beSeat(PeerRole.Guest);
+
+      expect(component.isEditable).toBe(false);
+      expect(component.canEditCutIns).toBe(false);
+    });
+
+    async function drawnIcons(): Promise<string[]> {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      return [...(fixture.nativeElement as HTMLElement).querySelectorAll('i.material-icons')].map(
+        (icon) => icon.textContent?.trim() ?? ''
+      );
+    }
+
+    it('draws neither the way in nor the way out', async () => {
+      beSeat(PeerRole.Guest);
+
+      const icons = await drawnIcons();
+
+      expect(icons).not.toContain('add');
+      expect(icons).not.toContain('delete');
+    });
+
+    it('draws both for a player', async () => {
+      beSeat(PeerRole.Player);
+      component.createCutIn();
+
+      const icons = await drawnIcons();
+
+      expect(icons).toContain('add');
+      expect(icons).toContain('delete');
+    });
   });
 
   describe('how many ways a cut-in faces', () => {

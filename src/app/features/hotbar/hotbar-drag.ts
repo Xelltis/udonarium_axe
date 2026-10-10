@@ -39,6 +39,12 @@ export class HotbarSlotDrag {
     this.dropped = false;
   }
 
+  /**
+   * Follows the pointer during a press, and says whether a slot is being carried.
+   *
+   * The press becomes a drag once it has travelled far enough, and stays one until it is let go. A
+   * press on nothing to carry never does.
+   */
   move(at: DragPoint): boolean {
     if (this.from === null || this.lifted) return this.lifted;
 

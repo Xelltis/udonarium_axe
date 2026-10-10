@@ -51,6 +51,7 @@ export function duplicateLayer(scene: CutInScene, layer: CutInLayer): CutInLayer
   return copy;
 }
 
+/** Destroys a layer of the scene, answering false when the layer is not one of the scene's own. */
 export function removeLayer(scene: CutInScene, layer: CutInLayer): boolean {
   if (!scene.layers.includes(layer)) return false;
   layer.destroy();

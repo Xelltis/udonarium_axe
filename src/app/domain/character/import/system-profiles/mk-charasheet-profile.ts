@@ -47,6 +47,7 @@ const PROFILE_FIELDS: { key: string; label: string }[] = [
   { key: 'sex', label: '性別' },
 ];
 
+/** Whether the pasted json is an archive sheet under the `mk` system token. */
 export function isMkCharasheetCharacter(parsed: unknown): boolean {
   return isCharasheetGame(parsed, 'mk');
 }
@@ -97,6 +98,12 @@ function buildPalette(record: Record<string, unknown>): string {
   return lines.join('\n');
 }
 
+/**
+ * Builds the imported model from an `mk` archive sheet, or null for any other sheet.
+ *
+ * The primary and secondary abilities become parameters; skills, connections and the profile become
+ * sections; and the palette offers a roll for each primary ability.
+ */
 export function buildMkCharasheetCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isMkCharasheetCharacter(parsed)) return null;
   const record = parsed as Record<string, unknown>;

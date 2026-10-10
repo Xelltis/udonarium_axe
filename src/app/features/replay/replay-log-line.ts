@@ -1,16 +1,82 @@
+import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import type { TranslateFn } from '@axe/application/i18n/translate.token';
+import { PeerRole, roleLabelKey } from '@axe/domain/peer/peer-role';
 import { type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
 
 export interface ReplayNameLookup {
   actorName(userId: string): string;
   targetName(identifier: string): string;
+  /** The name of the piece an object is part of, or empty when it belongs to none. */
+  ownerName?(identifier: string): string;
 }
 
 export interface ReplayLogLine {
   key: string;
   params: Record<string, string | number>;
   paramKeys?: Record<string, string>;
+  /** Parameters that are lists of names, joined the way the reader's language joins a list. */
+  lists?: Record<string, readonly string[]>;
   icon: string;
   isSecret: boolean;
+}
+
+/** A card's state and a coin's face name their side; a die's face is its number and is shown as it is. */
+const FACE_KEYS: ReadonlyMap<string | number, string> = new Map<string | number, string>([
+  [0, 'feature.replay.face.front'],
+  [1, 'feature.replay.face.back'],
+  ['front', 'feature.replay.face.front'],
+  ['back', 'feature.replay.face.back'],
+]);
+
+const PEER_ROLES: ReadonlySet<string> = new Set(Object.values(PeerRole));
+
+function isPeerRole(value: string): value is PeerRole {
+  return PEER_ROLES.has(value);
+}
+
+/**
+ * The parameters to translate a line with, in the reader's language.
+ *
+ * Named keys are translated, a notice packed for translation (a system message) is decoded, and
+ * lists of names are joined the way the language joins a list.
+ */
+export function replayLineParams(line: ReplayLogLine, t: TranslateFn, lang: string): Record<string, string | number> {
+  const resolved: Record<string, string | number> = {};
+  for (const [name, value] of Object.entries(line.params)) {
+    resolved[name] = typeof value === 'string' ? decodeI18nMessage(value, t) : value;
+  }
+  for (const [name, key] of Object.entries(line.paramKeys ?? {})) resolved[name] = t(key);
+  for (const [name, items] of Object.entries(line.lists ?? {})) resolved[name] = joinList(items, lang);
+  return resolved;
+}
+
+const BRIEF_KEYS: Readonly<Record<string, string>> = {
+  'feature.replay.line.move': 'feature.replay.line.moveBrief',
+  'feature.replay.line.moveHeight': 'feature.replay.line.moveBrief',
+  'feature.replay.line.moveSurface': 'feature.replay.line.moveBrief',
+};
+
+/**
+ * A line cut short for a list where the board is only glanced at: a move says what moved and by
+ * whose hand, not the squares either side. A move to another place, such as an inventory, keeps its
+ * places, which say something the board does not.
+ */
+export function briefReplayLogLine(line: ReplayLogLine): ReplayLogLine {
+  const key = BRIEF_KEYS[line.key];
+  return key ? { ...line, key } : line;
+}
+
+/** A line as the reader reads it, in their language. */
+export function renderReplayLogLine(line: ReplayLogLine, t: TranslateFn, lang: string): string {
+  return t(line.key, replayLineParams(line, t, lang));
+}
+
+function joinList(items: readonly string[], lang: string): string {
+  try {
+    return new Intl.ListFormat(lang, { style: 'long', type: 'conjunction' }).format(items);
+  } catch {
+    return items.join(', ');
+  }
 }
 
 const TABLE_PLACE = 'table';
@@ -38,6 +104,7 @@ const ICONS: Record<string, string> = {
   [ReplayEventKind.VoteFinish]: 'ballot',
   [ReplayEventKind.MediaSoundEffect]: 'volume_up',
   [ReplayEventKind.MediaBgm]: 'music_note',
+  [ReplayEventKind.MediaBackgroundSound]: 'waves',
   [ReplayEventKind.MediaCutIn]: 'movie',
   [ReplayEventKind.EffectCast]: 'auto_awesome',
   [ReplayEventKind.VnScene]: 'wallpaper',
@@ -50,6 +117,7 @@ const ICONS: Record<string, string> = {
   [ReplayEventKind.Marker]: 'bookmark',
 };
 
+/** The wall-clock time of an event as `HH:MM:SS` in the viewer's time zone. */
 export function formatReplayTime(at: number): string {
   const date = new Date(at);
   const pad = (value: number): string => String(value).padStart(2, '0');
@@ -58,6 +126,14 @@ export function formatReplayTime(at: number): string {
 
 export { replayScriptElapsed as formatReplayElapsed } from '@axe/domain/replay/replay-script';
 
+/**
+ * Turns a replay event into a line of the replay log: a translation key with its parameters, an
+ * icon, and whether it was secret.
+ *
+ * Actor and target names are looked up as they were when the event happened. A move says whether
+ * the piece changed place, surface or height, and an event of an unknown kind reads as a plain
+ * update.
+ */
 export function toReplayLogLine(event: ReplayEvent, names: ReplayNameLookup): ReplayLogLine {
   const actor = names.actorName(event.actorId);
   const target = event.targetId ? names.targetName(event.targetId) : '';
@@ -85,14 +161,17 @@ export function toReplayLogLine(event: ReplayEvent, names: ReplayNameLookup): Re
       return describeMoveLine(line, detail, names);
     case ReplayEventKind.ObjectRotate:
       return line('rotate', { angle: Math.round(numberOf(pick(detail['rotate'], 'to'))) });
-    case ReplayEventKind.ObjectFace:
-      return line('face', { face: text(detail['to']) });
+    case ReplayEventKind.ObjectFace: {
+      const faceKey = FACE_KEYS.get(detail['to'] as string | number);
+      return line('face', { face: text(detail['to']) }, faceKey ? { face: faceKey } : undefined);
+    }
     case ReplayEventKind.ObjectDiceRoll:
       return line('diceRoll');
     case ReplayEventKind.ObjectShuffle:
       return line('shuffle');
     case ReplayEventKind.ObjectValue:
       return line('value', {
+        target: (event.targetId && names.ownerName?.(event.targetId)) || target,
         name: text(detail['name']),
         from: text(pick(detail['current'] ?? detail['value'], 'from')),
         to: text(pick(detail['current'] ?? detail['value'], 'to')),
@@ -117,12 +196,16 @@ export function toReplayLogLine(event: ReplayEvent, names: ReplayNameLookup): Re
       return line(detail['isRollCall'] === true ? 'rollCall' : 'vote', { title: text(detail['title']) });
     case ReplayEventKind.VoteFinish:
       return line('voteFinish', { title: text(detail['title']) });
-    case ReplayEventKind.PeerRoleChange:
-      return line('role', { role: text(detail['role']) });
+    case ReplayEventKind.PeerRoleChange: {
+      const role = text(detail['role']);
+      return line('role', { role }, isPeerRole(role) ? { role: roleLabelKey(role) } : undefined);
+    }
     case ReplayEventKind.MediaSoundEffect:
       return line('soundEffect');
     case ReplayEventKind.MediaBgm:
       return line(detail['isPlaying'] === true ? 'bgmStart' : 'bgmStop');
+    case ReplayEventKind.MediaBackgroundSound:
+      return line(detail['isPlaying'] === true ? 'bgsStart' : 'bgsStop');
     case ReplayEventKind.MediaCutIn:
       return line('cutIn');
     case ReplayEventKind.EffectCast:
@@ -157,11 +240,12 @@ function describeEffectLine(
     .filter((name) => name.length > 0);
   const casterId = text(detail['caster']);
   const caster = casterId.length > 0 ? names.targetName(casterId) || casterId : '';
-  const params = { effect: presetName, targets: targetNames.join('、') };
+  const params = { effect: presetName, targets: targetNames.join(', ') };
+  const lists = { targets: targetNames };
 
   if (targetNames.length < 1) return line('effect', { effect: presetName });
-  if (caster.length > 0) return line('effectFrom', { ...params, caster });
-  return line('effectOn', params);
+  if (caster.length > 0) return { ...line('effectFrom', { ...params, caster }), lists };
+  return { ...line('effectOn', params), lists };
 }
 
 function describeTurnLine(line: LineFactory, detail: Readonly<Record<string, unknown>>, target: string): ReplayLogLine {

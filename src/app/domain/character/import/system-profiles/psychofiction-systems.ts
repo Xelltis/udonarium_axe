@@ -44,6 +44,7 @@ const BLOOD_SKILLS = [
  */
 export const PF_APPSPOT_SYSTEMS: Record<string, PsychoFictionConfig> = {
   shinobigami: {
+    damageTrack: { from: 'skills.damage', label: '生命力' },
     dicebot: 'ShinobiGami',
     categories: ['器術', '体術', '忍術', '謀術', '戦術', '妖術'],
     skillsByCategory: [
@@ -67,6 +68,7 @@ export const PF_APPSPOT_SYSTEMS: Record<string, PsychoFictionConfig> = {
     ],
   },
   insane: {
+    resourceLabels: { hitpoint: '生命力', sanepoint: '正気度' },
     dicebot: 'Insane',
     categories: ['暴力', '情動', '知覚', '技術', '知識', '怪異'],
     skillsByCategory: [

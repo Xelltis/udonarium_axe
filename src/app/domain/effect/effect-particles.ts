@@ -44,6 +44,13 @@ export {
   seededRandom,
 } from '@axe/domain/effect/particles/shared';
 
+/**
+ * The particles of one target's playback at a given point through it, on a square canvas
+ * nine times the base size across.
+ *
+ * The same seed and progress always give the same particles. The highest grade lays a second
+ * set on top and the lowest keeps every other particle.
+ */
 export function effectParticles(
   preset: EffectPreset,
   seed: number,

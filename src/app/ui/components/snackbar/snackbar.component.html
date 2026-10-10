@@ -1,0 +1,34 @@
+<div
+  class="pointer-events-none fixed inset-x-0 flex justify-center px-[max(0.75rem,env(safe-area-inset-left))]"
+  [style.zIndex]="zIndex"
+  [style.bottom]="'calc(max(1rem, env(safe-area-inset-bottom)) + ' + keyboardInset() + 'px)'"
+  role="status"
+  aria-live="polite"
+>
+  @if (snackbar.current(); as note) {
+    <div
+      class="border-ui-border-panel bg-ui-elevated text-ui-text animate-sheet-up shadow-ui-md pointer-events-auto flex max-w-[min(100%,32rem)] min-w-0 items-center gap-1 rounded-xl border border-solid py-1 pr-1 pl-4 text-[0.9rem]"
+      data-testid="snackbar"
+    >
+      <span class="min-w-0 flex-1 py-2 leading-snug">{{ note.message }}</span>
+      @if (note.action; as action) {
+        <button
+          type="button"
+          class="text-ui-accent hover:bg-ui-accent-bg active:bg-ui-accent-bg min-h-11 shrink-0 cursor-pointer rounded-lg border-none bg-transparent px-3 text-[0.9rem] font-semibold whitespace-nowrap shadow-none"
+          (click)="snackbar.runAction()"
+          data-testid="snackbar-action"
+        >
+          {{ action.label }}
+        </button>
+      }
+      <button
+        type="button"
+        class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 shadow-none"
+        [attr.aria-label]="'common.button.close' | transloco"
+        (click)="snackbar.dismiss()"
+      >
+        <i class="material-icons text-[20px]!">close</i>
+      </button>
+    </div>
+  }
+</div>

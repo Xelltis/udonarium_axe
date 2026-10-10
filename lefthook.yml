@@ -11,7 +11,11 @@ pre-commit:
       run: npx eslint {staged_files}
 
     - name: test
-      glob: 'src/**/*.{ts,html,css}'
+      glob:
+        - 'src/**/*.{ts,html,css}'
+        - 'vitest.config.ts'
+        - 'vitest-base.config.ts'
+        - 'tsconfig.spec.json'
       run: node scripts/vitest-related.mjs {staged_files}
 
 pre-push:

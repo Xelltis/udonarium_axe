@@ -248,8 +248,9 @@ export interface MarkStyleChange {
 /**
  * Restyles what is held.
  *
- * A line drawn in the wrong colour was a line to be rubbed out and drawn again, which is not
- * how anything else works: the ink settings reach what is already down, not only what is next.
+ * A line drawn in the wrong colour would otherwise be a line to be rubbed out and drawn again,
+ * which is not how anything else works: the ink settings reach what is already down, not only
+ * what is next.
  */
 export function restyleMark(scene: MapScene, ref: MarkRef, change: MarkStyleChange): void {
   for (const layer of scene.layers) {
@@ -469,6 +470,7 @@ export function jointUnder(scene: MapScene, ref: MarkRef, at: BoardPoint, slack:
   return null;
 }
 
+/** Moves one corner of a path or other jointed shape to a point; does nothing when there is no such corner. */
 export function moveJoint(scene: MapScene, ref: MarkRef, joint: number, to: BoardPoint): void {
   const item = jointedShape(scene, ref);
   if (!item || joint * 2 + 1 >= item.points.length) return;

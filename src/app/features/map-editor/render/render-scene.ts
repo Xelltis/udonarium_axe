@@ -1,7 +1,15 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
-import { hexCircumradius, hexStartAngle, isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import {
+  fillHexPath,
+  hexCircumradius,
+  hexStartAngle,
+  isFlatTopGrid,
+  isHexGrid,
+  strokeHexPath,
+  traceHexPath,
+} from '@axe/domain/tabletop/hex-geometry';
 import { catmullRomSegments } from '@axe/features/map-editor/model/curve-geometry';
-import { FUNCTION_ROLE_INK } from '@axe/features/map-editor/model/function-layer';
+import { functionInkOf } from '@axe/features/map-editor/model/function-layer';
 import { cellCenter, pointToCell } from '@axe/features/map-editor/model/grid-cells';
 import {
   FillStyle,
@@ -222,14 +230,7 @@ function clipCellPath(
       const { x, y } = cellCenter(scene.gridType, col, row, scene.cellPx);
       if (x < minX || x > maxX || y < minY || y > maxY) continue;
       if (hex) {
-        for (let i = 0; i < 6; i += 1) {
-          const angle = startAngle + (i * Math.PI) / 3;
-          const px = x + s * Math.cos(angle);
-          const py = y + s * Math.sin(angle);
-          if (i === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
+        traceHexPath(ctx, x, y, s, startAngle);
       } else {
         ctx.rect(col * scene.cellPx, row * scene.cellPx, scene.cellPx, scene.cellPx);
       }
@@ -267,32 +268,6 @@ function drawImageItem(
     ctx.drawImage(image, -item.w / 2, -item.h / 2, item.w, item.h);
   }
   ctx.restore();
-}
-
-function fillHexCell(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, startAngle: number): void {
-  ctx.beginPath();
-  for (let i = 0; i < 6; i += 1) {
-    const angle = startAngle + (i * Math.PI) / 3;
-    const x = cx + s * Math.cos(angle);
-    const y = cy + s * Math.sin(angle);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.closePath();
-  ctx.fill();
-}
-
-function strokeHexCell(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, startAngle: number): void {
-  ctx.beginPath();
-  for (let i = 0; i < 6; i += 1) {
-    const angle = startAngle + (i * Math.PI) / 3;
-    const x = cx + s * Math.cos(angle);
-    const y = cy + s * Math.sin(angle);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.closePath();
-  ctx.stroke();
 }
 
 function drawFreehandStroke(ctx: CanvasRenderingContext2D, stroke: FreehandStroke): void {
@@ -338,7 +313,7 @@ function drawText(ctx: CanvasRenderingContext2D, item: TextItem): void {
     ctx.shadowBlur = pad * 0.8;
     ctx.shadowOffsetY = pad * 0.25;
     // Where the words start depends on which way they are set, so the card follows them: laid
-    // out from the left it sat off to one side of centred or right-hand words.
+    // out from the left it would sit off to one side of centred or right-hand words.
     const left = item.align === 'center' ? item.x - widest / 2 : item.align === 'right' ? item.x - widest : item.x;
     ctx.fillRect(left - pad, item.y - pad, widest + pad * 2, lines.length * lineHeight + pad * 2);
     ctx.shadowColor = 'transparent';
@@ -399,7 +374,7 @@ function drawHexGridLines(ctx: CanvasRenderingContext2D, scene: MapScene): void 
   for (let col = 0; col < scene.cols; col += 1) {
     for (let row = 0; row < scene.rows; row += 1) {
       const { x, y } = cellCenter(scene.gridType, col, row, scene.cellPx);
-      strokeHexCell(ctx, x, y, s, startAngle);
+      strokeHexPath(ctx, x, y, s, startAngle);
     }
   }
   ctx.restore();
@@ -430,6 +405,14 @@ function drawGridLines(ctx: CanvasRenderingContext2D, scene: MapScene, width: nu
   ctx.restore();
 }
 
+/**
+ * Draws the map onto the canvas: its background, then each visible layer in order at its own
+ * opacity, then the grid.
+ *
+ * The cells painted for what they do are drawn only when asked for, and the grid follows the
+ * scene's own setting unless the options say otherwise. A text being edited in place can be left
+ * out.
+ */
 export function renderScene(
   ctx: CanvasRenderingContext2D,
   scene: MapScene,
@@ -461,7 +444,7 @@ export function renderScene(
           ctx.fillStyle = resolved;
           if (hex) {
             const { x, y } = cellCenter(scene.gridType, col, row, scene.cellPx);
-            fillHexCell(ctx, x, y, s, startAngle);
+            fillHexPath(ctx, x, y, s, startAngle);
           } else {
             ctx.fillRect(col * scene.cellPx, row * scene.cellPx, scene.cellPx, scene.cellPx);
           }
@@ -491,12 +474,12 @@ export function renderScene(
         const hex = isHexGrid(scene.gridType);
         const s = hex ? hexCircumradius(scene.cellPx) : 0;
         const startAngle = hex ? hexStartAngle(isFlatTopGrid(scene.gridType)) : 0;
-        ctx.fillStyle = FUNCTION_ROLE_INK[layer.role];
+        ctx.fillStyle = functionInkOf(layer.role, layer.spec);
         for (const key of Object.keys(layer.cells)) {
           const { col, row } = parseCellKey(key);
           if (hex) {
             const { x, y } = cellCenter(scene.gridType, col, row, scene.cellPx);
-            fillHexCell(ctx, x, y, s, startAngle);
+            fillHexPath(ctx, x, y, s, startAngle);
           } else {
             ctx.fillRect(col * scene.cellPx, row * scene.cellPx, scene.cellPx, scene.cellPx);
           }

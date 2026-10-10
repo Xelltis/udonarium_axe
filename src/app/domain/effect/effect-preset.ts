@@ -1,8 +1,8 @@
 import { Attributes } from '@axe/core/sync/attributes';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
-import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { parseAttributesKeepingIdentifier, toAttributesKeepingIdentifier } from '@axe/core/sync/persisted-identifier';
 import {
   EffectKind,
   EffectTargeting,
@@ -81,23 +81,20 @@ export class EffectPreset extends GameObject {
    * again, taking it from the one who brought it back.
    */
   toAttributes(): Attributes {
-    return { ...ObjectSerializer.toAttributes(this.toContext().syncData), identifier: this.identifier };
+    return toAttributesKeepingIdentifier(this);
   }
 
+  /**
+   * Reads the fields back from a file, taking up the identifier that was written with them.
+   *
+   * The written identifier is kept only when it has not been deleted in this room; otherwise
+   * the effect stays under the fresh identifier it was made with.
+   */
   parseAttributes(attributes: NamedNodeMap): void {
-    const context = this.toContext();
-    const syncData = context.syncData as Record<string, unknown>;
-    ObjectSerializer.parseAttributes(syncData, attributes);
-
-    const persisted = syncData['identifier'];
-    // The context is the one place an identifier belongs; it is no part of what is synchronised.
-    delete syncData['identifier'];
-    this.apply(context);
-    if (typeof persisted === 'string' && persisted.length > 0 && !ObjectStore.instance.isDeleted(persisted)) {
-      (this as unknown as { context: { identifier: string } }).context.identifier = persisted;
-    }
+    parseAttributesKeepingIdentifier(this, attributes);
   }
 
+  /** Every effect on the room's shelf. */
   static list(): EffectPreset[] {
     return ObjectStore.instance.getObjects<EffectPreset>(EffectPreset);
   }
@@ -115,28 +112,39 @@ export class EffectPreset extends GameObject {
     return this.stagesParsed;
   }
 
+  /** Whether this effect runs through stages rather than drawing one look. */
   get isStaged(): boolean {
     return this.stageList.length > 0;
   }
 
+  /** The look this effect draws. A stored kind the tool does not know reads as a burst. */
   get effectKind(): EffectKind {
     return isEffectKind(this.kind) ? this.kind : 'burst';
   }
 
+  /** How the effect chooses its targets. A stored value the tool does not know reads as a single target. */
   get effectTargeting(): EffectTargeting {
     return isEffectTargeting(this.targeting) ? this.targeting : 'single';
   }
 
+  /**
+   * How long one target's playback lasts, in milliseconds.
+   *
+   * A staged effect lasts as long as its stages take. Any other is held between 120 and 6000,
+   * and a stored length that is not a number reads as 900.
+   */
   get duration(): number {
     // A run is as long as its stages take; the written length belongs to the one look.
     if (this.isStaged) return stagedEffectDuration(this.stageList);
     return clamp(this.durationMs, MIN_DURATION_MS, MAX_DURATION_MS, 900);
   }
 
+  /** How long each target waits after the one before it, in milliseconds, held to at most 2000. */
   get stagger(): number {
     return clamp(this.staggerMs, 0, MAX_STAGGER_MS, 0);
   }
 
+  /** How large the effect is drawn against a piece, held between 0.2 and 6. */
   get sizeScale(): number {
     return clamp(this.scale, MIN_SCALE, MAX_SCALE, 1);
   }
@@ -161,22 +169,27 @@ export class EffectPreset extends GameObject {
     return 0.5;
   }
 
+  /** The gap between the shots of a burst, in milliseconds. Zero spreads them evenly through the playback. */
   get shotIntervalMs(): number {
     return Math.max(0, clamp(this.shotInterval, 0, MAX_DURATION_MS, 0));
   }
 
+  /** How many shots one firing makes, a whole number from 1 to 24. */
   get shotCount(): number {
     return Math.round(clamp(this.shots, 1, MAX_SHOTS, 1));
   }
 
+  /** The form of cut to draw. A stored form the tool does not know reads as a single stroke. */
   get slashLook(): SlashStyle {
     return isSlashStyle(this.slashStyle) ? this.slashStyle : 'single';
   }
 
+  /** What a projectile looks like in flight. A stored look the tool does not know reads as a bolt. */
   get projectileLook(): ProjectileStyle {
     return isProjectileStyle(this.projectileStyle) ? this.projectileStyle : 'bolt';
   }
 
+  /** The grade as one of 1, 2 or 3. A stored grade that is not a number reads as 2. */
   get gradeLevel(): 1 | 2 | 3 {
     const level = Math.round(clamp(this.grade, 1, 3, 2));
     return level === 1 || level === 3 ? level : 2;
@@ -187,6 +200,7 @@ export class EffectPreset extends GameObject {
     return this.gradeLevel === 1 ? 0.55 : this.gradeLevel === 3 ? 1.7 : 1;
   }
 
+  /** How many targets one cast may take: 1 unless the effect takes several, then up to 20. */
   get targetLimit(): number {
     if (this.effectTargeting === 'self') return 1;
     if (this.effectTargeting === 'single') return 1;

@@ -21,6 +21,11 @@ export class BoardKeeper {
     private readonly images: ImageStorage
   ) {}
 
+  /**
+   * Saves the board once the drawing has been left alone for a moment.
+   *
+   * Each call starts the wait over, so a run of edits is saved once, after the last of them.
+   */
   keepPicture(): void {
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
@@ -29,6 +34,12 @@ export class BoardKeeper {
     }, SAVE_DELAY);
   }
 
+  /**
+   * Writes a save still waiting straight to the board, when the editor closes.
+   *
+   * Only the drawing is written; the picture the board wears is not redrawn. Does nothing when no
+   * save is waiting.
+   */
   putDown(): void {
     if (this.timer === null) return;
     clearTimeout(this.timer);
@@ -36,6 +47,7 @@ export class BoardKeeper {
     this.writeScene();
   }
 
+  /** Writes the drawing onto the board and sends the board to the room, without redrawing its picture. */
   writeScene(): void {
     const board = this.host.board();
     if (!board) return;
@@ -43,6 +55,13 @@ export class BoardKeeper {
     board.update();
   }
 
+  /**
+   * Writes the drawing onto the board and replaces the picture the board wears on the table.
+   *
+   * The drawing is painted bare, stored as a new image and put on the board, the old image is
+   * deleted, and the board is sent to the room. Where the canvas cannot make an image, only the
+   * drawing is sent. Does nothing without a board or a canvas.
+   */
   async save(): Promise<void> {
     const board = this.host.board();
     const canvas = this.host.canvas();

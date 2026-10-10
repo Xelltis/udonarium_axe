@@ -1,10 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import {
   asOwnable,
+  claimBroughtInPiece,
   clearOwnership,
   clearOwnershipTree,
   findOrphanedOwnership,
@@ -58,6 +60,39 @@ describe('ownership', () => {
       expect(cleared).toBe(2);
       expect(stack.owner).toBe('');
       expect(child.owner).toBe('');
+    });
+  });
+
+  describe('claimBroughtInPiece', () => {
+    it('makes a character the one who brought it in', () => {
+      const character = new GameCharacter();
+      character.owner = 'whoever-saved-it';
+
+      claimBroughtInPiece(character, 'the-dropper');
+
+      expect(character.owner).toBe('the-dropper');
+    });
+
+    it('leaves a stack and its cards held by nobody, so no face is kept from the others', () => {
+      const stack = CardStack.create('デッキ');
+      stack.owner = 'whoever-saved-it';
+      const card = Card.create('カード', 'front.png', 'back.png');
+      card.owner = 'whoever-saved-it';
+      stack.appendChild(card);
+
+      claimBroughtInPiece(stack, 'the-dropper');
+
+      expect(stack.owner).toBe('');
+      expect(card.owner).toBe('');
+    });
+
+    it('leaves a character with no owner when nobody is known to have brought it in', () => {
+      const character = new GameCharacter();
+      character.owner = 'whoever-saved-it';
+
+      claimBroughtInPiece(character, '');
+
+      expect(character.owner).toBe('');
     });
   });
 

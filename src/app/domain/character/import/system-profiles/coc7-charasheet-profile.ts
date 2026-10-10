@@ -93,6 +93,7 @@ function isStructuredKey(key: string): boolean {
   );
 }
 
+/** Whether the pasted json is an archive sheet under the `coc7` system token. */
 export function isCoc7CharasheetCharacter(parsed: unknown): boolean {
   return isCharasheetGame(parsed, 'coc7');
 }
@@ -190,6 +191,13 @@ function buildPalette(
   return lines.join('\n');
 }
 
+/**
+ * Builds the imported model from a `coc7` archive sheet, or null for any other sheet.
+ *
+ * Sanity, HP, MP and luck become resources; abilities, movement, damage bonus and build parameters;
+ * named skills grouped by type, weapons, belongings and the remaining keys sections; and the
+ * palette offers percentile rolls for the abilities, luck, sanity, each skill and the damage bonus.
+ */
 export function buildCoc7CharasheetCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isCoc7CharasheetCharacter(parsed)) return null;
   const record = parsed as Record<string, unknown>;

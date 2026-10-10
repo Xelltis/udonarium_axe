@@ -3,6 +3,12 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { SortOrder } from '@axe/domain/data/data-summary-setting';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
+/**
+ * The value a data element is sorted by: a resource's current value, otherwise its value.
+ *
+ * Full-width characters are folded to half-width and the text trimmed, so the result is a number
+ * wherever the text reads as one and the text otherwise.
+ */
 export function toSortableValue(dataElement: DataElement): number | string {
   const value = dataElement.isNumberResource ? dataElement.currentValue : dataElement.value;
   const resultStr = toHalfWidth((value + '').trim());
@@ -10,6 +16,13 @@ export function toSortableValue(dataElement: DataElement): number | string {
   return Number.isNaN(resultNum) ? resultStr : resultNum;
 }
 
+/**
+ * Sorts pieces in place by the data element named by the primary tag, then by the secondary tag,
+ * and returns the same array.
+ *
+ * A piece that carries no element under a tag goes after the ones that do. An empty primary tag
+ * leaves the order as it was.
+ */
 export function sortObjectsByTags(
   objects: TabletopObject[],
   sortTag: string,

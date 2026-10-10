@@ -1,0 +1,21 @@
+<div
+  class="pointer-events-none absolute inset-0 bg-size-[80px_80px] bg-blend-multiply"
+  aria-hidden="true"
+  [style.background-color]="mat().color"
+  [style.background-image]="weave ? 'url(' + weave + ')' : null"
+>
+  @if (mat().picture; as picture) {
+    <div
+      class="absolute inset-0"
+      data-testid="dice-mat-picture"
+      [style.background-image]="picture.backgroundImage"
+      [style.background-size]="picture.backgroundSize"
+      [style.background-position]="picture.backgroundPosition"
+      [style.background-repeat]="picture.backgroundRepeat"
+      [style.opacity]="picture.opacity"
+    ></div>
+  }
+  <div
+    class="absolute inset-0 bg-[radial-gradient(120%_90%_at_25%_15%,rgba(255,255,255,0.07),transparent_55%),radial-gradient(140%_120%_at_50%_45%,transparent_55%,rgba(0,0,0,0.28))]"
+  ></div>
+</div>

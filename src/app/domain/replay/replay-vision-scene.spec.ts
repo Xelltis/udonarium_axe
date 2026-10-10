@@ -24,7 +24,6 @@ function table(overrides: Record<string, unknown> = {}): ReplayObjectSnapshot {
 function character(identifier: string, overrides: Record<string, unknown> = {}): ReplayObjectSnapshot {
   return snapshot(identifier, 'character', {
     location: { name: 'table', x: 500, y: 500, surface: 'floor' },
-    isVisibleOnTable: true,
     ...overrides,
   });
 }
@@ -78,7 +77,6 @@ describe('buildReplayVisionScene()', () => {
       character('c1', { lightEnabled: true, lightBrightRadius: 2, lightDimRadius: 4, lightColor: '#ffddaa' }),
       snapshot('l1', 'light-source', {
         location: { name: 'table', x: 100, y: 100, surface: 'floor' },
-        isVisibleOnTable: true,
         lightEnabled: true,
         lightBrightRadius: 1,
         lightDimRadius: 3,
@@ -86,7 +84,6 @@ describe('buildReplayVisionScene()', () => {
       // An unlit one does not count.
       snapshot('l2', 'light-source', {
         location: { name: 'table', x: 0, y: 0 },
-        isVisibleOnTable: true,
         lightEnabled: false,
       }),
     ];
@@ -96,13 +93,29 @@ describe('buildReplayVisionScene()', () => {
     expect(lights.map((light) => light.dimPx).sort((a, b) => a - b)).toEqual([150, 200]);
   });
 
+  it('shines only the lights of the table in view', () => {
+    const snapshots = [
+      table(),
+      { identifier: 't2', aliasName: 'game-table', syncData: { attributes: { width: 10, height: 10, gridSize: 50 } } },
+      snapshot('l1', 'light-source', { location: { name: 'table', x: 0, y: 0 }, lightEnabled: true }),
+      {
+        ...snapshot('l2', 'light-source', { location: { name: 'table', x: 0, y: 0 }, lightEnabled: true }),
+        syncData: {
+          ...snapshot('l2', 'light-source', { location: { name: 'table', x: 0, y: 0 }, lightEnabled: true }).syncData,
+          parentIdentifier: 't2',
+        },
+      },
+    ];
+
+    expect(buildReplayVisionScene(snapshots)!.lights).toHaveLength(1);
+  });
+
   it('lights a following light where its piece stands', () => {
     const snapshots = [
       table(),
       character('c1', { location: { name: 'table', x: 700, y: 300, surface: 'floor' } }),
       snapshot('l1', 'light-source', {
         location: { name: 'table', x: 0, y: 0, surface: 'floor' },
-        isVisibleOnTable: true,
         lightEnabled: true,
         lightDimRadius: 2,
         followingCharacterIdentifier: 'c1',

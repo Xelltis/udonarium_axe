@@ -1,11 +1,12 @@
 import { callSoundEffect, sendMessage$, soundEffect$ } from '@axe/core/event/domain-events';
 import { AudioFile } from '@axe/core/storage/audio-file';
-import { AudioPlayer } from '@axe/core/storage/audio-player';
+import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { SyncObject } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { presetSoundKind } from '@axe/domain/media/preset-sound-kinds';
 
 export class PresetSound {
   static dicePick: string = '';
@@ -120,12 +121,16 @@ export class SoundEffect extends GameObject {
   private cleanups: (() => void)[] = [];
 
   // GameObject Lifecycle
+  /**
+   * Starts listening: a sound sent over the network is played at half volume through the channel of
+   * its kind, and a dice roll this peer sends through the dice bot plays one of the two rolling sounds.
+   */
   override onStoreAdded() {
     super.onStoreAdded();
     this.cleanups.push(
       soundEffect$.subscribe((identifier) => {
         const audio = AudioStorage.instance.get(identifier);
-        if (audio) AudioPlayer.play(audio, 0.5);
+        if (audio) AudioPlayer.play(audio, 0.5, SoundEffect.kindOf(identifier));
       })
     );
     this.cleanups.push(
@@ -142,26 +147,53 @@ export class SoundEffect extends GameObject {
   }
 
   // GameObject Lifecycle
+  /** Stops listening for sounds and dice rolls. */
   override onStoreRemoved() {
     super.onStoreRemoved();
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
   }
 
+  /** Plays a sound for the whole room, the same as the static `play`. */
   play(arg: string | AudioFile): void {
     SoundEffect.play(arg);
   }
 
+  /**
+   * Sends a sound to the whole room, and every peer plays it at half volume.
+   *
+   * This peer plays it too, because the network hands each broadcast back to the peer that sent it.
+   * A peer that does not hold the audio file plays nothing.
+   */
   static play(arg: string | AudioFile): void {
     const identifier = typeof arg === 'string' ? arg : arg.identifier;
     SoundEffect._play(identifier);
   }
 
-  static playLocal(arg: string | AudioFile): void {
+  /**
+   * Plays a sound on this peer alone, at half volume, through the channel of the kind given or, with
+   * none given, of the kind the sound is. Nothing happens for an empty identifier or a missing file.
+   */
+  static playLocal(arg: string | AudioFile, kind?: VolumeType): void {
     const identifier = typeof arg === 'string' ? arg : arg.identifier;
     if (identifier.length < 1) return;
     const audio = AudioStorage.instance.get(identifier);
-    if (audio) AudioPlayer.play(audio, 0.5);
+    if (audio) AudioPlayer.play(audio, 0.5, kind ?? SoundEffect.kindOf(identifier));
+  }
+
+  /**
+   * The channel a sound plays through when nothing says otherwise: a built-in sound by what it is,
+   * and any other sound, one somebody added to the room, as a sound effect.
+   *
+   * Only the sound itself travels over the network, so each peer works out its kind on its own and
+   * a peer of an older version still hears the same sound.
+   */
+  static kindOf(identifier: string): VolumeType {
+    if (identifier.length < 1) return VolumeType.SE;
+    for (const [key, held] of Object.entries(PresetSound)) {
+      if (held === identifier) return presetSoundKind(key);
+    }
+    return VolumeType.SE;
   }
 
   private static _play(identifier: string) {

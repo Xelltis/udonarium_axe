@@ -15,8 +15,8 @@ test.describe('オブジェクトの高度設定 (altitudeHande)', () => {
     await createCharacter(page);
     const menu = await reopenCharacterMenu(page);
     await menu.getByText('高度設定').hover();
-    // altitudeHande が紐付いたサブメニューを開くと、コンテキストメニュー側で
-    // 縦方向 range スライダー (name="altitude") と数値入力 (name="altitude-number") が現れる。
+    // altitudeHandeが紐付いたサブメニューを開くと、コンテキストメニュー側で
+    // 縦方向のrangeスライダー（name="altitude"）と数値入力（name="altitude-number"）が現れる。
     await expect(page.locator('context-menu input[name="altitude"]')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('context-menu input[name="altitude-number"]')).toBeVisible();
   });

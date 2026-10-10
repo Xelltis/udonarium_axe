@@ -6,8 +6,15 @@ import { AudioStorage, CatalogItem } from '@axe/core/storage/audio-storage';
 import { BufferSharingTask } from '@axe/core/storage/buffer-sharing-task';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
 
+/**
+ * How long a finished transfer waits before telling everyone else what this seat now holds.
+ * Transfers finish in runs while a room fills up, and each run needs to be told only once.
+ */
+const CATALOG_BROADCAST_DELAY_MS = 1000;
+
 export class AudioSharingSystem {
   private static _instance: AudioSharingSystem;
+  /** The one audio sharing system for the page, created on first use. */
   static get instance(): AudioSharingSystem {
     if (!AudioSharingSystem._instance) AudioSharingSystem._instance = new AudioSharingSystem();
     return AudioSharingSystem._instance;
@@ -19,8 +26,22 @@ export class AudioSharingSystem {
   private maxReceiveTask: number = 4;
   private cleanups: (() => void)[] = [];
 
+  /**
+   * The audio to fetch before any other, such as what the room is playing.
+   *
+   * Audio arrives one file at a time from each peer holding it, so a newcomer to a room with
+   * many tracks would otherwise wait for a random run of them before hearing the one on.
+   */
+  preferredIdentifiers: () => readonly string[] = () => [];
+
   private constructor() {}
 
+  /**
+   * Starts answering the network messages that trade audio between peers: catalogues,
+   * requests, transfers and cancellations.
+   *
+   * Calling it again drops the earlier subscription first, so it never listens twice.
+   */
   initialize() {
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
@@ -29,7 +50,8 @@ export class AudioSharingSystem {
       networkMessage$.subscribe((msg) => {
         switch (msg.eventName) {
           case 'CONNECT_PEER':
-            if ((msg as NetworkMessage<{ peerId: string }>).isSendFromSelf) AudioStorage.instance.synchronize();
+            if ((msg as NetworkMessage<{ peerId: string }>).isSendFromSelf)
+              AudioStorage.instance.synchronize((msg as NetworkMessage<{ peerId: string }>).data.peerId);
             break;
           case 'SYNCHRONIZE_AUDIO_LIST': {
             if (msg.isSendFromSelf) break;
@@ -53,8 +75,7 @@ export class AudioSharingSystem {
               AudioStorage.instance.synchronize(msg.sendFrom);
             }
             if (request.length < 1 || this.isLimitReceiveTask()) break;
-            const index = Math.floor(Math.random() * request.length);
-            this.request([request[index]], msg.sendFrom);
+            this.request([this.pickRequest(request)], msg.sendFrom);
             break;
           }
           case 'REQUEST_AUDIO_RESOURE': {
@@ -109,6 +130,13 @@ export class AudioSharingSystem {
     this.cleanups = [];
   }
 
+  /** The audio to ask for next: a preferred one if it is wanted, otherwise any of them. */
+  private pickRequest(request: readonly CatalogItem[]): CatalogItem {
+    const preferred = this.preferredIdentifiers();
+    const wanted = request.find((item) => preferred.includes(item.identifier));
+    return wanted ?? request[Math.floor(Math.random() * request.length)];
+  }
+
   private async startSendTask(audio: AudioFile, sendTo: string) {
     const task = BufferSharingTask.createSendTask<AudioFileContext>(audio.identifier, sendTo);
     this.sendTaskMap.set(audio.identifier, task);
@@ -133,7 +161,8 @@ export class AudioSharingSystem {
 
     task.onfinish = () => {
       this.stopSendTask(task.identifier);
-      AudioStorage.instance.synchronize();
+      AudioStorage.instance.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
+      AudioStorage.instance.synchronize(sendTo);
     };
 
     task.start(context);
@@ -161,7 +190,7 @@ export class AudioSharingSystem {
         AudioStorage.instance.add(data);
         localDispatch('UPDATE_AUDIO_RESOURE', [data]);
       }
-      AudioStorage.instance.synchronize();
+      AudioStorage.instance.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
     };
 
     task.start();

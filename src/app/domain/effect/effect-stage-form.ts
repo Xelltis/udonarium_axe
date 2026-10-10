@@ -20,10 +20,17 @@ export function kindsForRole(role: EffectStageRole): readonly EffectKind[] {
   return role === 'travel' ? AIMED_EFFECT_KINDS : LANDING_KINDS;
 }
 
+/** The look a new stage of this role starts with: a projectile to travel, flame for a field, a burst otherwise. */
 export function defaultKindFor(role: EffectStageRole): EffectKind {
   return role === 'travel' ? 'projectile' : role === 'field' ? 'flame' : 'burst';
 }
 
+/**
+ * Adds a stage of the given role to the end of the run, with that role's default look.
+ *
+ * A spawn starts out throwing three ways across 120 degrees, each landing in a burst. The run
+ * is handed back unchanged once it already holds as many stages as it may.
+ */
 export function addStage(stages: readonly EffectStage[], role: EffectStageRole): EffectStage[] {
   if (stages.length >= MAX_STAGES) return [...stages];
 
@@ -36,6 +43,7 @@ export function addStage(stages: readonly EffectStage[], role: EffectStageRole):
   return [...stages, stage];
 }
 
+/** Takes one stage out of the run. An index outside the run leaves it unchanged. */
 export function removeStage(stages: readonly EffectStage[], index: number): EffectStage[] {
   if (index < 0 || index >= stages.length) return [...stages];
   return stages.filter((_unused, at) => at !== index);
@@ -52,6 +60,13 @@ export function moveStage(stages: readonly EffectStage[], index: number, offset:
   return moved;
 }
 
+/**
+ * Changes one stage of the run by laying the given fields over it.
+ *
+ * A stage that stops being a spawn loses its branches, and one that becomes a spawn is given
+ * the default three. A look that no longer suits the role is swapped for the role's default.
+ * An index outside the run leaves it unchanged.
+ */
 export function updateStage(stages: readonly EffectStage[], index: number, patch: Partial<EffectStage>): EffectStage[] {
   if (index < 0 || index >= stages.length) return [...stages];
 
@@ -74,14 +89,27 @@ export function updateStage(stages: readonly EffectStage[], index: number, patch
   });
 }
 
+/**
+ * Adds a stage to the chain each branch of a spawn follows.
+ *
+ * Asking for a spawn adds a landing instead, since a branch may not throw again. Nothing
+ * changes when the stage at the index is not a spawn.
+ */
 export function addBranchStage(stages: readonly EffectStage[], index: number, role: EffectStageRole): EffectStage[] {
   return withChildren(stages, index, (children) => addStage(children, role === 'spawn' ? 'impact' : role));
 }
 
+/** Takes one stage out of a spawn's branch chain. Nothing changes when the stage at the index is not a spawn. */
 export function removeBranchStage(stages: readonly EffectStage[], index: number, branchIndex: number): EffectStage[] {
   return withChildren(stages, index, (children) => removeStage(children, branchIndex));
 }
 
+/**
+ * Changes one stage of a spawn's branch chain by laying the given fields over it.
+ *
+ * Any role in the fields is ignored, so a branch stage keeps the role it has. Nothing changes
+ * when the stage at the index is not a spawn.
+ */
 export function updateBranchStage(
   stages: readonly EffectStage[],
   index: number,

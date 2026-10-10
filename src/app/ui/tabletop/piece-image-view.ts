@@ -1,4 +1,5 @@
 import { computed, linkedSignal, Signal } from '@angular/core';
+import { BillboardFacing, NOT_TURNED } from '@axe/application/ui/billboard-frame.service';
 import { supersampleFactor, supersampleInsetPercent, supersampleTransform } from '@axe/ui/tabletop/supersample';
 
 export interface PieceImageViewInputs {
@@ -7,7 +8,7 @@ export interface PieceImageViewInputs {
   sizePx: Signal<number>;
   specifiedHeightPx: Signal<number | null>;
   billboardEnabled: Signal<boolean>;
-  billboardTransform: Signal<string>;
+  billboardFacing: Signal<BillboardFacing>;
   squarePoster?: boolean;
   /** Whether the picture is held to the ground the piece stands on, rather than towering over it. */
   fitInCell?: Signal<boolean>;
@@ -21,12 +22,20 @@ export interface PieceImageView {
   readonly supersamplePercent: Signal<string>;
   readonly supersampleInset: Signal<string>;
   readonly boxHeightPx: Signal<number | null>;
-  readonly komaTransform: Signal<string>;
-  readonly pieceTransform: Signal<string>;
+  readonly komaFacing: Signal<BillboardFacing>;
+  readonly pieceFacing: Signal<BillboardFacing>;
   readonly posterTransform: Signal<string>;
   onImageLoad(event: Event): void;
 }
 
+/**
+ * Works out how a piece's picture is sized and transformed from its inputs, as signals a piece
+ * component binds in its template.
+ *
+ * The picture's natural size is unknown until `onImageLoad` is called from the image's load
+ * event, and forgotten again whenever the image URL changes; until then no supersampling is
+ * applied.
+ */
 export function pieceImageView(inputs: PieceImageViewInputs): PieceImageView {
   const natural = linkedSignal<string, { width: number; height: number } | null>({
     source: inputs.imageUrl,
@@ -60,7 +69,8 @@ export function pieceImageView(inputs: PieceImageViewInputs): PieceImageView {
     return (inputs.sizePx() * size.height) / size.width;
   });
 
-  const inner = () => (inputs.billboardEnabled() ? inputs.billboardTransform() : '');
+  /** What the picture is turned by, which is nothing at all where the piece does not billboard. */
+  const inner = (): BillboardFacing => (inputs.billboardEnabled() ? inputs.billboardFacing() : NOT_TURNED);
 
   return {
     naturalSize: natural.asReadonly(),
@@ -69,15 +79,17 @@ export function pieceImageView(inputs: PieceImageViewInputs): PieceImageView {
     supersamplePercent: computed(() => supersample() * 100 + '%'),
     supersampleInset: computed(() => supersampleInsetPercent(supersample()) + '%'),
     boxHeightPx,
-    komaTransform: computed(() =>
-      supersampleTransform({
-        factor: supersample(),
-        anchor: 'bottom',
-        outer: `translateX(-50%) translateX(${inputs.sizePx() / 2}px)`,
-        inner: inner(),
-      })
-    ),
-    pieceTransform: computed(() => supersampleTransform({ factor: supersample(), anchor: 'bottom', inner: inner() })),
+    komaFacing: computed<BillboardFacing>(() => {
+      const factor = supersample();
+      const outer = `translateX(-50%) translateX(${inputs.sizePx() / 2}px)`;
+      const facing = inner();
+      return (rotation) => supersampleTransform({ factor, anchor: 'bottom', outer, inner: facing(rotation) });
+    }),
+    pieceFacing: computed<BillboardFacing>(() => {
+      const factor = supersample();
+      const facing = inner();
+      return (rotation) => supersampleTransform({ factor, anchor: 'bottom', inner: facing(rotation) });
+    }),
     posterTransform: computed(() => supersampleTransform({ factor: supersample(), anchor: 'center' })),
     onImageLoad(event: Event): void {
       const img = event.target as HTMLImageElement;

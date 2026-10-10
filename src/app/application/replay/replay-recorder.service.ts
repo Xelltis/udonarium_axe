@@ -12,11 +12,10 @@ import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { compressAsync } from '@axe/core/util/compress';
 import { DataElement } from '@axe/domain/data/data-element';
-import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canMergeReplayEvents, mergeReplayEvents } from '@axe/domain/replay/replay-coalescer';
 import { encodeReplayEvents, encodeReplayManifest } from '@axe/domain/replay/replay-codec';
-import { cloneSyncData, type SyncData } from '@axe/domain/replay/replay-diff';
+import { cloneSyncData, type SyncData, syncValueOf } from '@axe/domain/replay/replay-diff';
 import {
   GM_ONLY_VISIBILITY,
   PUBLIC_VISIBILITY,
@@ -29,6 +28,7 @@ import {
   type ReplayTargetSnapshot,
   type ReplayVisibility,
 } from '@axe/domain/replay/replay-event';
+import { REPLAY_PART_FLAG } from '@axe/domain/replay/replay-event-category';
 import {
   interpretObjectChange,
   interpretObjectRemove,
@@ -39,12 +39,16 @@ import {
   shouldDiffObjectChange,
 } from '@axe/domain/replay/replay-interpreter';
 import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
+import { visibilityOfDisclosure, visibilityOfSyncData } from '@axe/domain/replay/replay-visibility';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export const REPLAY_CHUNK_EVENT_LIMIT = 500;
 export const REPLAY_CHUNK_INTERVAL_MS = 30_000;
 export const REPLAY_KEYFRAME_INTERVAL_MS = 600_000;
 export const REPLAY_BASELINE_GRACE_MS = 5_000;
+const CHAT_ALIAS = 'chat';
+/** How far another browser's clock may run behind ours for a line it stamped to still count as new. */
+export const REPLAY_CLOCK_SKEW_MS = 2_000;
 export const REPLAY_RECENT_EVENT_LIMIT = 300;
 export const REPLAY_RECENT_PUBLISH_MS = 250;
 export const REPLAY_KEYFRAME_BUSY_RETRY_MS = 5_000;
@@ -99,6 +103,21 @@ export class ReplayRecorderService {
   private lastManifestAt = 0;
   /** Whether the board was touched. It moves even for changes no recording keeps. */
   private boardDirty = false;
+  /** Who could see each object when it was last recorded, for judging its removal once it is gone. */
+  private readonly lastVisibility = new Map<string, ReplayVisibility>();
+  /**
+   * The objects that are parts of a piece, whose arrival and removal are not told on their own,
+   * each with the piece it belongs to, or empty where that piece has not been seen yet.
+   */
+  private readonly partOwners = new Map<string, string>();
+  /**
+   * The arrival or removal of a piece just recorded, by piece, while nothing has been recorded or
+   * saved after it and it has not been written out. The parts that come and go with the piece right
+   * then are folded into it; one that comes later is told on its own, after what came between.
+   */
+  private readonly openPieceEvents = new Map<string, ReplayEvent>();
+  /** The names of the pieces on the table when recording began, for naming one removed untouched. */
+  private readonly namesAtStart = new Map<string, string>();
   private recent: ReplayEvent[] = [];
   private recentDirty = false;
   private lastPublishAt = 0;
@@ -130,10 +149,12 @@ export class ReplayRecorderService {
     void this.persistManifest(id, true);
   }
 
+  /** Whether this browser has the storage recordings are kept in. */
   get isSupported(): boolean {
     return this.store.isAvailable();
   }
 
+  /** Reads the list of stored recordings again and publishes it on `recordings`. */
   async refresh(): Promise<readonly ReplayRecordingMeta[]> {
     if (!this.isSupported) return [];
     const metas = await this.store.listRecordings();
@@ -141,24 +162,36 @@ export class ReplayRecorderService {
     return metas;
   }
 
+  /** Sets how much of what happens is kept, from the next event on, and remembers it in this browser. */
   setDetailLevel(level: ReplayDetailLevel): void {
     this.preference.setDetailLevel(level);
   }
 
+  /** The name a peer went by most recently in this recording, or their user id when none was recorded. */
   actorNameOf(userId: string): string {
     const history = this.actors.get(userId);
     return history?.[history.length - 1]?.name || userId;
   }
 
+  /** The name an object had most recently in this recording, or empty when it was never named. */
   targetNameOf(identifier: string): string {
     const history = this.targets.get(identifier);
     return history?.[history.length - 1]?.name || '';
   }
 
+  /**
+   * Starts recording the room, taking a first board and clearing out recordings past the keep
+   * count.
+   *
+   * Waits for any start or stop still running. Answers false when storage is unavailable, a
+   * recording is already running, the board is being replayed, or the recording could not be
+   * created.
+   */
   async start(): Promise<boolean> {
     return this.queue(() => this.startNow());
   }
 
+  /** Stops recording, saving a last board and everything still buffered. Does nothing when not recording. */
   async stop(): Promise<void> {
     await this.queue(() => this.stopNow());
   }
@@ -194,6 +227,10 @@ export class ReplayRecorderService {
     this.shadows.clear();
     this.actors.clear();
     this.targets.clear();
+    this.lastVisibility.clear();
+    this.partOwners.clear();
+    this.openPieceEvents.clear();
+    this.namesAtStart.clear();
     this.keyframes.length = 0;
     this.chunks.length = 0;
     this._eventCount.set(0);
@@ -233,12 +270,14 @@ export class ReplayRecorderService {
     await this.refresh();
   }
 
+  /** Drops a labelled marker into the recording and saves the board there, so playback can start from it. */
   async mark(label: string): Promise<void> {
     if (!this._isRecording()) return;
     this.push({ kind: ReplayEventKind.Marker, detail: { label } }, this.selfPeerId(), Date.now());
     await this.captureKeyframe(true);
   }
 
+  /** Deletes a stored recording. The one being recorded is never deleted. */
   async remove(id: number): Promise<void> {
     if (!this.isSupported || id === this.recordingId) return;
     await this.store.removeRecording(id);
@@ -256,8 +295,18 @@ export class ReplayRecorderService {
     }
     if (eventName === 'DELETE_GAME_OBJECT') {
       const context = data as { identifier: string; aliasName: string };
+      const owner = this.partOwners.get(context.identifier);
+      this.noteRemovedVisibility(context.identifier, owner);
       this.shadows.delete(context.identifier);
-      this.push(interpretObjectRemove(context.identifier, context.aliasName), sendFrom, at);
+      if (owner !== undefined) {
+        this.partOwners.delete(context.identifier);
+        if (this.foldPartRemoval(owner, context.identifier)) return;
+      } else {
+        this.rememberRemovedTarget(context.identifier, context.aliasName);
+      }
+      const draft = interpretObjectRemove(context.identifier, context.aliasName);
+      if (owner !== undefined) draft.detail[REPLAY_PART_FLAG] = true;
+      this.push(draft, sendFrom, at);
       return;
     }
 
@@ -270,8 +319,11 @@ export class ReplayRecorderService {
     const after = context.syncData as SyncData;
     const before = this.shadows.get(context.identifier) ?? null;
     this.shadows.set(context.identifier, cloneSyncData(after));
+    if (before && before['parentIdentifier'] !== after['parentIdentifier']) {
+      this.notePartOwner(context.identifier, after['parentIdentifier']);
+    }
 
-    if (!before && at < this.baselineUntil) return;
+    if (!before && at < this.baselineUntil && !this.isFreshArrival(context.aliasName, after, sendFrom)) return;
     if (!shouldDiffObjectChange(this.preference.detailLevel(), context.aliasName, !before)) return;
 
     const draft = interpretObjectChange({
@@ -280,7 +332,102 @@ export class ReplayRecorderService {
       before,
       after,
     });
-    if (draft) this.push(draft, sendFrom, at);
+    if (!draft) return;
+    if (!before && this.notePart(context.identifier, after, draft) && this.foldPartArrival(context.identifier, draft)) {
+      return;
+    }
+    this.push(draft, sendFrom, at);
+  }
+
+  /**
+   * Keeps up with whether an object is part of a piece once it has moved: a card drawn from its deck
+   * is a piece of its own from then on, and one put into a deck becomes part of it. Judged from the
+   * parent it moved to, since the room may not have taken the move in yet.
+   */
+  private notePartOwner(identifier: string, parentIdentifier: unknown): void {
+    const parent = typeof parentIdentifier === 'string' ? this.objectStore.get(parentIdentifier) : null;
+    const owner = parent instanceof TabletopObject ? parent : ownerOf(parent);
+    if (owner) this.partOwners.set(identifier, owner.identifier);
+    else this.partOwners.delete(identifier);
+  }
+
+  /**
+   * Folds a part that has just arrived into the arrival of its piece, when that is still open, so
+   * a piece brought out with its many parts is one event. Answers whether it was folded.
+   */
+  private foldPartArrival(identifier: string, draft: ReplayDraft): boolean {
+    const owner = this.partOwners.get(identifier);
+    const arrival = owner ? this.openPieceEvents.get(owner) : undefined;
+    if (!arrival || arrival.kind !== ReplayEventKind.ObjectCreate || !draft.patch) return false;
+    arrival.parts = [...(arrival.parts ?? []), draft.patch];
+    return true;
+  }
+
+  /**
+   * Folds the removal of a part into the removal of its piece, when that is still open, so a piece
+   * taken away with its many parts is one event. Answers whether it was folded.
+   */
+  private foldPartRemoval(owner: string, identifier: string): boolean {
+    const removal = owner ? this.openPieceEvents.get(owner) : undefined;
+    if (!removal || removal.kind !== ReplayEventKind.ObjectRemove) return false;
+    removal.removedParts = [...(removal.removedParts ?? []), identifier];
+    return true;
+  }
+
+  /**
+   * Whether something first seen while the room is still catching up is new, rather than the room
+   * as it already was.
+   *
+   * What this browser sent itself is new, and so is a line stamped after the recording began. A
+   * peer's copy of an older line or piece is the room catching up, which the first board holds.
+   */
+  private isFreshArrival(aliasName: string, after: SyncData, sendFrom: string): boolean {
+    const self = this.selfPeerId();
+    if (self.length > 0 && sendFrom === self) return true;
+    if (aliasName !== CHAT_ALIAS) return false;
+    const stamped = Number(syncValueOf(after, 'timestamp') ?? 0);
+    return Number.isFinite(stamped) && stamped >= this._startedAt() - REPLAY_CLOCK_SKEW_MS;
+  }
+
+  /**
+   * Flags a newly arrived object that belongs to a piece, so it is not told as an arrival of its own.
+   *
+   * A part sent by someone else can arrive before the piece it belongs to, when its owner cannot be
+   * found yet; a parent not seen at all yet marks it as a part all the same.
+   */
+  private notePart(identifier: string, after: SyncData, draft: ReplayDraft): boolean {
+    const parent = after['parentIdentifier'];
+    const awaitsParent = typeof parent === 'string' && parent.length > 0 && !this.shadows.has(parent);
+    const owner = ownerOf(this.objectStore.get(identifier));
+    if (!owner && !awaitsParent) return false;
+    this.partOwners.set(identifier, owner?.identifier ?? '');
+    draft.detail[REPLAY_PART_FLAG] = true;
+    return true;
+  }
+
+  /**
+   * Keeps who could see an object being taken away, before its last synced state is let go.
+   *
+   * The room has already dropped it, so its removal is judged by what is remembered here: a piece
+   * by its own disclosure, a part by its piece's. A piece hidden from the start and never touched
+   * since would otherwise be told to everyone as it leaves.
+   */
+  private noteRemovedVisibility(identifier: string, owner: string | undefined): void {
+    const holder = owner || identifier;
+    const shadow = this.shadows.get(holder);
+    const visibility = shadow ? visibilityOfSyncData(shadow) : this.lastVisibility.get(holder);
+    if (visibility) this.lastVisibility.set(identifier, visibility);
+  }
+
+  /**
+   * Names a piece taken away that no event had named yet, from what was seen when recording
+   * began. The store has let it go by the time the removal arrives.
+   */
+  private rememberRemovedTarget(identifier: string, aliasName: string): void {
+    if (this.targets.has(identifier)) return;
+    const name = this.namesAtStart.get(identifier);
+    if (name == null) return;
+    this.targets.set(identifier, [{ identifier, aliasName, name, sinceSeq: this.seq + 1 }]);
   }
 
   private push(draft: ReplayDraft, sendFrom: string, at: number): void {
@@ -312,9 +459,18 @@ export class ReplayRecorderService {
 
     this.flushPending();
     this.pending = event;
+    this.openPieceEvents.clear();
+    this.openIfPiece(event);
     this.trackRecent(event, false);
     if (this.buffer.length + 1 >= REPLAY_CHUNK_EVENT_LIMIT) this.flushPending();
     this.scheduleChunkFlush();
+  }
+
+  /** Keeps the arrival or removal of a piece open for its parts until it is written out. */
+  private openIfPiece(event: ReplayEvent): void {
+    if (event.kind !== ReplayEventKind.ObjectCreate && event.kind !== ReplayEventKind.ObjectRemove) return;
+    if (!event.targetId || event.detail[REPLAY_PART_FLAG] === true) return;
+    this.openPieceEvents.set(event.targetId, event);
   }
 
   private flushPending(): void {
@@ -341,6 +497,10 @@ export class ReplayRecorderService {
 
     const events = this.buffer;
     this.buffer = [];
+    for (const event of events) {
+      if (event.targetId && this.openPieceEvents.get(event.targetId) === event)
+        this.openPieceEvents.delete(event.targetId);
+    }
     const bytes = encodeReplayEvents(events);
     const chunk = {
       index: this.chunkIndex++,
@@ -389,6 +549,7 @@ export class ReplayRecorderService {
       }
     }
 
+    this.openPieceEvents.clear();
     try {
       // Keep the number with what was taken. Counting what happened during the compression
       // would mark those events as already in the board, and playback would skip them.
@@ -449,6 +610,11 @@ export class ReplayRecorderService {
   }
 
   private seedShadows(): void {
+    for (const object of this.objectStore.getObjects()) {
+      const owner = ownerOf(object);
+      if (owner) this.partOwners.set(object.identifier, owner.identifier);
+      else if (object instanceof TabletopObject) this.namesAtStart.set(object.identifier, nameOf(object));
+    }
     for (const snapshot of this.snapshotStore()) {
       this.shadows.set(snapshot.identifier, cloneSyncData(snapshot.syncData));
     }
@@ -538,12 +704,15 @@ export class ReplayRecorderService {
       return PUBLIC_VISIBILITY;
     }
 
-    const object = draft.targetIdentifier ? this.objectStore.get(draft.targetIdentifier) : null;
-    const disclosable = object as { disclosureMode?: unknown; disclosureUserIds?: unknown } | null;
-    if (disclosable?.disclosureMode === DisclosureMode.GameMaster) return GM_ONLY_VISIBILITY;
-    if (disclosable?.disclosureMode === DisclosureMode.Selected && Array.isArray(disclosable.disclosureUserIds))
-      return { kind: 'direct', to: [...(disclosable.disclosureUserIds as string[])] };
-    return PUBLIC_VISIBILITY;
+    const target = draft.targetIdentifier;
+    const object = target ? this.objectStore.get(target) : null;
+    // Taken out of the room before the word arrived, it is judged as it was last seen.
+    if (!object) return (target && this.lastVisibility.get(target)) || PUBLIC_VISIBILITY;
+    // A part such as a piece's HP has no disclosure of its own and is kept as its piece is.
+    const holder = (isDisclosable(object) ? object : ownerOf(object)) as Disclosing | null;
+    const visibility = visibilityOfDisclosure(holder?.disclosureMode, holder?.disclosureUserIds);
+    if (target) this.lastVisibility.set(target, visibility);
+    return visibility;
   }
 
   private manifest(): ReplayManifest {
@@ -589,6 +758,15 @@ export class ReplayRecorderService {
 
 function currentRoomName(): string {
   return Network.peerContext?.roomName ?? '';
+}
+
+interface Disclosing {
+  disclosureMode?: unknown;
+  disclosureUserIds?: unknown;
+}
+
+function isDisclosable(object: unknown): boolean {
+  return typeof object === 'object' && object !== null && 'disclosureMode' in object;
 }
 
 function ownerOf(object: unknown): ObjectNode | null {

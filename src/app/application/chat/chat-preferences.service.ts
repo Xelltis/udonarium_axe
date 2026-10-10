@@ -60,6 +60,8 @@ interface StoredChatPreferences {
   fontSize?: number;
   /** Whether the chat log says how novel mode was asked to stage a line. Off unless asked for. */
   showVnEmoteBadge?: boolean;
+  /** Whether a chat window's title says how many lines the tab holds. Off unless asked for. */
+  showMessageCount?: boolean;
   colors?: string[];
   display?: ChatDisplayPreferences;
   portrait?: ChatScopedSetting;
@@ -109,6 +111,15 @@ export class ChatPreferencesService {
    */
   readonly showVnEmoteBadge = computed(() => this.stored().showVnEmoteBadge === true);
 
+  /**
+   * Whether a chat window says beside its title how many lines the tab it is showing holds.
+   *
+   * Off by default: a number that climbs all session is one more thing moving on a screen that
+   * already has plenty. A table that counts its lines - a play-by-post, a log being checked
+   * against another - can ask for it, and it stays on this browser.
+   */
+  readonly showMessageCount = computed(() => this.stored().showMessageCount === true);
+
   constructor() {
     effect(() => {
       const v = this.autoFollowScroll();
@@ -124,34 +135,55 @@ export class ChatPreferencesService {
     });
   }
 
+  /** Whether the log scrolls to each new line as it arrives. Kept in this browser only. */
   setAutoFollowScroll(v: boolean): void {
     this.autoFollowScroll.set(v);
   }
 
+  /** Turns the novel-mode expression badge on lines on or off for this reader. */
   setShowVnEmoteBadge(v: boolean): void {
     this.patch({ showVnEmoteBadge: v });
   }
 
+  /** Turns the line count beside a chat window's title on or off for this reader. */
+  setShowMessageCount(v: boolean): void {
+    this.patch({ showMessageCount: v });
+  }
+
+  /** Sets the chat text size, clamped to the allowed range; anything not a number falls back to the default. */
   setFontSize(v: number): void {
     this.patch({ fontSize: clampFontSize(v) });
   }
 
+  /** Remembers the colours this reader speaks in, in this browser. */
   setColors(colors: readonly string[]): void {
     this.patch({ colors: colors.map((c) => String(c)) });
   }
 
+  /** Remembers how the chat window lays out portraits and the short form of lines, in this browser. */
   setDisplay(display: ChatDisplayPreferences): void {
     this.patch({ display: { ...display } });
   }
 
+  /**
+   * Records whether portraits show, and whether that is one answer for the room or one per tab.
+   *
+   * Once this is set the reader counts as having answered; see `hasPortraitAnswer`.
+   */
   setPortrait(setting: ChatScopedSetting): void {
     this.patch({ portrait: { ...setting } });
   }
 
+  /**
+   * Records whether lines show in their short form, and whether that is one answer or one per tab.
+   *
+   * Once this is set the reader counts as having answered; see `hasSimpleAnswer`.
+   */
   setSimple(setting: ChatScopedSetting): void {
     this.patch({ simple: { ...setting } });
   }
 
+  /** Replaces what this reader hears when a line arrives, for the room or tab by tab. Never sent anywhere. */
   setSound(setting: ChatScopedSoundSetting): void {
     this.patch({ sound: { scope: setting.scope, all: { ...setting.all }, tabs: { ...setting.tabs } } });
   }
@@ -163,6 +195,7 @@ export class ChatPreferencesService {
     return setting.tabs[name] ?? setting.all;
   }
 
+  /** Sets the sound for the tab of this name, which is only heard while the sound is set per tab. */
   setSoundOfTab(name: string, sound: ChatSoundSetting): void {
     const setting = this.sound();
     this.setSound({ ...setting, tabs: { ...setting.tabs, [name]: { ...sound } } });
@@ -185,6 +218,11 @@ export class ChatPreferencesService {
     return byIdentifier;
   }
 
+  /**
+   * Remembers a tab's portrait and short-form settings under its name.
+   *
+   * The most recently written tabs are kept and the oldest are dropped once there are more than 64.
+   */
   setTabPreferences(name: string, preferences: ChatTabPreferences): void {
     this.stored.update((current) => {
       const tabs: Record<string, ChatTabPreferences> = { ...current.tabs };
@@ -233,6 +271,7 @@ function readStored(): StoredChatPreferences {
     const stored: StoredChatPreferences = {};
     if (typeof source['fontSize'] === 'number') stored.fontSize = clampFontSize(source['fontSize']);
     if (source['showVnEmoteBadge'] === true) stored.showVnEmoteBadge = true;
+    if (source['showMessageCount'] === true) stored.showMessageCount = true;
     const colors = readColors(source['colors']);
     if (colors) stored.colors = colors;
     const display = readDisplay(source['display']);

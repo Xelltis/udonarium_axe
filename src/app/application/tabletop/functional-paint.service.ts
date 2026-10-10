@@ -1,16 +1,22 @@
 import { inject, Injectable } from '@angular/core';
 import { GameObject } from '@axe/core/sync/game-object';
-import { DataElement } from '@axe/domain/data/data-element';
+import { ObjectNode } from '@axe/core/sync/object-node';
+import { ambienceKindOf } from '@axe/domain/effect/ambience/ambience-kind';
+import { BoardSwitch } from '@axe/domain/tabletop/board-switch/board-switch';
+import { stashOf } from '@axe/domain/tabletop/board-switch/concealment';
 import { parseCellKey } from '@axe/domain/tabletop/cell-key';
 import { cellKeyOf, CellRect } from '@axe/domain/tabletop/cell-rectangles';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellColRow, CellGrid, cellGridOf, cellIndexAt, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import {
+  AmbienceBlock,
+  AmbiencePaintSpec,
   blockKey,
   BlockPlacement,
   FunctionPaintPlan,
   MaskBlock,
   MaskPaintSpec,
+  MoveCostPaintSpec,
   NO_FACE_IMAGES,
   TERRAIN_FACE_KEYS,
   TerrainBlock,
@@ -22,17 +28,33 @@ import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { blockOrigin as gridBlockOrigin, cellCentre } from '@axe/domain/tabletop/map-grid';
 import { ensureMoveBlockMapOn, moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
+import { moveCostsOn, TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import { TableTrigger, triggersOn } from '@axe/domain/tabletop/table-trigger';
 import { Terrain, TERRAIN_FACES } from '@axe/domain/tabletop/terrain';
+import { encodeSlopeSides, parseSlopeSides } from '@axe/domain/tabletop/terrain-slope';
+import { isPressMoment } from '@axe/domain/tabletop/trigger-event';
+
+/**
+ * What hangs under a table, together with what the master has put out of sight on it.
+ *
+ * A block put out of sight is still part of the map: an editor that could not see it would lay it
+ * again, in plain view, the next time the painting was put on the table, and would never take it
+ * away when the painting stopped holding it.
+ */
+function laidOn(table: GameTable): readonly ObjectNode[] {
+  const stash = stashOf(table);
+  return stash ? [...table.children, ...stash.children] : table.children;
+}
 
 function terrainsOn(table: GameTable): Terrain[] {
-  return table.children.filter((child): child is Terrain => child instanceof Terrain);
+  return laidOn(table).filter((child): child is Terrain => child instanceof Terrain);
 }
 
 function masksOn(table: GameTable): GameTableMask[] {
-  return table.children.filter((child): child is GameTableMask => child instanceof GameTableMask);
+  return laidOn(table).filter((child): child is GameTableMask => child instanceof GameTableMask);
 }
 
 /** Lays one block of terrain wearing everything the block carries. */
@@ -68,8 +90,13 @@ function layTerrainBlock(
   terrain.doorStyle = spec.doorStyle;
   terrain.isDoorOpen = spec.doorOpen;
   terrain.doorMirrored = spec.doorMirrored;
+  // The sides come first, so a brush saved before there were any still tips the block the one
+  // way it knew.
+  const slopeSides = parseSlopeSides(spec.slopeSides, spec.slopeDirection);
+  terrain.slopeSides = spec.slope ? slopeSides : [];
+  // A brush that names no side the block still has keeps its slope on all the same, which is
+  // read as running down to the south wherever the block is drawn.
   terrain.isSlope = spec.slope;
-  terrain.slopeDirection = spec.slopeDirection;
   terrain.rotate = placed ? placed.rotate : 0;
   terrain.lightEnabled = spec.light.enabled;
   terrain.lightPreset = spec.light.preset;
@@ -91,9 +118,9 @@ function layTerrainBlock(
  * The exact placement a block is to wear, where this is the very cell it was read from.
  *
  * A placement belongs to one block standing on one cell, but it is carried on the spec, and a
- * spec is what tells one painted layer from another. Painting more cells into the layer an
- * imported wall made handed every one of them that wall's own position, so the new cells came
- * out stacked on top of it and nothing at all stood where the brush had been.
+ * spec is what tells one painted layer from another. Handed on as it stands, every cell painted
+ * into the layer an imported wall made would take that wall's own position, stacking the new
+ * cells on top of it and leaving nothing at all where the brush went.
  */
 function placementFor(
   spec: { placement: BlockPlacement | null },
@@ -121,24 +148,6 @@ function blockOrigin(placed: BlockPlacement | null, rect: CellRect, grid: CellGr
 
 /** A mask counts its opacity out of this, so the fraction it shows is the current value over it. */
 const MASK_OPACITY_FULL = 100;
-
-/**
- * A mask carries no colour until one is written down for it, and the setter will not write
- * what is not already there, so the element has to be laid alongside it.
- */
-function paintMaskColor(mask: GameTableMask, color: string): void {
-  const common = mask.commonDataElement;
-  if (!common) return;
-  const held = common.getFirstElementByName('color');
-  if (held) {
-    held.value = color;
-    held.currentValue = color;
-    return;
-  }
-  common.appendChild(
-    DataElement.create('color', color, { type: 'colors', currentValue: color }, `color_${mask.identifier}`)
-  );
-}
 
 function setMaskOpacity(mask: GameTableMask, fraction: number): void {
   const element = mask.commonDataElement?.getFirstElementByName('opacity');
@@ -189,6 +198,7 @@ export function terrainSpecOf(terrain: Terrain, placement: BlockPlacement | null
     doorMirrored: terrain.doorMirrored,
     slope: terrain.isSlope,
     slopeDirection: terrain.slopeDirection,
+    slopeSides: encodeSlopeSides(terrain.slopeSides),
     light: {
       enabled: terrain.lightEnabled,
       preset: terrain.lightPreset,
@@ -205,6 +215,7 @@ export function terrainSpecOf(terrain: Terrain, placement: BlockPlacement | null
   };
 }
 
+/** What a mask is painted as, so the map editor can tell one mask from another and lay it down again as it was. */
 export function maskSpecOf(mask: GameTableMask, placement: BlockPlacement | null): MaskPaintSpec {
   return {
     name: mask.name,
@@ -297,6 +308,20 @@ function hexFootprintOf(
   };
 }
 
+/**
+ * Writes pressed ground down as a trap already spent, for the versions that have never heard of
+ * pressing.
+ *
+ * Such a version reads the moment it does not know as the end of a walk, and would spring the
+ * ground under every piece that stopped on it. Spent, it has nothing left to spring. This version
+ * asks the ground's own switch instead.
+ */
+function guardPressedGround(trigger: TableTrigger): void {
+  trigger.once = true;
+  trigger.repeat = 'once';
+  trigger.spent = true;
+}
+
 /** What one piece of trigger ground looks like to the editor, which is everything but its state. */
 function triggerSpecOf(trigger: TableTrigger): TriggerPaintSpec {
   return {
@@ -304,13 +329,60 @@ function triggerSpecOf(trigger: TableTrigger): TriggerPaintSpec {
     moment: trigger.firesOn,
     targets: trigger.catches,
     once: trigger.once,
+    // The written answer rather than the resolved one: ground painted before there was a finer
+    // answer carries none, and reading one back would make it look like a different painting.
+    repeat: trigger.repeat,
     open: trigger.open,
+    shownTo: trigger.shownTo,
     reveals: trigger.reveals,
+    say: trigger.say,
+    ailment: trigger.ailment,
+    ailmentRounds: trigger.ailmentRounds,
+    check: trigger.check,
+    checkTarget: trigger.checkTarget,
+    checkRoll: trigger.checkRoll,
+    passAmount: trigger.passAmount,
+    silent: trigger.silent,
     color: trigger.color,
     element: trigger.element,
     amount: trigger.amount,
     effect: trigger.effect,
+    sound: trigger.sound,
+    cutIn: trigger.cutIn,
+    warps: trigger.warps,
+    warpCol: trigger.warpCol,
+    warpRow: trigger.warpRow,
+    warpTable: trigger.warpTable,
+    ...(trigger.pressSwitch ? { once: false, repeat: '', press: trigger.pressSwitch.definition } : { press: '' }),
   };
+}
+
+/**
+ * Whether a look over the ground is the editor's to take away again.
+ *
+ * The editor lays its looks nameless, and everything else that lays one - the table's own menu,
+ * the map generator - names it after what it is. So a named look is somebody else's: it is left
+ * where it was put, and is not counted against what the dangerous-ground brush has painted.
+ */
+function isEditorsOwnLook(area: TableAmbience): boolean {
+  return area.name.trim().length < 1;
+}
+
+/** What one look laid over the ground is, which is everything the editor put into it. */
+function ambienceSpecOf(area: TableAmbience): AmbiencePaintSpec {
+  return {
+    kind: area.ambienceKind,
+    color: area.ambienceColor,
+    density: area.ambienceDensity,
+    blocksSight: area.blocksSight,
+  };
+}
+
+/** What one stretch of dear ground looks like to the editor, which is all of what it is. */
+function moveCostSpecOf(area: TableMoveCost): MoveCostPaintSpec {
+  // Nothing on the table is dear and shut at once: the shut cells are a map of their own, and
+  // what is read back from here always has a price rather than a bar.
+  return { blocks: false, halves: area.halves, extraCost: area.charge, color: area.color };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -329,6 +401,8 @@ export class FunctionalPaintService {
       this.layTerrain(table, grid, plan);
       this.layMasks(table, grid, plan);
       this.layTriggers(table, plan);
+      this.layMoveCosts(table, plan);
+      this.layAmbiences(table, grid, plan);
     });
     return true;
   }
@@ -382,7 +456,7 @@ export class FunctionalPaintService {
         placed ? placed.depth : block.height,
         MASK_OPACITY_FULL
       );
-      paintMaskColor(mask, block.spec.color);
+      mask.paintColor(block.spec.color);
       setMaskOpacity(mask, block.spec.opacity);
       mask.isLock = block.spec.locked;
       mask.dispLockMark = block.spec.showsLockMark;
@@ -434,14 +508,83 @@ export class FunctionalPaintService {
       trigger.moment = block.spec.moment;
       trigger.targets = block.spec.targets;
       trigger.once = block.spec.once;
+      trigger.repeat = block.spec.repeat;
       trigger.open = block.spec.open;
+      trigger.shownTo = block.spec.shownTo;
       trigger.reveals = block.spec.reveals;
+      trigger.say = block.spec.say;
+      trigger.ailment = block.spec.ailment;
+      trigger.ailmentRounds = block.spec.ailmentRounds;
+      trigger.check = block.spec.check;
+      trigger.checkTarget = block.spec.checkTarget;
+      trigger.silent = block.spec.silent;
       trigger.color = block.spec.color;
       trigger.element = block.spec.element;
       trigger.amount = block.spec.amount;
       trigger.effect = block.spec.effect;
+      trigger.sound = block.spec.sound;
+      trigger.cutIn = block.spec.cutIn;
+      trigger.checkRoll = block.spec.checkRoll;
+      trigger.passAmount = block.spec.passAmount;
+      trigger.warps = block.spec.warps;
+      trigger.warpCol = block.spec.warpCol;
+      trigger.warpRow = block.spec.warpRow;
+      trigger.warpTable = block.spec.warpTable;
+      if (isPressMoment(block.spec.moment)) guardPressedGround(trigger);
       trigger.initialize();
       table.appendChild(trigger);
+      if (isPressMoment(block.spec.moment)) {
+        const held = new BoardSwitch();
+        held.definition = block.spec.press;
+        held.initialize();
+        trigger.appendChild(held);
+      }
+    }
+  }
+
+  /** Lays the ground that costs more to cross, which the table carries as it was painted. */
+  private layMoveCosts(table: GameTable, plan: FunctionPaintPlan): void {
+    this.takeAway(
+      moveCostsOn(table).map((held) => ({ object: held, key: blockKey(held.rect, moveCostSpecOf(held)) })),
+      plan.moveCost.remove
+    );
+
+    for (const block of plan.moveCost.add) {
+      const area = new TableMoveCost();
+      area.col = block.col;
+      area.row = block.row;
+      area.width = block.width;
+      area.height = block.height;
+      area.extraCost = block.spec.extraCost;
+      area.halves = block.spec.halves;
+      area.color = block.spec.color;
+      area.initialize();
+      table.appendChild(area);
+    }
+  }
+
+  /**
+   * Lays the looks that go over dangerous ground.
+   *
+   * Only the dangerous-ground brush lays these, and a scene that never picks it up asks for
+   * none, so an area a master dropped on the table by hand is left exactly where they put it.
+   */
+  private layAmbiences(table: GameTable, grid: CellGrid, plan: FunctionPaintPlan): void {
+    this.takeAway(
+      table.ambiences.filter(isEditorsOwnLook).map((held) => {
+        const stood = blockFootprintOf(held, held.width, held.height, grid);
+        return { object: held, key: stood ? blockKey(stood.rect, ambienceSpecOf(held)) : null };
+      }),
+      plan.ambience.remove
+    );
+
+    for (const block of plan.ambience.add) {
+      const area = TableAmbience.create('', ambienceKindOf(block.spec.kind, 'swamp'), block.width, block.height);
+      area.ambienceColor = block.spec.color;
+      area.ambienceDensity = block.spec.density;
+      area.blocksSight = block.spec.blocksSight;
+      area.location = blockOrigin(null, block, grid);
+      table.appendChild(area);
     }
   }
 
@@ -472,6 +615,14 @@ export class FunctionalPaintService {
         })
         .filter((block): block is MaskBlock => block !== null),
       triggerBlocks: triggersOn(table).map((held) => ({ ...held.rect, spec: triggerSpecOf(held) })),
+      moveCostBlocks: moveCostsOn(table).map((held) => ({ ...held.rect, spec: moveCostSpecOf(held) })),
+      ambienceBlocks: table.ambiences
+        .filter(isEditorsOwnLook)
+        .map((held) => {
+          const stood = blockFootprintOf(held, held.width, held.height, grid);
+          return stood ? { ...stood.rect, spec: ambienceSpecOf(held) } : null;
+        })
+        .filter((block): block is AmbienceBlock => block !== null),
     };
   }
 }

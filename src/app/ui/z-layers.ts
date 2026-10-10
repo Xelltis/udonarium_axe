@@ -3,8 +3,9 @@
  *
  * The table itself is sealed in its own stacking context, so anything here floats over it.
  * The rest of the ladder, for reference: panels and cut-in windows 1-10 (201 full screen),
- * widgets 100, hand rail 140, toolbars 150, mobile shell 160, menu FAB 200, context menu
- * 9900, drag ghosts 10000, modal 1899999, dropdowns and text tooltips 2000000.
+ * widgets 100, hand rail 140, toolbars 150, mobile shell 160, menu FAB 200, bottom sheets 1000,
+ * their notices 1010, context menu 9900, drag ghosts 10000, modal 1899999, dropdowns and text
+ * tooltips 2000000.
  *
  * Panels are numbered as they are brought forward rather than given a shelf of their own, so
  * anything that must sit above a particular panel says which shelf it wants.

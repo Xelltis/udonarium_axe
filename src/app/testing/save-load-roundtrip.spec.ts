@@ -1,9 +1,15 @@
 import { TestBed } from '@angular/core/testing';
+import { LegacyScratchMaskMigrationService } from '@axe/application/tabletop/legacy-scratch-mask-migration.service';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectFactory } from '@axe/core/sync/object-factory';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { xml2element } from '@axe/core/util/xml-util';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
 import {
   DataElement,
   DataElementAttribute,
@@ -15,12 +21,18 @@ import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { HotbarSlot } from '@axe/domain/hotbar/hotbar-slot';
 import { Config } from '@axe/domain/peer/config';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
+import { Room } from '@axe/domain/peer/room';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { ensureFogMemoryOn, fogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
+import { moveCostsOn, TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { waitFor } from '@axe/testing/wait-for';
 
 describe('save and load round trip', () => {
   let store: ObjectStore;
@@ -35,6 +47,29 @@ describe('save and load round trip', () => {
 
   afterEach(() => {
     (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+  });
+
+  describe('the stamps put on lines of chat', () => {
+    it('still points at the same line once the chat and the room are saved and read back', () => {
+      const reloadCheck = new ReloadCheck('ReloadCheck');
+      reloadCheck.initialize();
+      reloadCheck.reloadCheckStart(false);
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const line = tab.addMessage({ from: 'gm', name: 'GM', text: '扉の向こうで音がした', timestamp: 1000 });
+      ChatReaction.create(line.identifier, 'noa', 'ノア').stamps = 'sfx:creepy seal:ok';
+
+      const chatXml = serializer.toXml(ChatTabList.instance);
+      const roomXml = `<room>${new Room().innerXml()}</room>`;
+      serializer.parseXml(chatXml);
+      serializer.parseXml(roomXml);
+
+      const reactions = store.getObjects<ChatReaction>(ChatReaction);
+      expect(reactions).toHaveLength(1);
+      expect(reactions[0].stampIds).toEqual(['sfx:creepy', 'seal:ok']);
+      const answered = store.get(reactions[0].messageIdentifier);
+      expect(answered).toBeInstanceOf(ChatMessage);
+      expect((answered as ChatMessage).text).toBe('扉の向こうで音がした');
+    });
   });
 
   describe("the room's own rules", () => {
@@ -78,14 +113,65 @@ describe('save and load round trip', () => {
       expect(Config.instance.factionSkipUnassigned).toBe(true);
     });
 
+    it('carries what the room lets its stamps be used for through a save and a load', () => {
+      const config = Config.instance;
+      config.stampRules = withStampUseOn(
+        withStampsAllowed(OPEN_STAMP_RULES, 'line', ['seal:ok', 'image:abc'], false),
+        'reaction',
+        false
+      );
+
+      const xml = serializer.toXml(config);
+      serializer.parseXml(xml);
+
+      expect(Config.instance.stampRules).toEqual({
+        line: { off: false, denied: ['seal:ok', 'image:abc'] },
+        reaction: { off: true, denied: [] },
+      });
+    });
+
     it('reads a room that was saved before it had rules to answer for', () => {
       const xml = '<config identifier="Config" _defaultDiceBot="DiceBot"></config>';
 
       serializer.parseXml(xml);
 
+      expect(Config.instance.stampRules).toEqual(OPEN_STAMP_RULES);
       expect(Config.instance.roomRuleAnswers.zocMode).toBeNull();
       expect(Config.instance.roomRuleAnswers.cellDistance).toBeNull();
       expect(Config.instance.roomRuleAnswers.moveRangeEnabled).toBeNull();
+    });
+  });
+
+  describe('dear ground serialisation', () => {
+    it('registers dear ground with the object factory', () => {
+      const obj = ObjectFactory.instance.create('table-move-cost');
+      expect(obj).toBeTruthy();
+      expect(obj).toBeInstanceOf(TableMoveCost);
+      obj?.destroy();
+    });
+
+    it('carries a stretch of dear ground through a table saved and read back', () => {
+      const table = new GameTable();
+      table.initialize();
+      const area = new TableMoveCost();
+      area.col = 3;
+      area.row = 4;
+      area.width = 5;
+      area.height = 2;
+      area.extraCost = 2;
+      area.color = '#123456';
+      area.initialize();
+      table.appendChild(area);
+
+      const xml = serializer.toXml(table);
+      for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
+      serializer.parseXml(xml);
+
+      const read = moveCostsOn(ObjectStore.instance.getObjects<GameTable>(GameTable)[0]);
+      expect(read).toHaveLength(1);
+      expect(read[0].rect).toEqual({ col: 3, row: 4, width: 5, height: 2 });
+      expect(read[0].charge).toBe(2);
+      expect(read[0].color).toBe('#123456');
     });
   });
 
@@ -494,6 +580,100 @@ describe('save and load round trip', () => {
       expect(names).toContain('New1');
       expect(names).toContain('New2');
       expect(names).toContain('New3');
+    });
+  });
+
+  describe('a room saved with a legacy scratch mask', () => {
+    beforeEach(async () => {
+      TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+      const passes = vi.spyOn(LegacyScratchMaskMigrationService.prototype, 'migrate');
+      TestBed.inject(LegacyScratchMaskMigrationService);
+      await waitFor(() => passes.mock.calls.length > 0, { description: 'the pass made on starting' });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      ImageStorage.instance.images.forEach((image) => ImageStorage.instance.delete(image.identifier));
+    });
+
+    /**
+     * The attributes of a saved element, as the reader is handed them.
+     *
+     * Built by hand: happy-dom folds the case of attribute names and refuses dotted ones, and the
+     * legacy map is saved as one dotted attribute per cell.
+     */
+    function savedAttributes(written: Record<string, string>): NamedNodeMap {
+      return Object.entries(written).map(([name, value]) => ({ name, value })) as unknown as NamedNodeMap;
+    }
+
+    function savedLegacyContent(name: string, width: number, height: number): string {
+      return [
+        '<data name="table-scratch-mask">',
+        '<data name="image"><data type="image" name="imageIdentifier"></data></data>',
+        '<data name="common">',
+        `<data name="name">${name}</data><data name="width">${width}</data><data name="height">${height}</data>`,
+        '</data>',
+        '<data name="detail"></data>',
+        '</data>',
+      ].join('');
+    }
+
+    it('loads it as a regular mask on the table it was saved on, in the colour it carries by default', async () => {
+      const reloadCheck = new ReloadCheck('ReloadCheck');
+      reloadCheck.initialize();
+      reloadCheck.reloadCheckStart(false);
+
+      serializer.parseXml(
+        `<${Room.aliasName}><game-table name="古い卓"><table-scratch-mask color="#336699">` +
+          `${savedLegacyContent('古いマスク', 4, 3)}</table-scratch-mask></game-table></${Room.aliasName}>`
+      );
+
+      await waitFor(() => store.getObjects(GameTableMask).length === 1, {
+        description: 'the saved scratch mask to load as a regular mask',
+      });
+      const [table] = store.getObjects(GameTable);
+      const [mask] = table.masks;
+      expect(mask.name).toBe('古いマスク');
+      expect(mask.width).toBe(4);
+      expect(mask.height).toBe(3);
+      expect(mask.bgcolor).toBe('#FF5050');
+      expect(mask.opacity).toBeCloseTo(0.6);
+      expect(store.getObjects(GameTableScratchMask)).toEqual([]);
+    });
+
+    it('opens the cells its saved map had scratched open, and saves them on the regular mask', async () => {
+      const table = new GameTable('table-in-play');
+      table.initialize();
+      const legacy = ObjectFactory.instance.create<GameTableScratchMask>(GameTableScratchMask.aliasName)!;
+      legacy.parseAttributes(
+        savedAttributes({
+          'M.0': '1',
+          'M.1': 'false',
+          'M.50': 'true',
+          'M.51': 'false',
+          changeColor: '#00ff00',
+          isLock: 'true',
+          'location.x': '100',
+          'location.y': '50',
+        })
+      );
+      legacy.initialize();
+      legacy.parseInnerXml(
+        xml2element(`<table-scratch-mask>${savedLegacyContent('削りかけ', 2, 2)}</table-scratch-mask>`)!
+      );
+      table.appendChild(legacy);
+
+      await waitFor(() => table.masks.length === 1, { description: 'the read scratch mask to become a regular mask' });
+      const [mask] = table.masks;
+      expect(mask.scratchedGrids).toBe('1:0,1:1');
+      expect(mask.bgcolor).toBe('#00ff00');
+      expect(mask.isLock).toBe(true);
+      expect(mask.location).toEqual({ name: 'table', x: 100, y: 50 });
+
+      const written = serializer.toXml(table);
+      expect(written).toContain('<table-mask ');
+      expect(written).toContain('scratchedGrids="1:0,1:1"');
+      expect(written).not.toContain('table-scratch-mask');
     });
   });
 });

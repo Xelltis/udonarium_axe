@@ -7,6 +7,10 @@ export class ResettableTimeout {
   private timeoutTimer: ReturnType<typeof setTimeout> | null = null;
   private isStopped: boolean = false;
 
+  /**
+   * Whether a timer is waiting to fire; a stopped timeout still counts until its time is up, and a
+   * fired or cleared one does not.
+   */
   get isActive(): boolean {
     return this.timeoutTimer !== null;
   }
@@ -17,10 +21,18 @@ export class ResettableTimeout {
     this.reset();
   }
 
+  /**
+   * Keeps the callback from running when the time comes, until `reset` is
+   * called; the timer itself runs on.
+   */
   stop() {
     this.isStopped = true;
   }
 
+  /**
+   * Cancels the timer and forgets the callback and duration, so a later `reset` must pass a
+   * callback again.
+   */
   clear() {
     this.callback = null;
     this.timerMilliSecond = 0;
@@ -30,6 +42,13 @@ export class ResettableTimeout {
     this.isStopped = false;
   }
 
+  /**
+   * Pushes the deadline to the full duration from now, optionally with a new callback
+   * or duration, and undoes `stop`.
+   *
+   * When the deadline only moves later the running timer is kept and waits again when it fires,
+   * so calling this often is cheap.
+   */
   reset(callbackOrMs?: TimerCallback | number, ms?: number): void {
     if (typeof callbackOrMs === 'function') {
       this.callback = callbackOrMs;

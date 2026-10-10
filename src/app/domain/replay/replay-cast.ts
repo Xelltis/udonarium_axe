@@ -13,6 +13,7 @@ export interface ReplayCastMember {
 
 const CHARACTER_ALIAS = 'character';
 
+/** Every character in the snapshots, with its name, picture, first chat colour and whether it was on the table. */
 export function collectReplayCast(snapshots: readonly ReplayObjectSnapshot[]): ReplayCastMember[] {
   const childrenOf = groupReplayChildren(snapshots);
 

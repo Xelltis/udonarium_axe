@@ -18,6 +18,12 @@ export interface NetworkMessage<T = unknown> {
 
 export const networkMessage$ = new EventChannel<NetworkMessage>();
 
+/**
+ * Sends an event to one peer, or to the whole room when sendTo is omitted, with the next send.
+ *
+ * A broadcast also reaches this device's own networkMessage$. While the network is isolated the
+ * event is dispatched locally only, and one addressed to another peer is dropped.
+ */
 export function networkSend(eventName: string, data: unknown, sendTo?: string): void {
   if (isNetworkIsolated()) {
     if (sendTo == null || sendTo === Network.peerId) localDispatch(eventName, data);
@@ -31,6 +37,30 @@ export function networkSend(eventName: string, data: unknown, sendTo?: string): 
   Network.instance.send(context, sendTo);
 }
 
+/**
+ * Broadcasts like networkSend, but only the latest message under the key goes out.
+ *
+ * A message under the same key that is still waiting in the queue is replaced; one that has
+ * already been taken for sending is left alone, and this one follows it.
+ */
+export function networkSendLatest(eventName: string, data: unknown, key: string): void {
+  if (isNetworkIsolated()) {
+    localDispatch(eventName, data);
+    return;
+  }
+  const context: EventContext = {
+    eventName,
+    data,
+    sendFrom: Network.peerId,
+  };
+  Network.instance.send(context, undefined, key);
+}
+
+/**
+ * Delivers an event on networkMessage$ on this device only, at once, and schedules a render tick.
+ *
+ * sendFrom defaults to this device, so listeners see the event as sent from self.
+ */
 export function localDispatch(eventName: string, data: unknown, sendFrom?: string): void {
   const from = sendFrom ?? Network.peerId;
   networkMessage$.emit({
@@ -45,6 +75,7 @@ export function localDispatch(eventName: string, data: unknown, sendFrom?: strin
 let _tickScheduled = false;
 let _tick: (() => void) | null = null;
 
+/** Sets the callback run once per microtask after messages arrive, so the zoneless app re-renders. */
 export function setNetworkTick(tick: (() => void) | null): void {
   _tick = tick;
 }
@@ -60,6 +91,12 @@ function scheduleAngularTick(): void {
 
 let _initialized = false;
 
+/**
+ * Wires the network's connection callbacks to networkMessage$.
+ *
+ * Open, close, peer and error callbacks become local events such as CONNECT_PEER, and received
+ * data becomes messages from its sender. Only the first call does anything.
+ */
 export function initializeNetworkMessaging(): void {
   if (_initialized) return;
   _initialized = true;

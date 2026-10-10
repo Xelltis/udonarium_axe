@@ -57,3 +57,13 @@ describe('buildFieldSummary()', () => {
     expect(text).not.toContain('standing:');
   });
 });
+
+describe('buildFieldSummary() of a town', () => {
+  it('counts the buildings one to a building, first, however many cells each stands on', () => {
+    const { plan, text } = summarise('city');
+    const standing = text.split('\n').find((line) => line.startsWith('standing: '))!;
+
+    expect(plan.layout.buildings.length).toBeGreaterThan(0);
+    expect(standing.startsWith(`standing: building ${plan.layout.buildings.length}`)).toBe(true);
+  });
+});

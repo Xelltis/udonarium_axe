@@ -1,9 +1,24 @@
+import { VolumeType } from '@axe/core/storage/audio-player';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { InnerXml } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import {
+  ControllerResourcePick,
+  readControllerResourcePick,
+  writeControllerResourcePick,
+} from '@axe/domain/character/controller-resource-pick';
+import { readStampRules, StampRules, writeStampRules } from '@axe/domain/chat/stamp-rules';
+import { asDiceStage, DiceStage } from '@axe/domain/dice/dice-3d/dice-stage';
 import { Jukebox } from '@axe/domain/media/jukebox';
+import {
+  readRoomVolumes,
+  RoomVolumeKind,
+  roomVolumeKindOf,
+  RoomVolumes,
+  writeRoomVolumes,
+} from '@axe/domain/media/room-volumes';
 import { allowsDiagonal, asDiagonalMove, DiagonalMove } from '@axe/domain/tabletop/move/diagonal-move';
 import {
   readRuleFlag,
@@ -25,10 +40,14 @@ import {
 export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_defaultDiceBot') private _defaultDiceBot: string = 'DiceBot';
   @SyncVar('_roomVolume') private _roomVolume: number = 1.0;
+  @SyncVar('_roomKindVolumes') private _roomKindVolumes: string = '';
   @SyncVar('_systemAvatarIdentifier') private _systemAvatarIdentifier: string = '';
   @SyncVar('_systemDiceAvatarIdentifier') private _systemDiceAvatarIdentifier: string = '';
   @SyncVar('_hideSystemAvatar') private _hideSystemAvatar: string = '';
   @SyncVar('_showSpeakerAvatar') private _showSpeakerAvatar: string = '';
+  @SyncVar('_controllerResources') private _controllerResources: string = '';
+  @SyncVar('_stampRules') private _stampRules: string = '';
+  @SyncVar('_speechBubbles') private _speechBubbles: string = '';
 
   // How the round is taken, which is the room's own decision rather than a table's.
   @SyncVar('_turnOrderMode') private _turnOrderMode: string = '';
@@ -45,11 +64,20 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_moveDiagonally') private _moveDiagonally: string = '';
   @SyncVar('_diagonalMove') private _diagonalMove: string = '';
   @SyncVar('_piecesShareCells') private _piecesShareCells: string = '';
+  @SyncVar('_samePartyPassage') private _samePartyPassage: string = '';
+  @SyncVar('_otherPartyPassage') private _otherPartyPassage: string = '';
+  @SyncVar('_noPartyPassage') private _noPartyPassage: string = '';
+  @SyncVar('_piecePassageCost') private _piecePassageCost: number = -1;
+  @SyncVar('_sizeSlipsPast') private _sizeSlipsPast: string = '';
+  @SyncVar('_squeezes') private _squeezes: string = '';
+  @SyncVar('_jumpCells') private _jumpCells: number = -1;
+  @SyncVar('_handTracesWay') private _handTracesWay: string = '';
   @SyncVar('_moveRangeAlways') private _moveRangeAlways: string = '';
   @SyncVar('_zocAlways') private _zocAlways: string = '';
   @SyncVar('_cellDistance') private _cellDistance: number = -1;
   @SyncVar('_cellDistanceUnit') private _cellDistanceUnit: string = '';
   @SyncVar('_zocMode') private _zocMode: string = '';
+  @SyncVar('_hostilityBy') private _hostilityBy: string = '';
   @SyncVar('_zocRange') private _zocRange: number = -1;
   @SyncVar('_zocExtraCost') private _zocExtraCost: number = -1;
   @SyncVar('_zocEngages') private _zocEngages: string = '';
@@ -58,7 +86,23 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_engagementCountsSize') private _engagementCountsSize: string = '';
   @SyncVar('_facingMark') private _facingMark: string = '';
   @SyncVar('_pieceImageInCell') private _pieceImageInCell: string = '';
+  @SyncVar('_diceStage') private _diceStage: string = '';
 
+  /**
+   * Where the room shows the dice of a chat roll tumbling: in the frame of the line that gives the
+   * result, on the table, or nowhere.
+   *
+   * Nowhere unless the room chose otherwise, so a room saved before the setting was there, or sent
+   * by an older version that knows nothing of it, stays as it was.
+   */
+  get diceStage(): DiceStage {
+    return asDiceStage(this._diceStage);
+  }
+  set diceStage(stage: DiceStage) {
+    this._diceStage = stage === 'off' ? '' : stage;
+  }
+
+  /** The game system the room rolls dice with by default; blank reads as the generic `DiceBot`. */
   get defaultDiceBot(): string {
     if (this._defaultDiceBot == '') {
       return 'DiceBot';
@@ -69,6 +113,32 @@ export class Config extends ObjectNode implements InnerXml {
     this._defaultDiceBot = dice;
   }
 
+  /**
+   * The items the remote controllers in this room show, or null to show every one.
+   *
+   * @see ControllerResourcePick
+   */
+  get controllerResources(): ControllerResourcePick {
+    return readControllerResourcePick(this._controllerResources);
+  }
+  set controllerResources(pick: ControllerResourcePick) {
+    this._controllerResources = writeControllerResourcePick(pick);
+  }
+
+  /**
+   * What the room lets its stamps be used for, with every stamp usable for everything until the room
+   * says otherwise.
+   *
+   * @see StampRules
+   */
+  get stampRules(): StampRules {
+    return readStampRules(this._stampRules);
+  }
+  set stampRules(rules: StampRules) {
+    this._stampRules = writeStampRules(rules);
+  }
+
+  /** The room's master volume, shared by every peer; a change applied to the config updates the jukebox at once. */
   get roomVolume(): number {
     return this._roomVolume;
   }
@@ -76,6 +146,39 @@ export class Config extends ObjectNode implements InnerXml {
     this._roomVolume = volume;
   }
 
+  /**
+   * The room's own volume for each kind of sound, shared by every peer, on top of the master
+   * {@link roomVolume}.
+   *
+   * Full for every kind until the room turns one down, so a room saved before these were there, or
+   * sent by an older version that knows nothing of them, sounds as it did.
+   */
+  get roomVolumes(): RoomVolumes {
+    return readRoomVolumes(this._roomKindVolumes);
+  }
+  set roomVolumes(volumes: RoomVolumes) {
+    this._roomKindVolumes = writeRoomVolumes(volumes);
+  }
+
+  /** Sets the room's volume for one kind of sound, leaving the other kinds as they are. */
+  setRoomVolumeOf(kind: RoomVolumeKind, volume: number): void {
+    this.roomVolumes = { ...this.roomVolumes, [kind]: volume };
+  }
+
+  /**
+   * What the sound on one channel is scaled by in this room: the master room volume times the
+   * room's volume for that channel's kind. Previews take the master room volume alone.
+   */
+  roomScaleFor(type: VolumeType): number {
+    const kind = roomVolumeKindOf(type);
+    return this.roomVolume * (kind ? this.roomVolumes[kind] : 1);
+  }
+
+  /**
+   * The image the room chose for system notices in chat.
+   *
+   * Empty uses the bundled picture; the empty image's own identifier means no picture at all.
+   */
   get systemAvatarIdentifier(): string {
     return this._systemAvatarIdentifier;
   }
@@ -83,6 +186,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._systemAvatarIdentifier = identifier;
   }
 
+  /** The image the room chose for dice results in chat, read the same way as {@link systemAvatarIdentifier}. */
   get systemDiceAvatarIdentifier(): string {
     return this._systemDiceAvatarIdentifier;
   }
@@ -90,6 +194,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._systemDiceAvatarIdentifier = identifier;
   }
 
+  /** Whether the system's portrait is shown beside notices in chat; on unless the room turned it off. */
   get isSystemAvatarVisible(): boolean {
     return this._hideSystemAvatar !== '1';
   }
@@ -97,6 +202,22 @@ export class Config extends ObjectNode implements InnerXml {
     this._hideSystemAvatar = visible ? '' : '1';
   }
 
+  /**
+   * Whether what a character says shows in a bubble over its piece; on unless the room turned it
+   * off, which is the one value that does.
+   */
+  get speechBubblesEnabled(): boolean {
+    return this._speechBubbles !== 'off';
+  }
+  set speechBubblesEnabled(enabled: boolean) {
+    this._speechBubbles = enabled ? '' : 'off';
+  }
+
+  /**
+   * Whether system notices and dice results show the portrait of whoever caused them instead of the system's.
+   *
+   * Off unless the room turns it on. A notice with no speaker portrait falls back to the system's picture.
+   */
   get isSpeakerAvatarVisible(): boolean {
     return this._showSpeakerAvatar === '1';
   }
@@ -104,6 +225,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._showSpeakerAvatar = visible ? '1' : '';
   }
 
+  /** How the round decides whose turn it is: by initiative, or side by side; anything unknown reads as the default. */
   get turnOrderMode(): TurnOrderMode {
     return asTurnOrderMode(this._turnOrderMode);
   }
@@ -111,6 +233,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._turnOrderMode = asTurnOrderMode(mode);
   }
 
+  /** When turns go side by side, how a side gets through its own phase: freely or by initiative. */
   get factionPhaseMode(): FactionPhaseMode {
     return asFactionPhaseMode(this._factionPhaseMode);
   }
@@ -141,6 +264,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._moveStrictPath = '';
   }
 
+  /** Whether a round taken side by side skips the phase of pieces that belong to no side. */
   get factionSkipUnassigned(): boolean {
     return this._factionSkipUnassigned === '1';
   }
@@ -148,6 +272,11 @@ export class Config extends ObjectNode implements InnerXml {
     this._factionSkipUnassigned = skips ? '1' : '';
   }
 
+  /**
+   * Whether pieces show how far they can move, or null where the room leaves it to the table in play.
+   *
+   * The same null applies to every rule of play below: an unanswered rule is taken from the table.
+   */
   get moveRangeEnabled(): boolean | null {
     return readRuleFlag(this._moveRangeEnabled);
   }
@@ -155,6 +284,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._moveRangeEnabled = writeRuleFlag(answer);
   }
 
+  /** The comma-separated names of the sheet fields read as a piece's movement, or null to leave it to the table. */
   get moveRangeElementNames(): string | null {
     return readRuleText(this._moveRangeElementNames);
   }
@@ -162,6 +292,11 @@ export class Config extends ObjectNode implements InnerXml {
     this._moveRangeElementNames = writeRuleText(answer);
   }
 
+  /**
+   * Whether a piece may cut corners at all, or null to leave it to the table.
+   *
+   * Setting this alone leaves {@link diagonalMove} as it is, while setting that also writes this.
+   */
   get moveDiagonally(): boolean | null {
     return readRuleFlag(this._moveDiagonally);
   }
@@ -182,6 +317,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._moveDiagonally = writeRuleFlag(answer);
   }
 
+  /** Whether a piece may end its move on a cell another piece stands on, or null to leave it to the table. */
   get piecesShareCells(): boolean | null {
     return readRuleFlag(this._piecesShareCells);
   }
@@ -189,6 +325,71 @@ export class Config extends ObjectNode implements InnerXml {
     this._piecesShareCells = writeRuleFlag(answer);
   }
 
+  /** What a piece does with the ground its own party holds, or null to leave it to the table. */
+  get samePartyPassage(): string | null {
+    return readRuleText(this._samePartyPassage);
+  }
+  set samePartyPassage(answer: string | null) {
+    this._samePartyPassage = writeRuleText(answer);
+  }
+
+  /** The same, for the ground some other party holds. */
+  get otherPartyPassage(): string | null {
+    return readRuleText(this._otherPartyPassage);
+  }
+  set otherPartyPassage(answer: string | null) {
+    this._otherPartyPassage = writeRuleText(answer);
+  }
+
+  /** The same, for the ground a piece in no party holds. */
+  get noPartyPassage(): string | null {
+    return readRuleText(this._noPartyPassage);
+  }
+  set noPartyPassage(answer: string | null) {
+    this._noPartyPassage = writeRuleText(answer);
+  }
+
+  /** What crossing somebody costs where the table charges for it, or null to leave it to the table. */
+  get piecePassageCost(): number | null {
+    return readRuleNumber(this._piecePassageCost);
+  }
+  set piecePassageCost(answer: number | null) {
+    this._piecePassageCost = writeRuleNumber(answer);
+  }
+
+  /** Whether a piece squeezes past somebody far enough from it in size, or null to leave it to the table. */
+  get sizeSlipsPast(): boolean | null {
+    return readRuleFlag(this._sizeSlipsPast);
+  }
+  set sizeSlipsPast(answer: boolean | null) {
+    this._sizeSlipsPast = writeRuleFlag(answer);
+  }
+
+  /** Whether a piece folds itself through a gap too small for it, or null for the table. */
+  get squeezes(): boolean | null {
+    return readRuleFlag(this._squeezes);
+  }
+  set squeezes(answer: boolean | null) {
+    this._squeezes = writeRuleFlag(answer);
+  }
+
+  /** How far one leap carries in cells, or null for the table. */
+  get jumpCells(): number | null {
+    return readRuleNumber(this._jumpCells);
+  }
+  set jumpCells(answer: number | null) {
+    this._jumpCells = writeRuleNumber(answer);
+  }
+
+  /** Whether ground between a piece's two ends goes off when a hand moves it, or null for the table. */
+  get handTracesWay(): boolean | null {
+    return readRuleFlag(this._handTracesWay);
+  }
+  set handTracesWay(answer: boolean | null) {
+    this._handTracesWay = writeRuleFlag(answer);
+  }
+
+  /** Whether the selected piece's reach stays shown without picking it up, or null to leave it to the table. */
   get moveRangeAlways(): boolean | null {
     return readRuleFlag(this._moveRangeAlways);
   }
@@ -196,6 +397,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._moveRangeAlways = writeRuleFlag(answer);
   }
 
+  /** Whether the ground enemies hold stays shown for the selected piece, or null to leave it to the table. */
   get zocAlways(): boolean | null {
     return readRuleFlag(this._zocAlways);
   }
@@ -203,6 +405,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._zocAlways = writeRuleFlag(answer);
   }
 
+  /** How much distance one cell stands for, in {@link cellDistanceUnit}, or null to leave it to the table. */
   get cellDistance(): number | null {
     return readRuleNumber(this._cellDistance);
   }
@@ -210,6 +413,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._cellDistance = writeRuleNumber(answer);
   }
 
+  /** The unit {@link cellDistance} is measured in, cells or a length, or null to leave it to the table. */
   get cellDistanceUnit(): string | null {
     return readRuleText(this._cellDistanceUnit);
   }
@@ -217,6 +421,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._cellDistanceUnit = writeRuleText(answer);
   }
 
+  /** What the ground around an enemy does to a piece walking into it (none, stop, block or cost), or null. */
   get zocMode(): string | null {
     return readRuleText(this._zocMode);
   }
@@ -224,6 +429,15 @@ export class Config extends ObjectNode implements InnerXml {
     this._zocMode = writeRuleText(answer);
   }
 
+  /** How the room tells its two sides apart, or null to leave it to the table. */
+  get hostilityBy(): string | null {
+    return readRuleText(this._hostilityBy);
+  }
+  set hostilityBy(answer: string | null) {
+    this._hostilityBy = writeRuleText(answer);
+  }
+
+  /** How many steps out from an enemy its held ground reaches, or null to leave it to the table. */
   get zocRange(): number | null {
     return readRuleNumber(this._zocRange);
   }
@@ -231,6 +445,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._zocRange = writeRuleNumber(answer);
   }
 
+  /** The extra steps charged for entering held ground when the mode is cost, or null to leave it to the table. */
   get zocExtraCost(): number | null {
     return readRuleNumber(this._zocExtraCost);
   }
@@ -238,6 +453,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._zocExtraCost = writeRuleNumber(answer);
   }
 
+  /** Whether pieces standing against one another form one fight rather than pairs, or null to leave it to the table. */
   get zocEngages(): boolean | null {
     return readRuleFlag(this._zocEngages);
   }
@@ -245,6 +461,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._zocEngages = writeRuleFlag(answer);
   }
 
+  /** What a piece must do to walk out of a fight (weighed, cost, block or free), or null to leave it to the table. */
   get breakOutMode(): string | null {
     return readRuleText(this._breakOutMode);
   }
@@ -252,6 +469,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._breakOutMode = writeRuleText(answer);
   }
 
+  /** The steps leaving a fight costs when every leaving costs the same, or null to leave it to the table. */
   get breakOutCost(): number | null {
     return readRuleNumber(this._breakOutCost);
   }
@@ -259,6 +477,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._breakOutCost = writeRuleNumber(answer);
   }
 
+  /** Whether a piece weighs as much as the cells it covers when sides are weighed, or null to leave it to the table. */
   get engagementCountsSize(): boolean | null {
     return readRuleFlag(this._engagementCountsSize);
   }
@@ -266,6 +485,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._engagementCountsSize = writeRuleFlag(answer);
   }
 
+  /** How a piece shows which way it faces (none, turn or arrow), or null to leave it to the table. */
   get facingMark(): string | null {
     return readRuleText(this._facingMark);
   }
@@ -273,6 +493,7 @@ export class Config extends ObjectNode implements InnerXml {
     this._facingMark = writeRuleText(answer);
   }
 
+  /** Whether a piece is drawn no taller than the cell it stands on, or null to leave it to the table. */
   get pieceImageInCell(): boolean | null {
     return readRuleFlag(this._pieceImageInCell);
   }
@@ -288,11 +509,20 @@ export class Config extends ObjectNode implements InnerXml {
       moveDiagonally: this.moveDiagonally,
       diagonalMove: this.diagonalMove,
       piecesShareCells: this.piecesShareCells,
+      samePartyPassage: this.samePartyPassage,
+      otherPartyPassage: this.otherPartyPassage,
+      noPartyPassage: this.noPartyPassage,
+      piecePassageCost: this.piecePassageCost,
+      sizeSlipsPast: this.sizeSlipsPast,
+      squeezes: this.squeezes,
+      jumpCells: this.jumpCells,
+      handTracesWay: this.handTracesWay,
       moveRangeAlways: this.moveRangeAlways,
       zocAlways: this.zocAlways,
       cellDistance: this.cellDistance,
       cellDistanceUnit: this.cellDistanceUnit,
       zocMode: this.zocMode,
+      hostilityBy: this.hostilityBy,
       zocRange: this.zocRange,
       zocExtraCost: this.zocExtraCost,
       zocEngages: this.zocEngages,
@@ -306,11 +536,18 @@ export class Config extends ObjectNode implements InnerXml {
 
   // The jukebox keeps the settings of the person listening.
   // The master volume lives here because the shared settings are saved together.
+  /** The room's jukebox, which the master volume is applied to. */
   get jukebox(): Jukebox {
     return ObjectStore.instance.get<Jukebox>('Jukebox')!;
   }
 
   private static _instance: Config;
+  /**
+   * The room's one config, shared by every peer under a fixed identifier.
+   *
+   * Prefers the copy already in the object store, such as one received from another peer, and creates and
+   * registers it when there is none yet.
+   */
   static get instance(): Config {
     const stored = ObjectStore.instance.get<Config>('Config');
     if (stored) return (Config._instance = stored);
@@ -319,6 +556,11 @@ export class Config extends ObjectNode implements InnerXml {
     return Config._instance;
   }
 
+  /**
+   * Loading a saved room copies the saved settings onto the room's existing config and discards this copy.
+   *
+   * This keeps a single config in the room rather than adding a second one from the save file.
+   */
   override parseInnerXml(element: Element) {
     const context = Config.instance.toContext();
     context.syncData = this.toContext().syncData;
@@ -329,11 +571,13 @@ export class Config extends ObjectNode implements InnerXml {
     this.destroy();
   }
 
+  /** Takes in synced settings, and passes a changed room volume on to the jukebox straight away. */
   override apply(context: ObjectContext) {
     const _roomVolume = this._roomVolume;
+    const _roomKindVolumes = this._roomKindVolumes;
     const _defaultDiceBot = this._defaultDiceBot;
     super.apply(context);
-    if (_roomVolume !== this._roomVolume) {
+    if (_roomVolume !== this._roomVolume || _roomKindVolumes !== this._roomKindVolumes) {
       this.jukebox.setNewVolume();
     }
   }

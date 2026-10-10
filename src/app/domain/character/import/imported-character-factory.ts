@@ -29,6 +29,14 @@ const GROUP_BASIC = '基本';
  * The picture arrives as an identifier already in storage; resolving it belongs to the layer above.
  */
 export class ImportedCharacterFactory {
+  /**
+   * Builds and initializes a new character piece from the imported model, showing a picture already
+   * in storage.
+   *
+   * Resources, parameters, notes and the source link, the system's own sections and skill tables,
+   * the chat colour and the palette with its dice bot all go onto the sheet. The piece is not
+   * placed on a table.
+   */
   static create(imported: ImportedCharacter, imageIdentifier: string): GameCharacter {
     const character = new GameCharacter();
     character.createDataElements();

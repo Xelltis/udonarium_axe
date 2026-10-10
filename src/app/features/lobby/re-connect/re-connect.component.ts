@@ -17,12 +17,17 @@ import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/**
+ * The user id to reconnect under: the one used before, else the current one, else a new one, so the
+ * reader keeps their identity across a reconnect.
+ */
 export function resolveReconnectUserId(previousUserId: string, currentUserId: string): string {
   if (previousUserId?.length) return previousUserId;
   if (currentUserId?.length) return currentUserId;
   return PeerContext.generateUserId();
 }
 
+/** The peers a reconnect waits to hear from: everyone listed for the room except this peer. */
 export function createExpectedPeerIdSet(peerContexts: PeerContext[], selfPeerId: string): Set<string> {
   const set = new Set<string>();
   for (const ctx of peerContexts) {
@@ -31,6 +36,10 @@ export function createExpectedPeerIdSet(peerContexts: PeerContext[], selfPeerId:
   return set;
 }
 
+/**
+ * Whether every expected peer has been heard from, which ends the reconnect; true at once when none
+ * is expected.
+ */
 export function isReconnectCompleted(expectedPeerIds: Set<string>, observedPeerIds: Set<string>): boolean {
   if (expectedPeerIds.size < 1) return true;
   for (const peerId of expectedPeerIds) {
@@ -63,6 +72,7 @@ export class ReConnectComponent {
   roomId = '';
   reconnectUserId = '';
 
+  /** The reader's own cursor, whose kept room password is reused to reconnect. */
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
   }
@@ -85,6 +95,12 @@ export class ReConnectComponent {
     this.modalService.titleTooltip = this.panelService.titleTooltip = this.roomName + '/' + this.roomId;
   }
 
+  /**
+   * Drops every connection and joins the room this peer was in again, under the same user id.
+   *
+   * With force cleanup ticked, the local characters, ranges, notes, dice, masks and terrain are
+   * thrown away first. When the room is no longer listed, it only logs a warning.
+   */
   reConnect() {
     this.reconnectUserId = resolveReconnectUserId(this.reconnectUserId, this.networkService.peerContext.userId);
     this.disConnect();
@@ -103,6 +119,7 @@ export class ReConnectComponent {
     Logger.warn(`[Network] reconnect target not found (room: ${this.roomName}/${this.roomId})`);
   }
 
+  /** Fetches the open rooms a reconnect looks its room up in; a failed fetch leaves the list empty. */
   async reload() {
     this.rooms = [];
     try {
@@ -124,6 +141,14 @@ export class ReConnectComponent {
     }
   }
 
+  /**
+   * Opens the network in the given room and connects to each peer in it, using the password kept
+   * from joining.
+   *
+   * Once every listed peer has connected or dropped, or after five seconds, the dialog closes if
+   * anyone is connected. With nobody connected, this peer goes back on standby and the dialog stays
+   * open.
+   */
   async connect(peerContexts: PeerContext[]) {
     const context = peerContexts[0];
     let password = '';
@@ -191,6 +216,7 @@ export class ReConnectComponent {
     if (0 < Network.peerContexts.length) this.modalService.resolve();
   }
 
+  /** Closes the connection to every peer. */
   disConnect() {
     Logger.info(`[Network] disconnecting (peers: ${this.networkService.peerIds.length})`);
     for (const peerContext of [...this.networkService.peerContexts]) {
@@ -198,6 +224,11 @@ export class ReConnectComponent {
     }
   }
 
+  /**
+   * Destroys the local characters, ranges, notes, dice, masks and terrain so a forced reconnect
+   * takes the room's copies from the other peers, and forgets what was deleted so those copies are
+   * not refused.
+   */
   deleteObject() {
     Logger.info('[Network] dropping objects that may diverge from the new peers');
 

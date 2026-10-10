@@ -54,11 +54,16 @@ export class PasswordCheckComponent {
     });
   }
 
+  /** Keeps the typed password and clears any wrong-password message. */
   onPasswordChange(value: string): void {
     this.password.set(value);
     this.help.set('');
   }
 
+  /**
+   * Checks the typed password against the room being joined, closing the dialog with the password
+   * when it matches and saying it is wrong when it does not.
+   */
   async submit() {
     if (await this.targetPeerContext.verifyPassword(this.password())) {
       this.modalService.resolve(this.password());

@@ -1,11 +1,11 @@
-import { containRect } from '@axe/domain/replay/replay-frame-layout';
+import { containRect } from '@axe/domain/replay/replay-picture-fit';
 import type { TablePhotoLayout } from '@axe/domain/replay/table-photo';
 import {
   REPLAY_FRAME_FONT_FAMILY,
   type ReplayFrameAssets,
   type ReplayFrameCanvas,
   roundedRectPath,
-} from '@axe/infrastructure/replay/replay-frame-painter';
+} from '@axe/infrastructure/replay/replay-canvas';
 
 export interface TablePhotoStyle {
   backdrop: string;
@@ -29,6 +29,10 @@ export const DEFAULT_TABLE_PHOTO_STYLE: TablePhotoStyle = {
   fontFamily: REPLAY_FRAME_FONT_FAMILY,
 };
 
+/**
+ * Draws the table photo: a title and subtitle over a grid of cells, each showing a portrait and
+ * a name plate. Text too long for its space is cut short with an ellipsis.
+ */
 export function paintTablePhoto(
   ctx: ReplayFrameCanvas,
   layout: TablePhotoLayout,

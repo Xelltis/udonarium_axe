@@ -17,6 +17,14 @@ export class RoomPanelService {
 
   private opened = 0;
 
+  /**
+   * Opens one of the room's named panels, loading its component on first use.
+   *
+   * Each panel opened steps a little down and right of the last, and `extra` overrides that place
+   * and the panel's default size. `setup` is handed the component once it exists. `host` is the layer
+   * of a window of its own to draw into; without it the panel stands on the table with a button to
+   * move it into one.
+   */
   open<T = unknown>(
     name: RoomPanelName,
     extra: PanelOption = {},
@@ -114,7 +122,15 @@ export class RoomPanelService {
             import('@axe/features/inventory/game-object-inventory/game-object-inventory.component').then(
               (m) => m.GameObjectInventoryComponent
             ),
-          option: { width: 450, height: 600, minimizeToContent: true },
+          option: { width: 450, height: 600 },
+        };
+      case 'menuEditor':
+        return {
+          load: () =>
+            import('@axe/features/menu/menu-editor-panel/menu-editor-panel.component').then(
+              (m) => m.MenuEditorPanelComponent
+            ),
+          option: { width: 620, height: 560 },
         };
       case 'objectList':
         return {
@@ -122,7 +138,7 @@ export class RoomPanelService {
             import('@axe/features/gm-object-list/game-object-list-panel.component').then(
               (m) => m.GameObjectListPanelComponent
             ),
-          option: { width: 460, height: 620 },
+          option: { width: 460, height: 620, left: 100, top: 40 },
         };
       case 'fileStorage':
         return {
@@ -162,7 +178,7 @@ export class RoomPanelService {
             import('@axe/features/pl-tools/owned-character-list/owned-character-list-panel.component').then(
               (m) => m.OwnedCharacterListPanelComponent
             ),
-          option: { width: 420, height: 560 },
+          option: { width: 420, height: 560, left: 100, top: 40 },
         };
       case 'partyList':
         return {
@@ -170,7 +186,7 @@ export class RoomPanelService {
             import('@axe/features/gm-tools/party-list/party-list-panel.component').then(
               (m) => m.PartyListPanelComponent
             ),
-          option: { width: 460, height: 620 },
+          option: { width: 460, height: 620, left: 120, top: 60 },
         };
       case 'buffManager':
         return {
@@ -224,7 +240,23 @@ export class RoomPanelService {
             import('@axe/features/replay/replay-workspace/replay-workspace.component').then(
               (m) => m.ReplayWorkspaceComponent
             ),
-          option: { width: 900, height: 640, minWidth: 600, minHeight: 420 },
+          option: { width: 1180, height: 760, minWidth: 720, minHeight: 480 },
+        };
+      case 'myDice':
+        return {
+          load: () =>
+            import('@axe/features/dice/my-dice-setting/my-dice-setting.component').then(
+              (m) => m.MyDiceSettingComponent
+            ),
+          option: { width: 440, height: 560, single: 'my-dice' },
+        };
+      case 'diceTableSetting':
+        return {
+          load: () =>
+            import('@axe/features/dice/dice-table-setting/dice-table-setting.component').then(
+              (m) => m.DiceTableSettingComponent
+            ),
+          option: { width: 650, height: 400 },
         };
       case 'tabletopDisplay':
         return {
@@ -238,6 +270,14 @@ export class RoomPanelService {
         return {
           load: () => import('@axe/features/skin/skin-panel/skin-panel.component').then((m) => m.SkinPanelComponent),
           option: { width: 720, height: 860, minWidth: 460, minHeight: 520 },
+        };
+      case 'soundSettings':
+        return {
+          load: () =>
+            import('@axe/features/sound-settings/sound-settings-panel/sound-settings-panel.component').then(
+              (m) => m.SoundSettingsPanelComponent
+            ),
+          option: { width: 440, height: 680, minWidth: 340, minHeight: 360 },
         };
     }
   }

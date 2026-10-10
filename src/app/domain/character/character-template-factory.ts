@@ -15,6 +15,13 @@ import { createSkillGapTableElement, DEFAULT_SKILL_TABLE_ROW_NAMES } from '@axe/
 export const DEFAULT_SAMPLE_WALK_CELLS = 5;
 
 export class CharacterTemplateFactory {
+  /**
+   * Fills a freshly made character with the sample sheet every new piece starts from.
+   *
+   * It sets the name, size and picture, adds HP and MP resources, the sample ability, profile,
+   * skill, skill-table and parts sections, a chat palette showing how to refer to them, and the
+   * extra data every character carries.
+   */
   static createDefault(character: GameCharacter, name: string, size: number, imageIdentifier: string): void {
     character.createDataElements();
 
@@ -74,6 +81,10 @@ export class CharacterTemplateFactory {
     character.addExtendData();
   }
 
+  /**
+   * Fills a freshly made character with the sample sheet plus two check tables, an equipment sample
+   * and a progress checklist, and widens its overview to fit them.
+   */
   static createCheckTable(character: GameCharacter, name: string, size: number, imageIdentifier: string): void {
     character.createDataElements();
 

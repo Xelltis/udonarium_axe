@@ -222,7 +222,7 @@ export class MapImageGridAdjusterComponent implements OnDestroy {
     const canvas = this.hexCanvasRef()?.nativeElement;
     if (!canvas || typeof canvas.getContext !== 'function') return;
     if (!canvas.getContext('2d')) return;
-    new GridLineRender(canvas).renderViewport(w, h, cell, type, this.gridColor, 'transparent', 0, 0);
+    new GridLineRender(canvas).renderViewport(w, h, cell, type, this.gridColor, 'transparent', 0, 0, false);
   }
 
   private measureStage(stage: HTMLElement) {
@@ -307,6 +307,13 @@ export class MapImageGridAdjusterComponent implements OnDestroy {
     this.scaleY.set(nextY);
   }
 
+  /**
+   * Zooms the adjuster's view by changing how large a grid cell is drawn, held between the view
+   * limits.
+   *
+   * The image is scaled and moved along with the frame, so the part of it the grid covers stays the
+   * same.
+   */
   setViewCell(next: number) {
     const clamped = clamp(next, VIEW_CELL_MIN, VIEW_CELL_MAX);
     const cur = this.viewCell();
@@ -329,31 +336,48 @@ export class MapImageGridAdjusterComponent implements OnDestroy {
     return clamp(dc, VIEW_CELL_MIN, VIEW_CELL_BASE);
   }
 
+  /** Zooms the view back to fit the whole grid block in the stage, no larger than the base cell size. */
   resetView() {
     this.setViewCell(this.fitViewCell());
   }
 
+  /** Switches the grid laid over the image between square and the hex layouts. */
   setGridType(type: GridType) {
     if (type === this.gridType()) return;
     this.gridType.set(type);
   }
 
+  /**
+   * Sets how many columns the grid block has, from its number field; a value below one or not a
+   * number is ignored, and the rest are held to the cell limit.
+   */
   setCols(value: number | string) {
     const num = Math.round(Number(value));
     if (!Number.isFinite(num) || num < 1) return;
     this.cols.set(clamp(num, 1, MAX_CELLS));
   }
 
+  /**
+   * Sets how many rows the grid block has, from its number field; a value below one or not a number
+   * is ignored, and the rest are held to the cell limit.
+   */
   setRows(value: number | string) {
     const num = Math.round(Number(value));
     if (!Number.isFinite(num) || num < 1) return;
     this.rows.set(clamp(num, 1, MAX_CELLS));
   }
 
+  /** Switches whether the image's width and height scale together. */
   toggleLinked() {
     this.linked.set(!this.linked());
   }
 
+  /**
+   * Scales the image to cover the grid block.
+   *
+   * With the sides linked it keeps its proportions and is centred on the block, overflowing it one
+   * way; unlinked it is stretched to match the block exactly.
+   */
   fit() {
     const f = this.frame();
     const imgW = this.imageWidth();
@@ -371,6 +395,10 @@ export class MapImageGridAdjusterComponent implements OnDestroy {
     this.stretchFit();
   }
 
+  /**
+   * Puts the grid block back to the cell counts the table's grid size suggests for the image, and
+   * stretches the image over it.
+   */
   reset() {
     this.cols.set(clamp(Math.round(this.imageWidth() / this.option.gridSize), 1, MAX_CELLS));
     this.rows.set(clamp(Math.round(this.imageHeight() / this.option.gridSize), 1, MAX_CELLS));
@@ -424,6 +452,11 @@ export class MapImageGridAdjusterComponent implements OnDestroy {
     return null;
   }
 
+  /**
+   * Starts a drag on the stage: a corner or side handle resizes the image, a frame handle resizes
+   * the grid block, and anywhere else moves the image. The stage captures the pointer and takes
+   * focus for the arrow keys.
+   */
   onPointerDown(event: PointerEvent) {
     if (this.loadState() !== 'ready') return;
     const p = this.stagePoint(event);
@@ -442,6 +475,7 @@ export class MapImageGridAdjusterComponent implements OnDestroy {
     (event.currentTarget as HTMLElement).focus();
   }
 
+  /** Moves or resizes the image, or resizes the grid block, as the drag the press started calls for. */
   onPointerMove(event: PointerEvent) {
     if (!this.dragMode || !this.dragStart) return;
     const dx = event.clientX - this.dragStart.clientX;
@@ -460,6 +494,7 @@ export class MapImageGridAdjusterComponent implements OnDestroy {
     }
   }
 
+  /** Ends the drag and releases the pointer, when the press is released or cancelled. */
   onPointerUp(event: PointerEvent) {
     this.dragMode = null;
     this.dragStart = null;
@@ -541,6 +576,10 @@ export class MapImageGridAdjusterComponent implements OnDestroy {
     }
   }
 
+  /**
+   * Zooms with the wheel: with Ctrl or Cmd held it zooms the whole view, otherwise it scales the
+   * image about the pointer. Shift makes the steps finer.
+   */
   onWheel(event: WheelEvent) {
     if (this.loadState() !== 'ready') return;
     event.preventDefault();
@@ -556,6 +595,7 @@ export class MapImageGridAdjusterComponent implements OnDestroy {
     this.zoomAt(p.x, p.y, factor);
   }
 
+  /** Nudges the image with the arrow keys, one pixel at a time, or ten with Shift. */
   onKeyDown(event: KeyboardEvent) {
     if (this.loadState() !== 'ready') return;
     const step = event.shiftKey ? 10 : 1;
@@ -578,10 +618,18 @@ export class MapImageGridAdjusterComponent implements OnDestroy {
     event.preventDefault();
   }
 
+  /** Closes the adjuster with null, leaving the table as it was. */
   cancel() {
     this.modalService.resolve(null);
   }
 
+  /**
+   * Crops the image to the grid block, stores the crop as a new image and closes the adjuster with
+   * it, the size in cells and the grid type.
+   *
+   * Does nothing unless the image covers the block. A failed crop shows the error state instead of
+   * closing.
+   */
   async apply() {
     if (!this.canApply() || !this.loadedImage) return;
     this.processing.set(true);

@@ -2,12 +2,16 @@ import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -52,6 +56,57 @@ describe('TurnOrderService', () => {
     sendSpy = vi
       .spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageToMainTab')
       .mockReturnValue(undefined as never);
+  });
+
+  describe('a seat that is only watching', () => {
+    const beSeat = (role: PeerRole) => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = role;
+    };
+
+    it('moves no round of its own', async () => {
+      beSeat(PeerRole.Player);
+      service.next();
+      const standing = { round: turnState.round, current: turnState.currentIdentifier, history: turnState.history };
+
+      beSeat(PeerRole.Guest);
+      service.next();
+      await service.advanceRound();
+      service.prev();
+      service.retreatRound();
+      service.reset();
+      service.setCurrent(chars[2].identifier);
+      service.setBuffDecay(false);
+
+      expect(turnState.round).toBe(standing.round);
+      expect(turnState.currentIdentifier).toBe(standing.current);
+      expect(turnState.history).toBe(standing.history);
+      expect(turnState.buffDecay).toBe(true);
+    });
+
+    it('is not asked what to do about the pieces still waiting', async () => {
+      beSeat(PeerRole.Player);
+      service.next();
+      askedToLeaveBehind.mockClear();
+
+      beSeat(PeerRole.Guest);
+      await service.advanceRound();
+
+      expect(askedToLeaveBehind).not.toHaveBeenCalled();
+    });
+
+    it('says nothing to the table in its name', () => {
+      beSeat(PeerRole.Player);
+      service.next();
+      sendSpy.mockClear();
+
+      beSeat(PeerRole.Guest);
+      service.next();
+      service.prev();
+      service.reset();
+
+      expect(sendSpy).not.toHaveBeenCalled();
+    });
   });
 
   it('should create', () => {
@@ -299,6 +354,23 @@ describe('TurnOrderService', () => {
     expect(service.orderedCharacters()).toEqual([acting]);
   });
 
+  describe('saying whose turn it is', () => {
+    it('names the piece the players can see, and leaves one they cannot unnamed', () => {
+      const seen = vi
+        .spyOn(TestBed.inject(VisionService), 'isSeenByParty')
+        .mockImplementation((character) => character !== chars[1]);
+      service.next(); // round 1 begins
+      sendSpy.mockClear();
+
+      service.next(); // chars[0] is up
+      service.next(); // chars[1] is up
+
+      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[0]));
+      expect(announced).toEqual(['feature.turnOrder.announce', 'feature.turnOrder.announceUnseen']);
+      seen.mockRestore();
+    });
+  });
+
   describe('advancing the round itself', () => {
     it('closes the round it is in and opens the next one', async () => {
       service.next(); // round 1 begins
@@ -331,6 +403,42 @@ describe('TurnOrderService', () => {
       expect(turnState.round).toBe(1);
       expect(turnState.phase).toBe('roundStart');
       expect(sendSpy.mock.calls.map((call: unknown[]) => String(call[0]))).not.toContain('feature.turnOrder.roundEnd');
+    });
+  });
+
+  describe('the ground under whoever is up', () => {
+    let sprang: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      sprang = vi.spyOn(TestBed.inject(TriggerFireService), 'standingOn').mockReturnValue([]);
+    });
+
+    it('springs what the piece taking a turn is standing on', () => {
+      service.next();
+      service.next();
+
+      expect(sprang).toHaveBeenCalledWith(chars[0], 'turnStart');
+    });
+
+    it('springs what the piece leaving a turn is standing on before the next takes one', () => {
+      service.next();
+      service.next();
+      sprang.mockClear();
+
+      service.next();
+
+      expect(sprang.mock.calls.map((call: unknown[]) => call[1])).toEqual(['turnEnd', 'turnStart']);
+    });
+
+    it('keeps turning where the ground will not go off', () => {
+      sprang.mockImplementation(() => {
+        throw new Error('no table out');
+      });
+
+      service.next();
+      service.next();
+
+      expect(turnState.currentIdentifier).toBe(chars[0].identifier);
     });
   });
 

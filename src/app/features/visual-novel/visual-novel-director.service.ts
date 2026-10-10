@@ -79,6 +79,12 @@ export class VisualNovelDirectorService {
     });
   }
 
+  /**
+   * Starts directing the room's novel stage from this peer, or stops if this peer is already directing.
+   *
+   * While directing, every other screen follows the line this one is reading. Only the game master
+   * may direct; starting takes the stage over from whoever was directing before.
+   */
   toggleDirecting(): void {
     if (!this.canDirect()) return;
     const stage = this.stage;
@@ -90,11 +96,17 @@ export class VisualNovelDirectorService {
     stage.startDirecting(getMyPeerId());
   }
 
+  /**
+   * Stops this screen following the director, so the reader can move through the lines alone.
+   *
+   * Called whenever the reader steps, jumps or opens the backlog. Does nothing unless following.
+   */
   leaveFollowing(): void {
     if (!this.isFollowing()) return;
     this._following.set(false);
   }
 
+  /** Goes back to following the director's line, from the rejoin button; does nothing when nobody directs. */
   rejoinFollowing(): void {
     if (!this.isDirected()) return;
     this._following.set(true);

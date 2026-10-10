@@ -45,7 +45,7 @@ test.describe('カードスタック (山札)', () => {
     const initialCardCount = await page.locator('card').count();
     const menu = await openCardStackMenu(page);
     await menu.getByText('１枚引く').click();
-    // 1 枚引くとテーブル上に card が現れる (stack 表示数とは別の DOM)。
+    // 1枚引くとテーブル上にcardが現れる（stack表示数とは別のDOM）。
     await expect.poll(() => page.locator('card').count(), { timeout: 5000 }).toBeGreaterThan(initialCardCount);
   });
 
@@ -58,7 +58,7 @@ test.describe('カードスタック (山札)', () => {
   test('「詳細を表示」で山札シートが開くこと', async ({ page }) => {
     const menu = await openCardStackMenu(page);
     await menu.getByText('詳細を表示').click();
-    // 山札の詳細は game-character-sheet をホストにして開かれる。
+    // 山札の詳細はgame-character-sheetをホストにして開かれる。
     await expect(page.locator('game-character-sheet')).toBeVisible({ timeout: 10000 });
   });
 });

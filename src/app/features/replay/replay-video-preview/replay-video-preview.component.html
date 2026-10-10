@@ -1,0 +1,89 @@
+<div class="flex flex-col gap-2">
+  <div class="rounded-ui relative aspect-video w-full overflow-hidden bg-black">
+    <canvas #canvas class="block size-full" [width]="width" [height]="height"></canvas>
+    @if (isEmpty()) {
+      <span class="absolute inset-0 grid place-items-center text-[0.8rem] text-white/70">
+        {{ 'feature.replay.video.empty' | transloco }}
+      </span>
+    }
+    @if (isBuilding()) {
+      <span
+        class="rounded-ui-sm absolute top-2 right-2 flex items-center gap-1 bg-black/60 px-1.5 py-0.5 text-[0.68rem] text-white/80"
+      >
+        <i class="material-icons animate-spin text-[13px]">autorenew</i>
+        {{ 'feature.replay.video.building' | transloco }}
+      </span>
+    }
+  </div>
+
+  <input
+    class="accent-ui-accent w-full cursor-pointer"
+    type="range"
+    min="0"
+    step="10"
+    [max]="duration()"
+    [value]="time()"
+    [attr.aria-label]="'feature.replay.player.timeline' | transloco"
+    (input)="seek($any($event.target).valueAsNumber)"
+  />
+
+  <div class="flex flex-wrap items-center gap-2">
+    <button
+      class="rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer px-1.5 py-0.5"
+      [disabled]="duration() < 1"
+      [title]="(isPlaying() ? 'feature.replay.video.pause' : 'feature.replay.video.play') | transloco"
+      (click)="togglePlay()"
+    >
+      <i class="material-icons text-[22px]">{{ isPlaying() ? 'pause' : 'play_arrow' }}</i>
+    </button>
+    <span class="text-ui-muted text-[0.7rem] tabular-nums">{{ elapsed() }} / {{ total() }}</span>
+    <span class="flex-1"></span>
+    <div class="border-ui-border rounded-ui-sm flex overflow-hidden border border-solid" role="group">
+      @for (choice of styles; track choice) {
+        <button
+          class="cursor-pointer rounded-none border-none px-[0.7em] py-[0.2em] text-[0.7rem]"
+          [class.bg-ui-accent]="settings.style() === choice"
+          [class.text-white]="settings.style() === choice"
+          [attr.aria-pressed]="settings.style() === choice"
+          (click)="setStyle(choice)"
+        >
+          {{ 'feature.replay.video.styles.' + choice | transloco }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-2">
+    <label class="text-ui-muted flex items-center gap-1.5 text-[0.7rem]">
+      {{ 'feature.replay.video.audience' | transloco }}
+      <select
+        class="border-ui-border bg-ui-elevated rounded-ui-sm border border-solid px-1.5 py-0.5 text-[0.7rem]"
+        (change)="setAudience($any($event.target).value)"
+      >
+        @for (choice of audiences; track choice) {
+          <option [value]="choice" [selected]="settings.audience() === choice">
+            {{ 'feature.replay.video.audiences.' + choice | transloco }}
+          </option>
+        }
+      </select>
+    </label>
+    <label class="text-ui-muted flex items-center gap-1.5 text-[0.7rem]">
+      {{ 'feature.replay.video.lang' | transloco }}
+      <select
+        class="border-ui-border bg-ui-elevated rounded-ui-sm border border-solid px-1.5 py-0.5 text-[0.7rem]"
+        (change)="setLang($any($event.target).value)"
+      >
+        @for (choice of langs; track choice) {
+          <option [value]="choice" [selected]="settings.lang() === choice">
+            {{ 'common.language.' + choice | transloco }}
+          </option>
+        }
+      </select>
+    </label>
+  </div>
+  @if (settings.audience() !== 'public') {
+    <span class="rounded-ui-sm bg-ui-danger-soft text-ui-danger px-1.5 py-1 text-[0.68rem] leading-normal">
+      {{ 'feature.replay.video.audienceWarning' | transloco }}
+    </span>
+  }
+</div>

@@ -30,6 +30,10 @@ function isKeepCount(value: unknown): value is ReplayKeepCount {
   return value === null || (typeof value === 'number' && Number.isInteger(value) && value > 0);
 }
 
+/**
+ * Reads stored replay settings, taking the default for anything missing or invalid and for text
+ * that does not parse.
+ */
 export function parseReplayPreference(raw: string | null): ReplayPreference {
   if (!raw) return DEFAULT_REPLAY_PREFERENCE;
   try {
@@ -55,11 +59,13 @@ export class ReplayPreferenceService {
     return { maxCount: this.keepCount(), maxTotalBytes: null };
   }
 
+  /** Sets how much of what happens a recording keeps, remembered in this browser. */
   setDetailLevel(level: ReplayDetailLevel): void {
     this.detailLevel.set(level);
     this.persist();
   }
 
+  /** Sets how many recordings this browser keeps, where null keeps them all, and remembers the choice here. */
   setKeepCount(count: ReplayKeepCount): void {
     this.keepCount.set(count);
     this.persist();

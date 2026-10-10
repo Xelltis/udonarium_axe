@@ -5,7 +5,9 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { Config } from '@axe/domain/peer/config';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CharacterMacroService', () => {
@@ -35,6 +37,10 @@ describe('CharacterMacroService', () => {
     ChatTabList.instance.addChatTab(tab);
 
     sendMessage = vi.spyOn(chatMessageService, 'sendMessage').mockReturnValue(null as never);
+    // Which system a line goes out under is what is asked here, not whether the dice code can be
+    // fetched. The first real fetch in a worker pays for starting the whole loader, which under a
+    // full run can take longer than a test is given.
+    vi.spyOn(DiceBot, 'loadGameSystemAsync').mockImplementation(async (gameType) => ({ ID: gameType }) as never);
   });
 
   afterEach(() => {
@@ -180,5 +186,39 @@ describe('CharacterMacroService', () => {
     await service.sendAsCharacter(speaker, '2d6', { tab });
 
     expect((sendMessage.mock.calls[0][2] as { ID: string }).ID).toBe('Cthulhu7th');
+  });
+
+  describe("speaking with no piece of the reader's own", () => {
+    afterEach(() => {
+      PeerCursor.myCursor = null!;
+    });
+
+    it("speaks as the reader themselves, under the room's system where none is asked for", async () => {
+      const me = PeerCursor.createMyCursor();
+      Config.instance.defaultDiceBot = 'SwordWorld2.5';
+
+      await service.sendAsSelf('2d6', { tab });
+
+      const [sentTab, text, system, from] = sendMessage.mock.calls[0];
+      expect(sentTab).toBe(tab);
+      expect(text).toBe('2d6');
+      expect((system as { ID: string }).ID).toBe('SwordWorld2.5');
+      expect(from).toBe(me.identifier);
+    });
+
+    it('speaks under a name of its own, filling references in from the piece it is handed', async () => {
+      const named = vi.spyOn(chatMessageService, 'sendAsNamed').mockReturnValue(null as never);
+      const hero = character('勇者');
+      hero.chatPalette!.setPalette('//目星=60');
+
+      await service.sendAsNamed('宝箱', '1d100<={目星}', hero, { tab });
+      await service.sendAsNamed('宝箱', '1d100<={目星}', null, { tab });
+
+      expect(named.mock.calls[0][0]).toBe(tab);
+      expect(named.mock.calls[0][1]).toBe('1d100<=60');
+      expect(named.mock.calls[0][3]).toBe('宝箱');
+      expect(named.mock.calls[1][1]).toBe('1d100<={目星}');
+      expect(sendMessage).not.toHaveBeenCalled();
+    });
   });
 });

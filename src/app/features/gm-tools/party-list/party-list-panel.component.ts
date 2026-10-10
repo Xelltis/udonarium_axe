@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PartyService } from '@axe/application/party/party.service';
+import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -19,6 +20,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 export class PartyListPanelComponent {
   private readonly partyService = inject(PartyService);
   private readonly selectionSignalService = inject(SelectionSignalService);
+  private readonly tableFocus = inject(TableFocusService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
 
@@ -65,12 +67,25 @@ export class PartyListPanelComponent {
     this.partyService.remove(party);
   }
 
+  /** The other parties in the room, which are the ones this one may stand with. */
+  protected others(party: Party): Party[] {
+    return this.parties().filter((held) => held.identifier !== party.identifier);
+  }
+
+  protected standsWith(party: Party, other: Party): boolean {
+    return this.partyService.standsWith(party, other.identifier);
+  }
+
+  protected stand(party: Party, other: Party, together: boolean): void {
+    this.partyService.stand(party, other.identifier, together);
+  }
+
   protected assign(character: GameCharacter, partyIdentifier: string): void {
     this.partyService.assign(character, partyIdentifier);
   }
 
   protected focusToKoma(character: GameCharacter): void {
     this.selectionSignalService.selectObject(character.identifier, character.aliasName);
-    this.selectionSignalService.focusToCoordinate(character.location.x, character.location.y);
+    this.tableFocus.focusOn(character);
   }
 }

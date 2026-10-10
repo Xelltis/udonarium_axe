@@ -176,6 +176,8 @@
     [class.border-solid]="detachedItems()"
     [class.hover:bg-ui-menu-hover]="!detachedItems()"
     [class.mx-1]="!detachedItems()"
+    [class.opacity-50]="action.enabled === false"
+    [attr.aria-disabled]="action.enabled === false ? true : null"
     (click)="doAction(action, row)"
     (mouseenter)="showSubMenu(action, false, row)"
     #row

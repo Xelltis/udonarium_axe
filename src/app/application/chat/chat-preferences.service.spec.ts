@@ -27,6 +27,18 @@ describe('ChatPreferencesService', () => {
     expect(make().fontSize()).toBe(CHAT_FONT_SIZE_DEFAULT);
   });
 
+  it('says nothing about the count of lines until it is asked to', () => {
+    expect(make().showMessageCount()).toBe(false);
+  });
+
+  it('keeps being asked for the count of lines for the next visit', () => {
+    const service = make();
+    service.setShowMessageCount(true);
+    TestBed.tick();
+
+    expect(make().showMessageCount()).toBe(true);
+  });
+
   it('keeps the size it was given for the next visit', () => {
     const service = make();
     service.setFontSize(18);

@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ImageFile } from '@axe/core/storage/image-file';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { Card, CardState } from '@axe/domain/card/card';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CardComponent } from '@axe/features/card/card/card.component';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -35,6 +38,95 @@ describe('CardComponent', () => {
       Object.defineProperty(objectChangeService, 'networkVersion', { value: spy, configurable: true });
       void component.name();
       expect(spy).toHaveBeenCalled();
+    });
+
+    it('shows a picture that arrived after the card did, without the card being moved', () => {
+      // A picture comes in two steps: the name of it with the card, the bytes when the room
+      // has passed them along. Read off the card rather than through the signals, neither step
+      // would move the view, and the card would stay blank for everybody else until it was dragged.
+      // The name of the picture is already on the card, as it is for everybody the moment the
+      // card reaches them. Only the bytes are still on their way, so nothing about the card
+      // itself changes when they land - and that alone has to move the view.
+      const card = Card.create('テストカード', 'picture-front', 'picture-back');
+      fixture.componentRef.setInput('card', card);
+      const objectChange = TestBed.inject(ObjectChangeService);
+      const before = component.displayedImageUrl();
+
+      ImageStorage.instance.add(
+        ImageFile.create({
+          identifier: 'picture-front',
+          name: 'test-front',
+          type: 'image/png',
+          blob: null,
+          url: './assets/images/test-front.png',
+          thumbnail: { type: '', blob: null, url: '' },
+        })
+      );
+      objectChange.fileVersion.update((version) => version + 1);
+
+      expect(component.displayedImageUrl()).not.toBe(before);
+      expect(component.displayedImageUrl()).toContain('test-front');
+    });
+
+    it('names the owner the moment a card is claimed, without it being moved', async () => {
+      // The card is somebody else's, so nothing else drawn on it moves with the claim and the
+      // label is the only answer to the question. Nothing is checked by hand either: it has to
+      // follow because the signals said so.
+      beMyself('onlooker');
+      const holder = new PeerCursor();
+      holder.userId = 'holder';
+      holder.name = '持ち主';
+      holder.initialize();
+      const card = Card.create('テストカード', 'front', 'back');
+      card.state = CardState.BACK;
+      fixture.componentRef.setInput('card', card);
+      fixture.detectChanges();
+      const label = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
+      expect(label()).not.toContain('持ち主');
+
+      card.owner = holder.userId;
+      TestBed.inject(ObjectChangeService).notifyChanged(card.identifier);
+      await fixture.whenStable();
+
+      expect(label()).toContain('持ち主');
+
+      card.owner = '';
+      TestBed.inject(ObjectChangeService).notifyChanged(card.identifier);
+      await fixture.whenStable();
+
+      expect(label()).not.toContain('持ち主');
+      holder.destroy();
+    });
+
+    it('reads whose the card is through the signals rather than off the card', () => {
+      const holder = new PeerCursor();
+      holder.userId = 'holder';
+      holder.name = '持ち主';
+      holder.initialize();
+      const card = Card.create('テストカード', 'front', 'back');
+      card.owner = holder.userId;
+      fixture.componentRef.setInput('card', card);
+      const objectChange = TestBed.inject(ObjectChangeService);
+      const versionOf = objectChange.versionOf.bind(objectChange);
+      const read: string[] = [];
+      Object.defineProperty(objectChange, 'versionOf', {
+        value: (identifier: string) => {
+          read.push(identifier);
+          return versionOf(identifier);
+        },
+        configurable: true,
+      });
+      const readsTheCard = (value: () => unknown): boolean => {
+        read.length = 0;
+        value();
+        return read.includes(card.identifier);
+      };
+
+      expect(readsTheCard(() => component.hasOwner())).toBe(true);
+      expect(readsTheCard(() => component.ownerName())).toBe(true);
+      expect(read).toContain(holder.identifier);
+
+      holder.destroy();
     });
 
     it('holds the hidden icon in a signal', () => {

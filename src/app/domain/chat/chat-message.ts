@@ -7,10 +7,25 @@ import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import {
+  appendChatMessageEdit,
+  type ChatMessageVersion,
+  chatMessageVersions,
+  hasChatMessageEdits,
+} from '@axe/domain/chat/chat-message-history';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
+import { stampOf } from '@axe/domain/chat/stamp-catalog';
+import { saidWithStamp } from '@axe/domain/chat/stamp-line';
 import { type DiceRollDetail, parseDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
+import { vnBodyOf } from '@axe/domain/visual-novel/vn-emote';
 import { VN_PORTRAIT_POS_UNSET } from '@axe/domain/visual-novel/vn-portrait-position';
+
+/** Whether an attribute holds a moment, as opposed to being unset; an empty one is not read as 0. */
+function isPositiveTime(value: unknown): boolean {
+  const time = Number(value);
+  return Number.isFinite(time) && time > 0;
+}
 
 export interface ChatMessageTargetContext {
   text: string;
@@ -40,6 +55,9 @@ export interface ChatMessageContext {
   quoteOf?: string;
   vnEmote?: string;
   senderRole?: string;
+  stamp?: string;
+  diceLook?: string;
+  diceImageIdentifier?: string;
 }
 
 @SyncObject('chat')
@@ -63,6 +81,14 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
    */
   @SyncVar() vnEmote: string;
   /**
+   * The stamp the line was sent with, by identifier, drawn large under whatever was said with it. The
+   * last line of the words stands in for it wherever it cannot be drawn: a version that does not know
+   * it, a log, a video.
+   *
+   * Left without an initialiser, as `vnEmote` is: only a line sent as a stamp writes it.
+   */
+  @SyncVar() stamp: string;
+  /**
    * What the person speaking was when they said it.
    *
    * A role is worn now and taken off later, and the cursor that carried it is built afresh on
@@ -78,16 +104,81 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
   @SyncVar() messBubbleLight: string = '';
   @SyncVar() messBubbleDark: string = '';
   @SyncVar() sendFrom: string;
+  /**
+   * How the one who said it wants their dice to look, as `encodeDiceLook` writes it; read with
+   * `decodeDiceLook`. A dice bot's answer carries the look of the line it answers.
+   *
+   * Left without an initialiser, as `vnEmote` is: most lines say nothing of dice, and a line from
+   * before looks were offered reads back empty, which is the plain look.
+   */
+  @SyncVar() diceLook: string;
+  /**
+   * The picture the dice of the line wear, by the identifier the room's images know it by; read
+   * with the look as `decodeDiceLook(diceLook, diceImageIdentifier)`.
+   *
+   * Kept apart from the look, under a name ending in ImageIdentifier, so that saving the room keeps
+   * the picture as it keeps any other a line or a piece points at. Left without an initialiser, as
+   * `diceLook` is.
+   */
+  @SyncVar() diceImageIdentifier: string;
   @SyncVar() replyTo: string = '';
   @SyncVar() quoteOf: string = '';
   @SyncVar() fixd: boolean = false;
+  /**
+   * What the line said before each edit, and when the edit came, as `appendChatMessageEdit` writes
+   * it; read with `versions`.
+   *
+   * Kept on the line so that it travels and is saved with it. Left without an initialiser, as
+   * `vnEmote` is: most lines are never edited, and a line edited before this was kept has none.
+   */
+  @SyncVar() editHistory: string;
   @SyncVar() disclosedAt: number;
+  /**
+   * When the one who said the line made it an after-the-fact whisper (あとから秘話), in epoch
+   * milliseconds; read with `isAfterWhisper`.
+   *
+   * Such a line becomes a whisper like any other: addressed and named as one, so from then on it
+   * reaches the one it is whispered to and its speaker alone, in older versions of the tool too.
+   * This only remembers that it was said to everyone first, so that it can be put back. Left without
+   * an initialiser, as `vnEmote` is: most lines never become one.
+   */
+  @SyncVar() afterWhisperAt: number;
+  /**
+   * Who the line was addressed to before it became an after-the-fact whisper, put back by
+   * `undoAfterWhisper`. Empty for everyone.
+   */
+  @SyncVar() afterWhisperTo: string;
+  /** The name the line was said under before it became an after-the-fact whisper, put back by `undoAfterWhisper`. */
+  @SyncVar() afterWhisperName: string;
+  /**
+   * When the one who said the line deleted it, in epoch milliseconds; read with `isPseudoDeleted`.
+   *
+   * The deletion is a pseudo-deletion (疑似削除): the line is gone from everybody's chat as though
+   * it had never been said, its speaker's included, but it is still in the room, saved with the room
+   * and written into the log, which can be asked to leave it out. There is no putting it back. Left
+   * without an initialiser, as `vnEmote` is.
+   */
+  @SyncVar() pseudoDeletedAt: number;
+  /**
+   * When the line was marked to be found again, in epoch milliseconds; read with `isBookmarked`.
+   * Left without an initialiser, as `vnEmote` is.
+   */
+  @SyncVar() bookmarkedAt: number;
+  /**
+   * The name the room gave the mark, empty for one named after the line itself. It outlasts the
+   * mark, so a mark taken off by mistake comes back under the same name.
+   */
+  @SyncVar() bookmarkTitle: string;
 
   targetInfo: ChatMessageTargetContext[];
 
+  /**
+   * The identifier of the tab the line sits in, read from its parent. Empty for a line in no tab.
+   */
   get tabIdentifier(): string {
     return this.parent?.identifier ?? '';
   }
+  /** What the line says, kept as the node's value. */
   get text(): string {
     return this.value as string;
   }
@@ -95,6 +186,10 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
     this.value = text;
   }
 
+  /**
+   * When the line was said, in epoch milliseconds, from its `timestamp` attribute. 0 when unset,
+   * and 1 when it is not a number.
+   */
   get timestamp(): number {
     const timestamp = this.getAttribute('timestamp');
     const num = timestamp ? +timestamp : 0;
@@ -102,6 +197,10 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
   }
   private _to!: string;
   private _sendTo: string[] = [];
+  /**
+   * The user ids a direct line is addressed to, split out of `to`. Empty for a line said to
+   * everyone. Cached until `to` changes.
+   */
   get sendTo(): string[] {
     if (this._to !== this.to) {
       this._to = this.to;
@@ -111,6 +210,10 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
   }
   private _tag!: string;
   private _tags: string[] = [];
+  /**
+   * The line's tags split out of `tag`, such as its dice bot, `system` or `secret`. Cached until
+   * `tag` changes.
+   */
   get tags(): string[] {
     if (this._tag !== this.tag) {
       this._tag = this.tag;
@@ -118,19 +221,30 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
     }
     return this._tags;
   }
+  /** The portrait shown beside the line, or null when that picture is not in storage. */
   get image(): ImageFile | null {
     return ImageStorage.instance.get(this.imageIdentifier);
   }
+  /**
+   * The line this one replies to, or null when it replies to none or that line is not in the store.
+   */
   get replyToMessage(): ChatMessage | null {
     if (!this.replyTo) return null;
     const target = ObjectStore.instance.get<ChatMessage>(this.replyTo);
     return target instanceof ChatMessage ? target : null;
   }
+  /** The line this one quotes, or null when it quotes none or that line is not in the store. */
   get quoteOfMessage(): ChatMessage | null {
     if (!this.quoteOf) return null;
     const target = ObjectStore.instance.get<ChatMessage>(this.quoteOf);
     return target instanceof ChatMessage ? target : null;
   }
+  /**
+   * The identifiers of the pictures attached to the line.
+   *
+   * They are stored as a json array or, in the older form, one to a line. Blank entries are
+   * dropped, and an array that cannot be read gives none.
+   */
   get attachmentImageIdentifierList(): string[] {
     const rawValue = String(this.attachmentImageIdentifiers ?? '').trim();
     if (rawValue.startsWith('[')) {
@@ -150,15 +264,24 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
       .map((identifier) => identifier.trim())
       .filter((identifier) => identifier.length > 0);
   }
+  /** The attached pictures that are in storage, in order; any not received yet are left out. */
   get attachmentImages(): ImageFile[] {
     return this.attachmentImageIdentifierList
       .map((identifier) => ImageStorage.instance.get(identifier))
       .filter((image): image is ImageFile => image != null);
   }
+  /**
+   * Where the line falls in the log, in epoch milliseconds: when it was shown to the table, for a
+   * kept-back line disclosed later, and otherwise when it was said.
+   */
   get placedAt(): number {
     const disclosedAt = Number(this.disclosedAt);
     return Number.isFinite(disclosedAt) && disclosedAt > 0 ? disclosedAt : this.timestamp;
   }
+  /**
+   * The line's sort key among its tab's lines: its placed time plus a random fraction, so lines
+   * keep log order and two placed at the same moment still sort apart.
+   */
   override get index(): number {
     return this.minorIndex + this.placedAt;
   }
@@ -167,12 +290,20 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
   // The base class does not write that identifier out, so every save and load would mint a
   // new one and break the reference. This class writes it out and reads it back as an
   // attribute, so the relationship survives.
+  /**
+   * Writes the line out with its identifier as an attribute, so replies and quotations that refer
+   * to it still find it after a save and a load.
+   */
   override toAttributes(): Attributes {
     const attrs: Attributes = { ...ObjectSerializer.toAttributes(this.attributes as Attributes) };
     attrs['identifier'] = this.identifier;
     return attrs;
   }
 
+  /**
+   * Reads the line back, taking a saved identifier as its own rather than leaving it among the
+   * attributes.
+   */
   override parseAttributes(attributes: NamedNodeMap): void {
     ObjectSerializer.parseAttributes(this.attributes, attributes);
     const persistedId = this.attributes['identifier'];
@@ -182,30 +313,51 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
       delete (this.attributes as Record<string, unknown>)['identifier'];
     }
   }
+  /** Whether the line is addressed to particular users rather than said to everyone. */
   get isDirect(): boolean {
     return this.sendTo.length > 0;
   }
+  /**
+   * Whether the local user sent the line, or is the one whose line it answers, as a dice result
+   * does.
+   */
   get isSendFromSelf(): boolean {
     return this.isSentBy(getPeerContext().userId);
   }
+  /** Whether the user sent the line, or is the one whose line it answers, as a dice result does. */
   isSentBy(userId: string): boolean {
     return this.from === userId || this.originFrom === userId;
   }
+  /** Whether the line concerns the local user: addressed to them, or sent by them. */
   get isRelatedToMe(): boolean {
     return this.isRelatedTo(getPeerContext().userId);
   }
+  /** Whether the line concerns the user: addressed to them, or sent by them. */
   isRelatedTo(userId: string): boolean {
     return this.sendTo.includes(userId) || this.isSentBy(userId);
   }
+  /**
+   * Whether the local user may see the line: anything said to everyone, or a direct line that
+   * concerns them.
+   */
   get isDisplayable(): boolean {
     return this.isDirect ? this.isRelatedToMe : true;
   }
+  /**
+   * Whether the user may see the line: anything said to everyone, or a direct line that concerns
+   * them.
+   */
   isDisplayableTo(userId: string): boolean {
     return this.isDirect ? this.isRelatedTo(userId) : true;
   }
+  /**
+   * Whether the tool put the line out rather than someone typing it, as with dice results. Told by
+   * its `system` tag.
+   */
   get isSystem(): boolean {
     return this.tags.includes('system');
   }
+  /** Whether the line is a dice bot's answer to a roll. */
   get isDicebot(): boolean {
     return this.isSystem && this.from === 'System-BCDice';
   }
@@ -214,17 +366,140 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
   get rollDetail(): DiceRollDetail | null {
     return parseDiceRollDetail(this.dicebot);
   }
+  /**
+   * Whether the line is kept back as secret, as a secret roll and its result are, until it is
+   * disclosed.
+   */
   get isSecret(): boolean {
     return this.tags.includes('secret');
   }
 
+  /**
+   * Every wording the line has had, oldest first, each from when it began to say it, the last being
+   * what it says now; empty for a line with no earlier wordings kept. Read without any staging, as
+   * the line is shown.
+   */
+  get versions(): ChatMessageVersion[] {
+    return chatMessageVersions(this.editHistory, vnBodyOf(this.vnEmote, this.text ?? ''));
+  }
+
+  /**
+   * Edits the line to say `text`, keeping what it said before in its history and marking it as
+   * edited. `staging` is how novel mode is to stage it, kept beside the words as given, an empty one
+   * taking any staging away. Nothing changes when the words and their staging are as they were.
+   */
+  edit(text: string, staging: string, at: number): void {
+    const before = vnBodyOf(this.vnEmote, this.text ?? '');
+    const stagedBefore = this.vnEmote ?? '';
+    if (this.text === text && stagedBefore === staging) return;
+    if (before !== text) {
+      // A line edited before histories were kept starts its history part way through.
+      const editedBeforeKept = !!this.fixd && !hasChatMessageEdits(this.editHistory);
+      this.editHistory = appendChatMessageEdit(this.editHistory, before, at, {
+        saidAt: this.timestamp,
+        editedBeforeKept,
+      });
+    }
+    this.text = text;
+    if (stagedBefore !== staging) this.vnEmote = staging;
+    this.fixd = true;
+  }
+
+  /** Whether the one who said the line made it an after-the-fact whisper. */
+  get isAfterWhisper(): boolean {
+    return isPositiveTime(this.afterWhisperAt);
+  }
+
+  /**
+   * Makes the line a whisper to the user given, named as a whisper is, `speaker > listener`; or
+   * whispers it to them instead of whoever it was whispered to afterwards before. Who it was said to
+   * in the first place, and under what name, are kept for `undoAfterWhisper`. Nothing changes
+   * without anyone to whisper to.
+   */
+  makeAfterWhisper(to: string, toName: string, at: number): void {
+    if (!to) return;
+    if (!this.isAfterWhisper) {
+      this.afterWhisperTo = this.to ?? '';
+      this.afterWhisperName = this.name ?? '';
+      this.afterWhisperAt = at;
+    }
+    this.to = to;
+    const speaker = String(this.afterWhisperName ?? '');
+    this.name = toName ? `${speaker} > ${toName}` : speaker;
+  }
+
+  /** Puts an after-the-fact whisper back where it was, said again to whoever it was said to before. */
+  undoAfterWhisper(): void {
+    if (!this.isAfterWhisper) return;
+    this.to = String(this.afterWhisperTo ?? '');
+    this.name = String(this.afterWhisperName ?? '');
+    this.removeAttribute('afterWhisperTo');
+    this.removeAttribute('afterWhisperName');
+    this.removeAttribute('afterWhisperAt');
+  }
+
+  /** Whether the one who said the line deleted it, leaving it to the log alone. */
+  get isPseudoDeleted(): boolean {
+    return isPositiveTime(this.pseudoDeletedAt);
+  }
+
+  /** Deletes the line from the chat, leaving it in the log. A line deleted already keeps the moment it first was. */
+  pseudoDelete(at: number): void {
+    if (this.isPseudoDeleted) return;
+    this.pseudoDeletedAt = at;
+  }
+
+  /** Whether the local user is shown the line in chat: one they may see, and that was not deleted. */
+  get isShownInChat(): boolean {
+    return this.isDisplayable && !this.isPseudoDeleted;
+  }
+
+  /** Whether the line is marked for the room to find again. */
+  get isBookmarked(): boolean {
+    return isPositiveTime(this.bookmarkedAt);
+  }
+
+  /** The name the room gave the mark on the line, or empty where the line names it. */
+  get bookmarkName(): string {
+    return String(this.bookmarkTitle ?? '').trim();
+  }
+
+  /** Marks the line for the room to find again. A line already marked keeps the moment it was first marked. */
+  bookmark(at: number): void {
+    if (this.isBookmarked) return;
+    this.bookmarkedAt = at;
+  }
+
+  /** Takes the mark off the line, keeping the name it was given. */
+  unbookmark(): void {
+    if (!this.isBookmarked) return;
+    this.removeAttribute('bookmarkedAt');
+  }
+
+  /** Names the mark on the line; an empty name goes back to naming it after the line. */
+  renameBookmark(title: string): void {
+    const next = title.trim();
+    if (next === this.bookmarkName) return;
+    if (next.length > 0) this.bookmarkTitle = next;
+    else this.removeAttribute('bookmarkTitle');
+  }
+
+  /** The room's tab list, looked up in the object store. */
   get chatTabList(): ChatTabList {
     return ObjectStore.instance.get<ChatTabList>('ChatTabList')!;
   }
 
+  /**
+   * Whether the line is a notice from the tool addressed to one reader alone, which is not styled
+   * as a direct or secret line.
+   */
   get isSystemToPL(): boolean {
     return this.tags.includes('to-pl-system-message');
   }
+  /**
+   * Whether the line is a notice from the tool rather than something said. Such a line cannot be
+   * edited.
+   */
   get isSystemMessage(): boolean {
     return this.from === 'System' || (this.tag ?? '').includes('system-message');
   }
@@ -233,11 +508,35 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
     return this.tags.includes(OUT_OF_STORY_TAG);
   }
 
+  /**
+   * Whether the local user may edit the line: they sent it, and it is not a notice from the tool.
+   */
   get changeable(): boolean {
     return this.isChangeableBy(getPeerContext().userId);
   }
+  /**
+   * Whether the user may edit the line: they sent it, and it is not a notice from the tool. A dice
+   * result is sent by the dice bot, so nobody may.
+   */
   isChangeableBy(userId: string): boolean {
     if (this.isSystemMessage) return false;
     return userId === this.from;
+  }
+
+  /**
+   * The stamp the line was sent as, where this version knows it, to draw in place of the words;
+   * null for a line of words, and for a stamp from a newer version, whose stand-in words are shown.
+   */
+  get sentStamp(): string | null {
+    const stamp = `${this.stamp ?? ''}`.trim();
+    return stampOf(stamp) ? stamp : null;
+  }
+
+  /**
+   * What was said with the stamp the line was sent with, drawn above it, without the words standing
+   * in for the stamp; empty for a stamp sent on its own, and for a line with no stamp to draw.
+   */
+  get saidWithStamp(): string {
+    return this.sentStamp ? saidWithStamp(this.text) : '';
   }
 }

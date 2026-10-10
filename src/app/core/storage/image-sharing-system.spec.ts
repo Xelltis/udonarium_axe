@@ -1,3 +1,4 @@
+import { localDispatch } from '@axe/core/network/network-messaging';
 import { ImageContext, ImageState } from '@axe/core/storage/image-file';
 import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
 import { CatalogItem, ImageStorage } from '@axe/core/storage/image-storage';
@@ -21,6 +22,17 @@ describe('ImageSharingSystem', () => {
     it('survives being initialised', () => {
       ImageSharingSystem.instance.initialize();
       expect(true).toBe(true);
+    });
+  });
+
+  describe('a peer connecting', () => {
+    it('sends the catalogue to that peer alone, since everyone else has had it already', () => {
+      ImageSharingSystem.instance.initialize();
+      const synchronize = vi.spyOn(ImageStorage.instance, 'synchronize').mockImplementation(() => {});
+
+      localDispatch('CONNECT_PEER', { peerId: 'newcomer' });
+
+      expect(synchronize).toHaveBeenCalledWith('newcomer');
     });
   });
 

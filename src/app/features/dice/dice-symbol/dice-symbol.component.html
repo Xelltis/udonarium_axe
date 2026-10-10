@@ -19,11 +19,13 @@
       (rotable.ondragend)="onMoved()"
     >
       <div
-        class="absolute box-border size-full rounded-[5px] border-[6px] border-solid border-[rgb(216,139,75)] backface-hidden"
-        [class.border-ui-border-panel!]="hasOwner"
+        class="absolute box-border size-full rounded-[5px] border-[6px] border-solid border-[rgb(216,139,75)] backface-hidden [&.is-used]:filter-[brightness(0.45)]"
+        [class.border-ui-border-panel!]="hasOwner()"
+        [class.is-used]="isUsed()"
       ></div>
       <div
-        class="absolute box-border size-full rounded-[5px] border-2 border-solid border-[#212121] backface-hidden"
+        class="absolute box-border size-full rounded-[5px] border-2 border-solid border-[#212121] backface-hidden [&.is-used]:filter-[brightness(0.45)]"
+        [class.is-used]="isUsed()"
       ></div>
       @if (!isIconHidden()) {
         @if (!isLock && !mode2dEnabled()) {
@@ -60,22 +62,18 @@
               [style.height.px]="imageView.boxHeightPx()"
             >
               @if (name() && !hideName()) {
-                <div
-                  class="absolute whitespace-nowrap transform-3d"
-                  [ngStyle]="{
-                    transform: 'translateX(-50%) translateX(' + (size() * gridSize) / 2 + 'px) ' + nameLabelOrbit(),
-                  }"
-                >
+                <div class="absolute whitespace-nowrap transform-3d" [appBillboard]="nameOrbitFacing()">
                   <div
+                    data-testid="dice-name"
                     class="bg-ui-panel text-ui-text box-border rounded-md px-2.25 py-0.75 text-[15px] whitespace-nowrap transform-3d"
-                    [ngStyle]="{ transform: billboardTransform() }"
+                    [appBillboard]="nameFacing()"
                   >
                     <div>
                       {{ name() }}:
-                      @if (isVisible) {
+                      @if (isVisible()) {
                         <span>{{ face }}</span>
                       }
-                      @if (!isVisible) {
+                      @if (!isVisible()) {
                         <span>???</span>
                       }
                       @if (isLock) {
@@ -88,11 +86,9 @@
               @if (rollResult(); as rolled) {
                 <div
                   class="pointer-events-none absolute whitespace-nowrap transform-3d"
-                  [ngStyle]="{
-                    transform: 'translateX(-50%) translateX(' + (size() * gridSize) / 2 + 'px) ' + nameLabelOrbit(),
-                  }"
+                  [appBillboard]="nameOrbitFacing()"
                 >
-                  <div class="transform-3d" [ngStyle]="{ transform: billboardTransform() }">
+                  <div class="transform-3d" [appBillboard]="nameFacing()">
                     <div
                       class="animate-dice-pop text-[28px] font-bold text-white [text-shadow:0_0_6px_rgba(0,0,0,0.9),0_2px_4px_rgba(0,0,0,0.8)]"
                     >
@@ -101,52 +97,49 @@
                   </div>
                 </div>
               }
-              @if (hasOwner && ownerName) {
-                <div
-                  class="absolute whitespace-nowrap transform-3d"
-                  [ngStyle]="{
-                    transform: 'translateX(-50%) translateX(' + (size() * gridSize) / 2 + 'px) ' + ownerLabelOrbit(),
-                  }"
-                >
+              @if (hasOwner() && ownerName()) {
+                <div class="absolute whitespace-nowrap transform-3d" [appBillboard]="ownerOrbitFacing()">
                   <div
                     class="bg-ui-panel text-ui-text box-border rounded-md px-2.25 py-0.75 text-[12px] whitespace-nowrap transform-3d"
-                    [ngStyle]="{ transform: billboardTransformOwner() }"
+                    [appBillboard]="ownerFacing()"
                   >
-                    <div class="max-w-72 truncate">{{ ownerName }}</div>
+                    <div class="max-w-72 truncate">{{ ownerName() }}</div>
                   </div>
                 </div>
               }
               @if (imageFile().url && specifyImageFlag()) {
                 <img
-                  class="chrome-smooth-image-trick bottom-0 inline-block h-auto align-bottom filter-[none!] [-webkit-transform-style:preserve-3d] transform-3d [&.is-black-mask]:filter-[brightness(0)]! [&.is-harf-black-mask]:filter-[brightness(0.5)]!"
+                  class="chrome-smooth-image-trick bottom-0 inline-block h-auto align-bottom filter-[none!] [-webkit-transform-style:preserve-3d] transform-3d [&.is-black-mask]:filter-[brightness(0)]! [&.is-harf-black-mask]:filter-[brightness(0.5)]! [&.is-used]:filter-[brightness(0.45)]"
+                  [appBillboard]="imageView.komaFacing()"
                   [ngStyle]="{
                     height: +imageHeignt() * imageView.supersample() + 'px',
                     width: 'auto',
                     maxWidth: 'none',
                     left: 'auto',
                     right: 'auto',
-                    transform: imageView.komaTransform(),
                   }"
                   (load)="imageView.onImageLoad($event)"
                   [src]="imageFile().url | safe: 'resourceUrl'"
-                  [class.is-black-mask]="!isVisible"
-                  [class.is-harf-black-mask]="isMine"
+                  [class.is-black-mask]="!isVisible()"
+                  [class.is-harf-black-mask]="isMine()"
+                  [class.is-used]="isUsed()"
                 />
               }
               @if (imageFile().url && !specifyImageFlag()) {
                 <img
-                  class="chrome-smooth-image-trick bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d [&.is-black-mask]:filter-[brightness(0)]! [&.is-harf-black-mask]:filter-[brightness(0.5)]!"
+                  class="chrome-smooth-image-trick bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d [&.is-black-mask]:filter-[brightness(0)]! [&.is-harf-black-mask]:filter-[brightness(0.5)]! [&.is-used]:filter-[brightness(0.45)]"
+                  [appBillboard]="imageView.pieceFacing()"
                   [ngStyle]="{
                     width: imageView.supersamplePercent(),
                     maxWidth: 'none',
                     marginLeft: imageView.supersampleInset(),
                     marginRight: imageView.supersampleInset(),
-                    transform: imageView.pieceTransform(),
                   }"
                   (load)="imageView.onImageLoad($event)"
                   [src]="imageFile().url | safe: 'resourceUrl'"
-                  [class.is-black-mask]="!isVisible"
-                  [class.is-harf-black-mask]="isMine"
+                  [class.is-black-mask]="!isVisible()"
+                  [class.is-harf-black-mask]="isMine()"
+                  [class.is-used]="isUsed()"
                 />
               }
             </div>

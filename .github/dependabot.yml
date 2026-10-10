@@ -11,30 +11,24 @@ updates:
       prefix: chore
       include: scope
     ignore:
+      # ワークフローとこの環境はNode 24で動いているので、型のメジャーは最新を追わずに手で決める。
       - dependency-name: '@types/node'
         update-types:
           - version-update:semver-major
+      # 10は@semantic-release/release-notes-generator 14が使うconventional-changelog-writerより新しい
+      # 版を前提にしていて、組み合わせるとリリースノートとCHANGELOGが見出しだけの空になる。
+      # release-notes-generatorが追いつくまで止める。
       - dependency-name: conventional-changelog-conventionalcommits
         update-types:
           - version-update:semver-major
+      # AngularはTypeScriptの対応範囲をマイナー単位で決めている（22は>=6.0 <6.1）。Angularが受けるまで止める。
       - dependency-name: typescript
         update-types:
           - version-update:semver-major
-      # 22.1.5 以降の @angular/build は unit-test ビルダーが setupFiles を適用しなくなり、
-      # happy-dom に無い WebRTC を補うスタブが走らないまま @skyway-sdk/core を読み込んで
-      # 全 spec が落ちる。22.1.4 に固定しているので、上がってくる提案も止める。
-      - dependency-name: '@angular/build'
-      - dependency-name: '@angular/cli'
-      # vitest 5 は @angular/build が受け付けない（peer は vitest ^4.0.8。22.1.7 でも同じ）。
-      # ng test はそのビルダー越しに走るので、上げると npm install の時点で解決しない。
-      # Angular 側が vitest 5 を受けるまでは提案も止める。
-      - dependency-name: vitest
-        update-types:
-          - version-update:semver-major
-      - dependency-name: '@vitest/coverage-v8'
-        update-types:
-          - version-update:semver-major
     groups:
+      # Angularのフレームワーク・コンパイラ・ビルドツールは互いを同じ版で求めるので、本番依存と開発依存に
+      # またがっていても1つのPRで上げる。種類別のグループに割ると、どちらのPRも単独ではnpm ciが解決しない
+      # （#139と#144がそうだった）。下の2つのグループからは外しておく。
       angular:
         patterns:
           - '@angular/*'
@@ -46,12 +40,21 @@ updates:
         update-types:
           - minor
           - patch
+        exclude-patterns:
+          - '@angular/*'
+          - '@angular-*'
+          - 'ng-*'
+          - '@ng-*'
       development-minor-patch:
         dependency-type: development
         update-types:
           - minor
           - patch
-
+        exclude-patterns:
+          - '@angular/*'
+          - '@angular-*'
+          - 'ng-*'
+          - '@ng-*'
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -30,6 +30,13 @@ function rotatePoints(points: Point[], degree: number): Point[] {
   return points.map((point) => rotatePoint(point, degree));
 }
 
+/**
+ * Draws a line range: a band `width` cells wide running `range` cells out from the origin at `degree`.
+ *
+ * The grid canvas is filled with the covered cells, or with the exact band when `fillOutLine` is set,
+ * and the outline canvas gets the band's edge and an origin dot. The clip returned reaches a cell
+ * beyond the band, for cutting the range's element down to it.
+ */
 export function renderLine(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
@@ -125,6 +132,12 @@ export function renderLine(
   return clip;
 }
 
+/**
+ * Draws a square range reaching `range` cells from its centre each way, turned by `degree`.
+ *
+ * Fills and outlines as a line does; the centre is marked with a small square instead of a dot while
+ * the range follows a character. The clip returned reaches a cell beyond the square.
+ */
 export function renderSquare(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
@@ -227,6 +240,11 @@ function insideConvexPolygon(verts: Point[], gcx: number, gcy: number): boolean 
   return true;
 }
 
+/**
+ * Draws a regular triangle range whose corners lie `range` cells from its centre, turned by `degree`.
+ *
+ * Fills and outlines as a line does. The clip returned is the triangle grown by a fifth.
+ */
 export function renderTriangle(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
@@ -279,6 +297,11 @@ export function renderTriangle(
   return clip;
 }
 
+/**
+ * Draws a regular pentagon range whose corners lie `range` cells from its centre, turned by `degree`.
+ *
+ * Fills and outlines as a line does. The clip returned is the pentagon grown by a fifth.
+ */
 export function renderPentagon(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
@@ -335,6 +358,11 @@ export function renderPentagon(
   return clip;
 }
 
+/**
+ * Draws a regular hexagon range whose corners lie `range` cells from its centre, turned by `degree`.
+ *
+ * Fills and outlines as a line does. The clip returned is the hexagon grown by a fifth.
+ */
 export function renderHexagon(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,

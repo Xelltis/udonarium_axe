@@ -13,6 +13,7 @@ function panelNameFor(tab: ChatTab): string {
 export class ChatStreamPanelService {
   private readonly panelService = inject(PanelService);
 
+  /** Whether the stream window for this chat tab is currently open. */
   isOpen(tab: ChatTab): boolean {
     return this.panelService.hasSingle(panelNameFor(tab));
   }

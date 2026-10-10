@@ -304,7 +304,11 @@ describe('ObjectStore', () => {
 
       store.update('test-id-22');
 
-      expect(sendSpy).toHaveBeenCalledWith(expect.objectContaining({ eventName: 'UPDATE_GAME_OBJECT' }), undefined);
+      expect(sendSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ eventName: 'UPDATE_GAME_OBJECT' }),
+        undefined,
+        'test-id-22'
+      );
     });
 
     it('should queue update by context', () => {
@@ -316,11 +320,12 @@ describe('ObjectStore', () => {
 
       expect(sendSpy).toHaveBeenCalledWith(
         expect.objectContaining({ eventName: 'UPDATE_GAME_OBJECT', data: context }),
-        undefined
+        undefined,
+        'test-id-23'
       );
     });
 
-    it('should merge multiple updates for the same object', () => {
+    it('hands every update to the network under the identifier, so a later one replaces one still waiting', () => {
       const obj = new GameObject('test-id-24');
       store.add(obj, false);
       const context1 = obj.toContext();
@@ -331,8 +336,38 @@ describe('ObjectStore', () => {
       store.update(context1);
       store.update(context2);
 
-      // Should be called only once initially, then queued updates are merged
-      expect(sendSpy).toHaveBeenCalledTimes(1);
+      expect(sendSpy).toHaveBeenCalledTimes(2);
+      expect(sendSpy).toHaveBeenLastCalledWith(expect.objectContaining({ data: context2 }), undefined, 'test-id-24');
+    });
+
+    it('still sends an update made after the one before it was taken for sending', () => {
+      sendSpy.mockRestore();
+      const network = Network.instance as unknown as { connection: unknown; sendQueue(): void };
+      const sentVersions: number[] = [];
+      network.connection = {
+        send: (batch: { data?: { identifier?: string; minorVersion?: number } }[]) => {
+          for (const message of batch) {
+            if (message.data?.identifier === 'test-id-25') sentVersions.push(message.data.minorVersion ?? -1);
+          }
+        },
+      };
+      try {
+        const obj = new GameObject('test-id-25');
+        store.add(obj, false);
+        const context1 = obj.toContext();
+        context1.minorVersion = 1;
+        const context2 = obj.toContext();
+        context2.minorVersion = 2;
+
+        store.update(context1);
+        network.sendQueue();
+        store.update(context2);
+        network.sendQueue();
+
+        expect(sentVersions).toEqual([1, 2]);
+      } finally {
+        network.connection = null;
+      }
     });
 
     it('should do nothing for non-existent object identifier', () => {

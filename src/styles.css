@@ -1,10 +1,10 @@
 /* You can add global styles to this file, and also import other style files */
 
-/* @import はすべて最初にまとめる */
+/* @importはすべて最初にまとめる */
 @import '@ng-select/ng-select/themes/default.theme.css';
 
-/* Tailwind v4 — フルインポート (@tailwindcss/postcss がユーティリティを生成するには @import 'tailwindcss' が必要)
-   Preflight は @layer base に配置されるため、アンレイヤードの既存スタイルが優先される */
+/* Tailwind v4をまるごと読み込む。@tailwindcss/postcssがユーティリティを生成するには@import 'tailwindcss'が必要。
+   Preflightは@layer baseに入るので、どのレイヤーにも属さない既存のスタイルが優先される */
 @import 'tailwindcss' source(none);
 
 @font-face {
@@ -31,12 +31,12 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* Tailwind がスキャンするソース (このCSSファイルからの相対パス)。
-   自動検出を切って docs や dist を拾わないようにする */
+/* Tailwindがスキャンするソース（このCSSファイルからの相対パス）。
+   自動検出を切って、docsやdistを拾わないようにする */
 @source './app/**/*.{ts,html}';
 @source './index.html';
 
-/* ── Tailwind デザイントークン (ユーティリティ生成用) ───────────── */
+/* ── Tailwindデザイントークン（ユーティリティ生成用） ───────────── */
 @theme {
   --color-surface: hsl(220 14% 18%);
   --color-panel: hsl(220 14% 22%);
@@ -50,9 +50,9 @@
     -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Verdana, Meiryo, 'M+ 1p', 'Apple SD Gothic Neo',
     'Malgun Gothic', 'Noto Sans KR', sans-serif;
 
-  /* ── --ui-* ブリッジ: var(--ui-*) を Tailwind utility 経由で使えるようにする ──
+  /* ── --ui-*ブリッジ: var(--ui-*)をTailwind utility経由で使えるようにする ──
      例: bg-ui-panel, text-ui-muted, border-ui-border-panel, shadow-ui-md, rounded-ui-lg, animate-fade-in
-     ライト/ダーク切替は --ui-* 側で行われるため、ここでは参照だけブリッジ。 */
+     ライト/ダークの切り替えは--ui-*側で行うので、ここでは参照をつなぐだけにする。 */
 
   /* 背景 → bg-ui-* */
   --color-ui-bg: var(--ui-bg);
@@ -87,7 +87,7 @@
   --color-ui-success: var(--ui-success);
   --color-ui-warning: var(--ui-warning);
 
-  /* トランプの黒スート (♣♠) — ダークモードでは視認性のため青、ライトモードでは伝統通り黒 */
+  /* トランプの黒スート（♣♠）。ダークモードでは見やすいように青、ライトモードでは伝統どおり黒 */
   --color-ui-suit-black: var(--ui-suit-black);
 
   /* ボーダー → border-ui-* */
@@ -98,8 +98,8 @@
   --color-ui-border-separator: var(--ui-menu-separator);
   --color-ui-border-bubble-caret: var(--ui-bubble-caret-border);
 
-  /* color-mix 頻出パターン (3 箇所以上で再利用される比率のみ登録)
-     一回限りの特殊比率はコンポーネント側 style/CSS で対応する */
+  /* color-mixでよく使う比率（3箇所以上で再利用するものだけを登録する）
+     一回限りの特殊な比率は、コンポーネント側のstyle/CSSで扱う */
   --color-ui-accent-soft: color-mix(in srgb, var(--ui-accent) 20%, transparent);
   --color-ui-accent-bold: color-mix(in srgb, var(--ui-accent) 72%, var(--ui-elevated));
   --color-ui-danger-soft: color-mix(in srgb, var(--ui-danger) 20%, transparent);
@@ -116,9 +116,9 @@
   --radius-ui-lg: var(--ui-radius-lg);
   --radius-ui-xl: var(--ui-radius-xl);
 
-  /* グローバル @keyframes → animate-* ユーティリティ
-     既存の .fly-in / .fade-in 等のヘルパクラスは後方互換のため styles.css 内に残置。
-     新規箇所では animate-* を使うこと。 */
+  /* グローバルの@keyframes → animate-*ユーティリティ
+     既存の.fly-in / .fade-in等のヘルパクラスは、後方互換のためstyles.cssに残してある。
+     新しく書く箇所ではanimate-*を使うこと。 */
   --animate-bounce-badge: bounce 600ms ease;
   --animate-fly-in: flyIn 100ms ease-out;
   --animate-bg-fade-in: bgFadeIn 200ms ease-out forwards;
@@ -135,6 +135,7 @@
   --animate-dice-pop: dicePop 1300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-coin-flip: coinFlip 900ms cubic-bezier(0.33, 0, 0.35, 1);
   --animate-float-change: floatChange 1300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-speech-pop: speechPop 220ms cubic-bezier(0.2, 1.3, 0.4, 1) both;
   --animate-buff-swap: buffSwap 160ms ease-out;
   --animate-hit-flash: hitFlash 420ms ease-out;
   --animate-fog-drift: fogDrift 90s ease-in-out infinite alternate;
@@ -144,6 +145,11 @@
   --animate-coin-flip-turn: coinFlipTurn 900ms cubic-bezier(0.33, 0, 0.35, 1);
   --animate-chat-slide-in: chatSlideIn 200ms ease-out;
   --animate-chat-fade-in: chatFadeIn 200ms ease-out;
+  --animate-stamp-pop: stampPop 520ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  --animate-stamp-shiver: stampShiver 640ms ease-out both;
+  --animate-stamp-slam: stampSlam 480ms cubic-bezier(0.3, 1.5, 0.5, 1) both;
+  --animate-stamp-beat: stampBeat 720ms ease-out both;
+  --animate-stamp-press: stampPress 560ms cubic-bezier(0.2, 1.2, 0.4, 1) both;
   --animate-radial-orbit: spin 72s linear infinite;
   --animate-vn-fade-in: vnFadeIn 280ms ease-out;
   --animate-vn-leave: vnLeave 1600ms ease-in 500ms forwards;
@@ -166,19 +172,19 @@
   --animate-cursor-ping: cursor-ping 2s ease-out infinite;
   --animate-writing-dot: writing-dot 1.2s infinite ease-in-out;
   --animate-disc-spin: spin 4s linear infinite;
-  /* Tailwind 標準と同じ 1s spin。保存ボタンの sync アイコン等のローディング表現で利用。 */
+  /* Tailwind標準と同じ1sのspin。保存ボタンのsyncアイコンなど、ローディングの表示に使う。 */
   --animate-spin: spin 1s linear infinite;
-  /* game-character (タップ後フォーカス強調) と ターゲットマーカー (targetBob)
-     アニメーション。既存 @keyframes は styles.css 後半に定義済み。 */
+  /* game-character（タップ後のフォーカス強調）とターゲットマーカー（targetBob）の
+     アニメーション。既存の@keyframesはstyles.cssの後半に定義してある。 */
   --animate-focused: focused 1s ease;
   --animate-target-bob: targetBob 1.1s ease-in-out infinite;
   --animate-target-ring: targetRing 1.1s ease-in-out infinite;
   --animate-multi-angle-name-orbit: multiAngleNameOrbit 12s linear infinite;
   --animate-multi-angle-piece-spin: multiAnglePieceSpin 60s linear infinite;
-  /* mini-jukebox のトラック名横スクロール。--scroll-dist は MiniJukeboxComponent が
-     対象 element に直接 setProperty で注入する。 */
+  /* mini-jukeboxのトラック名の横スクロール。--scroll-distは、MiniJukeboxComponentが
+     対象のelementへsetPropertyで直接設定する。 */
   --animate-title-scroll: title-scroll 7s ease-in-out infinite;
-  /* マップ演出の画面揺れ。強さごとに別の keyframes を持つ。 */
+  /* マップ演出の画面揺れ。強さごとに別のkeyframesを持つ。 */
   /* 倒れたコマ自身の崩れ方。演出が当たっているあいだ、コマ本体に掛ける。 */
   --animate-defeat-dissolve: effectDefeatDissolve 1.9s cubic-bezier(0.4, 0, 0.6, 1) both;
   --animate-defeat-bisect: effectDefeatBisect 1.6s cubic-bezier(0.3, 0, 0.2, 1) both;
@@ -188,10 +194,10 @@
   --animate-effect-flash: effectFlash 340ms ease-out both;
 }
 
-/* 盤面の下と上を流れる背景。タイル 1 枚ぶん動かすので継ぎ目が出ない。
-   1 層 1 要素。横は transform、縦は translate と別プロパティに分けてあるので、
-   斜めに流れる層でも合成面はひとつで済む。流れない軸は名前が none になり、
-   その軸のアニメーション自体が立たない。 */
+/* 盤面の下と上を流れる背景。タイル1枚ぶん動かすので継ぎ目が出ない。
+   1層1要素。横はtransform、縦はtranslateと別プロパティに分けてあるので、
+   斜めに流れる層でも合成面はひとつで済む。流れない軸は名前がnoneになり、
+   その軸にはアニメーション自体が掛からない。 */
 .bg-layer-drift {
   animation-name: var(--bg-layer-x-name, none), var(--bg-layer-y-name, none);
   animation-duration: var(--bg-layer-x-duration, 0s), var(--bg-layer-y-duration, 0s);
@@ -200,8 +206,8 @@
   animation-iteration-count: infinite;
 }
 
-/* mini-jukebox のトラック名横スクロール用 keyframe。
-   element.style.--scroll-dist を読むため、グローバル定義でも JS から注入された値が効く。 */
+/* mini-jukeboxのトラック名を横スクロールさせるkeyframe。
+   element.style.--scroll-distを読むので、グローバルに定義してもJSから設定した値が反映される。 */
 @keyframes title-scroll {
   0%,
   20% {
@@ -216,9 +222,9 @@
   }
 }
 
-/* mini-jukebox の <input type="range" class="seek-bar"> のベンダー擬似要素群。
-   Angular の Emulated 範囲外なのでグローバル定義。.seek-bar クラスをマーカーとして識別する。
-   linear-gradient の var(--seek-progress) は HTML から [style.--seek-progress] で注入。 */
+/* mini-jukeboxの<input type="range" class="seek-bar">のベンダー擬似要素。
+   AngularのEmulatedの範囲外なのでグローバルに定義し、.seek-barクラスをマーカーにして見分ける。
+   linear-gradientのvar(--seek-progress)は、HTMLから[style.--seek-progress]で渡す。 */
 .seek-bar::-webkit-slider-runnable-track {
   height: 3px;
   border-radius: 2px;
@@ -265,15 +271,63 @@
   cursor: pointer;
 }
 
-/* Tailwind v4 のテキストサイズユーティリティ (text-base / text-sm 等) は
-   line-height を内包するため、Google CDN 由来の `.material-icons { line-height: 1 }`
-   を上書きしてアイコンコンテナが縦方向に膨らむ。glyph はもともと line-height: 1
-   で設計されているため、ここでグローバルに line-height を抑え込む。 */
+/* The portrait slider in the chat input: the seek bar's thin track and small knob. The selectors
+   outrank the global input[type='range'] rules, which would otherwise draw the thick framed bar.
+   How far along it is comes in as --seek-progress. */
+input[type='range'].portrait-slider::-webkit-slider-runnable-track {
+  height: 3px;
+  border: none;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--ui-accent) var(--seek-progress, 0%),
+    var(--ui-panel-border) var(--seek-progress, 0%)
+  );
+}
+
+input[type='range'].portrait-slider::-webkit-slider-thumb {
+  width: 10px;
+  height: 10px;
+  margin-top: -3.5px;
+  border: none;
+  border-radius: 50%;
+  background: var(--ui-accent);
+  transition: transform 0.1s;
+}
+
+input[type='range'].portrait-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.3);
+}
+
+input[type='range'].portrait-slider::-moz-range-track {
+  height: 3px;
+  border: none;
+  border-radius: 2px;
+  background: var(--ui-panel-border);
+}
+
+input[type='range'].portrait-slider::-moz-range-progress {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ui-accent);
+}
+
+input[type='range'].portrait-slider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border: none;
+  border-radius: 50%;
+  background: var(--ui-accent);
+}
+
+/* Tailwind v4のテキストサイズユーティリティ（text-base / text-sm等）はline-heightも指定するので、
+   Google CDN由来の`.material-icons { line-height: 1 }`を上書きし、アイコンのコンテナが縦に膨らむ。
+   glyphはもともとline-height: 1で設計されているため、ここでグローバルにline-heightを抑える。 */
 .material-icons {
   line-height: 1 !important;
 }
 
-/* mini-jukebox のプレイリスト用カスタムスクロールバー。.playlist-dropdown クラスをマーカー。 */
+/* mini-jukeboxのプレイリスト用のカスタムスクロールバー。.playlist-dropdownクラスをマーカーにする。 */
 .playlist-dropdown::-webkit-scrollbar {
   width: 4px;
 }
@@ -283,11 +337,10 @@
   border-radius: 2px;
 }
 
-/* chat-message のルビ表示。chat-message は innerHTML で <ruby> 要素を生成するため
-   Angular の Emulated view encapsulation 範囲外。グローバル定義にすることで
-   .msg-text マーカークラス内のルビ要素にスタイルが当たる。 */
-/* ルビ装飾。`decorateChatStyleText` が <ruby class="chat-ruby"> を吐く。
-   チャットと共有メモ (TextNote 非編集モード) で共用するため、`.msg-text` スコープを外している。 */
+/* chat-messageのルビ表示。chat-messageはinnerHTMLで<ruby>要素を生成するので、
+   AngularのEmulated view encapsulationの範囲外になるため、グローバルに定義している。 */
+/* ルビ装飾。`decorateChatStyleText`が<ruby class="chat-ruby">を吐く。
+   チャットと共有メモ（TextNoteの非編集モード）で共用するため、`.msg-text`のスコープを外している。 */
 ruby.chat-ruby {
   display: inline-flex;
   flex-direction: column-reverse;
@@ -319,9 +372,9 @@ ruby.chat-ruby rt {
   white-space: nowrap;
 }
 
-/* `> ` で始まる引用行を、隣接する複数行をまとめてアクセント縦線付きの blockquote 風に装飾する。
-   decorateQuoteLines が <span class="chat-quote"> を吐き、こちら側で見た目を決める。
-   チャットと TextNote (共有メモ) 非編集モードで共有するため、`.msg-text` 親スコープを外している。 */
+/* `> `で始まる引用行は、隣り合う複数行をまとめて、アクセントの縦線が付いたblockquote風に装飾する。
+   decorateQuoteLinesが<span class="chat-quote">を吐き、見た目はこちら側で決める。
+   チャットとTextNote（共有メモ）の非編集モードで共有するため、`.msg-text`の親スコープを外している。 */
 .chat-quote {
   display: block;
   margin: 4px 0;
@@ -334,9 +387,75 @@ ruby.chat-ruby rt {
   white-space: pre-wrap;
 }
 
-/* ChatMessageComponent.jumpEffect が要素を [class.chat-message-highlight] でトグルしたとき、
-   accent カラーで一瞬光らせる。`animation:` ショートハンドは Tailwind の animate-chat-* と衝突して
-   解除時にスライドインを再生してしまうので、background-color + box-shadow + transition で表現する。 */
+/* A shared note drawn with formatting (formatNoteText). Tailwind's base takes the look off headings,
+   lists and quotes, so they are put back here, in em so they follow the note's own size. */
+.note-formatted > :first-child {
+  margin-top: 0;
+}
+.note-formatted > :last-child {
+  margin-bottom: 0;
+}
+.note-formatted p {
+  margin: 0 0 0.6em;
+}
+.note-formatted h1,
+.note-formatted h2,
+.note-formatted h3 {
+  margin: 0.7em 0 0.3em;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.note-formatted h1 {
+  font-size: 1.4em;
+}
+.note-formatted h2 {
+  font-size: 1.2em;
+}
+.note-formatted h3 {
+  font-size: 1.05em;
+}
+.note-formatted ul,
+.note-formatted ol {
+  margin: 0 0 0.6em;
+  padding-left: 1.4em;
+}
+.note-formatted ul {
+  list-style: disc;
+}
+.note-formatted ol {
+  list-style: decimal;
+}
+.note-formatted blockquote {
+  margin: 0 0 0.6em;
+  padding: 0.25em 0.7em;
+  border-left: 3px solid var(--ui-quote-border);
+  border-radius: 0 4px 4px 0;
+  background: var(--ui-quote-bg);
+  color: var(--ui-quote-text);
+}
+.note-formatted code {
+  padding: 0 0.3em;
+  border-radius: 3px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.9em;
+}
+.note-formatted pre {
+  margin: 0 0 0.6em;
+  padding: 0.5em 0.7em;
+  overflow-x: auto;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  white-space: pre;
+}
+.note-formatted pre code {
+  padding: 0;
+  background: none;
+}
+
+/* ChatMessageComponent.jumpEffectが要素の[class.chat-message-highlight]を切り替えたとき、
+   accentカラーで一瞬光らせる。`animation:`ショートハンドはTailwindのanimate-chat-*と衝突して、
+   解除時にスライドインを再生してしまう。そのためbackground-color + box-shadow + transitionで表現する。 */
 chat-message > div > div {
   transition:
     background-color 1.5s ease-out,
@@ -350,12 +469,25 @@ chat-message > div > div {
     box-shadow 120ms ease-out;
 }
 
-/* overview-panel の独自テーブル表示。.overview-table を親マーカーに、
-   .overview-table-* 系のサブマーカーは overview-panel.component.spec.ts の
-   querySelector ターゲットとして spec 側で参照されている (例: .overview-table,
-   .overview-table-column--gap, .overview-table-row-heading--group)。
-   動的トグル (--gap / --gap-active) は [class.X] バインディングで切替えるため
-   グローバル保持する。 */
+/* チャット検索（chat-search-marks.ts）。見つかった語はCSS Custom Highlight APIで印を付け、
+   いま立っている発言の語だけ色を変える。どちらのテーマでも読めるよう文字は黒に固定する。 */
+::highlight(chat-search) {
+  background-color: #fde047;
+  color: #111;
+}
+::highlight(chat-search-current) {
+  background-color: #fb923c;
+  color: #111;
+}
+chat-message[data-chat-search-current] > div > div {
+  box-shadow: inset 3px 0 0 var(--ui-accent);
+}
+
+/* overview-panelの独自のテーブル表示。.overview-tableを親のマーカーにする。
+   .overview-table-*系のサブマーカーは、overview-panel.component.spec.tsがquerySelectorの対象として
+   参照している（例: .overview-table, .overview-table-column--gap, .overview-table-row-heading--group）。
+   --gap / --gap-activeは[class.X]バインディングで動的に切り替えるため、
+   グローバルに置いておく。 */
 .overview-table th,
 .overview-table td {
   min-width: 5.5rem;
@@ -422,9 +554,9 @@ chat-message > div > div {
     inset -2px 0 0 var(--ui-accent);
 }
 
-/* mini-jukebox の再生中ディスクが回るアニメーション (4s)、
-   および各種ローディングアイコン用 (1s)。Tailwind の animate-spin /
-   animate-disc-spin ユーティリティから参照される。 */
+/* mini-jukeboxで再生中のディスクが回るアニメーション（4s）と、
+   各種ローディングアイコン用（1s）。Tailwindのanimate-spin /
+   animate-disc-spinユーティリティから参照される。 */
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -434,7 +566,7 @@ chat-message > div > div {
   }
 }
 
-/* chat-tab の writing indicator (3 dot) 用アニメーション。 */
+/* chat-tabのwriting indicator（3 dot）用のアニメーション。 */
 @keyframes writing-dot {
   0%,
   80%,
@@ -448,8 +580,8 @@ chat-message > div > div {
   }
 }
 
-/* peer-cursor (lobby) のリング状アニメーション。
-   Tailwind の animate-cursor-ping ユーティリティから参照される。 */
+/* peer-cursor（lobby）のリング状のアニメーション。
+   Tailwindのanimate-cursor-pingユーティリティから参照される。 */
 @keyframes cursor-ping {
   0% {
     box-shadow:
@@ -469,11 +601,11 @@ chat-message > div > div {
 }
 
 /* ── UIデザイントークン ─────────────────────────────────────────
-   ダークテーマ (デフォルト / システム設定がダークの場合)
-   GitHub Dark Dimmed をベースにした 2026 年モダンデザイン
+   ダークテーマ（デフォルト / システム設定がダークの場合）
+   GitHub Dark Dimmedをベースにした2026年モダンデザイン
 ── */
 :root {
-  /* チャットの文字サイズ (チャット設定で上書きする) */
+  /* チャットの文字サイズ（チャット設定で上書きする） */
   --chat-font-size: 13px;
 
   /* ベース背景 */
@@ -481,7 +613,7 @@ chat-message > div > div {
   --ui-surface: #161b22;
   --ui-elevated: #21262d;
 
-  /* パネル (グラスモーフィズム) */
+  /* パネル（グラスモーフィズム） */
   --ui-panel-bg: rgba(22, 27, 34, 0.9);
   --ui-panel-border: rgba(48, 54, 61, 0.8);
   --ui-bubble-caret-border: #2d333a;
@@ -506,7 +638,7 @@ chat-message > div > div {
   --ui-text-muted: #8b949e;
   --ui-text-dim: #484f58;
 
-  /* アクセント (エレクトリックブルー) */
+  /* アクセント（エレクトリックブルー） */
   --ui-accent: #58a6ff;
   --ui-accent-hover: #79c0ff;
   --ui-accent-glow: rgba(88, 166, 255, 0.3);
@@ -530,7 +662,7 @@ chat-message > div > div {
   /* 警告 */
   --ui-warning: #d29922;
 
-  /* トランプ黒スート色 (♣♠) — ダーク背景での視認性確保のため青系に */
+  /* トランプの黒スートの色（♣♠）。ダーク背景で見やすいように青系にする */
   --ui-suit-black: #58a6ff;
 
   /* 入力欄 */
@@ -544,7 +676,7 @@ chat-message > div > div {
 
   /* 丸み */
   --ui-radius-sm: 4px;
-  /* 種別ピッカーの幅。ドロップダウンは body 直下に出るので :root に置く。 */
+  /* 種別ピッカーの幅。ドロップダウンはbody直下に出るので:rootに置く。 */
   --gde-select-width: 86px;
   --ui-radius: 8px;
   --ui-radius-lg: 12px;
@@ -602,7 +734,7 @@ chat-message > div > div {
   --ui-success: #40a02b;
   --ui-warning: #8c5a00;
 
-  /* ライトモード: 黒スート (♣♠) は伝統通り黒 */
+  /* ライトモード: 黒スート（♣♠）は伝統どおり黒 */
   --ui-suit-black: #000000;
 
   --ui-input-bg: #ebe2f1;
@@ -675,7 +807,7 @@ chat-message > div > div {
   animation: bounce 600ms ease;
 }
 
-/* MarkDown テーブル */
+/* MarkDownテーブル */
 .markdown_table {
   display: table;
   table-layout: auto;
@@ -702,7 +834,7 @@ chat-message > div > div {
   color: var(--ui-text);
 }
 
-/* MarkDown チェックボックス */
+/* MarkDownチェックボックス */
 .markdown_checkbox {
   cursor: pointer;
   accent-color: var(--ui-accent);
@@ -825,9 +957,9 @@ chat-message > div > div {
   color: var(--ui-text);
 }
 
-/* データ要素の種別ピッカー。ng-select はホストの class をドロップダウンにも写すので、
-   幅は class ではなくここで与える。class で絞ると候補一覧まで同じ幅になり、
-   「テキスト」「射程図形」のような 4 文字が省略記号に丸められる。 */
+/* データ要素の種別ピッカー。ng-selectはホストのclassをドロップダウンにも写すので、
+   幅はclassではなくここで与える。classで絞ると候補一覧まで同じ幅になり、
+   「テキスト」「射程図形」のような4文字が省略記号で切り詰められる。 */
 .ng-select.ud-select.gde-select {
   width: var(--gde-select-width);
   min-width: var(--gde-select-width);
@@ -838,9 +970,9 @@ chat-message > div > div {
   min-width: var(--gde-select-width) !important;
 }
 
-/* dice-table-setting でフル幅にしたいセレクタに付けるバリアント。
-   dice-table-setting.component.css から移植 (Tailwind 化に伴うスコープド CSS の
-   消失を防ぐためグローバル化)。 */
+/* dice-table-settingでフル幅にしたいセレクタに付けるバリアント。
+   dice-table-setting.component.cssから移植した。Tailwind化でスコープドCSSが
+   なくなっても消えないよう、グローバルに置いている。 */
 .ng-select.ud-select.sys-select {
   display: block !important;
   width: 100% !important;
@@ -856,9 +988,9 @@ chat-message > div > div {
   font-size: 13px !important;
 }
 
-/* chat-input の発言者/宛先/ダイスボット セレクタ用 flex 制御。
-   chat-input.component.css から移植 (Tailwind 化に伴うスコープド CSS の
-   消失を防ぐためグローバル化)。 */
+/* chat-inputの発言者/宛先/ダイスボットのセレクタのflex指定。
+   chat-input.component.cssから移植した。Tailwind化でスコープドCSSが
+   なくなっても消えないよう、グローバルに置いている。 */
 .ng-select.ud-select.chat-select {
   flex: 1 1 9rem;
   width: auto !important;
@@ -874,9 +1006,9 @@ chat-message > div > div {
   flex-basis: 11rem;
 }
 
-/* chat-input の @container (max-width: 420px) と (max-width: 320px) で
-   発言者セレクタの flex-basis を変える。chat-input-controls クラスを
-   container として扱う。 */
+/* chat-inputの@container (max-width: 420px)と(max-width: 320px)で、
+   発言者セレクタのflex-basisを変える。chat-input-controlsクラスを
+   containerとして扱う。 */
 @container (max-width: 420px) {
   .ng-select.ud-select.chat-select {
     flex-basis: calc(50% - 16px);
@@ -884,6 +1016,10 @@ chat-message > div > div {
   }
   .ng-select.ud-select.chat-select.chat-select--game-type {
     flex-basis: 100%;
+  }
+  /* A packed input keeps the help and settings buttons beside the dice bot, giving that row to the list below. */
+  .ng-select.ud-select.chat-select.chat-select--game-type.chat-select--shares-row {
+    flex-basis: 6rem;
   }
 }
 
@@ -937,7 +1073,7 @@ chat-message > div > div {
   color: var(--ui-accent);
 }
 
-/* ボタンデフォルトは @layer base に配置: Tailwind ユーティリティ (@layer utilities) が優先して上書きできる */
+/* ボタンのデフォルトは@layer baseに置く。Tailwindユーティリティ（@layer utilities）がそれより優先して上書きできる */
 @layer base {
   button {
     background: var(--ui-elevated);
@@ -989,8 +1125,8 @@ chat-message > div > div {
     opacity: 0.38;
   }
 
-  /* Tailwind v4 preflight は background-color: transparent と border: 0 solid を
-     input/textarea/select に適用するため、ブラウザデフォルトを明示的に復元する */
+  /* Tailwind v4のpreflightはbackground-color: transparentとborder: 0 solidを
+     input/textarea/selectに適用するため、ブラウザのデフォルトを明示的に戻す */
   input:not([type='range']):not([type='checkbox']):not([type='radio']):not([type='color']) {
     border: 1px solid var(--ui-input-border);
     padding: 2px 6px;
@@ -1035,7 +1171,7 @@ chat-message > div > div {
     box-shadow: 0 0 0 3px var(--ui-accent-glow);
   }
 
-  /* スクロールバー — 細くスタイリッシュに */
+  /* スクロールバー。細くスタイリッシュにする */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -1055,7 +1191,7 @@ chat-message > div > div {
     scrollbar-color: var(--ui-text-dim) transparent;
   }
 
-  /* テーブル hr デフォルト */
+  /* hr要素の既定スタイル */
   hr {
     border: none;
     border-top: 1px solid var(--ui-panel-border);
@@ -1131,7 +1267,7 @@ button.radial-child-menu-item:focus-visible {
   color: var(--ui-accent);
 }
 
-/* 高度スライダーは通常の項目行ではないため、分離表示時だけ専用の不透明パネルで支える。 */
+/* 高度スライダーは通常の項目行ではないため、分離表示のときだけ専用の不透明パネルに載せる。 */
 .context-menu-detached-altitude-slider-panel {
   display: flex;
   align-self: stretch;
@@ -1163,7 +1299,7 @@ body {
 }
 
 /* 配信に重ねる画面。背景を抜き、読み込み中の表示も配信に映らないようにする。
-   根の要素の背景が残っていると、body だけ透かしても画布はその色で塗られる。 */
+   ルート要素の背景が残っていると、bodyだけ透明にしてもキャンバスはその色で塗られる。 */
 html[data-overlay],
 html[data-overlay] body,
 html:has(body.overlay-mode),
@@ -1389,8 +1525,52 @@ input[type='range']::-moz-range-thumb {
   }
 }
 
+/*
+ * The lighter way of drawing (RenderLiteService): nothing blurs what lies behind it. A frosted
+ * panel over a table that moves is blurred afresh every frame, which Firefox and small machines
+ * cannot keep up with.
+ */
+:root.render-lite *,
+:root.render-lite *::before,
+:root.render-lite *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/*
+ * Nor does every object on the table ask for a compositing layer of its own. The host element
+ * only moves when its stacking order does; the element inside that follows the pointer is
+ * promoted while it is dragged (MovableDirective), and that inline style still applies.
+ * Firefox gives up on will-change past an area budget, and small machines pay for every layer.
+ */
+:root.render-lite
+  :is(
+    text-note,
+    card-stack,
+    card,
+    game-character,
+    coin,
+    dice-symbol,
+    terrain,
+    game-table-mask,
+    game-table-scratch-mask,
+    table-ambience,
+    peer-cursor,
+    range,
+    white-board,
+    light-source
+  ).will-change-transform {
+  will-change: auto;
+}
+
 :root.motion-reduced
   :is(
+    .animate-bounce-in,
+    .animate-stamp-pop,
+    .animate-stamp-shiver,
+    .animate-stamp-slam,
+    .animate-stamp-beat,
+    .animate-stamp-press,
     .animate-sheet-up,
     .animate-fade-in,
     .animate-buff-swap,
@@ -1424,6 +1604,67 @@ input[type='range']::-moz-range-thumb {
     .vn-bg-wipe
   ) {
   animation: none;
+}
+
+/*
+ * The rest of the animations end at once with motion stopped rather than being taken away. Some
+ * are waited out: the coin shows the face it landed on, and the die, the card stack and the badge
+ * come to rest, once theirs has ended. Some leave what they end on, as a defeated piece stays
+ * defeated. Inline durations and delays set on a piece are overridden too.
+ *
+ * Left running are the ones that tell of something going on rather than decorate it: a spinner
+ * while something loads, the pulse of a recording, the dots of someone writing.
+ */
+:root.motion-reduced
+  :is(
+    .animate-bounce,
+    .animate-blinking,
+    .animate-bg-fade-in,
+    .animate-chat-slide-in,
+    .animate-chat-fade-in,
+    .animate-coin-flip,
+    .animate-coin-flip-turn,
+    .animate-cursor-ping,
+    .animate-defeat-bisect,
+    .animate-defeat-dissolve,
+    .animate-defeat-flinch,
+    .animate-dice-pop,
+    .animate-dice-tumble-a,
+    .animate-dice-tumble-b,
+    .animate-dice-tumble-c,
+    .animate-disc-spin,
+    .animate-effect-flash,
+    .animate-effect-shake-hard,
+    .animate-effect-shake-soft,
+    .animate-float-change,
+    .animate-focused,
+    .animate-heal-glow,
+    .animate-heal-rise,
+    .animate-hit-flash,
+    .animate-hit-shake,
+    .animate-multi-angle-name-orbit,
+    .animate-multi-angle-piece-spin,
+    .animate-radial-orbit,
+    .animate-speech-pop,
+    .animate-target-bob,
+    .animate-target-ring,
+    .animate-title-scroll,
+    .bg-fade-in,
+    .blinking-animation,
+    .bounce-in,
+    .bouncing,
+    .chat-fade-in,
+    .chat-slide-in,
+    .dice-rolling,
+    .fade-in,
+    .fly-in,
+    .rotate-state,
+    .shuffling,
+    .vibration-amine
+  ) {
+  animation-duration: 1ms !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
 }
 
 @keyframes sheetUp {
@@ -1517,6 +1758,17 @@ input[type='range']::-moz-range-thumb {
   }
   100% {
     transform: translateZ(0) rotateY(1800deg) scale3d(1, 1, 1);
+  }
+}
+
+@keyframes speechPop {
+  from {
+    opacity: 0;
+    transform: translateY(0.4em) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
@@ -1750,6 +2002,103 @@ input[type='range']::-moz-range-thumb {
   }
 }
 
+/* A stamp put on a line, or arriving as one: each family moves in its own way, once. */
+@keyframes stampPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+  75% {
+    transform: scale(0.92) rotate(-4deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes stampShiver {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  25%,
+  45%,
+  65%,
+  85% {
+    transform: translateX(-3px);
+  }
+  35%,
+  55%,
+  75% {
+    transform: translateX(3px);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes stampSlam {
+  0% {
+    opacity: 0;
+    transform: translateY(-60%) scale(1.4);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(0) scale(0.9);
+  }
+  68% {
+    transform: scale(1.08, 0.92);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes stampBeat {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  45% {
+    transform: scale(0.95);
+  }
+  62% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes stampPress {
+  0% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.9);
+  }
+  78% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: none;
+  }
+}
+
 @keyframes chatFadeIn {
   from {
     opacity: 0;
@@ -1802,7 +2151,7 @@ input[type='range']::-moz-range-thumb {
   }
 }
 
-/* CSS の正方向は画面上で時計回り。下を 0deg として、名前をコマの周囲に公転させる。 */
+/* CSSの正方向は画面上で時計回り。下を0degとして、名前をコマの周囲に公転させる。 */
 @keyframes multiAngleNameOrbit {
   from {
     transform: rotateZ(0deg);
@@ -2071,6 +2420,443 @@ game-data-element .elm-markdown-view,
   overflow-x: auto;
 }
 
+/*
+ * A table's row headings stay where they are while the table is scrolled sideways, so it stays plain
+ * which row a cell is on. The headings are tinted over a solid ground, since the cells pass under
+ * them.
+ */
+.elm-view-table :is(thead tr > th:first-child, tbody th) {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  /* A collapsed border is not carried along with a sticky cell, so its edge is painted over too. */
+  box-shadow:
+    -4px 0 0 0 var(--ui-elevated),
+    4px 0 6px -4px rgb(0 0 0 / 0.45);
+}
+
+.elm-view-table tbody th {
+  background-color: var(--ui-elevated);
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--ui-accent-bg) 26%, transparent),
+    color-mix(in srgb, var(--ui-accent-bg) 26%, transparent)
+  );
+}
+
+/*
+ * The ± buttons a number has on a sheet, shown on a narrow sheet and on a touch screen, where a
+ * value is far quicker moved by a step than typed. A press is only a tap, so a quick run of them
+ * is never taken for a double tap that zooms the page.
+ */
+/*
+ * On a narrow sheet a row being edited keeps only its name and its value, with a "⋯" that opens
+ * its editor; the name and the "⋯" stay out of sight everywhere else.
+ */
+/*
+ * A row carried by its handle with a finger: the handle keeps the finger from scrolling the page,
+ * the row dims while it is carried, and a line marks where it would land.
+ */
+:is(game-data-element, [game-data-element]) .elm-drag-handle {
+  touch-action: none;
+}
+
+:is(game-data-element, [game-data-element]).elm-touch-dragging {
+  opacity: 0.5;
+}
+
+:is(game-data-element, [game-data-element]):is(.elm-touch-drop-before, .elm-touch-drop-after)::after {
+  content: '';
+  position: absolute;
+  z-index: 10;
+  right: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ui-accent);
+  pointer-events: none;
+}
+
+:is(game-data-element, [game-data-element]).elm-touch-drop-before::after {
+  top: -2px;
+}
+
+:is(game-data-element, [game-data-element]).elm-touch-drop-after::after {
+  bottom: -2px;
+}
+
+:is(game-data-element, [game-data-element]) :is(.elm-name-button, .elm-more, .elm-add) {
+  display: none;
+}
+
+:is(game-data-element, [game-data-element]) .elm-step {
+  display: none;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 38px;
+  padding: 0;
+  border-radius: 8px;
+  background: var(--ui-elevated);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-panel-border) 80%, transparent);
+  color: var(--ui-text);
+  touch-action: manipulation;
+}
+
+:is(game-data-element, [game-data-element]) .elm-step:active:not(:disabled) {
+  background: var(--ui-accent-bg);
+  color: var(--ui-accent);
+}
+
+:is(game-data-element, [game-data-element]) .elm-step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+:is(game-data-element, [game-data-element]) .elm-step .material-icons {
+  font-size: 20px;
+}
+
+/* A resource's ± go either side of what is left and what it can reach: − 12 / 20 +. */
+:is(game-data-element, [game-data-element]) .elm-resource-view .elm-step {
+  width: 36px;
+}
+
+@media (pointer: coarse) {
+  :is(game-data-element, [game-data-element]) .elm-step {
+    display: inline-flex;
+  }
+
+  :is(game-data-element, [game-data-element]) .elm-resource-view:has(> .elm-step) {
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  }
+}
+
+/*
+ * A character sheet narrower than 36rem, such as one on a phone, lays its rows out for a finger.
+ *
+ * A row is as tall as a fingertip, its label reads at 13px beside its value, and a value that can
+ * be written in is drawn as a box, since nothing hovers on a phone to show that it can. Groups
+ * stop stepping in from the left at every level, which cost a fifth of a phone's width four levels
+ * down; a group heading is a divider with its name instead, and a group inside a group is told
+ * apart by its heading alone.
+ *
+ * The sheet marks itself data-narrow below 36rem, and on a phone whichever way it is held. Its rows
+ * are styled by the unlayered rules above, which Tailwind's utilities cannot outweigh, so the
+ * narrow layout is written here beside them rather than in the templates.
+ */
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) {
+  --gde-row-min: 44px;
+  grid-template-columns: minmax(4.5rem, 32%) minmax(0, 1fr);
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]):has(> .elm-value-cell) {
+  border-bottom: 1px solid color-mix(in srgb, var(--gde-row-border) 40%, transparent);
+}
+
+[data-narrow]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  + :is(game-data-element, [game-data-element]) {
+  margin-top: 0;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-name-cell {
+  min-height: 44px;
+  padding: 4px 8px 4px 2px;
+  font-size: 13px;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-name-cell > div {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-value-cell {
+  min-height: 44px;
+  padding: 3px 0;
+  font-size: 16px;
+}
+
+[data-narrow]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-value-content
+  :is(input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']), select, textarea) {
+  min-height: 38px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ui-input-bg) 72%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-panel-border) 70%, transparent);
+  font-size: 16px;
+}
+
+[data-narrow]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-value-content
+  :is(input, textarea)[readonly] {
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-narrow]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-value-content
+  :is(input, select, textarea):focus {
+  background: var(--ui-input-bg);
+  box-shadow: 0 0 0 2px var(--ui-accent);
+}
+
+[data-narrow]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-value-content
+  input[type='checkbox'] {
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  accent-color: var(--ui-accent);
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-value-content textarea {
+  height: auto;
+  min-height: calc(3lh + 12px);
+  max-height: calc(14lh + 12px);
+  field-sizing: content;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-step {
+  display: inline-flex;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-resource-view:has(> .elm-step) {
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-resource-view {
+  gap: 4px;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-resource-view input {
+  padding-inline: 6px;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-resource-view .elm-step {
+  width: 34px;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-children {
+  padding-top: 0;
+  padding-left: 0;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-children::before {
+  display: none;
+}
+
+[data-narrow] [data-own-mobile-layout] .table-row > .elm-children {
+  border-width: 0;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-child-list > :last-child {
+  border-bottom: 0;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-child-list {
+  gap: 0;
+  padding-left: 0;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-group-heading {
+  margin: 10px 0 0;
+  padding: 8px 2px 4px;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--gde-row-border) 70%, transparent);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--ui-accent);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+[data-narrow]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-group-heading
+  :is(span, .material-icons) {
+  color: inherit;
+  font-size: inherit;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-group-heading[data-depth='2'] {
+  margin-top: 12px;
+  border-top: 0;
+  color: var(--ui-text);
+  font-size: 14px;
+}
+
+[data-narrow]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-child-list
+  > :first-child
+  > .elm-children
+  > .elm-group-heading {
+  margin-top: 0;
+  border-top: 0;
+}
+
+/*
+ * A character sheet being edited where its rows have no room, or no mouse, for the buttons beside
+ * them: a narrow sheet, or one on a touch screen at any width. The sheet marks itself data-compact
+ * then. A row keeps its handle, its name, its value and a "⋯" that opens its editor,
+ * a heading keeps its name and a "⋯", and each group ends with a button to add a field.
+ */
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]).elm-editing {
+  grid-template-columns: 2.75rem minmax(5rem, 32%) minmax(0, 1fr);
+}
+
+[data-compact]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  :is(.elm-name-cell .elm-name-input, .elm-row-actions) {
+  display: none;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-name-button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  color: var(--ui-text);
+  font-size: 14px;
+  text-align: left;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-name-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-more {
+  display: inline-flex;
+  grid-row: 1;
+  grid-column: 2;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 9999px;
+  color: var(--ui-text-muted);
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-more .material-icons {
+  font-size: 22px;
+}
+
+[data-compact]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-group-heading
+  :is(.elm-icon-picker, .elm-name-input, .elm-heading-actions) {
+  display: none;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-group-heading[data-depth='0'] {
+  display: none;
+}
+
+[data-compact]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-group-heading
+  .elm-name-button {
+  gap: 6px;
+  padding-left: 0;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+[data-compact]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-group-heading
+  .elm-name-button
+  .material-icons {
+  font-size: 18px;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-group-heading .elm-more {
+  flex: none;
+  margin: -6px -4px -6px 0;
+  color: var(--ui-text-muted);
+}
+
+[data-compact]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-group-heading
+  .elm-more
+  .material-icons {
+  font-size: 22px;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-drag-handle {
+  width: 40px;
+  height: 40px;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-drag-handle .material-icons {
+  font-size: 20px;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 44px;
+  margin: 6px 0 4px;
+  border: 1px dashed color-mix(in srgb, var(--ui-accent) 55%, transparent);
+  border-radius: 10px;
+  background: var(--ui-accent-bg);
+  color: var(--ui-accent);
+  font-size: 14px;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-add--secondary {
+  border-color: color-mix(in srgb, var(--ui-panel-border) 90%, transparent);
+  background: transparent;
+  color: var(--ui-text-muted);
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-add .material-icons {
+  font-size: 20px;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-value-content.gde-editing {
+  max-height: none;
+  overflow: visible;
+}
+
 /* Taking their leave: held for a beat so the parting line can be read, then gone. */
 @keyframes vnLeave {
   from {
@@ -2201,8 +2987,8 @@ game-data-element .elm-markdown-view,
   }
 }
 
-/* visual-novel の吹き出し形状。疑似要素やclip-pathを伴うためグローバル定義。
-   .vn-bubble-base の背景色 (rgba(255,255,255,0.92)) と合わせている。 */
+/* visual-novelの吹き出しの形。疑似要素やclip-pathを使うので、グローバルに定義する。
+   .vn-bubble-baseの背景色（rgba(255,255,255,0.92)）と合わせている。 */
 .vn-bubble-normal::after {
   content: '';
   position: absolute;
@@ -2337,8 +3123,8 @@ game-data-element .elm-markdown-view,
   background: rgba(255, 255, 255, 0.78);
 }
 
-/* visual-novel 吹き出し・立ち絵のゲーム演出。複数 animation を合成するため
-   Tailwind の animate-* ではなくグローバルクラスで定義する。 */
+/* visual-novelの吹き出し・立ち絵のゲーム演出。複数のanimationを合成するため、
+   Tailwindのanimate-*ではなくグローバルクラスで定義する。 */
 .vn-enter-normal {
   animation: vnBubbleIn 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -2556,7 +3342,7 @@ game-data-element .elm-markdown-view,
   16% {
     opacity: 1;
   }
-  /* 斬り抜けた瞬間に消え、ずれた 2 枚へ入れ替わる。 */
+  /* 斬り抜けた瞬間に消え、ずれた2枚へ入れ替わる。 */
   22%,
   100% {
     opacity: 0;
@@ -2588,9 +3374,9 @@ game-data-element .elm-markdown-view,
 /*
  * 衝撃で画面を揺らす。減衰させないと、揺れが止まったのか分からない。
  *
- * 揺れ幅は変数にせず、強さごとに別の keyframes として持つ。
- * カスタムプロパティは継承するので、盤面に掛けると配下すべての style が
- * 無効になり、6000px 四方のレイヤーが作り直されて未描画のまま数フレーム暗く出る。
+ * 揺れ幅は変数にせず、強さごとに別のkeyframesとして持つ。
+ * カスタムプロパティは継承するので、盤面に掛けると配下すべてのstyleが
+ * 無効になり、6000px四方のレイヤーが作り直されて未描画のまま数フレーム暗く出る。
  */
 @keyframes effectShakeSoft {
   0% {
@@ -2814,30 +3600,52 @@ game-data-element .elm-markdown-view,
 
 /**************** mobile layout ****************/
 
+/*
+ * A part of a panel marked data-own-mobile-layout sizes its own controls for a phone, by its own
+ * width, so the blanket sizes below leave it alone. Text is still never drawn under 16px, which is
+ * what keeps iOS from zooming onto a box as it is typed in.
+ */
 body.mobile-layout
   :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar)
   input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
 body.mobile-layout :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar) select,
 body.mobile-layout :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar) textarea {
-  min-height: 40px;
   font-size: 16px;
 }
 
 body.mobile-layout
   :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar)
-  button:not(.material-icons) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not(
+    [data-own-mobile-layout] *
+  ),
+body.mobile-layout
+  :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar)
+  select:not([data-own-mobile-layout] *),
+body.mobile-layout
+  :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar)
+  textarea:not([data-own-mobile-layout] *) {
+  min-height: 40px;
+}
+
+body.mobile-layout
+  :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar)
+  button:not(.material-icons):not([data-own-mobile-layout] *) {
   min-height: 36px;
 }
 
 body.mobile-layout
   :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar)
-  input[type='checkbox'],
-body.mobile-layout :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar) input[type='radio'] {
+  input[type='checkbox']:not([data-own-mobile-layout] *),
+body.mobile-layout
+  :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar)
+  input[type='radio']:not([data-own-mobile-layout] *) {
   width: 20px;
   height: 20px;
 }
 
-body.mobile-layout :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar) table {
+body.mobile-layout
+  :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar)
+  table:not([data-own-mobile-layout] *) {
   display: block;
   max-width: 100%;
   overflow-x: auto;
@@ -2949,13 +3757,8 @@ body.touch-input .group-hover\:opacity-100 {
   opacity: 1;
 }
 
-body.mobile-layout ui-panel .grid-cols-\[180px_1fr\],
-body.mobile-layout ui-panel .grid-cols-2 {
+body.mobile-layout ui-panel .grid-cols-2:not([data-own-mobile-layout] *) {
   grid-template-columns: minmax(0, 1fr);
-}
-
-body.mobile-layout ui-panel .grid-cols-\[180px_1fr\] > .w-45 {
-  width: 100%;
 }
 
 body.mobile-layout ui-panel card-stack-card-list li {
@@ -2966,15 +3769,11 @@ body.mobile-layout ui-panel card-stack-card-list li > div:nth-child(3) {
   flex-basis: 100%;
 }
 
-body.mobile-layout ui-panel .grid-cols-3,
-body.mobile-layout ui-panel .grid-cols-4 {
+body.mobile-layout ui-panel :is(.grid-cols-3, .grid-cols-4):not([data-own-mobile-layout] *) {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-body.mobile-layout ui-panel .min-w-50,
-body.mobile-layout ui-panel .min-w-55,
-body.mobile-layout ui-panel .min-w-40,
-body.mobile-layout ui-panel .min-w-36 {
+body.mobile-layout ui-panel :is(.min-w-50, .min-w-55, .min-w-40, .min-w-36):not([data-own-mobile-layout] *) {
   min-width: 0;
 }
 
@@ -2997,6 +3796,11 @@ body.touch-input button {
   pointer-events: none !important;
 }
 
+/* A resource's slider is there to be moved with a finger, so it alone takes the touch. */
+.tooltip-passthrough input[type='range']:not(:disabled) {
+  pointer-events: auto !important;
+}
+
 body.touch-input :is(ui-panel, app-mobile-shell, visual-novel-overlay) button:active:not(:disabled) {
   transform: scale(0.97);
 }
@@ -3011,8 +3815,69 @@ body.mobile-layout visual-novel-overlay button:not(.material-icons) {
   min-height: 40px;
 }
 
-body.touch-input :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar) {
+body.touch-input :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar, visual-novel-overlay) {
   -webkit-touch-callout: none;
+}
+
+/*
+ * A press held on a line of chat opens what can be done with it, copying its words among them.
+ * Left selectable, the same press would also start picking the words out under the menu. The box
+ * a line is edited in stays selectable.
+ */
+body.touch-input chat-message .msg-text {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body.touch-input chat-message .msg-text textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/*
+ * A small button that stays on a phone is given a larger place to be pressed than it is drawn.
+ * The button keeps its drawn size, so a row of them keeps its room. Beside another such button it
+ * reaches sideways only half the narrowest gap written between them, 2px, so neither takes a
+ * press on the edge of the other.
+ */
+body.touch-input .touch-target {
+  position: relative;
+}
+
+body.touch-input .touch-target::after {
+  content: '';
+  position: absolute;
+  inset: -8px -4px;
+}
+
+body.touch-input .touch-target:has(+ .touch-target)::after {
+  right: -1px;
+}
+
+body.touch-input .touch-target + .touch-target::after {
+  left: -1px;
+}
+
+/*
+ * The table takes long presses and drags on whatever lies under the finger. iOS answers a long
+ * press on a picture with the menu that saves it, in place of moving the piece; a mouse never
+ * brings that menu up, so it is kept off everywhere, whether or not the screen has been told
+ * apart as a touch screen yet.
+ */
+game-table {
+  -webkit-touch-callout: none;
+}
+
+/*
+ * iPadOS lifts a picture under a finger out of the page to be dropped somewhere else. A mouse
+ * dragging a picture the table has not taken the drag for may still carry it out to be saved,
+ * so this holds only where the primary pointer is coarse, which is how an iPad reports itself
+ * with or without a trackpad, and is read by the browser before any script has run.
+ */
+@media (pointer: coarse) {
+  game-table img {
+    -webkit-user-drag: none;
+  }
 }
 
 body.mobile-layout app-mobile-chat-pane .chat-input,
@@ -3022,7 +3887,7 @@ body.mobile-layout ui-panel textarea {
   user-select: text;
 }
 
-/* 戦場の霧が空中を漂う。層ごとに duration と負の delay をずらして位相を散らす。 */
+/* 戦場の霧が空中を漂う。層ごとにdurationと負のdelayをずらして位相を散らす。 */
 @keyframes fogDrift {
   from {
     transform: translate3d(-2.5%, -1.5%, 0);
@@ -3041,7 +3906,7 @@ body.mobile-layout ui-panel textarea {
   }
 }
 
-/* 縦だけ translate プロパティを使う。同じ要素で横の transform と併走させるため。 */
+/* 縦だけtranslateプロパティを使う。同じ要素で横のtransformと同時に動かすため。 */
 @keyframes bgLayerScrollY {
   from {
     translate: 0 0;

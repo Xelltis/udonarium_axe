@@ -27,20 +27,35 @@ export class FogMemory extends ObjectNode {
    */
   @SyncVar() generation: number = 0;
 
+  /**
+   * The grid the stored record was written for. Its cell size is left at 0, since only how the
+   * cells are numbered matters here.
+   */
   get grid(): CellGrid {
     return { cols: this.cols, rows: this.rows, type: this.gridType, sizePx: 0 };
   }
 
+  /** Whether the stored record was written for a grid numbered the same way as this one. */
   matches(grid: CellGrid): boolean {
     return sameCellGrid(this.grid, grid);
   }
 
+  /**
+   * The cells the party has explored, read for this grid.
+   *
+   * A record written for a different grid cannot be read cell for cell, so it reads as nothing
+   * explored.
+   */
   read(grid: CellGrid): CellBits {
     const count = cellCount(grid);
     if (!this.matches(grid)) return new CellBits(count);
     return decodeCellBits(this.bits, count);
   }
 
+  /**
+   * Stores the explored cells together with the grid they belong to. The change syncs to every
+   * peer.
+   */
   write(grid: CellGrid, bits: CellBits): void {
     this.cols = grid.cols;
     this.rows = grid.rows;
@@ -48,14 +63,22 @@ export class FogMemory extends ObjectNode {
     this.bits = encodeCellBits(bits);
   }
 
+  /** The identifiers of the pieces the party has found. */
   readFound(): Set<string> {
     return new Set(this.found.length > 0 ? this.found.split(' ') : []);
   }
 
+  /**
+   * Stores the pieces the party has found, sorted so that the same set always writes the same text.
+   */
   writeFound(found: ReadonlySet<string>): void {
     this.found = [...found].sort().join(' ');
   }
 
+  /**
+   * Forgets every explored cell and found piece, and bumps the generation so that clients drop the
+   * totals they were keeping for the old record.
+   */
   reset(): void {
     this.bits = '';
     this.found = '';
@@ -63,6 +86,7 @@ export class FogMemory extends ObjectNode {
   }
 }
 
+/** The fog record hanging on a table, or null when none has been made yet. */
 export function fogMemoryOn(table: GameTable): FogMemory | null {
   return table.children.find((child): child is FogMemory => child instanceof FogMemory) ?? null;
 }
@@ -79,6 +103,12 @@ export function fogMemoryIdentifierOf(table: GameTable): string {
   return `fog-memory_${table.identifier}`;
 }
 
+/**
+ * The fog record hanging on a table, made and attached under the table's own name when there is
+ * none.
+ *
+ * The new record is a synced child of the table, so making it reaches every peer.
+ */
 export function ensureFogMemoryOn(table: GameTable): FogMemory {
   const held = fogMemoryOn(table);
   if (held) return held;

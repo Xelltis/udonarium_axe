@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PartyService } from '@axe/application/party/party.service';
+import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Party } from '@axe/domain/party/party';
@@ -102,5 +103,14 @@ describe('PartyListPanelComponent', () => {
     panel().recolorParty(party, '#fcd34d');
 
     expect(party.color).toBe('#fcd34d');
+  });
+
+  it('looks for a member where it stands, through the table focus', () => {
+    const character = makeCharacter('斥候', 'me');
+    const focusOn = vi.spyOn(TestBed.inject(TableFocusService), 'focusOn').mockImplementation(() => undefined);
+
+    (component as unknown as { focusToKoma: (c: GameCharacter) => void }).focusToKoma(character);
+
+    expect(focusOn).toHaveBeenCalledWith(character);
   });
 });

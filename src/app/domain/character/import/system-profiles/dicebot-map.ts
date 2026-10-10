@@ -43,10 +43,18 @@ const APPSPOT_DICEBOT: Record<string, string> = {
   starrydolls: 'StarryDolls',
 };
 
+/**
+ * The dice bot id for an archive system token, ignoring case and surrounding spaces. Empty for a
+ * token with no known dice bot.
+ */
 export function resolveCharasheetDicebot(game: string): string {
   return CHARASHEET_DICEBOT[game.trim().toLowerCase()] ?? '';
 }
 
+/**
+ * The dice bot id for a warehouse system slug, ignoring case and surrounding spaces. Empty for a
+ * slug with no known dice bot.
+ */
 export function resolveAppspotDicebot(system: string): string {
   return APPSPOT_DICEBOT[system.trim().toLowerCase()] ?? '';
 }

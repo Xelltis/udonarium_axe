@@ -1,0 +1,18 @@
+@let label = name() ?? ('ui.portraitPicker.unnamed' | transloco: { index: selectedIndex() + 1 });
+<input
+  type="range"
+  class="portrait-slider m-0 h-4 w-24 shrink-0 cursor-pointer appearance-none bg-transparent p-0 [-webkit-appearance:none]"
+  min="0"
+  [max]="last()"
+  step="1"
+  [value]="selectedIndex()"
+  [style.--seek-progress]="progress()"
+  [attr.aria-label]="'ui.portraitPicker.title' | transloco"
+  [attr.aria-valuetext]="label"
+  (input)="slid($event)"
+  (wheel)="wheel($event)"
+/>
+<span class="text-ui-muted shrink-0 text-[10px] leading-none tabular-nums"
+  >{{ selectedIndex() + 1 }}/{{ choices().length }}</span
+>
+<span class="text-ui-text min-w-0 truncate text-[11px] leading-none" [title]="label">{{ label }}</span>

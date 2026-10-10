@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -26,11 +27,16 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { downloadBlob } from '@axe/core/util/download-blob';
+import { PERF_MAP_EDITOR_DRAW, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { collectDataElements } from '@axe/domain/data/data-element-tree';
+import { resourceNamesOf } from '@axe/domain/character/resource-catalog';
+import { isBuiltinMaterial } from '@axe/domain/media/builtin-materials';
+import { CutIn } from '@axe/domain/media/cut-in';
 import { ImageTag } from '@axe/domain/media/image-tag';
 import {
   isTextureId,
@@ -44,15 +50,27 @@ import {
 } from '@axe/domain/media/texture-catalog';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
+  encodeSwitchDefinition,
+  parseSwitchDefinition,
+  SwitchDefinition,
+} from '@axe/domain/tabletop/board-switch/switch-definition';
+import {
+  HazardPaintSpec,
   MAP_FUNCTION_ROLES,
   MaskPaintSpec,
+  MoveCostPaintSpec,
   TERRAIN_FACE_KEYS,
   TerrainFaceImages,
   TerrainPaintSpec,
   TriggerPaintSpec,
 } from '@axe/domain/tabletop/function-paint';
-import { GridType } from '@axe/domain/tabletop/game-table';
+import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { HAZARD_KINDS } from '@axe/domain/tabletop/hazard-presets';
+import { asShownTo, SHOWN_TO, ShownTo } from '@axe/domain/tabletop/shown-to';
+import { DEFAULT_MOVE_COST_ROAD_COLOR, MOST_MOVE_COST_EXTRA } from '@axe/domain/tabletop/table-move-cost';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { asTriggerRepeat, TRIGGER_REPEATS, TriggerRepeat } from '@axe/domain/tabletop/trigger-event';
 import { TRIGGER_MOMENTS, TRIGGER_TARGETS } from '@axe/domain/tabletop/trigger-event';
 import { imageStampIdentifier, isImageStampId } from '@axe/features/map-editor/assets/image-stamp';
 import { StampDef } from '@axe/features/map-editor/assets/stamp-types';
@@ -93,7 +111,7 @@ import { guessLineWidth, useTextMeasurer } from '@axe/features/map-editor/model/
 import { removeText, updateText } from '@axe/features/map-editor/model/scene-ops';
 import { deserializeScene } from '@axe/features/map-editor/model/serialize';
 import { generateShapePoints, regularPolygonPoints, starPoints } from '@axe/features/map-editor/model/shape-points';
-import { planFunctionPaint, sceneCarriesFunctions } from '@axe/features/map-editor/model/table-apply';
+import { planFunctionPaint, sceneSpeaksFor } from '@axe/features/map-editor/model/table-apply';
 import { sceneFromTable } from '@axe/features/map-editor/model/table-import';
 import { imageTextureIdentifier, isImageTextureId, normalizeTextureId } from '@axe/features/map-editor/model/textures';
 import { exportSceneToBlob } from '@axe/features/map-editor/render/export-image';
@@ -107,9 +125,14 @@ import {
 import { RenderHelpers, renderScene } from '@axe/features/map-editor/render/render-scene';
 import { getStampImage, loadStampImage } from '@axe/features/map-editor/render/stamp-image';
 import { createImageTexturePattern } from '@axe/features/map-editor/render/texture-pattern';
+import { SwitchDefinitionFieldsComponent } from '@axe/features/tabletop/board-switch/switch-definition-fields.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/**
+ * The SVG polygon points for the icon of a generated shape, drawn in a 24 by 24 box; empty for
+ * shapes that are not polygons or stars.
+ */
 export function buildShapeKindPoints(kind: ShapeGeneratorKind): string {
   const cx = 12;
   const cy = 12;
@@ -127,6 +150,14 @@ export function buildShapeKindPoints(kind: ShapeGeneratorKind): string {
   }
   return pairs.join(' ');
 }
+
+/**
+ * What the one movement picker holds for a road.
+ *
+ * The picker runs from ground nobody may enter, through nought and up to nine steps over; a
+ * road is easier than plain ground, so it sits at the other end, below the lot.
+ */
+const MOVE_COST_ROAD = -1;
 
 const ERASER_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
@@ -175,6 +206,7 @@ interface ToolDef {
     MapEditorLayerDrawerComponent,
     MapEditorStampPickerComponent,
     MapEditorTexturePickerComponent,
+    SwitchDefinitionFieldsComponent,
   ],
 })
 export class MapEditorPanelComponent implements AfterViewInit {
@@ -192,6 +224,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tabletopService = inject(TabletopService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly tableSelecter = inject(TableSelecter);
   private readonly objectStore = inject(ObjectStore);
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly modalService = inject(ModalService);
@@ -216,9 +249,81 @@ export class MapEditorPanelComponent implements AfterViewInit {
     this.state.setFunctionSpec({ ...spec, terrain: { ...spec.terrain, ...patch } });
   }
 
+  protected readonly triggerRepeats = TRIGGER_REPEATS;
+
+  /** How often the brush's ground has a go, reading a brush that only ever said whether it had one. */
+  protected triggerRepeat(): TriggerRepeat {
+    const spec = this.state.functionSpec().trigger;
+    if (spec.repeat.length > 0) return asTriggerRepeat(spec.repeat);
+    return spec.once ? 'once' : 'always';
+  }
+
+  /**
+   * Writes the newer answer and the older one together.
+   *
+   * A peer that has never heard of the finer answer reads the plain yes or no beside it, so a
+   * stretch with one go in it is still spent for them.
+   */
+  protected setTriggerRepeat(repeat: TriggerRepeat): void {
+    this.setTriggerPaint({ repeat, once: repeat === 'once' });
+  }
+
+  protected readonly hazardKinds = HAZARD_KINDS;
+
+  protected setHazardPaint(patch: Partial<HazardPaintSpec>): void {
+    const spec = this.state.functionSpec();
+    this.state.setFunctionSpec({ ...spec, hazard: { ...spec.hazard, ...patch } });
+  }
+
+  protected setMoveCostPaint(patch: Partial<MoveCostPaintSpec>): void {
+    const spec = this.state.functionSpec();
+    this.state.setFunctionSpec({ ...spec, moveCost: { ...spec.moveCost, ...patch } });
+  }
+
+  /** The steps a brush may charge, which the reader picks between along with shutting the cell. */
+  protected readonly moveCostSteps = Array.from({ length: MOST_MOVE_COST_EXTRA }, (_, step) => step + 1);
+
+  /** What the picker holds for a road, which is the one value below the one that shuts a cell. */
+  protected readonly roadCharge = MOVE_COST_ROAD;
+
+  /**
+   * What the brush costs as one number: nought is ground nobody may enter, and below nought is
+   * a road, which is the one painting that makes the going easier rather than harder.
+   */
+  protected moveCostCharge(): number {
+    const spec = this.state.functionSpec().moveCost;
+    if (spec.blocks) return 0;
+    return spec.halves ? MOVE_COST_ROAD : spec.extraCost;
+  }
+
+  protected setMoveCostCharge(charge: number): void {
+    if (charge === 0) {
+      this.setMoveCostPaint({ blocks: true, halves: false });
+      return;
+    }
+    if (charge < 0) {
+      this.setMoveCostPaint({ blocks: false, halves: true, color: DEFAULT_MOVE_COST_ROAD_COLOR });
+      return;
+    }
+    this.setMoveCostPaint({ blocks: false, halves: false, extraCost: charge });
+  }
+
   protected setMaskPaint(patch: Partial<MaskPaintSpec>): void {
     const spec = this.state.functionSpec();
     this.state.setFunctionSpec({ ...spec, mask: { ...spec.mask, ...patch } });
+  }
+
+  protected readonly shownTo = SHOWN_TO;
+
+  /** Who the brush shows its ground to, reading a brush painted before there was a middle answer. */
+  protected triggerShownTo(): ShownTo {
+    const spec = this.state.functionSpec().trigger;
+    return asShownTo(spec.shownTo, spec.open ? 'room' : 'master');
+  }
+
+  /** Written to both answers, so that a peer that knows only the older one still reads it right. */
+  protected setTriggerShownTo(shown: ShownTo): void {
+    this.setTriggerPaint({ shownTo: shown, open: shown === 'room' });
   }
 
   protected setTriggerPaint(patch: Partial<TriggerPaintSpec>): void {
@@ -228,6 +333,17 @@ export class MapEditorPanelComponent implements AfterViewInit {
 
   protected readonly triggerMoments = TRIGGER_MOMENTS;
   protected readonly triggerTargets = TRIGGER_TARGETS;
+
+  /** What pressing the brush's ground does, where it paints ground that is pressed. */
+  protected readonly pressDefinition = computed<SwitchDefinition>(() =>
+    parseSwitchDefinition(this.state.functionSpec().trigger.press)
+  );
+
+  /** Writes a change to what pressing the brush's ground does onto what the brush says now. */
+  protected setPressDefinition(change: Partial<SwitchDefinition>): void {
+    const held = parseSwitchDefinition(this.state.functionSpec().trigger.press);
+    this.setTriggerPaint({ press: encodeSwitchDefinition({ ...held, ...change }) });
+  }
 
   /** The effects the room has to play, offered by name the way chat and the sheets name one. */
   protected readonly effectNames = computed<string[]>(() =>
@@ -244,15 +360,48 @@ export class MapEditorPanelComponent implements AfterViewInit {
    * A trap takes from a resource by name, and a name nobody carries takes nothing at all. The
    * names on the table are the ones worth offering, so the field says what there is to hit.
    */
+  private readonly statusAilments = inject(StatusAilmentService);
+  private readonly audioStorage = inject(AudioStorage);
+
   protected readonly resourceNames = computed<string[]>(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
-    const names = new Set<string>();
-    for (const character of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
-      for (const element of collectDataElements(character.detailDataElement)) {
-        if (element.isNumberResource && element.name.trim().length > 0) names.add(element.name.trim());
-      }
-    }
-    return [...names].sort();
+    return resourceNamesOf(this.objectStore.getObjects<GameCharacter>(GameCharacter));
+  });
+
+  /**
+   * The states the room keeps, offered to the brush that leaves a piece in one.
+   *
+   * A name the room has never heard of still works, so this is a list of what there is rather
+   * than a list of what is allowed.
+   */
+  protected readonly ailmentNames = computed<string[]>(() => this.statusAilments.ailments().map((held) => held.name));
+
+  /**
+   * The sounds and cut-ins the room has, offered by name to the ground that plays one.
+   *
+   * Only a name that matches one and no other is any use, so a name two things answer to is
+   * left off: the ground would have no way of telling which was meant.
+   */
+  protected readonly soundNames = computed<string[]>(() => {
+    this.objectChange.fileVersion();
+    return onlyOnce(this.audioStorage.audios.map((held) => held.name.trim()));
+  });
+
+  protected readonly cutInNames = computed<string[]>(() => {
+    this.objectChange.collectionOf(CutIn.aliasName)();
+    return onlyOnce(this.objectStore.getObjects<CutIn>(CutIn).map((held) => held.name.trim()));
+  });
+
+  /**
+   * The other tables of the room, offered to the pitfall that opens onto one.
+   *
+   * The table being edited is left off the list: ground that carried the room to the table it
+   * is already looking at would be a hole into the room it is already in.
+   */
+  protected readonly otherTables = computed<GameTable[]>(() => {
+    this.objectChange.collectionOf(GameTable.aliasName)();
+    const here = this.tableSelecter.viewTableIdentifier;
+    return this.objectStore.getObjects<GameTable>(GameTable).filter((table) => table.identifier !== here);
   });
 
   protected readonly terrainFaces = TERRAIN_FACE_KEYS;
@@ -303,7 +452,11 @@ export class MapEditorPanelComponent implements AfterViewInit {
   protected readonly faceTextures = computed<ImageFile[]>(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf('image-tag')();
-    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden);
+    // What the tool is built with is shown by its own swatches here, and it is in the library
+    // as well, so it is left out of this list rather than offered twice over.
+    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden).filter(
+      (file) => !isBuiltinMaterial(file.identifier)
+    );
   });
 
   protected chooseFaceImageTexture(face: keyof TerrainFaceImages, file: ImageFile): void {
@@ -403,7 +556,15 @@ export class MapEditorPanelComponent implements AfterViewInit {
   /** The gesture under way, holding values only between press and release. */
   private readonly gesture = new MapEditorGesture();
 
-  protected readonly cursorCell = signal<{ col: number; row: number } | null>(null);
+  /**
+   * The cell the pointer is over, which the view draws a marker on.
+   *
+   * A pointer crossing one cell reports the same cell many times over, and each of those was a
+   * fresh answer that set the whole view to work again.
+   */
+  protected readonly cursorCell = signal<{ col: number; row: number } | null>(null, {
+    equal: (a, b) => a === b || (a !== null && b !== null && a.col === b.col && a.row === b.row),
+  });
   protected readonly spacePan = signal(false);
   protected readonly panning = signal(false);
   protected readonly draftCount = signal(0);
@@ -635,6 +796,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
     if (canvas.height !== h) canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    perfCounters.bump(PERF_MAP_EDITOR_DRAW);
     const helpers = this.buildHelpers(ctx);
     renderScene(ctx, scene, helpers, { hideTextId: this.editingText()?.itemId ?? undefined, drawFunctionLayers: true });
     this.drawOverlay(ctx);
@@ -1545,12 +1707,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
   protected async save(): Promise<void> {
     const archive = await packSceneWithImages(this.state.current, this.imageStorage);
     const blob = new Blob([archive.slice()], { type: 'application/zip' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = 'map.zip';
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, 'map.zip');
   }
 
   protected triggerLoad(): void {
@@ -1665,7 +1822,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
       // Only where the scene has something to say about the cells. A scene drawn from scratch
       // says nothing, and a plan built from nothing is a plan to take away every wall, mask and
       // no-entry cell the table already had.
-      if (sceneCarriesFunctions(scene)) this.applyFunctions();
+      if (sceneSpeaksFor(scene)) this.applyFunctions();
       this.notice.show(this.t('feature.mapEditor.actions.setTableDone'));
     } catch {
       this.errorNotice.show(this.t('feature.mapEditor.actions.exportError'));
@@ -1677,4 +1834,11 @@ export class MapEditorPanelComponent implements AfterViewInit {
   protected zoomPercent(): number {
     return Math.round(this.state.zoom() * 100);
   }
+}
+
+/** The names that answer for one thing only, since a name two things share names neither. */
+function onlyOnce(names: readonly string[]): string[] {
+  const seen = new Map<string, number>();
+  for (const name of names) seen.set(name, (seen.get(name) ?? 0) + 1);
+  return [...seen.entries()].filter(([name, count]) => name.length > 0 && count === 1).map(([name]) => name);
 }

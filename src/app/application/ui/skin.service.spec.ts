@@ -9,6 +9,8 @@ import { chatBubbleBaseTone, resetChatBubbleBaseTone } from '@axe/domain/ui/chat
 import { CUSTOM_SKIN, STANDARD_SKIN } from '@axe/domain/ui/skin';
 import { readSkinFile, SKIN_FILE_NAME } from '@axe/domain/ui/skin-file';
 import { MAX_LAYERS, SkinLayer } from '@axe/domain/ui/skin-layer';
+import { DEFAULT_MAT_COLOR } from '@axe/domain/ui/skin-mat';
+import { stubUnloadableImages } from '@axe/testing/unloadable-image';
 
 /** The first bytes of a PNG, so what the guard sniffs is what a picture actually starts with. */
 const PNG_HEAD = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -25,6 +27,8 @@ const KEYS = [
   'ui-skin-recipe-dark',
   'ui-skin-layers-light',
   'ui-skin-layers-dark',
+  'ui-skin-mat-light',
+  'ui-skin-mat-dark',
 ];
 
 function painted(name: string): string {
@@ -54,10 +58,12 @@ describe('SkinService', () => {
     document.documentElement.removeAttribute('style');
     AttachedDocuments.reset(document);
     resetChatBubbleBaseTone();
+    stubUnloadableImages();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     TestBed.resetTestingModule();
     document.documentElement.removeAttribute('style');
     resetChatBubbleBaseTone();
@@ -391,6 +397,106 @@ describe('SkinService', () => {
     await vi.waitFor(() => expect(skins.panelLayers().length).toBe(1));
 
     expect(skins.stack().length).toBe(1);
+  });
+
+  describe('the mat the dice land on', () => {
+    it('lays the plain felt until a mat is chosen', () => {
+      const { skins } = setup();
+
+      expect(skins.diceMat()).toEqual({ color: DEFAULT_MAT_COLOR, picture: null });
+    });
+
+    it('dyes each ladder’s mat on its own and remembers it for the next visit', () => {
+      setup().skins.setMatColor('#1F4D3A', 'dark');
+      TestBed.resetTestingModule();
+
+      const { skins } = setup();
+
+      skins.editLadder('dark');
+      expect(skins.mat().color).toBe('#1f4d3a');
+      skins.editLadder('light');
+      expect(skins.mat().color).toBe(DEFAULT_MAT_COLOR);
+    });
+
+    it('lays a picture over the mat and hands it out as a style', async () => {
+      vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
+      vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mat');
+      const { skins } = setup();
+
+      expect(await skins.setMatPicture(picture(), 'mat.png')).toBe(true);
+
+      expect(skins.diceMat().picture?.backgroundImage).toBe('url("blob:mat")');
+      expect(skins.mat().layer?.name).toBe('mat.png');
+    });
+
+    it('keeps the mat’s picture when the pictures nothing wears are swept on start', async () => {
+      vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
+      vi.spyOn(SkinImageStore.instance, 'get').mockResolvedValue(picture());
+      vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mat');
+      await setup().skins.setMatPicture(picture(), 'mat.png');
+      const id = JSON.parse(localStorage.getItem('ui-skin-mat-light')!).layer.id;
+      TestBed.resetTestingModule();
+      const forget = vi.spyOn(SkinImageStore.instance, 'forget').mockResolvedValue();
+
+      setup();
+
+      await vi.waitFor(() => expect(forget).toHaveBeenCalled());
+      expect(forget.mock.calls[0][0].has(id)).toBe(true);
+    });
+
+    it('is put back with the rest of what the seat was wearing', async () => {
+      const { skins } = setup();
+      const worn = skins.snapshot();
+
+      skins.setMatColor('#5c1f1f');
+      skins.restore(worn);
+
+      expect(skins.mat().color).toBe(DEFAULT_MAT_COLOR);
+    });
+
+    it('is carried in a skin written out, and worn from one read in', async () => {
+      vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
+      vi.spyOn(SkinImageStore.instance, 'get').mockResolvedValue(picture());
+      const saved: Blob[] = [];
+      vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => {
+        saved.push(blob as Blob);
+        return 'blob:skin';
+      });
+      vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+      const { skins } = setup();
+      skins.setMatColor('#1f4d3a');
+      await skins.setMatPicture(picture(), 'mat.png');
+      skins.tuneMat({ fit: 'tile' });
+
+      await skins.exportSkin('卓');
+      const zipped = saved[saved.length - 1];
+      skins.setMatColor('#5c1f1f');
+      skins.removeMatPicture();
+
+      expect(await skins.importSkin(zipped)).toBe(true);
+      expect(skins.mat().color).toBe('#1f4d3a');
+      expect(skins.mat().layer).toMatchObject({ name: 'mat.png', fit: 'tile' });
+      expect(skins.diceMat().picture?.backgroundImage).toBe('url("blob:skin")');
+    });
+
+    it('is laid plain by a skin read in from before mats were offered', async () => {
+      const { createZipBlob } = await import('@axe/core/storage/zip-archive');
+      const { skins } = setup();
+      skins.setMatColor('#5c1f1f');
+      const text = JSON.stringify({
+        kind: 'udonarium-axe-skin',
+        version: 1,
+        name: 'old',
+        mode: 'light',
+        recipe: { hue: 111, chroma: 15, accentHue: 20, accentChroma: 40 },
+        layers: [],
+      });
+      const zipped = await createZipBlob([new File([text], SKIN_FILE_NAME, { type: 'application/json' })]);
+
+      expect(await skins.importSkin(zipped)).toBe(true);
+      expect(skins.mat().color).toBe(DEFAULT_MAT_COLOR);
+      expect(skins.mat().layer).toBeNull();
+    });
   });
 
   it('leaves the seat alone when the zip is not a skin', async () => {

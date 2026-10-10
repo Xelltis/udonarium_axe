@@ -3,6 +3,10 @@ import { FieldPlan } from '@axe/domain/tabletop/field/field-generator';
 import { buildFieldSummary } from '@axe/domain/tabletop/field/field-summary';
 import { TranslateFn } from '@axe/features/tabletop/dungeon-generator/dungeon-notes';
 
+/**
+ * The text summary handed over with a generated field map, built from its plan and seed with labels
+ * in the reader's language.
+ */
 export function describeField(plan: FieldPlan, name: string, seed: number, t: TranslateFn): string {
   return buildFieldSummary({
     ...plan,
@@ -14,7 +18,7 @@ export function describeField(plan: FieldPlan, name: string, seed: number, t: Tr
       standing: t('feature.tabletop.dungeonGenerator.summary.standing'),
       fires: t('feature.tabletop.dungeonGenerator.summary.fires'),
       textureName: (texture: string) => t(`common.textures.${texture}`),
-      propName: (prop: FieldPropId) => t(`feature.tabletop.dungeonGenerator.prop.${prop}`),
+      propName: (prop: FieldPropId | 'building') => t(`feature.tabletop.dungeonGenerator.prop.${prop}`),
     },
   });
 }

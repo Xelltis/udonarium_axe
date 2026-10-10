@@ -14,6 +14,7 @@ function frameAt(key: string, zone: PanelDropZone | null): PanelDropFrame {
     panelCount: () => 1,
     frameSize: () => ({ width: 100, height: 28 }),
     framePlace: () => ({ left: 0, top: 0 }),
+    frameDocument: () => document,
     dismissFrame: () => undefined,
   };
 }

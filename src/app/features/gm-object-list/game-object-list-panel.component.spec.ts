@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -7,6 +8,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { VisionType } from '@axe/domain/tabletop/vision-types';
 import { GameObjectListPanelComponent } from '@axe/features/gm-object-list/game-object-list-panel.component';
+import { ObjectRow } from '@axe/features/gm-object-list/game-object-list-row';
 import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -110,6 +112,18 @@ describe('GameObjectListPanelComponent', () => {
     TestBed.inject(ObjectChangeService).notifyChanged(orc.identifier);
 
     expect(panel.tickedDisagree()).toBe(true);
+  });
+
+  it('looks for a row on the table where its piece stands, through the table focus', () => {
+    const goblin = makeCharacter('ゴブリン');
+    const focusOn = vi.spyOn(TestBed.inject(TableFocusService), 'focusOn').mockImplementation(() => undefined);
+
+    (component as unknown as { onRowClick: (row: ObjectRow) => void }).onRowClick({
+      object: goblin,
+      locationKind: 'table',
+    } as unknown as ObjectRow);
+
+    expect(focusOn).toHaveBeenCalledWith(goblin);
   });
 
   describe('setting the sight of the ticked pieces', () => {

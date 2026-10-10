@@ -647,6 +647,77 @@
             </label>
           }
 
+          @if (state.functionRole() === 'hazard') {
+            <p class="text-ui-muted text-[10px] leading-snug">
+              {{ 'feature.mapEditor.function.hazardHint' | transloco }}
+            </p>
+            <label class="flex items-center justify-between gap-2">
+              <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardKind' | transloco }}</span>
+              <select
+                class="bg-ui-input rounded-ui-sm w-40 px-1 py-0.5"
+                data-testid="hazard-kind"
+                [ngModel]="state.functionSpec().hazard.kind"
+                (ngModelChange)="setHazardPaint({ kind: $event })"
+                name="hazardKind"
+              >
+                @for (kind of hazardKinds; track kind) {
+                  <option [value]="kind">{{ 'feature.mapEditor.function.hazardKind_' + kind | transloco }}</option>
+                }
+              </select>
+            </label>
+            <label class="flex items-center justify-between gap-2">
+              <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardElement' | transloco }}</span>
+              <input
+                type="text"
+                class="bg-ui-input rounded-ui-sm w-28 px-1 py-0.5"
+                data-testid="hazard-element"
+                list="trigger-resource-names"
+                [ngModel]="state.functionSpec().hazard.element"
+                (ngModelChange)="setHazardPaint({ element: $event })"
+              />
+            </label>
+          }
+
+          @if (state.functionRole() === 'moveCost') {
+            <p class="text-ui-muted text-[10px] leading-snug">
+              {{ 'feature.mapEditor.function.moveCostHint' | transloco }}
+            </p>
+            <label class="flex items-center justify-between gap-2">
+              <span class="text-ui-muted">{{ 'feature.mapEditor.function.moveCostCharge' | transloco }}</span>
+              <select
+                class="bg-ui-input rounded-ui-sm w-28 px-1 py-0.5"
+                data-testid="move-cost-charge"
+                [ngModel]="moveCostCharge()"
+                (ngModelChange)="setMoveCostCharge($event)"
+                name="moveCostCharge"
+              >
+                <option [ngValue]="roadCharge">{{ 'feature.mapEditor.function.moveCostHalves' | transloco }}</option>
+                <option [ngValue]="0">{{ 'feature.mapEditor.function.moveCostBlocks' | transloco }}</option>
+                @for (step of moveCostSteps; track step) {
+                  <option [ngValue]="step">
+                    {{ 'feature.mapEditor.function.moveCostStep' | transloco: { count: step } }}
+                  </option>
+                }
+              </select>
+            </label>
+            @if (state.functionSpec().moveCost.halves) {
+              <span class="text-ui-dim text-[10px] leading-snug">
+                {{ 'feature.mapEditor.function.moveCostHalvesHint' | transloco }}
+              </span>
+            }
+            @if (!state.functionSpec().moveCost.blocks) {
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.moveCostColor' | transloco }}</span>
+                <input
+                  type="color"
+                  class="bg-ui-input rounded-ui-sm h-7 w-12 p-0.5"
+                  [ngModel]="state.functionSpec().moveCost.color"
+                  (ngModelChange)="setMoveCostPaint({ color: $event })"
+                />
+              </label>
+            }
+          }
+
           @if (state.functionRole() === 'mask') {
             <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.function.maskColor' | transloco }}</span>
@@ -684,40 +755,6 @@
               />
             </label>
             <label class="flex items-center justify-between gap-2">
-              <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerElement' | transloco }}</span>
-              <input
-                type="text"
-                class="bg-ui-input rounded-ui-sm w-28 px-1 py-0.5"
-                data-testid="trigger-element"
-                list="trigger-resource-names"
-                [placeholder]="'feature.mapEditor.function.triggerElementPlaceholder' | transloco"
-                [ngModel]="state.functionSpec().trigger.element"
-                (ngModelChange)="setTriggerPaint({ element: $event })"
-              />
-              <datalist id="trigger-resource-names">
-                @for (name of resourceNames(); track name) {
-                  <option [value]="name"></option>
-                }
-              </datalist>
-            </label>
-            <p class="text-ui-muted text-[10px] leading-snug">
-              {{ 'feature.mapEditor.function.triggerElementHint' | transloco }}
-            </p>
-            <label class="flex items-center justify-between gap-2">
-              <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerAmount' | transloco }}</span>
-              <input
-                type="text"
-                class="bg-ui-input rounded-ui-sm w-28 px-1 py-0.5"
-                data-testid="trigger-amount"
-                [placeholder]="'feature.mapEditor.function.triggerAmountPlaceholder' | transloco"
-                [ngModel]="state.functionSpec().trigger.amount"
-                (ngModelChange)="setTriggerPaint({ amount: $event })"
-              />
-            </label>
-            <p class="text-ui-muted text-[10px] leading-snug">
-              {{ 'feature.mapEditor.function.triggerAmountHint' | transloco }}
-            </p>
-            <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerMoment' | transloco }}</span>
               <select
                 class="bg-ui-input rounded-ui-sm px-1 py-0.5"
@@ -731,38 +768,305 @@
                 }
               </select>
             </label>
-            <label class="flex items-center justify-between gap-2">
-              <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerTargets' | transloco }}</span>
-              <select
-                class="bg-ui-input rounded-ui-sm px-1 py-0.5"
-                [ngModel]="state.functionSpec().trigger.targets"
-                (ngModelChange)="setTriggerPaint({ targets: $event })"
-              >
-                @for (target of triggerTargets; track target) {
-                  <option [value]="target">
-                    {{ 'feature.mapEditor.function.triggerTargets_' + target | transloco }}
-                  </option>
-                }
-              </select>
-            </label>
-            <label class="flex items-center justify-between gap-2">
-              <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerOnce' | transloco }}</span>
-              <input
-                type="checkbox"
-                class="size-3.5 [accent-color:var(--ui-accent)]"
-                [ngModel]="state.functionSpec().trigger.once"
-                (ngModelChange)="setTriggerPaint({ once: $event })"
+            @if (state.functionSpec().trigger.moment === 'press') {
+              <p class="text-ui-muted text-[10px] leading-snug">
+                {{ 'feature.mapEditor.function.triggerPressHint' | transloco }}
+              </p>
+              <app-switch-definition-fields
+                data-testid="trigger-press-fields"
+                [definition]="pressDefinition()"
+                (changed)="setPressDefinition($event)"
               />
-            </label>
+            } @else {
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerElement' | transloco }}</span>
+                <input
+                  type="text"
+                  class="bg-ui-input rounded-ui-sm w-28 px-1 py-0.5"
+                  data-testid="trigger-element"
+                  list="trigger-resource-names"
+                  [placeholder]="'feature.mapEditor.function.triggerElementPlaceholder' | transloco"
+                  [ngModel]="state.functionSpec().trigger.element"
+                  (ngModelChange)="setTriggerPaint({ element: $event })"
+                />
+                <datalist id="trigger-resource-names">
+                  @for (name of resourceNames(); track name) {
+                    <option [value]="name"></option>
+                  }
+                </datalist>
+              </label>
+              <p class="text-ui-muted text-[10px] leading-snug">
+                {{ 'feature.mapEditor.function.triggerElementHint' | transloco }}
+              </p>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerAmount' | transloco }}</span>
+                <input
+                  type="text"
+                  class="bg-ui-input rounded-ui-sm w-28 px-1 py-0.5"
+                  data-testid="trigger-amount"
+                  [placeholder]="'feature.mapEditor.function.triggerAmountPlaceholder' | transloco"
+                  [ngModel]="state.functionSpec().trigger.amount"
+                  (ngModelChange)="setTriggerPaint({ amount: $event })"
+                />
+              </label>
+              <p class="text-ui-muted text-[10px] leading-snug">
+                {{ 'feature.mapEditor.function.triggerAmountHint' | transloco }}
+              </p>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerTargets' | transloco }}</span>
+                <select
+                  class="bg-ui-input rounded-ui-sm px-1 py-0.5"
+                  [ngModel]="state.functionSpec().trigger.targets"
+                  (ngModelChange)="setTriggerPaint({ targets: $event })"
+                >
+                  @for (target of triggerTargets; track target) {
+                    <option [value]="target">
+                      {{ 'feature.mapEditor.function.triggerTargets_' + target | transloco }}
+                    </option>
+                  }
+                </select>
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerRepeat' | transloco }}</span>
+                <select
+                  class="bg-ui-input rounded-ui-sm w-36 px-1 py-0.5"
+                  data-testid="trigger-repeat"
+                  [ngModel]="triggerRepeat()"
+                  (ngModelChange)="setTriggerRepeat($event)"
+                  name="triggerRepeat"
+                >
+                  @for (repeat of triggerRepeats; track repeat) {
+                    <option [value]="repeat">
+                      {{ 'feature.mapEditor.function.triggerRepeat_' + repeat | transloco }}
+                    </option>
+                  }
+                </select>
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerSay' | transloco }}</span>
+                <input
+                  type="text"
+                  class="bg-ui-input rounded-ui-sm w-full px-1 py-0.5"
+                  data-testid="trigger-say"
+                  [placeholder]="'feature.mapEditor.function.triggerSayPlaceholder' | transloco"
+                  [ngModel]="state.functionSpec().trigger.say"
+                  (ngModelChange)="setTriggerPaint({ say: $event })"
+                />
+                <span class="text-ui-dim text-[10px] leading-snug">
+                  {{ 'feature.mapEditor.function.triggerSayHint' | transloco }}
+                </span>
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerCheck' | transloco }}</span>
+                <input
+                  type="text"
+                  class="bg-ui-input rounded-ui-sm w-28 px-1 py-0.5"
+                  data-testid="trigger-check"
+                  [placeholder]="'feature.mapEditor.function.triggerCheckPlaceholder' | transloco"
+                  [ngModel]="state.functionSpec().trigger.check"
+                  (ngModelChange)="setTriggerPaint({ check: $event })"
+                />
+              </label>
+              @if (state.functionSpec().trigger.check.length > 0) {
+                <label class="flex items-center justify-between gap-2">
+                  <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerCheckTarget' | transloco }}</span>
+                  <input
+                    type="text"
+                    class="bg-ui-input rounded-ui-sm w-16 px-1 py-0.5"
+                    data-testid="trigger-check-target"
+                    [ngModel]="state.functionSpec().trigger.checkTarget"
+                    (ngModelChange)="setTriggerPaint({ checkTarget: $event })"
+                  />
+                </label>
+                <label class="flex items-center justify-between gap-2">
+                  <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerCheckRoll' | transloco }}</span>
+                  <input
+                    type="text"
+                    class="bg-ui-input rounded-ui-sm w-28 px-1 py-0.5"
+                    data-testid="trigger-check-roll"
+                    placeholder="1d20+3"
+                    [ngModel]="state.functionSpec().trigger.checkRoll"
+                    (ngModelChange)="setTriggerPaint({ checkRoll: $event })"
+                  />
+                </label>
+                @if (state.functionSpec().trigger.checkRoll.length > 0) {
+                  <label class="flex items-center justify-between gap-2">
+                    <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerPassAmount' | transloco }}</span>
+                    <input
+                      type="text"
+                      class="bg-ui-input rounded-ui-sm w-16 px-1 py-0.5"
+                      data-testid="trigger-pass-amount"
+                      placeholder="half"
+                      [ngModel]="state.functionSpec().trigger.passAmount"
+                      (ngModelChange)="setTriggerPaint({ passAmount: $event })"
+                    />
+                  </label>
+                }
+                <span class="text-ui-dim text-[10px] leading-snug">
+                  {{ 'feature.mapEditor.function.triggerCheckHint' | transloco }}
+                </span>
+                <span class="text-ui-dim text-[10px] leading-snug">
+                  {{ 'feature.mapEditor.function.triggerCheckRollHint' | transloco }}
+                </span>
+              }
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerAilment' | transloco }}</span>
+                <input
+                  type="text"
+                  class="bg-ui-input rounded-ui-sm w-28 px-1 py-0.5"
+                  data-testid="trigger-ailment"
+                  list="trigger-ailment-names"
+                  [placeholder]="'feature.mapEditor.function.triggerAilmentPlaceholder' | transloco"
+                  [ngModel]="state.functionSpec().trigger.ailment"
+                  (ngModelChange)="setTriggerPaint({ ailment: $event })"
+                />
+                <datalist id="trigger-ailment-names">
+                  @for (name of ailmentNames(); track name) {
+                    <option [value]="name"></option>
+                  }
+                </datalist>
+              </label>
+              @if (state.functionSpec().trigger.ailment.length > 0) {
+                <label class="flex items-center justify-between gap-2">
+                  <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerAilmentRounds' | transloco }}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="99"
+                    step="1"
+                    class="bg-ui-input rounded-ui-sm w-16 px-1 py-0.5"
+                    data-testid="trigger-ailment-rounds"
+                    [ngModel]="state.functionSpec().trigger.ailmentRounds"
+                    (ngModelChange)="setTriggerPaint({ ailmentRounds: +$event })"
+                  />
+                </label>
+              }
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerWarps' | transloco }}</span>
+                <input
+                  type="checkbox"
+                  class="size-3.5 [accent-color:var(--ui-accent)]"
+                  data-testid="trigger-warps"
+                  [ngModel]="state.functionSpec().trigger.warps"
+                  (ngModelChange)="setTriggerPaint({ warps: $event })"
+                />
+              </label>
+              @if (state.functionSpec().trigger.warps) {
+                <label class="flex items-center justify-between gap-2">
+                  <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerWarpCol' | transloco }}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    class="bg-ui-input rounded-ui-sm w-16 px-1 py-0.5"
+                    data-testid="trigger-warp-col"
+                    [ngModel]="state.functionSpec().trigger.warpCol"
+                    (ngModelChange)="setTriggerPaint({ warpCol: +$event })"
+                  />
+                </label>
+                <label class="flex items-center justify-between gap-2">
+                  <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerWarpRow' | transloco }}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    class="bg-ui-input rounded-ui-sm w-16 px-1 py-0.5"
+                    data-testid="trigger-warp-row"
+                    [ngModel]="state.functionSpec().trigger.warpRow"
+                    (ngModelChange)="setTriggerPaint({ warpRow: +$event })"
+                  />
+                </label>
+                @if (otherTables().length > 0) {
+                  <label class="flex items-center justify-between gap-2">
+                    <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerWarpTable' | transloco }}</span>
+                    <select
+                      class="bg-ui-input rounded-ui-sm min-w-0 flex-1 px-1 py-0.5"
+                      data-testid="trigger-warp-table"
+                      name="trigger-warp-table"
+                      [ngModel]="state.functionSpec().trigger.warpTable"
+                      (ngModelChange)="setTriggerPaint({ warpTable: $event })"
+                    >
+                      <option [ngValue]="''">
+                        {{ 'feature.mapEditor.function.triggerWarpHere' | transloco }}
+                      </option>
+                      @for (table of otherTables(); track table.identifier) {
+                        <option [ngValue]="table.identifier">{{ table.name }}</option>
+                      }
+                    </select>
+                  </label>
+                }
+                <span class="text-ui-dim text-[10px] leading-snug">
+                  {{ 'feature.mapEditor.function.triggerWarpHint' | transloco }}
+                </span>
+              }
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerSilent' | transloco }}</span>
+                <input
+                  type="checkbox"
+                  class="size-3.5 [accent-color:var(--ui-accent)]"
+                  data-testid="trigger-silent"
+                  [ngModel]="state.functionSpec().trigger.silent"
+                  (ngModelChange)="setTriggerPaint({ silent: $event })"
+                />
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerEffect' | transloco }}</span>
+                <select
+                  class="bg-ui-input rounded-ui-sm w-28 px-1 py-0.5"
+                  data-testid="trigger-effect"
+                  [ngModel]="state.functionSpec().trigger.effect"
+                  (ngModelChange)="setTriggerPaint({ effect: $event })"
+                >
+                  <option value="">{{ 'feature.mapEditor.function.triggerEffectNone' | transloco }}</option>
+                  @for (name of effectNames(); track name) {
+                    <option [value]="name">{{ name }}</option>
+                  }
+                </select>
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerSound' | transloco }}</span>
+                <select
+                  class="bg-ui-input rounded-ui-sm w-28 px-1 py-0.5"
+                  data-testid="trigger-sound"
+                  [ngModel]="state.functionSpec().trigger.sound"
+                  (ngModelChange)="setTriggerPaint({ sound: $event })"
+                  name="triggerSound"
+                >
+                  <option value="">{{ 'feature.mapEditor.function.triggerMediaNone' | transloco }}</option>
+                  @for (name of soundNames(); track name) {
+                    <option [value]="name">{{ name }}</option>
+                  }
+                </select>
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerCutIn' | transloco }}</span>
+                <select
+                  class="bg-ui-input rounded-ui-sm w-28 px-1 py-0.5"
+                  data-testid="trigger-cut-in"
+                  [ngModel]="state.functionSpec().trigger.cutIn"
+                  (ngModelChange)="setTriggerPaint({ cutIn: $event })"
+                  name="triggerCutIn"
+                >
+                  <option value="">{{ 'feature.mapEditor.function.triggerMediaNone' | transloco }}</option>
+                  @for (name of cutInNames(); track name) {
+                    <option [value]="name">{{ name }}</option>
+                  }
+                </select>
+              </label>
+            }
             <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerOpen' | transloco }}</span>
-              <input
-                type="checkbox"
-                class="size-3.5 [accent-color:var(--ui-accent)]"
+              <select
+                class="bg-ui-input rounded-ui-sm w-32 px-1 py-0.5"
                 data-testid="trigger-open"
-                [ngModel]="state.functionSpec().trigger.open"
-                (ngModelChange)="setTriggerPaint({ open: $event })"
-              />
+                name="trigger-shown-to"
+                [ngModel]="triggerShownTo()"
+                (ngModelChange)="setTriggerShownTo($event)"
+              >
+                @for (shown of shownTo; track shown) {
+                  <option [ngValue]="shown">{{ 'feature.tabletop.shownTo_' + shown | transloco }}</option>
+                }
+              </select>
             </label>
             <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerReveals' | transloco }}</span>
@@ -773,20 +1077,6 @@
                 [ngModel]="state.functionSpec().trigger.reveals"
                 (ngModelChange)="setTriggerPaint({ reveals: $event })"
               />
-            </label>
-            <label class="flex items-center justify-between gap-2">
-              <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerEffect' | transloco }}</span>
-              <select
-                class="bg-ui-input rounded-ui-sm w-28 px-1 py-0.5"
-                data-testid="trigger-effect"
-                [ngModel]="state.functionSpec().trigger.effect"
-                (ngModelChange)="setTriggerPaint({ effect: $event })"
-              >
-                <option value="">{{ 'feature.mapEditor.function.triggerEffectNone' | transloco }}</option>
-                @for (name of effectNames(); track name) {
-                  <option [value]="name">{{ name }}</option>
-                }
-              </select>
             </label>
             <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.function.triggerColor' | transloco }}</span>

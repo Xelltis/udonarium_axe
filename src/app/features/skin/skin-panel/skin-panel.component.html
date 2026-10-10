@@ -76,6 +76,13 @@
             <span class="text-ui-success font-semibold tabular-nums">2d6 → 9</span>
             <span class="text-ui-muted ml-auto text-[10px]">{{ 'feature.skin.preview.success' | transloco }}</span>
           </div>
+          <div
+            class="rounded-ui-sm relative h-8 overflow-hidden"
+            data-testid="skin-preview-mat"
+            [attr.data-mat]="mat().color"
+          >
+            <dice-mat [mat]="mat()" />
+          </div>
 
           <div class="flex items-center gap-1.5">
             <span

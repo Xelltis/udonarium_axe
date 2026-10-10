@@ -59,6 +59,13 @@ export class CcfoliaRoomImportService {
   private readonly imageStorage = inject(ImageStorage);
   private readonly t = inject(TRANSLATE_FN);
 
+  /**
+   * Builds tables from the files of a room archive, one for each scene, registering its images
+   * first.
+   *
+   * Answers a summary of what was made, or `unrecognized` when the files are not such an archive
+   * and `failed` when building them went wrong.
+   */
   async importAsync(entries: ArchiveEntries): Promise<CcfoliaRoomImportResult> {
     const room = parseRoomData(entries);
     if (!room) return { summary: null, error: 'unrecognized' };

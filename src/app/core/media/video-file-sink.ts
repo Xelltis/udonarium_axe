@@ -19,15 +19,23 @@ function picker(): SaveFilePicker | null {
   return typeof candidate === 'function' ? candidate : null;
 }
 
+/** Whether this browser can ask for a save location, so an export streams straight to disk. */
 export function isVideoFileSinkSupported(): boolean {
   return picker() != null;
 }
 
+/** What asking for a save location came to when the person closed the dialogue without choosing. */
+export const VIDEO_FILE_DECLINED = 'declined';
+
 /**
  * Asks where to save. **Call it from the click** — a browser only opens the dialogue
- * straight after a gesture. Refused, it returns null and the caller exports through memory.
+ * straight after a gesture. Answers `VIDEO_FILE_DECLINED` when the person closes the dialogue,
+ * which calls the export off, and null when the browser cannot ask or refuses, in which case the
+ * caller exports through memory.
  */
-export async function askVideoFile(fileName: string): Promise<FileSystemFileHandle | null> {
+export async function askVideoFile(
+  fileName: string
+): Promise<FileSystemFileHandle | typeof VIDEO_FILE_DECLINED | null> {
   const open = picker();
   if (!open) return null;
 
@@ -37,8 +45,7 @@ export async function askVideoFile(fileName: string): Promise<FileSystemFileHand
       types: [{ description: 'MP4', accept: { 'video/mp4': ['.mp4'] } }],
     });
   } catch (reason) {
-    // Cancelling is not a failure.
-    if (reason instanceof DOMException && reason.name === 'AbortError') return null;
+    if (reason instanceof DOMException && reason.name === 'AbortError') return VIDEO_FILE_DECLINED;
     Logger.warn('[VideoFileSink] 保存先を開けませんでした', reason);
     return null;
   }

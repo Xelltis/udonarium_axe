@@ -38,6 +38,20 @@ describe('MimeType', () => {
       expect(MimeType.type('sound.ogg')).toBe('audio/ogg');
     });
 
+    it('types an m4a as MP4 audio, and AAC on its own as AAC', () => {
+      expect(MimeType.type('sound.m4a')).toBe('audio/mp4');
+      expect(MimeType.type('sound.aac')).toBe('audio/aac');
+    });
+
+    it('types the other names an Ogg file goes by as Ogg', () => {
+      expect(MimeType.type('sound.opus')).toBe('audio/ogg');
+      expect(MimeType.type('sound.oga')).toBe('audio/ogg');
+    });
+
+    it('types a flac', () => {
+      expect(MimeType.type('sound.FLAC')).toBe('audio/flac');
+    });
+
     it('types an mp4', () => {
       expect(MimeType.type('video.mp4')).toBe('video/mp4');
     });

@@ -17,6 +17,13 @@ export class SystemAvatarMenuService {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly t = inject(TRANSLATE_FN);
 
+  /**
+   * Opens the right-click menu on the avatar of a system or dice message, for changing or resetting
+   * its picture and for showing or hiding avatars.
+   *
+   * Only a role that may edit the table gets it, and only where the pointer allows a context menu;
+   * the browser's own menu is suppressed only when this one opens.
+   */
   openContextMenu(event: Event, kind: SystemAvatarKind): void {
     if (!this.rolePermission.canEditTabletop) return;
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
@@ -46,6 +53,13 @@ export class SystemAvatarMenuService {
     );
   }
 
+  /**
+   * Asks for a picture in the image picker and sets it as the avatar for that kind of message, for
+   * the whole room.
+   *
+   * Closing the picker without a choice leaves the avatar as it was. Does nothing for a role that
+   * may not edit the table.
+   */
   changeImage(kind: SystemAvatarKind): void {
     if (!this.rolePermission.canEditTabletop) return;
     this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((identifier) => {

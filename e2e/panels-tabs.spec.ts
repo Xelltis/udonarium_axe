@@ -11,10 +11,20 @@ function barOf(panel: Locator): Locator {
  * Where a bar has come to rest.
  *
  * A panel flies in when it opens, so its bar is still moving and still scaled for a moment.
- * Waited out rather than slept off: a slow machine takes longer than any guess, and a quick
- * one is kept waiting by it.
+ * The panel's animations are waited out first: a box asked for twice in one stalled frame
+ * comes back the same while the panel is still on its way, and a press there lands in the
+ * body under the bar, which moves the panel without folding it into anything. Animations that
+ * never end are left out. The box is then asked for until it holds, for whatever moves a panel
+ * without animating it.
  */
 async function restingBox(bar: Locator) {
+  await bar.evaluate((element) => {
+    const panel = element.closest('.draggable-panel') ?? element;
+    const ending = panel
+      .getAnimations({ subtree: true })
+      .filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity);
+    return Promise.all(ending.map((animation) => animation.finished.catch(() => undefined)));
+  });
   let last: { x: number; y: number; width: number; height: number } | null = null;
   await expect
     .poll(

@@ -9,8 +9,10 @@ import { childrenChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ChatPaletteComponent } from '@axe/features/chat/chat-palette/chat-palette.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -117,6 +119,59 @@ describe('ChatPaletteComponent', () => {
       expect(send.mock.calls[0][2]).toEqual(
         expect.objectContaining({ bubbles: { light: '#ffeeee', dark: '#332211' } })
       );
+    });
+  });
+
+  describe('sending a stamp', () => {
+    it('sends one with nothing said as a line of its own, past the macros, as the chat window does', () => {
+      const speaker = createChar('術者');
+      const tab = ChatTabList.instance.addChatTab('テストタブ');
+      component.character.set(speaker);
+      component.chatTabidentifier.set(tab.identifier);
+      const macro = vi.spyOn(TestBed.inject(CharacterMacroService), 'send').mockReturnValue(null);
+      const stamp = vi.spyOn(component.chatMessageService, 'sendStamp').mockReturnValue(null);
+
+      component.sendChat({
+        text: '',
+        gameSystem: null,
+        sendFrom: speaker.identifier,
+        sendTo: '',
+        portraitIndex: 0,
+        messColor: '#112233',
+        replyTo: '',
+        quoteOf: '',
+        toTicker: false,
+        stamp: { id: 'seal:ok', words: '［了解］' },
+      });
+
+      expect(macro).not.toHaveBeenCalled();
+      expect(stamp.mock.calls[0].slice(1, 4)).toEqual(['seal:ok', '［了解］', speaker.identifier]);
+    });
+
+    it('sends one with words under them, through the macros', () => {
+      const speaker = createChar('術者');
+      const tab = ChatTabList.instance.addChatTab('テストタブ');
+      component.character.set(speaker);
+      component.chatTabidentifier.set(tab.identifier);
+      const macro = vi.spyOn(TestBed.inject(CharacterMacroService), 'send').mockReturnValue(null);
+      const stamp = vi.spyOn(component.chatMessageService, 'sendStamp').mockReturnValue(null);
+      const crit = { id: 'roll:critical', words: '［クリティカル!］' };
+
+      component.sendChat({
+        text: '2d6 いくぞ',
+        gameSystem: null,
+        sendFrom: speaker.identifier,
+        sendTo: '',
+        portraitIndex: 0,
+        messColor: '#112233',
+        replyTo: '',
+        quoteOf: '',
+        toTicker: false,
+        stamp: crit,
+      });
+
+      expect(stamp).not.toHaveBeenCalled();
+      expect(macro).toHaveBeenCalledWith(speaker, '2d6 いくぞ', expect.objectContaining({ stamp: crit }));
     });
   });
 
@@ -237,6 +292,193 @@ describe('ChatPaletteComponent', () => {
       fixture.detectChanges();
 
       expect(shown<HTMLSelectElement>('palette-headings-list')?.disabled).toBe(true);
+    });
+  });
+
+  describe('the tabs lines are sent to', () => {
+    let tabs: ChatTab[];
+
+    function tabNames(): string[] {
+      const pills = (fixture.nativeElement as HTMLElement).querySelectorAll('.chat-tab-pill');
+      return [...pills].map((pill) => pill.textContent!.trim());
+    }
+
+    beforeEach(() => {
+      tabs = [ChatTabList.instance.addChatTab('一枚目'), ChatTabList.instance.addChatTab('二枚目')];
+      fixture = TestBed.createComponent(ChatPaletteComponent);
+      component = fixture.componentInstance;
+      component.character.set(createChar('術者'));
+      fixture.detectChanges();
+    });
+
+    it('starts on the first tab', () => {
+      expect(component.chatTabidentifier()).toBe(tabs[0].identifier);
+    });
+
+    it('moves on to the next tab as the wheel turns over them, as the chat window does', () => {
+      const strip = (fixture.nativeElement as HTMLElement)
+        .querySelector('.chat-tab-pill')!
+        .closest('label')!.parentElement!;
+
+      strip.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, cancelable: true }));
+      fixture.detectChanges();
+
+      expect(component.chatTabidentifier()).toBe(tabs[1].identifier);
+    });
+
+    it('leaves out a tab this seat may not read, and moves off it', () => {
+      component.chatTabidentifier.set(tabs[1].identifier);
+      fixture.detectChanges();
+
+      PeerCursor.myCursor.role = PeerRole.Player;
+      tabs[1].plCanView = false;
+      TestBed.inject(ObjectChangeService).notifyChanged(tabs[1].identifier);
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      fixture.detectChanges();
+
+      expect(tabNames()).toEqual(['一枚目']);
+      expect(component.chatTabidentifier()).toBe(tabs[0].identifier);
+    });
+
+    it('shows the input as read only in a tab this seat may not speak in', () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      tabs[0].plCanSpeak = false;
+      TestBed.inject(ObjectChangeService).notifyChanged(tabs[0].identifier);
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      fixture.detectChanges();
+
+      const input = (fixture.nativeElement as HTMLElement).querySelector('chat-input')!;
+      expect(input.querySelector('textarea[name="chat-input-text"]')).toBeNull();
+    });
+  });
+
+  describe('searching the palette', () => {
+    function speaker(text: string): void {
+      const char = createChar('術者');
+      char.chatPalette!.setPalette(text);
+      component.character.set(char);
+      fixture.detectChanges();
+    }
+
+    function root(): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    function searchBox(): HTMLInputElement | null {
+      return root().querySelector<HTMLInputElement>('[data-testid="palette-search"]');
+    }
+
+    function searchFor(query: string): HTMLInputElement {
+      const input = searchBox()!;
+      input.value = query;
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      return input;
+    }
+
+    function resultsArea(): HTMLElement | null {
+      return root().querySelector<HTMLElement>('[data-testid="palette-search-results"]');
+    }
+
+    function results(): HTMLElement[] {
+      return [...(resultsArea()?.querySelectorAll<HTMLElement>('[data-result-line]') ?? [])];
+    }
+
+    function press(input: HTMLInputElement, key: string): KeyboardEvent {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      input.dispatchEvent(event);
+      fixture.detectChanges();
+      return event;
+    }
+
+    it('shows each line as written, with nothing before or after it', () => {
+      speaker('2d6+3 攻撃\n//修正=2');
+
+      expect(root().querySelector('[data-line="0"]')!.textContent).toBe('2d6+3 攻撃');
+      expect(root().querySelector('[data-line="1"]')!.textContent).toBe('//修正=2');
+    });
+
+    it('shows no results until something is searched for', () => {
+      speaker('2d6+3 攻撃');
+
+      expect(searchBox()).not.toBeNull();
+      expect(resultsArea()).toBeNull();
+    });
+
+    it('lists the lines holding what is searched for right under the search box, those beginning with it first', () => {
+      speaker('◆戦闘\n1d100<=50 回避\n2d6+3 攻撃\n回避ロール 1d100\n◆技能\nCCB<=60 目星');
+
+      searchFor('回避');
+
+      expect(results().map((row) => row.dataset['resultLine'])).toEqual(['3', '1']);
+      const list = root().querySelector('[data-line="0"]')!.parentElement!;
+      expect(list.compareDocumentPosition(resultsArea()!) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+      expect(searchBox()!.compareDocumentPosition(resultsArea()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('puts a result clicked into the input and picks out its line in the palette, as a palette row does', () => {
+      speaker('◆戦闘\n2d6+3 攻撃\n1d100<=50 回避');
+      searchFor('回避');
+
+      results()[0].click();
+      fixture.detectChanges();
+
+      expect(component.text()).toBe('1d100<=50 回避');
+      expect(component.selectedLine()).toBe(2);
+    });
+
+    it('sends a result clicked twice, as a palette row does', () => {
+      speaker('2d6+3 攻撃');
+      const send = vi.spyOn(component.chatInputComponent(), 'sendChat').mockImplementation(() => undefined);
+      searchFor('攻撃');
+
+      results()[0].click();
+      results()[0].click();
+
+      expect(send).toHaveBeenCalledTimes(1);
+    });
+
+    it('moves through the results with the arrows and takes one into the input with Enter, sending nothing', () => {
+      speaker('攻撃 2d6\n2d6 攻撃');
+      const send = vi.spyOn(component.chatInputComponent(), 'sendChat').mockImplementation(() => undefined);
+      const input = searchFor('攻撃');
+
+      press(input, 'ArrowDown');
+      expect(results()[1].getAttribute('aria-selected')).toBe('true');
+      const enter = press(input, 'Enter');
+
+      expect(enter.defaultPrevented).toBe(true);
+      expect(component.text()).toBe('2d6 攻撃');
+      expect(component.selectedLine()).toBe(1);
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('clears the search with Escape', () => {
+      speaker('2d6+3 攻撃');
+      const input = searchFor('攻撃');
+
+      press(input, 'Escape');
+
+      expect(component.searchQuery()).toBe('');
+      expect(resultsArea()).toBeNull();
+    });
+
+    it('says so when no line holds what is searched for', () => {
+      speaker('2d6+3 攻撃');
+
+      searchFor('回避');
+
+      expect(results()).toEqual([]);
+      expect(resultsArea()?.querySelector('[data-testid="palette-search-empty"]')).not.toBeNull();
+    });
+
+    it('is not offered while the palette is being edited', () => {
+      speaker('2d6+3 攻撃');
+
+      component.toggleEditMode();
+      fixture.detectChanges();
+
+      expect(searchBox()).toBeNull();
     });
   });
 });

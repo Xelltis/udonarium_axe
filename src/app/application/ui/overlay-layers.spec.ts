@@ -41,4 +41,29 @@ describe('OverlayLayers', () => {
 
     expect(OverlayLayers.current()).toBeNull();
   });
+
+  describe('layerFor', () => {
+    it('names the layer of the window a document belongs to, whichever has the focus', () => {
+      const window = paper(false);
+      OverlayLayers.attach(paper(true), main);
+      OverlayLayers.attach(window, other);
+
+      expect(OverlayLayers.layerFor(window)).toBe(other);
+    });
+
+    it('names nothing for the main window, or for no document at all', () => {
+      OverlayLayers.attach(paper(true), other);
+
+      expect(OverlayLayers.layerFor(document)).toBeNull();
+      expect(OverlayLayers.layerFor(null)).toBeNull();
+    });
+
+    it('forgets a window that has gone', () => {
+      const gone = paper(false);
+      OverlayLayers.attach(gone, other);
+      OverlayLayers.detach(gone);
+
+      expect(OverlayLayers.layerFor(gone)).toBeNull();
+    });
+  });
 });

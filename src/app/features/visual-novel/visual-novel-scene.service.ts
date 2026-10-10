@@ -49,6 +49,12 @@ export class VisualNovelSceneService {
     return PeerCursor.isMyselfGameMaster;
   });
 
+  /**
+   * Opens the image picker and sets the chosen picture as the novel stage's background for everyone.
+   *
+   * The change plays the current transition; the empty choice clears the background, and closing the
+   * picker changes nothing. Only the game master may do this.
+   */
   pickBackground(): void {
     if (!this.canDirect()) return;
     this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((identifier) => {
@@ -58,11 +64,13 @@ export class VisualNovelSceneService {
     });
   }
 
+  /** Removes the novel stage's background for everyone with the current transition; game master only. */
   clearBackground(): void {
     if (!this.canDirect()) return;
     this.stage?.clearBackground();
   }
 
+  /** Chooses the transition the stage plays on a background change, for everyone; game master only. */
   setTransition(transition: VnStageTransition): void {
     if (!this.canDirect()) return;
     const stage = this.stage;
@@ -71,6 +79,7 @@ export class VisualNovelSceneService {
     stage.update();
   }
 
+  /** Plays the current transition on every screen without changing the background; game master only. */
   playTransition(): void {
     if (!this.canDirect()) return;
     this.stage?.playTransition();

@@ -14,43 +14,48 @@ import {
   viewChildren,
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
-import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
+import { SwitchPressService } from '@axe/application/tabletop/switch-press.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TerrainFogCover, VisionService } from '@axe/application/tabletop/vision.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
-import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-menu';
-import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
-import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
-import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
+import { SWITCH_NOTICE_MS } from '@axe/application/ui/switch-notice.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { PERF_TERRAIN_GRID_RASTER, perfCounters } from '@axe/core/util/perf-counters';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { BoardSwitch } from '@axe/domain/tabletop/board-switch/board-switch';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-pedestal-geometry';
-import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
-import { DoorStyle, SlopeDirection, Terrain, TerrainFace } from '@axe/domain/tabletop/terrain';
+import { DoorStyle, Terrain, TerrainFace } from '@axe/domain/tabletop/terrain';
+import {
+  faceShadeOf,
+  sideCellIndexes,
+  sideShadeLine,
+  slopeShadeOf,
+  topShadeGrid,
+} from '@axe/domain/tabletop/terrain-shade';
+import { drawnSlopeSides, gridSlopeKind, gridSlopeSides, SlopeSide } from '@axe/domain/tabletop/terrain-slope';
+import { buildSlopeRoof, SlopePoint, slopeProfileAlong, SlopeRoof } from '@axe/domain/tabletop/terrain-slope-roof';
 import { terrainWallFace, type WallSide } from '@axe/domain/tabletop/terrain-wall-face';
 import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
-import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
+import { fogMaskOf, terrainTextureLayout } from '@axe/features/tabletop/terrain/terrain-face-look';
 import {
-  computeHexSlopeSteps,
-  HexSlopeStepData,
-  HexSlopeStepFloor,
-} from '@axe/features/tabletop/terrain/hex-slope-step-geometry';
-import { buildTerrainContextMenuModel } from '@axe/features/tabletop/terrain/terrain-context-menu';
+  hexFloorClipPathOf,
+  hexWallsOf,
+  NO_HEX_WALLS,
+  TerrainHexWall,
+} from '@axe/features/tabletop/terrain/terrain-hex-shapes';
+import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';
 import {
   wallLightLayerStyle,
   wallSilhouetteBackground,
@@ -64,19 +69,13 @@ import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import {
-  cellGradient,
-  DEFAULT_SHADE_RGB,
   ShadedBackground,
   shadedBackgroundGrid,
   shadedBackgroundImage,
   shadeRgbOf,
-  STRETCHED_TEXTURE,
   TextureLayout,
 } from '@axe/ui/tabletop/shaded-background';
 import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
-
-/** What is left of a face the fog covers end to end. */
-const HIDDEN_FACE: Record<string, string> = { display: 'none' };
 
 interface TerrainGridBounds {
   left: number;
@@ -94,7 +93,11 @@ interface TerrainGridViewport extends TerrainGridBounds {
   offsetTop: number;
 }
 
-const NO_HEX_SLOPE: HexSlopeStepData = { floors: [], walls: [] };
+/** How far a pointer may wander between pressing a switch and letting go, and still press it. */
+const PRESS_SLOP_PX = 6;
+
+/** How far a block of glass's faces stand off the ground, so the table, lying at the same depth, never takes a press from them. */
+const GLASS_FACE_LIFT_PX = 0.5;
 
 /** The same list, or two empty ones: an empty @for renders nothing either way. */
 function sameOrBothEmpty<T>(a: readonly T[], b: readonly T[]): boolean {
@@ -115,24 +118,25 @@ function sameOrBothEmpty<T>(a: readonly T[], b: readonly T[]): boolean {
 })
 export class TerrainComponent {
   private readonly imageService = inject(ImageService);
-  private readonly tabletopActionService = inject(TabletopActionService);
-  private readonly contextMenuService = inject(ContextMenuService);
-  private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly objectPanels = inject(ObjectPanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
-  private readonly coordinateService = inject(CoordinateService);
   protected readonly tabletopService = inject(TabletopService);
   protected readonly visionService = inject(VisionService);
-  private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
-  private readonly tabletopOverlap = inject(TabletopOverlapService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly translateFn = inject(TRANSLATE_FN);
+  private readonly terrainMenu = inject(TerrainMenuService);
+  private readonly switchPresses = inject(SwitchPressService);
+  private readonly switches = inject(BoardSwitchService);
+  private readonly t = inject(TRANSLATE_FN);
+  /** Whether every button on the screen is saying what it is, switches on the table among them. */
+  protected readonly guide = inject(ButtonGuideService);
 
   constructor() {
+    this.destroyRef.onDestroy(() => {
+      if (this.noticeTimer !== null) clearTimeout(this.noticeTimer);
+    });
     effect(() => {
       this.uiSignalService.terrainGridShowVersion();
       let opacity: number = 0.0;
@@ -227,7 +231,7 @@ export class TerrainComponent {
       slide.offsetTop,
       slide.grow,
       bbox ? `${bbox.minX}:${bbox.minY}:${bbox.maxX}:${bbox.maxY}` : '',
-      this.hexSlopeSteps().floors.length,
+      this.slopeFaces().length,
     ].join('|');
   });
 
@@ -249,9 +253,11 @@ export class TerrainComponent {
   readonly is3D = input(false);
   readonly gridCanvases = viewChildren<ElementRef<HTMLCanvasElement>>('gridCanvas');
 
+  /** The table selecter, which says which table is on view. */
   get tableSelecter(): TableSelecter {
     return this.tabletopService.tableSelecter;
   }
+  /** The table currently shown, which the menu's surface entries work against. */
   get currentTable(): GameTable {
     return this.tabletopService.currentTable;
   }
@@ -297,9 +303,9 @@ export class TerrainComponent {
   /**
    * A terrain nobody has given a picture to.
    *
-   * It used to be shown as a white block, which is a placeholder standing in the way of the
-   * map. It is glass instead: the wall is there and stops what it stops, but only the game
-   * master is shown where it stands.
+   * A white block would be a placeholder standing in the way of the map. It is glass instead:
+   * the wall is there and stops what it stops, but only the game master is shown where it
+   * stands.
    */
   readonly isBlank = computed(() => {
     this.objectChange.fileVersion();
@@ -310,6 +316,59 @@ export class TerrainComponent {
   readonly showsBlankOutline = computed(() => {
     this.objectChange.trackMyCursor();
     return this.isBlank() && this.rolePermission.canSeeHidden;
+  });
+
+  /**
+   * Faces nobody sees, standing where a block of glass would have its top and walls, for the master
+   * to take hold of it by.
+   *
+   * Its outlines answer no pointer, and its footprint lies level with the table, which takes the
+   * press. The top sits at the dashed outline and the walls stand round it, so the block is picked
+   * up anywhere it seems to be. A block with no wall has only its top, at the outline on the ground.
+   */
+  readonly glassFaces = computed<Record<string, string>[]>(() => {
+    if (!this.showsBlankOutline()) return [];
+    const grid = this.gridSize;
+    const width = this.width() * grid;
+    const depth = this.depth() * grid;
+    const height = this.height() * grid;
+    const walled = this.hasWall() && height > 0;
+    const top: Record<string, string> = {
+      width: `${width}px`,
+      height: `${depth}px`,
+      left: '0px',
+      top: '0px',
+      ...this.hexFloorDimStyle(),
+      transform: `translateZ(${(walled ? height : 0) + GLASS_FACE_LIFT_PX}px)`,
+    };
+    const hexClip = this.hexFloorClipPath();
+    if (hexClip) top['clip-path'] = hexClip;
+    if (!walled) return [top];
+    const standing = (length: number, transform: string): Record<string, string> => ({
+      width: `${length}px`,
+      height: `${height}px`,
+      left: '0px',
+      top: '0px',
+      transform,
+    });
+    if (this.isHex()) {
+      return [
+        top,
+        ...this.hexWalls().map((wall) =>
+          standing(
+            wall.edgeLength,
+            `translate(${wall.px}px, ${wall.py}px) rotateZ(${wall.angle}rad) rotateX(-90deg) translateY(-100%)`
+          )
+        ),
+      ];
+    }
+    return [
+      top,
+      standing(width, 'rotateX(90deg)'),
+      standing(width, `translateY(${depth}px) rotateX(90deg)`),
+      standing(depth, 'rotateZ(90deg) rotateX(90deg)'),
+      standing(depth, `translateX(${width}px) rotateZ(90deg) rotateX(90deg)`),
+    ];
   });
 
   private faceImageOf(face: TerrainFace) {
@@ -394,6 +453,86 @@ export class TerrainComponent {
     return this.doorMirrored() ? 'right center' : 'left center';
   });
 
+  /**
+   * The switch hung under the block, where the master made it one and has not retired it.
+   *
+   * Handed on afresh whenever the switch changes, although it is the same switch: what is written
+   * over the block reads what the switch says, and would otherwise go on reading what it said first.
+   */
+  private readonly activeSwitch = computed(
+    () => {
+      this.terrainVersion();
+      this.objectChange.collectionOf(BoardSwitch.aliasName)();
+      const held = this.terrain().boardSwitch;
+      if (!held) return null;
+      this.objectChange.versionOf(held.identifier)();
+      return held.retired ? null : held;
+    },
+    { equal: () => false }
+  );
+
+  /** Whether a click on the block presses its switch, which only a block locked in place does. */
+  protected readonly pressable = computed(() => this.activeSwitch() !== null && this.isLocked());
+
+  /**
+   * What is written over the block for its switch, or nothing.
+   *
+   * Shown to the master whether the block is locked or not, since the master is the one setting
+   * it up, and to everyone else only once it can be pressed.
+   */
+  protected readonly switchLabel = computed(() => {
+    const held = this.activeSwitch();
+    if (!held || (!this.pressable() && !this.switches.canEdit())) return '';
+    return held.def.label.trim() || this.t('feature.boardSwitch.unlabeled');
+  });
+
+  /** Why the last press on the block came to nothing, shown over it for a moment. */
+  protected readonly switchNotice = signal('');
+
+  /** Stands the label up over the middle of the block, turned to the camera, or lays it flat from above. */
+  protected readonly switchLabelTransform = computed(() => {
+    const top = (this.hasWall() ? this.height() : 0) * this.gridSize + 2;
+    if (this.tabletopService.mode2d()) return `translateZ(${top}px) rotateZ(${-this.viewRotateZ()}deg)`;
+    return `translateZ(${top}px) rotateX(-90deg) rotateY(${this.viewRotateZ()}deg)`;
+  });
+
+  private pressedFrom: { x: number; y: number } | null = null;
+  private noticeTimer: ReturnType<typeof setTimeout> | null = null;
+
+  protected notePress(event: PointerEvent): void {
+    this.pressedFrom = { x: event.clientX, y: event.clientY };
+  }
+
+  /**
+   * A click on the block: its switch where it has one it can be pressed by, else its door.
+   *
+   * A click that ends somewhere other than where the press began is the end of turning the table
+   * rather than a press, since a locked block hands a drag on to the table.
+   */
+  protected onBlockClick(event: MouseEvent): void {
+    if (!this.pressable()) {
+      this.onDoorClick();
+      return;
+    }
+    const from = this.pressedFrom;
+    this.pressedFrom = null;
+    if (from && Math.hypot(event.clientX - from.x, event.clientY - from.y) > PRESS_SLOP_PX) return;
+    void this.pressSwitch();
+  }
+
+  private async pressSwitch(): Promise<void> {
+    const held = this.activeSwitch();
+    if (!held) return;
+    const outcome = await this.switchPresses.press(held);
+    if (outcome === 'pressed' || outcome === 'busy') return;
+    this.switchNotice.set(this.t(`feature.boardSwitch.refused.${outcome}`));
+    if (this.noticeTimer !== null) clearTimeout(this.noticeTimer);
+    this.noticeTimer = setTimeout(() => {
+      this.noticeTimer = null;
+      this.switchNotice.set('');
+    }, SWITCH_NOTICE_MS);
+  }
+
   protected onDoorClick(): void {
     if (!this.isDoor() || this.pointerDeviceService.isDragging) return;
     const terrain = this.terrain();
@@ -405,11 +544,9 @@ export class TerrainComponent {
     this.terrainVersion();
     return this.terrain().isTiledTexture;
   });
-  private readonly textureLayout = computed<TextureLayout>(() => {
-    if (!this.isTiledTexture()) return STRETCHED_TEXTURE;
-    const side = `${this.gridSize}px`;
-    return { size: `${side} ${side}`, repeat: 'repeat' };
-  });
+  private readonly textureLayout = computed<TextureLayout>(() =>
+    terrainTextureLayout(this.isTiledTexture(), this.gridSize)
+  );
   readonly tileStyle = computed((): Record<string, string> => {
     if (!this.isTiledTexture()) return {};
     const texture = this.textureLayout();
@@ -420,14 +557,6 @@ export class TerrainComponent {
     this.terrainVersion();
     return this.terrain().isSlope;
   });
-  readonly slopeDirection = computed(() => {
-    this.terrainVersion();
-    const terrain = this.terrain();
-    if (!terrain.isSlope) return SlopeDirection.NONE;
-    if (terrain.slopeDirection === SlopeDirection.NONE) return SlopeDirection.BOTTOM;
-    return terrain.slopeDirection;
-  });
-
   readonly isAltitudeIndicate = computed(() => {
     this.terrainVersion();
     return this.terrain().isAltitudeIndicate;
@@ -453,6 +582,7 @@ export class TerrainComponent {
     return surfaceOf(this.terrain()) !== 'floor';
   });
 
+  /** The size of one table cell, in pixels. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -486,22 +616,51 @@ export class TerrainComponent {
 
   readonly isHex = computed(() => this.pedestalHexParams() !== null);
 
-  readonly isHexSlope = computed(() => this.isHex() && this.isSlope() && this.slopeDirection() !== SlopeDirection.NONE);
+  /**
+   * The sides this block's slope runs down to, among the sides the grid under it has.
+   *
+   * A block sloping nowhere in particular runs down to the south, which is the way a slope
+   * with no direction has always been drawn.
+   */
+  readonly slopeSides = computed<SlopeSide[]>(() => {
+    const terrain = this.terrain();
+    this.objectChange.versionOf(terrain.identifier)();
+    return drawnSlopeSides(terrain, gridSlopeSides(this.gridType()));
+  });
 
-  readonly hexSlopeSteps = computed<HexSlopeStepData>(() => {
+  /** The outline of this block's top, in pixels from the corner the block is drawn from. */
+  readonly topOutline = computed<SlopePoint[]>(() => {
+    const width = this.width() * this.gridSize;
+    const depth = this.depth() * this.gridSize;
     const params = this.pedestalHexParams();
-    if (!params || !this.isHexSlope()) return NO_HEX_SLOPE;
-    return computeHexSlopeSteps(
-      Math.min(this.width(), this.depth()),
-      this.gridSize,
-      isFlatTopGrid(this.currentTable.gridType),
-      this.slopeDirection(),
-      this.height(),
-      this.isSurfaceShading(),
-      this.width() * this.gridSize,
-      this.depth() * this.gridSize,
-      params.bbox
-    );
+    if (!params) {
+      return [
+        { x: 0, y: 0 },
+        { x: width, y: 0 },
+        { x: width, y: depth },
+        { x: 0, y: depth },
+      ];
+    }
+    return params.outline.map((corner) => ({ x: width / 2 + corner.x, y: depth / 2 + corner.y }));
+  });
+
+  /** The slope of this block, as the flat pieces its top is made of. */
+  readonly slopeRoof = computed<SlopeRoof | null>(() =>
+    buildSlopeRoof(this.topOutline(), this.slopeSides(), this.height() * this.gridSize, gridSlopeKind(this.gridType()))
+  );
+
+  /** Each flat piece of the slope, ready to be drawn: where it is cut, how it leans, how lit. */
+  readonly slopeFaces = computed<TerrainSlopeFace[]>(() => {
+    const roof = this.slopeRoof();
+    if (!roof) return [];
+    const bounds = this.getFloorBounds();
+    const lighting = this.centerBrightness();
+    const shading = this.isSurfaceShading();
+    return roof.faces.map((face) => ({
+      clipPath: clipPathOf(face.polygon, bounds.left, bounds.top),
+      transform: leanCss(face.plane, bounds.left, bounds.top),
+      brightness: slopeShadeOf(face.azimuth, shading) * lighting,
+    }));
   });
 
   // Computed, so neither the record nor the clip path is rebuilt on every change-detection pass.
@@ -543,17 +702,7 @@ export class TerrainComponent {
   readonly hexFloorClipPath = computed<string | null>(() => {
     const params = this.pedestalHexParams();
     if (!params) return null;
-    const { outline, bbox } = params;
-    const W = bbox.maxX - bbox.minX;
-    const H = bbox.maxY - bbox.minY;
-    const points = outline
-      .map((v) => {
-        const px = v.x - bbox.minX;
-        const py = v.y - bbox.minY;
-        return `${((px / W) * 100).toFixed(2)}% ${((py / H) * 100).toFixed(2)}%`;
-      })
-      .join(', ');
-    return `polygon(${points})`;
+    return hexFloorClipPathOf(params);
   });
 
   readonly hexFloorDimStyle = computed<Record<string, string>>(() => {
@@ -569,32 +718,30 @@ export class TerrainComponent {
 
   readonly terrainGridClipStyle = computed<Record<string, string>>(() => this.makeTerrainGridClipStyle());
 
-  terrainGridClipStepStyle(step: HexSlopeStepFloor): Record<string, string> {
-    return this.makeTerrainGridClipStyle(step);
+  /**
+   * The style that lays the grid over one step of a stepped hex slope, masked to that step's hexes.
+   */
+  terrainGridFaceStyle(face: TerrainSlopeFace): Record<string, string> {
+    return this.makeTerrainGridClipStyle(face);
   }
 
-  private makeTerrainGridClipStyle(step?: HexSlopeStepFloor): Record<string, string> {
+  private makeTerrainGridClipStyle(face?: TerrainSlopeFace): Record<string, string> {
     const bounds = this.getFloorBounds();
     const clipPath = this.hexFloorClipPath();
-    const transform =
-      step != null
-        ? 'translateZ(' + step.heightPx + 'px)'
-        : 'translateZ(' + (this.height() / (this.isSlope() ? 2 : 1)) * this.gridSize + 'px)' + this.floorModCss();
     const style: Record<string, string> = {
       width: `${bounds.width}px`,
       height: `${bounds.height}px`,
       left: `${bounds.left}px`,
       top: `${bounds.top}px`,
       'backface-visibility': this.isSlope() ? 'visible' : 'hidden',
-      transform,
-      filter: 'brightness(' + this.floorBrightness() + ')',
+      'transform-origin': face != null ? '0 0' : '',
+      transform: face != null ? face.transform : 'translateZ(' + this.height() * this.gridSize + 'px)',
     };
-    if (step != null) {
-      style['-webkit-mask'] = step.mask;
-      style.mask = step.mask;
-    } else {
-      style['clip-path'] = clipPath ?? 'none';
-    }
+    // A filter of its own makes a layer and flattens what is under it; at full brightness it
+    // darkens nothing, so the grid is left without one.
+    const brightness = face != null ? face.brightness : this.floorBrightness();
+    if (brightness !== 1) style.filter = 'brightness(' + brightness + ')';
+    style['clip-path'] = face != null ? face.clipPath : (clipPath ?? 'none');
     return style;
   }
 
@@ -611,142 +758,90 @@ export class TerrainComponent {
     };
   });
 
-  readonly hexWalls = computed<{ edgeLength: number; px: number; py: number; angle: number; brightness: number }[]>(
-    () => {
-      const params = this.pedestalHexParams();
-      if (!params) return [];
-      const { outline } = params;
-      const containerW = this.width() * this.gridSize;
-      const containerH = this.depth() * this.gridSize;
-      const useSurfaceShading = this.isSurfaceShading();
-
-      return outline.map((v1, i) => {
-        const v2 = outline[(i + 1) % outline.length];
-        const dx = v2.x - v1.x;
-        const dy = v2.y - v1.y;
-        const edgeLength = Math.sqrt(dx * dx + dy * dy);
-        const edgeAngle = Math.atan2(dy, dx);
-
-        const brightness = useSurfaceShading
-          ? Math.max(0.3, Math.min(1.0, 0.65 - 0.35 * Math.cos(edgeAngle) + 0.15 * Math.sin(edgeAngle)))
-          : 1.0;
-
-        return {
-          edgeLength: edgeLength + 1,
-          px: containerW / 2 + v2.x,
-          py: containerH / 2 + v2.y,
-          angle: edgeAngle + Math.PI,
-          brightness,
-        };
-      });
-    }
-  );
+  readonly hexWalls = computed<readonly TerrainHexWall[]>(() => {
+    const params = this.pedestalHexParams();
+    if (!params) return NO_HEX_WALLS;
+    return hexWallsOf(params, this.width() * this.gridSize, this.depth() * this.gridSize, this.isSurfaceShading());
+  });
 
   math = Math;
-  slopeDirectionState = SlopeDirection;
 
   private _initialized = false;
   readonly viewRotateZ = this.uiSignalService.tableViewRotationZ;
 
+  /** Stops the browser starting a native drag on the terrain. */
   onDragstart(e: DragEvent) {
     e.stopPropagation();
     e.preventDefault();
   }
 
+  /** Cancels the input handler's gesture as soon as a press starts. */
   onInputStart(_e: MouseEvent | TouchEvent) {
     this.input?.cancel();
   }
 
+  /**
+   * Opens the terrain's right-click menu, or the menu for the whole selection when the terrain is
+   * part of one.
+   */
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();
-
-    if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
-
-    const menuPosition = this.pointerDeviceService.pointers[0];
-    if (this.pieceContextMenu.openForSelection(this.terrain(), this.gridSize, menuPosition)) return;
-    const objectPosition = this.coordinateService.calcTabletopLocalCoordinate();
-    const overlapEntries = buildOverlapContextMenu(
-      this.tabletopOverlap,
-      this.terrain(),
-      menuPosition.x,
-      menuPosition.y,
-      this.translateFn
-    );
-    const surfaceEntries = buildSurfaceSwitchContextMenu(this.terrain()!, this.currentTable, this.translateFn);
-    const menu = buildTerrainContextMenuModel(
-      this.terrain()!,
-      this.gridSize,
-      objectPosition,
-      this.inventoryService,
-      this.tabletopActionService,
-      (terrain) => this.showDetail(terrain),
-      this.translateFn,
-      overlapEntries,
-      surfaceEntries
-    );
-    const display = this.tabletopService.display();
-    if (this.tabletopService.mode2d() && display.tabletopMenuStyle !== 'standard') {
-      this.contextMenuService.openRadial(
-        menuPosition,
-        menu.actions,
-        menu.radialGroups,
-        this.name(),
-        display.tabletopMenuStyle === 'radial',
-        display.radialMenuRotationSpeed,
-        multiAngleFontScaleFactor(display.multiAngleFontScale)
-      );
-      return;
-    }
-    this.contextMenuService.open(menuPosition, menu.actions, this.name());
+    this.terrainMenu.open(this.terrain());
   }
 
+  /** Plays the block pick-up sound when a drag or turn of the terrain starts. */
   onMove() {
     SoundEffect.play(PresetSound.blockPick);
   }
 
+  /** Plays the block put-down sound when a drag or turn of the terrain ends. */
   onMoved() {
     SoundEffect.play(PresetSound.blockPut);
   }
 
-  readonly floorModCss = computed(() => {
-    if (this.isHex()) return '';
-    let ret = '';
-    let tmp: number;
-    switch (this.slopeDirection()) {
-      case SlopeDirection.TOP:
-        tmp = Math.atan(this.height() / this.depth());
-        ret = ' rotateX(' + tmp + 'rad) scaleY(' + 1 / Math.cos(tmp) + ')';
-        break;
-      case SlopeDirection.BOTTOM:
-        tmp = Math.atan(this.height() / this.depth());
-        ret = ' rotateX(' + -tmp + 'rad) scaleY(' + 1 / Math.cos(tmp) + ')';
-        break;
-      case SlopeDirection.LEFT:
-        tmp = Math.atan(this.height() / this.width());
-        ret = ' rotateY(' + -tmp + 'rad) scaleX(' + 1 / Math.cos(tmp) + ')';
-        break;
-      case SlopeDirection.RIGHT:
-        tmp = Math.atan(this.height() / this.width());
-        ret = ' rotateY(' + tmp + 'rad) scaleX(' + 1 / Math.cos(tmp) + ')';
-        break;
+  /**
+   * What the slope leaves of the wall along one side of a square block: whether it stands at
+   * all, and the cut that takes its top down to the slope over it.
+   */
+  private wallCut(side: WallSide): TerrainWallCut {
+    const width = this.width() * this.gridSize;
+    const depth = this.depth() * this.gridSize;
+    // Each wall is drawn from one end of its side: the west end along the north and south
+    // sides, the south end along the west and east ones.
+    switch (side) {
+      case 'north':
+        return this.cutAlong({ x: 0, y: 0 }, { x: width, y: 0 });
+      case 'south':
+        return this.cutAlong({ x: 0, y: depth }, { x: width, y: depth });
+      case 'west':
+        return this.cutAlong({ x: 0, y: depth }, { x: 0, y: 0 });
+      default:
+        return this.cutAlong({ x: width, y: depth }, { x: width, y: 0 });
     }
-    return ret;
+  }
+
+  readonly northWallCut = computed<TerrainWallCut>(() => this.wallCut('north'));
+  readonly southWallCut = computed<TerrainWallCut>(() => this.wallCut('south'));
+  readonly westWallCut = computed<TerrainWallCut>(() => this.wallCut('west'));
+  readonly eastWallCut = computed<TerrainWallCut>(() => this.wallCut('east'));
+
+  /** The same for one side of a hex block, which is drawn from the far end of its edge. */
+  readonly hexWallCuts = computed<TerrainWallCut[]>(() => {
+    const outline = this.topOutline();
+    return outline.map((corner, index) => this.cutAlong(outline[(index + 1) % outline.length], corner));
   });
 
-  private readonly floorShade = computed(() => {
-    if (!this.isSurfaceShading()) return 1.0;
-    switch (this.slopeDirection()) {
-      case SlopeDirection.TOP:
-        return 0.4;
-      case SlopeDirection.LEFT:
-        return 0.6;
-      case SlopeDirection.RIGHT:
-        return 0.9;
-      default:
-        return 1.0;
-    }
-  });
+  private cutAlong(from: SlopePoint, to: SlopePoint): TerrainWallCut {
+    const roof = this.slopeRoof();
+    if (!roof) return WHOLE_WALL;
+    const profile = slopeProfileAlong(roof, from, to);
+    if (profile.every((stop) => stop.heightPx <= CUT_AWAY_PX)) return { shown: false, clipPath: null };
+    const top = profile.map(
+      (stop) => `${(stop.at * 100).toFixed(2)}% ${((1 - stop.heightPx / roof.heightPx) * 100).toFixed(2)}%`
+    );
+    return { shown: true, clipPath: `polygon(${top.join(', ')}, 100% 100%, 0% 100%)` };
+  }
 
   private readonly fogCover = computed(() => {
     const terrain = this.terrain();
@@ -769,85 +864,29 @@ export class TerrainComponent {
   /**
    * What the fog leaves of a face, as a mask over it.
    *
-   * A block standing in ground nobody has walked to is not there to be seen. Painted over in
-   * the colour of the fog it stood up out of the mist as a solid slab of it, and the shape of
-   * the slab told the party the wall was there. Taken away instead, the face thins out across
-   * the cell at the edge of what has been reached, the way the mist on the floor does, and the
-   * rest of the block is simply gone.
-   *
    * A hex board and a slope carry a clip of their own and are shown or hidden whole.
    */
   private fogMaskStyle(cleared: readonly boolean[], cols: number, rows: number): Record<string, string> | null {
-    if (this.isHex() || this.isSlope() || cleared.every((cell) => cell)) return null;
-    // A face standing wholly in ground nobody has reached is not drawn at all. A mask made of
-    // one reading cannot say this: a gradient with nothing kept anywhere is no gradient, and a
-    // face left without a mask is a face shown whole.
-    if (!cleared.some((cell) => cell)) return HIDDEN_FACE;
-    const mask = cellGradient(
-      cleared.map((cell) => (cell ? 1 : 0)),
-      cols,
-      rows,
-      DEFAULT_SHADE_RGB
-    );
-    if (!mask) return null;
-    return {
-      'mask-image': mask.image,
-      '-webkit-mask-image': mask.image,
-      'mask-size': mask.size,
-      '-webkit-mask-size': mask.size,
-      'mask-position': mask.position,
-      '-webkit-mask-position': mask.position,
-      'mask-repeat': 'no-repeat',
-      '-webkit-mask-repeat': 'no-repeat',
-      'mask-composite': 'add',
-      '-webkit-mask-composite': 'source-over',
-    };
-  }
-
-  /** The cells along one face, its left end first: the west and east faces stand up from the south end. */
-  private edgeIndexes(cover: TerrainFogCover, side: WallSide): number[] {
-    const { cols, rows } = cover;
-    switch (side) {
-      case 'north':
-        return Array.from({ length: cols }, (_, col) => col);
-      case 'south':
-        return Array.from({ length: cols }, (_, col) => (rows - 1) * cols + col);
-      case 'west':
-        return Array.from({ length: rows }, (_, i) => (rows - 1 - i) * cols);
-      default:
-        return Array.from({ length: rows }, (_, i) => (rows - 1 - i) * cols + cols - 1);
-    }
+    if (this.isHex() || this.isSlope()) return null;
+    return fogMaskOf(cleared, cols, rows);
   }
 
   private edgeCells(cover: TerrainFogCover, side: WallSide): boolean[] {
-    return this.edgeIndexes(cover, side).map((i) => cover.cleared[i]);
+    return sideCellIndexes(cover.cols, cover.rows, side).map((i) => cover.cleared[i]);
   }
 
-  /**
-   * The top of a block, shaded a cell at a time.
-   *
-   * The camera looks down on a table, so the top is the face most seen, and one figure for
-   * the whole of it lights the far end of a wall whose near end alone stands in a torch's
-   * reach.
-   */
   /**
    * The shading and the veils, worked out once for the scene rather than once a frame.
    *
    * Building them takes a gradient stop per cell and a clip path per face, and a template
    * calls a plain method on every pass of change detection. A flickering lamp ticks twenty
-   * times a second, and every terrain on the board was rebuilding all of it each time.
+   * times a second, and every terrain on the board would be rebuilding all of it each time.
    */
   protected readonly topShade = computed(() => this.shadedTop(this.topFaceImage().url));
-  protected readonly northShade = computed(() =>
-    this.shadedFace(this.northFaceImage().url, this.isSurfaceShading() ? 0.3 : 1, 'north')
-  );
-  protected readonly southShade = computed(() => this.shadedFace(this.southFaceImage().url, 1, 'south'));
-  protected readonly westShade = computed(() =>
-    this.shadedFace(this.westFaceImage().url, this.isSurfaceShading() ? 0.5 : 1, 'west')
-  );
-  protected readonly eastShade = computed(() =>
-    this.shadedFace(this.eastFaceImage().url, this.isSurfaceShading() ? 0.8 : 1, 'east')
-  );
+  protected readonly northShade = computed(() => this.shadedSide(this.northFaceImage().url, 'north'));
+  protected readonly southShade = computed(() => this.shadedSide(this.southFaceImage().url, 'south'));
+  protected readonly westShade = computed(() => this.shadedSide(this.westFaceImage().url, 'west'));
+  protected readonly eastShade = computed(() => this.shadedSide(this.eastFaceImage().url, 'east'));
 
   /**
    * The underside of a block, which is only ever looked at on one hung off the ground.
@@ -856,14 +895,14 @@ export class TerrainComponent {
    * face turned away from every lamp on the table is the darkest side a block has.
    */
   protected readonly bottomShade = computed(() =>
-    this.shadedFace(this.bottomFaceImage().url, this.isSurfaceShading() ? 0.25 : 1, 'south')
+    this.shadedFace(this.bottomFaceImage().url, faceShadeOf('bottom', this.isSurfaceShading()), 'south')
   );
 
   /**
    * Whether the block is drawn with an underside, which is whenever it has a floor at all.
    *
    * Asking how high it stands is the wrong question: a block may be built at a height or be
-   * one of a stack, and read from either the answer was wrong for the other. One standing on
+   * one of a stack, and read from either the answer is wrong for the other. One standing on
    * the table hides its own underside anyway, so there is nothing to be saved by leaving it
    * off and a whole class of see-through boxes to be had by trying.
    */
@@ -875,46 +914,24 @@ export class TerrainComponent {
   protected readonly westFog = computed(() => this.faceFogStyle('west'));
   protected readonly eastFog = computed(() => this.faceFogStyle('east'));
 
+  /** The top of a block, shaded a cell at a time where it can be. */
   private shadedTop(url: string): ShadedBackground {
-    const cover = this.fogCover();
-    const texture = this.textureLayout();
-    // A roof standing above the floor is a surface of its own, lit cell by cell by whatever is
-    // up there with it rather than by what reaches the ground below.
-    const roof = this.topIsRaised() ? this.topCover() : null;
-    if (roof && !this.isHex() && !this.isSlope()) {
-      const shade = this.floorShade();
-      return shadedBackgroundGrid(
-        url,
-        roof.brightness.map((brightness) => shade * brightness),
-        roof.cols,
-        roof.rows,
-        texture,
-        this.shadeRgb()
-      );
-    }
-    if (this.topIsRaised()) {
-      return shadedBackgroundGrid(url, [this.floorShade() * this.topBrightness()], 1, 1, texture, this.shadeRgb());
-    }
-    if (!cover || this.isHex() || this.isSlope()) {
-      return shadedBackgroundGrid(url, [this.floorBrightness()], 1, 1, texture, this.shadeRgb());
-    }
-    const shade = this.floorShade();
-    return shadedBackgroundGrid(
-      url,
-      cover.brightness.map((brightness) => shade * brightness),
-      cover.cols,
-      cover.rows,
-      texture,
-      this.shadeRgb()
-    );
+    const grid = topShadeGrid(this.topIsRaised(), !this.isHex() && !this.isSlope(), 1, {
+      roof: () => this.topCover(),
+      floor: () => this.fogCover(),
+      top: () => this.topBrightness(),
+      whole: () => this.centerBrightness(),
+    });
+    return shadedBackgroundGrid(url, grid.brightness, grid.cols, grid.rows, this.textureLayout(), this.shadeRgb());
+  }
+
+  private shadedSide(url: string, side: WallSide): ShadedBackground {
+    return this.shadedFace(url, faceShadeOf(side, this.isSurfaceShading()), side);
   }
 
   private shadedFace(url: string, base: number, side: WallSide): ShadedBackground {
-    const cover = this.fogCover();
-    const texture = this.textureLayout();
-    if (!cover) return shadedBackgroundGrid(url, [base * this.ambientBrightness()], 1, 1, texture, this.shadeRgb());
-    const along = this.edgeIndexes(cover, side).map((i) => base * cover.brightness[i]);
-    return shadedBackgroundGrid(url, along, along.length, 1, texture, this.shadeRgb());
+    const line = sideShadeLine(base, side, this.fogCover(), () => this.ambientBrightness());
+    return shadedBackgroundGrid(url, line.brightness, line.cols, line.rows, this.textureLayout(), this.shadeRgb());
   }
 
   private faceFogStyle(side: WallSide): Record<string, string> | null {
@@ -943,7 +960,7 @@ export class TerrainComponent {
     );
   });
 
-  readonly floorBrightness = computed(() => this.floorShade() * this.centerBrightness());
+  readonly floorBrightness = computed(() => this.centerBrightness());
 
   /** Whether this block's top stands above the floor, and so is lit as its own surface. */
   private readonly topIsRaised = computed(() => this.altitude() + this.height() > 0);
@@ -981,8 +998,8 @@ export class TerrainComponent {
    * The colour this table paints its dark in, for the faces of a block.
    *
    * The darkness is one sheet lying on the floor, so nothing standing on the table is covered
-   * by it and every face darkens itself. Doing that in black left a building grey while the
-   * floor around it wore the table's own colour.
+   * by it and every face darkens itself. Doing that in black would leave a building grey
+   * while the floor around it wears the table's own colour.
    */
   private readonly shadeRgb = computed(() => shadeRgbOf(this.visionService.ambientShade()?.color));
 
@@ -1096,11 +1113,6 @@ export class TerrainComponent {
     };
   }
 
-  private showDetail(gameObject: Terrain) {
-    const title = sheetPanelTitle(this.translateFn('feature.tabletop.panel.terrain'), gameObject.name);
-    this.objectPanels.openSheet(gameObject, title, { width: 600, height: 300 });
-  }
-
   private setGameTableGrid(
     gridType: GridType = GridType.SQUARE,
     gridColor: string = '#000000e6',
@@ -1110,8 +1122,18 @@ export class TerrainComponent {
     const slide = this.gridSlide();
 
     perfCounters.bump(PERF_TERRAIN_GRID_RASTER);
+    if (slide.grow === 0) perfCounters.bump(`${PERF_TERRAIN_GRID_RASTER}:unslid`);
+    let drawn: HTMLCanvasElement | null = null;
     for (const gridCanvas of this.gridCanvases()) {
-      const render = new GridLineRender(gridCanvas.nativeElement);
+      const canvas = gridCanvas.nativeElement;
+      // Every step of a slope shows the same stretch of grid, so the rest are copies of the first.
+      if (drawn) {
+        canvas.width = drawn.width;
+        canvas.height = drawn.height;
+        canvas.getContext('2d')?.drawImage(drawn, 0, 0);
+        continue;
+      }
+      const render = new GridLineRender(canvas);
       render.renderViewport(
         slide.viewport.canvasWidth + slide.grow,
         slide.viewport.canvasHeight + slide.grow,
@@ -1122,6 +1144,7 @@ export class TerrainComponent {
         slide.offsetTop,
         slide.offsetLeft
       );
+      drawn = canvas;
     }
     let opacity: number = 0.0;
     setTimeout(() => {
@@ -1139,4 +1162,42 @@ export class TerrainComponent {
       gridCanvas.nativeElement.style.opacity = opacity + '';
     }
   }
+}
+
+/** One flat piece of a block's slope, ready to be drawn. */
+export interface TerrainSlopeFace {
+  /** Where the piece is cut out of the top, in the top's own pixels. */
+  clipPath: string;
+  /** How it leans, as a transform over the top laid flat. */
+  transform: string;
+  /** How lit it is, the way it leans taken together with the light on the block. */
+  brightness: number;
+}
+
+/** What a slope leaves of one wall. */
+export interface TerrainWallCut {
+  shown: boolean;
+  clipPath: string | null;
+}
+
+const WHOLE_WALL: TerrainWallCut = { shown: true, clipPath: null };
+
+/** Under this much of a wall is left standing, the slope has taken the whole of it. */
+const CUT_AWAY_PX = 0.01;
+
+function clipPathOf(polygon: readonly SlopePoint[], left: number, top: number): string {
+  const points = polygon.map((corner) => `${(corner.x - left).toFixed(2)}px ${(corner.y - top).toFixed(2)}px`);
+  return `polygon(${points.join(', ')})`;
+}
+
+/**
+ * How a flat piece of a slope leans, as a transform over the top laid flat.
+ *
+ * It lifts each point of the piece to the height the slope stands at there and leaves it
+ * where it is otherwise, so the picture over it is stretched up the slope rather than slid
+ * across it, and the piece is cut where it was drawn.
+ */
+function leanCss(plane: { a: number; b: number; c: number }, left: number, top: number): string {
+  const lift = plane.c + plane.a * left + plane.b * top;
+  return `matrix3d(1,0,${plane.a.toFixed(6)},0,0,1,${plane.b.toFixed(6)},0,0,0,1,0,0,0,${lift.toFixed(3)},1)`;
 }

@@ -1,7 +1,7 @@
 {
   "name": "Udonarium Axe",
   "short_name": "Axe",
-  "description": "ブラウザで動く TRPG オンラインセッション支援ツール",
+  "description": "ブラウザで動くTRPGオンラインセッション支援ツール",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -9,10 +9,15 @@ const SW1_SKILL_COLUMNS = [
   { suffix: 'eishou', label: '詠唱' },
 ];
 
+/** Whether the pasted json is an archive sheet under the `swordworld` system token. */
 export function isSwordWorldCharasheetCharacter(parsed: unknown): boolean {
   return isCharasheetGame(parsed, 'swordworld');
 }
 
+/**
+ * Builds the imported model from a `swordworld` archive sheet through the shared builder, reading
+ * its skills from the `JK` columns. Null for any other sheet.
+ */
 export function buildSwordWorldCharasheetCharacter(parsed: unknown): ImportedCharacter | null {
   return buildSwordWorldCharasheet(parsed, {
     game: 'swordworld',

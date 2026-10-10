@@ -10,6 +10,10 @@ export const LIGHT_SKIN_IDS = [
   'light_lantern',
   'light_candle',
   'light_chandelier',
+  'light_neon',
+  'light_streetlamp',
+  'light_fluorescent',
+  'light_neon_pole',
 ] as const;
 
 export type LightSkinId = (typeof LIGHT_SKIN_IDS)[number];
@@ -24,4 +28,8 @@ export const LIGHT_SKIN_ASSET_URLS: Record<LightSkinId, string> = {
   light_lantern: 'assets/images/lights/light_lantern.webp',
   light_candle: 'assets/images/lights/light_candle.webp',
   light_chandelier: 'assets/images/lights/light_chandelier.webp',
+  light_neon: 'assets/images/lights/light_neon.webp',
+  light_streetlamp: 'assets/images/lights/light_streetlamp.webp',
+  light_fluorescent: 'assets/images/lights/light_fluorescent.webp',
+  light_neon_pole: 'assets/images/lights/light_neon_pole.webp',
 };

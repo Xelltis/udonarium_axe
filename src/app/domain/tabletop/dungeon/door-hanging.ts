@@ -38,6 +38,7 @@ export interface DoorHanging {
   doublePercent?: number;
 }
 
+/** A door width rounded to whole cells and kept between one and four; missing or not a number gives one. */
 export function clampDoorWidth(width: number | undefined): number {
   if (width === undefined || !Number.isFinite(width)) return MIN_DOOR_WIDTH;
   return Math.min(MAX_DOOR_WIDTH, Math.max(MIN_DOOR_WIDTH, Math.round(width)));
@@ -50,6 +51,7 @@ export function doorWidthsFor(asked?: DoorWidths): DoorWidths {
   return { least, most };
 }
 
+/** The share of double doors rounded and kept between 0 and 100; missing or not a number gives the default. */
 export function clampDoubleDoorPercent(percent: number | undefined): number {
   if (percent === undefined || !Number.isFinite(percent)) return DEFAULT_DOUBLE_DOOR_PERCENT;
   return Math.min(MAX_DOUBLE_DOOR_PERCENT, Math.max(MIN_DOUBLE_DOOR_PERCENT, Math.round(percent)));
@@ -326,4 +328,16 @@ function leafOf(doorway: Doorway, start: number, span: number, mirrored: boolean
   const rect: DungeonRect =
     doorway.across === 'x' ? { x: from.x, y: from.y, w: 1, h: span } : { x: from.x, y: from.y, w: span, h: 1 };
   return { ...rect, across: doorway.across, rooms: [...doorway.rooms], locked: doorway.locked, mirrored };
+}
+
+/**
+ * Dresses every door out of a room as the wall it stands in.
+ *
+ * The doors are still there and still open; only somebody who does not know where to push sees
+ * nothing but wall.
+ */
+export function hideDoorsOf(layout: DungeonLayout, room: number): void {
+  for (const leaf of layout.doorLeaves) {
+    if (leaf.rooms.includes(room)) leaf.hidden = true;
+  }
 }

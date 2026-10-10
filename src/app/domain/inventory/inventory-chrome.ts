@@ -9,6 +9,7 @@ export const INVENTORY_CHROME_LABEL_KEYS: Record<InventoryChromePart, string> = 
   round: 'feature.inventory.panel.showRoundLine',
 };
 
+/** Whether a stored value names one of the strips above the inventory list. */
 export function isInventoryChromePart(value: unknown): value is InventoryChromePart {
   return typeof value === 'string' && INVENTORY_CHROME_PARTS.includes(value as InventoryChromePart);
 }
@@ -18,6 +19,7 @@ export function parseHiddenChromeParts(stored: string | null): InventoryChromePa
   return (stored ?? '').split(/[\s,]+/).filter((token): token is InventoryChromePart => isInventoryChromePart(token));
 }
 
+/** Writes the strips a reader put away as one comma-separated line, the form `parseHiddenChromeParts` reads. */
 export function formatHiddenChromeParts(parts: Iterable<InventoryChromePart>): string {
   return [...parts].join(',');
 }

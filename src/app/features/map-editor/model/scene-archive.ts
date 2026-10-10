@@ -10,6 +10,12 @@ const MAP_JSON_PATH = 'map.json';
 const TEXTURES_PREFIX = 'textures/';
 const IMAGES_PREFIX = 'images/';
 
+/**
+ * Zips a scene's JSON together with the image bytes it uses, each keyed by its image identifier.
+ *
+ * The JSON is stored as `map.json`, texture images under `textures/` and placed images under
+ * `images/`.
+ */
 export function packSceneArchive(
   json: string,
   textures: Record<string, Uint8Array>,
@@ -25,6 +31,12 @@ export function packSceneArchive(
   return zipSync(entries);
 }
 
+/**
+ * Reads a map archive back into its JSON and its texture and image bytes, keyed by the identifiers
+ * they were packed under.
+ *
+ * Null when the data is not a zip or holds no `map.json`.
+ */
 export function unpackSceneArchive(
   data: Uint8Array
 ): { json: string; textures: Record<string, Uint8Array>; images: Record<string, Uint8Array> } | null {
@@ -48,6 +60,10 @@ export function unpackSceneArchive(
   return { json: strFromU8(mapEntry), textures, images };
 }
 
+/**
+ * Whether the bytes start with a zip signature, which tells a map archive from a plain JSON map
+ * file.
+ */
 export function isZipArchive(data: Uint8Array): boolean {
   return data.length >= 4 && data[0] === 0x50 && data[1] === 0x4b && data[2] === 0x03 && data[3] === 0x04;
 }
@@ -58,6 +74,13 @@ function remapFill(fill: FillStyle | null | undefined, map: Map<string, string>)
   if (next) fill.textureId = IMAGE_TEXTURE_PREFIX + next;
 }
 
+/**
+ * Rewrites the image identifiers a scene points at, in place, using a map from old identifier to
+ * new.
+ *
+ * It covers image textures in cell fills and in shape fills and stroke fills, and the pictures on
+ * image layers. Identifiers missing from the map are left as they are.
+ */
 export function remapSceneImageIdentifiers(scene: MapScene, map: Map<string, string>): void {
   for (const layer of scene.layers) {
     if (layer.kind === 'cell') {

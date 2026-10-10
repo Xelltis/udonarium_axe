@@ -145,6 +145,35 @@
               (ngModelChange)="setEffect(ailment, $event)"
               [placeholder]="'feature.statusAilment.effectPlaceholder' | transloco"
             />
+
+            <label class="text-ui-muted">{{ 'feature.statusAilment.stat' | transloco }}</label>
+            <input
+              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 border border-solid px-1 py-0.5 outline-none"
+              [attr.name]="'ailment-stat-' + ailment.name"
+              [attr.data-testid]="'ailment-stat-' + ailment.name"
+              [ngModel]="ailment.stat"
+              (ngModelChange)="setStat(ailment, $event)"
+              [placeholder]="'feature.statusAilment.statPlaceholder' | transloco"
+              [title]="'feature.statusAilment.statHint' | transloco"
+            />
+            @if (ailment.stat.length > 0) {
+              <select
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 cursor-pointer border border-solid px-1 py-0.5 outline-none"
+                [attr.name]="'ailment-op-' + ailment.name"
+                [ngModel]="ailment.op"
+                (ngModelChange)="setOp(ailment, $event)"
+              >
+                @for (op of statOps; track op) {
+                  <option [value]="op">{{ op }}</option>
+                }
+              </select>
+              <input
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 border border-solid px-1 py-0.5 outline-none"
+                [attr.name]="'ailment-amount-' + ailment.name"
+                [ngModel]="ailment.amount"
+                (ngModelChange)="setAmount(ailment, $event)"
+              />
+            }
           </div>
         }
       </div>

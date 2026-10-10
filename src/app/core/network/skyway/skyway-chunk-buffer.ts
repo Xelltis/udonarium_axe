@@ -52,6 +52,7 @@ export class ChunkBuffer {
     return uint8Array;
   }
 
+  /** Drops every partly received message, as when the stream it came over is closed. */
   clear(): void {
     this.receivedMap.clear();
   }

@@ -24,7 +24,7 @@ import { TranslocoModule } from '@jsverse/transloco';
  *
  * The chat window carries a tab strip, an input, colours and settings around whichever tab is
  * open. Somebody who only wants to watch a conversation go by - beside novel mode, or while
- * another tab is being written in - was made to keep all of that on screen, and could only
+ * another tab is being written in - would have to keep all of that on screen, and could only
  * follow one tab at a time. This is a window per tab with none of the furniture.
  *
  * The tab is held as a plain field rather than a signal input because a panel is opened from

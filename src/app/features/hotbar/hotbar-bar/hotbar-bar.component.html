@@ -37,7 +37,7 @@
             type="button"
             data-testid="hotbar-page"
             [attr.data-page]="page"
-            class="rounded-ui-sm border-ui-border-panel flex size-6 cursor-pointer items-center justify-center border border-solid text-[11px] leading-none font-semibold [backdrop-filter:blur(12px)] transition-colors [-webkit-backdrop-filter:blur(12px)]"
+            class="touch-target rounded-ui-sm border-ui-border-panel flex size-6 cursor-pointer items-center justify-center border border-solid text-[11px] leading-none font-semibold [backdrop-filter:blur(12px)] transition-colors [-webkit-backdrop-filter:blur(12px)]"
             [class.bg-ui-accent]="preference.page() === page"
             [class.text-white]="preference.page() === page"
             [class.bg-ui-panel]="preference.page() !== page"
@@ -107,7 +107,7 @@
         <button
           type="button"
           data-testid="hotbar-save"
-          class="rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text flex size-6 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors"
+          class="touch-target rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text flex size-6 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors"
           [attr.title]="'feature.hotbar.menu.save' | transloco"
           (click)="saveToFile()"
         >
@@ -116,7 +116,7 @@
         <button
           type="button"
           data-testid="hotbar-lock"
-          class="rounded-ui-sm hover:bg-ui-hover hover:text-ui-text flex size-6 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors"
+          class="touch-target rounded-ui-sm hover:bg-ui-hover hover:text-ui-text flex size-6 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors"
           [class.text-ui-accent]="preference.locked()"
           [class.text-ui-dim]="!preference.locked()"
           [attr.title]="'feature.hotbar.lock' | transloco"

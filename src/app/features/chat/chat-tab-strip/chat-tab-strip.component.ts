@@ -2,6 +2,7 @@ import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   ElementRef,
   inject,
@@ -32,6 +33,34 @@ const TAB_CLEARANCE_PX = 24;
 /** How far the arrows at either end move the strip. */
 const ARROW_STEP_PX = 120;
 
+/** The ground a strip is laid on: a window's title bar, or the body of a panel. */
+export type ChatTabStripTone = 'titlebar' | 'panel';
+
+/**
+ * The room above the tabs on each ground. An unread count stands 6px proud of its tab, and the strip
+ * clips whatever leaves it, so that much is kept; a panel has no title bar to line up with.
+ */
+const STRIP_TONES: Record<ChatTabStripTone, string> = {
+  titlebar: 'pt-2',
+  panel: 'pt-1.5',
+};
+
+/**
+ * How many strips have been drawn, which names each one's radio group apart from the rest.
+ *
+ * Radios of one name are one group, and two strips outside a form of their own would be the same
+ * group: choosing a tab in one would take the mark off the other's tab, where nothing would put
+ * it back.
+ */
+let stripsDrawn = 0;
+
+/** The colours of a tab on each ground, which the selected tab and the hover share otherwise. */
+const PILL_TONES: Record<ChatTabStripTone, string> = {
+  titlebar:
+    'border-ui-border-titlebar text-ui-titlebar-muted peer-checked:text-ui-titlebar-text hover:text-ui-titlebar-text',
+  panel: 'border-ui-border-panel text-ui-muted peer-checked:text-ui-accent hover:text-ui-text',
+};
+
 @Component({
   selector: 'chat-tab-strip',
   templateUrl: './chat-tab-strip.component.html',
@@ -48,6 +77,13 @@ export class ChatTabStripComponent {
 
   readonly tabs = input.required<readonly ChatTab[]>();
   readonly selected = model.required<string>();
+  /** The ground the strip is laid on, which picks the colours its tabs read in. */
+  readonly tone = input<ChatTabStripTone>('titlebar');
+
+  protected readonly stripTone = computed(() => STRIP_TONES[this.tone()]);
+  protected readonly pillTone = computed(() => PILL_TONES[this.tone()]);
+  /** This strip's own radio group, which no other strip on the page shares. */
+  protected readonly groupName = `chat-tab-${++stripsDrawn}`;
 
   private readonly container = viewChild<ElementRef<HTMLElement>>('tabPillsContainer');
   protected readonly canScrollLeft = signal(false);
@@ -65,6 +101,9 @@ export class ChatTabStripComponent {
     });
   }
 
+  /**
+   * Works out whether the strip can scroll either way, which shows or hides the arrow at that end.
+   */
   updateTabScrollState(): void {
     const el = this.container()?.nativeElement;
     if (!el) return;
@@ -72,18 +111,27 @@ export class ChatTabStripComponent {
     this.canScrollRight.set(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
   }
 
+  /** Keeps the arrows in step as the strip scrolls. */
   onTabPillsScroll(): void {
     this.updateTabScrollState();
   }
 
+  /** Slides the strip left by a fixed step when the left arrow is clicked. */
   scrollTabsLeft(): void {
     this.container()?.nativeElement.scrollBy({ left: -ARROW_STEP_PX, behavior: 'smooth' });
   }
 
+  /** Slides the strip right by a fixed step when the right arrow is clicked. */
   scrollTabsRight(): void {
     this.container()?.nativeElement.scrollBy({ left: ARROW_STEP_PX, behavior: 'smooth' });
   }
 
+  /**
+   * Selects the next or previous tab as the wheel turns over the strip.
+   *
+   * Travel is gathered until it makes up a step, so a trackpad does not run through several tabs at
+   * once, and turning back starts the count again. A sideways push is left to scroll the strip.
+   */
   switchTabByWheel(event: WheelEvent): void {
     const delta = wheelTravelOf(event);
     if (delta === 0) return;
@@ -99,6 +147,10 @@ export class ChatTabStripComponent {
     if (!this.switchTabWithinEnds(delta > 0 ? 1 : -1)) this.scrollActiveTabIntoView();
   }
 
+  /**
+   * Opens the menu for a tab the user right-clicked, which includes opening or closing the tab as a
+   * stream panel.
+   */
   onChatTabContextMenu(event: Event, chatTab: ChatTab): void {
     event.preventDefault();
     event.stopPropagation();

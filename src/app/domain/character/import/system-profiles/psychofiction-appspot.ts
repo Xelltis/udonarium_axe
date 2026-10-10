@@ -14,6 +14,21 @@ export interface FieldLabel {
 }
 
 /**
+ * Calls the things a piece spends what the system's own pages call them.
+ *
+ * They are read generally, by the shape the sheet keeps them in, so they arrive under the name
+ * the warehouse stores them by: `hitpoint` rather than what the page beside it says.
+ */
+export function nameResources(
+  character: ImportedCharacter,
+  labels: Record<string, string> | undefined
+): ImportedCharacter {
+  if (!labels) return character;
+  character.statuses = character.statuses.map((status) => ({ ...status, label: labels[status.label] ?? status.label }));
+  return character;
+}
+
+/**
  * The shared builder for one publisher's family of systems at the warehouse.
  * Each has a skill table laid out as a grid of fields against ranks with gaps between them,
  * and an array of powers that each call for a skill. What differs is settled by the configuration.
@@ -30,6 +45,16 @@ export interface PsychoFictionConfig {
   targetSkillKey?: string;
   /** Takes the further arrays some systems carry as labelled sections. */
   extraSections?: { key: string; label: string; fields: FieldLabel[] }[];
+  /**
+   * A row of boxes crossed off as the piece is hurt, one to each category.
+   *
+   * Some of these systems count what a piece has left in boxes rather than in a number: the
+   * warehouse keeps one checkbox beside each category and nothing that says how many are left.
+   * `from` is the object holding them, and what is left is the categories less those crossed off.
+   */
+  damageTrack?: { from: string; label: string };
+  /** What this system calls the things it keeps as `{ value, max }`, which its own pages name. */
+  resourceLabels?: Record<string, string>;
 }
 
 const BACKGROUND_FIELDS: FieldLabel[] = [
@@ -48,6 +73,26 @@ function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
+/** Follows a dotted path down the sheet, or null where it does not lead anywhere. */
+function recordAt(root: Record<string, unknown>, path: string): Record<string, unknown> | null {
+  let here: Record<string, unknown> | null = root;
+  for (const step of path.split('.')) {
+    if (!here) return null;
+    here = asRecord(here[step]);
+  }
+  return here;
+}
+
+/**
+ * Whether a box of the damage row is crossed off.
+ *
+ * These boxes carry `0` as the value they send when ticked, unlike the gap boxes beside them
+ * which carry `1`, so what marks one is that it is there at all rather than what it says.
+ */
+function isCrossedOff(value: unknown): boolean {
+  return value != null && asString(value).trim() !== '';
+}
+
 function isChecked(value: unknown): boolean {
   const text = asString(value).trim();
   return text !== '' && text !== '0';
@@ -58,6 +103,10 @@ function resolveRoot(record: Record<string, unknown>, abilityKey: string): Recor
   return asRecord(record['data']) ?? record;
 }
 
+/**
+ * Whether the pasted json looks like a warehouse character of that family of systems: a named
+ * `base`, or an array of abilities under `abilityKey`, bare or wrapped in `data`.
+ */
 export function isPsychoFictionAppspotCharacter(parsed: unknown, abilityKey: string): boolean {
   const record = asRecord(parsed);
   if (!record) return false;
@@ -104,6 +153,14 @@ function buildPalette(abilities: unknown, targetSkillKey: string): string {
   return lines.join('\n');
 }
 
+/**
+ * Builds the imported model from a warehouse character of that family of systems, as `config`
+ * describes it, or null for data of another shape.
+ *
+ * Abilities, background, any extra sections, the profile and the outline become sections; the
+ * learned skills and gaps a skill table; and the palette offers a 2D6 roll of 5 or more for each
+ * ability.
+ */
 export function buildPsychoFictionCharacter(parsed: unknown, config: PsychoFictionConfig): ImportedCharacter | null {
   if (!isPsychoFictionAppspotCharacter(parsed, config.abilityKey)) return null;
   const root = resolveRoot(asRecord(parsed)!, config.abilityKey);
@@ -127,6 +184,13 @@ export function buildPsychoFictionCharacter(parsed: unknown, config: PsychoFicti
       label: '設定',
       groups: [{ label: '基本', fields: [{ label: '設定', value: outline, kind: 'note' }] }],
     });
+  }
+
+  const track = config.damageTrack ? recordAt(root, config.damageTrack.from) : null;
+  if (config.damageTrack && track) {
+    const boxes = config.categories.length;
+    const crossed = Object.values(track).filter((box) => isCrossedOff(box)).length;
+    character.statuses = [{ label: config.damageTrack.label, value: Math.max(0, boxes - crossed), max: boxes }];
   }
 
   character.skillTables = [buildSkillTable(root, config)];

@@ -49,6 +49,33 @@
     <span class="mt-0.5 text-[11px] opacity-50">{{ 'feature.file.fileStorage.maxSize' | transloco }}</span>
   </label>
 
+  <div class="mt-2 flex flex-wrap items-center gap-1.5">
+    <button
+      type="button"
+      class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex cursor-pointer items-center gap-1 border border-solid px-2.5 py-1 text-[12px] whitespace-nowrap transition-[background,color,border-color] [&_.material-icons]:text-[14px]!"
+      data-testid="file-storage-paste"
+      [title]="'feature.file.fileStorage.pasteHint' | transloco"
+      (click)="pasteFromClipboard()"
+    >
+      <i class="material-icons">content_paste</i>
+      {{ 'feature.file.fileStorage.paste' | transloco }}
+    </button>
+    <button
+      type="button"
+      class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex cursor-pointer items-center gap-1 border border-solid px-2.5 py-1 text-[12px] whitespace-nowrap transition-[background,color,border-color] disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[14px]!"
+      data-testid="file-storage-clear-background"
+      [title]="'feature.file.fileStorage.clearBackgroundHint' | transloco"
+      [disabled]="!checkedImage()"
+      (click)="clearBackgroundOfChecked()"
+    >
+      <i class="material-icons">format_color_reset</i>
+      {{ 'feature.file.fileStorage.clearBackground' | transloco }}
+    </button>
+    @if (notice(); as message) {
+      <span class="text-ui-dim text-[11px]" data-testid="file-storage-notice">{{ message }}</span>
+    }
+  </div>
+
   <div
     class="bg-ui-panel border-ui-border-panel z-1 mx-[-8] mt-2.5 flex flex-wrap items-center gap-1.5 border-y border-solid px-2.5 py-2"
   >

@@ -32,9 +32,11 @@ export class TableMouseGesture {
 
   private buttonCode: number = 0;
   private input: InputHandler | null = null;
+  /** Whether a press on the table is being held, moved or not. */
   get isGrabbing(): boolean {
     return this.input!.isGrabbing;
   }
+  /** Whether the held press has moved, which tells a drag from a click. */
   get isDragging(): boolean {
     return this.input!.isDragging;
   }
@@ -57,15 +59,18 @@ export class TableMouseGesture {
     this.input.onEnd = (e) => this.onInputEnd(e);
   }
 
+  /** Drops the press under way, so moving the pointer further neither pans nor turns the view. */
   cancel() {
     this.input!.cancel();
   }
 
+  /** Stops listening to the mouse, the wheel and the arrow keys for good. */
   destroy() {
     this.input!.destroy();
     this.removeEventListeners();
   }
 
+  /** Notes where a press began and with which button, and passes the press on to `onstart`. */
   onInputStart(ev: MouseEvent | TouchEvent) {
     this.currentPositionX = this.input!.pointer.x;
     this.currentPositionY = this.input!.pointer.y;
@@ -73,10 +78,15 @@ export class TableMouseGesture {
     if (this.onstart) this.onstart(ev);
   }
 
+  /** Passes the end of a press on to `onend`. */
   onInputEnd(ev: MouseEvent | TouchEvent) {
     if (this.onend) this.onend(ev);
   }
 
+  /**
+   * Turns the movement of a held press into a change of view: with the right button it turns the
+   * view, with any other it pans.
+   */
   onInputMove(ev: MouseEvent | TouchEvent) {
     const x = this.input!.pointer.x;
     const y = this.input!.pointer.y;
@@ -108,6 +118,10 @@ export class TableMouseGesture {
     if (this.ontransform) this.ontransform(transformX, transformY, transformZ, rotateX, rotateY, rotateZ, event, ev);
   }
 
+  /**
+   * Turns the wheel into zooming, whether it counts in pixels, lines or pages, with each step
+   * capped so one flick cannot leap.
+   */
   onWheel(ev: WheelEvent) {
     let pixelDeltaY: number;
     switch (ev.deltaMode) {
@@ -137,6 +151,12 @@ export class TableMouseGesture {
       this.ontransform(transformX, transformY, transformZ, rotateX, rotateY, rotateZ, TableMouseGestureEvent.ZOOM, ev);
   }
 
+  /**
+   * Moves the view with the arrow keys, which are listened for on the whole page.
+   *
+   * Plain arrows pan, Shift with an arrow turns the view, and Ctrl with up or down zooms. Every
+   * other key is left alone.
+   */
   onKeydown(ev: KeyboardEvent) {
     let transformX = 0;
     let transformY = 0;

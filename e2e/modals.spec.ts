@@ -5,11 +5,11 @@ import { waitAppReady } from './helpers';
 test.describe('アイコン変更モーダル (file-selector)', () => {
   test('「アイコンを変更する」を押すと file-selector モーダルが開けること', async ({ page }) => {
     await waitAppReady(page);
-    // peer-menu 内のアバター画像 (title="アイコンを変更する") または同 aria-label のボタン。
+    // peer-menu内のアバター画像（title="アイコンを変更する"）、または同じaria-labelのボタン。
     const trigger = page.locator('peer-menu [title="アイコンを変更する"], peer-menu [aria-label="アイコンを変更する"]');
     await trigger.first().click();
     await expect(page.locator('file-selector')).toBeVisible({ timeout: 5000 });
-    // タグラジオが少なくとも 1 件居る (file-selector 内の image-chg)。
+    // タグラジオが少なくとも1件ある（file-selector内のimage-chg）。
     await expect(page.locator('file-selector input[name="image-chg"]').first()).toBeAttached();
   });
 
@@ -18,8 +18,8 @@ test.describe('アイコン変更モーダル (file-selector)', () => {
     const trigger = page.locator('peer-menu [title="アイコンを変更する"], peer-menu [aria-label="アイコンを変更する"]');
     await trigger.first().click();
     await expect(page.locator('file-selector')).toBeVisible({ timeout: 5000 });
-    // changeIcon は isAllowedEmpty=false なので「画像なし」は出ない → モーダル
-    // 共通の右上 close (i.material-icons "close") で閉じる。
+    // changeIconはisAllowedEmpty=falseなので「画像なし」は出ない。そのためモーダル
+    // 共通の右上のclose（i.material-icons "close"）で閉じる。
     await page.locator('modal').locator('i.material-icons', { hasText: 'close' }).click();
     await expect(page.locator('file-selector')).toHaveCount(0, { timeout: 5000 });
   });
@@ -29,8 +29,8 @@ test.describe('アイコン変更モーダル (file-selector)', () => {
     const trigger = page.locator('peer-menu [title="アイコンを変更する"], peer-menu [aria-label="アイコンを変更する"]');
     await trigger.first().click();
     await expect(page.locator('file-selector')).toBeVisible({ timeout: 5000 });
-    // 背景レイヤーは z-index:-1 でモーダル本体に視覚的に被るため、本体外側
-    // (左上 5,5) を絶対座標でクリックして clickBackground を発火する。
+    // 背景レイヤーはz-index:-1でモーダル本体に視覚的に被るため、本体の外側
+    // （左上の5,5）を絶対座標でクリックしてclickBackgroundを発火する。
     await page.mouse.click(5, 5);
     await expect(page.locator('file-selector')).toHaveCount(0, { timeout: 5000 });
   });
@@ -50,9 +50,14 @@ test.describe('チャットメッセージの編集', () => {
     return rows.last();
   }
 
-  /** 編集アイコンは既定で opacity-0 なので force で押す。 */
-  const startEdit = (row: Locator) =>
-    row.locator('i.material-icons', { hasText: 'edit' }).first().click({ force: true });
+  /**
+   * 編集アイコンは行にポインタを乗せると見える。forceで押すと押せる状態かを確かめないので、
+   * Firefoxではアイコンでなく下の要素に当たることがある。乗せてから普通に押す。
+   */
+  async function startEdit(row: Locator) {
+    await row.hover();
+    await row.locator('i.material-icons', { hasText: 'edit' }).first().click();
+  }
 
   test('自分の送信メッセージは edit アイコンからその場で編集できること', async ({ page }) => {
     await waitAppReady(page);

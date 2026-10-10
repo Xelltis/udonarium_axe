@@ -3,6 +3,10 @@
 const STORAGE_KEY = 'axe.effect.recent';
 const MAX_RECENT = 8;
 
+/**
+ * The identifiers of the effects this browser used most recently, newest first; empty when there is
+ * no storage or what it holds cannot be read.
+ */
 export function readRecentEffects(storage: Storage | null): string[] {
   if (!storage) return [];
   try {
@@ -16,6 +20,12 @@ export function readRecentEffects(storage: Storage | null): string[] {
   }
 }
 
+/**
+ * Moves an effect to the front of the recently used list, keeping the list short, and saves it to
+ * the storage.
+ *
+ * The updated list is returned even when saving fails.
+ */
 export function pushRecentEffect(storage: Storage | null, identifier: string): string[] {
   const next = [identifier, ...readRecentEffects(storage).filter((entry) => entry !== identifier)].slice(0, MAX_RECENT);
   try {

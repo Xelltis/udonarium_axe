@@ -141,3 +141,42 @@ describe('findStatusAilment()', () => {
     expect(findStatusAilment(list, 'HP')).toBeNull();
   });
 });
+
+describe('a state that moves what the sheet says', () => {
+  it('writes the status it moves, how and how far', () => {
+    const line = encodeStatusAilment({ ...newStatusAilment('拘束'), stat: '移動', op: '=', amount: '0' });
+
+    expect(line).toContain('stat:移動');
+    expect(line).toContain('op:=');
+    expect(line).toContain('amount:0');
+  });
+
+  it('writes nothing of it for a state that moves nothing', () => {
+    expect(encodeStatusAilment(newStatusAilment('毒'))).toBe('毒');
+  });
+
+  it('reads back exactly what it wrote', () => {
+    const held = { ...newStatusAilment('拘束'), stat: '移動', op: '=', amount: '0' };
+
+    expect(decodeStatusAilment(encodeStatusAilment(held))).toMatchObject({ stat: '移動', op: '=', amount: '0' });
+  });
+
+  it('keeps the effect readable beside it, spaces and all', () => {
+    const held = { ...newStatusAilment('拘束'), stat: '移動', op: '=', amount: '0', effect: '動けない うえ 不利' };
+
+    const read = decodeStatusAilment(encodeStatusAilment(held))!;
+
+    expect(read.effect).toBe('動けない うえ 不利');
+    expect(read.stat).toBe('移動');
+  });
+
+  it('takes only the first word of a status, since the fields are told apart by spaces', () => {
+    const held = { ...newStatusAilment('拘束'), stat: '移動 力', op: '=', amount: '0' };
+
+    expect(decodeStatusAilment(encodeStatusAilment(held))!.stat).toBe('移動');
+  });
+
+  it('reads a state written before any of this as moving nothing', () => {
+    expect(decodeStatusAilment('毒 color:green rounds:3')).toMatchObject({ stat: '', op: '', amount: '' });
+  });
+});

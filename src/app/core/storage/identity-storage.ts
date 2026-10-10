@@ -8,6 +8,13 @@ export interface PersistedIdentity {
   reConnectPass: string;
 }
 
+/**
+ * Remembers who this tab is and which room it is in, so that a reload comes back as the same
+ * user.
+ *
+ * It lives in session storage, so it lasts for the tab and is not shared with other tabs. Where
+ * storage is unavailable nothing is kept and nothing is thrown.
+ */
 export function saveIdentity(identity: PersistedIdentity): void {
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(identity));
@@ -16,6 +23,10 @@ export function saveIdentity(identity: PersistedIdentity): void {
   }
 }
 
+/**
+ * The identity this tab saved before a reload, or null when there is none, it cannot
+ * be read, or it has no user id.
+ */
 export function loadIdentity(): PersistedIdentity | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
@@ -35,6 +46,7 @@ export function loadIdentity(): PersistedIdentity | null {
   }
 }
 
+/** Forgets the identity saved for this tab, so the next load starts as a new user. */
 export function clearIdentity(): void {
   try {
     sessionStorage.removeItem(STORAGE_KEY);

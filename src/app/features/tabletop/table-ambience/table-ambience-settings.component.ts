@@ -1,7 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import {
+  AMBIENCE_BRIGHTNESS,
+  AmbienceBrightness,
+  DEFAULT_AMBIENCE_BRIGHTNESS,
+} from '@axe/domain/effect/ambience/ambience-brightness';
 import { type AmbienceKind, ambiencePalette, GROUND_AMBIENCE_KINDS } from '@axe/domain/effect/ambience/ambience-kind';
+import { SHOWN_TO, ShownTo } from '@axe/domain/tabletop/shown-to';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -21,10 +27,12 @@ export class TableAmbienceSettingsComponent {
 
   readonly kinds = GROUND_AMBIENCE_KINDS;
 
+  /** The translated name of a kind of ground ambience, for the kind dropdown. */
   kindLabel(kind: AmbienceKind): string {
     return this.t(`feature.ambience.kind.${kind}`);
   }
 
+  /** The ambience's name as shown on the table. */
   get name(): string {
     return this.target?.name ?? '';
   }
@@ -32,6 +40,7 @@ export class TableAmbienceSettingsComponent {
     if (this.target) this.target.name = value;
   }
 
+  /** Which kind of ground ambience is drawn, such as a swamp; a change is sent to the room. */
   get kind(): string {
     return this.target?.kind ?? 'swamp';
   }
@@ -41,6 +50,7 @@ export class TableAmbienceSettingsComponent {
     this.target.update();
   }
 
+  /** How dense the ambience is, as a percentage; a change is sent to the room. */
   get densityPercent(): number {
     return Math.round((this.target?.density ?? 0) * 100);
   }
@@ -60,16 +70,19 @@ export class TableAmbienceSettingsComponent {
     this.target.update();
   }
 
+  /** Whether no colour of its own is set, which disables the reset button. */
   get isDefaultColor(): boolean {
     return (this.target?.ambienceColor ?? '').trim().length < 1;
   }
 
+  /** Clears the ambience's own colour so it goes back to its kind's default, from the reset button. */
   resetColor(): void {
     if (!this.target) return;
     this.target.ambienceColor = '';
     this.target.update();
   }
 
+  /** How many cells wide the ambience is, held between 1 and 100. */
   get width(): number {
     return this.target?.width ?? 1;
   }
@@ -77,6 +90,7 @@ export class TableAmbienceSettingsComponent {
     if (this.target) this.target.width = clampCells(value);
   }
 
+  /** How many cells tall the ambience is, held between 1 and 100. */
   get height(): number {
     return this.target?.height ?? 1;
   }
@@ -84,6 +98,44 @@ export class TableAmbienceSettingsComponent {
     if (this.target) this.target.height = clampCells(value);
   }
 
+  protected readonly brightnessChoices = AMBIENCE_BRIGHTNESS;
+  protected readonly shownToChoices = SHOWN_TO;
+
+  /** Who the look is drawn for: the master alone, whoever can see it, or the whole room. */
+  get shownTo(): ShownTo {
+    return this.target?.shows ?? 'room';
+  }
+  set shownTo(value: ShownTo) {
+    if (this.target) this.target.shownTo = value;
+  }
+
+  /** What one answer is called in the reader's language. */
+  shownToLabel(shown: ShownTo): string {
+    return this.t(`feature.tabletop.shownTo_${shown}`);
+  }
+
+  /** How bright the ground under it is held, whatever the rest of the table is lit by. */
+  get brightness(): AmbienceBrightness {
+    return this.target?.shade ?? DEFAULT_AMBIENCE_BRIGHTNESS;
+  }
+  set brightness(value: AmbienceBrightness) {
+    if (this.target) this.target.brightness = value;
+  }
+
+  /** What one brightness is called in the reader's language. */
+  brightnessLabel(brightness: AmbienceBrightness): string {
+    return this.t(`feature.ambience.brightness_${brightness}`);
+  }
+
+  /** Whether nobody sees through it, which is what tells a bank of fog from a picture of one. */
+  get blocksSight(): boolean {
+    return this.target?.blocksSight ?? false;
+  }
+  set blocksSight(value: boolean) {
+    if (this.target) this.target.blocksSight = value;
+  }
+
+  /** Whether the ambience is locked in place on the table. */
   get isLock(): boolean {
     return this.target?.isLock ?? false;
   }

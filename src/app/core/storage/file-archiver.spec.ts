@@ -1,12 +1,22 @@
 import {
   ccfoliaRoomDropped$,
   type CcfoliaRoomDroppedEvent,
+  filesTooLarge$,
+  type FilesTooLargeEvent,
   imageDropped$,
   type ImageDroppedEvent,
   xmlLoaded$,
 } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/index';
-import { FileArchiver, isXmlCandidateFile } from '@axe/core/storage/file-archiver';
+import { AudioFile } from '@axe/core/storage/audio-file';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
+import {
+  FileArchiver,
+  isXmlCandidateFile,
+  MAX_LOADED_AUDIO_BYTES,
+  MAX_LOADED_IMAGE_BYTES,
+} from '@axe/core/storage/file-archiver';
+import { calcSHA256Async } from '@axe/core/storage/file-reader-util';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -218,6 +228,201 @@ describe('FileArchiver', () => {
     });
   });
 
+  describe('an archive made elsewhere, naming its pictures by the bytes they came as', () => {
+    const PNG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3]);
+    const STORED = 'b'.repeat(64);
+
+    async function loaded(entries: Record<string, Uint8Array>): Promise<{ xml: string[]; added: string[] }> {
+      const xml: string[] = [];
+      const off = xmlLoaded$.subscribe((event) => xml.push(event.xmlElement.outerHTML));
+      const added: string[] = [];
+      vi.spyOn(ImageStorage.instance, 'addAsync').mockImplementation(async (file) => {
+        added.push((file as File).name);
+        return ImageFile.createEmpty((file as File).name.startsWith('a'.repeat(64)) ? 'a'.repeat(64) : STORED);
+      });
+      const zipped = zipSync(entries);
+      await FileArchiver.instance.load([new File([zipped.slice()], 'character.zip', { type: 'application/zip' })]);
+      off();
+      return { xml, added };
+    }
+
+    it('stores the picture as it stores any, and reads the room data under the id it was stored as', async () => {
+      const original = await calcSHA256Async(new Blob([PNG]));
+      const { xml, added } = await loaded({
+        'character.xml': strToU8(`<character><data type="image" name="imageIdentifier">${original}</data></character>`),
+        'face.png': PNG,
+      });
+
+      expect(added).toEqual(['face.png']);
+      expect(xml).toHaveLength(1);
+      expect(xml[0]).toContain(STORED);
+      expect(xml[0]).not.toContain(original);
+    });
+
+    it('leaves alone room data that names a picture saved under its own id, and a longer run of hex digits', async () => {
+      const saved = 'a'.repeat(64);
+      const longer = 'c'.repeat(80);
+      const { xml } = await loaded({
+        'data.xml': strToU8(`<room><a imageIdentifier="${saved}"></a><b note="${longer}"></b></room>`),
+        [`${saved}.png`]: PNG,
+        'other.png': PNG,
+      });
+
+      expect(xml[0]).toContain(saved);
+      expect(xml[0]).toContain(longer);
+    });
+  });
+
+  describe('loadImages', () => {
+    function imageFile(name: string, size = 3): File {
+      return new File([new Uint8Array(size)], name, { type: 'image/png' });
+    }
+
+    let addAsync: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      addAsync = vi
+        .spyOn(ImageStorage.instance, 'addAsync')
+        .mockImplementation((file) => Promise.resolve(ImageFile.createEmpty(`image-${(file as File).name}`)));
+    });
+
+    it('returns what the store keeps for each image, in the order given', async () => {
+      const result = await FileArchiver.instance.loadImages([imageFile('a.png'), imageFile('b.png')]);
+
+      expect(result.images.map((image) => image.identifier)).toEqual(['image-a.png', 'image-b.png']);
+      expect(result.oversized).toEqual([]);
+    });
+
+    it('names an image over the size limit instead of storing it', async () => {
+      const result = await FileArchiver.instance.loadImages([
+        imageFile('huge.png', 2 * 1024 * 1024 + 1),
+        imageFile('small.png'),
+      ]);
+
+      expect(result.oversized).toEqual(['huge.png']);
+      expect(result.images.map((image) => image.identifier)).toEqual(['image-small.png']);
+      expect(addAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads no room data and opens no archive', async () => {
+      const loaded: Element[] = [];
+      const offXml = xmlLoaded$.subscribe((event) => loaded.push(event.xmlElement));
+      const zipped = zipSync({ 'inside.png': new Uint8Array([1, 2, 3]) });
+
+      const result = await FileArchiver.instance.loadImages([
+        new File(['<room />'], 'data.xml', { type: 'text/xml' }),
+        new File([zipped.slice()], 'room.zip', { type: 'application/zip' }),
+      ]);
+      offXml();
+
+      expect(loaded).toEqual([]);
+      expect(addAsync).not.toHaveBeenCalled();
+      expect(result.images).toEqual([]);
+    });
+
+    it('places nothing on the table', async () => {
+      const dropped: ImageDroppedEvent[] = [];
+      const off = imageDropped$.subscribe((event) => dropped.push(event));
+
+      await FileArchiver.instance.loadImages([imageFile('a.png')]);
+      off();
+
+      expect(dropped).toHaveLength(0);
+    });
+
+    it('takes images even after a room load was declined', async () => {
+      vi.spyOn(ObjectStore.instance, 'get').mockReturnValue({
+        isLoadOk: () => false,
+        reloadCheckStart: vi.fn(),
+      } as unknown as ReturnType<typeof ObjectStore.instance.get>);
+
+      const result = await FileArchiver.instance.loadImages([imageFile('a.png')]);
+
+      expect(result.images).toHaveLength(1);
+    });
+  });
+
+  describe('files too large to take', () => {
+    let announced: FilesTooLargeEvent[];
+    let off: () => void;
+
+    function sized(name: string, type: string, bytes: number): File {
+      const file = new File([new Uint8Array([1])], name, { type });
+      Object.defineProperty(file, 'size', { value: bytes });
+      return file;
+    }
+
+    beforeEach(() => {
+      announced = [];
+      off = filesTooLarge$.subscribe((event) => announced.push(event));
+      vi.spyOn(AudioStorage.instance, 'addAsync').mockImplementation((file) =>
+        Promise.resolve(AudioFile.createEmpty(`audio-${(file as File).name}`))
+      );
+      vi.spyOn(ImageStorage.instance, 'addAsync').mockImplementation((file) =>
+        Promise.resolve(ImageFile.createEmpty(`image-${(file as File).name}`))
+      );
+    });
+
+    afterEach(() => off());
+
+    it('names the sounds and pictures it left out, together, once the load is done', async () => {
+      await FileArchiver.instance.load([
+        sized('long.ogg', 'audio/ogg', MAX_LOADED_AUDIO_BYTES + 1),
+        sized('short.ogg', 'audio/ogg', 1000),
+        sized('huge.png', 'image/png', MAX_LOADED_IMAGE_BYTES + 1),
+      ]);
+
+      expect(announced).toEqual([
+        {
+          files: [
+            { name: 'long.ogg', kind: 'audio', limitBytes: MAX_LOADED_AUDIO_BYTES },
+            { name: 'huge.png', kind: 'image', limitBytes: MAX_LOADED_IMAGE_BYTES },
+          ],
+        },
+      ]);
+      expect(AudioStorage.instance.addAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('names a sound left out from inside an archive along with the rest', async () => {
+      const archive = zipSync({ 'long.ogg': new Uint8Array(MAX_LOADED_AUDIO_BYTES + 1) });
+      const zipFile = new File([archive.slice()], 'sounds.zip', { type: 'application/zip' });
+
+      await FileArchiver.instance.load([zipFile, sized('huge.png', 'image/png', MAX_LOADED_IMAGE_BYTES + 1)]);
+
+      expect(announced).toHaveLength(1);
+      expect(announced[0].files.map((file) => file.name)).toEqual(['long.ogg', 'huge.png']);
+    });
+
+    it('takes sounds of every kind it knows from inside an archive', async () => {
+      const archive = zipSync({
+        'a.m4a': new Uint8Array([1]),
+        'b.opus': new Uint8Array([2]),
+        'c.oga': new Uint8Array([3]),
+        'd.flac': new Uint8Array([4]),
+        'e.aac': new Uint8Array([5]),
+      });
+
+      await FileArchiver.instance.load([new File([archive.slice()], 'sounds.zip', { type: 'application/zip' })]);
+
+      const taken = vi
+        .mocked(AudioStorage.instance.addAsync)
+        .mock.calls.map(([file]) => [(file as File).name, file.type]);
+      expect(taken).toEqual([
+        ['a.m4a', 'audio/mp4'],
+        ['b.opus', 'audio/ogg'],
+        ['c.oga', 'audio/ogg'],
+        ['d.flac', 'audio/flac'],
+        ['e.aac', 'audio/aac'],
+      ]);
+    });
+
+    it('says nothing when everything fits', async () => {
+      await FileArchiver.instance.load([sized('short.ogg', 'audio/ogg', 1000)]);
+
+      expect(announced).toEqual([]);
+    });
+  });
+
   describe('reading an archive', () => {
     it('unpacks an archive and handles what is inside', async () => {
       // build an archive for the test
@@ -241,6 +446,28 @@ describe('FileArchiver', () => {
     it('skips a broken archive without throwing', async () => {
       const badFile = new File([new Uint8Array([0, 1, 2, 3])], 'broken.zip', { type: 'application/zip' });
       await expect(FileArchiver.instance.load([badFile])).resolves.toBeUndefined();
+    });
+
+    it('takes a picture inside it by its bytes where its name does not say what it is', async () => {
+      const stored: File[] = [];
+      vi.spyOn(ImageStorage.instance, 'addAsync').mockImplementation((file) => {
+        stored.push(file as File);
+        return Promise.resolve(ImageFile.createEmpty('image'));
+      });
+      const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46]);
+      const zipped = zipSync({
+        portrait: png,
+        'texture.dat': jpeg,
+        'notes.dat': strToU8('not a picture'),
+      });
+
+      await FileArchiver.instance.load([new File([zipped.slice()], 'export.zip', { type: 'application/zip' })]);
+
+      expect(stored.map((file) => [file.name, file.type])).toEqual([
+        ['portrait', 'image/png'],
+        ['texture.dat', 'image/jpeg'],
+      ]);
     });
 
     it('announces a foreign room archive rather than unpacking it', async () => {
@@ -284,7 +511,8 @@ describe('FileArchiver', () => {
       await FileArchiver.instance.saveAsync([file], 'archive');
 
       expect(clickSpy).toHaveBeenCalledTimes(1);
-      expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:mock');
+      // The url outlives the click, for a browser that reads the archive after it.
+      expect(revokeObjectURLSpy).not.toHaveBeenCalled();
     });
 
     it('reports nought and a hundred percent', async () => {

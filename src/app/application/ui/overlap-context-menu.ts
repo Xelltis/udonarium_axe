@@ -8,7 +8,6 @@ const ALIAS_LABEL_KEY: Record<string, string> = {
   terrain: 'feature.tabletop.contextMenu.aliasTerrain',
   character: 'feature.tabletop.contextMenu.aliasCharacter',
   'table-mask': 'feature.tabletop.contextMenu.aliasMask',
-  'table-scratch-mask': 'feature.tabletop.contextMenu.aliasScratchMask',
   'text-note': 'feature.tabletop.contextMenu.aliasTextNote',
   range: 'feature.tabletop.contextMenu.aliasRange',
   'dice-symbol': 'feature.tabletop.contextMenu.aliasDiceSymbol',
@@ -27,6 +26,13 @@ function asStackable(obj: TabletopObject): Stackable | null {
   return typeof (obj as TabletopObject & { zindex?: unknown }).zindex === 'number' ? (obj as Stackable) : null;
 }
 
+/**
+ * Menu entries for the other pieces lying under the pointer besides the one right-clicked.
+ *
+ * Each overlapping piece reopens its own context menu at the same point, and a piece with a
+ * stacking order also gets entries to bring it to the top or send it to the bottom. Empty when
+ * nothing else is under the pointer.
+ */
 export function buildOverlapContextMenu(
   service: TabletopOverlapService,
   current: TabletopObject,

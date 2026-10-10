@@ -28,6 +28,13 @@ export interface CoveredCells {
   cellImagePx: number;
 }
 
+/**
+ * Works out the whole square grid cells a scaled, shifted image covers on screen, and where the
+ * first of them starts in the image.
+ *
+ * A cell the image misses by less than `tolerancePx` still counts as covered. A non-positive scale
+ * or cell size, or an image covering no whole cell, gives zero cells.
+ */
 export function computeCoveredCells(
   tx: number,
   ty: number,
@@ -57,12 +64,20 @@ export function computeCoveredCells(
   return { cols, rows, screenX, screenY, imageX, imageY, cellImagePx };
 }
 
+/**
+ * Where the first whole cell starts in the image for a grid offset: the offset itself when it is
+ * not negative, else the offset wrapped into one cell.
+ */
 export function effectiveOrigin(offset: number, cellPx: number): number {
   if (!(cellPx > 0)) return 0;
   if (offset >= 0) return offset;
   return ((offset % cellPx) + cellPx) % cellPx;
 }
 
+/**
+ * How many whole cells fit in the image across and down once the grid is offset; zero for a
+ * non-positive cell size.
+ */
 export function computeGridCounts(
   imageW: number,
   imageH: number,
@@ -78,6 +93,10 @@ export function computeGridCounts(
   return { cols, rows };
 }
 
+/**
+ * Holds a grid offset between just under one cell before the image and its last pixel; 0 for a
+ * non-positive cell size.
+ */
 export function clampOffset(offset: number, cellPx: number, imageSize: number): number {
   if (!(cellPx > 0)) return 0;
   const min = -(cellPx - 1);
@@ -85,6 +104,12 @@ export function clampOffset(offset: number, cellPx: number, imageSize: number): 
   return Math.min(max, Math.max(min, offset));
 }
 
+/**
+ * Crops a grid-aligned block of cells out of an image into an image blob, preferring WebP.
+ *
+ * The output is scaled down so its longest side fits `maxOutputPx`. Throws for an empty block or
+ * where no canvas is available.
+ */
 export async function cropAlignedRegion(
   image: CanvasImageSource,
   imageW: number,

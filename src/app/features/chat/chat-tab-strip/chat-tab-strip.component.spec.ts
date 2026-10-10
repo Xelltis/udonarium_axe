@@ -138,7 +138,7 @@ describe('ChatTabStripComponent', () => {
 
     /** happy-dom lays nothing out, so the strip is given a shape: three pills of 50 every 60. */
     function layOutStrip(stripWidth: number): { pills: HTMLElement; scrolledTo: number[] } {
-      const inputs = [...fixture.nativeElement.querySelectorAll('input[name="chat-tab"]')] as HTMLInputElement[];
+      const inputs = [...fixture.nativeElement.querySelectorAll('input[name^="chat-tab"]')] as HTMLInputElement[];
       const pills = inputs.map((input) => input.closest('label') as HTMLElement);
       const container = pills[0].parentElement as HTMLElement;
       const scrolledTo: number[] = [];
@@ -218,6 +218,65 @@ describe('ChatTabStripComponent', () => {
 
       expect(strip.selected()).toBe(tabs[2].identifier);
       expect(scrolledTo).toEqual([94]);
+    });
+  });
+
+  describe('the ground it is laid on', () => {
+    let tab: ChatTab;
+
+    function pill(): HTMLElement {
+      return fixture.nativeElement.querySelector('.chat-tab-pill') as HTMLElement;
+    }
+
+    beforeEach(() => {
+      tab = ChatTabList.instance.addChatTab('一枚目');
+      showTabs([tab]);
+    });
+
+    afterEach(() => {
+      tab.destroy();
+    });
+
+    function strip(): HTMLElement {
+      return pill().closest('label')!.parentElement!;
+    }
+
+    it('groups its own tabs apart from another strip on the page', () => {
+      const radio = fixture.nativeElement.querySelector('input[type="radio"]') as HTMLInputElement;
+
+      const second = TestBed.createComponent(ChatTabStripComponent);
+      second.componentRef.setInput('tabs', [tab]);
+      second.componentRef.setInput('selected', tab.identifier);
+      second.detectChanges();
+      const other = second.nativeElement.querySelector('input[type="radio"]') as HTMLInputElement;
+
+      expect(radio.name.length).toBeGreaterThan(0);
+      expect(other.name).not.toBe(radio.name);
+      second.destroy();
+    });
+
+    it('reads in the title bar colours by default', () => {
+      expect(pill().classList).toContain('text-ui-titlebar-muted');
+      expect(pill().classList).not.toContain('text-ui-muted');
+      expect(strip().classList).toContain('pt-2');
+    });
+
+    it('reads in the panel colours on a panel, keeping the shape of a tab', () => {
+      fixture.componentRef.setInput('tone', 'panel');
+      fixture.detectChanges();
+
+      expect(pill().classList).toContain('text-ui-muted');
+      expect(pill().classList).not.toContain('text-ui-titlebar-muted');
+      expect(pill().classList).toContain('rounded-full');
+    });
+
+    it('keeps only the room an unread count needs above the tabs on a panel', () => {
+      fixture.componentRef.setInput('tone', 'panel');
+      fixture.detectChanges();
+
+      expect(strip().classList).toContain('pt-1.5');
+      expect(strip().classList).not.toContain('pt-2');
+      expect(strip().classList).toContain('overflow-x-auto');
     });
   });
 });

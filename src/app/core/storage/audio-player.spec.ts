@@ -1,6 +1,7 @@
 import { Logger, LogLevel } from '@axe/core/logging/logger';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { loopTaggedWavBlob } from '@axe/testing/loop-tagged-audio';
 
 // ─── AudioContext mock ────────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ function makeAudioContextMock() {
     createBufferSource: vi.fn(() => makeBufferSource()),
     decodeAudioData: vi.fn(
       (_buf: ArrayBuffer, resolve: (b: AudioBuffer) => void, _reject: (e: DOMException) => void) => {
-        resolve({ duration: 1 } as AudioBuffer);
+        resolve({ duration: 1, length: 48000, numberOfChannels: 2 } as AudioBuffer);
       }
     ),
   };
@@ -92,14 +93,10 @@ function makeAudioElm(): AudioElmMock {
 
 type AudioPlayerPrivateStatic = {
   _audioContext: unknown;
-  _masterGainNode: unknown;
-  _auditionGainNode: unknown;
-  _seGainNode: unknown;
-  _volume: number;
-  _auditionVolume: number;
-  _seVolume: number;
+  channels: Map<VolumeType, unknown>;
   cacheMap: Map<string, { url: string; blob: Blob }>;
   MAX_CACHE_SIZE: number;
+  MAX_DECODED_BYTES: number;
   evictCacheIfNeeded: () => void;
   createCacheAsync: (audio: AudioFile) => Promise<{ url: string; blob: Blob } | null>;
 };
@@ -108,8 +105,6 @@ type AudioPlayerPrivateInstance = {
   _audioElm?: unknown;
 };
 
-const DEFAULT_VOLUME = 0.5;
-
 const audioPlayerPrivate = AudioPlayer as unknown as AudioPlayerPrivateStatic;
 const asAudioPlayerPrivate = (player: AudioPlayer): AudioPlayerPrivateInstance =>
   player as unknown as AudioPlayerPrivateInstance;
@@ -117,15 +112,12 @@ const asAudioPlayerPrivate = (player: AudioPlayer): AudioPlayerPrivateInstance =
 function resetStaticState() {
   // reset the static fields so nothing leaks between tests
   audioPlayerPrivate._audioContext = undefined;
-  audioPlayerPrivate._masterGainNode = undefined;
-  audioPlayerPrivate._auditionGainNode = undefined;
-  audioPlayerPrivate._seGainNode = undefined;
-  // written to rather than set through the setters, which would build the gain graph a test
-  // has yet to ask for. A test that reads a default has to find one whatever ran before it.
-  audioPlayerPrivate._volume = DEFAULT_VOLUME;
-  audioPlayerPrivate._auditionVolume = DEFAULT_VOLUME;
-  audioPlayerPrivate._seVolume = DEFAULT_VOLUME;
+  // Emptied rather than set through the setters, which would build the gain graph a test has yet
+  // to ask for. A test that reads a default has to find one whatever ran before it.
+  audioPlayerPrivate.channels.clear();
   audioPlayerPrivate.cacheMap.clear();
+  (AudioPlayer as unknown as { decodedBuffers: Map<string, unknown> }).decodedBuffers.clear();
+  AudioPlayer.clearAllCache();
 }
 
 function makeAudioFile(opts: { blob?: Blob | null; url?: string; identifier?: string } = {}): AudioFile {
@@ -177,6 +169,84 @@ describe('AudioPlayer', () => {
     vi.restoreAllMocks();
   });
 
+  describe('decoding a sound effect', () => {
+    it('decodes it once however often it plays, overlapping plays included', async () => {
+      const audio = makeAudioFile({ identifier: 'se-once', blob: new Blob(['x']) });
+
+      AudioPlayer.playSE(audio);
+      AudioPlayer.playSE(audio);
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(2));
+      AudioPlayer.playSE(audio);
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(3));
+
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(1);
+    });
+
+    it('decodes it again once the cache is cleared', async () => {
+      const audio = makeAudioFile({ identifier: 'se-cleared', blob: new Blob(['x']) });
+
+      AudioPlayer.playSE(audio);
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(1));
+      AudioPlayer.clearAllCache();
+      AudioPlayer.playSE(audio);
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(2));
+
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(2);
+    });
+
+    const STEREO = 2;
+    const BYTES_PER_STEREO_FRAME = STEREO * 4;
+
+    function decodesInTurn(...frameCounts: number[]) {
+      const queue = [...frameCounts];
+      audioCtxMock.decodeAudioData.mockImplementation(
+        (_buf: ArrayBuffer, resolve: (b: AudioBuffer) => void, _reject: (e: DOMException) => void) => {
+          const length = queue.length > 1 ? queue.shift()! : queue[0];
+          resolve({ duration: length / 48000, length, numberOfChannels: STEREO } as AudioBuffer);
+        }
+      );
+    }
+
+    async function playThrough(audio: AudioFile): Promise<void> {
+      const started = audioCtxMock.createBufferSource.mock.calls.length;
+      AudioPlayer.play(audio);
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(started + 1));
+    }
+
+    it('keeps decoded effects within a byte budget, letting the least recently played go first', async () => {
+      decodesInTurn(Math.floor((audioPlayerPrivate.MAX_DECODED_BYTES * 0.4) / BYTES_PER_STEREO_FRAME));
+      const a = makeAudioFile({ identifier: 'se-budget-a', blob: new Blob(['a']) });
+      const b = makeAudioFile({ identifier: 'se-budget-b', blob: new Blob(['b']) });
+      const c = makeAudioFile({ identifier: 'se-budget-c', blob: new Blob(['c']) });
+
+      await playThrough(a);
+      await playThrough(b);
+      await playThrough(a);
+      await playThrough(c);
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
+
+      await playThrough(a);
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
+      await playThrough(b);
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(4);
+    });
+
+    it('plays a clip larger than the whole budget without keeping it or pushing out the rest', async () => {
+      const tooLarge = Math.floor(audioPlayerPrivate.MAX_DECODED_BYTES / BYTES_PER_STEREO_FRAME) + 1;
+      decodesInTurn(48000, tooLarge);
+      const short = makeAudioFile({ identifier: 'se-short', blob: new Blob(['s']) });
+      const long = makeAudioFile({ identifier: 'se-long', blob: new Blob(['l']) });
+
+      await playThrough(short);
+      await playThrough(long);
+      await playThrough(long);
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
+
+      await playThrough(short);
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
+    });
+  });
+
   // ─── VolumeType enum ─────────────────────────────────────────────────────
 
   describe('VolumeType', () => {
@@ -188,6 +258,14 @@ describe('AudioPlayer', () => {
     });
     it('the sound effects are two', () => {
       expect(VolumeType.SE).toBe(2);
+    });
+    it('the background sounds are three', () => {
+      expect(VolumeType.BACKGROUND).toBe(3);
+    });
+    it('the kinds split off from the sound effects come after, in a fixed order', () => {
+      expect([VolumeType.CUT_IN, VolumeType.NOTIFICATION, VolumeType.HANDLING, VolumeType.EFFECT]).toEqual([
+        4, 5, 6, 7,
+      ]);
     });
   });
 
@@ -292,6 +370,40 @@ describe('AudioPlayer', () => {
     });
   });
 
+  // ─── static backgroundVolume / backgroundNode ─────────────────────────────
+
+  describe('static backgroundVolume', () => {
+    it('is half by default', () => {
+      expect(AudioPlayer.backgroundVolume).toBe(0.5);
+    });
+
+    it('carries a change through to the background gain', () => {
+      AudioPlayer.backgroundVolume = 0.4;
+      expect(AudioPlayer.backgroundVolume).toBe(0.4);
+      const gainNode = audioCtxMock.createGain.mock.results[0].value as GainNodeMock;
+      expect(gainNode.gain.setTargetAtTime).toHaveBeenCalledWith(0.4, 0, 0.01);
+    });
+  });
+
+  describe('static backgroundNode', () => {
+    it('is a channel of its own, apart from the music and the effects', () => {
+      const node = AudioPlayer.backgroundNode;
+      expect(node).toBe(AudioPlayer.backgroundNode);
+      expect(node).not.toBe(AudioPlayer.rootNode);
+      expect(node).not.toBe(AudioPlayer.seNode);
+    });
+
+    it('is where a player on the background volume type plays through', () => {
+      const player = new AudioPlayer(makeAudioFile({ url: 'blob:bg' }));
+      player.volumeType = VolumeType.BACKGROUND;
+      player.play();
+      const source = audioCtxMock.createMediaElementSource.mock.results[0].value as {
+        connect: ReturnType<typeof vi.fn>;
+      };
+      expect(source.connect).toHaveBeenCalledWith(AudioPlayer.backgroundNode);
+    });
+  });
+
   // ─── constructor ─────────────────────────────────────────────────────────
 
   describe('constructor', () => {
@@ -368,6 +480,61 @@ describe('AudioPlayer', () => {
       audioElmMock.paused = false;
       player.play(af);
       expect(player.paused).toBe(false);
+    });
+  });
+
+  describe('instance isAwaitingGesture', () => {
+    const settle = () => new Promise((resolve) => setTimeout(resolve));
+
+    beforeEach(() => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    it('is false before anything has played', () => {
+      expect(new AudioPlayer().isAwaitingGesture).toBe(false);
+    });
+
+    it('is true once the browser refuses to play for want of a gesture, and clears as the next play starts', async () => {
+      const player = new AudioPlayer();
+      audioElmMock.play.mockRejectedValueOnce(new DOMException('blocked', 'NotAllowedError'));
+      player.play(makeAudioFile({ blob: new Blob(['x']), identifier: 'gesture-refused' }));
+      await settle();
+      expect(player.isAwaitingGesture).toBe(true);
+
+      player.play();
+      expect(player.isAwaitingGesture).toBe(false);
+    });
+
+    it('clears when the player is stopped', async () => {
+      const player = new AudioPlayer();
+      audioElmMock.play.mockRejectedValueOnce(new DOMException('blocked', 'NotAllowedError'));
+      player.play(makeAudioFile({ blob: new Blob(['x']), identifier: 'gesture-stopped' }));
+      await settle();
+
+      player.stop();
+
+      expect(player.isAwaitingGesture).toBe(false);
+    });
+
+    it('stays false when playing fails for a reason a gesture cannot help', async () => {
+      const player = new AudioPlayer();
+      audioElmMock.play.mockRejectedValueOnce(new DOMException('gone', 'NotSupportedError'));
+      player.play(makeAudioFile({ blob: new Blob(['x']), identifier: 'gesture-unsupported' }));
+      await settle();
+      expect(player.isAwaitingGesture).toBe(false);
+    });
+
+    it('ignores the refusal of a play that a later play has replaced', async () => {
+      const player = new AudioPlayer();
+      let refuseFirst: (reason: unknown) => void = () => {};
+      audioElmMock.play.mockReturnValueOnce(new Promise((_resolve, reject) => (refuseFirst = reject)));
+      player.play(makeAudioFile({ blob: new Blob(['x']), identifier: 'gesture-replaced' }));
+      player.play();
+
+      refuseFirst(new DOMException('blocked', 'NotAllowedError'));
+      await settle();
+
+      expect(player.isAwaitingGesture).toBe(false);
     });
   });
 
@@ -536,7 +703,70 @@ describe('AudioPlayer', () => {
 
   // ─── static play (playBufferAsync) ───────────────────────────────────────
 
+  describe('channels', () => {
+    const ALL = [
+      VolumeType.MASTER,
+      VolumeType.AUDITION,
+      VolumeType.SE,
+      VolumeType.BACKGROUND,
+      VolumeType.CUT_IN,
+      VolumeType.NOTIFICATION,
+      VolumeType.HANDLING,
+      VolumeType.EFFECT,
+    ];
+
+    it('gives every kind a channel of its own, running to the speakers', () => {
+      const nodes = ALL.map((type) => AudioPlayer.channelNode(type));
+
+      expect(new Set(nodes).size).toBe(ALL.length);
+      for (const node of nodes) {
+        expect((node as unknown as GainNodeMock).connect).toHaveBeenCalledWith(audioCtxMock.destination);
+      }
+    });
+
+    it('starts every channel at half', () => {
+      expect(ALL.map((type) => AudioPlayer.channelVolume(type))).toEqual(ALL.map(() => 0.5));
+    });
+
+    it('glides one channel to a new volume and leaves the others alone', () => {
+      AudioPlayer.setChannelVolume(VolumeType.HANDLING, 0.3);
+
+      expect(AudioPlayer.channelVolume(VolumeType.HANDLING)).toBe(0.3);
+      expect(AudioPlayer.channelVolume(VolumeType.SE)).toBe(0.5);
+      const node = AudioPlayer.channelNode(VolumeType.HANDLING) as unknown as GainNodeMock;
+      expect(node.gain.setTargetAtTime).toHaveBeenCalledWith(0.3, 0, 0.01);
+    });
+
+    it('is the same node the named accessors give', () => {
+      expect(AudioPlayer.rootNode).toBe(AudioPlayer.channelNode(VolumeType.MASTER));
+      expect(AudioPlayer.seNode).toBe(AudioPlayer.channelNode(VolumeType.SE));
+      expect(AudioPlayer.backgroundNode).toBe(AudioPlayer.channelNode(VolumeType.BACKGROUND));
+    });
+  });
+
   describe('static play()', () => {
+    async function connectedChannel(): Promise<unknown> {
+      let gain: GainNodeMock | undefined;
+      await vi.waitFor(() => {
+        const source = audioCtxMock.createBufferSource.mock.results[0]?.value as AudioBufferSourceNodeMock | undefined;
+        expect(source?.start).toHaveBeenCalled();
+        gain = source!.connect.mock.calls[0][0] as GainNodeMock;
+      });
+      return gain!.connect.mock.calls[0][0];
+    }
+
+    it('plays through the sound-effect channel unless given another kind', async () => {
+      AudioPlayer.play(makeAudioFile({ blob: new Blob(['x']), identifier: 'kind-se' }), 0.5);
+
+      expect(await connectedChannel()).toBe(AudioPlayer.seNode);
+    });
+
+    it('plays through the channel of the kind it is given', async () => {
+      AudioPlayer.play(makeAudioFile({ blob: new Blob(['x']), identifier: 'kind-handling' }), 0.5, VolumeType.HANDLING);
+
+      expect(await connectedChannel()).toBe(AudioPlayer.channelNode(VolumeType.HANDLING));
+    });
+
     it('starts a buffer source when there are bytes', async () => {
       const blob = new Blob(['audio-data']);
       const af = makeAudioFile({ blob, identifier: 'sp1' });
@@ -690,37 +920,85 @@ describe('AudioPlayer', () => {
   // ─── static resumeAudioContext ───────────────────────────────────────────
 
   describe('static resumeAudioContext()', () => {
-    it('resumes the context on the first touch and unhooks itself', () => {
-      const listeners: Record<string, EventListenerOrEventListenerObject> = {};
+    type ContextState = { state: string; addEventListener: ReturnType<typeof vi.fn> };
+
+    function listenersOnDocument() {
+      const listeners = new Map<string, EventListener>();
+      const removed = new Set<string>();
       vi.spyOn(document, 'addEventListener').mockImplementation((type, listener) => {
-        listeners[type] = listener as EventListenerOrEventListenerObject;
+        listeners.set(type, listener as EventListener);
+        removed.delete(type);
       });
-      const removeSpy = vi.spyOn(document, 'removeEventListener').mockImplementation(() => {});
+      vi.spyOn(document, 'removeEventListener').mockImplementation((type) => {
+        removed.add(type);
+      });
+      return { listeners, removed };
+    }
+
+    function contextIn(state: string): { context: ContextState; stopped: () => void } {
+      const handlers: (() => void)[] = [];
+      const context = Object.assign(audioCtxMock, {
+        state,
+        addEventListener: vi.fn((_type: string, handler: () => void) => handlers.push(handler)),
+      }) as unknown as ContextState;
+      return { context, stopped: () => handlers.forEach((handler) => handler()) };
+    }
+
+    async function settle(): Promise<void> {
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+
+    it('resumes the context when a finger lifts, not when it lands', () => {
+      contextIn('suspended');
+      const { listeners } = listenersOnDocument();
 
       AudioPlayer.resumeAudioContext();
 
-      const callback = listeners['touchstart'] as EventListener;
-      callback(new Event('touchstart'));
-
-      expect(audioCtxMock.resume).toHaveBeenCalled();
-      expect(removeSpy).toHaveBeenCalledWith('touchstart', callback, true);
-      expect(removeSpy).toHaveBeenCalledWith('mousedown', callback, true);
+      expect(listeners.has('touchstart')).toBe(false);
+      listeners.get('touchend')!(new Event('touchend'));
+      expect(audioCtxMock.resume).toHaveBeenCalledTimes(1);
     });
 
-    it('does the same on a press', () => {
-      const listeners: Record<string, EventListenerOrEventListenerObject> = {};
-      vi.spyOn(document, 'addEventListener').mockImplementation((type, listener) => {
-        listeners[type] = listener as EventListenerOrEventListenerObject;
-      });
-      vi.spyOn(document, 'removeEventListener').mockImplementation(() => {});
-      vi.spyOn(console, 'log').mockImplementation(() => {});
+    it('resumes it on a press or a key as well', () => {
+      contextIn('suspended');
+      const { listeners } = listenersOnDocument();
 
       AudioPlayer.resumeAudioContext();
+      listeners.get('mousedown')!(new Event('mousedown'));
+      listeners.get('keydown')!(new Event('keydown'));
 
-      const callback = listeners['mousedown'] as EventListener;
-      callback(new Event('mousedown'));
+      expect(audioCtxMock.resume).toHaveBeenCalledTimes(2);
+    });
 
-      expect(audioCtxMock.resume).toHaveBeenCalled();
+    it('keeps listening until the context is running', async () => {
+      const { context } = contextIn('suspended');
+      const { listeners, removed } = listenersOnDocument();
+
+      AudioPlayer.resumeAudioContext();
+      listeners.get('touchend')!(new Event('touchend'));
+      await settle();
+      expect(removed.size).toBe(0);
+
+      context.state = 'running';
+      listeners.get('touchend')!(new Event('touchend'));
+      await settle();
+      expect([...removed].sort()).toEqual(['keydown', 'mousedown', 'touchend']);
+    });
+
+    it('listens again once the context is stopped, as iOS does for a call or a hidden page', async () => {
+      const { context, stopped } = contextIn('running');
+      const { listeners, removed } = listenersOnDocument();
+
+      AudioPlayer.resumeAudioContext();
+      listeners.get('touchend')!(new Event('touchend'));
+      await settle();
+      expect(removed.size).toBe(3);
+
+      context.state = 'interrupted';
+      stopped();
+
+      expect(removed.size).toBe(0);
     });
   });
 
@@ -823,6 +1101,136 @@ describe('AudioPlayer', () => {
       expect(audioPlayerPrivate.cacheMap.has('evict-0')).toBe(false);
       // Newest entries should remain
       expect(audioPlayerPrivate.cacheMap.has(`evict-${maxSize + 4}`)).toBe(true);
+    });
+  });
+
+  describe('following the loop points a file names', () => {
+    type LoopSource = AudioBufferSourceNodeMock & { loop?: boolean; loopStart?: number; loopEnd?: number };
+    const sources = () => audioCtxMock.createBufferSource.mock.results.map((result) => result.value as LoopSource);
+    // A second long, at 8000 samples a second: the part from a quarter to three quarters goes round.
+    const looping = () =>
+      makeAudioFile({ blob: loopTaggedWavBlob({ start: 2000, end: 5999 }), identifier: 'looping-bgm' });
+    const plain = () => makeAudioFile({ blob: loopTaggedWavBlob(null), identifier: 'plain-bgm' });
+
+    function follower(loop = true): AudioPlayer {
+      const player = new AudioPlayer();
+      player.followsLoopPoints = true;
+      player.loop = loop;
+      return player;
+    }
+
+    beforeEach(() => {
+      Object.assign(audioCtxMock, { sampleRate: 48000 });
+      audioCtxMock.createGain.mockImplementation(() => ({
+        ...makeGainNode(),
+        gain: {
+          value: 1,
+          setValueAtTime: vi.fn(),
+          setTargetAtTime: vi.fn(),
+          cancelScheduledValues: vi.fn(),
+          linearRampToValueAtTime: vi.fn(),
+        },
+      }));
+    });
+
+    it('plays a track that names a loop from memory, going round between its points', async () => {
+      follower().play(looping());
+
+      await vi.waitFor(() => expect(sources()).toHaveLength(1));
+      expect(sources()[0]).toMatchObject({ loop: true, loopStart: 0.25, loopEnd: 0.75 });
+      expect(sources()[0].start).toHaveBeenCalledWith(0, 0);
+      expect(audioElmMock.play).not.toHaveBeenCalled();
+    });
+
+    it('streams a track that names no loop, and does not read it again the next time', async () => {
+      const player = follower();
+      const track = plain();
+
+      player.play(track);
+      await vi.waitFor(() => expect(audioElmMock.play).toHaveBeenCalledTimes(1));
+      player.play(track);
+
+      expect(audioElmMock.play).toHaveBeenCalledTimes(2);
+      expect(audioCtxMock.decodeAudioData).not.toHaveBeenCalled();
+    });
+
+    it('streams every track while it does not follow loop points', () => {
+      const player = new AudioPlayer();
+      player.loop = true;
+
+      player.play(looping());
+
+      expect(audioElmMock.play).toHaveBeenCalledOnce();
+    });
+
+    it('starts from where it was moved to while the track was being read, and reports that place meanwhile', async () => {
+      const player = follower();
+      player.play(looping());
+
+      player.seekTo(0.5);
+      expect(player.currentTime).toBe(0.5);
+
+      await vi.waitFor(() => expect(sources()).toHaveLength(1));
+      expect(sources()[0].start).toHaveBeenCalledWith(0, 0.5);
+    });
+
+    it('does not start a track paused or stopped while it was being read', async () => {
+      const paused = follower();
+      paused.play(looping());
+      paused.pause();
+      const stopped = follower();
+      stopped.play(looping());
+      stopped.stop();
+
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(sources().every((source) => source.start.mock.calls.length === 0)).toBe(true);
+      expect(paused.paused).toBe(true);
+    });
+
+    it('plays a track that names a loop on to its end while not looping, and says when it gets there', async () => {
+      const player = follower(false);
+      const ended = vi.fn();
+      player.onEnded = ended;
+      player.play(looping());
+      await vi.waitFor(() => expect(sources()).toHaveLength(1));
+
+      expect(sources()[0].loop).toBe(false);
+      sources()[0].onended!();
+      expect(ended).toHaveBeenCalledOnce();
+    });
+
+    it('turns going round on and off while the track plays', async () => {
+      const player = follower(false);
+      player.play(looping());
+      await vi.waitFor(() => expect(sources()).toHaveLength(1));
+
+      player.loop = true;
+
+      expect(sources()[0].loop).toBe(true);
+    });
+
+    it('decodes a track once for plays that follow one another', async () => {
+      const first = follower();
+      first.play(looping());
+      await vi.waitFor(() => expect(sources()).toHaveLength(1));
+      const second = follower();
+      second.play(looping());
+      await vi.waitFor(() => expect(sources()).toHaveLength(2));
+
+      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledOnce();
+    });
+
+    it('streams a track too long to hold in memory, whatever loop it names', async () => {
+      const long = makeAudioFile({
+        blob: loopTaggedWavBlob({ start: 2000, end: 5999 }, { rate: 8, frames: 8 * 60 * 60 }),
+        identifier: 'long-bgm',
+      });
+
+      follower().play(long);
+
+      await vi.waitFor(() => expect(audioElmMock.play).toHaveBeenCalledOnce());
+      expect(audioCtxMock.decodeAudioData).not.toHaveBeenCalled();
     });
   });
 });

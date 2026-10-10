@@ -30,6 +30,10 @@ export class CutInBgmComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
 
+  /**
+   * The label for a tag filter tab, translating the built-in all, BGM and SE tabs and leaving any
+   * other tag as it is.
+   */
   displayTab(tab: string): string {
     if (tab === '全て') return this.t('feature.media.cutIn.bgmTabAll');
     if (tab === 'BGM') return this.t('feature.media.cutIn.bgmTabBgm');
@@ -54,9 +58,14 @@ export class CutInBgmComponent {
     return all.filter((audio) => (AudioTag.get(audio.identifier)?.tag ?? 'BGM') === tag);
   });
 
+  /**
+   * The tag an audio file is filed under, BGM when it has none; shown as a badge on each row, with
+   * SE picked out.
+   */
   tagOf(audio: AudioFile): string {
     return AudioTag.get(audio.identifier)?.tag ?? 'BGM';
   }
+  /** The room's shared jukebox object. */
   get jukebox(): Jukebox {
     return this.objectStore.get<Jukebox>('Jukebox')!;
   }
@@ -69,20 +78,33 @@ export class CutInBgmComponent {
     this.destroyRef.onDestroy(() => this.stop());
   }
 
+  /**
+   * Auditions an audio file for the local user alone, at the audition volume, when the user presses
+   * its play button.
+   */
   play(audio: AudioFile) {
     this.auditionPlayer.play(audio);
   }
 
+  /** Stops the audition; it also runs when the picker closes. */
   stop() {
     this.auditionPlayer.stop();
   }
 
+  /**
+   * Closes the picker with the chosen audio file's identifier as its result; does nothing without a
+   * file.
+   */
   selectBgm(file: AudioFile) {
     if (!file) return;
 
     this.modalService.resolve(file.identifier);
   }
 
+  /**
+   * Loads the files picked in a file input through the file archiver, as dropped files are; ignored
+   * for a user who cannot edit the tabletop.
+   */
   handleFileSelect(event: Event) {
     if (!this.rolePermission.canEditTabletop) return;
     const files = (event.target as HTMLInputElement).files;

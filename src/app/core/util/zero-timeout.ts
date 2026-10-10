@@ -2,6 +2,12 @@ let i: number = 0;
 const timeouts = new Map<number, () => void>();
 const channel = new MessageChannel();
 
+/**
+ * Runs a function as soon as the current task ends, through a message channel, without the
+ * minimum delay browsers add to nested timers.
+ *
+ * Returns an id that `clearZeroTimeout` takes.
+ */
 export function setZeroTimeout(fn: () => void): number {
   if (i === 0x100000000)
     // max queue size
@@ -12,10 +18,15 @@ export function setZeroTimeout(fn: () => void): number {
   return i;
 }
 
+/** Cancels a function scheduled with `setZeroTimeout` that has not run yet. */
 export function clearZeroTimeout(id: number) {
   timeouts.delete(id);
 }
 
+/**
+ * Resolves on the next zero timeout, letting a long loop yield to other tasks, such as incoming
+ * messages, without a timer delay.
+ */
 export function waitZeroTimeout(): Promise<void> {
   return new Promise<void>((resolve) => setZeroTimeout(resolve));
 }

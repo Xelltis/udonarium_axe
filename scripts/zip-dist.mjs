@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// dist/ の中身を axe_{version}.zip としてまとめる。
-// fflate を使うので追加依存ゼロ (既に file-archiver で使用中)。
+// dist/の中身をaxe_{version}.zipとしてまとめる。
+// fflateはfile-archiverで既に使っているので、追加の依存はない。
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,7 +21,7 @@ function collect(dir, files = {}) {
     if (stat.isDirectory()) {
       collect(full, files);
     } else if (stat.isFile()) {
-      // 自分自身 / 過去版 zip は含めない (再帰回避と差分肥大化防止)
+      // 自分自身と過去版のzipは含めない（再帰を避け、差分が膨らむのを防ぐ）
       if (entry.startsWith('axe_') && entry.endsWith('.zip')) continue;
       const rel = relative(distDir, full).split(sep).join('/');
       files[rel] = readFileSync(full);
@@ -33,13 +33,13 @@ function collect(dir, files = {}) {
 try {
   statSync(distDir);
 } catch {
-  console.error(`[zip-dist] dist が存在しません: ${distDir}`);
+  console.error(`[zip-dist] distが存在しません: ${distDir}`);
   process.exit(1);
 }
 
 const entries = collect(distDir);
 if (Object.keys(entries).length === 0) {
-  console.error('[zip-dist] dist が空です');
+  console.error('[zip-dist] distが空です');
   process.exit(1);
 }
 

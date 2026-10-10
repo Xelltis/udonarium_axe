@@ -8,6 +8,7 @@ import { type InventoryViewMode, isInventoryViewMode } from '@axe/domain/invento
 
 const STORAGE_KEY = 'ui-inventory-view';
 const PARTS_STORAGE_KEY = 'ui-inventory-parts';
+const FOLDED_STORAGE_KEY = 'ui-inventory-folded';
 
 /**
  * How this reader wants an inventory drawn.
@@ -26,20 +27,45 @@ export class InventoryViewPreferenceService {
   /** The strips above the list this reader has put away. Everything is shown by default. */
   private readonly hidden = signal<readonly InventoryChromePart[]>(storedHiddenParts());
 
+  /**
+   * Whether an inventory opens with its folders folded up.
+   *
+   * A room of a dozen folders opens as a wall of names, and the reader wanting one of them has
+   * to fold the others away before they can see it. Left off, every folder opens as it always
+   * has, which is what a room of two folders wants.
+   */
+  readonly foldsOnOpen = signal<boolean>(storedFlag(FOLDED_STORAGE_KEY));
+
+  /**
+   * Chooses how an inventory is drawn and writes it down as where the next inventory window starts.
+   */
   set(mode: InventoryViewMode): void {
     this.mode.set(mode);
     write(STORAGE_KEY, mode);
   }
 
+  /**
+   * Whether a strip above the inventory list is shown. Every strip is, until the reader puts it
+   * away.
+   */
   shows(part: InventoryChromePart): boolean {
     return !this.hidden().includes(part);
   }
 
+  /**
+   * Shows or puts away one strip above the inventory list, remembering the choice in this browser.
+   */
   setShown(part: InventoryChromePart, shown: boolean): void {
     const hidden = this.hidden().filter((held) => held !== part);
     const next = shown ? hidden : [...hidden, part];
     this.hidden.set(next);
     write(PARTS_STORAGE_KEY, formatHiddenChromeParts(next));
+  }
+
+  /** Says whether an inventory opens folded up, and writes it down for the next one. */
+  setFoldsOnOpen(folds: boolean): void {
+    this.foldsOnOpen.set(folds);
+    write(FOLDED_STORAGE_KEY, folds ? '1' : '');
   }
 }
 
@@ -57,6 +83,14 @@ function storedMode(): InventoryViewMode {
     return isInventoryViewMode(stored) ? stored : 'rich';
   } catch {
     return 'rich';
+  }
+}
+
+function storedFlag(key: string): boolean {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
   }
 }
 

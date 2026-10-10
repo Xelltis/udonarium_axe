@@ -454,6 +454,42 @@ describe('a frame holding more than one panel', () => {
     expect(first.frame.instance.contentMinimized).toBe(true);
   });
 
+  it('lets a panel shrunk to its content out once another frame takes it in, so it can ask again', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Inventory');
+    second.panel.shrinkRequest$.emit(true);
+    expect(second.panel.isShrunk()).toBe(true);
+
+    fold(first.frame, second);
+
+    expect(second.panel.isShrunk()).toBe(false);
+    second.panel.shrinkRequest$.emit(true);
+    expect(first.frame.instance.contentMinimized).toBe(true);
+    expect(second.panel.isShrunk()).toBe(true);
+  });
+
+  it('lets itself out when a panel is dropped on it while it is shrunk to its content', () => {
+    const first = openFrame('Inventory');
+    const second = openFrame('Chat');
+    first.panel.shrinkRequest$.emit(true);
+
+    fold(first.frame, second);
+
+    expect(first.frame.instance.contentMinimized).toBe(false);
+    expect(first.panel.isShrunk()).toBe(false);
+    expect(second.panel.isShrunk()).toBe(false);
+  });
+
+  it('folds a panel it takes in while it is folded to its bar', () => {
+    const first = openFrame('Chat');
+    const second = openFrame('Sheet');
+    first.frame.instance.toggleMinimize();
+
+    fold(first.frame, second);
+
+    expect(second.panel.isMinimized()).toBe(true);
+  });
+
   it('tells a panel when it is looked at again', async () => {
     const first = openFrame('Chat');
     const second = openFrame('Sheet');

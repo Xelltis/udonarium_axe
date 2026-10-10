@@ -4,14 +4,36 @@ import { ObjectNode } from '@axe/core/sync/object-node';
 /** How many layers a table may lay, under and over it together. */
 export const MAX_TABLE_BACKGROUND_LAYERS = 6;
 
-export const TABLE_LAYER_PLACEMENTS = ['under', 'over'] as const;
+export const TABLE_LAYER_PLACEMENTS = ['under', 'over', 'backdrop'] as const;
 
-/** Which side of the board a layer is drawn on. */
+/**
+ * Where a layer is drawn: under the board, over it, or behind the whole table as a backdrop that
+ * follows the camera a little.
+ */
 export type TableLayerPlacement = (typeof TABLE_LAYER_PLACEMENTS)[number];
 
 /** Beneath, which is what a background is. */
 export const DEFAULT_TABLE_LAYER_PLACEMENT: TableLayerPlacement = 'under';
 
+/** How much a backdrop follows the camera when nobody has said: enough to be seen to move. */
+export const DEFAULT_BACKDROP_FOLLOW = 0.3;
+
+/** Where a backdrop's picture stands when nobody has said: its foot on the foot of the screen. */
+export const DEFAULT_BACKDROP_HEIGHT = 0;
+
+/**
+ * A stored fraction from 0 to 1, or the default for anything that is not a number.
+ *
+ * An empty value is not read as nought: here nought means a backdrop that never moves, or one
+ * standing at the very foot of the screen, and a peer that never sent the field asked for neither.
+ */
+function unitOr(value: unknown, fallback: number): number {
+  if (value === null || value === undefined || value === '') return fallback;
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(1, Math.max(0, number)) : fallback;
+}
+
+/** Reads a stored layer placement, falling back to under the board for anything unknown. */
 export function asTableLayerPlacement(value: unknown): TableLayerPlacement {
   return typeof value === 'string' && (TABLE_LAYER_PLACEMENTS as readonly string[]).includes(value)
     ? (value as TableLayerPlacement)
@@ -43,10 +65,32 @@ export class TableBackgroundLayer extends ObjectNode {
   /** What the picture is drawn at, against the size it was made. */
   @SyncVar() scale: number = 1;
   @SyncVar() placement: string = DEFAULT_TABLE_LAYER_PLACEMENT;
+  /**
+   * How much a backdrop follows the camera, from 0, which stands still like a picture on the far
+   * wall, to 1, which goes once round the picture for each turn of the table. Only a backdrop uses it.
+   */
+  @SyncVar() cameraFollow: number = DEFAULT_BACKDROP_FOLLOW;
+  /** How high a backdrop's picture stands, as a share of the screen from its foot. Only a backdrop uses it. */
+  @SyncVar() backdropHeight: number = DEFAULT_BACKDROP_HEIGHT;
 
   /** Whether it is drawn over the board, whatever the room happened to send. */
   get placedOver(): boolean {
     return asTableLayerPlacement(this.placement) === 'over';
+  }
+
+  /** Whether it is drawn behind the whole table as a backdrop, whatever the room happened to send. */
+  get placedBackdrop(): boolean {
+    return asTableLayerPlacement(this.placement) === 'backdrop';
+  }
+
+  /** How much a backdrop follows the camera, from 0 to 1, whatever the room happened to send. */
+  get follow(): number {
+    return unitOr(this.cameraFollow, DEFAULT_BACKDROP_FOLLOW);
+  }
+
+  /** How high a backdrop stands, from 0 at the foot of the screen to 1 at its top, whatever the room happened to send. */
+  get height(): number {
+    return unitOr(this.backdropHeight, DEFAULT_BACKDROP_HEIGHT);
   }
 }
 

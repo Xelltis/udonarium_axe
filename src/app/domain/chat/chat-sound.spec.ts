@@ -1,9 +1,13 @@
+import { AudioFile } from '@axe/core/storage/audio-file';
+import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
 import {
   CHAT_SOUND_TYPES,
   chatSoundOf,
   clampChatSoundVolume,
   isChatSoundType,
   LONG_CHAT_LENGTH,
+  playChatSound,
 } from '@axe/domain/chat/chat-sound';
 import { PresetSound } from '@axe/domain/media/sound-effect';
 
@@ -46,5 +50,35 @@ describe('what comes back from storage', () => {
     expect(clampChatSoundVolume(-1)).toBe(0);
     expect(clampChatSoundVolume(9)).toBe(1);
     expect(clampChatSoundVolume('loud')).toBe(0.5);
+  });
+});
+
+describe('playChatSound()', () => {
+  beforeEach(() => {
+    PresetSound.chatBubble = 'bubble';
+    vi.spyOn(AudioStorage.instance, 'get').mockImplementation(
+      (identifier: string) => ({ identifier }) as unknown as AudioFile
+    );
+  });
+
+  afterEach(() => {
+    PresetSound.chatBubble = '';
+    vi.restoreAllMocks();
+  });
+
+  it('plays the note through the notification channel at the volume asked', () => {
+    const play = vi.spyOn(AudioPlayer, 'play').mockImplementation(() => {});
+
+    playChatSound('bubble', '', 0.4);
+
+    expect(play).toHaveBeenCalledWith(expect.objectContaining({ identifier: 'bubble' }), 0.4, VolumeType.NOTIFICATION);
+  });
+
+  it('plays nothing at no volume', () => {
+    const play = vi.spyOn(AudioPlayer, 'play').mockImplementation(() => {});
+
+    playChatSound('bubble', '', 0);
+
+    expect(play).not.toHaveBeenCalled();
   });
 });

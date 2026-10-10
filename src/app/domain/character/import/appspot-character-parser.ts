@@ -72,6 +72,10 @@ function resolveRoot(parsed: Record<string, unknown>): Record<string, unknown> {
   return parsed;
 }
 
+/**
+ * Whether the pasted json is a character from the warehouse: one with a named `base` or a
+ * `baseAbility`, bare or wrapped in `data`.
+ */
 export function isAppspotCharacter(parsed: unknown): boolean {
   const record = asRecord(parsed);
   if (!record) return false;
@@ -178,7 +182,25 @@ function collectTotals(container: unknown): { label: string; value: number }[] {
   return result;
 }
 
-function buildSections(root: Record<string, unknown>, labelMap: Record<string, string>): ImportedSection[] {
+/**
+ * What a piece spends, where the sheet says so itself.
+ *
+ * A warehouse sheet keeps a thing like a life force as `{ value, max }` under a name of its own,
+ * which is the data saying what it is rather than anybody knowing the system. Null for anything
+ * of another shape, and a bare `value` is read as full.
+ */
+function asSpendable(value: unknown): { value: number; max: number } | null {
+  const record = asRecord(value);
+  if (!record || !isScalar(record['value'])) return null;
+  const now = toFiniteNumber(record['value'], 0);
+  return { value: now, max: isScalar(record['max']) ? toFiniteNumber(record['max'], now) : now };
+}
+
+function buildSections(
+  root: Record<string, unknown>,
+  labelMap: Record<string, string>,
+  handled: ReadonlySet<string>
+): ImportedSection[] {
   const sections: ImportedSection[] = [];
 
   const base = asRecord(root['base']);
@@ -190,7 +212,7 @@ function buildSections(root: Record<string, unknown>, labelMap: Record<string, s
   }
 
   for (const [key, raw] of Object.entries(root)) {
-    if (HANDLED_TOP_LEVEL.has(key) || raw == null) continue;
+    if (handled.has(key) || raw == null) continue;
     const label = sectionLabel(key);
     if (Array.isArray(raw)) {
       const groups = arrayToGroups(label, raw);
@@ -209,6 +231,13 @@ function buildSections(root: Record<string, unknown>, labelMap: Record<string, s
   return sections;
 }
 
+/**
+ * Reads a warehouse character into the imported model without knowing its system.
+ *
+ * Sub-ability totals become resources, base-ability totals parameters, and everything else is kept
+ * as sections. `labelMap` gives headings taken from the warehouse's own pages, keyed by json path;
+ * a key it lacks keeps its own name. Null for anything that is not a warehouse character.
+ */
 export function parseAppspotCharacter(
   parsed: unknown,
   labelMap: Record<string, string> = {}
@@ -234,7 +263,17 @@ export function parseAppspotCharacter(
   }));
   character.params = params;
 
-  character.sections = buildSections(root, labelMap);
+  // Anything the sheet keeps as `{ value, max }` is something the piece spends, so it becomes a
+  // resource rather than a row of a table nobody can move.
+  const handled = new Set(HANDLED_TOP_LEVEL);
+  for (const [key, raw] of Object.entries(root)) {
+    const spendable = asSpendable(raw);
+    if (!spendable) continue;
+    handled.add(key);
+    statuses.push({ label: labelMap[key] ?? key, value: spendable.value, max: spendable.max });
+  }
+
+  character.sections = buildSections(root, labelMap, handled);
 
   return character;
 }

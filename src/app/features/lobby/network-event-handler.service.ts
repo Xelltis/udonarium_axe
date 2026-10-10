@@ -4,6 +4,7 @@ import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PeerReconnectState } from '@axe/core/network/connection';
 import { Network } from '@axe/core/network/network';
+import { SAME_NAME_MEMBER_ERROR } from '@axe/core/network/skyway/same-name-member';
 import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
@@ -43,13 +44,7 @@ export class NetworkEventHandlerService {
       const peer = Network.peerContext;
       PeerCursor.myCursor.peerId = peer.peerId;
       PeerCursor.myCursor.userId = peer.userId;
-      saveIdentity({
-        userId: peer.userId,
-        roomId: peer.roomId,
-        roomName: peer.roomName,
-        role: PeerCursor.myCursor.role,
-        reConnectPass: PeerCursor.myCursor.reConnectPass,
-      });
+      this.rememberIdentity(peer);
     }, this.destroyRef);
     this.objectChange.networkError$.subscribe((event) => {
       if (this.localMode) return;
@@ -64,11 +59,20 @@ export class NetworkEventHandlerService {
         return;
       }
 
+      // This seat is still in the room under its own name, from another tab or from before a
+      // reload that has not dropped yet. Trying again at once would meet it again, so it goes back
+      // to waiting and says why, without spending one of the tries the other errors are allowed.
+      if (errorType === SAME_NAME_MEMBER_ERROR) {
+        this.chatMessageService.sendSystemMessage(encodeI18nMessage('feature.lobby.errors.sameNameMember'));
+        Network.openStandby(loadIdentity()?.userId);
+        return;
+      }
+
       // Any error can repeat without end - a token the cloud will not accept fails again the
       // moment it is retried - so a limit of the same size bounds these too. Counted apart from
-      // the server's: sharing the one count made a server error take its wait from wherever the
-      // other errors had left off, and three tries of three, eight and fifteen seconds came out
-      // as a single wait of fifteen.
+      // the server's: sharing the one count would make a server error take its wait from wherever
+      // the other errors left off, turning three tries of three, eight and fifteen seconds into a
+      // single wait of fifteen.
       if (this.otherErrorReconnectAttempts >= NetworkEventHandlerService.MAX_SERVER_ERROR_RECONNECTS) return;
       this.otherErrorReconnectAttempts++;
 
@@ -107,6 +111,25 @@ export class NetworkEventHandlerService {
       },
       this.destroyRef
     );
+  }
+
+  /**
+   * Writes down who this tab is, so a reload can pick up where it left off.
+   *
+   * A reload opens the waiting connection before any room, and that connection belongs to no
+   * room. Written down as it stands, it would wipe out the room the tab had just been in, and a
+   * game master coming back to their own table could no longer be told from one walking into
+   * somebody else's. Outside a room, the room last written down is kept.
+   */
+  private rememberIdentity(peer: { userId: string; roomId: string; roomName: string; isRoom: boolean }): void {
+    const last = peer.isRoom ? null : loadIdentity();
+    saveIdentity({
+      userId: peer.userId,
+      roomId: last?.roomId ?? peer.roomId,
+      roomName: last?.roomName ?? peer.roomName,
+      role: PeerCursor.myCursor.role,
+      reConnectPass: PeerCursor.myCursor.reConnectPass,
+    });
   }
 
   private handleServerErrorReconnect(): void {

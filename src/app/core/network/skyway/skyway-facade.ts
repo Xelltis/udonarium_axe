@@ -1,5 +1,10 @@
 import { Logger as AppLogger } from '@axe/core/logging/logger';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
+import {
+  joinUnderOwnName,
+  SAME_NAME_MEMBER_WAIT_MS,
+  SameNameWaitCancelledError,
+} from '@axe/core/network/skyway/same-name-member';
 import { SkyWayBackend } from '@axe/core/network/skyway/skyway-backend';
 import { sha256Base64Url } from '@axe/core/util/crypto-util';
 import {
@@ -26,10 +31,15 @@ export class SkyWayFacade {
   publication: Publication<LocalDataStream> | null = null;
 
   peer: PeerContext = PeerContext.parse('???');
+  /** Whether open has finished and the session has not been closed since. */
   get isOpen(): boolean {
     return this.peer.isOpen;
   }
   private isDestroyed = false;
+  /** Calls off the waits of the open under way, when it is closed or another open begins. */
+  private openAbort: AbortController | null = null;
+  /** When joining stops waiting for a member left under this peer's name, for the room and lobby alike. */
+  private joinDeadline = 0;
 
   onOpen: ((peer: IPeerContext) => void) | null = null;
   onClose: ((peer: IPeerContext) => void) | null = null;
@@ -38,8 +48,22 @@ export class SkyWayFacade {
   onSubscribed: ((peer: IPeerContext, subscription: Subscription) => void) | null = null;
   onRoomRestore: ((peer: IPeerContext) => void) | null = null;
 
+  /**
+   * Creates a SkyWay context with a backend token, then joins the room and a lobby as the peer.
+   *
+   * An open session is closed first, and an open still under way is called off. Failures are
+   * reported through onFatalError, not thrown, and onOpen fires at the end. A peer that is not in a
+   * room gets a context but joins no channel.
+   *
+   * A member left in a channel under this peer's name, as a reload leaves one, is waited out
+   * before joining, for as long as the SDK can take to drop it.
+   */
   async open(peer: IPeerContext) {
     if (this.isOpen) await this.close();
+    this.openAbort?.abort();
+    const abort = new AbortController();
+    this.openAbort = abort;
+    this.joinDeadline = Date.now() + SAME_NAME_MEMBER_WAIT_MS;
     try {
       this.peer = PeerContext.parse(peer.peerId);
       this.peer.userId = peer.userId;
@@ -55,13 +79,17 @@ export class SkyWayFacade {
 
       this.onOpen?.(this.peer);
     } catch (err) {
+      if (abort.signal.aborted || err instanceof SameNameWaitCancelledError) return;
       AppLogger.error('[SkyWay] open失敗', err);
       this.onFatalError?.(this.peer, (err as Error).name, (err as Error).message, err as Error);
     }
   }
 
+  /** Leaves the lobby and room and disposes the context; errors are logged, not thrown. */
   async close() {
     try {
+      this.openAbort?.abort();
+      this.openAbort = null;
       this.peer = PeerContext.parse('???');
       this.isDestroyed = true;
 
@@ -73,6 +101,7 @@ export class SkyWayFacade {
     }
   }
 
+  /** Starts leaving the room and lobby without waiting, for a page that is unloading; never throws. */
   leaveImmediately() {
     try {
       if (this.roomPerson?.state !== 'left') {
@@ -86,6 +115,11 @@ export class SkyWayFacade {
     }
   }
 
+  /**
+   * Joins the room and lobby again as the same peer after leaveImmediately, with a new data stream.
+   *
+   * For when the page did not unload after all. Does nothing once closed or with the context disposed.
+   */
   async rejoinAfterLeave() {
     if (this.isDestroyed || !this.context || this.context.disposed) return;
     try {
@@ -95,6 +129,7 @@ export class SkyWayFacade {
         this.publication.onSubscribed.removeAllListeners();
         this.publication = null;
       }
+      this.joinDeadline = Date.now() + SAME_NAME_MEMBER_WAIT_MS;
       await this.joinRoomPerson();
       await this.createRoomDataStream();
       await this.joinLobbyPerson();
@@ -194,11 +229,20 @@ export class SkyWayFacade {
     await this.leaveLobbyPerson();
     if (this.isDestroyed || !this.peer.isRoom || !this.context || this.context?.disposed || this.lobby == null) return;
 
-    const lobbyPerson = await this.lobby.join({
-      name: this.peer.peerId,
-      metadata: JSON.stringify({ roomName: this.peer.roomName }),
-      preventAutoLeaveOnBeforeUnload: true,
-    });
+    const lobby = this.lobby;
+    const name = this.peer.peerId;
+    const lobbyPerson = await joinUnderOwnName(
+      lobby,
+      name,
+      () =>
+        lobby.join({
+          name,
+          metadata: JSON.stringify({ roomName: this.peer.roomName }),
+          preventAutoLeaveOnBeforeUnload: true,
+        }),
+      this.joinDeadline,
+      this.openAbort?.signal
+    );
 
     lobbyPerson.onLeft.add(() => {});
 
@@ -239,11 +283,20 @@ export class SkyWayFacade {
     await this.leaveRoomPerson();
     if (this.isDestroyed || !this.peer.isRoom || !this.context || this.context?.disposed || this.room == null) return;
 
-    const roomPerson = await this.room.join({
-      name: this.peer.peerId,
-      metadata: JSON.stringify({ roomName: this.peer.roomName }),
-      preventAutoLeaveOnBeforeUnload: true,
-    });
+    const room = this.room;
+    const name = this.peer.peerId;
+    const roomPerson = await joinUnderOwnName(
+      room,
+      name,
+      () =>
+        room.join({
+          name,
+          metadata: JSON.stringify({ roomName: this.peer.roomName }),
+          preventAutoLeaveOnBeforeUnload: true,
+        }),
+      this.joinDeadline,
+      this.openAbort?.signal
+    );
 
     roomPerson.onFatalError.add((err) => {
       AppLogger.error('[SkyWay] ルーム致命的エラー', err);
@@ -350,6 +403,7 @@ export class SkyWayFacade {
     await this.roomPerson?.unpublish(publication);
   }
 
+  /** Peer ids of every member of the lobbies the token covers; empty while the session is closed. */
   async listAllPeers(): Promise<string[]> {
     if (this.isDestroyed || !this.isOpen) return [];
 
@@ -381,6 +435,11 @@ export class SkyWayFacade {
     return allPeerIds;
   }
 
+  /**
+   * Every lobby member with the room name from its metadata, for the room list; empty while closed.
+   *
+   * A member whose metadata does not parse is listed with an empty room name.
+   */
   async listAllLobbyMembers(): Promise<{ peerId: string; roomName: string }[]> {
     if (this.isDestroyed || !this.isOpen) return [];
     if (!this.context) return [];

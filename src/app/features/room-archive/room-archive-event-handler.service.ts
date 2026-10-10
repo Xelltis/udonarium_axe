@@ -26,6 +26,13 @@ export class RoomArchiveEventHandlerService {
     this.destroyRef.onDestroy(() => this.clearTimers());
   }
 
+  /**
+   * Takes a snapshot of the room in this browser, when anything has changed since the last one.
+   *
+   * Nothing is taken while keeping is turned off or for a role that may not edit the table. While a
+   * restore is under way or a piece is being dragged it tries again a few seconds later; otherwise
+   * it waits for the browser to have a quiet moment first.
+   */
   async flush(): Promise<void> {
     this.clearTimers();
     if (!this.isDirty) return;

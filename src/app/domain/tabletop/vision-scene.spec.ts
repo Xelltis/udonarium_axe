@@ -1,3 +1,6 @@
+import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
+import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { GridType } from '@axe/domain/tabletop/game-table';
 import { Segment } from '@axe/domain/tabletop/los/segments';
 import {
   computeLightBeam,
@@ -10,12 +13,17 @@ import {
   floorRadii,
   isLit,
   isPointVisible,
+  isPointVisibleFrom,
+  isSnuffed,
   lightAxis,
   lightFloorPool,
   lightLevelAt,
   lightReaches,
   objectBrightnessFor,
   objectLightLevel,
+  type OverlayVision,
+  sameOverlayPlan,
+  type SceneBrightness,
   type SceneLight,
   type SceneViewer,
   type SceneVisionSource,
@@ -235,6 +243,78 @@ describe('vision-scene', () => {
     it('the global light acts as a floor under everything', () => {
       const s = scene({ globalIllumination: 0.3 });
       expect(lightLevelAt(s, 999, 999)).toBeCloseTo(0.3);
+    });
+
+    describe('a patch of the board held at a brightness of its own', () => {
+      const patch = (over: Partial<SceneBrightness> = {}): SceneBrightness => ({
+        x: 100,
+        y: 100,
+        widthPx: 100,
+        heightPx: 100,
+        level: 0,
+        snuffs: false,
+        ...over,
+      });
+
+      it('lights the ground under it and leaves the ground beside it alone', () => {
+        const s = scene({ brightAreas: [patch({ level: 1 })] });
+
+        expect(lightLevelAt(s, 150, 150)).toBe(1);
+        expect(lightLevelAt(s, 250, 150)).toBe(0);
+      });
+
+      it('never darkens what a lamp already lights, brightening being a floor and not a ceiling', () => {
+        const s = scene({
+          lights: [light({ x: 150, y: 150, brightPx: 100, dimPx: 200 })],
+          brightAreas: [patch({ level: 0.5 })],
+        });
+
+        expect(lightLevelAt(s, 150, 150)).toBe(1);
+      });
+
+      it('puts out the light under it where it darkens, lamp or no lamp', () => {
+        const s = scene({
+          lights: [light({ x: 150, y: 150, brightPx: 100, dimPx: 200 })],
+          brightAreas: [patch({ level: 0, snuffs: true })],
+        });
+
+        expect(lightLevelAt(s, 150, 150)).toBe(0);
+        expect(lightLevelAt(s, 300, 150)).toBe(0.5);
+      });
+
+      it('stays dark under a shaft of daylight laid over it, the dark having the last word', () => {
+        const s = scene({
+          brightAreas: [patch({ level: 1 }), patch({ level: 0, snuffs: true })],
+        });
+
+        expect(lightLevelAt(s, 150, 150)).toBe(0);
+      });
+    });
+  });
+
+  describe('isSnuffed', () => {
+    const dark: SceneBrightness = { x: 100, y: 100, widthPx: 100, heightPx: 100, level: 0, snuffs: true };
+
+    it('holds over the ground the dark was laid on and nowhere else', () => {
+      const s = scene({ brightAreas: [dark] });
+
+      expect(isSnuffed(s, 150, 150)).toBe(true);
+      expect(isSnuffed(s, 250, 150)).toBe(false);
+    });
+
+    it('holds for nothing on a table nobody has laid any dark on', () => {
+      expect(isSnuffed(scene(), 150, 150)).toBe(false);
+    });
+  });
+
+  describe('a piece standing in a pool of darkness', () => {
+    const dark: SceneBrightness = { x: 100, y: 100, widthPx: 100, heightPx: 100, level: 0, snuffs: true };
+
+    it('is out of sight though the table has no dark on it at all', () => {
+      const s = scene({ darknessEnabled: false, brightAreas: [dark] });
+
+      expect(isPointVisibleFrom(s, 150, 150, [])).toBe(false);
+      expect(isPointVisibleFrom(s, 250, 150, [])).toBe(true);
     });
   });
 
@@ -813,6 +893,76 @@ describe('vision-scene', () => {
       // or the pool would spill straight through.
       expect(reachOf(open)).toBeGreaterThan(250);
       expect(reachOf(blocked)).toBeLessThan(reachOf(open));
+    });
+  });
+
+  describe('telling whether a plan draws the same picture', () => {
+    it('finds a plan made again from a scene built again the same', () => {
+      const build = () => scene({ lights: [light()], shadowCasters: [caster()] });
+
+      expect(sameOverlayPlan(computeOverlayPlan(build(), GM), computeOverlayPlan(build(), GM))).toBe(true);
+    });
+
+    it('tells a plan apart once a light has moved', () => {
+      const before = computeOverlayPlan(scene({ lights: [light()] }), GM);
+      const after = computeOverlayPlan(scene({ lights: [light({ x: 40 })] }), GM);
+
+      expect(sameOverlayPlan(before, after)).toBe(false);
+    });
+
+    it('tells it apart once the reader has moved their own eyes', () => {
+      const eyes = (x: number) => source({ x, type: VisionType.DARKVISION, rangePx: 150 });
+      const before = computeOverlayPlan(scene({ visionSources: [eyes(0)] }), PLAYER);
+      const after = computeOverlayPlan(scene({ visionSources: [eyes(60)] }), PLAYER);
+
+      expect(sameOverlayPlan(before, after)).toBe(false);
+    });
+
+    it("finds it the same when only somebody else's eyes have moved", () => {
+      const theirs = (x: number) => source({ x, owner: 'npc', type: VisionType.DARKVISION, rangePx: 150 });
+      const before = computeOverlayPlan(scene({ visionSources: [theirs(0)] }), PLAYER);
+      const after = computeOverlayPlan(scene({ visionSources: [theirs(60)] }), PLAYER);
+
+      expect(sameOverlayPlan(before, after)).toBe(true);
+    });
+
+    describe.each([
+      ['square', GridType.SQUARE],
+      ['hex', GridType.HEX_VERTICAL],
+    ])('with the cells the reader sees on a %s board', (_, type) => {
+      function vision(seen: number[]): OverlayVision {
+        const grid = cellGridOf(4, 4, 50, type);
+        const visible = new CellBits(16);
+        for (const cell of seen) visible.set(cell);
+        const explored = new CellBits(16);
+        for (const cell of [0, 1, 5, 6]) explored.set(cell);
+        return {
+          grid,
+          visible,
+          explored,
+          clipReveals: true,
+          fogEnabled: true,
+          fogColor: '#aeb9c4',
+          veilColor: '#000000',
+          veilAlpha: 0.3,
+          unexploredAlpha: 1,
+          blurPx: 17.5,
+          rememberSeen: true,
+          clearedStaysLit: false,
+        };
+      }
+
+      it('finds the same cells held in new sets the same', () => {
+        const plan = (seen: number[]) => computeOverlayPlan(scene(), PLAYER, vision(seen));
+
+        expect(sameOverlayPlan(plan([0, 1, 5]), plan([0, 1, 5]))).toBe(true);
+      });
+
+      it('tells them apart once one more cell is in sight', () => {
+        const plan = (seen: number[]) => computeOverlayPlan(scene(), PLAYER, vision(seen));
+
+        expect(sameOverlayPlan(plan([0, 1, 5]), plan([0, 1, 5, 6]))).toBe(false);
+      });
     });
   });
 

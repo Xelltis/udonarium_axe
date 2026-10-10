@@ -82,6 +82,13 @@ export class ReplayRouteOverlayComponent {
   }
 }
 
+/**
+ * The straight runs of a replayed route, for drawing its trail.
+ *
+ * Steps of no length are skipped. Each run carries its start point, length and heading in degrees,
+ * and is marked travelled once the playback, as a share of the whole route clamped to 0 to 1, has
+ * passed its end.
+ */
 export function buildSegments(points: readonly ReplayRoutePoint[], progress: number): ReplayRouteSegment[] {
   const total = routeLength(points);
   const travelled = total * Math.max(0, Math.min(1, progress));

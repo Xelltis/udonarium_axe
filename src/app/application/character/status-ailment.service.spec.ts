@@ -4,7 +4,9 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { buffColorOf, buffIconOf } from '@axe/domain/character/buff-badge';
 import { buffTimingOf } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { newStatusAilment, StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
+import { DataElement } from '@axe/domain/data/data-element';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('StatusAilmentService', () => {
@@ -163,5 +165,82 @@ describe('StatusAilmentService', () => {
 
       expect(service.isOn(goblin, '毒')).toBe(true);
     });
+  });
+});
+
+describe('StatusAilmentService and the statuses a state moves', () => {
+  let service: StatusAilmentService;
+  const created: GameCharacter[] = [];
+
+  function walker(move: number): GameCharacter {
+    const made = GameCharacter.create('歩き手', 1, '');
+    DataElement.findElementByReference(made.rootDataElement!, '移動')!.value = move;
+    created.push(made);
+    return made;
+  }
+
+  const moveOf = (piece: GameCharacter) =>
+    Number(DataElement.findElementByReference(piece.rootDataElement!, '移動')!.value);
+
+  const binding = (over: Partial<StatusAilment> = {}): StatusAilment => ({
+    ...newStatusAilment('拘束'),
+    stat: '移動',
+    op: '=',
+    amount: '0',
+    ...over,
+  });
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    service = TestBed.inject(StatusAilmentService);
+    service.save([]);
+  });
+
+  afterEach(() => {
+    for (const made of created.splice(0)) ObjectStore.instance.remove(made);
+    service.save([]);
+    (StatusAilmentCatalog as unknown as Record<string, unknown>)['_instance'] = undefined;
+  });
+
+  it('holds the status where the state says while it is worn', () => {
+    const piece = walker(8);
+
+    service.plant(piece, binding());
+
+    expect(moveOf(piece)).toBe(0);
+  });
+
+  it('gives back exactly what it took when the state comes off', () => {
+    const piece = walker(8);
+    service.plant(piece, binding());
+
+    service.pull(piece, '拘束');
+
+    expect(moveOf(piece)).toBe(8);
+  });
+
+  it('moves a status by an amount where the state asks for that instead', () => {
+    const piece = walker(8);
+
+    service.plant(piece, binding({ name: '鈍足', op: '-', amount: '3' }));
+
+    expect(moveOf(piece)).toBe(5);
+  });
+
+  it('leaves the sheet alone for a state that names no status', () => {
+    const piece = walker(8);
+
+    service.plant(piece, newStatusAilment('毒'));
+
+    expect(moveOf(piece)).toBe(8);
+  });
+
+  it('goes on as a plain mark where the sheet has no such status', () => {
+    const piece = walker(8);
+
+    service.plant(piece, binding({ stat: '飛行' }));
+
+    expect(service.isOn(piece, '拘束')).toBe(true);
+    expect(moveOf(piece)).toBe(8);
   });
 });

@@ -15,6 +15,7 @@ export interface Ink {
 export const HANDLE_SLACK = 9;
 const HOLD_COLOUR = '#2f7fd8';
 
+/** How big a grip is in board pixels, so it stays the same size on screen at any zoom. */
 export function gripAt(zoom: number): number {
   return HANDLE_SLACK / Math.max(0.25, zoom);
 }
@@ -23,6 +24,7 @@ function hairline(zoom: number, width = 1): number {
   return width / Math.max(0.25, zoom);
 }
 
+/** Draws snap guides as thin dashed lines in one colour; nothing is drawn when there are none. */
 export function drawGuides(
   ctx: CanvasRenderingContext2D,
   guides: readonly SnapGuide[],
@@ -48,6 +50,7 @@ export function drawGuides(
   ctx.restore();
 }
 
+/** Draws a line, arrow or shape still being dragged out, in its own stroke or else the current ink. */
 export function drawPending(ctx: CanvasRenderingContext2D, item: ShapeItem, ink: Ink): void {
   ctx.save();
   ctx.strokeStyle = item.stroke?.color ?? ink.color;
@@ -77,6 +80,7 @@ export function drawPending(ctx: CanvasRenderingContext2D, item: ShapeItem, ink:
   ctx.restore();
 }
 
+/** Draws a picture's crop window: the part cut away shaded, the window outlined, and its corner and side grips. */
 export function drawTrimWindow(ctx: CanvasRenderingContext2D, box: MarkBox, window: MarkBox, zoom: number): void {
   const cut = { x: box.x + window.x, y: box.y + window.y, w: window.w, h: window.h };
   ctx.save();
@@ -98,6 +102,7 @@ export function drawTrimWindow(ctx: CanvasRenderingContext2D, box: MarkBox, wind
   ctx.restore();
 }
 
+/** Draws the dashed box round what is held, with its resize grips and the round grip that turns it. */
 export function drawHold(ctx: CanvasRenderingContext2D, box: MarkBox, zoom: number): void {
   ctx.save();
   ctx.strokeStyle = HOLD_COLOUR;
@@ -127,6 +132,7 @@ export function drawHold(ctx: CanvasRenderingContext2D, box: MarkBox, zoom: numb
   ctx.restore();
 }
 
+/** Draws a round grip on each joint of a jointed shape, from its flat list of x, y pairs. */
 export function drawJoints(ctx: CanvasRenderingContext2D, points: readonly number[], zoom: number): void {
   ctx.save();
   ctx.strokeStyle = HOLD_COLOUR;
@@ -144,6 +150,11 @@ export function drawJoints(ctx: CanvasRenderingContext2D, points: readonly numbe
   ctx.restore();
 }
 
+/**
+ * Draws a path being laid point by point, on to the pointer when it is hovering, with each point marked.
+ *
+ * Expects at least one point.
+ */
 export function drawLaying(
   ctx: CanvasRenderingContext2D,
   laying: readonly BoardPoint[],
@@ -165,6 +176,7 @@ export function drawLaying(
   ctx.restore();
 }
 
+/** Draws the selection box being dragged out, tinted and dashed. */
 export function drawBand(ctx: CanvasRenderingContext2D, area: MarkBox, zoom: number): void {
   ctx.save();
   ctx.strokeStyle = HOLD_COLOUR;
@@ -176,6 +188,11 @@ export function drawBand(ctx: CanvasRenderingContext2D, area: MarkBox, zoom: num
   ctx.restore();
 }
 
+/**
+ * Draws a pen stroke still under way, from its flat list of x, y pairs, in the current ink.
+ *
+ * Unlike the other painters it leaves the context's stroke settings changed.
+ */
 export function drawFreehand(ctx: CanvasRenderingContext2D, pending: readonly number[], ink: Ink): void {
   ctx.strokeStyle = ink.color;
   ctx.lineWidth = ink.width;

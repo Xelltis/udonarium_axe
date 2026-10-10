@@ -33,18 +33,28 @@ const TIMING_TOKENS: Record<string, BuffTiming> = {
   なし: 'none',
   永続: 'none',
   解除まで: 'none',
+  消えない: 'none',
 };
 
+/**
+ * Reads a timing out of a chat token, written in English or Japanese and in any case. Null for a
+ * token that names none.
+ */
 export function resolveBuffTiming(token: string): BuffTiming | null {
   const normalized = (token ?? '').trim();
   if (normalized.length < 1) return null;
   return TIMING_TOKENS[normalized] ?? TIMING_TOKENS[normalized.toLowerCase()] ?? null;
 }
 
+/** Whether a chat token names a moment a buff counts down at. */
 export function isBuffTimingToken(token: string): boolean {
   return resolveBuffTiming(token) !== null;
 }
 
+/**
+ * When this buff counts down, as stored on it. A missing or unknown value reads as the end of the
+ * round.
+ */
 export function buffTimingOf(element: DataElement): BuffTiming {
   const stored = (element.getAttribute(DataElementAttribute.BUFF_TIMING) ?? '').trim();
   return (BUFF_TIMINGS as readonly string[]).includes(stored) ? (stored as BuffTiming) : DEFAULT_BUFF_TIMING;

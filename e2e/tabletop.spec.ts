@@ -114,7 +114,7 @@ test.describe('キャラクターシート操作', () => {
   });
 
   test('キャラクターシートにコピー/保存ボタンがあること', async ({ page }) => {
-    // キャラクターのシートには「編集切り替え」ボタンは出ない (character の場合 @if で除外)。
+    // キャラクターのシートには「編集切り替え」ボタンは出ない（characterの場合は@ifで除外）。
     // 代わりに常設の「コピーを作る」「保存」が表示される。
     await createCharacter(page);
     await page.locator('game-character').first().dispatchEvent('contextmenu');
@@ -126,14 +126,14 @@ test.describe('キャラクターシート操作', () => {
 
   test('キャラクターのコピーを作れること', async ({ page }) => {
     await createCharacter(page);
-    // count はデフォルトテーブルのプリセットキャラ + 新規作成分を含むので
-    // 安定するまで少し待つ必要がある。waitForFunction で確実に固定値を得る。
+    // countはデフォルトテーブルのプリセットキャラと新規作成分を含むので、
+    // 安定するまで少し待つ必要がある。waitForFunctionで確実に固定値を得る。
     const initialCount = await page.locator('game-character').count();
     await page.locator('game-character').first().dispatchEvent('contextmenu');
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    // context-menu の「コピーを作る」と game-character-sheet の同名ボタンが
-    // 同時に居る可能性があるため、context-menu スコープで一意化する。
+    // context-menuの「コピーを作る」とgame-character-sheetの同名ボタンが
+    // 同時に存在する可能性があるため、context-menuスコープで一意化する。
     await menu.getByText('コピーを作る').click();
     await expect.poll(() => page.locator('game-character').count(), { timeout: 10000 }).toBeGreaterThan(initialCount);
   });
@@ -167,9 +167,9 @@ test.describe('ダイスシンボル操作', () => {
   });
 
   test('ダイスを振るアクションがエラー無く完了すること', async ({ page }) => {
-    // 「ダイスを振る」は callRollDiceSymbol を呼び出してダイスを回転させるアニメーション
-    // を再生するだけで、チャットログには出力されない (それは bcdice 経由の dN コマンド
-    // のみ)。ここでは「アクションが完走してダイス要素が DOM に残っている」ことを確認する。
+    // 「ダイスを振る」はcallRollDiceSymbolを呼び出してダイスを回転させるアニメーション
+    // を再生するだけで、チャットログには出力されない（出力されるのはbcdice経由のdNコマンド
+    // のみ）。ここでは「アクションが最後まで実行されてダイス要素がDOMに残っている」ことを確認する。
     await createDiceSymbol(page);
     await page.locator('dice-symbol').first().dispatchEvent('contextmenu');
     const menu = page.locator('context-menu');
@@ -184,7 +184,7 @@ test.describe('ダイスシンボル操作', () => {
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await menu.getByText('詳細を表示').click();
-    // dice-symbol-sheet は app- 接頭辞付き専用シートで開かれる
+    // dice-symbol-sheetはapp-接頭辞付きの専用シートで開かれる
     await expect(page.locator('app-dice-symbol-sheet')).toBeVisible({ timeout: 10000 });
   });
 });
@@ -195,9 +195,9 @@ test.describe('ゲームテーブルのズーム操作', () => {
   });
 
   test('ホイールでゲームテーブルがズームすること', async ({ page }) => {
-    // wheel リスナーは <game-table> 要素にバインドされ、変換は #app-game-table
-    // の親 div (#gameTable テンプレ参照) に書き込まれる。テンプレ参照は DOM id に
-    // ならないので、#app-game-table の親要素を辿って style.transform を読む。
+    // wheelリスナーは<game-table>要素にバインドされ、変換は#app-game-table
+    // の親div（#gameTableテンプレ参照）に書き込まれる。テンプレ参照はDOMのidに
+    // ならないので、#app-game-tableの親要素を辿ってstyle.transformを読む。
     const transformedEl = page.locator('#app-game-table').locator('xpath=..');
     const initialTransform = await transformedEl.evaluate((el) => (el as HTMLElement).style.transform);
     await page.mouse.move(900, 250);

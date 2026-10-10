@@ -1,0 +1,94 @@
+<p class="text-ui-dim m-0 mb-1 text-[11px]">{{ 'feature.chat.messageSetting.soundHint' | transloco }}</p>
+<label class="flex items-center justify-between gap-2 py-1">
+  <span class="text-ui-muted flex-1 text-[12px]">{{ 'feature.chat.messageSetting.scope' | transloco }}</span>
+  <select
+    class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text cursor-pointer border border-solid px-1 py-0.5 text-[12px]"
+    [attr.name]="'soundScope'"
+    (change)="setSoundScope($any($event.target).value)"
+  >
+    @for (choice of scopes; track choice) {
+      <option [value]="choice" [selected]="choice === soundScope()">
+        {{ 'feature.chat.messageSetting.scope_' + choice | transloco }}
+      </option>
+    }
+  </select>
+</label>
+@if (soundScope() === 'all') {
+  <ng-container
+    *ngTemplateOutlet="soundControls; context: { $implicit: soundForAll(), key: 'all', forAll: true, label: '' }"
+  ></ng-container>
+} @else {
+  @for (row of soundRows(); track row.identifier) {
+    <ng-container
+      *ngTemplateOutlet="
+        soundControls;
+        context: { $implicit: row.sound, key: row.identifier, forAll: false, name: row.name, label: row.name }
+      "
+    ></ng-container>
+  }
+}
+
+<ng-template #soundControls let-sound let-key="key" let-forAll="forAll" let-name="name" let-label="label">
+  <div class="border-ui-border-panel mb-1 border-b border-dashed pb-1 last:border-b-0">
+    @if (label.length > 0) {
+      <div class="text-ui-text truncate py-0.5 text-[12px] font-semibold">{{ label }}</div>
+    }
+    <label class="flex cursor-pointer items-center justify-between gap-2 py-1">
+      <span class="text-ui-muted flex-1 text-[12px]">{{ 'feature.chat.messageSetting.soundEnabled' | transloco }}</span>
+      <input
+        type="checkbox"
+        [attr.name]="'chatSoundEnabled-' + key"
+        [ngModel]="sound.enabled"
+        [ngModelOptions]="{ standalone: true }"
+        (ngModelChange)="forAll ? setSoundForAll({ enabled: $event }) : setSoundOfTab(name, { enabled: $event })"
+      />
+    </label>
+    <label class="flex items-center justify-between gap-2 py-1">
+      <span class="text-ui-muted flex-1 text-[12px]">{{ 'feature.chat.messageSetting.soundType' | transloco }}</span>
+      <select
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text cursor-pointer border border-solid px-1 py-0.5 text-[12px]"
+        [attr.name]="'chatSoundType-' + key"
+        (change)="
+          forAll
+            ? setSoundForAll({ type: asSoundType($any($event.target).value) })
+            : setSoundOfTab(name, { type: asSoundType($any($event.target).value) })
+        "
+      >
+        @for (choice of soundTypes; track choice) {
+          <option [value]="choice" [selected]="choice === sound.type">
+            {{ 'feature.chat.messageSetting.soundType_' + choice | transloco }}
+          </option>
+        }
+      </select>
+    </label>
+    <label class="flex items-center justify-between gap-2 py-1">
+      <span class="text-ui-muted flex-1 text-[12px]">{{ 'feature.chat.messageSetting.soundVolume' | transloco }}</span>
+      <input
+        type="range"
+        class="w-24 cursor-pointer"
+        min="0"
+        max="100"
+        step="5"
+        [attr.name]="'chatSoundVolume-' + key"
+        [value]="toPercent(sound.volume)"
+        (input)="
+          forAll
+            ? setSoundForAll({ volume: toVolume($any($event.target).value) })
+            : setSoundOfTab(name, { volume: toVolume($any($event.target).value) })
+        "
+      />
+      <span class="text-ui-dim w-8 text-right text-[11px]">{{ toPercent(sound.volume) }}</span>
+    </label>
+    <div class="flex justify-end py-0.5">
+      <button
+        type="button"
+        class="border-ui-border-panel text-ui-muted hover:bg-ui-accent-bg hover:text-ui-accent hover:border-ui-accent rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border border-solid bg-transparent px-2 py-1 text-[11px] transition-[background,color,border-color]"
+        [attr.name]="'chatSoundPreview-' + key"
+        (click)="playSoundPreview(sound)"
+      >
+        <i class="material-icons text-[14px]!">volume_up</i>
+        {{ 'feature.chat.messageSetting.soundPreview' | transloco }}
+      </button>
+    </div>
+  </div>
+</ng-template>

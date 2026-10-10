@@ -7,19 +7,19 @@ import { withBase } from 'vitepress';
  * `startup.webp` is captured with a different layout.
  */
 const spots = [
-  { x: 2.8, y: 3.9, name: 'FAB メニュー', body: '各種パネルを開くメインメニュー。', link: '/manual/#fab-メニュー' },
+  { x: 2.8, y: 3.9, name: 'FABメニュー', body: '各種パネルを開くメインメニュー。', link: '/manual/#fabメニュー' },
   {
     x: 33.8,
     y: 3.4,
     name: 'ツールバー',
-    body: 'ロールに応じて GM / PL のツールが並びます。',
+    body: 'ロールに応じてGM / PLのツールが並びます。',
     link: '/manual/pl-tools',
   },
   {
     x: 87,
     y: 7.2,
     name: 'ミニプレイヤー',
-    body: 'BGM の再生状況。ツールバーから表示を切り替えます。',
+    body: 'BGMの再生状況。ツールバーから表示を切り替えます。',
     link: '/manual/jukebox',
   },
   { x: 16, y: 21, name: '接続パネル', body: 'ニックネーム・アイコン・ロール・ロビー。', link: '/manual/roles' },

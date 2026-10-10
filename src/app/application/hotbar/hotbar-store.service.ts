@@ -19,10 +19,12 @@ export class HotbarStoreService {
     Hotbar.ownerId = this.ownerId;
   }
 
+  /** This reader's hotbar, or null while they have never put anything on one. */
   own(): Hotbar | null {
     return Hotbar.forUser(this.ownerId);
   }
 
+  /** This reader's hotbar, made and added to the room the first time it is needed. */
   ensureOwn(): Hotbar | null {
     return Hotbar.ensureForUser(this.ownerId);
   }

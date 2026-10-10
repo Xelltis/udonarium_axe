@@ -1,3 +1,5 @@
+import { PeerContext } from '@axe/core/network/peer-context';
+import { SAME_NAME_MEMBER_WAIT_MS, SameNameWaitCancelledError } from '@axe/core/network/skyway/same-name-member';
 import { SkyWayFacade } from '@axe/core/network/skyway/skyway-facade';
 
 describe('SkyWayFacade', () => {
@@ -96,5 +98,69 @@ describe('clearing away the listeners', () => {
     expect(removeAllListenersSpy).toHaveBeenCalled();
     expect(unpublishSpy).toHaveBeenCalled();
     expect((facade as unknown as Record<string, unknown>).publication).toBeNull();
+  });
+});
+
+describe('joining the room under its own name', () => {
+  function roomWith(names: string[]) {
+    const listeners = new Set<(event: { member: { name: string } }) => void>();
+    const room = {
+      members: names.map((name) => ({ name })),
+      onMemberLeft: {
+        add(callback: (event: { member: { name: string } }) => void) {
+          listeners.add(callback);
+          return { removeListener: () => listeners.delete(callback) };
+        },
+      },
+      join: vi.fn(async () => ({ onFatalError: { add: vi.fn() } })),
+      leave(name: string) {
+        room.members = room.members.filter((member) => member.name !== name);
+        for (const listener of [...listeners]) listener({ member: { name } });
+      },
+    };
+    return room;
+  }
+
+  function facadeIn(room: ReturnType<typeof roomWith>, abort: AbortController): SkyWayFacade {
+    const facade = new SkyWayFacade();
+    const peer = PeerContext.parse('me');
+    peer.roomId = 'r1';
+    Object.assign(facade as unknown as Record<string, unknown>, {
+      peer,
+      room,
+      context: { disposed: false },
+      openAbort: abort,
+      joinDeadline: Date.now() + SAME_NAME_MEMBER_WAIT_MS,
+    });
+    return facade;
+  }
+
+  const joinRoomPerson = (facade: SkyWayFacade) =>
+    (facade as unknown as { joinRoomPerson: () => Promise<void> }).joinRoomPerson();
+
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('waits for what a reload left under its name to go before joining', async () => {
+    const room = roomWith(['me']);
+    const joined = joinRoomPerson(facadeIn(room, new AbortController()));
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(room.join).not.toHaveBeenCalled();
+
+    room.leave('me');
+    await joined;
+    expect(room.join).toHaveBeenCalledOnce();
+  });
+
+  it('calls the wait off when the open is', async () => {
+    const room = roomWith(['me']);
+    const abort = new AbortController();
+    const joined = joinRoomPerson(facadeIn(room, abort));
+
+    abort.abort();
+
+    await expect(joined).rejects.toBeInstanceOf(SameNameWaitCancelledError);
+    expect(room.join).not.toHaveBeenCalled();
   });
 });

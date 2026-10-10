@@ -5,8 +5,11 @@ import { TabletopOverlapRegistryEntry, TabletopOverlapService } from '@axe/appli
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
-import { Terrain } from '@axe/domain/tabletop/terrain';
+import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+
+/** A registered piece drawn in an element of its own. */
+type DrawnEntry = TabletopOverlapRegistryEntry & { readonly element: HTMLElement };
 
 beforeEach(() => {
   TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
@@ -22,7 +25,7 @@ function makeTerrain(opts: {
   posZ?: number;
   identifier?: string;
   surface?: TableSurface;
-}): TabletopOverlapRegistryEntry {
+}): DrawnEntry {
   const terrain = Terrain.create('t', opts.w, opts.d, opts.h, '', '', opts.identifier ?? `terrain_${opts.x}_${opts.y}`);
   terrain.location.x = opts.x;
   terrain.location.y = opts.y;
@@ -43,7 +46,7 @@ function makeCharacter(opts: {
   altitude?: number;
   posZ?: number;
   identifier?: string;
-}): TabletopOverlapRegistryEntry {
+}): DrawnEntry {
   const character = GameCharacter.create('c', opts.size ?? 1, '');
   if (opts.identifier) {
     (character as unknown as { identifier: string }).identifier = opts.identifier;
@@ -182,7 +185,7 @@ describe('GravityService.isAffectedByGravity', () => {
 });
 
 describe('applying gravity through the spatial index', () => {
-  function setup(entries: TabletopOverlapRegistryEntry[]): GravityService {
+  function setup(entries: DrawnEntry[]): GravityService {
     const overlap = TestBed.inject(TabletopOverlapService);
     for (const e of entries) overlap.register(e.object, e.element);
     return TestBed.inject(GravityService);
@@ -200,6 +203,90 @@ describe('applying gravity through the spatial index', () => {
     applyNow(svc);
 
     expect(char.object.posZ).toBe(2 * 50);
+  });
+
+  it('drops a character onto terrain drawn together with others, in no element of its own', () => {
+    const base = makeTerrain({ x: 0, y: 0, w: 4, d: 4, h: 2, identifier: 'base' });
+    const char = makeCharacter({ x: 50, y: 50, posZ: 300 });
+    const svc = setup([char]);
+    TestBed.inject(TabletopOverlapService).registerWithoutElement(base.object, () => undefined);
+
+    applyNow(svc);
+
+    expect(char.object.posZ).toBe(2 * 50);
+  });
+
+  it('rests a character on a ramp where it stands, not level with the high end', () => {
+    const ramp = makeTerrain({ x: 0, y: 0, w: 4, d: 4, h: 2, identifier: 'ramp' });
+    (ramp.object as Terrain).slopeSides = ['s'];
+    // The middle of the ramp, half way up it: a piece one cell across stands at 75 + 25.
+    const char = makeCharacter({ x: 75, y: 75, posZ: 300 });
+    const svc = setup([ramp, char]);
+
+    applyNow(svc);
+
+    expect(char.object.posZ).toBeCloseTo(50);
+  });
+
+  it('rests a character at the foot of a ramp on the floor', () => {
+    const ramp = makeTerrain({ x: 0, y: 0, w: 4, d: 4, h: 2, identifier: 'ramp' });
+    (ramp.object as Terrain).slopeSides = ['s'];
+    const char = makeCharacter({ x: 75, y: 175, posZ: 300 });
+    const svc = setup([ramp, char]);
+
+    applyNow(svc);
+
+    expect(char.object.posZ).toBeCloseTo(0);
+  });
+
+  it('lifts a piece that came down inside a ramp back onto its surface', () => {
+    const ramp = makeTerrain({ x: 0, y: 0, w: 4, d: 4, h: 2, identifier: 'ramp' });
+    (ramp.object as Terrain).slopeSides = ['s'];
+    // Let go a little under the surface, which is what snapping to the grid can leave behind
+    // when the piece lands further up the slope than it was dragged to.
+    const char = makeCharacter({ x: 75, y: 75, posZ: 40 });
+    const svc = setup([ramp, char]);
+
+    applyNow(svc);
+
+    expect(char.object.posZ).toBeCloseTo(50);
+  });
+
+  it('leaves a piece kept above the ground inside a doorway where it is', () => {
+    const door = makeTerrain({ x: 0, y: 0, w: 2, d: 2, h: 3, identifier: 'door' });
+    (door.object as Terrain).doorStyle = DoorStyle.SWING;
+    (door.object as Terrain).isDoorOpen = true;
+    const char = makeCharacter({ x: 25, y: 25, posZ: 0 });
+    char.object.altitude = 1;
+    const svc = setup([door, char]);
+
+    applyNow(svc);
+
+    expect(char.object.posZ).toBe(0);
+  });
+
+  it('leaves a piece kept above the ground inside a sheer face where it is', () => {
+    const cliff = makeTerrain({ x: 0, y: 0, w: 2, d: 2, h: 6, identifier: 'cliff' });
+    (cliff.object as Terrain).blocksClimb = true;
+    (cliff.object as Terrain).slopeSides = ['s'];
+    const char = makeCharacter({ x: 25, y: 25, posZ: 0 });
+    char.object.altitude = 1;
+    const svc = setup([cliff, char]);
+
+    applyNow(svc);
+
+    expect(char.object.posZ).toBe(0);
+  });
+
+  it('leaves a piece kept above the ground inside a block with a level top where it is', () => {
+    const wall = makeTerrain({ x: 0, y: 0, w: 2, d: 2, h: 4, identifier: 'wall' });
+    const char = makeCharacter({ x: 25, y: 25, posZ: 0 });
+    char.object.altitude = 1;
+    const svc = setup([wall, char]);
+
+    applyNow(svc);
+
+    expect(char.object.posZ).toBe(0);
   });
 
   it('leaves distant terrain out, since the index never offers it', () => {
@@ -262,7 +349,7 @@ describe('applying gravity through the spatial index', () => {
   });
 
   it('forces no reflow under a crowd of objects', () => {
-    const entries: TabletopOverlapRegistryEntry[] = [];
+    const entries: DrawnEntry[] = [];
     const ROWS = 10;
     const COLS = 10;
     for (let i = 0; i < ROWS; i++) {

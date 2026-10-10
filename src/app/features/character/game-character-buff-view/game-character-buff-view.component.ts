@@ -33,6 +33,12 @@ export class GameCharacterBuffViewComponent {
     return buffEl.children.slice() as DataElement[];
   });
 
+  /**
+   * Adds a new buff row to the character, from the panel's add button.
+   *
+   * The buff starts with the default name and one round, and the character is given a buff list
+   * first when it has none. Does nothing before a character is set.
+   */
   addBuff() {
     const char = this.character();
     if (!char) return;

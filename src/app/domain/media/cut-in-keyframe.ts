@@ -29,10 +29,17 @@ export interface CutInKey {
 
 export type CutInTrackSet = Partial<Record<CutInTrackName, CutInKey[]>>;
 
+/** Whether a value names one of the properties a layer can animate. */
 export function isCutInTrack(value: unknown): value is CutInTrackName {
   return typeof value === 'string' && (CUT_IN_TRACKS as readonly string[]).includes(value);
 }
 
+/**
+ * Reads a layer's tracks back from the JSON string it stores.
+ *
+ * Unknown tracks and keys without a numeric time and value are dropped, keys come back sorted
+ * by time and capped at 64 per track, and anything unreadable comes back as no tracks.
+ */
 export function parseCutInTracks(raw: string | null | undefined): CutInTrackSet {
   if (!raw || raw.trim().length < 1) return {};
 
@@ -52,6 +59,12 @@ export function parseCutInTracks(raw: string | null | undefined): CutInTrackSet 
   }
 }
 
+/**
+ * Writes a layer's tracks into the JSON string it stores.
+ *
+ * Empty tracks are left out, keys are sorted and capped at 64 per track, and a layer with no
+ * keys at all writes as an empty string.
+ */
 export function encodeCutInTracks(tracks: CutInTrackSet): string {
   const written: CutInTrackSet = {};
   for (const name of CUT_IN_TRACKS) {

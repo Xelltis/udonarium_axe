@@ -20,6 +20,7 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { BillboardFacing, facesAlways, NOT_TURNED } from '@axe/application/ui/billboard-frame.service';
 import { ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
@@ -35,7 +36,9 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { buildDiceSymbolContextMenu } from '@axe/features/dice/dice-symbol/dice-symbol-context-menu';
+import { BillboardDirective } from '@axe/ui/directives/billboard.directive';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
@@ -59,7 +62,7 @@ const TUMBLE_PATHS = 3;
   selector: 'dice-symbol',
   templateUrl: './dice-symbol.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MovableDirective, RotableDirective, SelectableDirective, NgStyle, SafePipe],
+  imports: [BillboardDirective, MovableDirective, RotableDirective, SelectableDirective, NgStyle, SafePipe],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
     '(dragstart)': 'onDragstart($event)',
@@ -96,18 +99,23 @@ export class DiceSymbolComponent {
 
   readonly diceSymbol = input.required<DiceSymbol>();
 
+  /** The face the die shows. Setting it changes the die itself. */
   get face(): string {
     return this.diceSymbol().face;
   }
   set face(face: string) {
     this.diceSymbol().face = face;
   }
+  /**
+   * The user ID of whoever has kept the die's face to themselves; empty while anyone may see it.
+   */
   get owner(): string {
     return this.diceSymbol().owner;
   }
   set owner(owner: string) {
     this.diceSymbol().owner = owner;
   }
+  /** How far the die is turned on the table, in degrees, read and written on the die. */
   get rotate(): number {
     return this.diceSymbol().rotate;
   }
@@ -145,6 +153,7 @@ export class DiceSymbolComponent {
     return this.diceSymbol().specifyKomaImageFlag;
   });
 
+  /** Every face the die can show. */
   get faces(): string[] {
     return this.diceSymbol().faces;
   }
@@ -158,19 +167,63 @@ export class DiceSymbolComponent {
     { equal: imageFileEqual() }
   );
 
-  get isMine(): boolean {
-    return this.diceSymbol().isMine;
-  }
-  get hasOwner(): boolean {
-    return this.diceSymbol().hasOwner;
-  }
-  get ownerName(): string {
-    return this.diceSymbol().ownerName;
-  }
-  get isVisible(): boolean {
+  /**
+   * Whether the face is the reader's to see, and the rest of what keeping a die back looks like.
+   *
+   * Each of these follows the die itself, the peers coming and going (an owner's name is read
+   * off their cursor), and the reader's own role, which is what lets a master read a die that
+   * is somebody else's.
+   */
+  readonly isMine = computed(() => {
+    const diceSymbol = this.diceSymbol();
+    this.objectChange.versionOf(diceSymbol.identifier)();
+    this.objectChange.networkVersion();
+    this.objectChange.trackMyCursor();
+    return diceSymbol.isMine;
+  });
+
+  readonly hasOwner = computed(() => {
+    const diceSymbol = this.diceSymbol();
+    this.objectChange.versionOf(diceSymbol.identifier)();
+    return diceSymbol.hasOwner;
+  });
+
+  readonly ownerName = computed(() => {
+    const diceSymbol = this.diceSymbol();
+    this.objectChange.versionOf(diceSymbol.identifier)();
+    this.objectChange.networkVersion();
+    const cursor = diceSymbol.owner ? PeerCursor.findByUserId(diceSymbol.owner) : null;
+    if (cursor) this.objectChange.versionOf(cursor.identifier)();
+    return diceSymbol.ownerName;
+  });
+
+  readonly isVisible = computed(() => {
+    const diceSymbol = this.diceSymbol();
+    this.objectChange.versionOf(diceSymbol.identifier)();
+    this.objectChange.networkVersion();
+    this.objectChange.trackMyCursor();
+    return this.readsFace();
+  });
+
+  /**
+   * The same question asked once, off the die itself.
+   *
+   * What is drawn reads the signal, which answers from what it last heard. A throw settling or
+   * a double tap acts on the die as it stands at that moment, and has no reason to wait to be
+   * told, so it asks directly.
+   */
+  private readsFace(): boolean {
     return this.diceSymbol().isVisible || this.rolePermission.canSeeHidden;
   }
 
+  /** Whether the die is marked as spent, which only dims it: it rolls and moves as it always did. */
+  readonly isUsed = computed(() => {
+    const diceSymbol = this.diceSymbol();
+    this.objectChange.versionOf(diceSymbol.identifier)();
+    return diceSymbol.isUsed;
+  });
+
+  /** Whether the die is locked in place, which stops it being dragged or turned. */
   get isLock(): boolean {
     return this.diceSymbol().isLock;
   }
@@ -189,6 +242,7 @@ export class DiceSymbolComponent {
   private readonly iconHiding = hideIconWhileTouched(this.destroyRef);
   readonly isIconHidden = this.iconHiding.isHidden;
 
+  /** The width of one square of the table in pixels, which the die's size is counted in. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -201,12 +255,12 @@ export class DiceSymbolComponent {
   readonly isPoster = computed(() => {
     const dice = this.diceSymbol();
     this.objectChange.versionOf(dice.identifier)();
-    return (dice.location.surface ?? 'floor') !== 'floor';
+    return isOffTheFloor(dice);
   });
 
-  readonly billboardTransform = computed(() => (this.isPoster() ? '' : this.makeBillboardTransform(30)));
-  readonly billboardTransformOwner = computed(() => (this.isPoster() ? '' : this.makeBillboardTransform(55)));
-  readonly billboardTransformImage = computed(() => (this.isPoster() ? '' : this.makeBillboardTransform(0)));
+  readonly nameFacing = computed<BillboardFacing>(() => (this.isPoster() ? NOT_TURNED : this.billboardFacing(30)));
+  readonly ownerFacing = computed<BillboardFacing>(() => (this.isPoster() ? NOT_TURNED : this.billboardFacing(55)));
+  readonly imageFacing = computed<BillboardFacing>(() => (this.isPoster() ? NOT_TURNED : this.billboardFacing(0)));
 
   readonly imageBillboardEnabled = computed(() => {
     if (this.isPoster()) return true;
@@ -219,7 +273,7 @@ export class DiceSymbolComponent {
     sizePx: computed(() => this.size() * this.gridSize),
     specifiedHeightPx: computed(() => (this.specifyImageFlag() ? +this.imageHeignt() : null)),
     billboardEnabled: this.imageBillboardEnabled,
-    billboardTransform: this.billboardTransformImage,
+    billboardFacing: this.imageFacing,
   });
 
   readonly mode2dEnabled = computed(() => {
@@ -227,32 +281,42 @@ export class DiceSymbolComponent {
     return this.tabletopService.mode2d();
   });
 
-  private labelOrbitTransform(distance3d: number, distance2d: number): string {
-    return makeLabelOrbitTransform({
-      rotation: this.uiSignalService.tableViewRotation(),
-      distance3d,
-      distance2d,
-      mode2d: this.mode2dEnabled(),
-    });
+  private labelOrbitFacing(distance3d: number, distance2d: number): BillboardFacing {
+    const mode2d = this.mode2dEnabled();
+    return (rotation) => makeLabelOrbitTransform({ rotation, distance3d, distance2d, mode2d });
   }
 
-  readonly nameLabelOrbit = computed(() => {
-    if (this.isPoster()) return `translateY(${-(this.size() * this.gridSize + 5)}px)`;
-    return this.labelOrbitTransform(30, 60);
-  });
-  readonly ownerLabelOrbit = computed(() => {
-    if (this.isPoster()) return `translateY(${-(this.size() * this.gridSize + 8)}px)`;
-    return this.labelOrbitTransform(55, 90);
-  });
+  /** Where a label hangs from, counted from the middle of the die's ground. */
+  private labelStandFacing(orbit: BillboardFacing): BillboardFacing {
+    const stand = `translateX(-50%) translateX(${(this.size() * this.gridSize) / 2}px) `;
+    return (rotation) => stand + orbit(rotation);
+  }
 
-  private makeBillboardTransform(verticalOffset3D: number): string {
-    return makeBillboardTransform({
-      rotation: this.uiSignalService.tableViewRotation(),
-      pieceRotate: this.rotateSignal(),
-      parentInverseRotation: 'rotateX(90deg)',
-      verticalOffset3D,
-      mode2d: this.mode2dEnabled(),
-    });
+  readonly nameOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.nameOrbit()));
+
+  private nameOrbit(): BillboardFacing {
+    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 5)}px)`);
+    return this.labelOrbitFacing(30, 60);
+  }
+
+  readonly ownerOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.ownerOrbit()));
+
+  private ownerOrbit(): BillboardFacing {
+    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 8)}px)`);
+    return this.labelOrbitFacing(55, 90);
+  }
+
+  private billboardFacing(verticalOffset3D: number): BillboardFacing {
+    const pieceRotate = this.rotateSignal();
+    const mode2d = this.mode2dEnabled();
+    return (rotation) =>
+      makeBillboardTransform({
+        rotation,
+        pieceRotate,
+        parentInverseRotation: 'rotateX(90deg)',
+        verticalOffset3D,
+        mode2d,
+      });
   }
 
   readonly movableOption = signal<MovableOption>({});
@@ -285,11 +349,18 @@ export class DiceSymbolComponent {
     });
   }
 
+  /**
+   * Stops the browser dragging the die's picture off on its own, which would fight the table's
+   * dragging.
+   */
   onDragstart(e: DragEvent) {
     e.stopPropagation();
     e.preventDefault();
   }
 
+  /**
+   * Puts the tumble animation back to rest once it has played, so the next roll can play it again.
+   */
   onDiceRollEnd() {
     this.animeState.set('inactive');
   }
@@ -310,7 +381,7 @@ export class DiceSymbolComponent {
     this.rollTimers.push(
       setTimeout(() => {
         // A die nobody may see calls nothing out; the face is the owner's to read.
-        if (!this.isVisible) return;
+        if (!this.readsFace()) return;
         this.rollResult.show(this.diceSymbol().face);
       }, TUMBLE_MS)
     );
@@ -341,22 +412,38 @@ export class DiceSymbolComponent {
     for (const timer of this.rollTimers.splice(0)) clearTimeout(timer);
   }
 
+  /**
+   * Counts a press toward a double tap, and pulls the handle icons out of the way while the die is
+   * touched.
+   */
   onInputStart(e: MouseEvent | TouchEvent) {
     this.startDoubleClickTimer(e);
     this.iconHiding.touch();
   }
 
+  /** Counts a press toward a double tap, which rolls the die. */
   startDoubleClickTimer(e: MouseEvent | TouchEvent) {
     this.doubleTap.handle(e, () => this.onDoubleClick());
   }
 
+  /**
+   * Rolls the die on a double tap, for a role that may edit the table and a reader who can see its
+   * face. A second tap that has strayed from the first does nothing.
+   */
   onDoubleClick() {
     this.doubleTap.cancel();
     if (!this.rolePermission.canEditTabletop) return;
     if (!this.doubleTap.isInPlace()) return;
-    if (this.isVisible) this.diceRoll();
+    if (this.readsFace()) this.diceRoll();
   }
 
+  /**
+   * Opens the die's right-click menu, or the menu for the whole selection when the die is part of
+   * one.
+   *
+   * Entries for moving the die to another surface of the table are added where there are any. The
+   * browser's own menu is suppressed either way.
+   */
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();
@@ -392,10 +479,12 @@ export class DiceSymbolComponent {
     );
   }
 
+  /** Plays the pick-up sound as the die starts being dragged or turned. */
   onMove() {
     SoundEffect.play(PresetSound.dicePick);
   }
 
+  /** Plays the put-down sound as the die is let go after being dragged or turned. */
   onMoved() {
     SoundEffect.play(PresetSound.dicePut);
   }
@@ -405,11 +494,19 @@ export class DiceSymbolComponent {
     if (owner instanceof GameCharacter) this.characterDice.store(owner, this.diceSymbol());
   }
 
+  /**
+   * Rolls the die for the room, and returns the face it came to rest on, or the face it already
+   * shows when the roll gave no result.
+   */
   diceRoll(): string {
     const [rolled] = this.diceRollService.roll([this.diceSymbol()]);
     return rolled?.face ?? this.diceSymbol().face;
   }
 
+  /**
+   * Selects the die and opens its detail sheet in a panel at the pointer. Does nothing where the
+   * reader may not view the die.
+   */
   showDetail(gameObject: DiceSymbol) {
     if (!this.disclosureService.canView(gameObject)) return;
     this.selectionSignalService.selectObject(gameObject.identifier, gameObject.aliasName);

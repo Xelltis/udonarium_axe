@@ -12,6 +12,16 @@
       >{{ 'feature.lobby.lobby.createRoom' | transloco }}
     </button>
   </div>
+  @if (waitingForPreviousConnection()) {
+    <p
+      class="text-ui-accent m-0 mb-2 flex items-center gap-1.5 text-[0.8rem] leading-[1.6]"
+      role="status"
+      data-testid="lobby-waiting-previous"
+    >
+      <i class="material-icons vibration-amine text-[16px]!">hourglass_top</i
+      >{{ 'feature.lobby.waitingForPreviousConnection' | transloco }}
+    </p>
+  }
   @if (rooms().length) {
     <table class="w-full border-collapse text-[0.8rem]">
       <thead>
@@ -73,7 +83,7 @@
               @if (0 < room.alias.length) {
                 <button
                   class="rounded-ui-sm border-ui-accent text-ui-accent hover:bg-ui-accent-bg cursor-pointer border border-solid bg-transparent px-2.5 py-0.5 text-[0.8rem] whitespace-nowrap hover:shadow-[0_0_0_2px_var(--ui-accent-glow)]"
-                  [disabled]="room.peerContexts[0]?.roomId === currentRoom"
+                  [disabled]="isJoining() || room.peerContexts[0]?.roomId === currentRoom"
                   type="button"
                   (click)="connect(room.peerContexts)"
                 >

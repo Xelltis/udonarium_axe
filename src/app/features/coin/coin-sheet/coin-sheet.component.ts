@@ -28,6 +28,7 @@ export class CoinSheetComponent {
 
   private readonly _coin = signal<Coin | null>(null);
 
+  /** The coin this sheet edits, handed in by whoever opens the panel. */
   get coin(): Coin | null {
     return this._coin();
   }
@@ -53,6 +54,7 @@ export class CoinSheetComponent {
     }, this.destroyRef);
   }
 
+  /** The coin's name; setting it writes the name data element, which syncs to every peer. */
   get name(): string {
     return this._coin()?.name ?? '';
   }
@@ -62,6 +64,7 @@ export class CoinSheetComponent {
     if (element) element.value = value;
   }
 
+  /** The coin's size on the table in cells; it reads 1 while there is no coin. */
   get size(): number {
     return this._coin()?.size ?? 1;
   }
@@ -70,20 +73,30 @@ export class CoinSheetComponent {
     if (coin) coin.size = value;
   }
 
+  /** The translated name of a face, as the chat announcement words it. */
   faceLabel(face: CoinFace): string {
     return this.coinFlip.faceLabel(face);
   }
 
+  /** Turns the coin to a face directly, without a flip and without announcing anything in chat. */
   selectFace(face: CoinFace) {
     const coin = this._coin();
     if (coin) coin.face = face;
   }
 
+  /**
+   * Flips the coin to a random face and announces the result in chat, as the flip in its context
+   * menu does.
+   */
   flip() {
     const coin = this._coin();
     if (coin) this.coinFlip.flip(coin);
   }
 
+  /**
+   * Lets the user pick a picture for a face; closing the picker without choosing leaves the face as
+   * it was.
+   */
   openFaceImageModal(face: CoinFace) {
     const coin = this._coin();
     if (!coin) return;
@@ -93,6 +106,7 @@ export class CoinSheetComponent {
     });
   }
 
+  /** Takes the picture off a face, leaving it blank. */
   clearFaceImage(face: CoinFace) {
     const coin = this._coin();
     if (!coin) return;

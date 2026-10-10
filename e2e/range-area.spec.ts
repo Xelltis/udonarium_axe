@@ -34,7 +34,7 @@ test.describe('射程範囲 (range-area) のコンテキストメニュー', () 
   test('「射程範囲を編集」で詳細パネルが開けること', async ({ page }) => {
     const menu = await openRangeMenu(page);
     await menu.getByText('射程範囲を編集').click();
-    // 範囲シートも game-character-sheet 上にホストされる (rangeArea === true 経路)。
+    // 範囲シートもgame-character-sheet上にホストされる（rangeArea === trueの経路）。
     await expect(page.locator('game-character-sheet')).toBeVisible({ timeout: 10000 });
   });
 

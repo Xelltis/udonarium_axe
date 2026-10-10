@@ -39,6 +39,10 @@ export class DeckBuilderDialogComponent {
 
   readonly cardCount = computed(() => this.imagesOf(this.selectedTag()).length);
 
+  /**
+   * The pictures filed under a tag that this seat may browse, which become the cards; an empty tag
+   * gives none.
+   */
   imagesOf(tag: string): { identifier: string }[] {
     if (tag.length < 1) return [];
     return this.imageStorage.images.filter(
@@ -48,6 +52,12 @@ export class DeckBuilderDialogComponent {
     );
   }
 
+  /**
+   * Closes the dialog with the chosen tag and whether each card takes its picture's name.
+   *
+   * A tag with no pictures in it closes the dialog as if it were cancelled, so no empty deck is
+   * made.
+   */
   confirm(): void {
     if (this.cardCount() < 1) {
       this.modalService.resolve(null);
@@ -56,6 +66,7 @@ export class DeckBuilderDialogComponent {
     this.modalService.resolve({ tag: this.selectedTag(), useImageName: this.useImageName() });
   }
 
+  /** Closes the dialog without building a deck. */
   cancel(): void {
     this.modalService.resolve(null);
   }

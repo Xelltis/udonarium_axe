@@ -1,8 +1,10 @@
 import { ImageContext, ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { DEFAULT_STATUS_AILMENT_NAMES } from '@axe/domain/character/builtin-status-ailments';
 import { CharacterTemplateFactory } from '@axe/domain/character/character-template-factory';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementType } from '@axe/domain/data/data-element';
+import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
 import { ImageTag } from '@axe/domain/media/image-tag';
 import { Party, PARTY_COLORS } from '@axe/domain/party/party';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -78,13 +80,14 @@ function applySampleStats(character: GameCharacter, profile: keyof typeof SAMPLE
   }
 }
 
+/** Makes the table selector and the first table a new room opens on, and puts it in view. */
 export function makeDefaultTable(imageStorage: ImageStorage): void {
   const tableSelecter = new TableSelecter('tableSelecter');
   tableSelecter.initialize();
 
   const gameTable = new GameTable('gameTable');
   const bgFileContext = ImageFile.createEmpty('testTableBackgroundImage_image').toContext();
-  bgFileContext.url = './assets/images/table_forest_clearing.jpg';
+  bgFileContext.url = './assets/images/table_forest_clearing.webp';
   const testBgFile = imageStorage.add(bgFileContext);
   ImageTag.create(testBgFile.identifier).tag = '背景';
   gameTable.name = '最初のテーブル';
@@ -123,15 +126,39 @@ function joinSampleParty(character: GameCharacter, party: Party): void {
   character.partyIdentifier = party.identifier;
 }
 
+/** The items the sample pieces are worth reading by, which belong to the sample and not to every room. */
+const SAMPLE_DISPLAY_ITEMS = ['HP', 'MP', '敏捷度', '器用度', '筋力', '生命力', '知力', '精神力'] as const;
+
+/**
+ * Sets the room's display items and its order to the sample's own vocabulary.
+ *
+ * A room that keeps its own says so itself, and one built out of imported sheets works its
+ * items out from the pieces; these names mean something only because the samples carry them.
+ */
+function makeSampleSummaryItems(): void {
+  const setting = DataSummarySetting.instance;
+  setting.dataTag = SAMPLE_DISPLAY_ITEMS.join(' ');
+  setting.tableDataTag = [...SAMPLE_DISPLAY_ITEMS, ...DEFAULT_STATUS_AILMENT_NAMES].join(' ');
+  setting.sortTag = '敏捷度';
+  setting.sortOrder = SortOrder.DESC;
+}
+
+/**
+ * Sets out the sample pieces a new room opens with: three monsters and a party of three characters.
+ *
+ * The room's display items are set to the samples' stats, and the characters are given a little
+ * sight and joined to one party so the fog and the dark can be tried at once.
+ */
 export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
   let testCharacter: GameCharacter;
   let testFile: ImageFile;
   let fileContext: ImageContext;
   const party = makeSampleParty();
+  makeSampleSummaryItems();
 
   testCharacter = new GameCharacter('testCharacter_1');
   fileContext = ImageFile.createEmpty('testCharacter_1_image').toContext();
-  fileContext.url = './assets/images/piece_goblin.png';
+  fileContext.url = './assets/images/piece_goblin.webp';
   testFile = imageStorage.add(fileContext);
   testCharacter.location.x = 5 * 50;
   testCharacter.location.y = 9 * 50;
@@ -153,7 +180,7 @@ export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
 
   testCharacter = new GameCharacter('testCharacter_3');
   fileContext = ImageFile.createEmpty('testCharacter_3_image').toContext();
-  fileContext.url = './assets/images/piece_golem.png';
+  fileContext.url = './assets/images/piece_golem.webp';
   testCharacter.location.x = 4 * 50;
   testCharacter.location.y = 2 * 50;
   testCharacter.initialize();
@@ -166,7 +193,7 @@ export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
 
   testCharacter = new GameCharacter('testCharacter_4');
   fileContext = ImageFile.createEmpty('testCharacter_4_image').toContext();
-  fileContext.url = './assets/images/piece_knight.png';
+  fileContext.url = './assets/images/piece_knight.webp';
 
   testFile = imageStorage.add(fileContext);
 
@@ -181,7 +208,7 @@ export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
 
   testCharacter = new GameCharacter('testCharacter_5');
   fileContext = ImageFile.createEmpty('testCharacter_5_image').toContext();
-  fileContext.url = './assets/images/piece_wizard.png';
+  fileContext.url = './assets/images/piece_wizard.webp';
   testFile = imageStorage.add(fileContext);
   testCharacter.location.x = 12 * 50;
   testCharacter.location.y = 12 * 50;
@@ -193,7 +220,7 @@ export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
 
   testCharacter = new GameCharacter('testCharacter_6');
   fileContext = ImageFile.createEmpty('testCharacter_6_image').toContext();
-  fileContext.url = './assets/images/piece_scout.png';
+  fileContext.url = './assets/images/piece_scout.webp';
   testFile = imageStorage.add(fileContext);
 
   ImageTag.create(testFile.identifier).tag = '';

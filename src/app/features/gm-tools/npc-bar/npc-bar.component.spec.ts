@@ -1,9 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { NpcBarService } from '@axe/application/ui/npc-bar.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatPaletteRegistryService } from '@axe/features/chat/chat-palette/chat-palette-registry.service';
 import { NpcBarComponent } from '@axe/features/gm-tools/npc-bar/npc-bar.component';
-import { NpcBarService } from '@axe/features/gm-tools/npc-bar/npc-bar.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function makeCharacter(name: string, opts: { isNpc?: boolean; location?: string } = {}): GameCharacter {

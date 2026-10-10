@@ -31,6 +31,12 @@ export interface TablePhotoResult {
 export class ReplayPhotoService {
   private readonly imageStorage = inject(ImageStorage);
 
+  /**
+   * Draws the cast into a single picture and hands it to the browser to download as a png.
+   *
+   * Nothing is saved when there is nobody to draw or the browser cannot draw it. `omitted` says how
+   * many did not fit either way.
+   */
   async save(request: TablePhotoRequest): Promise<TablePhotoResult> {
     const layout = buildTablePhotoLayout(
       request.cast.map((member) => ({

@@ -95,6 +95,54 @@ describe('TextNoteComponent', () => {
     });
   });
 
+  describe('a note drawn with formatting', () => {
+    let note: TextNote;
+
+    function body(): HTMLElement {
+      return fixture.nativeElement.querySelector('[data-v]:not(textarea)') as HTMLElement;
+    }
+
+    beforeEach(() => {
+      note = TextNote.create('メモ', '# 洞窟\n- たいまつ\n> 碑文');
+    });
+
+    afterEach(() => {
+      note.destroy();
+    });
+
+    it('draws a note set to be formatted with its headings, lists and quotes', () => {
+      note.isFormatted = true;
+      fixture.componentRef.setInput('textNote', note);
+      fixture.detectChanges();
+
+      expect(body().classList).toContain('note-formatted');
+      expect(body().classList).not.toContain('whitespace-pre-line');
+      expect(body().querySelector('h1')!.textContent).toBe('洞窟');
+      expect(body().querySelector('ul li')!.textContent).toBe('たいまつ');
+      expect(body().querySelector('blockquote')!.textContent).toBe('碑文');
+    });
+
+    it('draws a note that was never set as it was typed, as before', () => {
+      fixture.componentRef.setInput('textNote', note);
+      fixture.detectChanges();
+
+      expect(note.textFormat).toBe('');
+      expect(body().classList).toContain('whitespace-pre-line');
+      expect(body().querySelector('h1')).toBeNull();
+      expect(body().textContent).toContain('# 洞窟');
+    });
+
+    it('keeps a formatted note covered from whoever may not read it', () => {
+      note.isFormatted = true;
+      vi.spyOn(component, 'canView').mockReturnValue(false);
+      fixture.componentRef.setInput('textNote', note);
+      fixture.detectChanges();
+
+      expect(body().querySelector('h1')).toBeNull();
+      expect(body().textContent).not.toContain('洞窟');
+    });
+  });
+
   describe('rotation in 2D mode', () => {
     let note: TextNote;
 

@@ -173,6 +173,7 @@ export function appendGravity(
   });
 }
 
+/** A heavy impact: three shock rings spreading along the ground over cracks that open and fade. */
 export function appendImpact(
   sprites: EffectSprite[],
   prefix: string,

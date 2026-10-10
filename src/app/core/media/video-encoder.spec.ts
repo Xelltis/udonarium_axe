@@ -4,7 +4,9 @@ import {
   defaultVideoBitrate,
   encodeVideo,
   isVideoEncodingSupported,
-  VIDEO_KEYFRAME_INTERVAL,
+  keyframeIntervalFor,
+  SOUND_READ_FRAMES,
+  soundOfChannels,
 } from '@axe/core/media/video-encoder';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 
@@ -198,12 +200,13 @@ describe('video encoding', () => {
     expect(result?.blob?.type).toBe('video/mp4');
   });
 
-  it('makes the first frame and the occasional one a keyframe', async () => {
-    await encodeVideo(request({ frameCount: VIDEO_KEYFRAME_INTERVAL + 2 }));
+  it('makes the first frame a keyframe, and one every two seconds after', async () => {
+    await encodeVideo(request({ fps: 60, frameCount: 122 }));
 
+    expect(keyframeIntervalFor(60)).toBe(120);
     expect(calls[0].keyFrame).toBe(true);
     expect(calls[1].keyFrame).toBe(false);
-    expect(calls[VIDEO_KEYFRAME_INTERVAL].keyFrame).toBe(true);
+    expect(calls[120].keyFrame).toBe(true);
   });
 
   it('reports its progress', async () => {
@@ -224,6 +227,82 @@ describe('video encoding', () => {
     expect(result).toBeNull();
     expect(paint).toHaveBeenCalledTimes(2);
     expect(closed).toBe(true);
+  });
+
+  it('lets go of the file it was writing when cancelled, leaving it unfinished', async () => {
+    class FakeWritable {
+      write = vi.fn().mockResolvedValue(undefined);
+      seek = vi.fn().mockResolvedValue(undefined);
+      truncate = vi.fn().mockResolvedValue(undefined);
+      close = vi.fn().mockResolvedValue(undefined);
+      abort = vi.fn().mockResolvedValue(undefined);
+    }
+    borrowed.lend('FileSystemWritableFileStream', FakeWritable);
+    const writable = new FakeWritable();
+    const file = { createWritable: vi.fn().mockResolvedValue(writable) } as unknown as FileSystemFileHandle;
+
+    const result = await encodeVideo(request({ file, frameCount: 10, isCancelled: () => calls.length >= 2 }));
+
+    expect(result).toBeNull();
+    expect(writable.abort).toHaveBeenCalledTimes(1);
+    expect(writable.close).not.toHaveBeenCalled();
+  });
+
+  it('saves nothing when cancelled while the last frames are being finished', async () => {
+    let finishing = false;
+    const flush = FakeVideoEncoder.prototype.flush;
+    vi.spyOn(FakeVideoEncoder.prototype, 'flush').mockImplementation(async function (this: FakeVideoEncoder) {
+      finishing = true;
+      return flush.call(this);
+    });
+
+    const result = await encodeVideo(request({ frameCount: 3, isCancelled: () => finishing }));
+
+    expect(result).toBeNull();
+  });
+
+  describe('when setting up fails partway', () => {
+    class FakeWritable {
+      write = vi.fn().mockResolvedValue(undefined);
+      seek = vi.fn().mockResolvedValue(undefined);
+      truncate = vi.fn().mockResolvedValue(undefined);
+      close = vi.fn().mockResolvedValue(undefined);
+      abort = vi.fn().mockResolvedValue(undefined);
+    }
+
+    it('lets go of the file it opened and answers nothing rather than throwing', async () => {
+      borrowed.lend('FileSystemWritableFileStream', FakeWritable);
+      borrowed.lend(
+        'VideoEncoder',
+        class {
+          constructor() {
+            throw new Error('no encoder here');
+          }
+        }
+      );
+      const writable = new FakeWritable();
+      const file = { createWritable: vi.fn().mockResolvedValue(writable) } as unknown as FileSystemFileHandle;
+
+      await expect(encodeVideo(request({ file }))).resolves.toBeNull();
+      expect(writable.abort).toHaveBeenCalledTimes(1);
+      expect(writable.close).not.toHaveBeenCalled();
+    });
+
+    it('closes the picture encoder when the sound encoder cannot be made', async () => {
+      borrowed.lend(
+        'AudioEncoder',
+        class {
+          constructor() {
+            throw new Error('no sound encoder here');
+          }
+        }
+      );
+
+      const result = await encodeVideo(request({ audio: soundOfChannels(48_000, [new Float32Array(4800)]) }));
+
+      expect(result).toBeNull();
+      expect(closed).toBe(true);
+    });
   });
 
   it('finishes without throwing when the encoder falls over', async () => {
@@ -247,9 +326,85 @@ describe('video encoding', () => {
     expect(avcCodecFor(3840, 2160)).toBe('avc1.640033');
   });
 
+  it('claims a level high enough for sixty frames a second', () => {
+    expect(avcCodecFor(1920, 1080, 60)).toBe('avc1.64002a');
+    expect(avcCodecFor(2560, 1440, 60)).toBe('avc1.640033');
+    expect(avcCodecFor(3840, 2160, 60)).toBe('avc1.640034');
+  });
+
+  it('gives a bitrate fit for an upload, and more for sixty frames', () => {
+    expect(defaultVideoBitrate(1920, 1080, 30)).toBe(10_000_000);
+    expect(defaultVideoBitrate(1920, 1080, 60)).toBe(15_000_000);
+    expect(defaultVideoBitrate(3840, 2160, 60)).toBeGreaterThanOrEqual(53_000_000);
+  });
+
+  it('asks for a variable bitrate tuned for quality', async () => {
+    await encodeVideo(request());
+
+    expect(configured).toMatchObject({ bitrateMode: 'variable', latencyMode: 'quality' });
+  });
+
+  it('falls back to plainer settings the browser will take', async () => {
+    borrowed.lend(
+      'VideoEncoder',
+      class extends FakeVideoEncoder {
+        static async isConfigSupported(config: Record<string, unknown>) {
+          return { supported: !('latencyMode' in config), config };
+        }
+      }
+    );
+    await encodeVideo(request());
+
+    expect(configured).toMatchObject({ bitrateMode: 'variable' });
+    expect(configured?.['latencyMode']).toBeUndefined();
+  });
+
+  it('gives up when the browser takes no settings at all', async () => {
+    borrowed.lend(
+      'VideoEncoder',
+      class extends FakeVideoEncoder {
+        static async isConfigSupported(config: Record<string, unknown>) {
+          return { supported: false, config };
+        }
+      }
+    );
+
+    expect(await encodeVideo(request())).toBeNull();
+  });
+
+  it('reads the sound from its source a few seconds at a time', async () => {
+    const reads: [number, number][] = [];
+    const length = SOUND_READ_FRAMES * 2 + 5000;
+    const source = {
+      sampleRate: 48_000,
+      numberOfChannels: 1,
+      length,
+      read: async (start: number, count: number) => {
+        reads.push([start, count]);
+        return [new Float32Array(Math.min(count, length - start))];
+      },
+    };
+    await encodeVideo(request({ frameCount: 3, audio: source }));
+
+    expect(reads.length).toBeGreaterThanOrEqual(3);
+    expect(reads.every(([, count]) => count <= SOUND_READ_FRAMES + 1024)).toBe(true);
+    expect(audioFrames.reduce((sum, frames) => sum + frames, 0)).toBe(length);
+  });
+
+  it('encodes the sound alongside the picture rather than after it', async () => {
+    const order: string[] = [];
+    const paint = vi.fn(() => {
+      order.push(`frame ${audioFrames.length}`);
+    });
+    const channels = [new Float32Array(48_000)];
+    await encodeVideo(request({ paint, frameCount: 30, audio: soundOfChannels(48_000, channels) }));
+
+    expect(order[order.length - 1]).not.toBe('frame 0');
+  });
+
   it('takes the aac path when given sound as well', async () => {
     const channels = [new Float32Array(2048), new Float32Array(2048)];
-    const result = await encodeVideo(request({ audio: { sampleRate: 48_000, channels } }));
+    const result = await encodeVideo(request({ audio: soundOfChannels(48_000, channels) }));
 
     expect(audioConfigured).toMatchObject({ codec: 'mp4a.40.2', numberOfChannels: 2, sampleRate: 48_000 });
     expect(audioFrames).toEqual([AUDIO_FRAME_SAMPLES, AUDIO_FRAME_SAMPLES]);
@@ -257,13 +412,13 @@ describe('video encoding', () => {
   });
 
   it('loses no frame at the end', async () => {
-    await encodeVideo(request({ audio: { sampleRate: 48_000, channels: [new Float32Array(1500)] } }));
+    await encodeVideo(request({ audio: soundOfChannels(48_000, [new Float32Array(1500)]) }));
     expect(audioFrames).toEqual([AUDIO_FRAME_SAMPLES, 1500 - AUDIO_FRAME_SAMPLES]);
   });
 
   it('exports the picture alone without the audio encoder', async () => {
     delete globals['AudioEncoder'];
-    const result = await encodeVideo(request({ audio: { sampleRate: 48_000, channels: [new Float32Array(2048)] } }));
+    const result = await encodeVideo(request({ audio: soundOfChannels(48_000, [new Float32Array(2048)]) }));
 
     expect(audioFrames).toEqual([]);
     expect(result?.extension).toBe('mp4');

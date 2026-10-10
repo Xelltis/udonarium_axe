@@ -5,6 +5,13 @@ import { DomSanitizer, SafeHtml, SafeResourceUrl, SafeScript, SafeStyle, SafeUrl
 export class SafePipe implements PipeTransform {
   private readonly _sanitizer = inject(DomSanitizer);
 
+  /**
+   * Marks a value as trusted for the given context (`html`, `style`, `script`, `url` or
+   * `resourceUrl`), so Angular binds it without sanitizing it.
+   *
+   * Use only on content the app itself produced or has already made safe. An unknown context
+   * throws.
+   */
   public transform(
     value: string,
     type: string = 'html'

@@ -1,0 +1,6 @@
+<div class="flex flex-col gap-3 pb-1" data-testid="add-field">
+  <p class="text-ui-muted m-0 text-[13px]" [id]="headingId">
+    {{ 'feature.dataElement.editor.addFieldHint' | transloco: { name: container().name } }}
+  </p>
+  <data-element-type-grid [labelledBy]="headingId" (picked)="add($event)" />
+</div>

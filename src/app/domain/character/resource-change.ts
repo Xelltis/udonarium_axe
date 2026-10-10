@@ -33,6 +33,10 @@ export interface ResourceChange {
   soundSet: ResourceSoundSet;
 }
 
+/**
+ * How hard a change hit, by the share of the maximum it moved: under 15% small, under 40% medium,
+ * anything more large. A zero or unknown share reads as medium.
+ */
 export function resourceChangeSeverity(ratio: number): ResourceChangeSeverity {
   if (!Number.isFinite(ratio) || ratio <= 0) return 'medium';
   if (ratio < MEDIUM_RATIO) return 'small';
@@ -40,6 +44,10 @@ export function resourceChangeSeverity(ratio: number): ResourceChangeSeverity {
   return 'large';
 }
 
+/**
+ * The change that moved the largest share of its maximum, or null for none. The earlier one wins a
+ * tie.
+ */
 export function loudestChange(changes: readonly ResourceChange[]): ResourceChange | null {
   return changes.reduce<ResourceChange | null>(
     (loudest, change) => (loudest === null || change.ratio > loudest.ratio ? change : loudest),
@@ -47,10 +55,18 @@ export function loudestChange(changes: readonly ResourceChange[]): ResourceChang
   );
 }
 
+/** The share of its maximum that the largest change moved, or 0 when nothing changed. */
 export function loudestChangeRatio(changes: readonly ResourceChange[]): number {
   return loudestChange(changes)?.ratio ?? 0;
 }
 
+/**
+ * The changes between two readings of a piece's resources, for the damage and healing effects.
+ *
+ * Only a field this browser changed itself counts; a value replaced by a load or a sync is passed
+ * over. Moves of the current value and of the maximum add together, and whether it is damage
+ * follows whether the resource grows worse as it rises.
+ */
 export function diffResourceSnapshots(
   before: ReadonlyMap<string, ResourceSnapshot>,
   after: ReadonlyMap<string, ResourceSnapshot>,

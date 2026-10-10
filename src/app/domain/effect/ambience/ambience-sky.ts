@@ -53,6 +53,13 @@ const DENSITY_PER_AREA: Record<AmbienceKind, number> = {
   frost: 180,
 };
 
+/**
+ * The particles of the map-wide weather at one moment, ready to draw across the screen.
+ *
+ * Every particle comes from a fixed seed and the elapsed time, so the same moment looks the same on every
+ * screen. The count grows with the area and the density, up to a cap. Kinds that only lie on the ground
+ * make no particles here.
+ */
 export function skyAmbienceLayer(spec: SkyAmbienceSpec): EffectParticleLayer {
   perfCounters.bump(PERF_AMBIENCE_LAYER);
   const width = Math.max(spec.width, 0);

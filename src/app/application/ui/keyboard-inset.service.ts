@@ -11,6 +11,12 @@ export class KeyboardInsetService {
 
   private isWatching = false;
 
+  /**
+   * Starts following the visual viewport, so `inset` tracks how much an on-screen keyboard covers.
+   *
+   * Called once as the app comes up. Later calls, and browsers without a visual viewport, do
+   * nothing. The listeners come off when the service is destroyed.
+   */
   initialize(): void {
     if (this.isWatching) return;
     const viewport = window.visualViewport;
@@ -30,6 +36,12 @@ export class KeyboardInsetService {
   }
 }
 
+/**
+ * How many pixels at the bottom of the layout viewport an on-screen keyboard is covering.
+ *
+ * A pinch-zoomed page shrinks the visual viewport too, so anything zoomed in answers zero. So does
+ * a gap under 32px, which is too small to be a keyboard.
+ */
 export function measureKeyboardInset(
   viewport: { height: number; offsetTop: number; scale?: number },
   innerHeight: number

@@ -17,6 +17,7 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
@@ -39,6 +40,18 @@ import {
   toStageResetAt,
   VN_PORTRAIT_POS_UNSET,
 } from '@axe/domain/visual-novel/vn-portrait-position';
+import {
+  buildVnStage,
+  leftOfSlot,
+  slotBandLeft,
+  slotBandWidth,
+  slotLabelLeftInBand,
+  stageCutFor,
+  VN_STAGE_LOOKBACK,
+  VN_STAGE_SLOT_COUNT,
+  VnStageCharacter,
+  VnStageSource,
+} from '@axe/domain/visual-novel/vn-stage-cast';
 import { GameCharacterSheetComponent } from '@axe/features/character/game-character-sheet/game-character-sheet.component';
 import { allowsChat } from '@axe/features/chat/chat-input/chat-input-helpers';
 import {
@@ -77,18 +90,9 @@ import {
   AttachedSound,
   VisualNovelSoundBoardComponent,
 } from '@axe/features/visual-novel/visual-novel-sound-board/visual-novel-sound-board.component';
-import {
-  buildVnStage,
-  leftOfSlot,
-  slotBandLeft,
-  slotBandWidth,
-  slotLabelLeftInBand,
-  stageCutFor,
-  VN_STAGE_LOOKBACK,
-  VN_STAGE_SLOT_COUNT,
-  VnStageCharacter,
-  VnStageSource,
-} from '@axe/features/visual-novel/visual-novel-stage';
+import { DiceRollStageComponent } from '@axe/ui/components/dice-roll-stage/dice-roll-stage.component';
+import { RubyTextComponent } from '@axe/ui/components/ruby-text/ruby-text.component';
+import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { spotBeside } from '@axe/ui/panel-spot';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { Z_VISUAL_NOVEL_PANEL, Z_VISUAL_NOVEL_PANEL_ABOVE } from '@axe/ui/z-layers';
@@ -137,7 +141,10 @@ type VisualNovelPopover = 'soundBoard' | 'slotGuide' | 'palette' | 'shortcutHelp
     TranslocoModule,
     NgSelectComponent,
     NgOptionComponent,
+    NgSelectWindowDirective,
+    RubyTextComponent,
     VisualNovelSoundBoardComponent,
+    DiceRollStageComponent,
   ],
 })
 export class VisualNovelOverlayComponent {
@@ -151,6 +158,7 @@ export class VisualNovelOverlayComponent {
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectStore = inject(ObjectStore);
+  private readonly vision = inject(VisionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly imageService = inject(ImageService);
@@ -224,6 +232,10 @@ export class VisualNovelOverlayComponent {
   readonly slotIndexes = Array.from({ length: VN_STAGE_SLOT_COUNT }, (_, i) => i);
   readonly shortcutHelpItems = SHORTCUT_HELP_ITEMS;
 
+  /**
+   * The chat tab being read in novel mode; choosing another stops auto play, returns to its newest
+   * line and is remembered.
+   */
   get chatTabIdentifier(): string {
     return this.playback.chatTabIdentifier();
   }
@@ -232,6 +244,10 @@ export class VisualNovelOverlayComponent {
   }
 
   private readonly _sendFrom = signal('');
+  /**
+   * The identifier of whoever the next line is sent as: a character, or the game master's own
+   * cursor.
+   */
   get sendFrom(): string {
     return this._sendFrom();
   }
@@ -239,6 +255,10 @@ export class VisualNovelOverlayComponent {
     this._sendFrom.set(identifier);
   }
 
+  /**
+   * The dice bot lines typed here are rolled with, falling back to the plain dice bot; it is the
+   * same setting the chat input uses.
+   */
   get gameType(): string {
     return this.chatMessageService.gameType.length > 0 ? this.chatMessageService.gameType : 'DiceBot';
   }
@@ -248,6 +268,7 @@ export class VisualNovelOverlayComponent {
 
   private readonly diceBotCatalog = inject(DiceBotCatalogService);
 
+  /** Every dice bot the app knows, for the dice bot menu. */
   get diceBotInfos() {
     return this.diceBotCatalog.infos();
   }
@@ -258,8 +279,10 @@ export class VisualNovelOverlayComponent {
   readonly currentMessage = this.playback.currentMessage;
   readonly isLatest = this.playback.isLatest;
   readonly displayedText = this.playback.displayedText;
+  readonly displayedParts = this.playback.displayedParts;
   readonly isTyping = this.playback.isTyping;
   readonly currentFullText = this.playback.currentFullText;
+  readonly currentFullParts = this.playback.currentFullParts;
   readonly currentIsDiceCommand = this.playback.currentIsDiceCommand;
 
   private readonly currentEmote = this.playback.currentEmote;
@@ -272,7 +295,7 @@ export class VisualNovelOverlayComponent {
   readonly announcedLine = computed(() => {
     if (this.isTyping()) return '';
     const name = this.speakerName();
-    const text = this.currentFullText();
+    const text = this.playback.currentVisibleText();
     if (text.length < 1) return '';
     return name.length > 0 ? `${name}: ${text}` : text;
   });
@@ -283,6 +306,11 @@ export class VisualNovelOverlayComponent {
   });
 
   readonly isShoutShape = computed(() => this.currentEmote().shape === 'shout');
+
+  /** Joins lists of classes into one for a `[class]` binding made of several, leaving out the empty ones. */
+  protected classes(...lists: string[]): string {
+    return lists.filter((list) => list.length > 0).join(' ');
+  }
 
   readonly bubbleBoxClass = computed(() => {
     switch (this.currentEmote().shape) {
@@ -359,6 +387,7 @@ export class VisualNovelOverlayComponent {
     return vnEmoteLabel(this.emoteSelection.emote(), this.t);
   });
 
+  /** Puts every staging choice for the next line back to its default. */
   resetEmote(): void {
     this.emoteSelection.reset();
   }
@@ -524,9 +553,9 @@ export class VisualNovelOverlayComponent {
    * Which of the three ways of showing a line this one is shown in.
    *
    * A balloon needs somebody to come from. A line whose speaker has no portrait on the stage -
-   * said by a player as themselves, or left standing after the stage was cleared - was drawn
-   * as a balloon anyway, floating in the middle of the screen with its tail pointing at
-   * nothing. Such a line falls back to the window at the foot of the screen.
+   * said by a player as themselves, or left standing after the stage was cleared - would float
+   * in the middle of the screen as a balloon with its tail pointing at nothing, so such a line
+   * falls back to the window at the foot of the screen.
    */
   readonly speechLayout = computed<VnLayout | null>(() => {
     if (!this.speechVisible()) return null;
@@ -595,12 +624,20 @@ export class VisualNovelOverlayComponent {
     }
   });
 
+  /**
+   * The characters this seat may speak as. A piece on the table it cannot see is left out, as in
+   * the chat; the one already chosen stays.
+   */
   readonly gameCharacters = computed(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     const all = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     for (const character of all) this.objectChange.versionOf(character.identifier)();
     const myPeerId = PeerCursor.myCursor?.peerId ?? '';
-    return all.filter((character) => allowsChat(character, myPeerId));
+    const chosen = this.sendFrom;
+    return all.filter(
+      (character) =>
+        allowsChat(character, myPeerId) && (character.identifier === chosen || this.vision.mayBeListed(character))
+    );
   });
 
   /**
@@ -608,7 +645,7 @@ export class VisualNovelOverlayComponent {
    *
    * Characters only, for anybody at the table: novel mode plays a scene, and somebody's own
    * name has no part in one. The game master is the exception, since running the table means
-   * saying things as themselves, and until now that meant leaving novel mode for the chat
+   * saying things as themselves, and anything else would mean leaving novel mode for the chat
    * window and coming back.
    */
   readonly speakerOptions = computed<{ identifier: string; name: string }[]>(() => {
@@ -697,6 +734,11 @@ export class VisualNovelOverlayComponent {
     return portrait.name.length > 0 ? portrait.name : `${portrait.index + 1}/${portrait.count}`;
   });
 
+  /**
+   * Switches the speaker to the next or previous of their portraits, from the arrows beside it.
+   *
+   * Stops at either end. The choice is this user's own and is not shared with the room.
+   */
   stepSpeakerPortrait(direction: number): void {
     const object = this.objectStore.get(this._sendFrom());
     if (!(object instanceof GameCharacter)) return;
@@ -713,11 +755,16 @@ export class VisualNovelOverlayComponent {
 
   readonly attachedSe = signal<AttachedSound | null>(null);
 
+  /**
+   * Attaches a sound from the sound board to the next line, played when the line is sent, and
+   * closes the board.
+   */
   attachSe(sound: AttachedSound): void {
     this.attachedSe.set(sound);
     this.closePopovers();
   }
 
+  /** Takes the attached sound off the next line. */
   clearAttachedSe(): void {
     this.attachedSe.set(null);
   }
@@ -731,6 +778,12 @@ export class VisualNovelOverlayComponent {
     return element ? Number(element.value) === 1 : false;
   });
 
+  /**
+   * Mirrors the speaker's portrait for the lines they send, or turns it back.
+   *
+   * The setting lives on the character's sheet, where a flip field is added next to the portrait
+   * position when it has none.
+   */
   toggleSpeakerFlip(): void {
     const object = this.objectStore.get(this._sendFrom());
     if (!(object instanceof GameCharacter)) return;
@@ -752,7 +805,7 @@ export class VisualNovelOverlayComponent {
     this.destroyRef.onDestroy(() => this.playback.detach());
     // The windows are put up outside this screen, so leaving novel mode does not take them.
     this.destroyRef.onDestroy(() => closeVisualNovelPanels(this.panelService));
-    // The selection outlives this screen now, and an expression chosen before novel mode was
+    // The selection outlives this screen, and an expression chosen before novel mode was
     // last closed should not be waiting to be sent when it is opened again.
     this.destroyRef.onDestroy(() => this.emoteSelection.reset());
 
@@ -772,6 +825,10 @@ export class VisualNovelOverlayComponent {
     this.destroyRef.onDestroy(() => this.paletteRegistry.unregister(this.paletteHandle));
   }
 
+  /**
+   * Starts or stops auto play from the current line; starting closes any open balloon and does
+   * nothing at the newest line.
+   */
   toggleAutoPlay(): void {
     if (!this.autoPlay()) this.closePopovers();
     this.playback.toggleAutoPlay();
@@ -779,42 +836,71 @@ export class VisualNovelOverlayComponent {
 
   readonly chatTabOptions = this.playback.availableChatTabs;
 
+  /** Goes back to the tab's first line and plays it through in auto play. */
   playFromStart(): void {
     this.closePopovers();
     this.playback.playFromStart();
   }
 
+  /** Stops auto play where it is. */
   stopAutoPlay(): void {
     this.playback.stopAutoPlay();
   }
 
+  /**
+   * Moves on to the next line, or shows the rest of the line still being typed, from a click, the
+   * wheel or a key.
+   *
+   * It stops auto play and stops following the director, since the reader has taken over.
+   */
   userAdvance(): void {
     this.director.leaveFollowing();
     this.playback.userAdvance();
   }
 
+  /** Goes back a line, shown at once, stopping auto play and no longer following the director. */
   userBack(): void {
     this.director.leaveFollowing();
     this.playback.userBack();
   }
 
+  /** Leaves novel mode. */
   exit(): void {
     this.vnMode.deactivate();
   }
 
+  /**
+   * Moves on to the next line without stopping auto play.
+   *
+   * A line still being typed is shown in full first. Moving past the last line returns to following
+   * the newest one.
+   */
   advance(): void {
     this.playback.advance();
   }
 
+  /**
+   * Goes back a line, shown at once, without stopping auto play; does nothing at the first line.
+   */
   back(): void {
     this.playback.back();
   }
 
+  /**
+   * Jumps to the newest line and keeps following new ones, stopping auto play and no longer
+   * following the director.
+   */
   toLatest(): void {
     this.director.leaveFollowing();
     this.playback.toLatest();
   }
 
+  /**
+   * Jumps to the line at this index, shown at once, and closes any open balloon.
+   *
+   * Jumping to the last line follows new lines from there. It stops auto play and no longer follows
+   * the director.
+   */
   jumpTo(index: number): void {
     this.director.leaveFollowing();
     this.playback.jumpTo(index);
@@ -832,6 +918,7 @@ export class VisualNovelOverlayComponent {
     closeVisualNovelPanels(this.panelService);
   }
 
+  /** Whether the balloon of this kind is the one open. */
   isPopover(kind: VisualNovelPopover): boolean {
     return this.openPopover() === kind;
   }
@@ -844,12 +931,17 @@ export class VisualNovelOverlayComponent {
     this.openPopover.update((current) => (current === kind ? null : kind));
   }
 
+  /** Opens or closes the balloon listing the keyboard shortcuts. */
   toggleShortcutHelp(): void {
     this.togglePopover('shortcutHelp');
   }
 
   readonly isBacklogOpen = computed(() => this.panelService.hasSingle(VN_BACKLOG_PANEL));
 
+  /**
+   * Opens the log of the tab being read in a window off to the side of the stage, or closes it when
+   * it is open.
+   */
   toggleBacklog(): void {
     if (this.panelService.closeSingle(VN_BACKLOG_PANEL)) return;
     this.closePopovers();
@@ -871,6 +963,7 @@ export class VisualNovelOverlayComponent {
   readonly isEmotePanelOpen = computed(() => this.panelService.hasSingle(VN_EMOTE_PANEL));
   readonly isDisplaySettingsOpen = computed(() => this.panelService.hasSingle(VN_DISPLAY_PANEL));
 
+  /** Opens the staging window above the button that was pressed, or closes it when it is open. */
   toggleEmote(event?: Event): void {
     if (this.panelService.closeSingle(VN_EMOTE_PANEL)) return;
     this.closePopovers();
@@ -889,6 +982,7 @@ export class VisualNovelOverlayComponent {
 
   readonly isDirectionPanelOpen = computed(() => this.panelService.hasSingle(VN_DIRECTION_PANEL));
 
+  /** Opens the direction window above the button that was pressed, or closes it when it is open. */
   toggleDirection(event?: Event): void {
     if (this.panelService.closeSingle(VN_DIRECTION_PANEL)) return;
     this.closePopovers();
@@ -917,6 +1011,10 @@ export class VisualNovelOverlayComponent {
     return tab ? this.chatStreamPanel.isOpen(tab) : false;
   });
 
+  /**
+   * Opens the display settings window above the button that was pressed, or closes it when it is
+   * open.
+   */
   toggleDisplaySettings(event?: Event): void {
     if (this.panelService.closeSingle(VN_DISPLAY_PANEL)) return;
     this.closePopovers();
@@ -934,9 +1032,9 @@ export class VisualNovelOverlayComponent {
   }
 
   /**
-   * Where a window opened from a button in the bar belongs: just above the button, which is
-   * where the balloon it replaces used to appear. Anywhere fixed would sooner or later be
-   * under the menu button or over the portraits.
+   * Where a window opened from a button in the bar belongs: just above the button, where the eye
+   * already is. Anywhere fixed would sooner or later be under the menu button or over the
+   * portraits.
    */
   private spotFor(event: Event | undefined, size: { width: number; height: number }) {
     const button = event?.currentTarget;
@@ -947,10 +1045,15 @@ export class VisualNovelOverlayComponent {
     return spotBeside(button.getBoundingClientRect(), size, viewport);
   }
 
+  /** Opens or closes the sound board balloon. */
   toggleSoundBoard(): void {
     this.togglePopover('soundBoard');
   }
 
+  /**
+   * Opens or closes the guide for placing the speaker's portrait on the stage; does nothing when
+   * the speaker is not a character.
+   */
   toggleSlotGuide(): void {
     if (this.speakerSlot() < 0) return;
     this.togglePopover('slotGuide');
@@ -966,6 +1069,10 @@ export class VisualNovelOverlayComponent {
   private sheetPanelService: PanelService | null = null;
   readonly sheetOpen = signal(false);
 
+  /**
+   * Opens the speaker's character sheet in a window over novel mode, or closes it when it is open;
+   * does nothing when the speaker is not a character.
+   */
   toggleCharacterSheet(): void {
     if (this.sheetPanelService?.isShow) {
       this.sheetPanelService.close();
@@ -993,27 +1100,41 @@ export class VisualNovelOverlayComponent {
     this.sheetOpen.set(true);
   }
 
+  /** Opens or closes the balloon listing the speaker's chat palette. */
   togglePalette(): void {
     this.togglePopover('palette');
   }
 
+  /** Puts a chat palette line into the input and closes the palette. */
   pickPaletteLine(line: string): void {
     this.text.set(line);
     this.closePopovers();
   }
 
+  /**
+   * Places the speaker's portrait in a slot on the novel-mode stage, shared with the room, and
+   * closes the guide.
+   */
   pickSlot(slot: number): void {
     const character = this.speakerCharacter();
     if (character) character.vnPortraitPos = Math.min(VN_STAGE_SLOT_COUNT - 1, Math.max(0, slot));
     this.closePopovers();
   }
 
+  /**
+   * Lets the speaker's portrait stand where their chat position puts it again, and closes the
+   * guide.
+   */
   followChatSlot(): void {
     const character = this.speakerCharacter();
     if (character) character.vnPortraitPos = VN_PORTRAIT_POS_UNSET;
     this.closePopovers();
   }
 
+  /**
+   * Turns the wheel over the message into reading: up goes back a line, down moves on, at most once
+   * every 160ms.
+   */
   onMessageWheel(event: WheelEvent): void {
     event.preventDefault();
     event.stopPropagation();
@@ -1027,6 +1148,10 @@ export class VisualNovelOverlayComponent {
     }
   }
 
+  /**
+   * Runs the novel-mode shortcut for a key pressed anywhere in the window; keys typed into a field
+   * or during composition are left alone as the shortcut rules decide.
+   */
   onKeydown(event: KeyboardEvent): void {
     const action = visualNovelKeyDown(event.key, {
       composing: event.isComposing,
@@ -1039,6 +1164,10 @@ export class VisualNovelOverlayComponent {
     this.runCommand(action.command);
   }
 
+  /**
+   * Runs the novel-mode action for a released key, such as ending the skip that holding Ctrl
+   * started.
+   */
   onKeyup(event: KeyboardEvent): void {
     const action = visualNovelKeyUp(event.key);
     if (action) this.runCommand(action.command);
@@ -1063,16 +1192,30 @@ export class VisualNovelOverlayComponent {
     exit: () => this.exit(),
   };
 
+  /** Stops skipping through lines, also when the window loses focus while Ctrl is held. */
   stopSkip(): void {
     this.playback.stopSkip();
   }
 
+  /**
+   * Sends the typed line when Enter is pressed in the input, except while an input method is
+   * composing.
+   */
   onInputKeydown(event: KeyboardEvent): void {
     if (event.key !== 'Enter' || event.isComposing) return;
     event.preventDefault();
     this.send();
   }
 
+  /**
+   * Sends the typed line to the tab being read, as the speaker and with the chosen staging.
+   *
+   * The line goes through the speaker's chat palette first, and an attached sound is played once it
+   * is sent. Auto play stops. Nothing is sent without a tab, with an empty line, or when this user
+   * may not speak in the tab; a speaker that no longer exists is replaced by the first character,
+   * or this user's cursor. A scene line plays the transition, and the input and attached sound are
+   * cleared.
+   */
   send(): void {
     this.stopAutoPlay();
     const tab = this.chatTab();
@@ -1091,7 +1234,7 @@ export class VisualNovelOverlayComponent {
     }
     const emote = encodeVnEmote({ ...this.emoteSelection.emote(), flipped: this.speakerFlip() === true });
     const attachedSe = this.attachedSe();
-    DiceBot.loadGameSystemAsync(this.gameType).then((gameSystem) => {
+    DiceBot.gameSystemForLineAsync(this.gameType, evaluated).then((gameSystem) => {
       this.chatMessageService.sendMessage(
         tab,
         evaluated,

@@ -60,6 +60,13 @@ function ensureWorker(): Worker | null {
   return worker;
 }
 
+/**
+ * Makes a thumbnail no larger than the given size in a worker, resolving null when it cannot so
+ * the caller can make one on the main thread instead.
+ *
+ * Once the worker fails to start or errors, every later call resolves null for the rest of the
+ * session. An idle worker is shut down after thirty seconds and started again when needed.
+ */
 export function createThumbnailInWorker(blob: Blob, type: string, maxDimension: number): Promise<Blob | null> {
   const active = ensureWorker();
   if (!active) return Promise.resolve(null);

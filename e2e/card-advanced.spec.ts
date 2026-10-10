@@ -35,7 +35,7 @@ test.describe('カード枚指定ダイアログ (card-draw-count-dialog)', () =
     await menu.getByText('X枚を引く').click();
     const input = page.locator('card-draw-count-dialog input[name="draw-count"]');
     await expect(input).toBeVisible({ timeout: 5000 });
-    // autofocus されており既定値が入っているので select-all してから書き換える。
+    // autofocusされており既定値が入っているので、select-allしてから書き換える。
     await input.click();
     await input.press('Control+A');
     await input.fill('5');
@@ -57,7 +57,7 @@ test.describe('カード枚指定ダイアログ (card-draw-count-dialog)', () =
     const input = page.locator('card-draw-count-dialog input[name="draw-count"]');
     await expect(input).toBeVisible({ timeout: 5000 });
 
-    // type=number の入力に fill() で値を入れても ngModel には届かず、既定の 2 枚の
+    // type=numberの入力にfill()で値を入れてもngModelには届かず、既定の2枚の
     // まま引かれてしまう。人と同じように打ち込む。
     await input.click();
     await input.press('Control+a');
@@ -77,7 +77,7 @@ test.describe('「山札を崩す」で個別 card 操作が可能になる', ()
     const initialCardCount = await page.locator('card').count();
     const menu = await openCardStackMenu(page);
     await menu.getByText('山札を崩す').click();
-    // 標準的な 52 枚 + ジョーカー の山札を想定し、十分多くの card が現れる。
+    // 標準的な52枚とジョーカーの山札を想定し、十分多くのcardが現れる。
     await expect.poll(() => page.locator('card').count(), { timeout: 10000 }).toBeGreaterThan(initialCardCount + 10);
   });
 });

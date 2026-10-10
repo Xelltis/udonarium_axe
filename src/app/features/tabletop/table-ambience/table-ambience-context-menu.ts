@@ -5,8 +5,10 @@ import {
   ContextMenuSeparator,
 } from '@axe/application/ui/context-menu.service';
 import { buildCopyAction, buildLockToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
+import { AMBIENCE_BRIGHTNESS } from '@axe/domain/effect/ambience/ambience-brightness';
 import { GROUND_AMBIENCE_KINDS } from '@axe/domain/effect/ambience/ambience-kind';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { SHOWN_TO } from '@axe/domain/tabletop/shown-to';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 
 /** How dense it is. Finer steps look no different, so there are three. */
@@ -23,6 +25,7 @@ export interface TableAmbienceContextMenuModel {
   radialGroups: ContextMenuRadialGroup[];
 }
 
+/** The flat list of a ground ambience's right-click menu entries, without the radial menu's grouping. */
 export function buildTableAmbienceContextMenu(
   ambience: TableAmbience,
   gridSize: number,
@@ -32,6 +35,12 @@ export function buildTableAmbienceContextMenu(
   return buildTableAmbienceContextMenuModel(ambience, gridSize, onEdit, t).actions;
 }
 
+/**
+ * A ground ambience's right-click menu, as a flat list and as groups for the radial menu.
+ *
+ * It offers the settings panel, the kind, three densities and a set of square sizes, then lock, copy
+ * and delete. Resizing keeps the ambience's centre where it was; a copy is unlocked.
+ */
 export function buildTableAmbienceContextMenuModel(
   ambience: TableAmbience,
   gridSize: number,
@@ -79,6 +88,38 @@ export function buildTableAmbienceContextMenuModel(
     })),
   };
 
+  const sightAction: ContextMenuAction = {
+    name: (ambience.blocksSight ? '✔ ' : '') + t('feature.ambience.contextMenu.blocksSight'),
+    action: () => {
+      ambience.blocksSight = !ambience.blocksSight;
+      SoundEffect.play(PresetSound.sweep);
+    },
+  };
+
+  const brightnessAction: ContextMenuAction = {
+    name: t('feature.ambience.contextMenu.brightness'),
+    action: undefined,
+    subActions: AMBIENCE_BRIGHTNESS.map((shade) => ({
+      name: (ambience.shade === shade ? '✔ ' : '') + t(`feature.ambience.brightness_${shade}`),
+      action: () => {
+        ambience.brightness = shade;
+        SoundEffect.play(PresetSound.sweep);
+      },
+    })),
+  };
+
+  const shownToAction: ContextMenuAction = {
+    name: t('feature.ambience.contextMenu.shownTo'),
+    action: undefined,
+    subActions: SHOWN_TO.map((shown) => ({
+      name: (ambience.shows === shown ? '✔ ' : '') + t(`feature.tabletop.shownTo_${shown}`),
+      action: () => {
+        ambience.shownTo = shown;
+        SoundEffect.play(PresetSound.sweep);
+      },
+    })),
+  };
+
   const lockAction = buildLockToggleAction(ambience.isLock, (next) => (ambience.isLock = next), t);
   const copyAction = buildCopyAction(ambience, gridSize, t, {
     sound: PresetSound.cardPut,
@@ -92,7 +133,15 @@ export function buildTableAmbienceContextMenuModel(
     },
   };
 
-  const appearanceActions = [settingsAction, kindAction, densityAction, sizeAction];
+  const appearanceActions = [
+    settingsAction,
+    kindAction,
+    densityAction,
+    sizeAction,
+    sightAction,
+    brightnessAction,
+    shownToAction,
+  ];
   const objectActions = [lockAction, copyAction, deleteAction];
   return {
     actions: [...appearanceActions, lockAction, ContextMenuSeparator, copyAction, deleteAction],

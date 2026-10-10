@@ -1,0 +1,179 @@
+@if (view() === 'main') {
+  <div class="flex flex-col gap-6 pb-1" data-testid="field-editor">
+    <section>
+      <label class="text-ui-muted mb-1.5 block text-[13px] font-semibold" [for]="idPrefix + '-name'">{{
+        'feature.dataElement.editor.name' | transloco
+      }}</label>
+      <input
+        #nameBox
+        type="text"
+        class="border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent h-12 w-full rounded-lg border border-solid px-3 text-base outline-none focus:shadow-[0_0_0_2px_var(--ui-accent-glow)]"
+        [class.border-ui-danger!]="nameError()"
+        [id]="idPrefix + '-name'"
+        [value]="nameDraft()"
+        [attr.aria-invalid]="nameError() ? 'true' : null"
+        [attr.aria-describedby]="nameError() ? idPrefix + '-name-error' : null"
+        enterkeyhint="done"
+        autocomplete="off"
+        (input)="onNameInput($event)"
+        (change)="commitName()"
+        (keydown.enter)="nameBox.blur()"
+        data-testid="field-editor-name"
+      />
+      @if (nameError(); as error) {
+        <p class="text-ui-danger mt-1.5 mb-0 text-[13px]" [id]="idPrefix + '-name-error'">
+          {{
+            (error === 'duplicate' ? 'feature.dataElement.duplicateName' : 'feature.dataElement.editor.nameEmpty')
+              | transloco
+          }}
+        </p>
+      }
+    </section>
+
+    <section>
+      <h3 class="text-ui-muted m-0 mb-1.5 text-[13px] font-semibold" [id]="idPrefix + '-type'">
+        {{ 'feature.dataElement.editor.type' | transloco }}
+      </h3>
+      <data-element-type-grid
+        [selected]="state().fieldType"
+        [labelledBy]="idPrefix + '-type'"
+        (picked)="setType($event)"
+      />
+    </section>
+
+    @if (state().hasOptions) {
+      <section>
+        <h3 class="text-ui-muted m-0 mb-1 text-[13px] font-semibold">
+          {{ 'feature.dataElement.action.fieldOptions' | transloco }}
+        </h3>
+        <game-data-element-field-options [element]="current()" kind="field" variant="sheet" />
+      </section>
+    }
+
+    <section>
+      <h3 class="text-ui-muted m-0 mb-1.5 text-[13px] font-semibold">
+        {{ 'feature.dataElement.editor.order' | transloco }}
+      </h3>
+      <div class="flex flex-wrap gap-2">
+        @for (step of moves; track step.id) {
+          <button
+            type="button"
+            class="border-ui-border-panel bg-ui-elevated text-ui-text active:bg-ui-hover flex size-12 cursor-pointer items-center justify-center rounded-xl border border-solid p-0 disabled:cursor-default disabled:opacity-30"
+            [disabled]="!state().canMove[step.id]"
+            [attr.aria-label]="step.labelKey | transloco"
+            [title]="step.labelKey | transloco"
+            (click)="move(step.id)"
+            [attr.data-testid]="'field-editor-' + step.id"
+          >
+            <i class="material-icons text-[22px]!">{{ step.icon }}</i>
+          </button>
+        }
+      </div>
+    </section>
+
+    <section class="border-ui-border-panel flex flex-col border-t border-solid">
+      @if (state().moveTargets.length > 0) {
+        <button
+          type="button"
+          class="border-ui-border-panel text-ui-text active:bg-ui-hover flex min-h-13 w-full cursor-pointer items-center gap-3 border-0 border-b border-solid bg-transparent px-1 text-left text-[15px]"
+          (click)="view.set('moveTo')"
+          data-testid="field-editor-move-to"
+        >
+          <i class="material-icons text-ui-muted text-[22px]!">drive_file_move</i>
+          <span class="min-w-0 flex-1">{{ 'feature.dataElement.action.moveTo' | transloco }}</span>
+          <i class="material-icons text-ui-dim text-[22px]!">chevron_right</i>
+        </button>
+      }
+      <button
+        type="button"
+        class="border-ui-border-panel text-ui-text active:bg-ui-hover flex min-h-13 w-full cursor-pointer items-center gap-3 border-0 border-b border-solid bg-transparent px-1 text-left text-[15px]"
+        role="switch"
+        [attr.aria-checked]="state().isPopup"
+        (click)="togglePopup()"
+        data-testid="field-editor-popup"
+      >
+        <i class="material-icons text-ui-muted text-[22px]!">open_in_new</i>
+        <span class="min-w-0 flex-1">{{ 'feature.dataElement.action.popupShow' | transloco }}</span>
+        <span
+          class="bg-ui-input border-ui-border-panel relative h-6 w-10 shrink-0 rounded-full border border-solid transition-colors"
+          [class.bg-ui-accent!]="state().isPopup"
+          [class.border-ui-accent!]="state().isPopup"
+          aria-hidden="true"
+        >
+          <span
+            class="absolute top-0.5 left-0.5 size-4.5 rounded-full bg-white transition-transform"
+            [class.translate-x-4]="state().isPopup"
+          ></span>
+        </span>
+      </button>
+      <button
+        type="button"
+        class="border-ui-border-panel text-ui-text active:bg-ui-hover flex min-h-13 w-full cursor-pointer items-center gap-3 border-0 border-b border-solid bg-transparent px-1 text-left text-[15px]"
+        (click)="copyReference()"
+      >
+        <i class="material-icons text-ui-muted text-[22px]!">content_copy</i>
+        <span>{{ 'feature.dataElement.action.copyReference' | transloco }}</span>
+      </button>
+      @if (state().canAddAfter) {
+        <button
+          type="button"
+          class="border-ui-border-panel text-ui-text active:bg-ui-hover flex min-h-13 w-full cursor-pointer items-center gap-3 border-0 border-b border-solid bg-transparent px-1 text-left text-[15px]"
+          (click)="addBelow()"
+          data-testid="field-editor-add-below"
+        >
+          <i class="material-icons text-ui-muted text-[22px]!">add</i>
+          <span>{{ 'feature.dataElement.action.addRow' | transloco }}</span>
+        </button>
+      }
+      @if (state().canDuplicate) {
+        <button
+          type="button"
+          class="border-ui-border-panel text-ui-text active:bg-ui-hover flex min-h-13 w-full cursor-pointer items-center gap-3 border-0 border-b border-solid bg-transparent px-1 text-left text-[15px]"
+          (click)="duplicate()"
+          data-testid="field-editor-duplicate"
+        >
+          <i class="material-icons text-ui-muted text-[22px]!">library_add</i>
+          <span>{{ 'feature.dataElement.action.duplicate' | transloco }}</span>
+        </button>
+      }
+    </section>
+
+    <button
+      type="button"
+      class="border-ui-danger text-ui-danger active:bg-ui-danger-bg flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-solid bg-transparent text-[15px] font-semibold"
+      (click)="delete()"
+      data-testid="field-editor-delete"
+    >
+      <i class="material-icons text-[20px]!">delete_outline</i>
+      {{ 'feature.dataElement.action.deleteRow' | transloco }}
+    </button>
+  </div>
+} @else {
+  <div class="flex flex-col gap-2 pb-1" data-testid="field-editor-move-targets">
+    <button
+      type="button"
+      class="text-ui-accent active:bg-ui-hover -ml-1 flex h-11 cursor-pointer items-center gap-1 self-start rounded-lg border-none bg-transparent px-2 text-[15px]"
+      (click)="view.set('main')"
+    >
+      <i class="material-icons text-[22px]!">chevron_left</i>
+      {{ 'feature.dataElement.editor.back' | transloco }}
+    </button>
+    <p class="text-ui-muted m-0 text-[13px]">
+      {{ 'feature.dataElement.editor.moveToHint' | transloco: { name: state().name } }}
+    </p>
+    <ul class="border-ui-border-panel m-0 list-none border-t border-solid p-0">
+      @for (target of state().moveTargets; track target.element.identifier) {
+        <li>
+          <button
+            type="button"
+            class="border-ui-border-panel text-ui-text active:bg-ui-hover flex min-h-13 w-full cursor-pointer items-center gap-3 border-0 border-b border-solid bg-transparent px-1 text-left text-[15px]"
+            (click)="moveInto(target)"
+          >
+            <i class="material-icons text-ui-muted text-[22px]!">folder</i>
+            <span class="min-w-0 flex-1 truncate">{{ pathOf(target) }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+  </div>
+}

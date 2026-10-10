@@ -170,6 +170,13 @@ function projectileSvg(look: ProjectileStyle, colors: ReturnType<typeof colorsOf
   }
 }
 
+/**
+ * When each shot of a projectile effect is fired and lands, as shares of the effect's duration.
+ *
+ * The travel time comes from the projectile's look, held between 5% and 60% of the effect. Several
+ * shots are spaced by the preset's shot interval, but never so far apart that the last one would
+ * land after the effect ends.
+ */
 export function projectileTiming(preset: EffectPreset): { travel: number; shots: ProjectileShot[] } {
   const travel = Math.min(Math.max(PROJECTILE_TRAVEL_MS[preset.projectileLook] / preset.duration, 0.05), 0.6);
   const count = preset.shotCount;

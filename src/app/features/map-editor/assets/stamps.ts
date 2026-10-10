@@ -248,10 +248,12 @@ export const STAMPS: StampDef[] = [
   },
 ];
 
+/** The built-in map stamps of one category, in the order the stamp picker lists them. */
 export function getStampsByCategory(category: StampCategory): StampDef[] {
   return STAMPS.filter((s) => s.category === category);
 }
 
+/** The built-in map stamp with this id, or undefined when there is none. */
 export function getStampById(id: string): StampDef | undefined {
   return STAMPS.find((s) => s.id === id);
 }

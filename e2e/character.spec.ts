@@ -60,7 +60,55 @@ test.describe('キャラクターシート (詳細パネル)', () => {
     const downloadPromise = page.waitForEvent('download', { timeout: 30000 });
     await page.locator('game-character-sheet').getByRole('button', { name: '保存' }).click();
     const download = await downloadPromise;
-    // SaveDataService はキャラ単体でも xml_<name>_<timestamp>.zip 形式で保存する。
+    // SaveDataServiceはキャラ単体でもxml_<name>_<timestamp>.zip形式で保存する。
     expect(download.suggestedFilename()).toMatch(/^xml_.*\.zip$/);
+  });
+});
+
+test.describe('リソースのスライダー表示', () => {
+  test('HP にスライダー表示を入れると、シートと簡易表示の両方で現在値だけをスライダーで動かせること', async ({
+    page,
+  }) => {
+    await waitAppReady(page);
+    const piece = page.locator('game-character').filter({ hasText: 'キャラクターB' }).first();
+    await piece.dispatchEvent('contextmenu');
+    await page.locator('context-menu').getByText('詳細を表示').click();
+    const sheet = page.locator('game-character-sheet');
+    await expect(sheet).toBeVisible({ timeout: 10000 });
+
+    // The HP row is the first resource of the first section, whose settings open from its tune button.
+    await sheet.getByRole('button', { name: 'edit', exact: true }).first().click();
+    await sheet.getByRole('button', { name: 'tune', exact: true }).first().click();
+    await sheet.locator('input[name="data-resource-slider"]').first().check();
+    await sheet.getByRole('button', { name: 'edit_off', exact: true }).first().click();
+
+    const sheetSlider = sheet.getByTestId('resource-slider').first();
+    await expect(sheetSlider).toBeVisible();
+    const hpRow = sheet
+      .locator('game-data-element, [game-data-element]')
+      .filter({ has: page.getByTestId('resource-slider') })
+      .last();
+    const max = await hpRow.locator('input[name="data-value"]').inputValue();
+    await sheetSlider.fill('5');
+    await expect(hpRow.locator('input[name="data-current-value"]')).toHaveValue('5');
+    await expect(hpRow.locator('input[name="data-value"]')).toHaveValue(max);
+
+    // The title bar's buttons only show under the pointer.
+    await page
+      .locator('ui-panel', { has: sheet })
+      .locator('button:has(i:text-is("close"))')
+      .last()
+      .dispatchEvent('click');
+    await expect(sheet).toHaveCount(0);
+    const picture = (await piece.locator('img.image').first().boundingBox())!;
+    await page.mouse.move(picture.x + picture.width / 2, picture.y + picture.height / 2);
+    await page.mouse.move(picture.x + picture.width / 2 + 2, picture.y + picture.height / 2 + 2);
+
+    const popupSlider = page.getByTestId('overview-resource-slider').first();
+    await expect(popupSlider).toBeVisible({ timeout: 5000 });
+    await expect(popupSlider).toHaveValue('5');
+    await popupSlider.fill('40');
+    await expect(page.locator('overview-panel input[name="data-current-value"]').first()).toHaveValue('40');
+    await expect(page.locator('overview-panel').getByText(max, { exact: true }).first()).toBeAttached();
   });
 });

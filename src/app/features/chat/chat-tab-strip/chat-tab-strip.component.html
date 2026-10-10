@@ -1,7 +1,7 @@
 @if (canScrollLeft()) {
   <button
     type="button"
-    class="rounded-ui-sm border-ui-border-panel bg-ui-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 mr-0.5 inline-flex h-6 w-5 shrink-0 cursor-pointer items-center justify-center border border-solid p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[16px]!"
+    class="touch-target rounded-ui-sm border-ui-border-panel bg-ui-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 mr-0.5 inline-flex h-6 w-5 shrink-0 cursor-pointer items-center justify-center border border-solid p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[16px]!"
     (click)="scrollTabsLeft()"
     tabindex="-1"
     [title]="'feature.chat.window.tabScrollLeft' | transloco"
@@ -11,7 +11,8 @@
 }
 
 <div
-  class="-mx-1 flex min-h-7.5 min-w-0 flex-[999_1_160px] scrollbar-none items-center gap-0.75 overflow-x-auto overflow-y-hidden px-1.5 pt-2 pb-0.5 @max-[340px]:order-3 @max-[340px]:basis-full"
+  class="-mx-1 flex min-h-7.5 min-w-0 flex-[999_1_160px] scrollbar-none items-center gap-0.75 overflow-x-auto overflow-y-hidden px-1.5 pb-0.5 @max-[340px]:order-3 @max-[340px]:basis-full"
+  [class]="stripTone()"
   #tabPillsContainer
   (scroll)="onTabPillsScroll()"
   (wheel)="switchTabByWheel($event)"
@@ -23,14 +24,15 @@
     >
       <input
         class="peer hidden"
-        name="chat-tab"
+        [name]="groupName"
         type="radio"
         [value]="chatTab.identifier"
         [checked]="selected() === chatTab.identifier"
         (change)="selected.set(chatTab.identifier)"
       />
       <div
-        class="chat-tab-pill border-ui-border-titlebar text-ui-titlebar-muted peer-checked:border-ui-accent peer-checked:bg-ui-accent-bg peer-checked:text-ui-titlebar-text hover:border-ui-accent hover:bg-ui-hover hover:text-ui-titlebar-text relative inline-flex cursor-pointer items-center rounded-full border border-solid bg-transparent px-2.5 py-0.75 align-middle text-[11px] whitespace-nowrap outline-0 transition-colors peer-checked:font-medium peer-checked:shadow-[0_0_0_1px_var(--ui-accent-glow)]"
+        class="chat-tab-pill peer-checked:border-ui-accent peer-checked:bg-ui-accent-bg hover:border-ui-accent hover:bg-ui-hover relative inline-flex cursor-pointer items-center rounded-full border border-solid bg-transparent px-2.5 py-0.75 align-middle text-[11px] whitespace-nowrap outline-0 transition-colors peer-checked:font-medium peer-checked:shadow-[0_0_0_1px_var(--ui-accent-glow)]"
+        [class]="pillTone()"
       >
         {{ chatTab.name }}
         @if (chatTab.hasUnread) {
@@ -44,7 +46,7 @@
 @if (canScrollRight()) {
   <button
     type="button"
-    class="rounded-ui-sm border-ui-border-panel bg-ui-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 ml-0.5 inline-flex h-6 w-5 shrink-0 cursor-pointer items-center justify-center border border-solid p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[16px]!"
+    class="touch-target rounded-ui-sm border-ui-border-panel bg-ui-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 ml-0.5 inline-flex h-6 w-5 shrink-0 cursor-pointer items-center justify-center border border-solid p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[16px]!"
     (click)="scrollTabsRight()"
     tabindex="-1"
     [title]="'feature.chat.window.tabScrollRight' | transloco"

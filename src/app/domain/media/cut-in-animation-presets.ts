@@ -60,10 +60,12 @@ export interface PresetRest {
   opacity: number;
 }
 
+/** Whether a value names one of the ready-made ways for a layer to arrive. */
 export function isCutInEntrance(value: unknown): value is CutInEntrance {
   return typeof value === 'string' && (CUT_IN_ENTRANCES as readonly string[]).includes(value);
 }
 
+/** Whether a value names one of the ready-made ways for a layer to leave. */
 export function isCutInExit(value: unknown): value is CutInExit {
   return typeof value === 'string' && (CUT_IN_EXITS as readonly string[]).includes(value);
 }

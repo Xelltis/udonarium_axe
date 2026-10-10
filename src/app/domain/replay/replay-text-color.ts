@@ -1,5 +1,12 @@
 export const REPLAY_MIN_CONTRAST = 4.5;
 
+/**
+ * A text colour that reads against the background, with channels from 0 to 1, at a contrast of at least 4.5 to 1.
+ *
+ * The colour is kept when it already does; otherwise its hue and saturation are kept and its
+ * lightness moved away from the background. The fallback is used when the colour is not a hex
+ * colour or no lightness reaches the contrast.
+ */
 export function readableOn(color: string, background: [number, number, number], fallback: string): string {
   const rgb = parseHex(color);
   if (!rgb) return fallback;

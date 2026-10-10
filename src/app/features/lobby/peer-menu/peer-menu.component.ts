@@ -59,10 +59,17 @@ export class PeerMenuComponent {
   readonly isOffline = this.localModePreference.enabled;
   readonly connectionModes = CONNECTION_MODES;
 
+  /** Whether this browser is set to play online or alone, for the switch between the two. */
   connectionMode(): ConnectionMode {
     return this.isOffline() ? 'offline' : 'online';
   }
 
+  /**
+   * Switches between playing online and playing alone, once the reader has confirmed.
+   *
+   * The choice is written down in this browser and the page reloads into it. Choosing the mode
+   * already in use does nothing.
+   */
   async chooseConnectionMode(mode: ConnectionMode): Promise<void> {
     if (mode === this.connectionMode()) return;
     const asked = await this.confirm.ask(
@@ -112,22 +119,30 @@ export class PeerMenuComponent {
     });
   });
 
+  /** This browser's own cursor, which carries the reader's name, icon, role and timeout. */
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
   }
 
+  /** Whether the reader is the game master, who may give the other peers their roles. */
   get isMyselfGameMaster(): boolean {
     return PeerCursor.isMyselfGameMaster;
   }
 
+  /** The role of the peer with this ID, or the default role while its cursor has not arrived. */
   findPeerRole(peerId: string): PeerRole {
     return PeerCursor.findByPeerId(peerId)?.role ?? DEFAULT_PEER_ROLE;
   }
 
+  /** The first six characters of a peer ID, enough to tell the peers on the list apart. */
   shortId(peerId: string): string {
     return peerId.slice(0, 6);
   }
 
+  /**
+   * Whether the reader may take this role for themselves. Any role but game master may be taken;
+   * that one only while no game master is connected, or by the game master themselves.
+   */
   isRoleSelfAssignable(role: PeerRole): boolean {
     if (role !== PeerRole.GameMaster) return true;
     return this.isMyselfGameMaster || !this.hasConnectedGameMaster();
@@ -137,6 +152,12 @@ export class PeerMenuComponent {
     return this.objectStore.getObjects<PeerCursor>(PeerCursor).some((cursor) => cursor.isGameMaster);
   }
 
+  /**
+   * Takes a role for the reader, which the room sees.
+   *
+   * The role is written down in this browser along with the room, so reconnecting keeps it. Does
+   * nothing for a role the reader may not take.
+   */
   setMyRole(role: PeerRole) {
     if (!this.isRoleSelfAssignable(role)) return;
     this.myPeer.role = role;
@@ -167,6 +188,10 @@ export class PeerMenuComponent {
     (event.target as HTMLInputElement | null)?.select();
   }
 
+  /**
+   * Gives another peer a role, as the game master. Does nothing for anybody else, for the reader's
+   * own cursor, or for a peer that has gone.
+   */
   reassignRole(peerId: string, role: PeerRole) {
     if (!this.isMyselfGameMaster) return;
     const cursor = PeerCursor.findByPeerId(peerId);
@@ -181,6 +206,10 @@ export class PeerMenuComponent {
     this.destroyRef.onDestroy(() => clearInterval(timer));
   }
 
+  /**
+   * Opens the image picker and makes the chosen image the reader's icon. Closing it without a
+   * choice changes nothing.
+   */
   changeIcon() {
     this.modalService.open<string>(FileSelecterComponent).then((value) => {
       if (!this.myPeer || !value) return;
@@ -188,6 +217,7 @@ export class PeerMenuComponent {
     });
   }
 
+  /** Opens the lobby, to find a room to join. */
   showLobby() {
     this.modalService.open(LobbyComponent, {
       title: this.t('feature.lobby.lobby.title'),
@@ -198,6 +228,7 @@ export class PeerMenuComponent {
     });
   }
 
+  /** Opens the dialog for connecting to the room again. */
   showReConnect() {
     this.modalService.open(ReConnectComponent, {
       width: 700,
@@ -207,14 +238,20 @@ export class PeerMenuComponent {
     });
   }
 
+  /** Whether anybody else is connected, which is when there is a room to connect to again. */
   get shouldShowReconnectButton(): boolean {
     return this.networkService.peerIds.length > 1;
   }
 
+  /** Whether there is a connection to ask for the whole room over. */
   get canRequestFullSync(): boolean {
     return 0 < this.networkService.peerIds.length;
   }
 
+  /**
+   * Asks the connected peers to send the whole room again, and says in the chat how many were
+   * asked.
+   */
   requestFullSync() {
     const peerCount = ObjectSynchronizer.instance.requestFullSync();
     this.chatMessageService.sendSystemMessage(
@@ -222,40 +259,60 @@ export class PeerMenuComponent {
     );
   }
 
+  /** Shows the room's password as plain text, or hides it again. */
   togglePasswordVisibility() {
     this.isPasswordVisible.update((v) => !v);
   }
 
+  /** The user ID of the peer with this peer ID, or empty while its cursor has not arrived. */
   findUserId(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.userId : '';
   }
 
+  /** The name of the peer with this ID, or empty while its cursor has not arrived. */
   findPeerName(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.name : '';
   }
 
+  /**
+   * When the peer's last heartbeat was sent, by its own clock; 0 while its cursor has not arrived
+   * and -1 before any heartbeat.
+   */
   findPeerTimeSend(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.timestampSend : 0;
   }
 
+  /** When the peer's last heartbeat arrived here; zero or less while none has. */
   findPeerTimeReceive(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.timestampReceive : 0;
   }
 
+  /**
+   * How long this browser's heartbeat took to reach the peer, as the peer reported back, in
+   * milliseconds; 0 while unknown.
+   */
   findPeerTimeDiffUp(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.timeDiffUp : 0;
   }
 
+  /**
+   * How long the peer's last heartbeat took to arrive here, in milliseconds, any difference between
+   * the two clocks included; 0 while its cursor has not arrived.
+   */
   findPeerTimeDiffDown(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.timeDiffDown : 0;
   }
 
+  /**
+   * The round trip to the peer and back in seconds, the two ways added together; `--` while its
+   * cursor has not arrived.
+   */
   findPeerTimeLatency(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     if (!peerCursor) return '--';
@@ -263,6 +320,10 @@ export class PeerMenuComponent {
     return peerCursor ? peerCursor.timeLatency / 1000 : 99999;
   }
 
+  /**
+   * How many of the peer's heartbeats have arrived against how many it has sent since the first one
+   * did, as arrived/sent; `0/0` before any.
+   */
   findPeerDegreeOfSuccess(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     if (!peerCursor) return '0/0';
@@ -272,6 +333,7 @@ export class PeerMenuComponent {
   }
 
   myTime = signal(0);
+  /** Moves on the clock shown in the menu, which the menu does every second while it is open. */
   dispInfo() {
     this.myTime.set(Date.now());
   }

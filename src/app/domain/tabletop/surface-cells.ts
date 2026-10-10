@@ -1,3 +1,4 @@
+import { PERF_HEX_SURFACE_CELLS, perfCounters } from '@axe/core/util/perf-counters';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import {
   hexCellCenter,
@@ -16,6 +17,12 @@ export interface SurfacePoint {
 
 export const HEX_SURFACE_INFLATE_PX = 1;
 
+/**
+ * The corner outlines of every hex on a board, each grown by `inflatePx` so that neighbouring cells
+ * overlap.
+ *
+ * Empty on a square grid or a board with no cells.
+ */
 export function hexSurfaceCells(
   cols: number,
   rows: number,
@@ -24,6 +31,7 @@ export function hexSurfaceCells(
   inflatePx = 0
 ): SurfacePoint[][] {
   if (!isHexGrid(gridType) || cols <= 0 || rows <= 0 || gridSize <= 0) return [];
+  perfCounters.bump(PERF_HEX_SURFACE_CELLS);
 
   const isFlatTop = isFlatTopGrid(gridType);
   const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);

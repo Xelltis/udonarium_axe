@@ -4,6 +4,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { NO_SYSTEM_AVATAR, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -18,6 +19,7 @@ import { AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { leftOfSlot, VN_STAGE_SLOT_COUNT } from '@axe/domain/visual-novel/vn-stage-cast';
 import { ChatPaletteRegistryService } from '@axe/features/chat/chat-palette/chat-palette-registry.service';
 import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { VisualNovelOverlayComponent } from '@axe/features/visual-novel/visual-novel-overlay/visual-novel-overlay.component';
@@ -26,7 +28,6 @@ import { VisualNovelPlaybackService } from '@axe/features/visual-novel/visual-no
 import { VisualNovelSceneService } from '@axe/features/visual-novel/visual-novel-scene.service';
 import { VisualNovelSettingsService } from '@axe/features/visual-novel/visual-novel-settings.service';
 import { VisualNovelSoundBoardComponent } from '@axe/features/visual-novel/visual-novel-sound-board/visual-novel-sound-board.component';
-import { leftOfSlot, VN_STAGE_SLOT_COUNT } from '@axe/features/visual-novel/visual-novel-stage';
 import { installPanelLayer } from '@axe/testing/panel-layer';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import GameSystemClass from 'bcdice/lib/game_system';
@@ -153,6 +154,23 @@ describe('VisualNovelOverlayComponent', () => {
     expect(component.isTyping()).toBe(false);
   });
 
+  it('writes a reading over its word as the line is typed, never the notation', () => {
+    vi.useFakeTimers();
+    addMessage('あ|漢字《かんじ》い');
+    createComponent();
+    vi.advanceTimersByTime(60);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('ruby.chat-ruby rb')?.textContent).toBe('漢');
+    expect(host.querySelector('ruby.chat-ruby rt')?.textContent).toBe('かんじ');
+
+    vi.advanceTimersByTime(300);
+    fixture.detectChanges();
+    expect(component.displayedText()).toBe('あ漢字い');
+    expect(host.querySelector('ruby.chat-ruby rb')?.textContent).toBe('漢字');
+    expect(host.textContent).not.toMatch(/[|｜《》]/);
+  });
+
   it('goes back, forward and to the latest through the history', () => {
     addMessage('m1');
     addMessage('m2');
@@ -211,12 +229,13 @@ describe('VisualNovelOverlayComponent', () => {
     createComponent();
     const chatMessageService = TestBed.inject(ChatMessageService);
     const sendSpy = vi.spyOn(chatMessageService, 'sendMessage').mockReturnValue(null as unknown as ChatMessage);
-    vi.spyOn(DiceBot, 'loadGameSystemAsync').mockResolvedValue(null as unknown as GameSystemClass);
+    const forLine = vi.spyOn(DiceBot, 'gameSystemForLineAsync').mockResolvedValue(null as unknown as GameSystemClass);
 
     component.text.set('  やあ  ');
     component.send();
     await vi.waitFor(() => expect(sendSpy).toHaveBeenCalled(), { timeout: 5000 });
 
+    expect(forLine).toHaveBeenCalledWith(expect.any(String), 'やあ');
     expect(sendSpy).toHaveBeenCalledWith(
       tab,
       'やあ',
@@ -320,7 +339,7 @@ describe('VisualNovelOverlayComponent', () => {
   });
 
   it('shows a line in the window at the foot of the screen when its speaker is not on stage', () => {
-    // A balloon with nobody to come from used to float in the middle with its tail on nothing.
+    // A balloon with nobody to come from would float in the middle with its tail on nothing.
     addMessage('こんにちは');
     createComponent();
     expect(component.bubbleAnchor()).toBeNull();
@@ -358,7 +377,7 @@ describe('VisualNovelOverlayComponent', () => {
       timestamp: nextTimestamp++,
     });
     createComponent();
-    expect(component.systemSpeaker()?.imageUrl).toBe('assets/images/system_chang_roll.png');
+    expect(component.systemSpeaker()?.imageUrl).toBe('assets/images/system_chang_roll.webp');
     expect(component.bubbleAnchor()).toBeNull();
   });
 
@@ -534,7 +553,7 @@ describe('VisualNovelOverlayComponent', () => {
     createComponent();
     const chatMessageService = TestBed.inject(ChatMessageService);
     const sendSpy = vi.spyOn(chatMessageService, 'sendMessage').mockReturnValue(null as unknown as ChatMessage);
-    vi.spyOn(DiceBot, 'loadGameSystemAsync').mockResolvedValue(null as unknown as GameSystemClass);
+    vi.spyOn(DiceBot, 'gameSystemForLineAsync').mockResolvedValue(null as unknown as GameSystemClass);
 
     component.selectedShape.set('shout');
     component.selectedBubbleAnimation.set('shake');
@@ -557,7 +576,7 @@ describe('VisualNovelOverlayComponent', () => {
     createComponent();
     const chatMessageService = TestBed.inject(ChatMessageService);
     const sendSpy = vi.spyOn(chatMessageService, 'sendMessage').mockReturnValue(null as unknown as ChatMessage);
-    vi.spyOn(DiceBot, 'loadGameSystemAsync').mockResolvedValue(null as unknown as GameSystemClass);
+    vi.spyOn(DiceBot, 'gameSystemForLineAsync').mockResolvedValue(null as unknown as GameSystemClass);
     component.selectedKind.set('narration');
     component.text.set('一行は森の奥へ進んだ。');
     component.send();
@@ -848,7 +867,7 @@ describe('VisualNovelOverlayComponent', () => {
 
   it('reads the place out of a message saved before places were numbers', () => {
     addMessage('こんにちは', 'アリス', addImage());
-    // Attributes come back from XML as strings, which the stage used to throw away.
+    // Attributes come back from XML as strings, and a place written as one still has to count.
     (tab.chatMessages[tab.chatMessages.length - 1] as unknown as Record<string, unknown>)['imagePos'] = '7';
     createComponent();
 
@@ -924,7 +943,7 @@ describe('VisualNovelOverlayComponent', () => {
     createComponent();
     const chatMessageService = TestBed.inject(ChatMessageService);
     const sendSpy = vi.spyOn(chatMessageService, 'sendMessage').mockReturnValue(null as unknown as ChatMessage);
-    vi.spyOn(DiceBot, 'loadGameSystemAsync').mockResolvedValue(null as unknown as GameSystemClass);
+    vi.spyOn(DiceBot, 'gameSystemForLineAsync').mockResolvedValue(null as unknown as GameSystemClass);
 
     component.attachSe({ identifier: 'audio-1', name: 'ジャーン' });
     component.text.set('ここで効果音');
@@ -1138,6 +1157,22 @@ describe('VisualNovelOverlayComponent', () => {
     expect(component.sendFrom).not.toBe(PeerCursor.myCursor.identifier);
   });
 
+  it('offers no speaker standing unseen on the table, as the chat does', () => {
+    addMessage('こんにちは', 'アリス', addImage());
+    addMessage('……', '闇の魔物', addImage());
+    const lurker = characterFor('闇の魔物');
+    lurker.setLocation('table');
+    const listed = vi
+      .spyOn(TestBed.inject(VisionService), 'mayBeListed')
+      .mockImplementation((character) => character !== lurker);
+    createComponent();
+    fixture.detectChanges();
+
+    expect(component.gameCharacters()).not.toContain(lurker);
+    expect(component.gameCharacters()).toContain(characterFor('アリス'));
+    listed.mockRestore();
+  });
+
   it('moves to another once the chosen character is gone', () => {
     addMessage('こんにちは', 'アリス', addImage());
     addMessage('やあ', 'ボブ', addImage());
@@ -1165,7 +1200,7 @@ describe('VisualNovelOverlayComponent', () => {
     component.sendFrom = character.identifier;
     const chatMessageService = TestBed.inject(ChatMessageService);
     const sendSpy = vi.spyOn(chatMessageService, 'sendMessage').mockReturnValue(null as unknown as ChatMessage);
-    vi.spyOn(DiceBot, 'loadGameSystemAsync').mockResolvedValue(null as unknown as GameSystemClass);
+    vi.spyOn(DiceBot, 'gameSystemForLineAsync').mockResolvedValue(null as unknown as GameSystemClass);
 
     component.toggleSpeakerFlip();
     TestBed.inject(ObjectChangeService).notifyChanged(character.identifier);
@@ -1201,7 +1236,7 @@ describe('VisualNovelOverlayComponent', () => {
     const evaluateSpy = vi.spyOn(palette!, 'evaluate').mockReturnValue('評価済みテキスト');
     const chatMessageService = TestBed.inject(ChatMessageService);
     const sendSpy = vi.spyOn(chatMessageService, 'sendMessage').mockReturnValue(null as unknown as ChatMessage);
-    vi.spyOn(DiceBot, 'loadGameSystemAsync').mockResolvedValue(null as unknown as GameSystemClass);
+    vi.spyOn(DiceBot, 'gameSystemForLineAsync').mockResolvedValue(null as unknown as GameSystemClass);
 
     component.text.set('{HP}ダメージ！');
     component.send();

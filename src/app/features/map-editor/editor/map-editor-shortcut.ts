@@ -32,6 +32,13 @@ export interface MapEditorKeyAction {
   preventDefault: boolean;
 }
 
+/**
+ * The editor command for a key going down, or null to leave the key to the browser.
+ *
+ * Space starts panning, Ctrl+Z undoes, Ctrl+Y or Ctrl+Shift+Z redoes, Delete and Backspace remove
+ * the selection when there is one, Escape and Enter cancel or finish a draft, and a bare letter
+ * picks its tool.
+ */
 export function mapEditorKeyDown(key: string, code: string, context: MapEditorKeyContext): MapEditorKeyAction | null {
   if (context.typing) return null;
   // Held down it drags the view, and it is read by its place on the keyboard rather than its letter.
@@ -57,6 +64,7 @@ export function mapEditorKeyDown(key: string, code: string, context: MapEditorKe
   return null;
 }
 
+/** Ends panning when Space comes up; every other key does nothing on release. */
 export function mapEditorKeyUp(code: string): MapEditorKeyAction | null {
   return code === 'Space' ? { command: 'panEnd', preventDefault: false } : null;
 }

@@ -1,5 +1,10 @@
 import { TestBed } from '@angular/core/testing';
+import { VolumeType } from '@axe/core/storage/audio-player';
+import { ObjectContext } from '@axe/core/sync/game-object';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
+import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
+import { Jukebox } from '@axe/domain/media/jukebox';
+import { DEFAULT_ROOM_VOLUMES } from '@axe/domain/media/room-volumes';
 import { Config } from '@axe/domain/peer/config';
 
 describe('Config', () => {
@@ -55,6 +60,137 @@ describe('Config', () => {
     });
   });
 
+  describe('the room’s volume for each kind of sound', () => {
+    const setNewVolume = vi.fn();
+
+    function attributesOf(context: ObjectContext): Record<string, unknown> {
+      return context.syncData['attributes'] as Record<string, unknown>;
+    }
+
+    beforeEach(() => {
+      setNewVolume.mockClear();
+      vi.spyOn(Config.instance, 'jukebox', 'get').mockReturnValue({ setNewVolume } as unknown as Jukebox);
+    });
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('starts at full for every kind', () => {
+      expect(Config.instance.roomVolumes).toEqual(DEFAULT_ROOM_VOLUMES);
+    });
+
+    it('sets one kind, leaving the others as they are', () => {
+      Config.instance.setRoomVolumeOf('bgm', 0.5);
+      Config.instance.setRoomVolumeOf('handling', 0);
+
+      expect(Config.instance.roomVolumes).toEqual({ ...DEFAULT_ROOM_VOLUMES, bgm: 0.5, handling: 0 });
+    });
+
+    it('scales each channel by the master room volume and its own kind, and previews by the master alone', () => {
+      Config.instance.roomVolume = 0.5;
+      Config.instance.setRoomVolumeOf('bgm', 1.6);
+      Config.instance.setRoomVolumeOf('effect', 0);
+
+      expect(Config.instance.roomScaleFor(VolumeType.MASTER)).toBeCloseTo(0.8);
+      expect(Config.instance.roomScaleFor(VolumeType.EFFECT)).toBe(0);
+      expect(Config.instance.roomScaleFor(VolumeType.SE)).toBe(0.5);
+      expect(Config.instance.roomScaleFor(VolumeType.AUDITION)).toBe(0.5);
+    });
+
+    it('reads full for every kind from an older version that sends none', () => {
+      Config.instance.setRoomVolumeOf('bgm', 0.5);
+      const older = Config.instance.toContext();
+      delete attributesOf(older)['_roomKindVolumes'];
+      older.majorVersion += 1;
+
+      Config.instance.apply(older);
+
+      expect(Config.instance.roomVolumes).toEqual(DEFAULT_ROOM_VOLUMES);
+      expect(Config.instance.roomScaleFor(VolumeType.MASTER)).toBe(1);
+    });
+
+    it('keeps the volumes when an older version that passed them along sends the config back', () => {
+      Config.instance.setRoomVolumeOf('background', 0.3);
+      const passedAlong = Config.instance.toContext();
+      attributesOf(passedAlong)['_roomVolume'] = 0.8;
+      passedAlong.majorVersion += 1;
+
+      Config.instance.apply(passedAlong);
+
+      expect(Config.instance.roomVolume).toBe(0.8);
+      expect(Config.instance.roomVolumes.background).toBe(0.3);
+    });
+
+    it('puts a change from another peer on the jukebox straight away', () => {
+      const changed = Config.instance.toContext();
+      attributesOf(changed)['_roomKindVolumes'] = '{"bgm":0.2}';
+      changed.majorVersion += 1;
+
+      Config.instance.apply(changed);
+
+      expect(setNewVolume).toHaveBeenCalled();
+      expect(Config.instance.roomVolumes.bgm).toBe(0.2);
+    });
+  });
+
+  describe('what the room lets its stamps be used for', () => {
+    function attributesOf(context: ObjectContext): Record<string, unknown> {
+      return context.syncData['attributes'] as Record<string, unknown>;
+    }
+
+    afterEach(() => {
+      Config.instance.stampRules = OPEN_STAMP_RULES;
+    });
+
+    it('lets every stamp be used for everything in a room saved before there were rules', () => {
+      Config.instance.stampRules = withStampUseOn(OPEN_STAMP_RULES, 'reaction', false);
+      const older = Config.instance.toContext();
+      delete attributesOf(older)['_stampRules'];
+      older.majorVersion += 1;
+
+      Config.instance.apply(older);
+
+      expect(Config.instance.stampRules).toEqual(OPEN_STAMP_RULES);
+    });
+
+    it('passes the rules on with the rest of the config', () => {
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['seal:ok'], false);
+
+      expect(attributesOf(Config.instance.toContext())['_stampRules']).toBe('{"line":{"deny":["seal:ok"]}}');
+    });
+  });
+
+  describe('whether what a character says shows over its piece', () => {
+    function attributesOf(context: ObjectContext): Record<string, unknown> {
+      return context.syncData['attributes'] as Record<string, unknown>;
+    }
+
+    afterEach(() => {
+      Config.instance.speechBubblesEnabled = true;
+    });
+
+    it('shows it in a room saved before the switch, and in one holding a value it does not know', () => {
+      Config.instance.speechBubblesEnabled = false;
+      const older = Config.instance.toContext();
+      delete attributesOf(older)['_speechBubbles'];
+      older.majorVersion += 1;
+      Config.instance.apply(older);
+      expect(Config.instance.speechBubblesEnabled).toBe(true);
+
+      const newer = Config.instance.toContext();
+      attributesOf(newer)['_speechBubbles'] = 'from-a-newer-version';
+      newer.majorVersion += 1;
+      Config.instance.apply(newer);
+      expect(Config.instance.speechBubblesEnabled).toBe(true);
+    });
+
+    it('passes the room turning it off on with the rest of the config', () => {
+      Config.instance.speechBubblesEnabled = false;
+
+      expect(attributesOf(Config.instance.toContext())['_speechBubbles']).toBe('off');
+      expect(Config.instance.speechBubblesEnabled).toBe(false);
+    });
+  });
+
   describe('how the round is taken', () => {
     it('takes the round one piece at a time until it is told otherwise', () => {
       expect(Config.instance.turnOrderMode).toBe('initiative');
@@ -102,11 +238,20 @@ describe('Config', () => {
         moveDiagonally: null,
         diagonalMove: null,
         piecesShareCells: null,
+        samePartyPassage: null,
+        otherPartyPassage: null,
+        noPartyPassage: null,
+        piecePassageCost: null,
+        sizeSlipsPast: null,
+        squeezes: null,
+        jumpCells: null,
+        handTracesWay: null,
         moveRangeAlways: null,
         zocAlways: null,
         cellDistance: null,
         cellDistanceUnit: null,
         zocMode: null,
+        hostilityBy: null,
         zocRange: null,
         zocExtraCost: null,
         zocEngages: null,
@@ -190,6 +335,115 @@ describe('Config', () => {
 
       expect(Config.instance.moveRangeEnabled).toBe(false);
       expect(Config.instance.cellDistance).toBe(5);
+    });
+  });
+
+  describe('the items the remote controllers show', () => {
+    it('shows every item until the room picks some out', () => {
+      expect(Config.instance.controllerResources).toBeNull();
+    });
+
+    it('returns the pick it is given, a pick of nothing included', () => {
+      Config.instance.controllerResources = ['HP', 'MP'];
+      expect(Config.instance.controllerResources).toEqual(['HP', 'MP']);
+
+      Config.instance.controllerResources = [];
+      expect(Config.instance.controllerResources).toEqual([]);
+    });
+
+    it('goes back to showing everything when the pick is taken away', () => {
+      Config.instance.controllerResources = ['HP'];
+
+      Config.instance.controllerResources = null;
+
+      expect(Config.instance.controllerResources).toBeNull();
+    });
+
+    it('shows everything for a room from an older build, which carries no attribute for it', () => {
+      Config.instance.controllerResources = ['HP'];
+
+      Config.instance.removeAttribute('_controllerResources');
+
+      expect(Config.instance.controllerResources).toBeNull();
+    });
+
+    it('reads the pick back out of the text a loaded room carries', () => {
+      Config.instance.controllerResources = ['HP', '敏捷度'];
+
+      Config.instance.setAttribute('_controllerResources', `${Config.instance.getAttribute('_controllerResources')}`);
+
+      expect(Config.instance.controllerResources).toEqual(['HP', '敏捷度']);
+    });
+  });
+
+  describe('diceStage', () => {
+    const attributesOf = (syncData: unknown) => (syncData as { attributes: Record<string, unknown> }).attributes;
+
+    it('throws no dice anywhere until the room chooses where', () => {
+      expect(Config.instance.diceStage).toBe('off');
+    });
+
+    it('keeps where the room chose', () => {
+      Config.instance.diceStage = 'frame';
+      expect(Config.instance.diceStage).toBe('frame');
+
+      Config.instance.diceStage = 'table';
+      expect(Config.instance.diceStage).toBe('table');
+
+      Config.instance.diceStage = 'both';
+      expect(Config.instance.diceStage).toBe('both');
+    });
+
+    it('writes nowhere as empty, the same as a room that never chose', () => {
+      Config.instance.diceStage = 'table';
+
+      Config.instance.diceStage = 'off';
+
+      expect(Config.instance.getAttribute('_diceStage')).toBe('');
+      expect(Config.instance.toXml()).toContain('_diceStage=""');
+    });
+
+    it('throws nothing in a room from an older build, which carries no attribute for it', () => {
+      Config.instance.diceStage = 'frame';
+
+      Config.instance.removeAttribute('_diceStage');
+
+      expect(Config.instance.diceStage).toBe('off');
+    });
+
+    it('reads the choice back out of the text a loaded room carries', () => {
+      Config.instance.setAttribute('_diceStage', 'table');
+
+      expect(Config.instance.diceStage).toBe('table');
+    });
+
+    it('throws nothing for a value it does not know, such as one a later build might write', () => {
+      Config.instance.setAttribute('_diceStage', 'sky');
+
+      expect(Config.instance.diceStage).toBe('off');
+    });
+
+    it('throws nothing when an older peer sends the config without the setting', () => {
+      Config.instance.diceStage = 'frame';
+      const context = Config.instance.toContext();
+      delete attributesOf(context.syncData)['_diceStage'];
+      context.majorVersion += 1;
+
+      Config.instance.apply(context);
+
+      expect(Config.instance.diceStage).toBe('off');
+    });
+
+    it('keeps the choice when an older peer writes the config back with the attribute it was sent', () => {
+      Config.instance.diceStage = 'table';
+      const echoed = Config.instance.toContext();
+      attributesOf(echoed.syncData)['_defaultDiceBot'] = 'Cthulhu7th';
+      echoed.majorVersion += 1;
+
+      Config.instance.apply(echoed);
+
+      expect(Config.instance.diceStage).toBe('table');
+      expect(Config.instance.defaultDiceBot).toBe('Cthulhu7th');
     });
   });
 

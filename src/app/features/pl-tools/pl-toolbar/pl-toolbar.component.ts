@@ -14,39 +14,36 @@ import { FirstPersonService } from '@axe/application/tabletop/first-person.servi
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { getRangeMenuItems } from '@axe/application/tabletop/tabletop-action-helpers';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
-import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
+import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
+import { MenuLayoutService } from '@axe/application/ui/menu-layout.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
+import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
+import { MenuCommandService, MenuEntryView } from '@axe/features/menu/menu-command.service';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { ActiveCharacterService } from '@axe/features/pl-tools/active-character.service';
 import { isOwnedByUser } from '@axe/features/pl-tools/owned-character-list/owned-characters';
 import { FirstPersonSeat, firstPersonSeats } from '@axe/features/pl-tools/pl-toolbar/first-person-seats';
+import { UiButtonGuideComponent } from '@axe/ui/components/button-guide/button-guide.component';
 import { UiIconButtonComponent } from '@axe/ui/components/icon-button/icon-button.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { turnIndicatorSignal } from '@axe/ui/turn/turn-indicator.signal';
 import { TranslocoModule } from '@jsverse/transloco';
 
-const BUFF_VIEW_ICONS: Record<BuffViewMode, string> = {
-  icon: 'bubble_chart',
-  detail: 'format_list_bulleted',
-  count: 'tag',
-};
-
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-pl-toolbar',
   templateUrl: './pl-toolbar.component.html',
-  imports: [DraggableDirective, SafePipe, TranslocoModule, UiIconButtonComponent],
+  imports: [DraggableDirective, SafePipe, TranslocoModule, UiButtonGuideComponent, UiIconButtonComponent],
 })
 export class PlToolbarComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
@@ -57,12 +54,26 @@ export class PlToolbarComponent {
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly turnOrder = inject(TurnOrderService);
   private readonly tabletopAction = inject(TabletopActionService);
-  protected readonly handRail = inject(HandRailService);
-  protected readonly widgets = inject(WidgetVisibilityService);
   protected readonly active = inject(ActiveCharacterService);
-  private readonly buffViewPreference = inject(BuffViewPreferenceService);
   private readonly firstPerson = inject(FirstPersonService);
   private readonly t = inject(TRANSLATE_FN);
+
+  private readonly menuCommands = inject(MenuCommandService);
+  private readonly barLayout = inject(MenuLayoutService).layoutOf('plToolbar');
+
+  /** The bar as this seat has it arranged, with what it is not offered left out. */
+  protected readonly entries = computed<MenuEntryView[]>(() => this.menuCommands.entriesOf(this.barLayout()));
+
+  /** What is written on an entry, with a word in front where the name alone would not say. */
+  protected entryLabel(entry: MenuEntryView): string {
+    if (entry.label) return entry.label;
+    const name = this.t(entry.labelKey);
+    return entry.prefixKey ? `${this.t(entry.prefixKey)}: ${name}` : name;
+  }
+
+  protected press(entry: MenuEntryView): void {
+    this.menuCommands.run(entry.command);
+  }
 
   protected readonly firstPersonOpen = signal(false);
 
@@ -116,15 +127,26 @@ export class PlToolbarComponent {
     this.firstPerson.enterSeat(identifier);
   }
 
-  protected readonly buffViewIcon = computed(() => BUFF_VIEW_ICONS[this.buffViewPreference.mode()]);
-  protected readonly buffViewLabelKey = computed(() => BUFF_VIEW_LABEL_KEYS[this.buffViewPreference.mode()]);
-
-  protected cycleBuffView(): void {
-    this.buffViewPreference.cycle();
-  }
-
   protected readonly rangeMenuItems = getRangeMenuItems();
   protected readonly rangeOpen = signal(false);
+
+  private readonly folds = inject(ToolbarFoldService);
+
+  /** Whether this seat draws the resource bars and the buffs over the pieces, switched from here. */
+  protected readonly overlay = inject(PieceOverlayPreferenceService);
+
+  /** Whether the bar is folded down to its title. */
+  protected readonly folded = computed(() => this.folds.isFolded('pl'));
+
+  /** Whether the name of every button is written out beside the bar. */
+  protected readonly guide = inject(ButtonGuideService);
+
+  /** Folds the bar down to its title, or opens it again; what was open in it closes with it. */
+  protected toggleFold(): void {
+    this.rangeOpen.set(false);
+    this.firstPersonOpen.set(false);
+    this.folds.toggle('pl');
+  }
 
   private readonly barRef = viewChild<ElementRef<HTMLElement>>('bar');
   private savedLeft: string | null = null;
@@ -134,6 +156,11 @@ export class PlToolbarComponent {
     this.objectChange.trackMyCursor();
     return PeerCursor.myRole === PeerRole.Player;
   });
+
+  private readonly widgets = inject(WidgetVisibilityService);
+
+  /** Drawn for a player who has not hidden it from the widget menu. */
+  protected readonly shown = computed(() => this.isPlayer() && this.widgets.plToolbar());
 
   readonly activeCharacter = computed<GameCharacter | null>(() => {
     const identifier = this.active.identifier();
@@ -155,10 +182,6 @@ export class PlToolbarComponent {
   protected openActiveChatPalette(): void {
     const character = this.activeCharacter();
     if (character) this.objectPanels.openChatPalette(character);
-  }
-
-  protected toggleHandRail(): void {
-    this.handRail.toggle();
   }
 
   protected toggleRangeMenu(): void {
@@ -202,14 +225,6 @@ export class PlToolbarComponent {
   }
 
   protected openOwnedCharacterList(): void {
-    this.roomPanels.open('ownedCharacters', { left: 100, top: 40 });
-  }
-
-  protected openBuffManager(): void {
-    this.roomPanels.open('buffManager', { left: 160, top: 100 });
-  }
-
-  protected openEffectLibrary(): void {
-    this.roomPanels.open('effectLibrary', { left: 140, top: 80 });
+    this.roomPanels.open('ownedCharacters');
   }
 }

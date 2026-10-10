@@ -34,6 +34,10 @@ export function charasheetGameOf(parsed: unknown): string {
   return asString(record['game']).trim().toLowerCase();
 }
 
+/**
+ * The value when it is an array, otherwise an empty one, so a missing column of an archive sheet
+ * reads as no rows.
+ */
 export function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
@@ -67,6 +71,10 @@ export function charasheetCharacterOf(record: Record<string, unknown>, dicebot: 
   return character;
 }
 
+/**
+ * The parameters read from the listed keys of a sheet, in the order listed and under their labels.
+ * A key that holds nothing is left off.
+ */
 export function paramsOf(record: Record<string, unknown>, fields: readonly FieldLabel[]): ImportedParam[] {
   const params: ImportedParam[] = [];
   for (const field of fields) {
@@ -75,6 +83,12 @@ export function paramsOf(record: Record<string, unknown>, fields: readonly Field
   return params;
 }
 
+/**
+ * Pairs the names in one array with the cells at the same index in the column arrays, a group per
+ * named row.
+ *
+ * A row with a blank name is dropped, as is a cell that holds nothing. Null when no row has a name.
+ */
 export function buildParallelSection(
   label: string,
   nameKey: string,
@@ -118,6 +132,12 @@ export function buildPrefixedSection(
   );
 }
 
+/**
+ * Gathers the sheet's remaining scalar keys into an `その他` section, under their raw key names.
+ *
+ * Keys the profile already handles, as `isStructuredKey` answers, and arrays are left out. Null
+ * when nothing is left.
+ */
 export function buildOtherSection(
   record: Record<string, unknown>,
   isStructuredKey: (key: string) => boolean

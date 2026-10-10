@@ -12,6 +12,7 @@ export class DiceBotCatalogService {
     diceBotCatalog$.subscribe(() => this._infos.set(DiceBot.diceBotInfos), inject(DestroyRef));
   }
 
+  /** Loads the list of dice systems if it has not been loaded yet; `infos` updates when it arrives. */
   load(): Promise<void> {
     return DiceBot.ensureLoaded();
   }

@@ -11,17 +11,17 @@ const narrow = withBase('/images/screenshots/mobile.webp');
     <img
       class="heroshot__wide"
       :src="wide"
-      alt="Udonarium Axe の画面。森を俯瞰したテーブルにコマが並び、左にチャットウィンドウが開いている"
+      alt="Udonarium Axeの画面。森を俯瞰したテーブルにコマが並び、左にチャットウィンドウが開いている"
       fetchpriority="high"
       decoding="async"
     />
     <img
       class="heroshot__narrow"
       :src="narrow"
-      alt="スマートフォンでの Udonarium Axe。上半分がテーブル、下半分がチャット"
+      alt="スマートフォンでのUdonarium Axe。上半分がテーブル、下半分がチャット"
       decoding="async"
     />
-    <figcaption>コマもチャットもダイスも、この 1 画面で。スマートフォンでは専用のレイアウトに切り替わります</figcaption>
+    <figcaption>コマもチャットもダイスも、この1画面で。スマートフォンでは専用のレイアウトに切り替わります</figcaption>
   </figure>
 </template>
 

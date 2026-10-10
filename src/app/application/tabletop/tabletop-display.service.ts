@@ -30,6 +30,7 @@ export class TabletopDisplayService {
     return resolveTabletopDisplay(this.tabletop.currentTable, this.seat.own());
   }
 
+  /** Changes settings for this screen alone, remembered in this browser. */
   set(patch: Partial<TabletopDisplaySettings>): void {
     this.seat.set(patch);
   }
@@ -39,6 +40,7 @@ export class TabletopDisplayService {
     this.seat.forgetOnly(keys);
   }
 
+  /** Lets go of every setting this screen was given, so the table answers for all of them again. */
   forget(): void {
     this.seat.forget();
   }

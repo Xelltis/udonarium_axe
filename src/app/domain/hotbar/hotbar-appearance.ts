@@ -1,4 +1,5 @@
 import { resolveBuffColor } from '@axe/domain/character/buff-appearance';
+import { parseEffectChatToken } from '@axe/domain/effect/effect-chat-token';
 import { HotbarSlotKind } from '@axe/domain/hotbar/hotbar-slot-kind';
 
 const KIND_ICONS: Record<HotbarSlotKind, string> = {
@@ -34,8 +35,14 @@ const KIND_COLORS: Record<HotbarSlotKind, string> = {
 };
 
 const DICE_PATTERN = /\d*[dD]\d+/;
-const EFFECT_TOKEN_PATTERN = /《.+》/;
 
+/**
+ * The icon name a slot shows on the bar.
+ *
+ * An icon the reader chose wins. Otherwise each kind has its own, and a chat slot picks one
+ * from its first line: a stand-in for `:` commands, magic for `&`, sparkles for an effect in
+ * 《》, a die for a dice roll, and a speech bubble for anything else.
+ */
 export function hotbarSlotIcon(kind: HotbarSlotKind, argument: string, icon = ''): string {
   const held = icon.trim();
   if (held.length > 0) return held;
@@ -43,6 +50,7 @@ export function hotbarSlotIcon(kind: HotbarSlotKind, argument: string, icon = ''
   return chatMacroIcon(argument);
 }
 
+/** The colour a slot is drawn in: the one the reader chose when it resolves, or the colour of its kind. */
 export function hotbarSlotColor(kind: HotbarSlotKind, color = ''): string {
   const resolved = resolveBuffColor(color);
   return resolved.length > 0 ? resolved : KIND_COLORS[kind];
@@ -70,7 +78,7 @@ function chatMacroIcon(argument: string): string {
   const text = firstLine(argument);
   if (text.startsWith(':')) return 'favorite';
   if (text.startsWith('&')) return 'auto_fix_high';
-  if (EFFECT_TOKEN_PATTERN.test(text)) return 'auto_awesome';
+  if (parseEffectChatToken(text)) return 'auto_awesome';
   if (DICE_PATTERN.test(text)) return 'casino';
   return KIND_ICONS.chat;
 }

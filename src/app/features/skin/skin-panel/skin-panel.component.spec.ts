@@ -5,7 +5,15 @@ import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { STANDARD_TOKENS } from '@axe/domain/ui/skin-standard';
 import { SkinPanelComponent } from '@axe/features/skin/skin-panel/skin-panel.component';
 
-const KEYS = ['ui-theme', 'ui-skin-light', 'ui-skin-dark', 'ui-skin-recipe-light', 'ui-skin-recipe-dark'];
+const KEYS = [
+  'ui-theme',
+  'ui-skin-light',
+  'ui-skin-dark',
+  'ui-skin-recipe-light',
+  'ui-skin-recipe-dark',
+  'ui-skin-mat-light',
+  'ui-skin-mat-dark',
+];
 
 describe('SkinPanelComponent', () => {
   let fixture: ComponentFixture<SkinPanelComponent>;
@@ -42,8 +50,8 @@ describe('SkinPanelComponent', () => {
 
   it('sets the names the utility classes read, not only the theme tokens', () => {
     // `--color-ui-bg: var(--ui-bg)` resolves on the root, and what descendants inherit is
-    // the value it resolved to there. Setting only `--ui-bg` on the stage left every
-    // bg-ui-* inside it showing whatever the app itself was wearing.
+    // the value it resolved to there. Setting only `--ui-bg` on the stage would leave every
+    // bg-ui-* inside it showing whatever the app itself is wearing.
     skins.editLadder('dark');
     fixture.detectChanges();
 
@@ -98,6 +106,14 @@ describe('SkinPanelComponent', () => {
     swatch.dispatchEvent(new Event('mouseleave'));
     fixture.detectChanges();
     expect(stageColour('--ui-bg')).toBe(STANDARD_TOKENS.light['--ui-bg']);
+  });
+
+  it('lays the mat being dressed under the dice in the preview', () => {
+    skins.setMatColor('#1f4d3a');
+    fixture.detectChanges();
+
+    const mat: HTMLElement = fixture.nativeElement.querySelector('[data-testid="skin-preview-mat"]');
+    expect(mat.dataset['mat']).toBe('#1f4d3a');
   });
 
   it('puts back what the seat was wearing when it opened', () => {

@@ -1,4 +1,6 @@
 import { DungeonPropId } from '@axe/domain/media/texture-catalog';
+import { HazardKind } from '@axe/domain/tabletop/hazard-presets';
+import { TrapKind } from '@axe/domain/tabletop/trap-presets';
 
 /** What a thing is made of: one of the bundled pictures, or one out of the image storage. */
 export type MapMaterial = { kind: 'texture'; id: string } | { kind: 'library'; identifier: string };
@@ -70,7 +72,15 @@ export interface MapBlock {
   doorStyle?: string;
   /** Whether this one opens the other way round, which is what makes a pair of doors a pair. */
   doorMirrored?: boolean;
+  /** Whether a door is dressed as the wall it stands in rather than as a door. */
+  disguised?: boolean;
   name?: string;
+  /**
+   * What it is - a tree, a counter, a building - which is what it is called on the table.
+   *
+   * Left out, it is called after its kind: a wall, a door, a stair.
+   */
+  thing?: string;
 }
 
 /**
@@ -84,15 +94,45 @@ export interface MapPaint {
   rect: MapRect;
   /** The ground of a field changes from patch to patch, so a patch may name its own. */
   material?: MapMaterial;
+  /**
+   * What the patch is, where it is dangerous ground rather than only a picture of it.
+   *
+   * A pool of lava that merely looks like lava costs nothing to wade and burns nobody. Named
+   * here, the table is given the going and the burning as well as the look.
+   */
+  hazard?: HazardKind;
 }
 
-export type MapLightKind = 'sconce' | 'campfire' | 'brazier' | 'stand' | 'lantern';
+/** A trap set on one cell of the board, which the table is given as ground that goes off. */
+export interface MapTrap extends MapPoint {
+  kind: TrapKind;
+}
+
+export type MapLightKind =
+  'sconce' | 'campfire' | 'brazier' | 'stand' | 'lantern' | 'neon' | 'streetlamp' | 'fluorescent' | 'neonpole';
 
 export interface MapLight extends MapPoint {
   kind: MapLightKind;
   room: number;
   /** Which way it throws its light, measured away from whatever it is fixed to. */
   facing: number;
+  /** The colour it burns, where it is not the colour a light of its kind usually is. */
+  color?: string;
+}
+
+/**
+ * Which lights a place is lit by, where it is not lit by fire.
+ *
+ * A dungeon puts a bracket on the wall where a room is cramped and a fire in the middle where
+ * it is roomy; a bar is lit by tubes on the wall whatever the size of the room.
+ */
+export interface MapLighting {
+  /** What is fixed to a wall, taken in turn. */
+  wall: readonly MapLightKind[];
+  /** What stands out in the open, taken in turn. Left empty, the wall lights go everywhere. */
+  open: readonly MapLightKind[];
+  /** The colours they burn, taken in turn. Left out, each burns the colour of its kind. */
+  colors?: readonly string[];
 }
 
 /** An effect laid over a patch of the board and left there: a poisoned pool, a vent, a mire. */
@@ -107,6 +147,7 @@ export interface MapBlocks {
   blocks: MapBlock[];
   paint: MapPaint[];
   ambiences: MapAmbience[];
+  traps: MapTrap[];
   torchRooms: number[];
   torchSpots: MapPoint[];
   lights: MapLight[];
@@ -126,6 +167,10 @@ export const MAP_HEAVY_TERRAINS = 350;
 /** What one terrain costs to sync: itself, the five it is built from, and its six values. */
 export const SYNC_OBJECTS_PER_TERRAIN = 12;
 
+/**
+ * How many synced objects laying these blocks on a table would make, so the generator can warn
+ * before a map gets too heavy.
+ */
 export function syncObjectCount(blocks: readonly MapBlock[]): number {
   return blocks.length * SYNC_OBJECTS_PER_TERRAIN;
 }

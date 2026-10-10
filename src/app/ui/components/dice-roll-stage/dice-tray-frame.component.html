@@ -1,0 +1,16 @@
+<div
+  class="rounded-ui-sm relative block w-full max-w-104 overflow-hidden shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]"
+  data-testid="dice-roll-stage"
+  [style.aspect-ratio]="frame().aspect"
+  [attr.data-state]="frame().diceThrow?.phase ?? 'waiting'"
+  [attr.data-shown]="frame().diceThrow?.shown?.join(' ') ?? ''"
+  [attr.data-material]="frame().diceThrow?.look?.material ?? null"
+  [attr.data-picture-fit]="frame().diceThrow?.look?.picture ? frame().diceThrow?.look?.pictureFit : null"
+  [attr.data-mat]="mat().color"
+>
+  <dice-mat [mat]="mat()" />
+  <canvas #canvas class="relative block size-full"></canvas>
+  @if (frame().overflow > 0) {
+    <span class="absolute right-1.5 bottom-1 text-[11px] font-semibold text-white/75">+{{ frame().overflow }}</span>
+  }
+</div>

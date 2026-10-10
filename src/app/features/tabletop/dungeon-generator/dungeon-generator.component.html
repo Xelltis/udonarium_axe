@@ -349,6 +349,38 @@
     </div>
 
     <div>
+      <label class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase" for="traps">
+        {{ 'feature.tabletop.dungeonGenerator.props.traps' | transloco }}
+      </label>
+      <div class="flex items-center gap-2">
+        <input
+          class="min-w-0 flex-1"
+          id="traps"
+          name="traps"
+          type="range"
+          min="0"
+          [max]="maxTraps"
+          step="1"
+          [ngModel]="trapCount()"
+          (ngModelChange)="trapCount.set($event)"
+        />
+        <input
+          class="border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent rounded-ui-sm w-16 shrink-0 border border-solid px-2 py-1.5 text-center text-[13px] outline-none"
+          name="traps-number"
+          type="number"
+          min="0"
+          [max]="maxTraps"
+          step="1"
+          [ngModel]="trapCount()"
+          (ngModelChange)="trapCount.set($event)"
+        />
+      </div>
+      <div class="text-ui-muted mt-1 text-[0.75rem]">
+        {{ 'feature.tabletop.dungeonGenerator.status.traps' | transloco }}
+      </div>
+    </div>
+
+    <div>
       <label class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase" for="muster">
         {{ 'feature.tabletop.dungeonGenerator.props.muster' | transloco }}
       </label>

@@ -1,3 +1,4 @@
+import { backgroundSoundLevel } from '@axe/domain/media/background-sound-level';
 import {
   diffSyncData,
   flattenSyncData,
@@ -31,6 +32,7 @@ export interface ObjectChangeInput {
 
 export const REPLAY_IGNORED_EVENT_NAMES: ReadonlySet<string> = new Set([
   'CURSOR_MOVE',
+  'DICE_THROW',
   'HEART_BEAT',
   'WRITING_A_MESSAGE',
   'WRITING_A_MESSAGE_DETAIL',
@@ -54,11 +56,13 @@ const CHAT_ALIAS = 'chat';
 const DATA_ALIAS = 'data';
 const CUT_IN_LAUNCHER_ALIAS = 'cut-in-launcher';
 const JUKEBOX_ALIAS = 'jukebox';
+const BACKGROUND_SOUND_ALIAS = 'background-sound';
 const VN_STAGE_ALIAS = 'vn-stage';
 const TURN_STATE_ALIAS = 'TurnState';
 const VOTE_ALIAS = 'Vote';
 const GAME_TABLE_ALIAS = 'game-table';
 const PEER_CURSOR_ALIAS = 'PeerCursor';
+const TABLE_SELECTER_ALIAS = 'TableSelecter';
 
 const TABLE_SCENE_KEYS: readonly string[] = [
   'imageIdentifier',
@@ -79,6 +83,11 @@ const CHAT_ONLY_KINDS: ReadonlySet<ReplayEventKind> = new Set([
   ReplayEventKind.Marker,
 ]);
 
+/**
+ * Whether a network event is left out of the recording.
+ *
+ * Besides the listed names, all file transfer, audio transfer and task cancel traffic is left out.
+ */
 export function isIgnoredReplayEvent(eventName: string): boolean {
   if (REPLAY_IGNORED_EVENT_NAMES.has(eventName)) return true;
   return eventName.startsWith('FILE_') || eventName.startsWith('AUDIO_') || eventName.startsWith('CANCEL_TASK_');
@@ -95,12 +104,24 @@ export function shouldDiffObjectChange(level: ReplayDetailLevel, aliasName: stri
   return isNew && aliasName === CHAT_ALIAS;
 }
 
+/**
+ * Whether events of this kind are kept at the given level of detail.
+ *
+ * Full keeps everything, chat only keeps chat lines, dice lines and markers, and notable keeps
+ * everything but bare object updates.
+ */
 export function isRecordableKind(kind: ReplayEventKind, level: ReplayDetailLevel): boolean {
   if (level === ReplayDetailLevel.Full) return true;
   if (level === ReplayDetailLevel.ChatOnly) return CHAT_ONLY_KINDS.has(kind);
   return kind !== ReplayEventKind.ObjectUpdate;
 }
 
+/**
+ * Turns a change to an object into a draft event, carrying a patch of just the fields that
+ * changed, attribute by attribute.
+ *
+ * Null when nothing actually changed.
+ */
 export function interpretObjectChange(input: ObjectChangeInput): ReplayDraft | null {
   const diff = diffSyncData(input.before ? flattenSyncData(input.before) : null, flattenSyncData(input.after));
   if (!diff) return null;
@@ -115,10 +136,18 @@ export function interpretObjectChange(input: ObjectChangeInput): ReplayDraft | n
   return { ...draft, targetIdentifier: draft.targetIdentifier ?? input.identifier, patch };
 }
 
+/** The draft event for an object taken out of the room, naming what kind of object it was. */
 export function interpretObjectRemove(identifier: string, aliasName: string): ReplayDraft {
   return { kind: ReplayEventKind.ObjectRemove, targetIdentifier: identifier, detail: { aliasName } };
 }
 
+/**
+ * Turns a network event into a draft event for the recording.
+ *
+ * Dice and coin rolls, shuffles, sound effects, effect casts, table changes, resource changes,
+ * visual novel mode and peers joining or leaving are understood. Resource changes and peers
+ * coming and going carry no signal to play back. Null for any other event.
+ */
 export function interpretSignal(eventName: string, data: unknown): ReplayDraft | null {
   const record = (data ?? {}) as Record<string, unknown>;
   const signal: ReplaySignal = { name: eventName, data };
@@ -212,6 +241,14 @@ function describeChange(
       kind: ReplayEventKind.PeerRoleChange,
       detail: { role: asString(syncValueOf(after, 'role')), name: asString(syncValueOf(after, 'name')) },
     };
+  }
+  if (aliasName === TABLE_SELECTER_ALIAS && before && hasChangedKey(keys, 'viewTableIdentifier')) {
+    const table = describeTableChange(before, after);
+    if (table) return table;
+  }
+  if (aliasName === BACKGROUND_SOUND_ALIAS) {
+    const sound = describeBackgroundSound(before, after, keys);
+    if (sound) return sound;
   }
   if (!before) return { kind: ReplayEventKind.ObjectCreate, detail: { aliasName } };
 
@@ -351,6 +388,24 @@ function describeBgm(
   };
 }
 
+/**
+ * A background sound started or stopped: one first sent already playing, or one switched on or off.
+ * A change of its volume alone is left to the patch.
+ */
+function describeBackgroundSound(
+  before: SyncData | null,
+  after: SyncData,
+  keys: ReadonlySet<string>
+): { kind: ReplayEventKind; detail: Record<string, unknown>; targetIdentifier?: string } | null {
+  const isPlaying = syncValueOf(after, 'isPlaying') === true;
+  if (before ? !hasChangedKey(keys, 'isPlaying') : !isPlaying) return null;
+  return {
+    kind: ReplayEventKind.MediaBackgroundSound,
+    targetIdentifier: asString(syncValueOf(after, 'audioIdentifier')),
+    detail: { isPlaying, volume: backgroundSoundLevel(syncValueOf(after, 'volume')) },
+  };
+}
+
 function describeCutIn(
   before: SyncData,
   after: SyncData,
@@ -389,6 +444,21 @@ function describeChatMessage(after: SyncData): { kind: ReplayEventKind; detail: 
   };
   const kind = from === DICEBOT_SENDER ? ReplayEventKind.ChatDice : ReplayEventKind.ChatMessage;
   return { kind, detail };
+}
+
+/**
+ * The switch to another table, told by the table everyone is now shown.
+ *
+ * The first table taken up, from none, is where the room begins rather than a switch.
+ */
+function describeTableChange(
+  before: SyncData,
+  after: SyncData
+): { kind: ReplayEventKind; detail: Record<string, unknown>; targetIdentifier: string } | null {
+  const from = asString(syncValueOf(before, 'viewTableIdentifier'));
+  const to = asString(syncValueOf(after, 'viewTableIdentifier'));
+  if (from.length < 1 || to.length < 1) return null;
+  return { kind: ReplayEventKind.TableChange, targetIdentifier: to, detail: { from, to } };
 }
 
 function describeMove(before: SyncData, after: SyncData): { kind: ReplayEventKind; detail: Record<string, unknown> } {

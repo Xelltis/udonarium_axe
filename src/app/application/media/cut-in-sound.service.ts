@@ -85,7 +85,7 @@ export class CutInSoundService {
     if (!audio) return;
 
     const player = this.playerFor(session, sound.a);
-    player.volumeType = VolumeType.SE;
+    player.volumeType = VolumeType.CUT_IN;
     player.loop = false;
     player.volume = Math.min(1, Math.max(0, sound.v / 100));
     player.play(audio);

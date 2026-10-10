@@ -32,11 +32,20 @@ export function gaugeNumbersOf(gauge: PieceGauge, readable: boolean): string {
   return readable ? `${gauge.current}/${gauge.max}` : HIDDEN_GAUGE_NUMBERS;
 }
 
+/**
+ * How full a bar stands, from 0 to 1. Zero when either number is not finite or the maximum is not
+ * above zero.
+ */
 export function gaugeRatio(current: number, max: number): number {
   if (!Number.isFinite(current) || !Number.isFinite(max) || max <= 0) return 0;
   return Math.min(1, Math.max(0, current / max));
 }
 
+/**
+ * The bar colour for how full it stands: green, amber at half or below, red at a quarter or below.
+ *
+ * An inverted resource is judged by the room left above it, so it turns red as it fills.
+ */
 export function gaugeColor(ratio: number, inverted = false): string {
   const remaining = inverted ? 1 - ratio : ratio;
   if (remaining <= LOW_THRESHOLD) return LOW_COLOR;
@@ -44,6 +53,7 @@ export function gaugeColor(ratio: number, inverted = false): string {
   return FULL_COLOR;
 }
 
+/** Whether the resource is set to show as a bar on its piece. */
 export function isGaugeShownOnPiece(element: DataElement): boolean {
   return element.getAttribute(DataElementAttribute.PIECE_GAUGE) === 'true';
 }

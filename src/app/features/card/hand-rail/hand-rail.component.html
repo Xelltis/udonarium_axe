@@ -96,6 +96,19 @@
                       >visibility_off</i
                     >
                   </button>
+
+                  @if (giveTargets().length > 0) {
+                    <button
+                      class="rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex h-5 transform-none cursor-pointer items-center justify-center border-none bg-transparent px-1 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+                      [ngClass]="isTouch() ? 'h-8! px-3!' : ''"
+                      [title]="'feature.card.hand.give' | transloco"
+                      [attr.aria-label]="'feature.card.hand.give' | transloco"
+                      data-testid="hand-card-give"
+                      (click)="openGiveMenu($event, card)"
+                    >
+                      <i class="material-icons text-[13px]!" [ngClass]="isTouch() ? 'text-[18px]!' : ''">send</i>
+                    </button>
+                  }
                 </div>
               }
             </div>

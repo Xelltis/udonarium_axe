@@ -1,4 +1,5 @@
 import { ComponentRef, Injectable, reflectComponentType, signal, ViewContainerRef } from '@angular/core';
+import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { isTabbablePanel } from '@axe/application/ui/panel-drag-helpers';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { Logger } from '@axe/core/logging/logger';
@@ -119,6 +120,8 @@ export interface PanelFrame {
   frameSize: () => { width: number; height: number };
   /** Where the frame is standing right now, read off the screen rather than off the panel. */
   framePlace: () => { left: number; top: number };
+  /** The document the frame is drawn in, which is another window's once it has been taken out. */
+  frameDocument: () => Document;
   /** The frame goes, whatever it is holding. */
   dismissFrame: () => void;
 }
@@ -144,6 +147,11 @@ export class PanelService {
   static UIPanelComponentClass: { new (...args: unknown[]): PanelFrame } = null!;
   static chatPortraitComponentClass: Type<unknown> | null = null;
   static cardStackListComponentClass: Type<unknown> | null = null;
+  /**
+   * Told when the code of a panel opened by `openLazy` cannot be fetched, which after a release
+   * means the page wants reloading. The app sets it; nothing is told while it is unset.
+   */
+  static loadFailureNotice: (() => void) | null = null;
   private frame: PanelFrame | null = null;
   private actionRotationDegrees: PanelRotationDegrees = 0;
   private static readonly singles = new Map<string, PanelService>();
@@ -159,6 +167,7 @@ export class PanelService {
    */
   private static readonly singlesVersion = signal(0);
   private readonly _title = signal('');
+  /** The title shown in the panel's title bar. */
   get title(): string {
     return this._title();
   }
@@ -167,6 +176,7 @@ export class PanelService {
   }
 
   private readonly _titleTooltip = signal('');
+  /** Tooltip text shown over the panel's title. Empty for none. */
   get titleTooltip(): string {
     return this._titleTooltip();
   }
@@ -184,9 +194,16 @@ export class PanelService {
   /** Zero for a panel that takes its turn among the others, which is nearly all of them. */
   layer: number = 0;
   invisible: boolean = false;
+  /**
+   * Whether the title bar's minimise button shrinks this panel to its content rather than folding
+   * it to its bar, for a panel whose content is all there is to it.
+   */
   minimizeToContent: boolean = false;
   frameless: boolean = false;
+  /** Whether the panel is folded to its title bar. */
   readonly isMinimized = signal(false);
+  /** Whether the panel is shrunk to its content, which the content asks for with `shrinkRequest$`. */
+  readonly isShrunk = signal(false);
   /** Buttons the content put in the title bar, beside the ones every panel wears. */
   readonly headerControls = signal<readonly PanelHeaderControl[]>([]);
 
@@ -216,6 +233,7 @@ export class PanelService {
    */
   readonly activated$ = new EventChannel<void>();
   private readonly _chatTab = signal<ChatTab | null>(null);
+  /** The chat tab a chat window panel is showing, or null for a panel that shows none. */
   get chatTab(): ChatTab | null {
     return this._chatTab();
   }
@@ -230,26 +248,36 @@ export class PanelService {
    * Asks the frame to grow to a size, or to give back the one it had.
    *
    * The frame owns the size - it is written on the panel's own element and remembered across a
-   * shrink - so the content asks rather than writing it, the way it asks to be minimised.
+   * shrink - so the content asks rather than writing it, the way it asks to be shrunk.
    */
   readonly resizeRequest$ = new EventChannel<{ width: number; height: number } | null>();
   /**
-   * Asks the frame to shrink the panel, or to let it out again.
+   * Asks the frame to shrink the panel to its content, or to let it out again.
    *
-   * Shrinking is the frame's own doing - it puts the panel's size aside to give back - so the
-   * content asks rather than writing `isMinimized` itself, which would leave the panel its
-   * full size with nothing drawn in it.
+   * Shrunk to its content is a way of showing the panel that the content chooses, as the inventory
+   * does for the turn order alone. It is apart from minimising, which folds any panel to its bar
+   * from the title bar. Shrinking is the frame's own doing - it puts the panel's size aside to give
+   * back - so the content asks rather than writing `isShrunk` itself.
    */
-  readonly minimizeRequest$ = new EventChannel<boolean>();
+  readonly shrinkRequest$ = new EventChannel<boolean>();
+  /** Whether this panel still stands in a frame, which stops being true once it is closed. */
   get isShow(): boolean {
     return this.frame !== null;
   }
 
+  /**
+   * Offers the element that scrolls for this panel, unless the content has already claimed one of
+   * its own.
+   */
   setDefaultScrollablePanel(panel: HTMLDivElement): void {
     if (this.isScrollablePanelClaimed) return;
     this.scrollablePanel = panel;
   }
 
+  /**
+   * Makes an element the panel's scrolling area for good, so the frame's default can no longer
+   * replace it.
+   */
   claimScrollablePanel(panel: HTMLDivElement): void {
     this.isScrollablePanelClaimed = true;
     this.scrollablePanel = panel;
@@ -290,9 +318,30 @@ export class PanelService {
     return PanelService.opening.has(name) || PanelService.singles.has(name);
   }
 
+  /**
+   * The layer of the window this panel stands in, for what it opens, or nothing on the table.
+   *
+   * A panel opened from a panel in a window of its own belongs over there with it. Put on the
+   * table instead, it opens in a window the reader is not looking at and has to be fetched back
+   * across to be put away.
+   */
+  private windowLayer(): ViewContainerRef | null {
+    return OverlayLayers.layerFor(this.frame?.frameDocument());
+  }
+
+  /**
+   * Opens a component in a new panel frame and returns the component instance.
+   *
+   * Without a parent container, a panel opened from a panel in a detached window opens in that
+   * window, and anywhere else on the table. A `single` name closes the panel already holding it
+   * first. A rotation set by `runWithInitialRotation` applies when the option names none, and the
+   * position is kept inside the viewport.
+   */
   open<T>(childComponent: Type<T>, option?: PanelOption, parentViewContainerRef?: ViewContainerRef): T {
+    const windowLayer = parentViewContainerRef ? null : this.windowLayer();
+    if (windowLayer) option = { ...option, windowed: true };
     if (!parentViewContainerRef) {
-      parentViewContainerRef = PanelService.defaultParentViewContainerRef;
+      parentViewContainerRef = windowLayer ?? PanelService.defaultParentViewContainerRef;
     }
     const injector = parentViewContainerRef.injector;
 
@@ -350,6 +399,13 @@ export class PanelService {
     return panelComponentRef.instance;
   }
 
+  /**
+   * Fetches a panel component and opens it once it arrives, running `setup` on the instance.
+   *
+   * A `single` name counts as open while the code is on its way, so `closeSingle` in the meantime
+   * stops it opening at all. A failed fetch is logged, opens nothing and goes to
+   * `loadFailureNotice`; a panel that arrives but fails to open is only logged.
+   */
   openLazy<T>(
     factory: () => Promise<Type<T>>,
     option?: PanelOption,
@@ -366,16 +422,22 @@ export class PanelService {
     }
 
     factory()
-      .then((childComponent) => {
-        // Asked to close while it was being fetched, it never opens at all.
-        if (single && !PanelService.opening.delete(single)) return;
+      .then(
+        (childComponent) => {
+          // Asked to close while it was being fetched, it never opens at all.
+          if (single && !PanelService.opening.delete(single)) return;
 
-        const instance = this.open(childComponent, inheritedOption, parentViewContainerRef);
-        setup?.(instance);
-      })
+          const instance = this.open(childComponent, inheritedOption, parentViewContainerRef);
+          setup?.(instance);
+        },
+        (reason) => {
+          // The name is let go of as well, or nothing under it could ever be opened again.
+          if (single) PanelService.opening.delete(single);
+          Logger.error('[PanelService] パネルを読み込めませんでした', reason);
+          PanelService.loadFailureNotice?.();
+        }
+      )
       .catch((reason) => {
-        // The name is let go of as well, or nothing under it could ever be opened again.
-        if (single) PanelService.opening.delete(single);
         Logger.error('[PanelService] パネルを開けませんでした', reason);
       })
       .finally(() => {
@@ -383,6 +445,13 @@ export class PanelService {
       });
   }
 
+  /**
+   * Runs an action so that panels it opens face the given side of the table, unless their option
+   * names a rotation.
+   *
+   * Menus on a table seen from above wrap their actions in this. The previous rotation is put back
+   * afterwards.
+   */
   runWithInitialRotation<T>(rotationDegrees: PanelRotationDegrees, action: () => T): T {
     const previous = this.actionRotationDegrees;
     this.actionRotationDegrees = rotationDegrees;
@@ -426,6 +495,13 @@ export class PanelService {
     return { ...option, rotationDegrees };
   }
 
+  /**
+   * Moves a panel's requested position so the panel stays on screen.
+   *
+   * The size falls back to the given panel's where the option leaves it out. A panel turned
+   * sideways is kept on screen by its turned footprint, and centred where that does not fit.
+   * Outside a browser the option comes back as it is.
+   */
   static clampPanelOptionToViewport(option: PanelOption, fallback: PanelService): PanelOption {
     if (typeof window === 'undefined') return option;
     const width = option.width ?? fallback.width;
@@ -493,6 +569,7 @@ export class PanelService {
     this.frame = frame;
   }
 
+  /** Puts this panel away through its frame. Does nothing once it is already closed. */
   close() {
     const frame = this.frame;
     if (!frame) return;

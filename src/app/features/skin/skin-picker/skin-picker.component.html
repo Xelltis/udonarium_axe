@@ -201,12 +201,13 @@
               {{ 'feature.skin.fit' | transloco }}
               <select
                 class="rounded-ui-sm border-ui-border-input bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[11px]"
-                [value]="layer.fit"
+                [name]="'skin-layer-fit-' + index"
+                [ngModel]="layer.fit"
                 [attr.data-testid]="'skin-layer-fit-' + index"
-                (change)="setFit(layer.id, $any($event.target).value)"
+                (ngModelChange)="setFit(layer.id, $event)"
               >
                 @for (fit of fits; track fit) {
-                  <option [value]="fit">{{ 'feature.skin.fit_' + fit | transloco }}</option>
+                  <option [ngValue]="fit">{{ 'feature.skin.fit_' + fit | transloco }}</option>
                 }
               </select>
             </label>
@@ -214,12 +215,13 @@
               {{ 'feature.skin.anchor' | transloco }}
               <select
                 class="rounded-ui-sm border-ui-border-input bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[11px]"
-                [value]="layer.anchor"
+                [name]="'skin-layer-anchor-' + index"
+                [ngModel]="layer.anchor"
                 [attr.data-testid]="'skin-layer-anchor-' + index"
-                (change)="setAnchor(layer.id, $any($event.target).value)"
+                (ngModelChange)="setAnchor(layer.id, $event)"
               >
                 @for (anchor of anchors; track anchor) {
-                  <option [value]="anchor">{{ 'feature.skin.anchor_' + anchor | transloco }}</option>
+                  <option [ngValue]="anchor">{{ 'feature.skin.anchor_' + anchor | transloco }}</option>
                 }
               </select>
             </label>
@@ -242,6 +244,117 @@
       <p class="text-ui-dim m-0 text-[11px] leading-relaxed">
         {{ 'feature.skin.sizeHint' | transloco: { wide: wide, tall: tall, tile: tile } }}
       </p>
+    </div>
+
+    <div class="border-ui-border-separator flex flex-col gap-2 border-t border-solid pt-2" data-testid="skin-mat">
+      <span class="text-ui-muted text-[10px] font-semibold tracking-[0.08em] uppercase">{{
+        'feature.skin.mat' | transloco
+      }}</span>
+
+      <div class="flex flex-wrap items-center gap-1.5">
+        @for (color of matColors; track color) {
+          <button
+            type="button"
+            class="rounded-ui-sm size-5 shrink-0 cursor-pointer border border-solid border-black/25 p-0 transition-transform hover:scale-125"
+            [class]="mat().color === color ? 'shadow-[0_0_0_2px_var(--ui-accent)]' : ''"
+            [style.background-color]="color"
+            [attr.aria-label]="color"
+            [attr.data-testid]="'skin-mat-color-' + $index"
+            (click)="setMatColor(color)"
+          ></button>
+        }
+        <input
+          class="rounded-ui-sm h-5 w-7 shrink-0 cursor-pointer border border-solid border-black/25 p-0"
+          type="color"
+          name="skin-mat-color"
+          data-testid="skin-mat-color"
+          [value]="mat().color"
+          [title]="'feature.skin.matColor' | transloco"
+          (change)="setMatColor($any($event.target).value)"
+        />
+      </div>
+
+      @if (mat().layer; as layer) {
+        <div class="border-ui-border-panel rounded-ui-sm flex flex-col gap-1.5 border border-solid p-2">
+          <div class="flex items-center gap-1.5">
+            <span class="text-ui-text min-w-0 flex-1 truncate text-[12px]">{{
+              layer.name || ('feature.skin.picture' | transloco)
+            }}</span>
+            <button
+              type="button"
+              class="rounded-ui-sm text-ui-dim hover:text-ui-danger cursor-pointer border-none bg-transparent px-1 text-[13px] leading-none"
+              [attr.aria-label]="'feature.skin.dropPicture' | transloco"
+              data-testid="skin-mat-drop"
+              (click)="dropMatPicture()"
+            >
+              ×
+            </button>
+          </div>
+
+          <label class="text-ui-text flex items-center gap-2 text-[11px] select-none">
+            <span class="w-[5em] shrink-0">{{ 'feature.skin.opacity' | transloco }}</span>
+            <input
+              type="range"
+              class="flex-1 [accent-color:var(--ui-accent)]"
+              min="0"
+              max="100"
+              step="5"
+              [value]="layer.opacity"
+              data-testid="skin-mat-opacity"
+              (input)="setMatOpacity($any($event.target).value)"
+            />
+            <span class="text-ui-muted w-[2.5em] shrink-0 text-right text-[10px] tabular-nums">{{
+              layer.opacity
+            }}</span>
+          </label>
+
+          <div class="flex flex-wrap items-center gap-1.5">
+            <label class="text-ui-muted flex items-center gap-1 text-[11px]">
+              {{ 'feature.skin.fit' | transloco }}
+              <select
+                class="rounded-ui-sm border-ui-border-input bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[11px]"
+                name="skin-mat-fit"
+                [ngModel]="layer.fit"
+                data-testid="skin-mat-fit"
+                (ngModelChange)="setMatFit($event)"
+              >
+                @for (fit of fits; track fit) {
+                  <option [ngValue]="fit">{{ 'feature.skin.fit_' + fit | transloco }}</option>
+                }
+              </select>
+            </label>
+            <label class="text-ui-muted flex items-center gap-1 text-[11px]">
+              {{ 'feature.skin.anchor' | transloco }}
+              <select
+                class="rounded-ui-sm border-ui-border-input bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[11px]"
+                name="skin-mat-anchor"
+                [ngModel]="layer.anchor"
+                data-testid="skin-mat-anchor"
+                (ngModelChange)="setMatAnchor($event)"
+              >
+                @for (anchor of anchors; track anchor) {
+                  <option [ngValue]="anchor">{{ 'feature.skin.anchor_' + anchor | transloco }}</option>
+                }
+              </select>
+            </label>
+          </div>
+        </div>
+      } @else {
+        <label
+          class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:text-ui-accent w-fit cursor-pointer border border-solid px-2.5 py-1 text-[12px] transition-colors"
+        >
+          {{ 'feature.skin.choosePicture' | transloco }}
+          <input
+            type="file"
+            class="hidden"
+            accept="image/*"
+            data-testid="skin-mat-picture"
+            (change)="setMatPicture($event)"
+          />
+        </label>
+      }
+
+      <p class="text-ui-dim m-0 text-[11px] leading-relaxed">{{ 'feature.skin.matHint' | transloco }}</p>
     </div>
 
     <div class="border-ui-border-separator flex flex-col gap-2 border-t border-solid pt-2">

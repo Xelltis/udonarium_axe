@@ -42,6 +42,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body)
 .rn{flex:none;font-weight:700}
 .rt{display:-webkit-box;min-width:0;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 .att{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.rx{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.rx span{font-size:.78em;line-height:1.6;padding:0 8px;border:1px solid var(--line);border-radius:999px;opacity:.85}
 .att img{display:block;max-width:min(100%,320px);max-height:260px;border:1px solid var(--line);border-radius:var(--radius-sm)}
 .ooc{opacity:.7}
 .ooc .tx{font-size:.92em}

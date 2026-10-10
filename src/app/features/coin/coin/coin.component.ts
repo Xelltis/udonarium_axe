@@ -85,9 +85,11 @@ export class CoinComponent {
 
   private readonly spin = signal<{ from: CoinFace; to: CoinFace } | null>(null);
 
+  /** Whether the coin is locked in place, which stops it being dragged. */
   get isLock(): boolean {
     return this.coin().isLock;
   }
+  /** The table's grid cell size in pixels, which the coin's diameter and a copy's offset are measured in. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -195,35 +197,50 @@ export class CoinComponent {
     this.destroyRef.onDestroy(() => this.doubleTap.cancel());
   }
 
+  /** Ends the flip animation, after which the coin shows the face it is really on. */
   onSpinEnd() {
     this.isSpinning.set(false);
     this.spin.set(null);
   }
 
+  /** Stops the browser's own drag of the coin's element, so only the table's drag moves it. */
   onDragstart(e: DragEvent) {
     e.stopPropagation();
     e.preventDefault();
   }
 
+  /** On a press on the coin, brings it to the top and starts watching for a double tap. */
   onInputStart(e: MouseEvent | TouchEvent) {
     this.startDoubleClickTimer(e);
     this.coin().toTopmost();
   }
 
+  /** Counts a press towards a double tap, which flips the coin when the second one lands. */
   startDoubleClickTimer(e: MouseEvent | TouchEvent) {
     this.doubleTap.handle(e, () => this.onDoubleClick());
   }
 
+  /** Flips the coin on a double tap, if this player may edit the table and the pointer has not moved. */
   onDoubleClick() {
     this.doubleTap.cancel();
     if (!this.rolePermission.canEditTabletop) return;
     if (this.doubleTap.isInPlace()) this.flip();
   }
 
+  /**
+   * Tosses the coin to a random face.
+   *
+   * Every peer sees it spin, the face is synced, and the result is announced in chat shortly after.
+   */
   flip() {
     this.coinFlip.flip(this.coin());
   }
 
+  /**
+   * Opens the coin's right-click menu, with the table-switching entries after it where there are any.
+   *
+   * When several pieces are selected, the menu for the selection opens instead.
+   */
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();
@@ -253,10 +270,12 @@ export class CoinComponent {
     );
   }
 
+  /** Plays the pick-up sound when a drag or a turn of the coin begins. */
   onMove() {
     SoundEffect.play(PresetSound.piecePick);
   }
 
+  /** Plays the put-down sound when a drag or a turn of the coin ends. */
   onMoved() {
     SoundEffect.play(PresetSound.piecePut);
   }

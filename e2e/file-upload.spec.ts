@@ -1,9 +1,9 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openFabMenu, openPanel, waitAppReady } from './helpers';
+import { openPanel, waitAppReady } from './helpers';
 
 /**
- * 1x1 PNG (transparent) — base64 から Buffer 化して setInputFiles に渡す。
+ * 1x1 PNG（transparent）。base64からBuffer化してsetInputFilesに渡す。
  */
 const TINY_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
@@ -11,8 +11,8 @@ const TINY_PNG = Buffer.from(
 );
 
 /**
- * 最小限の MP3 ヘッダ (ID3v2 0 byte + dummy mp3 frame)。
- * デコードはされず、ImageStorage と同じく FileArchiver が中身を MIME で識別する。
+ * 最小限のMP3ヘッダ（ID3v2 0 byte + dummy mp3 frame）。
+ * デコードはされず、ImageStorageと同じくFileArchiverが中身をMIMEで識別する。
  */
 const TINY_MP3 = Buffer.from(
   'SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
@@ -20,9 +20,9 @@ const TINY_MP3 = Buffer.from(
 );
 
 /**
- * 空の ZIP ファイル (PK\x05\x06 + 18 bytes of zeros = empty central directory)。
- * Udonarium の FileArchiver は壊れていても fail-soft なので、最低限フォーマット
- * として認識されれば OK。
+ * 空のZIPファイル（PK\x05\x06 + 18 bytes of zeros = empty central directory）。
+ * UdonariumのFileArchiverはファイルが壊れていてもfail-softなので、最低限フォーマット
+ * として認識されればOK。
  */
 const EMPTY_ZIP = Buffer.from([
   0x50, 0x4b, 0x05, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -85,24 +85,21 @@ test.describe('音楽アップロード (jukebox)', () => {
       mimeType: 'audio/mpeg',
       buffer: TINY_MP3,
     });
-    // ライブラリビューに新しい行 (オーディオ名 div) が現れる。
+    // ライブラリビューに新しい行（オーディオ名のdiv）が現れる。
     await expect.poll(() => items.count(), { timeout: 15000 }).toBeGreaterThan(before);
   });
 });
 
-test.describe('ZIP / XML 読込 (FAB の ZIP読込)', () => {
+test.describe('ZIP / XML 読込 (FAB のセーブ&ロード)', () => {
   test('空 ZIP をセットしてもアプリがクラッシュしないこと', async ({ page }) => {
     await waitAppReady(page);
-    await openFabMenu(page);
-    const fileInput = page
-      .locator('[data-label="ZIP読込"]')
-      .locator('input[type="file"][accept="application/xml,text/xml,application/zip"]');
+    const fileInput = page.locator('[data-testid="fab-zip-input"]');
     await fileInput.setInputFiles({
       name: 'empty.zip',
       mimeType: 'application/zip',
       buffer: EMPTY_ZIP,
     });
-    // 読込が失敗してもチャット入力は生きているはず (アプリ生存確認)。
+    // 読込が失敗してもチャット入力は表示されたままのはず（アプリの生存確認）。
     await expect(page.locator('textarea.chat-input')).toBeVisible({ timeout: 10000 });
   });
 });

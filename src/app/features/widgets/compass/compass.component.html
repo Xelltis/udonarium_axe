@@ -1,0 +1,185 @@
+@if (widgets.compass()) {
+  <div
+    #compass
+    class="group rounded-ui-lg text-ui-text hover:bg-ui-panel/65 hover:border-ui-border-panel fixed top-0 left-0 z-100 box-border flex cursor-grab items-start gap-1 border border-solid border-transparent p-2 transition-[background-color,border-color] select-none hover:[backdrop-filter:blur(20px)_saturate(1.4)] hover:[-webkit-backdrop-filter:blur(20px)_saturate(1.4)] active:cursor-grabbing"
+    appDraggable
+    [appWidgetPlace]="widgetName"
+    [widgetFallback]="fallback"
+    [draggable.unhandle]="'button'"
+    data-testid="compass-widget"
+    (contextmenu)="onContextMenu($event)"
+  >
+    <div class="flex flex-col items-center gap-1">
+      <div class="relative size-16 filter-[drop-shadow(0_1px_2px_rgba(0,0,0,0.3))] group-hover:filter-none">
+        <!-- The housing, which stays where it is: its mark at the top is where the screen looks. -->
+        <svg viewBox="0 0 100 100" class="text-ui-muted absolute inset-0 size-full" aria-hidden="true">
+          @switch (face()) {
+            @case ('fantasy') {
+              <circle cx="50" cy="50" r="48" class="text-ui-panel" fill="currentColor" />
+              <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" stroke-width="3" />
+              <circle cx="50" cy="50" r="41" fill="none" stroke="currentColor" stroke-width="1" opacity="0.7" />
+              <circle
+                cx="50"
+                cy="50"
+                r="44.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-dasharray="1 5"
+                stroke-linecap="round"
+                opacity="0.8"
+              />
+              <path d="M50 1 L54 10 L50 8 L46 10 Z" class="text-ui-accent" fill="currentColor" />
+            }
+            @case ('sf') {
+              <circle cx="50" cy="50" r="46" class="text-ui-panel" fill="currentColor" />
+              <g stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.8">
+                <path d="M8 26 L8 8 L26 8" />
+                <path d="M74 8 L92 8 L92 26" />
+                <path d="M92 74 L92 92 L74 92" />
+                <path d="M26 92 L8 92 L8 74" />
+              </g>
+              <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.5" />
+              <path
+                d="M44 6 L50 13 L56 6"
+                class="text-ui-accent"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              />
+            }
+            @default {
+              <circle cx="50" cy="50" r="47" class="text-ui-panel" fill="currentColor" />
+              <circle cx="50" cy="50" r="47" fill="none" stroke="currentColor" stroke-width="2" />
+              <path d="M50 2 L55 12 L45 12 Z" class="text-ui-accent" fill="currentColor" />
+            }
+          }
+        </svg>
+
+        <!-- The rose, carried round by the table exactly as the table's own north is. -->
+        <svg
+          viewBox="0 0 100 100"
+          class="absolute inset-0 size-full"
+          [style.transform]="'rotate(' + roseAngle() + 'deg)'"
+          data-testid="compass-rose"
+          [attr.data-angle]="roseAngle()"
+          aria-hidden="true"
+        >
+          @switch (face()) {
+            @case ('fantasy') {
+              <!-- A rose of eight points, as a chart is drawn: the long four to the cardinals. -->
+              <g class="text-ui-dim" fill="currentColor" opacity="0.85">
+                <path d="M50 50 L64 36 L50 22 L36 36 Z" />
+                <path d="M50 50 L64 64 L78 50 L64 36 Z" />
+                <path d="M50 50 L36 64 L50 78 L64 64 Z" />
+                <path d="M50 50 L36 36 L22 50 L36 64 Z" />
+              </g>
+              <g class="text-ui-accent" fill="currentColor">
+                <path d="M50 50 L56 30 L50 8 L44 30 Z" />
+              </g>
+              <g class="text-ui-dim" fill="currentColor">
+                <path d="M50 50 L56 70 L50 92 L44 70 Z" />
+                <path d="M50 50 L70 56 L92 50 L70 44 Z" />
+                <path d="M50 50 L30 56 L8 50 L30 44 Z" />
+              </g>
+              <circle cx="50" cy="50" r="3" class="text-ui-text" fill="currentColor" />
+              <text
+                x="50"
+                y="20"
+                text-anchor="middle"
+                class="text-ui-accent fill-current font-serif text-[12px] font-bold"
+              >
+                N
+              </text>
+            }
+            @case ('sf') {
+              <!-- A ladder of ticks and a bracket where north is, rather than a needle. -->
+              <g class="text-ui-dim" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.7">
+                <line x1="50" y1="12" x2="50" y2="20" />
+                <line x1="88" y1="50" x2="80" y2="50" />
+                <line x1="50" y1="88" x2="50" y2="80" />
+                <line x1="12" y1="50" x2="20" y2="50" />
+              </g>
+              <g class="text-ui-dim" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.45">
+                <line x1="77" y1="23" x2="73" y2="27" />
+                <line x1="77" y1="77" x2="73" y2="73" />
+                <line x1="23" y1="77" x2="27" y2="73" />
+                <line x1="23" y1="23" x2="27" y2="27" />
+              </g>
+              <circle
+                cx="50"
+                cy="50"
+                r="30"
+                class="text-ui-accent"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-dasharray="28 66"
+                stroke-linecap="round"
+                transform="rotate(-14 50 50)"
+              />
+              <circle cx="50" cy="50" r="20" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.4" />
+              <path
+                d="M40 26 L40 18 L60 18 L60 26"
+                class="text-ui-accent"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              />
+              <g class="text-ui-text" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.8">
+                <line x1="44" y1="50" x2="56" y2="50" />
+                <line x1="50" y1="44" x2="50" y2="56" />
+              </g>
+              <text x="50" y="38" text-anchor="middle" class="text-ui-accent fill-current font-mono text-[11px]">
+                N
+              </text>
+            }
+            @default {
+              <g class="text-ui-dim" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                <line x1="50" y1="16" x2="50" y2="24" />
+                <line x1="84" y1="50" x2="76" y2="50" />
+                <line x1="50" y1="84" x2="50" y2="76" />
+                <line x1="16" y1="50" x2="24" y2="50" />
+                <line x1="74" y1="26" x2="70" y2="30" />
+                <line x1="74" y1="74" x2="70" y2="70" />
+                <line x1="26" y1="74" x2="30" y2="70" />
+                <line x1="26" y1="26" x2="30" y2="30" />
+              </g>
+
+              <path d="M50 20 L58 54 L50 50 Z" class="text-ui-accent" fill="currentColor" />
+              <path d="M50 20 L42 54 L50 50 Z" class="text-ui-accent" fill="currentColor" opacity="0.55" />
+              <path d="M50 80 L42 46 L50 50 Z" class="text-ui-dim" fill="currentColor" />
+              <path d="M50 80 L58 46 L50 50 Z" class="text-ui-dim" fill="currentColor" opacity="0.55" />
+              <circle cx="50" cy="50" r="3.5" class="text-ui-text" fill="currentColor" />
+
+              <text x="50" y="14" text-anchor="middle" class="fill-current text-[13px] font-bold">N</text>
+            }
+          }
+        </svg>
+      </div>
+
+      @if (anomalous()) {
+        <span class="text-ui-danger font-mono text-[10px] leading-none tracking-wider" data-testid="compass-anomaly">
+          {{ 'feature.compass.anomaly' | transloco }}
+        </span>
+      } @else {
+        <span
+          class="text-ui-muted font-mono text-[10px] leading-none tracking-wider [font-variant-numeric:tabular-nums]"
+          data-testid="compass-bearing"
+        >
+          {{ bearing() }}° {{ pointKey() | transloco }}
+        </span>
+      }
+    </div>
+
+    <button
+      type="button"
+      class="rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex h-5.5 cursor-pointer items-center justify-center border-none bg-transparent px-1 leading-none opacity-0 shadow-none transition-[color,background,opacity] outline-none group-hover:opacity-100 hover:border-transparent hover:shadow-none"
+      [title]="'app.fab.compass' | transloco"
+      data-testid="compass-close"
+      (click)="close()"
+    >
+      <i class="material-icons text-[14px]!">close</i>
+    </button>
+  </div>
+}

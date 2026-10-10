@@ -15,7 +15,7 @@ const backlogPanel = (page: Page) =>
 
 /**
  * 開いたばかりのパネルは拡大しながら現れるので、アニメーションが終わってから測る。
- * 途中で測ると 0.8 倍の寸法を掴んでしまい、前後の比較が壊れる。
+ * 途中で測ると0.8倍の寸法を掴んでしまい、前後の比較がおかしくなる。
  */
 async function settledBox(locator: Locator) {
   await locator.evaluate((element) =>

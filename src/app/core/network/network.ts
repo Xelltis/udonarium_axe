@@ -4,48 +4,70 @@ import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { setZeroTimeout } from '@axe/core/util/zero-timeout';
 
-type QueueItem = { data: unknown; sendTo: string | undefined };
+type QueueItem = { data: unknown; sendTo: string | undefined; turn: number };
 type ConnectionClass = new (...args: never[]) => Connection;
 
 const unknownPeer = PeerContext.parse('???');
 
 export class Network {
   private static _instance: Network;
+  /** The network shared by the whole app, created on first use. */
   static get instance(): Network {
     if (!Network._instance) Network._instance = new Network();
     return Network._instance;
   }
 
+  /** Whether this device has an open SkyWay session. */
   static get isOpen(): boolean {
     return Network.instance.isOpen;
   }
+  /** This device's peer id, or the placeholder '???' before a session exists. */
   static get peerId(): string {
     return Network.instance.peerId;
   }
+  /** Ids of the peers with an open connection, as a new array; empty without a connection. */
   static get peerIds(): string[] {
     return Network.instance.peerIds;
   }
+  /** This device's peer context, or a placeholder before a session exists. */
   static get peer(): IPeerContext {
     return Network.instance.peer;
   }
+  /** Contexts of every peer connected or still connecting, as a new array. */
   static get peers(): IPeerContext[] {
     return Network.instance.peers;
   }
+  /** This device's peer context; the same value as peer. */
   static get peerContext(): IPeerContext {
     return Network.instance.peerContext;
   }
+  /** Contexts of every peer connected or still connecting; the same value as peers. */
   static get peerContexts(): IPeerContext[] {
     return Network.instance.peerContexts;
   }
+  /** Bytes in transit: sent but not yet on the channel, or received but not yet handed on. */
   static get bandwidthUsage(): number {
     return Network.instance.bandwidthUsage;
   }
+  /** Keeps the app config, such as the backend URL, for the connection made on the next open. */
   static configure(config: Record<string, unknown>) {
     Network.instance.configure(config);
   }
+  /**
+   * Opens a network session in no room, closing any session first.
+   *
+   * The connection code loads on first use, so this returns before the session is open; the
+   * OPEN_NETWORK event follows once it is.
+   */
   static openStandby(userId?: string): void {
     Network.instance.openStandby(userId);
   }
+  /**
+   * Opens a network session in a room, closing any session first.
+   *
+   * This returns before the session is open; the OPEN_NETWORK event follows once it is. From then
+   * on, leaving the page asks for confirmation and hiding it leaves the room.
+   */
   static open(userId: string, roomId: string, roomName: string, password: string): void {
     Network.instance.open(userId, roomId, roomName, password);
   }
@@ -85,7 +107,10 @@ export class Network {
   private connectionClass!: ConnectionClass;
   private connection: Connection | null = null;
 
-  private queue: Set<QueueItem> = new Set();
+  private queue: Map<string | symbol, QueueItem> = new Map();
+  private lastTurn = 0;
+  private lastBroadcastTurn = 0;
+  private readonly lastTurnByPeer: Map<string, number> = new Map();
   private sendInterval: number | null = null;
   private sendCallback = () => {
     this.sendQueue();
@@ -147,11 +172,13 @@ export class Network {
     Logger.debug('[Network] close');
   }
 
+  /** Starts connecting to a peer; false when there is no connection or the peer is refused. */
   async connect(peer: IPeerContext): Promise<boolean> {
     if (this.connection) return this.connection.connect(peer);
     return false;
   }
 
+  /** Closes the connection to a peer without reconnecting; does nothing without a connection. */
   disconnect(peer: IPeerContext) {
     if (!this.connection) return;
     if (this.connection.disconnect(peer)) {
@@ -159,11 +186,42 @@ export class Network {
     }
   }
 
-  send(data: unknown, sendTo?: string) {
-    this.queue.add({ data, sendTo });
+  /**
+   * Queues a message for the next send.
+   *
+   * A message given a replaceKey takes the place of one queued under the same key and
+   * destination that has not gone out yet. It keeps that one's turn while nothing that reaches
+   * any of the same peers has been queued behind it, and otherwise goes to the back, so it never
+   * overtakes a message queued after the one it replaces.
+   */
+  send(data: unknown, sendTo?: string, replaceKey?: string) {
+    const queueKey = replaceKey == null ? Symbol() : `${sendTo ?? ''}\n${replaceKey}`;
+    const waiting = this.queue.get(queueKey);
+    if (waiting && !this.hasQueuedBehind(waiting)) {
+      waiting.data = data;
+    } else {
+      this.queue.delete(queueKey);
+      this.queue.set(queueKey, { data, sendTo, turn: this.takeTurn(sendTo) });
+    }
     if (this.sendInterval === null) {
       this.sendInterval = setZeroTimeout(this.sendCallback);
     }
+  }
+
+  private takeTurn(sendTo: string | undefined): number {
+    const turn = ++this.lastTurn;
+    if (sendTo == null) {
+      this.lastBroadcastTurn = turn;
+    } else {
+      this.lastTurnByPeer.set(sendTo, turn);
+    }
+    return turn;
+  }
+
+  /** Whether a message reaching any of the peers this one reaches was queued after it. */
+  private hasQueuedBehind(item: QueueItem): boolean {
+    if (item.sendTo == null) return item.turn < this.lastTurn;
+    return item.turn < this.lastBroadcastTurn || item.turn < (this.lastTurnByPeer.get(item.sendTo) ?? 0);
   }
 
   private sendQueue() {
@@ -172,10 +230,10 @@ export class Network {
     const echocast: unknown[] = [];
 
     let loopCount = this.queue.size < 128 ? this.queue.size : 128;
-    for (const item of this.queue) {
+    for (const [queueKey, item] of this.queue) {
       if (loopCount <= 0) break;
       loopCount--;
-      this.queue.delete(item);
+      this.queue.delete(queueKey);
       if (item.sendTo == null) {
         broadcast.push(item.data);
       } else if (item.sendTo === this.peerId) {
@@ -200,13 +258,16 @@ export class Network {
       this.sendInterval = setZeroTimeout(this.sendCallback);
     } else {
       this.sendInterval = null;
+      this.lastTurnByPeer.clear();
     }
   }
 
+  /** Peer ids of every lobby member, refreshed at most every 10 s; empty without a connection. */
   listAllPeers(): Promise<string[]> {
     return this.connection ? this.connection.listAllPeers() : Promise.resolve([]);
   }
 
+  /** The rooms listed in the lobby; empty without a connection. */
   listAllRooms(): Promise<IRoomInfo[]> {
     return this.connection ? this.connection.listAllRooms() : Promise.resolve([]);
   }
@@ -243,6 +304,6 @@ export class Network {
   }
 
   private async dynamicImport(_mode: string = ''): Promise<ConnectionClass> {
-    return (await import('./skyway/skyway-connection')).SkyWayConnection;
+    return (await import('@axe/core/network/skyway/skyway-connection')).SkyWayConnection;
   }
 }

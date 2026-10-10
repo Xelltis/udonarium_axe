@@ -6,13 +6,18 @@ import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatReaction } from '@axe/domain/chat/chat-reaction';
+import { StampPack } from '@axe/domain/chat/stamp-pack';
 import { createDefaultEffectPresets } from '@axe/domain/effect/builtin-effect-presets';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { createDefaultCutIns } from '@axe/domain/media/builtin-cut-ins';
 import { CutIn } from '@axe/domain/media/cut-in';
-import { Party } from '@axe/domain/party/party';
+import { Party, PARTY_COLORS } from '@axe/domain/party/party';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { Room } from '@axe/domain/peer/room';
+import { GameTable } from '@axe/domain/tabletop/game-table';
+import { LightSource } from '@axe/domain/tabletop/light-source';
 
 describe('Room', () => {
   let store: ObjectStore;
@@ -72,9 +77,38 @@ describe('Room', () => {
     });
   });
 
+  describe('saving what stands on a table', () => {
+    it('writes a light once, where the table it stands on has already written it', () => {
+      const table = new GameTable();
+      table.initialize();
+      const light = LightSource.create('燭台');
+      table.appendChild(light);
+
+      const xml = new Room().innerXml();
+
+      // The table writes everything standing on it, so a light written again beside the table
+      // is a second light on the way back in.
+      expect(xml.split('<light-source').length - 1).toBe(1);
+    });
+
+    it('writes a light nobody put on a table, which would otherwise be lost', () => {
+      LightSource.create('浮いた光');
+
+      const xml = new Room().innerXml();
+
+      expect(xml.split('<light-source').length - 1).toBe(1);
+    });
+
+    it('reads a saved table back with the one light it was saved with', () => {
+      loadRoom('<game-table><light-source name="燭台"></light-source></game-table>');
+
+      expect(store.getObjects(LightSource)).toHaveLength(1);
+    });
+  });
+
   describe('saving who travels together', () => {
-    function makeParty(): Party {
-      const party = new Party();
+    function makeParty(identifier?: string): Party {
+      const party = new Party(identifier);
       party.name = '本隊';
       party.color = '#fcd34d';
       party.initialize();
@@ -88,26 +122,64 @@ describe('Room', () => {
 
       const xml = new Room().innerXml();
 
-      expect(xml).toContain('name="本隊"');
+      expect(xml).toContain(`<party name="本隊" color="#fcd34d" allies="" identifier="${party.identifier}">`);
       expect(xml).toContain(`partyIdentifier="${party.identifier}"`);
     });
 
-    it('reads them back', () => {
-      const party = makeParty();
-      const character = GameCharacter.create('斥候', 1, '');
-      character.partyIdentifier = party.identifier;
-      const xml = `<room>${new Room().innerXml()}</room>`;
+    // A character written by the room carries dotted attributes, which the test DOM refuses to
+    // parse, so what is read back here is written by hand in the same shape.
+    it('reads them back with each member still in its party', () => {
+      loadRoom(
+        '<party name="本隊" color="#fcd34d" identifier="party-1"></party>' +
+          '<character partyIdentifier="party-1"></character>'
+      );
 
-      const reloadCheck = new ReloadCheck('ReloadCheck');
-      reloadCheck.initialize();
-      reloadCheck.reloadCheckStart(false);
-      ObjectSerializer.instance.parseXml(xml);
+      const parties = store.getObjects(Party);
+      expect(parties).toHaveLength(1);
+      expect(parties[0].identifier).toBe('party-1');
+      expect(parties[0].name).toBe('本隊');
+      expect(parties[0].color).toBe('#fcd34d');
+      expect(store.getObjects(GameCharacter)[0].partyIdentifier).toBe('party-1');
+    });
+
+    it('reads back who each party stands with', () => {
+      loadRoom(
+        '<party name="本隊" color="#fcd34d" allies="party-2" identifier="party-1"></party>' +
+          '<party name="義勇軍" color="#bef264" identifier="party-2"></party>'
+      );
+
+      const parties = store.getObjects(Party);
+      expect(parties.find((party) => party.identifier === 'party-1')!.alliedWith).toEqual(['party-2']);
+      expect(parties.find((party) => party.identifier === 'party-2')!.alliedWith).toEqual([]);
+    });
+
+    it('brings a party back over the one it replaces in the room it was saved from', () => {
+      makeParty('party-1');
+
+      loadRoom(
+        '<party name="本隊" color="#fcd34d" identifier="party-1"></party>' +
+          '<character partyIdentifier="party-1"></character>'
+      );
+
+      expect(store.getObjects(Party).map((party) => party.identifier)).toEqual(['party-1']);
+    });
+
+    it('still reads a party saved before its identifier was written, in no one’s company', () => {
+      loadRoom('<party name="本隊" color="#fcd34d"></party><character partyIdentifier="party-1"></character>');
 
       const parties = store.getObjects(Party);
       expect(parties).toHaveLength(1);
       expect(parties[0].name).toBe('本隊');
-      expect(parties[0].color).toBe('#fcd34d');
-      expect(store.getObjects(GameCharacter)[0].partyIdentifier).toBe(parties[0].identifier);
+      expect(parties[0].identifier).not.toBe('party-1');
+    });
+
+    it('reads a party written with nothing at all as an unnamed one in the first colour', () => {
+      loadRoom('<party></party>');
+
+      const parties = store.getObjects(Party);
+      expect(parties).toHaveLength(1);
+      expect(parties[0].name).toBe('');
+      expect(parties[0].color).toBe(PARTY_COLORS[0]);
     });
   });
 
@@ -178,6 +250,73 @@ describe('Room', () => {
       const cards = store.getObjects(Card);
       expect(cards).toHaveLength(1);
       expect(cards[0].owner).toBe('');
+    });
+  });
+
+  describe('saving the stamps put on lines of chat', () => {
+    it('writes the stamps on a line still in the chat, and not those on a line gone with its tab', () => {
+      const message = new ChatMessage();
+      message.initialize();
+      ChatReaction.create(message.identifier, 'noa', 'ノア').stamps = 'sfx:creepy seal:ok';
+      ChatReaction.create('gone-line', 'noa', 'ノア').stamps = 'seal:ok';
+
+      const xml = new Room().innerXml();
+
+      expect(xml).toContain(`<chat-reaction messageIdentifier="${message.identifier}" userId="noa"`);
+      expect(xml).toContain('stamps="sfx:creepy seal:ok"');
+      expect(xml).not.toContain('gone-line');
+    });
+
+    it('reads them back in place of the ones there were', () => {
+      ChatReaction.create('line-before', 'old', 'まえ').stamps = 'seal:ok';
+
+      loadRoom(
+        '<chat-reaction messageIdentifier="line-1" userId="noa" userName="ノア" stamps="seal:god"></chat-reaction>'
+      );
+
+      expect(store.getObjects(ChatReaction).map((each) => [each.messageIdentifier, each.userId, each.stamps])).toEqual([
+        ['line-1', 'noa', 'seal:god'],
+      ]);
+    });
+
+    it('leaves the ones there are where the room data brings none, as tables dropped in on their own', () => {
+      ChatReaction.create('line-before', 'old', 'まえ').stamps = 'seal:ok';
+
+      loadRoom('<card></card>');
+
+      expect(store.getObjects(ChatReaction).map((each) => [each.messageIdentifier, each.stamps])).toEqual([
+        ['line-before', 'seal:ok'],
+      ]);
+      expect(store.getObjects(Card)).toHaveLength(1);
+    });
+
+    it('passes over a kind it does not know and reads the rest, as an older version does these', () => {
+      loadRoom('<a-kind-from-a-newer-version stamps="x"></a-kind-from-a-newer-version><card></card>');
+
+      expect(store.getObjects(Card)).toHaveLength(1);
+    });
+  });
+
+  describe("saving the room's own sets of stamps", () => {
+    it('writes each set with its stamps as pictures', () => {
+      const pack = StampPack.create('ねこ');
+      pack.addStamp('picture-a', 'にゃー');
+
+      const xml = new Room().innerXml();
+
+      expect(xml).toMatch(
+        /<stamp-pack name="ねこ"[^>]*>.*<data [^>]*type="image"[^>]*>picture-a<\/data>.*<\/stamp-pack>/s
+      );
+    });
+
+    it('reads them back in place of the ones there were', () => {
+      StampPack.create('まえ');
+
+      loadRoom('<stamp-pack name="ねこ"><data name="にゃー" type="image">picture-a</data></stamp-pack>');
+
+      const packs = store.getObjects<StampPack>(StampPack);
+      expect(packs.map((pack) => pack.name)).toEqual(['ねこ']);
+      expect(packs[0].stamps.map((stamp) => [stamp.stampId, stamp.name])).toEqual([['image:picture-a', 'にゃー']]);
     });
   });
 });

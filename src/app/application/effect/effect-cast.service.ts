@@ -23,6 +23,7 @@ export class EffectCastService {
     return targeted.length > 0 ? targeted : this.selectedCharacters();
   }
 
+  /** The pieces an effect would be cast at, cut down to as many as the preset allows. */
   resolveTargets(preset: EffectPreset): GameCharacter[] {
     return this.candidateTargets().slice(0, preset.targetLimit);
   }

@@ -7,9 +7,9 @@ import {
   inject,
   input,
   output,
-  signal,
   viewChild,
 } from '@angular/core';
+import { AnchoredPopover } from '@axe/ui/anchored-popover';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -21,8 +21,6 @@ export interface PortraitChoice {
 
 const LIST_WIDTH = 296;
 const LIST_MIN_HEIGHT = 176;
-const VIEWPORT_MARGIN = 8;
-const ANCHOR_GAP = 6;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -44,7 +42,13 @@ export class PortraitPickerComponent {
   readonly selectedIndex = input(0);
   readonly picked = output<number>();
 
-  readonly isOpen = signal(false);
+  private readonly list = new AnchoredPopover(
+    () => this.host.nativeElement,
+    () => this.popoverRef().nativeElement,
+    { width: LIST_WIDTH, minHeight: LIST_MIN_HEIGHT }
+  );
+
+  readonly isOpen = this.list.isOpen;
 
   readonly label = computed(() => {
     const choices = this.choices();
@@ -54,92 +58,32 @@ export class PortraitPickerComponent {
   });
 
   constructor() {
-    this.destroyRef.onDestroy(() => this.stopWatching());
+    this.destroyRef.onDestroy(() => this.list.destroy());
   }
 
+  /** Picks the previous or next portrait from the arrow buttons; nothing past either end. */
   step(direction: number): void {
     const next = this.selectedIndex() + direction;
     if (next < 0 || next >= this.choices().length) return;
     this.picked.emit(next);
   }
 
+  /** Called when a portrait in the list is clicked: closes the list and emits it if it is a different one. */
   pick(index: number): void {
     this.close();
     if (index !== this.selectedIndex()) this.picked.emit(index);
   }
 
+  /** Opens the list of portraits, or closes it if it is open, and shows which one is in use. */
   toggle(): void {
-    if (this.isOpen()) {
-      this.close();
-      return;
-    }
-    const popover = this.popoverRef().nativeElement;
-    if (typeof popover.showPopover !== 'function') return;
-    popover.showPopover();
-    popover.style.display = 'flex';
-    this.isOpen.set(true);
-    this.place();
-    popover.querySelector<HTMLElement>('[data-current]')?.scrollIntoView?.({ block: 'nearest' });
-    document.addEventListener('pointerdown', this.onPointerDown, true);
-    document.addEventListener('keydown', this.onKeyDown, true);
-    window.addEventListener('resize', this.onResize);
+    if (!this.list.toggle()) return;
+    this.popoverRef()
+      .nativeElement.querySelector<HTMLElement>('[data-current]')
+      ?.scrollIntoView?.({ block: 'nearest' });
   }
 
+  /** Hides the list; nothing when it is already closed. */
   close(): void {
-    if (!this.isOpen()) return;
-    this.isOpen.set(false);
-    this.stopWatching();
-    const popover = this.popoverRef().nativeElement;
-    popover.style.display = '';
-    popover.hidePopover();
+    this.list.close();
   }
-
-  private readonly onPointerDown = (event: Event): void => {
-    if (this.host.nativeElement.contains(event.target as Node)) return;
-    this.close();
-  };
-
-  private readonly onKeyDown = (event: KeyboardEvent): void => {
-    if (event.key !== 'Escape') return;
-    event.stopPropagation();
-    this.close();
-  };
-
-  private readonly onResize = (): void => this.place();
-
-  private stopWatching(): void {
-    document.removeEventListener('pointerdown', this.onPointerDown, true);
-    document.removeEventListener('keydown', this.onKeyDown, true);
-    window.removeEventListener('resize', this.onResize);
-  }
-
-  private place(): void {
-    const popover = this.popoverRef().nativeElement;
-    const anchor = this.host.nativeElement.getBoundingClientRect();
-    const viewWidth = window.innerWidth;
-    const viewHeight = window.innerHeight;
-    const width = Math.min(LIST_WIDTH, viewWidth - VIEWPORT_MARGIN * 2);
-    const roomAbove = anchor.top - VIEWPORT_MARGIN - ANCHOR_GAP;
-    const roomBelow = viewHeight - anchor.bottom - VIEWPORT_MARGIN - ANCHOR_GAP;
-    const opensUpward = roomBelow < roomAbove;
-
-    popover.style.width = `${width}px`;
-    popover.style.maxHeight = `${Math.max(LIST_MIN_HEIGHT, opensUpward ? roomAbove : roomBelow)}px`;
-    popover.style.left = '0px';
-    popover.style.top = '0px';
-
-    const origin = popover.getBoundingClientRect();
-    const left = clamp(
-      anchor.left + anchor.width / 2 - width / 2,
-      VIEWPORT_MARGIN,
-      viewWidth - width - VIEWPORT_MARGIN
-    );
-    const top = opensUpward ? anchor.top - ANCHOR_GAP - origin.height : anchor.bottom + ANCHOR_GAP;
-    popover.style.left = `${left - origin.left}px`;
-    popover.style.top = `${clamp(top, VIEWPORT_MARGIN, viewHeight - origin.height - VIEWPORT_MARGIN) - origin.top}px`;
-  }
-}
-
-function clamp(value: number, lowest: number, highest: number): number {
-  return Math.max(lowest, Math.min(value, highest));
 }

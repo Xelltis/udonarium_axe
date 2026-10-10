@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { handLocationOf } from '@axe/domain/card/hand-location';
@@ -91,6 +93,55 @@ describe('HandDrawPanelComponent', () => {
 
     expect(drawn.location.name).toBe(handLocationOf('me'));
     expect(component.cards()).toHaveLength(1);
+  });
+
+  describe('the hands of people who have left', () => {
+    function absentRows(): HTMLElement[] {
+      return [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[data-testid="absent-hand"]')];
+    }
+
+    it('shows them to the game master alone', () => {
+      card('s01', 'gone');
+      fixture.detectChanges();
+      expect(absentRows()).toHaveLength(0);
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      fixture.detectChanges();
+      expect(absentRows()).toHaveLength(1);
+    });
+
+    it('hands one over to the participant picked, once the game master confirms', async () => {
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      peer('back', 'もどってきた人');
+      const held = card('s01', 'gone');
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+      fixture.detectChanges();
+
+      (fixture.nativeElement.querySelector('[data-testid="absent-hand-over"]') as HTMLElement).click();
+      const actions = open.mock.calls[0][1];
+      actions.find((action) => action.name === 'もどってきた人')!.action!();
+      await fixture.whenStable();
+
+      expect(ask).toHaveBeenCalledOnce();
+      expect(held.location.name).toBe(handLocationOf('back'));
+    });
+
+    it('moves nothing when the game master thinks better of it', async () => {
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      peer('back', 'もどってきた人');
+      const held = card('s01', 'gone');
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+      vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+      fixture.detectChanges();
+
+      (fixture.nativeElement.querySelector('[data-testid="absent-hand-over"]') as HTMLElement).click();
+      open.mock.calls[0][1].find((action) => action.name === 'もどってきた人')!.action!();
+      await fixture.whenStable();
+
+      expect(held.location.name).toBe(handLocationOf('gone'));
+    });
   });
 
   it('lets them go once their hand is empty', () => {

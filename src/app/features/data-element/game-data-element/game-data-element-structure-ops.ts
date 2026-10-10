@@ -2,6 +2,7 @@ import {
   DataElement,
   DataElementAttribute,
   DataElementFieldType,
+  type DataElementFieldTypeValue,
   DataElementRole,
 } from '@axe/domain/data/data-element';
 import {
@@ -11,6 +12,7 @@ import {
 } from '@axe/domain/data/data-element-templates';
 import {
   canAcceptChildRole,
+  canDropStructureElement,
   type DataElementDropPosition,
   getElementDepth,
   getSubtreeDepth,
@@ -74,19 +76,61 @@ export function insertElementAfter(element: DataElement, target: DataElement, pa
   else parent.appendChild(element);
 }
 
-/** Makes one item that holds a value. */
+/** Makes one item that holds a value, of the kind asked for, text unless told otherwise. */
 export function createFieldElement(
   parent: DataElement,
   names: NewElementNames,
-  reservedNames: Set<string> = new Set()
+  reservedNames: Set<string> = new Set(),
+  fieldType: DataElementFieldTypeValue = DataElementFieldType.TEXT
 ): DataElement {
   const uniqueName = DataElement.createUniqueSiblingName(parent, names.field, '', reservedNames);
   reservedNames.add(uniqueName);
 
-  return DataElement.create(uniqueName, '', {
+  const element = DataElement.create(uniqueName, '', {
     [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.TEXT,
     [DataElementAttribute.ROLE]: DataElementRole.FIELD,
   });
+  if (fieldType !== DataElementFieldType.TEXT) {
+    element.setFieldType(fieldType);
+    element.setAttribute('type', DataElement.dataTypeFromFieldType(fieldType));
+  }
+  return element;
+}
+
+/** A step an element can take among the ones beside it. */
+export type SiblingMove = 'moveToTop' | 'moveUp' | 'moveDown' | 'moveToBottom';
+
+/**
+ * Where a step among its siblings takes an element: the sibling it lands beside, and on which side.
+ * Null where there is no such sibling, as for a step up from the top.
+ */
+export function siblingMoveTarget(
+  element: DataElement,
+  move: SiblingMove
+): { target: DataElement; position: 'before' | 'after' } | null {
+  const parent = element.parent;
+  if (!(parent instanceof DataElement)) return null;
+  const siblings = parent.children.filter((child): child is DataElement => child instanceof DataElement);
+  const index = siblings.indexOf(element);
+  if (index < 0) return null;
+  const [target, position]: [DataElement | undefined, 'before' | 'after'] =
+    move === 'moveToTop'
+      ? [siblings[0], 'before']
+      : move === 'moveUp'
+        ? [siblings[index - 1], 'before']
+        : move === 'moveDown'
+          ? [siblings[index + 1], 'after']
+          : [siblings[siblings.length - 1], 'after'];
+  if (!target || target === element) return null;
+  return { target, position };
+}
+
+/** Takes a step among the element's siblings, where the structure allows it. Null when it did not move. */
+export function moveAmongSiblings(element: DataElement, move: SiblingMove): StructureMove | null {
+  const step = siblingMoveTarget(element, move);
+  if (!step) return null;
+  if (!canDropStructureElement(element, step.target, step.position, getElementDepth(step.target))) return null;
+  return moveStructureElement(element, step.target, step.position);
 }
 
 /**
@@ -120,6 +164,14 @@ function canHoldTemplate(target: DataElement, template: DataElement): boolean {
   );
 }
 
+/**
+ * Puts a copy of a saved template into the nearest element that can hold it, starting from the
+ * container and climbing out through its parents.
+ *
+ * Once it has climbed out of an element the copy goes just after that element rather than at the
+ * end of the parent, so it lands next to where it was asked for. Null when nothing up the line can
+ * hold it or the template cannot be copied.
+ */
 export function placeElementTemplate(template: DataElement, container: DataElement): ElementPlacement | null {
   let anchor: DataElement | null = null;
   let target: DataElement | null = container;

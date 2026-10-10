@@ -22,6 +22,12 @@ const KIND_LABEL_KEY: Record<SystemAvatarKind, string> = {
   dice: 'feature.chat.systemAvatar.kindDice',
 };
 
+/**
+ * The menu on the system's portrait in chat: change or reset its picture, and show or hide the
+ * portraits.
+ *
+ * Readers who may not edit the room's settings get an empty menu.
+ */
 export function buildSystemAvatarContextMenu(
   state: SystemAvatarMenuState,
   handlers: SystemAvatarMenuHandlers,

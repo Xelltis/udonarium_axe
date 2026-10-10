@@ -1,0 +1,10 @@
+@if (notices.notice(); as notice) {
+  <div
+    class="bg-ui-elevated text-ui-text border-ui-danger rounded-ui shadow-ui-sm pointer-events-none fixed z-9000 border border-solid px-2 py-0.5 text-[12px]/4 whitespace-nowrap"
+    data-testid="switch-notice"
+    [style.left.px]="notice.x + 12"
+    [style.top.px]="notice.y + 12"
+  >
+    {{ notice.text }}
+  </div>
+}

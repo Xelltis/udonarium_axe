@@ -17,6 +17,7 @@ export interface RangeContextMenuModel {
   radialGroups: ContextMenuRadialGroup[];
 }
 
+/** The flat list of a range's right-click menu entries, without the radial menu's grouping. */
 export function buildRangeContextMenu(
   range: RangeArea,
   gridSize: number,
@@ -43,6 +44,13 @@ export function buildRangeContextMenu(
   ).actions;
 }
 
+/**
+ * A range's right-click menu, as a flat list and as groups for the radial menu.
+ *
+ * It offers altitude, lock and (for circles and polygons) following a character; the shape, plus
+ * cell editing and rotation for a custom shape; edit, copy and delete; and creating a new object at
+ * the pointer. A copy is offset by one grid cell and unlocked.
+ */
 export function buildRangeContextMenuModel(
   range: RangeArea,
   gridSize: number,

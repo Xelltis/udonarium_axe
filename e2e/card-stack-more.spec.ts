@@ -35,7 +35,7 @@ test.describe('カードスタックの追加コンテキスト操作', () => {
   });
 
   test('「山札を人数分に分割する」がクラッシュせずに card-stack 数を維持/増加させること', async ({ page }) => {
-    // 自分のみの場合は Network.peerIds.length === 1 で実質ノーオペ。
+    // 自分のみの場合はNetwork.peerIds.length === 1で実質ノーオペ。
     // 複数人の場合は人数分の山に分割される。どちらにせよクラッシュしないことだけ確認。
     const before = await page.locator('card-stack').count();
     const menu = await openCardStackMenu(page);

@@ -1,16 +1,21 @@
 import { TestBed } from '@angular/core/testing';
+import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { newStatusAilment, StatusAilment } from '@axe/domain/character/status-ailment';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
+import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
-import { cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
-import { GameTable } from '@axe/domain/tabletop/game-table';
+import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { stepsFor } from '@axe/domain/tabletop/move/move-steps';
 import { countCells } from '@axe/domain/tabletop/move/reachable-cells';
-import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
+import { TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
+import { DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -47,8 +52,9 @@ describe('MoveRangeService', () => {
     return character;
   }
 
+  /** A wall two cells high, which is more than a piece steps over. */
   function wallOver(col: number, fromRow: number, depthCells: number): Terrain {
-    const terrain = Terrain.create('壁', 1, depthCells, 1, '', '');
+    const terrain = Terrain.create('壁', 1, depthCells, 2, '', '');
     terrain.location = { name: 'table', x: col * GRID, y: fromRow * GRID };
     table.appendChild(terrain);
     return terrain;
@@ -190,6 +196,86 @@ describe('MoveRangeService', () => {
     service.show(pieceAt(5, 5, 3));
 
     expect(service.range()!.held).toBeNull();
+  });
+
+  describe('a piece up on the blocks', () => {
+    /** A block of the given height, walls and all, which is what a room is built out of. */
+    function blockOver(col: number, row: number, cells: number, height: number): Terrain {
+      const terrain = Terrain.create('ブロック', cells, cells, height, '', '');
+      terrain.mode = TerrainViewState.ALL;
+      terrain.location = { name: 'table', x: col * GRID, y: row * GRID };
+      table.appendChild(terrain);
+      return terrain;
+    }
+
+    it('walks along the tops of the blocks it is standing on', () => {
+      blockOver(4, 4, 4, 1);
+
+      service.show(pieceAt(5, 5, 2));
+
+      const view = service.range()!;
+      expect(view.cells.get(cellIndexOf(view.grid, 7, 5))).toBe(true);
+      expect(view.cells.get(cellIndexOf(view.grid, 5, 7))).toBe(true);
+    });
+
+    it('is stopped by what stands higher than the ground it is on', () => {
+      blockOver(4, 4, 4, 1);
+      blockOver(8, 4, 1, 3);
+
+      service.show(pieceAt(7, 4, 2));
+
+      const view = service.range()!;
+      expect(view.cells.get(cellIndexOf(view.grid, 8, 4))).toBe(false);
+    });
+
+    it('is stopped by a face too sheer to be stood on, level or not', () => {
+      blockOver(4, 4, 4, 1);
+      blockOver(8, 4, 1, 1).blocksClimb = true;
+
+      service.show(pieceAt(7, 4, 2));
+
+      const view = service.range()!;
+      expect(view.cells.get(cellIndexOf(view.grid, 8, 4))).toBe(false);
+    });
+
+    it('steps up onto a ledge from the table, a cell high and under', () => {
+      blockOver(6, 4, 2, 0.5);
+      blockOver(8, 4, 2, 1);
+
+      service.show(pieceAt(5, 5, 3));
+
+      const view = service.range()!;
+      expect(view.cells.get(cellIndexOf(view.grid, 6, 5))).toBe(true);
+      expect(view.cells.get(cellIndexOf(view.grid, 8, 5))).toBe(true);
+    });
+
+    it('is stopped by a wall that rises more than a cell over it', () => {
+      blockOver(6, 4, 2, 1.5);
+
+      service.show(pieceAt(5, 5, 2));
+
+      const view = service.range()!;
+      expect(view.cells.get(cellIndexOf(view.grid, 6, 5))).toBe(false);
+    });
+
+    it('steps off a block onto ground within a cell of it', () => {
+      blockOver(4, 4, 2, 2);
+      blockOver(6, 4, 2, 1);
+
+      service.show(pieceAt(5, 5, 2));
+
+      const view = service.range()!;
+      expect(view.cells.get(cellIndexOf(view.grid, 6, 5))).toBe(true);
+    });
+
+    it('is stopped by a low ledge too sheer to be stood on', () => {
+      blockOver(6, 4, 2, 0.5).blocksClimb = true;
+
+      service.show(pieceAt(5, 5, 2));
+
+      const view = service.range()!;
+      expect(view.cells.get(cellIndexOf(view.grid, 6, 5))).toBe(false);
+    });
   });
 
   describe('what a reach is, and is not, answerable for', () => {
@@ -559,8 +645,8 @@ describe('MoveRangeService and the ground an enemy holds', () => {
       const at = (col: number, row: number) => cellIndexOf(terms.grid, col, row);
 
       // (5,7) is a fight with the wide one alone: three against one, so leaving it costs three.
-      expect(terms.options.costOf!(at(5, 6), at(5, 7))).toBe(4);
-      expect(terms.options.costOf!(at(5, 7), at(5, 6))).toBe(2);
+      expect(terms.options.costOf!(at(5, 6), at(5, 7))).toBe(stepsFor(4));
+      expect(terms.options.costOf!(at(5, 7), at(5, 6))).toBe(stepsFor(2));
     });
 
     it('charges for the step that leaves the fight, and only for that one', () => {
@@ -703,8 +789,9 @@ describe('MoveRangeService and the ground an enemy holds', () => {
   describe('whether a piece may take one step', () => {
     const at = (col: number, row: number) => row * 12 + col;
 
+    /** A wall two cells high, which is more than a piece steps over. */
     function wallAt(col: number, fromRow: number, depthCells: number): void {
-      const terrain = Terrain.create('壁', 1, depthCells, 1, '', '');
+      const terrain = Terrain.create('壁', 1, depthCells, 2, '', '');
       terrain.location = { name: 'table', x: col * GRID, y: fromRow * GRID };
       table.appendChild(terrain);
     }
@@ -724,6 +811,18 @@ describe('MoveRangeService and the ground an enemy holds', () => {
 
       expect(service.canStepTo(piece, at(4, 5))).toBe(true);
       expect(service.canStepTo(piece, at(6, 5))).toBe(false);
+    });
+
+    it('steps up onto a block no higher than a cell, range or no range', () => {
+      const ledge = Terrain.create('段', 1, 1, 1, '', '');
+      ledge.location = { name: 'table', x: 6 * GRID, y: 5 * GRID };
+      table.appendChild(ledge);
+      const piece = pieceAt(5, 5, 2);
+
+      expect(service.canStepTo(piece, at(6, 5))).toBe(true);
+
+      table.moveRangeEnabled = false;
+      expect(service.canStepTo(piece, at(6, 5))).toBe(true);
     });
 
     it('lets a piece whose sheet says nothing about walking take a step all the same', () => {
@@ -749,6 +848,725 @@ describe('MoveRangeService and the ground an enemy holds', () => {
 
       expect(service.canStepTo(piece, -1)).toBe(false);
       expect(service.canStepTo(piece, 144)).toBe(false);
+    });
+  });
+
+  describe('the ground a piece stands on', () => {
+    const grid = cellGridOf(12, 12, GRID, GridType.SQUARE);
+
+    /** A block laid flat, which a piece walked at steps up onto rather than around. */
+    function platformAt(col: number, row: number, cells: number, height: number): Terrain {
+      const terrain = Terrain.create('台', cells, cells, height, '', '');
+      terrain.mode = TerrainViewState.FLOOR;
+      terrain.location = { name: 'table', x: col * GRID, y: row * GRID };
+      table.appendChild(terrain);
+      return terrain;
+    }
+
+    it('reads how high the ground under each cell stands', () => {
+      platformAt(4, 4, 2, 1);
+
+      const ground = service.groundHeightsOn(grid);
+      expect(ground[cellIndexOf(grid, 4, 4)]).toBe(GRID);
+      expect(ground[cellIndexOf(grid, 8, 8)]).toBe(0);
+    });
+
+    it('gathers the ground lying level with the piece and leaves the rest of the table out', () => {
+      platformAt(4, 4, 2, 1);
+      platformAt(8, 8, 2, 2);
+
+      const level = service.groundAtHeight(grid, GRID);
+
+      expect(level).not.toBeNull();
+      expect(level!.get(cellIndexOf(grid, 5, 5))).toBe(true);
+      expect(level!.get(cellIndexOf(grid, 8, 8))).toBe(false);
+      expect(level!.get(cellIndexOf(grid, 0, 0))).toBe(false);
+    });
+
+    it('has no ground above the floor to speak of on a table laid flat', () => {
+      expect(service.groundAtHeight(grid, 0)).toBeNull();
+      expect(service.groundAtHeight(grid, GRID)).toBeNull();
+    });
+
+    it('hands the same set of cells back, so the overlay traces its paths once', () => {
+      platformAt(4, 4, 2, 1);
+
+      expect(service.groundAtHeight(grid, GRID)).toBe(service.groundAtHeight(grid, GRID));
+    });
+
+    it('reads the ground afresh once a block has moved', () => {
+      const platform = platformAt(4, 4, 2, 1);
+      expect(service.groundHeightsOn(grid)[cellIndexOf(grid, 4, 4)]).toBe(GRID);
+
+      platform.location = { name: 'table', x: 8 * GRID, y: 8 * GRID };
+      TestBed.inject(ObjectChangeService).notifyChanged(platform.identifier);
+
+      const ground = service.groundHeightsOn(grid);
+      expect(ground[cellIndexOf(grid, 4, 4)]).toBe(0);
+      expect(ground[cellIndexOf(grid, 8, 8)]).toBe(GRID);
+    });
+  });
+});
+
+describe('MoveRangeService and ground that costs more to cross', () => {
+  let service: MoveRangeService;
+  let table: GameTable;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    table = new GameTable();
+    table.width = 12;
+    table.height = 12;
+    table.gridSize = GRID;
+    table.initialize();
+    service = TestBed.inject(MoveRangeService);
+  });
+
+  afterEach(() => {
+    for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
+  });
+
+  function dearGround(col: number, row: number, width: number, height: number, extraCost: number): TableMoveCost {
+    const area = new TableMoveCost();
+    area.col = col;
+    area.row = row;
+    area.width = width;
+    area.height = height;
+    area.extraCost = extraCost;
+    area.initialize();
+    table.appendChild(area);
+    return area;
+  }
+
+  function pieceAt(col: number, row: number, walk: number): GameCharacter {
+    const character = GameCharacter.create('コマ', 1, '');
+    character.location = { name: 'table', x: col * GRID, y: row * GRID };
+    DataElement.findElementByReference(character.rootDataElement!, '移動')!.value = walk;
+    return character;
+  }
+
+  function reached(col: number, row: number): boolean {
+    const view = service.range()!;
+    return view.cells.get(cellIndexOf(view.grid, col, row));
+  }
+
+  it('walks as far as ever over a table nobody has painted', () => {
+    service.show(pieceAt(5, 5, 2));
+
+    expect(countCells(service.range()!.cells)).toBe(24);
+  });
+
+  it('stops short on the far side of a band that costs twice to cross', () => {
+    dearGround(6, 0, 1, 12, 1);
+    service.show(pieceAt(5, 5, 2));
+
+    expect(reached(6, 5)).toBe(true);
+    expect(reached(7, 5)).toBe(false);
+    expect(reached(3, 5)).toBe(true);
+  });
+
+  it('covers a quarter of the ground where every step of it costs twice', () => {
+    dearGround(0, 0, 12, 12, 1);
+    service.show(pieceAt(5, 5, 2));
+
+    expect(countCells(service.range()!.cells)).toBe(8);
+  });
+
+  describe('a road painted across the board', () => {
+    function road(col: number, row: number, width: number, height: number): TableMoveCost {
+      const area = dearGround(col, row, width, height, 1);
+      area.halves = true;
+      return area;
+    }
+
+    it('carries a piece twice as far along it', () => {
+      road(0, 5, 12, 1);
+
+      service.show(pieceAt(5, 5, 2));
+
+      expect(reached(9, 5)).toBe(true);
+      expect(reached(10, 5)).toBe(false);
+    });
+
+    it('leaves the ground beside it as far off as it ever was', () => {
+      road(0, 5, 12, 1);
+
+      service.show(pieceAt(5, 5, 2));
+
+      expect(reached(5, 7)).toBe(true);
+      expect(reached(5, 8)).toBe(false);
+    });
+
+    it('runs through a swamp as a road rather than as swamp', () => {
+      dearGround(0, 0, 12, 12, 1);
+      road(0, 5, 12, 1);
+
+      service.show(pieceAt(5, 5, 2));
+
+      // Four cells along the road, and one into the swamp beside it.
+      expect(reached(9, 5)).toBe(true);
+      expect(reached(5, 6)).toBe(true);
+      expect(reached(5, 7)).toBe(false);
+    });
+  });
+
+  describe('a piece getting about some other way than on its feet', () => {
+    it('covers a quarter of the ground where every step costs it twice', () => {
+      const swimmer = pieceAt(5, 5, 2);
+      swimmer.moveMode = 'swim';
+
+      service.show(swimmer);
+
+      expect(countCells(service.range()!.cells)).toBe(8);
+    });
+
+    it('pays a bog nothing where it is over the bog rather than in it', () => {
+      dearGround(0, 0, 12, 12, 1);
+      const flier = pieceAt(5, 5, 2);
+      flier.moveMode = 'fly';
+
+      service.show(flier);
+
+      expect(countCells(service.range()!.cells)).toBe(24);
+    });
+
+    function wallDown(col: number): void {
+      const wall = Terrain.create('壁', 1, 12, 2, '', '');
+      wall.location = { name: 'table', x: col * GRID, y: 0 };
+      table.appendChild(wall);
+    }
+
+    it('goes over a wall a walk has to go round', () => {
+      wallDown(6);
+      const flier = pieceAt(5, 5, 2);
+      flier.moveMode = 'fly';
+
+      service.show(flier);
+
+      expect(reached(7, 5)).toBe(true);
+    });
+
+    it('leaves a walking piece stopped by that same wall', () => {
+      wallDown(6);
+
+      service.show(pieceAt(5, 5, 2));
+
+      expect(reached(7, 5)).toBe(false);
+    });
+
+    it('walks the board as it always has where nobody has said otherwise', () => {
+      dearGround(0, 0, 12, 12, 1);
+
+      service.show(pieceAt(5, 5, 2));
+
+      expect(countCells(service.range()!.cells)).toBe(8);
+    });
+  });
+
+  it('charges the dearer of two stretches painted over one another', () => {
+    dearGround(6, 0, 1, 12, 1);
+    dearGround(6, 5, 1, 1, 2);
+    service.show(pieceAt(5, 5, 2));
+
+    expect(reached(6, 4)).toBe(true);
+    expect(reached(6, 5)).toBe(false);
+  });
+
+  it('adds what the ground costs to what an enemy holds against it', () => {
+    table.zocMode = 'cost';
+    table.zocExtraCost = 1;
+    dearGround(4, 0, 1, 12, 1);
+    const monster = pieceAt(5, 6, 1);
+    monster.isNpc = true;
+    service.show(pieceAt(2, 5, 3));
+
+    // Both cells of the band cost a step over the plain one. Only the second is held by the
+    // monster as well, and that one step over is what puts it out of reach.
+    expect(reached(4, 4)).toBe(true);
+    expect(reached(4, 5)).toBe(false);
+  });
+
+  it('reads the ground afresh once a stretch of it has been painted', () => {
+    const grid = cellGridOf(12, 12, GRID, GridType.SQUARE);
+    const beyond = cellIndexOf(grid, 7, 5);
+    const piece = pieceAt(5, 5, 2);
+    expect(service.shownReachOf(piece, false)!.cells.get(beyond)).toBe(true);
+
+    const area = dearGround(6, 0, 1, 12, 1);
+    TestBed.inject(ObjectChangeService).notifyChanged(area.identifier);
+
+    expect(service.shownReachOf(piece, false)!.cells.get(beyond)).toBe(false);
+  });
+
+  it('charges the ground of a board of hexes just as it does a board of squares', () => {
+    for (const type of [GridType.HEX_VERTICAL, GridType.HEX_HORIZONTAL]) {
+      table.gridType = type;
+      dearGround(0, 0, 12, 12, 1);
+      service.show(pieceAt(5, 5, 2));
+
+      expect(countCells(service.range()!.cells)).toBe(6);
+    }
+  });
+});
+
+describe('MoveRangeService and the ground another piece stands on', () => {
+  let service: MoveRangeService;
+  let table: GameTable;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    table = new GameTable();
+    table.width = 12;
+    table.height = 12;
+    table.gridSize = GRID;
+    // Corners are left uncut so that walking round a piece costs more than walking through it,
+    // which is the whole of what these rules change.
+    table.moveDiagonally = false;
+    table.initialize();
+    service = TestBed.inject(MoveRangeService);
+  });
+
+  afterEach(() => {
+    for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
+  });
+
+  function pieceAt(col: number, row: number, walk: number, party = ''): GameCharacter {
+    const character = GameCharacter.create('コマ', 1, '');
+    character.location = { name: 'table', x: col * GRID, y: row * GRID };
+    DataElement.findElementByReference(character.rootDataElement!, '移動')!.value = walk;
+    character.partyIdentifier = party;
+    return character;
+  }
+
+  function reached(col: number, row: number): boolean {
+    const view = service.range()!;
+    return view.cells.get(cellIndexOf(view.grid, col, row));
+  }
+
+  it('walks onto another piece on a table that has said nothing about it', () => {
+    pieceAt(6, 5, 1, 'heroes');
+    service.show(pieceAt(5, 5, 2, 'heroes'));
+
+    expect(reached(6, 5)).toBe(true);
+    expect(reached(7, 5)).toBe(true);
+  });
+
+  it('keeps off every piece on a table that said pieces may not share a cell', () => {
+    table.piecesShareCells = false;
+    pieceAt(6, 5, 1, 'heroes');
+    service.show(pieceAt(5, 5, 2, 'heroes'));
+
+    expect(reached(6, 5)).toBe(false);
+    expect(reached(7, 5)).toBe(false);
+  });
+
+  it('squeezes past its own side without stopping on it', () => {
+    table.samePartyPassage = 'pass';
+    pieceAt(6, 5, 1, 'heroes');
+    service.show(pieceAt(5, 5, 2, 'heroes'));
+
+    expect(reached(6, 5)).toBe(false);
+    expect(reached(7, 5)).toBe(true);
+  });
+
+  it('pays for squeezing past where the table charges for it', () => {
+    table.samePartyPassage = 'cost';
+    table.piecePassageCost = 1;
+    pieceAt(6, 5, 1, 'heroes');
+    service.show(pieceAt(5, 5, 2, 'heroes'));
+
+    expect(reached(6, 5)).toBe(false);
+    expect(reached(7, 5)).toBe(false);
+    expect(reached(3, 5)).toBe(true);
+  });
+
+  it('is turned back by the other side', () => {
+    table.otherPartyPassage = 'block';
+    pieceAt(6, 5, 1, 'goblins');
+    service.show(pieceAt(5, 5, 2, 'heroes'));
+
+    expect(reached(6, 5)).toBe(false);
+    expect(reached(7, 5)).toBe(false);
+  });
+
+  it('tells its own side from the other, and both from a piece in no party', () => {
+    table.samePartyPassage = 'pass';
+    table.otherPartyPassage = 'block';
+    table.noPartyPassage = 'share';
+    pieceAt(6, 5, 1, 'heroes');
+    pieceAt(4, 5, 1, 'goblins');
+    pieceAt(5, 4, 1);
+    service.show(pieceAt(5, 5, 2, 'heroes'));
+
+    expect(reached(7, 5)).toBe(true);
+    expect(reached(3, 5)).toBe(false);
+    expect(reached(5, 4)).toBe(true);
+  });
+
+  it('is not turned back by a piece nobody can see', () => {
+    vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible').mockReturnValue(false);
+    table.otherPartyPassage = 'block';
+    pieceAt(6, 5, 1, 'goblins');
+    service.show(pieceAt(5, 5, 2, 'heroes'));
+
+    expect(reached(6, 5)).toBe(true);
+    expect(reached(7, 5)).toBe(true);
+  });
+
+  it('reads a piece of a party it is in no party itself as one of the others', () => {
+    table.otherPartyPassage = 'block';
+    pieceAt(6, 5, 1, 'goblins');
+    service.show(pieceAt(5, 5, 2));
+
+    expect(reached(6, 5)).toBe(false);
+  });
+
+  it('squeezes past its own side on a board of hexes as well', () => {
+    table.gridType = GridType.HEX_VERTICAL;
+    pieceAt(6, 5, 1, 'heroes');
+    const hero = pieceAt(5, 5, 2, 'heroes');
+    service.show(hero);
+    const shared = countCells(service.range()!.cells);
+
+    table.samePartyPassage = 'pass';
+    service.show(hero);
+
+    // Everything the piece could reach before is still reached, bar the one cell it may now
+    // only cross: nothing has been walked round, since walking through costs the same.
+    expect(countCells(service.range()!.cells)).toBe(shared - 1);
+  });
+});
+
+describe('MoveRangeService and a piece a state has stopped', () => {
+  let service: MoveRangeService;
+  let ailments: StatusAilmentService;
+  let table: GameTable;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    table = new GameTable();
+    table.width = 12;
+    table.height = 12;
+    table.gridSize = GRID;
+    table.initialize();
+    service = TestBed.inject(MoveRangeService);
+    ailments = TestBed.inject(StatusAilmentService);
+  });
+
+  afterEach(() => {
+    for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
+  });
+
+  function pieceAt(col: number, row: number, walk: number): GameCharacter {
+    const character = GameCharacter.create('コマ', 1, '');
+    character.location = { name: 'table', x: col * GRID, y: row * GRID };
+    DataElement.findElementByReference(character.rootDataElement!, '移動')!.value = walk;
+    return character;
+  }
+
+  const binding = (): StatusAilment => ({ ...newStatusAilment('拘束'), stat: '移動', op: '=', amount: '0' });
+
+  it('draws a reach for a piece nothing has hold of', () => {
+    const piece = pieceAt(5, 5, 2);
+
+    service.show(piece);
+
+    expect(countCells(service.range()!.cells)).toBe(24);
+  });
+
+  // The reach is read off the sheet, and a state that holds the sheet at nought therefore stops
+  // the piece without anything in the reckoning of movement knowing states exist at all.
+  it('draws no reach at all for a piece a state is holding still', () => {
+    const piece = pieceAt(5, 5, 2);
+    ailments.plant(piece, binding());
+
+    service.show(piece);
+
+    expect(service.range()).toBeNull();
+  });
+
+  it('draws it again once the state comes off', () => {
+    const piece = pieceAt(5, 5, 2);
+    ailments.plant(piece, binding());
+    ailments.pull(piece, '拘束');
+
+    service.show(piece);
+
+    expect(countCells(service.range()!.cells)).toBe(24);
+  });
+
+  it('draws a shorter reach for a piece a state has merely slowed', () => {
+    const piece = pieceAt(5, 5, 3);
+    ailments.plant(piece, { ...binding(), name: '鈍足', op: '-', amount: '2' });
+
+    service.show(piece);
+
+    expect(countCells(service.range()!.cells)).toBe(8);
+  });
+});
+
+describe('MoveRangeService and which side a piece is on', () => {
+  let service: MoveRangeService;
+  let table: GameTable;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    table = new GameTable();
+    table.width = 12;
+    table.height = 12;
+    table.gridSize = GRID;
+    table.zocMode = 'block';
+    table.initialize();
+    service = TestBed.inject(MoveRangeService);
+  });
+
+  afterEach(() => {
+    for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
+  });
+
+  function pieceAt(col: number, row: number, walk: number, party = '', npc = false): GameCharacter {
+    const character = GameCharacter.create('コマ', 1, '');
+    character.location = { name: 'table', x: col * GRID, y: row * GRID };
+    DataElement.findElementByReference(character.rootDataElement!, '移動')!.value = walk;
+    character.partyIdentifier = party;
+    character.isNpc = npc;
+    return character;
+  }
+
+  function reached(col: number, row: number): boolean {
+    const view = service.range()!;
+    return view.cells.get(cellIndexOf(view.grid, col, row));
+  }
+
+  it('holds ground against a monster near a hero, by whom the master runs', () => {
+    pieceAt(7, 5, 1, 'heroes', true);
+    service.show(pieceAt(5, 5, 3, 'heroes'));
+
+    expect(reached(6, 5)).toBe(false);
+  });
+
+  it('holds none against a piece of its own party where the sides are parties', () => {
+    table.hostilityBy = 'party';
+    pieceAt(7, 5, 1, 'heroes', true);
+    service.show(pieceAt(5, 5, 3, 'heroes'));
+
+    expect(reached(6, 5)).toBe(true);
+  });
+
+  it('holds ground against another party where the sides are parties', () => {
+    table.hostilityBy = 'party';
+    pieceAt(7, 5, 1, 'goblins');
+    service.show(pieceAt(5, 5, 3, 'heroes'));
+
+    expect(reached(6, 5)).toBe(false);
+  });
+
+  it('holds none for a piece nobody has placed, where the sides are parties', () => {
+    table.hostilityBy = 'party';
+    pieceAt(7, 5, 1, '', true);
+    service.show(pieceAt(5, 5, 3, 'heroes'));
+
+    expect(reached(6, 5)).toBe(true);
+  });
+
+  it('holds none against a piece nobody has placed either, where the sides are parties', () => {
+    table.hostilityBy = 'party';
+    pieceAt(7, 5, 1, 'goblins');
+
+    // Held both ways or neither: a stray that holds no ground of its own is not walled in by
+    // everybody else's.
+    service.show(pieceAt(5, 5, 3, ''));
+
+    expect(reached(6, 5)).toBe(true);
+  });
+
+  describe('and the parties it stands with', () => {
+    function party(identifier: string, allies = ''): Party {
+      const held = new Party(identifier);
+      held.allies = allies;
+      held.initialize();
+      return held;
+    }
+
+    it('holds ground against an allied band until somebody says they are allied', () => {
+      table.hostilityBy = 'party';
+      party('heroes');
+      party('villagers');
+      pieceAt(7, 5, 1, 'villagers');
+      service.show(pieceAt(5, 5, 3, 'heroes'));
+
+      expect(reached(6, 5)).toBe(false);
+    });
+
+    it('holds none against a band it stands with', () => {
+      table.hostilityBy = 'party';
+      party('heroes', 'villagers');
+      party('villagers');
+      pieceAt(7, 5, 1, 'villagers');
+      service.show(pieceAt(5, 5, 3, 'heroes'));
+
+      expect(reached(6, 5)).toBe(true);
+    });
+
+    it('goes on holding ground against everybody else', () => {
+      table.hostilityBy = 'party';
+      party('heroes', 'villagers');
+      party('villagers');
+      party('goblins');
+      pieceAt(7, 5, 1, 'goblins');
+      service.show(pieceAt(5, 5, 3, 'heroes'));
+
+      expect(reached(6, 5)).toBe(false);
+    });
+
+    it('shuts the ground an unallied band stands on, where the room shuts it', () => {
+      table.otherPartyPassage = 'block';
+      table.zocMode = 'none';
+      party('heroes');
+      party('villagers');
+      pieceAt(6, 5, 1, 'villagers');
+      service.show(pieceAt(5, 5, 3, 'heroes'));
+
+      expect(reached(6, 5)).toBe(false);
+    });
+
+    it('opens that same ground once the two stand together', () => {
+      table.otherPartyPassage = 'block';
+      table.zocMode = 'none';
+      party('heroes', 'villagers');
+      party('villagers');
+      pieceAt(6, 5, 1, 'villagers');
+      service.show(pieceAt(5, 5, 3, 'heroes'));
+
+      expect(reached(6, 5)).toBe(true);
+    });
+  });
+});
+
+describe('MoveRangeService and a piece wider than one cell', () => {
+  let service: MoveRangeService;
+  let table: GameTable;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    table = new GameTable();
+    table.width = 12;
+    table.height = 12;
+    table.gridSize = GRID;
+    table.initialize();
+    service = TestBed.inject(MoveRangeService);
+  });
+
+  afterEach(() => {
+    for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
+  });
+
+  function golemAt(col: number, row: number, walk: number, size = 2): GameCharacter {
+    const character = GameCharacter.create('ゴーレム', size, '');
+    character.location = { name: 'table', x: col * GRID, y: row * GRID };
+    DataElement.findElementByReference(character.rootDataElement!, '移動')!.value = walk;
+    return character;
+  }
+
+  /** A wall two cells high, which is more than a piece steps over. */
+  function wallOver(col: number, fromRow: number, depthCells: number): void {
+    const terrain = Terrain.create('壁', 1, depthCells, 2, '', '');
+    terrain.location = { name: 'table', x: col * GRID, y: fromRow * GRID };
+    table.appendChild(terrain);
+  }
+
+  function reached(col: number, row: number): boolean {
+    const view = service.range()!;
+    return view.cells.get(cellIndexOf(view.grid, col, row));
+  }
+
+  it('stands on ground a piece of one cell would stand on', () => {
+    service.show(golemAt(5, 5, 2));
+
+    expect(reached(6, 5)).toBe(true);
+  });
+
+  it('will not stand where only part of it would fit', () => {
+    wallOver(7, 0, 12);
+    service.show(golemAt(5, 5, 3));
+
+    expect(reached(6, 5)).toBe(false);
+    expect(reached(5, 6)).toBe(true);
+  });
+
+  it('will not thread a gap it could not stand in', () => {
+    // Two walls with a single cell between them: a piece three across cannot stand in that
+    // cell, and so cannot pass through it to the ground beyond either.
+    const above = Terrain.create('壁', 1, 5, 2, '', '');
+    above.location = { name: 'table', x: 6 * GRID, y: 0 };
+    table.appendChild(above);
+    const below = Terrain.create('壁', 1, 6, 2, '', '');
+    below.location = { name: 'table', x: 6 * GRID, y: 6 * GRID };
+    table.appendChild(below);
+
+    service.show(golemAt(4, 5, 8, 3));
+
+    expect(reached(9, 5)).toBe(false);
+    expect(reached(10, 5)).toBe(false);
+  });
+
+  it('will not hang off the edge of the board', () => {
+    service.show(golemAt(10, 5, 2));
+
+    expect(reached(11, 5)).toBe(false);
+    expect(reached(10, 6)).toBe(true);
+  });
+
+  it('leaves a piece of a single cell every cell it could reach before', () => {
+    service.show(golemAt(10, 5, 2, 1));
+
+    expect(reached(11, 5)).toBe(true);
+  });
+
+  describe('folding itself through a gap too small for it', () => {
+    afterEach(() => {
+      Config.instance.squeezes = null;
+    });
+
+    /**
+     * A wall with a two-cell gap in it, which a piece three across cannot walk through.
+     *
+     * Two cells rather than one: a piece that folds itself down to two is still two across,
+     * and a one-cell gap is shut to it however it holds itself.
+     */
+    function wallWithAGap(col: number, gapRow: number): void {
+      const above = Terrain.create('壁', 1, gapRow, 2, '', '');
+      above.location = { name: 'table', x: col * GRID, y: 0 };
+      table.appendChild(above);
+      const below = Terrain.create('壁', 1, 12 - gapRow - 2, 2, '', '');
+      below.location = { name: 'table', x: col * GRID, y: (gapRow + 2) * GRID };
+      table.appendChild(below);
+    }
+
+    it('stays on its own side of the gap where the room has not said it may', () => {
+      wallWithAGap(6, 5);
+      service.show(golemAt(4, 5, 4, 3));
+
+      expect(reached(7, 5)).toBe(false);
+    });
+
+    it('gets through where the room says it may', () => {
+      Config.instance.squeezes = true;
+      wallWithAGap(6, 5);
+      service.show(golemAt(4, 5, 4, 3));
+
+      expect(reached(7, 5)).toBe(true);
+    });
+
+    it('pays a step again for the cell it spends folded up', () => {
+      Config.instance.squeezes = true;
+      wallWithAGap(6, 5);
+      service.show(golemAt(4, 5, 3, 3));
+
+      // It reaches the gap and stands in it folded up, and what that cell costs twice over is
+      // what leaves it short of the ground beyond, which a step apiece would have paid for.
+      expect(reached(6, 5)).toBe(true);
+      expect(reached(7, 5)).toBe(false);
     });
   });
 });

@@ -55,6 +55,12 @@ function startDecode(def: StampDef, size: number, color: string | null): CacheEn
   return entry;
 }
 
+/**
+ * A stamp's picture at a size and colour once it has loaded, or null until then.
+ *
+ * The first ask starts the load and the picture is kept for every later ask, so drawing may ask on
+ * every frame. Each size and colour is kept apart; a stamp with no colour is drawn in near-black.
+ */
 export function getStampImage(def: StampDef, size: number, color: string | null): HTMLImageElement | null {
   const key = cacheKey(def.id, size, color);
   let entry = cache.get(key);
@@ -67,6 +73,10 @@ export function getStampImage(def: StampDef, size: number, color: string | null)
   return entry.decoded ? entry.image : null;
 }
 
+/**
+ * Waits for a stamp's picture at a size and colour to load, sharing the load and the kept picture
+ * with `getStampImage`. Rejects when it cannot be loaded.
+ */
 export function loadStampImage(def: StampDef, size: number, color: string | null): Promise<HTMLImageElement> {
   const key = cacheKey(def.id, size, color);
   let entry = cache.get(key);
@@ -79,6 +89,10 @@ export function loadStampImage(def: StampDef, size: number, color: string | null
   return entry.promise;
 }
 
+/**
+ * Loads the picture of every stamp placed on the map ahead of drawing, each stamp, size and colour
+ * once. A stamp with no definition, or a picture that fails to load, is passed over.
+ */
 export async function warmStampImages(
   items: { stampId: string; size?: number; color: string | null }[],
   defs: StampDef[]

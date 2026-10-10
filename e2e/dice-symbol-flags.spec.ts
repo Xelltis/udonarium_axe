@@ -16,7 +16,7 @@ test.describe('ダイスシンボルの表示・固定操作', () => {
   });
 
   test('既定では「ダイスを公開」または「自分だけ見る」のいずれかが表示されること', async ({ page }) => {
-    // isMine の状態に依存して表示項目が分岐する (両方同時には出ない)。
+    // isMineの状態に依存して表示項目が分岐する（両方同時には出ない）。
     const menu = await reopenDiceMenu(page);
     const publish = menu.getByText('ダイスを公開');
     const privateOnly = menu.getByText('自分だけ見る');

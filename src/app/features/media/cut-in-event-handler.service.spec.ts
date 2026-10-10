@@ -232,7 +232,7 @@ describe('CutInEventHandlerService', () => {
     expect(audioStub.get).not.toHaveBeenCalled();
   });
 
-  it('plays a sound-effect-tagged cut-in through the effects volume', () => {
+  it('plays a sound-effect-tagged sound-only cut-in through the cut-in volume, not the effects', () => {
     vi.spyOn(AudioPlayer.prototype, 'play').mockImplementation(() => {});
     vi.spyOn(AudioPlayer.prototype, 'stop').mockImplementation(() => {});
     audioStub.get.mockReturnValue({ identifier: 'se-id' });
@@ -242,10 +242,10 @@ describe('CutInEventHandlerService', () => {
     emitSoundOnlyCutIn({ cutIn: makeCutIn({ audioIdentifier: 'se-id' }) });
 
     const player = (service as unknown as { soundOnlyPlayer: AudioPlayer }).soundOnlyPlayer;
-    expect(player.volumeType).toBe(VolumeType.SE);
+    expect(player.volumeType).toBe(VolumeType.CUT_IN);
   });
 
-  it('plays any other sound-only cut-in through the master volume', () => {
+  it('plays any other sound-only cut-in through the cut-in volume, not the music', () => {
     vi.spyOn(AudioPlayer.prototype, 'play').mockImplementation(() => {});
     vi.spyOn(AudioPlayer.prototype, 'stop').mockImplementation(() => {});
     audioStub.get.mockReturnValue({ identifier: 'bgm-id' });
@@ -253,6 +253,6 @@ describe('CutInEventHandlerService', () => {
     emitSoundOnlyCutIn({ cutIn: makeCutIn({ audioIdentifier: 'bgm-id' }) });
 
     const player = (service as unknown as { soundOnlyPlayer: AudioPlayer }).soundOnlyPlayer;
-    expect(player.volumeType).toBe(VolumeType.MASTER);
+    expect(player.volumeType).toBe(VolumeType.CUT_IN);
   });
 });

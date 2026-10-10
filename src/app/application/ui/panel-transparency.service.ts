@@ -6,10 +6,17 @@ const STORAGE_KEY = 'ui-panel-transparency';
 export class PanelTransparencyService {
   private readonly byKind = signal<Record<string, number>>(storedByKind());
 
+  /**
+   * How transparent panels of one kind are drawn, from 0 to 100. Zero for a kind nobody has set.
+   */
   valueOf(kind: string): number {
     return this.byKind()[kind] ?? 0;
   }
 
+  /**
+   * Sets the transparency for one kind of panel, rounded and clamped to 0-100, and remembers it in
+   * this browser. A non-finite value is ignored.
+   */
   set(kind: string, value: number): void {
     if (!Number.isFinite(value)) return;
     const held = Math.min(100, Math.max(0, Math.round(value)));

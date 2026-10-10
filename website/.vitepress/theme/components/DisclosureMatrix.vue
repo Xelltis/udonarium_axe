@@ -1,12 +1,12 @@
 <script setup lang="ts">
 type Sight = 'yes' | 'no';
 
-const audiences = ['GM', 'オーナー', '選ばれた PL', 'ほかの PL', '見学'];
+const audiences = ['GM', 'オーナー', '選ばれたPL', 'ほかのPL', '見学'];
 
 const scopes: { name: string; hint: string; sight: Sight[] }[] = [
   { name: '全員', hint: '既定。誰でも中身を見られる', sight: ['yes', 'yes', 'yes', 'yes', 'yes'] },
   { name: '特定PL', hint: 'ハンドアウト向け', sight: ['yes', 'yes', 'yes', 'no', 'no'] },
-  { name: 'GMのみ', hint: 'GM が作ったものの初期値', sight: ['yes', 'yes', 'no', 'no', 'no'] },
+  { name: 'GMのみ', hint: 'GMが作ったものの初期値', sight: ['yes', 'yes', 'no', 'no', 'no'] },
 ];
 </script>
 

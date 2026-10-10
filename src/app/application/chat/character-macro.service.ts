@@ -6,9 +6,12 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { buildMacroMessage } from '@axe/domain/chat/character-macro';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { OutgoingStamp } from '@axe/domain/chat/chat-outgoing';
+import { evaluateCharacterReferences } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { DiceBot, PLAIN_DICE_BOT } from '@axe/domain/dice/dice-bot';
 import { Config } from '@axe/domain/peer/config';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import GameSystemClass from 'bcdice/lib/game_system';
 
 export interface MacroSendOptions {
@@ -26,6 +29,8 @@ export interface MacroSendOptions {
   replyTo?: string;
   quoteOf?: string;
   targets?: readonly GameCharacter[];
+  /** A stamp to send under the line. */
+  stamp?: OutgoingStamp;
 }
 
 /**
@@ -52,6 +57,13 @@ export class CharacterMacroService {
       .filter((character) => character.location.name === 'table' && character.targeted);
   }
 
+  /**
+   * Speaks a palette line as a piece, with the game system already in hand or none at all.
+   *
+   * References to the piece's data in the line are filled in and the marked pieces stand in as the
+   * targets unless others are given. Answers null, sending nothing, when there is no tab to speak
+   * into.
+   */
   send(character: GameCharacter, line: string, options: MacroSendOptions = {}): ChatMessage | null {
     const tab = this.resolveTab(options.tab);
     if (!tab) return null;
@@ -72,10 +84,19 @@ export class CharacterMacroService {
       message.attachmentImageIdentifiers,
       options.replyTo,
       options.quoteOf,
-      bubbles
+      bubbles,
+      undefined,
+      options.stamp
     );
   }
 
+  /**
+   * Speaks a palette line as a piece, loading the dice system it is rolled under first.
+   *
+   * The system is the one asked for, else the piece's palette's, else the room's default, else
+   * whatever chat is set to; the plain bot the piece and the room start with does not count as a
+   * choice. A game system handed in skips the lookup.
+   */
   async sendAsCharacter(
     character: GameCharacter,
     line: string,
@@ -90,6 +111,61 @@ export class CharacterMacroService {
       this.chatMessageService.gameType;
     const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
     return this.send(character, line, { ...options, gameSystem });
+  }
+
+  /**
+   * Speaks a line as the reader themselves, with no piece speaking, as the chat does when nobody
+   * is picked.
+   *
+   * Dice are rolled under the system asked for, else the room's default, else whatever chat is set
+   * to. Answers null, sending nothing, when there is no tab to speak into or nobody to speak as.
+   */
+  async sendAsSelf(
+    line: string,
+    options: Pick<MacroSendOptions, 'tab' | 'gameType'> = {}
+  ): Promise<ChatMessage | null> {
+    const tab = this.resolveTab(options.tab);
+    const cursor = PeerCursor.myCursor;
+    if (!tab || !cursor) return null;
+    const gameType =
+      options.gameType ||
+      chosenSystem(this.objectStore.get<Config>('Config')?.defaultDiceBot) ||
+      this.chatMessageService.gameType;
+    const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
+    return this.chatMessageService.sendMessage(
+      tab,
+      line,
+      gameSystem,
+      cursor.identifier,
+      '',
+      0,
+      cursor.chatColorCode[0]
+    );
+  }
+
+  /**
+   * Speaks a line under a name of its own, the way something on the table talks.
+   *
+   * References in the line are filled in from the piece given, where there is one, so a door can
+   * ask for the presser's own skill. Dice are rolled under the system asked for, else that piece's,
+   * else the room's.
+   */
+  async sendAsNamed(
+    name: string,
+    line: string,
+    character: GameCharacter | null,
+    options: Pick<MacroSendOptions, 'tab' | 'gameType'> = {}
+  ): Promise<ChatMessage | null> {
+    const tab = this.resolveTab(options.tab);
+    if (!tab) return null;
+    const gameType =
+      options.gameType ||
+      chosenSystem(character?.chatPalette?.dicebot) ||
+      chosenSystem(this.objectStore.get<Config>('Config')?.defaultDiceBot) ||
+      this.chatMessageService.gameType;
+    const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
+    const text = character ? evaluateCharacterReferences(line, character).text : line;
+    return this.chatMessageService.sendAsNamed(tab, text, gameSystem, name);
   }
 
   /**

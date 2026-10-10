@@ -1,5 +1,6 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { parseBuffModifierRequest } from '@axe/domain/character/buff-modifier';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { newStatusAilment, StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -21,6 +22,7 @@ export class StatusAilmentService {
     return this.catalog.ailments;
   });
 
+  /** Replaces the room's list of states with this one. */
   save(list: readonly StatusAilment[]): void {
     this.catalog.ailments = list;
     this.objectChange.notifyChanged(this.catalog.identifier);
@@ -39,6 +41,7 @@ export class StatusAilmentService {
     return added;
   }
 
+  /** Takes a state out of the room's list. A piece already wearing it keeps the buff. */
   remove(name: string): void {
     this.save(this.ailments().filter((entry) => entry.name !== name));
   }
@@ -55,11 +58,19 @@ export class StatusAilmentService {
     this.save(list);
   }
 
+  /** Whether a character is wearing a buff by this name. */
   isOn(character: GameCharacter, name: string): boolean {
     return character.buffs.find(name) != null;
   }
 
-  /** Puts the state on, as the catalogue describes it. Putting it on again starts it over. */
+  /**
+   * Puts the state on, as the catalogue describes it. Putting it on again starts it over.
+   *
+   * A state that names a status moves it as it goes on, the way the `&!` command does, and how
+   * far it moved is written on the buff so that taking the state off gives back exactly that
+   * much. A state naming a status the sheet has not got goes on as a plain note: better a mark
+   * the master can see than nothing at all.
+   */
   plant(character: GameCharacter, ailment: StatusAilment): void {
     character.addBuffDataElement();
     character.buffs.addRound(ailment.name, ailment.effect, ailment.rounds, {
@@ -67,14 +78,29 @@ export class StatusAilmentService {
       icon: ailment.icon,
       timing: ailment.timing,
     });
+    this.moveStatus(character, ailment);
     this.objectChange.notifyChanged(character.identifier);
   }
 
+  /** Moves the status the state names, where it names one the sheet answers to. */
+  private moveStatus(character: GameCharacter, ailment: StatusAilment): void {
+    // Read defensively: a state read from an older room, or handed in by hand, may carry
+    // nothing here at all.
+    if ((ailment.stat ?? '').trim().length < 1) return;
+    const request = parseBuffModifierRequest(ailment.stat, ailment.op, ailment.amount);
+    if (!request) return;
+    const data = character.buffs.find(ailment.name);
+    if (!data) return;
+    character.buffs.applyModifier(data, request);
+  }
+
+  /** Takes a state's buff off a character. Nothing happens when it is not wearing one. */
   pull(character: GameCharacter, name: string): void {
     if (!character.buffs.delete(name)) return;
     this.objectChange.notifyChanged(character.identifier);
   }
 
+  /** Puts a state on a character or takes it off, as `on` says. */
   toggle(character: GameCharacter, ailment: StatusAilment, on: boolean): void {
     if (on) this.plant(character, ailment);
     else this.pull(character, ailment.name);

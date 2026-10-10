@@ -12,15 +12,15 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { AudioPlayer } from '@axe/core/storage/audio-player';
+import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { AudioTag } from '@axe/domain/media/audio-tag';
-import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { Jukebox } from '@axe/domain/media/jukebox';
-import { Playlist } from '@axe/domain/media/playlist';
-import { Config } from '@axe/domain/peer/config';
+import { BackgroundSoundPlaybackService } from '@axe/features/media/background-sound-playback.service';
+import { formatTrackTime, JukeboxPlaybackService } from '@axe/features/media/jukebox-playback.service';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -35,6 +35,9 @@ export class MiniJukeboxComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly audioStorage = inject(AudioStorage);
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly playback = inject(JukeboxPlaybackService);
+  protected readonly backgroundSounds = inject(BackgroundSoundPlaybackService);
+  private readonly personalVolumes = inject(PersonalVolumeService);
 
   readonly isPlaylistOpen = signal(false);
   readonly isMinimized = signal(false);
@@ -95,18 +98,11 @@ export class MiniJukeboxComponent {
     return this.objectStore.get<Jukebox>('Jukebox') ?? null;
   }
 
-  private get config(): Config | null {
-    return this.objectStore.get<Config>('Config') ?? null;
-  }
-
-  private get cutInLauncher(): CutInLauncher {
-    return this.objectStore.get<CutInLauncher>('CutInLauncher')!;
-  }
-
-  readonly isPlaying = computed(() => {
-    this.objectChange.versionOf('Jukebox')();
-    return this.jukebox?.isPlaying ?? false;
-  });
+  readonly isPlaying = this.playback.isPlaying;
+  readonly isPaused = this.playback.isPaused;
+  readonly isShuffled = this.playback.isShuffled;
+  readonly activePlaylist = this.playback.activePlaylist;
+  readonly hasManyPlaylists = computed(() => this.playback.playlists().length > 1);
 
   readonly trackName = computed(() => {
     this.objectChange.versionOf('Jukebox')();
@@ -131,10 +127,20 @@ export class MiniJukeboxComponent {
     return AudioTag.get(id)?.tag ?? 'BGM';
   });
 
-  readonly repeatMode = computed(() => {
-    this.objectChange.versionOf('Jukebox')();
-    return (this.jukebox?.repeatMode ?? 'none') as 'none' | 'all' | 'one';
-  });
+  readonly repeatMode = this.playback.repeatMode;
+  /** Whether this player may change what the room plays, which a guest may not. */
+  readonly canOperate = this.playback.canOperate;
+  /** Whether this player may turn shuffle and repeat, which only the game master may. */
+  readonly canChangeModes = this.playback.canChangeModes;
+
+  /** The names of the background sounds playing, one after another, for the line under the controls. */
+  readonly backgroundNames = computed(() =>
+    this.backgroundSounds
+      .playing()
+      .map((sound) => sound.name)
+      .filter((name) => name.length > 0)
+      .join(' · ')
+  );
 
   readonly artworkUrl = computed(() => {
     this._tick();
@@ -144,8 +150,9 @@ export class MiniJukeboxComponent {
 
   readonly progress = computed(() => {
     this._tick();
-    const ct = this.jukebox?.currentTime ?? 0;
-    const dur = this.jukebox?.duration ?? 0;
+    this.objectChange.versionOf('Jukebox')();
+    const ct = this.playback.position();
+    const dur = this.playback.duration();
     return dur > 0 && isFinite(dur) ? ct / dur : 0;
   });
 
@@ -155,88 +162,87 @@ export class MiniJukeboxComponent {
 
   readonly timeDisplay = computed(() => {
     this._tick();
-    const dur = this.jukebox?.duration ?? 0;
-    if (!this.isPlaying()) return '—';
-    const ct = this.isSeeking() ? this.seekPreview() * dur : (this.jukebox?.currentTime ?? 0);
-    return `${this.formatTime(ct)} / ${this.formatTime(dur)}`;
+    this.objectChange.versionOf('Jukebox')();
+    if (!this.isPlaying() && !this.isPaused()) return '—';
+    const dur = this.playback.duration();
+    const ct = this.isSeeking() ? this.seekPreview() * dur : this.playback.position();
+    return `${formatTrackTime(ct)} / ${dur > 0 ? formatTrackTime(dur) : '—'}`;
   });
 
-  readonly bgmList = computed(() => {
-    this.objectChange.fileVersion();
-    this.objectChange.collectionOf('audio-tag')();
-    this.objectChange.versionOf('Playlist')();
-    const playlist = this.objectStore.get<Playlist>('Playlist') ?? null;
-    const entries = playlist?.entries ?? [];
-    if (entries.length > 0) {
-      return entries
-        .map((id) => this.audioStorage.get(id))
-        .filter((a): a is NonNullable<typeof a> => a !== null && !a.isHidden);
-    }
-    return this.audioStorage.audios.filter((a) => !a.isHidden && (AudioTag.get(a.identifier)?.tag ?? 'BGM') !== 'SE');
-  });
+  /** The tracks the room plays through, as listed. */
+  readonly bgmList = this.playback.queue;
 
-  private get currentIndex(): number {
-    if (!this.jukebox?.audio) return -1;
-    return this.bgmList().indexOf(this.jukebox.audio);
-  }
-
+  /**
+   * Plays the track before the current one for the whole room, going round to the last, or starts
+   * the current one again when it is a few seconds in.
+   */
   playPrev() {
-    const list = this.bgmList();
-    if (!list.length) return;
-    const idx = this.currentIndex;
-    const prev = list[(idx <= 0 ? list.length : idx) - 1];
-    this.playBGM(prev.identifier);
+    this.playback.previous();
   }
 
+  /** Plays the track after the current one for the whole room, going round to the first. */
   playNext() {
-    const list = this.bgmList();
-    if (!list.length) return;
-    const idx = this.currentIndex;
-    const next = list[(idx + 1) % list.length];
-    this.playBGM(next.identifier);
+    this.playback.next();
   }
 
-  private playBGM(identifier: string) {
-    this.cutInLauncher?.stopBlankTagCutIn();
-    this.jukebox?.play(identifier, true);
+  /** Pauses the room's music, goes on with it from where it was paused, or starts the playlist when nothing is held. */
+  togglePlayPause() {
+    this.playback.togglePlayPause();
   }
 
-  togglePlayStop() {
-    if (this.isPlaying()) {
-      this.jukebox?.stop();
-    } else {
-      const id = this.lastAudioIdentifier();
-      if (id) this.playBGM(id);
-    }
-  }
-
+  /** Steps the room's repeat mode on through none, the whole playlist and one track. */
   cycleRepeatMode() {
-    this.jukebox?.cycleRepeatMode();
+    this.playback.cycleRepeatMode();
   }
 
+  /** Turns shuffle on or off for the whole room. */
+  toggleShuffle() {
+    this.playback.toggleShuffle();
+  }
+
+  /** Moves the room on to the next or previous playlist and starts it. */
+  stepPlaylist(direction: 1 | -1) {
+    this.playback.stepPlaylist(direction);
+  }
+
+  /** Shows where the seek bar is being dragged to without moving playback yet. */
   onSeekInput(event: Event) {
     const value = (event.target as HTMLInputElement).valueAsNumber / 100;
     this.isSeeking.set(true);
     this.seekPreview.set(value);
   }
 
+  /**
+   * Seeks the room's music to where the user let go of the seek bar.
+   *
+   * The seek is skipped while the track's duration is unknown, but the drag preview ends either
+   * way.
+   */
   onSeekCommit(event: Event) {
     const value = (event.target as HTMLInputElement).valueAsNumber / 100;
-    const dur = this.jukebox?.duration ?? 0;
+    const dur = this.playback.duration();
     if (isFinite(dur) && dur > 0) {
-      this.jukebox?.seek(value * dur);
+      this.playback.seek(value * dur);
     }
     this.isSeeking.set(false);
   }
 
+  /** Opens or closes the track list under the player. */
   togglePlaylist() {
     this.isPlaylistOpen.update((v) => !v);
   }
 
+  /**
+   * Locks or unlocks the seek bar; the lock is kept on the jukebox, so it holds for the whole room.
+   */
   toggleSeekLock() {
-    if (this.jukebox) this.jukebox.isSeekLocked = !this.jukebox.isSeekLocked;
+    if (this.jukebox && this.canOperate()) this.jukebox.isSeekLocked = !this.jukebox.isSeekLocked;
   }
 
+  /**
+   * Shrinks the player to an icon near the bottom-right corner, or brings it back to where it first
+   * stood, kept inside the window.
+   */
   toggleMinimize() {
     const willMinimize = !this.isMinimized();
     this.isMinimized.set(willMinimize);
@@ -255,22 +261,21 @@ export class MiniJukeboxComponent {
     }
   }
 
-  playFromList(identifier: string) {
-    this.playBGM(identifier);
+  /** Plays the track the user clicked in the list for the whole room. */
+  playFromList(audio: AudioFile) {
+    this.playback.play(audio);
   }
 
+  /**
+   * The music volume from the player's slider, the same one the jukebox panel sets.
+   *
+   * Setting it changes what this browser plays at, scaled by the room volume, and is remembered in
+   * this browser; it is not sent to other peers.
+   */
   get volume(): number {
-    return this.jukebox?.volume ?? 0.5;
+    return this.personalVolumes.get('bgm');
   }
   set volume(v: number) {
-    if (this.jukebox) this.jukebox.volume = v;
-    AudioPlayer.volume = v * (this.config?.roomVolume ?? 1);
-  }
-
-  private formatTime(seconds: number): string {
-    if (!isFinite(seconds) || seconds < 0) return '0:00';
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
+    this.personalVolumes.set('bgm', v);
   }
 }

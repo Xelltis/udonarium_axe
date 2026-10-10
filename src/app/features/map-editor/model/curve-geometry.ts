@@ -7,6 +7,14 @@ export interface BezierSegment {
   y: number;
 }
 
+/**
+ * Turns a flat x,y point list into the cubic Bézier segments of a Catmull-Rom curve through every
+ * point.
+ *
+ * The segments start from the first point, one per gap between points. An open curve repeats its
+ * end points to shape the first and last segments; a closed one wraps round and adds a segment back
+ * to the start. Fewer than two points give no segments.
+ */
 export function catmullRomSegments(points: number[], closed: boolean): BezierSegment[] {
   const n = Math.floor(points.length / 2);
   if (n < 2) return [];
@@ -44,6 +52,12 @@ export function catmullRomSegments(points: number[], closed: boolean): BezierSeg
   return segments;
 }
 
+/**
+ * Flattens the curve through the points into a polyline with a fixed number of steps per segment,
+ * so a curve can be hit-tested like a line.
+ *
+ * With fewer than two points the points come back as they were given.
+ */
 export function sampleCurvePoints(points: number[], closed: boolean, stepsPerSegment = 16): number[] {
   const segments = catmullRomSegments(points, closed);
   if (segments.length === 0) return points.slice();

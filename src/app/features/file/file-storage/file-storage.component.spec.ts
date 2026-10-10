@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { PanelService } from '@axe/application/ui/panel.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -128,6 +130,122 @@ describe('FileStorageComponent', () => {
 
       expect(ImageTag.isSecret('kept')).toBe(true);
       expect(ImageTag.isSecret('not-kept')).toBe(false);
+    });
+  });
+
+  describe('bringing a picture in to look over first', () => {
+    let opened: { blob: Blob; name: string }[];
+    let canEdit: boolean;
+    const ownClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+
+    function clipboardHolding(read: () => Promise<unknown[]>): void {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { read } });
+    }
+
+    function pasted(files: File[]): ClipboardEvent {
+      return { clipboardData: { files }, preventDefault: vi.fn() } as unknown as ClipboardEvent;
+    }
+
+    beforeEach(() => {
+      canEdit = true;
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockImplementation(() => canEdit);
+      opened = [];
+      vi.spyOn(TestBed.inject(PanelService), 'open').mockReturnValue({
+        open: (blob: Blob, name: string) => {
+          opened.push({ blob, name });
+          return Promise.resolve();
+        },
+      } as never);
+    });
+
+    afterEach(() => {
+      if (ownClipboard) Object.defineProperty(navigator, 'clipboard', ownClipboard);
+      else delete (navigator as { clipboard?: unknown }).clipboard;
+      vi.restoreAllMocks();
+    });
+
+    it('opens a picture pasted with the keys, and leaves anything else pasted alone', () => {
+      const picture = new File(['png'], 'image.png', { type: 'image/png' });
+      const withPicture = pasted([picture]);
+      const withText = pasted([]);
+
+      component.onPaste(withPicture);
+      component.onPaste(withText);
+
+      expect(withPicture.preventDefault).toHaveBeenCalled();
+      expect(withText.preventDefault).not.toHaveBeenCalled();
+      expect(opened).toHaveLength(1);
+      expect(opened[0].blob).toBe(picture);
+      expect(opened[0].name).toMatch(/^pasted-\d{8}-\d{6}\.png$/);
+    });
+
+    it('takes nothing pasted from a seat that may not edit the table', () => {
+      canEdit = false;
+      const withPicture = pasted([new File(['png'], 'image.png', { type: 'image/png' })]);
+
+      component.onPaste(withPicture);
+
+      expect(withPicture.preventDefault).not.toHaveBeenCalled();
+      expect(opened).toHaveLength(0);
+    });
+
+    it('opens the picture on the clipboard from the paste button', async () => {
+      const picture = new Blob(['jpg'], { type: 'image/jpeg' });
+      clipboardHolding(async () => [
+        { types: ['text/plain'], getType: async () => new Blob(['words']) },
+        { types: ['image/jpeg'], getType: async () => picture },
+      ]);
+
+      await component.pasteFromClipboard();
+
+      expect(opened).toEqual([{ blob: picture, name: expect.stringMatching(/^pasted-.*\.jpg$/) }]);
+      expect(component.notice()).toBe('');
+    });
+
+    it('says so when the clipboard holds no picture, or will not be read', async () => {
+      clipboardHolding(async () => [{ types: ['text/plain'], getType: async () => new Blob(['words']) }]);
+      await component.pasteFromClipboard();
+      const nothing = component.notice();
+
+      clipboardHolding(() => Promise.reject(new Error('denied')));
+      await component.pasteFromClipboard();
+      const refused = component.notice();
+
+      expect(opened).toHaveLength(0);
+      expect(nothing).not.toBe('');
+      expect(refused).not.toBe('');
+      expect(refused).not.toBe(nothing);
+    });
+
+    it('offers to clear the background of one ticked picture, and of no more', async () => {
+      const storage = TestBed.inject(ImageStorage);
+      const blob = new Blob(['png'], { type: 'image/png' });
+      for (const identifier of ['map-one', 'map-two']) {
+        storage.add({
+          identifier,
+          name: `${identifier}.png`,
+          type: 'image/png',
+          blob,
+          url: `blob:${identifier}`,
+          thumbnail: { type: '', blob: null, url: '' },
+        });
+      }
+      component.selectTag.set('__all__');
+
+      try {
+        expect(component.checkedImage()).toBeNull();
+        component.imgBlockClick('map-one');
+        expect(component.checkedImage()?.identifier).toBe('map-one');
+        component.imgBlockClick('map-two');
+        expect(component.checkedImage()).toBeNull();
+
+        component.imgBlockClick('map-two');
+        await component.clearBackgroundOfChecked();
+        expect(opened).toEqual([{ blob, name: 'map-one-clear.png' }]);
+      } finally {
+        storage.delete('map-one');
+        storage.delete('map-two');
+      }
     });
   });
 

@@ -174,8 +174,8 @@ describe('evaluateCalcElement', () => {
 
 describe('what a sheet full of calculating fields costs', () => {
   /**
-   * A sheet where every field stands on the one below it, which is the shape that used to
-   * cost more with each field added rather than less.
+   * A sheet where every field stands on the one below it, which is the shape that costs more
+   * with each field added unless a field worked out once is kept for the rest.
    */
   function stack(depth: number): { detail: DataElement; fields: DataElement[] } {
     const detail = DataElement.create('detail', '');
@@ -216,7 +216,7 @@ describe('what a sheet full of calculating fields costs', () => {
     });
 
     // Once each. Anything that grows with the square, let alone with the power, of the
-    // count is the shape this was written to stop.
+    // count is the shape this guards against.
     expect(reads).toBe(fields.length);
   });
 
@@ -244,8 +244,8 @@ describe('what a sheet full of calculating fields costs', () => {
     const { fields } = stack(12);
     const pass = createCalcPass();
 
-    // Asking for the foot of the stack first used to leave every field above it remembered as
-    // unworkable, because each had been reached while the one it stands on was still going.
+    // Asking for the foot of the stack first must not leave every field above it remembered as
+    // unworkable, though each is reached while the one it stands on is still going.
     evaluateCalcElement(fields[0], pass);
 
     expect(fields.map((field) => evaluateCalcElement(field, pass))).toEqual(

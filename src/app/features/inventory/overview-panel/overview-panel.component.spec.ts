@@ -11,7 +11,12 @@ import {
   DataElementType,
   DataElementViewMode,
 } from '@axe/domain/data/data-element';
+import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { TextNote } from '@axe/domain/tabletop/text-note';
+import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { OverviewPanelComponent } from '@axe/features/inventory/overview-panel/overview-panel.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -34,6 +39,22 @@ describe('OverviewPanelComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('hides the face of a die kept back while its detail is open', async () => {
+    const die = DiceSymbol.create('D6', 0, 1);
+    component.tabletopObject = die;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const read = () => (fixture.nativeElement as HTMLElement).textContent?.replace(/\s+/g, ' ') ?? '';
+    expect(read()).toContain(`D6: ${die.face}`);
+
+    die.owner = 'somebody-else';
+    await Promise.resolve();
+    await fixture.whenStable();
+
+    expect(read()).not.toContain(`D6: ${die.face}`);
+    die.destroy();
   });
 
   it('rotates the detail toward the hover area supplied by the tooltip', () => {
@@ -155,6 +176,30 @@ describe('OverviewPanelComponent', () => {
     });
   });
 
+  it('shows a note set to be formatted drawn with its formatting, and one as typed in its text field', () => {
+    const formatted = TextNote.create('メモ', '# 洞窟');
+    formatted.isFormatted = true;
+    const plain = TextNote.create('メモ', '# 洞窟');
+    try {
+      component.tabletopObject = formatted;
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.querySelector('[data-testid="overview-note-formatted"] h1')!.textContent).toBe('洞窟');
+      expect(root.querySelector('textarea[name="note-text"]')).toBeNull();
+
+      const other = TestBed.createComponent(OverviewPanelComponent);
+      other.componentInstance.tabletopObject = plain;
+      other.detectChanges();
+      const plainRoot = other.nativeElement as HTMLElement;
+      expect(plainRoot.querySelector('[data-testid="overview-note-formatted"]')).toBeNull();
+      expect(plainRoot.querySelector('textarea[name="note-text"]')).not.toBeNull();
+      other.destroy();
+    } finally {
+      formatted.destroy();
+      plain.destroy();
+    }
+  });
+
   it('draws card text over the image in a card pop-up', () => {
     const image = ImageStorage.instance.add('card-popup-front.png');
     const card = Card.create('文章カード', image.identifier, 'back.png');
@@ -188,6 +233,30 @@ describe('OverviewPanelComponent', () => {
       component.chanageImageView(false);
       card.destroy();
       ImageStorage.instance.delete(image.identifier);
+    }
+  });
+
+  it('shows a whiteboard’s face in its pop-up, and opens it out to fill the screen from the button', () => {
+    const board = WhiteBoard.create('作戦ボード', 4, 3, 1);
+    component.tabletopObject = board;
+
+    try {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-testid="overview-white-board"] white-board-face')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('[data-testid="overview-white-board"]').textContent).toContain(
+        '作戦ボード'
+      );
+      expect(fixture.nativeElement.querySelector('[data-testid="enlarged-white-board"]')).toBeNull();
+
+      (fixture.nativeElement.querySelector('[data-testid="overview-white-board-zoom"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      const enlarged = fixture.nativeElement.querySelector('[data-testid="enlarged-white-board"]') as HTMLElement;
+      expect(enlarged).toBeTruthy();
+      expect(enlarged.classList).toContain('size-full');
+    } finally {
+      component.chanageImageView(false);
+      board.destroy();
     }
   });
 
@@ -542,6 +611,82 @@ describe('OverviewPanelComponent', () => {
       }
     });
 
+    describe('a resource set to have a slider', () => {
+      let character: GameCharacter;
+      let resource: DataElement;
+      let tagsSpy: { mockRestore(): void };
+
+      beforeEach(() => {
+        character = GameCharacter.create('popup-slider-test', 1, '');
+        resource = DataElement.create('HP', 20, {
+          [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+          [DataElementAttribute.POPUP]: 'true',
+          [DataElementAttribute.RESOURCE_SLIDER]: 'true',
+        });
+        resource.type = DataElementType.NUMBER_RESOURCE;
+        resource.currentValue = 12;
+        character.detailDataElement!.appendChild(resource);
+        component.tabletopObject = character;
+        const spy = vi.spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags');
+        spy.mockReturnValue([]);
+        tagsSpy = spy;
+      });
+
+      afterEach(() => {
+        tagsSpy.mockRestore();
+        character.destroy();
+      });
+
+      const slider = () =>
+        fixture.nativeElement.querySelector('[data-testid="overview-resource-slider"]') as HTMLInputElement | null;
+
+      function drag(to: number, letGo: boolean): void {
+        const input = slider()!;
+        input.value = String(to);
+        input.dispatchEvent(new Event('input'));
+        if (letGo) input.dispatchEvent(new Event('change'));
+        fixture.detectChanges();
+      }
+
+      it('draws a slider under it, from 0 up to its maximum', () => {
+        fixture.detectChanges();
+
+        expect(slider()).not.toBeNull();
+        expect(slider()!.min).toBe('0');
+        expect(slider()!.max).toBe('20');
+        expect(slider()!.value).toBe('12');
+      });
+
+      it('shows where the slider is being dragged in the box and writes nothing yet', async () => {
+        fixture.detectChanges();
+
+        drag(5, false);
+        await fixture.whenStable();
+
+        const box = fixture.nativeElement.querySelector('input[name="data-current-value"]') as HTMLInputElement;
+        expect(box.value).toBe('5');
+        expect(Number(resource.currentValue)).toBe(12);
+      });
+
+      it('writes where the slider is let go as what is left, and leaves the maximum alone', () => {
+        fixture.detectChanges();
+
+        drag(5, true);
+
+        expect(Number(resource.currentValue)).toBe(5);
+        expect(Number(resource.value)).toBe(20);
+      });
+
+      it('lets a seat that may not edit the table neither move the slider nor write with it', () => {
+        PeerCursor.myCursor = { role: PeerRole.Guest, identifier: 'guest-cursor' } as PeerCursor;
+        fixture.detectChanges();
+
+        expect(slider()!.disabled).toBe(true);
+        component.commitSliderValue(resource, { target: { valueAsNumber: 3 } } as unknown as Event);
+        expect(Number(resource.currentValue)).toBe(12);
+      });
+    });
+
     it('leaves an ordinary resource its own colour rather than a dark fixed one', () => {
       const hp = DataElement.create('HP', 200, { type: DataElementType.NUMBER_RESOURCE });
       hp.currentValue = 200;
@@ -558,7 +703,7 @@ describe('OverviewPanelComponent', () => {
       san.currentValue = 80;
 
       try {
-        expect(component.getPopupCurrentValueColor(san)).toBe('#d22');
+        expect(component.getPopupCurrentValueColor(san)).toBe('#D22');
       } finally {
         san.destroy();
       }

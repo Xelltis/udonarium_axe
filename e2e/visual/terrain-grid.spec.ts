@@ -24,9 +24,9 @@ test('a terrain draws its own grid over its floor', async ({ page }) => {
   const pieceMenu = page.locator('context-menu');
   await expect(pieceMenu.locator('li').first()).toBeVisible({ timeout: 7000 });
   await pieceMenu.getByText('地形設定を編集', { exact: true }).dispatchEvent('click');
-  await settleLazy(page);
-
   const gridToggle = page.locator('ui-panel input[name="isGrid"]');
+  await settleLazy(page, gridToggle);
+
   await expect(gridToggle).toBeAttached();
   await gridToggle.dispatchEvent('click');
   await settle(page, 400);

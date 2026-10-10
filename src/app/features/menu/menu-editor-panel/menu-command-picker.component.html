@@ -1,0 +1,57 @@
+<button
+  type="button"
+  class="rounded-ui-sm bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-glow flex cursor-pointer items-center gap-1 border border-solid px-2 py-1 text-[11px] transition-colors disabled:cursor-default disabled:opacity-45 [&_i]:text-[15px]!"
+  [disabled]="commands().length < 1"
+  aria-haspopup="listbox"
+  [attr.aria-expanded]="isOpen()"
+  data-testid="menu-editor-add"
+  (click)="toggle()"
+>
+  <i class="material-icons">add</i>
+  {{ 'feature.menuEditor.add' | transloco }}
+</button>
+
+<div
+  popover="manual"
+  class="rounded-ui-lg border-ui-border-menu bg-ui-menu text-ui-text shadow-ui-lg fixed inset-auto m-0 flex-col overflow-hidden border border-solid p-0 [backdrop-filter:blur(12px)]"
+  #popover
+>
+  <div class="border-ui-border-separator flex shrink-0 items-center gap-1 border-b border-solid p-1">
+    <i class="material-icons text-ui-dim text-[16px]!" aria-hidden="true">search</i>
+    <input
+      #search
+      class="rounded-ui-sm bg-ui-input text-ui-text min-w-0 grow border-none px-1 py-0.5 text-[11px] outline-none"
+      [ngModel]="query()"
+      name="menu-command-search"
+      [placeholder]="'feature.menuEditor.searchCommand' | transloco"
+      data-testid="menu-command-search"
+      (ngModelChange)="query.set($event)"
+    />
+  </div>
+
+  <ul class="m-0 min-h-0 flex-1 list-none overflow-y-auto p-1" role="listbox" data-testid="menu-command-list">
+    @for (command of matches(); track command.key) {
+      <li>
+        <button
+          type="button"
+          class="rounded-ui-sm hover:bg-ui-menu-hover hover:text-ui-accent text-ui-text flex w-full cursor-pointer items-center gap-1.5 border-none bg-transparent px-1.5 py-1 text-left text-[11px] transition-colors [&_i]:text-[16px]!"
+          role="option"
+          [attr.aria-selected]="false"
+          [attr.data-testid]="'menu-command-choice-' + command.key"
+          (click)="choose(command)"
+        >
+          <i class="material-icons text-ui-dim shrink-0">{{ command.icon }}</i>
+          <span class="min-w-0 grow truncate">{{ labelOf(command) }}</span>
+        </button>
+      </li>
+    } @empty {
+      <li class="text-ui-dim p-3 text-center text-[11px]">
+        @if (commands().length < 1) {
+          {{ 'feature.menuEditor.allAdded' | transloco }}
+        } @else {
+          {{ 'feature.menuEditor.notFound' | transloco }}
+        }
+      </li>
+    }
+  </ul>
+</div>

@@ -10,6 +10,7 @@ export class CardFlipCutInService {
   private readonly objectStore = inject(ObjectStore);
   private readonly cutInService = inject(CutInService);
 
+  /** Every cut-in in the room, for choosing one a card sets off when it is turned up. */
   cutIns(): CutIn[] {
     return this.objectStore.getObjects<CutIn>(CutIn);
   }
@@ -21,6 +22,7 @@ export class CardFlipCutInService {
     return this.cutInService.launch(cutIn);
   }
 
+  /** Ties a card to the cut-in played when it is turned face up. The tie travels with the card to every peer. */
   assign(card: Card, cutInIdentifier: string): void {
     card.cutInIdentifier = cutInIdentifier;
   }

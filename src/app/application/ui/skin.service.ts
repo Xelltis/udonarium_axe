@@ -18,18 +18,26 @@ import {
   reorderLayers,
   SkinLayer,
 } from '@axe/domain/ui/skin-layer';
+import { DiceMat, parseMat, PLAIN_MAT } from '@axe/domain/ui/skin-mat';
 import { panelTone, SkinMode, SkinRecipe, SkinTokens, skinTokens } from '@axe/domain/ui/skin-palette';
 import { STANDARD_TOKENS } from '@axe/domain/ui/skin-standard';
 
 /** A seat's whole wardrobe at one moment, which is what "put it back" restores. */
 export interface SkinSnapshot {
-  light: { id: string; recipe: SkinRecipe; stack: SkinLayer[] };
-  dark: { id: string; recipe: SkinRecipe; stack: SkinLayer[] };
+  light: { id: string; recipe: SkinRecipe; stack: SkinLayer[]; mat: DiceMat };
+  dark: { id: string; recipe: SkinRecipe; stack: SkinLayer[]; mat: DiceMat };
 }
 
 const SKIN_KEY: Record<SkinMode, string> = { light: 'ui-skin-light', dark: 'ui-skin-dark' };
 const RECIPE_KEY: Record<SkinMode, string> = { light: 'ui-skin-recipe-light', dark: 'ui-skin-recipe-dark' };
 const LAYERS_KEY: Record<SkinMode, string> = { light: 'ui-skin-layers-light', dark: 'ui-skin-layers-dark' };
+const MAT_KEY: Record<SkinMode, string> = { light: 'ui-skin-mat-light', dark: 'ui-skin-mat-dark' };
+
+/** The mat the dice land on, ready to be laid under a frame: its colour, and its picture if it has one. */
+export interface PaintedMat {
+  color: string;
+  picture: PaintedLayer | null;
+}
 
 /** One picture of the stack, ready to be handed to an element as a style. */
 export interface PaintedLayer {
@@ -93,6 +101,15 @@ export class SkinService {
     dark: signal(parseLayers(read(LAYERS_KEY.dark))),
   };
 
+  /**
+   * The mat each ladder lays under the dice in a line's frame. Like the stack it belongs to the
+   * ladder, and its picture's bytes live with the stack's.
+   */
+  private readonly mats: Record<SkinMode, ReturnType<typeof signal<DiceMat>>> = {
+    light: signal(parseMat(read(MAT_KEY.light))),
+    dark: signal(parseMat(read(MAT_KEY.dark))),
+  };
+
   /** Where each layer's bytes are reachable, once they have been fetched out of the store. */
   private readonly urls = signal<Readonly<Record<string, string>>>({});
 
@@ -151,6 +168,15 @@ export class SkinService {
   /** What the preview is papered with, which may be the other ladder's. */
   readonly editedLayers = computed(() => this.paintedFor(this.editing()));
 
+  /** The mat of the ladder being dressed, for the picker. */
+  readonly mat = computed(() => this.mats[this.editing()]());
+
+  /** What the dice in a line's frame lie on, on screen now. */
+  readonly diceMat = computed(() => this.paintedMat(this.mode()));
+
+  /** What the preview's dice lie on, which may be the other ladder's. */
+  readonly editedMat = computed(() => this.paintedMat(this.editing()));
+
   /** Whether the stack is full, so the panel can stop offering to add to it. */
   readonly stackIsFull = computed(() => this.stack().length >= MAX_LAYERS);
 
@@ -180,8 +206,14 @@ export class SkinService {
     });
   }
 
+  /** Every picture either ladder wears, in its stack or on its mat. */
+  private wantedPictures(): string[] {
+    const mats = [this.mats.light().layer, this.mats.dark().layer].filter((layer) => layer !== null);
+    return [...this.stacks.light(), ...this.stacks.dark(), ...mats].map((layer) => layer.id);
+  }
+
   private async loadPictures(sweep = false): Promise<void> {
-    const wanted = [...this.stacks.light(), ...this.stacks.dark()].map((layer) => layer.id);
+    const wanted = this.wantedPictures();
     const missing = wanted.filter((id) => !this.urls()[id]);
     const fetched = await Promise.all(missing.map(async (id) => [id, await this.images.get(id)] as const));
 
@@ -208,7 +240,7 @@ export class SkinService {
    * seat where skins are being built and swapped goes through a good many.
    */
   private releaseUnused(): void {
-    const wanted = new Set([...this.stacks.light(), ...this.stacks.dark()].map((layer) => layer.id));
+    const wanted = new Set(this.wantedPictures());
     const held = this.urls();
     const stale = Object.keys(held).filter((id) => !wanted.has(id));
     if (stale.length === 0) return;
@@ -233,6 +265,62 @@ export class SkinService {
           opacity: layer.opacity / 100,
         };
       });
+  }
+
+  /** The mat of one ladder, with its picture where its bytes are here. */
+  private paintedMat(mode: SkinMode): PaintedMat {
+    const mat = this.mats[mode]();
+    const url = mat.layer ? this.urls()[mat.layer.id] : undefined;
+    if (!mat.layer || !url) return { color: mat.color, picture: null };
+    const place = layerPlacement(mat.layer);
+    return {
+      color: mat.color,
+      picture: {
+        id: mat.layer.id,
+        backgroundImage: `url("${url}")`,
+        backgroundSize: place.size,
+        backgroundPosition: place.position,
+        backgroundRepeat: place.repeat,
+        opacity: mat.layer.opacity / 100,
+      },
+    };
+  }
+
+  private keepMat(mode: SkinMode, mat: DiceMat): void {
+    this.mats[mode].set(mat);
+    write(MAT_KEY[mode], JSON.stringify(mat));
+    this.releaseUnused();
+  }
+
+  /** Dyes a ladder's mat. */
+  setMatColor(color: string, mode: SkinMode = this.editing()): void {
+    this.keepMat(mode, asDiceMatColor(this.mats[mode](), color));
+  }
+
+  /**
+   * Lays a picture over a ladder's mat in place of any before it, read as a layer's picture is:
+   * resampled, and refused where it is not a picture or too large to decode.
+   */
+  async setMatPicture(file: Blob, name: string, mode: SkinMode = this.editing()): Promise<boolean> {
+    const id = await this.readPicture(file);
+    if (!id) return false;
+    this.keepMat(mode, {
+      ...this.mats[mode](),
+      layer: { id, name: name.slice(0, 60), opacity: 100, fit: 'cover', anchor: 'center' },
+    });
+    return true;
+  }
+
+  /** Changes the strength, fit or corner of a ladder's mat picture. */
+  tuneMat(patch: Partial<SkinLayer>, mode: SkinMode = this.editing()): void {
+    const mat = this.mats[mode]();
+    if (!mat.layer) return;
+    this.keepMat(mode, { ...mat, layer: { ...mat.layer, ...patch, id: mat.layer.id } });
+  }
+
+  /** Takes a ladder's mat picture off, leaving its bytes until the next start as a layer's are. */
+  removeMatPicture(mode: SkinMode = this.editing()): void {
+    this.keepMat(mode, { ...this.mats[mode](), layer: null });
   }
 
   private keepStack(mode: SkinMode, layers: SkinLayer[]): void {
@@ -309,6 +397,10 @@ export class SkinService {
     );
   }
 
+  /**
+   * Moves a picture up or down a ladder's stack by some places, staying inside it, and writes the
+   * stack down.
+   */
   moveLayer(id: string, by: number, mode: SkinMode = this.editing()): void {
     this.keepStack(mode, reorderLayers(this.stacks[mode](), id, by));
   }
@@ -320,14 +412,19 @@ export class SkinService {
       this.stacks[mode]().map((layer) => (layer.id === id ? { ...layer, ...patch, id: layer.id } : layer))
     );
   }
+  /** The skin chosen for one ladder, whether or not that ladder is on screen. */
   skinOf(mode: SkinMode): string {
     return this.chosen[mode]();
   }
 
+  /** The slider values held for one ladder's custom skin. */
   recipeOf(mode: SkinMode): SkinRecipe {
     return this.recipes[mode]();
   }
 
+  /**
+   * Switches the picker to dressing the light or the dark ladder, dropping any skin being tried on.
+   */
   editLadder(mode: SkinMode): void {
     this.editing.set(mode);
     this.hovered.set(null);
@@ -341,11 +438,28 @@ export class SkinService {
   /** What the seat is wearing now, so a panel can put it back after someone has tried things on. */
   snapshot(): SkinSnapshot {
     return {
-      light: { id: this.chosen.light(), recipe: this.recipes.light(), stack: [...this.stacks.light()] },
-      dark: { id: this.chosen.dark(), recipe: this.recipes.dark(), stack: [...this.stacks.dark()] },
+      light: {
+        id: this.chosen.light(),
+        recipe: this.recipes.light(),
+        stack: [...this.stacks.light()],
+        mat: this.mats.light(),
+      },
+      dark: {
+        id: this.chosen.dark(),
+        recipe: this.recipes.dark(),
+        stack: [...this.stacks.dark()],
+        mat: this.mats.dark(),
+      },
     };
   }
 
+  /**
+   * Puts both ladders back as a snapshot found them: skin, recipe, picture stack and mat, all
+   * written down again.
+   *
+   * This is the way back out of the skin panel. Pictures a restored stack refers to are fetched
+   * from the store again, since their bytes are kept until the next start.
+   */
   restore(worn: SkinSnapshot): void {
     for (const mode of ['light', 'dark'] as const) {
       this.recipes[mode].set(worn[mode].recipe);
@@ -354,6 +468,8 @@ export class SkinService {
       write(SKIN_KEY[mode], worn[mode].id);
       this.stacks[mode].set([...worn[mode].stack]);
       write(LAYERS_KEY[mode], JSON.stringify(worn[mode].stack));
+      this.mats[mode].set(worn[mode].mat);
+      write(MAT_KEY[mode], JSON.stringify(worn[mode].mat));
     }
     this.hovered.set(null);
     // Both ladders are back before anything is let go of, and a layer taken out while the
@@ -362,6 +478,10 @@ export class SkinService {
     void this.loadPictures();
   }
 
+  /**
+   * Puts a skin on one ladder and writes the choice down. An id no skin answers to settles on the
+   * standard skin.
+   */
   choose(id: string, mode: SkinMode = this.editing()): void {
     this.hovered.set(null);
     const settled = asSkinId(id, mode);
@@ -385,7 +505,7 @@ export class SkinService {
     return skin.pinned ? { ...skinTokens(skin.recipe, mode), ...skin.pinned } : skinTokens(skin.recipe, mode);
   }
 
-  /** Writes the skin being dressed out as a zip: its numbers, and every picture it stacks. */
+  /** Writes the skin being dressed out as a zip: its numbers, every picture it stacks, and its mat. */
   async exportSkin(name: string, mode: SkinMode = this.editing()): Promise<void> {
     const layers = this.stacks[mode]();
     const files: File[] = [];
@@ -399,13 +519,23 @@ export class SkinService {
       files.push(new File([picture], entry, { type: picture.type || 'image/webp' }));
     }
 
-    const text = writeSkinFile(this.recipes[mode](), mode, name, packed);
+    const mat = this.mats[mode]();
+    let matPacked: { layer: SkinLayer; entry: string } | null = null;
+    const matPicture = mat.layer ? await this.images.get(mat.layer.id) : null;
+    if (mat.layer && matPicture) {
+      const entry = `mat-${mat.layer.id}.${matPicture.type === 'image/png' ? 'png' : 'webp'}`;
+      matPacked = { layer: mat.layer, entry };
+      files.push(new File([matPicture], entry, { type: matPicture.type || 'image/webp' }));
+    }
+
+    const text = writeSkinFile(this.recipes[mode](), mode, name, packed, { color: mat.color, packed: matPacked });
     files.unshift(new File([text], SKIN_FILE_NAME, { type: 'application/json' }));
     downloadBlob(await createZipBlob(files), skinFileName(name));
   }
 
   /**
-   * Reads a skin someone was handed, and wears it. Anything unreadable is left alone.
+   * Reads a skin someone was handed, and wears it. Anything unreadable is left alone. A skin from
+   * before mats were offered lays the plain one, as the rest of what it wears replaces the seat's.
    *
    * The whole skin is read before any of it is worn: a file whose pictures will not open is
    * refused outright rather than taking the stack already on the seat down with it.
@@ -433,7 +563,25 @@ export class SkinService {
       return false;
     }
 
-    this.keepStack(mode, brought);
+    let mat: DiceMat = PLAIN_MAT;
+    if (skin.mat) {
+      const wanted = skin.mat.layer;
+      const packed = wanted && entries.find((entry) => entry.name === wanted.file);
+      const id = packed ? await this.readPicture(packed.blob) : null;
+      mat = {
+        color: skin.mat.color,
+        layer:
+          wanted && id
+            ? { id, name: wanted.name, opacity: wanted.opacity, fit: wanted.fit, anchor: wanted.anchor }
+            : null,
+      };
+    }
+
+    this.stacks[mode].set(brought);
+    write(LAYERS_KEY[mode], JSON.stringify(brought));
+    this.mats[mode].set(mat);
+    write(MAT_KEY[mode], JSON.stringify(mat));
+    this.releaseUnused();
     this.build(skin.recipe, mode);
     this.editLadder(mode);
     return true;
@@ -452,4 +600,10 @@ export class SkinService {
     if (tokens) setChatBubbleBaseTone(mode, panelTone(tokens));
     else resetChatBubbleBaseTone();
   }
+}
+
+/** A mat dyed another colour, keeping its picture; a colour that is not one leaves it as it was. */
+function asDiceMatColor(mat: DiceMat, color: string): DiceMat {
+  const settled = color.trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(settled) ? { ...mat, color: settled } : mat;
 }

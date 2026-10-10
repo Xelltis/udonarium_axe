@@ -3,7 +3,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
+import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import { Network } from '@axe/core/network/network';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
@@ -109,6 +112,34 @@ describe('MovableDirective', () => {
       expect(directiveFor(undefined).isGridSnap).toBe(true);
       expect(directiveFor('north-wall').isGridSnap).toBe(true);
     });
+  });
+});
+
+describe('MovableDirective layers', () => {
+  @Component({
+    selector: 'layer-host',
+    template: `<div appMovable [movable.option]="{ layerName: 'character', colideLayers: ['terrain'] }"></div>`,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MovableDirective],
+  })
+  class LayerHostComponent {}
+
+  it('lets something that is not a piece join a layer, and leave it', () => {
+    TestBed.configureTestingModule({ imports: [LayerHostComponent], providers: [...TEST_PROVIDERS] });
+    const fixture = TestBed.createComponent(LayerHostComponent);
+    fixture.detectChanges();
+    const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
+    const joined = { layerName: 'terrain', input: null, setPointerEvents: vi.fn() };
+    const left = { layerName: 'wall', input: null, setPointerEvents: vi.fn() };
+    MovableDirective.joinLayer('terrain', joined);
+    MovableDirective.joinLayer('wall', left);
+    MovableDirective.leaveLayer('wall', left);
+
+    directive.setCollidableLayer(true);
+
+    expect(joined.setPointerEvents).toHaveBeenCalledWith(true);
+    expect(left.setPointerEvents).not.toHaveBeenCalled();
+    MovableDirective.leaveLayer('terrain', joined);
   });
 });
 
@@ -260,6 +291,15 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
     expect(directive.contactSupportZ(50, 50)).toBe(4 * GRID);
   });
 
+  it('climbs a block drawn together with others, in no element of its own', () => {
+    const box = block({ identifier: 'box', h: 1 });
+    const directive = mount(block({ identifier: 'dragged', h: 1, x: 500, y: 500 }), []);
+    TestBed.inject(TabletopOverlapService).registerWithoutElement(box, () => undefined);
+
+    expect(directive.contactSupportZ(50, 50)).toBe(1 * GRID);
+    expect(directive.contactSupportZ(150, 50)).toBe(0);
+  });
+
   it('rests a canopy on a tower by the gap under it, not by its own height again', () => {
     const tower = block({ identifier: 'tower', h: 4 });
     const dragged = block({ identifier: 'dragged', h: 1, altitude: 3, x: 500, y: 500 });
@@ -318,6 +358,146 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
     directive['liftByWheel'](new WheelEvent('wheel', { deltaY: -1, cancelable: true }));
 
     expect(directive.contactSupportZ(50, 50)).toBe(4 * GRID);
+  });
+
+  describe('holding a piece off the ground', () => {
+    /**
+     * A turn of the wheel with the key held down.
+     *
+     * The WheelEvent here is built on UIEvent rather than MouseEvent, so it carries no
+     * modifiers of its own and the key has to be put on by hand. A browser carries it.
+     */
+    function shiftWheel(directive: MovableDirective, isUp: boolean): void {
+      const wheel = new WheelEvent('wheel', { deltaY: isUp ? -1 : 1, cancelable: true });
+      Object.defineProperty(wheel, 'shiftKey', { value: true });
+      directive['liftByWheel'](wheel);
+    }
+
+    it('sends the piece up a cell at a time, however empty the air above it is', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      grab(directive, { x: 50, y: 50 });
+
+      shiftWheel(directive, true);
+      shiftWheel(directive, true);
+
+      expect(walker.altitude).toBe(2);
+    });
+
+    it('brings it back down the same way, and on below the ground', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      grab(directive, { x: 50, y: 50 });
+
+      shiftWheel(directive, true);
+      shiftWheel(directive, false);
+      shiftWheel(directive, false);
+
+      expect(walker.altitude).toBe(-1);
+    });
+
+    it('goes past what it could stand on rather than settling onto it', () => {
+      const rock = block({ identifier: 'rock', h: 1, altitude: 3 });
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, [{ object: rock, w: 2, d: 2 }]);
+      grab(directive, { x: 50, y: 50 });
+
+      shiftWheel(directive, true);
+
+      expect(walker.altitude).toBe(1);
+      expect(walker.posZ).toBe(0);
+    });
+
+    it('leaves the height alone without the key, which is what walks the surfaces', () => {
+      const rock = block({ identifier: 'rock', h: 1, altitude: 3 });
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, [{ object: rock, w: 2, d: 2 }]);
+      grab(directive, { x: 50, y: 50 });
+
+      directive['liftByWheel'](new WheelEvent('wheel', { deltaY: -1, cancelable: true }));
+
+      expect(walker.altitude).toBe(0);
+      expect(directive.contactSupportZ(50, 50)).toBe(4 * GRID);
+    });
+
+    it('shows how high it is being held, and where it is being held over', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      grab(directive, { x: 50, y: 50 });
+      directive.posX = 300;
+      directive.posY = 400;
+
+      shiftWheel(directive, true);
+
+      const guide = TestBed.inject(HeldPieceService).held();
+      expect(guide?.identifier).toBe(walker.identifier);
+      expect(guide?.altitude).toBe(1);
+      expect({ x: guide?.x, y: guide?.y }).toEqual({ x: 300, y: 400 });
+    });
+
+    it('keeps the guide under the piece as it carries on across the table', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      const guides = TestBed.inject(HeldPieceService);
+      grab(directive, { x: 50, y: 50 });
+      shiftWheel(directive, true);
+      const before = { x: guides.held()?.x, y: guides.held()?.y };
+
+      vi.spyOn(directive['coordinateService'], 'convertToLocal').mockReturnValue({ x: 400, y: 500, z: 0 });
+      directive['onInputMoveNow'](new MouseEvent('mousemove'));
+
+      const after = { x: guides.held()?.x, y: guides.held()?.y };
+      expect(after).toEqual({ x: directive.posX, y: directive.posY });
+      expect(after).not.toEqual(before);
+    });
+
+    it('takes the turn from the sideways spin a browser reports with the key held', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      grab(directive, { x: 50, y: 50 });
+      const sideways = new WheelEvent('wheel', { deltaY: 0, cancelable: true });
+      Object.defineProperty(sideways, 'shiftKey', { value: true });
+      Object.defineProperty(sideways, 'deltaX', { value: -100 });
+
+      directive['liftByWheel'](sideways);
+
+      expect(walker.altitude).toBe(1);
+    });
+
+    it('shows the guide from the moment a piece off the ground is picked up', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      walker.altitude = 2;
+      const directive = mount(walker, []);
+      const guides = TestBed.inject(HeldPieceService);
+
+      directive.onInputStart(new MouseEvent('mousedown'));
+
+      expect(guides.held()?.identifier).toBe(walker.identifier);
+      expect(guides.held()?.altitude).toBe(2);
+    });
+
+    it('takes the guide away once the piece is let go of', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      grab(directive, { x: 50, y: 50 });
+      shiftWheel(directive, true);
+
+      directive.cancel();
+
+      expect(TestBed.inject(HeldPieceService).held()).toBeNull();
+    });
+
+    it('leaves a piece hung on a wall to the surfaces, which is all a wall has', () => {
+      const hung = GameCharacter.create('hung', 1, '');
+      hung.location.surface = 'north-wall';
+      const directive = mount(hung, []);
+      grab(directive, { x: 50, y: 50 });
+
+      shiftWheel(directive, true);
+
+      expect(hung.altitude).toBe(0);
+      expect(TestBed.inject(HeldPieceService).held()).toBeNull();
+    });
   });
 
   it('keeps the wheel to itself while a piece is held, so the table does not zoom under it', () => {
@@ -385,6 +565,20 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
       directive['holdAtBlocks'](0, 50);
 
       // A pixel short of the face at 200, which is what keeps whole pixels on the outside.
+      expect(directive.posX).toBe(199);
+    });
+
+    it('holds a character at the near face of one drawn in no element of its own', () => {
+      const walker = GameCharacter.create('walker', 1, '');
+      const directive = mount(walker, []);
+      TestBed.inject(TabletopOverlapService).registerWithoutElement(cliff({ x: 200, y: 0 }), () => undefined);
+      directive.width = 0;
+      directive.height = 0;
+      directive.posY = 50;
+
+      directive.posX = 400;
+      directive['holdAtBlocks'](0, 50);
+
       expect(directive.posX).toBe(199);
     });
 
@@ -628,5 +822,83 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
     directive['liftByWheel'](new WheelEvent('wheel', { deltaY: -1, cancelable: true }));
 
     expect(directive.contactSupportZ(50, 50)).toBe(8 * GRID);
+  });
+});
+
+describe('MovableDirective telling the others where a piece was dropped', () => {
+  @Component({
+    selector: 'drop-host',
+    template: `<div appMovable [movable.option]="{}"></div>`,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MovableDirective],
+  })
+  class DropHostComponent {}
+
+  interface Internals {
+    tabletopObject: TabletopObject;
+    input: { pointer: { x: number; y: number; z: number }; cancel(): void; destroy(): void } | null;
+    coordinateService: { convertToLocal(pointer: unknown, element: HTMLElement): { x: number; y: number; z: number } };
+    surfaceUnderPointer(): HTMLElement | null;
+    computeBeamRest(pointer: unknown): { x: number; y: number; z: number } | null;
+    maybeSwitchSurfaceOnDrop(): void;
+  }
+
+  function mount(piece: GameCharacter): Internals {
+    if (!ObjectStore.instance.get(piece.identifier)) ObjectStore.instance.add(piece, false);
+    TestBed.configureTestingModule({ imports: [DropHostComponent], providers: [...TEST_PROVIDERS] });
+    const fixture = TestBed.createComponent(DropHostComponent);
+    fixture.detectChanges();
+    const directive = fixture.debugElement.children[0].injector.get(MovableDirective) as unknown as Internals;
+    directive.tabletopObject = piece;
+    directive.input = { pointer: { x: 120, y: 120, z: 0 }, cancel: () => undefined, destroy: () => undefined };
+    return directive;
+  }
+
+  function surfacesSentFor(piece: GameCharacter): (string | undefined)[] {
+    const surfaces: (string | undefined)[] = [];
+    vi.spyOn(Network.instance, 'send').mockImplementation((message) => {
+      const { eventName, data } = message as {
+        eventName: string;
+        data: { identifier: string; syncData: { attributes?: { location?: { surface?: string } } } };
+      };
+      if (eventName === 'UPDATE_GAME_OBJECT' && data.identifier === piece.identifier) {
+        surfaces.push(data.syncData.attributes?.location?.surface);
+      }
+    });
+    return surfaces;
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('sends the board a piece was dropped on, where no snapping follows to send it later', () => {
+    const piece = GameCharacter.create('dropped on a board', 1, '');
+    const directive = mount(piece);
+    const board = document.createElement('div');
+    board.dataset['surface'] = 'a-board';
+    board.setAttribute('data-surface-overflow', '');
+    Object.defineProperty(board, 'offsetWidth', { value: 500 });
+    Object.defineProperty(board, 'offsetHeight', { value: 500 });
+    vi.spyOn(directive, 'computeBeamRest').mockReturnValue(null);
+    vi.spyOn(directive, 'surfaceUnderPointer').mockReturnValue(board);
+    vi.spyOn(directive.coordinateService, 'convertToLocal').mockReturnValue({ x: 100, y: 100, z: 0 });
+    const surfaces = surfacesSentFor(piece);
+
+    directive.maybeSwitchSurfaceOnDrop();
+
+    expect(surfaces).toEqual(['a-board']);
+  });
+
+  it('sends a piece taken off a wall onto a beam as off the wall', () => {
+    const piece = GameCharacter.create('taken off a wall', 1, '');
+    piece.location.surface = 'north-wall';
+    const directive = mount(piece);
+    vi.spyOn(directive, 'computeBeamRest').mockReturnValue({ x: 50, y: 50, z: 100 });
+    const surfaces = surfacesSentFor(piece);
+
+    directive.maybeSwitchSurfaceOnDrop();
+
+    expect(surfaces).toEqual([undefined]);
   });
 });

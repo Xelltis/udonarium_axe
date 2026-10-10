@@ -1,4 +1,4 @@
-<div class="border-ui-border flex h-full w-80 shrink-0 flex-col gap-1.5 border-l border-solid pl-2">
+<div class="flex h-full min-h-0 min-w-0 flex-col gap-1.5">
   <div class="flex flex-wrap items-center gap-1">
     @for (scope of scopes; track scope) {
       <button
@@ -28,191 +28,197 @@
       <input type="checkbox" [checked]="filter().showIncidental" (change)="toggleIncidental()" />
       {{ 'feature.replay.panel.showIncidental' | transloco }}
     </label>
+    <label class="text-ui-muted flex cursor-pointer items-center gap-1 text-[0.7rem]">
+      <input type="checkbox" [checked]="filter().showSystem" (change)="toggleSystem()" />
+      {{ 'feature.replay.panel.showSystem' | transloco }}
+    </label>
   </div>
 
-  <ul class="m-0 flex min-h-0 flex-1 list-none flex-col overflow-y-auto p-0">
-    <ng-container
-      *ngTemplateOutlet="gap; context: { $implicit: 0, label: 'feature.replay.editor.atStart' }"
-    ></ng-container>
-
-    @for (row of rows(); track row.seq) {
-      @if (editingSeq() === row.seq) {
-        <li class="px-1.5 py-1">
-          <input
-            class="border-ui-accent bg-ui-panel rounded-ui-sm w-full border border-solid px-1.5 py-1 text-[0.74rem]"
-            type="text"
-            autofocus
-            [value]="row.text"
-            (keydown.enter)="commitRowEdit(row.seq, $any($event.target).value)"
-            (blur)="commitRowEdit(row.seq, $any($event.target).value)"
-          />
-        </li>
-      } @else {
-        <li
-          class="hover:bg-ui-accent-bg rounded-ui-sm group flex cursor-pointer items-start gap-1.5 px-1.5 py-1 text-[0.74rem]"
-          [class.bg-ui-accent-bg]="!editing() && row.index === cursor()"
-          [class.text-ui-dim]="!editing() && row.index > cursor()"
-          [class.font-semibold]="row.isChapter"
-          [class.cursor-grab]="editing()"
-          [class.opacity-40]="rowDrag.isHeld(row.seq)"
-          [style.boxShadow]="dropHint(row)"
-          [attr.draggable]="editing() ? 'true' : null"
-          (click)="activate(row)"
-          (dblclick)="beginRowEdit(row)"
-          (dragstart)="dragStart(row, $event)"
-          (dragover)="dragOver(row, $event)"
-          (drop)="dropHere($event)"
-          (dragend)="dragEnd()"
-        >
-          <span class="text-ui-dim shrink-0 text-[0.66rem] tabular-nums">{{ row.elapsed }}</span>
-          @if (row.inserted) {
-            <i class="material-icons shrink-0 text-[13px] leading-[1.4] text-emerald-400">edit_note</i>
-          }
-          <i class="material-icons text-ui-dim shrink-0 text-[13px] leading-[1.4]">{{ row.line.icon }}</i>
-          <span class="min-w-0 flex-1 wrap-break-word">{{ row.line.key | transloco: lineParams(row.line) }}</span>
-          @if (row.line.isSecret) {
-            <i class="material-icons text-ui-dim shrink-0 text-[13px] leading-[1.4]">visibility_off</i>
-          }
-          @if (editing()) {
-            <span class="flex shrink-0 gap-0 opacity-0 transition-opacity group-hover:opacity-100">
-              <i
-                class="material-icons text-ui-dim cursor-grab px-0.5 text-[14px]"
-                [title]="'feature.replay.editor.drag' | transloco"
-                >drag_indicator</i
-              >
-              @if (row.editable) {
-                <button
-                  class="text-ui-dim hover:text-ui-accent cursor-pointer px-0.5"
-                  [attr.aria-label]="'feature.replay.editor.rewrite' | transloco"
-                  (click)="beginRowEdit(row); $event.stopPropagation()"
-                >
-                  <i class="material-icons text-[14px]">edit</i>
-                </button>
-              }
-              <button
-                class="text-ui-dim hover:text-ui-accent cursor-pointer px-0.5"
-                [attr.aria-label]="'feature.replay.editor.up' | transloco"
-                (click)="move(row.seq, -1); $event.stopPropagation()"
-              >
-                <i class="material-icons text-[14px]">arrow_upward</i>
-              </button>
-              <button
-                class="text-ui-dim hover:text-ui-accent cursor-pointer px-0.5"
-                [attr.aria-label]="'feature.replay.editor.down' | transloco"
-                (click)="move(row.seq, 1); $event.stopPropagation()"
-              >
-                <i class="material-icons text-[14px]">arrow_downward</i>
-              </button>
-              <button
-                class="text-ui-dim cursor-pointer px-0.5 hover:text-red-400"
-                [attr.aria-label]="'feature.replay.editor.remove' | transloco"
-                (click)="remove(row.seq); $event.stopPropagation()"
-              >
-                <i class="material-icons text-[14px]">close</i>
-              </button>
-            </span>
-          }
-        </li>
-      }
-
-      <ng-container
-        *ngTemplateOutlet="gap; context: { $implicit: row.index + 1, label: 'feature.replay.editor.insertHere' }"
-      ></ng-container>
-    } @empty {
-      <li class="text-ui-muted px-1.5 py-2 text-[0.76rem]">{{ 'feature.replay.panel.empty' | transloco }}</li>
-    }
-  </ul>
-</div>
-
-<ng-template #gap let-index let-label="label">
-  @if (editing()) {
-    @if (composeAt() === index) {
-      <li class="border-ui-accent rounded-ui my-1 flex flex-col gap-1.5 border border-solid p-2">
-        <div class="flex flex-wrap items-center gap-1">
-          <select
-            class="border-ui-border bg-ui-panel rounded-ui-sm border border-solid px-1 py-0.5 text-[0.7rem]"
-            [value]="insertKind()"
-            (change)="setInsertKind($any($event.target).value)"
+  @if (items().length > 0) {
+    <ui-virtual-list
+      class="border-ui-border rounded-ui focus-visible:outline-ui-accent flex-1 border border-solid -outline-offset-2 focus-visible:outline-2"
+      tabindex="0"
+      [attr.aria-label]="'feature.replay.editor.keysHint' | transloco"
+      [items]="items()"
+      [trackBy]="itemKey"
+      [estimate]="30"
+      (keydown)="onKeydown($event)"
+    >
+      <ng-template #row let-item>
+        @if (item.kind === 'group') {
+          <button
+            class="text-ui-muted hover:bg-ui-hover flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-2 py-0.5 text-left text-[0.7rem]"
+            [attr.aria-expanded]="item.open"
+            (click)="toggleGroup(item.rows[0])"
           >
-            @for (kind of insertKinds; track kind) {
-              <option [value]="kind">{{ 'feature.replay.editor.kind.' + kind | transloco }}</option>
+            <span class="text-ui-dim w-13 shrink-0 text-[0.66rem] tabular-nums">{{ view(item.rows[0]).elapsed }}</span>
+            <i class="material-icons -mx-1 text-[15px]">{{ item.open ? 'expand_more' : 'chevron_right' }}</i>
+            <i class="material-icons text-[13px]">open_with</i>
+            {{ 'feature.replay.panel.boardGroup' | transloco: { count: item.rows.length } }}
+          </button>
+        } @else {
+          @let row = item.row;
+          @if (editingSeq() === row.seq) {
+            <div class="px-2 py-1">
+              <input
+                #rewrite
+                class="border-ui-accent bg-ui-panel rounded-ui-sm w-full border border-solid px-1.5 py-1 text-[0.8rem]"
+                type="text"
+                [value]="rawText(row)"
+                (keydown.enter)="commitRowEdit(row.seq, $any($event.target).value, true)"
+                (keydown.escape)="cancelRowEdit()"
+                (blur)="commitRowEdit(row.seq, $any($event.target).value)"
+              />
+            </div>
+          } @else {
+            @let shown = view(row);
+            <div
+              class="group relative flex cursor-pointer items-start gap-2 border-l-2 border-transparent px-2 select-none"
+              [class.pl-7]="item.nested"
+              [class]="shown.style === 'board' ? 'py-0.5' : 'py-1.5'"
+              [class.bg-ui-accent-bg]="isChosen(row)"
+              [class.hover:bg-ui-hover]="!isChosen(row)"
+              [class.border-ui-accent!]="!editing() && row.index === cursor()"
+              [class.text-ui-dim]="!editing() && row.index > cursor()"
+              [class.opacity-40]="rowDrag.isHeld(row.seq)"
+              [style.boxShadow]="dropHint(row)"
+              [attr.aria-selected]="editing() ? isChosen(row) : null"
+              [attr.draggable]="editing() ? 'true' : null"
+              (click)="press(row, $event)"
+              (dblclick)="beginRowEdit(row)"
+              (contextmenu)="onRowContextMenu(row, $event)"
+              (dragstart)="dragStart(row, $event)"
+              (dragover)="dragOver(row, $event)"
+              (drop)="dropHere($event)"
+              (dragend)="dragEnd()"
+            >
+              <span class="text-ui-dim w-13 shrink-0 pt-px text-[0.66rem] tabular-nums">{{ shown.elapsed }}</span>
+              @switch (shown.style) {
+                @case ('chapter') {
+                  <span
+                    class="text-ui-accent border-ui-accent/40 flex min-w-0 flex-1 items-center gap-1 border-b border-solid pb-0.5 text-[0.82rem] font-semibold"
+                  >
+                    <i class="material-icons text-[15px]">bookmark</i>
+                    <span class="min-w-0 wrap-break-word">{{ shown.text }}</span>
+                  </span>
+                }
+                @case ('speech') {
+                  <span class="flex min-w-0 flex-1 flex-col">
+                    <span class="text-ui-accent text-[0.72rem] font-semibold">{{ shown.speaker }}</span>
+                    <span class="text-ui-text text-[0.82rem] leading-normal wrap-break-word whitespace-pre-wrap">{{
+                      shown.text
+                    }}</span>
+                  </span>
+                }
+                @case ('dice') {
+                  <span class="flex min-w-0 flex-1 items-start gap-1 text-[0.78rem]">
+                    <i class="material-icons text-ui-muted shrink-0 text-[15px]">casino</i>
+                    <span class="min-w-0 wrap-break-word">
+                      <span class="text-ui-accent font-semibold">{{ shown.speaker }}</span>
+                      {{ shown.text }}
+                    </span>
+                  </span>
+                }
+                @case ('note') {
+                  <span class="text-ui-muted flex min-w-0 flex-1 items-start gap-1 text-[0.74rem] italic">
+                    <i class="material-icons shrink-0 text-[14px] not-italic">{{ shown.icon }}</i>
+                    <span class="min-w-0 wrap-break-word">{{ shown.text }}</span>
+                  </span>
+                }
+                @default {
+                  <span class="text-ui-dim flex min-w-0 flex-1 items-center gap-1 text-[0.7rem]">
+                    <i class="material-icons shrink-0 text-[13px]">{{ shown.icon }}</i>
+                    <span class="min-w-0 truncate">{{ shown.text }}</span>
+                  </span>
+                }
+              }
+              @if (isInserted(row)) {
+                <i class="material-icons shrink-0 text-[14px] text-emerald-400">edit_note</i>
+              }
+              @if (shown.isSecret) {
+                <i class="material-icons text-ui-dim shrink-0 text-[14px]">visibility_off</i>
+              }
+            </div>
+          }
+        }
+      </ng-template>
+    </ui-virtual-list>
+  } @else {
+    <p class="text-ui-muted m-0 flex-1 px-1.5 py-2 text-[0.76rem]">{{ 'feature.replay.panel.empty' | transloco }}</p>
+  }
+
+  @if (editing()) {
+    <div class="border-ui-border flex flex-col gap-1 border-t border-solid pt-1.5">
+      <div class="flex flex-wrap items-center gap-1 text-[0.7rem]">
+        <select
+          class="border-ui-border bg-ui-panel rounded-ui-sm border border-solid px-1 py-0.5"
+          [value]="insertKind()"
+          (change)="setInsertKind($any($event.target).value)"
+        >
+          @for (kind of insertKinds; track kind) {
+            <option [value]="kind">{{ 'feature.replay.editor.kind.' + kind | transloco }}</option>
+          }
+        </select>
+        @if (!isMarkerDraft()) {
+          <select
+            class="border-ui-border bg-ui-panel rounded-ui-sm border border-solid px-1 py-0.5"
+            [value]="insertCastId()"
+            (change)="setCastId($any($event.target).value)"
+          >
+            @for (member of cast(); track member.identifier) {
+              <option [value]="member.identifier">{{ member.name }}</option>
+            }
+            <option value="">{{ 'feature.replay.editor.freeSpeaker' | transloco }}</option>
+          </select>
+          @if (isFreeSpeaker()) {
+            <input
+              class="border-ui-border bg-ui-panel rounded-ui-sm w-24 border border-solid px-1 py-0.5"
+              type="text"
+              [value]="insertSpeaker()"
+              [placeholder]="'feature.replay.editor.speaker' | transloco"
+              (input)="insertSpeaker.set($any($event.target).value)"
+            />
+          }
+          <select
+            class="border-ui-border bg-ui-panel rounded-ui-sm border border-solid px-1 py-0.5"
+            [value]="insertActorId()"
+            (change)="insertActorId.set($any($event.target).value)"
+          >
+            @for (actor of actors(); track actor.userId) {
+              <option [value]="actor.userId">{{ actor.name }}</option>
             }
           </select>
-          @if (!isMarkerDraft()) {
-            <select
-              class="border-ui-border bg-ui-panel rounded-ui-sm border border-solid px-1 py-0.5 text-[0.7rem]"
-              [value]="insertCastId()"
-              (change)="setCastId($any($event.target).value)"
-            >
-              @for (member of cast(); track member.identifier) {
-                <option [value]="member.identifier">{{ member.name }}</option>
-              }
-              <option value="">{{ 'feature.replay.editor.freeSpeaker' | transloco }}</option>
-            </select>
-            @if (isFreeSpeaker()) {
-              <input
-                class="border-ui-border bg-ui-panel rounded-ui-sm w-20 border border-solid px-1 py-0.5 text-[0.7rem]"
-                type="text"
-                [value]="insertSpeaker()"
-                [placeholder]="'feature.replay.editor.speaker' | transloco"
-                (input)="insertSpeaker.set($any($event.target).value)"
-              />
-            }
-            <select
-              class="border-ui-border bg-ui-panel rounded-ui-sm border border-solid px-1 py-0.5 text-[0.7rem]"
-              [value]="insertActorId()"
-              (change)="insertActorId.set($any($event.target).value)"
-            >
-              @for (actor of actors(); track actor.userId) {
-                <option [value]="actor.userId">{{ actor.name }}</option>
-              }
-            </select>
-          }
-        </div>
+        }
+        <span class="text-ui-dim ml-auto">{{ insertTarget() }}</span>
+      </div>
+      <div class="flex items-center gap-1">
         <input
-          class="border-ui-border bg-ui-panel rounded-ui-sm w-full border border-solid px-1.5 py-1 text-[0.74rem]"
+          #writing
+          class="border-ui-border bg-ui-panel rounded-ui-sm min-w-0 flex-1 border border-solid px-1.5 py-1 text-[0.8rem]"
           type="text"
-          autofocus
           [value]="insertText()"
           [placeholder]="'feature.replay.editor.textPlaceholder' | transloco"
           (input)="insertText.set($any($event.target).value)"
-          (keydown.enter)="insertHere(index)"
+          (keydown.enter)="insertHere()"
         />
-        <div class="flex justify-end gap-1">
-          <button class="rounded-ui-sm cursor-pointer px-[0.7em] py-[0.2em] text-[0.7rem]" (click)="closeCompose()">
-            {{ 'feature.replay.editor.closeCompose' | transloco }}
-          </button>
-          <button
-            class="rounded-ui-sm border-ui-accent bg-ui-accent hover:bg-ui-accent-hover cursor-pointer border border-solid px-[0.7em] py-[0.2em] text-[0.7rem] text-white"
-            [disabled]="!canInsert()"
-            (click)="insertHere(index)"
-          >
-            {{ 'feature.replay.editor.insert' | transloco }}
-          </button>
-        </div>
-      </li>
-    } @else {
-      <li class="group/gap flex h-1.5 items-center justify-center hover:h-6">
-        <span class="flex gap-1 opacity-0 transition-opacity group-hover/gap:opacity-100">
-          <button
-            class="border-ui-border bg-ui-panel rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer border border-solid px-1.5 py-0 text-[0.66rem]"
-            [attr.aria-label]="label | transloco"
-            (click)="openCompose(index)"
-          >
-            <i class="material-icons align-middle text-[12px]">add</i>
-            {{ 'feature.replay.editor.write' | transloco }}
-          </button>
-          <button
-            class="border-ui-border bg-ui-panel rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer border border-solid px-1.5 py-0 text-[0.66rem]"
-            [disabled]="isStaging()"
-            [attr.aria-label]="'feature.replay.editor.stageHere' | transloco"
-            (click)="stageAt(index)"
-          >
-            <i class="material-icons align-middle text-[12px]">videocam</i>
-            {{ 'feature.replay.editor.record' | transloco }}
-          </button>
-        </span>
-      </li>
-    }
+        <button
+          class="rounded-ui-sm border-ui-accent bg-ui-accent hover:bg-ui-accent-hover cursor-pointer border border-solid px-[0.8em] py-[0.3em] text-[0.72rem] text-white"
+          [disabled]="!canInsert()"
+          (click)="insertHere()"
+        >
+          {{ 'feature.replay.editor.insert' | transloco }}
+        </button>
+        <button
+          class="rounded-ui-sm flex cursor-pointer items-center gap-0.5 px-[0.8em] py-[0.3em] text-[0.72rem]"
+          [disabled]="isStaging()"
+          [title]="'feature.replay.editor.stageAfter' | transloco"
+          (click)="stageAt()"
+        >
+          <i class="material-icons text-[14px]">videocam</i>
+          {{ 'feature.replay.editor.record' | transloco }}
+        </button>
+      </div>
+      <p class="text-ui-dim m-0 text-[0.64rem]">{{ 'feature.replay.editor.keysHint' | transloco }}</p>
+    </div>
   }
-</ng-template>
+</div>

@@ -40,6 +40,13 @@ function centerOf(table: GameTable, surface: TableSurface): { x: number; y: numb
   }
 }
 
+/**
+ * The entry that moves a piece to another surface of a walled table: the floor or one of the walls
+ * shown.
+ *
+ * Choosing a surface puts the piece near its centre. Empty when the table shows no other surface to
+ * go to.
+ */
 export function buildSurfaceSwitchContextMenu(
   obj: TabletopObject,
   table: GameTable,

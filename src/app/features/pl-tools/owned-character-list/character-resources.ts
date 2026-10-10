@@ -1,25 +1,20 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { isInternalResource } from '@axe/domain/character/internal-resource';
-import { DataElement, DataElementFieldType, DataElementType } from '@axe/domain/data/data-element';
+import { gaugeRatio } from '@axe/domain/character/piece-gauge';
+import { resourceElementsOf as resourcesOf } from '@axe/domain/character/resource-catalog';
+import { DataElement } from '@axe/domain/data/data-element';
 
+/** The resources of this piece the sheet shows as resource fields, which is what a row edits. */
 export function resourceElementsOf(character: GameCharacter): DataElement[] {
-  const detail = character.detailDataElement;
-  if (!detail) return [];
-  return detail
-    .getElementsByType(DataElementType.NUMBER_RESOURCE)
-    .filter((element) => element.fieldType === DataElementFieldType.RESOURCE)
-    .filter((element) => !isInternalResource(element));
+  return resourcesOf(character, { fieldsOnly: true });
 }
 
+/** The maximum of a resource field, or 0 when it is not a positive number. */
 export function resourceMax(element: DataElement): number {
   const max = Number(element.value);
   return Number.isFinite(max) && max > 0 ? max : 0;
 }
 
+/** How full a resource field's gauge is, from its current value against its maximum. */
 export function resourceRatio(element: DataElement): number {
-  const max = resourceMax(element);
-  if (max <= 0) return 0;
-  const current = Number(element.currentValue);
-  if (!Number.isFinite(current)) return 0;
-  return Math.min(1, Math.max(0, current / max));
+  return gaugeRatio(Number(element.currentValue), resourceMax(element));
 }

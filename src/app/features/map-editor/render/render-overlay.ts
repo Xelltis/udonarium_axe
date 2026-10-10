@@ -60,6 +60,12 @@ export interface EditorOverlay {
   measureLabel: { cells: (n: string) => string; angle: (deg: number) => string };
 }
 
+/**
+ * Draws what is still being worked on over the finished map.
+ *
+ * That is the cell or eraser under the pointer, the shape, line or freehand stroke still being
+ * drawn, the stamp or picture about to be placed, and the outline and handles of what is selected.
+ */
 export function renderOverlay(ctx: CanvasRenderingContext2D, scene: MapScene, overlay: EditorOverlay): void {
   const tool = overlay.tool;
   ctx.save();

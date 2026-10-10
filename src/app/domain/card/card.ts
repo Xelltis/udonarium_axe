@@ -34,10 +34,12 @@ export class Card extends OwnedTabletopObject {
   @SyncVar() overViewWidth: number = 250;
   @SyncVar() overViewMaxHeight: number = 250;
 
+  /** A card is drawn loose on the table only when it is not inside a card stack, or its stack is gone. */
   override get isVisibleOnTable(): boolean {
     return this.location.name === 'table' && (!this.parentIsAssigned || this.parentIsDestroyed);
   }
 
+  /** The card's width on the table, in grid cells; 2 when the card has no size element. */
   get size(): number {
     return this.getCommonValue('size', 2);
   }
@@ -50,6 +52,11 @@ export class Card extends OwnedTabletopObject {
     const element = this.commonDataElement?.getFirstElementByName('text');
     if (element && element.currentValue !== value) element.currentValue = value;
   }
+  /**
+   * Font size of the face text, kept between 1 and 120 and rounded to a whole number.
+   *
+   * A value that is not a number reads and writes as the default size.
+   */
   get faceFontSize(): number {
     const value = Number(this.getCommonValue('fontsize', Card.DEFAULT_FACE_FONT_SIZE));
     return Number.isFinite(value) ? Math.max(1, Math.min(120, Math.round(value))) : Card.DEFAULT_FACE_FONT_SIZE;
@@ -60,6 +67,7 @@ export class Card extends OwnedTabletopObject {
       : Card.DEFAULT_FACE_FONT_SIZE;
     this.setOrCreateCommonValue('fontsize', normalized);
   }
+  /** Colour of the face text as `#rrggbb`; anything else reads and writes as the default colour. */
   get faceFontColor(): string {
     const value = String(this.getCommonValue('fontcolor', Card.DEFAULT_FACE_FONT_COLOR));
     return FACE_FONT_COLOR.test(value) ? value : Card.DEFAULT_FACE_FONT_COLOR;
@@ -78,43 +86,58 @@ export class Card extends OwnedTabletopObject {
   set size(size: number) {
     this.setCommonValue('size', size);
   }
+  /** The image on the card's front, or null when none is set or it is not in image storage. */
   get frontImage(): ImageFile | null {
     return this.getImageFile('front');
   }
+  /** The image on the card's back, or null when none is set or it is not in image storage. */
   get backImage(): ImageFile | null {
     return this.getImageFile('back');
   }
 
+  /** The image this user sees: the front when the card is visible to them, the back otherwise. */
   override get imageFile(): ImageFile {
     return this.isVisible ? (this.frontImage ?? ImageFile.Empty) : (this.backImage ?? ImageFile.Empty);
   }
 
+  /** Whether this user is peeking at the card, which is what owning a card means. */
   get isPeeking(): boolean {
     return this.isMine;
   }
+  /** Whether the card lies face up for everyone. */
   get isFront(): boolean {
     return this.state === CardState.FRONT;
   }
+  /** Whether the card is in this user's hand; false before a room has been joined. */
   get isInMyHand(): boolean {
     return isHandOf(this.location.name, getPeerContext().userId);
   }
+  /** Whether the card is in any player's hand rather than on the table. */
   get isInAnyHand(): boolean {
     return isHandLocation(this.location.name);
   }
+  /** Whether this user can see the card's front: it is face up, they are peeking, or it is in their hand. */
   get isVisible(): boolean {
     return this.isPeeking || this.isFront || this.isInMyHand;
   }
 
+  /** Turns the card face up for everyone and ends any peek at it. */
   faceUp() {
     this.state = CardState.FRONT;
     this.owner = '';
   }
 
+  /** Turns the card face down and ends any peek at it. */
   faceDown() {
     this.state = CardState.BACK;
     this.owner = '';
   }
 
+  /**
+   * Moves the card into a player's hand, face down so only that player sees its front.
+   *
+   * The hand is sorted by `handOrder`, which defaults to now so the card joins the end of the hand.
+   */
   toHand(userId: string, handOrder: number = Date.now()) {
     this.owner = '';
     this.state = CardState.BACK;
@@ -122,20 +145,28 @@ export class Card extends OwnedTabletopObject {
     this.setLocation(handLocationOf(userId));
   }
 
+  /** Puts the card on the table face up, as when playing it from a hand. */
   playFaceUp() {
     this.setLocation('table');
     this.faceUp();
   }
 
+  /** Puts the card on the table face down, as when playing it from a hand. */
   playFaceDown() {
     this.setLocation('table');
     this.faceDown();
   }
 
+  /** Raises the card above every other card and card stack in the drawing order. */
   toTopmost() {
     moveToTopmost(this, ['card-stack']);
   }
 
+  /**
+   * Makes a face-up card from front and back image identifiers, with the default face font and no face text.
+   *
+   * Pass an identifier to give the card a fixed id; otherwise a new one is generated.
+   */
   static create(name: string, fornt: string, back: string, size: number = 2, identifier?: string): Card {
     let object: Card;
 

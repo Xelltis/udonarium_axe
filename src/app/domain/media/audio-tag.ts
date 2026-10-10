@@ -4,15 +4,24 @@ import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectStore } from '@axe/core/sync/object-store';
 
+/**
+ * The tag of a sound that loops underneath the music as a background sound, such as rain or a crowd.
+ *
+ * It is kept the same in every language and shown translated, as 環境音 in Japanese.
+ */
+export const AUDIO_TAG_BGS = 'BGS';
+
 @SyncObject('audio-tag')
 export class AudioTag extends ObjectNode {
   @SyncVar() audioIdentifier: string = '';
   @SyncVar() tag: string = 'BGM';
 
+  /** Whether every one of the words appears somewhere in the tag. No words at all matches every tag. */
   containsWords(words: string[]): boolean {
     return words.every((word) => this.tag.includes(word));
   }
 
+  /** The sounds whose tag contains every search word, leaving out any whose file is not in storage. */
   static searchAudios(searchWords: string[]): AudioFile[] {
     return ObjectStore.instance
       .getObjects<AudioTag>(AudioTag)
@@ -21,10 +30,17 @@ export class AudioTag extends ObjectNode {
       .filter((audio): audio is AudioFile => audio !== null);
   }
 
+  /** Whether a sound is tagged to play as a background sound. */
+  static isBackgroundSound(audioIdentifier: string): boolean {
+    return AudioTag.get(audioIdentifier)?.tag === AUDIO_TAG_BGS;
+  }
+
+  /** The tag of a sound. Despite the type, it is null when the sound has never been tagged. */
   static get(audioIdentifier: string): AudioTag {
     return ObjectStore.instance.get<AudioTag>(`audiotag_${audioIdentifier}`)!;
   }
 
+  /** Makes a tag for a sound, tagged as BGM, and adds it to the room under the identifier `get` looks for. */
   static create(audioIdentifier: string) {
     const object: AudioTag = new AudioTag(`audiotag_${audioIdentifier}`);
 
@@ -34,6 +50,11 @@ export class AudioTag extends ObjectNode {
     return object;
   }
 
+  /**
+   * Copies a tag read from a file onto the sound's own tag, then destroys the copy that was read.
+   *
+   * The tag is made first when the sound has none, and the change is shared with the room.
+   */
   override parseInnerXml(_element: Element) {
     let audioTag = AudioTag.get(this.audioIdentifier);
     if (!audioTag) audioTag = AudioTag.create(this.audioIdentifier);

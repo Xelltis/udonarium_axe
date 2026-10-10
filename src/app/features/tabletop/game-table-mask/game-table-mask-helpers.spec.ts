@@ -5,6 +5,8 @@ import {
   buildHexOuterBorderSvg,
   buildHexOutlineMask,
   buildMaskCss,
+  type BuildMaskCssParams,
+  buildScratchedMaskCss,
   buildScratchingGridInfos,
   type ScratchGridInfo,
 } from '@axe/features/tabletop/game-table-mask/game-table-mask-helpers';
@@ -392,6 +394,94 @@ describe('game-table-mask-helpers', () => {
       const count2 = (svg2.match(/<line /g) || []).length;
       expect(count2).toBeLessThan(4 * 6);
       expect(count2).toBeGreaterThan(count1);
+    });
+  });
+
+  describe('buildScratchedMaskCss', () => {
+    const square: BuildMaskCssParams = {
+      currentScratchingSet: null,
+      gridSize: 50,
+      gridType: GridType.SQUARE,
+      height: 1,
+      isNonScratched: false,
+      isPreviewMode: false,
+      scratchedGrids: '',
+      scratchingGrids: '',
+      width: 2,
+    };
+
+    function polygonsOf(css: string): string[] {
+      return decodeURIComponent(css).match(/<polygon points="[^"]*"\/>/g) ?? [];
+    }
+
+    it('keeps only the squares scratched open, grown by the same pixel as the mask', () => {
+      const params = { ...square, scratchedGrids: '1:0' };
+
+      expect(buildScratchedMaskCss(params)).toBe('radial-gradient(#000, #000) 49px -1px / 52px 52px no-repeat');
+      expect(buildMaskCss(params)).toBe('radial-gradient(#000, #000) -1px -1px / 52px 52px no-repeat');
+    });
+
+    it('keeps the squares a pending scratch leaves open while previewing', () => {
+      const css = buildScratchedMaskCss({
+        ...square,
+        currentScratchingSet: new Set(['1:0']),
+        isPreviewMode: true,
+        scratchedGrids: '0:0',
+      });
+
+      expect(css).toBe(
+        'radial-gradient(#000, #000) -1px -1px / 52px 52px no-repeat,' +
+          'radial-gradient(#000, #000) 49px -1px / 52px 52px no-repeat'
+      );
+    });
+
+    it('counts a square the pending scratch covers again as closed while previewing', () => {
+      const css = buildScratchedMaskCss({
+        ...square,
+        isPreviewMode: true,
+        scratchedGrids: '0:0',
+        scratchingGrids: '0:0',
+        width: 1,
+      });
+
+      expect(css).toBe('');
+    });
+
+    it('returns nothing when no square is open', () => {
+      expect(buildScratchedMaskCss({ ...square, isNonScratched: true })).toBe('');
+      expect(buildScratchedMaskCss({ ...square, isNonScratched: true, isPreviewMode: true })).toBe('');
+    });
+
+    it('keeps only the open hexes, each drawn exactly as the mask draws it', () => {
+      const scratched = { ...square, gridType: GridType.HEX_VERTICAL, height: 2, scratchedGrids: '1:1' };
+      const whole = polygonsOf(buildMaskCss({ ...scratched, isNonScratched: true, scratchedGrids: '' }));
+
+      const open = polygonsOf(buildScratchedMaskCss(scratched));
+      const covered = polygonsOf(buildMaskCss(scratched));
+
+      expect(whole).toHaveLength(4);
+      expect(open).toHaveLength(1);
+      expect([...covered, ...open].sort()).toEqual([...whole].sort());
+    });
+
+    it('keeps the hexes a pending scratch opens while previewing, on a flat-topped grid', () => {
+      const hex = { ...square, gridType: GridType.HEX_HORIZONTAL, isNonScratched: true };
+      const whole = polygonsOf(buildMaskCss(hex));
+
+      const open = polygonsOf(
+        buildScratchedMaskCss({ ...hex, currentScratchingSet: new Set(['0:0']), isPreviewMode: true })
+      );
+
+      expect(open).toEqual([whole[0]]);
+    });
+
+    it('returns nothing when no hex is open', () => {
+      const hex = { ...square, gridType: GridType.HEX_VERTICAL };
+
+      expect(buildScratchedMaskCss({ ...hex, isNonScratched: true })).toBe('');
+      expect(
+        buildScratchedMaskCss({ ...hex, isPreviewMode: true, scratchedGrids: '0:0', scratchingGrids: '0:0' })
+      ).toBe('');
     });
   });
 });

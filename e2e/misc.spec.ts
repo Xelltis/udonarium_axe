@@ -55,17 +55,16 @@ test.describe('左 FAB 各メニュー項目の起動経路', () => {
   test('テーマボタン以外のメニュー項目はすべて data-label を持つこと', async ({ page }) => {
     await waitAppReady(page);
     await openFabMenu(page);
-    // 起動経路 (= panel open) を確認できる固定ラベル群
+    // 起動経路（= panel open）を確認できる固定ラベル群
     const expected = [
       '接続',
       'チャット',
-      'テーブル設定',
-      '画像',
-      'ジュークボックス',
-      'カットイン',
-      'インベントリ',
-      'ZIP読込',
-      '保存',
+      'テーブル関連',
+      'メディア',
+      'ゲームリソース',
+      'セーブ&ロード',
+      'ウィジェット',
+      '表示',
     ];
     for (const label of expected) {
       await expect(page.locator(`[data-label="${label}"]`)).toBeVisible();
@@ -77,8 +76,8 @@ test.describe('チャットパネル: バックスクロールボタン', () => 
   test('一定数メッセージを送信すると「最新メッセージへ移動」ボタンが現れないこと (default は近い位置)', async ({
     page,
   }) => {
-    // chat-window は isNearBottom() のときは expand_more ボタンを表示しない。
-    // 起動直後でメッセージが少ない状況ではボタンは存在しない (count=0)。
+    // chat-windowはisNearBottom()のときはexpand_moreボタンを表示しない。
+    // 起動直後でメッセージが少ない状況ではボタンは存在しない（count=0）。
     await waitAppReady(page);
     await expect(page.locator('chat-window button[title="最新メッセージへ移動"]')).toHaveCount(0);
   });

@@ -149,6 +149,10 @@ const COLUMN_LABELS: Record<string, string> = {
   sonota: 'その他',
 };
 
+/**
+ * Whether the pasted json is a sheet from the archive, which every one marks with a `pc_name`
+ * string.
+ */
 export function isCharasheetCharacter(parsed: unknown): boolean {
   if (parsed == null || typeof parsed !== 'object') return false;
   return typeof (parsed as Record<string, unknown>)['pc_name'] === 'string';
@@ -292,6 +296,14 @@ function buildArraySections(
   return sections;
 }
 
+/**
+ * Reads an archive sheet into the imported model without a system-specific profile.
+ *
+ * Sanity and keys paired as current and maximum become resources, the remaining scalars a `データ`
+ * section, and the arrays sections of their own, named where a family names its rows. `labelMap`
+ * gives headings taken from the archive's own pages, keyed by input name. Null for anything that is
+ * not an archive sheet.
+ */
 export function parseCharasheetCharacter(
   parsed: unknown,
   labelMap: Record<string, string> = {}

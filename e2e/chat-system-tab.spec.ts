@@ -30,7 +30,7 @@ test.describe('チャット システムタブ', () => {
   });
 
   test('タブピル経由でチャットウィンドウ側のメインタブが選択状態であること (sanity)', async ({ page }) => {
-    // 上記テストの前提として、チャットウィンドウの ChatTabList が起動している。
+    // 上記テストの前提として、チャットウィンドウのChatTabListが起動している。
     await expect(chatTabPill(page, 'メインタブ')).toBeVisible();
   });
 });

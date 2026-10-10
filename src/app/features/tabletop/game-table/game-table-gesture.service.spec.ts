@@ -1,4 +1,8 @@
 import { TestBed } from '@angular/core/testing';
+import { CoordinateService } from '@axe/application/input/coordinate.service';
+import { SwitchPressService } from '@axe/application/tabletop/switch-press.service';
+import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
+import { SwitchNoticeService } from '@axe/application/ui/switch-notice.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { GameTableGestureService } from '@axe/features/tabletop/game-table/game-table-gesture.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -105,6 +109,14 @@ describe('GameTableGestureService', () => {
 
       expect(gameTableEl.style.transform).toContain('translateX(140.0000px)');
       expect(rotation()).toBeNull();
+    });
+
+    it('moves the backdrops for a slide of the view alone, in the frame the table moves in', async () => {
+      const backdrops = vi.spyOn(TestBed.inject(BackdropFrameService), 'apply');
+      service.setTransform(40, 0, 0, 0, 0, 0);
+      await nextFrame();
+
+      expect(backdrops).toHaveBeenCalledWith({ rotateX: 50, rotateZ: 10, positionX: 140, positionY: 0 });
     });
 
     it('lets go of the gestures it listens with when the table goes', () => {
@@ -281,6 +293,80 @@ describe('GameTableGestureService', () => {
       await nextFrame();
 
       expect(gameTableEl.style.transform).toContain('scale(1.626016)');
+    });
+  });
+
+  describe('pressing painted ground', () => {
+    type Gestures = {
+      gameObjectsEl: HTMLElement;
+      gridCanvasEl: HTMLCanvasElement;
+      getGridShow: () => boolean;
+      onTableMouseStart(e: MouseEvent): void;
+      onTableMouseEnd(e: MouseEvent): void;
+    };
+    let gestures: Gestures;
+    let press: ReturnType<typeof vi.spyOn>;
+    let floor: HTMLElement;
+
+    beforeEach(() => {
+      gestures = service as unknown as Gestures;
+      floor = document.createElement('div');
+      gestures.gameObjectsEl = floor;
+      gestures.gridCanvasEl = document.createElement('canvas');
+      gestures.getGridShow = () => false;
+      vi.spyOn(TestBed.inject(CoordinateService), 'calcTabletopLocalCoordinate').mockReturnValue({
+        x: 125,
+        y: 75,
+        z: 0,
+      });
+      press = vi.spyOn(TestBed.inject(SwitchPressService), 'pressGroundAt').mockResolvedValue('pressed');
+    });
+
+    afterEach(() => vi.restoreAllMocks());
+
+    function click(target: HTMLElement, button = 0): void {
+      const event = new MouseEvent('mousedown', { button, clientX: 10, clientY: 10 });
+      Object.defineProperty(event, 'target', { value: target });
+      gestures.onTableMouseStart(event);
+      gestures.onTableMouseEnd(new MouseEvent('mouseup', { button, clientX: 10, clientY: 10 }));
+    }
+
+    it('presses the ground under a left click on the bare table', () => {
+      click(floor);
+
+      expect(press).toHaveBeenCalledWith(125, 75);
+    });
+
+    it('presses nothing after a click that turned the view', () => {
+      const event = new MouseEvent('mousedown', { button: 0 });
+      Object.defineProperty(event, 'target', { value: floor });
+      gestures.onTableMouseStart(event);
+      service.isTableTransformed = true;
+      gestures.onTableMouseEnd(new MouseEvent('mouseup', { button: 0 }));
+
+      expect(press).not.toHaveBeenCalled();
+    });
+
+    it('leaves a click on a block with a switch of its own to the block, and a right click to the menu', () => {
+      const block = document.createElement('div');
+      block.setAttribute('data-table-passthrough', '');
+      block.setAttribute('data-switch-host', '');
+
+      click(block);
+      click(floor, 2);
+
+      expect(press).not.toHaveBeenCalled();
+    });
+
+    it('says beside the pointer why a press on the ground came to nothing', async () => {
+      press.mockResolvedValue('tooFar');
+      const show = vi.spyOn(TestBed.inject(SwitchNoticeService), 'show');
+
+      click(floor);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(show).toHaveBeenCalledWith('もっと近づかないと押せません', 10, 10);
     });
   });
 });

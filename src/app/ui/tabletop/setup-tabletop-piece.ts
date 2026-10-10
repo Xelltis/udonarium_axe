@@ -31,6 +31,12 @@ function applyMovableOption<T extends TabletopObject>(
   });
 }
 
+/**
+ * Keeps a piece component's movable option in step with the piece it shows.
+ *
+ * Must be called in an injection context, since it registers an effect. Nothing is written
+ * while there is no piece.
+ */
 export function setupMovableForPiece<T extends TabletopObject>(
   ctx: { readonly movableOption: WritableSignal<MovableOption> },
   opts: MovableSetup<T>
@@ -42,6 +48,12 @@ export function setupMovableForPiece<T extends TabletopObject>(
   });
 }
 
+/**
+ * Keeps a piece component's movable and rotable options in step with the piece it shows.
+ *
+ * Must be called in an injection context, since it registers an effect. Nothing is written
+ * while there is no piece.
+ */
 export function setupMovableRotableForPiece<T extends RotableTabletopObject>(
   ctx: {
     readonly movableOption: WritableSignal<MovableOption>;
@@ -69,6 +81,12 @@ export interface InputHandlerRef {
   current: InputHandler | null;
 }
 
+/**
+ * Attaches an input handler to a component's host after its first render and destroys it with
+ * the component.
+ *
+ * The returned reference holds nothing until that render, and nothing again once destroyed.
+ */
 export function setupInputHandler(opts: InputHandlerSetup): InputHandlerRef {
   const ref: InputHandlerRef = { current: null };
   afterNextRender(() => {

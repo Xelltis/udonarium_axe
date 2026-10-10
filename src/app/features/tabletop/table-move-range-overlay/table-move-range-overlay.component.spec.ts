@@ -8,6 +8,8 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import {
   MOVE_RANGE_FILL,
   MOVE_RANGE_OTHERS_FILL,
@@ -16,11 +18,14 @@ import {
   TableMoveRangeOverlayComponent,
 } from '@axe/features/tabletop/table-move-range-overlay/table-move-range-overlay.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
 
 describe('TableMoveRangeOverlayComponent', () => {
   let fixture: ComponentFixture<TableMoveRangeOverlayComponent>;
   let filled: string[];
   let stroked: string[];
+  /** What each canvas was handed, since the overlay draws the raised ground on one of its own. */
+  let painted: Map<HTMLCanvasElement, { filled: string[]; stroked: string[] }>;
 
   const grid = cellGridOf(6, 6, 50, GridType.SQUARE);
 
@@ -38,28 +43,47 @@ describe('TableMoveRangeOverlayComponent', () => {
   beforeEach(() => {
     filled = [];
     stroked = [];
+    painted = new Map();
     // happy-dom draws nothing, so the paths are shapes the canvas is merely handed.
     vi.stubGlobal(
       'Path2D',
       class {
         moveTo(): void {}
         lineTo(): void {}
+        arc(): void {}
         closePath(): void {}
       }
     );
-    const context = {
-      setTransform: () => undefined,
-      clearRect: () => undefined,
-      fill: () => filled.push(String(context.fillStyle)),
-      stroke: () => stroked.push(String(context.strokeStyle)),
-      setLineDash: () => undefined,
-      fillStyle: '',
-      strokeStyle: '',
-      lineWidth: 0,
-      lineJoin: '',
-      lineCap: '',
-    };
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as unknown as null);
+    const contexts = new Map<HTMLCanvasElement, object>();
+    function contextFor(canvas: HTMLCanvasElement): object {
+      const held = contexts.get(canvas);
+      if (held) return held;
+      const own = { filled: [] as string[], stroked: [] as string[] };
+      painted.set(canvas, own);
+      const context = {
+        setTransform: () => undefined,
+        clearRect: () => undefined,
+        fill: () => {
+          filled.push(String(context.fillStyle));
+          own.filled.push(String(context.fillStyle));
+        },
+        stroke: () => {
+          stroked.push(String(context.strokeStyle));
+          own.stroked.push(String(context.strokeStyle));
+        },
+        setLineDash: () => undefined,
+        fillStyle: '',
+        strokeStyle: '',
+        lineWidth: 0,
+        lineJoin: '',
+        lineCap: '',
+      };
+      contexts.set(canvas, context);
+      return context;
+    }
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (this: HTMLCanvasElement): null {
+      return contextFor(this) as unknown as null;
+    });
 
     TestBed.configureTestingModule({ imports: [TableMoveRangeOverlayComponent], providers: [...TEST_PROVIDERS] });
     fixture = TestBed.createComponent(TableMoveRangeOverlayComponent);
@@ -77,6 +101,9 @@ describe('TableMoveRangeOverlayComponent', () => {
     table.height = 6;
     table.gridSize = 50;
     table.initialize();
+    // Chosen outright: a table first read for is adopted then and there, and the writing that
+    // takes would reach the overlay later as a change to the table.
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
     return table;
   }
 
@@ -142,6 +169,26 @@ describe('TableMoveRangeOverlayComponent', () => {
     expect(filled).not.toContain(MOVE_RANGE_OTHERS_FILL);
   });
 
+  it('draws the way anew while the reach under it is left as it was', async () => {
+    const table = tableOf();
+    const piece = pieceAt(1, 1, 3);
+    const cursor = otherWalking(table.identifier, piece.identifier, [cellIndexOf(grid, 1, 1), cellIndexOf(grid, 2, 1)]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const overlay = fixture.componentInstance as unknown as { othersReach: () => unknown };
+    const before = overlay.othersReach();
+    stroked.length = 0;
+
+    cursor.movingWay = [cellIndexOf(grid, 1, 1), cellIndexOf(grid, 2, 1), cellIndexOf(grid, 3, 1)].join(',');
+    cursor.update();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(overlay.othersReach()).toBe(before);
+    expect(stroked).toContain(MOVE_WAY_OTHERS);
+  });
+
   it('paints the ground an enemy holds under the reach', () => {
     carry({
       characterIdentifier: 'piece',
@@ -168,6 +215,107 @@ describe('TableMoveRangeOverlayComponent', () => {
     fixture.detectChanges();
 
     expect(filled).toEqual([MOVE_ZOC_FILL]);
+  });
+
+  describe('a piece standing on a block', () => {
+    /** A block laid flat, high enough to stand on and gentle enough to be climbed. */
+    function platformOn(table: GameTable, col: number, row: number, cells: number, height: number): Terrain {
+      const terrain = Terrain.create('台', cells, cells, height, '', '');
+      terrain.mode = TerrainViewState.FLOOR;
+      terrain.location = { name: 'table', x: col * 50, y: row * 50 };
+      table.appendChild(terrain);
+      return terrain;
+    }
+
+    function canvases(): HTMLCanvasElement[] {
+      return [...fixture.nativeElement.querySelectorAll('canvas')] as HTMLCanvasElement[];
+    }
+
+    it('draws the part of the reach that lies on the blocks on top of them', async () => {
+      const table = tableOf();
+      platformOn(table, 0, 0, 3, 1);
+      carry({
+        characterIdentifier: 'piece',
+        grid,
+        cells: cellsAt(cellIndexOf(grid, 1, 1), cellIndexOf(grid, 2, 2)),
+        held: null,
+        showsReach: true,
+      });
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const [floor, raised] = canvases();
+      expect(raised).toBeDefined();
+      expect(raised.style.transform).toBe(`translateZ(${50 + Z_OFFSET_RANGE_PX}px)`);
+      expect(painted.get(raised)?.filled).toContain(MOVE_RANGE_FILL);
+      expect(painted.get(floor)?.filled ?? []).toEqual([]);
+    });
+
+    it('leaves the part of the reach that lies on the table where it is', async () => {
+      const table = tableOf();
+      platformOn(table, 0, 0, 3, 1);
+      carry({
+        characterIdentifier: 'piece',
+        grid,
+        cells: cellsAt(cellIndexOf(grid, 1, 1), cellIndexOf(grid, 4, 4)),
+        held: null,
+        showsReach: true,
+      });
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const [floor, raised] = canvases();
+      expect(painted.get(raised)?.filled).toContain(MOVE_RANGE_FILL);
+      expect(painted.get(floor)?.filled).toContain(MOVE_RANGE_FILL);
+    });
+
+    it('gives each height of ground the reach touches a layer of its own', async () => {
+      const table = tableOf();
+      platformOn(table, 0, 0, 3, 1);
+      platformOn(table, 4, 4, 2, 0.5);
+      carry({
+        characterIdentifier: 'piece',
+        grid,
+        cells: cellsAt(cellIndexOf(grid, 1, 1), cellIndexOf(grid, 4, 4), cellIndexOf(grid, 3, 0)),
+        held: null,
+        showsReach: true,
+      });
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const drawn = canvases();
+      expect(drawn.map((canvas) => canvas.style.transform)).toEqual([
+        `translateZ(${Z_OFFSET_RANGE_PX}px)`,
+        `translateZ(${25 + Z_OFFSET_RANGE_PX}px)`,
+        `translateZ(${50 + Z_OFFSET_RANGE_PX}px)`,
+      ]);
+      for (const canvas of drawn) expect(painted.get(canvas)?.filled).toContain(MOVE_RANGE_FILL);
+    });
+
+    it('keeps to the table where nothing of the reach is up on the blocks', async () => {
+      const table = tableOf();
+      platformOn(table, 0, 0, 3, 1);
+      carry({
+        characterIdentifier: 'piece',
+        grid,
+        cells: cellsAt(cellIndexOf(grid, 4, 4)),
+        held: null,
+        showsReach: true,
+      });
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(canvases().length).toBe(1);
+      expect(painted.get(canvases()[0])?.filled).toContain(MOVE_RANGE_FILL);
+    });
   });
 
   it('paints the reach alone where no enemy holds any', () => {

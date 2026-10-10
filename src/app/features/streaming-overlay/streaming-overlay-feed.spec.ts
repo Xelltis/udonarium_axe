@@ -55,6 +55,12 @@ describe('buildOverlayFeed()', () => {
     expect(feed).toEqual([]);
   });
 
+  it('keeps a pseudo-deleted line off the stream, even from the screen of the one who said it', () => {
+    const feed = buildOverlayFeed([source({ isPseudoDeleted: true }), source({ identifier: 'open' })], NOW);
+
+    expect(feed.map((line) => line.identifier)).toEqual(['open']);
+  });
+
   it('leaves out a line with nothing in it', () => {
     const feed = buildOverlayFeed([source({ text: '   ' })], NOW);
 

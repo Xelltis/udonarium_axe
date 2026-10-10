@@ -12,6 +12,10 @@ export interface RemoteControllerInventoryContext {
   graveyardInventory: ObjectInventory;
 }
 
+/**
+ * The translation key naming an inventory tab: the table, this user's personal inventory, the
+ * graveyard, or shared for anything else.
+ */
 export function getTabTitleKey(inventoryType: string): string {
   switch (inventoryType) {
     case 'table':
@@ -25,6 +29,7 @@ export function getTabTitleKey(inventoryType: string): string {
   }
 }
 
+/** The fixed Japanese name of an inventory tab, for places that do not go through translation. */
 export function getTabTitle(inventoryType: string): string {
   switch (inventoryType) {
     case 'table':
@@ -38,6 +43,10 @@ export function getTabTitle(inventoryType: string): string {
   }
 }
 
+/**
+ * The inventory behind a tab: the table, this user's personal inventory, the graveyard, or the
+ * shared inventory for anything else.
+ */
 export function getInventory(
   inventoryType: string,
   inventoryService: RemoteControllerInventoryContext | GameObjectInventoryService
@@ -54,6 +63,10 @@ export function getInventory(
   }
 }
 
+/**
+ * The data elements the inventory list shows for a character, taken from the inventory it currently
+ * sits in.
+ */
 export function getInventoryTags(
   gameCharacter: GameCharacter,
   inventoryService: RemoteControllerInventoryContext | GameObjectInventoryService
@@ -62,21 +75,7 @@ export function getInventoryTags(
   return inventory.dataElementMap.get(gameCharacter.identifier) ?? [];
 }
 
-export function getCounterElements(gameCharacter: GameCharacter, dataTags: readonly string[]): DataElement[] {
-  const root = gameCharacter.rootDataElement;
-  if (!root) return [];
-
-  const elements: DataElement[] = [];
-  const seen = new Set<string>();
-  for (const tag of dataTags) {
-    const element = DataElement.findElementByReference(root, tag);
-    if (!element || seen.has(element.identifier)) continue;
-    seen.add(element.identifier);
-    elements.push(element);
-  }
-  return elements;
-}
-
+/** The pieces in an inventory tab, leaving out characters hidden from the inventory. */
 export function getGameObjects(
   inventoryType: string,
   inventoryService: RemoteControllerInventoryContext | GameObjectInventoryService
@@ -85,6 +84,12 @@ export function getGameObjects(
   return inventory.tabletopObjects.filter((obj) => !(obj as GameCharacter).hideInventory);
 }
 
+/**
+ * The characters in a list that an operation of the remote controller applies to.
+ *
+ * With `checkedOnly` only those ticked as targets count; otherwise every one does. Characters
+ * hidden from the inventory never count.
+ */
 export function getTargetCharacters(objectList: TabletopObject[], checkedOnly: boolean): GameCharacter[] {
   const gameCharacters: GameCharacter[] = [];
   for (const object of objectList) {

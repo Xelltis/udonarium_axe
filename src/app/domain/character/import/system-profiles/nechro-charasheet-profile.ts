@@ -50,6 +50,7 @@ const PROFILE_FIELDS: { key: string; label: string }[] = [
   { key: 'SCLS_Name', label: 'サブクラス' },
 ];
 
+/** Whether the pasted json is an archive sheet under the `nechro` system token. */
 export function isNechroCharasheetCharacter(parsed: unknown): boolean {
   return isCharasheetGame(parsed, 'nechro');
 }
@@ -93,6 +94,13 @@ function buildRoiceSection(record: Record<string, unknown>): ImportedSection | n
   return groups.length > 0 ? { label: '未練', groups } : null;
 }
 
+/**
+ * Builds the imported model from a `nechro` archive sheet, or null for any other sheet.
+ *
+ * The system has no abilities to read, so there are no parameters. Maneuvers, with their part and
+ * timing codes turned into names, regrets and the profile become sections, and the palette offers
+ * the plain check and attack rolls.
+ */
 export function buildNechroCharasheetCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isNechroCharasheetCharacter(parsed)) return null;
   const record = parsed as Record<string, unknown>;

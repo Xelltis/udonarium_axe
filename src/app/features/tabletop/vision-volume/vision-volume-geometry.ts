@@ -36,6 +36,13 @@ export const VOLUME_RIB_STEP_DEG = 60;
 const SECTOR_STEP_DEG = 6;
 const TAU = Math.PI * 2;
 
+/**
+ * Builds the rings and ribs that draw a piece's vision as a dome over the table.
+ *
+ * Each lobe adds rings stacked from the ground up to its reach, clipped to a sector when the lobe
+ * is narrower than a full circle, and quarter-circle ribs spread across its span. A non-positive
+ * radius, or a lobe reaching less than a pixel, draws nothing.
+ */
 export function visionVolumeShape(input: VisionVolumeInput): VolumeShape {
   const rings: VolumeRing[] = [];
   const ribs: VolumeRib[] = [];

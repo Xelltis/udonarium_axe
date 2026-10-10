@@ -1,17 +1,17 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
 import { parseBuffAppearance } from '@axe/domain/character/buff-appearance';
 import { describeBuffModifier, parseBuffModifierRequest } from '@axe/domain/character/buff-modifier';
+import { BuffPileOn } from '@axe/domain/character/buff-stack';
 import { resolveBuffTiming } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
+import { readNamedResourceSlot, type ResourceSlot, resourceSlotLabel } from '@axe/domain/data/resource-slot';
 
 export interface ResourceEditOption {
   limitMinMax: boolean;
   zeroLimit: boolean;
   isErr: boolean;
 }
-
-export type ResourceEditTarget = 'now' | 'max' | 'maxBase' | 'maxCorrection' | 'minBase' | 'minCorrection';
 
 export interface ResourceEdit {
   target: string;
@@ -22,7 +22,7 @@ export interface ResourceEdit {
   isDiceRoll: boolean;
   embeddedRolls: string[];
   calcAns: number;
-  nowOrMax: ResourceEditTarget;
+  nowOrMax: ResourceSlot;
   option: ResourceEditOption | null;
   object: GameCharacter | null;
   targeted: boolean;
@@ -34,6 +34,13 @@ export interface BuffEdit {
   targeted: boolean;
 }
 
+/**
+ * Reads the option letters at the end of a resource command's amount.
+ *
+ * `L` keeps the result between 0 and the maximum, and `Z` stops a change from going the wrong way, so adding
+ * a negative or taking away a positive leaves the value alone. Any other trailing letter apart from `D`,
+ * which belongs to a dice roll, marks the options as unreadable.
+ */
 export function parseResourceEditOption(text: string): ResourceEditOption {
   const ans: ResourceEditOption = {
     limitMinMax: false,
@@ -61,39 +68,7 @@ export function parseResourceEditOption(text: string): ResourceEditOption {
   return ans;
 }
 
-interface ResourceSuffixMatch {
-  target: string;
-  kind: ResourceEditTarget;
-}
-
-/**
- * Parses the optional target suffix from a name-portion of a resource edit command.
- * Suffixes are matched case-insensitively against the half-width form so that
- * `:HP_MAX+5` and `:hp_max+5` and `:ＨＰ＿ＭＡＸ＋５` all resolve identically.
- * Longer suffixes are checked first so `_MAX_BUFF` does not eagerly match `_MAX`.
- */
-function stripResourceSuffix(raw: string): ResourceSuffixMatch | null {
-  const trimmed = raw.replace(/[\s]+$/g, '');
-  const halfWidth = toHalfWidth(trimmed).toUpperCase();
-  const suffixes: Array<{ token: string; kind: ResourceEditTarget }> = [
-    { token: '_MAX_BUFF', kind: 'maxCorrection' },
-    { token: '_MIN_BUFF', kind: 'minCorrection' },
-    { token: '_MAX', kind: 'maxBase' },
-    { token: '_MIN', kind: 'minBase' },
-  ];
-  for (const { token, kind } of suffixes) {
-    if (halfWidth.endsWith(token)) {
-      const target = trimmed.slice(0, trimmed.length - token.length);
-      if (target.length === 0) return null;
-      return { target, kind };
-    }
-  }
-  if (/[\^＾]$/.test(trimmed)) {
-    return { target: trimmed.slice(0, trimmed.length - 1), kind: 'max' };
-  }
-  return null;
-}
-
+/** A blank edit aimed at a resource's current value, to be filled in by {@link convertCommandToResourceEdit}. */
 export function createDefaultResourceEdit(): ResourceEdit {
   return {
     target: '',
@@ -111,6 +86,14 @@ export function createDefaultResourceEdit(): ResourceEdit {
   };
 }
 
+/**
+ * Fills in an edit from one chat resource command such as `:HP-2d6`, `:MP=10` or `:メモ>text`.
+ *
+ * Records the character, the status and slot named, and the operator. For arithmetic it also builds the dice
+ * command that works out the amount and reads the option letters; `>` only records the replacement text.
+ * Returns false, leaving the edit partly filled, when the text is not a command, the character has no
+ * status by that name, or the options cannot be read.
+ */
 export function convertCommandToResourceEdit(
   oneResourceEdit: ResourceEdit,
   text: string,
@@ -126,27 +109,10 @@ export function convertCommandToResourceEdit(
   if (!resourceEditResult) return false;
   if (resourceEditResult[2] !== '>' && resourceEditResult[3] === '') return false;
 
-  const chkNowOrMaxString: string = resourceEditResult[1];
-  let reg1: string;
-  let reg1HalfWidth: string;
-
-  // Target suffix (case-insensitive, longest first):
-  //   (none)      → currentValue
-  //   ^ / ＾      → currentMax (the displayed "/X")
-  //   _MAX_BUFF   → max correction (buff modifier on the original max)
-  //   _MIN_BUFF   → min correction
-  //   _MAX        → max base (original max)
-  //   _MIN        → min base
-  const suffixDef = stripResourceSuffix(chkNowOrMaxString);
-  if (suffixDef) {
-    reg1 = suffixDef.target;
-    reg1HalfWidth = toHalfWidth(reg1);
-    oneResourceEdit.nowOrMax = suffixDef.kind;
-  } else {
-    reg1 = resourceEditResult[1];
-    reg1HalfWidth = toHalfWidth(reg1);
-    oneResourceEdit.nowOrMax = 'now';
-  }
+  const named = readNamedResourceSlot(resourceEditResult[1]);
+  const reg1 = named.name;
+  const reg1HalfWidth = toHalfWidth(reg1);
+  oneResourceEdit.nowOrMax = named.slot;
 
   oneResourceEdit.operator = resourceEditResult[2];
 
@@ -178,11 +144,20 @@ export function convertCommandToResourceEdit(
   return true;
 }
 
+/** Writes a `>` command's text into the character's status and returns the chat text reporting it. */
 export function applyTextEdit(edit: ResourceEdit, character: GameCharacter): string {
   character.status.setText(edit.target, edit.replace);
   return `${edit.target}＞${edit.replace}    `;
 }
 
+/**
+ * Applies a worked-out resource change to the character and returns the chat text reporting old and new
+ * values.
+ *
+ * The text notes when an option or the stored bounds held the value back, and when changing a base or
+ * correction moved the effective bounds or the current maximum. An edit of the maximum on a status without
+ * one changes the current value instead. Returns an empty string when the status has no value to change.
+ */
 export function applyResourceEdit(edit: ResourceEdit, character: GameCharacter): string {
   let optionText = '';
   let nowOrMax = edit.nowOrMax;
@@ -258,20 +233,21 @@ export function applyResourceEdit(edit: ResourceEdit, character: GameCharacter):
   }
 
   const operatorText = edit.operator === '-' ? '' : edit.operator;
-  let suffix = '';
-  if (nowOrMax === 'max') suffix = '(最大値)';
-  else if (nowOrMax === 'maxBase') suffix = '(最大ベース)';
-  else if (nowOrMax === 'maxCorrection') suffix = '(最大補正)';
-  else if (nowOrMax === 'minBase') suffix = '(最小ベース)';
-  else if (nowOrMax === 'minCorrection') suffix = '(最小補正)';
+  const label = resourceSlotLabel(nowOrMax);
+  const suffix = label.length > 0 ? `(${label})` : '';
   return `${edit.target}${suffix}:${oldNum}${operatorText}${edit.diceResult}＞${newNum}${optionText}${sideEffectText}    `;
 }
 
 /**
  * `&!name/status/op/amount/R/timing/trigger` - a buff that moves a status as it goes on and
  * moves it back as it runs out, so the table stops doing the arithmetic by hand.
+ *
+ * `&+!` stacks: a second helping moves the status again and the buff remembers both, rather than
+ * putting the first one back, and `&++!` lengthens the buff by the rounds asked for as well.
+ * Holding a status at a value (`=`) is the one thing that cannot stack, since holding it there
+ * twice is still holding it there, so that starts over as always.
  */
-function applyCalculatedBuff(command: string, character: GameCharacter): string {
+function applyCalculatedBuff(command: string, character: GameCharacter, piles: BuffPileOn): string {
   const parts = command.replace(/^[tTｔＴ]?&[!！]/i, '').split('/');
   const name = (parts[0] ?? '').trim();
   if (name.length < 1) return '';
@@ -284,19 +260,50 @@ function applyCalculatedBuff(command: string, character: GameCharacter): string 
   const timing = resolveBuffTiming(parts[5] ?? '') ?? undefined;
   const trigger = (parts[6] ?? '').trim();
 
+  const stacking = piles !== 'none' && request.operator === 'add' && character.buffs.find(name) != null;
   const effect = describeBuffModifier(request);
-  character.buffs.addRound(name, effect, round, { timing, trigger: trigger.length > 0 ? trigger : undefined });
+  const appearance = { timing, trigger: trigger.length > 0 ? trigger : undefined };
+  if (!stacking) character.buffs.addRound(name, effect, round, appearance);
+  else if (piles === 'extend') character.buffs.extendRound(name, effect, round, appearance);
+  else character.buffs.stackRound(name, effect, round, appearance);
 
   const data = character.buffs.find(name);
   if (!data) return '';
-  const applied = character.buffs.applyModifier(data, request);
-  if (!applied) return `${name}を付与 ${effect}/${round}R (${request.target}が見つかりません)    `;
+  const applied = stacking
+    ? character.buffs.stackModifier(data, request)
+    : character.buffs.applyModifier(data, request);
+  const verb = stacking ? '加算' : '付与';
+  const standing = stacking ? `${data.currentValue ?? effect}` : effect;
+  if (!applied) return `${name}を${verb} ${standing}/${data.value}R (${request.target}が見つかりません)    `;
 
-  return `${name}を付与 ${effect}/${round}R    `;
+  return `${name}を${verb} ${standing}/${data.value}R    `;
 }
 
+/**
+ * What second helping the command asks for, and the command with that mark taken off.
+ *
+ * `&+猛攻撃/攻撃+2/3` adds its `+2` to whatever the standing 猛攻撃 already carries instead of
+ * writing over it, and `&++猛攻撃/攻撃+2/3` adds the three rounds to the ones left as well. The
+ * mark sits right after the ampersand so that everything downstream reads the command it always
+ * read, `&+!` included.
+ */
+function readBuffStacking(command: string): { piles: BuffPileOn; command: string } {
+  const marked = command.match(/^([tTｔＴ]?&)([+＋]{1,2})(?=[^+＋])/);
+  if (!marked) return { piles: 'none', command };
+  return { piles: marked[2].length > 1 ? 'extend' : 'stack', command: marked[1] + command.slice(marked[0].length) };
+}
+
+/**
+ * Runs one `&` buff command on the character and returns the chat text reporting it.
+ *
+ * `&R-` and `&R+` move every buff's remaining rounds, `&D` clears buffs at zero rounds or fewer, `&name-`
+ * removes one buff, `&!` adds a buff that changes a status, and anything else adds a plain
+ * `name/effect/rounds/appearance` buff. A `+` right after the ampersand stacks onto a buff of the
+ * same name rather than starting it over, and `++` lengthens it by the rounds asked for as well.
+ * A targeted command's text starts with the character's name.
+ */
 export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string {
-  const command = buff.command;
+  const { piles, command } = readBuffStacking(buff.command);
   let text = '';
   if (buff.targeted) {
     text += `[${character.name}] `;
@@ -318,7 +325,7 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
       text += `${reg1}を消去    `;
     }
   } else if (command.match(/^[tTｔＴ]?&[!！]/i)) {
-    text += applyCalculatedBuff(command, character);
+    text += applyCalculatedBuff(command, character, piles);
   } else {
     const splittext = command.replace(/^[tTｔＴ]?&/i, '').split('/');
     let round: number | undefined = undefined;
@@ -347,9 +354,23 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
       if (token) bufftext = `${bufftext}/${token}`;
     }
 
-    character.buffs.addRound(buffname, sub, round, appearance);
-    text += `バフを付与 ${bufftext}    `;
+    if (piles !== 'none' && character.buffs.find(buffname)) {
+      if (piles === 'extend') character.buffs.extendRound(buffname, sub, round, appearance);
+      else character.buffs.stackRound(buffname, sub, round, appearance);
+      text += `バフを加算 ${describeStandingBuff(character, buffname, bufftext)}    `;
+    } else {
+      character.buffs.addRound(buffname, sub, round, appearance);
+      text += `バフを付与 ${bufftext}    `;
+    }
   }
 
   return text;
+}
+
+/** How a stacked buff reads once it stands, so the chat line names the total rather than the helping. */
+function describeStandingBuff(character: GameCharacter, name: string, fallback: string): string {
+  const data = character.buffs.find(name);
+  if (!data) return fallback;
+  const note = `${data.currentValue ?? ''}`;
+  return `${name}${note.length > 0 ? `/${note}` : ''}/${data.value}R`;
 }

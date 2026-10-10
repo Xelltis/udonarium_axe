@@ -27,6 +27,13 @@ export function parseImportedCharacterJson(json: unknown, systemHint?: string): 
   return null;
 }
 
+/**
+ * Parses pasted text as json and hands it to `parseImportedCharacterJson`. Null for blank text,
+ * text that is not json, or json in no known format.
+ *
+ * No system hint goes with it, so a warehouse character is read by the general parser rather than a
+ * system profile.
+ */
 export function parseImportedCharacterText(text: string): ImportedCharacter | null {
   const trimmed = text.trim();
   if (trimmed === '') return null;

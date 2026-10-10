@@ -49,6 +49,7 @@ const PROFILE_FIELDS: { key: string; label: string }[] = [
   { key: 'sex', label: '性別' },
 ];
 
+/** Whether the pasted json is an archive sheet under the `ryutama` system token. */
 export function isRyutamaCharasheetCharacter(parsed: unknown): boolean {
   return isCharasheetGame(parsed, 'ryutama');
 }
@@ -69,6 +70,12 @@ function buildPalette(record: Record<string, unknown>): string {
   return lines.join('\n');
 }
 
+/**
+ * Builds the imported model from a `ryutama` archive sheet, or null for any other sheet.
+ *
+ * Abilities become parameters written as the die they roll, such as `d8`; class abilities, spells,
+ * belongings and the profile become sections; and the palette offers a roll of each ability's die.
+ */
 export function buildRyutamaCharasheetCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isRyutamaCharasheetCharacter(parsed)) return null;
   const record = parsed as Record<string, unknown>;

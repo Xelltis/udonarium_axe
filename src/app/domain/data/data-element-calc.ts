@@ -9,6 +9,13 @@ export type CalcEnv = Record<string, number>;
  */
 export type CalcLookup = (name: string) => number;
 
+/**
+ * Works out a calculating field's formula: numbers, field names, `+ - * / **`, parentheses and the functions
+ * floor, ceil, round, abs, min and max.
+ *
+ * A name with spaces or symbols is written in square brackets. Names are matched without regard to case.
+ * A formula that does not parse, or names a field with no number, gives NaN rather than throwing.
+ */
 export function evalCalcFormula(formula: string, env: CalcEnv | CalcLookup): number {
   try {
     const tokens = tokenize(formula);

@@ -11,6 +11,10 @@ import { getStampsByCategory } from '@axe/features/map-editor/assets/stamps';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/**
+ * A data URI of the stamp's SVG for previews, painted in the colour when one is given and left to
+ * follow the text colour otherwise.
+ */
 export function stampDataUri(def: StampDef, color: string | null): string {
   const svg = def.svg.split('currentColor').join(color ?? 'currentColor');
   return 'data:image/svg+xml,' + encodeURIComponent(svg);

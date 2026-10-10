@@ -37,12 +37,17 @@ export class AlarmMenuComponent {
   isSound = true;
   isPopUp = true;
 
+  /**
+   * The other peers in the room, one row each in the target list; the local peer is not among them.
+   */
   get peerList() {
     return this.networkService.peerContexts;
   }
+  /** The local peer's cursor, added to the targets when the include-self box is ticked. */
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
   }
+  /** The room's shared alarm object, which an alarm set from this panel is written to. */
   get alarm(): Alarm {
     return this.objectStore.get<Alarm>('Alarm')!;
   }
@@ -54,11 +59,20 @@ export class AlarmMenuComponent {
     });
   }
 
+  /**
+   * Whether a peer has dropped out of the room, counting a peer with no cursor as dropped.
+   *
+   * A dropped peer's row is dimmed and left unticked when the list starts.
+   */
   isPeerIsDisConnect(peerId: string): boolean {
     const cursor = PeerCursor.findByPeerId(peerId);
     return cursor ? cursor.isDisConnect : true;
   }
 
+  /**
+   * Ticks every connected peer and unticks the rest, which is how the list starts once the panel
+   * has rendered.
+   */
   setDefaultCheck() {
     this.checkedPeers.clear();
     for (const peer of this.peerList) {
@@ -68,10 +82,18 @@ export class AlarmMenuComponent {
     }
   }
 
+  /**
+   * How many peers the alarm will go to, the local peer included when ticked; the set button is
+   * disabled at zero.
+   */
   selectedNum(): number {
     return this.selectedList().length;
   }
 
+  /**
+   * The peer ids the alarm will go to: the ticked peers, then the local peer when include-self is
+   * ticked.
+   */
   selectedList(): string[] {
     const sendList = [...this.checkedPeers];
     if (this.includSelf) {
@@ -80,6 +102,12 @@ export class AlarmMenuComponent {
     return sendList;
   }
 
+  /**
+   * Sets the alarm for the chosen peers, announces it in chat, starts it, and closes the panel.
+   *
+   * The time is clamped first. The chat line lists every target by name, or says it went to
+   * everyone when every peer and the local one are included.
+   */
   send() {
     this.changeAlarmTime();
 
@@ -107,15 +135,24 @@ export class AlarmMenuComponent {
     this.panelService.close();
   }
 
+  /**
+   * Clamps the alarm time to between 0 and 3600 seconds; runs when the time box changes and again
+   * before sending.
+   */
   changeAlarmTime() {
     if (this.alarmTime <= 0) this.alarmTime = 0;
     if (this.alarmTime >= 3600) this.alarmTime = 3600;
   }
 
+  /**
+   * Sets whether this is a roll call from a type picker's value, where only `'rollcall'` counts as
+   * one.
+   */
   onChangeType(value: string) {
     this.isRollCall = value === 'rollcall';
   }
 
+  /** Ticks or unticks a peer as a target when the user clicks the peer's row. */
   voteBlockClick(id: string) {
     if (this.checkedPeers.has(id)) {
       this.checkedPeers.delete(id);
@@ -124,26 +161,43 @@ export class AlarmMenuComponent {
     }
   }
 
+  /** The user id of the peer with this peer id, or an empty string when the peer has no cursor. */
   findUserId(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.userId : '';
   }
 
+  /**
+   * A peer's player name, shown on its row and listed in the chat line; empty when the peer has no
+   * cursor.
+   */
   findPeerName(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.name : '';
   }
 
+  /**
+   * The name of the character a peer last controlled, or empty when there is none or the peer has
+   * no cursor.
+   */
   findPeerLastControlName(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.lastControlCharacterName : '';
   }
 
+  /**
+   * A peer's own avatar image, or null when there is none, in which case the row shows a
+   * placeholder icon.
+   */
   findPeerImage(peerId: string): ImageFile | null {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.image : null;
   }
 
+  /**
+   * The image of the character a peer last controlled, shown at the end of its row; null when there
+   * is none.
+   */
   findPeerLastControlImage(peerId: string): ImageFile | null {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.lastControlImage : null;

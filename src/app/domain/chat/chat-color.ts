@@ -19,6 +19,7 @@ export interface ChatBubbleColors {
   dark: string;
 }
 
+/** The colour a speaker writes in with one of its swatches, or black when it has none there. */
 export function chatColorOf(source: ChatColorSource | null | undefined, index: number): string {
   return source?.chatColorCode?.[index] ?? DEFAULT_CHAT_COLOR;
 }

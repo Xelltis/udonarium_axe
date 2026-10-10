@@ -1,6 +1,17 @@
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
+import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 
 type SlotType = 'value' | 'currentValue' | 'maxBase' | 'maxCorrection' | 'minBase' | 'minCorrection';
+
+/** Where on the element each slot of a resource is kept. */
+const STORAGE_OF_SLOT: Record<ResourceSlot, SlotType> = {
+  now: 'currentValue',
+  max: 'value',
+  maxBase: 'maxBase',
+  maxCorrection: 'maxCorrection',
+  minBase: 'minBase',
+  minCorrection: 'minCorrection',
+};
 
 const SLOT_ATTRIBUTE: Partial<Record<SlotType, string>> = {
   maxBase: DataElementAttribute.MAX_BASE,
@@ -9,64 +20,71 @@ const SLOT_ATTRIBUTE: Partial<Record<SlotType, string>> = {
   minCorrection: DataElementAttribute.MIN_CORRECTION,
 };
 
+const CHANGEABLE_TYPES: ReadonlySet<string> = new Set([
+  DataElementType.NUMBER_RESOURCE,
+  DataElementType.TEXT,
+  DataElementType.NOTE,
+]);
+
+/** Whether an item of this kind is one a number or a line of text can be written to. */
+export function isChangeableElementType(type: string): boolean {
+  return CHANGEABLE_TYPES.has(type);
+}
+
 export class StatusAccessor {
   constructor(
     private readonly detailDataElement: DataElement | null,
     private readonly characterName: () => string
   ) {}
 
+  /**
+   * Whether the sheet item a chat command names exists and is of a kind it can write to: a
+   * resource, a line of text or a note.
+   */
   canChangeName(name: string): boolean {
     const data = this.findData(name);
     if (!data) return false;
-    return (
-      data.type === DataElementType.NUMBER_RESOURCE ||
-      data.type === DataElementType.TEXT ||
-      data.type === DataElementType.NOTE
-    );
+    return isChangeableElementType(data.type);
   }
 
-  canChange(name: string, nowOrMax: string): boolean {
+  /** A resource answers to every slot; anything else has only the one value to write to. */
+  canChange(name: string, nowOrMax: ResourceSlot): boolean {
     const data = this.findData(name);
     if (!data) return false;
-    if (data.type === DataElementType.NUMBER_RESOURCE) {
-      return (
-        nowOrMax === 'now' ||
-        nowOrMax === 'max' ||
-        nowOrMax === 'maxBase' ||
-        nowOrMax === 'maxCorrection' ||
-        nowOrMax === 'minBase' ||
-        nowOrMax === 'minCorrection'
-      );
-    }
-    if (data.type === DataElementType.TEXT || data.type === DataElementType.NOTE) {
-      return nowOrMax === 'now';
-    }
+    if (data.type === DataElementType.NUMBER_RESOURCE) return true;
+    if (data.type === DataElementType.TEXT || data.type === DataElementType.NOTE) return nowOrMax === 'now';
     return false;
   }
 
-  getType(name: string, nowOrMax: string): string | null {
+  /**
+   * Where on the item a slot of its value is kept, or null when the item has no such slot.
+   *
+   * A resource answers every slot, a text item only `now`, which is its value, and a note or
+   * anything else none.
+   */
+  getType(name: string, nowOrMax: ResourceSlot): string | null {
     const data = this.findData(name);
     if (!data) return null;
-    if (data.type === DataElementType.NUMBER_RESOURCE) {
-      if (nowOrMax === 'now') return 'currentValue';
-      if (nowOrMax === 'max') return 'value';
-      if (nowOrMax === 'maxBase') return 'maxBase';
-      if (nowOrMax === 'maxCorrection') return 'maxCorrection';
-      if (nowOrMax === 'minBase') return 'minBase';
-      if (nowOrMax === 'minCorrection') return 'minCorrection';
-    } else if (data.type === DataElementType.TEXT) {
-      if (nowOrMax === 'now') return 'value';
-    }
+    if (data.type === DataElementType.NUMBER_RESOURCE) return STORAGE_OF_SLOT[nowOrMax];
+    if (data.type === DataElementType.TEXT) return nowOrMax === 'now' ? 'value' : null;
     return null;
   }
 
+  /**
+   * Where text written to the item goes: a resource keeps it in its current value, anything else in
+   * its value. Null when there is no such item.
+   */
   getTextType(name: string): string | null {
     const data = this.findData(name);
     if (!data) return null;
     return data.type === DataElementType.NUMBER_RESOURCE ? 'currentValue' : 'value';
   }
 
-  getValue(name: string, nowOrMax: string): number | null {
+  /**
+   * The number held in a slot of the item, or null when there is no such item or slot. The value
+   * and current value are read as integers, and an unset base reads as 0.
+   */
+  getValue(name: string, nowOrMax: ResourceSlot): number | null {
     const data = this.findData(name);
     if (!data) return null;
     const type = this.getType(name, nowOrMax) as SlotType | null;
@@ -80,7 +98,15 @@ export class StatusAccessor {
     return null;
   }
 
-  setValue(name: string, nowOrMax: string, setValue: number): boolean {
+  /**
+   * Writes a number into a slot of the item, held within the item's bounds. False when there is no
+   * such item or slot.
+   *
+   * Writing a base or a correction moves the effective limits, so a maximum-side change carries the
+   * maximum to the new effective maximum, and both the maximum and the current value are pulled
+   * back inside the new bounds. A correction of 0 is removed rather than stored.
+   */
+  setValue(name: string, nowOrMax: ResourceSlot, setValue: number): boolean {
     const data = this.findData(name);
     if (!data) return false;
     const type = this.getType(name, nowOrMax) as SlotType | null;
@@ -145,6 +171,10 @@ export class StatusAccessor {
     return result;
   }
 
+  /**
+   * Writes text into the item: a resource's current value, or anything else's value. False when
+   * there is no such item.
+   */
   setText(name: string, text: string): boolean {
     const data = this.findData(name);
     if (!data) return false;
@@ -158,7 +188,15 @@ export class StatusAccessor {
     return true;
   }
 
-  changeValue(name: string, nowOrMax: string, addValue: number, limitMin?: boolean, limitMax?: boolean): string {
+  /**
+   * Moves a slot of the item by an amount and returns the chat line describing it, such as `[Name
+   * 10>7] `.
+   *
+   * The result is held within the item's bounds, and `(最小)` or `(最大)` is added where it was held
+   * back. `limitMin` floors the value at 0 when no minimum is set, and `limitMax` caps the current
+   * value at the maximum. Empty when there is no such item or slot.
+   */
+  changeValue(name: string, nowOrMax: ResourceSlot, addValue: number, limitMin?: boolean, limitMax?: boolean): string {
     const data = this.findData(name);
     if (!data) return '';
     const type = this.getType(name, nowOrMax) as SlotType | null;

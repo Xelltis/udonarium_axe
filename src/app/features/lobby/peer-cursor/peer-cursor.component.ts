@@ -67,12 +67,18 @@ export class PeerCursorComponent {
     return roleBadgeClass(this.cursor().role);
   });
 
-  get name(): string {
+  readonly name = computed(() => {
+    this.objectChange.versionOf(this.cursor().identifier)();
     return this.cursor().name;
-  }
-  get isMine(): boolean {
+  });
+  readonly isMine = computed(() => {
+    this.objectChange.versionOf(this.cursor().identifier)();
     return this.cursor()?.isMine ?? false;
-  }
+  });
+  /**
+   * The room's chat tab list, which holds the system tab that connection notices about this peer
+   * are posted to.
+   */
   get chatTabList(): ChatTabList {
     return this.objectStore.get<ChatTabList>('ChatTabList')!;
   }
@@ -90,11 +96,19 @@ export class PeerCursorComponent {
   private _y = 0;
   private _target!: HTMLElement;
 
+  /**
+   * How long cursor movement is held back before being sent or animated, in milliseconds: 16.6 per
+   * connected peer, never under 100, so a crowded room sends less often.
+   */
   get delayMs(): number {
     const maxDelay = getPeerIds().length * 16.6;
     return maxDelay < 100 ? 100 : maxDelay;
   }
 
+  /**
+   * How often a heartbeat is sent, or a peer's silence checked, in milliseconds: 166 per connected
+   * peer, never under 1000.
+   */
   get delayMsHb(): number {
     const maxDelay = getPeerIds().length * 166;
     return maxDelay < 1000 ? 1000 : maxDelay;
@@ -139,7 +153,7 @@ export class PeerCursorComponent {
     }, this.destroyRef);
 
     afterNextRender(() => {
-      if (this.isMine) {
+      if (this.isMine()) {
         document.body.addEventListener('mousemove', this.callcack);
         document.body.addEventListener('touchmove', this.callcack);
       } else {

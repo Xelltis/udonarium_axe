@@ -372,6 +372,29 @@ describe('CutIn', () => {
       expect(cutIn.scene?.cutInIdentifier).toBe(cutIn.identifier);
     });
 
+    it('writes its identifier, so the tables that play it can find it again', () => {
+      const cutIn = makeCutIn();
+
+      expect(cutIn.toXml()).toContain(`identifier="${cutIn.identifier}"`);
+    });
+
+    it('comes back under the identifier it was saved with when a room is loaded in its place', () => {
+      const cutIn = makeCutIn();
+      const scene = giveScene(cutIn);
+      addLayer(scene, '立ち絵');
+      const identifier = cutIn.identifier;
+      const xml = cutIn.toXml();
+      cutIn.destroy();
+      store.forgetDeleted([identifier]);
+
+      const restored = ObjectSerializer.instance.parseXml(xml) as CutIn;
+
+      expect(restored.identifier).toBe(identifier);
+      expect(store.get(identifier)).toBe(restored);
+      expect(restored.scene?.cutInIdentifier).toBe(identifier);
+      expect(restored.scene?.layers).toHaveLength(1);
+    });
+
     it('reads a cut-in written before layers existed', () => {
       const restored = ObjectSerializer.instance.parseXml(
         '<cut-in name="古い演出" width="640" height="360" isLoop="true" outTime="5"></cut-in>'

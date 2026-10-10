@@ -34,6 +34,8 @@ describe('copiedMessageContext()', () => {
     message.messBubbleDark = '#000';
     message.sendFrom = 'character-1';
     message.vnEmote = 'shape:shout bubble:shake';
+    message.diceLook = '{"material":"metal"}';
+    message.diceImageIdentifier = 'ab'.repeat(32);
 
     expect(copiedMessageContext(message, 4200)).toEqual({
       originFrom: 'user-1',
@@ -52,7 +54,18 @@ describe('copiedMessageContext()', () => {
       messBubbleLight: '#fff',
       messBubbleDark: '#000',
       sendFrom: 'character-1',
+      diceLook: '{"material":"metal"}',
+      diceImageIdentifier: 'ab'.repeat(32),
     });
+  });
+
+  it('carries over the stamp a line was sent with, and writes none for a line without one', () => {
+    const stamped = line();
+    stamped.value = 'いくぞ！\n［クリティカル!］';
+    stamped.stamp = 'roll:critical';
+
+    expect(copiedMessageContext(stamped, 4200).stamp).toBe('roll:critical');
+    expect('stamp' in copiedMessageContext(line(), 4200)).toBe(false);
   });
 
   it('leaves behind what points at the tab it came from', () => {

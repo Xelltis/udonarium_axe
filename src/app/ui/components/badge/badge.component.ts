@@ -17,6 +17,7 @@ export class BadgeComponent {
     });
   }
 
+  /** Called when the bounce animation finishes, so the badge rests until its count changes again. */
   onBounceEnd() {
     this.animeState.set('inactive');
   }

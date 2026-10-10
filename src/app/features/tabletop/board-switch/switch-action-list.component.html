@@ -1,0 +1,301 @@
+<div class="flex flex-col gap-1.5" data-testid="switch-action-list">
+  @for (action of actions(); track $index; let index = $index, first = $first, last = $last) {
+    <div
+      class="border-ui-border-panel bg-ui-surface rounded-ui-sm flex flex-col gap-1 border border-solid p-1.5"
+      data-testid="switch-action"
+    >
+      <div class="flex items-center gap-1">
+        @if (action.kind === 'unknown') {
+          <span class="text-ui-muted flex-1 text-[12px]">{{ 'feature.boardSwitch.unknownAction' | transloco }}</span>
+        } @else {
+          <select
+            class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px]"
+            data-testid="switch-action-kind"
+            (change)="setKind(index, $any($event.target).value)"
+          >
+            @for (kind of kinds; track kind) {
+              <option [value]="kind" [selected]="kind === action.kind">
+                {{ 'feature.boardSwitch.kind.' + kind | transloco }}
+              </option>
+            }
+          </select>
+        }
+        @if (!first) {
+          <label class="text-ui-muted flex items-center gap-1 text-[11px]">
+            {{ 'feature.boardSwitch.delay' | transloco }}
+            <input
+              type="number"
+              min="0"
+              max="10"
+              step="0.1"
+              class="border-ui-border-panel bg-ui-elevated text-ui-text w-14 rounded-[3px] border border-solid px-1 py-0.5 text-[12px]"
+              data-testid="switch-action-delay"
+              [value]="delaySeconds(action)"
+              (change)="setDelay(index, $any($event.target).value)"
+            />
+          </label>
+        }
+        <button
+          type="button"
+          class="text-ui-dim hover:text-ui-accent flex size-6 cursor-pointer items-center justify-center border-none bg-transparent disabled:cursor-default disabled:opacity-30 [&_i]:text-[16px]!"
+          [title]="'feature.boardSwitch.moveUp' | transloco"
+          [disabled]="first"
+          (click)="move(index, -1)"
+        >
+          <i class="material-icons">arrow_upward</i>
+        </button>
+        <button
+          type="button"
+          class="text-ui-dim hover:text-ui-accent flex size-6 cursor-pointer items-center justify-center border-none bg-transparent disabled:cursor-default disabled:opacity-30 [&_i]:text-[16px]!"
+          [title]="'feature.boardSwitch.moveDown' | transloco"
+          [disabled]="last"
+          (click)="move(index, 1)"
+        >
+          <i class="material-icons">arrow_downward</i>
+        </button>
+        <button
+          type="button"
+          class="text-ui-dim hover:text-ui-danger flex size-6 cursor-pointer items-center justify-center border-none bg-transparent [&_i]:text-[16px]!"
+          data-testid="switch-action-remove"
+          [title]="'feature.boardSwitch.removeAction' | transloco"
+          (click)="remove(index)"
+        >
+          <i class="material-icons">delete</i>
+        </button>
+      </div>
+
+      @if (action.kind === 'secret') {
+        <select
+          class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px]"
+          data-testid="switch-action-reader"
+          (change)="setReader(index, $any($event.target).value)"
+        >
+          @for (reader of readers; track reader) {
+            <option [value]="reader" [selected]="reader === action.to">
+              {{ 'feature.boardSwitch.reader.' + reader | transloco }}
+            </option>
+          }
+        </select>
+        <textarea
+          class="border-ui-border-panel bg-ui-elevated text-ui-text min-h-12 w-full resize-y rounded-[3px] border border-solid px-1.5 py-1 font-sans text-[12px]"
+          data-testid="switch-action-text"
+          [placeholder]="'feature.boardSwitch.secretPlaceholder' | transloco"
+          [value]="action.text"
+          (input)="setText(index, $any($event.target).value)"
+        ></textarea>
+      } @else if (action.kind === 'say') {
+        <textarea
+          class="border-ui-border-panel bg-ui-elevated text-ui-text min-h-12 w-full resize-y rounded-[3px] border border-solid px-1.5 py-1 font-sans text-[12px]"
+          data-testid="switch-action-text"
+          [placeholder]="'feature.boardSwitch.sayPlaceholder' | transloco"
+          [value]="action.text"
+          (input)="setText(index, $any($event.target).value)"
+        ></textarea>
+      } @else if (action.kind === 'sound' || action.kind === 'effect' || action.kind === 'cutIn') {
+        <select
+          class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px]"
+          data-testid="switch-action-name"
+          (change)="setName(index, $any($event.target).value)"
+        >
+          <option value="" [selected]="!action.name">{{ 'feature.boardSwitch.unchosen' | transloco }}</option>
+          @for (choice of choicesFor(action); track choice.value) {
+            <option [value]="choice.value" [selected]="choice.value === action.name">{{ choice.name }}</option>
+          }
+        </select>
+      } @else if (action.kind === 'reveal' || action.kind === 'conceal') {
+        <select
+          class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px]"
+          data-testid="switch-action-target"
+          (change)="setTarget(index, $any($event.target).value)"
+        >
+          <option value="" [selected]="!action.target.identifier">
+            {{ 'feature.boardSwitch.unchosen' | transloco }}
+          </option>
+          @for (choice of targetsFor(action); track choice.value) {
+            <option [value]="choice.value" [selected]="choice.value === action.target.identifier">
+              {{ choice.name }}
+            </option>
+          }
+        </select>
+        <p class="text-ui-muted m-0 text-[11px] leading-snug">
+          {{ 'feature.boardSwitch.' + action.kind + 'Hint' | transloco }}
+        </p>
+      } @else if (action.kind === 'spawn') {
+        <select
+          class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px]"
+          data-testid="switch-action-target"
+          (change)="setTarget(index, $any($event.target).value)"
+        >
+          <option value="" [selected]="!action.target.identifier">
+            {{ 'feature.boardSwitch.unchosen' | transloco }}
+          </option>
+          @for (choice of targetsFor(action); track choice.value) {
+            <option [value]="choice.value" [selected]="choice.value === action.target.identifier">
+              {{ choice.name }}
+            </option>
+          }
+        </select>
+        <div class="flex items-center gap-2 text-[12px]">
+          <label class="text-ui-muted flex items-center gap-1">
+            {{ 'feature.boardSwitch.spawnCount' | transloco }}
+            <input
+              type="number"
+              min="1"
+              max="10"
+              class="border-ui-border-panel bg-ui-elevated text-ui-text w-12 rounded-[3px] border border-solid px-1 py-0.5 text-[12px]"
+              data-testid="switch-action-count"
+              [value]="action.count"
+              (change)="setSpawnCount(index, $any($event.target).value)"
+            />
+          </label>
+          <select
+            class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px]"
+            data-testid="switch-action-place"
+            (change)="setSpawnPlace(index, $any($event.target).value)"
+          >
+            @for (place of spawnPlaces; track place) {
+              <option [value]="place" [selected]="place === action.place">
+                {{ 'feature.boardSwitch.spawnPlace.' + place | transloco }}
+              </option>
+            }
+          </select>
+        </div>
+        <p class="text-ui-muted m-0 text-[11px] leading-snug">{{ 'feature.boardSwitch.spawnHint' | transloco }}</p>
+      } @else if (action.kind === 'showTable') {
+        <select
+          class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px]"
+          data-testid="switch-action-table"
+          (change)="setRef(index, 'table', $any($event.target).value, tables())"
+        >
+          <option value="" [selected]="!action.table.identifier">
+            {{ 'feature.boardSwitch.unchosen' | transloco }}
+          </option>
+          @for (choice of tables(); track choice.value) {
+            <option [value]="choice.value" [selected]="choice.value === action.table.identifier">
+              {{ choice.name }}
+            </option>
+          }
+        </select>
+        <p class="text-ui-muted m-0 text-[11px] leading-snug">{{ 'feature.boardSwitch.showTableHint' | transloco }}</p>
+      } @else if (action.kind === 'carry') {
+        <div class="flex items-center gap-2 text-[12px]">
+          <label class="text-ui-muted flex items-center gap-1">
+            {{ 'feature.boardSwitch.carryCol' | transloco }}
+            <input
+              type="number"
+              min="0"
+              class="border-ui-border-panel bg-ui-elevated text-ui-text w-14 rounded-[3px] border border-solid px-1 py-0.5 text-[12px]"
+              data-testid="switch-action-col"
+              [value]="action.col"
+              (change)="setCell(index, 'col', $any($event.target).value)"
+            />
+          </label>
+          <label class="text-ui-muted flex items-center gap-1">
+            {{ 'feature.boardSwitch.carryRow' | transloco }}
+            <input
+              type="number"
+              min="0"
+              class="border-ui-border-panel bg-ui-elevated text-ui-text w-14 rounded-[3px] border border-solid px-1 py-0.5 text-[12px]"
+              data-testid="switch-action-row"
+              [value]="action.row"
+              (change)="setCell(index, 'row', $any($event.target).value)"
+            />
+          </label>
+        </div>
+        <select
+          class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px]"
+          data-testid="switch-action-table"
+          (change)="setRef(index, 'table', $any($event.target).value, tables())"
+        >
+          <option value="" [selected]="!action.table.identifier">
+            {{ 'feature.boardSwitch.carryHere' | transloco }}
+          </option>
+          @for (choice of tables(); track choice.value) {
+            <option [value]="choice.value" [selected]="choice.value === action.table.identifier">
+              {{ choice.name }}
+            </option>
+          }
+        </select>
+        <p class="text-ui-muted m-0 text-[11px] leading-snug">{{ 'feature.boardSwitch.carryHint' | transloco }}</p>
+      } @else if (action.kind === 'tableSetting') {
+        @for (key of ['darkness', 'fog']; track key) {
+          <label class="text-ui-muted flex items-center gap-2 text-[12px]">
+            <span class="w-20 shrink-0">{{ 'feature.boardSwitch.setting.' + key | transloco }}</span>
+            <select
+              class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px]"
+              [attr.data-testid]="'switch-action-' + key"
+              (change)="setToggle(index, $any(key), $any($event.target).value)"
+            >
+              @for (toggle of toggles; track toggle) {
+                <option [value]="toggle" [selected]="toggle === (key === 'darkness' ? action.darkness : action.fog)">
+                  {{ 'feature.boardSwitch.toggle.' + toggle | transloco }}
+                </option>
+              }
+            </select>
+          </label>
+        }
+        <label class="text-ui-muted flex items-center gap-2 text-[12px]">
+          <span class="w-20 shrink-0">{{ 'feature.boardSwitch.setting.image' | transloco }}</span>
+          <select
+            class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px]"
+            data-testid="switch-action-image"
+            (change)="setRef(index, 'image', $any($event.target).value, images())"
+          >
+            <option value="" [selected]="!action.image.identifier">
+              {{ 'feature.boardSwitch.toggle.keep' | transloco }}
+            </option>
+            @for (choice of images(); track choice.value) {
+              <option [value]="choice.value" [selected]="choice.value === action.image.identifier">
+                {{ choice.name }}
+              </option>
+            }
+          </select>
+        </label>
+        <label class="text-ui-muted flex items-center gap-2 text-[12px]">
+          <span class="w-20 shrink-0">{{ 'feature.boardSwitch.setting.bgm' | transloco }}</span>
+          <select
+            class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px]"
+            data-testid="switch-action-bgm"
+            (change)="setRef(index, 'bgm', $any($event.target).value, tracks())"
+          >
+            <option value="" [selected]="!action.bgm.identifier">
+              {{ 'feature.boardSwitch.toggle.keep' | transloco }}
+            </option>
+            @for (choice of tracks(); track choice.value) {
+              <option [value]="choice.value" [selected]="choice.value === action.bgm.identifier">
+                {{ choice.name }}
+              </option>
+            }
+          </select>
+        </label>
+        <label class="flex items-center gap-2 text-[12px]">
+          <input
+            type="checkbox"
+            data-testid="switch-action-bgm-stop"
+            [checked]="action.bgmStop"
+            (change)="setBgmStop(index, $any($event.target).checked)"
+          />
+          <span>{{ 'feature.boardSwitch.setting.bgmStop' | transloco }}</span>
+        </label>
+      } @else if (action.kind === 'removeSelf') {
+        <p class="text-ui-muted m-0 text-[11px] leading-snug">{{ 'feature.boardSwitch.removeSelfHint' | transloco }}</p>
+      }
+    </div>
+  } @empty {
+    <p class="text-ui-dim m-0 text-[12px]">{{ 'feature.boardSwitch.noActions' | transloco }}</p>
+  }
+
+  <div class="flex flex-wrap gap-1">
+    @for (kind of kinds; track kind) {
+      <button
+        type="button"
+        class="border-ui-border-panel bg-ui-elevated text-ui-text hover:border-ui-accent hover:text-ui-accent rounded-ui-sm flex cursor-pointer items-center gap-1 border border-solid px-2 py-0.5 text-[12px] disabled:cursor-default disabled:opacity-45"
+        [attr.data-testid]="'switch-action-add-' + kind"
+        [disabled]="full()"
+        (click)="add(kind)"
+      >
+        <i class="material-icons text-[14px]!">add</i>{{ 'feature.boardSwitch.kind.' + kind | transloco }}
+      </button>
+    }
+  </div>
+</div>

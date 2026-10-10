@@ -6,7 +6,7 @@ import { VN_EMOTION_MARK_CHARS, VnEmote } from '@axe/domain/visual-novel/vn-emot
  *
  * The words come from the same keys the buttons that set them are labelled with, so a room
  * played in English says "Shout" where a Japanese one says 叫び. Written into the line itself
- * the words were fixed in Japanese for everyone; kept apart, they can be read in the reader's
+ * the words would be fixed in Japanese for everyone; kept apart, they can be read in the reader's
  * own language. A mark is a glyph and belongs to no language, so it stands as it is.
  */
 export function vnEmoteLabels(emote: VnEmote, translate: TranslateFn): string[] {

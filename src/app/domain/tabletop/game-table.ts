@@ -5,7 +5,7 @@ import { DEFAULT_AMBIENCE_DENSITY } from '@axe/domain/effect/ambience/ambience-k
 import { CutInMultiDirectionMode } from '@axe/domain/tabletop/cut-in-multi-direction';
 import { DEFAULT_FOG_COLOR, DEFAULT_FOG_MODE, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
-import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
+import { GridType } from '@axe/domain/tabletop/grid-type';
 import { HoverDetailPlacement } from '@axe/domain/tabletop/hover-detail-placement';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import {
@@ -13,7 +13,13 @@ import {
   DEFAULT_CELL_DISTANCE_UNIT,
   DEFAULT_MOVE_RANGE_ELEMENT_NAMES,
 } from '@axe/domain/tabletop/move/move-cells';
-import { DEFAULT_ZOC_EXTRA_COST, DEFAULT_ZOC_MODE, DEFAULT_ZOC_RANGE } from '@axe/domain/tabletop/move/zone-of-control';
+import { DEFAULT_PIECE_PASSAGE_COST } from '@axe/domain/tabletop/move/piece-passage';
+import {
+  DEFAULT_HOSTILITY_BY,
+  DEFAULT_ZOC_EXTRA_COST,
+  DEFAULT_ZOC_MODE,
+  DEFAULT_ZOC_RANGE,
+} from '@axe/domain/tabletop/move/zone-of-control';
 import { MultiAngleMotionMode } from '@axe/domain/tabletop/multi-angle';
 import { MultiAngleFontScale } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { DEFAULT_CELL_MM } from '@axe/domain/tabletop/physical-scale';
@@ -30,12 +36,7 @@ import { Terrain } from '@axe/domain/tabletop/terrain';
 import { DEFAULT_AMBIENT_COLOR } from '@axe/domain/tabletop/vision-types';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 
-export enum GridType {
-  NONE = -1,
-  SQUARE = 0,
-  HEX_VERTICAL = 1,
-  HEX_HORIZONTAL = 2,
-}
+export { GridType } from '@axe/domain/tabletop/grid-type';
 
 export enum GridSnapStyle {
   CENTER = 0,
@@ -97,6 +98,13 @@ export class GameTable extends ObjectNode {
   @SyncVar() facingMark: TableFacingMark = DEFAULT_TABLE_FACING_MARK;
   /** How wide one square is meant to measure on the glass, for a screen laid flat under miniatures. */
   @SyncVar() cellMm: number = DEFAULT_CELL_MM;
+  /**
+   * Whether the needle of a compass wanders on this table rather than finding north.
+   *
+   * A table of its own, since a lodestone cavern is one room of a dungeon rather than a rule of
+   * the room: a party that walks out of it should get their bearings back.
+   */
+  @SyncVar() magneticAnomaly: boolean = false;
   @SyncVar() wallHeight: number = 10;
   @SyncVar() northWallImageIdentifier: string = 'imageIdentifier';
   @SyncVar() eastWallImageIdentifier: string = 'imageIdentifier';
@@ -122,6 +130,25 @@ export class GameTable extends ObjectNode {
   @SyncVar() moveDiagonally: boolean = true;
   /** Whether two pieces may stand on one cell. Left off, a piece walks past rather than onto. */
   @SyncVar() piecesShareCells: boolean = true;
+  /**
+   * What the ground a piece of one's own party holds does to a piece walking into it, as one of
+   * PIECE_PASSAGE_MODES. Empty leaves it to whatever piecesShareCells says.
+   */
+  @SyncVar() samePartyPassage: string = '';
+  /** The same, for the ground some other party holds. */
+  @SyncVar() otherPartyPassage: string = '';
+  /** The same, for the ground a piece in no party holds. */
+  @SyncVar() noPartyPassage: string = '';
+  /** What crossing somebody costs on top of the one step, where the table charges for it. */
+  @SyncVar() piecePassageCost: number = DEFAULT_PIECE_PASSAGE_COST;
+  /** Whether a piece squeezes past somebody two cells or more apart from it in size. */
+  @SyncVar() sizeSlipsPast: boolean = false;
+  /** Whether a piece too big for a gap folds itself through it at a price. */
+  @SyncVar() squeezes: boolean = false;
+  /** How far one leap carries, in cells. Nought carries as far as the move has left. */
+  @SyncVar() jumpCells: number = 0;
+  /** Whether the ground between a piece's two ends goes off when a hand moves it. */
+  @SyncVar() handTracesWay: boolean = false;
   /** Whether the piece a reader has picked keeps showing its reach, not only while carried. */
   @SyncVar() moveRangeAlways: boolean = false;
   /** Whether the ground held against the piece a reader has picked keeps showing. */
@@ -131,6 +158,8 @@ export class GameTable extends ObjectNode {
 
   /** What the ground around an enemy does to a piece walking into it. One of ZOC_MODES. */
   @SyncVar() zocMode: string = DEFAULT_ZOC_MODE;
+  /** How the table tells its two sides apart, as one of HOSTILITY_BY. */
+  @SyncVar() hostilityBy: string = DEFAULT_HOSTILITY_BY;
   /** How many cells out from an enemy that ground reaches. */
   @SyncVar() zocRange: number = DEFAULT_ZOC_RANGE;
   /** What entering it costs on top of the one step, where the table charges for it. */
@@ -145,18 +174,22 @@ export class GameTable extends ObjectNode {
   @SyncVar() cutInIdentifiers: string = '';
 
   gridClipRect: { top: number; right: number; bottom: number; left: number } | null = null;
+  /** The terrain pieces on this table. */
   get terrains(): Terrain[] {
     return this.children.filter((o): o is Terrain => o instanceof Terrain);
   }
 
+  /** The light sources placed on this table. */
   get lightSources(): LightSource[] {
     return this.children.filter((o): o is LightSource => o instanceof LightSource);
   }
 
+  /** The boards standing on this table. */
   get whiteBoards(): WhiteBoard[] {
     return this.children.filter((o): o is WhiteBoard => o instanceof WhiteBoard);
   }
 
+  /** The area effects, such as a marsh or a vent in the ground, laid over this table. */
   get ambiences(): TableAmbience[] {
     return this.children.filter((o): o is TableAmbience => o instanceof TableAmbience);
   }
@@ -173,15 +206,16 @@ export class GameTable extends ObjectNode {
       .sort((a, b) => a.order - b.order);
   }
 
+  /** The masks covering parts of this table. */
   get masks(): GameTableMask[] {
     return this.children.filter((o): o is GameTableMask => o instanceof GameTableMask);
   }
 
-  get scratchMasks(): GameTableScratchMask[] {
-    return this.children.filter((o): o is GameTableScratchMask => o instanceof GameTableScratchMask);
-  }
-
   // GameObject Lifecycle
+  /**
+   * When the table arrives in the object store already selected, announces it as the table being
+   * viewed.
+   */
   override onStoreAdded() {
     super.onStoreAdded();
     if (this.selected) emitSelectGameTable({ identifier: this.identifier });

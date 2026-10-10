@@ -20,6 +20,7 @@ import { sheetElementsOf } from '@axe/domain/data/data-element-templates';
 import { decodeRangeShapeField, RangeShapeFieldValue } from '@axe/domain/data/range-shape-field';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { asMoveMode, MOVE_MODES } from '@axe/domain/tabletop/move/move-mode';
 import { buildDisclosureContextMenu } from '@axe/features/disclosure/disclosure-context-menu';
 
 export interface RegisteredRangeShape {
@@ -53,6 +54,13 @@ export interface GameCharacterContextMenuModel {
   radialGroups: ContextMenuRadialGroup[];
 }
 
+/**
+ * Collects the range shapes registered on a character sheet, in sheet order, for the menu's
+ * invoke-range entry.
+ *
+ * Each is labelled with the shape's own name, else the field's name, else left empty. Fields whose
+ * value does not decode as a shape are skipped.
+ */
 export function collectRegisteredRangeShapes(char: GameCharacter): RegisteredRangeShape[] {
   const result: RegisteredRangeShape[] = [];
   const walk = (element: DataElement): void => {
@@ -87,6 +95,10 @@ function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+/**
+ * The flat list of entries for a character's context menu, as `buildGameCharacterContextMenuModel`
+ * builds them, without the radial grouping.
+ */
 export function buildGameCharacterContextMenu(
   char: GameCharacter,
   gridSize: number,
@@ -109,6 +121,14 @@ export function buildGameCharacterContextMenu(
   ).actions;
 }
 
+/**
+ * Builds a character's context menu, both as a flat list and grouped for the radial menu.
+ *
+ * An entry whose callback is left out is left out of the menu, as are range shapes, effects and
+ * held dice the character does not have. Overlap entries lead the flat list and surface entries
+ * close it. The display toggles write the character directly and tell the inventory to refresh, and
+ * the NPC toggle is offered only to the game master.
+ */
 export function buildGameCharacterContextMenuModel(
   char: GameCharacter,
   gridSize: number,
@@ -126,11 +146,21 @@ export function buildGameCharacterContextMenuModel(
 
   // Working a move out comes before anything else a piece is asked, since it is what a piece
   // is picked up for; the rest of the move entries are about which pile it belongs in.
+  // How a piece is getting about goes with working its move out and is offered with it: a
+  // piece with no reach to show has nothing to get about by either.
   const planActions: ContextMenuAction[] = callbacks.onPlanMove
     ? [
         {
           name: t('feature.character.contextMenu.planMove'),
           action: () => callbacks.onPlanMove?.(),
+        } as ContextMenuAction,
+        {
+          name: t('feature.character.contextMenu.moveMode'),
+          action: undefined,
+          subActions: MOVE_MODES.map((mode) => ({
+            name: (asMoveMode(char.moveMode) === mode ? '✔ ' : '') + t(`feature.character.moveMode_${mode}`),
+            action: () => (char.moveMode = mode),
+          })),
         } as ContextMenuAction,
       ]
     : [];

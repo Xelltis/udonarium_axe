@@ -21,6 +21,10 @@ describe('isIgnoredReplayEvent()', () => {
     expect(isIgnoredReplayEvent('CANCEL_TASK_abc')).toBe(true);
   });
 
+  it('throws away the cue to tumble the dice of a chat roll, which the line it points to already records', () => {
+    expect(isIgnoredReplayEvent('DICE_THROW')).toBe(true);
+  });
+
   it('throws away nothing worth recording', () => {
     expect(isIgnoredReplayEvent('UPDATE_GAME_OBJECT')).toBe(false);
     expect(isIgnoredReplayEvent('ROLL_DICE_SYMBOL')).toBe(false);
@@ -50,6 +54,27 @@ describe('interpretObjectChange()', () => {
     expect(
       interpretObjectChange({ aliasName: 'character', identifier: 'c1', before: data, after: structuredClone(data) })
     ).toBeNull();
+  });
+
+  it('reads the table everyone is shown changing as a switch of table', () => {
+    const draft = interpretObjectChange({
+      aliasName: 'TableSelecter',
+      identifier: 'TableSelecter',
+      before: { viewTableIdentifier: 'table-1' },
+      after: { viewTableIdentifier: 'table-2' },
+    });
+    expect(draft?.kind).toBe(ReplayEventKind.TableChange);
+    expect(draft?.targetIdentifier).toBe('table-2');
+  });
+
+  it('does not count taking up the first table as a switch', () => {
+    const draft = interpretObjectChange({
+      aliasName: 'TableSelecter',
+      identifier: 'TableSelecter',
+      before: { viewTableIdentifier: '' },
+      after: { viewTableIdentifier: 'table-1' },
+    });
+    expect(draft?.kind).not.toBe(ReplayEventKind.TableChange);
   });
 
   it('reads a change of position as a move', () => {
@@ -272,6 +297,74 @@ describe('reading the cut-ins', () => {
       after: { attributes: { sendTo: 'alice' } },
     });
     expect(draft?.kind).toBe(ReplayEventKind.ObjectUpdate);
+  });
+});
+
+describe('reading the background sounds', () => {
+  it('reads one sent already playing as started, with its sound and room volume', () => {
+    const draft = interpretObjectChange({
+      aliasName: 'background-sound',
+      identifier: 'bgs_rain',
+      before: null,
+      after: { audioIdentifier: 'rain', isPlaying: true, volume: 0.4 },
+    });
+    expect(draft?.kind).toBe(ReplayEventKind.MediaBackgroundSound);
+    expect(draft?.targetIdentifier).toBe('rain');
+    expect(draft?.detail).toEqual({ isPlaying: true, volume: 0.4 });
+    expect(draft?.patch?.identifier).toBe('bgs_rain');
+  });
+
+  it('reads one switched off as stopped, and on again as started', () => {
+    const stopped = interpretObjectChange({
+      aliasName: 'background-sound',
+      identifier: 'bgs_rain',
+      before: { audioIdentifier: 'rain', isPlaying: true, volume: 1 },
+      after: { audioIdentifier: 'rain', isPlaying: false, volume: 1 },
+    });
+    expect(stopped?.kind).toBe(ReplayEventKind.MediaBackgroundSound);
+    expect(stopped?.detail['isPlaying']).toBe(false);
+
+    const started = interpretObjectChange({
+      aliasName: 'background-sound',
+      identifier: 'bgs_rain',
+      before: { audioIdentifier: 'rain', isPlaying: false, volume: 1 },
+      after: { audioIdentifier: 'rain', isPlaying: true, volume: 1 },
+    });
+    expect(started?.detail['isPlaying']).toBe(true);
+  });
+
+  it('leaves a change of volume alone to the patch', () => {
+    const draft = interpretObjectChange({
+      aliasName: 'background-sound',
+      identifier: 'bgs_rain',
+      before: { audioIdentifier: 'rain', isPlaying: true, volume: 1 },
+      after: { audioIdentifier: 'rain', isPlaying: true, volume: 0.2 },
+    });
+    expect(draft?.kind).toBe(ReplayEventKind.ObjectUpdate);
+  });
+
+  it('reads one sent stopped as made, not started', () => {
+    const draft = interpretObjectChange({
+      aliasName: 'background-sound',
+      identifier: 'bgs_rain',
+      before: null,
+      after: { audioIdentifier: 'rain', isPlaying: false },
+    });
+    expect(draft?.kind).toBe(ReplayEventKind.ObjectCreate);
+  });
+
+  it('reads an empty volume as full', () => {
+    const draft = interpretObjectChange({
+      aliasName: 'background-sound',
+      identifier: 'bgs_rain',
+      before: null,
+      after: { audioIdentifier: 'rain', isPlaying: true, volume: '' },
+    });
+    expect(draft?.detail['volume']).toBe(1);
+  });
+
+  it('keeps them at the middle setting', () => {
+    expect(isRecordableKind(ReplayEventKind.MediaBackgroundSound, ReplayDetailLevel.Notable)).toBe(true);
   });
 });
 

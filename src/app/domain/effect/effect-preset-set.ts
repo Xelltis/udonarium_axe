@@ -24,11 +24,13 @@ export class EffectPresetSet extends ObjectNode implements InnerXml {
   }
 
   // GameObject Lifecycle
+  /** Takes the holder straight back out of the store, so it is never shared with the room. */
   override onStoreAdded() {
     super.onStoreAdded();
     ObjectStore.instance.remove(this);
   }
 
+  /** The effects to write out: those it was given, or every effect on the shelf. */
   override innerXml(): string {
     return (this.members ?? EffectPreset.list()).map((preset) => preset.toXml()).join('');
   }

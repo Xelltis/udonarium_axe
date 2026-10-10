@@ -42,14 +42,29 @@ function indexOf(dictionary: ReplayDictionary): DictionaryIndex {
   return index;
 }
 
+/**
+ * Looks up actor and target names as they stood at a given point in the recording.
+ *
+ * An id with no name recorded by then is shown as the id itself. The lookup table is built once per
+ * dictionary and reused.
+ */
 export function replayNamesAt(dictionary: ReplayDictionary, seq: number): ReplayNameLookup {
   const index = indexOf(dictionary);
+  const targetAt = (identifier: string) => resolveSnapshotAt(index.targets.get(identifier) ?? [], seq);
   return {
     actorName: (userId) => resolveSnapshotAt(index.actors.get(userId) ?? [], seq)?.name || userId,
-    targetName: (identifier) => resolveSnapshotAt(index.targets.get(identifier) ?? [], seq)?.name || identifier,
+    targetName: (identifier) => targetAt(identifier)?.name || identifier,
+    ownerName: (identifier) => {
+      const owner = targetAt(identifier)?.ownerIdentifier;
+      return owner ? targetAt(owner)?.name || '' : '';
+    },
   };
 }
 
+/**
+ * Every actor in the recording under the last name recorded for them, followed by any of the given
+ * ids the dictionary does not know, named by the id.
+ */
 export function replayActorsOf(
   dictionary: ReplayDictionary,
   fallbackIds: readonly string[]

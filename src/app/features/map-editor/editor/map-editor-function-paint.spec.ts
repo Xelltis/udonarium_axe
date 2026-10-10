@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { DEFAULT_FUNCTION_SPEC } from '@axe/domain/tabletop/function-paint';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { FunctionLayer } from '@axe/features/map-editor/model/scene';
+import { removeLayer } from '@axe/features/map-editor/model/scene-ops';
+import { sceneSpeaksFor } from '@axe/features/map-editor/model/table-apply';
 
 describe('painting what a cell does', () => {
   let state: MapEditorState;
@@ -26,22 +28,42 @@ describe('painting what a cell does', () => {
   }
 
   it('starts a layer for the role the first time it is painted', () => {
-    state.functionRole.set('moveBlock');
+    state.functionRole.set('moveCost');
 
     state.paintFunctionCell(1, 2);
 
-    const layers = layersOfRole('moveBlock');
+    const layers = layersOfRole('moveCost');
     expect(layers).toHaveLength(1);
     expect(Object.keys(layers[0].cells)).toEqual(['1,2']);
   });
 
+  describe('deleting a layer', () => {
+    it('leaves the scene still speaking for what it painted', () => {
+      state.functionRole.set('trigger');
+      state.paintFunctionCell(1, 2);
+      const laid = layersOfRole('trigger')[0];
+
+      state.applyCommitted((scene) => removeLayer(scene, laid.id));
+
+      expect(layersOfRole('trigger')).toEqual([]);
+      expect(sceneSpeaksFor(state.current, 'trigger')).toBe(true);
+    });
+
+    it('says nothing for a role the scene never painted', () => {
+      state.functionRole.set('trigger');
+      state.paintFunctionCell(1, 2);
+
+      expect(sceneSpeaksFor(state.current, 'mask')).toBe(false);
+    });
+  });
+
   it('keeps each role on a layer of its own', () => {
-    state.functionRole.set('moveBlock');
+    state.functionRole.set('moveCost');
     state.paintFunctionCell(0, 0);
     state.functionRole.set('terrain');
     state.paintFunctionCell(1, 1);
 
-    expect(layersOfRole('moveBlock')).toHaveLength(1);
+    expect(layersOfRole('moveCost')).toHaveLength(1);
     expect(layersOfRole('terrain')).toHaveLength(1);
   });
 
@@ -112,7 +134,7 @@ describe('painting what a cell does', () => {
     state.paintFunctionCell(0, 0);
     state.functionRole.set('terrain');
     const stone = layerWith({ images: { ...DEFAULT_FUNCTION_SPEC.terrain.images, wall: 'stone' }, height: 3 });
-    state.functionRole.set('moveBlock');
+    state.functionRole.set('moveCost');
 
     state.setActiveLayer(stone.id);
 
@@ -176,7 +198,7 @@ describe('painting what a cell does', () => {
   });
 
   it('rubs out only the role that is being erased', () => {
-    state.functionRole.set('moveBlock');
+    state.functionRole.set('moveCost');
     state.paintFunctionCell(3, 3);
     state.functionRole.set('terrain');
     state.paintFunctionCell(3, 3);
@@ -184,7 +206,7 @@ describe('painting what a cell does', () => {
     state.eraseFunctionCellAt(3, 3);
 
     expect(Object.keys(layersOfRole('terrain')[0].cells)).toEqual([]);
-    expect(Object.keys(layersOfRole('moveBlock')[0].cells)).toEqual(['3,3']);
+    expect(Object.keys(layersOfRole('moveCost')[0].cells)).toEqual(['3,3']);
   });
 
   it('rubs nothing out where the role has never been painted', () => {
@@ -209,7 +231,7 @@ describe('being handed the brush as the editor opens', () => {
   });
 
   it('counts a scene that has been painted on as worth keeping', () => {
-    state.functionRole.set('moveBlock');
+    state.functionRole.set('moveCost');
     state.paintFunctionCell(0, 0);
 
     expect(state.isUntouched).toBe(false);

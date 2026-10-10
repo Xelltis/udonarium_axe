@@ -40,18 +40,9 @@ export class SelectableDirective {
     if (event.button !== 0) return;
     const obj = this.target();
     if (!obj) return;
-    if (event.ctrlKey || event.metaKey) {
-      this.selectionSignalService.toggleSelection(obj.identifier, obj.aliasName);
+    if (this.selectionSignalService.press(obj.identifier, obj.aliasName, event.ctrlKey || event.metaKey)) {
       event.stopPropagation();
       event.preventDefault();
-      return;
     }
-    const selected = this.selectionSignalService.selectedObjects();
-    if (selected.size === 0) return;
-    if (selected.has(obj.identifier)) return;
-    this.selectionSignalService.replaceSelection([obj.identifier], {
-      identifier: obj.identifier,
-      className: obj.aliasName,
-    });
   }
 }

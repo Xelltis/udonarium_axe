@@ -24,6 +24,13 @@ export class SynchronizeTask {
 
   private constructor(readonly peerId: PeerId) {}
 
+  /**
+   * Starts asking for the requested objects: from the peer when it holds them, else from the room.
+   *
+   * Each request loses one ttl. The task finishes once every object has arrived or been deleted, and
+   * times out after 30 seconds without progress or when the peer disconnects. With no requests it
+   * finishes on the next tick, so set onfinish and ontimeout straight after creating it.
+   */
   static create(peerId: PeerId, requests: SynchronizeRequest[]): SynchronizeTask {
     if (SynchronizeTask.tasksMap.size < 1) {
       const off = networkMessage$.subscribe((msg) => {

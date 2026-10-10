@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { soundOnlyCutIn$, stopCutInByBgm$ } from '@axe/core/event/domain-events';
+import { soundOnlyCutIn$, startCutIn$, stopCutInByBgm$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/index';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
+import { encodeLaunchSpeaker } from '@axe/domain/media/cut-in-speaker';
 
 describe('CutInLauncher', () => {
   beforeEach(() => {
@@ -139,7 +140,7 @@ describe('CutInLauncher', () => {
     });
   });
 
-  // The tests for the uploaded music and the chat trigger now live with the cut-in service.
+  // The uploaded music and the chat trigger are tested with the cut-in service.
 
   describe('stopBlankTagCutIn()', () => {
     it('counts the stamp up and says the music stopped the cut-ins', () => {
@@ -200,6 +201,66 @@ describe('CutInLauncher', () => {
     });
   });
 
+  describe('who a launch is played for', () => {
+    function started(): { speakers: unknown[]; off: () => void } {
+      const speakers: unknown[] = [];
+      const off = startCutIn$.subscribe((event) => speakers.push(event.speaker));
+      return { speakers, off };
+    }
+
+    it('plays a launch for the speaker it was started for, and for nobody where none was given', () => {
+      const launcher = new CutInLauncher('CutInLauncher');
+      launcher.initialize();
+      const cutIn = new CutIn();
+      cutIn.initialize();
+      const { speakers, off } = started();
+      const speaker = {
+        characterId: 'hero',
+        imageIdentifier: 'hero-smile',
+        name: 'ヒロ',
+        fit: { scale: 1.5, x: 0, y: 0.2 },
+      };
+
+      launcher.startCutIn(cutIn, '', speaker);
+      launcher.startCutIn(cutIn);
+      off();
+
+      expect(speakers).toEqual([speaker, null]);
+    });
+
+    it('plays a launch from another end for its speaker, but not for one an older version sent back', () => {
+      const launcher = new CutInLauncher('CutInLauncher');
+      launcher.initialize();
+      const cutIn = new CutIn();
+      cutIn.initialize();
+      launcher.apply(launcher.toContext());
+      const speaker = {
+        characterId: 'hero',
+        imageIdentifier: 'hero-smile',
+        name: 'ヒロ',
+        fit: { scale: 1.5, x: 0, y: 0.2 },
+      };
+      const { speakers, off } = started();
+
+      const fromNewer = launcher.toContext();
+      fromNewer.syncData = {
+        ...fromNewer.syncData,
+        launchCutInIdentifier: cutIn.identifier,
+        launchIsStart: true,
+        launchTimeStamp: 5,
+        launchSpeaker: encodeLaunchSpeaker(speaker, 5, cutIn.identifier),
+      };
+      launcher.apply(fromNewer);
+
+      const fromOlder = launcher.toContext();
+      fromOlder.syncData = { ...fromOlder.syncData, launchTimeStamp: 6 };
+      launcher.apply(fromOlder);
+      off();
+
+      expect(speakers).toEqual([speaker, null]);
+    });
+  });
+
   describe('apply() — soundOnlyTimeStamp', () => {
     it('starts the sound here when the stamp changes', () => {
       const launcher = new CutInLauncher('CutInLauncher');
@@ -232,7 +293,7 @@ describe('CutInLauncher', () => {
       expect(soundSpy).not.toHaveBeenCalled();
     });
 
-    it('starts nothing at another end for a cut-in launched for yourself alone', () => {
+    it('still sounds at another end after a cut-in was last launched for somebody alone', () => {
       const launcher = new CutInLauncher('CutInLauncher');
       launcher.initialize();
 
@@ -244,7 +305,7 @@ describe('CutInLauncher', () => {
       ctx.syncData = { ...ctx.syncData, launchMySelf: true, soundOnlyTimeStamp: 1 };
       launcher.apply(ctx);
 
-      expect(soundSpy).not.toHaveBeenCalled();
+      expect(soundSpy).toHaveBeenCalledOnce();
     });
   });
 
@@ -401,6 +462,42 @@ describe('CutInLauncher', () => {
 
       expect(emitted).toBe(true);
       cleanup();
+    });
+
+    it('still says so after a cut-in was last launched for somebody alone', () => {
+      const launcher = new CutInLauncher('CutInLauncher');
+      launcher.initialize();
+      launcher.apply(launcher.toContext());
+
+      let emitted = false;
+      const cleanup = stopCutInByBgm$.subscribe(() => {
+        emitted = true;
+      });
+
+      const ctx = launcher.toContext();
+      ctx.syncData = { ...ctx.syncData, launchMySelf: true, stopBlankTagCutInTimeStamp: 1 };
+      launcher.apply(ctx);
+
+      expect(emitted).toBe(true);
+      cleanup();
+    });
+
+    it('still launches at another peer once a launch for everyone follows one for somebody alone', () => {
+      const launcher = new CutInLauncher('CutInLauncher');
+      launcher.initialize();
+      launcher.apply(launcher.toContext());
+
+      const startSpy = vi.spyOn(launcher, 'startSelfCutIn').mockImplementation(() => {});
+      const mine = launcher.toContext();
+      mine.syncData = { ...mine.syncData, launchMySelf: true, launchIsStart: true, launchTimeStamp: 1 };
+      launcher.apply(mine);
+      expect(startSpy).not.toHaveBeenCalled();
+
+      const everyone = launcher.toContext();
+      everyone.syncData = { ...everyone.syncData, launchMySelf: false, launchIsStart: true, launchTimeStamp: 2 };
+      launcher.apply(everyone);
+
+      expect(startSpy).toHaveBeenCalledOnce();
     });
   });
 });

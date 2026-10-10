@@ -4,12 +4,15 @@ import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { cheapestPath } from '@axe/domain/tabletop/move/cheapest-path';
+import { stepsFor } from '@axe/domain/tabletop/move/move-steps';
 import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
 import { walkedPath } from '@axe/domain/tabletop/move/walked-path';
+import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 
 export interface MovePlan {
@@ -23,7 +26,12 @@ export interface MovePlan {
   settled: number[];
   /** The way from the last settled cell to wherever the pointer is, if it can be walked. */
   ahead: number[];
-  /** What the settled way has cost, and what the piece had to spend altogether. */
+  /**
+   * What the settled way has cost, and what the piece had to spend altogether.
+   *
+   * Counted in steps rather than in cells, since a road is crossed in half a cell. What the
+   * sheet said is two of these per cell; nothing shown to a reader is in these units.
+   */
   spent: number;
   budget: number;
   /** How many corners the settled way has cut, which a table counting them by turns goes on from. */
@@ -157,11 +165,32 @@ export class MovePlanService {
     }
     if (plan.ahead[plan.ahead.length - 1] === cell) return;
     const stops = this.stopsFor(plan);
-    const ahead = cheapestPath(plan.grid, plan.from, cell, plan.budget - plan.spent, stops, {
-      ...terms.options,
-      cornersCut: plan.cornersCut,
-    });
+    const ahead = cheapestPath(
+      plan.grid,
+      plan.from,
+      cell,
+      this.legRoom(plan.budget - plan.spent, plan.jumping),
+      stops,
+      {
+        ...terms.options,
+        cornersCut: plan.cornersCut,
+      }
+    );
     this.held.set({ ...plan, ahead: ahead ?? [] });
+  }
+
+  /**
+   * How far the next leg carries: what the move has left, or one leap of it where the piece
+   * is jumping and the room says how far a leap goes.
+   */
+  private legRoom(left: number, jumping: boolean): number {
+    if (!jumping) return left;
+    const rules = resolveRoomRules(
+      this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null,
+      this.tableSelecter.viewTable
+    );
+    const leap = Math.max(0, Math.floor(rules.jumpCells));
+    return leap > 0 ? Math.min(left, stepsFor(leap)) : left;
   }
 
   /** What stands in the way of the move as it is being worked out now. */
@@ -184,7 +213,7 @@ export class MovePlanService {
     if (!plan || !terms || this.walking) return;
     const jumping = !plan.jumping;
     const bits = jumping ? terms.leapt : terms.blocked;
-    const left = plan.budget - plan.spent;
+    const left = this.legRoom(plan.budget - plan.spent, jumping);
     const reach =
       left > 0 && !terms.options.stopsAt?.(plan.from)
         ? reachableCells(plan.grid, plan.from, left, (index) => bits.get(index), {
@@ -216,7 +245,7 @@ export class MovePlanService {
     const stops = this.stopsFor(plan);
     const walked = walkedPath(plan.grid, plan.ahead, stops, options);
     const spent = plan.spent + walked.cost;
-    const left = plan.budget - spent;
+    const left = this.legRoom(plan.budget - spent, plan.jumping);
     const from = plan.ahead[plan.ahead.length - 1];
     this.held.set({
       ...plan,

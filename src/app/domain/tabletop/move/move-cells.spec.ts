@@ -72,9 +72,19 @@ describe('how many cells a piece may walk', () => {
     expect(moveCellsOf(characterWith([{ name: '移動', value: 30 }]), NAMES, 0, 'foot')).toBe(30);
   });
 
-  it('takes the value as it stands where the table counts in cells, whatever it was told to divide by', () => {
-    // A cell standing for five cells says nothing, so the number is left as the cells it is.
-    expect(moveCellsOf(characterWith([{ name: '移動', value: 30 }]), NAMES, 5, 'cell')).toBe(30);
+  it('measures a sheet against what one cell stands for where the table counts in cells', () => {
+    expect(moveCellsOf(characterWith([{ name: '移動', value: 3 }]), NAMES, 0.5, 'cell')).toBe(6);
+    expect(moveCellsOf(characterWith([{ name: '移動', value: 3, unit: 'マス' }]), NAMES, 0.5, 'cell')).toBe(6);
+    expect(moveCellsOf(characterWith([{ name: '移動', value: 30 }]), NAMES, 5, 'cell')).toBe(6);
+  });
+
+  it('counts one cell of the sheet as one where the table counts in cells one to one', () => {
+    expect(moveCellsOf(characterWith([{ name: '移動', value: 4 }]), NAMES, 1, 'cell')).toBe(4);
+    expect(moveCellsOf(characterWith([{ name: '移動', value: 4 }]), NAMES, 0, 'cell')).toBe(4);
+  });
+
+  it('does not read a cell short for a distance no binary fraction holds exactly', () => {
+    expect(moveCellsOf(characterWith([{ name: '移動', value: 0.3 }]), NAMES, 0.1, 'cell')).toBe(3);
   });
 
   it('reads what is left of a pool rather than its full amount', () => {

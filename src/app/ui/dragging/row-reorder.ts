@@ -19,6 +19,7 @@ export class RowReorder<T> {
   /** The row it is over. Null once it leaves the list, or while it is over itself. */
   readonly over = this.overRow.asReadonly();
 
+  /** Starts dragging a row; until this is called, hovering marks nothing. */
   begin(row: T): void {
     this.heldRow.set(row);
   }
@@ -61,20 +62,24 @@ export class RowReorder<T> {
     return { held, over, side };
   }
 
+  /** Ends the drag without a drop, clearing what was held, what it was over and the side. */
   cancel(): void {
     this.heldRow.set(null);
     this.overRow.set(null);
     this.side.set(null);
   }
 
+  /** Whether this row is the one being dragged, for dimming it while it is carried. */
   isHeld(row: T): boolean {
     return this.heldRow() === row;
   }
 
+  /** Whether a drop now would land above this row, so the marker is drawn at its top edge. */
   isDropBefore(row: T): boolean {
     return this.isDropOn(row, 'before');
   }
 
+  /** Whether a drop now would land below this row, so the marker is drawn at its bottom edge. */
   isDropAfter(row: T): boolean {
     return this.isDropOn(row, 'after');
   }

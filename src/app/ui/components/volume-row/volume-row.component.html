@@ -1,0 +1,40 @@
+<div class="flex items-center gap-1.5 py-0.75">
+  @if (canMute()) {
+    <button
+      type="button"
+      class="text-ui-dim hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+      [style.color]="muted() ? 'var(--ui-danger)' : null"
+      [disabled]="disabled()"
+      [attr.aria-pressed]="muted()"
+      [attr.aria-label]="(muted() ? 'common.sound.unmute' : 'common.sound.mute') | transloco: { name: label() }"
+      [title]="(muted() ? 'common.sound.unmute' : 'common.sound.mute') | transloco: { name: label() }"
+      data-testid="volume-row-mute"
+      (click)="mutedChange.emit(!muted())"
+    >
+      <i class="material-icons" aria-hidden="true">{{ muted() ? 'volume_off' : icon() }}</i>
+    </button>
+  } @else {
+    <span class="text-ui-dim inline-flex size-6 shrink-0 items-center justify-center [&_.material-icons]:text-[15px]!">
+      <i class="material-icons" aria-hidden="true">{{ icon() }}</i>
+    </span>
+  }
+  <div class="min-w-0 shrink-0" [class]="labelClass()">
+    <div class="text-ui-muted truncate text-[11px]">{{ label() }}</div>
+    @if (hint()) {
+      <div class="text-ui-dim text-[10px] leading-tight wrap-break-word">{{ hint() }}</div>
+    }
+  </div>
+  <input
+    type="range"
+    class="h-1 min-w-0 flex-1 cursor-pointer [accent-color:var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-35"
+    [class.opacity-35]="muted()"
+    [name]="name()"
+    min="0"
+    [max]="max()"
+    step="0.01"
+    [value]="value()"
+    [disabled]="disabled()"
+    [attr.aria-label]="label()"
+    (input)="onInput($event)"
+  />
+</div>

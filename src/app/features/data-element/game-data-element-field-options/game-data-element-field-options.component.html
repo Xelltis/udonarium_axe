@@ -1,0 +1,243 @@
+@if (kind() === 'field') {
+  <div [class]="wrapperClass()">
+    @if (fieldType() === 'select') {
+      <label class="col-span-full grid-cols-[auto_minmax(8rem,1fr)]">
+        <span>{{ 'feature.dataElement.field.choices' | transloco }}</span>
+        <textarea
+          name="data-choices"
+          [(ngModel)]="choicesText"
+          [placeholder]="'feature.dataElement.field.choicesPlaceholder' | transloco"
+        ></textarea>
+      </label>
+    }
+    @if (fieldType() === 'calc') {
+      <label class="col-span-full grid-cols-[auto_minmax(8rem,1fr)]">
+        <span>{{ 'feature.dataElement.field.formula' | transloco }}</span>
+        <textarea
+          name="data-formula"
+          [(ngModel)]="formulaText"
+          [placeholder]="'feature.dataElement.formulaHelp' | transloco"
+        ></textarea>
+      </label>
+    }
+    @if (fieldType() === 'number' || fieldType() === 'resource') {
+      <label class="col-span-full grid-cols-[auto_minmax(3.8rem,1fr)]">
+        <span>{{ 'feature.dataElement.field.unit' | transloco }}</span>
+        <input
+          name="data-unit"
+          [(ngModel)]="unitText"
+          [placeholder]="'feature.dataElement.field.unitPlaceholder' | transloco"
+        />
+      </label>
+    }
+    @if (canShowPieceGauge()) {
+      <label class="col-span-full grid-cols-[auto_auto] justify-start">
+        <span>{{ 'feature.dataElement.field.gaugeInverted' | transloco }}</span>
+        <input
+          type="checkbox"
+          name="data-gauge-inverted"
+          [checked]="isGaugeInverted()"
+          (change)="toggleGaugeInverted()"
+        />
+      </label>
+    }
+    @if (fieldType() === 'number') {
+      <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
+        <span>{{ 'feature.dataElement.field.min' | transloco }}</span>
+        <input
+          type="number"
+          name="data-min"
+          [(ngModel)]="minText"
+          [placeholder]="'feature.dataElement.field.anyValuePlaceholder' | transloco"
+        />
+      </label>
+      <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
+        <span>{{ 'feature.dataElement.field.max' | transloco }}</span>
+        <input
+          type="number"
+          name="data-max"
+          [(ngModel)]="maxText"
+          [placeholder]="'feature.dataElement.field.anyValuePlaceholder' | transloco"
+        />
+      </label>
+    }
+    @if (fieldType() === 'resource') {
+      <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
+        <span>{{ 'feature.dataElement.field.minBase' | transloco }}</span>
+        <input
+          type="number"
+          name="data-min-base"
+          [(ngModel)]="minBaseText"
+          [placeholder]="'feature.dataElement.field.anyValuePlaceholder' | transloco"
+        />
+      </label>
+      <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
+        <span>{{ 'feature.dataElement.field.minCorrection' | transloco }}</span>
+        <input type="number" name="data-min-correction" [(ngModel)]="minCorrectionText" placeholder="0" />
+      </label>
+      <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
+        <span>{{ 'feature.dataElement.field.maxBase' | transloco }}</span>
+        <input
+          type="number"
+          name="data-max-base"
+          [(ngModel)]="maxBaseText"
+          [placeholder]="'feature.dataElement.field.anyValuePlaceholder' | transloco"
+        />
+      </label>
+      <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
+        <span>{{ 'feature.dataElement.field.maxCorrection' | transloco }}</span>
+        <input type="number" name="data-max-correction" [(ngModel)]="maxCorrectionText" placeholder="0" />
+      </label>
+    }
+    @if (canShowPieceGauge()) {
+      <label class="col-span-full grid-cols-[auto_auto] justify-start">
+        <span>{{ 'feature.dataElement.field.pieceGauge' | transloco }}</span>
+        <input type="checkbox" name="data-piece-gauge" [checked]="isPieceGauge()" (change)="togglePieceGauge()" />
+      </label>
+    }
+    @if (canShowPieceGauge()) {
+      <label class="col-span-full grid-cols-[auto_auto] justify-start">
+        <span>{{ 'feature.dataElement.field.resourceSlider' | transloco }}</span>
+        <input
+          type="checkbox"
+          name="data-resource-slider"
+          [checked]="hasResourceSlider()"
+          (change)="toggleResourceSlider()"
+        />
+      </label>
+    }
+    @if (canShowChangeFeedback()) {
+      <label class="grid-cols-[auto_auto] justify-start">
+        <span>{{ 'feature.dataElement.field.changeEffect' | transloco }}</span>
+        <input
+          type="checkbox"
+          name="data-change-effect"
+          [checked]="playsEffectOnChange()"
+          (change)="toggleChangeEffect()"
+        />
+      </label>
+      <label class="grid-cols-[auto_auto] justify-start">
+        <span>{{ 'feature.dataElement.field.changeSound' | transloco }}</span>
+        <input
+          type="checkbox"
+          name="data-change-sound"
+          [checked]="playsSoundOnChange()"
+          (change)="toggleChangeSound()"
+        />
+      </label>
+      @if (playsSoundOnChange()) {
+        <label class="col-span-full grid-cols-[auto_minmax(6rem,1fr)]">
+          <span>{{ 'feature.dataElement.field.changeSoundSet' | transloco }}</span>
+          <select
+            class="border-ui-border-input bg-ui-input text-ui-text w-full min-w-0 rounded-(--gde-radius-control) border px-1 py-0.5"
+            name="data-change-sound-set"
+            [ngModel]="soundSetOnChange()"
+            (ngModelChange)="setSoundSetOnChange($event)"
+          >
+            @for (option of soundSetOptions; track option.value) {
+              <option [value]="option.value">{{ option.labelKey | transloco }}</option>
+            }
+          </select>
+        </label>
+      }
+    }
+    @if (fieldType() === 'image') {
+      <label class="col-span-full grid-cols-[auto_auto] justify-start">
+        <span>{{ 'feature.dataElement.field.imagePopupOriginal' | transloco }}</span>
+        <input
+          type="checkbox"
+          name="data-image-popup-original"
+          [checked]="isImagePopupOriginal()"
+          (change)="toggleImagePopupOriginal($event)"
+        />
+      </label>
+    }
+    @if (isTableCellField()) {
+      <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
+        <span>{{ 'feature.dataElement.field.columnLabel' | transloco }}</span>
+        <input
+          name="data-column-label"
+          [(ngModel)]="columnLabelText"
+          [placeholder]="'feature.dataElement.field.columnLabelPlaceholder' | transloco"
+        />
+      </label>
+      <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
+        <span>{{ 'feature.dataElement.field.columnGroup' | transloco }}</span>
+        <input
+          name="data-column-group"
+          [(ngModel)]="columnGroupText"
+          [placeholder]="'feature.dataElement.field.columnGroupPlaceholder' | transloco"
+        />
+      </label>
+      @if (fieldType() === 'check') {
+        <label class="col-span-full grid-cols-[auto_minmax(3.8rem,1fr)]">
+          <span>{{ 'feature.dataElement.field.cellText' | transloco }}</span>
+          <input
+            name="data-cell-text"
+            [(ngModel)]="tableCellText"
+            [placeholder]="'feature.dataElement.field.cellTextPlaceholder' | transloco"
+          />
+        </label>
+      }
+      <label class="col-span-full grid-cols-[auto_auto] justify-start">
+        <span>{{ 'feature.dataElement.field.gapCell' | transloco }}</span>
+        <input type="checkbox" name="data-cell-kind-gap" [(ngModel)]="isGapCell" />
+      </label>
+    }
+  </div>
+} @else {
+  <div [class]="wrapperClass()">
+    <label class="col-span-full grid-cols-[auto_minmax(3.8rem,1fr)]">
+      <span>{{ 'feature.dataElement.field.rowHeader' | transloco }}</span>
+      <input
+        name="data-row-header-label"
+        [(ngModel)]="rowHeaderLabelText"
+        [placeholder]="'feature.dataElement.field.rowHeaderPlaceholder' | transloco"
+      />
+    </label>
+    <label class="col-span-full grid-cols-[auto_auto] justify-start">
+      <span>{{ 'feature.dataElement.field.judgeMode' | transloco }}</span>
+      <input
+        type="checkbox"
+        name="data-judge-mode"
+        [checked]="isJudgeModeEnabled()"
+        (change)="toggleJudgeModeEnabled()"
+      />
+    </label>
+    @if (isJudgeModeEnabled()) {
+      <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
+        <span>{{ 'feature.dataElement.field.baseDifficulty' | transloco }}</span>
+        <input
+          type="number"
+          name="data-base-difficulty"
+          [(ngModel)]="baseDifficultyText"
+          min="1"
+          [placeholder]="'feature.dataElement.field.baseDifficultyPlaceholder' | transloco"
+        />
+      </label>
+      <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
+        <span>{{ 'feature.dataElement.field.gapDistance' | transloco }}</span>
+        <input
+          type="number"
+          name="data-gap-distance"
+          [(ngModel)]="gapDistanceText"
+          min="0"
+          [placeholder]="'feature.dataElement.field.gapDistancePlaceholder' | transloco"
+        />
+      </label>
+      <label class="grid-cols-[auto_auto] justify-start">
+        <span>{{ 'feature.dataElement.field.loopHorizontal' | transloco }}</span>
+        <input
+          type="checkbox"
+          name="data-loop-horizontal"
+          [checked]="loopHorizontal"
+          (change)="toggleLoopHorizontal()"
+        />
+      </label>
+      <label class="grid-cols-[auto_auto] justify-start">
+        <span>{{ 'feature.dataElement.field.loopVertical' | transloco }}</span>
+        <input type="checkbox" name="data-loop-vertical" [checked]="loopVertical" (change)="toggleLoopVertical()" />
+      </label>
+    }
+  </div>
+}

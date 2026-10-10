@@ -5,6 +5,8 @@ import {
   EMPTY_REPLAY_SOUNDTRACK,
   hasReplaySound,
   REPLAY_BGM_GAIN,
+  REPLAY_BGS_FADE_MS,
+  REPLAY_BGS_GAIN,
   REPLAY_SE_GAIN,
 } from '@axe/domain/replay/replay-soundtrack';
 import type { ReplayStoryboard } from '@axe/domain/replay/replay-storyboard';
@@ -105,6 +107,71 @@ describe('buildReplaySoundtrack()', () => {
       ['bgm-1', 0, 4000],
       ['bgm-2', 4000, 10_000],
     ]);
+  });
+
+  it('lays background sounds over the music and one another, each from its start to its stop', () => {
+    const track = buildReplaySoundtrack(
+      [
+        event(1, ReplayEventKind.MediaBgm, { isPlaying: true }, 'bgm-1'),
+        event(2, ReplayEventKind.MediaBackgroundSound, { isPlaying: true, volume: 1 }, 'rain'),
+        event(3, ReplayEventKind.MediaBackgroundSound, { isPlaying: true, volume: 0.5 }, 'fire'),
+        event(4, ReplayEventKind.MediaBgm, { isPlaying: true }, 'bgm-2'),
+        event(5, ReplayEventKind.MediaBackgroundSound, { isPlaying: false, volume: 1 }, 'rain'),
+      ],
+      storyboard(
+        [
+          [1, 0],
+          [2, 1000],
+          [3, 2000],
+          [4, 3000],
+          [5, 5000],
+        ],
+        10_000
+      )
+    );
+
+    expect(track.music.map((cue) => [cue.audioIdentifier, cue.startMs, cue.endMs])).toEqual([
+      ['bgm-1', 0, 3000],
+      ['rain', 1000, 5000],
+      ['bgm-2', 3000, 10_000],
+      ['fire', 2000, 10_000],
+    ]);
+    const fire = track.music.find((cue) => cue.audioIdentifier === 'fire')!;
+    expect(fire.gain).toBeCloseTo(REPLAY_BGS_GAIN * 0.5);
+    expect(fire.fadeMs).toBe(REPLAY_BGS_FADE_MS);
+  });
+
+  it('starts a background sound afresh once it was stopped and started again', () => {
+    const track = buildReplaySoundtrack(
+      [
+        event(1, ReplayEventKind.MediaBackgroundSound, { isPlaying: true }, 'rain'),
+        event(2, ReplayEventKind.MediaBackgroundSound, { isPlaying: false }, 'rain'),
+        event(3, ReplayEventKind.MediaBackgroundSound, { isPlaying: true, volume: 0.2 }, 'rain'),
+      ],
+      storyboard(
+        [
+          [1, 0],
+          [2, 2000],
+          [3, 6000],
+        ],
+        10_000
+      )
+    );
+
+    expect(track.music.map((cue) => [cue.startMs, cue.endMs, cue.gain])).toEqual([
+      [0, 2000, REPLAY_BGS_GAIN],
+      [6000, 10_000, expect.closeTo(REPLAY_BGS_GAIN * 0.2)],
+    ]);
+  });
+
+  it('leaves the background sounds out with the music', () => {
+    const track = buildReplaySoundtrack(
+      [event(1, ReplayEventKind.MediaBackgroundSound, { isPlaying: true }, 'rain')],
+      storyboard([[1, 0]], 10_000),
+      { withEffects: true, withMusic: false }
+    );
+
+    expect(track.music).toEqual([]);
   });
 
   it('keeps no stretch of no length', () => {

@@ -60,6 +60,10 @@ export interface ReplayCutInLayer {
   letterSpacingPx: number;
   lineHeight: number;
   vertical: boolean;
+  /** Empty for the words all at once. */
+  letterMotion: string;
+  letterStaggerMs: number;
+  letterDurationMs: number;
   fillShape: CutInFillShape;
   fillFrom: string;
   fillMid: string;
@@ -161,6 +165,13 @@ export interface ReplayLayerSample {
   glowColor: string;
 }
 
+/**
+ * A recorded layer's state at one moment of its scene: its tracks, or where it rests, with its
+ * running touch laid on top.
+ *
+ * It is visible from its start until its end, unless hidden. A layer that runs to the end of
+ * the scene, or past it, stays visible to the last moment.
+ */
 export function replaySampleAt(layer: ReplayCutInLayer, ms: number, durationMs: number): ReplayLayerSample {
   const endMs = layer.endMs > 0 ? Math.min(layer.endMs, durationMs) : durationMs;
   const touch = effectAt(layer.effect, ms, layer.effectStrength);
@@ -233,6 +244,9 @@ function readLayer(attributes: Record<string, unknown>): ReplayCutInLayer {
     letterSpacingPx: number(attributes['letterSpacingPx'], 0),
     lineHeight: number(attributes['lineHeight'], 1.15),
     vertical: attributes['vertical'] === true,
+    letterMotion: text(attributes['letterMotion']),
+    letterStaggerMs: number(attributes['letterStaggerMs'], 0),
+    letterDurationMs: number(attributes['letterDurationMs'], 0),
     fillShape: isCutInFillShape(attributes['fillShape']) ? attributes['fillShape'] : 'linear',
     fillFrom: text(attributes['fillFrom']) || '#000000',
     fillMid: text(attributes['fillMid']),

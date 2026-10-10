@@ -3,6 +3,7 @@ import {
   addBuffRound,
   decreaseBuffRound,
   deleteZeroRoundBuffs,
+  pileBuffRound,
 } from '@axe/features/controller/remote-controller/remote-controller-buff';
 
 describe('the buffs a remote controller works on', () => {
@@ -40,5 +41,26 @@ describe('the buffs a remote controller works on', () => {
   it('names nobody when it was given nobody, so the panel says nothing', () => {
     expect(decreaseBuffRound([])).toBe('');
     expect(deleteZeroRoundBuffs([])).toBe('');
+  });
+
+  it('adds a second helping to everyone carrying the buff already', () => {
+    const first = character('相手A');
+    const second = character('相手B');
+    addBuffRound([first, second], '猛攻撃', '攻撃+2', 5);
+
+    pileBuffRound([first, second], 'stack', '猛攻撃', '攻撃+2', 2);
+
+    expect(first.buffs.find('猛攻撃')?.currentValue).toBe('攻撃+4');
+    expect(second.buffs.find('猛攻撃')?.currentValue).toBe('攻撃+4');
+    expect(Number(first.buffs.find('猛攻撃')?.value)).toBe(5);
+  });
+
+  it('lengthens everyone\u2019s buff when the helping asks for it', () => {
+    const held = character('相手');
+    addBuffRound([held], '猛攻撃', '攻撃+2', 2);
+
+    pileBuffRound([held], 'extend', '猛攻撃', '攻撃+2', 3);
+
+    expect(Number(held.buffs.find('猛攻撃')?.value)).toBe(5);
   });
 });

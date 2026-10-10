@@ -1,3 +1,4 @@
+import { signal, type WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -24,13 +25,17 @@ describe('InviteJoinComponent', () => {
   let findRoom: ReturnType<typeof vi.fn>;
   let join: ReturnType<typeof vi.fn>;
   let modalOpen: ReturnType<typeof vi.fn>;
+  let waitingForPreviousConnection: WritableSignal<boolean>;
   let originalMyCursor: PeerCursor;
 
   async function setup(hash: string): Promise<void> {
     location.hash = hash;
     await TestBed.configureTestingModule({
       imports: [InviteJoinComponent],
-      providers: [...TEST_PROVIDERS, { provide: RoomJoinService, useValue: { findRoom, join } }],
+      providers: [
+        ...TEST_PROVIDERS,
+        { provide: RoomJoinService, useValue: { findRoom, join, waitingForPreviousConnection } },
+      ],
     }).compileComponents();
     TestBed.overrideProvider(ModalService, { useValue: { open: modalOpen } });
     fixture = TestBed.createComponent(InviteJoinComponent);
@@ -57,6 +62,7 @@ describe('InviteJoinComponent', () => {
     findRoom = vi.fn().mockResolvedValue(createRoom());
     join = vi.fn().mockResolvedValue(true);
     modalOpen = vi.fn().mockResolvedValue('');
+    waitingForPreviousConnection = signal(false);
     originalMyCursor = PeerCursor.myCursor;
     PeerCursor.myCursor = { reConnectPass: '', role: PeerRole.Player, update: vi.fn() } as unknown as PeerCursor;
     vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(true);
@@ -88,6 +94,16 @@ describe('InviteJoinComponent', () => {
     await setup('#join?r=a1b&n=room');
 
     await eventually(() => expect(bannerText().trim()).toBe(''));
+  });
+
+  it('says it is waiting for this seat’s previous connection to drop while the join does', async () => {
+    join.mockReturnValue(new Promise<boolean>(() => {}));
+    await setup('#join?r=a1b&n=room');
+    await eventually(() => expect(join).toHaveBeenCalled());
+
+    waitingForPreviousConnection.set(true);
+    fixture.detectChanges();
+    expect(bannerText()).toContain('前の接続が切れるのを待っています');
   });
 
   it('takes the role the link names', async () => {

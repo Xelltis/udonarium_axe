@@ -31,10 +31,12 @@ export class ConfirmDialogComponent {
     });
   }
 
+  /** Confirms from the OK button, closing the dialog with true. */
   ok(): void {
     this.modalService.resolve(true);
   }
 
+  /** Declines from the cancel button, closing the dialog with false. */
   cancel(): void {
     this.modalService.resolve(false);
   }

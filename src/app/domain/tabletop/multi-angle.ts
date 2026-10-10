@@ -26,6 +26,7 @@ export const MULTI_ANGLE_SEATS: readonly MultiAngleSeat[] = [
   { key: 'right', degrees: 270 },
 ];
 
+/** An angle brought into the range from 0 up to, but not including, 360. */
 export function normalizeDegrees(degrees: number): number {
   return ((degrees % 360) + 360) % 360;
 }
@@ -39,10 +40,18 @@ export function multiAngleDegreesFromPoint(pointX: number, pointY: number, cente
   return normalizeDegrees(Math.round(degrees / 90) * 90);
 }
 
+/**
+ * How a piece's name orbits under a motion mode: in quarter turns only when the view turns in
+ * quarters, otherwise continuously.
+ */
 export function multiAngleNameMotionMode(mode: MultiAngleMotionMode): MultiAngleOrbitMode {
   return mode === 'quarter-turn' ? 'quarter-turn' : 'continuous';
 }
 
+/**
+ * How a piece itself orbits under a motion mode: continuously only in continuous mode, and in
+ * quarter turns in both quarter-turn modes.
+ */
 export function multiAnglePieceMotionMode(mode: MultiAngleMotionMode): MultiAngleOrbitMode {
   return mode === 'continuous' ? 'continuous' : 'quarter-turn';
 }

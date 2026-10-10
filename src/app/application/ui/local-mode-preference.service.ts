@@ -13,6 +13,7 @@ export const LOCAL_MODE_STORAGE_KEY = 'ui-local-mode';
 export class LocalModePreferenceService {
   readonly enabled = signal<boolean>(stored());
 
+  /** Turns local mode on or off in this browser. It takes effect on the next load, not now. */
   set(enabled: boolean): void {
     this.enabled.set(enabled);
     try {

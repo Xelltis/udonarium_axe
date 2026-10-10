@@ -8,16 +8,24 @@ import { ImageTag } from '@axe/domain/media/image-tag';
 import { WALL_TEXTURE_ASSET_URLS } from '@axe/domain/media/texture-catalog';
 import { atmosphereById } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import { planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
+import { FURNISHING_SHAPES } from '@axe/domain/tabletop/dungeon/room-furnishing';
+import { MAX_DUNGEON_TRAPS } from '@axe/domain/tabletop/dungeon/trap-placing';
+import { planField } from '@axe/domain/tabletop/field/field-generator';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { SYNC_OBJECTS_PER_TERRAIN } from '@axe/domain/tabletop/map-blocks';
 import { terrainBlocksMovement } from '@axe/domain/tabletop/move/blocked-cells';
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
+import { TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
+import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { terrainCostOf } from '@axe/testing/terrain-cost';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
 const GRID = 50;
+const ja = createSyncTranslate('ja');
 
 function options(overrides: Partial<Parameters<DungeonBuildService['build']>[3]> = {}) {
   return {
@@ -118,6 +126,96 @@ describe('DungeonBuildService', () => {
     // Around 950 bytes of saved room per box, which is what a voxel table has to beat.
     expect(cost.xmlBytes / cost.terrains).toBeGreaterThan(700);
     expect(cost.xmlBytes / cost.terrains).toBeLessThan(1300);
+  });
+
+  describe('the dangerous ground of a generated place', () => {
+    async function lavaCavern(trapCount = 0) {
+      const plan = planDungeon({ atmosphere: 'lavaCavern', roomCount: 8, seed: 7, trapCount });
+      const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+      return { plan, table: result.table };
+    }
+
+    function costsOn(table: GameTable): TableMoveCost[] {
+      return table.children.filter((child): child is TableMoveCost => child instanceof TableMoveCost);
+    }
+
+    function goesOffOn(table: GameTable): TableTrigger[] {
+      return table.children.filter((child): child is TableTrigger => child instanceof TableTrigger);
+    }
+
+    it('makes a pool of lava cost something to wade', async () => {
+      const { plan, table } = await lavaCavern();
+      const pools = plan.blocks.paint.filter((patch) => patch.kind === 'hazard');
+
+      expect(pools.length).toBeGreaterThan(0);
+      expect(costsOn(table).length).toBe(pools.length);
+      expect(costsOn(table)[0].charge).toBe(2);
+    });
+
+    it('burns whoever spends a turn standing in one, in the open where the room can see it', async () => {
+      const { table } = await lavaCavern();
+      const burns = goesOffOn(table);
+
+      expect(burns.length).toBeGreaterThan(0);
+      expect(burns[0].amount).toBe('2d6');
+      expect(burns[0].moment).toBe('turnStart');
+      expect(burns[0].open).toBe(true);
+    });
+
+    it('lays a look over each pool as well, so the floor there reads as more than a red floor', async () => {
+      const { plan, table } = await lavaCavern();
+      const pools = plan.blocks.paint.filter((patch) => patch.kind === 'hazard');
+
+      expect(pools.length).toBeGreaterThan(0);
+      expect(table.children.filter((child) => child instanceof TableAmbience).length).toBe(pools.length);
+    });
+
+    it('leaves a place with no dangerous ground with nothing to wade', async () => {
+      const { result } = await build();
+
+      expect(costsOn(result.table)).toEqual([]);
+    });
+  });
+
+  describe('the traps of a generated place', () => {
+    async function trapped(trapCount: number) {
+      const plan = planDungeon({ atmosphere: 'stoneDungeon', roomCount: 8, seed: 7, trapCount });
+      const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+      const set = result.table.children.filter((child): child is TableTrigger => child instanceof TableTrigger);
+      return { plan, table: result.table, set };
+    }
+
+    it('sets one piece of ground that goes off for each trap', async () => {
+      const { plan, set } = await trapped(6);
+
+      expect(plan.blocks.traps.length).toBe(6);
+      expect(set.length).toBe(6);
+      expect(set.map((trap) => ({ x: trap.col, y: trap.row }))).toEqual(
+        plan.blocks.traps.map((trap) => ({ x: trap.x, y: trap.y }))
+      );
+    });
+
+    it('keeps every one of them from the room, a trap the party can see being no trap', async () => {
+      const { set } = await trapped(6);
+
+      expect(set.every((trap) => !trap.open)).toBe(true);
+    });
+
+    it('gives a trip wire nothing to take and the master alone to tell', async () => {
+      const { plan, set } = await trapped(MAX_DUNGEON_TRAPS);
+      const wires = plan.blocks.traps
+        .map((trap, index) => ({ kind: trap.kind, laid: set[index] }))
+        .filter((pair) => pair.kind === 'alarm');
+
+      expect(wires.length).toBeGreaterThan(0);
+      expect(wires.every((pair) => pair.laid.silent && pair.laid.amount === '')).toBe(true);
+    });
+
+    it('leaves an untrapped place with no ground that goes off', async () => {
+      const { set } = await trapped(0);
+
+      expect(set).toEqual([]);
+    });
   });
 
   it('builds one table and leaves no other behind', async () => {
@@ -325,6 +423,17 @@ describe('DungeonBuildService', () => {
     });
   });
 
+  it('runs a stair down to one side, so it reads as the ramp it always did', async () => {
+    const { plan, result } = await build();
+
+    plan.blocks.blocks.forEach((block, index) => {
+      const terrain = result.table.terrains[index];
+      if (block.kind === 'stairUp') expect(terrain.slopeSides).toEqual(['n']);
+      if (block.kind === 'stairDown') expect(terrain.slopeSides).toEqual(['s']);
+      if (block.kind === 'wall') expect(terrain.slopeSides).toEqual([]);
+    });
+  });
+
   it('locks every piece and tiles its texture', async () => {
     const { result } = await build();
 
@@ -511,6 +620,132 @@ describe('DungeonBuildService', () => {
 
     expect(result.table.terrains.length).toBe(plan.blocks.blocks.length);
     expect(plan.blocks.paint.some((patch) => patch.kind === 'hazard')).toBe(true);
+  });
+
+  describe('naming what was generated', () => {
+    it('names the trees of a field trees, not the way out', async () => {
+      const plan = planField({ atmosphere: 'woodland', size: 20, density: 50, seed: 7 });
+      const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+      const names = new Set(result.table.terrains.map((terrain) => terrain.name));
+
+      expect(names.has(ja('feature.tabletop.dungeonGenerator.piece.tree'))).toBe(true);
+      expect(names.has(ja('feature.tabletop.dungeonGenerator.piece.exit'))).toBe(false);
+    });
+  });
+
+  describe('furnished places and towns', () => {
+    async function buildPlace(atmosphere: 'illegalBar' | 'abandonedBuilding' | 'containerWarehouse') {
+      const plan = planDungeon({ atmosphere, roomCount: 10, seed: 7 });
+      const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options({ wallHeight: 2.5 }));
+      return { plan, result };
+    }
+
+    it('names each piece of furniture for what it is rather than for its kind', async () => {
+      const { plan, result } = await buildPlace('illegalBar');
+      const names = result.table.terrains.map((terrain) => terrain.name);
+
+      for (const piece of new Set(plan.layout.furnishings!.map((each) => each.piece))) {
+        expect(names).toContain(ja(`feature.tabletop.dungeonGenerator.piece.${piece}`));
+      }
+    });
+
+    it('dresses a hidden door in the pictures of the wall it stands in, and calls it a hidden door', async () => {
+      const { plan, result } = await buildPlace('illegalBar');
+      const hidden = result.table.terrains.filter(
+        (terrain) => terrain.name === ja('feature.tabletop.dungeonGenerator.piece.hiddenDoor')
+      );
+      const walls = result.table.terrains.filter(
+        (terrain) => terrain.name === ja('feature.tabletop.dungeonGenerator.piece.wall')
+      );
+
+      expect(hidden.length).toBe(plan.blocks.blocks.filter((block) => block.disguised).length);
+      expect(hidden.length).toBeGreaterThan(0);
+      for (const door of hidden) {
+        expect(door.isDoor).toBe(true);
+        expect(door.wallImage?.identifier).toBe(walls[0].wallImage?.identifier);
+        expect(door.floorImage?.identifier).toBe(walls[0].floorImage?.identifier);
+      }
+    });
+
+    it('hangs the fluorescent tubes of a warehouse on its walls, looking like tubes', async () => {
+      const { plan, result } = await buildPlace('containerWarehouse');
+      const lights = result.table.lightSources;
+
+      expect(lights.length).toBe(plan.blocks.lights.length);
+      for (const planned of plan.blocks.lights) {
+        const back = wallLightInset(planned.facing, 0.4);
+        const built = lights.find(
+          (entry) =>
+            Math.abs(entry.location.x - (planned.x + back.x) * GRID) < 0.001 &&
+            Math.abs(entry.location.y - (planned.y + back.y) * GRID) < 0.001
+        );
+        expect(built).toBeDefined();
+        expect(built!.altitude).toBeGreaterThan(0);
+        expect(built!.lightColor).toBe(planned.color);
+        expect(built!.imageFile.identifier).toContain('light_fluorescent');
+      }
+    });
+
+    it('stands a column as tall as the walls and only as wide as its shape fills', async () => {
+      const { result } = await buildPlace('abandonedBuilding');
+      const pillars = result.table.terrains.filter(
+        (terrain) => terrain.name === ja('feature.tabletop.dungeonGenerator.piece.pillar')
+      );
+
+      expect(pillars.length).toBeGreaterThan(0);
+      for (const pillar of pillars) {
+        expect(pillar.width).toBe(FURNISHING_SHAPES.pillar.fill);
+        expect(pillar.depth).toBe(FURNISHING_SHAPES.pillar.fill);
+        expect(pillar.height).toBe(2.5);
+      }
+    });
+
+    it('burns each tube of a bar the colour it was given, set back against its wall', async () => {
+      const { plan, result } = await buildPlace('illegalBar');
+      const lights = result.table.lightSources;
+
+      expect(plan.blocks.lights.length).toBeGreaterThan(0);
+      for (const planned of plan.blocks.lights) {
+        const back = wallLightInset(planned.facing, 0.4);
+        const built = lights.find(
+          (entry) =>
+            Math.abs(entry.location.x - (planned.x + back.x) * GRID) < 0.001 &&
+            Math.abs(entry.location.y - (planned.y + back.y) * GRID) < 0.001
+        );
+        expect(built).toBeDefined();
+        expect(built!.lightPreset).toBe('neon');
+        expect(built!.lightColor).toBe(planned.color);
+        expect(built!.altitude).toBeGreaterThan(0);
+        expect(built!.imageFile.identifier).toContain('light_neon');
+      }
+    });
+
+    it('stands the light poles of the future city on the ground, burning the colours they were given', async () => {
+      const plan = planField({ atmosphere: 'sfCity', size: 40, density: 50, seed: 7 });
+      const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+      const lights = result.table.lightSources;
+
+      expect(lights.length).toBe(plan.blocks.lights.length);
+      for (const light of lights) {
+        expect(light.altitude).toBe(0);
+        expect(light.imageFile.identifier).toContain('light_neon_pole');
+      }
+      expect(new Set(lights.map((light) => light.lightColor))).toEqual(
+        new Set(plan.blocks.lights.map((light) => light.color))
+      );
+    });
+
+    it('stands the street lamps of a city on the ground, each looking like a street lamp', async () => {
+      const plan = planField({ atmosphere: 'city', size: 40, density: 50, seed: 7 });
+      const result = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+      const lights = result.table.lightSources;
+
+      expect(lights.length).toBe(plan.blocks.lights.length);
+      for (const light of lights) {
+        expect(light.altitude).toBe(0);
+        expect(light.imageFile.identifier).toContain('light_streetlamp');
+      }
+    });
   });
 
   describe('building on hexes', () => {

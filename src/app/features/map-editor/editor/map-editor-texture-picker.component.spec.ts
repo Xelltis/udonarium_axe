@@ -4,6 +4,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ImageTag } from '@axe/domain/media/image-tag';
+import { TEXTURE_ASSET_URLS } from '@axe/domain/media/texture-catalog';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { MapEditorTexturePickerComponent } from '@axe/features/map-editor/editor/map-editor-texture-picker.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -53,6 +54,16 @@ describe('MapEditorTexturePickerComponent', () => {
     ImageTag.create('other').tag = 'スタンプ';
 
     expect(picker.imageTextures().map((f) => f.identifier)).toEqual(['tex-1']);
+  });
+
+  it('leaves out the pictures it has swatches of its own for', () => {
+    const floor = TEXTURE_ASSET_URLS.marble;
+    ImageStorage.instance.add(floor);
+    ImageStorage.instance.add('mine');
+    ImageTag.create(floor).tag = 'テクスチャ';
+    ImageTag.create('mine').tag = 'テクスチャ';
+
+    expect(picker.imageTextures().map((f) => f.identifier)).toEqual(['mine']);
   });
 
   it('selects a pattern by its prefixed id and switches to pattern fill', () => {

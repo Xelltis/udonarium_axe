@@ -103,6 +103,7 @@ export function sampleLayerAt(layer: CutInLayer, ms: number, sceneDurationMs = 0
   };
 }
 
+/** The CSS transform that puts a sampled layer in place: moved, turned, scaled, and skewed only when it leans. */
 export function layerTransform(sample: CutInSample): string {
   const parts = [
     `translate(${round(sample.x)}px, ${round(sample.y)}px)`,
@@ -115,6 +116,7 @@ export function layerTransform(sample: CutInSample): string {
   return parts.join(' ');
 }
 
+/** The CSS filter for a sampled layer, its blur followed by any glow or shadow; `none` when there is neither. */
 export function layerFilter(sample: CutInSample): string {
   const parts = sample.blur > 0 ? [`blur(${round(sample.blur)}px)`] : [];
   parts.push(...effectFilter(sample, sample.glowColor));

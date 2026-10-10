@@ -12,15 +12,28 @@ export class ChatInputDiceBotHelper {
 
   gameHelp = '';
 
+  /**
+   * Starts fetching the dice bot for a game system ahead of time, so the first roll with it does
+   * not wait on the download.
+   */
   load(gameType: string): void {
     DiceBot.getHelpMessage(gameType).then(() => {});
   }
 
+  /**
+   * Whether the game system is one the dice bot catalogue knows.
+   *
+   * An empty catalogue counts as knowing everything, so no warning shows while it is still loading.
+   */
   isGameTypeInList(gameType: string, diceBotInfos: readonly (typeof DiceBot.diceBotInfos)[number][]): boolean {
     if (diceBotInfos.length === 0) return true;
     return diceBotInfos.some((info) => info.id === gameType);
   }
 
+  /**
+   * Opens a text panel at the pointer with the dice bot's help for the game system, once its help
+   * has been fetched.
+   */
   showHelp(gameType: string): void {
     DiceBot.getHelpMessage(gameType).then((help) => {
       this.gameHelp = help;

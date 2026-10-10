@@ -9,7 +9,12 @@ const TEMPLATE_UPDATE_START = 2;
 type WatchedComponent = 'TerrainComponent' | 'GameTableComponent';
 
 export interface RenderStats {
+  /** Terrain drawn as a box of its own. */
   readonly terrains: number;
+  /** Terrain drawn together with the blocks around it. */
+  readonly mergedTerrains: number;
+  /** The surfaces the terrain drawn together is drawn as. */
+  readonly mergedFaces: number;
   readonly terrainCanvases: number;
   readonly tableElements: number;
   readonly elementsPerTerrain: number;
@@ -28,6 +33,8 @@ export interface RenderStats {
 
 const EMPTY_STATS: RenderStats = {
   terrains: 0,
+  mergedTerrains: 0,
+  mergedFaces: 0,
   terrainCanvases: 0,
   tableElements: 0,
   elementsPerTerrain: 0,
@@ -75,6 +82,14 @@ export class RenderStatsService {
   private updates: Record<WatchedComponent, number> = { TerrainComponent: 0, GameTableComponent: 0 };
   private readonly accumulated = new Map<string, number>();
 
+  /**
+   * Starts sampling render statistics for the render stats widget, and switches the shared perf
+   * counters on.
+   *
+   * Frame times and long tasks are gathered continuously and published to `stats` and `totals` once
+   * a second. Template updates are only counted where Angular's debug profiler hook is present.
+   * Does nothing while already watching.
+   */
   start(): void {
     if (this.watching()) return;
     this.watching.set(true);
@@ -88,6 +103,10 @@ export class RenderStatsService {
     this.sampleHandle = setInterval(() => this.sample(), SAMPLE_INTERVAL_MS);
   }
 
+  /**
+   * Stops sampling, switches the perf counters off and empties the published stats. Does nothing
+   * when not watching.
+   */
   stop(): void {
     if (!this.watching()) return;
     this.watching.set(false);
@@ -106,6 +125,7 @@ export class RenderStatsService {
     this.totals.set(new Map());
   }
 
+  /** Clears the frame history, counters and running totals without stopping the sampling. */
   reset(): void {
     this.frames = [];
     this.updates = { TerrainComponent: 0, GameTableComponent: 0 };
@@ -149,6 +169,9 @@ export class RenderStatsService {
 
   private sample(): void {
     const terrains = document.querySelectorAll('terrain').length;
+    const merged = document.querySelector('terrain-batch-layer');
+    const mergedTerrains = Number(merged?.getAttribute('data-merged') ?? 0) || 0;
+    const mergedFaces = merged ? merged.children.length : 0;
     const terrainCanvases = document.querySelectorAll('terrain canvas').length;
     const table = document.getElementById('app-game-table');
     const tableElements = table ? table.querySelectorAll('*').length : 0;
@@ -160,9 +183,11 @@ export class RenderStatsService {
 
     this.stats.set({
       terrains,
+      mergedTerrains,
+      mergedFaces,
       terrainCanvases,
       tableElements,
-      elementsPerTerrain: terrains > 0 ? tableElements / terrains : 0,
+      elementsPerTerrain: terrains + mergedTerrains > 0 ? tableElements / (terrains + mergedTerrains) : 0,
       updates: { ...this.updates },
       counters,
       frameLast: this.frames.at(-1) ?? 0,

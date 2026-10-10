@@ -11,7 +11,18 @@ import { cellCenterOf, CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/ce
  * one up and to the left instead.
  */
 export function cornerShiftOf(character: GameCharacter, gridSize: number): number {
-  const size = Math.max(1, character.size);
+  return sizeShiftOf(character.size, gridSize);
+}
+
+/**
+ * The same shift for a size given outright rather than read off a piece.
+ *
+ * A piece squeezing through a gap takes up less of the board than it is, and where its corner
+ * goes has to be worked out for the space it is folding itself into rather than the one it
+ * usually fills.
+ */
+export function sizeShiftOf(span: number, gridSize: number): number {
+  const size = Math.max(1, span);
   const middle = (gridSize * size) / 2;
   const onACorner = size % 2 === 0 ? gridSize / 2 : 0;
   return middle - onACorner;

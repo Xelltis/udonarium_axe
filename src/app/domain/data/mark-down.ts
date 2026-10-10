@@ -7,6 +7,13 @@ import { DataElement } from '@axe/domain/data/data-element';
 export class MarkDown extends GameObject {
   clickTimeStamp = 0;
 
+  /**
+   * Flips the check box a user clicked in rendered text and writes the new text back to its data element.
+   *
+   * The clicked input's id, as built by {@link markDownCheckBox}, names the element and the box. Does nothing
+   * for an id of another shape, an element that no longer exists, a box number out of range, or a second
+   * delivery of the same click event.
+   */
   changeMarkDownCheckBox(cliskId: string, timeStamp: number) {
     const match = cliskId.match(/^(.*)_mark_(\d{8})$/);
 
@@ -58,6 +65,12 @@ export class MarkDown extends GameObject {
     object.value = newText;
   }
 
+  /**
+   * HTML-escapes the text and turns each `[ ]` or `[x]` into a checkbox input.
+   *
+   * Each checkbox gets the id `<baseId>_mark_<8-digit index>` so a click can be traced back to its box.
+   * Run this before {@link markDownTable}, which does no escaping of its own.
+   */
   markDownCheckBox(text: string, baseId: string) {
     const escaped = text
       .replace(/&/g, '&amp;')
@@ -79,6 +92,12 @@ export class MarkDown extends GameObject {
       .join('');
   }
 
+  /**
+   * Turns runs of lines containing `|` into div-based table rows, one cell per part between the bars.
+   *
+   * Text before the first bar of a table's first line is kept, text outside the outer bars is otherwise
+   * dropped, and other lines pass through as they are.
+   */
   markDownTable(text: string) {
     const lines = text.split('\n');
     const out: string[] = [];

@@ -524,40 +524,40 @@ describe('DataElement', () => {
       expect(color).toBe('#D22');
     });
 
-    it('should return default color for SAN above 80%', () => {
+    it('should return no colour of its own for SAN above 80%', () => {
       const element = DataElement.create('SAN', 10, { type: DataElementType.NUMBER_RESOURCE });
       element.currentValue = 9; // 9/10 = 90% > 80%
 
       const color = element.nowValueColor;
 
-      expect(color).toBe('#444');
+      expect(color).toBe('');
     });
 
-    it('should return default color for non-SAN numberResource', () => {
+    it('should return no colour of its own for non-SAN numberResource', () => {
       const element = DataElement.create('HP', 10, { type: DataElementType.NUMBER_RESOURCE });
       element.currentValue = 5;
 
       const color = element.nowValueColor;
 
-      expect(color).toBe('#444');
+      expect(color).toBe('');
     });
 
-    it('should return default color for non-numberResource type', () => {
+    it('should return no colour of its own for non-numberResource type', () => {
       const element = DataElement.create('SAN', 10, { type: DataElementType.NOTE });
       element.currentValue = 5;
 
       const color = element.nowValueColor;
 
-      expect(color).toBe('#444');
+      expect(color).toBe('');
     });
 
-    it('should return default color when type is not set', () => {
+    it('should return no colour of its own when type is not set', () => {
       const element = DataElement.create('SAN', 10);
       element.currentValue = 5;
 
       const color = element.nowValueColor;
 
-      expect(color).toBe('#444');
+      expect(color).toBe('');
     });
 
     it('should handle string values correctly', () => {
@@ -566,7 +566,7 @@ describe('DataElement', () => {
 
       const color = element.nowValueColor;
 
-      expect(color).toBe('#444');
+      expect(color).toBe('');
     });
   });
 

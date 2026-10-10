@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import * as domainEvents from '@axe/core/event/domain-events';
-import { AudioPlayer } from '@axe/core/storage/audio-player';
+import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { Alarm } from '@axe/domain/alarm/alarm';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -176,6 +176,21 @@ describe('Alarm', () => {
       expect(timeUpEvents).toHaveLength(1);
       expect(timeUpEvents[0]).toEqual(expect.objectContaining({ text: expect.any(String) }));
       sub();
+    });
+
+    it('sounds through the notification channel', () => {
+      alarm.targetPeerId = ['my-peer-id'];
+      alarm.alarmTime = 1;
+      alarm.isSound = true;
+      alarm.isPopUp = false;
+      const bell = { identifier: 'bell' };
+      const play = vi.spyOn(AudioPlayer, 'play').mockImplementation(() => {});
+      vi.spyOn(AudioStorage, 'instance', 'get').mockReturnValue({ get: () => bell } as unknown as AudioStorage);
+
+      alarm.startAlarm();
+      vi.advanceTimersByTime(1000);
+
+      expect(play).toHaveBeenCalledWith(bell, 0.5, VolumeType.NOTIFICATION);
     });
 
     it('pops up then, if it is set to', () => {

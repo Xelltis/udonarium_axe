@@ -1,4 +1,4 @@
-@if (tabletopObject && !terrain && !cardStack && !textNote) {
+@if (tabletopObject && !terrain && !cardStack && !textNote && !character) {
   <div
     class="border-ui-border-panel [&_button]:bg-ui-elevated [&_button]:border-ui-border-panel [&_button]:text-ui-muted [&_button]:hover:bg-ui-hover [&_button]:hover:text-ui-text [&_button]:rounded-ui-sm mb-1 flex flex-wrap items-center gap-1 border-b border-solid px-1.5 pt-1.5 pb-1 [&_button]:inline-flex [&_button]:cursor-pointer [&_button]:items-center [&_button]:gap-0.75 [&_button]:border [&_button]:border-solid [&_button]:px-2 [&_button]:py-0.75 [&_button]:text-[0.8em] [&_button]:whitespace-nowrap [&_button]:transition-[background,color]"
   >
@@ -8,45 +8,69 @@
     @if (terrain) {
       <button (click)="openModal('floor')">{{ 'feature.inventory.sheet.changeFloorImage' | transloco }}</button>
       <button (click)="openModal('wall')">{{ 'feature.inventory.sheet.changeWallImage' | transloco }}</button>
-    } @else if (!(character || card || cardStack || rangeArea || scratchMask)) {
+    } @else if (!(character || card || cardStack || rangeArea)) {
       <button (click)="openModal('imageIdentifier', true)">
         {{ 'feature.inventory.sheet.changeImage' | transloco }}
       </button>
     }
     <button (click)="clone()">{{ 'feature.inventory.sheet.copy' | transloco }}</button>
     <button (click)="saveToXML()">{{ 'feature.inventory.sheet.save' | transloco }}</button>
-    @if (character) {}
-    @if (scratchMask) {
-      <div>
-        {{ 'feature.inventory.sheet.color' | transloco }}
-        <input
-          type="color"
-          name="color11"
-          list="color-list_11"
-          (change)="onChangeMaskFillColor($event)"
-          value="{{ scratchMask.color }}"
-        />
-        {{ 'feature.inventory.sheet.changeColor' | transloco }}
-        <input
-          type="color"
-          name="color12"
-          list="color-list_12"
-          (change)="onChangeMaskChangeColor($event)"
-          value="{{ scratchMask.changeColor }}"
-        />
-      </div>
-      <br />
-      {{ 'feature.inventory.sheet.scratchMaskNote' | transloco }}
-    }
   </div>
 }
 
 @if (tabletopObject) {
-  @if (disclosableObject; as disclosable) {
+  @if (!character && disclosableObject; as disclosable) {
     <disclosure-control [object]="disclosable" />
   }
-  @if (character) {
-    <div class="flex w-full flex-col gap-0">
+  @if (character; as char) {
+    <div
+      #sheetRoot
+      class="group/sheet flex w-full flex-col gap-0"
+      [attr.data-narrow]="narrowLayout() ? '' : null"
+      [attr.data-compact]="compactEditing() ? '' : null"
+    >
+      <div
+        class="border-ui-border-panel [&_button]:bg-ui-elevated [&_button]:border-ui-border-panel [&_button]:text-ui-muted [&_button]:hover:bg-ui-hover [&_button]:hover:text-ui-text [&_button]:rounded-ui-sm mb-1 flex flex-wrap items-center gap-1 border-b border-solid px-1.5 pt-1.5 pb-1 group-data-narrow/sheet:hidden [&_button]:inline-flex [&_button]:cursor-pointer [&_button]:items-center [&_button]:gap-0.75 [&_button]:border [&_button]:border-solid [&_button]:px-2 [&_button]:py-0.75 [&_button]:text-[0.8em] [&_button]:whitespace-nowrap [&_button]:transition-[background,color]"
+      >
+        <button (click)="clone()">{{ 'feature.inventory.sheet.copy' | transloco }}</button>
+        <button (click)="saveToXML()">{{ 'feature.inventory.sheet.save' | transloco }}</button>
+      </div>
+      <div
+        class="hidden items-center gap-3 px-3 pt-3 pb-2 group-data-narrow/sheet:flex"
+        data-own-mobile-layout
+        data-testid="sheet-compact-header"
+      >
+        <button
+          type="button"
+          class="border-ui-border-panel bg-ui-elevated text-ui-dim active:border-ui-accent flex size-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-solid p-0"
+          [attr.aria-label]="'feature.inventory.sheet.portraitsManage' | transloco"
+          (click)="openPortraitSheet($event)"
+          data-testid="sheet-portrait-button"
+        >
+          @if (komaImageFile().url) {
+            <img
+              class="block size-full object-cover object-top"
+              [src]="komaImageFile().url | safe: 'resourceUrl'"
+              [alt]="'feature.inventory.sheet.portraitAlt' | transloco"
+            />
+          } @else {
+            <i class="material-icons text-[32px]!">person</i>
+          }
+        </button>
+        <div class="text-ui-text min-w-0 flex-1 truncate text-[1.15rem] leading-tight font-bold">
+          {{ characterName() }}
+        </div>
+        <button
+          type="button"
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-text active:bg-ui-hover flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0"
+          [attr.aria-label]="'feature.inventory.sheet.moreActions' | transloco"
+          (click)="openSheetMenu($event)"
+          data-testid="sheet-menu"
+        >
+          <i class="material-icons text-[24px]!">more_vert</i>
+        </button>
+      </div>
+      <disclosure-control [object]="char" />
       <div class="border-ui-border-panel bg-ui-surface flex items-end gap-px border-b border-solid px-2 pt-1.5">
         <button
           class="hover:text-ui-text text-ui-muted border-ui-border-panel -mb-px inline-flex cursor-pointer items-center gap-1 rounded-t-xs border border-solid bg-[color-mix(in_srgb,var(--ui-elevated)_58%,var(--ui-surface))] px-3.5 py-1.5 text-[0.8em] font-semibold whitespace-nowrap transition-[background,border-color,color,box-shadow] hover:bg-[color-mix(in_srgb,var(--ui-elevated)_82%,var(--ui-surface))] [&_.material-icons]:text-[14px]!"
@@ -77,157 +101,39 @@
       </div>
 
       @if (activeTab() === 'sheet') {
-        <div class="grid grid-cols-[180px_1fr] items-start gap-3 px-2.5 pt-2.5" [attr.inert]="isReadOnly() ? '' : null">
-          <div class="flex w-45 min-w-0 shrink-0 flex-col gap-1.5 overflow-hidden">
-            <div
-              class="border-ui-border-panel text-ui-accent mx-0 mt-0 mb-2 flex items-center gap-1.25 border-b border-solid pb-1.25 text-[0.72em] font-semibold tracking-[0.06em] uppercase [&_.material-icons]:text-[14px]!"
-            >
-              <i class="material-icons">portrait</i>{{ 'feature.inventory.sheet.portrait' | transloco }}
-            </div>
-            <div
-              class="border-ui-border-panel bg-ui-elevated group rounded-ui-sm relative aspect-3/4 w-full shrink-0 cursor-pointer overflow-hidden border-2 border-solid"
-              (click)="changePortrait(komaImageIndex())"
-              [title]="
-                (isCompact()
-                  ? 'feature.inventory.sheet.portraitClickHintTouch'
-                  : 'feature.inventory.sheet.portraitClickHint'
-                ) | transloco
-              "
-            >
-              @if (komaImageFile().url) {
-                <img
-                  class="block size-full object-contain"
-                  [src]="komaImageFile().url | safe: 'resourceUrl'"
-                  [alt]="'feature.inventory.sheet.portraitAlt' | transloco"
-                />
-              } @else {
-                <div class="text-ui-dim flex size-full items-center justify-center [&_.material-icons]:text-[4em]!">
-                  <i class="material-icons">person</i>
-                </div>
-              }
-              <div
-                class="absolute inset-0 flex items-center justify-center bg-black/45 text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 [&_.material-icons]:text-[2em]!"
-              >
-                <i class="material-icons">edit</i>
-              </div>
-            </div>
-
-            <div
-              class="border-ui-border-panel text-ui-accent my-2 flex items-center gap-1.25 border-b border-solid pb-1.25 text-[0.72em] font-semibold tracking-[0.06em] uppercase [&_.material-icons]:text-[14px]!"
-            >
-              <i class="material-icons">photo_library</i>{{ 'feature.inventory.sheet.portraits' | transloco }}
-            </div>
-            <div class="flex flex-wrap gap-1">
-              @for (portrait of portraitImages(); track portrait.index) {
-                <div
-                  class="border-ui-border-panel bg-ui-elevated text-ui-dim hover:border-ui-text-muted relative flex size-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[3px] border-2 border-solid transition-[border-color] duration-[0.12s] [&_.material-icons]:text-base!"
-                  [class.border-ui-accent!]="portrait.index === komaImageIndex()"
-                  (click)="setKomaIndex(portrait.index)"
-                  [title]="
-                    portrait.name ||
-                    ('feature.inventory.sheet.portraitIndexTitle' | transloco: { index: portrait.index + 1 })
-                  "
-                >
-                  @if (portrait.imageFile.url) {
-                    <img
-                      class="block size-full object-cover"
-                      [src]="portrait.imageFile.url | safe: 'resourceUrl'"
-                      alt=""
-                    />
-                  } @else {
-                    <i class="material-icons">image</i>
-                  }
-                  @if (portrait.index === komaImageIndex()) {
-                    <div
-                      class="bg-ui-accent pointer-events-none absolute right-0 bottom-0 flex size-3.5 items-center justify-center rounded-tl-xs text-white [&_.material-icons]:text-[10px]!"
-                    >
-                      <i class="material-icons">person_pin</i>
-                    </div>
-                  }
-                </div>
-              }
-              <button
-                class="border-ui-accent bg-ui-accent-bg text-ui-accent hover:bg-ui-accent-glow flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border border-dashed transition-[background] [&_.material-icons]:text-[18px]!"
-                type="button"
-                [title]="'feature.inventory.sheet.addPortraitTitle' | transloco"
-                (click)="addPortrait()"
-              >
-                <i class="material-icons">add</i>
-              </button>
-            </div>
-            @if (portraitImages().length) {
-              <label
-                class="flex min-w-0 items-center gap-1.5 text-[0.78em]"
-                [title]="'feature.inventory.sheet.portraitNameHint' | transloco"
-              >
-                <i class="material-icons text-ui-dim text-[14px]!">label</i>
-                <input
-                  type="text"
-                  class="border-ui-border-input bg-ui-input text-ui-text focus:border-ui-accent min-w-0 flex-1 rounded-sm border border-solid px-1 py-0.5 outline-none"
-                  size="1"
-                  [value]="portraitName()"
-                  (change)="setPortraitName($event)"
-                  [placeholder]="'feature.inventory.sheet.portraitNamePlaceholder' | transloco"
-                />
-              </label>
-            }
-            <div class="flex flex-wrap gap-1">
-              @if (portraitImages().length > 1) {
-                <button
-                  class="bg-ui-danger-bg border-ui-danger text-ui-danger rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
-                  type="button"
-                  [title]="'feature.inventory.sheet.removePortraitTitle' | transloco"
-                  (click)="removePortrait(komaImageIndex())"
-                >
-                  <i class="material-icons">delete</i>
-                </button>
-              }
-              <button
-                class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
-                type="button"
-                (click)="showImportImages()"
-              >
-                <i class="material-icons">file_copy</i>{{ 'feature.inventory.sheet.import' | transloco }}
-              </button>
-            </div>
-
-            <div class="border-ui-border-panel mt-0.5 flex flex-col gap-1.25 border-t border-solid pt-1.5">
-              <div
-                class="border-ui-border-panel text-ui-accent mt-0 mb-2 flex items-center gap-1.25 border-b border-solid pb-1.25 text-[0.72em] font-semibold tracking-[0.06em] uppercase [&_.material-icons]:text-[14px]!"
-              >
-                <i class="material-icons">chat</i>{{ 'feature.inventory.sheet.chatPosition' | transloco }}
-              </div>
-              <div class="flex min-w-0 flex-wrap items-center gap-1.5 gap-y-0.75 text-[0.82em]">
-                <div
-                  class="border-ui-border-panel rounded-ui-sm inline-flex items-stretch overflow-hidden border border-solid"
-                >
-                  <button
-                    type="button"
-                    class="bg-ui-elevated text-ui-muted hover:not-disabled:bg-ui-hover hover:not-disabled:text-ui-text flex size-5.5 cursor-pointer items-center justify-center border-none p-0 text-[1em] leading-none transition-[background,color] disabled:cursor-not-allowed disabled:opacity-30"
-                    (click)="setPortraitPos(portraitPosIndex() - 1)"
-                    [disabled]="portraitPosIndex() <= 0"
-                  >
-                    ‹
-                  </button>
-                  <span
-                    class="bg-ui-input text-ui-text border-ui-border-panel flex h-5.5 min-w-[2em] items-center justify-center border-x border-solid px-1 text-center text-[0.9em] font-semibold"
-                    >{{ portraitPosIndex() }}</span
-                  >
-                  <button
-                    type="button"
-                    class="bg-ui-elevated text-ui-muted hover:not-disabled:bg-ui-hover hover:not-disabled:text-ui-text flex size-5.5 cursor-pointer items-center justify-center border-none p-0 text-[1em] leading-none transition-[background,color] disabled:cursor-not-allowed disabled:opacity-30"
-                    (click)="setPortraitPos(portraitPosIndex() + 1)"
-                    [disabled]="portraitPosIndex() >= 11"
-                  >
-                    ›
-                  </button>
-                </div>
-                <span class="text-ui-muted shrink-0 text-[0.78em] whitespace-nowrap">/ 11</span>
-              </div>
-            </div>
+        <div
+          class="grid grid-cols-[180px_1fr] items-start gap-3 px-2.5 pt-2.5 group-data-narrow/sheet:grid-cols-1 group-data-narrow/sheet:px-2"
+          [attr.inert]="isReadOnly() ? '' : null"
+          data-own-mobile-layout
+        >
+          <div class="flex w-45 min-w-0 shrink-0 flex-col gap-1.5 overflow-hidden group-data-narrow/sheet:hidden">
+            <character-portrait-panel [character]="character" />
           </div>
 
           <div class="flex min-w-0 flex-1 flex-col gap-1">
+            @if (detailElements().length > 1) {
+              <nav
+                #sectionChips
+                class="bg-ui-surface border-ui-border-panel sticky -top-2 z-10 -mx-2 hidden scrollbar-none gap-1.5 overflow-x-auto border-b border-solid p-2 group-data-narrow/sheet:flex [&::-webkit-scrollbar]:hidden"
+                [attr.aria-label]="'feature.inventory.sheet.sectionJump' | transloco"
+                data-testid="sheet-section-chips"
+              >
+                @for (section of detailElements(); track section.identifier) {
+                  <button
+                    type="button"
+                    class="border-ui-border-panel bg-ui-elevated text-ui-muted active:bg-ui-hover flex h-9 shrink-0 cursor-pointer items-center gap-1 rounded-full border border-solid px-3.5 text-[13px] font-semibold whitespace-nowrap"
+                    [class.border-ui-accent!]="activeSectionId() === section.identifier"
+                    [class.bg-ui-accent-bg!]="activeSectionId() === section.identifier"
+                    [class.text-ui-accent!]="activeSectionId() === section.identifier"
+                    [attr.aria-current]="activeSectionId() === section.identifier ? 'true' : null"
+                    [attr.data-chip-id]="section.identifier"
+                    (click)="jumpToSection(section)"
+                  >
+                    {{ getCardName(section) }}
+                  </button>
+                }
+              </nav>
+            }
             @if (tabletopObject.commonDataElement) {
               <div
                 class="bg-ui-elevated border-ui-border-panel mb-0.5 flex w-full flex-col gap-1.5 rounded-sm border border-solid px-3 py-2.5"
@@ -258,7 +164,8 @@
               <div class="flex min-w-0 flex-row flex-wrap items-stretch justify-start gap-1 pt-1">
                 @for (childElement of detailElements(); track childElement.identifier) {
                   <div
-                    class="bg-ui-elevated border-ui-border-panel text-ui-text box-border max-w-full min-w-50 flex-[1_1_200px] overflow-hidden rounded-sm border border-solid px-2.5 py-2 transition-[outline] duration-100"
+                    class="bg-ui-elevated border-ui-border-panel text-ui-text box-border max-w-full min-w-50 flex-[1_1_200px] scroll-mt-16 overflow-hidden rounded-sm border border-solid px-2.5 py-2 transition-[outline] duration-100 group-data-narrow/sheet:min-w-0 group-data-narrow/sheet:basis-full group-data-narrow/sheet:rounded-lg group-data-narrow/sheet:px-3"
+                    [attr.data-card-id]="childElement.identifier"
                     [class.flex-[1_1_100%]!]="
                       isElementEditing(childElement.identifier) || getCardColspan(childElement) === 'full'
                     "
@@ -276,28 +183,52 @@
                     (dragleave)="onDragLeave(childElement.identifier)"
                     (drop)="onDrop($event, childElement.identifier)"
                   >
-                    <div class="border-ui-border-panel mb-1 flex items-center gap-1 border-b border-solid pb-1">
+                    <div
+                      class="border-ui-border-panel mb-1 flex items-center gap-1 border-b border-solid pb-1"
+                      [class.border-b-0]="isCardFolded(childElement)"
+                      [class.mb-0!]="isCardFolded(childElement)"
+                      [class.pb-0!]="isCardFolded(childElement)"
+                    >
                       @if (isElementEditing(childElement.identifier)) {
                         <span
                           class="material-icons text-ui-dim shrink-0 cursor-grab px-0.5 text-base! select-none active:cursor-grabbing"
                           draggable="true"
                           (dragstart)="onDragStart($event, childElement.identifier)"
+                          (contextmenu)="onDetailCardContextMenu($event, childElement)"
                           (dragend)="onDragEnd()"
                           [title]="'feature.inventory.sheet.dragSortTitle' | transloco"
                           >drag_indicator</span
                         >
                       }
-                      <span class="text-ui-text flex flex-1 items-center gap-1 truncate text-[0.78em] font-semibold">
+                      <button
+                        type="button"
+                        class="text-ui-text flex min-w-0 flex-1 cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-left text-[0.78em] font-semibold group-data-compact/sheet:min-h-10 group-data-compact/sheet:text-base"
+                        [attr.aria-expanded]="!isCardFolded(childElement)"
+                        [title]="
+                          (isCardFolded(childElement)
+                            ? 'feature.inventory.sheet.unfoldSection'
+                            : 'feature.inventory.sheet.foldSection'
+                          ) | transloco
+                        "
+                        (click)="toggleCardFold(childElement)"
+                        data-testid="sheet-card-title"
+                      >
+                        <i
+                          class="material-icons text-ui-dim shrink-0 text-[16px]! transition-transform duration-150 group-data-compact/sheet:text-[22px]!"
+                          [class.-rotate-90]="isCardFolded(childElement)"
+                          >expand_more</i
+                        >
                         @if (getCardIcon(childElement)) {
-                          <i class="material-icons text-ui-accent shrink-0 text-[13px]!">{{
-                            getCardIcon(childElement)
-                          }}</i>
+                          <i
+                            class="material-icons text-ui-accent shrink-0 text-[13px]! group-data-compact/sheet:text-[18px]!"
+                            >{{ getCardIcon(childElement) }}</i
+                          >
                         }
-                        {{ getCardName(childElement) }}
-                      </span>
+                        <span class="min-w-0 truncate">{{ getCardName(childElement) }}</span>
+                      </button>
                       @if (isElementEditing(childElement.identifier)) {
                         <button
-                          class="bg-ui-hover text-ui-muted hover:bg-ui-selected hover:text-ui-text inline-flex size-5.5 min-w-5 cursor-pointer items-center justify-center rounded-[3px] border-none p-0 text-[0.7em] font-bold transition-[background,color] [&_.material-icons]:text-[13px]!"
+                          class="bg-ui-hover text-ui-muted hover:bg-ui-selected hover:text-ui-text inline-flex size-5.5 min-w-5 cursor-pointer items-center justify-center rounded-[3px] border-none p-0 text-[0.7em] font-bold transition-[background,color] group-data-compact/sheet:hidden [&_.material-icons]:text-[13px]!"
                           type="button"
                           [title]="'feature.inventory.sheet.cycleColspanTitle' | transloco"
                           (click)="cycleCardColspan(childElement)"
@@ -309,7 +240,7 @@
                           }}</span>
                         </button>
                         <button
-                          class="bg-ui-hover text-ui-muted hover:bg-ui-selected hover:text-ui-text inline-flex size-5.5 cursor-pointer items-center justify-center rounded-[3px] border-none p-0 transition-[background,color] [&_.material-icons]:text-[13px]!"
+                          class="bg-ui-hover text-ui-muted hover:bg-ui-selected hover:text-ui-text inline-flex size-5.5 cursor-pointer items-center justify-center rounded-[3px] border-none p-0 transition-[background,color] group-data-compact/sheet:hidden [&_.material-icons]:text-[13px]!"
                           [class.bg-ui-accent-bg!]="isPopupDataElement(childElement)"
                           [class.text-ui-accent!]="isPopupDataElement(childElement)"
                           [class.hover:bg-[color-mix(in_srgb,var(--ui-accent)_24%,transparent)]!]="
@@ -322,16 +253,27 @@
                           <i class="material-icons">open_in_new</i>
                         </button>
                         <button
-                          class="bg-ui-danger hover:bg-ui-danger-hover inline-flex size-5.5 cursor-pointer items-center justify-center rounded-[3px] border-none p-0 text-white transition-[background] [&_.material-icons]:text-[13px]!"
+                          class="bg-ui-danger hover:bg-ui-danger-hover inline-flex size-5.5 cursor-pointer items-center justify-center rounded-[3px] border-none p-0 text-white transition-[background] group-data-compact/sheet:hidden [&_.material-icons]:text-[13px]!"
                           type="button"
                           [title]="'feature.inventory.sheet.deleteItemTitle' | transloco"
                           (click)="deleteTopLevelElement(childElement.identifier)"
                         >
                           <i class="material-icons">delete</i>
                         </button>
+                        <button
+                          class="text-ui-muted active:bg-ui-hover hidden size-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 group-data-compact/sheet:inline-flex [&_.material-icons]:text-[22px]!"
+                          type="button"
+                          [attr.aria-label]="
+                            'feature.dataElement.editor.open' | transloco: { name: getCardName(childElement) }
+                          "
+                          (click)="openSectionEditor(childElement, $event)"
+                          data-testid="section-more"
+                        >
+                          <i class="material-icons">more_horiz</i>
+                        </button>
                       }
                       <button
-                        class="bg-ui-hover text-ui-muted hover:bg-ui-selected hover:text-ui-text inline-flex size-5.5 cursor-pointer items-center justify-center rounded-[3px] border-none p-0 transition-[background,color] [&_.material-icons]:text-[13px]!"
+                        class="bg-ui-hover text-ui-muted hover:bg-ui-selected hover:text-ui-text inline-flex size-5.5 cursor-pointer items-center justify-center rounded-[3px] border-none p-0 transition-[background,color] group-data-compact/sheet:size-10 group-data-compact/sheet:rounded-full [&_.material-icons]:text-[13px]! group-data-compact/sheet:[&_.material-icons]:text-[20px]!"
                         type="button"
                         [title]="'feature.inventory.sheet.edit' | transloco"
                         (click)="toggleElementEdit(childElement.identifier)"
@@ -341,15 +283,17 @@
                         }}</i>
                       </button>
                     </div>
-                    <div class="box-border table w-full">
-                      <div
-                        class="[&>div]:border-ui-border-panel box-border table-row [&>div]:box-border [&>div]:table-cell [&>div]:border [&>div]:border-solid [&>div]:align-top"
-                        game-data-element
-                        [gameDataElement]="childElement"
-                        [isEdit]="isElementEditing(childElement.identifier)"
-                        [hideSectionTitle]="!isElementEditing(childElement.identifier)"
-                      ></div>
-                    </div>
+                    @if (!isCardFolded(childElement)) {
+                      <div class="box-border table w-full">
+                        <div
+                          class="[&>div]:border-ui-border-panel box-border table-row [&>div]:box-border [&>div]:table-cell [&>div]:border [&>div]:border-solid [&>div]:align-top"
+                          game-data-element
+                          [gameDataElement]="childElement"
+                          [isEdit]="isElementEditing(childElement.identifier)"
+                          [hideSectionTitle]="!isElementEditing(childElement.identifier)"
+                        ></div>
+                      </div>
+                    }
                   </div>
                 }
               </div>
@@ -1126,6 +1070,44 @@
               spellcheck="false"
             ></textarea>
           </label>
+          <div class="flex flex-col gap-1.5 text-[0.78em]" data-testid="text-note-format">
+            <div class="flex items-center gap-2">
+              <span class="text-ui-muted">{{ 'feature.textNote.field.format' | transloco }}</span>
+              <div
+                class="border-ui-border-panel bg-ui-input rounded-ui-sm flex gap-0.5 border border-solid p-0.5"
+                role="radiogroup"
+                [attr.aria-label]="'feature.textNote.field.format' | transloco"
+              >
+                @for (formatted of [false, true]; track formatted) {
+                  <button
+                    type="button"
+                    role="radio"
+                    class="rounded-ui-sm cursor-pointer border-0 px-2.5 py-0.5 text-[0.95em] transition-[background,color]"
+                    [class]="
+                      textNoteFormatted(note) === formatted
+                        ? 'bg-ui-accent text-white'
+                        : 'text-ui-muted hover:bg-ui-hover hover:text-ui-text bg-transparent'
+                    "
+                    [attr.aria-checked]="textNoteFormatted(note) === formatted"
+                    [attr.data-testid]="'text-note-format-' + (formatted ? 'formatted' : 'plain')"
+                    (click)="setTextNoteFormatted(note, formatted)"
+                  >
+                    {{
+                      (formatted ? 'feature.textNote.format.formatted' : 'feature.textNote.format.plain') | transloco
+                    }}
+                  </button>
+                }
+              </div>
+            </div>
+            @if (textNoteFormatted(note)) {
+              <p class="text-ui-dim m-0">{{ 'feature.textNote.format.hint' | transloco }}</p>
+              <div
+                class="note-formatted border-ui-border-panel rounded-ui-sm max-h-60 overflow-y-auto border border-dashed px-3 py-2 text-sm/relaxed"
+                data-testid="text-note-format-preview"
+                [innerHTML]="textNoteFormattedHtml(note) | safe"
+              ></div>
+            }
+          </div>
         </section>
 
         <section class="bg-ui-panel border-ui-border-panel rounded-ui-sm flex flex-col gap-2.5 border border-solid p-3">
@@ -1300,7 +1282,7 @@
             </div>
           }
         }
-        @if (!(card || cardStack || terrain || diceSymbol || scratchMask)) {
+        @if (!(card || cardStack || terrain || diceSymbol)) {
           @if (tabletopObject.imageDataElement) {
             <div
               class="bg-ui-elevated border-ui-border-panel text-ui-text rounded-ui-sm m-1 box-border min-w-50 flex-[1_0_auto] border border-solid px-2.5 py-2"

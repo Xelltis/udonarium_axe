@@ -8,7 +8,7 @@ export interface FieldSummaryLabels {
   standing: string;
   fires: string;
   textureName(texture: string): string;
-  propName(prop: FieldPropId): string;
+  propName(prop: FieldPropId | 'building'): string;
 }
 
 export interface FieldSummaryInput {
@@ -24,7 +24,8 @@ export interface FieldSummaryInput {
  * What the master needs to read a field at a glance.
  *
  * Open ground has no rooms to number, so what there is to say is what it is made of, how
- * thickly it is grown over, and where anything is already burning.
+ * thickly it is grown over, and where anything is already burning. A town's buildings are
+ * counted one to a building, however many cells each stands on.
  */
 export function buildFieldSummary(input: FieldSummaryInput): string {
   const { layout, atmosphere, labels } = input;
@@ -41,13 +42,14 @@ export function buildFieldSummary(input: FieldSummaryInput): string {
 
   const perProp = new Map<FieldPropId, number>();
   for (const mark of layout.props) {
-    if (!mark || mark === 'pool') continue;
+    if (!mark || mark === 'pool' || mark === 'building') continue;
     perProp.set(mark, (perProp.get(mark) ?? 0) + 1);
   }
-  const standing = [...perProp.entries()]
+  const counts = [...perProp.entries()]
     .sort((left, right) => right[1] - left[1])
-    .map(([prop, count]) => `${labels.propName(prop)} ${count}`)
-    .join(' / ');
+    .map(([prop, count]) => `${labels.propName(prop)} ${count}`);
+  if (layout.buildings.length > 0) counts.unshift(`${labels.propName('building')} ${layout.buildings.length}`);
+  const standing = counts.join(' / ');
 
   const lines = [
     `${input.name} / ${labels.seed} ${input.seed} / ${layout.width}x${layout.height}`,

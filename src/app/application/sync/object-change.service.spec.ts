@@ -159,6 +159,18 @@ describe('ObjectChangeService', () => {
     });
   });
 
+  it('says which of this end’s connections a network error came from, where it is known', async () => {
+    const promise = nextEvent(service.networkError$);
+
+    localDispatch('NETWORK_ERROR', { peerId: 'me-room', errorType: 'same-name-member', errorMessage: 'still there' });
+
+    await expect(promise).resolves.toEqual({
+      peerId: 'me-room',
+      errorType: 'same-name-member',
+      errorMessage: 'still there',
+    });
+  });
+
   describe('versionOf()', () => {
     it('exposes the method', () => {
       expect(typeof service.versionOf).toBe('function');
@@ -205,6 +217,15 @@ describe('ObjectChangeService', () => {
       expect(sig()).toBe(0);
 
       childrenChanged$.emit({ identifier: 'parent-1' });
+
+      expect(sig()).toBe(1);
+    });
+
+    it('bumps the version of an object as it is removed, before its parent hears of it', () => {
+      const sig = service.versionOf('removed-1');
+      expect(sig()).toBe(0);
+
+      objectRemoved$.emit({ identifier: 'removed-1', aliasName: 'TestAlias' });
 
       expect(sig()).toBe(1);
     });

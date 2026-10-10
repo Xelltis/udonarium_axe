@@ -6,10 +6,12 @@
         [attr.aria-label]="'feature.dataElement.action.dragGroup' | transloco"
       >
         <button
-          class="elm-structure-btn elm-structure-btn--drag text-ui-dim hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-grab items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 active:cursor-grabbing disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
+          class="elm-drag-handle elm-structure-btn elm-structure-btn--drag text-ui-dim hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-grab items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 active:cursor-grabbing disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
           type="button"
-          draggable="true"
+          [attr.draggable]="isTouch() ? null : 'true'"
           (dragstart)="onStructureDragStart($event)"
+          (pointerdown)="onHandlePointerDown($event)"
+          (contextmenu)="onStructureHandleContextMenu($event)"
           (dragend)="onStructureDragEnd($event)"
           [title]="'feature.dataElement.action.drag' | transloco"
         >
@@ -45,11 +47,22 @@
             [(ngModel)]="name"
             [placeholder]="'feature.dataElement.placeholderName' | transloco"
           />
+          @if (inSheet) {
+            <button
+              type="button"
+              class="elm-name-button"
+              [attr.aria-label]="'feature.dataElement.editor.open' | transloco: { name: name }"
+              (click)="openEditor($event)"
+              data-testid="row-name-button"
+            >
+              <span>{{ name }}</span>
+            </button>
+          }
         }
       }
     </div>
     <div
-      class="elm-value-cell text-ui-text relative box-border grid min-h-7.5 min-w-0 grid-cols-[minmax(0,1fr)] items-center gap-1 rounded-(--gde-radius-line) px-1.75 py-1 text-[0.78em] [&_input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color])]:w-full [&_input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color])]:min-w-0 [&_input[type=number]]:w-full [&_input[type=number]]:min-w-0"
+      class="elm-value-cell text-ui-text relative box-border grid min-h-7.5 min-w-0 grid-cols-[minmax(0,1fr)] items-center gap-1 rounded-(--gde-radius-line) px-1.75 py-1 text-[0.78em] group-data-compact/sheet:grid-cols-[minmax(0,1fr)_auto]! [&_input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color])]:w-full [&_input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color])]:min-w-0 [&_input[type=number]]:w-full [&_input[type=number]]:min-w-0"
       [class.elm-value-cell--editable]="isEdit() && !isImage()"
       [class.grid-cols-[minmax(0,1fr)_var(--gde-actions-width)]!]="isEdit() && !isImage()"
       [class.border-b]="isEdit() && !isImage()"
@@ -59,8 +72,11 @@
       [class.py-0.75!]="isEdit() && !isImage()"
     >
       <div
-        class="elm-value-content grid min-h-[calc(var(--gde-row-min)-8px)] min-w-0 items-center gap-1 self-center [&.gde-editing]:col-start-1 [&.gde-editing]:row-start-1 [&.gde-editing]:max-h-12 [&.gde-editing]:overflow-hidden [&.gde-editing>input:not([type=range]):not([type=checkbox])]:h-6! [&.gde-editing>input:not([type=range]):not([type=checkbox])]:max-h-6 [&.gde-editing>input:not([type=range]):not([type=checkbox])]:min-h-6 [&.gde-editing>input:not([type=range]):not([type=checkbox])]:leading-4.5 [&.gde-editing>input[type=checkbox]]:m-0 [&.gde-editing>input[type=checkbox]]:size-3.5 [&.gde-editing>select]:h-6! [&.gde-editing>select]:max-h-6 [&.gde-editing>select]:min-h-6 [&.gde-editing>select]:leading-4.5 [&.gde-editing>textarea]:h-6! [&.gde-editing>textarea]:max-h-6 [&.gde-editing>textarea]:min-h-6 [&.gde-editing>textarea]:resize-none [&.gde-editing>textarea]:overflow-hidden [&.gde-editing>textarea]:leading-4.5 [&.gde-editing>textarea]:whitespace-nowrap"
-        [class.gde-editing]="isEdit() && !isImage()"
+        class="elm-value-content grid min-h-[calc(var(--gde-row-min)-8px)] min-w-0 items-center gap-1 self-center [&.gde-editing]:col-start-1 [&.gde-editing]:row-start-1 [&.gde-editing]:max-h-12 [&.gde-editing]:overflow-hidden [&.gde-editing>input:not([type=range]):not([type=checkbox])]:h-6! [&.gde-editing>input:not([type=range]):not([type=checkbox])]:max-h-6 [&.gde-editing>input:not([type=range]):not([type=checkbox])]:min-h-6 [&.gde-editing>input:not([type=range]):not([type=checkbox])]:leading-4.5 group-data-compact/sheet:[&.gde-editing>input:not([type=range]):not([type=checkbox])]:h-auto! [&.gde-editing>input[type=checkbox]]:m-0 [&.gde-editing>input[type=checkbox]]:size-3.5 [&.gde-editing>select]:h-6! [&.gde-editing>select]:max-h-6 [&.gde-editing>select]:min-h-6 [&.gde-editing>select]:leading-4.5 group-data-compact/sheet:[&.gde-editing>select]:h-auto! [&.gde-editing>textarea]:h-6! [&.gde-editing>textarea]:max-h-6 [&.gde-editing>textarea]:min-h-6 [&.gde-editing>textarea]:resize-none [&.gde-editing>textarea]:overflow-hidden [&.gde-editing>textarea]:leading-4.5 [&.gde-editing>textarea]:whitespace-nowrap group-data-compact/sheet:[&.gde-editing>textarea]:h-auto!"
+        [class.gde-editing]="isEdit() && !isImage() && !isLongTextEditing"
+        [class.col-span-full]="isLongTextEditing"
+        [class.row-start-2]="isLongTextEditing"
+        [class.mt-1]="isLongTextEditing"
       >
         @switch (gameDataElement().fieldType) {
           @case ('resource') {
@@ -101,8 +117,20 @@
                 }
               } @else {
                 <div
-                  class="text-ui-muted grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 whitespace-nowrap"
+                  class="elm-resource-view text-ui-muted grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 whitespace-nowrap"
                 >
+                  @if (showsSteppers()) {
+                    <button
+                      type="button"
+                      class="elm-step"
+                      [disabled]="!canStepCurrentValue(-1)"
+                      [attr.aria-label]="'feature.dataElement.stepDown' | transloco: { name: name }"
+                      (click)="stepCurrentValue(-1)"
+                      data-testid="step-down"
+                    >
+                      <i class="material-icons">remove</i>
+                    </button>
+                  }
                   <input
                     class="resource-number text-ui-text appearance-textfield w-full! min-w-0! text-right font-semibold [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none"
                     size="1"
@@ -110,6 +138,7 @@
                     name="data-current-value"
                     [attr.min]="currentValueMinAttr() || null"
                     [attr.max]="currentValueMaxAttr() || null"
+                    [attr.inputmode]="inputModeFor(currentValueMinAttr())"
                     [(ngModel)]="currentValue"
                     (blur)="commitCurrentValueBounds()"
                     placeholder="Value"
@@ -126,8 +155,36 @@
                     (blur)="commitValueBounds()"
                     placeholder="Value"
                   />
+                  @if (showsSteppers()) {
+                    <button
+                      type="button"
+                      class="elm-step"
+                      [disabled]="!canStepCurrentValue(1)"
+                      [attr.aria-label]="'feature.dataElement.stepUp' | transloco: { name: name }"
+                      (click)="stepCurrentValue(1)"
+                      data-testid="step-up"
+                    >
+                      <i class="material-icons">add</i>
+                    </button>
+                  }
                   @if (unitText) {
-                    <span class="text-ui-muted col-span-3 text-right text-[0.85em]">{{ unitText }}</span>
+                    <span class="text-ui-muted col-span-full text-right text-[0.85em]">{{ unitText }}</span>
+                  }
+                  @if (hasResourceSlider() && resourceSliderSpan(); as span) {
+                    <input
+                      class="col-span-full h-4 w-full min-w-0 cursor-pointer appearance-auto border-none bg-transparent p-0 [accent-color:var(--ui-accent)] shadow-none disabled:cursor-default disabled:opacity-40"
+                      type="range"
+                      name="data-current-slider"
+                      step="1"
+                      [min]="span.min"
+                      [max]="span.max"
+                      [value]="currentValue"
+                      [disabled]="isValueLocked()"
+                      [attr.aria-label]="gameDataElement().name"
+                      (input)="previewSliderValue($event)"
+                      (change)="commitSliderValue($event)"
+                      data-testid="resource-slider"
+                    />
                   }
                 </div>
               }
@@ -143,8 +200,12 @@
               />
             </span>
             <textarea
-              class="textarea-url h-[5em] w-full min-w-12.5 resize-none text-[0.8em]"
-              name="data-value"
+              class="textarea-url w-full min-w-12.5"
+              [class]="
+                isLongTextEditing
+                  ? 'elm-long-text-input bg-ui-input! focus:border-ui-accent! field-sizing-content max-h-[calc(30lh+0.5rem+2px)] min-h-[calc(10lh+0.5rem+2px)] resize-y border! border-(--gde-row-border)! px-1.5! py-1! leading-normal whitespace-pre-wrap focus:shadow-[0_0_0_2px_var(--ui-accent-glow)]'
+                  : 'h-[5em] resize-none text-[0.8em]'
+              "
               name="data-value"
               [(ngModel)]="value"
               [readonly]="isValueLocked()"
@@ -183,7 +244,19 @@
             <div class="hidden-spacer font-[Cambria,Georgia] text-[1em]">
               {{ value }}
             </div>
-            <div class="flex w-full min-w-0 items-baseline gap-1">
+            <div class="flex w-full min-w-0 items-baseline gap-1" [class.items-center!]="showsSteppers()">
+              @if (showsSteppers()) {
+                <button
+                  type="button"
+                  class="elm-step"
+                  [disabled]="!canStepValue(-1)"
+                  [attr.aria-label]="'feature.dataElement.stepDown' | transloco: { name: name }"
+                  (click)="stepNumberValue(-1)"
+                  data-testid="step-down"
+                >
+                  <i class="material-icons">remove</i>
+                </button>
+              }
               <input
                 class="w-full min-w-2.5"
                 size="1"
@@ -191,11 +264,24 @@
                 name="data-value"
                 [attr.min]="minText || null"
                 [attr.max]="maxText || null"
+                [attr.inputmode]="inputModeFor(minText)"
                 [(ngModel)]="value"
                 (blur)="commitValueBounds()"
                 [readonly]="isValueLocked()"
                 placeholder="Value"
               />
+              @if (showsSteppers()) {
+                <button
+                  type="button"
+                  class="elm-step"
+                  [disabled]="!canStepValue(1)"
+                  [attr.aria-label]="'feature.dataElement.stepUp' | transloco: { name: name }"
+                  (click)="stepNumberValue(1)"
+                  data-testid="step-up"
+                >
+                  <i class="material-icons">add</i>
+                </button>
+              }
               @if (unitText) {
                 <span class="text-ui-muted shrink-0 text-[0.85em]">{{ unitText }}</span>
               }
@@ -348,256 +434,63 @@
               <ng-option [value]="item.type">{{ item.label }}</ng-option>
             }
           </ng-select>
-          <button
-            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
-            type="button"
-            (click)="copyReferencePath($event)"
-            [title]="'feature.dataElement.action.copyReference' | transloco"
-          >
-            <i class="material-icons">content_copy</i>
-          </button>
-          <button
-            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
-            [class.bg-ui-accent-bg]="isPopupDataElement()"
-            [class.text-ui-accent!]="isPopupDataElement()"
-            type="button"
-            (click)="togglePopupDataElement($event)"
-            [title]="'feature.dataElement.action.popupShow' | transloco"
-          >
-            <i class="material-icons">open_in_new</i>
-          </button>
-          @if (shouldShowFieldOptions()) {
-            <button
-              class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
-              [class.bg-ui-accent-bg]="fieldOptionsOpen()"
-              [class.text-ui-accent!]="fieldOptionsOpen()"
-              type="button"
-              (click)="toggleFieldOptions()"
-              [title]="'feature.dataElement.action.fieldOptions' | transloco"
-            >
-              <i class="material-icons">tune</i>
-            </button>
-          } @else {
-            <button
-              class="pointer-events-none invisible inline-flex h-5.5 w-5 shrink-0 items-center justify-center rounded-(--gde-radius-control) [&_.material-icons]:text-[14px]"
-              type="button"
-              aria-hidden="true"
-              tabindex="-1"
-            >
-              <i class="material-icons">tune</i>
-            </button>
+          @for (action of fieldActions(); track action.id) {
+            @if (action.placeholder) {
+              <button
+                class="pointer-events-none invisible inline-flex h-5.5 w-5 shrink-0 items-center justify-center rounded-(--gde-radius-control) [&_.material-icons]:text-[14px]"
+                type="button"
+                aria-hidden="true"
+                tabindex="-1"
+              >
+                <i class="material-icons">{{ action.icon }}</i>
+              </button>
+            } @else if (action.inline) {
+              <button
+                class="text-ui-muted disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
+                [class.hover:bg-ui-hover]="action.tone !== 'danger'"
+                [class.hover:text-ui-text]="action.tone !== 'danger'"
+                [class.hover:bg-ui-danger-bg]="action.tone === 'danger'"
+                [class.hover:text-ui-danger]="action.tone === 'danger'"
+                [class.bg-ui-accent-bg]="action.pressed"
+                [class.text-ui-accent!]="action.pressed"
+                [attr.aria-pressed]="action.pressed ?? null"
+                type="button"
+                (click)="runAction(action.id, $event)"
+                [title]="action.labelKey | transloco"
+              >
+                <i class="material-icons">{{ action.icon }}</i>
+              </button>
+            }
           }
-          @if (canAddSiblingFieldElement()) {
-            <button
-              class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
-              type="button"
-              (click)="addSiblingElement()"
-              [title]="'feature.dataElement.action.addRow' | transloco"
-            >
-              <i class="material-icons">add</i>
-            </button>
-          }
-          <button
-            class="text-ui-muted hover:bg-ui-danger-bg hover:text-ui-danger disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
-            type="button"
-            (click)="deleteElement()"
-            [title]="'feature.dataElement.action.deleteRow' | transloco"
-          >
-            <i class="material-icons">delete_outline</i>
-          </button>
         </div>
       }
-      @if (fieldOptionsOpen() && shouldShowFieldOptions()) {
-        <div
-          class="elm-field-options [&_label]:text-ui-muted [&_span]:text-ui-dim [&_input]:bg-ui-input [&_textarea]:bg-ui-input col-span-full mt-1.5 grid grid-cols-2 gap-x-1.5 gap-y-1 border border-[color-mix(in_srgb,var(--gde-row-border)_75%,transparent)] p-1.5 [background:color-mix(in_srgb,var(--ui-input-bg)_72%,transparent)] [&_input]:w-full [&_input]:min-w-0 [&_input]:rounded-(--gde-radius-control) [&_input]:border [&_input]:border-(--gde-row-border) [&_input[type='checkbox']]:m-0 [&_input[type='checkbox']]:size-3.5! [&_label]:grid [&_label]:min-w-0 [&_label]:items-center [&_label]:gap-1 [&_label]:text-[0.86em] [&_span]:whitespace-nowrap [&_textarea]:min-h-[3.2em] [&_textarea]:w-full [&_textarea]:min-w-0 [&_textarea]:resize-y [&_textarea]:rounded-(--gde-radius-control) [&_textarea]:border [&_textarea]:border-(--gde-row-border)"
+      @if (isEdit() && !isImage() && inSheet) {
+        <button
+          type="button"
+          class="elm-more"
+          [attr.aria-label]="'feature.dataElement.editor.open' | transloco: { name: name }"
+          (click)="openEditor($event)"
+          data-testid="row-more"
         >
-          @if (gameDataElement().fieldType === 'select') {
-            <label class="col-span-full grid-cols-[auto_minmax(8rem,1fr)]">
-              <span>{{ 'feature.dataElement.field.choices' | transloco }}</span>
-              <textarea
-                name="data-choices"
-                [(ngModel)]="choicesText"
-                [placeholder]="'feature.dataElement.field.choicesPlaceholder' | transloco"
-              ></textarea>
-            </label>
-          }
-          @if (gameDataElement().fieldType === 'calc') {
-            <label class="col-span-full grid-cols-[auto_minmax(8rem,1fr)]">
-              <span>{{ 'feature.dataElement.field.formula' | transloco }}</span>
-              <textarea
-                name="data-formula"
-                [(ngModel)]="formulaText"
-                [placeholder]="'feature.dataElement.formulaHelp' | transloco"
-              ></textarea>
-            </label>
-          }
-          @if (gameDataElement().fieldType === 'number' || gameDataElement().fieldType === 'resource') {
-            <label class="col-span-full grid-cols-[auto_minmax(3.8rem,1fr)]">
-              <span>{{ 'feature.dataElement.field.unit' | transloco }}</span>
-              <input
-                name="data-unit"
-                [(ngModel)]="unitText"
-                [placeholder]="'feature.dataElement.field.unitPlaceholder' | transloco"
-              />
-            </label>
-          }
-          @if (canShowPieceGauge()) {
-            <label class="col-span-full grid-cols-[auto_auto] justify-start">
-              <span>{{ 'feature.dataElement.field.gaugeInverted' | transloco }}</span>
-              <input
-                type="checkbox"
-                name="data-gauge-inverted"
-                [checked]="isGaugeInverted()"
-                (change)="toggleGaugeInverted()"
-              />
-            </label>
-          }
-          @if (gameDataElement().fieldType === 'number') {
-            <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
-              <span>{{ 'feature.dataElement.field.min' | transloco }}</span>
-              <input
-                type="number"
-                name="data-min"
-                [(ngModel)]="minText"
-                [placeholder]="'feature.dataElement.field.anyValuePlaceholder' | transloco"
-              />
-            </label>
-            <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
-              <span>{{ 'feature.dataElement.field.max' | transloco }}</span>
-              <input
-                type="number"
-                name="data-max"
-                [(ngModel)]="maxText"
-                [placeholder]="'feature.dataElement.field.anyValuePlaceholder' | transloco"
-              />
-            </label>
-          }
-          @if (gameDataElement().fieldType === 'resource') {
-            <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
-              <span>{{ 'feature.dataElement.field.minBase' | transloco }}</span>
-              <input
-                type="number"
-                name="data-min-base"
-                [(ngModel)]="minBaseText"
-                [placeholder]="'feature.dataElement.field.anyValuePlaceholder' | transloco"
-              />
-            </label>
-            <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
-              <span>{{ 'feature.dataElement.field.minCorrection' | transloco }}</span>
-              <input type="number" name="data-min-correction" [(ngModel)]="minCorrectionText" placeholder="0" />
-            </label>
-            <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
-              <span>{{ 'feature.dataElement.field.maxBase' | transloco }}</span>
-              <input
-                type="number"
-                name="data-max-base"
-                [(ngModel)]="maxBaseText"
-                [placeholder]="'feature.dataElement.field.anyValuePlaceholder' | transloco"
-              />
-            </label>
-            <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
-              <span>{{ 'feature.dataElement.field.maxCorrection' | transloco }}</span>
-              <input type="number" name="data-max-correction" [(ngModel)]="maxCorrectionText" placeholder="0" />
-            </label>
-          }
-          @if (canShowPieceGauge()) {
-            <label class="col-span-full grid-cols-[auto_auto] justify-start">
-              <span>{{ 'feature.dataElement.field.pieceGauge' | transloco }}</span>
-              <input type="checkbox" name="data-piece-gauge" [checked]="isPieceGauge()" (change)="togglePieceGauge()" />
-            </label>
-          }
-          @if (canShowChangeFeedback()) {
-            <label class="grid-cols-[auto_auto] justify-start">
-              <span>{{ 'feature.dataElement.field.changeEffect' | transloco }}</span>
-              <input
-                type="checkbox"
-                name="data-change-effect"
-                [checked]="playsEffectOnChange()"
-                (change)="toggleChangeEffect()"
-              />
-            </label>
-            <label class="grid-cols-[auto_auto] justify-start">
-              <span>{{ 'feature.dataElement.field.changeSound' | transloco }}</span>
-              <input
-                type="checkbox"
-                name="data-change-sound"
-                [checked]="playsSoundOnChange()"
-                (change)="toggleChangeSound()"
-              />
-            </label>
-            @if (playsSoundOnChange()) {
-              <label class="col-span-full grid-cols-[auto_minmax(6rem,1fr)]">
-                <span>{{ 'feature.dataElement.field.changeSoundSet' | transloco }}</span>
-                <select
-                  class="border-ui-border-input bg-ui-input text-ui-text w-full min-w-0 rounded-(--gde-radius-control) border px-1 py-0.5"
-                  name="data-change-sound-set"
-                  [ngModel]="soundSetOnChange()"
-                  (ngModelChange)="setSoundSetOnChange($event)"
-                >
-                  @for (option of soundSetOptions; track option.value) {
-                    <option [value]="option.value">{{ option.labelKey | transloco }}</option>
-                  }
-                </select>
-              </label>
-            }
-          }
-          @if (gameDataElement().fieldType === 'image') {
-            <label class="col-span-full grid-cols-[auto_auto] justify-start">
-              <span>{{ 'feature.dataElement.field.imagePopupOriginal' | transloco }}</span>
-              <input
-                type="checkbox"
-                name="data-image-popup-original"
-                [checked]="isImagePopupOriginal()"
-                (change)="toggleImagePopupOriginal($event)"
-              />
-            </label>
-          }
-          @if (isTableCellField()) {
-            <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
-              <span>{{ 'feature.dataElement.field.columnLabel' | transloco }}</span>
-              <input
-                name="data-column-label"
-                [(ngModel)]="columnLabelText"
-                [placeholder]="'feature.dataElement.field.columnLabelPlaceholder' | transloco"
-              />
-            </label>
-            <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
-              <span>{{ 'feature.dataElement.field.columnGroup' | transloco }}</span>
-              <input
-                name="data-column-group"
-                [(ngModel)]="columnGroupText"
-                [placeholder]="'feature.dataElement.field.columnGroupPlaceholder' | transloco"
-              />
-            </label>
-            @if (gameDataElement().fieldType === 'check') {
-              <label class="col-span-full grid-cols-[auto_minmax(3.8rem,1fr)]">
-                <span>{{ 'feature.dataElement.field.cellText' | transloco }}</span>
-                <input
-                  name="data-cell-text"
-                  [(ngModel)]="tableCellText"
-                  [placeholder]="'feature.dataElement.field.cellTextPlaceholder' | transloco"
-                />
-              </label>
-            }
-            <label class="col-span-full grid-cols-[auto_auto] justify-start">
-              <span>{{ 'feature.dataElement.field.gapCell' | transloco }}</span>
-              <input type="checkbox" name="data-cell-kind-gap" [(ngModel)]="isGapCell" />
-            </label>
-          }
-        </div>
+          <i class="material-icons">more_horiz</i>
+        </button>
+      }
+      @if (fieldOptionsOpen() && shouldShowFieldOptions()) {
+        <game-data-element-field-options [element]="gameDataElement()" kind="field" />
       }
     </div>
   }
   @if (gameDataElement().children.length) {
     <div
-      class="relative col-span-full box-border w-full max-w-full min-w-0 overflow-hidden py-0.75 pr-0 pl-[calc(var(--gde-depth,0)*7px)] contain-[inline-size] before:pointer-events-none before:absolute before:top-2 before:bottom-1.5 before:left-[calc(var(--gde-depth,0)*7px+1px)] before:w-0.5 before:rounded-none before:bg-(--gde-nested-line,var(--ui-accent)) before:content-['']"
+      class="elm-children relative col-span-full box-border w-full max-w-full min-w-0 overflow-hidden py-0.75 pr-0 pl-[calc(var(--gde-depth,0)*7px)] contain-[inline-size] before:pointer-events-none before:absolute before:top-2 before:bottom-1.5 before:left-[calc(var(--gde-depth,0)*7px+1px)] before:w-0.5 before:rounded-none before:bg-(--gde-nested-line,var(--ui-accent)) before:content-['']"
     >
       @if (!hideSectionTitle()) {
         <div
-          class="relative z-1 m-0 mb-1 min-w-0 rounded-l-none rounded-r-xs border border-l-[3px] border-(--gde-row-border) border-l-(--gde-accent-border) bg-(--gde-section-bg) px-2 py-1.25 pl-2.5 text-[0.82em] shadow-(--gde-section-shadow)"
+          class="elm-group-heading relative z-1 m-0 mb-1 min-w-0 rounded-l-none rounded-r-xs border border-l-[3px] border-(--gde-row-border) border-l-(--gde-accent-border) bg-(--gde-section-bg) px-2 py-1.25 pl-2.5 text-[0.82em] shadow-(--gde-section-shadow)"
           [class.px-2!]="isEdit()"
           [class.py-1.25!]="isEdit()"
           [class.z-100!]="iconPickerOpen() || templateMenuOpen()"
+          [attr.data-depth]="depth()"
         >
           @if (!isTagLocked() && isEdit()) {
             <div
@@ -609,10 +502,12 @@
                   [attr.aria-label]="'feature.dataElement.action.dragGroup' | transloco"
                 >
                   <button
-                    class="text-ui-dim hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-grab items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 active:cursor-grabbing disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
+                    class="elm-drag-handle text-ui-dim hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-grab items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 active:cursor-grabbing disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
                     type="button"
-                    draggable="true"
+                    [attr.draggable]="isTouch() ? null : 'true'"
                     (dragstart)="onStructureDragStart($event)"
+                    (pointerdown)="onHandlePointerDown($event)"
+                    (contextmenu)="onStructureHandleContextMenu($event)"
                     (dragend)="onStructureDragEnd($event)"
                     [title]="'feature.dataElement.action.drag' | transloco"
                   >
@@ -620,7 +515,7 @@
                   </button>
                 </div>
               }
-              <div class="relative shrink-0">
+              <div class="elm-icon-picker relative shrink-0">
                 <button
                   type="button"
                   class="text-ui-accent bg-ui-input border-ui-border-panel hover:bg-ui-hover flex size-6.5 cursor-pointer items-center justify-center rounded-xs border p-0 [&_.material-icons]:text-[15px]"
@@ -687,207 +582,95 @@
                 [(ngModel)]="name"
                 [placeholder]="'feature.dataElement.headingPlaceholder' | transloco"
               />
-              @if (canToggleTableViewMode()) {
+              @if (inSheet && !isImage()) {
                 <button
-                  class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
-                  [class.bg-ui-accent-bg]="isTableViewMode()"
-                  [class.text-ui-accent!]="isTableViewMode()"
                   type="button"
-                  (click)="toggleTableViewMode()"
-                  [title]="
-                    (isTableViewMode()
-                      ? 'feature.dataElement.action.normalView'
-                      : 'feature.dataElement.action.tableView'
-                    ) | transloco
-                  "
+                  class="elm-name-button"
+                  [attr.aria-label]="'feature.dataElement.editor.open' | transloco: { name: name }"
+                  (click)="openEditor($event)"
+                  data-testid="heading-name-button"
                 >
-                  <i class="material-icons">table_chart</i>
+                  @if (icon) {
+                    <i class="material-icons">{{ icon }}</i>
+                  }
+                  <span>{{ name }}</span>
                 </button>
               }
-              @if (shouldShowContainerOptions()) {
-                <button
-                  class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
-                  [class.bg-ui-accent-bg]="fieldOptionsOpen()"
-                  [class.text-ui-accent!]="fieldOptionsOpen()"
-                  type="button"
-                  (click)="toggleFieldOptions()"
-                  [title]="'feature.dataElement.action.tableSettings' | transloco"
-                >
-                  <i class="material-icons">tune</i>
-                </button>
-              }
-              <button
-                class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
-                [class.bg-ui-accent-bg]="isPopupDataElement()"
-                [class.text-ui-accent!]="isPopupDataElement()"
-                type="button"
-                (click)="togglePopupDataElement($event)"
-                [title]="'feature.dataElement.action.popupShow' | transloco"
-              >
-                <i class="material-icons">open_in_new</i>
-              </button>
-              @if (canDuplicateElement()) {
-                <button
-                  class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
-                  type="button"
-                  (click)="duplicateElement()"
-                  [title]="'feature.dataElement.action.duplicate' | transloco"
-                >
-                  <i class="material-icons">library_add</i>
-                </button>
-              }
-              @if (canSaveAsTemplate()) {
-                <button
-                  class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
-                  type="button"
-                  (click)="saveAsTemplate()"
-                  [title]="'feature.dataElement.action.saveTemplate' | transloco"
-                >
-                  <i class="material-icons">bookmark_add</i>
-                </button>
-              }
-              @if (isImage()) {
-                <button
-                  class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
-                  type="button"
-                  (click)="addImageElement()"
-                  [title]="'feature.dataElement.action.addImage' | transloco"
-                >
-                  <i class="material-icons">add</i>
-                </button>
-              } @else {
-                @if (canAddChildGroupElement()) {
-                  <button
-                    class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
-                    type="button"
-                    (click)="addGroupElement()"
-                    [title]="'feature.dataElement.action.addGroup' | transloco"
-                  >
-                    <i class="material-icons">create_new_folder</i>
-                  </button>
-                }
-                @if (elementTemplates().length > 0) {
-                  <div class="relative shrink-0">
-                    <button
-                      class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
-                      [class.bg-ui-accent-bg]="templateMenuOpen()"
-                      [class.text-ui-accent!]="templateMenuOpen()"
-                      type="button"
-                      (click)="templateMenuOpen.update((v) => !v)"
-                      [title]="'feature.dataElement.action.addFromTemplate' | transloco"
-                    >
-                      <i class="material-icons">bookmarks</i>
-                    </button>
-                    @if (templateMenuOpen()) {
-                      <div class="fixed inset-0 z-100" (click)="templateMenuOpen.set(false)"></div>
-                      <div
-                        class="elm-template-menu bg-ui-elevated border-ui-border-panel absolute top-[calc(100%+4px)] right-0 z-101 max-h-80 w-48 overflow-y-auto rounded-sm border p-1 shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
+              <span class="elm-heading-actions contents">
+                @for (action of containerActions(); track action.id) {
+                  @if (action.id === 'addFromTemplate') {
+                    <div class="relative shrink-0">
+                      <button
+                        class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
+                        [class.bg-ui-accent-bg]="action.pressed"
+                        [class.text-ui-accent!]="action.pressed"
+                        [attr.aria-pressed]="action.pressed ?? null"
+                        type="button"
+                        (click)="runAction(action.id, $event)"
+                        [title]="action.labelKey | transloco"
                       >
-                        @for (template of elementTemplates(); track template.identifier) {
-                          <div class="flex items-center gap-0.5">
-                            <button
-                              class="text-ui-text hover:bg-ui-hover min-w-0 flex-1 cursor-pointer truncate rounded-xs border-none bg-transparent px-1.5 py-1 text-left text-[0.85em]"
-                              type="button"
-                              (click)="insertTemplate(template)"
-                            >
-                              {{ template.name }}
-                            </button>
-                            <button
-                              class="text-ui-muted hover:bg-ui-danger-bg hover:text-ui-danger inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent p-0 [&_.material-icons]:text-[14px]"
-                              type="button"
-                              (click)="deleteTemplate(template, $event)"
-                              [title]="'feature.dataElement.action.deleteTemplate' | transloco"
-                            >
-                              <i class="material-icons">close</i>
-                            </button>
-                          </div>
-                        }
-                      </div>
-                    }
-                  </div>
+                        <i class="material-icons">{{ action.icon }}</i>
+                      </button>
+                      @if (templateMenuOpen()) {
+                        <div class="fixed inset-0 z-100" (click)="templateMenuOpen.set(false)"></div>
+                        <div
+                          class="elm-template-menu bg-ui-elevated border-ui-border-panel absolute top-[calc(100%+4px)] right-0 z-101 max-h-80 w-48 overflow-y-auto rounded-sm border p-1 shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
+                        >
+                          @for (template of elementTemplates(); track template.identifier) {
+                            <div class="flex items-center gap-0.5">
+                              <button
+                                class="text-ui-text hover:bg-ui-hover min-w-0 flex-1 cursor-pointer truncate rounded-xs border-none bg-transparent px-1.5 py-1 text-left text-[0.85em]"
+                                type="button"
+                                (click)="insertTemplate(template)"
+                              >
+                                {{ template.name }}
+                              </button>
+                              <button
+                                class="text-ui-muted hover:bg-ui-danger-bg hover:text-ui-danger inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent p-0 [&_.material-icons]:text-[14px]"
+                                type="button"
+                                (click)="deleteTemplate(template, $event)"
+                                [title]="'feature.dataElement.action.deleteTemplate' | transloco"
+                              >
+                                <i class="material-icons">close</i>
+                              </button>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  } @else if (action.inline) {
+                    <button
+                      class="text-ui-muted disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
+                      [class.hover:bg-ui-hover]="action.tone !== 'danger'"
+                      [class.hover:text-ui-text]="action.tone !== 'danger'"
+                      [class.hover:bg-ui-danger-bg]="action.tone === 'danger'"
+                      [class.hover:text-ui-danger]="action.tone === 'danger'"
+                      [class.bg-ui-accent-bg]="action.pressed"
+                      [class.text-ui-accent!]="action.pressed"
+                      [attr.aria-pressed]="action.pressed ?? null"
+                      type="button"
+                      (click)="runAction(action.id, $event)"
+                      [title]="action.labelKey | transloco"
+                    >
+                      <i class="material-icons">{{ action.icon }}</i>
+                    </button>
+                  }
                 }
-                @if (canAddChildFieldElement()) {
-                  <button
-                    class="text-ui-muted hover:bg-ui-hover hover:text-ui-text disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
-                    type="button"
-                    (click)="addElement()"
-                    [title]="'feature.dataElement.action.addRowChild' | transloco"
-                  >
-                    <i class="material-icons">add</i>
-                  </button>
-                }
+              </span>
+              @if (inSheet && !isImage()) {
+                <button
+                  type="button"
+                  class="elm-more"
+                  [attr.aria-label]="'feature.dataElement.editor.open' | transloco: { name: name }"
+                  (click)="openEditor($event)"
+                  data-testid="heading-more"
+                >
+                  <i class="material-icons">more_horiz</i>
+                </button>
               }
-              <button
-                class="text-ui-muted hover:bg-ui-danger-bg hover:text-ui-danger disabled:text-ui-dim inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 disabled:cursor-default disabled:bg-transparent disabled:opacity-[0.36] [&_.material-icons]:text-[14px]"
-                type="button"
-                (click)="deleteElement()"
-                [title]="'feature.dataElement.action.deleteSection' | transloco"
-              >
-                <i class="material-icons">delete_outline</i>
-              </button>
             </div>
             @if (fieldOptionsOpen() && shouldShowContainerOptions()) {
-              <div
-                class="elm-field-options [&_label]:text-ui-muted [&_span]:text-ui-dim [&_input]:bg-ui-input [&_textarea]:bg-ui-input col-span-full mt-1.5 grid grid-cols-2 gap-x-1.5 gap-y-1 border border-[color-mix(in_srgb,var(--gde-row-border)_75%,transparent)] p-1.5 [background:color-mix(in_srgb,var(--ui-input-bg)_72%,transparent)] [&_input]:w-full [&_input]:min-w-0 [&_input]:rounded-(--gde-radius-control) [&_input]:border [&_input]:border-(--gde-row-border) [&_input[type='checkbox']]:m-0 [&_input[type='checkbox']]:size-3.5! [&_label]:grid [&_label]:min-w-0 [&_label]:items-center [&_label]:gap-1 [&_label]:text-[0.86em] [&_span]:whitespace-nowrap [&_textarea]:min-h-[3.2em] [&_textarea]:w-full [&_textarea]:min-w-0 [&_textarea]:resize-y [&_textarea]:rounded-(--gde-radius-control) [&_textarea]:border [&_textarea]:border-(--gde-row-border)"
-              >
-                <label class="col-span-full grid-cols-[auto_minmax(3.8rem,1fr)]">
-                  <span>{{ 'feature.dataElement.field.rowHeader' | transloco }}</span>
-                  <input
-                    name="data-row-header-label"
-                    [(ngModel)]="rowHeaderLabelText"
-                    [placeholder]="'feature.dataElement.field.rowHeaderPlaceholder' | transloco"
-                  />
-                </label>
-                <label class="col-span-full grid-cols-[auto_auto] justify-start">
-                  <span>{{ 'feature.dataElement.field.judgeMode' | transloco }}</span>
-                  <input
-                    type="checkbox"
-                    name="data-judge-mode"
-                    [checked]="isJudgeModeEnabled()"
-                    (change)="toggleJudgeModeEnabled()"
-                  />
-                </label>
-                @if (isJudgeModeEnabled()) {
-                  <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
-                    <span>{{ 'feature.dataElement.field.baseDifficulty' | transloco }}</span>
-                    <input
-                      type="number"
-                      name="data-base-difficulty"
-                      [(ngModel)]="baseDifficultyText"
-                      min="1"
-                      [placeholder]="'feature.dataElement.field.baseDifficultyPlaceholder' | transloco"
-                    />
-                  </label>
-                  <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
-                    <span>{{ 'feature.dataElement.field.gapDistance' | transloco }}</span>
-                    <input
-                      type="number"
-                      name="data-gap-distance"
-                      [(ngModel)]="gapDistanceText"
-                      min="0"
-                      [placeholder]="'feature.dataElement.field.gapDistancePlaceholder' | transloco"
-                    />
-                  </label>
-                  <label class="grid-cols-[auto_auto] justify-start">
-                    <span>{{ 'feature.dataElement.field.loopHorizontal' | transloco }}</span>
-                    <input
-                      type="checkbox"
-                      name="data-loop-horizontal"
-                      [checked]="loopHorizontal"
-                      (change)="toggleLoopHorizontal()"
-                    />
-                  </label>
-                  <label class="grid-cols-[auto_auto] justify-start">
-                    <span>{{ 'feature.dataElement.field.loopVertical' | transloco }}</span>
-                    <input
-                      type="checkbox"
-                      name="data-loop-vertical"
-                      [checked]="loopVertical"
-                      (change)="toggleLoopVertical()"
-                    />
-                  </label>
-                }
-              </div>
+              <game-data-element-field-options [element]="gameDataElement()" kind="container" />
             }
           } @else {
             <div class="flex min-h-5.5 w-full min-w-0 items-center gap-1.5">
@@ -910,7 +693,7 @@
           [loopVertical]="loopVertical"
         ></game-data-element-table-view>
       } @else if (gameDataElement().children.length) {
-        <div class="relative box-border flex w-full min-w-0 flex-col gap-0.5 pl-2.25">
+        <div class="elm-child-list relative box-border flex w-full min-w-0 flex-col gap-0.5 pl-2.25">
           @for (childElement of gameDataElement().children; track childElement.identifier; let i = $index) {
             <div
               game-data-element
@@ -924,6 +707,24 @@
               [depth]="depth() + 1"
               [style.--gde-depth]="depth() + 1"
             ></div>
+          }
+          @if (isEdit() && inSheet && !isImage()) {
+            @if (canAddChildFieldElement()) {
+              <button type="button" class="elm-add" (click)="openAddField($event)" data-testid="group-add-field">
+                <i class="material-icons">add</i>
+                <span>{{ 'feature.dataElement.editor.addField' | transloco }}</span>
+              </button>
+            } @else if (canAddChildGroupElement()) {
+              <button
+                type="button"
+                class="elm-add elm-add--secondary"
+                (click)="addGroupAndEdit($event)"
+                data-testid="group-add-group"
+              >
+                <i class="material-icons">create_new_folder</i>
+                <span>{{ 'feature.dataElement.editor.addGroup' | transloco }}</span>
+              </button>
+            }
           }
         </div>
       }

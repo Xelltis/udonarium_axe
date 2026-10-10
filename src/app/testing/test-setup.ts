@@ -1,30 +1,29 @@
 import '@angular/compiler';
 
-import { NO_ERRORS_SCHEMA } from '@angular/core';
+import { EnvironmentProviders, NO_ERRORS_SCHEMA, Provider } from '@angular/core';
 import { ɵresolveComponentResources as resolveComponentResources } from '@angular/core';
 import { TestBed, TestModuleMetadata } from '@angular/core/testing';
 import { BrowserDynamicTestingModule, platformBrowserDynamicTesting } from '@angular/platform-browser-dynamic/testing';
 import { Logger, LogLevel } from '@axe/core/logging/logger';
 import { resetPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { basename, join, resolve } from 'path';
 
 Logger.setLevel(LogLevel.NONE);
 
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { LoggerService } from '@axe/application/logging/logger.service';
-import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY } from '@axe/application/chat/chat-personal-bookmark.store';
+import { PERSONAL_VOLUME_STORAGE_KEY } from '@axe/application/media/personal-volumes';
+import { COMPASS_FACE_STORAGE_KEY } from '@axe/application/ui/compass-face.service';
 import { FIRST_PERSON_PIECE_STORAGE_KEY } from '@axe/application/ui/first-person-preference.service';
 import { LOCAL_MODE_STORAGE_KEY } from '@axe/application/ui/local-mode-preference.service';
-import { ModalService } from '@axe/application/ui/modal.service';
-import { PanelService } from '@axe/application/ui/panel.service';
+import { PIECE_OVERLAY_STORAGE_KEY } from '@axe/application/ui/piece-overlay-preference.service';
 import { TABLETOP_DISPLAY_STORAGE_KEY } from '@axe/application/ui/tabletop-display-preference.service';
+import { TOOLBAR_FOLD_STORAGE_KEY } from '@axe/application/ui/toolbar-fold.service';
 import { VIEW_MODE_STORAGE_KEY } from '@axe/application/ui/view-mode-preference.service';
-import { AppConfigService } from '@axe/composition/app-config.service';
-import { provideTranslocoTesting } from '@axe/testing/transloco-testing';
+import { WIDGET_VISIBILITY_STORAGE_KEY } from '@axe/application/ui/widget-visibility.service';
 
 const srcAppDir = resolve(process.cwd(), 'src/app');
 const fileMap = new Map<string, string>();
@@ -95,7 +94,7 @@ if (!navigator.mediaDevices) {
   });
 }
 
-// happy-dom has no WebAudio API. The document mousedown / touchstart listeners registered by
+// happy-dom has no WebAudio API. The document gesture listeners registered by
 // AudioPlayer.resumeAudioContext() can survive into another spec, so the moment something like
 // user-interaction-unlock.spec dispatches an event, the listener tries to construct an AudioContext
 // and dies with "is not a constructor". A minimal stub goes on globalThis and window.
@@ -106,6 +105,12 @@ if (typeof globalThis.AudioContext === 'undefined') {
       return this;
     }
     setTargetAtTime() {
+      return this;
+    }
+    linearRampToValueAtTime() {
+      return this;
+    }
+    cancelScheduledValues() {
       return this;
     }
   }
@@ -126,6 +131,19 @@ if (typeof globalThis.AudioContext === 'undefined') {
       return this;
     }
   }
+  class FakeBufferSource {
+    buffer: unknown = null;
+    loop = false;
+    onended: (() => void) | null = null;
+    connect() {
+      return this;
+    }
+    disconnect() {
+      return this;
+    }
+    start() {}
+    stop() {}
+  }
   class FakeAudioContext {
     currentTime = 0;
     destination: object = {};
@@ -143,6 +161,12 @@ if (typeof globalThis.AudioContext === 'undefined') {
     }
     createMediaElementSource() {
       return new FakeMediaElementSource();
+    }
+    createBufferSource() {
+      return new FakeBufferSource();
+    }
+    decodeAudioData(_data: ArrayBuffer, resolve: (buffer: object) => void) {
+      resolve({ duration: 1, length: 44100, numberOfChannels: 2 });
     }
   }
   (globalThis as unknown as Record<string, unknown>)['AudioContext'] = FakeAudioContext;
@@ -219,16 +243,76 @@ if (typeof (globalThis as unknown as Record<string, unknown>)['YT'] === 'undefin
   };
 }
 
-const GLOBAL_TEST_PROVIDERS = [
-  AppConfigService,
-  ChatMessageService,
-  ContextMenuService,
-  LoggerService,
-  ModalService,
-  PanelService,
-  TabletopService,
-  ...provideTranslocoTesting(),
-];
+type GlobalTestProviders = (Provider | EnvironmentProviders)[];
+
+// The services every TestBed module is given reach most of the app, and loading them costs a file
+// close to half a second. More than half the specs never build a module, so the spec about to run
+// is read for the word first. A path that is not a spec source, as under the bundling `ng test`
+// runner, gets them regardless.
+function specUsesTestBed(): boolean {
+  const testPath = expect.getState().testPath;
+  if (!testPath?.endsWith('.spec.ts')) return true;
+  try {
+    return readFileSync(testPath, 'utf-8').includes('TestBed');
+  } catch {
+    return true;
+  }
+}
+
+async function loadGlobalTestProviders(): Promise<GlobalTestProviders> {
+  const [
+    { ChatMessageService },
+    { LoggerService },
+    { TabletopService },
+    { ContextMenuService },
+    { ModalService },
+    { PanelService },
+    { AppConfigService },
+    { provideTranslocoTesting },
+  ] = await Promise.all([
+    import('@axe/application/chat/chat-message.service'),
+    import('@axe/application/logging/logger.service'),
+    import('@axe/application/tabletop/tabletop.service'),
+    import('@axe/application/ui/context-menu.service'),
+    import('@axe/application/ui/modal.service'),
+    import('@axe/application/ui/panel.service'),
+    import('@axe/composition/app-config.service'),
+    import('@axe/testing/transloco-testing'),
+  ]);
+  return [
+    AppConfigService,
+    ChatMessageService,
+    ContextMenuService,
+    // The service turns logging up to what the build calls for as it is made, which outside
+    // production is everything. Made for a test, it leaves the level where the setup put it.
+    {
+      provide: LoggerService,
+      useFactory: () => {
+        const service = new LoggerService();
+        Logger.setLevel(LogLevel.NONE);
+        return service;
+      },
+    },
+    ModalService,
+    PanelService,
+    TabletopService,
+    ...provideTranslocoTesting(),
+  ];
+}
+
+// The wrapper can outlive the file that made it, so it looks the providers up on every call
+// rather than keeping the ones it was made with.
+const GLOBAL_TEST_PROVIDERS_KEY = '__axeGlobalTestProviders__';
+
+function globalTestProviders(): GlobalTestProviders {
+  const providers = (globalThis as unknown as Record<string, GlobalTestProviders | null>)[GLOBAL_TEST_PROVIDERS_KEY];
+  if (!providers) {
+    throw new Error(
+      `${expect.getState().testPath} builds a TestBed module without naming TestBed, so test-setup never loaded the providers every module is given.`
+    );
+  }
+  return providers;
+}
 
 // Re-apply per beforeEach; the Angular test runner may reset the wrapper. Sentinel guards re-wrap.
 const WRAPPER_SENTINEL = '__globalProviderWrapped__';
@@ -239,12 +323,31 @@ function applyConfigureTestingModuleWrapper(): void {
   const wrapped = (config: TestModuleMetadata) =>
     orig({
       ...config,
-      providers: [...(config.providers ?? []), ...GLOBAL_TEST_PROVIDERS],
+      providers: [...(config.providers ?? []), ...globalTestProviders()],
       schemas: [...(config.schemas ?? []), NO_ERRORS_SCHEMA],
     });
   (wrapped as unknown as Record<string, unknown>)[WRAPPER_SENTINEL] = true;
   TestBed.configureTestingModule = wrapped as typeof TestBed.configureTestingModule;
 }
+
+// vi.waitFor gives up after a second unless it is told otherwise. A step that takes a moment on its
+// own can take longer than that while every spec runs at once on a busy machine, and the wait then
+// fails with what it saw first. A wait that names no time is given ten seconds, well inside a
+// test's own thirty; one that names its time keeps it.
+const WAIT_FOR_MS = 10_000;
+
+function applyWaitForDefault(): void {
+  if ((vi.waitFor as unknown as Record<string, unknown>)[WRAPPER_SENTINEL]) return;
+  const waitFor = vi.waitFor;
+  const wrapped = ((callback, options) =>
+    waitFor(
+      callback,
+      typeof options === 'number' ? options : { timeout: WAIT_FOR_MS, ...options }
+    )) as typeof vi.waitFor;
+  (wrapped as unknown as Record<string, unknown>)[WRAPPER_SENTINEL] = true;
+  vi.waitFor = wrapped;
+}
+applyWaitForDefault();
 
 // Vitest runs setup once per test file; swallow the "already initialized" throw on re-entry.
 try {
@@ -261,6 +364,10 @@ function emptyObjectStore(): void {
   const store = ObjectStore.instance;
   for (const object of store.getObjects()) store.delete(object, false);
   store.clearDeleteHistory();
+  // The tab list is held by its own module as well as by the store, and its tabs are its children
+  // rather than entries of the store. Emptying the store alone leaves that one holding every tab
+  // any spec ever added, and it hands them back the moment the next one reads it.
+  ChatTabList.forget();
 }
 
 // The cursor of whoever is reading is a static as well, and it decides what a role is allowed to
@@ -271,18 +378,35 @@ function forgetMyCursor(): void {
 }
 
 // How this seat looks at the table is intentionally persistent in the application, but a spec that
-// asks for a flat screen must not leave the next one's otherwise ordinary table lying down.
-function forgetTabletopDisplaySettings(): void {
+// asks for a flat screen must not leave the next one's otherwise ordinary table lying down. The
+// same goes for what a seat shows: a spec that puts a toolbar away, folds one or hides the bars
+// over the pieces writes that choice to the browser, and the file after it builds its services
+// from whatever is left there. A reader's own bookmarks on chat lines are kept there too.
+function forgetSeatPreferences(): void {
   localStorage.removeItem(TABLETOP_DISPLAY_STORAGE_KEY);
   localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
   localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
   localStorage.removeItem(FIRST_PERSON_PIECE_STORAGE_KEY);
+  localStorage.removeItem(WIDGET_VISIBILITY_STORAGE_KEY);
+  localStorage.removeItem(TOOLBAR_FOLD_STORAGE_KEY);
+  localStorage.removeItem(PIECE_OVERLAY_STORAGE_KEY);
+  localStorage.removeItem(COMPASS_FACE_STORAGE_KEY);
+  localStorage.removeItem(PERSONAL_VOLUME_STORAGE_KEY);
+  localStorage.removeItem(CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY);
 }
 
+beforeAll(async () => {
+  (globalThis as unknown as Record<string, GlobalTestProviders | null>)[GLOBAL_TEST_PROVIDERS_KEY] = specUsesTestBed()
+    ? await loadGlobalTestProviders()
+    : null;
+});
+
 beforeEach(async () => {
+  // A test that turns logging up, as the logger specs do, must not leave the next one printing.
+  Logger.setLevel(LogLevel.NONE);
   emptyObjectStore();
   forgetMyCursor();
-  forgetTabletopDisplaySettings();
+  forgetSeatPreferences();
   resetPeerContextProvider();
   await resolveComponentResources(resourceResolver as Parameters<typeof resolveComponentResources>[0]);
   applyConfigureTestingModuleWrapper();

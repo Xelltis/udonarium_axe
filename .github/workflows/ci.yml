@@ -1,15 +1,15 @@
 name: CI
 
-# main への Pull Request で、ローカルの lefthook が見ているものと同じ関門を通す。
-# pre-commit の lint / ng test、pre-push の ng build に加えて、
-# フックの外にある vitest 直経路・Prettier・ドキュメントのビルドまで含む。
+# mainへのPull Requestで、ローカルのlefthookが見ているものと同じ関門を通す。
+# pre-commitのlint / ng test、pre-pushのng buildに加えて、
+# フックの外にあるvitest直経路・Prettier・ドキュメントのビルドまで含む。
 #
-# E2E は入れていない。Playwright は CI で 5 ブラウザぶん走る設定になっていて、
-# ここに載せると 1 回の Pull Request に何十分もかかる。手元で `npm run e2e`。
+# E2Eは入れていない。PlaywrightはCIで5ブラウザぶん走る設定になっていて、
+# ここに載せると1回のPull Requestに何十分もかかる。手元で`npm run e2e`。
 #
-# ユニットテストは 2 経路を別ジョブに分けてある。ng test は Angular builder が
-# 用意する設定で走り、npx vitest run は vitest.config.ts を読む。片方だけ落ちる
-# ことが実際に起きるため、どちらが落ちたかがチェック名で分かるようにしている。
+# ユニットテストは2経路を別ジョブに分けてある。ng testはAngular builderが
+# 用意する設定で走り、npx vitest runはvitest.config.tsを読む。
+# 片方だけ落ちることが実際に起きるため、どちらが落ちたかがチェック名で分かるようにしている。
 
 on:
   pull_request:

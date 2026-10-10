@@ -41,11 +41,24 @@ export class Matrix3D {
 
   constructor() {}
 
+  /**
+   * Reads an element's computed CSS transform into a matrix, or the identity for
+   * an element outside a document.
+   *
+   * Pass the computed style when it is already at hand to save looking it up again, and a matrix
+   * to fill to avoid allocating one.
+   */
   static create(element: HTMLElement, style: CSSStyleDeclaration | null = null, ret = new Matrix3D()): Matrix3D {
     if (element && element.ownerDocument) return ret.setCSS((style || window.getComputedStyle(element)).transform);
     return ret.identity();
   }
 
+  /**
+   * Fills the matrix from the numbers of a CSS `matrix3d()` (16), `matrix()` (6) or a 3 by 3 (9)
+   * list, in the order CSS lists them.
+   *
+   * Any other length, or no data, leaves the matrix as it was.
+   */
   setData(data: number[]): Matrix3D {
     if (data == null) return this;
 
@@ -106,6 +119,7 @@ export class Matrix3D {
     return this;
   }
 
+  /** Resets the matrix to the identity in place. */
   identity(): Matrix3D {
     this.m11 = 1;
     this.m12 = 0;
@@ -126,6 +140,7 @@ export class Matrix3D {
     return this;
   }
 
+  /** Multiplies every entry by a number in place. */
   scalar(scalar: number): Matrix3D {
     this.m11 *= scalar;
     this.m12 *= scalar;
@@ -147,7 +162,16 @@ export class Matrix3D {
     return this;
   }
 
-  //based on http://code.metager.de/source/xref/mozilla/B2G/gecko/gfx/thebes/gfx3DMatrix.cpp#651
+  /**
+   * Maps a 2D point through the matrix to where the line through it, straight into the screen,
+   * crosses z = 0 on the other side, following the point projection in Mozilla Gecko's
+   * `gfx3DMatrix.cpp`.
+   *
+   * `Transform.globalToLocal` calls it with the inverted scene transform, which puts a pointer on
+   * the page onto the plane of a tilted element such as the table; `CoordinateService` reads
+   * pointers that way. Only x and y give the crossing: z and w both hold the depth of the point
+   * before it is moved along the line, and any z on the input is ignored. Fills and returns `ret`.
+   */
   unproject(point: IPoint2D, ret: IPoint3D = { x: 0, y: 0, z: 0, w: 1 }): IPoint3D {
     let x = point.x * this.m11 + point.y * this.m21 + this.m41;
     let y = point.x * this.m12 + point.y * this.m22 + this.m42;
@@ -189,6 +213,13 @@ export class Matrix3D {
     return ret;
   }
 
+  /**
+   * Maps a 3D point through the matrix and divides x and y by w for perspective.
+   *
+   * `Transform.localToGlobal` calls it with the scene transform to find where a point on an element
+   * shows on the page, which is how `CoordinateService.convertToGlobal` turns an element's point
+   * into a page point. z is passed through unchanged and w is set to it. Fills and returns `ret`.
+   */
   project(point: IPoint3D, ret: IPoint3D = { x: 0, y: 0, z: 0, w: 1 }): IPoint3D {
     const z = point.z;
     let w = point.x * this.m14 + point.y * this.m24 + z * this.m34 + this.m44;
@@ -216,10 +247,12 @@ export class Matrix3D {
     return ret;
   }
 
+  /** Multiplies this matrix by another in place, so that the other's transform applies after this one's. */
   append(b: IMatrix3D): Matrix3D {
     return Matrix3D.multiply(this, b, this);
   }
 
+  /** Overwrites the translation part with a position, leaving the rest as it is. */
   setPosition(position: IPoint3D): Matrix3D {
     this.m41 = position.x;
     this.m42 = position.y;
@@ -227,29 +260,37 @@ export class Matrix3D {
     return this;
   }
 
+  /** Copies the translation part into `ret` and returns it. */
   getPosition(ret: IPoint3D = { x: 0, y: 0, z: 0, w: 1 }): IPoint3D {
     ret.x = this.m41;
     ret.y = this.m42;
     ret.z = this.m43;
     return ret;
   }
+  /** Resets `ret`, a new matrix by default, to a pure translation to the position. */
   static makePosition(position: IPoint3D, ret = new Matrix3D()): Matrix3D {
     ret.identity();
     ret.setPosition(position);
     return ret;
   }
 
+  /** Adds a translation after the current transform, given as a point or as x, y and z. */
   appendPosition(positionOrX: IPoint3D | number, y?: number, z?: number): Matrix3D {
     const position = typeof positionOrX === 'number' ? { x: positionOrX, y: y!, z: z!, w: 1 } : positionOrX;
     return this.append(Matrix3D.makePosition(position, Matrix3D._scratch));
   }
 
+  /** Resets `ret` to a CSS perspective at the given distance, or to the identity for a distance of 0. */
   static makePerspective(perspective: number, ret = new Matrix3D()): Matrix3D {
     ret.identity();
     ret.m34 = perspective ? -(1 / perspective) : 0;
     return ret;
   }
 
+  /**
+   * Adds a CSS perspective at the given distance after the current transform; a distance of 0 adds
+   * nothing.
+   */
   appendPerspective(perspective: number): Matrix3D {
     if (!perspective) return this;
     return this.append(Matrix3D.makePerspective(perspective, Matrix3D._scratch));
@@ -328,6 +369,12 @@ export class Matrix3D {
     return target;
   }
 
+  /**
+   * Replaces the matrix with a computed CSS transform, empty or `none` giving the identity.
+   *
+   * Only the `matrix()` and `matrix3d()` forms that computed styles report are understood; anything
+   * else leaves the matrix as it was.
+   */
   setCSS(cssString: string): Matrix3D {
     if (!cssString || cssString == 'none') return this.identity();
     const parts = cssString.replace('matrix3d(', '').replace('matrix(', '').replace(')', '').split(',');
@@ -335,6 +382,11 @@ export class Matrix3D {
     return this.setData(trans);
   }
 
+  /**
+   * Adds a computed CSS transform after the current one; empty or `none` adds nothing.
+   *
+   * With `force2D`, a `matrix3d()` is flattened to its effect on the plane first.
+   */
   appendCSS(cssString: string, force2D: boolean = false): Matrix3D {
     if (!cssString || cssString == 'none') return this;
     if (force2D && cssString.indexOf('matrix3d') >= 0) {
@@ -343,6 +395,7 @@ export class Matrix3D {
     return this.append(Matrix3D._scratch.setCSS(cssString));
   }
 
+  /** Discards the depth and perspective entries in place, so the matrix acts on the plane only. */
   flatten(): Matrix3D {
     this.m31 = 0;
     this.m32 = 0;
@@ -355,6 +408,10 @@ export class Matrix3D {
     return this;
   }
 
+  /**
+   * Multiplies `a` by `b` into `ret`, a new matrix by default, so that a's transform applies first
+   * and b's after. `ret` may be either operand.
+   */
   static multiply(a: IMatrix3D, b: IMatrix3D, ret: Matrix3D = new Matrix3D()): Matrix3D {
     const m11 = a.m11 * b.m11 + a.m12 * b.m21 + a.m13 * b.m31 + a.m14 * b.m41;
     const m12 = a.m11 * b.m12 + a.m12 * b.m22 + a.m13 * b.m32 + a.m14 * b.m42;
@@ -393,6 +450,7 @@ export class Matrix3D {
     return ret;
   }
 
+  /** The entries laid out as four tab-separated rows, for logging while debugging. */
   public toString(fractionalDigits: number = 3): string {
     const f = (v: number) => v.toFixed(fractionalDigits);
     return [

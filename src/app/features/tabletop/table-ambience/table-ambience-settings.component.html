@@ -51,6 +51,28 @@
         {{ 'feature.ambience.resetColor' | transloco }}
       </button>
 
+      <label class="text-ui-muted text-[11px]">{{ 'feature.ambience.shownToLabel' | transloco }}</label>
+      <select
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text col-span-2 box-border w-full border border-solid px-2 py-1 text-[13px]"
+        [(ngModel)]="shownTo"
+        name="ambienceShownTo"
+      >
+        @for (shown of shownToChoices; track shown) {
+          <option [ngValue]="shown">{{ shownToLabel(shown) }}</option>
+        }
+      </select>
+
+      <label class="text-ui-muted text-[11px]">{{ 'feature.ambience.brightnessLabel' | transloco }}</label>
+      <select
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text col-span-2 box-border w-full border border-solid px-2 py-1 text-[13px]"
+        [(ngModel)]="brightness"
+        name="ambienceBrightness"
+      >
+        @for (shade of brightnessChoices; track shade) {
+          <option [ngValue]="shade">{{ brightnessLabel(shade) }}</option>
+        }
+      </select>
+
       <label class="text-ui-muted text-[11px]">{{ 'feature.ambience.widthLabel' | transloco }}</label>
       <input
         type="number"
@@ -71,6 +93,16 @@
         name="ambienceHeight"
       />
     </div>
+
+    <label class="flex cursor-pointer items-center gap-1.5 select-none">
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="blocksSight"
+        name="ambienceBlocksSight"
+      />
+      {{ 'feature.ambience.blocksSightLabel' | transloco }}
+    </label>
 
     <label class="flex cursor-pointer items-center gap-1.5 select-none">
       <input

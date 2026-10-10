@@ -1,6 +1,8 @@
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import {
   asTableLayerPlacement,
+  DEFAULT_BACKDROP_FOLLOW,
+  DEFAULT_BACKDROP_HEIGHT,
   MAX_TABLE_BACKGROUND_LAYERS,
   moveBackgroundLayer,
   TableBackgroundLayer,
@@ -39,10 +41,98 @@ describe('TableBackgroundLayer', () => {
   });
 });
 
+describe('a backdrop', () => {
+  function layer(): TableBackgroundLayer {
+    const made = new TableBackgroundLayer();
+    made.initialize();
+    return made;
+  }
+
+  it('is told apart from the layers under and over the board', () => {
+    const backdrop = layer();
+    backdrop.placement = 'backdrop';
+
+    expect(backdrop.placedBackdrop).toBe(true);
+    expect(backdrop.placedOver).toBe(false);
+    backdrop.destroy();
+  });
+
+  it('starts following the camera enough to be seen to move, standing at the foot of the screen', () => {
+    const backdrop = layer();
+
+    expect(backdrop.follow).toBe(DEFAULT_BACKDROP_FOLLOW);
+    expect(backdrop.height).toBe(DEFAULT_BACKDROP_HEIGHT);
+    backdrop.destroy();
+  });
+
+  it('keeps nought as nought, which is a backdrop that stands still', () => {
+    const backdrop = layer();
+    backdrop.cameraFollow = 0;
+
+    expect(backdrop.follow).toBe(0);
+    backdrop.destroy();
+  });
+
+  it('reads nothing, or anything that is not a number, as the defaults rather than as nought', () => {
+    const backdrop = layer();
+    for (const sent of ['', 'far', null, undefined, Number.NaN]) {
+      (backdrop as unknown as Record<string, unknown>)['cameraFollow'] = sent;
+      (backdrop as unknown as Record<string, unknown>)['backdropHeight'] = sent;
+      expect(backdrop.follow).toBe(DEFAULT_BACKDROP_FOLLOW);
+      expect(backdrop.height).toBe(DEFAULT_BACKDROP_HEIGHT);
+    }
+    backdrop.destroy();
+  });
+
+  it('keeps its follow and height when an older peer, changing something else, passes the layer back', () => {
+    const backdrop = layer();
+    backdrop.placement = 'backdrop';
+    backdrop.cameraFollow = 0.6;
+    backdrop.backdropHeight = 0.4;
+
+    // A layer's fields travel in its attributes; an older peer passes back the ones it does not
+    // know along with the one it changed.
+    const fromOlderPeer = backdrop.toContext();
+    const data = fromOlderPeer.syncData as { attributes: Record<string, unknown> };
+    fromOlderPeer.syncData = { ...data, attributes: { ...data.attributes, opacity: 0.5 } };
+    fromOlderPeer.majorVersion += 1;
+    backdrop.apply(fromOlderPeer);
+
+    expect([backdrop.follow, backdrop.height, backdrop.opacity]).toEqual([0.6, 0.4, 0.5]);
+    backdrop.destroy();
+  });
+
+  it('reads the defaults for a layer sent with neither field at all', () => {
+    const backdrop = layer();
+    const sent = backdrop.toContext();
+    const data = sent.syncData as { attributes: Record<string, unknown> };
+    const { cameraFollow: _follow, backdropHeight: _height, ...known } = data.attributes;
+    sent.syncData = { ...data, attributes: known };
+    sent.majorVersion += 1;
+    backdrop.apply(sent);
+
+    expect([backdrop.follow, backdrop.height]).toEqual([DEFAULT_BACKDROP_FOLLOW, DEFAULT_BACKDROP_HEIGHT]);
+    backdrop.destroy();
+  });
+
+  it('holds what it reads between nought and one, and reads a number sent as text', () => {
+    const backdrop = layer();
+    backdrop.cameraFollow = 3;
+    backdrop.backdropHeight = -1;
+    expect(backdrop.follow).toBe(1);
+    expect(backdrop.height).toBe(0);
+
+    (backdrop as unknown as Record<string, unknown>)['cameraFollow'] = '0.6';
+    expect(backdrop.follow).toBe(0.6);
+    backdrop.destroy();
+  });
+});
+
 describe('asTableLayerPlacement()', () => {
   it('takes the sides it knows', () => {
     expect(asTableLayerPlacement('under')).toBe('under');
     expect(asTableLayerPlacement('over')).toBe('over');
+    expect(asTableLayerPlacement('backdrop')).toBe('backdrop');
   });
 
   it('falls back to beneath the board, which is what a background is', () => {

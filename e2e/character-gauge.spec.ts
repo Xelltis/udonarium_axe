@@ -55,6 +55,25 @@ async function box(locator: Locator) {
   return rect!;
 }
 
+/**
+ * バフのアイコンと、その中の要素を同時に測る。
+ * アイコンは少し縮んだ位置から現れるので、アニメーションが終わるのを待ってから測る。
+ * 2回に分けて測ると、その間に描き直されたときに別々の時点の位置を比べてしまう。
+ */
+async function settledBoxes(badge: Locator, inner: string) {
+  return badge.evaluate(async (element, selector) => {
+    const swap = element.closest('.animate-buff-swap') ?? element;
+    await Promise.all(
+      swap.getAnimations({ subtree: true }).map((animation) => animation.finished.catch(() => undefined))
+    );
+    const rectOf = (target: Element) => {
+      const rect = target.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    };
+    return { icon: rectOf(element), rounds: rectOf(element.querySelector(selector)!) };
+  }, inner);
+}
+
 test.describe('コマの頭上表示', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
@@ -250,10 +269,9 @@ test.describe('コマの頭上表示', () => {
     await addBuff(page, 2);
     const piece = newCharacterPiece(page);
     const badge = piece.locator('[data-testid="buff-badge"]').first();
-    await expect(badge).toBeVisible({ timeout: 10000 });
+    await expect(badge.locator('[data-testid="buff-rounds"]')).toBeVisible({ timeout: 10000 });
 
-    const icon = await box(badge);
-    const rounds = await box(badge.locator('[data-testid="buff-rounds"]'));
+    const { icon, rounds } = await settledBoxes(badge, '[data-testid="buff-rounds"]');
 
     expect(overlaps(icon, rounds), '残ラウンドがアイコンに重なっていない').toBe(true);
     expect(rounds.x + rounds.width / 2).toBeGreaterThan(icon.x + icon.width / 2);
@@ -305,6 +323,21 @@ test.describe('コマの頭上表示', () => {
   test('リソースが減ると赤い数字が飛び出すこと', async ({ page }) => {
     const piece = newCharacterPiece(page);
     const sheet = await openSheet(page);
+    // The piece shakes and flashes for 420ms, which a slow browser can spend before the number
+    // below shows; the page notes both as they start, so neither is missed.
+    await piece.evaluate((element) => {
+      const note = () => {
+        if (element.querySelector('[data-testid="piece-body"].animate-hit-shake'))
+          element.setAttribute('data-shook', 'true');
+        if (element.querySelector('[data-testid="hit-flash"]')) element.setAttribute('data-flashed', 'true');
+      };
+      new MutationObserver(note).observe(element, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        attributeFilter: ['class'],
+      });
+    });
 
     const current = sheet.locator('input[name="data-current-value"]').first();
     await expect(current).toBeVisible({ timeout: 5000 });
@@ -313,10 +346,10 @@ test.describe('コマの頭上表示', () => {
 
     const change = piece.locator('[data-testid="resource-change"]').first();
     await expect(change).toBeVisible({ timeout: 5000 });
-    await expect(piece.locator('[data-testid="piece-body"]')).toHaveClass(/animate-hit-shake/);
+    await expect(piece).toHaveAttribute('data-shook', 'true');
     await expect(change).toHaveText('-50');
     await expect(change).toHaveAttribute('data-kind', 'damage');
-    await expect(piece.locator('[data-testid="hit-flash"]')).toBeAttached();
+    await expect(piece).toHaveAttribute('data-flashed', 'true');
 
     await expect(piece.locator('[data-testid="resource-change"]')).toHaveCount(0, { timeout: 5000 });
   });

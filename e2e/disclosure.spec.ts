@@ -3,9 +3,9 @@ import { expect, Page, test } from '@playwright/test';
 import { openPanel, waitAppReady } from './helpers';
 
 /**
- * 公開範囲は「見えてはいけないものが見えない」ことの機能なので、壊れても
- * 画面上は何も起きず気づけない。GM が隠した対象が PL の手元でどうなるかを、
- * 公開のままのコマと突き合わせて確かめる。
+ * 公開範囲は「見えてはいけないものが見えない」ことの機能なので、おかしくなっても
+ * 画面上は何も起きず気づけない。GMが隠した対象がPLの手元でどうなるかを、
+ * 公開のままのコマと見比べて確かめる。
  */
 test.describe('情報の公開範囲', () => {
   const HIDDEN = 0;
@@ -34,7 +34,7 @@ test.describe('情報の公開範囲', () => {
     await expect(page.locator('ui-panel').filter({ hasText: title })).toHaveCount(0, { timeout: 5000 });
   }
 
-  /** メニューは外側の mousedown で閉じる。Escape では閉じない。 */
+  /** メニューは外側のmousedownで閉じる。Escapeでは閉じない。 */
   async function dismissMenu(page: Page) {
     await page.locator('#app-table-layer').click({ position: { x: 40, y: 640 } });
     await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
@@ -46,7 +46,7 @@ test.describe('情報の公開範囲', () => {
     await expect(page.locator('game-character-sheet')).toBeVisible({ timeout: 10000 });
   }
 
-  /** GM として 1 体を「GMのみ」にし、その名前を返す。 */
+  /** GMとして1体を「GMのみ」にし、その名前を返す。 */
   async function hidePiece(page: Page, index: number) {
     const name = await pieceName(page, index);
     await openSheet(page, index);

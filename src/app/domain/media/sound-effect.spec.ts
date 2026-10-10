@@ -1,7 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { emitSendMessage } from '@axe/core/event/domain-events';
+import { emitSendMessage, soundEffect$ } from '@axe/core/event/domain-events';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
+import { AudioFile } from '@axe/core/storage/audio-file';
+import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -129,5 +132,84 @@ describe('SoundEffect', () => {
 
       playSpy.mockRestore();
     });
+  });
+});
+
+describe('which channel a sound plays through', () => {
+  const presets = PresetSound as unknown as Record<string, string>;
+  const named: Record<string, string> = {
+    diceRoll1: 'dice-roll',
+    cardShuffle: 'card-shuffle',
+    sweep: 'sweep',
+    alarm: 'alarm',
+    chatNotify1: 'chat-notify',
+    fireSmall: 'fire-small',
+    damageLarge: 'damage-large',
+  };
+
+  function addAudio(identifier: string): AudioFile {
+    const audio = AudioFile.createEmpty(identifier);
+    const context = (audio as unknown as { context: Record<string, unknown> }).context;
+    context['blob'] = new Blob(['x']);
+    context['url'] = `blob:${identifier}`;
+    AudioStorage.instance.add(audio);
+    return audio;
+  }
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    for (const [key, identifier] of Object.entries(named)) presets[key] = identifier;
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(named)) presets[key] = '';
+    AudioStorage.instance.audios.forEach((audio) => AudioStorage.instance.delete(audio.identifier));
+    vi.restoreAllMocks();
+  });
+
+  it('sends the built-in sounds of handling things to the handling channel', () => {
+    expect(SoundEffect.kindOf('dice-roll')).toBe(VolumeType.HANDLING);
+    expect(SoundEffect.kindOf('card-shuffle')).toBe(VolumeType.HANDLING);
+    expect(SoundEffect.kindOf('sweep')).toBe(VolumeType.HANDLING);
+  });
+
+  it('sends the alarm and the chat notifications to the notification channel', () => {
+    expect(SoundEffect.kindOf('alarm')).toBe(VolumeType.NOTIFICATION);
+    expect(SoundEffect.kindOf('chat-notify')).toBe(VolumeType.NOTIFICATION);
+  });
+
+  it('sends the sounds of effects and of values going up or down to the effects channel', () => {
+    expect(SoundEffect.kindOf('fire-small')).toBe(VolumeType.EFFECT);
+    expect(SoundEffect.kindOf('damage-large')).toBe(VolumeType.EFFECT);
+  });
+
+  it('leaves a sound somebody added, or none at all, on the sound-effect channel', () => {
+    expect(SoundEffect.kindOf('uploaded-by-someone')).toBe(VolumeType.SE);
+    expect(SoundEffect.kindOf('')).toBe(VolumeType.SE);
+  });
+
+  it('plays a sound that arrives from the room through the channel of its kind', () => {
+    const play = vi.spyOn(AudioPlayer, 'play').mockImplementation(() => {});
+    const dice = addAudio('dice-roll');
+    const uploaded = addAudio('uploaded');
+    new SoundEffect('SoundEffect').initialize();
+
+    soundEffect$.emit('dice-roll');
+    soundEffect$.emit('uploaded');
+
+    expect(play).toHaveBeenCalledWith(dice, 0.5, VolumeType.HANDLING);
+    expect(play).toHaveBeenCalledWith(uploaded, 0.5, VolumeType.SE);
+  });
+
+  it('plays a sound on this peer alone through the kind given, or else the kind it is', () => {
+    const play = vi.spyOn(AudioPlayer, 'play').mockImplementation(() => {});
+    const uploaded = addAudio('uploaded');
+    const fire = addAudio('fire-small');
+
+    SoundEffect.playLocal('uploaded', VolumeType.EFFECT);
+    SoundEffect.playLocal('fire-small');
+
+    expect(play).toHaveBeenCalledWith(uploaded, 0.5, VolumeType.EFFECT);
+    expect(play).toHaveBeenCalledWith(fire, 0.5, VolumeType.EFFECT);
   });
 });

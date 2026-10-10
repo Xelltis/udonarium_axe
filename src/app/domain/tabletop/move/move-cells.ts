@@ -6,6 +6,7 @@ export const DEFAULT_MOVE_RANGE_ELEMENT_NAMES = '移動,移動力,Speed,速度';
 export const DEFAULT_CELL_DISTANCE = 1;
 export const DEFAULT_CELL_DISTANCE_UNIT: MoveUnit = 'cell';
 
+/** Splits the comma-separated names of the sheet fields that hold a piece's movement, trimming and dropping blanks. */
 export function parseMoveRangeElementNames(names: string): string[] {
   return names
     .split(',')
@@ -25,10 +26,14 @@ function amountOf(element: DataElement): number | null {
 /**
  * How many cells a piece walks, from what its sheet says and what the table counts in.
  *
- * A sheet written in cells is already the answer. A sheet written in a length is measured
- * against what one cell stands for, and where the two are written in different lengths -
- * thirty feet on the sheet, a table ruled in metres - the sheet is turned into the table's
- * unit first. A sheet with no unit anybody knows is taken to be in the table's own.
+ * What the sheet says is measured against what one cell of the table stands for, and where
+ * the two are written in different lengths - thirty feet on the sheet, a table ruled in
+ * metres - the sheet is turned into the table's unit first. A table counted in cells is
+ * measured the same way: a cell standing for half a cell makes three cells on the sheet six
+ * on the table. A sheet with no unit anybody knows is taken to be in the table's own.
+ *
+ * A sheet written in cells on a table ruled in a length is read as cells, there being no
+ * length to turn a cell into.
  */
 export function moveCellsOf(
   character: GameCharacter,
@@ -51,12 +56,19 @@ export function moveCellsOf(
   return null;
 }
 
+/**
+ * Added to a count before it is rounded down.
+ *
+ * A distance a binary fraction cannot hold exactly - three tenths walked in cells of a tenth -
+ * divides out a hair under the whole number it is, and would be read as a cell short.
+ */
+const ROUNDING_ALLOWANCE = 1e-9;
+
 function cellsFrom(amount: number, sheetUnit: MoveUnit | null, tableUnit: string, cellDistance: number): number {
   const ruledIn = parseMoveUnit(tableUnit);
-  // Counted in cells on either side, the number is the answer: there is no length to measure
-  // against, and a cell standing for so many cells is a sentence with nothing in it.
-  if (sheetUnit === 'cell' || !isLengthUnit(ruledIn)) return Math.floor(amount);
+  if (sheetUnit === 'cell' && isLengthUnit(ruledIn)) return Math.floor(amount);
 
-  const measured = isLengthUnit(sheetUnit) ? convertMoveLength(amount, sheetUnit, ruledIn) : amount;
-  return cellDistance > 0 ? Math.floor(measured / cellDistance) : Math.floor(measured);
+  const measured =
+    isLengthUnit(sheetUnit) && isLengthUnit(ruledIn) ? convertMoveLength(amount, sheetUnit, ruledIn) : amount;
+  return cellDistance > 0 ? Math.floor(measured / cellDistance + ROUNDING_ALLOWANCE) : Math.floor(measured);
 }

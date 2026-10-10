@@ -3,6 +3,12 @@ import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/con
 import { Coin } from '@axe/domain/coin/coin';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 
+/**
+ * The right-click menu of a coin on the table: flip, turn face up or down, lock, edit, copy and delete.
+ *
+ * Turning, locking, copying and deleting act on the coin directly and play their sounds; flipping and
+ * editing are left to the callbacks. A copy is offset by one grid cell and brought to the top.
+ */
 export function buildCoinContextMenu(
   coin: Coin,
   gridSize: number,

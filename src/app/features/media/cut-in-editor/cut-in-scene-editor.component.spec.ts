@@ -5,6 +5,8 @@ import { encodeCutInTracks } from '@axe/domain/media/cut-in-keyframe';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { keysOf, valueAt } from '@axe/features/media/cut-in-editor/cut-in-keyframe-edit';
 import { CutInSceneEditorComponent } from '@axe/features/media/cut-in-editor/cut-in-scene-editor.component';
+import { CutInTimelineComponent, type TimelineRow } from '@axe/features/media/cut-in-editor/cut-in-timeline.component';
+import { TIMELINE_HEAD_W_PX } from '@axe/features/media/cut-in-editor/cut-in-timeline-geometry';
 import { CutInStageComponent } from '@axe/features/media/cut-in-stage/cut-in-stage.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -463,6 +465,105 @@ describe('CutInSceneEditorComponent', () => {
     });
   });
 
+  describe('taking away what stands at the playhead, for a screen that cannot double-click', () => {
+    type PlayheadApi = {
+      canRemoveKeysAtPlayhead(): boolean;
+      hasSoundAtPlayhead(): boolean;
+      removeKeysAtPlayhead(): void;
+      removeSoundAtPlayhead(): void;
+      onToggleLocked(layer: CutInLayer): void;
+      onRemoveKey(removed: { layer: CutInLayer; ms: number }): void;
+    };
+
+    function playhead(): PlayheadApi {
+      return component as unknown as PlayheadApi;
+    }
+
+    it('takes away the keys of the layer in hand once the playhead stands on them', () => {
+      editor().addImageLayer();
+      const layer = component.layers()[0];
+      layer.tracks = encodeCutInTracks({
+        x: [
+          { t: 0, v: 0 },
+          { t: 1000, v: 10 },
+        ],
+        opacity: [{ t: 1000, v: 1 }],
+      });
+      editor().changed();
+
+      editor().onSeek(500);
+      expect(playhead().canRemoveKeysAtPlayhead()).toBe(false);
+
+      editor().onSeek(1000);
+      expect(playhead().canRemoveKeysAtPlayhead()).toBe(true);
+
+      playhead().removeKeysAtPlayhead();
+
+      expect(layer.trackSet.x?.map((key) => key.t)).toEqual([0]);
+      expect(layer.trackSet.opacity ?? []).toEqual([]);
+      expect(playhead().canRemoveKeysAtPlayhead()).toBe(false);
+    });
+
+    describe('on a locked layer', () => {
+      function keyedAtPlayhead(): CutInLayer {
+        editor().addImageLayer();
+        const layer = component.layers()[0];
+        layer.tracks = encodeCutInTracks({
+          x: [
+            { t: 0, v: 0 },
+            { t: 1000, v: 10 },
+          ],
+        });
+        editor().changed();
+        editor().onSeek(1000);
+        fixture.detectChanges();
+        return layer;
+      }
+
+      function removeKeysButton(): HTMLButtonElement {
+        return (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+          '[data-testid="cut-in-remove-keys"]'
+        )!;
+      }
+
+      it('turns off the button that takes the keys away', () => {
+        const layer = keyedAtPlayhead();
+        expect(removeKeysButton().disabled).toBe(false);
+
+        playhead().onToggleLocked(layer);
+        fixture.detectChanges();
+
+        expect(removeKeysButton().disabled).toBe(true);
+      });
+
+      it('leaves the keys where they are, whatever asks for them to go', () => {
+        const layer = keyedAtPlayhead();
+        playhead().onToggleLocked(layer);
+
+        playhead().removeKeysAtPlayhead();
+        playhead().onRemoveKey({ layer, ms: 1000 });
+
+        expect(layer.trackSet.x?.map((key) => key.t)).toEqual([0, 1000]);
+      });
+    });
+
+    it('takes away the sound the playhead stands on', () => {
+      editor().addImageLayer();
+      component.scene()!.sounds = '[{"t":200,"a":"se-1","v":100}]';
+      editor().changed();
+
+      editor().onSeek(100);
+      expect(playhead().hasSoundAtPlayhead()).toBe(false);
+
+      editor().onSeek(200);
+      expect(playhead().hasSoundAtPlayhead()).toBe(true);
+
+      playhead().removeSoundAtPlayhead();
+
+      expect(component.sounds()).toEqual([]);
+    });
+  });
+
   describe('the regions that handle their own pointer', () => {
     it('claims the stage and the whole timeline section from the panel', () => {
       const root = fixture.nativeElement as HTMLElement;
@@ -544,6 +645,76 @@ describe('CutInSceneEditorComponent', () => {
 
       editor().jumpToKey(true);
       expect(editor().playheadMs()).toBe(component.durationMs());
+    });
+  });
+
+  describe('a key or a sound tapped on the timeline', () => {
+    type PlaybackApi = {
+      togglePlaying(): void;
+      playing(): boolean;
+      timelineRoomPx: { set(px: number): void };
+    };
+    type TimelinePressApi = {
+      onRowDown(event: PointerEvent, row: TimelineRow): void;
+      onSoundRowDown(event: PointerEvent): void;
+      onPointerUp(event: PointerEvent): void;
+    };
+
+    function playback(): PlaybackApi {
+      return component as unknown as PlaybackApi;
+    }
+
+    function timeline(): CutInTimelineComponent {
+      return fixture.debugElement.query(By.directive(CutInTimelineComponent)).componentInstance;
+    }
+
+    function press(x: number): PointerEvent {
+      return { clientX: x, shiftKey: false, pointerId: 1, target: null } as unknown as PointerEvent;
+    }
+
+    function withKeyAndSound(): void {
+      editor().addImageLayer();
+      component.layers()[0].tracks = encodeCutInTracks({ x: [{ t: 1000, v: 10 }] });
+      component.scene()!.sounds = '[{"t":2000,"a":"se-1","v":100}]';
+      playback().timelineRoomPx.set(TIMELINE_HEAD_W_PX + 900);
+      editor().changed();
+      fixture.detectChanges();
+    }
+
+    function tapKey(): void {
+      const row = timeline().rows()[0];
+      const api = timeline() as unknown as TimelinePressApi;
+      api.onRowDown(press(row.keys[0].x), row);
+      api.onPointerUp(press(row.keys[0].x));
+    }
+
+    function tapSound(): void {
+      const x = timeline().soundMarks()[0].x;
+      const api = timeline() as unknown as TimelinePressApi;
+      api.onSoundRowDown(press(x));
+      api.onPointerUp(press(x));
+    }
+
+    it('moves the playhead onto it while the preview is stopped', () => {
+      withKeyAndSound();
+
+      tapKey();
+      expect(editor().playheadMs()).toBe(1000);
+
+      tapSound();
+      expect(editor().playheadMs()).toBe(2000);
+    });
+
+    it('leaves a playing preview playing on', () => {
+      withKeyAndSound();
+      playback().togglePlaying();
+      expect(playback().playing()).toBe(true);
+
+      tapKey();
+      tapSound();
+
+      expect(playback().playing()).toBe(true);
+      expect(editor().playheadMs()).toBe(0);
     });
   });
 

@@ -129,6 +129,125 @@ describe('BuffManager', () => {
     });
   });
 
+  describe('stackRound', () => {
+    it('adds a second helping to the note the standing buff carries', () => {
+      manager.addRound('猛攻撃', '攻撃+2', 3);
+      manager.stackRound('猛攻撃', '攻撃+2', 3);
+
+      const data = container.getFirstElementByName('猛攻撃')!;
+      expect(container.getElementsByName('猛攻撃').length).toBe(1);
+      expect(data.currentValue).toBe('攻撃+4');
+    });
+
+    it('takes a helping away again', () => {
+      manager.addRound('猛攻撃', '攻撃+2', 3);
+      manager.stackRound('猛攻撃', '攻撃-3', 3);
+
+      expect(container.getFirstElementByName('猛攻撃')!.currentValue).toBe('攻撃-1');
+    });
+
+    it('grants a buff nobody carries yet', () => {
+      manager.stackRound('猛攻撃', '攻撃+2', 4);
+
+      const data = container.getFirstElementByName('猛攻撃')!;
+      expect(data.currentValue).toBe('攻撃+2');
+      expect(data.value).toBe(4);
+    });
+
+    it('keeps whichever count of rounds is longer', () => {
+      manager.addRound('猛攻撃', '攻撃+2', 5);
+      manager.stackRound('猛攻撃', '攻撃+2', 2);
+
+      expect(container.getFirstElementByName('猛攻撃')!.value).toBe(5);
+    });
+
+    it('lengthens the rounds when the new helping runs longer', () => {
+      manager.addRound('猛攻撃', '攻撃+2', 2);
+      manager.stackRound('猛攻撃', '攻撃+2', 5);
+
+      expect(container.getFirstElementByName('猛攻撃')!.value).toBe(5);
+    });
+
+    it('leaves the rounds where they stand when none are given', () => {
+      manager.addRound('猛攻撃', '攻撃+2', 5);
+      manager.stackRound('猛攻撃', '攻撃+2');
+
+      expect(container.getFirstElementByName('猛攻撃')!.value).toBe(5);
+    });
+
+    it('counts no rounds on a buff held until it is cleared', () => {
+      manager.addRound('毒', '継続2', 4, { timing: 'none' });
+      manager.stackRound('毒', '継続2', 9);
+
+      const data = container.getFirstElementByName('毒')!;
+      expect(data.value).toBe(4);
+      expect(data.currentValue).toBe('継続4');
+    });
+
+    it('writes the new note where the two say different things', () => {
+      manager.addRound('祝福', '攻撃+2', 3);
+      manager.stackRound('祝福', '防御+1', 3);
+
+      expect(container.getFirstElementByName('祝福')!.currentValue).toBe('防御+1');
+    });
+
+    it('keeps the standing note where the helping carries none', () => {
+      manager.addRound('祝福', '攻撃+2', 3);
+      manager.stackRound('祝福', '', 3);
+
+      expect(container.getFirstElementByName('祝福')!.currentValue).toBe('攻撃+2');
+    });
+
+    it('repaints the buff as a helping asks', () => {
+      manager.addRound('毒', '継続2', 3, { color: '#c62828' });
+      manager.stackRound('毒', '継続1', 3, { icon: '☠️' });
+
+      const data = container.getFirstElementByName('毒')!;
+      expect(data.getAttribute(DataElementAttribute.BUFF_COLOR)).toBe('#c62828');
+      expect(data.getAttribute(DataElementAttribute.BUFF_ICON)).toBe('☠️');
+    });
+  });
+
+  describe('extendRound', () => {
+    it('adds the rounds asked for to the ones left', () => {
+      manager.addRound('猛攻撃', '攻撃+2', 2);
+      manager.extendRound('猛攻撃', '攻撃+2', 3);
+
+      const data = container.getFirstElementByName('猛攻撃')!;
+      expect(data.value).toBe(5);
+      expect(data.currentValue).toBe('攻撃+4');
+    });
+
+    it('lengthens a buff without touching what it says when the note is empty', () => {
+      manager.addRound('加護', '守り+1', 2);
+      manager.extendRound('加護', '', 3);
+
+      const data = container.getFirstElementByName('加護')!;
+      expect(data.value).toBe(5);
+      expect(data.currentValue).toBe('守り+1');
+    });
+
+    it('grants a buff nobody carries yet for the rounds asked for', () => {
+      manager.extendRound('猛攻撃', '攻撃+2', 3);
+
+      expect(container.getFirstElementByName('猛攻撃')!.value).toBe(3);
+    });
+
+    it('lengthens nothing on a buff held until it is cleared', () => {
+      manager.addRound('毒', '継続2', 4, { timing: 'none' });
+      manager.extendRound('毒', '継続2', 3);
+
+      expect(container.getFirstElementByName('毒')!.value).toBe(4);
+    });
+
+    it('leaves the rounds where they stand when none are given', () => {
+      manager.addRound('猛攻撃', '攻撃+2', 2);
+      manager.extendRound('猛攻撃', '攻撃+2');
+
+      expect(container.getFirstElementByName('猛攻撃')!.value).toBe(2);
+    });
+  });
+
   describe('delete', () => {
     it('removes a buff by name', () => {
       manager.addRound('削除対象', '', 3);
@@ -343,6 +462,54 @@ describe('BuffManager', () => {
 
       expect(sheeted.find('気合')).toBeTruthy();
       expect(status.getValue('命中', 'now')).toBe(10);
+    });
+
+    describe('stackModifier', () => {
+      function stack(name: string, target: string, operator: string, amount: string, round = 2): void {
+        const request = parseBuffModifierRequest(target, operator, amount)!;
+        sheeted.stackRound(name, '', round);
+        sheeted.stackModifier(sheeted.find(name)!, request);
+      }
+
+      it('moves the status a second time', () => {
+        grant('猛攻撃', '命中', '+', '2');
+        stack('猛攻撃', '命中', '+', '2');
+
+        expect(status.getValue('命中', 'now')).toBe(14);
+      });
+
+      it('gives back everything the helpings moved in all', () => {
+        grant('猛攻撃', '命中', '+', '2');
+        stack('猛攻撃', '命中', '+', '2');
+
+        sheeted.delete('猛攻撃');
+
+        expect(status.getValue('命中', 'now')).toBe(10);
+      });
+
+      it('gives back only as far as the status actually moved', () => {
+        // The sheet caps 命中 at 20, so the second helping only gets the 8 that were left.
+        grant('猛攻撃', '命中', '+', '5');
+        stack('猛攻撃', '命中', '+', '30');
+        expect(status.getValue('命中', 'now')).toBe(20);
+
+        sheeted.delete('猛攻撃');
+
+        expect(status.getValue('命中', 'now')).toBe(10);
+      });
+
+      it('takes back a buff standing on some other status before laying this one', () => {
+        const other = parseBuffModifierRequest('命中', '+', '2')!;
+        sheeted.addRound('変転', '', 2);
+        sheeted.applyModifier(sheeted.find('変転')!, other);
+        expect(status.getValue('命中', 'now')).toBe(12);
+
+        const moved = parseBuffModifierRequest('命中^', '+', '1')!;
+        sheeted.stackModifier(sheeted.find('変転')!, moved);
+
+        expect(status.getValue('命中', 'now')).toBe(10);
+        expect(status.getValue('命中', 'max')).toBe(21);
+      });
     });
   });
 });

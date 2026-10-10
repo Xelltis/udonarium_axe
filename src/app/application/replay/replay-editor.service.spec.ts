@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
+import { readKeyframeBytes } from '@axe/application/replay/replay-keyframe-bytes';
 import {
   type ReplayChunkInput,
   type ReplayChunkRecord,
@@ -10,6 +11,7 @@ import {
   type ReplayRecordingMeta,
   type ReplayRecordingUpdate,
 } from '@axe/core/storage/replay-log-store';
+import { isCompressed } from '@axe/core/util/compress';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { decodeReplayEvents, decodeReplayManifest } from '@axe/domain/replay/replay-codec';
 import {
@@ -315,14 +317,54 @@ describe('ReplayEditorService', () => {
     expect(saved?.derivedFrom).toEqual({ roomName: '第一夜', startedAt: 1_000_000 });
   });
 
+  it('takes away several rows as one change to undo', () => {
+    service.removeMany(new Set([1, 3]));
+    expect(service.edited().map((e) => e.seq)).toEqual([2, 4]);
+
+    service.undo();
+    expect(service.edited().map((e) => e.seq)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('moves several rows a step as one change to undo', () => {
+    service.stepMany(new Set([2, 4]), -1);
+    expect(service.edited().map((e) => e.seq)).toEqual([2, 1, 4, 3]);
+
+    service.undo();
+    expect(service.edited().map((e) => e.seq)).toEqual([1, 2, 3, 4]);
+  });
+
   it('writes a keyframe matching the edited order', async () => {
     service.remove(2);
     const id = await service.saveAsDerived(manifest, base);
     const keyframes = await store.listKeyframes(id!);
 
     expect(keyframes.length).toBeGreaterThan(0);
-    const start = decodeReplayKeyframe(new Uint8Array(await keyframes[0].blob.arrayBuffer()));
+    const start = decodeReplayKeyframe(await readKeyframeBytes(keyframes[0].blob));
     expect(start[0].syncData).toEqual({ attributes: { location: { x: 0, y: 0 } } });
+  });
+
+  it('stores the boards compressed', async () => {
+    service.remove(2);
+    const id = await service.saveAsDerived(manifest, base);
+    const [first] = await store.listKeyframes(id!);
+
+    expect(isCompressed(new Uint8Array(await first.blob.arrayBuffer()))).toBe(true);
+  });
+
+  it('writes a board every ten minutes of recorded time, not every few hundred events', async () => {
+    const minute = 60_000;
+    const long = Array.from({ length: 900 }, (_, i) => ({ ...move(i + 1, i, i - 1), at: 1_000_000 + i * 2_000 }));
+    service.begin(long);
+    service.remove(1);
+
+    const id = await service.saveAsDerived(manifest, base);
+    const keyframes = await store.listKeyframes(id!);
+
+    // 30 minutes of events: the board before the first, then at 10 and 20 minutes.
+    expect(long[long.length - 1].at - long[0].at).toBeGreaterThan(29 * minute);
+    expect(keyframes).toHaveLength(3);
+    const last = decodeReplayKeyframe(await readKeyframeBytes(keyframes[2].blob));
+    expect(last[0].syncData).toEqual({ attributes: { location: expect.objectContaining({ y: 0 }) } });
   });
 
   it('saves nothing when the edit empties the recording', async () => {

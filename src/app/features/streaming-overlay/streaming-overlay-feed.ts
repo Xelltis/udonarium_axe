@@ -20,6 +20,8 @@ export interface OverlaySource {
   readonly isDirect: boolean;
   readonly isSecret: boolean;
   readonly isDisplayable: boolean;
+  /** Whether its speaker pseudo-deleted the line, which then never reaches the screen being shown. */
+  readonly isPseudoDeleted?: boolean;
 }
 
 export interface OverlayLine {
@@ -39,6 +41,12 @@ export interface OverlayFeedOptions {
 
 export const DEFAULT_OVERLAY_FEED_OPTIONS: OverlayFeedOptions = { limit: 6, maxAgeMs: 120_000 };
 
+/**
+ * The lines the streaming overlay shows at the given moment.
+ *
+ * Whispers, secret rolls, messages that are not for display and blank ones are left out, and so
+ * are those past the age limit. Of the rest only the last `limit` stay, in the order given.
+ */
 export function buildOverlayFeed(
   sources: readonly OverlaySource[],
   now: number,
@@ -48,7 +56,7 @@ export function buildOverlayFeed(
 
   const lines: OverlayLine[] = [];
   for (const source of sources) {
-    if (!source.isDisplayable || source.isDirect || source.isSecret) continue;
+    if (!source.isDisplayable || source.isDirect || source.isSecret || source.isPseudoDeleted) continue;
     if (source.text.trim().length < 1) continue;
     if (options.maxAgeMs > 0 && now - source.timestamp > options.maxAgeMs) continue;
 

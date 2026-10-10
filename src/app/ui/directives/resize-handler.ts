@@ -98,6 +98,7 @@ export class ResizeHandler {
     }
   }
 
+  /** Removes the handle element from the target and stops listening for presses on it. */
   destroy() {
     this.handle!.remove();
     this.input!.destroy();

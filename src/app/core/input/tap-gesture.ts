@@ -15,6 +15,12 @@ export interface TapGestureHandle {
 const DEFAULT_MAX_DURATION_MS = 300;
 const DEFAULT_MAX_MOVE_DISTANCE = 8;
 
+/**
+ * Calls onTap with the touch point when the element is tapped, until the handle is destroyed.
+ *
+ * A tap is one finger lifted within 300 ms after moving at most 8 px, unless the options say
+ * otherwise. Only touch counts, not the mouse, and the passive listeners never cancel the touch.
+ */
 export function observeTap(
   element: Element,
   onTap: (point: TapPoint) => void,

@@ -1,0 +1,70 @@
+<div
+  class="border-ui-border-panel bg-ui-elevated rounded-ui shadow-ui-md flex min-w-0 items-center gap-1 border border-solid p-1"
+  role="search"
+  data-testid="chat-search"
+>
+  <div
+    class="bg-ui-input border-ui-border-panel rounded-ui-sm focus-within:border-ui-accent flex h-6.5 min-w-0 flex-1 items-center gap-1 border border-solid px-1.5 transition-[border-color]"
+  >
+    <i class="material-icons text-ui-muted shrink-0 text-[15px]!" aria-hidden="true">search</i>
+    <input
+      #searchInput
+      class="text-ui-text box-border h-full min-w-0 flex-1 border-none bg-transparent p-0 text-[12px] outline-none focus:shadow-none"
+      type="text"
+      name="chat-search"
+      autocomplete="off"
+      data-testid="chat-search-input"
+      [value]="text()"
+      [placeholder]="'feature.chat.search.placeholder' | transloco"
+      [attr.aria-label]="'feature.chat.search.placeholder' | transloco"
+      (input)="onInput($event)"
+      (keydown)="onKeydown($event)"
+    />
+    @if (isSearching()) {
+      <span
+        class="shrink-0 text-[11px] whitespace-nowrap tabular-nums"
+        [class]="hits().length > 0 ? 'text-ui-dim' : 'text-ui-danger'"
+        data-testid="chat-search-count"
+        aria-live="polite"
+      >
+        @if (hits().length > 0) {
+          {{ 'feature.chat.search.count' | transloco: { current: position() + 1, total: hits().length } }}
+        } @else {
+          {{ 'feature.chat.search.none' | transloco }}
+        }
+      </span>
+    }
+  </div>
+  <button
+    type="button"
+    class="text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-6.5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[18px]!"
+    data-testid="chat-search-older"
+    [disabled]="hits().length === 0"
+    [title]="'feature.chat.search.older' | transloco"
+    [attr.aria-label]="'feature.chat.search.older' | transloco"
+    (click)="older()"
+  >
+    <i class="material-icons" aria-hidden="true">keyboard_arrow_up</i>
+  </button>
+  <button
+    type="button"
+    class="text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-6.5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[18px]!"
+    data-testid="chat-search-newer"
+    [disabled]="hits().length === 0"
+    [title]="'feature.chat.search.newer' | transloco"
+    [attr.aria-label]="'feature.chat.search.newer' | transloco"
+    (click)="newer()"
+  >
+    <i class="material-icons" aria-hidden="true">keyboard_arrow_down</i>
+  </button>
+  <button
+    type="button"
+    class="text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-6.5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[16px]!"
+    data-testid="chat-search-close"
+    [title]="'feature.chat.search.close' | transloco"
+    [attr.aria-label]="'feature.chat.search.close' | transloco"
+    (click)="closed.emit()"
+  >
+    <i class="material-icons" aria-hidden="true">close</i>
+  </button>
+</div>

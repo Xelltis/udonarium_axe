@@ -13,6 +13,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
 import { EffectAutoPlayService } from '@axe/application/effect/effect-auto-play.service';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
@@ -24,6 +25,8 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
+import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
@@ -32,11 +35,15 @@ import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-i
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { BillboardFacing, facesAlways, NOT_TURNED } from '@axe/application/ui/billboard-frame.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-menu';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
+import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
+import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
@@ -46,13 +53,14 @@ import { transientSignal } from '@axe/application/ui/transient-signal';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { callResourceChange, resourceChange$ } from '@axe/core/event/domain-events';
 import { getPeerContext } from '@axe/core/network/peer-context-source';
+import { VolumeType } from '@axe/core/storage/audio-player';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { isInternalResource } from '@axe/domain/character/internal-resource';
 import { gaugeNumbersOf, isGaugeInverted, PieceGauge, selectPieceGauges } from '@axe/domain/character/piece-gauge';
+import { isResourceElement } from '@axe/domain/character/resource-catalog';
 import {
   diffResourceSnapshots,
   loudestChange,
@@ -74,8 +82,9 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
+import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-pedestal-geometry';
+import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
 import {
   DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS,
   multiAngleNameMotionMode,
@@ -86,11 +95,17 @@ import {
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
+import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
+import { Terrain } from '@axe/domain/tabletop/terrain';
+import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { buildGameCharacterContextMenuModel } from '@axe/features/character/game-character/game-character-context-menu';
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
+import { buildConcealMenu } from '@axe/features/tabletop/board-switch/concealment-context-menu';
 import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
+import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
+import { BillboardDirective } from '@axe/ui/directives/billboard.directive';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
@@ -146,6 +161,12 @@ const HEAL_AURA_MS = 760;
 const GAUGE_STACK_GAP_PX = 32;
 const BUFF_STACK_GAP_PX = 40;
 const TARGET_STACK_GAP_PX = 52;
+/** The space between a bubble and the bars and buffs under it. */
+const SPEECH_STACK_GAP_PX = 6;
+/** How much higher a bubble stands over a piece marked as a target, to clear the mark. */
+const TARGET_MARK_HEIGHT_PX = 34;
+/** How large a stamp shows in a bubble, before the labels' supersampling. */
+const SPEECH_STAMP_PX = 56;
 const BUFF_DETAIL_ROW_HEIGHT_PX = 12;
 const BUFF_BADGE_ROW_HEIGHT_PX = 22;
 const ROLL_HANDLE_MIN_PX = 20;
@@ -167,6 +188,7 @@ interface PieceRightDrag {
   templateUrl: './game-character.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    BillboardDirective,
     MovableDirective,
     RotableDirective,
     SelectableDirective,
@@ -174,6 +196,7 @@ interface PieceRightDrag {
     NgStyle,
     GameDataElementBuffComponent,
     SafePipe,
+    StampComponent,
     TranslocoModule,
   ],
   host: {
@@ -186,6 +209,8 @@ interface PieceRightDrag {
 })
 export class GameCharacterComponent {
   private readonly contextMenuService = inject(ContextMenuService);
+  private readonly boardSwitches = inject(BoardSwitchService);
+  private readonly concealment = inject(ConcealmentService);
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly characterDice = inject(CharacterDiceService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -197,7 +222,9 @@ export class GameCharacterComponent {
   private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly pieceTarget = inject(PieceTargetService);
+  private readonly mobileLayout = inject(MobileLayoutService);
   private readonly buffViewPreference = inject(BuffViewPreferenceService);
+  private readonly overlay = inject(PieceOverlayPreferenceService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tabletopService = inject(TabletopService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
@@ -215,6 +242,8 @@ export class GameCharacterComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly visionService = inject(VisionService);
+  private readonly speechBubbles = inject(SpeechBubbleService);
+  private readonly renderLite = inject(RenderLiteService);
 
   readonly isTargeted = computed(() => {
     this.uiSignalService.targetChange();
@@ -231,8 +260,7 @@ export class GameCharacterComponent {
     const char = this.gameCharacter();
     if (!char) return false;
     this.objectChange.versionOf(char.identifier)();
-    const surface = char.location.surface ?? 'floor';
-    return surface !== 'floor';
+    return isOffTheFloor(char);
   });
 
   constructor() {
@@ -325,6 +353,10 @@ export class GameCharacterComponent {
     return !this.visionService.isTokenVisible(char);
   });
 
+  /**
+   * Whether the piece is locked in place, read and written on the character; false while no
+   * character is bound.
+   */
   get isLock(): boolean {
     const char = this.gameCharacter();
     return char?.isLock ?? false;
@@ -347,9 +379,11 @@ export class GameCharacterComponent {
     this.objectChange.trackMyCursor();
     return char.hideName && !this.rolePermission.canSeeHidden;
   });
+  /** Buffs go unshown for a piece set to hide them, and for every piece while this seat has them switched off. */
   readonly hideBuff = computed(() => {
     const char = this.gameCharacter();
     if (!char) return false;
+    if (!this.overlay.buffs()) return true;
     this.objectChange.versionOf(char.identifier)();
     return char.hideBuff;
   });
@@ -363,6 +397,35 @@ export class GameCharacterComponent {
     this.objectChange.versionOf(char?.identifier ?? '')();
     return char?.altitude ?? 0;
   });
+
+  /**
+   * How the ground under the piece leans, which its pedestal and the picture lying on it take.
+   *
+   * The piece itself stands upright on it, as a figure does on a hillside; only what is lying
+   * on the ground follows the ground. Nothing leans on a table looked at from straight above,
+   * where a lean would only squash what it turned. The blocks it could be standing on are the
+   * ones it is over, so a change to one of those leans it again.
+   */
+  readonly groundLean = computed(() => {
+    const char = this.gameCharacter();
+    if (!char || this.tabletopService.mode2d()) return '';
+    this.objectChange.versionOf(char.identifier)();
+    this.objectChange.collectionOf(Terrain.aliasName)();
+    const table = this.tabletopService.currentTable;
+    const grid = table.gridSize;
+    const middle = (char.size * grid) / 2;
+    const x = char.location.x + middle;
+    const y = char.location.y + middle;
+    const standingOn = table.terrains.filter((terrain) => {
+      const box = terrainBoxOf(terrain, grid);
+      return box.minX <= x && x <= box.maxX && box.minY <= y && y <= box.maxY;
+    });
+    for (const terrain of standingOn) this.objectChange.versionOf(terrain.identifier)();
+    const lean = landingLeanAt(standingOn, grid, x, y, table.gridType);
+    if (!lean) return '';
+    return `rotateY(${-Math.atan(lean.eastward).toFixed(4)}rad) rotateX(${Math.atan(lean.southward).toFixed(4)}rad)`;
+  });
+  /** Sets the piece's height above the table in grid cells; does nothing while no character is bound. */
   setAltitude(altitude: number) {
     const char = this.gameCharacter();
     if (char) char.altitude = altitude;
@@ -377,6 +440,10 @@ export class GameCharacterComponent {
     },
     { equal: imageFileEqual() }
   );
+  /**
+   * The piece's turn on the table in degrees, read and written on the character; 0 while no
+   * character is bound.
+   */
   get rotate(): number {
     const char = this.gameCharacter();
     return char?.rotate ?? 0;
@@ -385,6 +452,10 @@ export class GameCharacterComponent {
     const char = this.gameCharacter();
     if (char) char.rotate = rotate;
   }
+  /**
+   * The piece's tilt in degrees, read and written on the character and set by the roll handles; 0
+   * while no character is bound.
+   */
   get roll(): number {
     const char = this.gameCharacter();
     return char?.roll ?? 0;
@@ -411,6 +482,7 @@ export class GameCharacterComponent {
     this.objectChange.versionOf(char.identifier)();
     return char.specifyKomaImageFlag;
   });
+  /** Whether the piece casts a drop shadow under its picture. */
   get isDropShadow(): boolean {
     const char = this.gameCharacter();
     return char?.isDropShadow ?? false;
@@ -419,6 +491,7 @@ export class GameCharacterComponent {
     const char = this.gameCharacter();
     if (char) char.isDropShadow = isDropShadow;
   }
+  /** Whether the piece shows its elevation label while it is raised or lowered by half a cell or more. */
   get isAltitudeIndicate(): boolean {
     const char = this.gameCharacter();
     return char?.isAltitudeIndicate ?? false;
@@ -447,6 +520,7 @@ export class GameCharacterComponent {
     this.buffViewMode.update(nextBuffViewMode);
   }
 
+  /** The size of one grid cell on the current table, in pixels. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -462,14 +536,14 @@ export class GameCharacterComponent {
     return char.rotate;
   });
 
-  readonly billboardTransform = computed(() => (this.isPoster() ? '' : this.makeBillboardTransform(30)));
+  readonly nameFacing = computed<BillboardFacing>(() => (this.isPoster() ? NOT_TURNED : this.billboardFacing(30)));
 
-  readonly billboardTransformBuff = computed(() =>
-    this.isPoster() ? '' : this.makeBillboardTransform(BUFF_STACK_GAP_PX + this.gaugePanelHeightEstimate())
+  readonly buffFacing = computed<BillboardFacing>(() =>
+    this.isPoster() ? NOT_TURNED : this.billboardFacing(BUFF_STACK_GAP_PX + this.gaugePanelHeightEstimate())
   );
 
-  readonly billboardTransformImage = computed(() =>
-    this.isPoster() ? '' : this.makeBillboardTransform(0, this.imageTurnsWithPiece())
+  readonly imageFacing = computed<BillboardFacing>(() =>
+    this.isPoster() ? NOT_TURNED : this.billboardFacing(0, this.imageTurnsWithPiece())
   );
 
   readonly imageBillboardEnabled = computed(() => {
@@ -477,17 +551,21 @@ export class GameCharacterComponent {
     return this.tabletopService.imageBillboard() || this.tabletopService.mode2d();
   });
 
-  readonly multiAnglePiecePedestalRotation = computed(() =>
-    this.multiAngleNameOrbitEnabled() ? 'rotateZ(var(--multi-angle-piece-angle, 0deg))' : ''
-  );
+  readonly multiAnglePiecePedestalRotation = computed(() => {
+    const orbit = this.multiAngleNameOrbitEnabled() ? 'rotateZ(var(--multi-angle-piece-angle, 0deg))' : '';
+    const lean = this.groundLean();
+    return lean.length > 0 ? `${lean} ${orbit}`.trimEnd() : orbit;
+  });
 
   readonly multiAnglePieceImageRotation = computed(() =>
     this.multiAngleNameOrbitEnabled() ? 'rotateZ(var(--multi-angle-piece-angle, 0deg))' : ''
   );
 
-  private readonly pieceImageBillboardTransform = computed(() =>
-    [this.billboardTransformImage(), this.multiAnglePieceImageRotation()].filter((part) => part.length > 0).join(' ')
-  );
+  private readonly pieceImageFacing = computed<BillboardFacing>(() => {
+    const billboard = this.imageFacing();
+    const spin = this.multiAnglePieceImageRotation();
+    return (rotation) => [billboard(rotation), spin].filter((part) => part.length > 0).join(' ');
+  });
 
   /**
    * Whether a piece is kept inside its cell, which the room answers for everyone.
@@ -512,7 +590,7 @@ export class GameCharacterComponent {
       this.specifyKomaImageFlag() && !this.fitsImageInCell() ? this.komaImageHeightSignal() : null
     ),
     billboardEnabled: this.imageBillboardEnabled,
-    billboardTransform: this.pieceImageBillboardTransform,
+    billboardFacing: this.pieceImageFacing,
     squarePoster: true,
     fitInCell: this.fitsImageInCell,
   });
@@ -530,11 +608,40 @@ export class GameCharacterComponent {
 
   private readonly rollHandleGapPx = computed(() => Math.round(this.rollHandleSizePx() * ROLL_HANDLE_GAP_RATIO));
 
-  readonly rollHandleHeadTransform = computed(() => this.pieceCenterShift());
+  /** How wide the picture stands: as wide as the ground, unless its height was set apart from it. */
+  private readonly pictureWidthPx = computed(() => {
+    const ground = this.size() * this.gridSize;
+    if (!this.specifyKomaImageFlag() || this.imageView.fitsInCell()) return ground;
+    const natural = this.imageView.naturalSize();
+    return natural ? (this.komaImageHeightSignal() * natural.width) / natural.height : ground;
+  });
 
-  readonly rollHandleFootTransform = computed(
-    () => `${this.pieceCenterShift()} translateY(100%) translateY(${this.rollHandleGapPx()}px)`
+  /**
+   * Whether the handles that tip the piece over stand either side of the picture rather than at its
+   * head and feet.
+   *
+   * On a phone they stay out for good, there being no hover to wait for, and the one at the head
+   * sat over the face. Beside the picture, halfway up, they keep clear of it and of the name and
+   * bars above it.
+   */
+  readonly rollHandlesBeside = computed(() => this.mobileLayout.isActive());
+
+  /** Where the handle at the head stands: inside the top of the picture, or off to its right. */
+  readonly rollHandleHeadTransform = computed(() =>
+    this.rollHandlesBeside() ? this.rollHandleBeside(1) : this.pieceCenterShift()
   );
+
+  /** Where the handle at the feet stands: clear below the picture, or off to its left. */
+  readonly rollHandleFootTransform = computed(() =>
+    this.rollHandlesBeside()
+      ? this.rollHandleBeside(-1)
+      : `${this.pieceCenterShift()} translateY(100%) translateY(${this.rollHandleGapPx()}px)`
+  );
+
+  private rollHandleBeside(side: 1 | -1): string {
+    const aside = this.pictureWidthPx() / 2 + this.rollHandleSizePx() / 2 + this.rollHandleGapPx();
+    return `${this.pieceCenterShift()} translateX(${side * aside}px) translateY(-50%)`;
+  }
 
   readonly mode2dEnabled = computed(() => {
     if (this.isPoster()) return true;
@@ -557,8 +664,8 @@ export class GameCharacterComponent {
   /**
    * Whether the piece may be turned at all.
    *
-   * Seen from above there was nothing turning it would show, so it was held still. A table
-   * that shows facing has something to show, and hands the handles back.
+   * Seen from above, turning a piece shows nothing, so it is held still. A table that shows
+   * facing has something to show, and hands the handles back.
    */
   readonly canTurn = computed(() => {
     if (this.isPoster()) return false;
@@ -585,24 +692,63 @@ export class GameCharacterComponent {
     return gauge.segments.length > 0 ? baseOffset + gauge.strokeWidth : baseOffset;
   });
 
-  private labelOrbitTransform(distance3d: number, distance2d: number): string {
-    return makeLabelOrbitTransform({
-      rotation: this.uiSignalService.tableViewRotation(),
-      distance3d,
-      distance2d,
-      mode2d: this.mode2dEnabled(),
-    });
+  private labelOrbitFacing(distance3d: number, distance2d: number): BillboardFacing {
+    const mode2d = this.mode2dEnabled();
+    return (rotation) => makeLabelOrbitTransform({ rotation, distance3d, distance2d, mode2d });
   }
 
-  readonly pieceGauges = computed<PieceGauge[]>(() => {
-    const char = this.gameCharacter();
-    const detail = char?.detailDataElement;
-    if (!detail) return [];
-    this.objectChange.versionOf(detail.identifier)();
-    this.objectChange.collectionOf('data')();
-    for (const element of collectDataElements(detail)) this.objectChange.versionOf(element.identifier)();
-    return selectPieceGauges(detail);
-  });
+  /**
+   * Where a label hangs from, counted from the middle of the piece's ground.
+   *
+   * The part that moves the label out from the piece is bound to the element itself rather than
+   * added in the template, so the whole of its transform is written by the frame.
+   */
+  private labelStandFacing(orbit: BillboardFacing): BillboardFacing {
+    const stand = `translateX(-50%) translateX(${(this.size() * this.gridSize) / 2}px) `;
+    return (rotation) => stand + orbit(rotation);
+  }
+
+  /** What a stack of labels above a piece is turned by, the billboard and the scale it is drawn at. */
+  private labelStackFacing(billboard: BillboardFacing): BillboardFacing {
+    const drawnAt = ` ${this.decorScale} translateX(-50%)`;
+    return (rotation) => billboard(rotation) + drawnAt;
+  }
+
+  /** The resource bars drawn over the piece, none while this seat has them switched off. */
+  readonly pieceGauges = computed<PieceGauge[]>(
+    () => {
+      if (!this.overlay.resourceBars()) return [];
+      const detail = this.gameCharacter()?.detailDataElement ?? null;
+      if (this.followedTree(detail) === null || !detail) return [];
+      return selectPieceGauges(detail);
+    },
+    { equal: sameEntries }
+  );
+
+  /**
+   * Follows one part of the piece's data so that a computation hears it change, and hands back
+   * everything under it.
+   *
+   * A part the piece does not have yet is followed through every data element, since it may be
+   * added anywhere under the piece. A part it has is followed through itself, what is under it
+   * and the data elements it hangs from, which are what change when it is taken away or another
+   * is put in its place, rather than through every data element of every piece on the table.
+   * The piece itself is not followed: moving it changes it many times a second, and none of that
+   * reaches its data.
+   */
+  private followedTree(element: DataElement | null): DataElement[] | null {
+    if (!element) {
+      this.objectChange.collectionOf('data')();
+      return null;
+    }
+    for (let node = element.parent; node instanceof DataElement; node = node.parent) {
+      this.objectChange.versionOf(node.identifier)();
+    }
+    this.objectChange.versionOf(element.identifier)();
+    const descendants = collectDataElements(element);
+    for (const descendant of descendants) this.objectChange.versionOf(descendant.identifier)();
+    return descendants;
+  }
 
   /**
    * Whether the reader may read the numbers on this piece's bars.
@@ -623,15 +769,14 @@ export class GameCharacterComponent {
     return this.pieceGauges().map((gauge) => ({ gauge, numbers: gaugeNumbersOf(gauge, readable) }));
   });
 
-  readonly buffBadges = computed<BuffBadge[]>(() => {
-    const char = this.gameCharacter();
-    const buffEl = char?.buffDataElement;
-    if (!buffEl) return [];
-    this.objectChange.versionOf(buffEl.identifier)();
-    this.objectChange.collectionOf('data')();
-    for (const element of collectDataElements(buffEl)) this.objectChange.versionOf(element.identifier)();
-    return toBuffBadges(buffEl);
-  });
+  readonly buffBadges = computed<BuffBadge[]>(
+    () => {
+      const buffEl = this.gameCharacter()?.buffDataElement ?? null;
+      if (this.followedTree(buffEl) === null || !buffEl) return [];
+      return toBuffBadges(buffEl);
+    },
+    { equal: sameEntries }
+  );
 
   readonly orbitPieceGauges = computed(() => this.pieceGauges().slice(0, MAX_MULTI_ANGLE_RESOURCE_GAUGES));
 
@@ -640,16 +785,12 @@ export class GameCharacterComponent {
   private readonly decorScale = `scale(${(1 / DECOR_SUPERSAMPLE).toFixed(6)})`;
 
   private readonly resourceSnapshot = computed<Map<string, ResourceSnapshot>>(() => {
-    const char = this.gameCharacter();
-    const detail = char?.detailDataElement;
     const snapshot = new Map<string, ResourceSnapshot>();
-    if (!detail) return snapshot;
+    const elements = this.followedTree(this.gameCharacter()?.detailDataElement ?? null);
+    if (elements === null) return snapshot;
 
-    this.objectChange.versionOf(detail.identifier)();
-    this.objectChange.collectionOf('data')();
-    for (const element of collectDataElements(detail)) {
-      this.objectChange.versionOf(element.identifier)();
-      if (!element.isNumberResource || isInternalResource(element)) continue;
+    for (const element of elements) {
+      if (!isResourceElement(element)) continue;
       snapshot.set(element.identifier, {
         current: Number(element.currentValue),
         max: Number(element.value),
@@ -678,43 +819,48 @@ export class GameCharacterComponent {
   private floatingKey = 0;
   private readonly floatingTimers = new Set<ReturnType<typeof setTimeout>>();
 
-  readonly gaugeStackTransform = computed(
-    () => `${this.billboardTransformGauge()} ${this.decorScale} translateX(-50%)`
+  readonly gaugeStackFacing = computed<BillboardFacing>(() => this.labelStackFacing(this.gaugeFacing()));
+
+  readonly buffStackFacing = computed<BillboardFacing>(() => this.labelStackFacing(this.buffFacing()));
+
+  readonly nameStackFacing = computed<BillboardFacing>(() => this.labelStackFacing(this.nameFacing()));
+
+  readonly floatStackFacing = computed<BillboardFacing>(() =>
+    this.labelStackFacing(this.isPoster() ? NOT_TURNED : this.billboardFacing(56))
   );
 
-  readonly buffStackTransform = computed(() => `${this.billboardTransformBuff()} ${this.decorScale} translateX(-50%)`);
+  readonly floatOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.floatOrbit()));
 
-  readonly nameStackTransform = computed(() => `${this.billboardTransform()} ${this.decorScale} translateX(-50%)`);
-
-  readonly floatStackTransform = computed(
-    () => `${this.isPoster() ? '' : this.makeBillboardTransform(56)} ${this.decorScale} translateX(-50%)`
-  );
-
-  readonly floatLabelOrbit = computed(() => {
-    if (this.isPoster()) return `translateY(${-(this.size() * this.gridSize + 20)}px)`;
-    return this.labelOrbitTransform(56, 96);
-  });
+  private floatOrbit(): BillboardFacing {
+    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 20)}px)`);
+    return this.labelOrbitFacing(56, 96);
+  }
 
   private readonly gaugePanelHeightEstimate = computed(() =>
     this.multiAngleResourceBuffOrbitEnabled() ? 0 : this.pieceGauges().length * GAUGE_ROW_HEIGHT_PX
   );
 
-  readonly billboardTransformGauge = computed(() =>
-    this.isPoster() ? '' : this.makeBillboardTransform(GAUGE_STACK_GAP_PX + this.gaugePanelHeightEstimate() / 2)
+  readonly gaugeFacing = computed<BillboardFacing>(() =>
+    this.isPoster() ? NOT_TURNED : this.billboardFacing(GAUGE_STACK_GAP_PX + this.gaugePanelHeightEstimate() / 2)
   );
 
-  readonly gaugeLabelOrbit = computed(() => {
-    if (this.isPoster()) return `translateY(${-(this.size() * this.gridSize + 8 + this.gaugePanelHeightEstimate())}px)`;
-    return this.labelOrbitTransform(
+  readonly gaugeOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.gaugeOrbit()));
+
+  private gaugeOrbit(): BillboardFacing {
+    if (this.isPoster())
+      return facesAlways(`translateY(${-(this.size() * this.gridSize + 8 + this.gaugePanelHeightEstimate())}px)`);
+    return this.labelOrbitFacing(
       GAUGE_STACK_GAP_PX + this.gaugePanelHeightEstimate(),
       64 + this.gaugePanelHeightEstimate()
     );
-  });
+  }
 
-  readonly nameLabelOrbit = computed(() => {
-    if (this.isPoster()) return `translateY(${-(this.size() * this.gridSize + 5)}px)`;
-    return this.labelOrbitTransform(30, 60);
-  });
+  readonly nameOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.nameOrbit()));
+
+  private nameOrbit(): BillboardFacing {
+    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 5)}px)`);
+    return this.labelOrbitFacing(30, 60);
+  }
 
   readonly multiAngleNameOrbitEnabled = computed(() => {
     return !this.isPoster() && this.tabletopService.mode2d() && this.tabletopService.display().multiAngleEnabled;
@@ -819,14 +965,16 @@ export class GameCharacterComponent {
     () => -this.multiAnglePiecePhase() * this.multiAnglePieceRotationAnimation().durationSeconds
   );
 
-  readonly buffLabelOrbit = computed(() => {
+  readonly buffOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.buffOrbit()));
+
+  private buffOrbit(): BillboardFacing {
     if (this.isPoster())
-      return `translateY(${-(this.size() * this.gridSize + 12 + this.gaugePanelHeightEstimate())}px)`;
-    return this.labelOrbitTransform(
+      return facesAlways(`translateY(${-(this.size() * this.gridSize + 12 + this.gaugePanelHeightEstimate())}px)`);
+    return this.labelOrbitFacing(
       BUFF_STACK_GAP_PX + this.gaugePanelHeightEstimate(),
       68 + this.gaugePanelHeightEstimate()
     );
-  });
+  }
 
   private readonly buffPanelHeightEstimate = computed(() => {
     if (this.multiAngleResourceBuffOrbitEnabled() || this.hideBuff() || this.buffNum() < 1) return 0;
@@ -847,26 +995,78 @@ export class GameCharacterComponent {
     return (this.size() * this.gridSize * natural.height) / natural.width;
   });
 
-  readonly targetLabelOrbit = computed(() => {
-    const stack = this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate();
-    if (this.isPoster()) return `translateY(${-(this.size() * this.gridSize + 20 + stack)}px)`;
-    return this.screenLiftOrbit(TARGET_STACK_GAP_PX + stack, 84 + stack);
+  readonly targetOrbitFacing = computed<BillboardFacing>(() => {
+    const stand = `translateX(${(this.size() * this.gridSize) / 2}px) `;
+    const orbit = this.targetOrbit();
+    return (rotation) => stand + orbit(rotation);
   });
 
-  readonly targetStackTransform = computed(
-    () => `${this.isPoster() ? '' : this.makeBillboardTransform(0)} ${this.decorScale} translateX(-50%)`
+  private targetOrbit(): BillboardFacing {
+    const stack = this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate();
+    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 20 + stack)}px)`);
+    return this.screenLiftFacing(TARGET_STACK_GAP_PX + stack, 84 + stack);
+  }
+
+  readonly targetStackFacing = computed<BillboardFacing>(() =>
+    this.labelStackFacing(this.isPoster() ? NOT_TURNED : this.billboardFacing(0))
   );
 
-  private screenLiftOrbit(screenLift3d: number, distance2d: number): string {
-    return makeScreenLiftTransform({
-      rotation: this.uiSignalService.tableViewRotation(),
-      pieceRotate: this.rotateSignal(),
-      pieceRoll: this.rollSignal(),
-      worldHeight3d: this.pieceImageHeightEstimate(),
-      screenLift3d,
-      distance2d,
-      mode2d: this.mode2dEnabled(),
-    });
+  /**
+   * What the character is saying, over its piece; none while the room or this seat hides it, or the
+   * screen is in novel mode.
+   */
+  readonly speechBubble = computed(() => {
+    const character = this.gameCharacter();
+    if (!character || !this.overlay.speech() || !this.speechBubbles.showsHere()) return null;
+    return this.speechBubbles.bubbleOf(character.identifier)();
+  });
+
+  protected readonly speechStampPx = SPEECH_STAMP_PX * DECOR_SUPERSAMPLE;
+
+  /** The shadow under a bubble, left off where the table is drawn the lighter way. */
+  readonly speechShadow = computed(() => (this.renderLite.active() ? '' : 'shadow-[0_0.15em_0.4em_rgba(0,0,0,0.45)]'));
+
+  /**
+   * How far over the piece a bubble's foot stands: over its bars and its buffs, which it sits on
+   * as the buffs sit on the bars, and over the target mark where there is one.
+   */
+  private readonly speechLift = computed(
+    () =>
+      BUFF_STACK_GAP_PX +
+      this.gaugePanelHeightEstimate() +
+      this.buffPanelHeightEstimate() +
+      SPEECH_STACK_GAP_PX +
+      (this.isTargeted() ? TARGET_MARK_HEIGHT_PX : 0)
+  );
+
+  readonly speechOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.speechOrbit()));
+
+  private speechOrbit(): BillboardFacing {
+    const lift = this.speechLift();
+    if (this.isPoster())
+      return facesAlways(`translateY(${-(this.size() * this.gridSize + 12 + lift - BUFF_STACK_GAP_PX)}px)`);
+    return this.labelOrbitFacing(lift, 28 + lift);
+  }
+
+  readonly speechStackFacing = computed<BillboardFacing>(() =>
+    this.labelStackFacing(this.isPoster() ? NOT_TURNED : this.billboardFacing(this.speechLift()))
+  );
+
+  private screenLiftFacing(screenLift3d: number, distance2d: number): BillboardFacing {
+    const pieceRotate = this.rotateSignal();
+    const pieceRoll = this.rollSignal();
+    const worldHeight3d = this.pieceImageHeightEstimate();
+    const mode2d = this.mode2dEnabled();
+    return (rotation) =>
+      makeScreenLiftTransform({
+        rotation,
+        pieceRotate,
+        pieceRoll,
+        worldHeight3d,
+        screenLift3d,
+        distance2d,
+        mode2d,
+      });
   }
 
   /**
@@ -884,18 +1084,21 @@ export class GameCharacterComponent {
     );
   });
 
-  private makeBillboardTransform(verticalOffset3D: number, turnsWithPiece = false): string {
+  private billboardFacing(verticalOffset3D: number, turnsWithPiece = false): BillboardFacing {
     // In 2D every billboard cancels the piece's turn, except the picture when the table asks it
     // to turn with the piece. This also composes with the multi-angle image rotation.
     const pieceRotate = this.mode2dEnabled() && turnsWithPiece ? 0 : this.rotateSignal();
-    return makeBillboardTransform({
-      rotation: this.uiSignalService.tableViewRotation(),
-      pieceRotate,
-      pieceRoll: this.rollSignal(),
-      parentInverseRotation: 'rotateY(90deg) rotateZ(90deg) rotateY(-90deg)',
-      verticalOffset3D,
-      mode2d: this.mode2dEnabled(),
-    });
+    const pieceRoll = this.rollSignal();
+    const mode2d = this.mode2dEnabled();
+    return (rotation) =>
+      makeBillboardTransform({
+        rotation,
+        pieceRotate,
+        pieceRoll,
+        parentInverseRotation: 'rotateY(90deg) rotateZ(90deg) rotateY(-90deg)',
+        verticalOffset3D,
+        mode2d,
+      });
   }
 
   readonly movableOption = signal<MovableOption>({});
@@ -903,14 +1106,11 @@ export class GameCharacterComponent {
   readonly rotableOption = signal<RotableOption>({});
 
   readonly pedestalHexParams = computed<HexFlowerParams | null>(() => {
-    this.objectChange.versionOf(this.tabletopService.tableSelecter.identifier)();
-    this.objectChange.versionOf(this.tabletopService.currentTable.identifier)();
-    const char = this.gameCharacter();
-    if (!char) return null;
-    this.objectChange.versionOf(char.identifier)();
-    const gridType = this.tabletopService.currentTable.gridType;
+    const gridType = this.tabletopService.gridType();
+    const size = this.size();
+    if (!this.gameCharacter()) return null;
     if (!isHexGrid(gridType)) return null;
-    return calcHexFlowerParams(this.size(), this.gridSize, isFlatTopGrid(gridType));
+    return calcHexFlowerParams(size, this.gridSize, isFlatTopGrid(gridType));
   });
 
   private readonly pedestalRing = computed<Record<string, string> | null>(() => {
@@ -940,9 +1140,9 @@ export class GameCharacterComponent {
   protected readonly pedestalStyleTargeted = computed(() => this.pedestalStyleOf('#ff3b30'));
   protected readonly pedestalStyleSharedView = computed(() => this.pedestalStyleOf('#ffd54f'));
 
-  // The pedestal styles ran as getters on every change-detection pass and built a fresh
-  // record each time. Computed, they hand back the same object until something changes,
-  // which saves a thousand allocations and as many clip paths a pass with three hundred characters on the table.
+  // Computed rather than read as getters, the pedestal styles hand back the same object until
+  // something changes, instead of a fresh record on every change-detection pass: a thousand
+  // allocations and as many clip paths a pass with three hundred characters on the table.
   protected readonly pedestalOuterStyle = computed<Record<string, string>>(() => {
     const params = this.pedestalHexParams();
     if (!params) return {} as Record<string, string>;
@@ -992,21 +1192,35 @@ export class GameCharacterComponent {
   private highlightTimer: ReturnType<typeof setTimeout> | undefined;
   private unhighlightTimer: ReturnType<typeof setTimeout> | undefined;
 
+  /**
+   * The piece's height in grid cells, its base position and altitude together, rounded to one
+   * decimal for the elevation label.
+   */
   get elevation(): number {
     const char = this.gameCharacter();
     if (!char) return 0;
     return +((char.posZ + this.altitude() * this.gridSize) / this.gridSize).toFixed(1);
   }
 
+  /** How far a chat bubble over the piece is lifted, in pixels; always 0 for this component. */
   get chatBubbleAltitude(): number {
     return 0;
   }
 
+  /** Stops the browser's native drag of the piece's images, so only the movable directive moves it. */
   onDragstart(e: DragEvent) {
     e.stopPropagation();
     e.preventDefault();
   }
 
+  /**
+   * Takes every press straight back off the piece's own input handler, which has nothing to do with
+   * a move or a release.
+   *
+   * The handler adds document-wide move and release listeners on each press, and cancelling removes
+   * them at once. The press itself is not stopped: moving and turning the piece are left to the
+   * movable and rotable directives, which listen for it themselves.
+   */
   onInputStart(_e: MouseEvent | TouchEvent) {
     if (this.input) this.input.cancel();
   }
@@ -1121,6 +1335,12 @@ export class GameCharacterComponent {
     }
   }
 
+  /**
+   * Opens the character's context menu at the pointer, if the reader may view the piece.
+   *
+   * When several pieces are selected the shared selection menu opens instead. Seen from above with
+   * a radial menu style chosen, the menu opens as a radial menu around the piece.
+   */
   onContextMenu(e: Event) {
     e.stopPropagation();
     e.preventDefault();
@@ -1153,7 +1373,10 @@ export class GameCharacterComponent {
     );
     const table = this.tabletopService.currentTable;
     const display = this.tabletopService.display();
-    const surfaceEntries = buildSurfaceSwitchContextMenu(char, table, this.translateFn);
+    const surfaceEntries = [
+      ...buildSurfaceSwitchContextMenu(char, table, this.translateFn),
+      ...buildConcealMenu(this.boardSwitches.canEdit(), () => this.concealment.conceal(char), this.translateFn),
+    ];
     const menu = buildGameCharacterContextMenuModel(
       char,
       this.gridSize,
@@ -1258,8 +1481,10 @@ export class GameCharacterComponent {
     const heard = entries.filter((entry) => entry.playsSound);
     const loudest = loudestChange(heard);
     // One line is heard, so all three of what is heard come from it. Taken apart, a point of
-    // damage alongside a large heal was played as a large hurt, in the heal's own voice.
-    if (loudest) SoundEffect.playLocal(resourceChangeSound(loudest.kind, loudest.ratio, loudest.soundSet));
+    // damage alongside a large heal would play as a large hurt, in the heal's own voice.
+    if (loudest) {
+      SoundEffect.playLocal(resourceChangeSound(loudest.kind, loudest.ratio, loudest.soundSet), VolumeType.EFFECT);
+    }
 
     const shown = entries.filter((entry) => entry.playsEffect);
     const char = this.gameCharacter();
@@ -1280,11 +1505,13 @@ export class GameCharacterComponent {
     return char.zindex;
   });
 
+  /** Brings the piece to the top and plays the pick-up sound when a drag or turn starts. */
   onMove() {
     this.gameCharacter()?.toTopmost();
     SoundEffect.play(PresetSound.piecePick);
   }
 
+  /** Plays the put-down sound when a drag or turn ends. */
   onMoved() {
     SoundEffect.play(PresetSound.piecePut);
   }
@@ -1338,6 +1565,7 @@ export class GameCharacterComponent {
     return this.objectStore.get<Config>('Config')?.moveStrict === true;
   }
 
+  /** Starts carrying the piece: raises it, shows how far it may move and fires its pick-up triggers. */
   onPickUp() {
     this.onMove();
     const character = this.gameCharacter();
@@ -1346,6 +1574,10 @@ export class GameCharacterComponent {
     this.triggerFire.pickedUp(character);
   }
 
+  /**
+   * Puts the carried piece down: plays the put-down sound, hides the move range and fires its
+   * put-down triggers.
+   */
   onPutDown() {
     this.onMoved();
     this.moveRangeService.hide();
@@ -1353,10 +1585,15 @@ export class GameCharacterComponent {
     if (character) this.triggerFire.putDown(character);
   }
 
+  /** Hides the move range once the press on the piece ends, whether or not it was dragged. */
   onLetGo() {
     this.moveRangeService.hide();
   }
 
+  /**
+   * Aims at the piece on an Alt press, or clears every aim on Shift+Alt, swallowing the press so it
+   * does not also start a drag.
+   */
   checkKey(event: KeyboardEvent | MouseEvent) {
     const key_event = (event || window.event) as KeyboardEvent | MouseEvent;
     const key_shift = key_event.shiftKey;
@@ -1385,6 +1622,7 @@ export class GameCharacterComponent {
     this.pieceTarget.toggle(char);
   }
 
+  /** Takes the aim mark off every character in the room, signalling each change so its marker redraws. */
   clearEveryTarget(): void {
     this.pieceTarget.clear();
   }
@@ -1462,4 +1700,23 @@ export class GameCharacterComponent {
     }
     return count;
   });
+}
+
+/**
+ * The same list, or one holding entries of the same values in the same order.
+ *
+ * The bars and buff icons are drawn from those values alone, so a list worked out again from data
+ * that did not change them is kept as it was and nothing drawn from it is drawn again.
+ */
+function sameEntries<T extends object>(a: readonly T[], b: readonly T[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((entry, index) => sameFields(entry, b[index]));
+}
+
+/** Whether two flat records hold the same keys with the same values. */
+function sameFields(a: object, b: object): boolean {
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((key) => Object.is((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
 }

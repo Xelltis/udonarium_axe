@@ -6,6 +6,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { emitSelectFile } from '@axe/core/event/domain-events';
+import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
@@ -23,6 +24,7 @@ export class FileSelecterComponent {
   private readonly panelService = inject(PanelService);
   private readonly modalService = inject(ModalService);
   private readonly imageStorage = inject(ImageStorage);
+  private readonly fileArchiver = inject(FileArchiver);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly t = inject(TRANSLATE_FN);
@@ -41,6 +43,11 @@ export class FileSelecterComponent {
     return canBrowseImage(ImageTag.get(imageFile.context.identifier) ?? null, this.rolePermission.canSeeHidden);
   }
 
+  /**
+   * Every stored image the local user may pick, whatever its tag.
+   *
+   * Pictures the game master has kept back are left out for everyone else.
+   */
   getAllImage(): ImageFile[] {
     return this.fileStorageService.images.filter((imageFile) => this.mayShow(imageFile));
   }
@@ -69,15 +76,25 @@ export class FileSelecterComponent {
   });
 
   selectedFile: ImageFile | null = null;
+  /** Whether `selectedFile` holds an image; nothing in this picker sets it, so false unless a caller does. */
   get isSelected(): boolean {
     return this.selectedFile !== null;
   }
+  /**
+   * The tag record of the chosen image, or null with nothing chosen.
+   *
+   * An image without one is given a new tag record, which is shared with the room.
+   */
   get selectedImageTag(): ImageTag | null {
     if (!this.isSelected || this.selectedFile === null) return null;
     const imageTag = ImageTag.get(this.selectedFile.identifier);
     return imageTag ? imageTag : ImageTag.create(this.selectedFile.identifier);
   }
 
+  /**
+   * The tags offered as filters above the pictures: untagged first, then all, then each tag
+   * that has at least one picture the local user may pick.
+   */
   get tagList(): string[] {
     const tags: string[] = [];
     for (const imageFile of this.fileStorageService.images) {
@@ -100,8 +117,14 @@ export class FileSelecterComponent {
   identifierList: string[] = [];
   newTagName: string = '';
 
+  /** Called when a tag filter is chosen; does nothing. */
   resetBtn() {}
 
+  /**
+   * Adds an image to, or removes it from, the list of checked identifiers.
+   *
+   * An image without a tag record is given one first, which is shared with the room.
+   */
   onChange(fileName: string, checked: boolean) {
     const imageTag = ImageTag.get(fileName);
     if (!imageTag) ImageTag.create(fileName);
@@ -118,6 +141,45 @@ export class FileSelecterComponent {
     }
   }
 
+  /** Only a seat that may edit the table may bring in new pictures, as in the media library. */
+  get canUpload(): boolean {
+    return this.rolePermission.canEditTabletop;
+  }
+
+  /** True while the pictures just chosen are being read into storage. */
+  readonly uploading = signal(false);
+
+  /** The names of the pictures last chosen that were too large to take in. */
+  readonly oversized = signal<string[]>([]);
+
+  /**
+   * Takes the pictures chosen in the upload dialog into storage.
+   *
+   * A single picture that went in is picked straight away, closing the modal. Several are left
+   * in the list to choose from, shown by switching to the untagged pictures where new ones land
+   * unless every picture is already on show. Files that are not pictures are ignored.
+   */
+  async handleFileSelect(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (!this.canUpload || files.length === 0 || this.uploading()) return;
+
+    this.uploading.set(true);
+    try {
+      const { images, oversized } = await this.fileArchiver.loadImages(files);
+      this.oversized.set(oversized);
+      if (images.length === 1 && oversized.length === 0) {
+        this.onSelectedFile(images[0]);
+        return;
+      }
+      if (images.length > 0 && this.selectTag() !== this.allTag) this.selectTag.set('');
+    } finally {
+      this.uploading.set(false);
+    }
+  }
+
+  /** The empty image, offered as the "no image" choice when the caller allows one. */
   get empty(): ImageFile {
     return ImageFile.Empty;
   }
@@ -128,6 +190,10 @@ export class FileSelecterComponent {
     queueMicrotask(() => (this.modalService.title = this.panelService.title = this.t('ui.fileSelecter.panelTitle')));
   }
 
+  /**
+   * Called when a picture, or the "no image" choice, is clicked: announces the choice and
+   * closes the modal with the image's identifier as its result.
+   */
   onSelectedFile(file: ImageFile) {
     emitSelectFile({ fileIdentifier: file.identifier });
     this.modalService.resolve(file.identifier);

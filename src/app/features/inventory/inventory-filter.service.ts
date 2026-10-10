@@ -29,14 +29,22 @@ export class InventoryFilterService {
   /** Whether the panel holding all of this is standing, which the list shows in its own bar. */
   readonly isPanelOpen = signal(false);
 
+  /** Empties the inventory search, showing every piece again. */
   clearSearch(): void {
     this.searchQuery.set('');
   }
 
+  /**
+   * Switches pieces hidden from the inventory between being drawn dimmed and being drawn in full.
+   */
   toggleHiddenDisplay(): void {
     this.hiddenDisplay.update((display) => (display === 'dim' ? 'full' : 'dim'));
   }
 
+  /**
+   * The name of the data item the inventory is sorted by; it belongs to the room, so changing it
+   * reorders everyone's list.
+   */
   get sortTag(): string {
     return this.inventoryService.sortTag;
   }
@@ -44,6 +52,7 @@ export class InventoryFilterService {
     this.inventoryService.sortTag = value;
   }
 
+  /** Whether the inventory sorts ascending or descending by its sort item, shared with the room. */
   get sortOrder(): SortOrder {
     return this.inventoryService.sortOrder;
   }
@@ -51,6 +60,7 @@ export class InventoryFilterService {
     this.inventoryService.sortOrder = value;
   }
 
+  /** The data item that breaks ties in the inventory's sort order, shared with the room. */
   get sortTag2nd(): string {
     return this.inventoryService.sortTag2nd;
   }
@@ -58,6 +68,7 @@ export class InventoryFilterService {
     this.inventoryService.sortTag2nd = value;
   }
 
+  /** The direction of the tie-breaking sort, shared with the room. */
   get sortOrder2nd(): SortOrder {
     return this.inventoryService.sortOrder2nd;
   }
@@ -65,6 +76,10 @@ export class InventoryFilterService {
     this.inventoryService.sortOrder2nd = value;
   }
 
+  /**
+   * The display items the inventory list shows for each piece, as typed into the filter panel and
+   * shared with the room.
+   */
   get dataTag(): string {
     return this.inventoryService.dataTag;
   }
@@ -72,6 +87,10 @@ export class InventoryFilterService {
     this.inventoryService.dataTag = value;
   }
 
+  /**
+   * The display items the inventory's table view shows as columns, as typed into the filter panel
+   * and shared with the room.
+   */
   get tableDataTag(): string {
     return this.inventoryService.tableDataTag;
   }

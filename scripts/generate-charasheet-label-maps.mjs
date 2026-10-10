@@ -1,11 +1,11 @@
 // 保管所の各システム作成ページ（{slug}_pc_making.html）から、入力名→ラベルの対応表を抽出して
-// src/app/domain/character/import/charasheet-label-maps.generated.ts を生成する。
-// 作成ページHTMLはCORSを返さないため実行時取得できない。ここでビルド前に静的化する。
+// src/app/domain/character/import/charasheet-label-maps.generated.tsを生成する。
+// 作成ページHTMLはCORSを返さないため、実行時には取得できない。ここでビルド前に静的化する。
 // 専用プロファイルのある系統は各自でラベルを持つため、汎用フォールバックの系統のみ対象。
 import { Window } from 'happy-dom';
 import { writeFileSync } from 'fs';
 
-// { 作成ページのslug : データの game 値 }。多くは同一。
+// { 作成ページのslug : データのgame値 }。多くは同一。
 const SYSTEMS = {
   gobusla: 'gobusla',
   aeng: 'aeng',
@@ -76,7 +76,7 @@ function rowH(f) {
   return '';
 }
 
-// 内部・送信用キーはラベルが滲むだけなので除外する。
+// 内部・送信用のキーには無関係なラベルが付くだけなので除外する。
 const INTERNAL_KEY = /^(SL_|V_|chk|is_disp|dodontof_|password|phrase|data_id|base64|color$|url$|pc_id)/i;
 const isInternalKey = (name) => INTERNAL_KEY.test(name) || /_id$/.test(name);
 

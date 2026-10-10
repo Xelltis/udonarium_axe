@@ -311,20 +311,26 @@ describe('sending what is queued', () => {
   });
 
   it('keeps what it could not send and stops for this turn', () => {
-    const inner = stream();
-    inner.dataChannel = {
-      readyState: 'open',
-      bufferedAmount: 0,
-      send: () => {
-        throw new Error('closed under us');
-      },
-    };
-    inner.sendQueue.add(new Uint8Array([1]));
-    inner.sendQueue.add(new Uint8Array([2]));
+    vi.useFakeTimers();
+    try {
+      const inner = stream();
+      inner.dataChannel = {
+        readyState: 'open',
+        bufferedAmount: 0,
+        send: () => {
+          throw new Error('closed under us');
+        },
+      };
+      inner.sendQueue.add(new Uint8Array([1]));
+      inner.sendQueue.add(new Uint8Array([2]));
 
-    inner.execQueue();
+      inner.execQueue();
 
-    expect(inner.sendQueue.size).toBe(2);
+      expect(inner.sendQueue.size).toBe(2);
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
   });
 
   it('sends nothing through a channel that is not open', () => {

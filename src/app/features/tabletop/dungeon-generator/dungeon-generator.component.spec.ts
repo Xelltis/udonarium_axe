@@ -27,7 +27,8 @@ type Panel = DungeonGeneratorComponent & {
   kind(): 'dungeon' | 'field';
   field(): boolean;
   chooseKind(kind: 'dungeon' | 'field'): void;
-  chooseFieldAtmosphere(id: 'woodland' | 'meadow' | 'coast' | 'marsh' | 'snowfield' | 'wasteland'): void;
+  chooseFieldAtmosphere(id: string): void;
+  fieldPlan(): { blocks: { blocks: { thing?: string; skin?: { side: { kind: string; id?: string } } }[] } };
   fieldSize: { set(value: number): void; (): number };
   fieldDensity: { set(value: number): void; (): number };
   boardSize(): string;
@@ -293,6 +294,25 @@ describe('DungeonGeneratorComponent', () => {
       expect(component.builtTable()).not.toBeNull();
       expect(component.builtTable()!.terrains.length).toBe(component.terrainCount());
       expect(component.summary()).toContain('20x15');
+    });
+
+    it('builds a town in every facade its preset has until a wall is chosen, and in that one after', () => {
+      component.chooseFieldAtmosphere('city');
+      component.fieldSize.set(48);
+      component.fieldDensity.set(100);
+      const facades = () =>
+        new Set(
+          component
+            .fieldPlan()
+            .blocks.blocks.filter((block) => block.thing === 'building')
+            .map((block) => (block.skin?.side as { id?: string } | undefined)?.id)
+        );
+
+      expect(facades().size).toBeGreaterThan(1);
+
+      component.setWall({ kind: 'texture', id: 'wall_sf_glass' });
+
+      expect(facades()).toEqual(new Set(['wall_sf_glass']));
     });
 
     it('leaves the dungeon alone while it is on a field', () => {

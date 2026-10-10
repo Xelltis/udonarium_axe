@@ -1,11 +1,5 @@
-import { GridType } from '@axe/domain/tabletop/game-table';
-import {
-  hexCellCenter,
-  hexCircumradius,
-  hexSpacing,
-  isFlatTopGrid,
-  isHexGrid,
-} from '@axe/domain/tabletop/hex-geometry';
+import { GridType } from '@axe/domain/tabletop/grid-type';
+import { hexCellCenter, hexLayoutOf, isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { MapPoint, MapRect, MapSize } from '@axe/domain/tabletop/map-blocks';
 
 /** The board a generated map is laid out on: what shape its cells are and how big they are. */
@@ -43,9 +37,8 @@ export function cellCentre(cell: MapPoint, grid: MapGrid): MapPoint {
   if (!isHexGrid(grid.type)) {
     return { x: (cell.x + 0.5) * grid.sizePx, y: (cell.y + 0.5) * grid.sizePx };
   }
-  const flatTop = isFlatTopGrid(grid.type);
-  const { colSpacing, rowSpacing } = hexSpacing(grid.sizePx, flatTop);
-  return hexCellCenter(cell.x, cell.y, colSpacing, rowSpacing, flatTop);
+  const { colSpacing, rowSpacing, isFlatTop } = hexLayoutOf(grid.sizePx, isFlatTopGrid(grid.type));
+  return hexCellCenter(cell.x, cell.y, colSpacing, rowSpacing, isFlatTop);
 }
 
 /**
@@ -58,6 +51,10 @@ export function cellCentre(cell: MapPoint, grid: MapGrid): MapPoint {
  */
 export const HEX_BOARD_FACTOR = 0.75;
 
+/**
+ * The board size to generate on this grid: as asked for on squares, and three quarters of each side
+ * on hexes, never under four cells.
+ */
 export function boardSizeOn(size: MapSize, grid: MapGrid): MapSize {
   if (!isHexGrid(grid.type)) return size;
   return {
@@ -77,10 +74,9 @@ export function boardExtentPx(size: MapSize, grid: MapGrid): { widthPx: number; 
   if (!isHexGrid(grid.type)) {
     return { widthPx: size.width * grid.sizePx, heightPx: size.height * grid.sizePx };
   }
-  const flatTop = isFlatTopGrid(grid.type);
-  const { colSpacing, rowSpacing } = hexSpacing(grid.sizePx, flatTop);
-  const across = hexCircumradius(grid.sizePx) * 2;
-  return flatTop
+  const { colSpacing, rowSpacing, circumradius, isFlatTop } = hexLayoutOf(grid.sizePx, isFlatTopGrid(grid.type));
+  const across = circumradius * 2;
+  return isFlatTop
     ? {
         widthPx: colSpacing * (size.width - 1) + across,
         heightPx: rowSpacing * size.height + rowSpacing / 2,

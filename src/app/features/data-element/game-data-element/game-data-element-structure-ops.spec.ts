@@ -1,14 +1,22 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectNode } from '@axe/core/sync/object-node';
-import { DataElement, DataElementAttribute, DataElementRole } from '@axe/domain/data/data-element';
+import {
+  DataElement,
+  DataElementAttribute,
+  DataElementFieldType,
+  DataElementRole,
+  DataElementType,
+} from '@axe/domain/data/data-element';
 import { saveElementTemplate } from '@axe/domain/data/data-element-templates';
 import {
   createFieldElement,
   createGroupElement,
   insertElementAfter,
+  moveAmongSiblings,
   moveStructureElement,
   type NewElementNames,
   placeElementTemplate,
+  siblingMoveTarget,
 } from '@axe/features/data-element/game-data-element/game-data-element-structure-ops';
 
 const NAMES: NewElementNames = { field: '新規タグ', group: '新規グループ' };
@@ -203,6 +211,71 @@ describe('rearranging the items', () => {
       expect(placed.parent).toBe(section);
       expect(placed.element.getAttribute(DataElementAttribute.ROLE)).toBe(DataElementRole.GROUP);
       expect(childNames(placed.element)).toEqual(['盾']);
+    });
+  });
+
+  describe('createFieldElement() with a kind', () => {
+    it('makes text unless told otherwise', () => {
+      const element = createFieldElement(group('能力'), NAMES);
+
+      expect(element.fieldType).toBe(DataElementFieldType.TEXT);
+    });
+
+    it('makes the kind asked for, with the older data type in step', () => {
+      const element = createFieldElement(group('リソース'), NAMES, new Set(), DataElementFieldType.RESOURCE);
+
+      expect(element.fieldType).toBe(DataElementFieldType.RESOURCE);
+      expect(element.getAttribute('type')).toBe(DataElementType.NUMBER_RESOURCE);
+      expect(element.isNumberResource).toBe(true);
+    });
+  });
+
+  describe('stepping among siblings', () => {
+    function threeInAGroup(): { parent: DataElement; a: DataElement; b: DataElement; c: DataElement } {
+      const detail = DataElement.create('detail', '');
+      const section = DataElement.create('能力', '', { [DataElementAttribute.ROLE]: DataElementRole.SECTION });
+      const parent = group('基本');
+      const [a, b, c] = [field('器用'), field('敏捷'), field('筋力')];
+      detail.appendChild(section);
+      section.appendChild(parent);
+      parent.appendChild(a);
+      parent.appendChild(b);
+      parent.appendChild(c);
+      return { parent, a, b, c };
+    }
+
+    it('finds the sibling a step lands beside', () => {
+      const { a, b, c } = threeInAGroup();
+
+      expect(siblingMoveTarget(b, 'moveUp')).toEqual({ target: a, position: 'before' });
+      expect(siblingMoveTarget(b, 'moveDown')).toEqual({ target: c, position: 'after' });
+      expect(siblingMoveTarget(c, 'moveToTop')).toEqual({ target: a, position: 'before' });
+    });
+
+    it('finds nowhere to go up from the top or down from the bottom', () => {
+      const { a, c } = threeInAGroup();
+
+      expect(siblingMoveTarget(a, 'moveUp')).toBeNull();
+      expect(siblingMoveTarget(c, 'moveToBottom')).toBeNull();
+    });
+
+    it('moves a field up, down and to either end', () => {
+      const { parent, a, c } = threeInAGroup();
+
+      moveAmongSiblings(c, 'moveUp');
+      expect(childNames(parent)).toEqual(['器用', '筋力', '敏捷']);
+
+      moveAmongSiblings(a, 'moveToBottom');
+      expect(childNames(parent)).toEqual(['筋力', '敏捷', '器用']);
+
+      moveAmongSiblings(a, 'moveToTop');
+      expect(childNames(parent)).toEqual(['器用', '筋力', '敏捷']);
+    });
+
+    it('reports a step it could not take', () => {
+      const { a } = threeInAGroup();
+
+      expect(moveAmongSiblings(a, 'moveUp')).toBeNull();
     });
   });
 });

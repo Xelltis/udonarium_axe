@@ -12,6 +12,7 @@ export const Z_OFFSET_DARKNESS_PX = 0.9;
 export const Z_OFFSET_VISION_VOLUME_PX = 0.95;
 export const Z_OFFSET_TALL_OBJECT_PX = 1.0;
 
+/** The CSS transform that lifts a layer by one of the offsets above, to keep it from z-fighting. */
 export function translateZCss(zOffsetPx: number): string {
   return `translateZ(${zOffsetPx}px)`;
 }

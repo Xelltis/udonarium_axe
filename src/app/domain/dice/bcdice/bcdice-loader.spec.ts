@@ -1,38 +1,53 @@
-import BCDiceLoader, { loadBCDiceGameSystems } from '@axe/domain/dice/bcdice/bcdice-loader';
+import {
+  BCDICE_GAME_SYSTEM_IMPORTERS,
+  BCDICE_I18N_IMPORTERS,
+} from '@axe/domain/dice/bcdice/bcdice-importers.generated';
+import BCDiceLoader from '@axe/domain/dice/bcdice/bcdice-loader';
+import gameSystemList from 'bcdice/lib/bcdice/game_system_list.json';
+import i18nList from 'bcdice/lib/bcdice/i18n_list.json';
 
 describe('BCDiceLoader', () => {
-  it('extends the loader', () => {
-    const loader = new BCDiceLoader();
-    expect(loader).toBeTruthy();
+  it('loads one system on its own and hands its class back', async () => {
+    const system = await new BCDiceLoader().dynamicLoad('Cthulhu7th');
+
+    expect(system.ID).toBe('Cthulhu7th');
   });
 
-  it('offers a method that loads on demand', () => {
-    const loader = new BCDiceLoader();
-    expect(typeof loader.dynamicLoad).toBe('function');
+  it('rolls with a system it loaded on its own', async () => {
+    const system = await new BCDiceLoader().dynamicLoad('Cthulhu7th');
+
+    expect(system.eval('CC<=50')?.text).toContain('1D100<=50');
+  });
+
+  it('loads a system whose id is not the name of its class', async () => {
+    const system = await new BCDiceLoader().dynamicLoad('SwordWorld2.5');
+
+    expect(system.ID).toBe('SwordWorld2.5');
+  });
+
+  it('loads the translations a system needs for its help', async () => {
+    const system = await new BCDiceLoader().dynamicLoad('Amadeus');
+
+    expect(system.HELP_MESSAGE.length).toBeGreaterThan(0);
+  });
+
+  it('refuses a system it has no chunk for', async () => {
+    await expect(new BCDiceLoader().dynamicImport('NoSuchGameSystem')).rejects.toThrow();
   });
 });
 
-describe('loadBCDiceGameSystems', () => {
-  // It loads a real system, and run alongside other work it can reach the usual limit.
-  it('hands the system class back at once after the load', { timeout: 20000 }, async () => {
-    await loadBCDiceGameSystems();
-    const loader = new BCDiceLoader();
+describe('the importers written out for BCDice', () => {
+  it('cover every game system BCDice lists', () => {
+    const listed = [...new Set(gameSystemList.gameSystems.map((info) => info.className))].sort();
 
-    expect(loader.getGameSystemClass('Cthulhu7th')).toBeTruthy();
+    expect(Object.keys(BCDICE_GAME_SYSTEM_IMPORTERS).sort()).toEqual(listed);
   });
 
-  it('shares one load between two calls', async () => {
-    const first = loadBCDiceGameSystems();
-    const second = loadBCDiceGameSystems();
+  it('cover every translation BCDice lists', () => {
+    const listed = i18nList.i18nList
+      .flatMap(({ baseClassName, locales }) => locales.map((locale) => `${baseClassName}.${locale}`))
+      .sort();
 
-    expect(first).toBe(second);
-    await first;
-  });
-
-  it('loads the help of a system that uses translations', async () => {
-    await loadBCDiceGameSystems();
-    const loader = new BCDiceLoader();
-
-    expect(loader.getGameSystemClass('Amadeus').HELP_MESSAGE.length).toBeGreaterThan(0);
+    expect(Object.keys(BCDICE_I18N_IMPORTERS).sort()).toEqual(listed);
   });
 });

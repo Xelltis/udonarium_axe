@@ -36,6 +36,11 @@ export class Hotbar extends ObjectNode {
     return `Hotbar_${ownerId}`;
   }
 
+  /**
+   * The bar belonging to the given reader, or null when they have none or no id is given.
+   *
+   * A bar under the agreed identifier is found first; failing that, any bar naming that owner.
+   */
   static forUser(ownerId: string): Hotbar | null {
     if (ownerId.length < 1) return null;
 
@@ -44,6 +49,7 @@ export class Hotbar extends ObjectNode {
     return ObjectStore.instance.getObjects<Hotbar>(Hotbar).find((hotbar) => hotbar.ownerUserId === ownerId) ?? null;
   }
 
+  /** The given reader's bar, made and added to the store when they have none. Null only when no id is given. */
   static ensureForUser(ownerId: string): Hotbar | null {
     if (ownerId.length < 1) return null;
 
@@ -61,6 +67,7 @@ export class Hotbar extends ObjectNode {
     return Hotbar.forUser(Hotbar.ownerId);
   }
 
+  /** The bar of the reader on this page, made when there is none. Null while no reader is named yet. */
   static ensureMine(): Hotbar | null {
     return Hotbar.ensureForUser(Hotbar.ownerId);
   }
@@ -77,6 +84,7 @@ export class Hotbar extends ObjectNode {
    */
   private displaced: { cell: HotbarCell; draft: HotbarSlotDraft }[] | null = null;
 
+  /** Whether a file read has set aside slots that can still be put back. */
   get hasDisplaced(): boolean {
     return this.displaced !== null;
   }
@@ -108,20 +116,28 @@ export class Hotbar extends ObjectNode {
     return true;
   }
 
+  /** Every filled slot on the bar, across all pages. Empty cells have no slot. */
   get slots(): HotbarSlot[] {
     const slots: HotbarSlot[] = [];
     for (const child of this.children) if (child instanceof HotbarSlot) slots.push(child);
     return slots;
   }
 
+  /** The filled slots on one page. */
   slotsOn(page: number): HotbarSlot[] {
     return this.slots.filter((slot) => slot.pageNo === page);
   }
 
+  /** The slot in the given cell, or null when that cell is empty. */
   slotAt(page: number, slotIndex: number): HotbarSlot | null {
     return this.slots.find((slot) => slot.isAt(page, slotIndex)) ?? null;
   }
 
+  /**
+   * Writes a draft into the given cell, filling the slot there or making one, and shares the change.
+   *
+   * Null when the cell is outside the bar.
+   */
   put(page: number, slotIndex: number, draft: HotbarSlotDraft): HotbarSlot | null {
     if (!this.holds(page, slotIndex)) return null;
 
@@ -141,6 +157,7 @@ export class Hotbar extends ObjectNode {
     return slot;
   }
 
+  /** Destroys the slot in the given cell and hands it back, or null when the cell was already empty. */
   clear(page: number, slotIndex: number): HotbarSlot | null {
     const slot = this.slotAt(page, slotIndex);
     if (!slot) return null;
@@ -148,6 +165,12 @@ export class Hotbar extends ObjectNode {
     return slot;
   }
 
+  /**
+   * Moves the slot in one cell to another, swapping places with any slot already there.
+   *
+   * False when the destination is outside the bar or the source cell is empty. Moving a slot
+   * onto its own cell counts as done.
+   */
   move(from: HotbarCell, to: HotbarCell): boolean {
     if (!this.holds(to.page, to.slotIndex)) return false;
     const held = this.slotAt(from.page, from.slotIndex);

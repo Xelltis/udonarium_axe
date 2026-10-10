@@ -10,6 +10,7 @@ export interface IRoomInfo {
 }
 
 export class RoomInfo implements IRoomInfo {
+  /** Whether any peer in the room has a password. */
   get hasPassword(): boolean {
     return this.peers.some((peer) => peer.hasPassword);
   }
@@ -20,11 +21,17 @@ export class RoomInfo implements IRoomInfo {
     public peers: PeerContext[] = []
   ) {}
 
+  /** The peers whose id matches the password, which are the ones that password lets you join. */
   async filterByPassword(password: string): Promise<PeerContext[]> {
     const results = await Promise.all(this.peers.map((p) => p.verifyPassword(password).then((ok) => (ok ? p : null))));
     return results.filter((p) => p !== null);
   }
 
+  /**
+   * Groups peer ids into rooms by room id and room-name digest, sorted; ids not in a room are skipped.
+   *
+   * Room names are not in the ids, so they stay empty.
+   */
   static listFrom(peerIds: string[]) {
     const peers = peerIds.map((peerId) => PeerContext.parse(peerId)).sort((a, b) => a.peerId.localeCompare(b.peerId));
 
@@ -43,6 +50,7 @@ export class RoomInfo implements IRoomInfo {
     return Array.from(roomMap.values()).sort((a, b) => (a.id + a.name).localeCompare(b.id + b.name));
   }
 
+  /** Groups lobby members into rooms like listFrom, naming each room from its first member. */
   static listFromMembers(members: { peerId: string; roomName: string }[]): RoomInfo[] {
     const peers = members
       .map(({ peerId, roomName }) => {

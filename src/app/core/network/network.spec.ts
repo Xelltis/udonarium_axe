@@ -55,6 +55,80 @@ describe('Network', () => {
     });
   });
 
+  describe('the send queue', () => {
+    type Internals = { connection: unknown; sendQueue(): void };
+    const internals = () => Network.instance as unknown as Internals;
+    let connectionSend: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      connectionSend = vi.fn();
+      internals().connection = { send: connectionSend };
+    });
+
+    afterEach(() => {
+      internals().connection = null;
+    });
+
+    it('lets a later message under the same key take the place of one still waiting', () => {
+      Network.instance.send('first', undefined, 'piece');
+      Network.instance.send('second', undefined, 'piece');
+      internals().sendQueue();
+
+      expect(connectionSend.mock.calls).toEqual([[['second']]]);
+    });
+
+    it('keeps the turn of the message it replaces while nothing for its peer was queued behind it', () => {
+      Network.instance.send('first of the piece', 'peer-a', 'piece');
+      Network.instance.send('something for another peer', 'peer-b');
+      Network.instance.send('second of the piece', 'peer-a', 'piece');
+      internals().sendQueue();
+
+      expect(connectionSend.mock.calls).toEqual([
+        [['second of the piece'], 'peer-a'],
+        [['something for another peer'], 'peer-b'],
+      ]);
+    });
+
+    it('never lets a replacement overtake a message queued after the one it replaces', () => {
+      Network.instance.send('update of the effect', undefined, 'effect');
+      Network.instance.send('delete of the effect');
+      Network.instance.send('forget the effect was deleted');
+      Network.instance.send('update of the effect brought back', undefined, 'effect');
+      internals().sendQueue();
+
+      expect(connectionSend.mock.calls).toEqual([
+        [['delete of the effect', 'forget the effect was deleted', 'update of the effect brought back']],
+      ]);
+    });
+
+    it('moves a replacement for one peer behind a message to everyone queued after it', () => {
+      Network.instance.send('first of the piece', 'peer-a', 'piece');
+      for (let n = 0; n < 128; n++) Network.instance.send(`to everyone ${n}`);
+      Network.instance.send('second of the piece', 'peer-a', 'piece');
+      internals().sendQueue();
+      internals().sendQueue();
+
+      expect(connectionSend.mock.calls.at(-1)).toEqual([['second of the piece'], 'peer-a']);
+    });
+
+    it('sends a keyed message again once the one before it has gone out', () => {
+      Network.instance.send('first', undefined, 'piece');
+      internals().sendQueue();
+      Network.instance.send('second', undefined, 'piece');
+      internals().sendQueue();
+
+      expect(connectionSend.mock.calls).toEqual([[['first']], [['second']]]);
+    });
+
+    it('keeps messages without a key apart', () => {
+      Network.instance.send('same');
+      Network.instance.send('same');
+      internals().sendQueue();
+
+      expect(connectionSend.mock.calls).toEqual([[['same', 'same']]]);
+    });
+  });
+
   describe('the unload handlers', () => {
     it('carries an unload handler', () => {
       const instance = Network.instance as unknown as Record<string, unknown>;

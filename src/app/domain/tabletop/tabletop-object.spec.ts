@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { DataElement } from '@axe/domain/data/data-element';
-import { surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 describe('TabletopObject', () => {
   beforeEach(() => {
@@ -46,6 +46,29 @@ describe('TabletopObject', () => {
       const obj = new TabletopObject();
       obj.initialize();
       expect(obj.isAltitudeIndicate).toBe(false);
+    });
+  });
+
+  describe('the face a piece says it stands on', () => {
+    const standingOn = (surface?: string) => ({ location: { surface } });
+
+    it('is the face it names', () => {
+      expect(surfaceOf(standingOn('north-wall'))).toBe('north-wall');
+      expect(boardSurfaceOf(standingOn('a-board'))).toBe('a-board');
+    });
+
+    it('is the floor where it names none', () => {
+      expect(surfaceOf(standingOn(undefined))).toBe('floor');
+      expect(boardSurfaceOf(standingOn(undefined))).toBe('');
+    });
+
+    it('is the floor where it names nothing in words', () => {
+      // A face cleared by one seat reaches another as nothing and can be written back out as
+      // the word for it. Read as a name, the piece stands on a board nobody has.
+      for (const word of ['null', 'undefined', '']) {
+        expect(surfaceOf(standingOn(word))).toBe('floor');
+        expect(boardSurfaceOf(standingOn(word))).toBe('');
+      }
     });
   });
 

@@ -20,13 +20,13 @@
     "pr": ""
   },
   "enabledPlugins": {
-    "natural-japanese@natural-japanese": true
+    "yomiyasu@yomiyasu": true
   },
   "extraKnownMarketplaces": {
-    "natural-japanese": {
+    "yomiyasu": {
       "source": {
         "source": "github",
-        "repo": "coji/natural-japanese"
+        "repo": "nanaism/yomiyasu"
       }
     }
   }

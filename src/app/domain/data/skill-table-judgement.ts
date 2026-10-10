@@ -16,6 +16,17 @@ export interface JudgementOptions {
   loopVertical?: boolean;
 }
 
+/**
+ * The ticked (learned) skills in a skill table nearest to a target cell, closest first.
+ *
+ * The table view's judgement mode calls it when a cell is clicked, and lists the result with each
+ * distance in a dialog from which a candidate can be sent to chat.
+ *
+ * Distance is the number of rows plus the number of columns between two cells, with each gap
+ * crossed between columns adding its cost. With looping on, a table wraps around at its edges and
+ * the shorter way counts. Only check cells in the given columns are considered, and at most
+ * `maxCandidates` are returned.
+ */
 export function findJudgementCandidates(
   rows: DataElement[],
   columns: { name: string; label: string }[],

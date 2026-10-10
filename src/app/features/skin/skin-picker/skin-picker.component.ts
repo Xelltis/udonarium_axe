@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { CUSTOM_SKIN, SkinGroup, skinsFor, STANDARD_SKIN } from '@axe/domain/ui/skin';
 import {
@@ -9,9 +10,25 @@ import {
   RECOMMENDED_LAYER_SIZE,
   RECOMMENDED_TILE_SIZE,
 } from '@axe/domain/ui/skin-layer';
+import { DEFAULT_MAT_COLOR } from '@axe/domain/ui/skin-mat';
 import { MAX_LIFT, MAX_SPREAD, MIN_SPREAD, SkinMode, SkinRecipe } from '@axe/domain/ui/skin-palette';
 import { STANDARD_TOKENS } from '@axe/domain/ui/skin-standard';
 import { TranslocoModule } from '@jsverse/transloco';
+
+/**
+ * The felts a mat is offered in without having to open a picker: the grey every frame had, then
+ * the cloths tables are commonly dressed in.
+ */
+export const MAT_COLORS: readonly string[] = [
+  DEFAULT_MAT_COLOR,
+  '#1f4d3a',
+  '#1d3557',
+  '#5c1f1f',
+  '#4a3426',
+  '#6b5a43',
+  '#3b2a4f',
+  '#222222',
+];
 
 /** The order the groups are offered in: the plain one first, then colour, then the odd ones. */
 const GROUPS: readonly SkinGroup[] = ['standard', 'hue', 'legible', 'scene', 'board'];
@@ -37,7 +54,7 @@ function swatchFrom(id: string, tokens: Readonly<Record<string, string>>): Swatc
 @Component({
   selector: 'app-skin-picker',
   templateUrl: './skin-picker.component.html',
-  imports: [TranslocoModule],
+  imports: [TranslocoModule, FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SkinPickerComponent {
@@ -55,6 +72,10 @@ export class SkinPickerComponent {
   protected readonly tile = RECOMMENDED_TILE_SIZE;
 
   protected readonly stack = this.skins.stack;
+
+  /** The mat of the ladder being dressed, and the felts offered for it. */
+  protected readonly mat = this.skins.mat;
+  protected readonly matColors = MAT_COLORS;
 
   /** The stack as it is looked at: the topmost picture first, the way it is drawn. */
   protected readonly stackTopFirst = computed(() => [...this.skins.stack()].reverse());
@@ -152,6 +173,36 @@ export class SkinPickerComponent {
 
   protected setAnchor(id: string, anchor: string): void {
     this.skins.tuneLayer(id, { anchor: anchor as LayerAnchor });
+  }
+
+  protected setMatColor(color: string): void {
+    this.skins.setMatColor(color);
+  }
+
+  protected async setMatPicture(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    const name = file?.name ?? '';
+    input.value = '';
+    if (!file) return;
+    this.trouble.set((await this.skins.setMatPicture(file, name)) ? '' : 'picture');
+  }
+
+  protected dropMatPicture(): void {
+    this.skins.removeMatPicture();
+  }
+
+  protected setMatOpacity(value: string): void {
+    const amount = Number(value);
+    if (Number.isFinite(amount)) this.skins.tuneMat({ opacity: amount });
+  }
+
+  protected setMatFit(fit: string): void {
+    this.skins.tuneMat({ fit: fit as LayerFit });
+  }
+
+  protected setMatAnchor(anchor: string): void {
+    this.skins.tuneMat({ anchor: anchor as LayerAnchor });
   }
 
   protected async exportSkin(): Promise<void> {

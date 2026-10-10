@@ -7,6 +7,10 @@ export type TurnPhase = 'idle' | 'roundStart' | 'acting' | 'roundEnd';
 @SyncObject('TurnState')
 export class TurnState extends GameObject {
   private static _instance: TurnState;
+  /**
+   * The room's one turn state: the synced one once it has arrived, otherwise a local one made on
+   * first use.
+   */
   static get instance(): TurnState {
     const stored = ObjectStore.instance.get<TurnState>('TurnState');
     if (stored) return (TurnState._instance = stored);

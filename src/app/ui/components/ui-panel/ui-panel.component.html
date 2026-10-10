@@ -28,7 +28,7 @@
   (focusout)="onFocusOut($event)"
   [style.visibility]="activePanel().invisible ? 'hidden' : ''"
   [style.pointer-events]="activePanel().invisible || frameless ? 'none' : ''"
-  [resizable.disable]="isMinimized() || isFullScreen() || isCompact() || frameless"
+  [resizable.disable]="isMinimized() || isShrunk() || isFullScreen() || isCompact() || frameless"
   [resizable.rotation]="rotationDegrees()"
   [draggable.disable]="isCompact()"
   [resizable.minWidth]="minWidth"

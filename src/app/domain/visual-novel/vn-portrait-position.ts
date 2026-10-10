@@ -13,6 +13,7 @@ export function toPortraitSlot(value: unknown): number | null {
   return slot >= 0 && slot < VN_PORTRAIT_SLOT_COUNT ? slot : null;
 }
 
+/** Whether a stored portrait position names one of the stage's slots rather than being unset or out of range. */
 export function isVnPortraitPosSet(value: unknown): boolean {
   return toPortraitSlot(value) !== null;
 }

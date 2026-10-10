@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
+import { VolumeType } from '@axe/core/storage/audio-player';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { SoundEffect } from '@axe/domain/media/sound-effect';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('EffectPlaybackService', () => {
@@ -29,6 +31,16 @@ describe('EffectPlaybackService', () => {
       ...overrides,
     };
   }
+
+  it('sounds the shot through the effects channel, whatever sound the preset names', () => {
+    const played = vi.spyOn(SoundEffect, 'playLocal').mockImplementation(() => {});
+    preset.soundIdentifier = 'uploaded-shot';
+
+    service.play(cast());
+
+    expect(played).toHaveBeenCalledWith('uploaded-shot', VolumeType.EFFECT);
+    vi.restoreAllMocks();
+  });
 
   it('adds a cast that arrives to the list being played', () => {
     expect(service.play(cast())).not.toBeNull();

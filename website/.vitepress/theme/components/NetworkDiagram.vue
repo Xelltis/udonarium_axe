@@ -2,15 +2,15 @@
   <figure class="net">
     <div class="net__scroll">
       <svg viewBox="0 0 760 440" role="img" aria-labelledby="net-title net-desc">
-        <title id="net-title">Udonarium Axe の通信構成</title>
+        <title id="net-title">Udonarium Axeの通信構成</title>
         <desc id="net-desc">
-          参加者のブラウザどうしが WebRTC で直接つながり、コマ・チャット・画像をやりとりします。SkyWay
-          は接続の仲介、バックエンドは入室トークンの発行だけを担当し、ゲームデータは通りません。
+          参加者のブラウザどうしがWebRTCで直接つながり、コマ・チャット・画像をやりとりします。
+          SkyWayは接続の仲介、バックエンドは入室トークンの発行だけを担当し、ゲームデータは通りません。
         </desc>
 
         <!-- everything inside this zone stays between the participants -->
         <rect class="zone" x="14" y="14" width="732" height="270" rx="14" />
-        <text class="zone-label" x="34" y="40">ブラウザどうしの P2P（WebRTC）</text>
+        <text class="zone-label" x="34" y="40">ブラウザどうしのP2P（WebRTC）</text>
 
         <g class="link">
           <line x1="330" y1="122" x2="204" y2="186" />

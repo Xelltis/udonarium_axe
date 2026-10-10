@@ -1,0 +1,19 @@
+<div class="grid grid-cols-5 gap-1.5" role="radiogroup" [attr.aria-labelledby]="labelledBy()">
+  @for (type of types; track type.type) {
+    <button
+      type="button"
+      role="radio"
+      class="border-ui-border-panel bg-ui-elevated text-ui-muted active:bg-ui-hover flex min-h-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-solid px-0.5 py-1.5 text-[11px] leading-tight"
+      [class.border-ui-accent!]="selected() === type.type"
+      [class.bg-ui-accent-bg!]="selected() === type.type"
+      [class.text-ui-accent!]="selected() === type.type"
+      [class.font-semibold]="selected() === type.type"
+      [attr.aria-checked]="selected() === type.type"
+      [attr.data-type]="type.type"
+      (click)="picked.emit(type.type)"
+    >
+      <i class="material-icons text-[22px]!">{{ type.icon }}</i>
+      <span class="max-w-full truncate">{{ type.labelKey | transloco }}</span>
+    </button>
+  }
+</div>

@@ -39,6 +39,8 @@ describe('painting ground that goes off and then walking into it', () => {
       blocked: [],
       terrain: { add: [], remove: [] },
       mask: { add: [], remove: [] },
+      moveCost: { add: [], remove: [] },
+      ambience: { add: [], remove: [] },
       trigger: { add: [], remove: [] },
       ...over,
     };

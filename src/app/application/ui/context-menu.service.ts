@@ -39,6 +39,11 @@ export interface ContextMenuRadialGroup {
 export interface ContextMenuOpenOptions {
   layer?: number;
   parentViewContainerRef?: ViewContainerRef;
+  /**
+   * Whether a guest may open the menu too. Only for a menu that checks the reader's role for each of
+   * its own items, as what can be done with a chat line does; a guest sees what they may do there.
+   */
+  forGuests?: boolean;
 }
 
 type ContextMenuComponentClass = { new (...args: unknown[]): unknown };
@@ -68,10 +73,23 @@ export class ContextMenuService {
   /** Where the menu sits, for a caller that lives above where menus usually go. Zero is the usual place. */
   layer: number = 0;
 
+  /**
+   * Whether a context menu opened through this service is still on screen.
+   *
+   * The service is provided once for the whole app and the menu components inject that same
+   * instance, so this answers for whichever caller opened the menu.
+   */
   get isShow(): boolean {
     return this.panelComponentRef !== null;
   }
 
+  /**
+   * Opens the plain context menu at a screen point, closing any menu this service already has open.
+   *
+   * Nothing opens for a peer who may not edit the table, unless the menu says it is fit for a guest.
+   * Without a parent container the menu goes into the layer of the detached window that has the
+   * focus, or the app's default layer.
+   */
   open(position: ContextMenuPoint, actions: ContextMenuAction[], title?: string, options?: ContextMenuOpenOptions) {
     this.openComponent(
       ContextMenuService.ContextMenuComponentClass,
@@ -87,10 +105,17 @@ export class ContextMenuService {
       undefined,
       title,
       options?.parentViewContainerRef,
-      options?.layer ?? 0
+      options?.layer ?? 0,
+      options?.forGuests ?? false
     );
   }
 
+  /**
+   * Opens the plain menu turned to face one side of a table seen from above.
+   *
+   * The four-way radial menu hands on to this when an entry opens a list, so the list faces the
+   * same edge of the table and keeps this service's text scale.
+   */
   openDirectional(
     position: ContextMenuPoint,
     actions: ContextMenuAction[],
@@ -117,6 +142,17 @@ export class ContextMenuService {
     );
   }
 
+  /**
+   * Opens the four-way radial menu around the anchor point.
+   *
+   * With `radialMenuEnabled` the groups sit on a ring that rotates on its own, and a right-click
+   * turns it a step further. Without it the menu shows a close button and one launcher for each
+   * side of the table; choosing a side replaces it with the plain menu turned to face that side.
+   *
+   * The radial component is fetched the first time it is wanted and the menu appears once it
+   * arrives. If the fetch fails the plain menu opens with the same actions instead; with no loader
+   * registered, nothing opens. Nothing opens either for a peer who may not edit the table.
+   */
   openRadial(
     position: ContextMenuPoint,
     actions: ContextMenuAction[],
@@ -177,10 +213,11 @@ export class ContextMenuService {
     radialAnchorPosition?: ContextMenuPoint,
     title?: string,
     parentViewContainerRef?: ViewContainerRef,
-    layer = 0
+    layer = 0,
+    forGuests = false
   ) {
     this.close();
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!forGuests && !this.rolePermission.canEditTabletop) return;
 
     const parent =
       parentViewContainerRef ?? OverlayLayers.current() ?? ContextMenuService.defaultParentViewContainerRef;
@@ -220,6 +257,7 @@ export class ContextMenuService {
     });
   }
 
+  /** Closes the menu this service opened, if it is still up. */
   close() {
     if (this.panelComponentRef) {
       this.panelComponentRef.destroy();

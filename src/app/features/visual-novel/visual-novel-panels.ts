@@ -19,6 +19,7 @@ export const VISUAL_NOVEL_PANELS: readonly string[] = [
   VN_DIRECTION_PANEL,
 ];
 
+/** Closes every panel novel mode opened, as when novel mode is left; panels not open are skipped. */
 export function closeVisualNovelPanels(panelService: PanelService): void {
   for (const name of VISUAL_NOVEL_PANELS) panelService.closeSingle(name);
 }

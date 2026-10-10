@@ -12,6 +12,7 @@ import { characterNameFromFileName } from '@axe/features/tabletop/image-drop/dro
 
 const TABLE_LAYER_SELECTOR = '#app-table-layer';
 
+/** Whether a drop landed on the table layer, the only place a dropped image becomes a character. */
 export function isTabletopDropTarget(element: Element | null): boolean {
   return element?.closest(TABLE_LAYER_SELECTOR) != null;
 }

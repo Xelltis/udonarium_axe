@@ -1,8 +1,10 @@
+import { diceBotUnreachable$, DiceBotUnreachableEvent } from '@axe/core/event/domain-events';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ResourceEdit, ResourceEditProcessor } from '@axe/domain/data/resource-edit-processor';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 
 describe('ResourceEditProcessor', () => {
   let processor: ResourceEditProcessor;
@@ -275,6 +277,64 @@ describe('ResourceEditProcessor', () => {
       mockLoadGameSystemAsync.mockResolvedValue({ ID: 'DiceBot' });
     });
 
+    describe('sweeping buffs off the table', () => {
+      let archer: GameCharacter;
+
+      /** A dice bot that, like the real one, comes in a task of its own after it is asked for. */
+      function loadedLater(): Promise<{ ID: string }> {
+        return new Promise((resolve) => setTimeout(() => resolve({ ID: 'DiceBot' })));
+      }
+
+      beforeEach(() => {
+        mockLoadGameSystemAsync.mockImplementation(loadedLater);
+        character.setLocation('table');
+        character.addExtendData();
+        character.buffs.addRound('毒', '', 3, { timing: 'none' });
+        character.buffs.addRound('加速', '', 2);
+        archer = GameCharacter.create('弓兵', 1, '');
+        archer.setLocation('table');
+        archer.addExtendData();
+        archer.buffs.addRound('毒', '', 2);
+      });
+
+      afterEach(() => {
+        archer.destroy();
+        character.destroy();
+      });
+
+      function names(piece: GameCharacter): string[] {
+        return (piece.buffDataElement?.children[0]?.children ?? []).map((data) => data.name);
+      }
+
+      it('takes a buff of that name off every piece on the table for the game master, and says how many', async () => {
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+
+        await processor.checkResourceEditCommand(speak('&&毒-'), [{ text: '&&毒-', object: character }]);
+
+        expect(systemText()).toContain('卓全体から「毒」を解除（2体・2件）');
+        expect(names(character)).toEqual(['加速']);
+        expect(names(archer)).toEqual([]);
+      });
+
+      it('takes nothing for anyone but the game master, and says the sweep is theirs', async () => {
+        PeerCursor.myCursor.role = PeerRole.Player;
+
+        await processor.checkResourceEditCommand(speak('&&2R-'), [{ text: '&&2R-', object: character }]);
+
+        expect(systemText()).toContain('バフの一括解除はGMだけが使えます（&&2R-）');
+        expect(names(character)).toEqual(['毒', '加速']);
+        expect(names(archer)).toEqual(['毒']);
+      });
+
+      it('says so when nothing on the table matches', async () => {
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+
+        await processor.checkResourceEditCommand(speak('&&9R-'), [{ text: '&&9R-', object: character }]);
+
+        expect(systemText()).toContain('卓全体に残り9Rのバフはありません');
+      });
+    });
+
     it('says which command it could not work out', async () => {
       mockDiceRollAsync.mockResolvedValue({ id: 'DiceBot', result: '', isSecret: false });
 
@@ -351,6 +411,33 @@ describe('ResourceEditProcessor', () => {
 
       expect(character.status.getValue('MP', 'now')).toBe(95);
       expect(systemText()).toContain('t:HP-t{敏捷度}を計算できません');
+    });
+
+    it('leaves the amounts alone and says the dice bot could not be fetched when it has none to work them out with', async () => {
+      const standIn = { ID: 'DiceBot' };
+      mockLoadGameSystemAsync.mockResolvedValue(standIn);
+      const withoutDiceBot = new ResourceEditProcessor(
+        mockDiceRollAsync,
+        mockLoadGameSystemAsync,
+        (gameSystem) => gameSystem === standIn
+      );
+      const line = speak('t:HP-5');
+      const unrolled: DiceBotUnreachableEvent[] = [];
+      const stopListening = diceBotUnreachable$.subscribe((event) => unrolled.push(event));
+
+      await withoutDiceBot.resourceEditProcess(
+        null,
+        [{ resourceCommand: 't:HP-5', object: character }],
+        [],
+        line,
+        false
+      );
+      stopListening();
+
+      expect(mockDiceRollAsync).not.toHaveBeenCalled();
+      expect(systemText()).not.toContain('計算できません');
+      expect(character.status.getValue('HP', 'now')).toBe(200);
+      expect(unrolled).toEqual([{ messageIdentifier: line.identifier, gameType: 'DiceBot' }]);
     });
   });
 

@@ -147,17 +147,11 @@ describe('ReplayWorkspaceComponent', () => {
     ) as HTMLButtonElement | undefined;
   }
 
-  function gapButtons(text: string): HTMLButtonElement[] {
-    return [...fixture.nativeElement.querySelectorAll('replay-entry-list button')].filter((button) =>
-      (button as HTMLButtonElement).textContent?.includes(text)
-    ) as HTMLButtonElement[];
-  }
-
   function entryRows(): HTMLElement[] {
-    const list = fixture.nativeElement.querySelector('replay-entry-list ul') as HTMLElement | null;
+    const list = fixture.nativeElement.querySelector('replay-entry-list ui-virtual-list') as HTMLElement | null;
     if (!list) return [];
-    return [...list.querySelectorAll(':scope > li')].filter((li) =>
-      (li as HTMLElement).className.includes('rounded-ui-sm')
+    return [...list.querySelectorAll('[role="listitem"] > div')].filter((row) =>
+      (row as HTMLElement).className.includes('relative')
     ) as HTMLElement[];
   }
 
@@ -209,18 +203,41 @@ describe('ReplayWorkspaceComponent', () => {
     PeerCursor.myCursor = null!;
   });
 
-  it('lays the recording, the stage and the list out on one screen', async () => {
+  function openChooser(): void {
+    (fixture.nativeElement.querySelector('button[aria-expanded]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+  }
+
+  it('puts the stage and the list side by side, with the recordings folded behind a chooser', async () => {
     await setup();
-    expect(fixture.nativeElement.querySelector('replay-recording-list')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('replay-stage')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('replay-entry-list')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('replay-recording-list')).toBeNull();
+
+    openChooser();
+
+    expect(fixture.nativeElement.querySelector('replay-recording-list')).not.toBeNull();
+  });
+
+  it('names the recording open on the chooser', async () => {
+    await setup();
+    expect((fixture.nativeElement.querySelector('button[aria-expanded]') as HTMLElement).textContent).toContain(
+      '第一夜'
+    );
   });
 
   it('opens a recording when one is chosen', async () => {
     await setup();
+    openChooser();
     const item = fixture.nativeElement.querySelector('replay-recording-list li') as HTMLElement;
     item.click();
     expect(open).toHaveBeenCalledWith(7);
+  });
+
+  it('lists the recordings in full while none is open', async () => {
+    isOpen = signal(false);
+    await setup();
+    expect(fixture.nativeElement.querySelector('replay-recording-list')).not.toBeNull();
   });
 
   it('always says that it is recording', async () => {
@@ -275,30 +292,22 @@ describe('ReplayWorkspaceComponent', () => {
     expect(buttonByText('取り消す')?.disabled).toBe(true);
   });
 
-  it('opens a place to write between the rows while editing', async () => {
-    isEditing = signal(true);
+  it('offers a field to write in below the list while editing, and none otherwise', async () => {
     await setup();
-
     expect(fixture.nativeElement.querySelector('input[placeholder="差し込む内容"]')).toBeNull();
-    expect(gapButtons('書く').length).toBe(entryRows().length + 1);
-    expect(gapButtons('収録').length).toBe(entryRows().length + 1);
-  });
 
-  it('opens a field there on a press', async () => {
+    fixture.destroy();
+    TestBed.resetTestingModule();
     isEditing = signal(true);
     await setup();
-
-    gapButtons('書く')[1].click();
-    fixture.detectChanges();
-
     expect(fixture.nativeElement.querySelector('input[placeholder="差し込む内容"]')).not.toBeNull();
   });
 
-  it('inserts the chosen piece, portrait and all, where the press was', async () => {
+  it('puts what is written after the row chosen, the chosen piece portrait and all', async () => {
     isEditing = signal(true);
     await setup();
 
-    gapButtons('書く')[1].click();
+    entryRows()[0].click();
     fixture.detectChanges();
 
     const selects = [...fixture.nativeElement.querySelectorAll('select')] as HTMLSelectElement[];
@@ -322,5 +331,18 @@ describe('ReplayWorkspaceComponent', () => {
       imageIdentifier: 'img-2',
       chatColor: '#445566',
     });
+  });
+
+  it('puts what is written at the end with no row chosen', async () => {
+    isEditing = signal(true);
+    await setup();
+
+    const text = fixture.nativeElement.querySelector('input[placeholder="差し込む内容"]') as HTMLInputElement;
+    text.value = '終わりに';
+    text.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    buttonByText('差し込む')?.click();
+
+    expect(insert.mock.calls[0][0]).toBe(events.length);
   });
 });

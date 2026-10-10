@@ -1,0 +1,143 @@
+<div class="bg-ui-panel text-ui-text flex h-full flex-col gap-2 overflow-hidden p-2 text-[12px]">
+  <div class="flex shrink-0 flex-wrap items-center gap-1">
+    @for (held of surfaces(); track held) {
+      <button
+        type="button"
+        class="rounded-ui-sm border-ui-border-panel hover:bg-ui-menu-hover cursor-pointer border border-solid bg-transparent px-2 py-1 text-[11px] transition-colors"
+        [class.bg-ui-accent-bg]="surface() === held"
+        [class.text-ui-accent]="surface() === held"
+        [attr.data-testid]="'menu-editor-surface-' + held"
+        (click)="choose(held)"
+      >
+        {{ surfaceLabelKey(held) | transloco }}
+      </button>
+    }
+    <span class="grow"></span>
+    <button
+      type="button"
+      class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:bg-ui-menu-hover cursor-pointer border border-solid bg-transparent px-2 py-1 text-[11px] transition-colors disabled:cursor-default disabled:opacity-45"
+      [disabled]="!hasArrangements()"
+      data-testid="menu-editor-write-out"
+      (click)="writeOut()"
+    >
+      {{ 'feature.menuEditor.writeOut' | transloco }}
+    </button>
+    <button
+      type="button"
+      class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:bg-ui-menu-hover cursor-pointer border border-solid bg-transparent px-2 py-1 text-[11px] transition-colors"
+      data-testid="menu-editor-read-in"
+      (click)="chooseFile()"
+    >
+      {{ 'feature.menuEditor.readIn' | transloco }}
+    </button>
+    <button
+      type="button"
+      class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:bg-ui-menu-hover cursor-pointer border border-solid bg-transparent px-2 py-1 text-[11px] transition-colors disabled:cursor-default disabled:opacity-45"
+      [disabled]="!arranged()"
+      data-testid="menu-editor-reset"
+      (click)="reset()"
+    >
+      {{ 'feature.menuEditor.reset' | transloco }}
+    </button>
+    <input
+      #fileInput
+      type="file"
+      class="hidden"
+      accept="application/json,.json"
+      data-testid="menu-editor-file"
+      (change)="readIn($event)"
+    />
+  </div>
+
+  @if (failed()) {
+    <p class="m-0 shrink-0 text-[11px] text-red-500" data-testid="menu-editor-failed">
+      {{ 'feature.menuEditor.readFailed' | transloco }}
+    </p>
+  }
+
+  <p class="text-ui-dim m-0 shrink-0 text-[11px]">{{ 'feature.menuEditor.hint' | transloco }}</p>
+
+  <ul
+    #rowsEl
+    class="m-0 min-h-0 grow list-none overflow-y-auto p-0"
+    data-testid="menu-editor-rows"
+    (dragover)="$event.preventDefault()"
+    (dragleave)="dragging.leave()"
+  >
+    @for (row of rows(); track row.node.id) {
+      <li
+        #rowEl
+        class="border-ui-border-panel flex items-center gap-1.5 border-b border-solid p-1 transition-colors"
+        [class.pl-6]="row.nested"
+        [class.opacity-60]="row.lost"
+        [class.opacity-40]="dragging.isHeld(row.node.id)"
+        [class.border-t-ui-accent]="dragging.isDropBefore(row.node.id)"
+        [class.border-t]="dragging.isDropBefore(row.node.id)"
+        [class.border-b-ui-accent]="dragging.isDropAfter(row.node.id) && !dropsInto(row)"
+        [class.bg-ui-accent-bg]="dropsInto(row)"
+        [attr.data-testid]="'menu-editor-row-' + row.node.id"
+        (dragover)="onDragOver($event, row, rowEl)"
+        (drop)="onDrop($event)"
+        (contextmenu)="onRowContextMenu($event, row)"
+      >
+        <span
+          class="text-ui-dim hover:text-ui-text flex size-5 shrink-0 cursor-grab items-center justify-center [&_i]:text-[16px]!"
+          draggable="true"
+          [title]="'feature.menuEditor.drag' | transloco"
+          [attr.data-testid]="'menu-editor-grip-' + row.node.id"
+          (dragstart)="onDragStart($event, row, rowEl)"
+          (dragend)="onDragEnd()"
+        >
+          <i class="material-icons">drag_indicator</i>
+        </span>
+
+        <ui-icon-picker
+          [value]="row.icon"
+          [suggested]="suggestedIcons"
+          [clearable]="true"
+          [attr.data-testid]="'menu-editor-icon-' + row.node.id"
+          (picked)="setIcon(row, $event)"
+        />
+
+        @if (isGroupRow(row)) {
+          <span class="text-ui-muted shrink-0 text-[10px]">{{ 'feature.menuEditor.group' | transloco }}</span>
+        }
+
+        <input
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 grow border border-solid px-1 py-0.5 text-[11px] outline-none"
+          [ngModel]="row.name"
+          [name]="'menu-editor-name-' + row.node.id"
+          [attr.data-testid]="'menu-editor-name-' + row.node.id"
+          (ngModelChange)="rename(row, $event)"
+        />
+
+        <button
+          type="button"
+          class="rounded-ui-sm text-ui-dim flex size-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent transition-colors hover:bg-red-500/20 hover:text-red-500 [&_i]:text-[16px]!"
+          [title]="'feature.menuEditor.remove' | transloco"
+          [attr.data-testid]="'menu-editor-remove-' + row.node.id"
+          (click)="remove(row)"
+        >
+          <i class="material-icons">delete</i>
+        </button>
+      </li>
+    } @empty {
+      <li class="text-ui-dim p-3 text-center text-[11px]">{{ 'feature.menuEditor.empty' | transloco }}</li>
+    }
+  </ul>
+
+  <div class="border-ui-border-panel flex shrink-0 flex-wrap items-center gap-1.5 border-t border-solid pt-2">
+    <menu-command-picker [commands]="offered()" (picked)="addCommand($event)" />
+    @if (takesGroups()) {
+      <button
+        type="button"
+        class="rounded-ui-sm border-ui-border-panel text-ui-text hover:bg-ui-menu-hover flex cursor-pointer items-center gap-1 border border-solid bg-transparent px-2 py-1 text-[11px] transition-colors [&_i]:text-[15px]!"
+        data-testid="menu-editor-add-group"
+        (click)="addGroup()"
+      >
+        <i class="material-icons">create_new_folder</i>
+        {{ 'feature.menuEditor.addGroup' | transloco }}
+      </button>
+    }
+  </div>
+</div>

@@ -45,6 +45,7 @@ export class CutInScene extends ObjectNode {
     return this.soundsParsed;
   }
 
+  /** The scene's layers, in the order they are drawn, bottom first. */
   get layers(): CutInLayer[] {
     return this.children.filter((child): child is CutInLayer => child instanceof CutInLayer);
   }

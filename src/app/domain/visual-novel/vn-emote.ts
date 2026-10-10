@@ -80,6 +80,7 @@ function isMember<T extends string>(values: readonly T[], value: string): value 
   return (values as readonly string[]).includes(value);
 }
 
+/** Writes a line's staging as space-separated codes, leaving out every default; a plain line gives an empty string. */
 export function encodeVnEmote(emote: VnEmote): string {
   const codes: string[] = [];
   if (emote.kind !== 'normal') codes.push(CODE_PREFIX.kind + emote.kind);
@@ -92,6 +93,12 @@ export function encodeVnEmote(emote: VnEmote): string {
   return codes.join(' ');
 }
 
+/**
+ * Reads a line's staging back from its codes, starting from the defaults.
+ *
+ * Codes it does not recognise, including values from a newer build, are skipped one by one so the rest
+ * still apply.
+ */
 export function decodeVnEmote(code: string | null | undefined): VnEmote {
   const emote = { ...VN_EMOTE_DEFAULT };
   if (code == null) return emote;
@@ -121,6 +128,7 @@ export function decodeVnEmote(code: string | null | undefined): VnEmote {
   return emote;
 }
 
+/** Whether a line's staging differs from the default in any way. */
 export function hasVnEmote(emote: VnEmote): boolean {
   return encodeVnEmote(emote).length > 0;
 }
@@ -186,7 +194,7 @@ const LEGACY_PORTRAIT_EMOTE_BY_TOKEN = invert(LEGACY_PORTRAIT_EMOTE_TOKENS);
 const LEGACY_EMOTION_MARK_BY_TOKEN = invert(VN_EMOTION_MARK_CHARS);
 
 /**
- * Reads the staging that used to be written into the end of the line itself.
+ * Reads the staging written into the end of the line itself, where an older line carries it.
  *
  * Anything unaccounted for gives the whole bracket up as ordinary text: written this way there
  * is no telling a staging note from something a player typed, so a bracket is only read as one
@@ -257,7 +265,7 @@ export function parseLegacyVnEmoteSuffix(text: string): VnEmote & { text: string
 }
 
 /**
- * Writes the staging into the end of the line, the way it used to be kept.
+ * Writes the staging into the end of the line, the way an older line carries it.
  *
  * Nothing new is written this way; it stands only so that lines written before the staging was
  * kept apart can still be read back and checked.
@@ -275,6 +283,11 @@ export function buildLegacyVnEmoteSuffix(emote: VnEmote): string {
   return ` 〔${tokens.join('・')}〕`;
 }
 
+/**
+ * Separates an older line into what was said and the staging bracket at its end.
+ *
+ * The suffix is empty, and the text returned whole, when the line has no bracket that reads as staging.
+ */
 export function splitLegacyVnEmoteSuffix(text: string): { text: string; suffix: string } {
   const parsed = parseLegacyVnEmoteSuffix(text);
   if (parsed.text === text) return { text, suffix: '' };

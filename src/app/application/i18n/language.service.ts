@@ -26,6 +26,7 @@ export class LanguageService {
     });
   }
 
+  /** Picks the starting language and waits for its translations, so the first screen is not drawn in keys. */
   async initialize(): Promise<void> {
     const initial = detectInitialLang();
     this.transloco.setActiveLang(initial);
@@ -33,6 +34,7 @@ export class LanguageService {
     this._currentLang.set(initial);
   }
 
+  /** Switches the interface language once its translations have loaded, and remembers it in this browser. */
   async setLang(lang: SupportedLang): Promise<void> {
     await firstValueFrom(this.transloco.load(lang));
     this.transloco.setActiveLang(lang);
@@ -43,6 +45,7 @@ export class LanguageService {
     }
   }
 
+  /** Moves to the next supported language, wrapping round after the last. */
   async toggle(): Promise<void> {
     const langs = this.availableLangs();
     const index = langs.indexOf(this._currentLang());

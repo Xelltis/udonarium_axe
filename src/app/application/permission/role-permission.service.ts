@@ -4,6 +4,7 @@ import { canRoleEdit, canRoleEditShared, canRoleSeeHidden, PeerRole } from '@axe
 
 @Injectable({ providedIn: 'root' })
 export class RolePermissionService {
+  /** The role this reader holds in the room. */
   get myRole(): PeerRole {
     return PeerCursor.myRole;
   }
@@ -13,10 +14,12 @@ export class RolePermissionService {
     return PeerCursor.myRole === PeerRole.GameMaster;
   }
 
+  /** Whether this reader may change things on the table, which every role but a guest may. */
   get canEditTabletop(): boolean {
     return canRoleEdit(PeerCursor.myRole);
   }
 
+  /** Whether this reader sees what is kept back from the players, which only the game master does. */
   get canSeeHidden(): boolean {
     return canRoleSeeHidden(PeerCursor.myRole);
   }

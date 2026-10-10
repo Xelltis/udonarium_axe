@@ -55,6 +55,8 @@ export interface HeartBeatEvent {
 export interface NetworkErrorEvent {
   errorType: string;
   errorMessage: string;
+  /** The connection that failed, by this end's peer id on it; empty where it is not known. */
+  peerId?: string;
 }
 
 export interface ObjectChangeNetworkTargets {
@@ -169,8 +171,12 @@ export function subscribeNetworkBindings(
         targets.audioSyncList$.emit({ isSendFromSelf: msg.isSendFromSelf });
         break;
       case 'NETWORK_ERROR': {
-        const data = msg.data as { errorType: string; errorMessage: string };
-        targets.networkError$.emit({ errorType: data.errorType, errorMessage: data.errorMessage });
+        const data = msg.data as { errorType: string; errorMessage: string; peerId?: string };
+        targets.networkError$.emit({
+          errorType: data.errorType,
+          errorMessage: data.errorMessage,
+          ...(data.peerId ? { peerId: data.peerId } : {}),
+        });
         break;
       }
     }

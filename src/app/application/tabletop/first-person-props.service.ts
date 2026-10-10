@@ -13,7 +13,6 @@ import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { groundSurfaceWash } from '@axe/domain/effect/ambience/ambience-ground';
 import { wallPlacementOf } from '@axe/domain/tabletop/first-person/first-person-wall';
 import { GameTable } from '@axe/domain/tabletop/game-table';
-import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
 import { SurfaceDims } from '@axe/domain/tabletop/surface-space';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { lightSourcesOn } from '@axe/domain/tabletop/table-lights';
@@ -27,7 +26,7 @@ import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 export type FirstPersonPropKind = 'stand' | 'lie' | 'board';
 
 export type FirstPersonPropWhat =
-  'light' | 'card' | 'stack' | 'dice' | 'coin' | 'note' | 'mask' | 'trigger' | 'board' | 'scratch' | 'ambience';
+  'light' | 'card' | 'stack' | 'dice' | 'coin' | 'note' | 'mask' | 'trigger' | 'board' | 'ambience';
 
 export interface FirstPersonProp {
   id: string;
@@ -61,7 +60,6 @@ export interface FirstPersonGlow {
 const CARD_ASPECT = 1.45;
 const LIFT_PX = 0.5;
 const UPRIGHT_BOARD_PITCH = 45;
-const SCRATCH_OPACITY = 0.6;
 
 @Injectable({ providedIn: 'root' })
 export class FirstPersonPropsService {
@@ -89,7 +87,6 @@ export class FirstPersonPropsService {
       ...this.masks(table, g),
       ...this.shownTriggers(g),
       ...this.boards(table, g),
-      ...this.scratchMasks(table, g),
       ...this.ambiences(table, g),
     ];
   }
@@ -339,20 +336,6 @@ export class FirstPersonPropsService {
           image: urlOf(board.imageFile),
           color: board.color,
           opacity: board.opacity,
-        };
-      });
-  }
-
-  private scratchMasks(table: GameTable, g: number): FirstPersonProp[] {
-    this.objectChange.collectionOf(GameTableScratchMask.aliasName)();
-    return table.scratchMasks
-      .filter((mask) => this.onTheFloor(mask))
-      .map((mask) => {
-        this.objectChange.versionOf(mask.identifier)();
-        return {
-          ...this.rect(mask, 'scratch', Math.max(1, mask.width) * g, Math.max(1, mask.height) * g, g),
-          color: mask.color,
-          opacity: SCRATCH_OPACITY,
         };
       });
   }

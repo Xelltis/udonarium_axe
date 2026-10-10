@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { blockedCellKeysOn, FunctionalPaintService } from '@axe/application/tabletop/functional-paint.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CellRect, rectKey } from '@axe/domain/tabletop/cell-rectangles';
@@ -16,6 +17,8 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { cellCentre } from '@axe/domain/tabletop/map-grid';
 import { ensureMoveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
+import { moveCostsOn } from '@axe/domain/tabletop/table-move-cost';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -131,6 +134,8 @@ describe('FunctionalPaintService', () => {
         terrain: { add: [], remove: [] },
         mask: { add: [], remove: [] },
         trigger: { add: [], remove: [] },
+        moveCost: { add: [], remove: [] },
+        ambience: { add: [], remove: [] },
         ...over,
       };
     }
@@ -168,6 +173,25 @@ describe('FunctionalPaintService', () => {
       service.apply(plan({ terrain: { add: [wall({ col: 1, row: 2, width: 4, height: 2 })], remove: [] } }));
 
       expect(service.snapshot()!.terrainBlocks.map(rectKey)).toEqual(['1,2,4,2']);
+    });
+
+    it('still reads a block the master put out of sight, so laying the painting again does not bring it back', () => {
+      service.apply(plan({ terrain: { add: [wall({ col: 1, row: 2, width: 4, height: 2 })], remove: [] } }));
+      TestBed.inject(ConcealmentService).conceal(terrainOn()[0]);
+
+      expect(terrainOn()).toHaveLength(0);
+      expect(service.snapshot()!.terrainBlocks.map(rectKey)).toEqual(['1,2,4,2']);
+    });
+
+    it('takes away a block out of sight once the painting no longer holds it', () => {
+      const stood = wall({ col: 1, row: 2, width: 4, height: 2 });
+      service.apply(plan({ terrain: { add: [stood], remove: [] } }));
+      const laid = terrainOn()[0];
+      TestBed.inject(ConcealmentService).conceal(laid);
+
+      service.apply(plan({ terrain: { add: [], remove: [stood] } }));
+
+      expect(ObjectStore.instance.get(laid.identifier)).toBeNull();
     });
 
     it('pulls a block down only when the block itself is the one going', () => {
@@ -291,6 +315,46 @@ describe('FunctionalPaintService', () => {
       expect(laid.lightBrightRadius).toBe(3);
     });
 
+    it('lays a block sloping to more than one side back with every side it had', () => {
+      const hill = Terrain.create('丘', 2, 2, 2, '', '');
+      hill.location = { name: 'table', x: 0, y: 0 };
+      hill.slopeSides = ['n', 'e', 's', 'w'];
+      table.appendChild(hill);
+      const read = service.snapshot()!.terrainBlocks[0];
+      hill.destroy();
+
+      service.apply(plan({ terrain: { add: [read], remove: [] } }));
+
+      expect(terrainOn()[0].slopeSides).toEqual(['n', 'e', 's', 'w']);
+    });
+
+    it('lays a ramp from a brush saved before a block could slope to more than one side', () => {
+      const ramp = Terrain.create('坂', 1, 1, 1, '', '');
+      ramp.location = { name: 'table', x: 0, y: 0 };
+      ramp.isSlope = true;
+      ramp.slopeDirection = 2;
+      table.appendChild(ramp);
+      const read = { ...service.snapshot()!.terrainBlocks[0], slopeSides: '' };
+      ramp.destroy();
+
+      service.apply(plan({ terrain: { add: [read], remove: [] } }));
+
+      expect(terrainOn()[0].slopeSides).toEqual(['s']);
+    });
+
+    it('keeps the slope on for a brush that names no side at all', () => {
+      const ramp = Terrain.create('坂', 1, 1, 1, '', '');
+      ramp.location = { name: 'table', x: 0, y: 0 };
+      ramp.isSlope = true;
+      table.appendChild(ramp);
+      const read = { ...service.snapshot()!.terrainBlocks[0], slopeSides: '', slopeDirection: 0 };
+      ramp.destroy();
+
+      service.apply(plan({ terrain: { add: [read], remove: [] } }));
+
+      expect(terrainOn()[0].isSlope).toBe(true);
+    });
+
     it('lays a mask across a whole block too', () => {
       service.apply(plan({ mask: { add: [cover({ col: 0, row: 0, width: 3, height: 2 })], remove: [] } }));
 
@@ -358,6 +422,136 @@ describe('FunctionalPaintService', () => {
       expect(service.snapshot()!.blockedCells).toEqual(['2,1']);
     });
 
+    it('lays dear ground with what it charges, and reads it back the same', () => {
+      const dear = {
+        col: 1,
+        row: 2,
+        width: 3,
+        height: 1,
+        spec: { blocks: false, halves: false, extraCost: 2, color: '#445566' },
+      };
+
+      service.apply(plan({ moveCost: { add: [dear], remove: [] } }));
+
+      expect(service.snapshot()!.moveCostBlocks).toEqual([dear]);
+    });
+
+    it('leaves dear ground that was painted again exactly where it stood', () => {
+      const dear = {
+        col: 1,
+        row: 2,
+        width: 3,
+        height: 1,
+        spec: { blocks: false, halves: false, extraCost: 2, color: '#445566' },
+      };
+      service.apply(plan({ moveCost: { add: [dear], remove: [] } }));
+      const laid = moveCostsOn(table)[0];
+
+      service.apply(plan({ moveCost: { add: [], remove: [] } }));
+
+      expect(moveCostsOn(table)[0]).toBe(laid);
+    });
+
+    it('takes dear ground away when the painting stops holding it', () => {
+      const dear = {
+        col: 1,
+        row: 2,
+        width: 3,
+        height: 1,
+        spec: { blocks: false, halves: false, extraCost: 2, color: '#445566' },
+      };
+      service.apply(plan({ moveCost: { add: [dear], remove: [] } }));
+
+      service.apply(plan({ moveCost: { add: [], remove: [dear] } }));
+
+      expect(moveCostsOn(table)).toEqual([]);
+    });
+
+    it('lays a look over the ground, and reads it back where it stood', () => {
+      const look = {
+        col: 2,
+        row: 3,
+        width: 4,
+        height: 2,
+        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false },
+      };
+
+      service.apply(plan({ ambience: { add: [look], remove: [] } }));
+
+      expect(service.snapshot()!.ambienceBlocks).toEqual([look]);
+    });
+
+    it('leaves a look that was laid again exactly where it stood', () => {
+      const look = {
+        col: 2,
+        row: 3,
+        width: 4,
+        height: 2,
+        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false },
+      };
+      service.apply(plan({ ambience: { add: [look], remove: [] } }));
+      const laid = table.ambiences[0];
+
+      service.apply(plan({ ambience: { add: [], remove: [] } }));
+
+      expect(table.ambiences[0]).toBe(laid);
+    });
+
+    it('lays a look in the middle of its cell on a board of hexes, and reads it back there', () => {
+      table.gridType = GridType.HEX_VERTICAL;
+      const look = {
+        col: 0,
+        row: 3,
+        width: 1,
+        height: 1,
+        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false },
+      };
+
+      service.apply(plan({ ambience: { add: [look], remove: [] } }));
+
+      const middle = cellCentre({ x: 0, y: 3 }, { type: table.gridType, sizePx: table.gridSize });
+      const laid = table.ambiences[0];
+      expect(laid.location.x).toBeCloseTo(middle.x - table.gridSize / 2, 5);
+      expect(laid.location.y).toBeCloseTo(middle.y - table.gridSize / 2, 5);
+      // Read back where it was laid, or the same painting would lay a second one every time.
+      expect(service.snapshot()!.ambienceBlocks.map(rectKey)).toEqual(['0,3,1,1']);
+    });
+
+    it('leaves a look somebody put on the table by hand where they put it', () => {
+      const byHand = TableAmbience.create('毒沼', 'swamp', 2, 2);
+      byHand.location = { name: 'table', x: 0, y: 0 };
+      table.appendChild(byHand);
+      const look = {
+        col: 2,
+        row: 3,
+        width: 4,
+        height: 2,
+        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false },
+      };
+
+      service.apply(plan({ ambience: { add: [look], remove: [] } }));
+
+      // The brush is in charge of what it laid, which it lays nameless. A named look is
+      // somebody else's - the table's own menu, the map generator - and stays put.
+      expect(table.ambiences).toContain(byHand);
+      expect(service.snapshot()!.ambienceBlocks).toEqual([look]);
+    });
+
+    it('takes a look away when the painting stops holding it', () => {
+      const look = {
+        col: 2,
+        row: 3,
+        width: 4,
+        height: 2,
+        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false },
+      };
+      service.apply(plan({ ambience: { add: [look], remove: [] } }));
+
+      service.apply(plan({ ambience: { add: [], remove: [look] } }));
+
+      expect(table.ambiences).toEqual([]);
+    });
+
     it('will not lay anything with no table out', () => {
       table.gridSize = 0;
 
@@ -372,6 +566,8 @@ describe('FunctionalPaintService', () => {
         terrain: { add: [], remove: [] },
         mask: { add: [], remove: [] },
         trigger: { add: [], remove: [] },
+        moveCost: { add: [], remove: [] },
+        ambience: { add: [], remove: [] },
         ...over,
       };
     }

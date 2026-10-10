@@ -3,11 +3,13 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import {
   MapImageGridAdjusterComponent,
   MapImageGridAdjusterOption,
 } from '@axe/features/tabletop/map-image-grid-adjuster/map-image-grid-adjuster.component';
 import { cropImageRegion } from '@axe/features/tabletop/map-image-grid-adjuster/map-image-grid-region';
+import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 
 const VIEW_CELL_BASE = 48;
 
@@ -296,6 +298,23 @@ describe('MapImageGridAdjusterComponent', () => {
 
     expect(setViewCell).toHaveBeenCalledOnce();
     expect(zoomAt).not.toHaveBeenCalled();
+  });
+
+  it('draws the hex grid over the picture without the cell labels it cannot show', async () => {
+    const borrowed = new BorrowedGlobals();
+    borrowed.lendOn(HTMLCanvasElement.prototype, 'getContext', () => ({}) as CanvasRenderingContext2D);
+    const render = vi.spyOn(GridLineRender.prototype, 'renderViewport').mockReturnValue(true);
+    try {
+      await setup({ imageIdentifier: 'x', gridSize: 48, gridType: GridType.HEX_VERTICAL });
+      makeReady(480, 240);
+      await fixture.whenStable();
+
+      expect(render).toHaveBeenCalled();
+      for (const call of render.mock.calls) expect(call[8]).toBe(false);
+    } finally {
+      render.mockRestore();
+      borrowed.giveBack();
+    }
   });
 
   it('resolves with nothing on cancel', async () => {

@@ -3,6 +3,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { isBuiltinMaterial } from '@axe/domain/media/builtin-materials';
 import { ImageTag } from '@axe/domain/media/image-tag';
 import {
   TEXTURE_ASSET_URLS,
@@ -38,7 +39,11 @@ export class MapEditorTexturePickerComponent {
   protected readonly imageTextures = computed<ImageFile[]>(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf('image-tag')();
-    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden);
+    // What the tool is built with is shown by its own swatches here, and it is in the library
+    // as well, so it is left out of this list rather than offered twice over.
+    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden).filter(
+      (file) => !isBuiltinMaterial(file.identifier)
+    );
   });
 
   protected selectTexture(id: TextureId): void {

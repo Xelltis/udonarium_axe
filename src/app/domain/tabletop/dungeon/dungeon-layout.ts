@@ -1,3 +1,5 @@
+import { TrapKind } from '@axe/domain/tabletop/trap-presets';
+
 /**
  * How many cells across a passage is cut.
  *
@@ -8,6 +10,7 @@
 export const MIN_CORRIDOR_WIDTH = 1;
 export const MAX_CORRIDOR_WIDTH = 4;
 
+/** A passage width rounded to whole cells and kept between one and four; missing or not a number gives one. */
 export function clampCorridorWidth(width: number | undefined): number {
   if (width === undefined || !Number.isFinite(width)) return MIN_CORRIDOR_WIDTH;
   return Math.min(MAX_CORRIDOR_WIDTH, Math.max(MIN_CORRIDOR_WIDTH, Math.round(width)));
@@ -80,6 +83,39 @@ export interface DungeonDoorLeaf extends DungeonRect {
   locked: boolean;
   /** Whether it is hung the other way round, which is what makes two leaves a pair. */
   mirrored: boolean;
+  /** Whether it is dressed as the wall it stands in, so that nobody who does not know it is there sees a door. */
+  hidden?: boolean;
+}
+
+export const FURNISHING_IDS = [
+  'counter',
+  'stool',
+  'table',
+  'pillar',
+  'desk',
+  'crate',
+  'rubble',
+  'shopCounter',
+  'gamingTable',
+  'containerRed',
+  'containerBlue',
+  'containerGreen',
+] as const;
+
+export type FurnishingId = (typeof FURNISHING_IDS)[number];
+
+/** A piece of furniture standing in a room, and the cells it takes. */
+export interface DungeonFurnishing extends DungeonRect {
+  piece: FurnishingId;
+  /** How far it is turned off square, in degrees. */
+  spin: number;
+  /** What is stacked on top of it, from the bottom up. */
+  stack?: FurnishingId[];
+}
+
+/** A trap set on one cell of the board, and what kind of trap it is. */
+export interface DungeonTrap extends DungeonPoint {
+  kind: TrapKind;
 }
 
 export interface DungeonLayout {
@@ -103,27 +139,36 @@ export interface DungeonLayout {
   mouth: DungeonPoint | null;
   /** Where the key to the locked door lies, or -1 when nothing is locked. */
   keyRoomIndex: number;
+  /** What stands in the rooms, where the place is furnished at all. */
+  furnishings?: DungeonFurnishing[];
+  /** What is set on the floor to catch whoever walks on it, where the place is trapped at all. */
+  traps?: DungeonTrap[];
   seed: number;
 }
 
+/** Whether a cell position lies on the board. */
 export function inBounds(layout: Pick<DungeonLayout, 'width' | 'height'>, x: number, y: number): boolean {
   return x >= 0 && y >= 0 && x < layout.width && y < layout.height;
 }
 
+/** What a cell of the board is; anywhere off the board reads as rock. */
 export function cellAt(layout: DungeonLayout, x: number, y: number): DungeonCellValue {
   if (!inBounds(layout, x, y)) return DungeonCell.Rock;
   return layout.cells[y * layout.width + x] as DungeonCellValue;
 }
 
+/** Sets what a cell of the board is; a position off the board is ignored. */
 export function setCell(layout: DungeonLayout, x: number, y: number, value: DungeonCellValue): void {
   if (!inBounds(layout, x, y)) return;
   layout.cells[y * layout.width + x] = value;
 }
 
+/** Whether a kind of cell is open ground (room, corridor, door or hazard) rather than rock. */
 export function isOpenCell(value: DungeonCellValue): boolean {
   return value !== DungeonCell.Rock;
 }
 
+/** Whether the cell at a position is open ground; off the board it is not. */
 export function isWalkable(layout: DungeonLayout, x: number, y: number): boolean {
   return isOpenCell(cellAt(layout, x, y));
 }
@@ -138,6 +183,11 @@ export function maskOfKind(layout: DungeonLayout, kinds: readonly DungeonCellVal
   return mask;
 }
 
+/**
+ * The middle cell of a room's bounding box, rounded towards the top left.
+ *
+ * A room carved to a shape may not include this cell; {@link firstCellOf} finds one that is.
+ */
 export function roomCenter(room: DungeonRect): DungeonPoint {
   return { x: room.x + Math.floor(room.w / 2), y: room.y + Math.floor(room.h / 2) };
 }
@@ -170,6 +220,7 @@ export function reachableCells(layout: DungeonLayout, start: DungeonPoint): Set<
   return seen;
 }
 
+/** How many cells of the board are anything other than rock. */
 export function countOpenCells(layout: DungeonLayout): number {
   let total = 0;
   for (const cell of layout.cells) if (cell !== DungeonCell.Rock) total++;

@@ -42,6 +42,10 @@ export class EffectFieldService {
     effect(() => this.playbackService.setPersistent('effect-field', this.fields().length > 0 && this.motion.enabled()));
   }
 
+  /**
+   * Leaves an effect standing on the table at a point. It is a room object, so every peer sees it
+   * and saves keep it.
+   */
   place(preset: EffectPreset, x: number, y: number, z: number): EffectField {
     const field = new EffectField();
     field.presetIdentifier = preset.identifier;
@@ -53,14 +57,17 @@ export class EffectFieldService {
     return field;
   }
 
+  /** Takes a standing effect off the table for everyone. */
   remove(field: EffectField): void {
     field.destroy();
   }
 
+  /** Takes every standing effect off the table for everyone. */
   removeAll(): void {
     for (const field of this.fields()) field.destroy();
   }
 
+  /** The preset a standing effect replays, or null once that preset is gone from the room. */
   presetOf(field: EffectField): EffectPreset | null {
     const preset = this.objectStore.get<EffectPreset>(field.presetIdentifier);
     return preset instanceof EffectPreset ? preset : null;

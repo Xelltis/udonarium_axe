@@ -19,6 +19,7 @@ export type DiagonalMove = (typeof DIAGONAL_MOVES)[number];
 /** A corner costs what a side costs, which is what a table says unless it says otherwise. */
 export const DEFAULT_DIAGONAL_MOVE: DiagonalMove = 'equal';
 
+/** The value as a corner-counting rule, or null when it names none, so the caller can fall back to another answer. */
 export function asDiagonalMove(value: unknown): DiagonalMove | null {
   return typeof value === 'string' && (DIAGONAL_MOVES as readonly string[]).includes(value)
     ? (value as DiagonalMove)

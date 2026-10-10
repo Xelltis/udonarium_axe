@@ -96,7 +96,9 @@ describe('InventoryFilterPanelComponent', () => {
 
   it('puts a strip above the list away and brings it back', () => {
     fixture.detectChanges();
-    const boxes = [...fixture.nativeElement.querySelectorAll('input[type="checkbox"]')] as HTMLInputElement[];
+    const boxes = [
+      ...fixture.nativeElement.querySelectorAll('[data-testid="inventory-part-toggle"]'),
+    ] as HTMLInputElement[];
 
     expect(boxes).toHaveLength(3);
     expect(boxes.every((box) => box.checked)).toBe(true);

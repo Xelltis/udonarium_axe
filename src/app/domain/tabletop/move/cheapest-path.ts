@@ -20,6 +20,9 @@ import { DEFAULT_REACH_BUDGET, ReachOptions, startingCut } from '@axe/domain/tab
  * the way to it: the same cell reached with a corner in hand is a different place to walk on
  * from, and the cheaper of the two is not always the one that leads on cheapest.
  *
+ * Ground the piece only crosses is no destination: a way asked for one of those cells is no way
+ * at all, though a way to somewhere beyond it may run straight over it.
+ *
  * The way includes the cell it starts on, so a way that goes nowhere is one cell long.
  */
 export function cheapestPath(
@@ -38,6 +41,7 @@ export function cheapestPath(
   if (start < 0 || start >= total || goal < 0 || goal >= total || budget < 1) return null;
   if (start === goal) return [start];
   if (cells < 1) return null;
+  if (options.restsAt && !options.restsAt(goal)) return null;
 
   const width = countsDiagonals(diagonals) ? 2 : 1;
   const from = start * width + startingCut(diagonals, options.cornersCut);

@@ -22,8 +22,14 @@ import {
   encodeReplayManifest,
 } from '@axe/domain/replay/replay-codec';
 import type { ReplayEvent, ReplayManifest } from '@axe/domain/replay/replay-event';
+import {
+  flagReplayParts,
+  REPLAY_PARTS_FLAGGED_SINCE_FORMAT,
+  replayPartJudge,
+} from '@axe/domain/replay/replay-event-category';
 import { decodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 import { applyReplayEvents, indexOfSeq } from '@axe/domain/replay/replay-patch';
+import { hiddenPiecesIn, inheritOwnerVisibility } from '@axe/domain/replay/replay-visibility';
 
 export const REPLAY_IMPORT_CHUNK_SIZE = 500;
 
@@ -38,13 +44,40 @@ export class ReplayLibraryService {
   private readonly _isBusy = signal(false);
   readonly isBusy = this._isBusy.asReadonly();
 
+  /**
+   * Every event of a stored recording in order, with its manifest, or a null manifest where none was written.
+   *
+   * The events come back read the way the current recorder writes them. A change to part of a hidden
+   * piece, such as its HP, is as hidden as its piece, and the parts arriving or leaving with a piece
+   * are flagged so they are not told as events of their own. Older recordings did neither.
+   */
   async load(id: number): Promise<{ manifest: ReplayManifest | null; events: ReplayEvent[] }> {
     const chunks = await this.store.listChunks(id);
     const events = chunks.flatMap((chunk) => decodeReplayEvents(chunk.bytes)).sort((a, b) => a.seq - b.seq);
     const manifestBytes = await this.store.getManifest(id);
-    return { manifest: manifestBytes ? decodeReplayManifest(manifestBytes) : null, events };
+    const manifest = manifestBytes ? decodeReplayManifest(manifestBytes) : null;
+    if (!manifest) return { manifest, events };
+    const board = await this.boardAtStart(id, events);
+    const visible = inheritOwnerVisibility(events, manifest.targets, hiddenPiecesIn(board));
+    if (manifest.formatVersion >= REPLAY_PARTS_FLAGGED_SINCE_FORMAT) return { manifest, events: visible };
+    return { manifest, events: flagReplayParts(visible, replayPartJudge(manifest.targets, board)) };
   }
 
+  private async boardAtStart(id: number, events: readonly ReplayEvent[]): Promise<ReplayObjectSnapshot[]> {
+    try {
+      const keyframe = await this.keyframeBefore(id, events[0]?.seq ?? 0);
+      return keyframe ? decodeReplayKeyframe(await readKeyframeBytes(keyframe.blob)) : [];
+    } catch (reason) {
+      Logger.warn('[ReplayLibrary] 最初の盤面を読めないため、記録のとおりに読みます', reason);
+      return [];
+    }
+  }
+
+  /**
+   * The latest saved board at or before an event, or the earliest one when all come after it.
+   *
+   * Null when the recording has no saved boards at all.
+   */
   async keyframeBefore(id: number, seq: number): Promise<{ seq: number; blob: Blob } | null> {
     const keyframes = await this.store.listKeyframes(id);
     let best: { seq: number; blob: Blob } | null = null;
@@ -57,6 +90,7 @@ export class ReplayLibraryService {
     return first ? { seq: first.seq, blob: first.blob } : null;
   }
 
+  /** The board as it stood just before an event, built from the nearest saved board and the events after it. */
   async boardBefore(id: number, seq: number, events: readonly ReplayEvent[]): Promise<ReplayObjectSnapshot[]> {
     const keyframe = await this.keyframeBefore(id, seq);
     const base = keyframe ? decodeReplayKeyframe(await readKeyframeBytes(keyframe.blob)) : [];
@@ -65,6 +99,12 @@ export class ReplayLibraryService {
     return applyReplayEvents(base, events.slice(from + 1, upto + 1));
   }
 
+  /**
+   * Packs a recording into an archive and hands it to the browser to download.
+   *
+   * With assets, the images and sounds it uses go in as well. Answers false when another export or
+   * import is running, the recording has no manifest, or packing fails.
+   */
   async export(meta: ReplayRecordingMeta, withAssets: boolean): Promise<boolean> {
     if (this._isBusy()) return false;
     this._isBusy.set(true);
@@ -114,6 +154,13 @@ export class ReplayLibraryService {
     return this.saveDataService.buildAssetFiles(collectReplayAssetIds(snapshots, events));
   }
 
+  /**
+   * Reads a replay archive into this browser as a new recording, along with any images and sounds
+   * packed in it.
+   *
+   * Answers the new recording's id, or null when another export or import is running or the file is
+   * not a replay.
+   */
   async import(file: File): Promise<number | null> {
     if (this._isBusy()) return null;
     this._isBusy.set(true);

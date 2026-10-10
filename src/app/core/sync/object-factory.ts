@@ -8,6 +8,7 @@ export interface Type<T> {
 
 export class ObjectFactory {
   private static _instance: ObjectFactory;
+  /** The factory shared by the whole app, created on first use. */
   static get instance(): ObjectFactory {
     if (!ObjectFactory._instance) ObjectFactory._instance = new ObjectFactory();
     return ObjectFactory._instance;
@@ -18,6 +19,12 @@ export class ObjectFactory {
 
   private constructor() {}
 
+  /**
+   * Records a GameObject class under an alias so objects can be created from that alias.
+   *
+   * Without an alias the class name is used, which minification can change. Registering an alias
+   * or a class a second time is logged and ignored, and the first registration stands.
+   */
   register<T extends GameObject>(constructor: Type<T>, alias?: string) {
     if (!alias) {
       alias = constructor.name || constructor.toString().match(/function\s*([^(]*)\(/)?.[1] || '';
@@ -34,6 +41,11 @@ export class ObjectFactory {
     this.aliasMap.set(constructor, alias);
   }
 
+  /**
+   * Constructs the class registered under the alias, with the given identifier or a new one.
+   *
+   * The object is not added to the store. An unknown alias logs an error and gives null.
+   */
   create<T extends GameObject>(alias: string, identifier?: string): T | null {
     const classConstructor = this.constructorMap.get(alias);
     if (!classConstructor) {
@@ -44,6 +56,7 @@ export class ObjectFactory {
     return gameObject;
   }
 
+  /** The alias a class was registered under, or an empty string when it never was. */
   getAlias<T extends GameObject>(constructor: Type<T>): string {
     return this.aliasMap.get(constructor) ?? '';
   }

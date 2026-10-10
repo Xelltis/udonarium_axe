@@ -1,5 +1,5 @@
 import { Logger } from '@axe/core/logging/logger';
-import type { EncodedAudio, EncodedVideo, VideoEncodeRequest } from '@axe/core/media/video-encoder';
+import type { EncodedVideo, VideoEncodeRequest, VideoSoundSource } from '@axe/core/media/video-encoder';
 
 /**
  * Exporting for a browser without WebCodecs.
@@ -16,6 +16,7 @@ const CANDIDATE_TYPES = [
   'video/webm',
 ] as const;
 
+/** Whether MediaRecorder can export here in real time, the fallback when WebCodecs is missing. */
 export function isMediaRecordingSupported(): boolean {
   return typeof MediaRecorder !== 'undefined' && typeof HTMLCanvasElement !== 'undefined';
 }
@@ -31,34 +32,108 @@ export function mediaRecordingType(): string | null {
   return null;
 }
 
+/** The file extension for a recorded MIME type: mp4 for any video/mp4 type, webm for the rest. */
 export function extensionOfMediaType(type: string): string {
   return type.startsWith('video/mp4') ? 'mp4' : 'webm';
 }
 
-interface SoundTrack {
+/** The sound of a recording made in real time, played into it as it runs. */
+export interface SoundTrack {
   stream: MediaStream;
-  start(): void;
+  /** Reads the first seconds of the sound, so it can start on time; the recording waits for it. */
+  prime(): Promise<void>;
+  /**
+   * Starts the sound's clock and plays it from the start, answering how many milliseconds from
+   * now its first sample sounds, which the picture has to wait for as well.
+   */
+  start(): number;
   stop(): void;
 }
 
-function soundTrackOf(audio: EncodedAudio | null | undefined): SoundTrack | null {
-  if (!audio || audio.channels.length < 1 || typeof AudioContext === 'undefined') return null;
+/** How far ahead of the clock the sound is kept queued, in seconds. */
+export const SOUND_AHEAD_SECONDS = 6;
+/** How much sound is queued at a time, in seconds. */
+export const SOUND_STRETCH_SECONDS = 3;
+/** How long after the clock starts the sound begins, to give the first stretch time to be queued. */
+export const SOUND_START_LEAD_SECONDS = 0.05;
+
+/**
+ * The sound played into the recording as it runs, a few seconds at a time and a few seconds ahead,
+ * so a long one is never held whole in memory.
+ *
+ * The first seconds are read before the clock starts, since mixing a stretch can take longer than
+ * the moment the clock gives it. A stretch that is late all the same starts part way in, where the
+ * clock has got to, rather than late and over the one after it.
+ */
+export function soundTrackOf(audio: VideoSoundSource | null | undefined): SoundTrack | null {
+  if (!audio || audio.numberOfChannels < 1 || audio.length < 1 || typeof AudioContext === 'undefined') return null;
 
   try {
     const context = new AudioContext({ sampleRate: audio.sampleRate });
-    const buffer = context.createBuffer(audio.channels.length, audio.channels[0].length, audio.sampleRate);
-    for (const [index, samples] of audio.channels.entries()) buffer.copyToChannel(new Float32Array(samples), index);
-
     const destination = context.createMediaStreamDestination();
-    const source = context.createBufferSource();
-    source.buffer = buffer;
-    source.connect(destination);
+    const stretch = Math.round(SOUND_STRETCH_SECONDS * audio.sampleRate);
+    const sources: AudioBufferSourceNode[] = [];
+    const early: { buffer: AudioBuffer; at: number }[] = [];
+    let queued = 0;
+    let startedAt = 0;
+    let started = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let topping = false;
+
+    const schedule = (buffer: AudioBuffer, at: number): void => {
+      const when = startedAt + at / audio.sampleRate;
+      const late = context.currentTime - when;
+      if (late >= buffer.duration) return;
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(destination);
+      if (late > 0) source.start(context.currentTime, late);
+      else source.start(when);
+      sources.push(source);
+    };
+
+    const readNext = async (): Promise<boolean> => {
+      const channels = await audio.read(queued, stretch);
+      const frames = channels[0]?.length ?? 0;
+      if (frames < 1) return false;
+      const buffer = context.createBuffer(audio.numberOfChannels, frames, audio.sampleRate);
+      channels.forEach((samples, index) => buffer.copyToChannel(new Float32Array(samples), index));
+      const at = queued;
+      queued += frames;
+      if (started) schedule(buffer, at);
+      else early.push({ buffer, at });
+      return true;
+    };
+
+    const fill = async (until: () => number): Promise<void> => {
+      if (topping) return;
+      topping = true;
+      try {
+        while (queued < audio.length && queued / audio.sampleRate < until()) {
+          if (!(await readNext())) break;
+        }
+      } catch (reason) {
+        Logger.warn('[MediaRecorder] 音を読めませんでした', reason);
+      } finally {
+        topping = false;
+      }
+    };
 
     return {
       stream: destination.stream,
-      start: () => source.start(),
+      prime: () => fill(() => SOUND_AHEAD_SECONDS),
+      start: () => {
+        started = true;
+        startedAt = context.currentTime + SOUND_START_LEAD_SECONDS;
+        for (const { buffer, at } of early.splice(0)) schedule(buffer, at);
+        const ahead = () => context.currentTime - startedAt + SOUND_AHEAD_SECONDS;
+        void fill(ahead);
+        timer = setInterval(() => void fill(ahead), 1000);
+        return SOUND_START_LEAD_SECONDS * 1000;
+      },
       stop: () => {
-        source.stop();
+        if (timer) clearInterval(timer);
+        for (const source of sources) source.stop();
         void context.close();
       },
     };
@@ -100,10 +175,11 @@ export async function recordVideo(request: VideoEncodeRequest): Promise<EncodedV
   const msPerFrame = 1000 / request.fps;
 
   try {
+    await sound?.prime();
     recorder.start();
-    sound?.start();
+    const lead = sound?.start() ?? 0;
 
-    const startedAt = performance.now();
+    const startedAt = performance.now() + lead;
     let painted = -1;
     for (;;) {
       if (request.isCancelled?.()) {
@@ -115,7 +191,7 @@ export async function recordVideo(request: VideoEncodeRequest): Promise<EncodedV
       const elapsed = performance.now() - startedAt;
       if (elapsed >= durationMs) break;
 
-      const index = Math.min(request.frameCount - 1, Math.floor(elapsed / msPerFrame));
+      const index = Math.max(0, Math.min(request.frameCount - 1, Math.floor(elapsed / msPerFrame)));
       if (index !== painted) {
         painted = index;
         await request.paint(ctx as unknown as OffscreenCanvasRenderingContext2D, index);

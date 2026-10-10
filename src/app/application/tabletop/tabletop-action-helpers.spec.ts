@@ -1,5 +1,6 @@
 import {
   getDiceMenuItems,
+  getDicePlacements,
   getRangeMenuItems,
   getTrumpCardCodes,
   TERRAIN_TEXTURE_PATH,
@@ -43,6 +44,29 @@ describe('tabletop-action-helpers', () => {
       { menuName: 'feature.tabletop.action.rangeShapeCircle', typeName: 'CIRCLE' },
       { menuName: 'feature.tabletop.action.rangeShapeCustom', typeName: 'CUSTOM' },
     ]);
+  });
+
+  describe('where several dice made at once go', () => {
+    it('puts a single one where the table was asked', () => {
+      expect(getDicePlacements({ x: 100, y: 200 }, 1)).toEqual([{ x: 75, y: 175 }]);
+    });
+
+    it('lays the rest beside it rather than in a pile on it', () => {
+      const placements = getDicePlacements({ x: 100, y: 200 }, 3);
+
+      expect(placements.map((placement) => placement.x)).toEqual([75, 130, 185]);
+      expect(new Set(placements.map((placement) => placement.y)).size).toBe(1);
+    });
+
+    it('starts another row once five stand in one', () => {
+      expect(getDicePlacements({ x: 100, y: 200 }, 6)[5]).toEqual({ x: 75, y: 230 });
+    });
+
+    it('places nothing where none was asked for', () => {
+      expect(getDicePlacements({ x: 0, y: 0 }, 0)).toEqual([]);
+      expect(getDicePlacements({ x: 0, y: 0 }, -3)).toEqual([]);
+      expect(getDicePlacements({ x: 0, y: 0 }, Number.NaN)).toEqual([]);
+    });
   });
 
   it('provides the image paths for terrain and card backs', () => {

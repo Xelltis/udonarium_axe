@@ -1,8 +1,10 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { NO_ALLIANCE, PartyAlliance } from '@axe/domain/party/party-alliance';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { forEachMoveNeighbour } from '@axe/domain/tabletop/move/move-neighbours';
 import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
+import { relationBetween } from '@axe/domain/tabletop/move/piece-relation';
 
 /** What the ground around an enemy does to a piece walking into it. */
 export const ZOC_MODES = ['none', 'stop', 'block', 'cost'] as const;
@@ -13,6 +15,7 @@ export const DEFAULT_ZOC_MODE: ZocMode = 'none';
 export const DEFAULT_ZOC_RANGE = 1;
 export const DEFAULT_ZOC_EXTRA_COST = 1;
 
+/** The value as a zone-of-control mode, reading anything unknown, such as an empty setting, as none. */
 export function asZocMode(value: unknown): ZocMode {
   return typeof value === 'string' && (ZOC_MODES as readonly string[]).includes(value)
     ? (value as ZocMode)
@@ -20,15 +23,52 @@ export function asZocMode(value: unknown): ZocMode {
 }
 
 /**
+ * How a table tells its two sides apart.
+ *
+ * By whom the master runs, which needs nothing of anybody and is right for most tables; or by
+ * the parties the pieces have been sorted into, which a table playing three sides against one
+ * another needs and which says nothing at all about a piece nobody has placed.
+ */
+export const HOSTILITY_BY = ['npc', 'party'] as const;
+
+export type HostilityBy = (typeof HOSTILITY_BY)[number];
+
+export const DEFAULT_HOSTILITY_BY: HostilityBy = 'npc';
+
+/** Reads a stored way of telling the sides apart, falling back to whom the master runs. */
+export function asHostilityBy(value: unknown): HostilityBy {
+  return typeof value === 'string' && (HOSTILITY_BY as readonly string[]).includes(value)
+    ? (value as HostilityBy)
+    : DEFAULT_HOSTILITY_BY;
+}
+
+/**
  * Whether one piece is the other's enemy, which is the whole of who holds ground against whom.
  *
- * A monster to a hero and a hero to a monster: the two sides of the table are told apart by
- * which of them the game master runs. Nothing finer is asked for, because a party is a loose
- * thing here - most pieces belong to none - and a wrong guess at it would bend the range of
- * every piece on the board.
+ * A monster to a hero and a hero to a monster: by default the two sides of the table are told
+ * apart by which of them the game master runs. Nothing finer is asked for unless a table asks,
+ * because a party is a loose thing here - most pieces belong to none - and a wrong guess at it
+ * would bend the range of every piece on the board.
+ *
+ * A table that has sorted its pieces into parties may say so instead, and then only a piece of
+ * another party is an enemy: a piece in no party holds no ground and has none held against it,
+ * which is the honest answer where nobody has said whose side it is on.
  */
-export function isHostileTo(piece: GameCharacter, mover: GameCharacter): boolean {
-  return piece.identifier !== mover.identifier && piece.isNpc !== mover.isNpc;
+export function isHostileTo(
+  piece: GameCharacter,
+  mover: GameCharacter,
+  by: HostilityBy = DEFAULT_HOSTILITY_BY,
+  allied: PartyAlliance = NO_ALLIANCE
+): boolean {
+  if (piece.identifier === mover.identifier) return false;
+  if (by === 'party') {
+    // Held both ways or neither. A piece in no party holds no ground, and a table that held
+    // ground against it all the same would answer a stray monster with every party's reach
+    // while it held none of its own.
+    if (mover.partyIdentifier.length < 1) return false;
+    return relationBetween(piece, mover, allied) === 'other';
+  }
+  return piece.isNpc !== mover.isNpc;
 }
 
 /**

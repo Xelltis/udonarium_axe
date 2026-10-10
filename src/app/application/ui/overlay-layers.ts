@@ -15,10 +15,15 @@ import { ViewContainerRef } from '@angular/core';
 export class OverlayLayers {
   private static readonly windows = new Map<Document, ViewContainerRef>();
 
+  /**
+   * Registers a detached window's overlay layer, so menus and dialogs opened while it has the focus
+   * appear there.
+   */
   static attach(document: Document, layer: ViewContainerRef): void {
     OverlayLayers.windows.set(document, layer);
   }
 
+  /** Forgets a detached window's layer once the window closes. */
   static detach(document: Document): void {
     OverlayLayers.windows.delete(document);
   }
@@ -31,6 +36,18 @@ export class OverlayLayers {
     return null;
   }
 
+  /**
+   * The layer of the window a document belongs to, or nothing for the main window.
+   *
+   * Asked by something that knows where it is standing, which is surer than asking which
+   * window has the focus: a panel opened from a panel in a window belongs in that window
+   * however the focus has moved since.
+   */
+  static layerFor(document: Document | null | undefined): ViewContainerRef | null {
+    return document ? (OverlayLayers.windows.get(document) ?? null) : null;
+  }
+
+  /** Forgets every registered window, so everything falls back to the main layer. */
   static reset(): void {
     OverlayLayers.windows.clear();
   }

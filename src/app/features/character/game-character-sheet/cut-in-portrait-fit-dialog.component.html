@@ -1,0 +1,107 @@
+<div class="box-border flex flex-col gap-2.5 p-3">
+  @if (portraits().length > 1) {
+    <div class="flex flex-wrap justify-center gap-1" role="radiogroup">
+      @for (portrait of portraits(); track portrait.identifier; let index = $index) {
+        <button
+          type="button"
+          role="radio"
+          class="border-ui-border-panel bg-ui-elevated text-ui-dim hover:border-ui-text-muted relative flex size-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[3px] border-2 border-solid p-0 transition-[border-color] [&_.material-icons]:text-base!"
+          [class.border-ui-accent!]="portrait.identifier === picture()"
+          [attr.aria-checked]="portrait.identifier === picture()"
+          [title]="'feature.inventory.sheet.portraitIndexTitle' | transloco: { index: index + 1 }"
+          (click)="choose(portrait.identifier)"
+        >
+          @if (portrait.url) {
+            <img class="block size-full object-cover" [src]="portrait.url | safe: 'resourceUrl'" alt="" />
+          } @else {
+            <i class="material-icons">image</i>
+          }
+        </button>
+      }
+    </div>
+  }
+
+  <div
+    class="bg-ui-input rounded-ui-sm focus-visible:ring-ui-accent relative mx-auto cursor-grab touch-none overflow-hidden outline-none select-none focus-visible:ring-2 active:cursor-grabbing"
+    tabindex="0"
+    data-testid="cut-in-fit-stage"
+    [attr.aria-label]="'feature.inventory.sheet.cutInFitHint' | transloco"
+    [style.width.px]="frameWidth() + margin * 2"
+    [style.height.px]="frameHeight() + margin * 2"
+    (pointerdown)="onPointerDown($event)"
+    (pointermove)="onPointerMove($event, frame)"
+    (pointerup)="onPointerUp($event)"
+    (pointercancel)="onPointerUp($event)"
+    (wheel)="onWheel($event, frame)"
+    (keydown)="onKeyDown($event)"
+  >
+    <div
+      #frame
+      class="absolute"
+      [style.left.px]="margin"
+      [style.top.px]="margin"
+      [style.width.px]="frameWidth()"
+      [style.height.px]="frameHeight()"
+    >
+      @if (pictureUrl(); as url) {
+        <img
+          class="pointer-events-none block size-full max-w-none object-contain"
+          draggable="false"
+          [src]="url | safe: 'resourceUrl'"
+          [style.transform]="transform()"
+          alt=""
+        />
+      }
+    </div>
+    <div
+      class="ring-ui-accent pointer-events-none absolute shadow-[0_0_0_9999px_rgba(0,0,0,0.6)] ring-2"
+      [style.left.px]="margin"
+      [style.top.px]="margin"
+      [style.width.px]="frameWidth()"
+      [style.height.px]="frameHeight()"
+    ></div>
+  </div>
+
+  <p class="text-ui-muted m-0 text-center text-[11px] leading-normal">
+    {{ 'feature.inventory.sheet.cutInFitHint' | transloco }}
+  </p>
+  <p
+    class="m-0 text-center text-[11px] leading-normal"
+    data-testid="cut-in-fit-state"
+    [attr.data-state]="setFit() ? 'set' : 'unset'"
+  >
+    @if (setFit()) {
+      <span class="text-ui-accent">{{ 'feature.inventory.sheet.cutInFitSet' | transloco }}</span>
+    } @else {
+      <span class="text-ui-dim">{{ 'feature.inventory.sheet.cutInFitUnset' | transloco }}</span>
+    }
+  </p>
+
+  <div class="flex items-center gap-2">
+    <button
+      type="button"
+      class="rounded-ui-sm border-ui-border-panel bg-ui-panel text-ui-text hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 inline-flex shrink-0 cursor-pointer items-center gap-1 border border-solid px-2.5 py-1.25 text-[12px] transition-[background,border-color] disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+      data-testid="cut-in-fit-put-back"
+      [disabled]="!setFit()"
+      (click)="putBack()"
+    >
+      <i class="material-icons">restart_alt</i>{{ 'feature.inventory.sheet.cutInFitPutBack' | transloco }}
+    </button>
+    <span class="flex-1"></span>
+    <button
+      type="button"
+      class="rounded-ui-sm border-ui-border-panel bg-ui-panel text-ui-text hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border border-solid px-2.5 py-1.25 text-[12px] transition-[background,border-color]"
+      (click)="cancel()"
+    >
+      {{ 'common.button.cancel' | transloco }}
+    </button>
+    <button
+      type="button"
+      class="rounded-ui-sm bg-ui-accent hover:bg-ui-accent m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border-none px-2.5 py-1.25 text-[12px] font-medium text-white transition-[opacity,background] hover:opacity-85"
+      data-testid="cut-in-fit-apply"
+      (click)="apply()"
+    >
+      {{ 'common.button.ok' | transloco }}
+    </button>
+  </div>
+</div>

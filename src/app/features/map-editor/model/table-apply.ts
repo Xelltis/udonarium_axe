@@ -1,14 +1,19 @@
+import { DEFAULT_AMBIENCE_DENSITY } from '@axe/domain/effect/ambience/ambience-kind';
 import { parseCellKey } from '@axe/domain/tabletop/cell-key';
 import { CellRect, largestRectangles } from '@axe/domain/tabletop/cell-rectangles';
 import {
+  AmbienceBlock,
   BlockChange,
   blockChange,
+  DEFAULT_FUNCTION_SPEC,
   FunctionPaintPlan,
   MapFunctionRole,
   MaskBlock,
+  MoveCostBlock,
   TerrainBlock,
   TriggerBlock,
 } from '@axe/domain/tabletop/function-paint';
+import { hazardPresetOf } from '@axe/domain/tabletop/hazard-presets';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import { FunctionLayer, MapScene } from '@axe/features/map-editor/model/scene';
@@ -105,6 +110,90 @@ function triggerBlocksOf(scene: MapScene, hex: boolean): TriggerBlock[] {
   return blocks;
 }
 
+function moveCostBlocksOf(scene: MapScene, hex: boolean): MoveCostBlock[] {
+  const blocks: MoveCostBlock[] = [];
+  for (const layer of functionLayersOf(scene, 'moveCost')) {
+    if (layer.spec.moveCost.blocks) continue;
+    for (const rect of blockRectsOf(Object.keys(layer.cells), hex)) {
+      blocks.push({ ...rect, spec: layer.spec.moveCost });
+    }
+  }
+  return blocks;
+}
+
+/**
+ * What the dangerous-ground brush comes to, sorted into the three things it lays.
+ *
+ * One stroke is a look, a going and a thing that happens, and the table carries the three
+ * apart. The sorting is done here so that everything downstream sees the same three kinds of
+ * block it always saw, whether a master laid them one at a time or all at once.
+ */
+function hazardBlocksOf(
+  scene: MapScene,
+  hex: boolean
+): { ambience: AmbienceBlock[]; moveCost: MoveCostBlock[]; trigger: TriggerBlock[] } {
+  const ambience: AmbienceBlock[] = [];
+  const moveCost: MoveCostBlock[] = [];
+  const trigger: TriggerBlock[] = [];
+  for (const layer of functionLayersOf(scene, 'hazard')) {
+    const spec = layer.spec.hazard;
+    const preset = hazardPresetOf(spec.kind);
+    const taken = spec.element.trim();
+    for (const rect of blockRectsOf(Object.keys(layer.cells), hex)) {
+      ambience.push({
+        ...rect,
+        spec: {
+          kind: preset.ambience,
+          color: '',
+          density: DEFAULT_AMBIENCE_DENSITY,
+          blocksSight: preset.blocksSight,
+        },
+      });
+      // Dangerous ground is dear to cross rather than shut: what nobody gets through at all is
+      // the movement brush's own far end, painted over the same cells where a table wants both.
+      if (preset.extraCost > 0) {
+        moveCost.push({
+          ...rect,
+          spec: { blocks: false, halves: false, extraCost: preset.extraCost, color: preset.color },
+        });
+      }
+      // Ground that takes nothing and leaves no mark needs nothing to happen on it: laying a
+      // trap that does nothing would put an object on the table for every cell of a fog bank.
+      if ((taken.length > 0 && preset.amount.length > 0) || preset.ailment.length > 0) {
+        trigger.push({
+          ...rect,
+          spec: {
+            ...DEFAULT_FUNCTION_SPEC.trigger,
+            name: layer.name,
+            moment: preset.moment,
+            open: true,
+            color: preset.color,
+            element: preset.amount.length > 0 ? taken : '',
+            amount: preset.amount.length > 0 ? preset.amount : '',
+            ailment: preset.ailment,
+          },
+        });
+      }
+    }
+  }
+  return { ambience, moveCost, trigger };
+}
+
+/**
+ * The cells the one brush shuts outright, as against the ones it merely puts a price on.
+ *
+ * The table carries the two differently — a map of shut cells, and a block apiece for the rest —
+ * so what was painted with one brush is sorted back into two here and nowhere else.
+ */
+function blockedCellsOf(scene: MapScene): string[] {
+  const held = new Set<string>();
+  for (const layer of functionLayersOf(scene, 'moveCost')) {
+    if (!layer.spec.moveCost.blocks) continue;
+    for (const key of Object.keys(layer.cells)) held.add(key);
+  }
+  return [...held];
+}
+
 /**
  * Whether the scene says anything at all about what the table's cells do.
  *
@@ -116,6 +205,20 @@ export function sceneCarriesFunctions(scene: MapScene, role?: MapFunctionRole): 
   return scene.layers.some(
     (layer) => layer.kind === 'function' && (role === undefined || (layer as FunctionLayer).role === role)
   );
+}
+
+/**
+ * Whether the scene has anything to say about a role, layer or no layer.
+ *
+ * A layer that has been deleted still speaks: the scene wrote the role down while the layer was
+ * there, so a table asked to take the painting again hears "none of that" rather than silence.
+ * Without it, rubbing a layer out would leave every wall and trap it had laid standing, and the
+ * only way to clear them would be to keep an empty layer about for ever.
+ */
+export function sceneSpeaksFor(scene: MapScene, role?: MapFunctionRole): boolean {
+  if (sceneCarriesFunctions(scene, role)) return true;
+  const spoken = scene.paintedRoles ?? [];
+  return role === undefined ? spoken.length > 0 : spoken.includes(role);
 }
 
 function functionLayersOf(scene: MapScene, role: MapFunctionRole): FunctionLayer[] {
@@ -137,20 +240,31 @@ function functionLayersOf(scene: MapScene, role: MapFunctionRole): FunctionLayer
 export function planFunctionPaint(scene: MapScene, table: TableSnapshot): FunctionPaintPlan | null {
   if (scene.cols !== table.cols || scene.rows !== table.rows || scene.gridType !== table.gridType) return null;
   const hex = isHexGrid(table.gridType);
+  // Dangerous ground is laid as three ordinary things, so it is taken apart before anything
+  // downstream is asked to work out what changed.
+  const hazard = hazardBlocksOf(scene, hex);
+  const laysHazards = sceneSpeaksFor(scene, 'hazard');
 
-  // A role the scene has no layer for is a role it has said nothing about, and saying nothing
-  // is not the same as saying none. Emptying a layer still speaks — the layer is there — but a
-  // scene that only ever had walls painted on it must not take the table's masks away with them.
+  // A role the scene has never had a layer for is a role it has said nothing about, and saying
+  // nothing is not the same as saying none: a scene that only ever had walls painted on it must
+  // not take the table's masks away with them. Emptying a layer speaks, and so does deleting
+  // one, since the scene wrote the role down while the layer was still there.
   return {
-    blocked: sceneCarriesFunctions(scene, 'moveBlock') ? cellsForRole(scene, 'moveBlock') : [...table.blockedCells],
-    terrain: sceneCarriesFunctions(scene, 'terrain')
+    blocked: sceneSpeaksFor(scene, 'moveCost') ? blockedCellsOf(scene) : [...table.blockedCells],
+    moveCost:
+      sceneSpeaksFor(scene, 'moveCost') || laysHazards
+        ? blockChange([...moveCostBlocksOf(scene, hex), ...hazard.moveCost], table.moveCostBlocks)
+        : { add: [], remove: [] },
+    ambience: laysHazards ? blockChange(hazard.ambience, table.ambienceBlocks) : { add: [], remove: [] },
+    terrain: sceneSpeaksFor(scene, 'terrain')
       ? blockChange(terrainBlocksOf(scene, table.cellPx, hex), table.terrainBlocks)
       : { add: [], remove: [] },
-    mask: sceneCarriesFunctions(scene, 'mask')
+    mask: sceneSpeaksFor(scene, 'mask')
       ? blockChange(maskBlocksOf(scene, hex), table.maskBlocks)
       : { add: [], remove: [] },
-    trigger: sceneCarriesFunctions(scene, 'trigger')
-      ? blockChange(triggerBlocksOf(scene, hex), table.triggerBlocks)
-      : { add: [], remove: [] },
+    trigger:
+      sceneSpeaksFor(scene, 'trigger') || laysHazards
+        ? blockChange([...triggerBlocksOf(scene, hex), ...hazard.trigger], table.triggerBlocks)
+        : { add: [], remove: [] },
   };
 }

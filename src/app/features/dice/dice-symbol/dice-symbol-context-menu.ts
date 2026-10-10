@@ -1,6 +1,10 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
-import { buildCopyAction, buildLockToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
+import {
+  buildCopyAction,
+  buildLockToggleAction,
+  buildToggleAction,
+} from '@axe/application/ui/tabletop-context-menu-actions';
 import { Network } from '@axe/core/index';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -10,6 +14,14 @@ export interface DiceOwnerCandidate {
   name: string;
 }
 
+/**
+ * Builds the right-click menu for a die on the table.
+ *
+ * It offers rolling, opening a kept face or keeping it to oneself, which piece the die belongs to
+ * and storing it on that piece, setting the face, locking, hiding the name, marking it spent, the
+ * detail sheet, copying and deleting. A die whose face the reader cannot see offers no roll and no
+ * face to set. The entries change the die directly and play their own sounds.
+ */
 export function buildDiceSymbolContextMenu(
   diceSymbol: DiceSymbol,
   gridSize: number,
@@ -129,6 +141,13 @@ export function buildDiceSymbolContextMenu(
             SoundEffect.play(PresetSound.sweep);
           },
         }
+  );
+
+  actions.push(
+    buildToggleAction(diceSymbol.isUsed, (next) => (diceSymbol.isUsed = next), {
+      on: t('feature.dice.contextMenu.usedOn'),
+      off: t('feature.dice.contextMenu.usedOff'),
+    })
   );
 
   actions.push(ContextMenuSeparator);

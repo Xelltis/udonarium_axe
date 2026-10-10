@@ -10,7 +10,7 @@ test.describe('チャット設定パネル (chat-message-setting)', () => {
   });
 
   test('立ち絵表示フラグ・高さ・ウィンドウ内表示の各設定が存在すること', async ({ page }) => {
-    // checkbox/number 各種設定が DOM 上に出ている。
+    // checkbox/numberの各種設定がDOM上に出ている。
     await expect(page.locator('chat-message-setting input[name="portraitDisplayFlag"]').first()).toBeAttached();
     await expect(page.locator('chat-message-setting input[name="portraitHeight"]')).toBeVisible();
     await expect(page.locator('chat-message-setting input[name="portraitInWindow"]')).toBeAttached();

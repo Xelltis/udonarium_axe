@@ -55,24 +55,50 @@ export const DEFAULT_REPLAY_RETENTION: ReplayRetention = {
 };
 
 export abstract class ReplayLogStore {
+  /** Whether this store can work in the current browser at all. */
   abstract isAvailable(): boolean;
+  /** Opens a new recording with no events yet and returns its id, or null when it could not be stored. */
   abstract createRecording(input: ReplayRecordingInput): Promise<number | null>;
+  /** Changes a recording's room name, end time or encoded manifest, leaving fields not given as they are. */
   abstract updateRecording(id: number, update: ReplayRecordingUpdate): Promise<void>;
+  /** Metadata for every stored recording, newest first. */
   abstract listRecordings(): Promise<ReplayRecordingMeta[]>;
+  /** One recording's metadata, or null when no recording has that id. */
   abstract getRecording(id: number): Promise<ReplayRecordingMeta | null>;
+  /** The encoded manifest saved for a recording, or null when none has been saved. */
   abstract getManifest(id: number): Promise<Uint8Array | null>;
+  /**
+   * Stores the next chunk of a recording's events and counts it into the recording's totals,
+   * resolving false when it was not stored.
+   */
   abstract appendChunk(input: ReplayChunkInput): Promise<boolean>;
+  /** Every event chunk of a recording, in the order they were recorded. */
   abstract listChunks(recordingId: number): Promise<ReplayChunkRecord[]>;
+  /**
+   * Stores a keyframe for a recording and counts its size into the recording's total,
+   * resolving false when it was not stored.
+   */
   abstract putKeyframe(input: ReplayKeyframeInput): Promise<boolean>;
+  /** Every keyframe of a recording, in sequence order. */
   abstract listKeyframes(recordingId: number): Promise<ReplayKeyframeRecord[]>;
+  /** Deletes a recording along with all of its chunks and keyframes. */
   abstract removeRecording(id: number): Promise<void>;
+  /** Deletes every recording this store holds. */
   abstract clear(): Promise<void>;
 }
 
+/** A copy of the list ordered by start time, newest first, with the higher id first on a tie. */
 export function sortRecordingsByNewest(metas: readonly ReplayRecordingMeta[]): ReplayRecordingMeta[] {
   return [...metas].sort((a, b) => b.startedAt - a.startedAt || b.id - a.id);
 }
 
+/**
+ * The ids of the recordings to delete so that the rest fit the retention limits.
+ *
+ * The newest recording and the protected one, normally the recording in progress, are always kept
+ * and count toward the limits. Once one recording goes over a limit every older one goes too, so
+ * what is kept is always an unbroken run of the newest.
+ */
 export function selectExpiredRecordings(
   metas: readonly ReplayRecordingMeta[],
   retention: ReplayRetention = DEFAULT_REPLAY_RETENTION,

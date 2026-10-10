@@ -13,6 +13,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { BUFF_COLORS } from '@axe/domain/character/buff-appearance';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PaletteCommandGroup, paletteCommandGroups } from '@axe/domain/chat/palette-rows';
+import { kindGlyphSvg } from '@axe/domain/effect/effect-shapes';
 import { Hotbar } from '@axe/domain/hotbar/hotbar';
 import { hotbarSlotLabel } from '@axe/domain/hotbar/hotbar-appearance';
 import { emptyHotbarSlotDraft, HotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
@@ -44,6 +45,7 @@ import { CHARACTER_PANELS, DEFAULT_CHARACTER_PANEL, panelLabelKey } from '@axe/d
 import { findSlotActor } from '@axe/features/hotbar/hotbar-actor';
 import { HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
 import { selectControllableCharacters } from '@axe/features/pl-tools/owned-character-list/owned-characters';
+import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /**
@@ -61,7 +63,7 @@ const DEFAULT_STEP_DELAY_MS = 300;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'hotbar-slot-editor',
   templateUrl: './hotbar-slot-editor.component.html',
-  imports: [FormsModule, TranslocoModule],
+  imports: [FormsModule, SafePipe, TranslocoModule],
 })
 export class HotbarSlotEditorComponent {
   private readonly panelService = inject(PanelService);
@@ -137,6 +139,16 @@ export class HotbarSlotEditorComponent {
   });
 
   protected readonly picksFromList = computed(() => this.choices().length > 0);
+
+  /** The effects a slot can play, each with the mark the effect library draws for its shape. */
+  protected readonly effectChoices = computed<{ value: string; name: string; glyph: string }[]>(() => {
+    if (this.kind() !== 'effect') return [];
+    return this.effectLibrary.presets().map((preset) => ({
+      value: preset.name,
+      name: preset.name,
+      glyph: kindGlyphSvg(preset.effectKind, { core: preset.colorPrimary, edge: preset.colorSecondary }),
+    }));
+  });
 
   /** Who the slot speaks as while it is being written, so its palette is the one on offer. */
   private readonly actingCharacter = computed<GameCharacter | null>(() => {
@@ -341,6 +353,13 @@ export class HotbarSlotEditorComponent {
     return options.kind === 'range' && options.shiftY;
   });
 
+  /**
+   * Loads the slot the hotbar opened this editor for: which page and slot it is, and the draft to
+   * start from.
+   *
+   * The draft is copied, payload included, so editing here never changes the object the hotbar
+   * passed in.
+   */
   setFrom(cell: HotbarCell, draft: HotbarSlotDraft): void {
     this.cell.set(cell);
     this.draft.set({ ...draft, payload: { ...draft.payload } });
@@ -455,7 +474,8 @@ export class HotbarSlotEditorComponent {
 
     const rehearsal = new HotbarSlot();
     // The trial is never on a bar and never anybody else's business, so it is not put in the
-    // store: doing so sent it to every peer and left a tombstone there when it was thrown away.
+    // store: doing so would send it to every peer and leave a tombstone there when it is thrown
+    // away.
     rehearsal.kind = draft.kind;
     rehearsal.value = draft.value;
     rehearsal.label = draft.label;

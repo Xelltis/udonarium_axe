@@ -4,6 +4,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { BUFF_COLORS, DEFAULT_BUFF_COLOR } from '@axe/domain/character/buff-appearance';
 import { buffColorOf, buffIconOf, buffIconUrlOf, parseBuffStrength } from '@axe/domain/character/buff-badge';
@@ -24,6 +25,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class GameDataElementBuffComponent {
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly vision = inject(VisionService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly inventory = inject(GameObjectInventoryService);
   private readonly modalService = inject(ModalService);
@@ -48,6 +50,12 @@ export class GameDataElementBuffComponent {
   });
 
   private readonly _name = signal<string>('');
+  /**
+   * The buff's name as typed in the row, following the element whenever it changes.
+   *
+   * A write is held locally and reaches the synced element after a short pause, so each keystroke
+   * does not send an update to the room.
+   */
   get name(): string {
     this.objectChange.versionOf(this.gameDataElement().identifier)();
     return this._name();
@@ -58,6 +66,7 @@ export class GameDataElementBuffComponent {
   }
 
   private readonly _value = signal<number | string>(0);
+  /** The buff's value field, written to the synced element after the same short pause as the name. */
   get value(): number | string {
     return this._value();
   }
@@ -67,6 +76,11 @@ export class GameDataElementBuffComponent {
   }
 
   private readonly _currentValue = signal<number | string>(0);
+  /**
+   * The buff's current value, which is also the text its strength is read from.
+   *
+   * Written to the synced element after the same short pause as the name.
+   */
   get currentValue(): number | string {
     return this._currentValue();
   }
@@ -111,12 +125,12 @@ export class GameDataElementBuffComponent {
     return buffTriggerOf(element);
   });
 
+  /** The pieces a buff may be timed by, leaving out those on the table this reader cannot see. */
   private readonly candidates = computed(() => {
     this.objectChange.collectionOf('character')();
-    return (this.inventory.tableInventory.tabletopObjects as GameCharacter[]).map((character) => ({
-      identifier: character.identifier,
-      name: character.name,
-    }));
+    return (this.inventory.tableInventory.tabletopObjects as GameCharacter[])
+      .filter((character) => this.vision.mayBeListed(character))
+      .map((character) => ({ identifier: character.identifier, name: character.name }));
   });
 
   readonly triggerOptions = computed(() =>
@@ -127,6 +141,11 @@ export class GameDataElementBuffComponent {
 
   readonly triggerValue = computed(() => selectedTriggerValue(this.candidates(), this.trigger()));
 
+  /**
+   * Sets when the buff counts down, and tells the room the element changed.
+   *
+   * Counting at the round's end needs no character to key off, so any trigger set before is removed.
+   */
   selectTiming(timing: BuffTiming): void {
     const element = this.gameDataElement();
     element.setAttribute(DataElementAttribute.BUFF_TIMING, timing);
@@ -134,10 +153,16 @@ export class GameDataElementBuffComponent {
     this.objectChange.notifyChanged(element.identifier);
   }
 
+  /** Applies the timing picked in the row's timing dropdown. */
   onSelectTiming(event: Event): void {
     this.selectTiming((event.target as HTMLSelectElement).value as BuffTiming);
   }
 
+  /**
+   * Names the character whose turn start or end the buff counts down on.
+   *
+   * A blank name removes the trigger, so the buff counts on its own character's turn.
+   */
   setTrigger(name: string): void {
     const element = this.gameDataElement();
     const trimmed = name.trim();
@@ -146,10 +171,12 @@ export class GameDataElementBuffComponent {
     this.objectChange.notifyChanged(element.identifier);
   }
 
+  /** Applies the character picked in the row's trigger dropdown. */
   onSetTrigger(event: Event): void {
     this.setTrigger((event.target as HTMLSelectElement).value);
   }
 
+  /** Gives the buff one of the offered marks; picking the mark it already has goes back to the default. */
   selectIcon(icon: string): void {
     const element = this.gameDataElement();
     if (buffIconOf(element) === icon) element.removeAttribute(DataElementAttribute.BUFF_ICON);
@@ -168,6 +195,7 @@ export class GameDataElementBuffComponent {
     });
   }
 
+  /** Gives the buff a badge colour; an empty colour, or the one it already has, goes back to the default. */
   selectColor(color: string): void {
     const element = this.gameDataElement();
     if (color.length < 1 || buffColorOf(element) === color) element.removeAttribute(DataElementAttribute.BUFF_COLOR);
@@ -185,16 +213,24 @@ export class GameDataElementBuffComponent {
     });
   }
 
+  /** Appends a placeholder numeric resource named TEST under this element. The template does not call it. */
   addElement() {
     this.gameDataElement().appendChild(
       DataElement.create('TEST', 8, { type: DataElementType.NUMBER_RESOURCE, currentValue: '001' }, 'TEST')
     ); // + '_' + character.identifier
   }
 
+  /**
+   * Destroys this element outright.
+   *
+   * Unlike `deletBuff`, it does not go through the owning character, so a status the buff moved is
+   * not put back. The template does not call it.
+   */
   deleteElement() {
     this.gameDataElement().destroy();
   }
 
+  /** Moves this element one place earlier among its siblings; the first one stays put. */
   upElement() {
     const parentElement = this.gameDataElement().parent!;
     const index: number = parentElement.children.indexOf(this.gameDataElement());
@@ -204,6 +240,7 @@ export class GameDataElementBuffComponent {
     }
   }
 
+  /** Moves this element one place later among its siblings; the last one stays put. */
   downElement() {
     const parentElement = this.gameDataElement().parent!;
     const index: number = parentElement.children.indexOf(this.gameDataElement());
@@ -213,6 +250,7 @@ export class GameDataElementBuffComponent {
     }
   }
 
+  /** Writes the element's `type` attribute, which decides how a data element is shown and edited. */
   setElementType(type: string) {
     this.gameDataElement().setAttribute('type', type);
   }
@@ -234,6 +272,12 @@ export class GameDataElementBuffComponent {
     }, 66);
   }
 
+  /**
+   * Takes a buff off, from the row's delete button.
+   *
+   * Removed through the character that holds it where there is one; a buff with no character above
+   * it is simply destroyed.
+   */
   deletBuff(data: DataElement) {
     // Through the owner, so a buff that moved a status puts it back on the way out.
     const owner = ownerCharacterOf(data);

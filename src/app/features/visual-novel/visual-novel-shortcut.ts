@@ -41,6 +41,13 @@ export interface VisualNovelKeyAction {
 const ADVANCE_KEYS = new Set(['Enter', ' ', 'ArrowRight', 'ArrowDown']);
 const BACK_KEYS = new Set(['ArrowLeft', 'ArrowUp']);
 
+/**
+ * The command a key press asks of novel mode, or null when it asks for nothing.
+ *
+ * Enter, Space, Right and Down move on; Left and Up go back; Home and End go to the first and latest
+ * lines. Holding Control fast-forwards. `?`, L, A and S toggle the shortcut help, backlog, auto play
+ * and slot guide. Escape closes what is open, or leaves novel mode when nothing is.
+ */
 export function visualNovelKeyDown(key: string, context: VisualNovelKeyContext): VisualNovelKeyAction | null {
   if (context.composing || context.typing) return null;
   // A key held with a modifier selects everything rather than playing, and such combinations are left alone.
@@ -62,6 +69,7 @@ export function visualNovelKeyDown(key: string, context: VisualNovelKeyContext):
   return null;
 }
 
+/** The command a key release asks of novel mode: letting go of Control stops fast-forwarding. */
 export function visualNovelKeyUp(key: string): VisualNovelKeyAction | null {
   return key === 'Control' ? { command: 'stopSkip', preventDefault: false } : null;
 }

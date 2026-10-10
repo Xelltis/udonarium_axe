@@ -1,6 +1,6 @@
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { generateCave } from '@axe/domain/tabletop/dungeon/cave-automata';
-import { DoorWidths, hangDoors } from '@axe/domain/tabletop/dungeon/door-hanging';
+import { DoorWidths, hangDoors, hideDoorsOf } from '@axe/domain/tabletop/dungeon/door-hanging';
 import {
   atmosphereById,
   DungeonAtmosphere,
@@ -14,10 +14,13 @@ import {
   MAX_MERGE_SPAN,
 } from '@axe/domain/tabletop/dungeon/dungeon-blocks';
 import { clampCorridorWidth, DungeonLayout } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import { furnishRooms } from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { assignRoomRoles } from '@axe/domain/tabletop/dungeon/room-roles';
 import { fitBoardTo, generateRoomsAndMazes } from '@axe/domain/tabletop/dungeon/rooms-and-mazes';
+import { clampTrapCount, placeTraps } from '@axe/domain/tabletop/dungeon/trap-placing';
 import { openTunnelMouth } from '@axe/domain/tabletop/dungeon/tunnel-mouth';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { MapBlocks } from '@axe/domain/tabletop/map-blocks';
 import { boardSizeOn, MapGrid, mergeSpanFor } from '@axe/domain/tabletop/map-grid';
 
@@ -43,6 +46,8 @@ export interface DungeonRequest {
   doorWidth?: DoorWidths;
   /** How many doors in a hundred are hung as a pair. Left out, half of those that can be. */
   doubleDoorPercent?: number;
+  /** How many traps are set about the place. Left out, none: a dungeon is trapped on request. */
+  trapCount?: number;
 }
 
 /** How wide a passage may be cut, at its narrowest and at its widest. */
@@ -56,6 +61,7 @@ export interface DungeonBoardSize {
   height: number;
 }
 
+/** A requested room count rounded and kept within what the generator supports; not a number gives the fewest. */
 export function clampRoomCount(roomCount: number): number {
   if (!Number.isFinite(roomCount)) return MIN_ROOM_COUNT;
   return Math.min(MAX_ROOM_COUNT, Math.max(MIN_ROOM_COUNT, Math.round(roomCount)));
@@ -63,7 +69,9 @@ export function clampRoomCount(roomCount: number): number {
 
 /** How wide a passage this atmosphere cuts when the room has not said otherwise. */
 export function defaultCorridorWidth(atmosphere: DungeonAtmosphere): number {
-  return clampCorridorWidth(atmosphere.algorithm === 'cave' ? atmosphere.cave!.tunnelWidth : 1);
+  return clampCorridorWidth(
+    atmosphere.algorithm === 'cave' ? atmosphere.cave!.tunnelWidth : (atmosphere.rooms?.corridor ?? 1)
+  );
 }
 
 /**
@@ -79,6 +87,12 @@ export function corridorWidthsFor(atmosphere: DungeonAtmosphere, asked?: Corrido
   return { least, most };
 }
 
+/**
+ * How many cells wide and high the board for a dungeon of this many rooms is.
+ *
+ * A cave gets a smaller board than rooms and mazes, wider passages get a larger one, and neither side goes
+ * past the most one scratch mask can cover.
+ */
 export function boardSizeFor(
   atmosphere: DungeonAtmosphere,
   roomCount: number,
@@ -101,6 +115,15 @@ export function boardSizeFor(
   };
 }
 
+/**
+ * Lays out a whole dungeon floor for a request: rooms and mazes or a cave as the atmosphere says, then the
+ * tunnel mouth when asked for, the room roles, the doors, and the furniture of a furnished place.
+ *
+ * Everything comes from the request's seed, so the same request gives the same dungeon on every peer.
+ * Furniture is put in last, and only where the place is furnished, so that a place with none comes out
+ * of its seed exactly as it always has; on hexes nothing is stacked. A place with hidden doors has
+ * the ways out of its first room dressed as wall.
+ */
 export function generateDungeon(request: DungeonRequest): DungeonLayout {
   const atmosphere = atmosphereById(request.atmosphere);
   const rooms = clampRoomCount(request.roomCount);
@@ -152,6 +175,15 @@ export function generateDungeon(request: DungeonRequest): DungeonLayout {
   assignRoomRoles(layout);
   // Hung last, so that widening an opening cannot leave the room a key opens standing ajar.
   hangDoors(layout, { widths: request.doorWidth, doublePercent: request.doubleDoorPercent }, rng);
+  if (atmosphere.hiddenDoors) hideDoorsOf(layout, 0);
+  if (atmosphere.furnishings) {
+    const stackable = !isHexGrid(request.gridType ?? GridType.SQUARE);
+    layout.furnishings = furnishRooms(layout, atmosphere.furnishings, rng, { stackable });
+  }
+  // Set last of all, and only where any were asked for, so that a place with none comes out of
+  // its seed exactly as it always has - and so that a trap is never set under the furniture.
+  const traps = clampTrapCount(request.trapCount);
+  if (traps > 0) layout.traps = placeTraps(layout, traps, rng);
   return layout;
 }
 

@@ -274,3 +274,54 @@ describe('the cells a piece can walk to across ground that holds it', () => {
     expect(countCells(reached)).toBe(4);
   });
 });
+
+describe('the cells a piece can walk to over ground it may not stand on', () => {
+  const corridor = cellGridOf(9, 1, 50, GridType.SQUARE);
+  const start = cellIndexOf(corridor, 0, 0);
+  const held = cellIndexOf(corridor, 2, 0);
+
+  it('leaves that ground out of the answer and reaches what lies beyond it', () => {
+    const reached = reachableCells(corridor, start, 6, nothingBlocked, { restsAt: (index) => index !== held });
+
+    expect(reached.get(held)).toBe(false);
+    expect(reached.get(cellIndexOf(corridor, 3, 0))).toBe(true);
+    expect(countCells(reached)).toBe(5);
+  });
+
+  it('charges for crossing it all the same', () => {
+    const over: ReachOptions = { restsAt: (index) => index !== held, costOf: (index) => (index === held ? 3 : 1) };
+    const beyond = cellIndexOf(corridor, 3, 0);
+
+    expect(reachableCells(corridor, start, 3, nothingBlocked, over).get(beyond)).toBe(false);
+    expect(reachableCells(corridor, start, 5, nothingBlocked, over).get(beyond)).toBe(true);
+  });
+
+  it('reaches nothing past ground that both holds it and turns it away', () => {
+    const reached = reachableCells(corridor, start, 6, nothingBlocked, {
+      restsAt: (index) => index !== held,
+      stopsAt: (index) => index === held,
+    });
+
+    expect(countCells(reached)).toBe(1);
+    expect(reached.get(cellIndexOf(corridor, 1, 0))).toBe(true);
+  });
+
+  it('leaves out the one cell it may not stand on among the six on a board of hexes', () => {
+    for (const type of [GridType.HEX_VERTICAL, GridType.HEX_HORIZONTAL]) {
+      const grid = cellGridOf(10, 10, 50, type);
+      const taken = cellIndexOf(grid, 5, 4);
+      const reached = reachableCells(grid, cellIndexOf(grid, 5, 5), 1, nothingBlocked, {
+        restsAt: (index) => index !== taken,
+      });
+
+      expect(reached.get(taken)).toBe(false);
+      expect(countCells(reached)).toBe(5);
+    }
+  });
+
+  it('stands anywhere when nothing is held against it', () => {
+    const reached = reachableCells(corridor, start, 4, nothingBlocked, { restsAt: () => true });
+
+    expect(countCells(reached)).toBe(4);
+  });
+});

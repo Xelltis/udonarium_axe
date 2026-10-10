@@ -191,7 +191,7 @@
       class="absolute bottom-0 -translate-x-1/2 transition-[left,scale,filter] duration-300"
       [class]="
         chara.isActive
-          ? 'z-10 scale-105 brightness-100 saturate-100 ' + portraitEmoteClass()
+          ? classes('z-10 scale-105 brightness-100 saturate-100', portraitEmoteClass())
           : 'scale-100 brightness-[0.55] saturate-[0.85]'
       "
       [class.animate-vn-leave]="chara.isLeaving && isLeavingLine()"
@@ -201,9 +201,11 @@
         <img
           class="w-auto max-w-none drop-shadow-[0_8px_24px_rgba(0,0,0,0.6)]"
           [class]="
-            (isCompact() ? 'h-[46dvh] ' : 'h-[56dvh] ') +
-            (chara.isActive ? speakClass() : '') +
-            (chara.isFlipped ? ' -scale-x-100' : '')
+            classes(
+              isCompact() ? 'h-[46dvh]' : 'h-[56dvh]',
+              chara.isActive ? speakClass() : '',
+              chara.isFlipped ? '-scale-x-100' : ''
+            )
           "
           [src]="chara.url | safe: 'resourceUrl'"
           [alt]="chara.name"
@@ -249,7 +251,7 @@
     @for (message of currentMessageList(); track message.identifier) {
       <div
         class="relative w-max max-w-[min(26rem,78vw)] min-w-32 wrap-break-word text-gray-900"
-        [class]="bubbleBoxClass() + ' ' + bubbleEnterClass() + ' ' + bubbleTextSizeClass()"
+        [class]="classes(bubbleBoxClass(), bubbleEnterClass(), bubbleTextSizeClass())"
       >
         @if (isShoutShape()) {
           <span class="vn-bubble-shout-bg pointer-events-none absolute -inset-x-9 -inset-y-7 bg-white/95"></span>
@@ -265,7 +267,7 @@
           @if (speakerName().length > 0) {
             <span class="block text-[11px] font-bold text-gray-500">{{ speakerName() }}</span>
           }
-          <span class="whitespace-pre-line">{{ displayedText() }}</span>
+          <span class="whitespace-pre-line"><ruby-text [parts]="displayedParts()" /></span>
           @if (isTyping()) {
             <span class="animate-blinking">▏</span>
           }
@@ -288,7 +290,7 @@
     @for (message of currentMessageList(); track message.identifier) {
       <div
         class="rounded-ui-lg relative mx-auto max-w-4xl border border-solid border-white/25 bg-black/70 px-6 py-4 wrap-break-word text-white/95 shadow-xl backdrop-blur-md"
-        [class]="bubbleEnterClass() + ' ' + narrationTextSizeClass()"
+        [class]="classes(bubbleEnterClass(), narrationTextSizeClass())"
       >
         @if (speakerName().length > 0) {
           <span
@@ -303,7 +305,7 @@
             >{{ mark.char }}</span
           >
         }
-        <span class="whitespace-pre-line">{{ displayedText() }}</span>
+        <span class="whitespace-pre-line"><ruby-text [parts]="displayedParts()" /></span>
         @if (isTyping()) {
           <span class="animate-blinking">▏</span>
         }
@@ -324,13 +326,13 @@
   >
     @for (message of currentMessageList(); track message.identifier) {
       <div
-        class="rounded-ui-lg h-full overflow-y-auto border border-solid border-white/15 bg-black/65 px-8 py-6 wrap-break-word text-white/95 backdrop-blur-sm"
+        class="rounded-ui-lg h-full overflow-y-auto border border-solid border-white/15 bg-black/65 px-8 py-6 wrap-break-word text-white/95 backdrop-blur-sm contain-paint"
         [class]="narrationTextSizeClass()"
       >
         @if (speakerName().length > 0) {
           <span class="text-ui-accent mb-2 block text-sm font-bold">{{ speakerName() }}</span>
         }
-        <span class="whitespace-pre-line">{{ displayedText() }}</span>
+        <span class="whitespace-pre-line"><ruby-text [parts]="displayedParts()" /></span>
         @if (isTyping()) {
           <span class="animate-blinking">▏</span>
         }
@@ -353,7 +355,7 @@
         <div class="vn-enter-scene flex w-full flex-col items-center gap-3 bg-black/80 px-8 py-14 backdrop-blur-sm">
           <div class="text-ui-dim text-xs tracking-[0.5em]">✦ ✦ ✦</div>
           <div class="text-center text-xl font-semibold tracking-[0.25em] wrap-break-word text-white/90">
-            {{ currentFullText() }}
+            <ruby-text [parts]="currentFullParts()" />
           </div>
           @if (!isLatest()) {
             <span class="animate-bounce text-white/60">▼</span>
@@ -365,7 +367,7 @@
           <div
             class="px-4 text-center text-[clamp(1.8rem,4.5vw,3.2rem)] font-semibold tracking-[0.3em] wrap-break-word text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]"
           >
-            {{ currentFullText() }}
+            <ruby-text [parts]="currentFullParts()" />
           </div>
           <div class="h-px w-[min(40rem,70vw)] bg-white/50"></div>
           @if (!isLatest()) {
@@ -377,7 +379,7 @@
           class="vn-enter-narration w-full bg-black/45 px-[12%] py-6 text-center tracking-wider wrap-break-word text-white/95 backdrop-blur-xs"
           [class]="narrationTextSizeClass()"
         >
-          <span class="whitespace-pre-line">{{ displayedText() }}</span>
+          <span class="whitespace-pre-line"><ruby-text [parts]="displayedParts()" /></span>
           @if (isTyping()) {
             <span class="animate-blinking">▏</span>
           }
@@ -404,7 +406,7 @@
         @if (command.name.length > 0) {
           <span class="shrink-0 text-white/60">{{ command.name }}:</span>
         }
-        <span class="min-w-0">{{ displayedText() }}</span>
+        <span class="min-w-0"><ruby-text [parts]="displayedParts()" /></span>
         @if (!isLatest()) {
           <span class="animate-bounce text-white/60">▼</span>
         }
@@ -432,7 +434,7 @@
           />
         }
         <div
-          class="relative mt-1 w-max max-w-120 min-w-40 rounded-2xl border-2 border-solid border-amber-300/80 bg-white/95 px-6 py-3 text-center wrap-break-word text-gray-900 shadow-[0_0_28px_rgba(252,211,77,0.45)]"
+          class="relative mt-1 w-max max-w-120 min-w-40 rounded-2xl border-2 border-solid border-amber-300/80 bg-white/95 px-6 py-3 text-center wrap-break-word text-gray-900 shadow-[0_0_28px_rgba(252,211,77,0.45)] has-data-dice-wide:max-w-[min(55rem,calc(84vw+3rem),calc(72vh+3rem))]"
           [class]="bubbleTextSizeClass()"
         >
           <span class="flex items-center justify-center gap-1.5">
@@ -458,12 +460,17 @@
               </span>
             }
           </span>
-          <span class="whitespace-pre-line">{{ displayedText() }}</span>
+          <span class="whitespace-pre-line"><ruby-text [parts]="displayedParts()" /></span>
           @if (isTyping()) {
             <span class="animate-blinking">▏</span>
           }
           @if (!isTyping() && !isLatest()) {
             <span class="ml-1 inline-block animate-bounce text-gray-400">▼</span>
+          }
+          @if (system.kind === 'dice') {
+            <div class="text-left">
+              <dice-roll-stage [messageIdentifier]="message.identifier" layout="grid" />
+            </div>
           }
         </div>
       </div>
@@ -697,7 +704,7 @@
           </button>
           @if (isPopover('palette')) {
             <div
-              class="border-ui-border-panel bg-ui-panel rounded-ui-lg shadow-ui-md absolute bottom-[calc(100%+8px)] left-0 z-20 max-h-80 w-80 overflow-y-auto border border-solid p-1.5 [backdrop-filter:blur(24px)_saturate(1.5)]"
+              class="border-ui-border-panel bg-ui-panel rounded-ui-lg shadow-ui-md absolute bottom-[calc(100%+8px)] left-0 z-20 max-h-80 w-80 overflow-y-auto border border-solid p-1.5 [backdrop-filter:blur(24px)_saturate(1.5)] contain-paint"
             >
               <div class="text-ui-muted px-1 pb-1 text-[11px] font-semibold">
                 {{ 'feature.visualNovel.palette' | transloco }}

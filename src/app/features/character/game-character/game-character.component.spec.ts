@@ -1,5 +1,8 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { SPEECH_BUBBLE_WAIT_MS, SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -7,14 +10,21 @@ import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { BillboardFacing, BillboardFrameService } from '@axe/application/ui/billboard-frame.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
+import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
+import { VolumeType } from '@axe/core/storage/audio-player';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { PERF_HEX_PEDESTAL_OUTLINE, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -23,9 +33,21 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { Terrain } from '@axe/domain/tabletop/terrain';
+import { SlopeSide } from '@axe/domain/tabletop/terrain-slope';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
+
+/** What a facing writes at the turn the table has been given, which is what the frame writes out. */
+function at(facing: BillboardFacing): string {
+  return facing(TestBed.inject(UiSignalService).tableViewRotation());
+}
+
+/** The part of a label's transform the camera decides, after the stand that holds it out from the piece. */
+function orbitOf(facing: BillboardFacing): string {
+  return at(facing).replace(/^(translateX\(-50%\) )?translateX\(-?[\d.]+px\) /, '');
+}
 
 describe('GameCharacterComponent', () => {
   let component: GameCharacterComponent;
@@ -77,6 +99,90 @@ describe('GameCharacterComponent', () => {
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).style.zIndex).toBe('4');
+  });
+
+  describe('standing on a slope', () => {
+    let table: GameTable;
+    const blocks: Terrain[] = [];
+
+    beforeEach(() => {
+      table = new GameTable();
+      table.width = 20;
+      table.height = 20;
+      table.gridSize = 50;
+      table.initialize();
+    });
+
+    afterEach(() => {
+      for (const terrain of blocks) ObjectStore.instance.remove(terrain);
+      blocks.length = 0;
+      ObjectStore.instance.remove(table);
+    });
+
+    function ramp(sides: SlopeSide[]): Terrain {
+      const terrain = Terrain.create('ramp', 4, 4, 2, '', '');
+      terrain.location.x = 0;
+      terrain.location.y = 0;
+      terrain.slopeSides = sides;
+      table.appendChild(terrain);
+      blocks.push(terrain);
+      return terrain;
+    }
+
+    function standOn(at: { x: number; y: number }): void {
+      const character = GameCharacter.create('コマ', 1, '');
+      character.location.x = at.x;
+      character.location.y = at.y;
+      fixture.componentRef.setInput('gameCharacter', character);
+      fixture.detectChanges();
+    }
+
+    it('lies level on level ground', () => {
+      ramp([]);
+      standOn({ x: 75, y: 75 });
+
+      expect(component.groundLean()).toBe('');
+    });
+
+    it('leans the ground under it with the ramp', () => {
+      ramp(['s']);
+
+      standOn({ x: 75, y: 75 });
+
+      // Two cells tall over four cells: the ground drops half a pixel for each pixel south.
+      expect(component.groundLean()).toBe(`rotateY(0rad) rotateX(${(-Math.atan(0.5)).toFixed(4)}rad)`);
+    });
+
+    it('leans nothing on the table seen from straight above, where a lean would only squash it', () => {
+      ramp(['s']);
+      table.mode2d = true;
+
+      standOn({ x: 75, y: 75 });
+
+      expect(component.groundLean()).toBe('');
+    });
+
+    it('leans each way on the sides of a pyramid', () => {
+      ramp(['n', 'e', 's', 'w']);
+
+      standOn({ x: 75, y: 25 });
+      const northSide = component.groundLean();
+      standOn({ x: 75, y: 125 });
+      const southSide = component.groundLean();
+
+      // A pyramid over four cells rises a cell for each cell in, which is a lean of 45°.
+      expect(northSide).toContain(`rotateX(${Math.atan(1).toFixed(4)}rad)`);
+      expect(southSide).toContain(`rotateX(${(-Math.atan(1)).toFixed(4)}rad)`);
+    });
+
+    it('takes the lean into the pedestal and leaves the piece itself standing upright', () => {
+      ramp(['s']);
+
+      standOn({ x: 75, y: 75 });
+
+      expect(component.multiAnglePiecePedestalRotation()).toBe(component.groundLean());
+      expect(component.standTransform()).not.toContain('rotateX(-0.4');
+    });
   });
 
   describe('showing where the piece could walk', () => {
@@ -273,6 +379,46 @@ describe('GameCharacterComponent', () => {
     });
   });
 
+  describe('standing up or lying flat', () => {
+    function pieceOn(surface?: string) {
+      const character = GameCharacter.create('コマ', 1, '');
+      character.location.surface = surface;
+      fixture.componentRef.setInput('gameCharacter', character);
+      return character;
+    }
+
+    it('lies flat against a wall, which is what a wall is for', () => {
+      const character = pieceOn('north-wall');
+      try {
+        expect(component.isPoster()).toBe(true);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('stands up on the floor', () => {
+      const character = pieceOn(undefined);
+      try {
+        expect(component.isPoster()).toBe(false);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('stands up again where the face it was on says nothing in words', () => {
+      // A face cleared by one seat reaches another as nothing and can come back written out
+      // as the word for it. Read as a face, the piece would go on lying down on the floor.
+      for (const word of ['null', 'undefined', '']) {
+        const character = pieceOn(word);
+        try {
+          expect(component.isPoster()).toBe(false);
+        } finally {
+          character.destroy();
+        }
+      }
+    });
+  });
+
   describe('the pedestal', () => {
     type Pedestals = {
       pedestalStyleShown(): Record<string, string>;
@@ -311,6 +457,58 @@ describe('GameCharacterComponent', () => {
         '#ff3b30',
       ]);
       table.gridType = GridType.SQUARE;
+    });
+
+    it('keeps the ring it cut while the piece walks about', async () => {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.gridType = GridType.HEX_VERTICAL;
+      await Promise.resolve();
+      const character = GameCharacter.create('コマ', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+      fixture.detectChanges();
+      const pedestals = component as unknown as Pedestals;
+      const before = pedestals.pedestalStyleShown();
+
+      perfCounters.enabled = true;
+      perfCounters.clear();
+      character.location.x = 300;
+      character.update();
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      try {
+        expect(pedestals.pedestalStyleShown()).toBe(before);
+        expect(perfCounters.drain().get(PERF_HEX_PEDESTAL_OUTLINE) ?? 0).toBe(0);
+      } finally {
+        perfCounters.enabled = false;
+        perfCounters.clear();
+        character.destroy();
+        table.gridType = GridType.SQUARE;
+      }
+    });
+
+    it('cuts another ring for a piece of another size', async () => {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.gridType = GridType.HEX_VERTICAL;
+      await Promise.resolve();
+      const character = GameCharacter.create('コマ', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+      fixture.detectChanges();
+      const pedestals = component as unknown as Pedestals;
+      const atOne = pedestals.pedestalStyleShown();
+
+      character.size = 3;
+      character.update();
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      try {
+        expect(pedestals.pedestalStyleShown()).not.toBe(atOne);
+        expect(pedestals.pedestalStyleShown()['clipPath']).not.toBe(atOne['clipPath']);
+      } finally {
+        character.destroy();
+        table.gridType = GridType.SQUARE;
+      }
     });
   });
 
@@ -619,7 +817,7 @@ describe('GameCharacterComponent', () => {
       // The shared frame stays compatible with the multi-angle renderer, and this picture alone
       // declines to cancel the turn supplied by the piece.
       expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
-      expect(component.billboardTransformImage()).toContain('rotateZ(0deg)');
+      expect(at(component.imageFacing())).toContain('rotateZ(0deg)');
     });
 
     it('leaves the picture square to the reader where a mark shows the facing instead', () => {
@@ -628,7 +826,7 @@ describe('GameCharacterComponent', () => {
 
       expect(component.imageTurnsWithPiece()).toBe(false);
       expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
-      expect(component.billboardTransformImage()).toContain('rotateZ(-90deg)');
+      expect(at(component.imageFacing())).toContain('rotateZ(-90deg)');
       expect(arrow()).not.toBeNull();
     });
 
@@ -638,7 +836,30 @@ describe('GameCharacterComponent', () => {
 
       // Each billboard cancels the piece turn, keeping everything above it on the same side.
       expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
-      expect(component.billboardTransform()).toContain('rotateZ(-180deg)');
+      expect(at(component.nameFacing())).toContain('rotateZ(-180deg)');
+    });
+
+    it('is turned by the frame without the piece working its labels out again', async () => {
+      tableShowing('turn', true);
+      const character = place();
+      await fixture.whenStable();
+      const frame = TestBed.inject(BillboardFrameService);
+      const ui = TestBed.inject(UiSignalService);
+      const facing = component.nameStackFacing();
+      const plate = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-testid="piece-name"]')!;
+
+      try {
+        for (let turn = 0; turn < 10; turn++) {
+          ui.notifyTableViewRotation(50, 0, turn * 12);
+          frame.apply({ x: 50, y: 0, z: turn * 12 });
+        }
+
+        // The same function as before: what the label is turned by does not depend on the camera.
+        expect(component.nameStackFacing()).toBe(facing);
+        expect(plate.style.transform).toBe(facing({ x: 50, y: 0, z: 108 }));
+      } finally {
+        character.destroy();
+      }
     });
 
     it('leaves a table seen from the side to turn its pieces as it always did', () => {
@@ -646,7 +867,7 @@ describe('GameCharacterComponent', () => {
       place(90);
 
       expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
-      expect(component.billboardTransform()).toContain('rotateZ(-90deg)');
+      expect(at(component.nameFacing())).toContain('rotateZ(-90deg)');
     });
 
     it('shows the same mark on a table seen from the side', () => {
@@ -688,6 +909,32 @@ describe('GameCharacterComponent', () => {
         expect(component.pieceGauges().map((gauge) => gauge.name)).toEqual(['HP', 'MP']);
         expect(component.pieceGauges()[0]).toMatchObject({ initial: 'H', ratio: 1 });
       } finally {
+        character.destroy();
+      }
+    });
+
+    it('draws no bars and no buffs while this seat has them switched off from the toolbar', () => {
+      const character = GameCharacter.create('スイッチ', 1, '');
+      character.addExtendData();
+      character.buffs.addRound('加速', '', 2);
+      fixture.componentRef.setInput('gameCharacter', character);
+      const overlay = TestBed.inject(PieceOverlayPreferenceService);
+
+      try {
+        expect(component.pieceGauges()).toHaveLength(2);
+        expect(component.hideBuff()).toBe(false);
+
+        overlay.toggleResourceBars();
+        overlay.toggleBuffs();
+        expect(component.pieceGauges()).toEqual([]);
+        expect(component.hideBuff()).toBe(true);
+
+        overlay.toggleResourceBars();
+        overlay.toggleBuffs();
+        expect(component.pieceGauges()).toHaveLength(2);
+        expect(component.hideBuff()).toBe(false);
+      } finally {
+        localStorage.removeItem('ui-piece-overlay');
         character.destroy();
       }
     });
@@ -760,6 +1007,188 @@ describe('GameCharacterComponent', () => {
       } finally {
         character.destroy();
       }
+    });
+
+    it('leaves its bars alone when data is added to another piece', () => {
+      const character = GameCharacter.create('こちら', 1, '');
+      const other = GameCharacter.create('あちら', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        const gauges = component.pieceGauges();
+
+        other.detailDataElement!.appendChild(DataElement.create('メモ', 'なし', {}));
+
+        expect(component.pieceGauges()).toBe(gauges);
+      } finally {
+        character.destroy();
+        other.destroy();
+      }
+    });
+
+    it('takes its bars down once its detail is taken away', () => {
+      const character = GameCharacter.create('ゲージ', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        expect(component.pieceGauges()).toHaveLength(2);
+
+        character.detailDataElement!.destroy();
+
+        expect(component.pieceGauges()).toEqual([]);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    describe('what the bars, buff icons and resource readings are worked out from', () => {
+      const settle = () => new Promise<void>((resolve) => queueMicrotask(resolve));
+
+      const walksUnder = (element: DataElement) => {
+        const readChildren = Object.getOwnPropertyDescriptor(DataElement.prototype, 'children')!.get!;
+        const counter = { walks: 0 };
+        Object.defineProperty(element, 'children', {
+          configurable: true,
+          get() {
+            counter.walks++;
+            return readChildren.call(element);
+          },
+        });
+        return counter;
+      };
+
+      const resourceSnapshot = () => component['resourceSnapshot']();
+
+      const pieceWithBuff = async () => {
+        const character = GameCharacter.create('ゲージ', 1, '');
+        character.addExtendData();
+        const buff = DataElement.create('毒', 3, { type: DataElementType.NUMBER_RESOURCE, currentValue: 'ダメージ2' });
+        character.buffDataElement!.appendChild(buff);
+        fixture.componentRef.setInput('gameCharacter', character);
+        await settle();
+        const hp = DataElement.findElementByReference(character.rootDataElement!, 'HP')!;
+        return { character, buff, hp };
+      };
+
+      it('walks nothing again while the piece is dragged about', async () => {
+        const { character } = await pieceWithBuff();
+        const objectChange = TestBed.inject(ObjectChangeService);
+
+        try {
+          const gauges = component.pieceGauges();
+          const badges = component.buffBadges();
+          const snapshot = resourceSnapshot();
+          const detailWalks = walksUnder(character.detailDataElement!);
+          const buffWalks = walksUnder(character.buffDataElement!);
+          const pieceVersion = objectChange.versionOf(character.identifier)();
+
+          character.location.x = 120;
+          character.location.y = 80;
+          character.posZ = 0;
+          await settle();
+
+          expect(objectChange.versionOf(character.identifier)()).toBeGreaterThan(pieceVersion);
+          expect(component.pieceGauges()).toBe(gauges);
+          expect(component.buffBadges()).toBe(badges);
+          expect(resourceSnapshot()).toBe(snapshot);
+          expect(detailWalks.walks).toBe(0);
+          expect(buffWalks.walks).toBe(0);
+        } finally {
+          character.destroy();
+        }
+      });
+
+      it('moves a bar and its reading when the value behind it changes', async () => {
+        const { character, hp } = await pieceWithBuff();
+
+        try {
+          const gauges = component.pieceGauges();
+          const snapshot = resourceSnapshot();
+          const lowered = Number(hp.currentValue) - 1;
+
+          hp.currentValue = lowered;
+          await settle();
+
+          expect(component.pieceGauges()).not.toBe(gauges);
+          expect(component.pieceGauges().find((gauge) => gauge.identifier === hp.identifier)?.current).toBe(lowered);
+          expect(resourceSnapshot().get(hp.identifier)?.current).toBe(lowered);
+          expect(resourceSnapshot()).not.toBe(snapshot);
+        } finally {
+          character.destroy();
+        }
+      });
+
+      it('shows a buff once it is put on the piece', async () => {
+        const { character } = await pieceWithBuff();
+
+        try {
+          expect(component.buffBadges().map((badge) => badge.name)).toEqual(['毒']);
+
+          character.buffDataElement!.appendChild(
+            DataElement.create('加護', 2, { type: DataElementType.NUMBER_RESOURCE, currentValue: '+1' })
+          );
+          await settle();
+
+          expect(component.buffBadges().map((badge) => badge.name)).toEqual(['毒', '加護']);
+        } finally {
+          character.destroy();
+        }
+      });
+
+      it('draws its bars from a detail put in place of the old one', async () => {
+        const { character } = await pieceWithBuff();
+
+        try {
+          expect(component.pieceGauges().map((gauge) => gauge.name)).toEqual(['HP', 'MP']);
+
+          const root = character.rootDataElement!;
+          character.detailDataElement!.destroy();
+          const detail = DataElement.create('detail', '', {});
+          const sp = DataElement.create('SP', 5, { type: DataElementType.NUMBER_RESOURCE, currentValue: '4' });
+          sp.setAttribute(DataElementAttribute.PIECE_GAUGE, 'true');
+          detail.appendChild(sp);
+          root.appendChild(detail);
+          await settle();
+
+          expect(component.pieceGauges().map((gauge) => gauge.name)).toEqual(['SP']);
+          expect([...resourceSnapshot().keys()]).toEqual([sp.identifier]);
+        } finally {
+          character.destroy();
+        }
+      });
+
+      it('keeps the same bars while only a buff changes', async () => {
+        const { character, buff } = await pieceWithBuff();
+
+        try {
+          const gauges = component.pieceGauges();
+
+          buff.value = 2;
+          await settle();
+
+          expect(component.buffBadges()[0].rounds).toBe(2);
+          expect(component.pieceGauges()).toBe(gauges);
+        } finally {
+          character.destroy();
+        }
+      });
+
+      it('keeps the same buff icons while only a bar moves', async () => {
+        const { character, hp } = await pieceWithBuff();
+
+        try {
+          const badges = component.buffBadges();
+          const gauges = component.pieceGauges();
+
+          hp.currentValue = Number(hp.currentValue) - 1;
+          await settle();
+
+          expect(component.pieceGauges()).not.toBe(gauges);
+          expect(component.buffBadges()).toBe(badges);
+        } finally {
+          character.destroy();
+        }
+      });
     });
 
     describe('the buffs as the switch for how they show', () => {
@@ -976,8 +1405,10 @@ describe('GameCharacterComponent', () => {
       const objectChange = TestBed.inject(ObjectChangeService);
       const hp = DataElement.findElementByReference(character.rootDataElement!, 'HP')!;
       const played: string[] = [];
-      vi.spyOn(SoundEffect, 'playLocal').mockImplementation((arg) => {
+      const kinds: (VolumeType | undefined)[] = [];
+      vi.spyOn(SoundEffect, 'playLocal').mockImplementation((arg, kind) => {
         played.push(typeof arg === 'string' ? arg : arg.identifier);
+        kinds.push(kind);
       });
 
       try {
@@ -996,6 +1427,7 @@ describe('GameCharacterComponent', () => {
         await fixture.whenStable();
 
         expect(played).toEqual([PresetSound.damageSmall, PresetSound.damageMedium, PresetSound.damageLarge]);
+        expect(kinds).toEqual([VolumeType.EFFECT, VolumeType.EFFECT, VolumeType.EFFECT]);
       } finally {
         character.destroy();
       }
@@ -1181,6 +1613,55 @@ describe('GameCharacterComponent', () => {
     });
   });
 
+  describe('what the character says', () => {
+    let tab: ChatTab;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      ChatTabList.instance.initialize();
+      tab = new ChatTab();
+      tab.initialize();
+      ChatTabList.instance.appendChild(tab);
+      vi.spyOn(TestBed.inject(ChatMessageService), 'getTime').mockImplementation(() => Date.now());
+    });
+
+    afterEach(() => {
+      TestBed.inject(SpeechBubbleService).clear();
+      for (const chatTab of [...ChatTabList.instance.chatTabs]) chatTab.destroy();
+      localStorage.removeItem('ui-piece-overlay');
+      vi.useRealTimers();
+    });
+
+    const bubbleOf = () => fixture.nativeElement.querySelector('[data-testid="speech-bubble"]') as HTMLElement | null;
+
+    it('shows over the piece, kept from a screen reader, and not while this seat hides it', () => {
+      const character = GameCharacter.create('話者', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        tab.addMessage({
+          from: 'me',
+          sendFrom: character.identifier,
+          name: '話者',
+          text: '手を振る。「やあ」',
+          timestamp: Date.now(),
+        });
+        vi.advanceTimersByTime(SPEECH_BUBBLE_WAIT_MS);
+        fixture.detectChanges();
+
+        expect(bubbleOf()?.textContent?.trim()).toBe('やあ');
+        expect(bubbleOf()?.closest('[aria-hidden="true"]')).toBeTruthy();
+
+        TestBed.inject(PieceOverlayPreferenceService).toggleSpeech();
+        fixture.detectChanges();
+        expect(bubbleOf()).toBeNull();
+      } finally {
+        character.destroy();
+      }
+    });
+  });
+
   describe('the target marker', () => {
     const setTargeted = (character: GameCharacter, targeted: boolean) => {
       character.targeted = targeted;
@@ -1264,7 +1745,7 @@ describe('GameCharacterComponent', () => {
         setTargeted(character, true);
 
         expect(axisValues(wrapperTransform(), 'X')[0]).toBe((component.size() * component.gridSize) / 2);
-        expect(component.targetStackTransform()).toContain('translateZ(0.00px)');
+        expect(at(component.targetStackFacing())).toContain('translateZ(0.00px)');
       } finally {
         character.destroy();
       }
@@ -1305,7 +1786,7 @@ describe('GameCharacterComponent', () => {
 
       try {
         setTargeted(character, true);
-        const buffDistance = -Number(/translateY\((-?[\d.]+)px\)/.exec(component.buffLabelOrbit())![1]);
+        const buffDistance = -Number(/translateY\((-?[\d.]+)px\)/.exec(orbitOf(component.buffOrbitFacing()))![1]);
 
         expect(markerLift()).toBeGreaterThan(buffDistance);
       } finally {
@@ -1460,6 +1941,68 @@ describe('GameCharacterComponent', () => {
       }
     });
 
+    describe('on a phone', () => {
+      beforeEach(() => {
+        Object.defineProperty(TestBed.inject(MobileLayoutService), 'isActive', {
+          value: signal(true),
+          configurable: true,
+        });
+      });
+
+      it('stands the head handle off to the right of the picture and the foot one off to its left, halfway up', () => {
+        const character = GameCharacter.create('roll-grab-phone', 1, '');
+        fixture.componentRef.setInput('gameCharacter', character);
+
+        try {
+          fixture.detectChanges();
+          // Half the picture (25) and half the handle (14), then the gap (7).
+          expect(component.rollHandleHeadTransform()).toBe(
+            'translateX(-50%) translateX(25px) translateX(46px) translateY(-50%)'
+          );
+          expect(component.rollHandleFootTransform()).toBe(
+            'translateX(-50%) translateX(25px) translateX(-46px) translateY(-50%)'
+          );
+          expect(headOf()?.style.top).toBe('50%');
+          expect(footOf()?.style.top).toBe('50%');
+          expect(footOf()?.style.bottom).toBe('auto');
+        } finally {
+          character.destroy();
+        }
+      });
+
+      it('stands them clear of a picture whose height was set apart from the ground, however wide that is', async () => {
+        const character = GameCharacter.create('roll-grab-phone-tall', 1, '');
+        character.specifyKomaImageFlag = true;
+        character.komaImageHeight = 100;
+        fixture.componentRef.setInput('gameCharacter', character);
+
+        try {
+          component.imageView.onImageLoad({ target: { naturalWidth: 200, naturalHeight: 100 } } as unknown as Event);
+          await fixture.whenStable();
+
+          // The picture stands 100 high and so 200 wide: half of it (100), half the handle (14), the gap (7).
+          expect(component.rollHandleHeadTransform()).toContain('translateX(121px)');
+          expect(component.rollHandleFootTransform()).toContain('translateX(-121px)');
+        } finally {
+          character.destroy();
+        }
+      });
+    });
+
+    it('stands the handles at the head and feet off a phone', () => {
+      const character = GameCharacter.create('roll-grab-desk', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        expect(component.rollHandlesBeside()).toBe(false);
+        expect(headOf()?.style.top).toBe('');
+        expect(footOf()?.style.bottom).toBe('');
+      } finally {
+        character.destroy();
+      }
+    });
+
     it('keeps the head handle out of the band the name hangs in, however big the piece grows', () => {
       for (const pieceSize of [0.5, 1, 4]) {
         const character = GameCharacter.create('roll-grab-name-clear', pieceSize, '');
@@ -1534,7 +2077,7 @@ describe('GameCharacterComponent', () => {
 
     it('faces the picture at the camera without raising it', () => {
       TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
-      expect(component.billboardTransformImage()).toContain('translateZ(0.00px)');
+      expect(at(component.imageFacing())).toContain('translateZ(0.00px)');
     });
 
     it('faces it anyway in the flat mode', async () => {
@@ -1577,10 +2120,8 @@ describe('GameCharacterComponent', () => {
           expect(image).not.toBeNull();
           expect(image?.style.transform).not.toBe('');
           expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
-          expect(component.billboardTransformImage()).toContain(
-            facingMark === 'turn' ? 'rotateZ(0deg)' : 'rotateZ(-90deg)'
-          );
-          expect(component.imageView.pieceTransform()).toContain('rotateZ(var(--multi-angle-piece-angle, 0deg))');
+          expect(at(component.imageFacing())).toContain(facingMark === 'turn' ? 'rotateZ(0deg)' : 'rotateZ(-90deg)');
+          expect(at(component.imageView.pieceFacing())).toContain('rotateZ(var(--multi-angle-piece-angle, 0deg))');
         } finally {
           character.destroy();
           ImageStorage.instance.delete(imageUrl);
@@ -1593,14 +2134,14 @@ describe('GameCharacterComponent', () => {
     it('raises the name straight up in three dimensions', async () => {
       TestBed.inject(ViewModePreferenceService).choose('auto');
       await new Promise<void>((resolve) => queueMicrotask(resolve));
-      expect(component.nameLabelOrbit()).toBe('translateY(-30px)');
+      expect(orbitOf(component.nameOrbitFacing())).toBe('translateY(-30px)');
     });
 
     it('puts it up the screen in the flat mode', async () => {
       TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 0);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
-      const transform = component.nameLabelOrbit();
+      const transform = orbitOf(component.nameOrbitFacing());
       const x = Number(transform.match(/translateX\((-?[\d.]+)px\)/)?.[1] ?? NaN);
       expect(x).toBeCloseTo(0, 5);
       expect(transform).toContain('translateZ(-60.00px)');
@@ -1610,7 +2151,7 @@ describe('GameCharacterComponent', () => {
       TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 90);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
-      const transform = component.nameLabelOrbit();
+      const transform = orbitOf(component.nameOrbitFacing());
       expect(transform).toContain('translateX(-60.00px)');
       const z = Number(transform.match(/translateZ\((-?[\d.]+)px\)/)?.[1] ?? NaN);
       expect(z).toBeCloseTo(0, 5);
@@ -1620,8 +2161,8 @@ describe('GameCharacterComponent', () => {
       TestBed.inject(ViewModePreferenceService).choose('flat');
       TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
-      expect(component.billboardTransform()).toContain('translateZ(0.00px)');
-      expect(component.billboardTransformBuff()).toContain('translateZ(0.00px)');
+      expect(at(component.nameFacing())).toContain('translateZ(0.00px)');
+      expect(at(component.buffFacing())).toContain('translateZ(0.00px)');
     });
 
     it('keeps the stationary name while the clockwise orbit is disabled', async () => {
@@ -1690,11 +2231,11 @@ describe('GameCharacterComponent', () => {
           'rotateZ(var(--multi-angle-piece-angle, 0deg))'
         );
         expect(component.multiAnglePieceImageRotation()).toBe('rotateZ(var(--multi-angle-piece-angle, 0deg))');
-        expect(component.imageView.pieceTransform()).toMatch(
+        expect(at(component.imageView.pieceFacing())).toMatch(
           /rotateY\(90deg\).*rotateZ\(var\(--multi-angle-piece-angle, 0deg\)\)$/
         );
-        expect(component.imageView.pieceTransform()).not.toContain('rotateX(var(--multi-angle-piece-angle');
-        expect(component.imageView.pieceTransform()).not.toContain('rotateY(var(--multi-angle-piece-angle');
+        expect(at(component.imageView.pieceFacing())).not.toContain('rotateX(var(--multi-angle-piece-angle');
+        expect(at(component.imageView.pieceFacing())).not.toContain('rotateY(var(--multi-angle-piece-angle');
         expect(root.querySelector<HTMLElement>('[data-testid="piece-gauge"]')?.style.transform ?? '').not.toContain(
           '--multi-angle-piece-angle'
         );

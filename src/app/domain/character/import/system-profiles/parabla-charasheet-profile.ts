@@ -44,6 +44,7 @@ const PROFILE_FIELDS: { key: string; label: string }[] = [
   { key: 'sex', label: '性別' },
 ];
 
+/** Whether the pasted json is an archive sheet under the `parabla` system token. */
 export function isParablaCharasheetCharacter(parsed: unknown): boolean {
   return isCharasheetGame(parsed, 'parabla');
 }
@@ -55,6 +56,12 @@ function buildPalette(record: Record<string, unknown>): string {
   return lines.join('\n');
 }
 
+/**
+ * Builds the imported model from a `parabla` archive sheet, or null for any other sheet.
+ *
+ * Ability values become parameters; powers, weapons and the profile become sections; and the
+ * palette offers a 2d6 roll with each ability's check value added.
+ */
 export function buildParablaCharasheetCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isParablaCharasheetCharacter(parsed)) return null;
   const record = parsed as Record<string, unknown>;

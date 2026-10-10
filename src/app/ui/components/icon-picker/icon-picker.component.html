@@ -1,0 +1,74 @@
+<button
+  type="button"
+  class="rounded-ui-sm text-ui-dim hover:bg-ui-hover hover:text-ui-text flex size-6 cursor-pointer items-center justify-center border border-solid border-transparent bg-transparent transition-colors [&_i]:text-[18px]!"
+  [class.border-ui-accent]="isOpen()"
+  [class.text-ui-accent]="isOpen()"
+  [title]="'ui.iconPicker.open' | transloco: { name: value() }"
+  aria-haspopup="listbox"
+  [attr.aria-expanded]="isOpen()"
+  data-testid="icon-picker-open"
+  (click)="toggle()"
+>
+  <i class="material-icons">{{ value() }}</i>
+</button>
+
+<div
+  popover="manual"
+  class="rounded-ui-lg border-ui-border-menu bg-ui-menu text-ui-text shadow-ui-lg fixed inset-auto m-0 flex-col overflow-hidden border border-solid p-0 [backdrop-filter:blur(12px)]"
+  #popover
+>
+  <div class="border-ui-border-separator flex shrink-0 items-center gap-1 border-b border-solid p-1">
+    <i class="material-icons text-ui-dim text-[16px]!" aria-hidden="true">search</i>
+    <input
+      #search
+      class="rounded-ui-sm bg-ui-input text-ui-text min-w-0 grow border-none px-1 py-0.5 text-[11px] outline-none"
+      [ngModel]="query()"
+      name="icon-picker-search"
+      [placeholder]="'ui.iconPicker.search' | transloco"
+      data-testid="icon-picker-search"
+      (ngModelChange)="query.set($event)"
+    />
+    @if (clearable()) {
+      <button
+        type="button"
+        class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:bg-ui-menu-hover shrink-0 cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 text-[10px] transition-colors"
+        data-testid="icon-picker-clear"
+        (click)="pick('')"
+      >
+        {{ 'ui.iconPicker.clear' | transloco }}
+      </button>
+    }
+  </div>
+
+  <div
+    class="grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(34px,1fr))] content-start gap-0.5 overflow-y-auto p-1"
+    role="listbox"
+    data-testid="icon-picker-list"
+  >
+    @for (name of matches(); track name) {
+      <button
+        type="button"
+        class="rounded-ui-sm hover:bg-ui-menu-hover hover:text-ui-accent text-ui-text flex size-8 cursor-pointer items-center justify-center border border-solid border-transparent bg-transparent transition-colors [&_i]:text-[20px]!"
+        [class.border-ui-accent]="name === value()"
+        [class.bg-ui-selected]="name === value()"
+        role="option"
+        [attr.aria-selected]="name === value()"
+        [title]="name"
+        [attr.data-testid]="'icon-picker-choice-' + name"
+        (click)="pick(name)"
+      >
+        <i class="material-icons">{{ name }}</i>
+      </button>
+    }
+  </div>
+
+  <p class="border-ui-border-separator text-ui-dim m-0 shrink-0 border-t border-solid px-2 py-1 text-[10px]">
+    @if (foundNothing()) {
+      {{ 'ui.iconPicker.none' | transloco }}
+    } @else if (query().trim().length > 0) {
+      {{ 'ui.iconPicker.found' | transloco: { count: matches().length } }}
+    } @else {
+      {{ 'ui.iconPicker.hint' | transloco }}
+    }
+  </p>
+</div>

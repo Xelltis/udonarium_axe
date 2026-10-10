@@ -1,0 +1,10 @@
+<ng-content />
+<div #area class="relative w-full" role="list" [style.height.px]="layout().total">
+  <div class="absolute inset-x-0 top-0" [style.transform]="'translateY(' + offsetTop() + 'px)'">
+    @for (cell of drawn(); track cell.key) {
+      <div #cell role="listitem" [attr.data-index]="cell.index">
+        <ng-container *ngTemplateOutlet="rowTemplate(); context: { $implicit: cell.item, index: cell.index }" />
+      </div>
+    }
+  </div>
+</div>

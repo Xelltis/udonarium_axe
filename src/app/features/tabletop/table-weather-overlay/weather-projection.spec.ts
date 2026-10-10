@@ -45,6 +45,20 @@ describe('weatherMaskImage()', () => {
     expect([...mask.matchAll(/rgba\(/g)].length).toBeGreaterThanOrEqual(2);
   });
 
+  it('lands on the step it is given, so a small move leaves it as it was', () => {
+    const mask = weatherMaskImage(BOX, 8);
+    const moved = weatherMaskImage(
+      BOX.map((point) => ({ x: point.x + 2, y: point.y - 1 })),
+      8
+    );
+
+    for (const value of [...mask.matchAll(/(-?[\d.]+)px/g)].map((match) => Number(match[1]))) {
+      expect(value % 8).toBe(0);
+    }
+    expect(moved).toBe(mask);
+    expect(weatherMaskImage(BOX.map((point) => ({ x: point.x + 2, y: point.y - 1 })))).not.toBe(weatherMaskImage(BOX));
+  });
+
   it('masks nothing when it cannot work the shape out', () => {
     expect(weatherMaskImage([])).toBe('none');
     expect(weatherMaskImage([{ x: Number.NaN, y: 0 }])).toBe('none');

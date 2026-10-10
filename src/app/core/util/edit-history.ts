@@ -17,6 +17,10 @@ export class EditHistory<T> {
     this.undoStack = [clone(initial)];
   }
 
+  /**
+   * Records the state after an edit, dropping anything that could have been redone and the
+   * oldest states beyond the limit.
+   */
   commit(value: T): void {
     this.undoStack.push(this.clone(value));
     this.redoStack = [];
@@ -25,6 +29,7 @@ export class EditHistory<T> {
     }
   }
 
+  /** Steps back one state and returns a copy of it, or null when already at the oldest state kept. */
   undo(): T | null {
     if (this.undoStack.length <= 1) return null;
     const current = this.undoStack.pop()!;
@@ -32,6 +37,7 @@ export class EditHistory<T> {
     return this.clone(this.undoStack[this.undoStack.length - 1]);
   }
 
+  /** Steps forward to a state undone earlier and returns a copy of it, or null when there is none. */
   redo(): T | null {
     if (this.redoStack.length === 0) return null;
     const next = this.redoStack.pop()!;
@@ -39,14 +45,17 @@ export class EditHistory<T> {
     return this.clone(next);
   }
 
+  /** Whether `undo` has a state to step back to. */
   canUndo(): boolean {
     return this.undoStack.length > 1;
   }
 
+  /** Whether `redo` has a state to step forward to. */
   canRedo(): boolean {
     return this.redoStack.length > 0;
   }
 
+  /** Starts the history over from this state, forgetting everything that could be undone or redone. */
   reset(value: T): void {
     this.undoStack = [this.clone(value)];
     this.redoStack = [];

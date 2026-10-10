@@ -1,0 +1,93 @@
+<div class="flex flex-col gap-2" data-testid="switch-definition-fields">
+  <label class="flex items-center gap-2">
+    <span class="text-ui-muted w-20 shrink-0">{{ 'feature.boardSwitch.label' | transloco }}</span>
+    <input
+      class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-1"
+      data-testid="board-switch-label"
+      [placeholder]="'feature.boardSwitch.labelPlaceholder' | transloco"
+      [value]="definition().label"
+      (input)="emit('label', $any($event.target).value)"
+    />
+  </label>
+
+  <label class="flex items-center gap-2">
+    <span class="text-ui-muted w-20 shrink-0">{{ 'feature.boardSwitch.speaker' | transloco }}</span>
+    <select
+      class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-1"
+      data-testid="board-switch-speaker"
+      (change)="setSpeaker($any($event.target).value)"
+    >
+      @for (speaker of speakers; track speaker) {
+        <option [value]="speaker" [selected]="speaker === definition().speaker">
+          {{ 'feature.boardSwitch.speakerOption.' + speaker | transloco }}
+        </option>
+      }
+    </select>
+  </label>
+
+  <label class="flex items-center gap-2">
+    <span class="text-ui-muted w-20 shrink-0">{{ 'feature.boardSwitch.tab' | transloco }}</span>
+    <select
+      class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-1"
+      data-testid="board-switch-tab"
+      (change)="emit('tab', $any($event.target).value)"
+    >
+      <option value="" [selected]="!definition().tab">{{ 'feature.boardSwitch.tabOpen' | transloco }}</option>
+      @for (tab of tabs(); track tab.identifier) {
+        <option [value]="tab.identifier" [selected]="tab.identifier === definition().tab">{{ tab.name }}</option>
+      }
+    </select>
+  </label>
+
+  <label class="flex items-center gap-2">
+    <input
+      type="checkbox"
+      data-testid="board-switch-guests"
+      [checked]="definition().guests"
+      (change)="emit('guests', $any($event.target).checked)"
+    />
+    <span>{{ 'feature.boardSwitch.guests' | transloco }}</span>
+  </label>
+
+  <label class="flex items-center gap-2">
+    <span class="text-ui-muted w-20 shrink-0">{{ 'feature.boardSwitch.range' | transloco }}</span>
+    <input
+      type="number"
+      min="0"
+      max="99"
+      class="border-ui-border-panel bg-ui-elevated text-ui-text w-16 rounded-[3px] border border-solid px-1.5 py-1"
+      data-testid="board-switch-range"
+      [value]="definition().range"
+      (change)="setRange($any($event.target).value)"
+    />
+    <span class="text-ui-muted text-[11px]">{{ 'feature.boardSwitch.rangeHint' | transloco }}</span>
+  </label>
+
+  <label class="flex items-center gap-2">
+    <input
+      type="checkbox"
+      data-testid="board-switch-sight"
+      [checked]="definition().needsSight"
+      (change)="emit('needsSight', $any($event.target).checked)"
+    />
+    <span>{{ 'feature.boardSwitch.needsSight' | transloco }}</span>
+  </label>
+
+  <label class="flex items-center gap-2">
+    <span class="text-ui-muted w-20 shrink-0">{{ 'feature.boardSwitch.repeat' | transloco }}</span>
+    <select
+      class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-1"
+      data-testid="board-switch-repeat"
+      (change)="setRepeat($any($event.target).value)"
+    >
+      @for (repeat of repeats; track repeat) {
+        <option [value]="repeat" [selected]="repeat === definition().repeat">
+          {{ 'feature.boardSwitch.repeatOption.' + repeat | transloco }}
+        </option>
+      }
+    </select>
+  </label>
+
+  <p class="text-ui-muted m-0 text-[11px] leading-snug">{{ 'feature.boardSwitch.actionsHint' | transloco }}</p>
+  <app-switch-action-list [actions]="definition().actions" (actionsChange)="emit('actions', $event)" />
+</div>

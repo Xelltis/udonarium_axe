@@ -10,10 +10,16 @@ const TOKEN_FETCH_BACKOFF_MS = [500, 1500];
 export class SkyWayBackend {
   constructor(readonly url: string) {}
 
+  /** Whether the backend answers its status endpoint; a network error counts as not alive. */
   async alive(): Promise<boolean> {
     return fetchStatus(this.url);
   }
 
+  /**
+   * Fetches a SkyWay auth token for the channel and peer, retrying a cold or overloaded backend.
+   *
+   * An empty string means no token could be had, which callers treat as a server error.
+   */
   async createSkyWayAuthToken(channelName: string, peerId: string): Promise<string> {
     return fetchSkyWayAuthToken(this.url, channelName, peerId);
   }

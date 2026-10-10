@@ -16,6 +16,7 @@ export interface TextNoteContextMenuModel {
   radialGroups: ContextMenuRadialGroup[];
 }
 
+/** The text note's right-click menu as a flat list, without the groups a radial menu needs. */
 export function buildTextNoteContextMenu(
   textNote: TextNote,
   gridSize: number,
@@ -29,6 +30,13 @@ export function buildTextNoteContextMenu(
   return buildTextNoteContextMenuModel(textNote, gridSize, inventoryService, callbacks, t).actions;
 }
 
+/**
+ * The text note's right-click menu, both as a flat list and grouped for the radial menu.
+ *
+ * It offers editing, altitude, standing the note up or laying it down, disclosure, lock, copy and
+ * delete, with any entries for moving it to another surface last. A copy is placed one cell down
+ * and to the right, on top of the others.
+ */
 export function buildTextNoteContextMenuModel(
   textNote: TextNote,
   gridSize: number,

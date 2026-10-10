@@ -1,4 +1,4 @@
-import { GridType } from '@axe/domain/tabletop/game-table';
+import { GridType } from '@axe/domain/tabletop/grid-type';
 import { hexCircumradius, hexSpacing, isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 
 export interface HexMaskGeometry {
@@ -8,6 +8,12 @@ export interface HexMaskGeometry {
   offsetY: number;
 }
 
+/**
+ * How large a mask covering a hex board is in pixels, and where the first cell's centre sits inside
+ * it.
+ *
+ * Null on a square grid or a board with no cells.
+ */
 export function computeHexMaskGeometry(
   cols: number,
   rows: number,

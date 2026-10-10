@@ -6,14 +6,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        提案ありがとうございます。背景にある「なぜ」が伝わると検討が進めやすくなります。
+        提案ありがとうございます。背景にある「なぜ」が伝わると検討を進めやすくなります。
 
   - type: checkboxes
     id: preflight
     attributes:
       label: 確認事項
       options:
-        - label: 既存の Issue に同じ提案がないか検索した
+        - label: 既存のIssueに同じ提案がないか検索した
           required: true
 
   - type: textarea
@@ -37,7 +37,7 @@ body:
     id: scope
     attributes:
       label: 影響範囲
-      description: 関係する機能・領域を選択してください（Conventional Commits の scope に対応）。
+      description: 関係する機能・領域を選択してください（Conventional Commitsのscopeに対応）。
       multiple: true
       options:
         - chat
@@ -71,6 +71,6 @@ body:
     id: additional
     attributes:
       label: 補足
-      description: 参考画像、他ツールの事例、関連 Issue などがあれば添付してください。
+      description: 参考画像、他ツールの事例、関連Issueなどがあれば添付してください。
     validations:
       required: false

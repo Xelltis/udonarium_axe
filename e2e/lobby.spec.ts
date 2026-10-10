@@ -46,7 +46,7 @@ test.describe('接続パネルとロビー', () => {
 
     const lobby = page.locator('lobby');
     await expect(lobby).toBeVisible({ timeout: 15000 });
-    // 黙って空欄になるのではなく、見つからなかったことと次の一手が出る。
+    // 何も知らせずに空欄になるのではなく、見つからなかったことと次の一手が出る。
     await expect(lobby).toContainText('接続可能なルームが見つかりませんでした');
     await expect(lobby.getByRole('button', { name: /新しいルームを作成する/ })).toBeVisible();
     await expect(lobby.getByRole('button', { name: /一覧を更新/ })).toBeVisible();

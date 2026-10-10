@@ -43,7 +43,6 @@
         class="pointer-events-auto absolute inset-0 backface-visible"
         [style.opacity]="opacity()"
         [style.background-color]="color()"
-        [appTooltip]="whiteBoard()"
       ></div>
 
       @if (imageUrl().length > 0) {
@@ -69,7 +68,14 @@
         />
       }
 
-      <div class="absolute inset-0 transform-3d" data-surface-overflow [attr.data-surface]="whiteBoard().identifier">
+      <!-- The face that carries the pieces lies over the whole board, so it is what a pointer
+           resting on the board is over, and where the board's details open from. -->
+      <div
+        class="absolute inset-0 transform-3d"
+        data-surface-overflow
+        [attr.data-surface]="whiteBoard().identifier"
+        [appTooltip]="whiteBoard()"
+      >
         @for (mask of masks(); track mask.identifier) {
           <game-table-mask
             class="absolute will-change-transform backface-visible transform-3d"

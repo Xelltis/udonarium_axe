@@ -74,11 +74,13 @@ export class ChatPortraitImageComponent {
 
   private readonly fileVer = computed(() => this.objectChange.fileVersion());
 
+  /** The chat tab whose portraits are shown, looked up from the bound identifier. */
   get chatTab(): ChatTab {
     this.version();
     return this.objectStore.get<ChatTab>(this.chatTabidentifier())!;
   }
 
+  /** The room's chat tab list, which holds the portrait settings every tab shares. */
   get chatTabList(): ChatTabList {
     return this.objectStore.get<ChatTabList>('ChatTabList')!;
   }
@@ -140,6 +142,10 @@ export class ChatPortraitImageComponent {
       : 0;
   });
 
+  /**
+   * Hides the portrait standing at this position when the user presses on it; the flag is kept on
+   * the chat tab itself.
+   */
   portraitClick(pos: number): void {
     this.chatTab.hidePortraitPos(pos);
   }

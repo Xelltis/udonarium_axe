@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { AudioFile } from '@axe/core/storage/audio-file';
-import { AudioPlayer } from '@axe/core/storage/audio-player';
+import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -156,20 +156,26 @@ describe('ChatSoundEventHandlerService', () => {
     expect(played).toEqual([]);
   });
 
-  it('plays a type on demand, for someone choosing one', () => {
-    const handler = start();
+  it('stays quiet for a line when the volume is set to nothing', () => {
+    enable({ scope: 'all', all: { enabled: true, volume: 0, type: 'notify1' }, tabs: {} });
+    start();
 
-    handler.preview('notify1', 0.6);
-
-    expect(played).toEqual([{ identifier: 'notify1', volume: 0.6 }]);
-  });
-
-  it('stays quiet at no volume at all', () => {
-    const handler = start();
-
-    handler.preview('notify1', 0);
+    speak(makeTab('メイン'), 'こんばんは');
 
     expect(played).toEqual([]);
+  });
+
+  it('plays a line’s note through the notification channel', () => {
+    enable({ scope: 'all', all: { enabled: true, volume: 0.4, type: 'notify1' }, tabs: {} });
+    start();
+
+    speak(makeTab('メイン'), 'こんばんは');
+
+    expect(AudioPlayer.play).toHaveBeenCalledWith(
+      expect.objectContaining({ identifier: 'notify1' }),
+      0.4,
+      VolumeType.NOTIFICATION
+    );
   });
 
   it('falls back to what the room is set to for a tab with no answer of its own', () => {

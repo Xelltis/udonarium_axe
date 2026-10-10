@@ -6,6 +6,12 @@ export interface CameraView {
   positionZ: number;
 }
 
+/**
+ * How far to move the view so that a point on the table comes to the middle of the screen.
+ *
+ * The move allows for how the view is turned and tilted, and is to be added to the view as it
+ * stands.
+ */
 export function glideTransform(
   focus: { x: number; y: number },
   center: { x: number; y: number },

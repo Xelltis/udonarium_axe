@@ -1,9 +1,9 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { createCharacter, waitAppReady } from './helpers';
+import { createCharacter, openPanel, waitAppReady } from './helpers';
 
 async function openEffectLibrary(page: Page) {
-  await page.locator('app-pl-toolbar button[title="エフェクト"]').click();
+  await openPanel(page, 'エフェクト');
   await expect(page.locator('app-effect-library-panel')).toBeVisible({ timeout: 5000 });
 }
 
@@ -38,8 +38,8 @@ test.describe('マップ演出（エフェクト）', () => {
     // 対象選択のヒントが出る。
     await expect(page.getByText(/コマをクリックで順に選択/).first()).toBeVisible({ timeout: 5000 });
 
-    // 単体対象なので、コマを 1 つ選んだ時点で発動する。
-    // コマの掴む要素へ直接送る。host は大きさを持たず、クリックが当たらない。
+    // 単体対象なので、コマを1つ選んだ時点で発動する。
+    // コマの掴む要素へ直接送る。hostは大きさを持たず、クリックが当たらない。
     await page.locator('game-character [appmovable]').first().dispatchEvent('mousedown', { button: 0, buttons: 1 });
 
     await expect(page.locator('table-effect-overlay > div').first()).toBeAttached({ timeout: 5000 });

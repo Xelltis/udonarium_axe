@@ -21,9 +21,46 @@
     }
   </div>
   <div class="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] content-start gap-2 px-0 pt-3 pb-0">
+    @if (oversized().length > 0) {
+      <p
+        class="rounded-ui-sm bg-ui-danger-bg text-ui-danger col-span-full m-0 flex items-start gap-1 px-2 py-1.5 text-[12px]"
+        role="alert"
+      >
+        <i class="material-icons shrink-0 text-[16px]!">warning</i>
+        <span class="min-w-0 break-all">{{
+          'ui.fileSelecter.oversized' | transloco: { names: oversized().join(', ') }
+        }}</span>
+      </p>
+    }
+    @if (canUpload) {
+      <label
+        class="rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-dim hover:border-ui-accent hover:text-ui-text flex min-h-28 w-full cursor-pointer flex-col items-center justify-center gap-1 border-2 border-dashed p-1.5 text-center transition-colors hover:bg-[linear-gradient(var(--ui-accent-bg),var(--ui-accent-bg))]"
+        [class.pointer-events-none]="uploading()"
+        [class.opacity-60]="uploading()"
+        [attr.aria-busy]="uploading()"
+      >
+        <i class="material-icons text-[30px]! opacity-55">{{
+          uploading() ? 'hourglass_empty' : 'add_photo_alternate'
+        }}</i>
+        <span class="block max-w-full truncate text-[11px] leading-[1.3] font-medium">{{
+          (uploading() ? 'ui.fileSelecter.uploading' : 'ui.fileSelecter.upload') | transloco
+        }}</span>
+        <span class="block max-w-full truncate text-[10px] leading-[1.3] opacity-70">{{
+          'ui.fileSelecter.uploadLimit' | transloco
+        }}</span>
+        <input
+          type="file"
+          class="hidden"
+          multiple
+          accept="image/*"
+          [disabled]="uploading()"
+          (change)="handleFileSelect($event)"
+        />
+      </label>
+    }
     @if (isAllowedEmpty) {
       <button
-        class="rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-text flex min-h-28 w-full transform-none cursor-pointer flex-col items-center justify-center gap-1 border border-solid p-1.5 shadow-none transition-colors outline-none hover:shadow-[0_0_0_2px_var(--ui-accent-glow)] active:transform-none"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-muted hover:border-ui-accent hover:text-ui-text flex min-h-28 w-full transform-none cursor-pointer flex-col items-center justify-center gap-1 border border-solid p-1.5 shadow-none transition-colors outline-none hover:bg-[linear-gradient(var(--ui-hover),var(--ui-hover))] hover:shadow-[0_0_0_2px_var(--ui-accent-glow)] active:transform-none"
         (click)="onSelectedFile(empty)"
       >
         <i class="material-icons text-[30px]! opacity-[0.45]">hide_image</i>
@@ -34,7 +71,7 @@
     }
     @for (file of images(); track file.identifier) {
       <button
-        class="rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-text flex w-full transform-none cursor-pointer flex-col items-center gap-1 border border-solid p-1.5 shadow-none transition-colors outline-none hover:shadow-[0_0_0_2px_var(--ui-accent-glow)] active:transform-none"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-muted hover:border-ui-accent hover:text-ui-text flex w-full transform-none cursor-pointer flex-col items-center gap-1 border border-solid p-1.5 shadow-none transition-colors outline-none hover:bg-[linear-gradient(var(--ui-hover),var(--ui-hover))] hover:shadow-[0_0_0_2px_var(--ui-accent-glow)] active:transform-none"
         (click)="onSelectedFile(file)"
       >
         @if (file.url) {

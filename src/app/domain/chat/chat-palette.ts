@@ -29,16 +29,28 @@ export interface PaletteEvaluationResult {
 export class ChatPalette extends ObjectNode {
   @SyncVar() dicebot: string = 'DiceBot';
 
+  /**
+   * The palette's lines other than its variable definitions, parsed from its text on first use and
+   * again after it changes.
+   */
   get paletteLines(): PaletteLine[] {
     if (!this.isAnalized) this.parse(this.value as string);
     return this._paletteLines;
   }
 
+  /**
+   * The `//name=value` variables the palette defines, with their names made half-width. Parsed on
+   * first use and again after a change.
+   */
   get paletteVariables(): PaletteVariable[] {
     if (!this.isAnalized) this.parse(this.value as string);
     return this._paletteVariables;
   }
 
+  /**
+   * Reads a palette line as a heading, `//---name---` or `◆name`, giving its name and line number,
+   * or null when it is not one.
+   */
   isPaletteIndex(line: string, no: number): PaletteIndex | null {
     const index: PaletteIndex = {
       name: '',
@@ -63,6 +75,7 @@ export class ChatPalette extends ObjectNode {
     return null;
   }
 
+  /** Every heading in the palette with its line number, for jumping to a part of a long palette. */
   get paletteIndex(): PaletteIndex[] {
     let count = 0;
     let ret;
@@ -80,6 +93,7 @@ export class ChatPalette extends ObjectNode {
     return indexList;
   }
 
+  /** Every palette line containing the text, variable definitions included, in order. */
   paletteMatch(text: string): string[] {
     const matchList: string[] = [];
 
@@ -94,6 +108,10 @@ export class ChatPalette extends ObjectNode {
     return matchList;
   }
 
+  /**
+   * The line number of the `nth` palette line containing the text, counting from 0, or -1 when
+   * there are not that many.
+   */
   paletteMatchLine(text: string, nth: number): number {
     let matchCount = 0;
     let lineNo = 0;
@@ -117,24 +135,40 @@ export class ChatPalette extends ObjectNode {
   private _paletteVariables: PaletteVariable[] = [];
   private isAnalized: boolean = false;
 
+  /** Every line of the palette text as written, variable definitions included. */
   getPalette(): string[] {
     if (!this.isAnalized) this.parse(this.value as string);
     return this._palettes;
   }
 
+  /**
+   * Replaces the palette text. Its lines and variables are parsed again the next time they are
+   * read.
+   */
   setPalette(paletteSource: string) {
     this.value = paletteSource;
     this.isAnalized = false;
   }
 
+  /** Whether a line is aimed at the targeted pieces; see `textTargetsCharacter`. */
   checkTargetCharacter(text: string): boolean {
     return textTargetsCharacter(text);
   }
 
+  /**
+   * Fills in the references in a palette line and returns the text.
+   *
+   * References are answered from this palette's variables and the sheet in `extendVariables`, or
+   * from the target's for a `t{name}` reference. One nothing answers is emptied out.
+   */
   evaluate(line: PaletteLine | string, extendVariables?: DataElement, target?: GameCharacter): string {
     return this.evaluateInternal(line, extendVariables, target, false).text;
   }
 
+  /**
+   * Fills in a palette line as `evaluate` does, but takes references to image fields out of the
+   * text and returns those pictures as attachments to send with it.
+   */
   evaluateWithAttachments(
     line: PaletteLine | string,
     extendVariables?: DataElement,
@@ -186,6 +220,7 @@ export class ChatPalette extends ObjectNode {
     return variable;
   }
 
+  /** Takes a synced update and marks the palette to be parsed again. */
   override apply(context: ObjectContext) {
     super.apply(context);
     this.isAnalized = false;

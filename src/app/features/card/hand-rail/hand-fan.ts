@@ -20,6 +20,10 @@ export interface HandFanOptions {
   readonly arcPx?: number;
 }
 
+/**
+ * The width of the fan of hand cards: one card plus a full step for each further card that fits in
+ * view.
+ */
 export function handFanWidthPx(options: HandFanOptions = {}): number {
   const cardWidth = options.cardWidthPx ?? HAND_CARD_WIDTH_PX;
   const maxStep = options.maxStepPx ?? HAND_FAN_MAX_STEP_PX;
@@ -32,6 +36,13 @@ export const HAND_FAN_MIN_STEP_PX = 16;
 export const HAND_RAIL_CHROME_PX =
   26 + 2 * Math.ceil(HAND_CARD_HEIGHT_PX * Math.sin((HAND_FAN_SPREAD_DEG / 2) * (Math.PI / 180)));
 
+/**
+ * Narrows the step between hand cards so the fan fits a screen of the given width, leaving room for
+ * the rail around it.
+ *
+ * The options come back unchanged when the fan already fits. The step never drops below
+ * `HAND_FAN_MIN_STEP_PX`, so a very narrow screen can still overflow.
+ */
 export function fitHandFanOptions(availableWidthPx: number, options: HandFanOptions = {}): HandFanOptions {
   const cardWidth = options.cardWidthPx ?? HAND_CARD_WIDTH_PX;
   const maxStep = options.maxStepPx ?? HAND_FAN_MAX_STEP_PX;
@@ -43,12 +54,23 @@ export function fitHandFanOptions(availableWidthPx: number, options: HandFanOpti
   return { ...options, maxStepPx: Math.min(maxStep, step) };
 }
 
+/**
+ * The gap in a fan of `count` cards that a pointer at `offsetXPx` from the fan's left edge would
+ * drop into: the number of cards whose centre lies left of it.
+ */
 export function handFanDropIndex(offsetXPx: number, count: number, options: HandFanOptions = {}): number {
   const cardWidth = options.cardWidthPx ?? HAND_CARD_WIDTH_PX;
   const layout = layoutHandFan(count, options);
   return layout.filter((entry) => entry.leftPx + cardWidth / 2 < offsetXPx).length;
 }
 
+/**
+ * Places `count` cards in the hand fan.
+ *
+ * The cards are centred in the fan width and overlap by no more than the step. Each is tilted
+ * further the nearer it is to an end and drops along a shallow arc, and later cards lie on top of
+ * earlier ones. A single card sits upright in the middle.
+ */
 export function layoutHandFan(count: number, options: HandFanOptions = {}): HandCardLayout[] {
   if (count <= 0) return [];
 

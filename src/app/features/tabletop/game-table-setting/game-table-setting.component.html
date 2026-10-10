@@ -253,10 +253,8 @@
                   (ngModelChange)="setBackgroundLayerEnabled(layer, $event)"
                 />
                 {{
-                  (backgroundLayerPlacement(layer) === 'over'
-                    ? 'feature.tabletop.tableSetting.backgroundLayerIndexOver'
-                    : 'feature.tabletop.tableSetting.backgroundLayerIndexUnder'
-                  ) | transloco: { index: backgroundLayerNumber(layer) }
+                  'feature.tabletop.tableSetting.backgroundLayerIndex_' + backgroundLayerPlacement(layer)
+                    | transloco: { index: backgroundLayerNumber(layer) }
                 }}
               </label>
               <span class="flex-1"></span>
@@ -350,6 +348,12 @@
                 data-testid="background-layer-speed-y"
                 [attr.name]="'backgroundLayerSpeedY' + index"
                 [ngModel]="backgroundLayerSpeedY(layer)"
+                [disabled]="backgroundLayerPlacement(layer) === 'backdrop'"
+                [title]="
+                  backgroundLayerPlacement(layer) === 'backdrop'
+                    ? ('feature.tabletop.tableSetting.backgroundLayerSpeedYBackdrop' | transloco)
+                    : ''
+                "
                 (ngModelChange)="setBackgroundLayerSpeedY(layer, $event)"
               />
 
@@ -387,6 +391,48 @@
                 [ngModel]="backgroundLayerScale(layer)"
                 (ngModelChange)="setBackgroundLayerScale(layer, $event)"
               />
+
+              @if (backgroundLayerPlacement(layer) === 'backdrop') {
+                <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                  'feature.tabletop.tableSetting.backgroundLayerFollow' | transloco
+                }}</label>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="range"
+                    class="min-w-20 flex-1 cursor-pointer [accent-color:var(--ui-accent)]"
+                    min="0"
+                    max="100"
+                    step="5"
+                    data-testid="background-layer-follow"
+                    [attr.name]="'backgroundLayerFollow' + index"
+                    [ngModel]="backgroundLayerFollowPercent(layer)"
+                    (ngModelChange)="setBackgroundLayerFollowPercent(layer, $event)"
+                  />
+                  <span class="text-ui-text w-10 text-right tabular-nums"
+                    >{{ backgroundLayerFollowPercent(layer) }}%</span
+                  >
+                </div>
+
+                <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                  'feature.tabletop.tableSetting.backgroundLayerHeight' | transloco
+                }}</label>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="range"
+                    class="min-w-20 flex-1 cursor-pointer [accent-color:var(--ui-accent)]"
+                    min="0"
+                    max="100"
+                    step="5"
+                    data-testid="background-layer-height"
+                    [attr.name]="'backgroundLayerHeight' + index"
+                    [ngModel]="backgroundLayerHeightPercent(layer)"
+                    (ngModelChange)="setBackgroundLayerHeightPercent(layer, $event)"
+                  />
+                  <span class="text-ui-text w-10 text-right tabular-nums"
+                    >{{ backgroundLayerHeightPercent(layer) }}%</span
+                  >
+                </div>
+              }
             </div>
           </div>
         }
@@ -578,6 +624,21 @@
           <span class="text-ui-dim text-[11px]">{{
             'feature.tabletop.tableSetting.recommendedViewHint' | transloco
           }}</span>
+
+          <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
+            <input
+              type="checkbox"
+              class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+              [(ngModel)]="tableMagneticAnomaly"
+              name="tableMagneticAnomaly"
+              data-testid="table-magnetic-anomaly"
+              [attr.disabled]="!isEditable ? '' : null"
+            />
+            {{ 'feature.tabletop.tableSetting.magneticAnomaly' | transloco }}
+          </label>
+          <span class="text-ui-dim text-[11px]">{{
+            'feature.tabletop.tableSetting.magneticAnomalyHint' | transloco
+          }}</span>
         </div>
       </div>
 
@@ -660,7 +721,8 @@
                   name="previewAsUserId"
                 >
                   <option value="">{{ 'feature.tabletop.tableSetting.previewSelf' | transloco }}</option>
-                  @for (cursor of getNonGmCursors(); track cursor.identifier) {
+                  <option [value]="guestPersona">{{ 'feature.role.guest' | transloco }}</option>
+                  @for (cursor of getPreviewPlayers(); track cursor.identifier) {
                     <option [value]="cursor.userId">{{ cursor.name }}</option>
                   }
                 </select>

@@ -7,6 +7,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabComponent } from '@axe/features/chat/chat-tab/chat-tab.component';
+import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ChatTabComponent', () => {
@@ -172,6 +173,7 @@ describe('ChatTabComponent', () => {
         await new Promise<void>((resolve) => queueMicrotask(resolve));
       };
 
+      beMyself('me');
       const secret = chatTab.addMessage({ from: 'me', name: 'ダイス', text: '→ 6', timestamp: 1000, tag: 'secret' });
       const said = chatTab.addMessage({ from: 'me', name: 'アリス', text: 'そのあと', timestamp: 2000 });
       TestBed.inject(ChatMessageService).discloseMessage(secret);
@@ -194,6 +196,7 @@ describe('ChatTabComponent', () => {
         await new Promise<void>((resolve) => queueMicrotask(resolve));
       };
 
+      beMyself('me');
       const secret = chatTab.addMessage({ from: 'me', name: 'ダイス', text: '→ 6', timestamp: 1000, tag: 'secret' });
       chatTab.addMessage({ from: 'me', name: 'アリス', text: 'そのあと', timestamp: 2000 });
       await flush();
@@ -232,6 +235,73 @@ describe('ChatTabComponent', () => {
 
       // and the bottom moves on because it was at the bottom
       expect(internalFull().bottomIndex).toBe(1);
+    });
+
+    it('draws no more than a reader at the bottom needs when many lines arrive at once', () => {
+      type Range = { topIndex: number; bottomIndex: number };
+      const range = () => component as unknown as Range;
+      for (let i = 0; i < 300; i++) {
+        const message = new ChatMessage();
+        message.initialize();
+        chatTab.appendChild(message);
+        emitMessageAdded({ tabIdentifier: chatTab.identifier, messageIdentifier: message.identifier });
+      }
+
+      const drawn = component.chatMessages;
+
+      expect(range().bottomIndex).toBe(299);
+      expect(drawn.length).toBeLessThanOrEqual(150);
+      expect(drawn[drawn.length - 1]).toBe(chatTab.chatMessages[299]);
+    });
+
+    describe('on iOS, which never narrows the lines while it scrolls', () => {
+      type InternalIOS = {
+        isIOS: boolean;
+        topIndex: number;
+        bottomIndex: number;
+        trimRenderedRangeOnIOS: () => void;
+      };
+      const ios = () => component as unknown as InternalIOS;
+
+      function renderEveryLineOf(count: number): void {
+        for (let i = 0; i < count; i++) {
+          chatTab.addMessage({ from: 'reader', name: '読者', text: `${i}`, timestamp: 1000 + i });
+        }
+        ios().isIOS = true;
+        ios().topIndex = 0;
+        ios().bottomIndex = count - 1;
+      }
+
+      it('lets go of the lines far above once the reader rests at the bottom', () => {
+        renderEveryLineOf(300);
+
+        ios().trimRenderedRangeOnIOS();
+
+        expect(ios().bottomIndex).toBe(299);
+        expect(ios().bottomIndex - ios().topIndex + 1).toBeLessThanOrEqual(150);
+      });
+
+      it('keeps the lines a reader scrolled far up is reading when a new one arrives', () => {
+        renderEveryLineOf(300);
+        Object.defineProperty(panelService.scrollablePanel!, 'scrollHeight', { value: 20000 });
+        const message = new ChatMessage();
+        message.initialize();
+        chatTab.appendChild(message);
+
+        emitMessageAdded({ tabIdentifier: chatTab.identifier, messageIdentifier: message.identifier });
+
+        expect(ios().topIndex).toBe(0);
+        expect(ios().bottomIndex).toBe(300);
+      });
+
+      it('keeps them for a reader scrolled away from the bottom', () => {
+        renderEveryLineOf(300);
+        Object.defineProperty(panelService.scrollablePanel!, 'scrollHeight', { value: 20000 });
+
+        ios().trimRenderedRangeOnIOS();
+
+        expect(ios().topIndex).toBe(0);
+      });
     });
   });
 
@@ -290,6 +360,108 @@ describe('ChatTabComponent', () => {
       fixture.detectChanges();
 
       expect(fixture.componentInstance.writingSpeakers().length).toBe(0);
+    });
+  });
+
+  describe('bringing a line far up the log into view', () => {
+    let chatTab: ChatTab;
+
+    const drawn = () =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('chat-message')).map(
+        (line) => line.dataset['messageId']
+      );
+
+    beforeEach(() => {
+      beMyself('reader');
+      const mockPanel = document.createElement('div');
+      Object.defineProperty(mockPanel, 'clientHeight', { value: 300 });
+      TestBed.inject(PanelService).scrollablePanel = mockPanel as unknown as HTMLDivElement;
+      chatTab = new ChatTab();
+      chatTab.initialize();
+      for (let i = 0; i < 120; i++) {
+        chatTab.addMessage({ from: 'someone', name: '語り手', text: `${i}行目`, timestamp: i + 1 });
+      }
+      fixture.componentRef.setInput('chatTab', chatTab);
+      fixture.detectChanges();
+    });
+
+    afterEach(() => chatTab.destroy());
+
+    it('draws a line that was not drawn, and hands back its element', async () => {
+      const target = chatTab.chatMessages[3];
+      expect(drawn()).not.toContain(target.identifier);
+
+      const shown = component.reveal(target);
+      fixture.detectChanges();
+      const element = await shown;
+
+      expect(element?.dataset['messageId']).toBe(target.identifier);
+      expect(drawn()).toContain(target.identifier);
+      expect(drawn()).not.toContain(chatTab.chatMessages[119].identifier);
+    });
+
+    it('hands back a line already drawn without drawing others', async () => {
+      const target = chatTab.chatMessages[119];
+      const before = drawn();
+
+      const shown = component.reveal(target);
+      fixture.detectChanges();
+      const element = await shown;
+
+      expect(element?.dataset['messageId']).toBe(target.identifier);
+      expect(drawn()).toEqual(before);
+    });
+
+    it('hands back nothing for a line in another tab, or one said to somebody else', async () => {
+      const other = new ChatTab();
+      other.initialize();
+      const elsewhere = other.addMessage({ from: 'someone', name: '語り手', text: '別のタブ', timestamp: 1 });
+      const whispered = chatTab.addMessage({
+        from: 'someone',
+        to: 'another',
+        name: '語り手',
+        text: '内緒',
+        timestamp: 999,
+      });
+
+      expect(await component.reveal(elsewhere)).toBeNull();
+      expect(await component.reveal(whispered)).toBeNull();
+      other.destroy();
+    });
+
+    it('lights up the line asked for where it is drawn', () => {
+      const target = chatTab.chatMessages[119];
+      const line = () =>
+        (fixture.nativeElement as HTMLElement).querySelector(`chat-message[data-message-id="${target.identifier}"]`)!;
+
+      component.flash(target);
+      fixture.detectChanges();
+
+      expect(line().classList).toContain('chat-message-highlight');
+    });
+
+    it('stops drawing a line once it is deleted, and hands back nothing for it', async () => {
+      const target = chatTab.chatMessages[119];
+      expect(drawn()).toContain(target.identifier);
+
+      target.pseudoDelete(5000);
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      expect(drawn()).not.toContain(target.identifier);
+      expect(await component.reveal(target)).toBeNull();
+    });
+
+    it('stops drawing a line the reader deleted themselves too', async () => {
+      const mine = chatTab.addMessage({ from: 'reader', name: '自分', text: '言い間違い', timestamp: 999 });
+      fixture.detectChanges();
+      expect(drawn()).toContain(mine.identifier);
+
+      mine.pseudoDelete(5000);
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      expect(drawn()).not.toContain(mine.identifier);
     });
   });
 });

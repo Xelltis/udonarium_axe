@@ -24,6 +24,21 @@ export interface StatusAilment {
   timing: BuffTiming;
   /** A line about what it does, which rides along on the buff. */
   effect: string;
+  /**
+   * The status it moves while it is worn, if any, such as `移動`.
+   *
+   * A state that only reads as a note leaves the master to move the sheet by hand and to put
+   * it back afterwards. Named here, the state moves the sheet itself and gives back exactly
+   * what it took when it is taken off.
+   *
+   * One word, like the name: the states are written one to a line with spaces between the
+   * fields, and a status with a space in it could never be read back.
+   */
+  stat: string;
+  /** How it moves it: `+`, `-` or `=`, as the `&!` command spells them. */
+  op: string;
+  /** How far it moves it, or what it holds it at. */
+  amount: string;
 }
 
 const CODE_PREFIX = {
@@ -31,6 +46,9 @@ const CODE_PREFIX = {
   icon: 'icon:',
   rounds: 'rounds:',
   timing: 'timing:',
+  stat: 'stat:',
+  op: 'op:',
+  amount: 'amount:',
   effect: 'effect:',
 } as const;
 
@@ -57,8 +75,12 @@ export function withRounds(ailment: StatusAilment, rounds: number): StatusAilmen
   return { ...ailment, rounds: next, timing: chosen ? ailment.timing : impliedBuffTiming(next) };
 }
 
+/**
+ * A fresh state of that name with nothing else set: no colour or icon, no rounds, and held until
+ * cleared.
+ */
 export function newStatusAilment(name: string): StatusAilment {
-  return { name, color: '', icon: '', rounds: 0, timing: 'none', effect: '' };
+  return { name, color: '', icon: '', rounds: 0, timing: 'none', effect: '', stat: '', op: '', amount: '' };
 }
 
 /**
@@ -76,6 +98,12 @@ export function encodeStatusAilment(ailment: StatusAilment): string {
   if (ailment.icon.trim().length > 0) codes.push(CODE_PREFIX.icon + ailment.icon.trim());
   if (ailment.rounds > 0) codes.push(CODE_PREFIX.rounds + ailment.rounds);
   if (ailment.timing !== impliedBuffTiming(ailment.rounds)) codes.push(CODE_PREFIX.timing + ailment.timing);
+  const stat = ailment.stat.trim().split(/\s+/)[0] ?? '';
+  if (stat.length > 0) {
+    codes.push(CODE_PREFIX.stat + stat);
+    codes.push(CODE_PREFIX.op + ailment.op.trim());
+    codes.push(CODE_PREFIX.amount + ailment.amount.trim());
+  }
   if (ailment.effect.trim().length > 0) codes.push(CODE_PREFIX.effect + ailment.effect.trim());
   return codes.join(' ');
 }
@@ -107,6 +135,12 @@ export function decodeStatusAilment(line: string): StatusAilment | null {
     } else if (token.startsWith(CODE_PREFIX.rounds)) {
       const rounds = Number(token.slice(CODE_PREFIX.rounds.length));
       if (Number.isFinite(rounds) && rounds >= 0) ailment.rounds = Math.floor(rounds);
+    } else if (token.startsWith(CODE_PREFIX.stat)) {
+      ailment.stat = token.slice(CODE_PREFIX.stat.length);
+    } else if (token.startsWith(CODE_PREFIX.op)) {
+      ailment.op = token.slice(CODE_PREFIX.op.length);
+    } else if (token.startsWith(CODE_PREFIX.amount)) {
+      ailment.amount = token.slice(CODE_PREFIX.amount.length);
     } else if (token.startsWith(CODE_PREFIX.timing)) {
       const timing = token.slice(CODE_PREFIX.timing.length);
       if ((BUFF_TIMINGS as readonly string[]).includes(timing)) {
@@ -132,6 +166,10 @@ export function parseStatusAilments(text: string): StatusAilment[] {
   return ailments;
 }
 
+/**
+ * Writes the states down one to a line, as the catalog stores them. A state with no name is left
+ * out.
+ */
 export function formatStatusAilments(list: readonly StatusAilment[]): string {
   return list
     .map((ailment) => encodeStatusAilment(ailment))
@@ -139,6 +177,7 @@ export function formatStatusAilments(list: readonly StatusAilment[]): string {
     .join('\n');
 }
 
+/** The state of exactly that name in the list, or null. */
 export function findStatusAilment(list: readonly StatusAilment[], name: string): StatusAilment | null {
   return list.find((ailment) => ailment.name === name) ?? null;
 }

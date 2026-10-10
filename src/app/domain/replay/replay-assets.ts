@@ -9,6 +9,13 @@ export interface ReplayAssetIds {
   readonly audios: ReadonlySet<string>;
 }
 
+/**
+ * The pictures and sounds a recording refers to, so they can be packed alongside it.
+ *
+ * Any non-empty string under a key named `imageIdentifier` or `audioIdentifier`, or ending in
+ * either, counts, wherever it sits in the snapshots or the events. A sound effect event adds
+ * the sound it played.
+ */
 export function collectReplayAssetIds(
   snapshots: readonly ReplayObjectSnapshot[],
   events: readonly ReplayEvent[]
@@ -37,11 +44,13 @@ export function collectReplayAssetIds(
   for (const event of events) {
     walk(event.detail);
     if (event.patch) walk(event.patch.after);
+    for (const part of event.parts ?? []) walk(part.after);
     if (event.signal) walk(event.signal.data);
     if (event.kind === ReplayEventKind.MediaSoundEffect) {
       const identifier = String(event.detail['identifier'] ?? '');
       if (identifier.length > 0) audios.add(identifier);
     }
+    if (event.kind === ReplayEventKind.MediaBackgroundSound && event.targetId) audios.add(event.targetId);
   }
 
   return { images, audios };

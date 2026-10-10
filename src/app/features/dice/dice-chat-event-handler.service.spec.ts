@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { emitDiceRolled } from '@axe/core/event/domain-events';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { diceBotUnreachable$, emitDiceRolled } from '@axe/core/event/domain-events';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { PeerSessionGrade } from '@axe/core/network/peer-session-state';
@@ -178,5 +179,31 @@ describe('DiceChatEventHandlerService', () => {
     roll('1d6 dice:ゴブリンA', [{ sides: 6, value: 4 }]);
 
     expect(twenty.face).toBe(before);
+  });
+
+  describe('a line whose game system could not be fetched', () => {
+    it('is pointed out once, to the sender alone, in the tab it was sent to', () => {
+      const tell = vi
+        .spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageOnePlayer')
+        .mockReturnValue(null as unknown as ChatMessage);
+      const line = tab.addMessage({
+        from: SELF_USER_ID,
+        text: 'CC<=50',
+        timestamp: 1,
+        imageIdentifier: '',
+        tag: 'Cthulhu7th',
+        name: 'わたし',
+      });
+
+      diceBotUnreachable$.emit({ messageIdentifier: line.identifier, gameType: 'Cthulhu7th' });
+      diceBotUnreachable$.emit({ messageIdentifier: line.identifier, gameType: 'Cthulhu7th' });
+
+      expect(tell).toHaveBeenCalledOnce();
+      const [where, text, to] = tell.mock.calls[0];
+      expect(where).toBe(tab);
+      expect(text).toContain('feature.chat.diceBot.unreachable');
+      expect(to).toBe(PeerCursor.myCursor.identifier);
+      tell.mockRestore();
+    });
   });
 });

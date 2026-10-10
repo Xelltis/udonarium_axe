@@ -82,10 +82,16 @@ export class DraggableDirective {
     this.input.onContextMenu = (e) => this.onContextMenu(e);
   }
 
+  /** Lets go of a drag in progress, if any, without moving the element any further. */
   cancel() {
     if (this.input) this.input.cancel();
   }
 
+  /**
+   * Stops listening for presses and for the window changing shape.
+   *
+   * A pending settle is dropped, so `draggable.settled` is not emitted after this.
+   */
   destroy() {
     if (this.settleTimer) clearTimeout(this.settleTimer);
     this.settleTimer = null;

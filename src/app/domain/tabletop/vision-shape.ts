@@ -16,6 +16,7 @@ export const VISION_SHAPES: readonly VisionShape[] = [
   VisionShape.CUSTOM,
 ];
 
+/** Reads a stored vision shape, falling back to dome for anything unknown. */
 export function asVisionShape(value: unknown): VisionShape {
   return typeof value === 'string' && (VISION_SHAPES as readonly string[]).includes(value)
     ? (value as VisionShape)
@@ -75,10 +76,18 @@ export const DOME_LOBES: readonly VisionLobe[] = [{ direction: 0, angle: 360, ra
  */
 export const FACING_BEARING_OFFSET = -90;
 
+/**
+ * The bearing a piece looks along, from its turn and an extra offset, where no turn at all faces up
+ * the table.
+ */
 export function facingBearing(rotateDeg: number, offsetDeg = 0): number {
   return rotateDeg + offsetDeg + FACING_BEARING_OFFSET;
 }
 
+/**
+ * Sets a piece's vision shape and, for every shape but custom, resets its cone settings to that
+ * shape's defaults.
+ */
 export function applyVisionShape(target: MutableVisionFields, shape: VisionShape): void {
   target.visionShape = shape;
   if (shape === VisionShape.CUSTOM) return;
@@ -90,6 +99,12 @@ export function applyVisionShape(target: MutableVisionFields, shape: VisionShape
   target.visionPeripheralScale = def.peripheralScale;
 }
 
+/**
+ * The lobes a vision spec sees through, each a direction from the facing, a spread and a share of
+ * the range.
+ *
+ * A custom spec with no readable lobes, and any unknown shape, sees all round at full range.
+ */
 export function visionLobesOf(spec: VisionSpec): readonly VisionLobe[] {
   const cone = clampAngle(spec.coneAngle);
   switch (spec.shape) {
@@ -122,6 +137,12 @@ export function visionLobesOf(spec: VisionSpec): readonly VisionLobe[] {
   }
 }
 
+/**
+ * Reads custom lobes written as `direction/angle/scale` entries separated by semicolons.
+ *
+ * The scale may be left out for full range. Unreadable entries are skipped, and angles and scales
+ * are held to their ranges.
+ */
 export function parseVisionLobes(text: string): VisionLobe[] {
   const lobes: VisionLobe[] = [];
   for (const part of text.split(';')) {
@@ -136,10 +157,17 @@ export function parseVisionLobes(text: string): VisionLobe[] {
   return lobes;
 }
 
+/** Writes lobes in the form parseVisionLobes reads. */
 export function formatVisionLobes(lobes: readonly VisionLobe[]): string {
   return lobes.map((lobe) => `${lobe.direction}/${lobe.angle}/${lobe.rangeScale}`).join(';');
 }
 
+/**
+ * The share of a piece's range that reaches a point: the largest scale among the lobes the point
+ * falls in, or 0 when it falls in none.
+ *
+ * A point right on top of the piece is in every lobe.
+ */
 export function visionLobeScale(
   lobes: readonly VisionLobe[],
   facingDeg: number,
@@ -166,6 +194,7 @@ export function visionLobeScale(
   return best;
 }
 
+/** The largest range share among the lobes, which is the furthest the piece can possibly see. */
 export function maxLobeScale(lobes: readonly VisionLobe[]): number {
   let best = 0;
   for (const lobe of lobes) best = Math.max(best, clampScale(lobe.rangeScale));

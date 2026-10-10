@@ -37,10 +37,12 @@ export function outlineFor(style: MarkStyle): TextOutline | null {
 /** What a shape is dropped onto the sheet with when it is asked to cast a shadow. */
 export const MARK_SHADOW: ShapeShadow = { color: 'rgba(0,0,0,0.35)', blur: 8, offsetX: 3, offsetY: 4 };
 
+/** A freehand stroke through a flat list of x, y pairs, in the style's colour and width. */
 export function penStroke(points: number[], style: MarkStyle) {
   return { id: newId(), points, color: style.color, width: style.width };
 }
 
+/** A solid straight line between two points, in the style's colour and width. */
 export function straightLine(from: BoardPoint, to: BoardPoint, style: MarkStyle): ShapeItem {
   return {
     id: newId(),
@@ -76,6 +78,7 @@ export function shapeBetween(
   };
 }
 
+/** Words written at a point, left-aligned, taking size, colour, outline, shadow and lines from the style. */
 export function wordsAt(at: BoardPoint, text: string, style: MarkStyle): TextItem {
   return {
     id: newId(),
@@ -198,6 +201,7 @@ export function highlighterStyle(style: MarkStyle): MarkStyle {
   return { ...style, color: withAlpha(style.color, 0.38), width: Math.max(style.width * 3, 14) };
 }
 
+/** A `#rrggbb` colour as `rgba()` at an alpha; any other colour string comes back unchanged. */
 export function withAlpha(color: string, alpha: number): string {
   const hex = /^#([0-9a-f]{6})$/i.exec(color);
   if (!hex) return color;

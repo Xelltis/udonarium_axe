@@ -22,6 +22,10 @@ export class EffectLibraryService {
     return presets;
   });
 
+  /**
+   * The effect preset with this identifier, or null when there is none. Unlike `findByName`, it
+   * does not hide game-master-only presets.
+   */
   get(identifier: string): EffectPreset | null {
     const preset = this.objectStore.get<EffectPreset>(identifier);
     return preset instanceof EffectPreset ? preset : null;
@@ -65,6 +69,7 @@ export class EffectLibraryService {
     return preset;
   }
 
+  /** Deletes a preset from the room for everyone. */
   remove(preset: EffectPreset): void {
     preset.destroy();
   }

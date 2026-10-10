@@ -1,0 +1,23 @@
+@if (canEdit()) {
+  <div class="flex h-full flex-col gap-2 overflow-y-auto p-2 text-[13px]" data-testid="board-switch-editor">
+    <app-switch-definition-fields [definition]="definition()" (changed)="update($event)" />
+
+    <div class="border-ui-border-panel mt-auto flex items-center gap-2 border-t border-solid pt-2">
+      <button
+        type="button"
+        class="border-ui-border-panel bg-ui-elevated text-ui-text hover:border-ui-accent hover:text-ui-accent rounded-ui-sm flex cursor-pointer items-center gap-1 border border-solid px-2 py-1 text-[12px]"
+        data-testid="board-switch-try"
+        (click)="tryIt()"
+      >
+        <i class="material-icons text-[16px]!">touch_app</i>{{ 'feature.boardSwitch.try' | transloco }}
+      </button>
+      @if (tried() && tried() !== 'pressed') {
+        <span class="text-ui-muted text-[11px]" data-testid="board-switch-tried">{{
+          'feature.boardSwitch.refused.' + tried() | transloco
+        }}</span>
+      }
+    </div>
+  </div>
+} @else {
+  <p class="text-ui-muted m-0 p-3 text-[12px]">{{ 'feature.boardSwitch.masterOnly' | transloco }}</p>
+}

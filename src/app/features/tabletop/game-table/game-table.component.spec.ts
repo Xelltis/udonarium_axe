@@ -1,7 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { ContextMenuAction, ContextMenuService, ContextMenuType } from '@axe/application/ui/context-menu.service';
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
@@ -9,13 +11,19 @@ import { MotionService } from '@axe/application/ui/motion.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { PERF_HEX_MASK_SVG, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
+import { Party } from '@axe/domain/party/party';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import {
@@ -394,6 +402,189 @@ describe('GameTableComponent', () => {
     });
   });
 
+  describe('what stands behind the table as a backdrop', () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const follows = (): HTMLElement[] =>
+      Array.from(root().querySelectorAll<HTMLElement>('[data-testid="backdrop-layer-follow"]'));
+
+    const lay = (options: Partial<{ follow: number; height: number; speedX: number; speedY: number }> = {}) => {
+      const layer = new TableBackgroundLayer();
+      layer.initialize();
+      layer.imageIdentifier = ImageStorage.instance.add('hills.png').identifier;
+      layer.placement = 'backdrop';
+      if (options.follow !== undefined) layer.cameraFollow = options.follow;
+      if (options.height !== undefined) layer.backdropHeight = options.height;
+      layer.speedX = options.speedX ?? 0;
+      layer.speedY = options.speedY ?? 0;
+      component.currentTable.appendChild(layer);
+      (
+        component as unknown as { onBackgroundLayerImageLoad(id: string, event: Event): void }
+      ).onBackgroundLayerImageLoad(layer.imageIdentifier, {
+        target: { naturalWidth: 200, naturalHeight: 100 },
+      } as unknown as Event);
+      return layer;
+    };
+
+    it('draws a backdrop outside the table’s own space, and not among the layers under the board', () => {
+      lay();
+      fixture.detectChanges();
+
+      const backdrop = root().querySelector('[data-testid="backdrop-layer"]');
+      expect(backdrop).not.toBeNull();
+      expect(backdrop!.closest('#app-game-table')).toBeNull();
+      expect(component.underLayerViews()).toEqual([]);
+      expect(root().querySelector('[data-testid="background-layers"]')).toBeNull();
+    });
+
+    it('lays the picture across only, its foot standing at the height it was given', () => {
+      lay({ height: 0.25 });
+      fixture.detectChanges();
+
+      const view = component.backdropLayerViews()[0];
+      expect(view.frameStyle['bottom']).toBe('25%');
+      expect(view.frameStyle['height']).toBe('100px');
+      expect(view.style['background-repeat']).toBe('repeat-x');
+      expect(view.followStyle['width']).toBe('calc(100% + 400px)');
+    });
+
+    it('moves each backdrop for the camera by how much it follows, further ones less', () => {
+      lay({ follow: 0.1 });
+      lay({ follow: 0.6 });
+      fixture.detectChanges();
+
+      TestBed.inject(BackdropFrameService).apply({ rotateX: 50, rotateZ: 90, positionX: 0, positionY: 0 });
+
+      expect(follows().map((element) => element.style.transform)).toEqual([
+        'translate3d(-5px, 0px, 0px)',
+        'translate3d(-30px, 0px, 0px)',
+      ]);
+    });
+
+    it('fades the picture out at its top and its foot, on the part that moves with it', () => {
+      lay();
+      fixture.detectChanges();
+
+      const view = component.backdropLayerViews()[0];
+      expect(view.followStyle['mask-image']).toMatch(/^linear-gradient\(to bottom, transparent 0%/);
+      expect(view.followStyle['mask-image']).toMatch(/transparent 100%\)$/);
+      expect(view.followStyle['-webkit-mask-image']).toBe(view.followStyle['mask-image']);
+      expect(follows()[0].style.getPropertyValue('mask-image')).toContain('linear-gradient');
+    });
+
+    it('drifts across but never up or down, the picture being laid across only', () => {
+      lay({ speedX: 100, speedY: 100 });
+      fixture.detectChanges();
+
+      const view = component.backdropLayerViews()[0];
+      expect(view.drifts).toBe(true);
+      expect(view.style['--bg-layer-x-name']).toBe('bgLayerScrollX');
+      expect(view.style['--bg-layer-y-name']).toBeUndefined();
+    });
+  });
+
+  describe('a piece standing on a face the table is not drawing', () => {
+    it('comes back to the floor rather than being drawn nowhere at all', () => {
+      const piece = GameCharacter.create('コマ', 1, '');
+      piece.location = { name: 'table', x: 100, y: 100, surface: 'north-wall' };
+      try {
+        fixture.detectChanges();
+
+        expect(component.charactersBySurface().floor.map((each) => each.identifier)).toContain(piece.identifier);
+        expect(component.charactersBySurface()['north-wall']).toEqual([]);
+      } finally {
+        piece.destroy();
+      }
+    });
+
+    it('leaves a piece on a board that another table is drawing to that board', () => {
+      const board = new WhiteBoard();
+      board.initialize();
+      const piece = GameCharacter.create('コマ', 1, '');
+      piece.location = { name: 'table', x: 100, y: 100, surface: board.identifier };
+      try {
+        fixture.detectChanges();
+
+        expect(component.charactersBySurface().floor.map((each) => each.identifier)).not.toContain(piece.identifier);
+      } finally {
+        piece.destroy();
+        board.destroy();
+      }
+    });
+
+    it('comes back from a board that is no longer on the table', () => {
+      const piece = GameCharacter.create('コマ', 1, '');
+      piece.location = { name: 'table', x: 100, y: 100, surface: 'a-board-that-went-away' };
+      try {
+        fixture.detectChanges();
+
+        expect(component.charactersBySurface().floor.map((each) => each.identifier)).toContain(piece.identifier);
+      } finally {
+        piece.destroy();
+      }
+    });
+  });
+
+  describe('saying what more a drag can be turned into', () => {
+    const hint = (): HTMLElement | null =>
+      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="hold-hint"]');
+
+    const takeUp = (liftable: boolean) =>
+      TestBed.inject(HeldPieceService).take({
+        identifier: 'held',
+        x: 0,
+        y: 0,
+        widthPx: 50,
+        heightPx: 50,
+        altitude: 0,
+        gridSize: 50,
+        liftable,
+      });
+
+    it('says nothing while there is nothing in hand', () => {
+      fixture.detectChanges();
+
+      expect(hint()).toBeNull();
+    });
+
+    it('offers the footholds and the air to a piece held on the table', () => {
+      takeUp(true);
+
+      fixture.detectChanges();
+
+      expect(hint()?.textContent).toContain('ホイールで足場を上下に辿る');
+      expect(hint()?.textContent).toContain('Shift＋ホイールで高さを 1 マスずつ');
+    });
+
+    it('offers a piece held on a wall the footholds alone, having no height of its own', () => {
+      takeUp(false);
+
+      fixture.detectChanges();
+
+      expect(hint()?.textContent).toContain('ホイールで足場を上下に辿る');
+      expect(hint()?.textContent).not.toContain('Shift');
+    });
+
+    it('says nothing where there is no wheel to turn', () => {
+      vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+      takeUp(true);
+
+      fixture.detectChanges();
+
+      expect(hint()).toBeNull();
+    });
+
+    it('leaves the band to the planned move, which is already speaking from it', () => {
+      takeUp(true);
+      vi.spyOn(component, 'isPlanningMove').mockReturnValue(true);
+
+      fixture.detectChanges();
+
+      expect(hint()).toBeNull();
+    });
+
+    afterEach(() => TestBed.inject(HeldPieceService).letGo());
+  });
+
   describe('saying how a move is worked out', () => {
     const hint = (): HTMLElement | null =>
       (fixture.nativeElement as HTMLElement).querySelector('[data-testid="move-plan-hint"]');
@@ -582,6 +773,66 @@ describe('GameTableComponent', () => {
       ]);
       expect(groupedActions).toEqual(expect.arrayContaining(legacyActions));
       expect(groupedActions).toHaveLength(legacyActions.length);
+    });
+
+    describe('gathering a party', () => {
+      const GATHER = 'この地点を中心にパーティを配置';
+      const made: (Party | GameCharacter)[] = [];
+
+      // The shared setup leaves this seat without a cursor, and a seat with no cursor is a
+      // player. The master has to be given one before the role can be written on it.
+      const beMaster = () => {
+        PeerCursor.createMyCursor();
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+      };
+
+      const makeParty = (name: string): Party => {
+        const party = new Party();
+        party.name = name;
+        party.initialize();
+        made.push(party);
+        const member = GameCharacter.create('花子', 1, '');
+        member.partyIdentifier = party.identifier;
+        member.setLocation('table');
+        made.push(member);
+        return party;
+      };
+
+      afterEach(() => {
+        PeerCursor.myCursor = null!;
+        for (const object of made.splice(0)) object.destroy();
+      });
+
+      it('offers it to the master, in both menus', () => {
+        beMaster();
+        makeParty('パーティA');
+
+        const model = component.buildContextMenuModel(position);
+
+        expect(model.actions.map((action) => action.name)).toContain(GATHER);
+        expect(model.rotatingGroups.map((group) => group.name)).toContain('同行');
+      });
+
+      it('keeps the two menus answering alike while it is offered', () => {
+        beMaster();
+        makeParty('パーティA');
+
+        const model = component.buildContextMenuModel(position);
+        const groupedActions = model.rotatingGroups.flatMap((group) => group.actions);
+        const legacyActions = model.actions.filter((action) => action.name.length > 0);
+
+        expect(groupedActions).toEqual(expect.arrayContaining(legacyActions));
+        expect(groupedActions).toHaveLength(legacyActions.length);
+      });
+
+      it('offers it to nobody else', () => {
+        makeParty('パーティA');
+
+        const model = component.buildContextMenuModel(position);
+
+        expect(model.actions.map((action) => action.name)).not.toContain(GATHER);
+        expect(model.rotatingGroups.map((group) => group.name)).not.toContain('同行');
+      });
     });
 
     it('splits the create items with a separator between the dice and the coin', () => {
@@ -942,6 +1193,49 @@ describe('GameTableComponent', () => {
       expect(style?.['-webkit-mask']).toBe(style?.mask);
       expect(borderStyle?.background).toContain('data:image/svg+xml');
     });
+
+    it('keeps the hex outline when only something standing on the table changes', async () => {
+      const table = component.currentTable;
+      table.width = 6;
+      table.height = 5;
+      table.gridSize = 50;
+      table.gridType = GridType.HEX_VERTICAL;
+      await Promise.resolve();
+      const style = component.tableSurfaceStyle();
+      const borderStyle = component.tableSurfaceBorderStyle();
+
+      perfCounters.enabled = true;
+      perfCounters.clear();
+      const terrain = Terrain.create('crate', 1, 1, 1, '', '');
+      table.appendChild(terrain);
+      await Promise.resolve();
+
+      try {
+        expect(component.tableSurfaceStyle()).toBe(style);
+        expect(component.tableSurfaceBorderStyle()).toBe(borderStyle);
+        expect(perfCounters.drain().get(PERF_HEX_MASK_SVG) ?? 0).toBe(0);
+      } finally {
+        perfCounters.enabled = false;
+        perfCounters.clear();
+        terrain.destroy();
+      }
+    });
+
+    it('builds the hex outline again for the size the table has now', async () => {
+      const table = component.currentTable;
+      table.width = 6;
+      table.height = 5;
+      table.gridType = GridType.HEX_VERTICAL;
+      table.gridSize = 0;
+      await Promise.resolve();
+      const atNothing = component.tableSurfaceStyle();
+
+      table.gridSize = 50;
+      await Promise.resolve();
+
+      expect(component.tableSurfaceStyle()).not.toBe(atNothing);
+      expect(component.tableSurfaceStyle().width).toBe(`${(50 / Math.sqrt(3)) * 2 + (50 / Math.sqrt(3)) * 1.5 * 5}px`);
+    });
   });
 
   describe('the pools on its walls', () => {
@@ -1179,6 +1473,23 @@ describe('GameTableComponent', () => {
 
       vi.advanceTimersByTime(100);
       expect(tableEl.style.transition).toBe('');
+      vi.useRealTimers();
+    });
+
+    it('counts the view as written out again once the glide has landed', () => {
+      vi.useFakeTimers();
+      fixture.detectChanges();
+      const tableEl = component.gameTable().nativeElement;
+      const coordinates = component['coordinateService'];
+
+      TestBed.inject(SelectionSignalService).focusCoordinate.set({ x: 100, y: 100, timestamp: 3 });
+      fixture.detectChanges();
+      vi.advanceTimersByTime(149);
+      const whileGliding = coordinates.tabletopTransformVersion();
+
+      vi.advanceTimersByTime(1);
+      expect(tableEl.style.transition).toBe('');
+      expect(coordinates.tabletopTransformVersion()).toBeGreaterThan(whileGliding);
       vi.useRealTimers();
     });
 

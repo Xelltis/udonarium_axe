@@ -107,7 +107,7 @@
                     <input
                       class="border-ui-border-panel text-ui-text hover:border-b-ui-accent focus:border-b-ui-accent box-border min-w-[2em] flex-1 [appearance:textfield] rounded-none border-0 border-b border-solid bg-transparent px-0.5 text-right font-[inherit] text-[12px] font-bold transition-[border-color] outline-none"
                       type="number"
-                      [style.color]="element.nowValueColor"
+                      [style.color]="element.nowValueColor || null"
                       name="pl-resource-current"
                       [(ngModel)]="element.currentValue"
                       (ngModelChange)="onResourceChanged(character)"
@@ -138,6 +138,36 @@
           ) | transloco
         }}
       </p>
+      @if (characters().length < 1) {
+        <p class="text-ui-muted m-0 px-3 pb-3 text-center text-xs/relaxed" data-testid="owned-empty-hint">
+          {{ 'feature.plTools.ownedCharacters.emptyHint' | transloco }}
+        </p>
+        @if (claimable().length > 0) {
+          <h3 class="text-ui-muted m-0 px-1 pt-1 pb-1.5 text-[12px] font-semibold">
+            {{ 'feature.plTools.ownedCharacters.claimableHeading' | transloco }}
+          </h3>
+          @for (character of claimable(); track character.identifier) {
+            <div
+              class="rounded-ui-sm border-ui-border-panel mb-1 flex items-center gap-2 border border-solid p-1.5"
+              data-testid="claimable-character"
+            >
+              <div class="bg-ui-elevated size-10 shrink-0 overflow-hidden rounded-sm">
+                @if (imageUrl(character)) {
+                  <img class="size-full object-contain" [src]="imageUrl(character) | safe: 'resourceUrl'" alt="" />
+                }
+              </div>
+              <span class="min-w-0 flex-1 truncate text-[13px]">{{ displayName(character) }}</span>
+              <button
+                type="button"
+                class="border-ui-accent bg-ui-accent-bg text-ui-accent hover:bg-ui-accent-glow min-h-9 shrink-0 cursor-pointer rounded-full border border-solid px-3 text-[12px] font-semibold"
+                (click)="claim(character)"
+              >
+                {{ 'feature.plTools.ownedCharacters.claim' | transloco }}
+              </button>
+            </div>
+          }
+        }
+      }
     }
   </div>
 </div>

@@ -38,6 +38,7 @@ const PROFILE_FIELDS: { key: string; label: string }[] = [
   { key: 'sex', label: '性別' },
 ];
 
+/** Whether the pasted json is an archive sheet under the `elysion` system token. */
 export function isElysionCharasheetCharacter(parsed: unknown): boolean {
   return isCharasheetGame(parsed, 'elysion');
 }
@@ -75,6 +76,12 @@ function buildPalette(record: Record<string, unknown>): string {
   return lines.join('\n');
 }
 
+/**
+ * Builds the imported model from an `elysion` archive sheet, or null for any other sheet.
+ *
+ * Abilities become parameters; skills, with their ability codes turned into names, and the profile
+ * become sections; and the palette offers a roll for each ability.
+ */
 export function buildElysionCharasheetCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isElysionCharasheetCharacter(parsed)) return null;
   const record = parsed as Record<string, unknown>;

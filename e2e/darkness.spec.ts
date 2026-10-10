@@ -24,7 +24,7 @@ test.describe('暗闇（ステージ効果）', () => {
   test('GM ツールバーの暗闇ボタンでオーバーレイが描画されること', async ({ page }) => {
     await waitAppReady(page);
 
-    // 暗闇の切り替えは GM だけができる。
+    // 暗闇の切り替えはGMだけができる。
     const connection = page.locator('ui-panel').filter({ hasText: '接続情報' });
     await connection.getByRole('button', { name: /^\s*GM\s*$/ }).click();
     const darkness = page.locator('app-gm-toolbar [title^="暗闇"]');

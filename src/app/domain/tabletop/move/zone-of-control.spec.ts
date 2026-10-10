@@ -2,7 +2,13 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { countCells } from '@axe/domain/tabletop/move/reachable-cells';
-import { asZocMode, isHostileTo, zoneOfControl } from '@axe/domain/tabletop/move/zone-of-control';
+import {
+  asHostilityBy,
+  asZocMode,
+  DEFAULT_HOSTILITY_BY,
+  isHostileTo,
+  zoneOfControl,
+} from '@axe/domain/tabletop/move/zone-of-control';
 import { afterEach, describe, expect, it } from 'vitest';
 
 const GRID = 50;
@@ -129,5 +135,50 @@ describe('what a table asks of the ground round an enemy', () => {
     expect(asZocMode('engagement')).toBe('none');
     expect(asZocMode(undefined)).toBe('none');
     expect(asZocMode(2)).toBe('none');
+  });
+});
+
+describe('how a table tells its two sides apart', () => {
+  const made: GameCharacter[] = [];
+
+  afterEach(() => {
+    for (const piece of made.splice(0)) piece.destroy();
+  });
+
+  function piece(npc: boolean, party = ''): GameCharacter {
+    const held = GameCharacter.create('コマ', 1, '');
+    held.isNpc = npc;
+    held.partyIdentifier = party;
+    made.push(held);
+    return held;
+  }
+
+  it('reads a way it does not know as telling them apart by whom the master runs', () => {
+    expect(asHostilityBy('faction')).toBe(DEFAULT_HOSTILITY_BY);
+    expect(asHostilityBy(undefined)).toBe('npc');
+  });
+
+  it('tells a monster from a hero, and asks nothing of their parties', () => {
+    expect(isHostileTo(piece(true, 'a'), piece(false, 'a'))).toBe(true);
+    expect(isHostileTo(piece(true), piece(true))).toBe(false);
+  });
+
+  it('tells one party from another where the table says to', () => {
+    expect(isHostileTo(piece(false, 'goblins'), piece(false, 'heroes'), 'party')).toBe(true);
+    expect(isHostileTo(piece(true, 'heroes'), piece(false, 'heroes'), 'party')).toBe(false);
+  });
+
+  it('leaves a piece nobody has placed out of it both ways, where the sides are parties', () => {
+    // It holds no ground, and none is held against it. Held only one way, a stray would be
+    // walled in by every party on the board while stopping none of them.
+    expect(isHostileTo(piece(true), piece(false, 'heroes'), 'party')).toBe(false);
+    expect(isHostileTo(piece(true, 'goblins'), piece(false), 'party')).toBe(false);
+  });
+
+  it('never makes a piece its own enemy, whichever way the sides are told apart', () => {
+    const hero = piece(false, 'heroes');
+
+    expect(isHostileTo(hero, hero)).toBe(false);
+    expect(isHostileTo(hero, hero, 'party')).toBe(false);
   });
 });

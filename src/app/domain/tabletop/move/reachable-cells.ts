@@ -27,6 +27,14 @@ export interface ReachOptions {
   /** Whether entering a cell ends the walk there: it is reached, and nothing beyond it is. */
   stopsAt?: (index: number) => boolean;
   /**
+   * Whether a walk may end on a cell, where some ground is crossed rather than stood on.
+   *
+   * A cell it may not end on is still walked through, and everything beyond it is reached as
+   * usual; it is only left out of the answer. Ground held by somebody else is the whole of what
+   * this is for: a piece squeezes past its own side without taking the place they stand in.
+   */
+  restsAt?: (index: number) => boolean;
+  /**
    * How many corners have been cut before this search sets out.
    *
    * A move settled a leg at a time is one move, so a table that counts corners by turns goes
@@ -60,8 +68,12 @@ export function startingCut(diagonals: DiagonalMove, cornersCut: number | undefi
  *
  * What a corner costs may depend on how many have been cut already, so a cell is not settled
  * once but once per count of corners behind it. A way that spends a dearer corner early can
- * still be the cheapest way onward, and dropping it as "already seen" answered a piece with a
- * reach it did not have.
+ * still be the cheapest way onward, and dropping it as "already seen" would answer a piece with
+ * a reach it does not have.
+ *
+ * Ground the piece may cross without standing on it is walked through and left out of the
+ * answer, so a reach that runs past somebody reaches what lies beyond them rather than the
+ * place they hold.
  */
 export function reachableCells(
   grid: CellGrid,
@@ -74,6 +86,7 @@ export function reachableCells(
   const diagonals = options.diagonals ?? DEFAULT_DIAGONAL_MOVE;
   const costOf = options.costOf;
   const stopsAt = options.stopsAt;
+  const restsAt = options.restsAt;
   const total = cellCount(grid);
   const reached = new CellBits(total);
   if (start < 0 || start >= total || cells < 1 || budget < 1) return reached;
@@ -98,7 +111,7 @@ export function reachableCells(
       // The cell it started from is not ground it walked to, and is not counted against the
       // budget either: what the budget bounds is how much ground the answer may hold.
       if (cell !== start) {
-        reached.set(cell);
+        if (!restsAt || restsAt(cell)) reached.set(cell);
         if (++spent >= budget) return reached;
         if (stopsAt?.(cell)) continue;
       }
@@ -127,6 +140,7 @@ export function reachableCells(
   return reached;
 }
 
+/** How many cells are marked in a set of cells. */
 export function countCells(bits: CellBits): number {
   let found = 0;
   for (let index = 0; index < bits.count; index++) {

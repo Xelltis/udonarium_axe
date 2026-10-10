@@ -1,5 +1,9 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
-import { asFunctionRole, sanitizeFunctionSpec } from '@axe/features/map-editor/model/function-layer';
+import {
+  MAP_FUNCTION_ROLES,
+  MapFunctionRole,
+  sanitizeFunctionLayerLook,
+} from '@axe/features/map-editor/model/function-layer';
 import {
   DEFAULT_SCENE_BACKGROUND,
   DEFAULT_SCENE_GRID_COLOR,
@@ -16,6 +20,10 @@ import {
 } from '@axe/features/map-editor/model/scene';
 import { normalizeTextureId } from '@axe/features/map-editor/model/textures';
 
+/**
+ * The JSON text of a scene, stamped with the current scene version, as map files and whiteboards
+ * store it.
+ */
 export function serializeScene(scene: MapScene): string {
   return JSON.stringify({ ...scene, version: MAP_SCENE_VERSION });
 }
@@ -138,6 +146,12 @@ function isValidLayer(layer: unknown): boolean {
   return true;
 }
 
+/**
+ * Whether a value has the outline of a scene: a numeric version, positive columns, rows and cell
+ * size, and layers that each have an id, a known kind and a name.
+ *
+ * Only the outline is checked; the layers' contents are cleaned by `deserializeScene`.
+ */
 export function isMapScene(value: unknown): value is MapScene {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
@@ -182,14 +196,16 @@ function sanitizeLayer(raw: Record<string, unknown>): MapLayer {
           ? raw['cells']
           : {}) as Record<string, never>,
       };
-    case 'function':
+    case 'function': {
+      const look = sanitizeFunctionLayerLook(raw['role'], raw['spec']);
       return {
         ...base,
         kind: 'function',
-        role: asFunctionRole(raw['role']),
+        role: look.role,
         cells: sanitizeFunctionCells(raw['cells']),
-        spec: sanitizeFunctionSpec(raw['spec']),
+        spec: look.spec,
       };
+    }
     case 'shape':
       return {
         ...base,
@@ -217,6 +233,13 @@ function sanitizeLayer(raw: Record<string, unknown>): MapLayer {
   }
 }
 
+/**
+ * Reads a scene from JSON text, cleaning it as it goes, or null when the text is not JSON or not a
+ * scene.
+ *
+ * Layers of unknown kinds are dropped, missing settings fall back to their defaults, and shapes and
+ * images that cannot be drawn are left out. The result always carries the current scene version.
+ */
 export function deserializeScene(json: string): MapScene | null {
   let parsed: unknown;
   try {
@@ -248,7 +271,21 @@ export function deserializeScene(json: string): MapScene | null {
     gridVisible: raw['gridVisible'] !== false,
     layers: rawLayers.map((l) => sanitizeLayer(l as Record<string, unknown>)),
     guides: sanitizeGuides(raw['guides']),
+    paintedRoles: sanitizePaintedRoles(raw['paintedRoles']),
   };
+}
+
+/**
+ * The roles a saved scene had painted, keeping only the ones this version knows.
+ *
+ * Read back rather than worked out afresh from the layers: a scene is saved with its layers
+ * deleted precisely when somebody meant to delete them, and the whole point of the list is to
+ * outlive the layer.
+ */
+function sanitizePaintedRoles(raw: unknown): MapFunctionRole[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const kept = [...new Set(raw.filter((role): role is MapFunctionRole => MAP_FUNCTION_ROLES.includes(role)))];
+  return kept.length > 0 ? kept : undefined;
 }
 
 function sanitizeGuides(raw: unknown): SceneGuideLine[] | undefined {

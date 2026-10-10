@@ -62,7 +62,7 @@ export class PieceStepService {
 
   private async arrive(character: GameCharacter, table: GameTable, arrival: Arrival): Promise<number> {
     const { centre, corner, grid, cell, ending, standingZ } = arrival;
-    const landing = landingHeightAt(table.terrains, table.gridSize, centre.x, centre.y);
+    const landing = landingHeightAt(table.terrains, table.gridSize, centre.x, centre.y, table.gridType);
     const from = { x: character.location.x, y: character.location.y, z: standingZ };
     const to = { x: corner.x, y: corner.y, z: landing };
     // Where the piece is going is written once, at the end of the step. Written before

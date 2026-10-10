@@ -1,0 +1,64 @@
+<div
+  class="fixed inset-0 flex justify-center"
+  [class.items-end]="isDocked()"
+  [class.items-center]="!isDocked()"
+  [style.zIndex]="options.zIndex"
+  [style.padding-bottom.px]="isDocked() ? keyboardInset() : 0"
+  (click)="onBackdrop($event)"
+  (keydown)="onKeydown($event)"
+  data-testid="bottom-sheet"
+>
+  <div class="animate-fade-in pointer-events-none absolute inset-0 bg-black/45"></div>
+  <section
+    #panel
+    class="border-ui-border-panel bg-ui-elevated text-ui-text animate-sheet-up relative flex w-full flex-col overflow-hidden border border-solid shadow-[0_-12px_32px_rgba(0,0,0,0.4)] outline-none"
+    [class.rounded-t-2xl]="isDocked()"
+    [class.border-b-0]="isDocked()"
+    [class.max-w-xl]="isDocked()"
+    [class.rounded-xl]="!isDocked()"
+    [class.max-w-md]="!isDocked()"
+    [class.mx-4]="!isDocked()"
+    [class.transition-transform]="!isDragging()"
+    [class.duration-200]="!isDragging()"
+    [style.max-height]="isDocked() ? maxHeight() : '80dvh'"
+    [style.height]="options.size === 'full' ? (isDocked() ? maxHeight() : '80dvh') : null"
+    [style.transform]="dragOffset() ? 'translateY(' + dragOffset() + 'px)' : null"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-labelledby]="titleId"
+    tabindex="-1"
+  >
+    <div
+      class="shrink-0 touch-none"
+      (pointerdown)="onGripDown($event)"
+      (pointermove)="onGripMove($event)"
+      (pointerup)="onGripUp($event)"
+      (pointercancel)="onGripCancel()"
+    >
+      @if (isDocked()) {
+        <div class="flex justify-center pt-2 pb-1" aria-hidden="true">
+          <div class="bg-ui-dim h-1 w-10 rounded-full opacity-40"></div>
+        </div>
+      }
+      <header
+        class="border-ui-border-panel flex items-center gap-2 border-b border-solid pt-1 pr-[max(0.5rem,env(safe-area-inset-right))] pb-1.5 pl-[max(1rem,env(safe-area-inset-left))]"
+      >
+        <h2 class="m-0 min-w-0 flex-1 truncate text-[0.95rem] font-semibold" [id]="titleId">{{ options.title }}</h2>
+        <button
+          type="button"
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-text active:text-ui-accent flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 shadow-none"
+          [attr.aria-label]="'common.button.close' | transloco"
+          (click)="close()"
+          data-testid="bottom-sheet-close"
+        >
+          <i class="material-icons text-[22px]!">close</i>
+        </button>
+      </header>
+    </div>
+    <div
+      class="min-h-0 flex-1 overflow-y-auto overscroll-contain pt-3 pr-[max(1rem,env(safe-area-inset-right))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))]"
+    >
+      <ng-container #content />
+    </div>
+  </section>
+</div>

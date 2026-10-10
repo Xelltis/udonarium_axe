@@ -87,6 +87,10 @@ function totalOf(container: Record<string, unknown>, key: string): string {
   return entry ? asString(entry['total']) : '';
 }
 
+/**
+ * Whether the pasted json is a warehouse character whose base abilities include `divine` and
+ * `emotion`, which marks the `bbt` system, bare or wrapped in `data`.
+ */
 export function isBbtAppspotCharacter(parsed: unknown): boolean {
   const record = asRecord(parsed);
   if (!record) return false;
@@ -95,6 +99,13 @@ export function isBbtAppspotCharacter(parsed: unknown): boolean {
   return ability != null && 'divine' in ability && 'emotion' in ability;
 }
 
+/**
+ * Builds the imported model from a `bbt` warehouse character, or null for any other data.
+ *
+ * Ability totals and FP become parameters and humanity a resource; effects, weapons, armour, bonds,
+ * items, the profile and the outline become sections; and the palette offers a 2D6 roll for each
+ * ability.
+ */
 export function buildBbtAppspotCharacter(parsed: unknown): ImportedCharacter | null {
   if (!isBbtAppspotCharacter(parsed)) return null;
   const root = resolveRoot(asRecord(parsed)!);

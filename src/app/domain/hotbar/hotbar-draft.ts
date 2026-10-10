@@ -16,6 +16,7 @@ export interface HotbarSlotDraft {
   payload: HotbarPayload;
 }
 
+/** A blank slot of the given kind, with that kind's default options, for the editor to fill in. */
 export function emptyHotbarSlotDraft(kind: HotbarSlotKind = DEFAULT_HOTBAR_SLOT_KIND): HotbarSlotDraft {
   return {
     kind,
@@ -45,6 +46,7 @@ export function draftOfSlot(slot: HotbarSlot): HotbarSlotDraft {
   };
 }
 
+/** Writes a slot draft as one JSON string, the reverse of `parseHotbarSlotDraft`. */
 export function encodeHotbarSlotDraft(draft: HotbarSlotDraft): string {
   return JSON.stringify({
     kind: draft.kind,
@@ -59,6 +61,12 @@ export function encodeHotbarSlotDraft(draft: HotbarSlotDraft): string {
   });
 }
 
+/**
+ * Reads a slot draft back from the JSON string `encodeHotbarSlotDraft` writes.
+ *
+ * Null for anything that is not a JSON object carrying a kind. Missing text fields read as
+ * empty, and an unknown kind reads as a chat macro.
+ */
 export function parseHotbarSlotDraft(raw: unknown): HotbarSlotDraft | null {
   const text = typeof raw === 'string' ? raw.trim() : '';
   if (!text) return null;

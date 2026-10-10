@@ -13,7 +13,8 @@ import {
   buildToggleAction,
 } from '@axe/application/ui/tabletop-context-menu-actions';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
-import { DOOR_STYLES, DoorStyle, SlopeDirection, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { DOOR_STYLES, DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
+import { drawnSlopeSides, SlopeSide, SQUARE_SLOPE_SIDES } from '@axe/domain/tabletop/terrain-slope';
 import { applyLightPreset, LightPreset } from '@axe/domain/tabletop/vision-types';
 
 export interface TerrainContextMenuModel {
@@ -21,6 +22,7 @@ export interface TerrainContextMenuModel {
   radialGroups: ContextMenuRadialGroup[];
 }
 
+/** The terrain's right-click menu as a flat list, without the groups a radial menu needs. */
 export function buildTerrainContextMenu(
   terrain: Terrain,
   gridSize: number,
@@ -43,6 +45,15 @@ export function buildTerrainContextMenu(
   ).actions;
 }
 
+/**
+ * The terrain's right-click menu, both as a flat list and grouped for the radial menu.
+ *
+ * It covers altitude and shadow, lock, slope, walls, climbing, doors, turning the block to glass,
+ * texture tiling, shading, sight and light, edit, copy, delete and creating an object. Entries
+ * for other pieces under the pointer lead the list, the master's entries for the block's switch
+ * come just before editing it, and entries that move the terrain to another surface close it. A
+ * copy is placed one cell down and to the right, unlocked.
+ */
 export function buildTerrainContextMenuModel(
   terrain: Terrain,
   gridSize: number,
@@ -52,15 +63,13 @@ export function buildTerrainContextMenuModel(
   onEdit: (t: Terrain) => void,
   t: TranslateFn,
   overlapEntries: ContextMenuAction[] = [],
-  surfaceEntries: ContextMenuAction[] = []
+  surfaceEntries: ContextMenuAction[] = [],
+  slopeSides: readonly SlopeSide[] = SQUARE_SLOPE_SIDES,
+  switchEntries: ContextMenuAction[] = []
 ): TerrainContextMenuModel {
   const adjustedWidth = Math.max(0, terrain.width);
   const adjustedDepth = Math.max(0, terrain.depth);
-  const slopeDirection = !terrain.isSlope
-    ? SlopeDirection.NONE
-    : terrain.slopeDirection === SlopeDirection.NONE
-      ? SlopeDirection.BOTTOM
-      : terrain.slopeDirection;
+  const slopesTo = drawnSlopeSides(terrain, slopeSides);
 
   const altitudeAction = buildAltitudeAction(terrain, t, {
     onChanged: () => inventoryService.notifyInventoryUpdate(),
@@ -82,39 +91,21 @@ export function buildTerrainContextMenuModel(
     action: undefined,
     subActions: [
       {
-        name: `${slopeDirection == SlopeDirection.NONE ? '◉' : '○'}  ${t('feature.tabletop.contextMenu.slopeNone')}`,
-        action: () => {
-          terrain.isSlope = false;
-          terrain.slopeDirection = SlopeDirection.NONE;
-        },
+        name: `${slopesTo.length < 1 ? '◉' : '○'}  ${t('feature.tabletop.contextMenu.slopeNone')}`,
+        action: () => (terrain.slopeSides = []),
       },
       ContextMenuSeparator,
-      {
-        name: `${slopeDirection == SlopeDirection.TOP ? '◉' : '○'} ${t('feature.tabletop.contextMenu.slopeTop')}`,
+      ...slopeSides.map((side) => ({
+        name: `${slopesTo.includes(side) ? '☑' : '☐'} ${t(`feature.tabletop.contextMenu.slopeSide_${side}`)}`,
         action: () => {
-          terrain.isSlope = true;
-          terrain.slopeDirection = SlopeDirection.TOP;
+          terrain.slopeSides = slopesTo.includes(side) ? slopesTo.filter((held) => held !== side) : [...slopesTo, side];
         },
-      },
+      })),
+      ContextMenuSeparator,
       {
-        name: `${slopeDirection == SlopeDirection.BOTTOM ? '◉' : '○'} ${t('feature.tabletop.contextMenu.slopeBottom')}`,
+        name: `${slopesTo.length === slopeSides.length ? '☑' : '☐'} ${t('feature.tabletop.contextMenu.slopeEverySide')}`,
         action: () => {
-          terrain.isSlope = true;
-          terrain.slopeDirection = SlopeDirection.BOTTOM;
-        },
-      },
-      {
-        name: `${slopeDirection == SlopeDirection.LEFT ? '◉' : '○'}  ${t('feature.tabletop.contextMenu.slopeLeft')}`,
-        action: () => {
-          terrain.isSlope = true;
-          terrain.slopeDirection = SlopeDirection.LEFT;
-        },
-      },
-      {
-        name: `${slopeDirection == SlopeDirection.RIGHT ? '◉' : '○'} ${t('feature.tabletop.contextMenu.slopeRight')}`,
-        action: () => {
-          terrain.isSlope = true;
-          terrain.slopeDirection = SlopeDirection.RIGHT;
+          terrain.slopeSides = slopesTo.length === slopeSides.length ? [] : [...slopeSides];
         },
       },
     ],
@@ -134,6 +125,23 @@ export function buildTerrainContextMenuModel(
         name: t('feature.tabletop.contextMenu.wallShow'),
         action: () => {
           terrain.mode = TerrainViewState.ALL;
+        },
+      };
+  // Glass is what a block with no picture on it is, so turning one to glass is taking the
+  // pictures off rather than a setting of its own. There is no way back from here without
+  // choosing pictures again, which is what the sheet is for.
+  const glassAction: ContextMenuAction = terrain.hasFaceImage
+    ? {
+        name: t('feature.tabletop.contextMenu.terrainToGlass'),
+        action: () => {
+          terrain.clearFaceImages();
+          SoundEffect.play(PresetSound.sweep);
+        },
+      }
+    : {
+        name: t('feature.tabletop.contextMenu.terrainDressGlass'),
+        action: () => {
+          onEdit(terrain);
         },
       };
   const climbAction: ContextMenuAction = {
@@ -292,9 +300,9 @@ export function buildTerrainContextMenuModel(
   };
 
   const shapeActions = [altitudeAction, slopeAction, wallAction, climbAction, ...doorToggleActions, doorStyleAction];
-  const appearanceActions = [tiledTextureAction, shadingAction, shadowAction, lightAction];
+  const appearanceActions = [glassAction, tiledTextureAction, shadingAction, shadowAction, lightAction];
   const moveCreateActions = [...surfaceEntries, createAction];
-  const objectActions = [...overlapEntries, lockAction, editAction, copyAction, deleteAction];
+  const objectActions = [...overlapEntries, lockAction, ...switchEntries, editAction, copyAction, deleteAction];
   const actions: ContextMenuAction[] = [
     ...(overlapEntries.length > 0 ? [...overlapEntries, ContextMenuSeparator] : []),
     altitudeAction,
@@ -306,12 +314,14 @@ export function buildTerrainContextMenuModel(
     climbAction,
     ...doorToggleActions,
     doorStyleAction,
+    glassAction,
     tiledTextureAction,
     shadingAction,
     shadowAction,
     ContextMenuSeparator,
     lightAction,
     ContextMenuSeparator,
+    ...(switchEntries.length > 0 ? [...switchEntries, ContextMenuSeparator] : []),
     editAction,
     copyAction,
     deleteAction,

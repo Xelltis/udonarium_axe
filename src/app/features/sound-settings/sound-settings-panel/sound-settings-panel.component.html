@@ -1,0 +1,71 @@
+<div class="text-ui-text bg-ui-elevated flex h-full min-h-0 flex-col gap-2.5 overflow-y-auto p-3 text-[13px]">
+  <section
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-1 border border-solid p-3"
+    data-testid="sound-settings-own"
+  >
+    <div class="border-ui-accent border-l-2 border-solid pl-2">
+      <span class="text-ui-text text-[12px] font-semibold">{{ 'feature.soundSettings.ownHeading' | transloco }}</span>
+    </div>
+    <p class="text-ui-dim m-0 pb-1 text-[11px]">{{ 'feature.soundSettings.ownHint' | transloco }}</p>
+    @for (row of rows; track row.kind) {
+      <ui-volume-row
+        [icon]="row.icon"
+        [label]="'feature.soundSettings.kind.' + row.kind + '.label' | transloco"
+        [hint]="'feature.soundSettings.kind.' + row.kind + '.hint' | transloco"
+        [name]="row.name"
+        labelClass="w-36"
+        [value]="volumes.get(row.kind)"
+        [muted]="volumes.isMuted(row.kind)"
+        [attr.data-testid]="'sound-settings-row-' + row.kind"
+        (valueChange)="volumes.set(row.kind, $event)"
+        (mutedChange)="volumes.setMuted(row.kind, $event)"
+      />
+    }
+  </section>
+
+  <section
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-1 border border-solid p-3"
+    data-testid="sound-settings-chat"
+  >
+    <div class="border-ui-accent border-l-2 border-solid pl-2">
+      <span class="text-ui-text text-[12px] font-semibold">{{ 'feature.soundSettings.chatHeading' | transloco }}</span>
+    </div>
+    <ui-chat-sound-settings />
+  </section>
+
+  <section
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-1 border border-solid p-3"
+    data-testid="sound-settings-room"
+  >
+    <div class="border-ui-accent border-l-2 border-solid pl-2">
+      <span class="text-ui-text text-[12px] font-semibold">{{ 'feature.soundSettings.roomHeading' | transloco }}</span>
+    </div>
+    <p class="text-ui-dim m-0 pb-1 text-[11px]">{{ 'feature.soundSettings.roomHint' | transloco }}</p>
+    <ui-volume-row
+      icon="group"
+      [label]="'feature.media.jukebox.roomLabel' | transloco"
+      name="room-volume"
+      labelClass="w-36"
+      [value]="roomVolumes.volume()"
+      [max]="2"
+      [canMute]="false"
+      [disabled]="!roomVolumes.canChange()"
+      (valueChange)="roomVolumes.set($event)"
+    />
+    <div class="border-ui-border-panel my-0.5 border-t border-solid"></div>
+    @for (row of roomRows; track row.kind) {
+      <ui-volume-row
+        [icon]="row.icon"
+        [label]="'feature.soundSettings.kind.' + row.kind + '.label' | transloco"
+        [name]="row.name"
+        labelClass="w-36"
+        [value]="roomVolumes.volumes()[row.kind]"
+        [max]="2"
+        [canMute]="false"
+        [disabled]="!roomVolumes.canChange()"
+        [attr.data-testid]="'sound-settings-room-row-' + row.kind"
+        (valueChange)="roomVolumes.setKind(row.kind, $event)"
+      />
+    }
+  </section>
+</div>

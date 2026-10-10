@@ -10,11 +10,13 @@ export class AudioTagList extends ObjectNode implements InnerXml {
   private identifiers: string[] = [];
 
   // GameObject Lifecycle
+  /** Takes the list straight back out of the store, so it is never shared with the room. */
   override onStoreAdded() {
     super.onStoreAdded();
     ObjectStore.instance.remove(this); // ObjectStoreには登録しない
   }
 
+  /** The tags of the listed sounds, each written once. A sound that has no tag is skipped. */
   override innerXml(): string {
     const parts: string[] = [];
     for (const identifier of new Set(this.identifiers)) {
@@ -24,6 +26,7 @@ export class AudioTagList extends ObjectNode implements InnerXml {
     return parts.join('');
   }
 
+  /** A holder for writing the tags of the given sounds into a saved room or zip as `audiotag.xml`. */
   static create(audios: AudioFile[]): AudioTagList {
     const audioTagList = new AudioTagList();
 

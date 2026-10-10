@@ -64,6 +64,12 @@ export class SegmentIndex {
     this.seen = new Int32Array(segments.length);
   }
 
+  /**
+   * Whether a line of sight from one point and height to another passes every segment in the index.
+   *
+   * Only the buckets the line crosses are looked in, and each segment is tested at most once per
+   * call.
+   */
   clearBetween(ax: number, ay: number, az: number, bx: number, by: number, bz: number): boolean {
     if (this.segments.length === 0) return true;
     const epoch = ++this.epoch;
@@ -173,6 +179,10 @@ export class SegmentIndexes {
     private readonly cellSize: number
   ) {}
 
+  /**
+   * The index of the segments that still stand in the way of an eye at this height, built the first
+   * time it is asked for and kept after.
+   */
   above(eyeZ: number): SegmentIndex {
     const held = this.byHeight.get(eyeZ);
     if (held) return held;

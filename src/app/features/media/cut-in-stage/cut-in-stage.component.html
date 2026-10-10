@@ -23,37 +23,78 @@
           <div class="size-full" #crumbleElement [style.clip-path]="crumbleOf(layer)">
             @switch (layer.kind) {
               @case ('text') {
-                <div
-                  class="flex size-full items-center justify-center whitespace-pre-wrap"
-                  [style.color]="layer.color"
-                  [style.font-size.px]="layer.fontSizePx"
-                  [style.font-weight]="layer.fontWeight"
-                  [style.font-family]="layer.fontFamily || null"
-                  [style.text-align]="layer.textAlign"
-                  [style.letter-spacing.px]="layer.letterSpacingPx"
-                  [style.line-height]="layer.lineHeight"
-                  [style.writing-mode]="layer.vertical ? 'vertical-rl' : null"
-                  [style.text-orientation]="layer.vertical ? 'upright' : null"
-                  [style.align-items]="layer.vertical ? alignOf(layer) : 'center'"
-                  [style.justify-content]="layer.vertical ? 'center' : alignOf(layer)"
-                  [style.text-shadow]="textShadowOf(layer)"
-                >
-                  {{ layer.text }}
-                </div>
+                @if (letterLinesOf(layer); as lines) {
+                  <div
+                    class="flex size-full items-center justify-center whitespace-pre-wrap"
+                    [style.color]="layer.color"
+                    [style.font-size.px]="layer.fontSizePx"
+                    [style.font-weight]="layer.fontWeight"
+                    [style.font-family]="layer.fontFamily || null"
+                    [style.text-align]="layer.textAlign"
+                    [style.letter-spacing.px]="layer.letterSpacingPx"
+                    [style.line-height]="layer.lineHeight"
+                    [style.writing-mode]="layer.vertical ? 'vertical-rl' : null"
+                    [style.text-orientation]="layer.vertical ? 'upright' : null"
+                    [style.align-items]="layer.vertical ? alignOf(layer) : 'center'"
+                    [style.justify-content]="layer.vertical ? 'center' : alignOf(layer)"
+                    [style.text-shadow]="textShadowOf(layer)"
+                  >
+                    <span>
+                      @for (line of lines; track $index; let last = $last) {
+                        @for (letter of line; track letter.rank) {
+                          <span class="inline-block" [attr.data-letter-rank]="letter.rank">{{ letter.text }}</span>
+                        }
+                        @if (!last) {
+                          <br />
+                        }
+                      }
+                    </span>
+                  </div>
+                } @else {
+                  <div
+                    class="flex size-full items-center justify-center whitespace-pre-wrap"
+                    [style.color]="layer.color"
+                    [style.font-size.px]="layer.fontSizePx"
+                    [style.font-weight]="layer.fontWeight"
+                    [style.font-family]="layer.fontFamily || null"
+                    [style.text-align]="layer.textAlign"
+                    [style.letter-spacing.px]="layer.letterSpacingPx"
+                    [style.line-height]="layer.lineHeight"
+                    [style.writing-mode]="layer.vertical ? 'vertical-rl' : null"
+                    [style.text-orientation]="layer.vertical ? 'upright' : null"
+                    [style.align-items]="layer.vertical ? alignOf(layer) : 'center'"
+                    [style.justify-content]="layer.vertical ? 'center' : alignOf(layer)"
+                    [style.text-shadow]="textShadowOf(layer)"
+                    [textContent]="textOf(layer)"
+                  ></div>
+                }
               }
               @case ('fill') {
                 <div class="size-full" [style.background]="fillOf(layer)"></div>
               }
               @default {
                 @if (imageUrl(layer); as url) {
-                  <img
-                    class="size-full select-none"
-                    draggable="false"
-                    [src]="url | safe: 'resourceUrl'"
-                    [style.object-fit]="layer.objectFit"
-                    [style.object-position]="layer.objectPosX + '% ' + layer.objectPosY + '%'"
-                    alt=""
-                  />
+                  @if (portraitFitOf(layer); as fit) {
+                    <div class="size-full overflow-hidden">
+                      <img
+                        class="size-full object-contain select-none"
+                        draggable="false"
+                        data-portrait-fit
+                        [src]="url | safe: 'resourceUrl'"
+                        [style.transform]="fitTransform(fit)"
+                        alt=""
+                      />
+                    </div>
+                  } @else {
+                    <img
+                      class="size-full select-none"
+                      draggable="false"
+                      [src]="url | safe: 'resourceUrl'"
+                      [style.object-fit]="layer.objectFit"
+                      [style.object-position]="layer.objectPosX + '% ' + layer.objectPosY + '%'"
+                      alt=""
+                    />
+                  }
                 }
               }
             }

@@ -4,6 +4,7 @@ export type MobileMenuAction =
   | 'roomSettings'
   | 'images'
   | 'jukebox'
+  | 'soundSettings'
   | 'cutIn'
   | 'effect'
   | 'inventory'
@@ -37,6 +38,7 @@ export const MOBILE_MENU_ITEMS: readonly MobileMenuItem[] = [
   { action: 'roomSettings', icon: 'tune', labelKey: 'app.fab.roomSettings', gameMasterOnly: true },
   { action: 'images', icon: 'photo_library', labelKey: 'app.fab.images' },
   { action: 'jukebox', icon: 'queue_music', labelKey: 'app.fab.jukebox' },
+  { action: 'soundSettings', icon: 'volume_up', labelKey: 'app.fab.soundSettings' },
   { action: 'cutIn', icon: 'slideshow', labelKey: 'app.fab.cutIn' },
   { action: 'effect', icon: 'auto_awesome', labelKey: 'feature.effect.title' },
   { action: 'inventory', icon: 'folder_shared', labelKey: 'app.fab.inventory' },
@@ -63,10 +65,12 @@ export const MOBILE_MENU_ITEMS: readonly MobileMenuItem[] = [
   { action: 'save', icon: 'sd_storage', labelKey: 'app.fab.save' },
 ];
 
+/** The mobile menu entries everyone gets, in menu order. */
 export function sharedMobileMenuItems(): MobileMenuItem[] {
   return MOBILE_MENU_ITEMS.filter((item) => !item.gameMasterOnly);
 }
 
+/** The mobile menu entries shown to the game master alone, in menu order. */
 export function gameMasterMobileMenuItems(): MobileMenuItem[] {
   return MOBILE_MENU_ITEMS.filter((item) => item.gameMasterOnly === true);
 }

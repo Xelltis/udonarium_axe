@@ -1,4 +1,8 @@
-import { ChangeDetectionStrategy, Component, ElementRef, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, inject, input, output } from '@angular/core';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { buildReorderContextMenu } from '@axe/application/ui/reorder-context-menu';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { TIMELINE_ROW_H_PX } from '@axe/features/media/cut-in-editor/cut-in-timeline-geometry';
 import { type DropSide, RowReorder } from '@axe/ui/dragging/row-reorder';
@@ -13,6 +17,10 @@ import { TranslocoModule } from '@jsverse/transloco';
   imports: [TranslocoModule],
 })
 export class CutInLayerListComponent {
+  private readonly contextMenuService = inject(ContextMenuService);
+  private readonly pointerDeviceService = inject(PointerDeviceService);
+  private readonly t = inject(TRANSLATE_FN);
+
   readonly layers = input<readonly CutInLayer[]>([]);
   readonly selected = input<CutInLayer | null>(null);
   readonly isEditable = input(false);
@@ -48,6 +56,38 @@ export class CutInLayerListComponent {
 
   protected onDragEnd(): void {
     this.dragging.cancel();
+  }
+
+  /**
+   * Moves a layer from its menu, opened by a right click or a press held on its row.
+   *
+   * The rows are otherwise put in order by dragging, which a touch screen may not start. A move
+   * takes the place of the row it goes to, which reads the same whichever way up the list is drawn.
+   */
+  protected onRowContextMenu(event: MouseEvent, layer: CutInLayer): void {
+    if (!this.isEditable() || !this.pointerDeviceService.isAllowedToOpenContextMenu) return;
+    const rows = this.rows;
+    const index = rows.indexOf(layer);
+    if (index < 0) return;
+    const takePlaceOf = (over: CutInLayer) => this.reorder.emit({ held: layer, over, side: null });
+    const actions = buildReorderContextMenu(
+      { index, count: rows.length },
+      {
+        moveToTop: () => takePlaceOf(rows[0]),
+        moveUp: () => takePlaceOf(rows[index - 1]),
+        moveDown: () => takePlaceOf(rows[index + 1]),
+        moveToBottom: () => takePlaceOf(rows[rows.length - 1]),
+      },
+      this.t
+    );
+    if (actions.length === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuService.open(
+      this.pointerDeviceService.pointers[0],
+      actions,
+      layer.name || this.t('feature.media.cutInEditor.unnamedLayer')
+    );
   }
 
   /** Topmost first, which is how a stack of layers is read. */

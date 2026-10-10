@@ -10,6 +10,7 @@ interface MutableDice {
   hasOwner: boolean;
   isLock: boolean;
   hideName: boolean;
+  isUsed: boolean;
   owner: string;
   ownerCharacterIdentifier: string;
   face: string;
@@ -26,6 +27,7 @@ function makeDice(overrides: Partial<MutableDice> = {}): MutableDice {
     hasOwner: false,
     isLock: false,
     hideName: false,
+    isUsed: false,
     owner: '',
     ownerCharacterIdentifier: '',
     face: '1',
@@ -123,6 +125,38 @@ describe('buildDiceSymbolContextMenu()', () => {
     const menu = buildDiceSymbolContextMenu(dice as unknown as DiceSymbol, 50, cb(), t);
     menu.find((m) => m.name === '削除する')!.action!();
     expect(dice.destroy).toHaveBeenCalled();
+  });
+
+  describe('a die that has been spent', () => {
+    it('offers to mark one that has not been', () => {
+      const dice = makeDice({ isUsed: false });
+
+      const menu = buildDiceSymbolContextMenu(dice as unknown as DiceSymbol, 50, cb(), t);
+      const mark = menu.find((each) => each.name === '☐ 使用済み');
+
+      expect(mark).toBeDefined();
+      mark!.action!();
+      expect(dice.isUsed).toBe(true);
+    });
+
+    it('offers to take the mark off one that has', () => {
+      const dice = makeDice({ isUsed: true });
+
+      const menu = buildDiceSymbolContextMenu(dice as unknown as DiceSymbol, 50, cb(), t);
+      const unmark = menu.find((each) => each.name === '☑ 使用済み');
+
+      expect(unmark).toBeDefined();
+      unmark!.action!();
+      expect(dice.isUsed).toBe(false);
+    });
+
+    it('is offered whether or not the face can be read, since spending is not a secret', () => {
+      const hidden = makeDice({ isVisible: false });
+
+      const menu = buildDiceSymbolContextMenu(hidden as unknown as DiceSymbol, 50, cb(), t);
+
+      expect(names(menu)).toContain('☐ 使用済み');
+    });
   });
 
   describe('opening a die nobody could read', () => {

@@ -1,0 +1,62 @@
+<div class="border-ui-border-separator flex shrink-0 flex-col gap-0.5 border-b border-solid p-1" role="tablist">
+  @for (row of tabRows(); track $index) {
+    <div class="flex flex-wrap items-center gap-0.5" [attr.data-testid]="'stamp-picker-tab-row-' + $index">
+      @for (each of row; track each) {
+        <button
+          type="button"
+          role="tab"
+          class="rounded-ui-sm text-ui-muted hover:bg-ui-menu-hover hover:text-ui-text cursor-pointer border border-solid border-transparent bg-transparent px-2 py-0.5 text-[11px] whitespace-nowrap transition-colors"
+          [class.border-ui-accent]="each === tab()"
+          [class.text-ui-accent]="each === tab()"
+          [attr.aria-selected]="each === tab()"
+          [attr.data-testid]="'stamp-picker-tab-' + each"
+          (click)="openTab(each)"
+        >
+          @if (tabName(each); as name) {
+            {{ name }}
+          } @else if (tabName(each) === '') {
+            {{ 'ui.stamp.unnamedPack' | transloco }}
+          } @else {
+            {{ 'ui.stamp.families.' + each | transloco }}
+          }
+        </button>
+      }
+      @if ($first && canManage()) {
+        <span class="flex-1"></span>
+        <button
+          type="button"
+          class="rounded-ui-sm text-ui-dim hover:bg-ui-menu-hover hover:text-ui-text flex size-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_i]:text-[16px]!"
+          data-testid="stamp-picker-manage"
+          [title]="'ui.stamp.manage' | transloco"
+          [attr.aria-label]="'ui.stamp.manage' | transloco"
+          (click)="manage.emit()"
+        >
+          <i class="material-icons">settings</i>
+        </button>
+      }
+    </div>
+  }
+</div>
+
+<div
+  class="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto p-1.5"
+  role="listbox"
+  data-testid="stamp-picker-list"
+  #list
+  [class]="
+    narrow() ? 'grid-cols-[repeat(auto-fill,minmax(52px,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(76px,1fr))]'
+  "
+>
+  @for (id of stamps(); track id) {
+    <button
+      type="button"
+      role="option"
+      class="rounded-ui-sm hover:bg-ui-menu-hover flex cursor-pointer items-center justify-center border border-solid border-transparent bg-transparent p-0.5 transition-colors"
+      [class]="large() ? 'h-19' : 'h-13'"
+      [attr.data-testid]="'stamp-picker-choice-' + id"
+      (click)="pick(id)"
+    >
+      <ui-stamp [stampId]="id" [size]="large() ? 68 : 44" [named]="true" />
+    </button>
+  }
+</div>

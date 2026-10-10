@@ -53,6 +53,13 @@ const CHORDS: Readonly<Record<string, BoardCommand>> = {
   '[': 'sendBackward',
 };
 
+/**
+ * The command a key press asks of the white board editor, or null when it asks for nothing.
+ *
+ * Space starts panning, Ctrl/Cmd+Z undoes (redoes with Shift) and Ctrl/Cmd+Y redoes. While a path is
+ * being laid, Enter finishes it and Escape drops it. Delete or Backspace removes the selection. Other
+ * Ctrl/Cmd chords zoom, select all, duplicate, copy, paste and restack; a plain letter picks a tool.
+ */
 export function boardKeyDown(key: string, context: BoardKeyContext): BoardKeyAction | null {
   if (key === ' ') return { command: 'panStart' };
   const letter = key.toLowerCase();

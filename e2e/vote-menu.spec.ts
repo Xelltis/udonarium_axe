@@ -16,14 +16,14 @@ test.describe('点呼・投票メニュー (vote-menu)', () => {
 
   test('「投票」ラジオに切り替えるとタイトル/選択肢入力欄が現れること', async ({ page }) => {
     const radios = page.locator('app-vote-menu input[name="vm_type"]');
-    await radios.nth(1).check({ force: true });
+    await radios.nth(1).check();
     await expect(page.locator('app-vote-menu input[name="voteTitle"]')).toBeVisible({ timeout: 3000 });
     await expect(page.locator('app-vote-menu input[name="voteContents"]')).toBeVisible();
   });
 
   test('「投票」モードでタイトル/選択肢を入力できること', async ({ page }) => {
     const radios = page.locator('app-vote-menu input[name="vm_type"]');
-    await radios.nth(1).check({ force: true });
+    await radios.nth(1).check();
     const title = page.locator('app-vote-menu input[name="voteTitle"]');
     const choices = page.locator('app-vote-menu input[name="voteContents"]');
     await title.fill('夜長テスト');

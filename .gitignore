@@ -58,5 +58,5 @@ src/assets/config.json
 # temp plan markdown
 plan-*.md
 
-# テクスチャ生成の確認画像 (目視用の中間物)
+# テクスチャ生成の確認画像（目視用の中間物）
 /scripts/texture-gen/check/

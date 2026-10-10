@@ -1,5 +1,6 @@
 import {
   FIELD_ATMOSPHERE_IDS,
+  FIELD_ATMOSPHERES,
   FIELD_PROP_SHAPES,
   fieldAtmosphereById,
   MAX_FIELD_SIZE,
@@ -212,8 +213,8 @@ describe('planField()', () => {
     }
   });
 
-  it('leaves the ground open enough to walk over', () => {
-    for (const id of FIELD_ATMOSPHERE_IDS) {
+  it('leaves open country open enough to walk over', () => {
+    for (const id of FIELD_ATMOSPHERE_IDS.filter((each) => !FIELD_ATMOSPHERES[each].town)) {
       for (const seed of SEEDS) {
         const plan = planField({ atmosphere: id, size: 40, density: 100, seed });
         const taken = plan.layout.props.filter((prop) => prop !== '').length;

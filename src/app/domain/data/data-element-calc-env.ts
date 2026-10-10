@@ -37,6 +37,7 @@ interface ScopeIndex {
   readonly byName: ReadonlyMap<string, readonly DataElement[]>;
 }
 
+/** A fresh, empty pass, to be shared by every calculating field worked out for one render of a sheet. */
 export function createCalcPass(): CalcPass {
   return { scopes: new Map(), values: new Map(), working: new Set() };
 }

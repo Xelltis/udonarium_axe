@@ -1,4 +1,5 @@
 import { DungeonLayout, DungeonRoomRoleValue } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import { TrapKind } from '@axe/domain/tabletop/trap-presets';
 
 export interface DungeonSummaryLabels {
   roleName(role: DungeonRoomRoleValue): string;
@@ -8,6 +9,9 @@ export interface DungeonSummaryLabels {
   locked: string;
   torch: string;
   doors: string;
+  hidden: string;
+  traps: string;
+  trapName(kind: TrapKind): string;
 }
 
 export interface DungeonSummaryInput {
@@ -21,7 +25,8 @@ export interface DungeonSummaryInput {
  * The sheet the master reads while running the place.
  *
  * A generated dungeon nobody can describe is a floor plan, not an adventure, so every
- * room gets a number, a part to play, what it joins, and whatever was put in it.
+ * room gets a number, a part to play, what it joins, and whatever was put in it, down to
+ * how many of its doors are hidden in its walls.
  */
 export function buildDungeonSummary(input: DungeonSummaryInput): string {
   const { layout, labels } = input;
@@ -35,14 +40,16 @@ export function buildDungeonSummary(input: DungeonSummaryInput): string {
 
   for (const room of layout.rooms) {
     // The leaves that stand in the doorways, not the cells they fill: a door widened to four
-    // cells is one door, and was counted as four.
+    // cells is one door, not four.
     const ways = layout.doorLeaves.filter((leaf) => leaf.rooms.includes(room.index));
     const shut = ways.length > 0 && ways.every((door) => door.locked);
+    const hidden = ways.filter((door) => door.hidden).length;
 
     const notes: string[] = [];
     if (layout.keyRoomIndex === room.index) notes.push(labels.key);
     if (shut) notes.push(labels.locked);
     if (torches.has(room.index)) notes.push(labels.torch);
+    if (hidden > 0) notes.push(`${labels.hidden} ${hidden}`);
 
     const cells = [
       `#${room.index + 1}`,
@@ -52,6 +59,15 @@ export function buildDungeonSummary(input: DungeonSummaryInput): string {
       notes.join(' '),
     ];
     lines.push(cells.filter((cell) => cell.length > 0).join('  '));
+  }
+
+  // Set out at the end rather than under the rooms they lie in: a passage is nobody's room,
+  // and a master looking for what the party is about to walk into wants one list of it.
+  if ((layout.traps ?? []).length > 0) {
+    lines.push('', labels.traps);
+    for (const trap of layout.traps ?? []) {
+      lines.push(`(${trap.x}, ${trap.y})  ${labels.trapName(trap.kind)}`);
+    }
   }
 
   return lines.join('\n');

@@ -68,10 +68,19 @@ export const WALL_SIDES: readonly WallSide[] = [
   },
 ];
 
+/**
+ * Whether the wall on this surface is drawn mirrored, which the light and silhouettes laid on it
+ * have to follow. False for anything that is not a wall.
+ */
 export function wallIsMirrored(surface: TableSurface): boolean {
   return WALL_SIDES.some((side) => side.surface === surface && side.mirrored);
 }
 
+/**
+ * The wall on a surface as a line along the table's edge, the way it faces into the table and its
+ * height, for working out the light and shadow that fall on it. Null for anything that is not a
+ * wall.
+ */
 export function wallFaceFor(
   surface: TableSurface,
   widthPx: number,
@@ -98,6 +107,10 @@ export interface WallBackground {
   surfaceBackgroundRepeat: string;
 }
 
+/**
+ * The CSS background for a wall: its picture stretched over the whole wall, with the grid picture
+ * laid over it when there is one.
+ */
 export function wallBackground(imageUrl: string, gridUrl: string): WallBackground {
   if (!gridUrl) {
     return {

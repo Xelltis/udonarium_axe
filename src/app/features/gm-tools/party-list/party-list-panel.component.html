@@ -52,6 +52,25 @@
         }
       </div>
 
+      @if (others(party).length) {
+        <div class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 pl-5">
+          <span class="text-ui-dim text-[11px]">{{ 'feature.gmTools.party.allies' | transloco }}</span>
+          @for (other of others(party); track other.identifier) {
+            <label class="text-ui-muted flex cursor-pointer items-center gap-1 text-[11px] select-none">
+              <input
+                type="checkbox"
+                class="size-3 cursor-pointer [accent-color:var(--ui-accent)]"
+                [ngModel]="standsWith(party, other)"
+                [name]="'ally-' + party.identifier + '-' + other.identifier"
+                (ngModelChange)="stand(party, other, $event)"
+              />
+              <span class="size-2 shrink-0 rounded-full" [style.background]="other.color"></span>
+              {{ partyName(other) }}
+            </label>
+          }
+        </div>
+      }
+
       <div class="mt-1.5 flex flex-col gap-1 pl-5">
         @for (character of members(party); track character.identifier) {
           <div class="flex items-center gap-2">

@@ -6,6 +6,7 @@ import {
   readBuffModifier,
   writeBuffModifier,
 } from '@axe/domain/character/buff-modifier';
+import { stackBuffEffect } from '@axe/domain/character/buff-stack';
 import { buffExpires, BuffTiming, buffTimingOf, BuffTurnActor, isBuffDueAt } from '@axe/domain/character/buff-timing';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
@@ -30,6 +31,10 @@ export class BuffManager {
     return this.buffDataElement?.children[0] ?? null;
   }
 
+  /**
+   * Takes away the first buff of that name, putting back whatever it moved on the sheet. False when
+   * there is no such buff or the piece has no buff container yet.
+   */
   delete(name: string): boolean {
     const container = this.container;
     if (!container) return false;
@@ -37,6 +42,22 @@ export class BuffManager {
     if (!data) return false;
     this.remove(data);
     return true;
+  }
+
+  /**
+   * Takes away every buff the test picks, putting back whatever each moved on the sheet, and
+   * returns their names in the order they were listed.
+   */
+  removeWhere(test: (data: DataElement) => boolean): string[] {
+    const container = this.container;
+    if (!container) return [];
+    const removed: string[] = [];
+    for (const data of [...container.children]) {
+      if (!test(data)) continue;
+      removed.push(data.name);
+      this.remove(data);
+    }
+    return removed;
   }
 
   /** Takes the buff away, putting back whatever it moved on the sheet. */
@@ -51,6 +72,32 @@ export class BuffManager {
    * status, which leaves the buff a plain note.
    */
   applyModifier(data: DataElement, request: ParsedBuffModifierRequest): BuffModifier | null {
+    const moved = this.moveStatus(request);
+    if (moved == null) return null;
+    return this.writeModifier(data, request, moved);
+  }
+
+  /**
+   * Moves a status again on top of what the standing buff already moved, and remembers the two
+   * distances added together, so taking the buff away puts back everything it did in all.
+   *
+   * A buff standing on some other status has nothing in common with this one, so what it moved
+   * goes back before the new one is laid, which leaves this the same as applying it fresh.
+   */
+  stackModifier(data: DataElement, request: ParsedBuffModifierRequest): BuffModifier | null {
+    const standing = readBuffModifier(data);
+    if (!standing || standing.target !== request.target || standing.slot !== request.slot) {
+      this.revertModifier(data);
+      return this.applyModifier(data, request);
+    }
+
+    const moved = this.moveStatus(request);
+    if (moved == null) return null;
+    return this.writeModifier(data, request, standing.applied + moved);
+  }
+
+  /** Moves the status by what the request asks for and answers how far it actually went. */
+  private moveStatus(request: ParsedBuffModifierRequest): number | null {
     const status = this.status();
     if (!status) return null;
     const before = status.getValue(request.target, request.slot);
@@ -59,11 +106,15 @@ export class BuffManager {
     const wanted = request.operator === 'set' ? request.amount - before : request.amount;
     status.changeValue(request.target, request.slot, wanted);
     const after = status.getValue(request.target, request.slot);
+    return (after ?? before) - before;
+  }
+
+  private writeModifier(data: DataElement, request: ParsedBuffModifierRequest, applied: number): BuffModifier {
     const modifier: BuffModifier = {
       target: request.target,
       slot: request.slot,
       operator: request.operator,
-      applied: (after ?? before) - before,
+      applied,
     };
     writeBuffModifier(data, modifier);
     return modifier;
@@ -76,6 +127,12 @@ export class BuffManager {
     clearBuffModifier(data);
   }
 
+  /**
+   * Counts every buff that expires down by one round, by hand and whatever its timing.
+   *
+   * Nothing is removed here, even at zero; `deleteZeroRound` does that. A buff held until cleared
+   * is left alone.
+   */
   decreaseRound(): void {
     const container = this.container;
     if (!container) return;
@@ -86,6 +143,10 @@ export class BuffManager {
     }
   }
 
+  /**
+   * Gives every buff that expires one more round, the reverse of `decreaseRound`. A buff held until
+   * cleared is left alone.
+   */
   increaseRound(): void {
     const container = this.container;
     if (!container) return;
@@ -96,6 +157,10 @@ export class BuffManager {
     }
   }
 
+  /**
+   * Removes every buff that expires and has no rounds left, putting back what each moved on the
+   * sheet. A buff held until cleared stays whatever its count reads.
+   */
   deleteZeroRound(): void {
     const container = this.container;
     if (!container) return;
@@ -233,6 +298,13 @@ export class BuffManager {
     return this.container?.getFirstElementByName(name) ?? null;
   }
 
+  /**
+   * Puts a buff of that name on the piece for a number of rounds, or starts an existing one over.
+   *
+   * Starting over first puts back whatever the old one moved on the sheet, then writes the new
+   * rounds, effect and appearance. The buff container is made when the piece has none yet; a piece
+   * with no buff element at all is left untouched.
+   */
   addRound(name: string, info: string = '', round: number = 3, appearance: BuffAppearance = {}): void {
     const container = this.ensureContainer();
     if (!container) return;
@@ -251,6 +323,54 @@ export class BuffManager {
       applyAppearance(created, appearance);
       container.appendChild(created);
     }
+  }
+
+  /**
+   * Puts a buff of that name on top of one already standing, adding the numbers the two notes
+   * carry together instead of starting the buff over.
+   *
+   * `攻撃+2` laid twice reads `攻撃+4`. Where the two notes do not say the same thing about the
+   * same number there is nothing to add up, and the new note is written as it stands. The rounds
+   * become whichever count is longer, so a short second helping never cuts a long one short, and
+   * a buff held until cleared is left held. A name no buff goes by yet is simply granted.
+   */
+  stackRound(name: string, info: string = '', round?: number, appearance: BuffAppearance = {}): void {
+    this.pileOn(name, info, round, appearance, (standing, asked) => Math.max(standing, asked));
+  }
+
+  /**
+   * The same second helping, but carrying the buff further as well: the rounds asked for are added
+   * to the ones standing rather than measured against them.
+   *
+   * Three rounds laid on a buff with two left leaves five. A buff held until cleared has no count
+   * to lengthen and is left alone, and an empty note lengthens a buff without touching what it
+   * says, which is how a spell is cast again to hold rather than to strengthen.
+   */
+  extendRound(name: string, info: string = '', round?: number, appearance: BuffAppearance = {}): void {
+    this.pileOn(name, info, round, appearance, (standing, asked) => standing + asked);
+  }
+
+  private pileOn(
+    name: string,
+    info: string,
+    round: number | undefined,
+    appearance: BuffAppearance,
+    settle: (standing: number, asked: number) => number
+  ): void {
+    const data = this.buffDataElement?.getFirstElementByName(name);
+    if (!data) {
+      this.addRound(name, info, round, appearance);
+      return;
+    }
+
+    const stacked = stackBuffEffect(`${data.currentValue ?? ''}`, info);
+    if (stacked !== null) data.currentValue = stacked;
+    else if (info.length > 0) data.currentValue = info;
+    applyAppearance(data, appearance);
+
+    if (round === undefined || !buffExpires(data)) return;
+    const standing = parseInt(String(data.value), 10);
+    data.value = Number.isFinite(standing) ? settle(standing, round) : round;
   }
 }
 

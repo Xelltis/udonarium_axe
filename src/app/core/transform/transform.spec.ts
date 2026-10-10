@@ -93,4 +93,39 @@ describe('Transform', () => {
       document.body.removeChild(host);
     });
   });
+
+  describe('sceneMatrix', () => {
+    it('takes a point to where localToGlobal puts it on the page, through a tilt and a perspective', () => {
+      const stage = document.createElement('div');
+      stage.style.perspective = '1000px';
+      stage.style.width = '800px';
+      stage.style.height = '600px';
+      const table = document.createElement('div');
+      // A tilt of 40 degrees about x and a shift, written out, as the page's own engine would give it.
+      const [c, n] = [Math.cos((40 * Math.PI) / 180), Math.sin((40 * Math.PI) / 180)];
+      table.style.transform = `matrix3d(1.3, 0, 0, 0, 0, ${1.3 * c}, ${1.3 * n}, 0, 0, ${-n}, ${c}, 0, 30, -20, 0, 1)`;
+      table.style.width = '400px';
+      table.style.height = '300px';
+      stage.appendChild(table);
+      document.body.appendChild(stage);
+      try {
+        const transform = new Transform(table);
+        const scene = transform.sceneMatrix();
+        expect(scene.m22).not.toBeCloseTo(1, 3);
+        expect(scene.m34).not.toBe(0);
+        for (const [x, y, z] of [
+          [0, 0, 0],
+          [120, 80, 0],
+          [300, 260, 45],
+        ]) {
+          const expected = transform.localToGlobal(x, y, z);
+          const w = x * scene.m14 + y * scene.m24 + z * scene.m34 + scene.m44;
+          expect((x * scene.m11 + y * scene.m21 + z * scene.m31 + scene.m41) / w).toBeCloseTo(expected.x, 6);
+          expect((x * scene.m12 + y * scene.m22 + z * scene.m32 + scene.m42) / w).toBeCloseTo(expected.y, 6);
+        }
+      } finally {
+        document.body.removeChild(stage);
+      }
+    });
+  });
 });

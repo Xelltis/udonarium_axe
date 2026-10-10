@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Udonarium Axe 利用ガイド (VitePress)",
+  "description": "Udonarium Axe利用ガイド（VitePress）",
   "scripts": {
     "sync:icons": "node scripts/sync-app-icons.mjs",
     "predev": "npm run sync:icons",

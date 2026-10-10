@@ -7,6 +7,7 @@ import {
   ReplayEventKind,
   type ReplayViewer,
 } from '@axe/domain/replay/replay-event';
+import { ReplayEventCategory, replayEventCategory } from '@axe/domain/replay/replay-event-category';
 import { buildReplayRoute, type ReplayRoutePoint, toRoutePoint } from '@axe/domain/replay/replay-route';
 
 export const ReplayShotPacing = {
@@ -88,6 +89,7 @@ const NARRATED_KINDS: ReadonlySet<ReplayEventKind> = new Set([
   ReplayEventKind.VoteFinish,
   ReplayEventKind.MediaCutIn,
   ReplayEventKind.MediaBgm,
+  ReplayEventKind.MediaBackgroundSound,
   ReplayEventKind.EffectCast,
   ReplayEventKind.ObjectMove,
   ReplayEventKind.ObjectCreate,
@@ -100,6 +102,14 @@ const NARRATED_KINDS: ReadonlySet<ReplayEventKind> = new Set([
 
 export type ReplayShotCaption = (event: ReplayEvent) => string;
 
+/**
+ * Lays a recording out as the shots of a video, one after another.
+ *
+ * Markers open chapters, chat and dice lines become shots, and with the wider scope other events
+ * are narrated through the caption. A long line is split over several shots, each lasting as the
+ * pacing says. A visual novel scene sets the background for what follows. Events the viewer may
+ * not see are skipped; every other event's start time is kept by its sequence number.
+ */
 export function buildReplayStoryboard(
   events: readonly ReplayEvent[],
   cast: readonly ReplayCastMember[],
@@ -117,6 +127,8 @@ export function buildReplayStoryboard(
     const event = events[index];
     if (options.viewer && !canViewReplayEvent(event, options.viewer)) continue;
     timeOfSeq.set(event.seq, startMs);
+    const category = replayEventCategory(event);
+    if (category === ReplayEventCategory.Hidden || category === ReplayEventCategory.System) continue;
 
     if (event.kind === ReplayEventKind.VnScene) {
       background = event.targetId ?? '';
@@ -161,6 +173,12 @@ export function buildReplayStoryboard(
   return { shots, totalMs: startMs, timeOfSeq };
 }
 
+/**
+ * The shot on screen at a moment of the storyboard.
+ *
+ * A moment before the start gives the first shot. Null when there are no shots or the moment is
+ * past the end of the last.
+ */
 export function shotAt(storyboard: ReplayStoryboard, atMs: number): ReplayShot | null {
   const { shots } = storyboard;
   if (shots.length < 1) return null;

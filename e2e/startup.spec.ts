@@ -17,8 +17,17 @@ test.describe('アプリケーション起動', () => {
   test('左 FAB メニューを開くと nav 項目が表示されること', async ({ page }) => {
     await waitAppReady(page);
     await openFabMenu(page);
-    // ラベルは data-label 属性に入っており、テキストノードではない
-    for (const label of ['接続', 'チャット', 'テーブル設定', '画像', 'インベントリ', 'ZIP読込', '保存']) {
+    // ラベルはdata-label属性に入っており、テキストノードではない
+    for (const label of [
+      '接続',
+      'チャット',
+      'テーブル関連',
+      'メディア',
+      'ゲームリソース',
+      'セーブ&ロード',
+      'ウィジェット',
+      '表示',
+    ]) {
       await expect(page.locator(`[data-label="${label}"]`)).toBeVisible();
     }
   });
@@ -49,7 +58,7 @@ test.describe('接続パネル(PeerMenu)', () => {
   });
 
   test('アイコン変更ボタン/画像のいずれかが表示されること', async ({ page }) => {
-    // アイコン未設定なら button、設定済みなら同じタイトルの img が表示される
+    // アイコン未設定ならbutton、設定済みなら同じタイトルのimgが表示される
     await expect(
       page.locator('peer-menu').locator('[title="アイコンを変更する"], [aria-label="アイコンを変更する"]')
     ).toBeVisible();
@@ -74,7 +83,7 @@ test.describe('接続パネル(PeerMenu)', () => {
 test.describe('ネットワークインジケーター', () => {
   test('ネットワークインジケーターが DOM に存在すること', async ({ page }) => {
     await page.goto('/');
-    // 既定では非表示クラス (hidden) が付与されるので isAttached で確認する
+    // 既定では非表示クラス（hidden）が付与されるので、isAttachedで確認する
     await expect(page.locator('network-indicator')).toBeAttached({ timeout: 20000 });
   });
 });

@@ -1,6 +1,10 @@
+import { Logger } from '@axe/core/logging/logger';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { PeerReconnectScheduler } from '@axe/core/network/peer-reconnect-scheduler';
 import { SkyWayConnection } from '@axe/core/network/skyway/skyway-connection';
+import { decompressAsync } from '@axe/core/util/compress';
+import * as MessagePack from '@axe/core/util/message-pack';
+import { PERF_INBOUND_DRAIN, perfCounters } from '@axe/core/util/perf-counters';
 
 function flushMicrotasks(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -15,6 +19,130 @@ describe('SkyWayConnection', () => {
     const conn = new SkyWayConnection();
     expect(conn.callback).toBeDefined();
     expect(conn.bandwidthUsage).toBe(0);
+  });
+
+  describe('sending', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
+    let connAny: Record<string, any>;
+    let sent: { data: Uint8Array; isCompressed?: boolean }[];
+
+    const compressible = () => new Uint8Array(8 * 1024);
+
+    const messagesIn = async (container: { data: Uint8Array; isCompressed?: boolean }) =>
+      MessagePack.decode(container.isCompressed ? await decompressAsync(container.data) : container.data) as {
+        eventName: string;
+        data: { index?: number };
+      }[];
+
+    beforeEach(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
+      connAny = new SkyWayConnection() as any;
+      Object.defineProperty(connAny, 'peers', { get: () => [PeerContext.parse('peer-a')], configurable: true });
+      sent = [];
+      vi.spyOn(connAny, 'sendBroadcast').mockImplementation((container: unknown) => {
+        sent.push(container as { data: Uint8Array; isCompressed?: boolean });
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('still gzips a batch of ordinary messages', async () => {
+      connAny.send([
+        { eventName: 'UPDATE_GAME_OBJECT', data: compressible() },
+        { eventName: 'UPDATE_GAME_OBJECT', data: compressible() },
+      ]);
+      await connAny.outboundQueue;
+
+      expect(sent).toHaveLength(1);
+      expect(sent[0].isCompressed).toBe(true);
+    });
+
+    it('sends a piece of a file as it is and still gzips the rest of its batch', async () => {
+      connAny.send([
+        { eventName: 'FILE_SEND_CHUNK_some-image', data: { index: 0, length: 2, chunk: compressible() } },
+        { eventName: 'UPDATE_GAME_OBJECT', data: compressible() },
+        { eventName: 'UPDATE_GAME_OBJECT', data: compressible() },
+      ]);
+      await connAny.outboundQueue;
+
+      expect(sent.map((container) => !!container.isCompressed)).toEqual([false, true]);
+      expect((await messagesIn(sent[0])).map((m) => m.eventName)).toEqual(['FILE_SEND_CHUNK_some-image']);
+      expect((await messagesIn(sent[1])).map((m) => m.eventName)).toEqual(['UPDATE_GAME_OBJECT', 'UPDATE_GAME_OBJECT']);
+    });
+
+    it('keeps the order of a batch that mixes pieces of a file with other messages', async () => {
+      const batch: { eventName: string; data: unknown }[] = [
+        { eventName: 'START_FILE_TRANSMISSION', data: { taskIdentifier: 'some-image' } },
+        { eventName: 'FILE_SEND_CHUNK_some-image', data: { index: 0, length: 3, chunk: compressible() } },
+        { eventName: 'FILE_SEND_CHUNK_some-image', data: { index: 1, length: 3, chunk: compressible() } },
+        { eventName: 'UPDATE_GAME_OBJECT', data: compressible() },
+        { eventName: 'FILE_SEND_CHUNK_some-image', data: { index: 2, length: 3, chunk: compressible() } },
+      ];
+      connAny.send(batch);
+      await connAny.outboundQueue;
+
+      const received: { eventName: string; data: { index?: number } }[] = [];
+      for (const container of sent) {
+        const messages = await messagesIn(container);
+        if (messages.some((m) => m.eventName.startsWith('FILE_SEND_CHUNK_')))
+          expect(container.isCompressed).toBeFalsy();
+        received.push(...messages);
+      }
+      expect(received.map((m) => [m.eventName, m.data.index])).toEqual(
+        batch.map((m) => [m.eventName, (m.data as { index?: number }).index])
+      );
+    });
+  });
+
+  describe('receiving', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
+    let connAny: Record<string, any>;
+    let received: unknown[][];
+    const stream = { peer: { peerId: 'peer-a' } };
+
+    /** A message holding one small number, as MessagePack writes it: a one-item array of it. */
+    const numberMessage = (n: number) => ({ data: new Uint8Array([0x91, n]), ttl: 0 });
+
+    beforeEach(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
+      connAny = new SkyWayConnection() as any;
+      received = [];
+      connAny.callback.onData = (_peer: unknown, data: unknown[]) => received.push(data);
+    });
+
+    afterEach(() => {
+      perfCounters.enabled = false;
+      perfCounters.clear();
+      vi.restoreAllMocks();
+    });
+
+    it('hands over what arrives together in a task or two rather than a task each', async () => {
+      perfCounters.enabled = true;
+      perfCounters.clear();
+      for (let n = 0; n < 100; n++) connAny.onData(stream, numberMessage(n));
+
+      await vi.waitFor(() => expect(received).toHaveLength(100));
+
+      expect(perfCounters.drain().get(PERF_INBOUND_DRAIN) ?? 0).toBeLessThan(10);
+    });
+
+    it('hands the messages over in the order they arrived', async () => {
+      for (let n = 0; n < 20; n++) connAny.onData(stream, numberMessage(n));
+
+      await vi.waitFor(() => expect(received).toHaveLength(20));
+
+      expect(received.map(([n]) => n)).toEqual([...Array(20).keys()]);
+    });
+
+    it('drops a message it cannot read and carries on with the ones behind it', async () => {
+      vi.spyOn(Logger, 'error').mockImplementation(() => {});
+      connAny.onData(stream, { data: new Uint8Array([0xc1]), ttl: 0 });
+      connAny.onData(stream, numberMessage(7));
+
+      await vi.waitFor(() => expect(received).toEqual([[7]]));
+    });
   });
 
   describe('leaveImmediately', () => {

@@ -96,6 +96,7 @@ export class CardStackCardListComponent {
     this.currentlyOwned = null;
   }
 
+  /** Shuffles the stack for everyone at the table, announcing the shuffle and playing its sound. */
   shuffle(): void {
     const stack = this.cardStack();
     stack.shuffle();
@@ -103,6 +104,12 @@ export class CardStackCardListComponent {
     SoundEffect.play(PresetSound.cardShuffle);
   }
 
+  /**
+   * Takes a card out of the stack and lays it on the table beside it, from the list's draw button.
+   *
+   * The card lands a little to the lower right of the stack with some random scatter, on the same
+   * table, turned by the stack's rotation and brought to the top.
+   */
   drawCard(card: Card): void {
     const stack = this.cardStack();
     card.parent?.removeChild(card);
@@ -115,6 +122,7 @@ export class CardStackCardListComponent {
     SoundEffect.play(PresetSound.cardDraw);
   }
 
+  /** Opens the card's own settings sheet, placed just off the corner of this panel. */
   showDetail(card: Card): void {
     const title = sheetPanelTitle(this.t('feature.card.settingTitle'), card.name);
     this.objectPanels.openSheet(
@@ -125,6 +133,7 @@ export class CardStackCardListComponent {
     );
   }
 
+  /** Keys a row of the list by its card, so reordering moves rows rather than rebuilding them. */
   trackByCard(_index: number, card: Card): string {
     return card.identifier;
   }
@@ -133,18 +142,28 @@ export class CardStackCardListComponent {
 
   private activePointerId: number | null = null;
 
+  /** Whether this card's row is the one being dragged to a new place, which dims it. */
   isDragging(card: Card): boolean {
     return this.cardDrag.isHeld(card.identifier);
   }
 
+  /** Whether the dragged row would land above this card, which draws the insertion line over it. */
   isDropBefore(card: Card): boolean {
     return this.cardDrag.isDropBefore(card.identifier);
   }
 
+  /**
+   * Whether the dragged row would land below this card, which draws the insertion line under it.
+   */
   isDropAfter(card: Card): boolean {
     return this.cardDrag.isDropAfter(card.identifier);
   }
 
+  /**
+   * Picks a row up by its drag handle and captures the pointer for the rest of the drag.
+   *
+   * Only the primary mouse button starts a drag; touch and pen always do.
+   */
   onPointerDown(event: PointerEvent, card: Card): void {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     event.preventDefault();
@@ -153,6 +172,7 @@ export class CardStackCardListComponent {
     (event.currentTarget as Element).setPointerCapture(event.pointerId);
   }
 
+  /** Follows the dragged row over the list, marking which half of which row it would drop on. */
   onPointerMove(event: PointerEvent): void {
     if (this.activePointerId !== event.pointerId) return;
     if (this.cardDrag.held() === null) return;
@@ -165,6 +185,12 @@ export class CardStackCardListComponent {
     this.cardDrag.hoverHalf(found.id, found.rect, event.clientY);
   }
 
+  /**
+   * Drops the dragged row and moves its card in the stack to match.
+   *
+   * Letting go outside any row, or with a different pointer than the one that started, leaves the
+   * order alone.
+   */
   onPointerUp(event: PointerEvent): void {
     if (this.activePointerId !== event.pointerId) return;
     const drop = this.cardDrag.release();
@@ -178,6 +204,7 @@ export class CardStackCardListComponent {
     if (drop?.side) this.performReorder(drop.held, drop.over, drop.side);
   }
 
+  /** Abandons a drag the browser cancelled, leaving the stack in its original order. */
   onPointerCancel(event: PointerEvent): void {
     if (this.activePointerId !== event.pointerId) return;
     this.resetDragState();
@@ -221,15 +248,22 @@ export class CardStackCardListComponent {
     }
   }
 
+  /** The card's name for its row, re-read whenever the card changes. */
   cardName(card: Card): string {
     this.objectChange.versionOf(card.identifier)();
     return card.name;
   }
 
+  /** Renames the card from its row's name field; the name is shared with the room. */
   setCardName(card: Card, event: Event): void {
     card.name = (event.target as HTMLInputElement).value;
   }
 
+  /**
+   * Opens the image picker and sets the chosen picture as the card's front or back.
+   *
+   * Closing the picker without a choice, or a card without that image slot, changes nothing.
+   */
   setImage(card: Card, slot: 'front' | 'back'): void {
     this.modalService.open<string>(FileSelecterComponent).then((value) => {
       if (value == null) return;
@@ -250,11 +284,21 @@ export class CardStackCardListComponent {
     return dot > 0 ? filename.substring(0, dot) : filename;
   }
 
+  /**
+   * A short label for a card that has no name of its own, taken from its front image's file name.
+   *
+   * A playing-card file name such as `h12` reads as the suit and rank; any other name is shown as
+   * is.
+   */
   cardImageHint(card: Card): string {
     const basename = this.cardImageBasename(card);
     return formatTrumpCardCode(basename) ?? basename;
   }
 
+  /**
+   * The suit and rank the front image's file name spells out, or null when it is not a playing
+   * card.
+   */
   trumpLabel(card: Card): TrumpCardLabel | null {
     return parseTrumpCardCode(this.cardImageBasename(card));
   }

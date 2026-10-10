@@ -1,10 +1,15 @@
 import { inject, Injectable } from '@angular/core';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { SwitchPressService } from '@axe/application/tabletop/switch-press.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
+import { BillboardFrameService } from '@axe/application/ui/billboard-frame.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { marqueeApply, selectByRect } from '@axe/application/ui/rect-hit-test';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { SwitchNoticeService } from '@axe/application/ui/switch-notice.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -22,9 +27,21 @@ export class GameTableGestureService {
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly uiSignalService = inject(UiSignalService);
+  private readonly billboardFrame = inject(BillboardFrameService);
+  private readonly backdropFrame = inject(BackdropFrameService);
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly tabletopService = inject(TabletopService);
   private readonly coordinateService = inject(CoordinateService);
+  private readonly switchPresses = inject(SwitchPressService);
+  private readonly switchNotices = inject(SwitchNoticeService);
+  private readonly t = inject(TRANSLATE_FN);
+
+  /**
+   * Where a left press on the bare table began, for pressing the painted ground under it once the
+   * hand lets go without having turned the view or drawn a box. A press on a block with a switch
+   * of its own is the block's.
+   */
+  private groundPress: { target: HTMLElement } | null = null;
 
   isTableTransformMode = false;
   isTableTransformed = false;
@@ -54,6 +71,12 @@ export class GameTableGestureService {
   private gridCanvasEl!: HTMLCanvasElement;
   private getGridShow!: () => boolean;
 
+  /**
+   * Wires the mouse, touch and marquee gestures to the table's elements, once the view is built.
+   *
+   * `getGridShow` says whether the grid stays visible, since the grid canvas is shown while a piece
+   * is dragged and put back to that afterwards.
+   */
   initialize(
     rootEl: HTMLElement,
     gameTableEl: HTMLElement,
@@ -87,6 +110,7 @@ export class GameTableGestureService {
     this.touchGesture.onSynthesizeContextMenu = () => this.pointerDeviceService.cancelPendingContextMenu();
   }
 
+  /** Takes the gestures off the table, and drops a view update still waiting for its frame. */
   destroy(): void {
     if (this.frame !== null) cancelAnimationFrame(this.frame);
     this.frame = null;
@@ -98,6 +122,12 @@ export class GameTableGestureService {
     this.marqueeGesture = null;
   }
 
+  /**
+   * Ends whatever press is under way on the table, a mouse drag or a marquee, and puts the grid
+   * back to shown or hidden as the table has it.
+   *
+   * Does nothing before `initialize`.
+   */
   cancelInput(): void {
     if (!this.gridCanvasEl) return;
     this.mouseGesture?.cancel();
@@ -153,10 +183,21 @@ export class GameTableGestureService {
     this.gameTableEl.style.transform = `${projectionScale}translateZ(${tz}px) translateY(${ty}px) translateX(${tx}px) rotateY(${ry}deg) rotateX(${rx}deg) rotateZ(${rz}deg)`;
 
     this.coordinateService.invalidateTabletopTransform();
+    // The backdrops follow a move of the view as well as a turn, so they are told every frame.
+    this.backdropFrame.apply({
+      rotateX: this.viewRotateX,
+      rotateZ: this.viewRotateZ,
+      positionX: this.viewPositionX,
+      positionY: this.viewPositionY,
+    });
 
     if (!this.turned) return;
     this.turned = false;
-    this.uiSignalService.notifyTableViewRotation(this.viewRotateX, this.viewRotateY, this.viewRotateZ);
+    const rotation = { x: this.viewRotateX, y: this.viewRotateY, z: this.viewRotateZ };
+    // Written here rather than through a signal, so what faces the camera turns in the frame the
+    // table turns in rather than in the one after it.
+    this.billboardFrame.apply(rotation);
+    this.uiSignalService.notifyTableViewRotation(rotation.x, rotation.y, rotation.z);
   }
 
   /**
@@ -234,6 +275,8 @@ export class GameTableGestureService {
       me.button === 1 ||
       me.button === 2 ||
       target.closest('[data-table-passthrough]') != null;
+    this.groundPress =
+      isEmptyTablePress && me.button === 0 && target.closest('[data-switch-host]') == null ? { target } : null;
     if (isEmptyTablePress) {
       this.isTableTransformMode = true;
       this.marqueeGesture?.arm(e as PointerEvent);
@@ -255,9 +298,23 @@ export class GameTableGestureService {
     this.cancelInput();
     this.uiSignalService.notifyTerrainGridEnd();
 
+    const groundPress = this.groundPress;
+    this.groundPress = null;
     if (!released && !wasMarqueeActive && !this.isTableTransformed) {
       this.selectionSignalService.clearSelection();
+      if (groundPress) void this.pressGround(groundPress.target, e as MouseEvent);
     }
+  }
+
+  /**
+   * Presses the painted ground under where a click let go, reading the point on whatever was
+   * clicked so that the top of a locked block reaches the ground it stands on.
+   */
+  private async pressGround(target: HTMLElement, e: MouseEvent): Promise<void> {
+    const at = this.coordinateService.calcTabletopLocalCoordinate({ x: e.clientX, y: e.clientY, z: 0 }, target);
+    const outcome = await this.switchPresses.pressGroundAt(at.x, at.y);
+    if (!outcome || outcome === 'pressed' || outcome === 'busy') return;
+    this.switchNotices.show(this.t(`feature.boardSwitch.refused.${outcome}`), e.clientX, e.clientY);
   }
 
   private onTableMouseTransform(

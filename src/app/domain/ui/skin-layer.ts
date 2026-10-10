@@ -43,6 +43,7 @@ export interface SkinLayer {
   anchor: LayerAnchor;
 }
 
+/** A fresh id for a layer added to a skin, built from the time and a random tail. It also keys the picture's bytes. */
 export function newLayerId(): string {
   return `layer-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -69,6 +70,7 @@ export function asLayer(value: unknown): SkinLayer | null {
   };
 }
 
+/** A stored list of layers read back, dropping entries that are not layers and keeping at most six. */
 export function asLayers(value: unknown): SkinLayer[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -77,6 +79,7 @@ export function asLayers(value: unknown): SkinLayer[] {
     .slice(0, MAX_LAYERS);
 }
 
+/** The layers from the JSON text a browser kept. Nothing kept, or text that cannot be read, gives no layers. */
 export function parseLayers(text: string | null): SkinLayer[] {
   if (!text) return [];
   try {

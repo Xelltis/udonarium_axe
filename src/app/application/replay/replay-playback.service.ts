@@ -16,7 +16,12 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { collectReplayCast, type ReplayCastMember } from '@axe/domain/replay/replay-cast';
 import { cloneSyncValue, isSameSyncValue, mergeSyncData, type SyncData } from '@axe/domain/replay/replay-diff';
-import { type ReplayEvent, ReplayEventKind, type ReplayManifest } from '@axe/domain/replay/replay-event';
+import {
+  type ReplayEvent,
+  ReplayEventKind,
+  type ReplayManifest,
+  type ReplayPatch,
+} from '@axe/domain/replay/replay-event';
 import {
   decodeReplayKeyframe,
   encodeReplayKeyframe,
@@ -99,6 +104,11 @@ export class ReplayPlaybackService {
   private slideFrame: number | null = null;
   private slideEndsAt = 0;
 
+  /**
+   * Opens a stored recording at its first event, closing whatever was open first.
+   *
+   * Answers false, leaving nothing open, when the recording has no events.
+   */
   async open(id: number): Promise<boolean> {
     await this.close();
     const { manifest, events } = await this.library.load(id);
@@ -114,6 +124,7 @@ export class ReplayPlaybackService {
     return true;
   }
 
+  /** Closes the recording, putting the live table back first if the board was being replayed. */
   async close(): Promise<void> {
     this.stopAutoPlay();
     if (this._isBoardMode()) await this.exitBoardMode();
@@ -138,6 +149,13 @@ export class ReplayPlaybackService {
     }
   }
 
+  /**
+   * Moves to an event, clamped to the recording, and shows the board as it stood there.
+   *
+   * Stepping forward by one plays that event on the board as it stands, sliding a moved piece along
+   * its route where motion is on; any other jump works the board out again. The board is only
+   * touched while it is being replayed.
+   */
   async seekTo(index: number): Promise<void> {
     const events = this._events();
     if (events.length < 1) return;
@@ -160,22 +178,32 @@ export class ReplayPlaybackService {
     await this.applyBoard(clamped);
   }
 
+  /** Steps forward one event. */
   async next(): Promise<void> {
     await this.seekTo(this._cursor() + 1);
   }
 
+  /** Steps back one event. */
   async previous(): Promise<void> {
     await this.seekTo(this._cursor() - 1);
   }
 
+  /** Jumps to the first event. */
   async toStart(): Promise<void> {
     await this.seekTo(0);
   }
 
+  /** Jumps to the last event. */
   async toEnd(): Promise<void> {
     await this.seekTo(this._events().length - 1);
   }
 
+  /**
+   * Starts or stops stepping through the recording on its own.
+   *
+   * Each step waits long enough to read the line, or for a cut-in, effect or slide to finish. It
+   * does not start at the last event, and stops when it reaches it.
+   */
   toggleAutoPlay(): void {
     if (this._autoPlay()) {
       this.stopAutoPlay();
@@ -186,6 +214,7 @@ export class ReplayPlaybackService {
     this.scheduleAutoPlay();
   }
 
+  /** Stops stepping on its own, leaving the recording where it is. */
   stopAutoPlay(): void {
     this._autoPlay.set(false);
     if (this.autoPlayTimer === null) return;
@@ -193,6 +222,12 @@ export class ReplayPlaybackService {
     this.autoPlayTimer = null;
   }
 
+  /**
+   * Replays the recording on the table itself, from the current event.
+   *
+   * The live table is kept aside and this reader is cut off from the room while it runs, so nothing
+   * shown reaches the other peers. Answers false when already replaying or nothing is open.
+   */
   async enterBoardMode(): Promise<boolean> {
     if (this._isBoardMode() || !this.isOpen()) return false;
     this.savedBoard = this.snapshotBoard();
@@ -203,6 +238,7 @@ export class ReplayPlaybackService {
     return true;
   }
 
+  /** Puts the live table back, rejoins the room and asks the peers for everything that changed meanwhile. */
   async exitBoardMode(): Promise<void> {
     if (!this._isBoardMode()) return;
     this.staging.discard();
@@ -340,21 +376,30 @@ export class ReplayPlaybackService {
       return;
     }
     if (event.kind === ReplayEventKind.ObjectRemove) {
-      const object = event.targetId ? this.objectStore.get(event.targetId) : null;
-      if (object) this.objectStore.remove(object);
-    } else if (event.patch) {
-      const existing = this.objectStore.get(event.patch.identifier);
-      if (existing) {
-        this.reviveObject(existing, applyReplayPatch(existing.toContext().syncData as SyncData, event.patch));
-      } else {
-        this.createObject({
-          identifier: event.patch.identifier,
-          aliasName: event.patch.aliasName,
-          syncData: applyReplayPatch(null, event.patch),
-        });
+      for (const identifier of [event.targetId, ...(event.removedParts ?? [])]) {
+        const object = identifier ? this.objectStore.get(identifier) : null;
+        if (object) this.objectStore.remove(object);
+      }
+    } else {
+      for (const patch of [event.patch, ...(event.parts ?? [])]) {
+        if (patch) this.layPatch(patch);
       }
     }
     if (event.signal) localDispatch(event.signal.name, event.signal.data);
+  }
+
+  /** Lays a recorded change onto the board: onto the object where it is showing, or as a new one. */
+  private layPatch(patch: ReplayPatch): void {
+    const existing = this.objectStore.get(patch.identifier);
+    if (existing) {
+      this.reviveObject(existing, applyReplayPatch(existing.toContext().syncData as SyncData, patch));
+      return;
+    }
+    this.createObject({
+      identifier: patch.identifier,
+      aliasName: patch.aliasName,
+      syncData: applyReplayPatch(null, patch),
+    });
   }
 
   private startSlide(event: ReplayEvent): boolean {

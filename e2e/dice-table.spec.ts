@@ -25,7 +25,7 @@ test.describe('ダイス表設定パネル (詳細編集)', () => {
     await expect(page.locator('dice-table-setting input[name="dice-table-name"]')).toBeVisible({
       timeout: 5000,
     });
-    // 既定は read-only (disabled 属性付き)。「編集」ボタンで isEdit=true に。
+    // 既定はread-only（disabled属性付き）。「編集」ボタンでisEdit=trueになる。
     await page.locator('dice-table-setting').getByRole('button', { name: '編集' }).click();
     await expect(page.locator('dice-table-setting').getByText('編集中')).toBeVisible();
     const titleInput = page.locator('dice-table-setting input[name="dice-table-name"]');
@@ -55,7 +55,7 @@ test.describe('ダイス表設定パネル (詳細編集)', () => {
     await page.locator('dice-table-setting').getByRole('button', { name: '編集' }).click();
     await expect(page.locator('dice-table-setting').getByText('編集中')).toBeVisible();
     await page.locator('dice-table-setting').getByRole('button', { name: '確定' }).click();
-    // 編集ボタンが再表示される (view モード)
+    // 編集ボタンが再表示される（viewモード）
     await expect(page.locator('dice-table-setting').getByRole('button', { name: '編集' })).toBeVisible();
   });
 });

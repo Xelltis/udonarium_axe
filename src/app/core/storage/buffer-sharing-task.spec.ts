@@ -24,6 +24,16 @@ describe('BufferSharingTask', () => {
       expect(task.identifier).toBe('test-id');
       expect(task.sendTo).toBe('peer-1');
     });
+
+    it('cuts a megabyte into sixteen chunks of 64KB', () => {
+      const task = BufferSharingTask.createSendTask('megabyte', 'peer-1');
+      task.start(new Uint8Array(1024 * 1024 - 16));
+      const internal = task as unknown as { chunks: unknown[]; chunkSize: number };
+
+      expect(internal.chunkSize).toBe(64 * 1024);
+      expect(internal.chunks).toHaveLength(16);
+      task.cancel();
+    });
   });
 
   describe('createReceiveTask', () => {

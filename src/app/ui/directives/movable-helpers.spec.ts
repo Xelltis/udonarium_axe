@@ -14,6 +14,7 @@ import {
   contactRestLevels,
   ContactRider,
   dropTargetSurface,
+  findContactSupport,
   findContactSupportZ,
   MovableCoordinateResolver,
   MovableLayerItem,
@@ -386,6 +387,46 @@ describe('movable-helpers', () => {
       topZ,
     });
 
+    describe('a piece dragged along the surface it is on', () => {
+      /** A ramp 200px across, climbing to the north from the ground at its south edge. */
+      const ramp: ContactFootprint = {
+        left: 0,
+        top: 0,
+        right: 200,
+        bottom: 200,
+        bottomZ: 0,
+        topZ: 100,
+        identifier: 'ramp',
+        topAt: (_x, y) => Math.max(0, 100 * (1 - y / 200)),
+      };
+
+      it('reads the surface where the piece is, not at its highest corner', () => {
+        expect(findContactSupport([ramp], 100, 100, token(0)).z).toBeCloseTo(50);
+        expect(findContactSupport([ramp], 100, 200, token(0)).z).toBeCloseTo(0);
+      });
+
+      it('says what the piece came to rest on', () => {
+        expect(findContactSupport([ramp], 100, 100, token(0)).on).toBe('ramp');
+      });
+
+      it('climbs the ramp while the piece keeps to it, rather than dropping to the floor', () => {
+        const onTheRamp: ContactRider = { ...token(50), restingOn: 'ramp' };
+
+        expect(findContactSupport([ramp], 100, 50, onTheRamp).z).toBeCloseTo(75);
+        expect(findContactSupport([ramp], 100, 150, onTheRamp).z).toBeCloseTo(25);
+      });
+
+      it('puts a piece dragged onto the ramp on its surface, which fills the space below', () => {
+        expect(findContactSupport([ramp], 100, 50, token(0)).z).toBeCloseTo(75);
+      });
+
+      it('drops to the floor once the piece is dragged off the ramp', () => {
+        const onTheRamp: ContactRider = { ...token(50), restingOn: 'ramp' };
+
+        expect(findContactSupport([ramp], 300, 300, onTheRamp).z).toBe(0);
+      });
+    });
+
     it('returns the highest top of the footprints under the centre', () => {
       expect(findContactSupportZ(footprints, 50, 50)).toBe(150);
     });
@@ -422,6 +463,29 @@ describe('movable-helpers', () => {
 
       expect(findContactSupportZ(box, 50, 50, block(50, 0))).toBe(50);
       expect(findContactSupportZ(box, 50, 50, token(0))).toBe(50);
+    });
+
+    it('takes the level nearest the height the piece is already at', () => {
+      const canopy = [cell(0, 0, 150, 200)];
+
+      // Held just under the canopy, it steps up onto it; down near the floor, it stays down.
+      expect(findContactSupportZ(canopy, 50, 50, token(160))).toBe(200);
+      expect(findContactSupportZ(canopy, 50, 50, token(40))).toBe(0);
+    });
+
+    it('leaves a piece on the lower level where two are equally near', () => {
+      const canopy = [cell(0, 0, 150, 200)];
+
+      expect(findContactSupportZ(canopy, 50, 50, token(100))).toBe(0);
+    });
+
+    it('flies a piece kept above the ground under a deck rather than onto it', () => {
+      const deck = [cell(0, 0, 140, 150)];
+      const flier: ContactRider = { altitudePx: 100, thicknessPx: 0, ridesUp: true, restingZ: 0 };
+
+      // Its feet are at 100 and the deck's top at 150, which is the nearer of the two, but the
+      // height it is kept at is clearance: it passes under the deck and stays on the floor.
+      expect(findContactSupportZ(deck, 50, 50, flier)).toBe(0);
     });
 
     it('keeps what is already up on a canopy up there', () => {

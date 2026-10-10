@@ -173,6 +173,16 @@ export interface MapScene {
   gridVisible: boolean;
   layers: MapLayer[];
   guides?: SceneGuideLine[];
+  /**
+   * The roles this scene has held a layer for, kept after the layer itself is gone.
+   *
+   * A scene with no layer of a role says nothing about that role, and a table keeps whatever it
+   * already had. That is the right answer for somebody who only ever drew a floor and the wrong
+   * one for somebody who deleted their trap layer and meant it: both hand over a scene with no
+   * trap layer in it. What tells the two apart is whether the scene ever had one, which is
+   * written down here as the layers come and go.
+   */
+  paintedRoles?: MapFunctionRole[];
 }
 
 /** A line laid across the scene to line things up against, kept with the scene it was laid on. */
@@ -182,19 +192,40 @@ export interface SceneGuideLine {
   at: number;
 }
 
+/**
+ * Writes down the roles the scene holds a layer for, keeping the ones already written.
+ *
+ * Called with the scene as it stands before a step is taken, so that the step that takes a
+ * layer away is the step that records the role it spoke for.
+ */
+export function rememberPaintedRoles(scene: MapScene): void {
+  const spoken = new Set<MapFunctionRole>(scene.paintedRoles ?? []);
+  for (const layer of scene.layers) {
+    if (layer.kind === 'function') spoken.add(layer.role);
+  }
+  if (spoken.size > 0) scene.paintedRoles = [...spoken];
+}
+
+/** A fresh random identifier for a layer or for an item on one. */
 export function newId(): string {
   return crypto.randomUUID();
 }
 
+/** The key a cell is stored under in a layer's cell record, written `col,row`. */
 export function cellKey(col: number, row: number): string {
   return col + ',' + row;
 }
 
+/** Reads the column and row back out of a cell key. */
 export function parseCellKey(key: string): { col: number; row: number } {
   const comma = key.indexOf(',');
   return { col: Number(key.slice(0, comma)), row: Number(key.slice(comma + 1)) };
 }
 
+/**
+ * A blank scene with no layers, a transparent background and the grid showing; 20 by 15 square
+ * cells of 64 px unless told otherwise.
+ */
 export function createScene(cols = 20, rows = 15, cellPx = 64, gridType: GridType = GridType.SQUARE): MapScene {
   return {
     version: MAP_SCENE_VERSION,
@@ -209,6 +240,11 @@ export function createScene(cols = 20, rows = 15, cellPx = 64, gridType: GridTyp
   };
 }
 
+/**
+ * A new empty layer of the given kind, visible, unlocked and fully opaque, with a fresh id.
+ *
+ * A function layer starts with the default role and a copy of the default spec.
+ */
 export function createLayer(kind: LayerKind, name: string): MapLayer {
   const base: BaseLayer = { id: newId(), kind, name, visible: true, locked: false, opacity: 1 };
   switch (kind) {
@@ -229,10 +265,15 @@ export function createLayer(kind: LayerKind, name: string): MapLayer {
   }
 }
 
+/** A deep copy of a scene sharing nothing with the original, as the undo history keeps. */
 export function cloneScene(scene: MapScene): MapScene {
   return structuredClone(scene);
 }
 
+/**
+ * The scene's width in pixels. A hex grid is measured by how its hexes lie, which is not simply
+ * columns times the cell size.
+ */
 export function sceneWidthPx(scene: MapScene): number {
   if (isHexGrid(scene.gridType)) {
     const geo = computeHexMaskGeometry(scene.cols, scene.rows, scene.cellPx, scene.gridType);
@@ -241,6 +282,10 @@ export function sceneWidthPx(scene: MapScene): number {
   return scene.cols * scene.cellPx;
 }
 
+/**
+ * The scene's height in pixels. A hex grid is measured by how its hexes lie, which is not simply
+ * rows times the cell size.
+ */
 export function sceneHeightPx(scene: MapScene): number {
   if (isHexGrid(scene.gridType)) {
     const geo = computeHexMaskGeometry(scene.cols, scene.rows, scene.cellPx, scene.gridType);

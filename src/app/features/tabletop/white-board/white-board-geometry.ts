@@ -105,6 +105,7 @@ export const HANDLES: readonly Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw'
 /** How far above the hold the grip for turning it sits. */
 export const TURN_GRIP_REACH = 22;
 
+/** Where a grip sits on a box: on a corner or the middle of a side, or above the top for turning. */
 export function handleAt(box: MarkBox, handle: Handle): BoardPoint {
   if (handle === 'turn') return { x: box.x + box.w / 2, y: box.y - TURN_GRIP_REACH };
   const x = handle.includes('w') ? box.x : handle.includes('e') ? box.x + box.w : box.x + box.w / 2;

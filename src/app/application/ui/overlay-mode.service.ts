@@ -35,6 +35,10 @@ export class OverlayModeService {
     this.activate();
   }
 
+  /**
+   * Switches this device into overlay mode by marking the document body. It stays on for the life
+   * of the page and is never synced.
+   */
   activate(): void {
     if (this._active()) return;
     this._active.set(true);

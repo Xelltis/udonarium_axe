@@ -20,10 +20,17 @@ export interface Scrollable {
   clientHeight: number;
 }
 
+/** Holds the board editor's zoom between a tenth and eight times. */
 export function clampZoom(next: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
 }
 
+/**
+ * The numbered marks along a ruler of `span` board pixels at a zoom.
+ *
+ * The step is the smallest of 50, 100, 200, 500 or 1000 pixels that leaves room for a reading on
+ * screen.
+ */
 export function rulerTicks(span: number, zoom: number): RulerTick[] {
   const step = RULER_STEPS.find((size) => size * zoom >= RULER_ROOM) ?? RULER_STEPS[RULER_STEPS.length - 1];
   const marks: RulerTick[] = [];
@@ -31,10 +38,17 @@ export function rulerTicks(span: number, zoom: number): RulerTick[] {
   return marks;
 }
 
+/** The zoom at which the whole board fits the editor's stage with a small margin; not clamped. */
 export function fitZoom(stage: Scrollable, sceneWidth: number, sceneHeight: number): number {
   return Math.min((stage.clientWidth - STAGE_MARGIN) / sceneWidth, (stage.clientHeight - STAGE_MARGIN) / sceneHeight);
 }
 
+/**
+ * The stage's scroll after zooming from `was` to `now`, keeping one point of the board still on screen.
+ *
+ * The point is the pointer's position, given in client coordinates against the stage's box, or the
+ * middle of the stage when there is no pointer.
+ */
 export function scrollKeepingPoint(
   stage: Scrollable,
   box: { left: number; top: number },

@@ -18,19 +18,37 @@ export class TextNote extends OwnedTabletopObject {
   @SyncVar() limitHeight: boolean = false;
   @SyncVar() overViewWidth: number = 250;
   @SyncVar() overViewMaxHeight: number = 250;
+  /**
+   * How the body is drawn: empty as it was typed, `formatted` with headings, lists, quotes and code
+   * read from the marks that start its lines. The body itself is the same either way.
+   */
+  @SyncVar() textFormat: string = '';
 
+  /** Whether the body is drawn with formatting; anything but `formatted` is drawn as typed. */
+  get isFormatted(): boolean {
+    return this.textFormat === 'formatted';
+  }
+  set isFormatted(formatted: boolean) {
+    this.textFormat = formatted ? 'formatted' : '';
+  }
+
+  /** How many grid cells wide the note is, kept in its common data. */
   get width(): number {
     return this.getCommonValue('width', 1);
   }
+  /** How many grid cells tall the note is, kept in its common data. */
   get height(): number {
     return this.getCommonValue('height', 1);
   }
+  /** The size the note's text is drawn at, kept in its common data. */
   get fontSize(): number {
     return this.getCommonValue('fontsize', 1);
   }
+  /** The note's title, kept in its common data. */
   get title(): string {
     return this.getCommonValue('title', '');
   }
+  /** The note's body text. Setting it does nothing when the note has no text element. */
   get text(): string {
     return this.getCommonValue('text', '');
   }
@@ -38,10 +56,12 @@ export class TextNote extends OwnedTabletopObject {
     this.setCommonValue('text', text);
   }
 
+  /** Brings the note in front of the other notes on the table. */
   toTopmost() {
     moveToTopmost(this);
   }
 
+  /** Makes a text note with its size, font size, title and body text, and registers it for sync. */
   static create(
     title: string,
     text: string,
