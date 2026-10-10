@@ -58,6 +58,12 @@ export const FIRST_PERSON_DEPTH_CELLS = 12;
 /** How far the view draws sharp, in cells; between here and the depth it is drawn more and more blurred. */
 export const FIRST_PERSON_CLEAR_CELLS = 6;
 const SIGHT_MARGIN_DEG = 40;
+/**
+ * How far in from its corners a cell is looked for when its middle is hidden, as a share of the way
+ * to the middle: ground and walls round a corner are drawn as far as a wall's corner would really
+ * leave them in view, rather than left black for want of their middles.
+ */
+const SIGHT_CORNER_INSET = 0.1;
 
 /** How brightly a cell of ground is drawn: seen now, or only remembered. */
 export type FirstPersonCellTier = 'lit' | 'dim';
@@ -271,6 +277,7 @@ export class FirstPersonService {
       blocking: blocking?.cells,
       blockingTops: blocking?.tops,
       blockingBases: blocking?.bases,
+      cornerInset: SIGHT_CORNER_INSET,
     });
   }
 

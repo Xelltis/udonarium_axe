@@ -144,6 +144,8 @@ interface PieceView {
   targeted: boolean;
   pick: number;
   bearing: number;
+  /** Whether the eye has a line of sight to it, which aiming straight ahead asks for. */
+  inLine: boolean;
   gauges: GaugeView[];
   badges: BuffBadge[];
   moreBadges: number;
@@ -379,6 +381,8 @@ export class FirstPersonViewComponent {
     const aspects = this.pictureAspects();
     const clear = this.firstPerson.clearPx();
     const reach = this.firstPerson.depthPx();
+    const sight = this.firstPerson.sight();
+    const grid = this.firstPerson.grid();
     const views: PieceView[] = [];
     for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
       if (piece.identifier === viewer.identifier) continue;
@@ -406,6 +410,7 @@ export class FirstPersonViewComponent {
         targeted: piece.targeted,
         pick,
         bearing: Math.abs((Math.atan2(lateralOf(eye, centre), depth) * 180) / Math.PI),
+        inLine: !sight || !grid || sight.get(cellIndexAt(grid, centre.x, centre.y)),
         gauges,
         badges: badges.slice(0, BUFF_BADGES_PER_ROW),
         moreBadges: Math.max(0, badges.length - BUFF_BADGES_PER_ROW),
@@ -749,7 +754,7 @@ export class FirstPersonViewComponent {
 
   private targetAhead(): void {
     const ahead = this.pieceViews()
-      .filter((view) => view.bearing <= TARGET_CONE_DEG)
+      .filter((view) => view.inLine && view.bearing <= TARGET_CONE_DEG)
       .sort((a, b) => a.bearing - b.bearing)[0];
     if (ahead) this.aim(ahead.id);
   }

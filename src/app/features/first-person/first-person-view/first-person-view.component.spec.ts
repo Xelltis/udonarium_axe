@@ -220,6 +220,34 @@ describe('FirstPersonViewComponent', () => {
     expect(enemy.targeted).toBe(false);
   });
 
+  it('does not aim with T at a piece a wall hides', () => {
+    const wall = Terrain.create('壁', 3, 1, 2, 'stone', 'slab');
+    wall.location = { name: 'table', x: 3 * GRID, y: 5 * GRID };
+    table.appendChild(wall);
+    const hidden = pieceAt(4, 3);
+    lookOutOf(pieceAt(4, 7));
+    mount();
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT', bubbles: true, cancelable: true }));
+
+    expect(hidden.targeted).toBe(false);
+  });
+
+  it('draws the ground a doorway hides only part of, rather than leaving it black', () => {
+    for (const col of [3, 5]) {
+      const jamb = Terrain.create('壁', 1, 1, 2, 'stone', 'slab');
+      jamb.location = { name: 'table', x: col * GRID, y: 8 * GRID };
+      table.appendChild(jamb);
+    }
+    lookOutOf(pieceAt(4, 8));
+    const grid = cellGridOf(table.width, table.height, GRID, GridType.SQUARE);
+
+    const view = element(mount());
+
+    expect(view.querySelector(`[data-quad="floor"][data-cell="${cellIndexOf(grid, 3, 7)}"]`)).not.toBeNull();
+    expect(view.querySelector(`[data-quad="floor"][data-cell="${cellIndexOf(grid, 5, 7)}"]`)).not.toBeNull();
+  });
+
   it('stands a lit lamp up in the corridor and lays a card on its floor', () => {
     const light = new LightSource();
     light.initialize();

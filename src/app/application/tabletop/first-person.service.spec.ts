@@ -228,6 +228,20 @@ describe('FirstPersonService', () => {
       expect(seen.get(cellIndexOf(grid, 5, 4))).toBe(false);
     });
 
+    it('sees ground a doorway hides the middle of but not the corners, as an eye would', () => {
+      block(3 * GRID, 8 * GRID, 1, 1);
+      block(5 * GRID, 8 * GRID, 1, 1);
+      const piece = pieceAt(4, 8);
+      service().enterSeat(piece.identifier);
+      const grid = cellGridOf(12, 12, GRID, GridType.SQUARE);
+
+      const seen = service().seen()!;
+
+      expect(seen.get(cellIndexOf(grid, 3, 7))).toBe(true);
+      expect(seen.get(cellIndexOf(grid, 5, 7))).toBe(true);
+      expect(seen.get(cellIndexOf(grid, 2, 8))).toBe(false);
+    });
+
     it('never shows a player more than the table shows them', () => {
       table.fogEnabled = true;
       touch(table.identifier);

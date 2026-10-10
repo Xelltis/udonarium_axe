@@ -3,6 +3,7 @@ import {
   cellCenterOf,
   cellCount,
   CellGrid,
+  cellPolygonOf,
   forEachCell,
   forEachCellInBox,
   forEachNeighbourCell,
@@ -31,6 +32,13 @@ export interface VisibleCellsOptions {
   blockingBases?: Float32Array;
   /** A guard against a board so large that one pass would stall the display. */
   maxCells?: number;
+  /**
+   * Counts an open cell whose middle is hidden when one of its corners is seen instead, each read
+   * this share of the way in towards the middle. For an eye that draws what it sees: a wall's
+   * corner that hides the middle of a cell still leaves the rest of it in view. Left out, only the
+   * middle counts, as a fog cleared cell by cell wants.
+   */
+  cornerInset?: number;
 }
 
 const DEFAULT_MAX_CELLS = 60_000;
@@ -80,7 +88,7 @@ export function computeVisibleCellsFor(source: SceneVisionSource, options: Visib
     spent++;
 
     if (!blocking?.get(cell)) {
-      if (reaches(cx, cy)) bits.set(cell);
+      if (reaches(cx, cy) || cornerIsReached(options, cell, cx, cy, reaches)) bits.set(cell);
       return;
     }
     // A roof an eye stands level with or above is ground to it, read where it lies. Asked at
@@ -103,6 +111,21 @@ export function computeVisibleCellsFor(source: SceneVisionSource, options: Visib
 
   forEachCandidate(source, options, widest, consider);
   return bits;
+}
+
+/** Whether a corner of an open cell is reached, where the options ask for corners to be read. */
+function cornerIsReached(
+  options: VisibleCellsOptions,
+  cell: number,
+  cx: number,
+  cy: number,
+  reaches: (x: number, y: number) => boolean
+): boolean {
+  const inset = options.cornerInset;
+  if (inset === undefined || !(inset > 0 && inset < 1)) return false;
+  return cellPolygonOf(options.grid, cell).some((corner) =>
+    reaches(corner.x + (cx - corner.x) * inset, corner.y + (cy - corner.y) * inset)
+  );
 }
 
 /**
