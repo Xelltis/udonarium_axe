@@ -1002,10 +1002,13 @@ export class GameCharacterComponent {
     this.labelStackFacing(this.isPoster() ? NOT_TURNED : this.billboardFacing(0))
   );
 
-  /** What the character is saying, over its piece; none while the room or this seat hides it. */
+  /**
+   * What the character is saying, over its piece; none while the room or this seat hides it, or the
+   * screen is in novel mode.
+   */
   readonly speechBubble = computed(() => {
     const character = this.gameCharacter();
-    if (!character || !this.overlay.speech() || !this.speechBubbles.roomAllows()) return null;
+    if (!character || !this.overlay.speech() || !this.speechBubbles.showsHere()) return null;
     return this.speechBubbles.bubbleOf(character.identifier)();
   });
 

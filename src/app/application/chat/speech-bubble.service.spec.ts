@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { SPEECH_BUBBLE_WAIT_MS, SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
+import { localDispatch } from '@axe/core/network/network-messaging';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -9,6 +10,7 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { SPEECH_BUBBLE_LIMIT } from '@axe/domain/chat/speech-bubble';
 import { Config } from '@axe/domain/peer/config';
+import { VN_MODE_EVENT } from '@axe/domain/visual-novel/vn-mode-event';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('SpeechBubbleService', () => {
@@ -164,6 +166,19 @@ describe('SpeechBubbleService', () => {
 
     expect(bubbleText(hero)).toBeNull();
     expect(others.every((other) => bubbleText(other) === 'はい')).toBe(true);
+  });
+
+  it('keeps bubbles out of sight while this screen is in novel mode, and shows them again after', () => {
+    expect(service.showsHere()).toBe(true);
+
+    localDispatch(VN_MODE_EVENT, { active: true });
+    expect(service.showsHere()).toBe(false);
+    say(hero, '「まだ続く」');
+    vi.advanceTimersByTime(SPEECH_BUBBLE_WAIT_MS);
+
+    localDispatch(VN_MODE_EVENT, { active: false });
+    expect(service.showsHere()).toBe(true);
+    expect(bubbleText(hero)).toBe('まだ続く');
   });
 
   it('brings nothing up in a room that turned bubbles off, and takes them down when it does', async () => {

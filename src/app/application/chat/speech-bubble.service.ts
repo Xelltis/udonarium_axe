@@ -1,6 +1,7 @@
 import { computed, DestroyRef, inject, Injectable, type Signal, signal, type WritableSignal } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { networkMessage$ } from '@axe/core/network/network-messaging';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -17,6 +18,7 @@ import {
 } from '@axe/domain/chat/speech-bubble';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { VN_MODE_EVENT } from '@axe/domain/visual-novel/vn-mode-event';
 
 /** A bubble over a piece: what it shows, and the line it shows. */
 export interface SpeechBubble extends SpeechBubbleContent {
@@ -71,8 +73,21 @@ export class SpeechBubbleService {
     return this.config()?.speechBubblesEnabled ?? true;
   });
 
+  private readonly novelMode = signal(false);
+
+  /**
+   * Whether bubbles show on this screen: the room shows them, and the screen is not in novel mode,
+   * whose window says the lines itself, a letter at a time, where a bubble would give them away
+   * whole. Lines still come up while it is, and show for what is left of their time once it closes.
+   */
+  readonly showsHere = computed(() => this.roomAllows() && !this.novelMode());
+
   constructor() {
     this.objectChange.messageAdded$.subscribe((event) => this.hear(event.messageIdentifier), this.destroyRef);
+    networkMessage$.subscribe((message) => {
+      if (message.eventName !== VN_MODE_EVENT) return;
+      this.novelMode.set(Boolean((message.data as { active?: unknown } | null)?.active));
+    }, this.destroyRef);
     this.objectChange.onObjectChangedFor(
       () => [...this.shown.values()].map((shown) => shown.messageIdentifier),
       (event) => this.recheck(event.identifier),
