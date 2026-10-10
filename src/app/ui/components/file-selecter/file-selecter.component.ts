@@ -1,15 +1,16 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ImageUploadPreferenceService } from '@axe/application/file/image-upload-preference.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { emitSelectFile } from '@axe/core/event/domain-events';
-import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
+import { ImageEditQueue } from '@axe/ui/components/image-editor/image-edit-queue.service';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -24,7 +25,8 @@ export class FileSelecterComponent {
   private readonly panelService = inject(PanelService);
   private readonly modalService = inject(ModalService);
   private readonly imageStorage = inject(ImageStorage);
-  private readonly fileArchiver = inject(FileArchiver);
+  private readonly editQueue = inject(ImageEditQueue);
+  protected readonly uploadPreference = inject(ImageUploadPreferenceService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly t = inject(TRANSLATE_FN);
@@ -146,14 +148,15 @@ export class FileSelecterComponent {
     return this.rolePermission.canEditTabletop;
   }
 
-  /** True while the pictures just chosen are being read into storage. */
+  /** True while the pictures just chosen are being edited and read into storage. */
   readonly uploading = signal(false);
 
   /** The names of the pictures last chosen that were too large to take in. */
   readonly oversized = signal<string[]>([]);
 
   /**
-   * Takes the pictures chosen in the upload dialog into storage.
+   * Takes the pictures chosen in the upload dialog into storage, through the image editor where
+   * they are set to open in it first or are too large to go straight in.
    *
    * A single picture that went in is picked straight away, closing the modal. Several are left
    * in the list to choose from, shown by switching to the untagged pictures where new ones land
@@ -167,7 +170,7 @@ export class FileSelecterComponent {
 
     this.uploading.set(true);
     try {
-      const { images, oversized } = await this.fileArchiver.loadImages(files);
+      const { images, oversized } = await this.editQueue.upload(files);
       this.oversized.set(oversized);
       if (images.length === 1 && oversized.length === 0) {
         this.onSelectedFile(images[0]);

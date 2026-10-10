@@ -63,17 +63,30 @@
     <button
       type="button"
       class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex cursor-pointer items-center gap-1 border border-solid px-2.5 py-1 text-[12px] whitespace-nowrap transition-[background,color,border-color] disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[14px]!"
-      data-testid="file-storage-clear-background"
-      [title]="'feature.file.fileStorage.clearBackgroundHint' | transloco"
+      data-testid="file-storage-edit"
+      [title]="'feature.file.fileStorage.editImageHint' | transloco"
       [disabled]="!checkedImage()"
-      (click)="clearBackgroundOfChecked()"
+      (click)="editChecked()"
     >
-      <i class="material-icons">format_color_reset</i>
-      {{ 'feature.file.fileStorage.clearBackground' | transloco }}
+      <i class="material-icons">edit</i>
+      {{ 'feature.file.fileStorage.editImage' | transloco }}
     </button>
     @if (notice(); as message) {
       <span class="text-ui-dim text-[11px]" data-testid="file-storage-notice">{{ message }}</span>
     }
+    <label
+      class="text-ui-muted ml-auto inline-flex cursor-pointer items-center gap-1 text-[12px] whitespace-nowrap select-none"
+      data-testid="file-storage-edit-first"
+      [title]="'ui.imageEditor.editFirstHint' | transloco"
+    >
+      <input
+        type="checkbox"
+        class="[accent-color:var(--ui-accent)]"
+        [checked]="uploadPreference.editFirst()"
+        (change)="uploadPreference.setEditFirst($any($event.target).checked)"
+      />
+      {{ 'ui.imageEditor.editFirst' | transloco }}
+    </label>
   </div>
 
   <div
@@ -116,8 +129,8 @@
     @for (file of images(); track file) {
       <div
         class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:border-ui-accent relative flex cursor-pointer flex-col items-center gap-1 border border-solid p-1.5 transition-[background,border-color] select-none hover:shadow-[0_0_0_2px_var(--ui-accent-glow)]"
-        [class.border-ui-accent!]="checkedFiles.has(file.identifier)"
-        [class.bg-ui-accent-bg!]="checkedFiles.has(file.identifier)"
+        [class.border-ui-accent!]="checkedFiles().has(file.identifier)"
+        [class.bg-ui-accent-bg!]="checkedFiles().has(file.identifier)"
         (click)="imgBlockClick(file.identifier)"
       >
         @if (file.url) {
@@ -136,7 +149,7 @@
           <input
             class="size-3.5 [accent-color:var(--ui-accent)]"
             type="checkbox"
-            [checked]="checkedFiles.has(file.identifier)"
+            [checked]="checkedFiles().has(file.identifier)"
             tabindex="-1"
           />
         </div>

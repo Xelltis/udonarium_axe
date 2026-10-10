@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
@@ -7,6 +6,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
+import { ImageEditQueue } from '@axe/ui/components/image-editor/image-edit-queue.service';
 
 describe('FileSelecterComponent', () => {
   let component: FileSelecterComponent;
@@ -45,11 +45,11 @@ describe('FileSelecterComponent', () => {
       return identifiers.map((identifier) => ImageFile.createEmpty(identifier));
     }
 
-    let loadImages: ReturnType<typeof vi.spyOn>;
+    let upload: ReturnType<typeof vi.spyOn>;
     let resolve: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
-      loadImages = vi.spyOn(TestBed.inject(FileArchiver), 'loadImages');
+      upload = vi.spyOn(TestBed.inject(ImageEditQueue), 'upload');
       resolve = vi.spyOn(component['modalService'], 'resolve').mockImplementation(() => {});
     });
 
@@ -88,12 +88,12 @@ describe('FileSelecterComponent', () => {
 
       await component.handleFileSelect(chose(picture('a.png')));
 
-      expect(loadImages).not.toHaveBeenCalled();
+      expect(upload).not.toHaveBeenCalled();
     });
 
     it('picks a single picture as soon as it is in', async () => {
       playing(PeerRole.Player);
-      loadImages.mockResolvedValue({ images: stored('image-a'), oversized: [] });
+      upload.mockResolvedValue({ images: stored('image-a'), oversized: [] });
 
       await component.handleFileSelect(chose(picture('a.png')));
 
@@ -103,7 +103,7 @@ describe('FileSelecterComponent', () => {
     it('leaves several in the list, showing the untagged ones where they land', async () => {
       playing(PeerRole.Player);
       component.selectTag.set('コマ');
-      loadImages.mockResolvedValue({ images: stored('image-a', 'image-b'), oversized: [] });
+      upload.mockResolvedValue({ images: stored('image-a', 'image-b'), oversized: [] });
 
       await component.handleFileSelect(chose(picture('a.png'), picture('b.png')));
 
@@ -115,7 +115,7 @@ describe('FileSelecterComponent', () => {
       playing(PeerRole.Player);
       const everyPicture = component['allTag'];
       component.selectTag.set(everyPicture);
-      loadImages.mockResolvedValue({ images: stored('image-a', 'image-b'), oversized: [] });
+      upload.mockResolvedValue({ images: stored('image-a', 'image-b'), oversized: [] });
 
       await component.handleFileSelect(chose(picture('a.png'), picture('b.png')));
 
@@ -124,7 +124,7 @@ describe('FileSelecterComponent', () => {
 
     it('names a picture too large to take, and picks nothing', async () => {
       playing(PeerRole.Player);
-      loadImages.mockResolvedValue({ images: [], oversized: ['huge.png'] });
+      upload.mockResolvedValue({ images: [], oversized: ['huge.png'] });
 
       await component.handleFileSelect(chose(picture('huge.png')));
 
@@ -136,7 +136,7 @@ describe('FileSelecterComponent', () => {
 
     it('does not close on the one that went in when another was too large', async () => {
       playing(PeerRole.Player);
-      loadImages.mockResolvedValue({ images: stored('image-a'), oversized: ['huge.png'] });
+      upload.mockResolvedValue({ images: stored('image-a'), oversized: ['huge.png'] });
 
       await component.handleFileSelect(chose(picture('a.png'), picture('huge.png')));
 
@@ -145,7 +145,7 @@ describe('FileSelecterComponent', () => {
 
     it('clears the chooser so the same file can be chosen again', async () => {
       playing(PeerRole.Player);
-      loadImages.mockResolvedValue({ images: [], oversized: [] });
+      upload.mockResolvedValue({ images: [], oversized: [] });
       const event = chose(picture('a.png'));
 
       await component.handleFileSelect(event);

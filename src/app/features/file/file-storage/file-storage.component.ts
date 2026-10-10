@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ImageUploadPreferenceService } from '@axe/application/file/image-upload-preference.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -10,9 +11,8 @@ import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
-import { withoutExtension } from '@axe/core/util/file-name';
 import { canBrowseImage, ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
-import { ImageIntakeComponent } from '@axe/features/file/image-intake/image-intake.component';
+import { ImageEditQueue } from '@axe/ui/components/image-editor/image-edit-queue.service';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -33,6 +33,8 @@ export class FileStorageComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly editQueue = inject(ImageEditQueue);
+  protected readonly uploadPreference = inject(ImageUploadPreferenceService);
 
   /** The label shown for a tag in the tag filter, with the all and untagged entries translated. */
   displayTagName(tag: string): string {
@@ -41,7 +43,8 @@ export class FileStorageComponent {
     return tag;
   }
 
-  protected checkedFiles = new Set<string>();
+  /** The pictures ticked, by identifier. */
+  protected readonly checkedFiles = signal<ReadonlySet<string>>(new Set());
 
   /** Only the master may keep a picture back, or see one that is being kept. */
   get canKeepSecret(): boolean {
@@ -142,7 +145,7 @@ export class FileStorageComponent {
     const changeableImages = this.images();
 
     for (const img of changeableImages) {
-      if (this.checkedFiles.has(img.context.identifier)) {
+      if (this.checkedFiles().has(img.context.identifier)) {
         let imageTag = ImageTag.get(img.context.identifier);
         imageTag = imageTag ? imageTag : ImageTag.create(img.context.identifier);
         if (candidate === this.t('feature.file.fileStorage.unset')) {
@@ -165,7 +168,7 @@ export class FileStorageComponent {
 
     for (const image of this.images()) {
       const identifier = image.context.identifier;
-      if (!this.checkedFiles.has(identifier)) continue;
+      if (!this.checkedFiles().has(identifier)) continue;
       const tag = ImageTag.get(identifier) ?? ImageTag.create(identifier);
       // What the tool brought with it is nobody's to keep or to give up.
       if (tag.tag === SYSTEM_RESERVED_TAG) continue;
@@ -184,23 +187,21 @@ export class FileStorageComponent {
   }
 
   /**
-   * Loads the files chosen in the upload dialog into storage, then clears the input so the same
-   * file can be chosen again.
+   * Takes in the pictures chosen in the upload dialog, through the image editor where they are set
+   * to open in it first or are too large to go straight in, then clears the input so the same file
+   * can be chosen again.
    *
    * A seat that may not edit the table loads nothing.
    */
   handleFileSelect(event: Event) {
     const input = event.target as HTMLInputElement;
-    if (!this.rolePermission.canEditTabletop) {
-      input.value = '';
-      return;
-    }
-    const files = input.files;
-    if (files && files.length) this.fileArchiver.load(files);
+    const files = Array.from(input.files ?? []);
     input.value = '';
+    if (!this.rolePermission.canEditTabletop || files.length === 0) return;
+    void this.editQueue.upload(files);
   }
 
-  /** What the panel has to say about the last paste or clearing asked for, empty when nothing. */
+  /** What the panel has to say about the last paste or edit asked for, empty when nothing. */
   readonly notice = signal('');
 
   /**
@@ -216,7 +217,7 @@ export class FileStorageComponent {
       for (const item of await navigator.clipboard.read()) {
         const type = item.types.find((each) => each.startsWith('image/'));
         if (!type) continue;
-        this.openIntake(await item.getType(type), pastedImageName(type));
+        void this.editQueue.edit({ blob: await item.getType(type), name: pastedImageName(type) });
         return;
       }
       this.notice.set(this.t('feature.file.fileStorage.pasteNothing'));
@@ -234,36 +235,41 @@ export class FileStorageComponent {
     if (!image || !this.rolePermission.canEditTabletop) return;
     event.preventDefault();
     this.notice.set('');
-    this.openIntake(image, pastedImageName(image.type));
+    void this.editQueue.edit({ blob: image, name: pastedImageName(image.type) });
   }
 
-  /** The one picture ticked, which the background can be cleared from; null unless exactly one is. */
+  /**
+   * The one picture ticked among those in the list, which can be edited; null unless exactly one
+   * is. A ticked picture that has left the list, as one replaced by its edit, does not count.
+   */
   checkedImage(): ImageFile | null {
-    if (this.checkedFiles.size !== 1) return null;
-    const [identifier] = this.checkedFiles;
-    return this.images().find((image) => image.identifier === identifier) ?? null;
+    const checked = this.images().filter((image) => this.checkedFiles().has(image.identifier));
+    return checked.length === 1 ? checked[0] : null;
   }
 
-  /** Opens the one picture ticked, to add a copy of it with its background cleared. */
-  async clearBackgroundOfChecked(): Promise<void> {
+  /**
+   * Opens the one picture ticked in the image editor, to put the edited picture in its place,
+   * wherever in the room it is shown. The tick moves to the edited picture, ready to edit again.
+   */
+  async editChecked(): Promise<void> {
     const image = this.checkedImage();
     if (!image || !this.rolePermission.canEditTabletop) return;
     this.notice.set('');
+    let blob: Blob;
     try {
-      const blob = image.blob ?? (await (await fetch(image.url)).blob());
-      this.openIntake(blob, clearedImageName(image.name));
+      blob = image.blob ?? (await (await fetch(image.url)).blob());
     } catch {
-      this.notice.set(this.t('feature.file.imageIntake.failed'));
+      this.notice.set(this.t('ui.imageEditor.failed'));
+      return;
     }
-  }
-
-  private openIntake(blob: Blob, name: string): void {
-    const intake = this.panelService.open(ImageIntakeComponent, {
-      title: this.t('feature.file.imageIntake.title'),
-      width: 480,
-      height: 520,
+    const outcome = await this.editQueue.edit({ blob, name: image.name, replaces: image });
+    if (outcome.kind !== 'added') return;
+    this.checkedFiles.update((checked) => {
+      const next = new Set(checked);
+      next.delete(image.identifier);
+      next.add(outcome.image.identifier);
+      return next;
     });
-    void intake.open(blob, name);
   }
 
   /** Selects a picture and announces it as the chosen file to anything waiting for one. */
@@ -275,11 +281,11 @@ export class FileStorageComponent {
 
   /** Ticks or unticks a picture for the bulk tag and keep-back actions. */
   imgBlockClick(identifier: string) {
-    if (this.checkedFiles.has(identifier)) {
-      this.checkedFiles.delete(identifier);
-    } else {
-      this.checkedFiles.add(identifier);
-    }
+    this.checkedFiles.update((checked) => {
+      const next = new Set(checked);
+      if (!next.delete(identifier)) next.add(identifier);
+      return next;
+    });
   }
 }
 
@@ -290,10 +296,4 @@ function pastedImageName(type: string, at = new Date()): string {
     `${at.getFullYear()}${pad(at.getMonth() + 1)}${pad(at.getDate())}` +
     `-${pad(at.getHours())}${pad(at.getMinutes())}${pad(at.getSeconds())}`;
   return `pasted-${stamp}.${MimeType.extension(type)}`;
-}
-
-/** The name the copy of a picture with its background cleared is stored under. */
-function clearedImageName(name: string): string {
-  const base = withoutExtension(name);
-  return `${base.length > 0 ? base : 'image'}-clear.png`;
 }

@@ -1643,19 +1643,8 @@
         "pasteHint": "Look over the picture on the clipboard before adding it (or click this list and press Ctrl+V)",
         "pasteNothing": "There is no picture on the clipboard",
         "pasteWithKeys": "The browser did not hand the clipboard over. Click this list and press Ctrl+V",
-        "clearBackground": "Clear background",
-        "clearBackgroundHint": "Adds a copy of the one ticked picture with its background cleared"
-      },
-      "imageIntake": {
-        "title": "Add a picture",
-        "hint": "Click the background to clear the run of colour joined to that point. Click as often as you like.",
-        "tolerance": "Colour range",
-        "undo": "Undo",
-        "cancel": "Cancel",
-        "add": "Add",
-        "failed": "This picture could not be read",
-        "tooLarge": "It is over 2MB and cannot be added. Clear a different area or use a smaller picture",
-        "saveFailed": "The picture could not be stored. Please try again"
+        "editImage": "Edit",
+        "editImageHint": "Edits the one ticked picture and puts the result in its place, wherever it is used"
       },
       "tooLarge": {
         "one": "“{{name}}” was not loaded because it is too large ({{limits}})",

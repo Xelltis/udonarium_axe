@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { PanelService } from '@axe/application/ui/panel.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -8,6 +7,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { FileStorageComponent } from '@axe/features/file/file-storage/file-storage.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { ImageEditQueue } from '@axe/ui/components/image-editor/image-edit-queue.service';
 
 describe('FileStorageComponent', () => {
   let component: FileStorageComponent;
@@ -36,37 +36,37 @@ describe('FileStorageComponent', () => {
   describe('keeping track of which files are picked', () => {
     it('picks one that was not picked', () => {
       component.imgBlockClick('img-123');
-      expect(component['checkedFiles'].has('img-123')).toBe(true);
+      expect(component['checkedFiles']().has('img-123')).toBe(true);
     });
 
     it('unpicks one that was', () => {
       component.imgBlockClick('img-123');
       component.imgBlockClick('img-123');
-      expect(component['checkedFiles'].has('img-123')).toBe(false);
+      expect(component['checkedFiles']().has('img-123')).toBe(false);
     });
 
     it('keeps several apart', () => {
       component.imgBlockClick('img-a');
       component.imgBlockClick('img-b');
-      expect(component['checkedFiles'].has('img-a')).toBe(true);
-      expect(component['checkedFiles'].has('img-b')).toBe(true);
+      expect(component['checkedFiles']().has('img-a')).toBe(true);
+      expect(component['checkedFiles']().has('img-b')).toBe(true);
 
       component.imgBlockClick('img-a');
-      expect(component['checkedFiles'].has('img-a')).toBe(false);
-      expect(component['checkedFiles'].has('img-b')).toBe(true);
+      expect(component['checkedFiles']().has('img-a')).toBe(false);
+      expect(component['checkedFiles']().has('img-b')).toBe(true);
     });
   });
 
   describe('changeTag', () => {
     it('returns early for the tag that means everything', () => {
-      component['checkedFiles'].add('img-1');
+      component['checkedFiles'].set(new Set(['img-1']));
       component.newTagName.set('全て');
       component.changeTag();
       // finishes without error, changing no tag
     });
 
     it('returns early for the reserved tag', () => {
-      component['checkedFiles'].add('img-1');
+      component['checkedFiles'].set(new Set(['img-1']));
       component.newTagName.set('システム予約');
       component.changeTag();
       // finishes without error
@@ -134,7 +134,7 @@ describe('FileStorageComponent', () => {
   });
 
   describe('bringing a picture in to look over first', () => {
-    let opened: { blob: Blob; name: string }[];
+    let opened: { blob: Blob; name: string; replaces?: string }[];
     let canEdit: boolean;
     const ownClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
 
@@ -150,12 +150,14 @@ describe('FileStorageComponent', () => {
       canEdit = true;
       vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockImplementation(() => canEdit);
       opened = [];
-      vi.spyOn(TestBed.inject(PanelService), 'open').mockReturnValue({
-        open: (blob: Blob, name: string) => {
-          opened.push({ blob, name });
-          return Promise.resolve();
-        },
-      } as never);
+      vi.spyOn(TestBed.inject(ImageEditQueue), 'edit').mockImplementation(async (request) => {
+        opened.push({
+          blob: request.blob,
+          name: request.name,
+          ...(request.replaces ? { replaces: request.replaces.identifier } : {}),
+        });
+        return { kind: 'closed' };
+      });
     });
 
     afterEach(() => {
@@ -217,7 +219,7 @@ describe('FileStorageComponent', () => {
       expect(refused).not.toBe(nothing);
     });
 
-    it('offers to clear the background of one ticked picture, and of no more', async () => {
+    it('offers to edit one ticked picture in its place, and no more', async () => {
       const storage = TestBed.inject(ImageStorage);
       const blob = new Blob(['png'], { type: 'image/png' });
       for (const identifier of ['map-one', 'map-two']) {
@@ -240,11 +242,45 @@ describe('FileStorageComponent', () => {
         expect(component.checkedImage()).toBeNull();
 
         component.imgBlockClick('map-two');
-        await component.clearBackgroundOfChecked();
-        expect(opened).toEqual([{ blob, name: 'map-one-clear.png' }]);
+        await component.editChecked();
+        expect(opened).toEqual([{ blob, name: 'map-one.png', replaces: 'map-one' }]);
       } finally {
         storage.delete('map-one');
         storage.delete('map-two');
+      }
+    });
+    it('moves the tick to the picture that took the place of the one edited, ready to edit again', async () => {
+      const storage = TestBed.inject(ImageStorage);
+      const blob = new Blob(['png'], { type: 'image/png' });
+      const put = (identifier: string) =>
+        storage.add({
+          identifier,
+          name: `${identifier}.png`,
+          type: 'image/png',
+          blob,
+          url: `blob:${identifier}`,
+          thumbnail: { type: '', blob: null, url: '' },
+        });
+      put('map-one');
+      component.selectTag.set('__all__');
+      vi.mocked(TestBed.inject(ImageEditQueue).edit).mockImplementation(async (request) => {
+        const edited = put('map-one-edited');
+        ImageTag.create(request.replaces!.identifier).tag = SYSTEM_RESERVED_TAG;
+        return { kind: 'added', image: edited };
+      });
+
+      try {
+        component.imgBlockClick('map-one');
+        await component.editChecked();
+        expect(component.checkedImage()?.identifier).toBe('map-one-edited');
+
+        component.imgBlockClick('map-one-edited');
+        component.imgBlockClick('map-one-edited');
+        component['checkedFiles'].update((checked) => new Set([...checked, 'map-one']));
+        expect(component.checkedImage()?.identifier).toBe('map-one-edited');
+      } finally {
+        storage.delete('map-one');
+        storage.delete('map-one-edited');
       }
     });
   });

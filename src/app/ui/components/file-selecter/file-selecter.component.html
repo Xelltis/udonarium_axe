@@ -19,6 +19,21 @@
         >
       </label>
     }
+    @if (canUpload) {
+      <label
+        class="text-ui-muted ml-auto inline-flex cursor-pointer items-center gap-1 text-[12px] whitespace-nowrap select-none"
+        data-testid="file-selecter-edit-first"
+        [title]="'ui.imageEditor.editFirstHint' | transloco"
+      >
+        <input
+          type="checkbox"
+          class="[accent-color:var(--ui-accent)]"
+          [checked]="uploadPreference.editFirst()"
+          (change)="uploadPreference.setEditFirst($any($event.target).checked)"
+        />
+        {{ 'ui.imageEditor.editFirst' | transloco }}
+      </label>
+    }
   </div>
   <div class="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] content-start gap-2 px-0 pt-3 pb-0">
     @if (oversized().length > 0) {
