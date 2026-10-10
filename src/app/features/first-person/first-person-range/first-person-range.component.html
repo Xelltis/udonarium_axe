@@ -1,0 +1,10 @@
+<div class="absolute top-0 left-0 size-0" [style.clip-path]="clipPath()">
+  <canvas
+    class="absolute block"
+    [style.left.px]="-reachPx()"
+    [style.top.px]="-reachPx()"
+    [style.opacity]="opacity()"
+    #gridCanvas
+  ></canvas>
+  <canvas class="absolute block" [style.left.px]="-reachPx()" [style.top.px]="-reachPx()" #rangeCanvas></canvas>
+</div>

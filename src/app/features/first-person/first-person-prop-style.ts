@@ -10,7 +10,10 @@ import { billboardStyle, QuadStyle } from '@axe/features/first-person/first-pers
 
 const GLOW_FALLBACK = '#ffd68c';
 
-export function propStyle(prop: FirstPersonProp, yaw: number, scale: number): QuadStyle {
+/** Where a prop lies or stands and how big it is, which is all its placing and cutting read. */
+export type PropShape = Pick<FirstPersonProp, 'kind' | 'x' | 'y' | 'z' | 'width' | 'height' | 'rotate'>;
+
+export function propStyle(prop: PropShape, yaw: number, scale: number): QuadStyle {
   const size = { width: px(prop.width * scale), height: px(prop.height * scale), transformOrigin: '0 0' };
   if (prop.kind === 'stand') {
     return billboardStyle({ x: prop.x, y: prop.y, z: prop.z }, prop.width, prop.height, yaw, scale);
@@ -35,7 +38,7 @@ export function glowStyle(glow: FirstPersonGlow, yaw: number, scale: number): Qu
   };
 }
 
-export function lyingCorners(prop: FirstPersonProp): CellPoint[] {
+export function lyingCorners(prop: PropShape): CellPoint[] {
   return [
     [-0.5, -0.5],
     [0.5, -0.5],
@@ -44,7 +47,7 @@ export function lyingCorners(prop: FirstPersonProp): CellPoint[] {
   ].map(([u, v]) => worldOf(prop, u * prop.width, v * prop.height));
 }
 
-export function lyingSamples(prop: FirstPersonProp, stepPx: number): CellPoint[] {
+export function lyingSamples(prop: PropShape, stepPx: number): CellPoint[] {
   const across = Math.max(1, Math.ceil(prop.width / stepPx));
   const down = Math.max(1, Math.ceil(prop.height / stepPx));
   const points: CellPoint[] = [];
@@ -58,7 +61,7 @@ export function lyingSamples(prop: FirstPersonProp, stepPx: number): CellPoint[]
   return points;
 }
 
-export function propClip(prop: FirstPersonProp, eye: EyeFrame, nearPx: number, scale: number): string | null {
+export function propClip(prop: PropShape, eye: EyeFrame, nearPx: number, scale: number): string | null {
   if (prop.kind === 'stand') return depthOf(eye, prop) > nearPx ? '' : null;
   if (prop.kind === 'board') {
     const along = { x: Math.cos(radiansOf(prop)) * (prop.width / 2), y: Math.sin(radiansOf(prop)) * (prop.width / 2) };
@@ -86,13 +89,13 @@ export function propClip(prop: FirstPersonProp, eye: EyeFrame, nearPx: number, s
   return `polygon(${local.join(', ')})`;
 }
 
-function worldOf(prop: FirstPersonProp, u: number, v: number): CellPoint {
+function worldOf(prop: PropShape, u: number, v: number): CellPoint {
   const cos = Math.cos(radiansOf(prop));
   const sin = Math.sin(radiansOf(prop));
   return { x: prop.x + u * cos - v * sin, y: prop.y + u * sin + v * cos };
 }
 
-function radiansOf(prop: FirstPersonProp): number {
+function radiansOf(prop: PropShape): number {
   return (prop.rotate * Math.PI) / 180;
 }
 

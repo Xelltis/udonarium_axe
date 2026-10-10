@@ -47,6 +47,8 @@ import {
 } from '@axe/domain/tabletop/first-person/first-person-scene';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
+import { GridType } from '@axe/domain/tabletop/game-table';
+import { RangeArea } from '@axe/domain/tabletop/range';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { EffectTargetOverlayComponent } from '@axe/features/effect/effect-target-overlay/effect-target-overlay.component';
 import {
@@ -55,7 +57,14 @@ import {
 } from '@axe/features/effect/table-effect-overlay/table-effect-overlay.component';
 import { facingNameOf, isHexLattice, padRows } from '@axe/features/first-person/first-person-hud';
 import { FirstPersonCommand, firstPersonKeyDown } from '@axe/features/first-person/first-person-keys';
-import { glowStyle, lyingSamples, propClip, propStyle } from '@axe/features/first-person/first-person-prop-style';
+import {
+  glowStyle,
+  lyingSamples,
+  propClip,
+  PropShape,
+  propStyle,
+} from '@axe/features/first-person/first-person-prop-style';
+import { FirstPersonRangeComponent } from '@axe/features/first-person/first-person-range/first-person-range.component';
 import {
   billboardHudTransform,
   billboardLiftPx,
@@ -70,6 +79,7 @@ import {
   shadeFor,
   wallQuadStyle,
 } from '@axe/features/first-person/first-person-style';
+import { rangeQuadrantCells } from '@axe/features/tabletop/range/range-paint';
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
 import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { paintMinimap } from '@axe/infrastructure/first-person/minimap-painter';
@@ -87,6 +97,8 @@ const EFFECT_LIFT_CELLS = 0.15;
 const EFFECT_RISE_CELLS = 0.3;
 const PIECE_WIDE_RATIO = 0.9;
 const PIECE_TALL_RATIO = 1.5;
+/** How far over the floor a range area is laid, clear of the floor and of anything lying on it. */
+const RANGE_LIFT_PX = 0.75;
 
 interface QuadView {
   id: string;
@@ -131,6 +143,12 @@ interface GlowView {
   style: QuadStyle;
 }
 
+interface RangeView {
+  id: string;
+  range: RangeArea;
+  style: QuadStyle;
+}
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'first-person-view',
@@ -139,7 +157,13 @@ interface GlowView {
     class: 'absolute inset-0 block select-none overflow-hidden bg-black',
     '(document:keydown)': 'onKeydown($event)',
   },
-  imports: [TranslocoModule, EffectTargetOverlayComponent, TableEffectOverlayComponent, TableWeatherOverlayComponent],
+  imports: [
+    TranslocoModule,
+    EffectTargetOverlayComponent,
+    FirstPersonRangeComponent,
+    TableEffectOverlayComponent,
+    TableWeatherOverlayComponent,
+  ],
 })
 export class FirstPersonViewComponent {
   protected readonly firstPerson = inject(FirstPersonService);
@@ -208,9 +232,9 @@ export class FirstPersonViewComponent {
     this.destroyRef.onDestroy(() => this.stopGlide());
   }
 
-  private readonly gridSize = computed(() => this.firstPerson.table()?.gridSize ?? 0);
+  protected readonly gridSize = computed(() => this.firstPerson.table()?.gridSize ?? 0);
 
-  private readonly scale = computed(() => scaleOf(this.gridSize()));
+  protected readonly scale = computed(() => scaleOf(this.gridSize()));
 
   protected readonly perspective = computed(() => perspectivePx(this.width() || 1280, FIRST_PERSON_FOV_DEG));
 
@@ -378,6 +402,41 @@ export class FirstPersonViewComponent {
     return views;
   });
 
+  protected readonly gridType = computed(() => this.firstPerson.table()?.gridType ?? GridType.SQUARE);
+
+  /**
+   * The range areas on the table that reach ground in sight, each laid on the floor in a square
+   * as wide as its canvases, cut at the eye where it runs under it.
+   */
+  protected readonly rangeViews = computed<RangeView[]>(() => {
+    const pose = this.shown();
+    const gridSize = this.gridSize();
+    if (!pose || gridSize <= 0) return [];
+    this.objectChange.collectionOf(RangeArea.aliasName)();
+    const eye = eyeFrameOf(pose);
+    const scale = this.scale();
+    const views: RangeView[] = [];
+    for (const range of this.objectStore.getObjects<RangeArea>(RangeArea)) {
+      this.objectChange.versionOf(range.identifier)();
+      if (!range.isVisibleOnTable) continue;
+      const side = rangeQuadrantCells(range) * gridSize * 2;
+      const footprint: PropShape = {
+        kind: 'lie',
+        x: range.location.x,
+        y: range.location.y,
+        z: range.posZ + range.altitude * gridSize + RANGE_LIFT_PX,
+        width: side,
+        height: side,
+        rotate: 0,
+      };
+      const clip = propClip(footprint, eye, gridSize * NEAR_CELLS, scale);
+      if (clip === null || !this.propInSight(pose, footprint)) continue;
+      const style = propStyle(footprint, pose.yaw, scale);
+      views.push({ id: range.identifier, range, style: clip ? { ...style, clipPath: clip } : style });
+    }
+    return views;
+  });
+
   protected readonly glowViews = computed<GlowView[]>(() => {
     const pose = this.shown();
     if (!pose) return [];
@@ -524,7 +583,7 @@ export class FirstPersonViewComponent {
     return depth > this.gridSize() * NEAR_CELLS * 4 && depth <= this.firstPerson.depthPx();
   }
 
-  private propInSight(pose: FirstPersonPose, prop: FirstPersonProp): boolean {
+  private propInSight(pose: FirstPersonPose, prop: PropShape): boolean {
     if (prop.kind === 'lie') return lyingSamples(prop, this.gridSize()).some((point) => this.inSight(pose, point));
     if (prop.kind === 'board') {
       const heading = headingVector(prop.rotate);

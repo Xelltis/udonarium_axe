@@ -21,6 +21,7 @@ import { FogMemory } from '@axe/domain/tabletop/fog/fog-memory';
 import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
+import { RangeArea } from '@axe/domain/tabletop/range';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { scaleOf } from '@axe/features/first-person/first-person-style';
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
@@ -563,6 +564,31 @@ describe('FirstPersonViewComponent', () => {
       fixture.detectChanges();
 
       expect(drawsCell(fixture, 4, 3)).toBe(true);
+    });
+  });
+
+  describe('range areas on the floor', () => {
+    function rangeAt(col: number, row: number): RangeArea {
+      const range = RangeArea.create('範囲', 1, 1, 50);
+      range.type = 'CIRCLE';
+      range.location = { name: 'table', x: col * GRID, y: row * GRID };
+      return range;
+    }
+
+    it('lays a range ahead of the piece on the floor', () => {
+      corridor();
+      lookOutOf(pieceAt(4, 7));
+      rangeAt(4, 4);
+
+      expect(element(mount()).querySelectorAll('[data-range] first-person-range')).toHaveLength(1);
+    });
+
+    it('leaves out a range behind the piece', () => {
+      corridor();
+      lookOutOf(pieceAt(4, 7));
+      rangeAt(4, 11);
+
+      expect(element(mount()).querySelectorAll('[data-range]')).toHaveLength(0);
     });
   });
 });
