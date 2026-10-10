@@ -6,6 +6,7 @@ import {
   renderCustom,
 } from '@axe/features/tabletop/range/range-render-custom';
 import {
+  renderDiamond,
   renderHexagon,
   renderLine,
   renderPentagon,
@@ -42,6 +43,11 @@ export class RangeRender {
   /** Draws a square range onto this pair of canvases and gives back its clip. */
   renderSquare(setting: RangeRenderSetting): ClipAreaSquare {
     return renderSquare(this.canvasElement, this.canvasElementRange, setting);
+  }
+
+  /** Draws a diamond range onto this pair of canvases and gives back its clip. */
+  renderDiamond(setting: RangeRenderSetting): ClipAreaSquare {
+    return renderDiamond(this.canvasElement, this.canvasElementRange, setting);
   }
 
   /** Draws a cone range onto this pair of canvases and gives back its clip. */

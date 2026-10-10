@@ -1,5 +1,4 @@
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
-import { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { generateUuid } from '@axe/core/util/uuid';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -26,7 +25,11 @@ export class RangeArea extends TabletopObject {
   @SyncVar() offSetY: boolean = false;
   @SyncVar() gridColor: string = RANGE_DEFAULT_FILL_COLOR;
   @SyncVar() rangeColor: string = RANGE_DEFAULT_BORDER_COLOR;
-  @SyncVar('type') private _type: string = 'CORN';
+  /**
+   * The range's shape: `LINE`, `CORN`, `TRIANGLE`, `SQUARE`, `DIAMOND` (the cells a walk of the
+   * range's length reaches, counting no diagonals), `PENTAGON`, `HEXAGON`, `CIRCLE` or `CUSTOM`.
+   */
+  @SyncVar() type: string = 'CORN';
   @SyncVar() fillOutLine: boolean = false;
   @SyncVar() subDivisionSnapPolygonal: boolean = true;
   @SyncVar() cellPattern: string = '';
@@ -34,23 +37,6 @@ export class RangeArea extends TabletopObject {
   @SyncVar() isRotatable: boolean = false;
   /** The hotbar slot that laid this out, so the same slot can take it down again later. */
   @SyncVar() laidByHotbarSlot: string = '';
-
-  /**
-   * The range's shape, such as `CORN`, `SQUARE` or `CUSTOM`.
-   *
-   * Setting the retired `DIAMOND` shape stores a square turned 45 degrees instead.
-   */
-  get type(): string {
-    return this._type;
-  }
-  set type(type: string) {
-    if (type === 'DIAMOND') {
-      this._type = 'SQUARE';
-      this.rotate = this.rotate + 45;
-      return;
-    }
-    this._type = type;
-  }
 
   /** How far the range reaches, in grid cells, kept in its common data. */
   get length(): number {
@@ -91,24 +77,6 @@ export class RangeArea extends TabletopObject {
   followingCounterDummyCount() {
     this.followingCounterDummy++;
     if (this.followingCounterDummy >= 50) this.followingCounterDummy = 0;
-  }
-
-  /**
-   * Rewrites a range saved with the retired diamond shape as a turned square when it arrives in the
-   * store.
-   */
-  override onStoreAdded() {
-    super.onStoreAdded();
-    this.normalizeLegacyDiamondType();
-  }
-
-  /**
-   * Applies a synced update, then rewrites the retired diamond shape as a turned square if the
-   * update carried one.
-   */
-  override apply(context: ObjectContext) {
-    super.apply(context);
-    this.normalizeLegacyDiamondType();
   }
 
   /**
@@ -161,16 +129,10 @@ export class RangeArea extends TabletopObject {
     const width = Math.max(1, bb.width);
     const length = Math.max(1, bb.height);
     const object = RangeArea.create(name, width, length, opacity, options.identifier);
-    object._type = 'CUSTOM';
+    object.type = 'CUSTOM';
     object.cellPattern = cellPattern;
     object.customGridType = gridType;
     object.isRotatable = options.isRotatable === true;
     return object;
-  }
-
-  private normalizeLegacyDiamondType() {
-    if (this._type !== 'DIAMOND') return;
-    this.attributes['type'] = 'SQUARE';
-    this.attributes['rotate'] = Number(this.rotate) + 45;
   }
 }
