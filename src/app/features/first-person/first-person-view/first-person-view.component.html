@@ -244,13 +244,13 @@
         [style.transform]="effectScale()"
       >
         <table-effect-overlay [eye]="eye" />
-        <effect-target-overlay />
+        <effect-target-overlay [badges]="false" />
       </div>
     }
   </div>
 </div>
 
-<table-weather-overlay />
+<table-weather-overlay [fromInside]="true" />
 
 @if (flash()) {
   <div class="animate-effect-flash pointer-events-none absolute inset-0" [style.background]="flash()"></div>

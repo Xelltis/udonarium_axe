@@ -205,8 +205,8 @@ interface SkyView {
     '(document:keydown)': 'onKeydown($event)',
   },
   imports: [
-    TranslocoModule,
     EffectTargetOverlayComponent,
+    TranslocoModule,
     FirstPersonFogAirComponent,
     FirstPersonRangeComponent,
     TableEffectOverlayComponent,

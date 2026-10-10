@@ -6,5 +6,7 @@
 }
 @for (mark of marks(); track mark.identifier) {
   <div [ngStyle]="markStyle(mark)"></div>
-  <div [ngStyle]="badgeStyle(mark)">{{ mark.order }}</div>
+  @if (badges()) {
+    <div [ngStyle]="badgeStyle(mark)">{{ mark.order }}</div>
+  }
 }

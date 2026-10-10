@@ -59,6 +59,17 @@ describe('EffectTargetOverlayComponent', () => {
     expect(badges.map((badge) => badge.textContent?.trim())).toEqual(['1', '2']);
   });
 
+  it('marks the targets without their numbers where it is asked to leave the badges off', () => {
+    fixture.componentRef.setInput('badges', false);
+    targeting.begin(preset);
+    targeting.pick(characters[1].identifier);
+    targeting.pick(characters[0].identifier);
+    fixture.detectChanges();
+
+    expect(elements()).toHaveLength(2);
+    expect(elements().filter((element) => element.textContent?.trim().length)).toEqual([]);
+  });
+
   it('draws the line only once there is a caster', () => {
     targeting.begin(preset);
     targeting.pick(characters[1].identifier);
