@@ -49,7 +49,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
-import { eyeHeightPx, SceneVisionSource } from '@axe/domain/tabletop/vision-scene';
+import { SceneVisionSource } from '@axe/domain/tabletop/vision-scene';
 import { facingBearing } from '@axe/domain/tabletop/vision-shape';
 import { applyLightPreset, LightPreset, VisionType } from '@axe/domain/tabletop/vision-types';
 
@@ -249,6 +249,10 @@ export class FirstPersonService {
     return null;
   }
 
+  /**
+   * The cells the eye has a line of sight to, looked at from the height the view is drawn from, so
+   * what the eye is drawn looking over it also sees over.
+   */
   private eyeCells(ignoreDarkness: boolean): CellBits | null {
     const pose = this.pose();
     const piece = this.piece();
@@ -264,7 +268,7 @@ export class FirstPersonService {
       ...(own ?? { type: VisionType.NORMAL, owner: piece.owner, sourceId: piece.identifier }),
       x: pose.x,
       y: pose.y,
-      z: eyeHeightPx(piece.altitude, piece.posZ, scene.gridSize),
+      z: pose.z,
       rangePx:
         own && own.rangePx > 0 && !ignoreDarkness && scene.darknessEnabled ? Math.min(own.rangePx, depth) : depth,
       direction: facingBearing(pose.yaw),

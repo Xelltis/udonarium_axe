@@ -260,6 +260,21 @@ describe('FirstPersonService', () => {
       expect(seen.get(cellIndexOf(grid, 2, 8))).toBe(false);
     });
 
+    it('sees over a low wall the view is drawn looking over', () => {
+      const fence = Terrain.create('柵', 12, 1, 0.6, 'stone', 'slab');
+      fence.location = { name: 'table', x: 0, y: 6 * GRID };
+      table.appendChild(fence);
+      const piece = pieceAt(5, 8);
+      service().enterSeat(piece.identifier);
+      const grid = cellGridOf(12, 12, GRID, GridType.SQUARE);
+
+      expect(
+        service()
+          .seen()!
+          .get(cellIndexOf(grid, 5, 4))
+      ).toBe(true);
+    });
+
     it('never shows a player more than the table shows them', () => {
       table.fogEnabled = true;
       touch(table.identifier);
