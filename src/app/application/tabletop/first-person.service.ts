@@ -449,12 +449,18 @@ export class FirstPersonService {
     return ahead >= 0 ? [cellCenterOf(grid, ahead), standing] : [standing];
   }
 
+  /**
+   * The pieces a step on a gridless table may not walk into: those standing on the floor that this
+   * seat can see. A piece the dark or the fog hides does not stop a step, as on a grid, or the
+   * refusal would tell of a piece nobody could see.
+   */
   private othersOf(piece: GameCharacter, table: GameTable): CellPoint[] {
     const rules = resolveRoomRules(this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null, table);
     if (rules.piecesShareCells) return [];
     const others: CellPoint[] = [];
     for (const other of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
       if (other.identifier === piece.identifier || !other.isVisibleOnTable || surfaceOf(other) !== 'floor') continue;
+      if (!this.vision.isTokenVisible(other)) continue;
       const half = (Math.max(1, other.size) * table.gridSize) / 2;
       others.push({ x: other.location.x + half, y: other.location.y + half });
     }

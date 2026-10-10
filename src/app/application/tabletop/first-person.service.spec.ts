@@ -533,6 +533,20 @@ describe('FirstPersonService', () => {
       expect(await service().walk('forward')).toBe(false);
       expect(piece.location.x).toBe(5 * GRID);
     });
+
+    it('walks on past a piece this seat cannot see, and stops at one it can', async () => {
+      table.piecesShareCells = false;
+      touch(table.identifier);
+      const ahead = pieceAt(6, 5);
+      const piece = pieceAt(5, 5, 90);
+      service().enterSeat(piece.identifier);
+      const visible = vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible').mockReturnValue(true);
+
+      expect(await service().walk('forward')).toBe(false);
+
+      visible.mockImplementation((token) => token !== ahead);
+      expect(await service().walk('forward')).toBe(true);
+    });
   });
 
   describe('who may walk a view the game master put up', () => {
