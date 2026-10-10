@@ -6,6 +6,7 @@ import {
   firstPersonScene,
   FirstPersonWallQuad,
 } from '@axe/domain/tabletop/first-person/first-person-scene';
+import { firstPersonRoofOf } from '@axe/domain/tabletop/first-person/first-person-roof';
 import { firstPersonWorldOf } from '@axe/domain/tabletop/first-person/first-person-world';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCenterOf, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
@@ -146,13 +147,19 @@ describe('firstPersonScene on squares', () => {
     expect(ids).not.toContain(`${tall.identifier}:top`);
   });
 
-  it('roofs what it draws at the height of the walls in view, and leaves the sky open where there are none', () => {
-    const { left, right } = corridor();
+  it('roofs the ground walls shut in at the height of the roof, and leaves the sky open over the rest', () => {
+    const room = [block(2, 2, 5, 1), block(2, 8, 5, 1), block(2, 3, 1, 5), block(6, 3, 1, 5)];
+    const inside = eyePoseAt({ x: 4.5 * GRID, y: 7.5 * GRID }, 0, 25, GRID);
+    const grid = cellGridOf(10, 10, GRID, GridType.SQUARE);
+    const world = firstPersonWorldOf(tableOf(GridType.SQUARE), room);
+    const roof = firstPersonRoofOf(grid, room, world);
 
-    const roofed = planes(sceneOf(GridType.SQUARE, [left, right], eye).quads, 'ceiling');
+    const quads = firstPersonScene({ world, grid, pose: inside, seen: null, depthPx: DEPTH, nearPx: NEAR, roof });
+    const roofed = planes(quads, 'ceiling');
+
     expect(roofed.length).toBeGreaterThan(0);
     expect(roofed.every((ceiling) => ceiling.zPx === GRID && ceiling.facing === 'down')).toBe(true);
-
+    expect(roofed.every((ceiling) => roof!.cells.get(ceiling.cell))).toBe(true);
     expect(planes(sceneOf(GridType.SQUARE, [], eye).quads, 'ceiling')).toHaveLength(0);
   });
 

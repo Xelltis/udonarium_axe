@@ -26,6 +26,7 @@ import {
   snappedRotate,
   turnedRotate,
 } from '@axe/domain/tabletop/first-person/first-person-lattice';
+import { FirstPersonRoof, firstPersonRoofOf } from '@axe/domain/tabletop/first-person/first-person-roof';
 import { FIRST_PERSON_FOV_DEG } from '@axe/domain/tabletop/first-person/first-person-scene';
 import { FirstPersonSeat, firstPersonSeats } from '@axe/domain/tabletop/first-person/first-person-seats';
 import {
@@ -160,6 +161,15 @@ export class FirstPersonService {
     this.worldEpoch();
     const table = this.table();
     return table ? firstPersonWorldOf(table, table.terrains) : null;
+  });
+
+  /** The roof over the ground the board's walls shut in, worked out from the board, not the eye. */
+  readonly roof = computed<FirstPersonRoof | null>(() => {
+    this.worldEpoch();
+    const table = this.table();
+    const grid = this.grid();
+    const world = this.world();
+    return table && grid && world ? firstPersonRoofOf(grid, table.terrains, world) : null;
   });
 
   readonly depthPx = computed(() => FIRST_PERSON_DEPTH_CELLS * (this.table()?.gridSize ?? 0));

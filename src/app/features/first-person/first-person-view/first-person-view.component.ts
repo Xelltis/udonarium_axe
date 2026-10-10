@@ -325,6 +325,7 @@ export class FirstPersonViewComponent {
       seen: this.drawnSeen(),
       depthPx: this.firstPerson.depthPx(),
       nearPx: NEAR_CELLS * this.gridSize(),
+      roof: this.firstPerson.roof(),
     });
   });
 

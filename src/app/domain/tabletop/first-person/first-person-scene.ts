@@ -7,6 +7,7 @@ import {
   lateralOf,
 } from '@axe/domain/tabletop/first-person/first-person-clip';
 import { FirstPersonPose } from '@axe/domain/tabletop/first-person/first-person-lattice';
+import { FirstPersonRoof } from '@axe/domain/tabletop/first-person/first-person-roof';
 import {
   FirstPersonCap,
   FirstPersonFloor,
@@ -68,6 +69,8 @@ export interface FirstPersonSceneInput {
   depthPx: number;
   nearPx: number;
   fovDeg?: number;
+  /** The roof over the ground walls shut in; without one the sky is open everywhere. */
+  roof?: FirstPersonRoof | null;
 }
 
 interface SceneFrame {
@@ -83,12 +86,9 @@ export function firstPersonScene(input: FirstPersonSceneInput): FirstPersonQuad[
     limitDeg: (input.fovDeg ?? FIRST_PERSON_FOV_DEG) / 2 + FOV_MARGIN_DEG,
   };
   const quads: FirstPersonQuad[] = [];
-  let ceilingPx = 0;
   for (const wall of input.world.walls) {
     const quad = wallQuadOf(wall, scene);
-    if (!quad) continue;
-    quads.push(quad);
-    if (wall.terrain) ceilingPx = Math.max(ceilingPx, wall.topPx);
+    if (quad) quads.push(quad);
   }
   for (const cap of input.world.caps) {
     const quad = capQuadOf(cap, scene);
@@ -102,9 +102,10 @@ export function firstPersonScene(input: FirstPersonSceneInput): FirstPersonQuad[
     if (!keepsPlane(polygon, scene)) return;
     const floor = input.world.floor;
     quads.push(planeQuadOf('floor', `floor:${index}`, index, '', polygon, 0, 'up', floor.image, floor, false, scene));
-    if (ceilingPx > input.pose.z) {
+    const roof = input.roof;
+    if (roof && roof.heightPx > input.pose.z && roof.cells.get(index)) {
       quads.push(
-        planeQuadOf('ceiling', `ceiling:${index}`, index, '', polygon, ceilingPx, 'down', '', null, false, scene)
+        planeQuadOf('ceiling', `ceiling:${index}`, index, '', polygon, roof.heightPx, 'down', '', null, false, scene)
       );
     }
   });
