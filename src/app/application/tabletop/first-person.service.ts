@@ -36,7 +36,7 @@ import { FirstPersonWorld, firstPersonWorldOf } from '@axe/domain/tabletop/first
 import { freeStepClear } from '@axe/domain/tabletop/first-person/free-step';
 import { MinimapView, minimapViewOf } from '@axe/domain/tabletop/first-person/minimap-view';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCenterOf, CellGrid, CellPoint, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, CellGrid, cellGridOf, CellPoint, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
 import { computeVisibleCellsFor } from '@axe/domain/tabletop/fog/visible-cells';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { blockedByTerrain } from '@axe/domain/tabletop/move/blocked-cells';
@@ -371,6 +371,11 @@ export class FirstPersonService {
     return false;
   }
 
+  /**
+   * The piece by that identifier where it can be looked out of: on the table, standing on the
+   * floor, and on a board with squares or hexes, on one of them, since the eye stands at the
+   * middle of the cell under it.
+   */
   private pieceOn(table: GameTable, identifier: string): GameCharacter | null {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     this.objectChange.versionOf(identifier)();
@@ -378,6 +383,10 @@ export class FirstPersonService {
     if (!(piece instanceof GameCharacter)) return null;
     if (!piece.isVisibleOnTable || surfaceOf(piece) !== 'floor') return null;
     if (table.gridSize <= 0 || table.width <= 0 || table.height <= 0) return null;
+    if (table.gridType !== GridType.NONE) {
+      const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+      if (pieceCellOf(grid, piece, table.gridSize) < 0) return null;
+    }
     return piece;
   }
 

@@ -157,6 +157,36 @@ describe('FirstPersonService', () => {
       expect(service().canLookOutOf(piece)).toBe(false);
     });
 
+    it('goes back to the table while the piece stands off the board, and looks out again once it is back', () => {
+      for (const type of [GridType.SQUARE, GridType.HEX_VERTICAL]) {
+        table.gridType = type;
+        touch(table.identifier);
+        const piece = pieceAt(5, 5);
+        service().enterSeat(piece.identifier);
+        expect(service().showing()).toBe(true);
+
+        piece.location = { ...piece.location, x: 15 * GRID };
+        touch(piece.identifier);
+        expect(service().showing()).toBe(false);
+        expect(service().canLookOutOf(piece)).toBe(false);
+
+        piece.location = { ...piece.location, x: 5 * GRID };
+        touch(piece.identifier);
+        expect(service().showing()).toBe(true);
+        expect(service().pose()).not.toBeNull();
+      }
+    });
+
+    it('looks out of a piece wherever it stands on a table without cells', () => {
+      table.gridType = GridType.NONE;
+      touch(table.identifier);
+      const piece = pieceAt(15, 5);
+
+      service().enterSeat(piece.identifier);
+
+      expect(service().showing()).toBe(true);
+    });
+
     it('says whether the piece the table names can still be shown', () => {
       expect(service().sharedUsable()).toBe(false);
 
