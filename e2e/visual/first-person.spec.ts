@@ -26,7 +26,7 @@ async function lookOutOf(page: Page, piece: ReturnType<Page['locator']>) {
   await settle(page, 400);
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 7000 });
-  await menu.getByText('一人称で見る', { exact: true }).dispatchEvent('click');
+  await menu.getByText('このコマの視点で見る', { exact: true }).dispatchEvent('click');
   await settle(page, 400);
   await expect(page.locator('first-person-view [data-quad="wall"]').first()).toBeAttached({ timeout: 10000 });
   await settle(page, 400);

@@ -112,8 +112,8 @@ describe('buildGameCharacterContextMenu()', () => {
     it('is offered only where the piece can be looked out of, and opens it', () => {
       const onViewFirstPerson = vi.fn();
 
-      expect(namesIn(menuWith({}))).not.toContain('一人称で見る');
-      entriesIn(menuWith({ onViewFirstPerson })).find((entry) => entry.name === '一人称で見る')!.action!();
+      expect(namesIn(menuWith({}))).not.toContain('このコマの視点で見る');
+      entriesIn(menuWith({ onViewFirstPerson })).find((entry) => entry.name === 'このコマの視点で見る')!.action!();
 
       expect(onViewFirstPerson).toHaveBeenCalled();
     });
@@ -121,10 +121,10 @@ describe('buildGameCharacterContextMenu()', () => {
     it('lets the game master put everyone in it, and let them go again, only where they are handed in', () => {
       const names = namesIn(menuWith({ onShareFirstPerson: vi.fn(), onStopSharingFirstPerson: vi.fn() }));
 
-      expect(names).toContain('全員をこのコマの一人称にする');
-      expect(names).toContain('全員の一人称を解除する');
-      expect(namesIn(menuWith({}))).not.toContain('全員をこのコマの一人称にする');
-      expect(namesIn(menuWith({}))).not.toContain('全員の一人称を解除する');
+      expect(names).toContain('全員をこのコマの視点にする');
+      expect(names).toContain('全員の共有視点を解除する');
+      expect(namesIn(menuWith({}))).not.toContain('全員をこのコマの視点にする');
+      expect(namesIn(menuWith({}))).not.toContain('全員の共有視点を解除する');
     });
   });
 

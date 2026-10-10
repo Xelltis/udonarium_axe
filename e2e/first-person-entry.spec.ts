@@ -2,7 +2,7 @@ import { expect, Locator, Page, test } from '@playwright/test';
 
 import { closeFabMenu, openFabMenu, waitAppReady } from './helpers';
 
-/** 左上のメニューから「テーブル関連」を開き、その中の一人称視点の項目を返す。 */
+/** 左上のメニューから「テーブル関連」を開き、その中のダンジョンドリィマスターモードの項目を返す。 */
 async function firstPersonEntry(page: Page): Promise<Locator> {
   await openFabMenu(page);
   const submenu = page.getByTestId('fab-submenu-table');
@@ -11,12 +11,12 @@ async function firstPersonEntry(page: Page): Promise<Locator> {
   return page.getByTestId('fab-entry-firstPersonView');
 }
 
-test.describe('「テーブル関連」からの一人称視点', () => {
+test.describe('「テーブル関連」からのダンジョンドリィマスターモード', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('コマを選んで一人称視点に入り、同じ項目から卓に戻れること', async ({ page }) => {
+  test('コマを選んでダンジョンドリィマスターモードに入り、同じ項目から卓に戻れること', async ({ page }) => {
     const entry = await firstPersonEntry(page);
     await expect(entry).toBeVisible();
     await entry.click();
@@ -27,7 +27,7 @@ test.describe('「テーブル関連」からの一人称視点', () => {
     await expect(page.locator('first-person-view')).toBeAttached({ timeout: 10000 });
 
     const leave = await firstPersonEntry(page);
-    await expect(leave).toHaveAttribute('aria-label', /一人称視点をやめる/);
+    await expect(leave).toHaveAttribute('aria-label', /ダンジョンドリィマスターモードをやめる/);
     await leave.click();
     await closeFabMenu(page);
     await expect(page.locator('first-person-view')).toHaveCount(0, { timeout: 10000 });

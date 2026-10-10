@@ -376,7 +376,7 @@ describe('PlToolbarComponent', () => {
       await fixture.whenStable();
 
       expect(button().getAttribute('aria-disabled')).toBe('true');
-      expect(button().title).toContain('卓上にいません');
+      expect(button().title).toContain('見られるコマがいません');
 
       button().click();
       fixture.detectChanges();
