@@ -2,12 +2,14 @@ import { FirstPersonPlaneQuad, FirstPersonWallQuad } from '@axe/domain/tabletop/
 import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
 import {
   billboardHudTransform,
+  billboardLiftPx,
   billboardShrink,
   billboardStyle,
   billboardTextScale,
   cameraTransform,
   MAX_PIECE_SCREEN_FRACTION,
   perspectivePx,
+  PIECE_FOOT_MARGIN,
   planeQuadStyle,
   projectedHeightPx,
   projectedScaleOf,
@@ -209,6 +211,19 @@ describe('how large a piece comes out on the screen', () => {
       3
     );
     expect(projectedHeightPx(PIECE_PX * shrink, NEAR_PX, SCALE, PERSPECTIVE)).toBeLessThan(VIEW_PX * 4);
+  });
+
+  it('raises a piece standing close until its feet come up into the view', () => {
+    const eyeZ = 40;
+    const lift = billboardLiftPx(0, eyeZ, NEAR_PX, PERSPECTIVE, VIEW_PX);
+
+    expect(lift).toBeGreaterThan(0);
+    expect(((eyeZ - lift) * PERSPECTIVE) / NEAR_PX).toBeCloseTo((VIEW_PX / 2) * (1 - PIECE_FOOT_MARGIN), 3);
+  });
+
+  it('leaves a piece far enough off standing on the floor', () => {
+    expect(billboardLiftPx(0, 40, FAR_PX, PERSPECTIVE, VIEW_PX)).toBe(0);
+    expect(billboardLiftPx(0, 40, NEAR_PX, PERSPECTIVE, 0)).toBe(0);
   });
 
   it('leaves a piece that already fits at the size it is', () => {

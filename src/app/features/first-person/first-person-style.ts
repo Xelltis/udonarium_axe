@@ -5,6 +5,8 @@ import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
 export const FIRST_PERSON_UNIT_PX = 256;
 export const MAX_PIECE_SCREEN_FRACTION = 0.7;
 export const MAX_PIECE_TEXT_SCREEN_PX = 28;
+/** How far up from the bottom of the view a lifted piece's feet are held, as a share of half the view's height. */
+export const PIECE_FOOT_MARGIN = 0.08;
 const BILLBOARD_TEXT_PX = 24;
 const MAX_SHADE = 0.85;
 const REMEMBERED_VEIL = `linear-gradient(rgba(0, 0, 0, ${FOG_VEIL_ALPHA}), rgba(0, 0, 0, ${FOG_VEIL_ALPHA}))`;
@@ -104,6 +106,23 @@ export function projectedScaleOf(depthPx: number, scale: number, perspective: nu
 
 export function projectedHeightPx(heightPx: number, depthPx: number, scale: number, perspective: number): number {
   return heightPx * scale * projectedScaleOf(depthPx, scale, perspective);
+}
+
+/**
+ * How far a piece standing close has to be raised, in table pixels, for its feet to come up into
+ * the view rather than below its bottom edge; nothing for a piece far enough off to show whole.
+ * Raised, it floats a little off the floor, which is the price of seeing where it stands.
+ */
+export function billboardLiftPx(
+  baseZ: number,
+  eyeZ: number,
+  depthPx: number,
+  perspective: number,
+  viewHeightPx: number
+): number {
+  if (viewHeightPx <= 0 || depthPx <= 0 || perspective <= 0) return 0;
+  const lowest = eyeZ - ((viewHeightPx / 2) * (1 - PIECE_FOOT_MARGIN) * depthPx) / perspective;
+  return Math.max(0, lowest - baseZ);
 }
 
 /**

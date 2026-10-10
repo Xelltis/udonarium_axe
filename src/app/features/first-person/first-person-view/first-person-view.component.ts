@@ -58,6 +58,7 @@ import { FirstPersonCommand, firstPersonKeyDown } from '@axe/features/first-pers
 import { glowStyle, lyingSamples, propClip, propStyle } from '@axe/features/first-person/first-person-prop-style';
 import {
   billboardHudTransform,
+  billboardLiftPx,
   billboardShrink,
   billboardStyle,
   billboardTextScale,
@@ -298,6 +299,7 @@ export class FirstPersonViewComponent {
       const badges = this.badgesOf(piece);
       const depth = depthOf(eye, centre);
       const tall = size * PIECE_TALL_RATIO;
+      const base = piece.posZ + piece.altitude * gridSize;
       const shrink = billboardShrink(tall, depth, scale, perspective, viewHeight, size * PIECE_WIDE_RATIO, viewWidth);
       views.push({
         id: piece.identifier,
@@ -311,7 +313,7 @@ export class FirstPersonViewComponent {
         badges: badges.slice(0, BUFF_BADGES_PER_ROW),
         moreBadges: Math.max(0, badges.length - BUFF_BADGES_PER_ROW),
         style: billboardStyle(
-          { ...centre, z: piece.posZ + piece.altitude * gridSize },
+          { ...centre, z: base + billboardLiftPx(base, pose.z, depth, perspective, viewHeight) },
           size * PIECE_WIDE_RATIO * shrink,
           tall * shrink,
           pose.yaw,
