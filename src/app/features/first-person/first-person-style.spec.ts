@@ -5,13 +5,16 @@ import {
   billboardLiftPx,
   billboardStyle,
   billboardTextScale,
+  blurFilter,
   cameraTransform,
+  farBlurPx,
   litShade,
+  MAX_FAR_BLUR_PX,
   perspectivePx,
   pictureTopPercent,
+  PIECE_FOOT_MARGIN,
   pieceChromeBottomPercent,
   pieceChromeHeightPx,
-  PIECE_FOOT_MARGIN,
   pieceImageFilter,
   planeQuadStyle,
   projectedHeightPx,
@@ -212,6 +215,21 @@ describe('how large a piece comes out on the screen', () => {
     expect(litShade(0.2, 0.5)).toBe(0.6);
     expect(litShade(0.2, 0)).toBe(1);
     expect(litShade(0, 2)).toBe(0);
+  });
+
+  it('blurs nothing within the clear distance, and more and more out to the farthest drawn', () => {
+    expect(farBlurPx(300, 300, 600)).toBe(0);
+    expect(farBlurPx(310, 300, 600)).toBe(0.5);
+    expect(farBlurPx(450, 300, 600)).toBe(1.5);
+    expect(farBlurPx(600, 300, 600)).toBe(MAX_FAR_BLUR_PX);
+    expect(farBlurPx(900, 300, 600)).toBe(MAX_FAR_BLUR_PX);
+    expect(blurFilter(0)).toBeNull();
+    expect(blurFilter(1.5)).toBe('blur(1.5px)');
+  });
+
+  it('blurs the picture of a piece standing far off along with the rest of its filter', () => {
+    expect(pieceImageFilter(1, false, 1.5)).toBe('blur(1.5px)');
+    expect(pieceImageFilter(0.4, true, 3)).toBe('brightness(0.4) blur(3px) drop-shadow(0 0 8px #ff3b30)');
   });
 
   it('dims the picture of a piece to the light on it and keeps the glow of a target', () => {

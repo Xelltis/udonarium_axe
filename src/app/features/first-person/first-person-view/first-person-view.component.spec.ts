@@ -86,6 +86,37 @@ describe('FirstPersonViewComponent', () => {
     expect(view.querySelectorAll('[data-quad="floor"]').length).toBeGreaterThan(0);
   });
 
+  it('draws what stands past the clear distance blurred, and what stands near sharp', () => {
+    ImageStorage.instance.add({
+      identifier: 'stone',
+      name: 'stone.png',
+      type: 'image/png',
+      blob: null,
+      url: 'blob:stone',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    try {
+      for (const [col, row] of [
+        [6, 1],
+        [3, 9],
+      ]) {
+        const block = Terrain.create('壁', 1, 1, 1, 'stone', 'slab');
+        block.location = { name: 'table', x: col * GRID, y: row * GRID };
+        table.appendChild(block);
+      }
+      lookOutOf(pieceAt(4, 11));
+
+      const walls = Array.from(element(mount()).querySelectorAll<HTMLElement>('[data-quad="wall"]'));
+      const blurred = walls.filter((wall) => /blur\(/.test(wall.style.filter));
+      const sharp = walls.filter((wall) => !wall.style.filter);
+
+      expect(blurred.length).toBeGreaterThan(0);
+      expect(sharp.length).toBeGreaterThan(0);
+    } finally {
+      ImageStorage.instance.delete('stone');
+    }
+  });
+
   it('names the way the piece faces', () => {
     lookOutOf(pieceAt(4, 7, 90));
 
@@ -658,6 +689,15 @@ describe('FirstPersonViewComponent', () => {
     afterEach(() => {
       ImageStorage.instance.delete('sky-picture');
       ImageStorage.instance.delete('hills-picture');
+    });
+
+    it('gives a table with no picture of its own a night sky, and leaves a table in the dark dark', () => {
+      lookOutOf(pieceAt(4, 7));
+      expect(element(mount()).querySelector('[data-sky-gradient]')).not.toBeNull();
+
+      table.darknessEnabled = true;
+      TestBed.inject(ObjectChangeService).notifyChanged(table.identifier);
+      expect(element(mount()).querySelector('[data-sky-gradient]')).toBeNull();
     });
 
     it('lays the picture the table is laid on behind the view, and leaves the dark without one', () => {

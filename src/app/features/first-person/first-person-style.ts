@@ -12,6 +12,9 @@ const CHROME_BADGE_ROW_PX = 54;
 const CHROME_GAUGE_ROW_PX = 24;
 const CHROME_LABEL_ROW_PX = 46;
 const MAX_SHADE = 0.85;
+/** How blurred the farthest of what is drawn is, in screen pixels. */
+export const MAX_FAR_BLUR_PX = 3;
+const FAR_BLUR_STEP_PX = 0.5;
 const REMEMBERED_VEIL = `linear-gradient(rgba(0, 0, 0, ${FOG_VEIL_ALPHA}), rgba(0, 0, 0, ${FOG_VEIL_ALPHA}))`;
 
 export type QuadStyle = Record<string, string>;
@@ -40,6 +43,22 @@ export function shadeFor(depth: number, depthPx: number): number {
 }
 
 /**
+ * How blurred something is drawn for how far off it stands: not at all within the clear
+ * distance, then more and more out to the farthest drawn, in half-pixel steps so faces at much
+ * the same distance share one blur.
+ */
+export function farBlurPx(depth: number, clearPx: number, depthPx: number): number {
+  if (depth <= clearPx || depthPx <= clearPx) return 0;
+  const share = Math.min((depth - clearPx) / (depthPx - clearPx), 1);
+  return Math.max(FAR_BLUR_STEP_PX, Math.round((share * MAX_FAR_BLUR_PX) / FAR_BLUR_STEP_PX) * FAR_BLUR_STEP_PX);
+}
+
+/** The CSS filter for a blur, or null for none. */
+export function blurFilter(blurPx: number): string | null {
+  return blurPx > 0 ? `blur(${round(blurPx)}px)` : null;
+}
+
+/**
  * The veil over a face once the light on it is counted as well as how far off it is: the same
  * darkening for distance, deepened as the light at the face falls from full to none.
  */
@@ -48,10 +67,15 @@ export function litShade(depthShade: number, brightness: number): number {
   return round(1 - (1 - depthShade) * light);
 }
 
-/** The filter a piece's picture is drawn with: dimmed to the light on it, and glowing red while targeted. */
-export function pieceImageFilter(brightness: number, targeted: boolean): string | null {
+/**
+ * The filter a piece's picture is drawn with: dimmed to the light on it, blurred for how far off it
+ * stands, and glowing red while targeted.
+ */
+export function pieceImageFilter(brightness: number, targeted: boolean, blurPx = 0): string | null {
   const parts: string[] = [];
   if (brightness < 1) parts.push(`brightness(${round(Math.max(brightness, 0))})`);
+  const blur = blurFilter(blurPx);
+  if (blur) parts.push(blur);
   if (targeted) parts.push('drop-shadow(0 0 8px #ff3b30)');
   return parts.length > 0 ? parts.join(' ') : null;
 }

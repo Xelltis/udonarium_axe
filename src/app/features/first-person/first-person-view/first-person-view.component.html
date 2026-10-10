@@ -5,6 +5,9 @@
   [style.perspective.px]="perspective()"
 >
   @if (sky(); as sky) {
+    @if (sky.gradient) {
+      <div class="pointer-events-none absolute inset-0" data-sky-gradient [style.background]="sky.gradient"></div>
+    }
     @if (sky.background) {
       <div
         class="pointer-events-none absolute inset-0 bg-cover bg-center"

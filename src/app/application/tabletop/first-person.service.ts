@@ -53,7 +53,10 @@ import { eyeHeightPx, SceneVisionSource } from '@axe/domain/tabletop/vision-scen
 import { facingBearing } from '@axe/domain/tabletop/vision-shape';
 import { applyLightPreset, LightPreset, VisionType } from '@axe/domain/tabletop/vision-types';
 
-export const FIRST_PERSON_DEPTH_CELLS = 6;
+/** How far the view draws, in cells. What lies past the clear distance is drawn blurred. */
+export const FIRST_PERSON_DEPTH_CELLS = 12;
+/** How far the view draws sharp, in cells; between here and the depth it is drawn more and more blurred. */
+export const FIRST_PERSON_CLEAR_CELLS = 6;
 const SIGHT_MARGIN_DEG = 40;
 
 /** How brightly a cell of ground is drawn: seen now, or only remembered. */
@@ -154,6 +157,9 @@ export class FirstPersonService {
   });
 
   readonly depthPx = computed(() => FIRST_PERSON_DEPTH_CELLS * (this.table()?.gridSize ?? 0));
+
+  /** How far the view draws sharp, in table pixels. */
+  readonly clearPx = computed(() => FIRST_PERSON_CLEAR_CELLS * (this.table()?.gridSize ?? 0));
 
   readonly pose = computed<FirstPersonPose | null>(
     () => {

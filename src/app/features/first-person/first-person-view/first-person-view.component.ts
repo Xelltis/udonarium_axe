@@ -72,7 +72,9 @@ import {
   billboardLiftPx,
   billboardStyle,
   billboardTextScale,
+  blurFilter,
   cameraTransform,
+  farBlurPx,
   litShade,
   perspectivePx,
   pictureTopPercent,
@@ -106,6 +108,9 @@ const EFFECT_LIFT_CELLS = 0.15;
 const EFFECT_RISE_CELLS = 0.3;
 const PIECE_WIDE_RATIO = 0.9;
 const PIECE_TALL_RATIO = 1.5;
+/** The sky over a table that has no picture to show, darkest overhead and palest at the horizon. */
+const NIGHT_SKY =
+  'linear-gradient(to bottom, #04060b 0%, #0b1220 32%, #1c2840 49%, #222f47 50%, #10161f 56%, #06080c 100%)';
 /** How far below the top of the view what is told about a near piece keeps, clear of the toolbars. */
 const CHROME_TOP_MARGIN_PX = 64;
 /** How far over the floor a range area is laid, clear of the floor and of anything lying on it. */
@@ -186,6 +191,8 @@ interface FogAirView {
 interface SkyView {
   background: string;
   backdrops: { id: string; url: string; opacity: number }[];
+  /** A night sky shading to a haze at the horizon, for a table with no picture of its own to show. */
+  gradient: string | null;
 }
 
 @Component({
@@ -324,16 +331,19 @@ export class FirstPersonViewComponent {
     this.objectChange.fileVersion();
     const scale = this.scale();
     const depth = this.firstPerson.depthPx();
+    const clear = this.firstPerson.clearPx();
     const grid = this.firstPerson.grid();
     return this.quads().map((quad) => {
       const url = this.urlOf(quad.image);
       const remembered = this.firstPerson.tierOfCell(quad.cell) === 'dim';
       const away = shadeFor(quad.depth, depth);
       const shade = remembered || !grid || quad.cell < 0 ? away : litShade(away, this.lightOn(grid, quad));
-      const style =
+      const drawn =
         quad.kind === 'wall'
           ? wallQuadStyle(quad, scale, url, shade, remembered)
           : planeQuadStyle(quad, scale, url, shade, remembered);
+      const blur = url ? blurFilter(farBlurPx(quad.depth, clear, depth)) : null;
+      const style = blur ? { ...drawn, filter: blur } : drawn;
       return { id: quad.id, cell: quad.cell, kind: quad.kind, tone: toneOf(quad), remembered, style };
     });
   });
@@ -367,6 +377,8 @@ export class FirstPersonViewComponent {
     const perspective = this.perspective();
     const viewHeight = this.height();
     const aspects = this.pictureAspects();
+    const clear = this.firstPerson.clearPx();
+    const reach = this.firstPerson.depthPx();
     const views: PieceView[] = [];
     for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
       if (piece.identifier === viewer.identifier) continue;
@@ -412,7 +424,8 @@ export class FirstPersonViewComponent {
         }),
         imageFilter: pieceImageFilter(
           this.vision.objectBrightness(centre.x, centre.y, size / 2, false, base),
-          piece.targeted
+          piece.targeted,
+          farBlurPx(depth, clear, reach)
         ),
       });
     }
@@ -458,11 +471,15 @@ export class FirstPersonViewComponent {
     if (!pose || gridSize <= 0) return [];
     const eye = eyeFrameOf(pose);
     const scale = this.scale();
+    const clear = this.firstPerson.clearPx();
+    const reach = this.firstPerson.depthPx();
     const views: PropView[] = [];
     for (const prop of this.props()) {
       const clip = propClip(prop, eye, gridSize * NEAR_CELLS, scale);
       if (clip === null || !this.propInSight(pose, prop)) continue;
-      const style = propStyle(prop, pose.yaw, scale);
+      const placed = propStyle(prop, pose.yaw, scale);
+      const blur = blurFilter(farBlurPx(depthOf(eye, prop), clear, reach));
+      const style = blur ? { ...placed, filter: blur } : placed;
       views.push({
         ...prop,
         fill: prop.what === 'mask' || prop.what === 'board' || prop.what === 'trigger',
@@ -566,8 +583,9 @@ export class FirstPersonViewComponent {
 
   /**
    * What is seen above the walls and past the end of the view: the picture the table is laid
-   * on, and over it the backdrops the table stands against, back to front. Nothing when the
-   * table has neither, which leaves the dark.
+   * on, and over it the backdrops the table stands against, back to front. A table with neither
+   * is given a night sky that lightens to a haze at the horizon, so the far end of the view fades
+   * rather than stops; a table in the dark keeps the dark.
    */
   protected readonly sky = computed<SkyView | null>(() => {
     const table = this.firstPerson.table();
@@ -587,7 +605,9 @@ export class FirstPersonViewComponent {
         opacity: layer.opacity,
       }))
       .filter((layer) => layer.url !== '');
-    return background || backdrops.length > 0 ? { background, backdrops } : null;
+    if (background || backdrops.length > 0) return { background, backdrops, gradient: null };
+    this.objectChange.versionOf(table.identifier)();
+    return table.darknessEnabled ? null : { background: '', backdrops: [], gradient: NIGHT_SKY };
   });
 
   /**
