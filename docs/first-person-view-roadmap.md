@@ -1,81 +1,74 @@
-# 一人称視点は一通り動く。残りは描き足しと実機確認
+# 一人称視点は描き足しまで済んだ。残りは実機での確認と公開
 
-卓を一人称の視界へ置き換える表示モードは、4 種類の格子すべてで歩けて、暗闇も卓の視界規則をそのまま引き継ぐところまで来ている。作り直しが要る場所は今のところ見当たらない。残るのは描いていないものの描き足しと、実機での一巡。
+卓を一人称の視界へ置き換える表示モードは、4種類の格子すべてで歩ける。暗闇は卓の視界規則をそのまま引き継ぎ、卓に描いてあるものは一人称でもひととおり描く。残っているのは実機での一巡と、PRとマニュアルだけになった。
 
-この文書は `feat/first-person-view`（2026-09-11〜12）の途中経過をまとめたもので、次に手を付ける人へ「どこまで動くか」「何が決まっているか」「何が残っているか」を渡すために書いた。
+この文書は `feat/first-person-view`（2026-09-11〜10-10）の途中経過をまとめたもので、次に手を付ける人へ「どこまで動くか」「何が決まっているか」「何が残っているか」を渡すために書いた。
 
 ## どこまで動くか
 
-WebGL は使わず CSS 3D で組んである。正方・平頂ヘクス・尖頂ヘクス・グリッドなしの 4 格子が同じ操作で動き、格子ごとの違いは
-[src/app/domain/tabletop/first-person/](../src/app/domain/tabletop/first-person/) の lattice・world・clip・scene・wall・target・free-step・minimap-view が吸収する。
+WebGLは使わずCSS 3Dで組んである。正方・平頂ヘクス・尖頂ヘクス・グリッドなしの4格子が同じ操作で動き、格子ごとの違いは
+[src/app/domain/tabletop/first-person/](../src/app/domain/tabletop/first-person/) のlattice・world・clip・scene・wall・target・free-step・minimap-viewが吸収する。
 
-操作は歩行（W/S/A/D、ヘクスでは Z/C も）、旋回（Q/E）、扉（Space）、松明（F）、ターゲット（T と Shift+T）、エフェクトの発動（Enter、取り消しは Esc）。1 歩進むたびに部屋の移動ルールと罠を見る。
+操作は歩行（W/S/A/D、ヘクスではZ/Cも）、旋回（Q/E）、扉（Space）、松明（F）、ターゲット（TとShift+T）、エフェクトの発動（Enter、取り消しはEsc）。1歩進むたびに部屋の移動ルールと罠を見る。
 
-見え方は席ごとに持ち、localStorage へ書く。GM は自分の視界を共有でき、配った先は `GameTable.sharedViewPiece` が指す。共有中に歩けるのは、そのコマの所有者と GM だけ。
+見え方は席ごとに持ち、localStorageへ書く。GMは自分の視界を共有でき、配った先は `GameTable.sharedViewPiece` が指す。共有中に歩けるのは、そのコマの所有者とGMだけ。
 
-入口は 4 つ。コマの右クリック、PL ツールバーのボタン、ホットバーのスロット種別 `firstPerson`、GM ツールバーの共有メニュー。共有中のコマには卓上で琥珀色の輪が付く。
+入口は4つ。コマの右クリック、PLツールバーのボタン、ホットバーのスロット種別 `firstPerson`、GMツールバーの共有メニュー。ツールバーの2つは、メニュー配置の定義（`domain/ui/menu-command.ts`）にある独自描画の項目 `firstPerson` と `firstPersonShare` で、利用者が並べ替えられる。共有中のコマには卓上で琥珀色の輪が付く。
 
-描いているものは地形の壁・床・天井・扉、ほかのコマ（HP ゲージ、バフバッジ、ターゲット輪、順番）、光源と灯り、カード・山札・ダイス・コイン・メモ・マスク・発見済みの罠・ホワイトボード・環境の床、壁に掛かった物、天候、揺れと閃光。エフェクトは
-[src/app/features/effect/table-effect-overlay/](../src/app/features/effect/table-effect-overlay/) を eye 入力で流用している。
+描いているものは次のとおり。
 
-暗闇は卓の規則そのまま。記憶済みで今は見えないマスは、霧と同じ濃さ（[first-person-style.ts](../src/app/features/first-person/first-person-style.ts) の `FOG_VEIL_ALPHA`）で薄く残す。GM には全部見える（GM に何も見えなくなる不具合は直してある）。
+- 地形の壁・床・天井・扉
+- ほかのコマ（HPゲージ、バフバッジ、ターゲット輪、順番）
+- 光源と灯り、光の帯
+- カード・山札・ダイス・コイン・メモ・マスク・発見済みの罠・ホワイトボード・環境の床、壁に掛かった物
+- 範囲エリア
+- 霧の空気層、天候、揺れと閃光
+- 壁の上の空（卓の背景画像と、奥の背景レイヤー）
 
-隣のマスに立つコマは、画面高の 0.7 で頭打ちにする。投影は `projectedHeight = h·P/d`（P は画面幅の半分）、文字は 28px を上限にした。
+エフェクトは [src/app/features/effect/table-effect-overlay/](../src/app/features/effect/table-effect-overlay/) をeye入力で流用している。範囲エリアと霧の空気層は、卓と同じ描画関数（`features/tabletop/range/range-paint.ts`、`features/tabletop/fog-of-war/fog-air-sheet.ts`）で描く。
 
-HUD は、操作クラスターを左下に置いてホットバーを避け、モバイルシェルでは左端へ寄せる。方位盤とミニマップは右下で、スマホでは右上に小さく出す。
+暗闇は卓の規則そのまま。面ごとに、そのマスの明るさ（`VisionService.objectBrightness`）で暗くするので、灯りの近くは明るく、離れるほど暗い。濃淡は面単位の段になる。記憶済みで今は見えないマスは、霧と同じ濃さ（[first-person-style.ts](../src/app/features/first-person/first-person-style.ts) の `FOG_VEIL_ALPHA`）で薄く残す。GMには全部見える。
 
-検証は lint・tsc・`npx vitest run`（11124 件）・`npm test`・build、それと正方とヘクスの基準画像による視覚回帰まで通してある。
+近くのコマは、画面の高さと幅のそれぞれ0.7で頭打ちにし、足元が画面の下に切れるときは持ち上げる。投影は `projectedHeight = h·P/d`（Pは画面幅の半分）、文字は28pxを上限にした。
 
-## 何が決まっているか（2026-09-12）
+HUDは、操作クラスターを左下に置いてホットバーを避け、モバイルシェルでは左端へ寄せる。方位盤とミニマップは右下で、スマホでは右上に小さく出す。
 
-| 論点               | 決定                                                  |
-| ------------------ | ----------------------------------------------------- |
-| 入口               | PL ツールとホットバー                                 |
-| 暗闇               | 卓の規則に従い、光源を使えるようにする                |
-| 共有ビューの操作権 | 所有者と GM                                           |
-| 戦闘情報           | 卓と同じ                                              |
-| GM 側              | ツールバーで選び、卓上に印を出す                      |
-| ホットバーの衝突   | パッドを左下へ                                        |
-| 足音               | 音源が揃うまで、既存の `piecePut` / `blockPut` を流用 |
-| スマホ             | 方位盤とミニマップを小さくして残す                    |
-| 近接コマ           | はみ出さないよう上限を掛ける                          |
+## 何が決まっているか
+
+| 論点                 | 決定                                                                        |
+| -------------------- | --------------------------------------------------------------------------- |
+| 入口                 | PLツールとホットバー                                                        |
+| 暗闇                 | 卓の規則に従い、光源を使えるようにする                                      |
+| 共有ビューの操作権   | 所有者とGM                                                                  |
+| 共有ビューの同時操作 | 後勝ちのまま（2026-10-10）                                                  |
+| 戦闘情報             | 卓と同じ                                                                    |
+| GM側                 | ツールバーで選び、卓上に印を出す                                            |
+| ホットバーの衝突     | パッドを左下へ                                                              |
+| 足音                 | 既存の `piecePut` / `blockPut` を流用する。専用の音はこのマイルストーンの外 |
+| スマホ               | 方位盤とミニマップを小さくして残す                                          |
+| 近接コマ             | はみ出さないよう上限を掛け、足元が切れるコマは持ち上げる（2026-10-10）      |
+| 描き足し             | 範囲エリア・暗闇の濃淡・光の帯と空・霧の空気層をすべて描く（2026-10-10）    |
 
 ## 何が残っているか
 
-### 次に手を付ける小さいもの
+実機で一巡する。2ピアでの共有ビュー、Safari、実際のダンジョン。そのうえでPRを出し、マージ後にマニュアル（`website/manual`）をmainへ足す。
 
-いちばん目に付くのは「+n」チップで、`feature.character.buff.count`（「バフ n 個」）を流用しているため「あと n 個」と読めない。専用のキー `feature.character.buff.more` を足す。
-
-近接コマの上限は高さにしか効いていないので、横に長いコマ（size 4 以上）には幅の上限も要る。卓側のバッジ格子も、
-[game-character.component.html](../src/app/features/character/game-character/game-character.component.html) が `grid-cols-5` をクラスに直書きしていて、共有定数
-[BUFF_BADGES_PER_ROW](../src/app/domain/character/buff-badge.ts) は TS 側しか読んでいない。
-
-ターゲットの順番バッジ（[effect-target-overlay](../src/app/features/effect/effect-target-overlay/)）は卓のカメラを基準にするので、一人称では向きが狂う。ビルボード側の琥珀色の番号で用が足りているため、これは保留にしてある。
-
-### まだ描いていないもの
-
-- 範囲エリア（[range-render\*.ts](../src/app/features/tabletop/range/) のキャンバス描画を床へ流用する）
-- 暗闇と霧の濃淡そのもの（今は見える・薄い・見えないの 3 段階しかない）
-- 光の帯（[table-beam-overlay](../src/app/features/tabletop/table-beam-overlay/)）、背景のドリフト層、霧の空気層
-
-### 体験として足りないもの
-
-足音と衝突音は、流用をやめて専用の素材を用意したい。隣のマスのコマは足元が画面下で切れるが、これは足元を固定した代償なので、上へ寄せるかどうかは判断が要る。共有ビューで複数人が同時に歩いたときのロックは無く、後勝ちになる。
-
-### 確認待ち
-
-実機で一巡する。2 ピアでの共有ビュー、Safari、実際のダンジョン。そのうえで PR を出し、マージ後にマニュアル（`website/manual`）を main へ足す。
-
-別件として、[game-table.component.html](../src/app/features/tabletop/game-table/game-table.component.html) で `peer-cursor` が 2 回描かれているように見える箇所がある。
+ターゲットの順番バッジ（[effect-target-overlay](../src/app/features/effect/effect-target-overlay/)）は卓のカメラを基準にするので、一人称では向きが狂う。ビルボード側の琥珀色の番号で用が足りているため、保留にしてある。
 
 ## 後で触る人への注意
 
-同期オブジェクト（table や piece）を返す computed は、`equal: () => false` を付けないと下流が更新されない。
+同期オブジェクト（tableやpiece）を返すcomputedは、`equal: () => false` を付けないと下流が更新されない。
 
-vitest は型を見ない。シンボルを動かしたり signature を変えたりしたときは、`npm run build` と builder 経路の `npm test` で確かめる。
+表示は新しい向きと位置へ160msかけて滑らかに動く。描いてよいマス（`seen`）は動いた先で計算されるので、動いている途中は出発した位置で見えていたマスも合わせて描く（ビューの `carried`）。これを外すと、回るときに画面の片側、歩くときに足元が黒く欠ける。静止した画面を撮っても出ないので、確かめるときは `requestAnimationFrame` を止めて途中の向きで撮る。
 
-lefthook は、部分ステージの未ステージ分を隠す。ファイル単位でステージする。
+コマの視界の距離は「光のないところで見える距離」なので、暗闇が有効なときだけ視界を切る。暗闇がない卓で切ると、1〜2マス先しか見えなくなる。
 
-`features/first-person` は effect / tabletop / visual-novel に依存してよい（[eslint.config.ts](../eslint.config.ts) の `FEATURE_DEPENDENCIES`）。
+vitestは型を見ない。シンボルを動かしたりsignatureを変えたりしたときは、`npm run build` とbuilder経路の `npm test` で確かめる。
 
-壁は格子の境界にあるので、壁に掛かった物の視界判定は、1/4 マスだけ部屋側に寄せた点で行う。
+lefthookは、部分ステージの未ステージ分を隠す。ファイル単位でステージする。
+
+`features/first-person` はeffect / tabletop / visual-novelに依存してよい（[eslint.config.ts](../eslint.config.ts) の `FEATURE_DEPENDENCIES`）。
+
+壁は格子の境界にあるので、壁に掛かった物の視界判定は、1/4マスだけ部屋側に寄せた点で行う。
+
+床に寝かせて置くもの（小物・範囲・霧の層）は、目の前面で切り抜く（`propClip`）。視点の足元や頭上をまたいで広がるものも、これを通せば描ける。
