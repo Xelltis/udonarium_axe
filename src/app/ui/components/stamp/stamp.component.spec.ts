@@ -31,6 +31,18 @@ describe('StampComponent', () => {
     expect(drawn.getAttribute('title')).toBe(t('ui.stamp.items.sfx.creepy.name'));
   });
 
+  it('names itself where the pointer can rest on it only when asked, as a list to choose from asks', () => {
+    const t = TestBed.inject(TRANSLATE_FN);
+    show('seal:ok');
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.getAttribute('title')).toBeNull();
+
+    fixture.componentRef.setInput('named', true);
+    fixture.detectChanges();
+    expect(host.getAttribute('title')).toBe(t('ui.stamp.items.seal.ok.name'));
+    expect((host.querySelector('[data-stamp]') as HTMLElement).classList).toContain('pointer-events-none');
+  });
+
   it('lets the words of a sound effect run as wide as they need, and keeps a picture to its box', () => {
     const words = show('sfx:clap')!;
     expect(words.style.width).toBe('');

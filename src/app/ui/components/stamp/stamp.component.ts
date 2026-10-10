@@ -68,7 +68,7 @@ type StampView =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'ui-stamp',
   templateUrl: './stamp.component.html',
-  host: { class: 'inline-flex shrink-0' },
+  host: { class: 'inline-flex shrink-0', '[attr.title]': 'hoverName()' },
   imports: [SafePipe],
 })
 export class StampComponent {
@@ -83,6 +83,12 @@ export class StampComponent {
   readonly size = input(48);
   /** A number to bump, above 0, for the stamp to make its move again. */
   readonly play = input(0);
+  /**
+   * Whether the stamp's name shows where the pointer rests on it, as a list of stamps to choose from
+   * wants. Off elsewhere, so a stamp drawn inside something with a name of its own, such as a
+   * reaction naming who put it on, does not cover that name with its own.
+   */
+  readonly named = input(false);
 
   /**
    * The id this stamp's seal gives its filter, its own, so no seal leans on another's: one on a page
@@ -133,6 +139,8 @@ export class StampComponent {
       motion: stamp.motion,
     };
   });
+
+  protected readonly hoverName = computed(() => (this.named() ? (this.view()?.name ?? null) : null));
 
   /** How large words are written for the box: smaller the more there are, within bounds. */
   private wordsSize(words: string): number {

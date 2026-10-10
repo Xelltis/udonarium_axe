@@ -56,7 +56,7 @@
       [attr.data-testid]="'stamp-picker-choice-' + id"
       (click)="pick(id)"
     >
-      <ui-stamp [stampId]="id" [size]="large() ? 68 : 44" />
+      <ui-stamp [stampId]="id" [size]="large() ? 68 : 44" [named]="true" />
     </button>
   }
 </div>

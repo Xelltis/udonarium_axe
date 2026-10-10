@@ -75,7 +75,7 @@
                     [disabled]="!canChange()"
                     (click)="toggle(use, id)"
                   >
-                    <ui-stamp [stampId]="id" [size]="group.pictures ? 48 : 36" />
+                    <ui-stamp [stampId]="id" [size]="group.pictures ? 48 : 36" [named]="true" />
                     @if (!on) {
                       <i class="material-icons text-ui-text absolute top-0 right-0 text-[14px]!">block</i>
                     }
