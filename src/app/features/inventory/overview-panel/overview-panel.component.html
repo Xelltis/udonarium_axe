@@ -306,7 +306,7 @@
           @for (dataElm of rangeElms; track dataElm.myIdentifer) {
             @if (dataElm && dataElm.name !== 'name') {
               @if (
-                (range.type !== 'CIRCLE' && range.type !== 'SQUARE' && range.type !== 'DIAMOND') ||
+                (range.type !== 'CIRCLE' && range.type !== 'SQUARE' && range.type !== 'RHOMBUS') ||
                 dataElm.name !== 'width'
               ) {
                 <div class="grid grid-cols-[1fr_fit-content(80%)]">

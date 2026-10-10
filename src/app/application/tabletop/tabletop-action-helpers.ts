@@ -114,7 +114,7 @@ export function getRangeMenuItems(): RangeMenuItem[] {
     { menuName: 'feature.tabletop.action.rangeShapeCorn', typeName: 'CORN' },
     { menuName: 'feature.tabletop.action.rangeShapeTriangle', typeName: 'TRIANGLE' },
     { menuName: 'feature.tabletop.action.rangeShapeSquare', typeName: 'SQUARE' },
-    { menuName: 'feature.tabletop.action.rangeShapeDiamond', typeName: 'DIAMOND' },
+    { menuName: 'feature.tabletop.action.rangeShapeDiamond', typeName: 'RHOMBUS' },
     { menuName: 'feature.tabletop.action.rangeShapePentagon', typeName: 'PENTAGON' },
     { menuName: 'feature.tabletop.action.rangeShapeHexagon', typeName: 'HEXAGON' },
     { menuName: 'feature.tabletop.action.rangeShapeCircle', typeName: 'CIRCLE' },
@@ -128,13 +128,13 @@ export function getRangeMenuItems(): RangeMenuItem[] {
  */
 export function getRangeMenuEntries(): RangeMenuEntry[] {
   return getRangeMenuItems()
-    .filter((item) => item.typeName !== 'DIAMOND')
+    .filter((item) => item.typeName !== 'RHOMBUS')
     .map((item) =>
       item.typeName === 'SQUARE'
         ? {
             ...item,
             variants: [
-              { menuName: 'feature.tabletop.action.rangeShapeAsDiamond', typeName: 'DIAMOND' },
+              { menuName: 'feature.tabletop.action.rangeShapeAsDiamond', typeName: 'RHOMBUS' },
               { menuName: 'feature.tabletop.action.rangeShapeAsSquare', typeName: 'SQUARE' },
             ],
           }

@@ -1,4 +1,5 @@
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
+import { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { generateUuid } from '@axe/core/util/uuid';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -8,6 +9,8 @@ import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export const RANGE_DEFAULT_FILL_COLOR = '#FFFF00';
 export const RANGE_DEFAULT_BORDER_COLOR = '#000000';
+/** The name older rooms saved the diamond under. */
+const LEGACY_DIAMOND = 'DIAMOND';
 
 @SyncObject('range')
 export class RangeArea extends TabletopObject {
@@ -25,11 +28,7 @@ export class RangeArea extends TabletopObject {
   @SyncVar() offSetY: boolean = false;
   @SyncVar() gridColor: string = RANGE_DEFAULT_FILL_COLOR;
   @SyncVar() rangeColor: string = RANGE_DEFAULT_BORDER_COLOR;
-  /**
-   * The range's shape: `LINE`, `CORN`, `TRIANGLE`, `SQUARE`, `DIAMOND` (the cells a walk of the
-   * range's length reaches, counting no diagonals), `PENTAGON`, `HEXAGON`, `CIRCLE` or `CUSTOM`.
-   */
-  @SyncVar() type: string = 'CORN';
+  @SyncVar('type') private _type: string = 'CORN';
   @SyncVar() fillOutLine: boolean = false;
   @SyncVar() subDivisionSnapPolygonal: boolean = true;
   @SyncVar() cellPattern: string = '';
@@ -37,6 +36,22 @@ export class RangeArea extends TabletopObject {
   @SyncVar() isRotatable: boolean = false;
   /** The hotbar slot that laid this out, so the same slot can take it down again later. */
   @SyncVar() laidByHotbarSlot: string = '';
+
+  /**
+   * The range's shape: `LINE`, `CORN`, `TRIANGLE`, `SQUARE`, `RHOMBUS` (the diamond: the cells a
+   * walk of the range's length reaches, counting no diagonals), `PENTAGON`, `HEXAGON`, `CIRCLE` or
+   * `CUSTOM`.
+   *
+   * The diamond goes by a name of its own rather than the `DIAMOND` older rooms saved it under: a
+   * version before it came back reads `DIAMOND` as a square turned an eighth and would write that
+   * back over everyone's diamond the next time it moved one. A `DIAMOND` set or read is the diamond.
+   */
+  get type(): string {
+    return this._type;
+  }
+  set type(type: string) {
+    this._type = type === LEGACY_DIAMOND ? 'RHOMBUS' : type;
+  }
 
   /** How far the range reaches, in grid cells, kept in its common data. */
   get length(): number {
@@ -77,6 +92,18 @@ export class RangeArea extends TabletopObject {
   followingCounterDummyCount() {
     this.followingCounterDummy++;
     if (this.followingCounterDummy >= 50) this.followingCounterDummy = 0;
+  }
+
+  /** Reads a range saved with the diamond's older name as the diamond when it arrives in the store. */
+  override onStoreAdded() {
+    super.onStoreAdded();
+    this.normalizeLegacyDiamond();
+  }
+
+  /** Applies a synced update, reading the diamond's older name as the diamond if it carried one. */
+  override apply(context: ObjectContext) {
+    super.apply(context);
+    this.normalizeLegacyDiamond();
   }
 
   /**
@@ -129,10 +156,14 @@ export class RangeArea extends TabletopObject {
     const width = Math.max(1, bb.width);
     const length = Math.max(1, bb.height);
     const object = RangeArea.create(name, width, length, opacity, options.identifier);
-    object.type = 'CUSTOM';
+    object._type = 'CUSTOM';
     object.cellPattern = cellPattern;
     object.customGridType = gridType;
     object.isRotatable = options.isRotatable === true;
     return object;
+  }
+
+  private normalizeLegacyDiamond(): void {
+    if (this._type === LEGACY_DIAMOND) this.attributes['type'] = 'RHOMBUS';
   }
 }

@@ -40,7 +40,7 @@ describe('tabletop-action-helpers', () => {
       { menuName: 'feature.tabletop.action.rangeShapeCorn', typeName: 'CORN' },
       { menuName: 'feature.tabletop.action.rangeShapeTriangle', typeName: 'TRIANGLE' },
       { menuName: 'feature.tabletop.action.rangeShapeSquare', typeName: 'SQUARE' },
-      { menuName: 'feature.tabletop.action.rangeShapeDiamond', typeName: 'DIAMOND' },
+      { menuName: 'feature.tabletop.action.rangeShapeDiamond', typeName: 'RHOMBUS' },
       { menuName: 'feature.tabletop.action.rangeShapePentagon', typeName: 'PENTAGON' },
       { menuName: 'feature.tabletop.action.rangeShapeHexagon', typeName: 'HEXAGON' },
       { menuName: 'feature.tabletop.action.rangeShapeCircle', typeName: 'CIRCLE' },
@@ -51,9 +51,9 @@ describe('tabletop-action-helpers', () => {
   it('offers the square in the create menu as a diamond or square to the grid, and the diamond nowhere else', () => {
     const entries = getRangeMenuEntries();
 
-    expect(entries.map((entry) => entry.typeName)).not.toContain('DIAMOND');
+    expect(entries.map((entry) => entry.typeName)).not.toContain('RHOMBUS');
     expect(entries.find((entry) => entry.typeName === 'SQUARE')?.variants).toEqual([
-      { menuName: 'feature.tabletop.action.rangeShapeAsDiamond', typeName: 'DIAMOND' },
+      { menuName: 'feature.tabletop.action.rangeShapeAsDiamond', typeName: 'RHOMBUS' },
       { menuName: 'feature.tabletop.action.rangeShapeAsSquare', typeName: 'SQUARE' },
     ]);
     expect(entries.filter((entry) => entry.variants)).toHaveLength(1);

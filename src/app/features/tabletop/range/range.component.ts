@@ -140,7 +140,7 @@ export class RangeComponent {
     this.rangeVersion();
     const range = this.range();
     if (range.type === 'CUSTOM') return range.isRotatable === true;
-    return ['LINE', 'CORN', 'SQUARE', 'DIAMOND', 'TRIANGLE', 'PENTAGON', 'HEXAGON'].includes(range.type);
+    return ['LINE', 'CORN', 'SQUARE', 'RHOMBUS', 'TRIANGLE', 'PENTAGON', 'HEXAGON'].includes(range.type);
   });
 
   readonly isCustomRangeType = computed(() => {
@@ -150,7 +150,7 @@ export class RangeComponent {
 
   readonly usesSingleRotateGrab = computed(() => {
     this.rangeVersion();
-    return ['SQUARE', 'DIAMOND', 'TRIANGLE', 'PENTAGON', 'HEXAGON', 'CUSTOM'].includes(this.range().type);
+    return ['SQUARE', 'RHOMBUS', 'TRIANGLE', 'PENTAGON', 'HEXAGON', 'CUSTOM'].includes(this.range().type);
   });
 
   readonly rotateGrabDistancePx = computed(() => Math.max(1, this.length()) * this.gridSize);

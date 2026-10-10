@@ -146,7 +146,7 @@ function buildFollowAction(
   onDockingWindowOpen: () => void,
   t: TranslateFn
 ): ContextMenuAction | null {
-  if (!['CIRCLE', 'SQUARE', 'DIAMOND', 'TRIANGLE', 'PENTAGON', 'HEXAGON'].includes(range.type)) return null;
+  if (!['CIRCLE', 'SQUARE', 'RHOMBUS', 'TRIANGLE', 'PENTAGON', 'HEXAGON'].includes(range.type)) return null;
   return objectStore.get(range.followingCharacterIdentifier) != null
     ? {
         name: t('feature.tabletop.contextMenu.unfollow'),
@@ -175,9 +175,9 @@ function buildShapeAction(range: RangeArea, t: TranslateFn): ContextMenuAction {
   });
   const quadrilateral: ContextMenuAction = {
     name:
-      (range.type === 'SQUARE' || range.type === 'DIAMOND' ? '✔ ' : '') + t('feature.tabletop.contextMenu.shapeSquare'),
+      (range.type === 'SQUARE' || range.type === 'RHOMBUS' ? '✔ ' : '') + t('feature.tabletop.contextMenu.shapeSquare'),
     action: undefined,
-    subActions: [pick('DIAMOND', 'shapeAsDiamond'), pick('SQUARE', 'shapeAsSquare')],
+    subActions: [pick('RHOMBUS', 'shapeAsDiamond'), pick('SQUARE', 'shapeAsSquare')],
   };
   return {
     name: t('feature.tabletop.contextMenu.shape'),

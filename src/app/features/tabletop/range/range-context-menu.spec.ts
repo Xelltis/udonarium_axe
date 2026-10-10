@@ -64,7 +64,7 @@ describe('buildRangeContextMenu', () => {
       expect(square?.subActions?.map((action) => action.name)).toEqual(['ダイヤとして出力', '✔ 四角形として出力']);
 
       square!.subActions![0].action!();
-      expect(range.type).toBe('DIAMOND');
+      expect(range.type).toBe('RHOMBUS');
       const again = shapeMenuOf(range)?.subActions?.find((action) => action.name.endsWith('四角形'));
       expect(again?.subActions?.map((action) => action.name)).toEqual(['✔ ダイヤとして出力', '四角形として出力']);
     } finally {
@@ -74,7 +74,7 @@ describe('buildRangeContextMenu', () => {
 
   it('lets a diamond follow a character as a square can', () => {
     const range = RangeArea.create('test', 1, 1, 50);
-    range.type = 'DIAMOND';
+    range.type = 'RHOMBUS';
 
     try {
       const model = buildRangeContextMenuModel(

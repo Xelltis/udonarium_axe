@@ -560,7 +560,7 @@ export class GameCharacterSheetComponent {
     { type: 'CORN', labelKey: 'feature.inventory.sheet.rangeShapeCorn', icon: 'change_history' },
     { type: 'TRIANGLE', labelKey: 'feature.inventory.sheet.rangeShapeTriangle', icon: 'details' },
     { type: 'SQUARE', labelKey: 'feature.inventory.sheet.rangeShapeSquare', icon: 'crop_square' },
-    { type: 'DIAMOND', labelKey: 'feature.inventory.sheet.rangeShapeDiamond', icon: 'diamond' },
+    { type: 'RHOMBUS', labelKey: 'feature.inventory.sheet.rangeShapeDiamond', icon: 'diamond' },
     { type: 'PENTAGON', labelKey: 'feature.inventory.sheet.rangeShapePentagon', icon: 'pentagon' },
     { type: 'HEXAGON', labelKey: 'feature.inventory.sheet.rangeShapeHexagon', icon: 'hexagon' },
     { type: 'CIRCLE', labelKey: 'feature.inventory.sheet.rangeShapeCircle', icon: 'radio_button_unchecked' },

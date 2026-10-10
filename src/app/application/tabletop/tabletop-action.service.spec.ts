@@ -110,7 +110,7 @@ describe('TabletopActionService', () => {
       square!.subActions![0].action!();
       const made = ObjectStore.instance.getObjects(RangeArea).filter((range) => !before.has(range));
       try {
-        expect(made.map((range) => range.type)).toEqual(['DIAMOND']);
+        expect(made.map((range) => range.type)).toEqual(['RHOMBUS']);
       } finally {
         for (const range of made) range.destroy();
       }

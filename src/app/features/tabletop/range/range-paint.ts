@@ -94,7 +94,7 @@ export function paintRange(
       return { kind: 'circle' };
     case 'SQUARE':
       return { kind: 'polygon', area: render.renderSquare(setting) };
-    case 'DIAMOND':
+    case 'RHOMBUS':
       return { kind: 'polygon', area: render.renderDiamond(setting) };
     case 'TRIANGLE':
       return { kind: 'polygon', area: render.renderTriangle(setting) };
@@ -136,7 +136,7 @@ export function initialRangeClip(type: string): RangeClip {
       return { kind: 'custom', halfWidthPx: 25, halfHeightPx: 25 };
     case 'LINE':
     case 'SQUARE':
-    case 'DIAMOND':
+    case 'RHOMBUS':
       return {
         kind: 'polygon',
         area: {

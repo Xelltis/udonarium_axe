@@ -270,7 +270,7 @@ export class TabletopActionService {
         range = RangeArea.create(this.t('feature.tabletop.action.defaultRangeName'), 3, 3, 100);
         break;
       case 'SQUARE':
-      case 'DIAMOND':
+      case 'RHOMBUS':
         range = RangeArea.create(this.t('feature.tabletop.action.defaultRangeName'), 3, 3, 100);
         break;
       case 'TRIANGLE':
