@@ -2,18 +2,18 @@
 
 卓を一人称の視界へ置き換える表示モードは、4種類の格子すべてで歩ける。暗闇は卓の視界規則をそのまま引き継ぎ、卓に描いてあるものは一人称でもひととおり描く。残っているのは実機での一巡と、PRとマニュアルだけになった。
 
-この文書は `feat/first-person-view`（2026-09-11〜10-10）の途中経過をまとめたもので、次に手を付ける人へ「どこまで動くか」「何が決まっているか」「何が残っているか」を渡すために書いた。
+この文書は`feat/first-person-view`（2026-09-11〜10-10）の途中経過をまとめたもので、次に手を付ける人へ「どこまで動くか」「何が決まっているか」「何が残っているか」を渡すために書いた。
 
 ## どこまで動くか
 
 WebGLは使わずCSS 3Dで組んである。正方・平頂ヘクス・尖頂ヘクス・グリッドなしの4格子が同じ操作で動き、格子ごとの違いは
-[src/app/domain/tabletop/first-person/](../src/app/domain/tabletop/first-person/) のlattice・world・clip・scene・wall・target・free-step・minimap-viewが吸収する。
+[src/app/domain/tabletop/first-person/](../src/app/domain/tabletop/first-person/)のlattice・world・clip・scene・wall・target・free-step・minimap-viewが吸収する。
 
 操作は歩行（W/S/A/D、ヘクスではZ/Cも）、旋回（Q/E）、扉（Space）、松明（F）、ターゲット（TとShift+T）、エフェクトの発動（Enter、取り消しはEsc）。1歩進むたびに部屋の移動ルールと罠を見る。
 
-見え方は席ごとに持ち、localStorageへ書く。GMは自分の視界を共有でき、配った先は `GameTable.sharedViewPiece` が指す。共有中に歩けるのは、そのコマの所有者とGMだけ。
+見え方は席ごとに持ち、localStorageへ書く。GMは自分の視界を共有でき、配った先は`GameTable.sharedViewPiece`が指す。共有中に歩けるのは、そのコマの所有者とGMだけ。
 
-入口は5つ。コマの右クリック、PLツールバーのボタン、左上メニューの「テーブル関連」にある項目 `firstPersonView`、ホットバーのスロット種別 `firstPerson`、GMツールバーの共有メニュー。ツールバーの2つは、メニュー配置の定義（`domain/ui/menu-command.ts`）にある独自描画の項目 `firstPerson` と `firstPersonShare` で、利用者が並べ替えられる。共有中のコマには卓上で琥珀色の輪が付く。
+入口は5つ。コマの右クリック、PLツールバーのボタン、左上メニューの「テーブル関連」にある項目`firstPersonView`、ホットバーのスロット種別`firstPerson`、GMツールバーの共有メニュー。ツールバーの2つは、メニュー配置の定義（`domain/ui/menu-command.ts`）にある独自描画の項目`firstPerson`と`firstPersonShare`で、利用者が並べ替えられる。共有中のコマには卓上で琥珀色の輪が付く。
 
 描いているものは次のとおり。
 
@@ -25,13 +25,13 @@ WebGLは使わずCSS 3Dで組んである。正方・平頂ヘクス・尖頂ヘ
 - 霧の空気層、天候、揺れと閃光
 - 壁の上の空（卓の背景画像と、奥の背景レイヤー。どちらもない卓は、暗闇でなければ地平線ほど淡い夜空のグラデーション）
 
-エフェクトは [src/app/features/effect/table-effect-overlay/](../src/app/features/effect/table-effect-overlay/) をeye入力で流用している。範囲エリアと霧の空気層は、卓と同じ描画関数（`features/tabletop/range/range-paint.ts`、`features/tabletop/fog-of-war/fog-air-sheet.ts`）で描く。
+エフェクトは[src/app/features/effect/table-effect-overlay/](../src/app/features/effect/table-effect-overlay/)をeye入力で流用している。範囲エリアと霧の空気層は、卓と同じ描画関数（`features/tabletop/range/range-paint.ts`、`features/tabletop/fog-of-war/fog-air-sheet.ts`）で描く。
 
-暗闇は卓の規則そのまま。面ごとに、そのマスの明るさ（`VisionService.objectBrightness`）で暗くするので、灯りの近くは明るく、離れるほど暗い。濃淡は面単位の段になる。記憶済みで今は見えないマスは、霧と同じ濃さ（[first-person-style.ts](../src/app/features/first-person/first-person-style.ts) の `FOG_VEIL_ALPHA`）で薄く残す。GMには全部見える。
+暗闇は卓の規則そのまま。面ごとに、そのマスの明るさ（`VisionService.objectBrightness`）で暗くするので、灯りの近くは明るく、離れるほど暗い。濃淡は面単位の段になる。記憶済みで今は見えないマスは、霧と同じ濃さ（[first-person-style.ts](../src/app/features/first-person/first-person-style.ts)の`FOG_VEIL_ALPHA`）で薄く残す。GMには全部見える。
 
-前方は12マスまで描く。6マスより先は、壁・床・コマ・置き物を遠いほどぼかし（`farBlurPx`、最大3px）、距離による暗さは12マスで最大になる。暗闇や霧でその席に見えていないマスは、ぼかしても描かない。描くマスは目からの視線で選ぶ。マスの中心に加えて四隅（中心へ1割寄せた点）でも確かめるので、壁の角が中心だけを隠すマスや、その奥の壁も描く。T で狙えるのは、視線が中心まで通るコマに限る。
+前方は12マスまで描く。6マスより先は、壁・床・コマ・置き物を遠いほどぼかし（`farBlurPx`、最大3px）、距離による暗さは12マスで最大になる。暗闇や霧でその席に見えていないマスは、ぼかしても描かない。描くマスは目からの視線で選ぶ。マスの中心に加えて四隅（中心へ1割寄せた点）でも確かめるので、壁の角が中心だけを隠すマスや、その奥の壁も描く。Tで狙えるのは、視線が中心まで通るコマに限る。
 
-近くのコマは遠近のとおり大きく描き、足元が画面の下に切れるときは持ち上げる。投影は `projectedHeight = h·P/d`（Pは画面幅の半分）。名前・ゲージ・バフは画像の上に積み、画像の縦横比から絵の上端を求めてそのすぐ上に置く。文字は28pxを上限にし、近すぎて画面の上からはみ出すときだけ、画面の上端の内側まで下げて絵に重ねる。
+近くのコマは遠近のとおり大きく描き、足元が画面の下に切れるときは持ち上げる。投影は`projectedHeight = h·P/d`（Pは画面幅の半分）。名前・ゲージ・バフは画像の上に積み、画像の縦横比から絵の上端を求めてそのすぐ上に置く。文字は28pxを上限にし、近すぎて画面の上からはみ出すときだけ、画面の上端の内側まで下げて絵に重ねる。
 
 HUDは、操作クラスターを左下に置いてホットバーを避け、モバイルシェルでは左端へ寄せる。方位盤とミニマップは右下で、スマホでは右上に小さく出す。
 
@@ -46,9 +46,9 @@ HUDは、操作クラスターを左下に置いてホットバーを避け、�
 | 戦闘情報             | 卓と同じ                                                                                  |
 | GM側                 | ツールバーで選び、卓上に印を出す                                                          |
 | ホットバーの衝突     | パッドを左下へ                                                                            |
-| 足音                 | 既存の `piecePut` / `blockPut` を流用する。専用の音はこのマイルストーンの外               |
+| 足音                 | 既存の`piecePut` / `blockPut`を流用する。専用の音はこのマイルストーンの外                 |
 | スマホ               | 方位盤とミニマップを小さくして残す                                                        |
-| 近接コマ             | 遠近のとおり大きく描き、足元が切れるコマは持ち上げる（2026-10-11 に大きさの上限を外した） |
+| 近接コマ             | 遠近のとおり大きく描き、足元が切れるコマは持ち上げる（2026-10-11に大きさの上限を外した）  |
 | 遠く                 | 12マスまで描き、6マスより先をぼかす。背景のない卓の空は夜空のグラデーション（2026-10-11） |
 | 描き足し             | 範囲エリア・暗闇の濃淡・光の帯と空・霧の空気層をすべて描く（2026-10-10）                  |
 
@@ -60,17 +60,17 @@ HUDは、操作クラスターを左下に置いてホットバーを避け、�
 
 ## 後で触る人への注意
 
-同期オブジェクト（tableやpiece）を返すcomputedは、`equal: () => false` を付けないと下流が更新されない。
+同期オブジェクト（tableやpiece）を返すcomputedは、`equal: () => false`を付けないと下流が更新されない。
 
-表示は新しい向きと位置へ160msかけて滑らかに動く。描いてよいマス（`seen`）は動いた先で計算されるので、動いている途中は出発した位置で見えていたマスも合わせて描く（ビューの `carried`）。これを外すと、回るときに画面の片側、歩くときに足元が黒く欠ける。静止した画面を撮っても出ないので、確かめるときは `requestAnimationFrame` を止めて途中の向きで撮る。
+表示は新しい向きと位置へ160msかけて滑らかに動く。描いてよいマス（`seen`）は動いた先で計算されるので、動いている途中は出発した位置で見えていたマスも合わせて描く（ビューの`carried`）。これを外すと、回るときに画面の片側、歩くときに足元が黒く欠ける。静止した画面を撮っても出ないので、確かめるときは`requestAnimationFrame`を止めて途中の向きで撮る。
 
 コマの視界の距離は「光のないところで見える距離」なので、暗闇が有効なときだけ視界を切る。暗闇がない卓で切ると、1〜2マス先しか見えなくなる。
 
-vitestは型を見ない。シンボルを動かしたりsignatureを変えたりしたときは、`npm run build` とbuilder経路の `npm test` で確かめる。
+vitestは型を見ない。シンボルを動かしたりsignatureを変えたりしたときは、`npm run build`とbuilder経路の`npm test`で確かめる。
 
 lefthookは、部分ステージの未ステージ分を隠す。ファイル単位でステージする。
 
-`features/first-person` はeffect / tabletop / visual-novelに依存してよい（[eslint.config.ts](../eslint.config.ts) の `FEATURE_DEPENDENCIES`）。
+`features/first-person`はeffect / tabletop / visual-novelに依存してよい（[eslint.config.ts](../eslint.config.ts)の`FEATURE_DEPENDENCIES`）。
 
 壁は格子の境界にあるので、壁に掛かった物の視界判定は、1/4マスだけ部屋側に寄せた点で行う。
 
