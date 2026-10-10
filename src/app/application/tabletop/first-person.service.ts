@@ -335,16 +335,18 @@ export class FirstPersonService {
     return true;
   }
 
-  /** The pieces this seat may look out of: those it may move, standing where a view can be drawn from. */
+  /**
+   * The pieces this seat may look out of: those it may move, standing where a view can be drawn
+   * from. Every piece is watched, not only those that qualify, so a piece handed over or brought
+   * back onto the table joins the list as it happens.
+   */
   readonly seats = computed<FirstPersonSeat[]>(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     this.objectChange.trackMyCursor();
     this.table();
-    return firstPersonSeats(
-      this.objectStore.getObjects<GameCharacter>(GameCharacter),
-      PeerCursor.myCursor?.userId ?? '',
-      (character) => this.canLookOutOf(character)
-    );
+    const characters = this.objectStore.getObjects<GameCharacter>(GameCharacter);
+    for (const character of characters) this.objectChange.versionOf(character.identifier)();
+    return firstPersonSeats(characters, PeerCursor.myCursor?.userId ?? '', (character) => this.canLookOutOf(character));
   });
 
   canLookOutOf(piece: GameCharacter): boolean {

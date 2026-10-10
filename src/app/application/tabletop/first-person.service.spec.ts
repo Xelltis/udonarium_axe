@@ -215,6 +215,24 @@ describe('FirstPersonService', () => {
     });
   });
 
+  describe('the pieces this seat may look out of', () => {
+    it('takes in a piece the moment it is handed to this seat', () => {
+      const piece = pieceAt(5, 5);
+      piece.owner = 'somebody-else';
+      touch(piece.identifier);
+      expect(service().seats()).toEqual([]);
+
+      piece.owner = PeerCursor.myCursor.userId;
+      touch(piece.identifier);
+
+      expect(
+        service()
+          .seats()
+          .map((seat) => seat.identifier)
+      ).toEqual([piece.identifier]);
+    });
+  });
+
   describe('what the eye sees', () => {
     it('sees down the room and not through a wall', () => {
       block(0, 5 * GRID, 12, 1);
