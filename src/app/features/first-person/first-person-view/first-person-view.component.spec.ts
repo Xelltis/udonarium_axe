@@ -339,7 +339,7 @@ describe('FirstPersonViewComponent', () => {
     expect(billboard.querySelector('[data-testid="first-person-gauge"]')?.textContent).toContain('???/???');
   });
 
-  it('pulls a piece on the next cell down to fit the frame, and leaves one four cells off alone', () => {
+  it('draws a piece on the next cell at its own size, to grow as the eye sees it come near', () => {
     const near = pieceAt(4, 6);
     const far = pieceAt(4, 3);
     lookOutOf(pieceAt(4, 7));
@@ -349,7 +349,31 @@ describe('FirstPersonViewComponent', () => {
     const heightOf = (piece: GameCharacter) => parseFloat(billboardOf(piece).style.height);
 
     expect(heightOf(far)).toBeCloseTo(GRID * 1.5 * scaleOf(GRID), 1);
-    expect(heightOf(near)).toBeLessThan(heightOf(far));
+    expect(heightOf(near)).toBeCloseTo(heightOf(far), 1);
+  });
+
+  it('stands the readings, the name and the marks above the picture rather than over it', () => {
+    const enemy = pieceAt(4, 4);
+    lookOutOf(pieceAt(4, 7));
+    const fixture = mount();
+    const chromeOf = () =>
+      element(fixture).querySelector<HTMLElement>(
+        `[data-piece="${enemy.identifier}"] [data-testid="first-person-piece-chrome"]`
+      )!;
+
+    expect(chromeOf().style.bottom).toBe('100%');
+    expect(chromeOf().classList).toContain('origin-bottom');
+    expect(chromeOf().querySelector('[data-testid="first-person-gauges"]')).not.toBeNull();
+    expect(chromeOf().textContent).toContain(enemy.name);
+
+    const wide = { target: { naturalWidth: 200, naturalHeight: 100 } } as unknown as Event;
+    (fixture.componentInstance as unknown as { notePictureAspect(url: string, event: Event): void }).notePictureAspect(
+      enemy.imageFile.url,
+      wide
+    );
+    fixture.detectChanges();
+
+    expect(chromeOf().style.bottom).toBe('30%');
   });
 
   it('holds the writing on a near piece to a size that can be read, and asks nothing of a far one', () => {

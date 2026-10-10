@@ -49,32 +49,31 @@
             [src]="piece.url"
             [alt]="piece.name"
             draggable="false"
+            (load)="notePictureAspect(piece.url, $event)"
           />
         } @else {
           <span class="rounded-sm bg-black/60 px-2 py-1 text-white">{{ piece.name }}</span>
         }
+        @if (piece.targeted) {
+          <span
+            class="pointer-events-none absolute -bottom-3 left-1/2 h-8 w-4/5 -translate-x-1/2 rounded-[50%] border-4 border-red-500"
+          ></span>
+        }
+        <!--
+          What is told about the piece stands just above the top of the picture, not over it: the
+          marks it carries, its readings, then its name nearest the picture, as the table shows them.
+          Shrunk for a near piece, it shrinks towards the picture's top rather than down over it. Only
+          a piece so near that its top is off the view has it brought down over the picture, to stay
+          in sight.
+        -->
         <span
-          class="absolute inset-0 origin-bottom"
+          class="absolute left-1/2 flex w-[130%] origin-bottom -translate-x-1/2 flex-col items-center gap-1.5 pb-2"
           data-testid="first-person-piece-chrome"
+          [style.bottom.%]="piece.chromeBottom"
           [style.transform]="piece.hud"
         >
-          @if (piece.targeted) {
-            <span
-              class="absolute -bottom-3 left-1/2 h-8 w-4/5 -translate-x-1/2 rounded-[50%] border-4 border-red-500"
-            ></span>
-          }
-          @if (piece.label) {
-            <span
-              class="absolute -top-10 left-1/2 -translate-x-1/2 rounded-sm bg-black/60 px-3 py-1 text-2xl whitespace-nowrap text-white"
-              [class.bg-red-700]="piece.targeted"
-              >{{ piece.label }}</span
-            >
-          }
           @if (piece.badges.length > 0) {
-            <span
-              class="absolute -top-26 left-1/2 flex w-[160%] -translate-x-1/2 flex-nowrap justify-center gap-1.5"
-              data-testid="first-person-buffs"
-            >
+            <span class="flex flex-nowrap justify-center gap-1.5" data-testid="first-person-buffs">
               @for (badge of piece.badges; track badge.identifier) {
                 <span
                   class="relative inline-flex size-12 items-center justify-center rounded-full border-2 border-solid border-white/40 text-2xl leading-none text-white shadow-[0_2px_6px_rgba(0,0,0,0.7)]"
@@ -112,10 +111,7 @@
             </span>
           }
           @if (piece.gauges.length > 0) {
-            <span
-              class="pointer-events-none absolute top-0 left-1/2 flex w-[130%] -translate-x-1/2 flex-col gap-1"
-              data-testid="first-person-gauges"
-            >
+            <span class="pointer-events-none flex w-full flex-col gap-1" data-testid="first-person-gauges">
               @for (row of piece.gauges; track row.id) {
                 <span
                   class="flex items-center gap-1.5 text-xl leading-none whitespace-nowrap text-white [text-shadow:0_2px_3px_#000]"
@@ -135,11 +131,22 @@
               }
             </span>
           }
-          @if (piece.pick) {
-            <span
-              class="absolute top-0 right-0 grid size-12 place-items-center rounded-full bg-amber-400 text-2xl font-bold text-black"
-              >{{ piece.pick }}</span
-            >
+          @if (piece.label || piece.pick) {
+            <span class="flex items-center gap-2">
+              @if (piece.pick) {
+                <span
+                  class="grid size-12 shrink-0 place-items-center rounded-full bg-amber-400 text-2xl font-bold text-black"
+                  >{{ piece.pick }}</span
+                >
+              }
+              @if (piece.label) {
+                <span
+                  class="rounded-sm bg-black/60 px-3 py-1 text-2xl whitespace-nowrap text-white"
+                  [class.bg-red-700]="piece.targeted"
+                  >{{ piece.label }}</span
+                >
+              }
+            </span>
           }
         </span>
       </div>

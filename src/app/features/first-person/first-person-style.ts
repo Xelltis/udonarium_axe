@@ -3,11 +3,14 @@ import { FirstPersonPlaneQuad, FirstPersonWallQuad } from '@axe/domain/tabletop/
 import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
 
 export const FIRST_PERSON_UNIT_PX = 256;
-export const MAX_PIECE_SCREEN_FRACTION = 0.7;
 export const MAX_PIECE_TEXT_SCREEN_PX = 28;
 /** How far up from the bottom of the view a lifted piece's feet are held, as a share of half the view's height. */
 export const PIECE_FOOT_MARGIN = 0.08;
 const BILLBOARD_TEXT_PX = 24;
+const CHROME_PAD_PX = 8;
+const CHROME_BADGE_ROW_PX = 54;
+const CHROME_GAUGE_ROW_PX = 24;
+const CHROME_LABEL_ROW_PX = 46;
 const MAX_SHADE = 0.85;
 const REMEMBERED_VEIL = `linear-gradient(rgba(0, 0, 0, ${FOG_VEIL_ALPHA}), rgba(0, 0, 0, ${FOG_VEIL_ALPHA}))`;
 
@@ -143,30 +146,65 @@ export function billboardLiftPx(
 }
 
 /**
- * How far a piece is shrunk so that it stands no taller, nor wider, than its share of the view,
- * a width or a view of nothing asking for nothing; 1 where it fits already.
+ * How far the writing over a piece is shrunk so that it reads no larger than it should on the
+ * screen, however near the piece stands; 1 for a piece far enough off. The piece itself is drawn
+ * at the size the eye sees it, growing as it comes near.
  */
-export function billboardShrink(
-  heightPx: number,
-  depthPx: number,
-  scale: number,
-  perspective: number,
-  viewHeightPx: number,
-  widthPx = 0,
-  viewWidthPx = 0
-): number {
-  const fit = (lengthPx: number, viewPx: number): number => {
-    const limit = viewPx * MAX_PIECE_SCREEN_FRACTION;
-    const projected = projectedHeightPx(lengthPx, depthPx, scale, perspective);
-    return limit <= 0 || projected <= limit ? 1 : limit / projected;
-  };
-  return Math.min(fit(heightPx, viewHeightPx), fit(widthPx, viewWidthPx));
-}
-
-export function billboardTextScale(shrink: number, depthPx: number, scale: number, perspective: number): number {
+export function billboardTextScale(depthPx: number, scale: number, perspective: number): number {
   const projected = BILLBOARD_TEXT_PX * projectedScaleOf(depthPx, scale, perspective);
   const fits = projected > 0 ? MAX_PIECE_TEXT_SCREEN_PX / projected : 1;
-  return Math.min(shrink, fits, 1);
+  return Math.min(fits, 1);
+}
+
+/**
+ * How far up its box a picture drawn to fit it and set on its floor reaches, in percent: all the
+ * way for one taller than the box's proportions or one not yet loaded, less for a wider one.
+ */
+export function pictureTopPercent(boxAspect: number, pictureAspect: number | undefined): number {
+  if (!(boxAspect > 0) || pictureAspect === undefined || !(pictureAspect > 0)) return 100;
+  return round(Math.min(1, boxAspect / pictureAspect) * 100);
+}
+
+/** The rows of what is told about a piece: its marks, how many readings, and its name or pick. */
+export interface PieceChromeRows {
+  readonly badges: boolean;
+  readonly gauges: number;
+  readonly label: boolean;
+}
+
+/** How tall what is told about a piece stands, in the box's own pixels before it is scaled. */
+export function pieceChromeHeightPx(rows: PieceChromeRows): number {
+  return (
+    CHROME_PAD_PX +
+    (rows.badges ? CHROME_BADGE_ROW_PX : 0) +
+    rows.gauges * CHROME_GAUGE_ROW_PX +
+    (rows.label ? CHROME_LABEL_ROW_PX : 0)
+  );
+}
+
+/**
+ * Where what is told about a piece stands in its box, in percent from the bottom: just above the
+ * top of the picture, unless that would carry it off the top of the view, when it comes down to
+ * stay in sight, over the picture if it must. `chromeScreenPx` is how tall it shows on the screen,
+ * and `marginPx` how far below the top of the view it keeps.
+ */
+export function pieceChromeBottomPercent(at: {
+  pictureTop: number;
+  heightPx: number;
+  baseZ: number;
+  eyeZ: number;
+  depthPx: number;
+  perspective: number;
+  viewHeightPx: number;
+  chromeScreenPx: number;
+  marginPx: number;
+}): number {
+  if (at.viewHeightPx <= 0 || at.depthPx <= 0 || at.perspective <= 0 || at.heightPx <= 0) return at.pictureTop;
+  const topZ = at.baseZ + (at.heightPx * at.pictureTop) / 100;
+  const roomPx = at.viewHeightPx / 2 - at.marginPx - at.chromeScreenPx;
+  const highestZ = at.eyeZ + (roomPx * at.depthPx) / at.perspective;
+  const percent = ((Math.min(topZ, highestZ) - at.baseZ) / at.heightPx) * 100;
+  return round(Math.min(Math.max(percent, 0), at.pictureTop));
 }
 
 export function billboardHudTransform(textScale: number): string | null {

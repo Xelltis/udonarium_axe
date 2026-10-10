@@ -70,14 +70,17 @@ import { FirstPersonRangeComponent } from '@axe/features/first-person/first-pers
 import {
   billboardHudTransform,
   billboardLiftPx,
-  billboardShrink,
   billboardStyle,
   billboardTextScale,
   cameraTransform,
   litShade,
   perspectivePx,
+  pictureTopPercent,
+  pieceChromeBottomPercent,
+  pieceChromeHeightPx,
   pieceImageFilter,
   planeQuadStyle,
+  projectedScaleOf,
   QuadStyle,
   scaleOf,
   shadeFor,
@@ -103,6 +106,8 @@ const EFFECT_LIFT_CELLS = 0.15;
 const EFFECT_RISE_CELLS = 0.3;
 const PIECE_WIDE_RATIO = 0.9;
 const PIECE_TALL_RATIO = 1.5;
+/** How far below the top of the view what is told about a near piece keeps, clear of the toolbars. */
+const CHROME_TOP_MARGIN_PX = 64;
 /** How far over the floor a range area is laid, clear of the floor and of anything lying on it. */
 const RANGE_LIFT_PX = 0.75;
 /** The width the view is laid out for before it has been measured. */
@@ -139,6 +144,11 @@ interface PieceView {
   moreBadges: number;
   style: QuadStyle;
   hud: string | null;
+  /**
+   * Where what is told about the piece stands in its box, in percent from the bottom: just above
+   * the top of the picture, or lower where that would leave the view.
+   */
+  chromeBottom: number;
   imageFilter: string | null;
 }
 
@@ -328,6 +338,18 @@ export class FirstPersonViewComponent {
     });
   });
 
+  /** Width over height of each piece's picture, learned as it loads, so its top can be found in the box. */
+  private readonly pictureAspects = signal<ReadonlyMap<string, number>>(new Map());
+
+  /** Learns the proportions of a piece's picture once it has loaded. */
+  protected notePictureAspect(url: string, event: Event): void {
+    const image = event.target as HTMLImageElement;
+    if (!(image.naturalWidth > 0 && image.naturalHeight > 0)) return;
+    const aspect = image.naturalWidth / image.naturalHeight;
+    if (this.pictureAspects().get(url) === aspect) return;
+    this.pictureAspects.update((aspects) => new Map(aspects).set(url, aspect));
+  }
+
   protected readonly pieceViews = computed<PieceView[]>(() => {
     const pose = this.shown();
     const viewer = this.firstPerson.piece();
@@ -344,7 +366,7 @@ export class FirstPersonViewComponent {
     const scale = this.scale();
     const perspective = this.perspective();
     const viewHeight = this.height();
-    const viewWidth = this.width();
+    const aspects = this.pictureAspects();
     const views: PieceView[] = [];
     for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
       if (piece.identifier === viewer.identifier) continue;
@@ -358,26 +380,36 @@ export class FirstPersonViewComponent {
       const depth = depthOf(eye, centre);
       const tall = size * PIECE_TALL_RATIO;
       const base = piece.posZ + piece.altitude * gridSize;
-      const shrink = billboardShrink(tall, depth, scale, perspective, viewHeight, size * PIECE_WIDE_RATIO, viewWidth);
+      const lifted = base + billboardLiftPx(base, pose.z, depth, perspective, viewHeight);
+      const textScale = billboardTextScale(depth, scale, perspective);
+      const gauges = this.gaugesOf(piece);
+      const label = piece.hideName && !master ? '' : piece.name;
+      const pick = picks.indexOf(piece.identifier) + 1;
+      const chromeRows = { badges: badges.length > 0, gauges: gauges.length, label: label !== '' || pick > 0 };
       views.push({
         id: piece.identifier,
         name: piece.name,
-        label: piece.hideName && !master ? '' : piece.name,
+        label,
         url: piece.imageFile.url,
         targeted: piece.targeted,
-        pick: picks.indexOf(piece.identifier) + 1,
+        pick,
         bearing: Math.abs((Math.atan2(lateralOf(eye, centre), depth) * 180) / Math.PI),
-        gauges: this.gaugesOf(piece),
+        gauges,
         badges: badges.slice(0, BUFF_BADGES_PER_ROW),
         moreBadges: Math.max(0, badges.length - BUFF_BADGES_PER_ROW),
-        style: billboardStyle(
-          { ...centre, z: base + billboardLiftPx(base, pose.z, depth, perspective, viewHeight) },
-          size * PIECE_WIDE_RATIO * shrink,
-          tall * shrink,
-          pose.yaw,
-          scale
-        ),
-        hud: billboardHudTransform(billboardTextScale(shrink, depth, scale, perspective)),
+        style: billboardStyle({ ...centre, z: lifted }, size * PIECE_WIDE_RATIO, tall, pose.yaw, scale),
+        hud: billboardHudTransform(textScale),
+        chromeBottom: pieceChromeBottomPercent({
+          pictureTop: pictureTopPercent(PIECE_WIDE_RATIO / PIECE_TALL_RATIO, aspects.get(piece.imageFile.url)),
+          heightPx: tall,
+          baseZ: lifted,
+          eyeZ: pose.z,
+          depthPx: depth,
+          perspective,
+          viewHeightPx: viewHeight,
+          chromeScreenPx: pieceChromeHeightPx(chromeRows) * textScale * projectedScaleOf(depth, scale, perspective),
+          marginPx: CHROME_TOP_MARGIN_PX,
+        }),
         imageFilter: pieceImageFilter(
           this.vision.objectBrightness(centre.x, centre.y, size / 2, false, base),
           piece.targeted

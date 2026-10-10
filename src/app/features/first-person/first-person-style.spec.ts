@@ -3,13 +3,14 @@ import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
 import {
   billboardHudTransform,
   billboardLiftPx,
-  billboardShrink,
   billboardStyle,
   billboardTextScale,
   cameraTransform,
   litShade,
-  MAX_PIECE_SCREEN_FRACTION,
   perspectivePx,
+  pictureTopPercent,
+  pieceChromeBottomPercent,
+  pieceChromeHeightPx,
   PIECE_FOOT_MARGIN,
   pieceImageFilter,
   planeQuadStyle,
@@ -193,28 +194,6 @@ describe('how large a piece comes out on the screen', () => {
     expect(projectedHeightPx(PIECE_PX, FAR_PX, SCALE, PERSPECTIVE)).toBeCloseTo(223.26, 2);
   });
 
-  it('pulls a piece that would stand taller than the view down to the share it is allowed', () => {
-    const shrink = billboardShrink(PIECE_PX, NEAR_PX, SCALE, PERSPECTIVE, VIEW_PX);
-
-    expect(shrink).toBeLessThan(1);
-    expect(projectedHeightPx(PIECE_PX * shrink, NEAR_PX, SCALE, PERSPECTIVE)).toBeCloseTo(
-      VIEW_PX * MAX_PIECE_SCREEN_FRACTION,
-      3
-    );
-  });
-
-  it('pulls a piece wider than a narrow view allows down to its share of the width', () => {
-    const wide = PIECE_PX * 0.6;
-    const shrink = billboardShrink(PIECE_PX, NEAR_PX, SCALE, PERSPECTIVE, VIEW_PX * 4, wide, 300);
-
-    expect(shrink).toBeLessThan(1);
-    expect(projectedHeightPx(wide * shrink, NEAR_PX, SCALE, PERSPECTIVE)).toBeCloseTo(
-      300 * MAX_PIECE_SCREEN_FRACTION,
-      3
-    );
-    expect(projectedHeightPx(PIECE_PX * shrink, NEAR_PX, SCALE, PERSPECTIVE)).toBeLessThan(VIEW_PX * 4);
-  });
-
   it('raises a piece standing close until its feet come up into the view', () => {
     const eyeZ = 40;
     const lift = billboardLiftPx(0, eyeZ, NEAR_PX, PERSPECTIVE, VIEW_PX);
@@ -242,18 +221,56 @@ describe('how large a piece comes out on the screen', () => {
     expect(pieceImageFilter(0.4, true)).toBe('brightness(0.4) drop-shadow(0 0 8px #ff3b30)');
   });
 
-  it('leaves a piece that already fits at the size it is', () => {
-    expect(billboardShrink(PIECE_PX, FAR_PX, SCALE, PERSPECTIVE, VIEW_PX)).toBe(1);
-    expect(billboardShrink(PIECE_PX, NEAR_PX, SCALE, PERSPECTIVE, 0)).toBe(1);
-  });
-
   it('holds the writing on a near piece to a size that can be read, and asks nothing of a far one', () => {
-    const shrink = billboardShrink(PIECE_PX, NEAR_PX, SCALE, PERSPECTIVE, VIEW_PX);
-    const near = billboardTextScale(shrink, NEAR_PX, SCALE, PERSPECTIVE);
+    const near = billboardTextScale(NEAR_PX, SCALE, PERSPECTIVE);
 
     expect(near * 24 * projectedScaleOf(NEAR_PX, SCALE, PERSPECTIVE)).toBeCloseTo(28, 3);
-    expect(near).toBeLessThanOrEqual(shrink);
-    expect(billboardTextScale(1, FAR_PX, SCALE, PERSPECTIVE)).toBe(1);
+    expect(near).toBeLessThan(1);
+    expect(billboardTextScale(FAR_PX, SCALE, PERSPECTIVE)).toBe(1);
+  });
+
+  it('finds how far up its box a picture reaches, all the way until its proportions are known', () => {
+    expect(pictureTopPercent(0.6, undefined)).toBe(100);
+    expect(pictureTopPercent(0.6, 0.5)).toBe(100);
+    expect(pictureTopPercent(0.6, 2)).toBe(30);
+    expect(pictureTopPercent(0, 2)).toBe(100);
+  });
+
+  it('measures what is told about a piece a row at a time', () => {
+    expect(pieceChromeHeightPx({ badges: false, gauges: 0, label: false })).toBe(8);
+    expect(pieceChromeHeightPx({ badges: true, gauges: 2, label: true })).toBe(8 + 54 + 48 + 46);
+  });
+
+  describe('where what is told about a piece stands', () => {
+    const at = {
+      pictureTop: 100,
+      heightPx: 75,
+      baseZ: 0,
+      eyeZ: 40,
+      depthPx: FAR_PX,
+      perspective: PERSPECTIVE,
+      viewHeightPx: VIEW_PX,
+      chromeScreenPx: 100,
+      marginPx: 64,
+    };
+
+    it('stands just above the top of the picture for a piece far enough off', () => {
+      expect(pieceChromeBottomPercent(at)).toBe(100);
+      expect(pieceChromeBottomPercent({ ...at, pictureTop: 30 })).toBe(30);
+    });
+
+    it('comes down to stay in the view for a piece so near that the top of it is not', () => {
+      const near = pieceChromeBottomPercent({ ...at, depthPx: NEAR_PX });
+      const topOfChrome = (((75 * near) / 100 - 40) * PERSPECTIVE) / NEAR_PX + 100;
+
+      expect(near).toBeLessThan(100);
+      expect(topOfChrome).toBeCloseTo(VIEW_PX / 2 - 64, 0);
+    });
+
+    it('stays on the picture rather than below its feet, and asks nothing of a view not yet measured', () => {
+      expect(pieceChromeBottomPercent({ ...at, depthPx: NEAR_PX, chromeScreenPx: 10_000 })).toBe(0);
+      expect(pieceChromeBottomPercent({ ...at, viewHeightPx: 0, pictureTop: 40 })).toBe(40);
+    });
   });
 
   it('leaves the chrome of a piece alone until it has to be shrunk', () => {
