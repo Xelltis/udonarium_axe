@@ -5,6 +5,7 @@ import { EffectTargetingService } from '@axe/application/effect/effect-targeting
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
+import { MotionService } from '@axe/application/ui/motion.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
@@ -538,5 +539,30 @@ describe('FirstPersonViewComponent', () => {
     TestBed.tick();
 
     expect(TestBed.inject(SelectionSignalService).selectedObject()?.identifier).toBe(viewer.identifier);
+  });
+
+  describe('while the view glides to where the piece now faces', () => {
+    const grid = cellGridOf(12, 12, GRID, GridType.SQUARE);
+
+    beforeEach(() => {
+      TestBed.inject(MotionService).setting.set('on');
+    });
+
+    function drawsCell(fixture: ComponentFixture<FirstPersonViewComponent>, col: number, row: number): boolean {
+      return element(fixture).querySelector(`[data-cell="${cellIndexOf(grid, col, row)}"]`) !== null;
+    }
+
+    it('goes on drawing the ground it is turning away from', async () => {
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 0);
+      corridor();
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      expect(drawsCell(fixture, 4, 3)).toBe(true);
+
+      await TestBed.inject(FirstPersonService).turn(1);
+      fixture.detectChanges();
+
+      expect(drawsCell(fixture, 4, 3)).toBe(true);
+    });
   });
 });

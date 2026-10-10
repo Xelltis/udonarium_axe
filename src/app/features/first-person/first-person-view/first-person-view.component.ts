@@ -6,6 +6,7 @@ import {
   effect,
   ElementRef,
   inject,
+  linkedSignal,
   signal,
   untracked,
   viewChild,
@@ -44,6 +45,7 @@ import {
   FirstPersonQuad,
   firstPersonScene,
 } from '@axe/domain/tabletop/first-person/first-person-scene';
+import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { EffectTargetOverlayComponent } from '@axe/features/effect/effect-target-overlay/effect-target-overlay.component';
@@ -166,6 +168,22 @@ export class FirstPersonViewComponent {
   private readonly shown = signal<FirstPersonPose | null>(null);
   private frame: number | null = null;
 
+  /** What the eye could see before its latest move, which is where the view glides away from. */
+  private readonly seenBefore = linkedSignal<CellBits | null, CellBits | null>({
+    source: this.firstPerson.seen,
+    computation: (_seen, previous) => previous?.source ?? null,
+  });
+
+  /** The sight of every pose a glide still on its way set out from, let go once the view lands. */
+  private readonly carried = signal<CellBits | null>(null);
+
+  /**
+   * The ground the view may draw: what the eye sees now and, until the view has caught up with
+   * it, what it saw on the way. The sight is worked out for where a move ends, so a view still
+   * turning or stepping there would otherwise show the ground it is leaving as nothing at all.
+   */
+  private readonly drawnSeen = computed<CellBits | null>(() => unionOf(this.firstPerson.seen(), this.carried()));
+
   constructor() {
     effect(() => {
       const target = this.firstPerson.pose();
@@ -229,7 +247,7 @@ export class FirstPersonViewComponent {
       world,
       grid,
       pose,
-      seen: this.firstPerson.seen(),
+      seen: this.drawnSeen(),
       depthPx: this.firstPerson.depthPx(),
       nearPx: NEAR_CELLS * this.gridSize(),
     });
@@ -495,7 +513,7 @@ export class FirstPersonViewComponent {
 
   private inSight(pose: FirstPersonPose, centre: CellPoint): boolean {
     const grid = this.firstPerson.grid();
-    const seen = this.firstPerson.seen();
+    const seen = this.drawnSeen();
     if (!grid) return false;
     const cell = cellIndexAt(grid, centre.x, centre.y);
     if (seen && (cell < 0 || !seen.get(cell))) return false;
@@ -522,10 +540,13 @@ export class FirstPersonViewComponent {
   private glideTo(target: FirstPersonPose | null): void {
     this.stopGlide();
     const from = this.shown();
+    const before = this.seenBefore();
     if (!target || !from || !this.motion.enabled() || this.tooFar(from, target)) {
+      this.carried.set(null);
       this.shown.set(target);
       return;
     }
+    this.carried.set(unionOf(before, this.carried()));
     const turn = ((((target.yaw - from.yaw) % 360) + 540) % 360) - 180;
     const started = performance.now();
     const step = (now: number): void => {
@@ -533,6 +554,7 @@ export class FirstPersonViewComponent {
       const eased = along * (2 - along);
       if (along >= 1) {
         this.frame = null;
+        this.carried.set(null);
         this.shown.set(target);
         return;
       }
@@ -579,4 +601,15 @@ function toneOf(quad: FirstPersonQuad): string {
   if (quad.kind === 'floor') return 'bg-stone-800';
   if (quad.kind === 'ceiling') return 'bg-stone-950';
   return quad.glass ? 'bg-sky-200/20' : 'bg-stone-500';
+}
+
+/**
+ * The cells either set holds. With nothing in the first, which leaves the scene unlimited, or a
+ * second of another board's size, the first is left as it is.
+ */
+function unionOf(seen: CellBits | null, more: CellBits | null): CellBits | null {
+  if (!seen || !more || seen.count !== more.count) return seen;
+  const both = seen.copy();
+  both.or(more);
+  return both;
 }
