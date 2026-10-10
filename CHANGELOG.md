@@ -1,3 +1,93 @@
+## [1.64.0](https://github.com/Xelltis/udonarium_axe/compare/v1.63.0...v1.64.0) (2026-10-10)
+
+### ✨ Features
+
+* **card:** ask how a card dragged from the hand onto the table lies ([52c744f](https://github.com/Xelltis/udonarium_axe/commit/52c744f8caaaa4f8beb3ab10a2e4070c5d37fdea))
+* **card:** give a card from your hand to another participant ([1bed22a](https://github.com/Xelltis/udonarium_axe/commit/1bed22a04a309e75d5589a1fa873527659e638b9))
+* **card:** let the game master hand a departed player's hand on ([df16568](https://github.com/Xelltis/udonarium_axe/commit/df16568d5b7d58f1ec36bc80d4222e93fd5875b9))
+* **chat:** add battle stamps of the system character ([7c320a5](https://github.com/Xelltis/udonarium_axe/commit/7c320a5ee29e6e02ae48b6480edb982970ea32f3))
+* **chat:** add many more seals and sound effects ([e82f516](https://github.com/Xelltis/udonarium_axe/commit/e82f5161e07a00d1af4fa7d99a7c798da9c39a36))
+* **chat:** add table-talk stamps of the system character ([7cf7017](https://github.com/Xelltis/udonarium_axe/commit/7cf7017b68bdf00c965461736999dc8e72daff33))
+* **chat:** add ten more roll stamps of the system character ([ba990f2](https://github.com/Xelltis/udonarium_axe/commit/ba990f2fe324e1225173732be7e7a02fc0c2d124))
+* **chat:** add twelve more exploring stamps ([3af9c30](https://github.com/Xelltis/udonarium_axe/commit/3af9c30f4f9806d229a84d73379e869bdb2848d3))
+* **chat:** draw a line sent as a picture stamp larger ([45f6cac](https://github.com/Xelltis/udonarium_axe/commit/45f6cac99b6f8e8ff936a9e943d00a9a41af6e0e))
+* **chat:** draw stamps in three families and pick one from a popover ([b8a3069](https://github.com/Xelltis/udonarium_axe/commit/b8a3069b9a9505ee1e1e21549da0af27c8221bf2))
+* **chat:** finish the battle stamps and start the exploring ones ([1e74687](https://github.com/Xelltis/udonarium_axe/commit/1e74687285ccf8692498d8f46be278a8a8d263ab))
+* **chat:** finish the exploring stamps and start the feelings ([304ffd1](https://github.com/Xelltis/udonarium_axe/commit/304ffd1140991a3b06deefd5673f4b48060ecc30))
+* **chat:** finish the feeling stamps of the system character ([e680e9d](https://github.com/Xelltis/udonarium_axe/commit/e680e9d9a20ae2a17e801db2d8f9a98c5198f6d5))
+* **chat:** finish the table-talk stamps of the system character ([d525023](https://github.com/Xelltis/udonarium_axe/commit/d525023b069a45cd3953151aa1254f76cfdea890))
+* **chat:** let a room make sets of stamps from its own pictures ([a166491](https://github.com/Xelltis/udonarium_axe/commit/a1664910d78cabb052f268301d21118a008cffcf))
+* **chat:** let a room rule what its stamps may be used for ([e110e65](https://github.com/Xelltis/udonarium_axe/commit/e110e65707e749c39220d59e8345397b9a23dced))
+* **chat:** list the stamps put on a line in saved logs ([4f1cb86](https://github.com/Xelltis/udonarium_axe/commit/4f1cb8613f9d98fab7251d747d946db9f34ede72))
+* **chat:** offer stamps of the system character for rolls ([a16597a](https://github.com/Xelltis/udonarium_axe/commit/a16597a82c58b5047d33b52dedf74536118ebbe6))
+* **chat:** put stamps on lines of chat ([20c34c0](https://github.com/Xelltis/udonarium_axe/commit/20c34c0ca09b263ed5236692212f738a09de6a2e))
+* **chat:** put the picture stamps on a second row of picker tabs ([1b3ff76](https://github.com/Xelltis/udonarium_axe/commit/1b3ff7678662281ba830241391008f5e2053427c))
+* **chat:** save the chat log as plain text ([b7c410f](https://github.com/Xelltis/udonarium_axe/commit/b7c410f7b4d0972ccde99c4b00df5ffab1ddeeaa))
+* **chat:** send a stamp as a line of its own ([0038167](https://github.com/Xelltis/udonarium_axe/commit/00381679e698f8b39a060561f71870a66769d097))
+* **chat:** send a stamp together with the words being typed ([9bcdac6](https://github.com/Xelltis/udonarium_axe/commit/9bcdac6b778b206601e15558287dcaf0f40fb2f6))
+* **chat:** show what a character says in a bubble over its piece ([5e9e4f8](https://github.com/Xelltis/udonarium_axe/commit/5e9e4f81ef0a66029eea6735efbc65ae12555048))
+* **cut-in:** bring a text layer's letters on one at a time ([0861f11](https://github.com/Xelltis/udonarium_axe/commit/0861f1182e5a8a21a9d287a6e781ab8696ea6889))
+* **cut-in:** offer kinds of lettering for a text layer ([e6e60e7](https://github.com/Xelltis/udonarium_axe/commit/e6e60e76cad6e9ad8445edb06dafbc8dcbe98458))
+* **cut-in:** play a cut-in for the speaker, with their portrait and name ([1cdd0f1](https://github.com/Xelltis/udonarium_axe/commit/1cdd0f1c98ac9ead66e60c538d9ee5af4e75c2ae))
+* **cut-in:** set on the sheet how each portrait sits in a cut-in ([92d4aee](https://github.com/Xelltis/udonarium_axe/commit/92d4aee3b1c941d8d236b040480eb2034226f810))
+* **file:** paste a picture into the image list and clear its background ([4262925](https://github.com/Xelltis/udonarium_axe/commit/4262925bd2e387b4f0dc519be5973a0858f76a4d))
+* **hotbar:** pick a slot's effect by its mark as well as its name ([2a641ae](https://github.com/Xelltis/udonarium_axe/commit/2a641aed89ce7a15f89cba3b4bf9b46ec97ec364))
+* **room-settings:** add a stamps tab to rule what stamps may be used for ([e874dfc](https://github.com/Xelltis/udonarium_axe/commit/e874dfc382d9a09295439344e4e759e7e1310d3b))
+* **tabletop:** write words across a map mask ([c46e878](https://github.com/Xelltis/udonarium_axe/commit/c46e8787ef6a2ba221265bcb130b302ddc616a86))
+* **text-note:** draw a shared note with formatting where it is set to ([3c2192a](https://github.com/Xelltis/udonarium_axe/commit/3c2192ac7119395c06510eaf7803015322471659))
+* **white-board:** open a whiteboard out to fill the screen, as a card can ([7dfb23e](https://github.com/Xelltis/udonarium_axe/commit/7dfb23e9ae478bea5790a642612305276bb3ad11))
+
+### 🐛 Bug Fixes
+
+* **card:** redraw a deck's thickness when cards are put onto it ([8a447f0](https://github.com/Xelltis/udonarium_axe/commit/8a447f0e1626985653bdd5f5455405a84061815c))
+* **chat:** fit sound-effect stamps in their chips and centre the set panel ([b1274ae](https://github.com/Xelltis/udonarium_axe/commit/b1274aed821234ebc31edd6af11c3bd61fa664d4))
+* **chat:** keep a secret roll's result out of the lines answering it ([af1365a](https://github.com/Xelltis/udonarium_axe/commit/af1365aa5926ebc0b90778d03934491822c5e0e0))
+* **chat:** keep secret lines covered and draw stamp lines whole ([a5b6003](https://github.com/Xelltis/udonarium_axe/commit/a5b6003b8d1aee73523f25172e3847f0c5ada029))
+* **chat:** keep sound effects apart in the stamp picker ([11f8a44](https://github.com/Xelltis/udonarium_axe/commit/11f8a448504603e0f442f6c9b55bbdb4cd959705))
+* **chat:** keep speech bubbles out of sight while the screen is in novel mode ([4c6a421](https://github.com/Xelltis/udonarium_axe/commit/4c6a421393791de7be49665f14fcf75dfc02a427))
+* **chat:** keep the outer edge of a seal stamp's ring ([903e4cc](https://github.com/Xelltis/udonarium_axe/commit/903e4cccf86e8d203ce79eba095c0e411fbdcd63))
+* **chat:** make the words on a seal stamp easy to read ([bf38508](https://github.com/Xelltis/udonarium_axe/commit/bf385080b879620531c8cdb4fb3a412c2326657a))
+* **chat:** name a stamp under the pointer in the lists stamps are chosen from ([99f9c82](https://github.com/Xelltis/udonarium_axe/commit/99f9c8260bcd72ffce0a96901f23921e76669843))
+* **chat:** show palette lines without a space before and after them ([47a6561](https://github.com/Xelltis/udonarium_axe/commit/47a65614832fff1f0e9da2050f02da438b1a7ebb))
+* **chat:** show the stamp button as a face ([1f2df36](https://github.com/Xelltis/udonarium_axe/commit/1f2df36602e3a186a240993633e3b75e49b6248b))
+* **cut-in:** draw a layer whole under an outline name it does not know ([397e4e8](https://github.com/Xelltis/udonarium_axe/commit/397e4e8c6006e0a528f16d6ad2a603127c1900ae))
+* **cut-in:** show a text layer without a space before and after it ([f916898](https://github.com/Xelltis/udonarium_axe/commit/f916898f4c949ca8991c06cd2474ae0feb789d47))
+* **effect:** never take the reading of a ruby for an effect token ([d2cb25b](https://github.com/Xelltis/udonarium_axe/commit/d2cb25b026ef2b1c0bc889204df223f08f2ad66d))
+* **image-intake:** recover from a failed store and stay light on big pictures ([52d58a9](https://github.com/Xelltis/udonarium_axe/commit/52d58a913dcfa61b6d9fd955692338f457a70081))
+* **input:** keep a piece's drag when the chat field loses focus ([79646e9](https://github.com/Xelltis/udonarium_axe/commit/79646e9d8e8787a3a5cc73c540637939ded60b89))
+* **network:** wait for the previous connection to drop when rejoining after a reload ([3240ede](https://github.com/Xelltis/udonarium_axe/commit/3240ede5263684527f99f65adf3a7ff78a229eae))
+* **room:** keep the reactions when the room data brings none ([a4b1e47](https://github.com/Xelltis/udonarium_axe/commit/a4b1e47dea156ac3a605d460f963a2ddce1d29e8))
+* **save:** bundle the pictures stamps name ([ef8f567](https://github.com/Xelltis/udonarium_axe/commit/ef8f567de7bbeefdb426848278db612ff3b0b7ae))
+* **storage:** read an outside archive's room data under its stored picture ids ([11b3186](https://github.com/Xelltis/udonarium_axe/commit/11b31866f3e2552ae2cc30e481b03abe97d77223))
+* **storage:** take a picture in an archive whose name does not say so ([ea80567](https://github.com/Xelltis/udonarium_axe/commit/ea8056798dbd2e9dd2021d976911ff36c2b2bea6))
+* **sync:** keep line breaks and tabs in saved attribute values ([677ec2a](https://github.com/Xelltis/udonarium_axe/commit/677ec2a4d986a83bcbc7ae5b7deb329e3b8c1358))
+* **tabletop:** let the mask's text size be typed a digit at a time ([79d861c](https://github.com/Xelltis/udonarium_axe/commit/79d861c8ca5550205ef0a2e9ad837002e12fc3ea))
+
+### ⚡ Performance
+
+* **card:** look up the names of absent hand holders once per chat change ([89fd360](https://github.com/Xelltis/udonarium_axe/commit/89fd3601a14b3ece216be1c6a3401f0b4cf7a0b6))
+
+### ⏪ Reverts
+
+* **cut-in:** drop the third built-in sample ([d1b34c4](https://github.com/Xelltis/udonarium_axe/commit/d1b34c4af4dd865a67890b612bedf8bb5a152fa9))
+
+### 📝 Documentation
+
+* **website:** write up stamps, speech bubbles and the rest of v1.64.0 ([792d453](https://github.com/Xelltis/udonarium_axe/commit/792d453047408bcd28c45fa4b164ec94a8e4424c))
+* write up in the developer docs what came after the 3D dice ([e82ca84](https://github.com/Xelltis/udonarium_axe/commit/e82ca84d490bde9f4b71a7d65b32fb8261229979))
+
+### ♻️ Refactor
+
+* **card:** drop the event a deck sent when a card left it ([154316c](https://github.com/Xelltis/udonarium_axe/commit/154316c9ed8f7ec7120cd87347e98c026b9ef47e))
+* **chat:** drop the table-mark stamps ([5f1b8ae](https://github.com/Xelltis/udonarium_axe/commit/5f1b8ae51f84675d19d8ecc9245b18f6e167c104))
+* **chat:** name a stamp from the application layer ([b2d9396](https://github.com/Xelltis/udonarium_axe/commit/b2d939621a5b939c5f4422c63935233578a8a82f))
+* **chat:** read the ruby notation from one pattern ([e85ba5c](https://github.com/Xelltis/udonarium_axe/commit/e85ba5ca9af1d51c319dab548a6a45677a974725))
+* **chat:** send a stamp on its own from one place ([70c5e5a](https://github.com/Xelltis/udonarium_axe/commit/70c5e5a151433254af4cc3fac7e12d748d1a1dac))
+* **peer:** read the local user id in one place ([f2944af](https://github.com/Xelltis/udonarium_axe/commit/f2944afe9aa7db1718e5e921f691e7306b81ed70))
+* split text into the letters a reader sees in one place ([ec918e2](https://github.com/Xelltis/udonarium_axe/commit/ec918e2de29cb017687433c2be28efb604b65af5))
+* **storage:** name the type of picture bytes begin as ([e86fc22](https://github.com/Xelltis/udonarium_axe/commit/e86fc2224e93904220a8be3dd6cbf28615b1fd1c))
+* take a file's extension off in one place ([d96c34c](https://github.com/Xelltis/udonarium_axe/commit/d96c34c532a728ebbf1a6bfad033b50dd09e0cbc))
+
 ## [1.63.0](https://github.com/Xelltis/udonarium_axe/compare/v1.62.3...v1.63.0) (2026-10-09)
 
 ### ✨ Features
