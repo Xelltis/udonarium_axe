@@ -2156,6 +2156,10 @@
         "footing": "휠로 발판을 오르내리기",
         "lift": "Shift＋휠로 높이를 한 칸씩"
       },
+      "rotateHint": {
+        "holdAlt": "Alt를 누르고 있는 동안 {{step}}°씩 맞춥니다",
+        "snapping": "{{step}}°씩 맞추는 중입니다"
+      },
       "tableSetting": {
         "title": "테이블 설정",
         "sidebarTitle": "테이블",

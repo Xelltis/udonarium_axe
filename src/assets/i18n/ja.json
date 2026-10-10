@@ -2156,6 +2156,10 @@
         "footing": "ホイールで足場を上下に辿る",
         "lift": "Shift＋ホイールで高さを 1 マスずつ"
       },
+      "rotateHint": {
+        "holdAlt": "Alt を押しているあいだ {{step}}° ごとにそろえる",
+        "snapping": "{{step}}° ごとにそろえています"
+      },
       "tableSetting": {
         "title": "テーブル設定",
         "sidebarTitle": "テーブル",

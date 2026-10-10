@@ -8,6 +8,7 @@ import { ContextMenuAction, ContextMenuService, ContextMenuType } from '@axe/app
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { MotionService } from '@axe/application/ui/motion.service';
+import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
@@ -583,6 +584,49 @@ describe('GameTableComponent', () => {
     });
 
     afterEach(() => TestBed.inject(HeldPieceService).letGo());
+  });
+
+  describe('saying how far something is being turned', () => {
+    const owner = {};
+    const hint = (): HTMLElement | null =>
+      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="rotate-hint"]');
+
+    it('says nothing while nothing is being turned', () => {
+      fixture.detectChanges();
+
+      expect(hint()).toBeNull();
+    });
+
+    it('reads out the angle and how to snap it while a turn is under way', () => {
+      TestBed.inject(RotationGuideService).report(owner, { angle: 30, step: 45, snapping: false });
+
+      fixture.detectChanges();
+
+      expect(hint()?.textContent).toContain('30°');
+      expect(hint()?.textContent).toContain('Alt を押しているあいだ 45° ごとにそろえる');
+    });
+
+    it('says the turn is being snapped while Alt is held', () => {
+      TestBed.inject(RotationGuideService).report(owner, { angle: 90, step: 45, snapping: true });
+
+      fixture.detectChanges();
+
+      expect(hint()?.querySelector('[data-testid="rotate-hint-snap"]')?.textContent).toContain(
+        '45° ごとにそろえています'
+      );
+    });
+
+    it('reads out only the angle where there is no Alt key to hold', () => {
+      vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+      TestBed.inject(RotationGuideService).report(owner, { angle: 120, step: 30, snapping: false });
+
+      fixture.detectChanges();
+
+      expect(hint()?.textContent).toContain('120°');
+      expect(hint()?.querySelector('[data-testid="rotate-hint-snap"]')).toBeNull();
+    });
+
+    afterEach(() => TestBed.inject(RotationGuideService).end(owner));
   });
 
   describe('saying how a move is worked out', () => {

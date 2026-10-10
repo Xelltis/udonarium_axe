@@ -2156,6 +2156,10 @@
         "footing": "Wheel to step through what it can stand on",
         "lift": "Shift and wheel to send it up a cell at a time"
       },
+      "rotateHint": {
+        "holdAlt": "Hold Alt to snap to every {{step}}°",
+        "snapping": "Snapping to every {{step}}°"
+      },
       "tableSetting": {
         "title": "Table settings",
         "sidebarTitle": "Tables",

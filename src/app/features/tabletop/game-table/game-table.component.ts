@@ -45,6 +45,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
+import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { buildToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -1255,6 +1256,18 @@ export class GameTableComponent {
       footing: 'feature.tabletop.holdHint.footing',
       lift: held.liftable ? 'feature.tabletop.holdHint.lift' : null,
     };
+  });
+
+  private readonly rotationGuide = inject(RotationGuideService);
+
+  /**
+   * What is said while something is being turned: how far it has turned, and how to snap it to the
+   * grid's directions. A hand with no Alt key is told only the angle.
+   */
+  protected readonly rotateHint = computed(() => {
+    const turn = this.rotationGuide.turn();
+    if (!turn) return null;
+    return { ...turn, offersSnap: !this.viewport.isTouch() };
   });
 
   /** The two ways a move may be taken, offered as a pair so which one is on is plain to see. */
