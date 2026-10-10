@@ -252,7 +252,8 @@ export class FirstPersonService {
       x: pose.x,
       y: pose.y,
       z: eyeHeightPx(piece.altitude, piece.posZ, scene.gridSize),
-      rangePx: own && own.rangePx > 0 && !ignoreDarkness ? Math.min(own.rangePx, depth) : depth,
+      rangePx:
+        own && own.rangePx > 0 && !ignoreDarkness && scene.darknessEnabled ? Math.min(own.rangePx, depth) : depth,
       direction: facingBearing(pose.yaw),
       lobes: [{ direction: 0, angle: FIRST_PERSON_FOV_DEG + SIGHT_MARGIN_DEG, rangeScale: 1 }],
     };

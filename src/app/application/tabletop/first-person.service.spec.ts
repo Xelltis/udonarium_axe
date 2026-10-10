@@ -247,6 +247,22 @@ describe('FirstPersonService', () => {
     });
   });
 
+  describe('how far the eye sees with no dark on the table', () => {
+    it('sees as far as the view reaches, whatever range the piece sees by in the dark', () => {
+      const piece = pieceAt(5, 9);
+      piece.visionRange = 1;
+      touch(piece.identifier);
+      service().enterSeat(piece.identifier);
+      const grid = cellGridOf(12, 12, GRID, GridType.SQUARE);
+
+      expect(
+        service()
+          .seen()!
+          .get(cellIndexOf(grid, 5, 5))
+      ).toBe(true);
+    });
+  });
+
   describe('what the eye sees in the dark', () => {
     function darkTable(): void {
       table.darknessEnabled = true;
