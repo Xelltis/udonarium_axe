@@ -222,6 +222,7 @@ export default defineConfig({
             { text: '同行（パーティ）', link: '/manual/party' },
             { text: '地形', link: '/manual/terrain' },
             { text: 'スイッチ', link: '/manual/switch' },
+            { text: 'ダンジョンドリィマスターモード', link: '/manual/dungeondry-master' },
             { text: 'マップマスク', link: '/manual/map-mask' },
             { text: 'ホワイトボード', link: '/manual/white-board' },
           ],
@@ -280,6 +281,7 @@ export default defineConfig({
           text: 'リリースノート',
           items: [
             { text: '一覧', link: '/release-notes/' },
+            { text: 'v1.65.0', link: '/release-notes/v1.65.0' },
             { text: 'v1.64.1', link: '/release-notes/v1.64.1' },
             { text: 'v1.64.0', link: '/release-notes/v1.64.0' },
             { text: 'v1.63.0', link: '/release-notes/v1.63.0' },
