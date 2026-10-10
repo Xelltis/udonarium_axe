@@ -36,6 +36,23 @@ export function shadeFor(depth: number, depthPx: number): number {
   return round(Math.min(Math.max(depth / depthPx, 0), 1) * MAX_SHADE);
 }
 
+/**
+ * The veil over a face once the light on it is counted as well as how far off it is: the same
+ * darkening for distance, deepened as the light at the face falls from full to none.
+ */
+export function litShade(depthShade: number, brightness: number): number {
+  const light = Math.min(Math.max(brightness, 0), 1);
+  return round(1 - (1 - depthShade) * light);
+}
+
+/** The filter a piece's picture is drawn with: dimmed to the light on it, and glowing red while targeted. */
+export function pieceImageFilter(brightness: number, targeted: boolean): string | null {
+  const parts: string[] = [];
+  if (brightness < 1) parts.push(`brightness(${round(Math.max(brightness, 0))})`);
+  if (targeted) parts.push('drop-shadow(0 0 8px #ff3b30)');
+  return parts.length > 0 ? parts.join(' ') : null;
+}
+
 export function wallQuadStyle(
   quad: FirstPersonWallQuad,
   scale: number,

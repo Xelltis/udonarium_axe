@@ -7,9 +7,11 @@ import {
   billboardStyle,
   billboardTextScale,
   cameraTransform,
+  litShade,
   MAX_PIECE_SCREEN_FRACTION,
   perspectivePx,
   PIECE_FOOT_MARGIN,
+  pieceImageFilter,
   planeQuadStyle,
   projectedHeightPx,
   projectedScaleOf,
@@ -224,6 +226,20 @@ describe('how large a piece comes out on the screen', () => {
   it('leaves a piece far enough off standing on the floor', () => {
     expect(billboardLiftPx(0, 40, FAR_PX, PERSPECTIVE, VIEW_PX)).toBe(0);
     expect(billboardLiftPx(0, 40, NEAR_PX, PERSPECTIVE, 0)).toBe(0);
+  });
+
+  it('deepens the veil for distance as the light on a face falls away', () => {
+    expect(litShade(0.2, 1)).toBe(0.2);
+    expect(litShade(0.2, 0.5)).toBe(0.6);
+    expect(litShade(0.2, 0)).toBe(1);
+    expect(litShade(0, 2)).toBe(0);
+  });
+
+  it('dims the picture of a piece to the light on it and keeps the glow of a target', () => {
+    expect(pieceImageFilter(1, false)).toBeNull();
+    expect(pieceImageFilter(0.4, false)).toBe('brightness(0.4)');
+    expect(pieceImageFilter(1, true)).toBe('drop-shadow(0 0 8px #ff3b30)');
+    expect(pieceImageFilter(0.4, true)).toBe('brightness(0.4) drop-shadow(0 0 8px #ff3b30)');
   });
 
   it('leaves a piece that already fits at the size it is', () => {

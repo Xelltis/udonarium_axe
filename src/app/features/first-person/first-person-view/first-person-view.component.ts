@@ -46,7 +46,7 @@ import {
   firstPersonScene,
 } from '@axe/domain/tabletop/first-person/first-person-scene';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, CellGrid, cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
@@ -72,7 +72,9 @@ import {
   billboardStyle,
   billboardTextScale,
   cameraTransform,
+  litShade,
   perspectivePx,
+  pieceImageFilter,
   planeQuadStyle,
   QuadStyle,
   scaleOf,
@@ -131,6 +133,7 @@ interface PieceView {
   moreBadges: number;
   style: QuadStyle;
   hud: string | null;
+  imageFilter: string | null;
 }
 
 interface PropView extends FirstPersonProp {
@@ -282,10 +285,12 @@ export class FirstPersonViewComponent {
     this.objectChange.fileVersion();
     const scale = this.scale();
     const depth = this.firstPerson.depthPx();
+    const grid = this.firstPerson.grid();
     return this.quads().map((quad) => {
       const url = this.urlOf(quad.image);
-      const shade = shadeFor(quad.depth, depth);
       const remembered = this.firstPerson.tierOfCell(quad.cell) === 'dim';
+      const away = shadeFor(quad.depth, depth);
+      const shade = remembered || !grid || quad.cell < 0 ? away : litShade(away, this.lightOn(grid, quad));
       const style =
         quad.kind === 'wall'
           ? wallQuadStyle(quad, scale, url, shade, remembered)
@@ -344,6 +349,10 @@ export class FirstPersonViewComponent {
           scale
         ),
         hud: billboardHudTransform(billboardTextScale(shrink, depth, scale, perspective)),
+        imageFilter: pieceImageFilter(
+          this.vision.objectBrightness(centre.x, centre.y, size / 2, false, base),
+          piece.targeted
+        ),
       });
     }
     return views;
@@ -581,6 +590,13 @@ export class FirstPersonViewComponent {
     if (seen && (cell < 0 || !seen.get(cell))) return false;
     const depth = depthOf(eyeFrameOf(pose), centre);
     return depth > this.gridSize() * NEAR_CELLS * 4 && depth <= this.firstPerson.depthPx();
+  }
+
+  /** How brightly the table's lights fall on a face, read at the middle of the cell it is drawn for. */
+  private lightOn(grid: CellGrid, quad: FirstPersonQuad): number {
+    const centre = cellCenterOf(grid, quad.cell);
+    const standing = quad.kind === 'wall' ? quad.basePx : quad.zPx;
+    return this.vision.objectBrightness(centre.x, centre.y, 0, false, standing);
   }
 
   private propInSight(pose: FirstPersonPose, prop: PropShape): boolean {

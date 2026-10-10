@@ -424,6 +424,31 @@ describe('FirstPersonViewComponent', () => {
     });
   });
 
+  describe('the light falling on the ground', () => {
+    function veilOf(view: HTMLElement, col: number, row: number): number {
+      const grid = cellGridOf(table.width, table.height, GRID, GridType.SQUARE);
+      const quad = view.querySelector<HTMLElement>(`[data-quad="floor"][data-cell="${cellIndexOf(grid, col, row)}"]`)!;
+      return Number(/rgba\(0, 0, 0, ([0-9.]+)\)/.exec(quad.style.backgroundImage)![1]);
+    }
+
+    it('draws ground a lamp lights brighter than ground as far off that it does not', () => {
+      table.darknessEnabled = true;
+      table.globalIllumination = 0;
+      const lamp = LightSource.create('灯り');
+      lamp.location = { name: 'table', x: 3 * GRID, y: 4 * GRID };
+      lamp.lightBrightRadius = 0.5;
+      lamp.lightDimRadius = 1;
+      table.appendChild(lamp);
+      TestBed.inject(ObjectChangeService).notifyChanged(table.identifier);
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      lookOutOf(pieceAt(4, 7));
+
+      const view = element(mount());
+
+      expect(veilOf(view, 3, 4)).toBeLessThan(veilOf(view, 5, 4));
+    });
+  });
+
   describe('ground the party only remembers', () => {
     function inTheDarkWithALampAt(col: number, row: number): void {
       table.darknessEnabled = true;
