@@ -199,6 +199,18 @@ describe('how large a piece comes out on the screen', () => {
     );
   });
 
+  it('pulls a piece wider than a narrow view allows down to its share of the width', () => {
+    const wide = PIECE_PX * 0.6;
+    const shrink = billboardShrink(PIECE_PX, NEAR_PX, SCALE, PERSPECTIVE, VIEW_PX * 4, wide, 300);
+
+    expect(shrink).toBeLessThan(1);
+    expect(projectedHeightPx(wide * shrink, NEAR_PX, SCALE, PERSPECTIVE)).toBeCloseTo(
+      300 * MAX_PIECE_SCREEN_FRACTION,
+      3
+    );
+    expect(projectedHeightPx(PIECE_PX * shrink, NEAR_PX, SCALE, PERSPECTIVE)).toBeLessThan(VIEW_PX * 4);
+  });
+
   it('leaves a piece that already fits at the size it is', () => {
     expect(billboardShrink(PIECE_PX, FAR_PX, SCALE, PERSPECTIVE, VIEW_PX)).toBe(1);
     expect(billboardShrink(PIECE_PX, NEAR_PX, SCALE, PERSPECTIVE, 0)).toBe(1);

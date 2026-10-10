@@ -106,17 +106,25 @@ export function projectedHeightPx(heightPx: number, depthPx: number, scale: numb
   return heightPx * scale * projectedScaleOf(depthPx, scale, perspective);
 }
 
+/**
+ * How far a piece is shrunk so that it stands no taller, nor wider, than its share of the view,
+ * a width or a view of nothing asking for nothing; 1 where it fits already.
+ */
 export function billboardShrink(
   heightPx: number,
   depthPx: number,
   scale: number,
   perspective: number,
-  viewHeightPx: number
+  viewHeightPx: number,
+  widthPx = 0,
+  viewWidthPx = 0
 ): number {
-  const limit = viewHeightPx * MAX_PIECE_SCREEN_FRACTION;
-  const projected = projectedHeightPx(heightPx, depthPx, scale, perspective);
-  if (limit <= 0 || projected <= limit) return 1;
-  return limit / projected;
+  const fit = (lengthPx: number, viewPx: number): number => {
+    const limit = viewPx * MAX_PIECE_SCREEN_FRACTION;
+    const projected = projectedHeightPx(lengthPx, depthPx, scale, perspective);
+    return limit <= 0 || projected <= limit ? 1 : limit / projected;
+  };
+  return Math.min(fit(heightPx, viewHeightPx), fit(widthPx, viewWidthPx));
 }
 
 export function billboardTextScale(shrink: number, depthPx: number, scale: number, perspective: number): number {

@@ -285,6 +285,7 @@ export class FirstPersonViewComponent {
     const scale = this.scale();
     const perspective = this.perspective();
     const viewHeight = this.height();
+    const viewWidth = this.width();
     const views: PieceView[] = [];
     for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
       if (piece.identifier === viewer.identifier) continue;
@@ -297,7 +298,7 @@ export class FirstPersonViewComponent {
       const badges = this.badgesOf(piece);
       const depth = depthOf(eye, centre);
       const tall = size * PIECE_TALL_RATIO;
-      const shrink = billboardShrink(tall, depth, scale, perspective, viewHeight);
+      const shrink = billboardShrink(tall, depth, scale, perspective, viewHeight, size * PIECE_WIDE_RATIO, viewWidth);
       views.push({
         id: piece.identifier,
         name: piece.name,
