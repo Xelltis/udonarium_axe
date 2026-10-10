@@ -1729,6 +1729,7 @@
       },
       "buff": {
         "count": "{{count}} buff(s)",
+        "more": "{{count}} more",
         "detail": "Detail view",
         "simple": "Compact view",
         "empty": "No buffs or debuffs registered",

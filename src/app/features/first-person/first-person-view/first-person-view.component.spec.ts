@@ -512,7 +512,7 @@ describe('FirstPersonViewComponent', () => {
       const billboard = element(mount()).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
 
       expect(billboard.querySelectorAll('[data-testid="first-person-buff"]')).toHaveLength(5);
-      expect(billboard.querySelector('[data-testid="first-person-buff-more"]')?.textContent?.trim()).toBe('バフ3個');
+      expect(billboard.querySelector('[data-testid="first-person-buff-more"]')?.textContent?.trim()).toBe('あと3個');
     });
 
     it('leaves the chip off a piece whose marks all fit', () => {
