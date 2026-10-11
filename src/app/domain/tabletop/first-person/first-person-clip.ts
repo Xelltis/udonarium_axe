@@ -74,20 +74,6 @@ export function viewDepthOf(frame: EyeFrame, point: CellPoint, zPx: number): num
   return depthOf(frame, point) * frame.cosPitch + (zPx - frame.z) * frame.sinPitch;
 }
 
-export function clipSpanToEye(
-  frame: EyeFrame,
-  a: CellPoint,
-  b: CellPoint,
-  nearPx: number
-): { t0: number; t1: number } | null {
-  const from = depthOf(frame, a) - nearPx;
-  const to = depthOf(frame, b) - nearPx;
-  if (from >= 0 && to >= 0) return { t0: 0, t1: 1 };
-  if (from < 0 && to < 0) return null;
-  const crossing = from / (from - to);
-  return from < 0 ? { t0: crossing, t1: 1 } : { t0: 0, t1: crossing };
-}
-
 /**
  * Cuts a level shape lying at a height to what lies in front of the camera's near plane. However the
  * camera tips, the cut across a level shape is a straight line square to the heading; how far ahead
@@ -100,20 +86,11 @@ export function clipPolygonToEye(
   zPx = frame.z
 ): CellPoint[] {
   const threshold = (nearPx - (zPx - frame.z) * frame.sinPitch) / frame.cosPitch;
-  const kept: CellPoint[] = [];
-  const count = points.length;
-  for (let index = 0; index < count; index++) {
-    const current = points[index];
-    const previous = points[(index + count - 1) % count];
-    const currentAhead = depthOf(frame, current) - threshold;
-    const previousAhead = depthOf(frame, previous) - threshold;
-    if (currentAhead >= 0) {
-      if (previousAhead < 0) kept.push(crossingOf(previous, current, previousAhead, currentAhead));
-      kept.push(current);
-    } else if (previousAhead >= 0) {
-      kept.push(crossingOf(previous, current, previousAhead, currentAhead));
-    }
-  }
+  const kept = clipConvex(
+    points,
+    (point) => depthOf(frame, point) - threshold,
+    (from, to, along) => ({ x: from.x + (to.x - from.x) * along, y: from.y + (to.y - from.y) * along })
+  );
   return kept.length >= 3 ? kept : [];
 }
 
@@ -140,19 +117,10 @@ export function clipWallToEye(
     { t: 1, z: topPx },
     { t: 0, z: topPx },
   ];
-  const kept: { t: number; z: number }[] = [];
-  for (let index = 0; index < corners.length; index++) {
-    const current = corners[index];
-    const previous = corners[(index + corners.length - 1) % corners.length];
-    const currentAhead = ahead(current);
-    const previousAhead = ahead(previous);
-    if (currentAhead >= 0) {
-      if (previousAhead < 0) kept.push(cornerCrossing(previous, current, previousAhead, currentAhead));
-      kept.push(current);
-    } else if (previousAhead >= 0) {
-      kept.push(cornerCrossing(previous, current, previousAhead, currentAhead));
-    }
-  }
+  const kept = clipConvex(corners, ahead, (from, to, along) => ({
+    t: from.t + (to.t - from.t) * along,
+    z: from.z + (to.z - from.z) * along,
+  }));
   if (kept.length < 3) return null;
   const t0 = Math.min(...kept.map((point) => point.t));
   const t1 = Math.max(...kept.map((point) => point.t));
@@ -215,19 +183,30 @@ export function inViewOpening(frame: EyeFrame, points: readonly SpacePoint[], op
   return !behind && !left && !right && !below && !above;
 }
 
-function crossingOf(from: CellPoint, to: CellPoint, fromAhead: number, toAhead: number): CellPoint {
-  const along = fromAhead / (fromAhead - toAhead);
-  return { x: from.x + (to.x - from.x) * along, y: from.y + (to.y - from.y) * along };
-}
-
-function cornerCrossing(
-  from: { t: number; z: number },
-  to: { t: number; z: number },
-  fromAhead: number,
-  toAhead: number
-): { t: number; z: number } {
-  const along = fromAhead / (fromAhead - toAhead);
-  return { t: from.t + (to.t - from.t) * along, z: from.z + (to.z - from.z) * along };
+/**
+ * Cuts a convex outline to the part where `aheadOf` gives zero or more, putting a corner in where an
+ * edge crosses over, `between` giving the point that far along it: the one cut every shape here is
+ * given, whatever its points are measured in.
+ */
+function clipConvex<T>(
+  points: readonly T[],
+  aheadOf: (point: T) => number,
+  between: (from: T, to: T, along: number) => T
+): T[] {
+  const ahead = points.map(aheadOf);
+  const kept: T[] = [];
+  const count = points.length;
+  for (let index = 0; index < count; index++) {
+    const before = (index + count - 1) % count;
+    const crossing = () => between(points[before], points[index], ahead[before] / (ahead[before] - ahead[index]));
+    if (ahead[index] >= 0) {
+      if (ahead[before] < 0) kept.push(crossing());
+      kept.push(points[index]);
+    } else if (ahead[before] >= 0) {
+      kept.push(crossing());
+    }
+  }
+  return kept;
 }
 
 function nearlyEqual(a: number, b: number): boolean {

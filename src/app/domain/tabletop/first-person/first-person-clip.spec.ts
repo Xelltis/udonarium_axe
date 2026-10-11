@@ -1,7 +1,6 @@
 import {
   clipBillboardToEye,
   clipPolygonToEye,
-  clipSpanToEye,
   clipWallToEye,
   depthOf,
   eyeFrameOf,
@@ -24,21 +23,23 @@ describe('the eye frame', () => {
   });
 });
 
-describe('clipSpanToEye', () => {
+describe('clipWallToEye at level', () => {
   it('keeps the whole of a wall in front of the eye', () => {
-    expect(clipSpanToEye(northward, { x: -50, y: -100 }, { x: 50, y: -100 }, 10)).toEqual({ t0: 0, t1: 1 });
+    const cut = clipWallToEye(northward, { x: -50, y: -100 }, { x: 50, y: -100 }, 0, 100, 10);
+
+    expect(cut).toEqual({ t0: 0, t1: 1, lowPx: 0, highPx: 100, outline: null });
   });
 
   it('drops a wall behind the eye', () => {
-    expect(clipSpanToEye(northward, { x: -50, y: 100 }, { x: 50, y: 100 }, 10)).toBeNull();
+    expect(clipWallToEye(northward, { x: -50, y: 100 }, { x: 50, y: 100 }, 0, 100, 10)).toBeNull();
   });
 
   it('cuts a wall running past the eye where it crosses the near plane, from either end', () => {
-    const cut = clipSpanToEye(northward, { x: 20, y: 50 }, { x: 20, y: -150 }, 10)!;
+    const cut = clipWallToEye(northward, { x: 20, y: 50 }, { x: 20, y: -150 }, 0, 100, 10)!;
     expect(cut.t0).toBeCloseTo(0.3);
     expect(cut.t1).toBe(1);
 
-    const reversed = clipSpanToEye(northward, { x: 20, y: -150 }, { x: 20, y: 50 }, 10)!;
+    const reversed = clipWallToEye(northward, { x: 20, y: -150 }, { x: 20, y: 50 }, 0, 100, 10)!;
     expect(reversed.t0).toBe(0);
     expect(reversed.t1).toBeCloseTo(0.7);
   });
@@ -104,14 +105,14 @@ describe('a camera tipped up or down', () => {
     expect(Math.max(...down.map((point) => point.y))).toBeGreaterThan(0);
   });
 
-  it('cuts a wall along its length only at level, as clipSpanToEye does', () => {
+  it('cuts a wall along its length only at level, where it crosses the near plane', () => {
     const a = { x: 30, y: 50 };
     const b = { x: 30, y: -100 };
 
     const cut = clipWallToEye(northward, a, b, 0, 100, 10);
 
     expect(cut).not.toBeNull();
-    expect(cut!.t0).toBeCloseTo(clipSpanToEye(northward, a, b, 10)!.t0);
+    expect(cut!.t0).toBeCloseTo(0.4);
     expect(cut!.t1).toBeCloseTo(1);
     expect(cut!.lowPx).toBe(0);
     expect(cut!.highPx).toBe(100);
