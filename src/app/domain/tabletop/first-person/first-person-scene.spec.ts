@@ -1,12 +1,12 @@
 import { depthOf, eyeFrameOf } from '@axe/domain/tabletop/first-person/first-person-clip';
 import { eyePoseAt, FirstPersonPose } from '@axe/domain/tabletop/first-person/first-person-lattice';
+import { firstPersonRoofOf } from '@axe/domain/tabletop/first-person/first-person-roof';
 import {
   FirstPersonPlaneQuad,
   FirstPersonQuad,
   firstPersonScene,
   FirstPersonWallQuad,
 } from '@axe/domain/tabletop/first-person/first-person-scene';
-import { firstPersonRoofOf } from '@axe/domain/tabletop/first-person/first-person-roof';
 import { firstPersonWorldOf } from '@axe/domain/tabletop/first-person/first-person-world';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCenterOf, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
