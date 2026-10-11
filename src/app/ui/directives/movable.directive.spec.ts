@@ -308,6 +308,16 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
     expect(directive.contactSupportZ(50, 50)).toBe(1 * GRID);
   });
 
+  it('stands a piece on a turned block where the block is drawn, not where it lay square', () => {
+    // Four cells by one, turned a quarter round about its middle at 100, 25.
+    const beam = block({ identifier: 'beam', h: 1, w: 4, d: 1 });
+    beam.rotate = 90;
+    const directive = mount(block({ identifier: 'dragged', h: 1, x: 500, y: 500 }), [{ object: beam, w: 4, d: 1 }]);
+
+    expect(directive.contactSupportZ(25, 25)).toBe(0);
+    expect(directive.contactSupportZ(100, 100)).toBe(1 * GRID);
+  });
+
   function grab(directive: MovableDirective, atLocal: { x: number; y: number }): void {
     TestBed.inject(PointerDeviceService).isDragging = true;
     directive.targetStartRect = directive.nativeElement.getBoundingClientRect();
@@ -697,6 +707,22 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
       directive['holdAtBlocks'](0, 400);
 
       expect(directive.posX).toBe(400);
+    });
+
+    it('holds a character at the face of a turned block, not at the box that holds it', () => {
+      // Two cells square, turned an eighth round: a diamond about 250, 50 with corners 70.7 out.
+      const diamond = cliff({ x: 200, y: 0 });
+      diamond.rotate = 45;
+      const directive = mount(GameCharacter.create('walker', 1, ''), [{ object: diamond, w: 2, d: 2 }]);
+      directive.width = 0;
+      directive.height = 0;
+      directive.posY = 110;
+
+      directive.posX = 400;
+      directive['holdAtBlocks'](0, 110);
+
+      // 60 below the middle the diamond is 10.7 either side of it, so its face is at 239.3.
+      expect(directive.posX).toBe(238);
     });
 
     it('brings a piece of one cell up to the face, since it owns no more ground than its cell', () => {

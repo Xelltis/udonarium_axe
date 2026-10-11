@@ -387,6 +387,14 @@ describe('movable-helpers', () => {
       topZ,
     });
 
+    it('reads a turned footprint where it is turned to, about its middle', () => {
+      // Two hundred by fifty, turned a quarter round: it runs 75 to 125 across and -75 to 125 down.
+      const beam: ContactFootprint = { left: 0, top: 0, right: 200, bottom: 50, bottomZ: 0, topZ: 50, rotate: 90 };
+
+      expect(findContactSupportZ([beam], 100, 100)).toBe(50);
+      expect(findContactSupportZ([beam], 25, 25)).toBe(0);
+    });
+
     describe('a piece dragged along the surface it is on', () => {
       /** A ramp 200px across, climbing to the north from the ground at its south edge. */
       const ramp: ContactFootprint = {

@@ -13,6 +13,7 @@ import { GridType } from '@axe/domain/tabletop/game-table';
 import { SurfaceDims, surfaceWorldBox } from '@axe/domain/tabletop/surface-space';
 import { boardSurfaceOf, surfaceOf, TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { terrainBoxOf, terrainCovers } from '@axe/domain/tabletop/terrain-box';
 import { terrainSlopeRoofOf, terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
 
 const POSZ_EPSILON = 0.5;
@@ -40,6 +41,8 @@ interface CachedEntry {
   isGravity: boolean;
   /** A sloping block, whose top is read where it is stood on rather than at its highest. */
   sloping: Terrain | null;
+  /** A block turned off the square, which covers less of the table than the box that holds it. */
+  turned: Terrain | null;
   /** Whether something that has come down inside this is stood on top of it instead. */
   liftsOut: boolean;
   gridSizePx: number;
@@ -221,6 +224,7 @@ export class GravityService {
   }
 
   private static containsPoint(entry: TabletopOverlapRegistryEntry, x: number, y: number, gridSize: number): boolean {
+    if (entry.object instanceof Terrain) return terrainCovers(entry.object, gridSize, x, y);
     const { width, height } = footprintOf(entry, gridSize);
     const left = entry.object.location.x;
     const top = entry.object.location.y;
@@ -251,12 +255,14 @@ export class GravityService {
       const posZ = obj.posZ;
       const thicknessPx = obj instanceof Terrain ? obj.height * gridSizePx : 0;
       const box = surfaceWorldBox(surface, obj.location.x, obj.location.y, w, h, altitudePx + posZ, thicknessPx, dims);
+      const turned = obj instanceof Terrain && surface === 'floor' && obj.rotate % 360 !== 0 ? obj : null;
+      const ground = turned ? terrainBoxOf(turned, gridSizePx) : box;
       cached.push({
         entry,
-        minX: box.minX,
-        maxX: box.maxX,
-        minY: box.minY,
-        maxY: box.maxY,
+        minX: ground.minX,
+        maxX: ground.maxX,
+        minY: ground.minY,
+        maxY: ground.maxY,
         centerX: (box.minX + box.maxX) / 2,
         centerY: (box.minY + box.maxY) / 2,
         bottomZ: box.minZ,
@@ -267,6 +273,7 @@ export class GravityService {
         surface,
         isGravity: surface === 'floor' && GravityService.isAffectedByGravity(obj),
         sloping: obj instanceof Terrain && terrainSlopeRoofOf(obj, gridSizePx, gridType) != null ? obj : null,
+        turned,
         liftsOut: obj instanceof Terrain && GravityService.liftsWhatIsInside(obj, gridSizePx, gridType),
         gridSizePx,
         gridType,
@@ -313,6 +320,7 @@ export class GravityService {
       if (c.entry.object.identifier === targetId) continue;
       if (cx < c.minX || cx > c.maxX) continue;
       if (cy < c.minY || cy > c.maxY) continue;
+      if (c.turned && !terrainCovers(c.turned, c.gridSizePx, cx, cy)) continue;
       const topZ = GravityService.topOfEntry(c, cx, cy);
       // Something wholly overhead does not lift what walks beneath it. A slope is the one
       // thing that lifts what has come down inside it: let go on a ramp, a piece lands where
