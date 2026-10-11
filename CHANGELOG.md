@@ -1,3 +1,36 @@
+## [1.65.1](https://github.com/Xelltis/udonarium_axe/compare/v1.65.0...v1.65.1) (2026-10-11)
+
+### 🐛 Bug Fixes
+
+* **first-person:** draw piece pictures at the table's scale and cull them by their extent ([14ee2d8](https://github.com/Xelltis/udonarium_axe/commit/14ee2d8781da8b92449861928f0750d1d50c35d1))
+* **first-person:** forget a look press let go off the view ([a9d8ec1](https://github.com/Xelltis/udonarium_axe/commit/a9d8ec15c977984a57ac792c15a414e9acf91671))
+* **first-person:** keep a great piece's readings as wide as a one-cell piece's ([0ab0060](https://github.com/Xelltis/udonarium_axe/commit/0ab0060d899319e80ac0246654a4047c9ef28036))
+* **first-person:** keep a piece in view while the cell under its middle is in sight ([d69f574](https://github.com/Xelltis/udonarium_axe/commit/d69f5744a93a9126eb930630dbc8f0583c37cf3b))
+* **first-person:** keep a standing prop's label when the camera cuts it ([711058a](https://github.com/Xelltis/udonarium_axe/commit/711058a94bac4e03a44ab3b451f43bc2a93dc54e))
+* **first-person:** let only a click on a piece be taken as the end of a look ([09c5bf9](https://github.com/Xelltis/udonarium_axe/commit/09c5bf97a8a5ad5e34e9e0ff3ef245cdb5ea69bc))
+* **first-person:** let the camera turn and tilt apart from the piece's facing ([a883398](https://github.com/Xelltis/udonarium_axe/commit/a883398be592a2a0f6cc80e840f4f1cef9386710))
+* **first-person:** lift, blur and label a piece for where the camera looks ([592e05d](https://github.com/Xelltis/udonarium_axe/commit/592e05d2b022a504660e50798863b604753f7b32))
+* **first-person:** look about by dragging the scene ([182fb52](https://github.com/Xelltis/udonarium_axe/commit/182fb52a9e6aa8aa592705497f1de9b90098ba7a))
+* **first-person:** raise a room's roof clear over a great piece standing in it ([2cd376f](https://github.com/Xelltis/udonarium_axe/commit/2cd376fe8200b2d84017f8191f2b82f008a2ec72))
+* **first-person:** stand a small piece in the middle of its cell ([450805a](https://github.com/Xelltis/udonarium_axe/commit/450805af131e6d98b858734017c51bb22a96ea61))
+
+### ⚡ Performance
+
+* **first-person:** keep the scene while a raised roof stays the same ([3a5e6bb](https://github.com/Xelltis/udonarium_axe/commit/3a5e6bb0b4780a160560a0e5b033baa7c40ff366))
+* **first-person:** work out the eye frame once a pass for the sight checks ([e21a812](https://github.com/Xelltis/udonarium_axe/commit/e21a812158ecd6fbd0533a686f0250e71b83d584))
+
+### 📝 Documentation
+
+* write up looking about and true-scale pieces for v1.65.1 ([110ab0c](https://github.com/Xelltis/udonarium_axe/commit/110ab0cda932a2b82698de544237aebf4555c6f0))
+
+### ♻️ Refactor
+
+* **first-person:** cut walls and level shapes with one convex clip ([763420b](https://github.com/Xelltis/udonarium_axe/commit/763420bec7793be930d33e27098b40825e29e85f))
+* **first-person:** drop the picture-top reckoning a true-size box makes moot ([0156921](https://github.com/Xelltis/udonarium_axe/commit/0156921bd6877bbec42a4391b4fc4d329a867184))
+* **first-person:** give the eye frame a pitch and cut walls, planes and billboards against it ([adc9324](https://github.com/Xelltis/udonarium_axe/commit/adc9324f2a3130e6972527f845f196c724f90d93))
+* **first-person:** read the camera's tip off the pose the scene is given ([7a934ab](https://github.com/Xelltis/udonarium_axe/commit/7a934abaa0ff88f5fc51849c6cbc88f89aa72352))
+* **first-person:** share one signed turn between the look and the glide ([ebb2157](https://github.com/Xelltis/udonarium_axe/commit/ebb215764d559a5dc28e61ad016886c5f316693a))
+
 ## [1.65.0](https://github.com/Xelltis/udonarium_axe/compare/v1.64.1...v1.65.0) (2026-10-11)
 
 ### ✨ Features
