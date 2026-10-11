@@ -48,6 +48,7 @@ import {
   headingVector,
 } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import { cameraOf } from '@axe/domain/tabletop/first-person/first-person-look';
+import { roofRaisedFor } from '@axe/domain/tabletop/first-person/first-person-roof';
 import {
   FIRST_PERSON_FOV_DEG,
   FirstPersonQuad,
@@ -112,6 +113,8 @@ import { MAX_MULTI_ANGLE_RESOURCE_GAUGES } from '@axe/ui/tabletop/multi-angle-or
 import { TranslocoModule } from '@jsverse/transloco';
 
 const NEAR_CELLS = 0.05;
+/** How far over the top of a great piece the roof of its room is raised, in cells. */
+const ROOF_CLEARANCE_CELLS = 0.5;
 /** How wide what is told about a piece runs beside the picture of a piece one cell wide. */
 const CHROME_WIDTH_RATIO = 1.3;
 /** How much more than the screen the view is taken to open above and below, so nothing at its edge is lost. */
@@ -147,6 +150,16 @@ interface GaugeView {
   percent: number;
   color: string;
   numbers: string;
+}
+
+/** A piece standing on the floor in sight of the seat, and how large it stands. */
+interface StandingPiece {
+  piece: GameCharacter;
+  size: number;
+  centre: CellPoint;
+  aspect: number | undefined;
+  stand: { widthPx: number; heightPx: number };
+  basePx: number;
 }
 
 interface PieceView {
@@ -364,8 +377,24 @@ export class FirstPersonViewComponent {
       seen: this.drawnSeen(),
       depthPx: this.firstPerson.depthPx(),
       nearPx: NEAR_CELLS * this.gridSize(),
-      roof: this.firstPerson.roof(),
+      roof: this.roof(),
     });
+  });
+
+  /**
+   * The roof over the ground the board shuts in, each room's raised clear over the tallest piece this
+   * seat sees standing in it, so a great piece is not cut off at the top of the walls. A piece the
+   * seat cannot see raises nothing, which would give it away.
+   */
+  private readonly roof = computed(() => {
+    const roof = this.firstPerson.roof();
+    const grid = this.firstPerson.grid();
+    if (!roof || !grid) return roof;
+    const standing = this.standing().map((piece) => ({
+      cell: cellIndexAt(grid, piece.centre.x, piece.centre.y),
+      topPx: piece.basePx + piece.stand.heightPx,
+    }));
+    return roofRaisedFor(roof, standing, this.gridSize() * ROOF_CLEARANCE_CELLS);
   });
 
   protected readonly quadViews = computed<QuadView[]>(() => {
@@ -401,13 +430,48 @@ export class FirstPersonViewComponent {
     this.pictureAspects.update((aspects) => new Map(aspects).set(url, aspect));
   }
 
+  /**
+   * The pieces standing on the floor that this seat can see, other than the one it looks out of, each
+   * with how large it stands: what is worked out once for them, whichever way the eye looks.
+   */
+  private readonly standing = computed<StandingPiece[]>(() => {
+    const viewer = this.firstPerson.piece();
+    const gridSize = this.gridSize();
+    if (!viewer || gridSize <= 0) return [];
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    const aspects = this.pictureAspects();
+    const pieces: StandingPiece[] = [];
+    for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
+      if (piece.identifier === viewer.identifier) continue;
+      this.objectChange.versionOf(piece.identifier)();
+      if (!piece.isVisibleOnTable || surfaceOf(piece) !== 'floor' || boardSurfaceOf(piece) !== '') continue;
+      if (!this.vision.isTokenVisible(piece)) continue;
+      const size = Math.max(0, piece.size) * gridSize;
+      if (size <= 0) continue;
+      const aspect = aspects.get(piece.imageFile.url);
+      pieces.push({
+        piece,
+        size,
+        centre: { x: piece.location.x + size / 2, y: piece.location.y + size / 2 },
+        aspect,
+        stand: pieceStandPx({
+          sizeCells: Math.max(0, piece.size),
+          gridSize,
+          aspect,
+          specifiedHeightPx: piece.specifyKomaImageFlag ? piece.komaImageHeight : undefined,
+        }),
+        basePx: piece.posZ + piece.altitude * gridSize,
+      });
+    }
+    return pieces;
+  });
+
   protected readonly pieceViews = computed<PieceView[]>(() => {
     const pose = this.shown();
     const camera = this.viewCamera();
     const viewer = this.firstPerson.piece();
     const gridSize = this.gridSize();
     if (!pose || !camera || !viewer || gridSize <= 0) return [];
-    this.objectChange.collectionOf(GameCharacter.aliasName)();
     this.objectChange.fileVersion();
     this.uiSignal.targetChange();
     this.objectChange.trackMyCursor();
@@ -420,31 +484,17 @@ export class FirstPersonViewComponent {
     const scale = this.scale();
     const perspective = this.perspective();
     const viewHeight = this.height();
-    const aspects = this.pictureAspects();
     const clear = this.firstPerson.clearPx();
     const reach = this.firstPerson.depthPx();
     const sight = this.firstPerson.sight();
     const grid = this.firstPerson.grid();
     const views: PieceView[] = [];
-    for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
-      if (piece.identifier === viewer.identifier) continue;
+    for (const { piece, size, centre, aspect, stand, basePx: base } of this.standing()) {
       this.objectChange.versionOf(piece.identifier)();
-      if (!piece.isVisibleOnTable || surfaceOf(piece) !== 'floor' || boardSurfaceOf(piece) !== '') continue;
-      if (!this.vision.isTokenVisible(piece)) continue;
-      const size = Math.max(0, piece.size) * gridSize;
-      const centre = { x: piece.location.x + size / 2, y: piece.location.y + size / 2 };
-      if (size <= 0 || !this.pieceInSight(camera, piece.location, size, centre)) continue;
+      if (!this.pieceInSight(camera, piece.location, size, centre)) continue;
       const badges = this.badgesOf(piece);
       const depth = depthOf(eye, centre);
       const ahead = depthOf(facing, centre);
-      const aspect = aspects.get(piece.imageFile.url);
-      const stand = pieceStandPx({
-        sizeCells: Math.max(0, piece.size),
-        gridSize,
-        aspect,
-        specifiedHeightPx: piece.specifyKomaImageFlag ? piece.komaImageHeight : undefined,
-      });
-      const base = piece.posZ + piece.altitude * gridSize;
       const lifted = base + billboardLiftPx(base, pose.z, ahead, perspective, viewHeight);
       const kept = clipBillboardToEye(eye, centre, lifted, lifted + stand.heightPx, nearPx);
       if (!kept) continue;

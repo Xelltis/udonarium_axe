@@ -11,6 +11,19 @@ export interface FirstPersonRoof {
   readonly cells: CellBits;
   /** The height of the roof, in table pixels. */
   readonly heightPx: number;
+  /**
+   * Which room each cell under the roof belongs to: the open ground walls shut in together shares a
+   * number, and the walls themselves and anything outside are -1.
+   */
+  readonly rooms?: Int32Array;
+  /** How high the roof stands over a room raised for something tall in it, by the room's number. */
+  readonly raised?: ReadonlyMap<number, number>;
+}
+
+/** What stands under the roof: the cell under its middle, and how high its top reaches. */
+export interface RoofedStanding {
+  readonly cell: number;
+  readonly topPx: number;
 }
 
 /**
@@ -64,5 +77,55 @@ export function firstPersonRoofOf(
     (terrain) => surfaceOf(terrain) === 'floor' && (terrain.hasWall || terrain.isDoor)
   );
   const cells = enclosedCells(grid, walled);
-  return cells.isEmpty ? null : { cells, heightPx };
+  return cells.isEmpty ? null : { cells, heightPx, rooms: roomsOf(grid, cells, walled) };
+}
+
+/**
+ * Numbers the rooms the walls shut in: the open cells under the roof that join up without crossing
+ * a walled cell share a number. Walled cells and cells outside are -1.
+ */
+export function roomsOf(grid: CellGrid, roofed: CellBits, walled: CellBits): Int32Array {
+  const count = cellCount(grid);
+  const rooms = new Int32Array(count).fill(-1);
+  let next = 0;
+  for (let cell = 0; cell < count; cell++) {
+    if (!roofed.get(cell) || walled.get(cell) || rooms[cell] >= 0) continue;
+    rooms[cell] = next;
+    const queue = [cell];
+    for (let index = 0; index < queue.length; index++) {
+      forEachNeighbourCell(grid, queue[index], (neighbour) => {
+        if (!roofed.get(neighbour) || walled.get(neighbour) || rooms[neighbour] >= 0) return;
+        rooms[neighbour] = next;
+        queue.push(neighbour);
+      });
+    }
+    next++;
+  }
+  return rooms;
+}
+
+/**
+ * The roof with each room's raised clear over the tallest thing standing in it, where that would
+ * reach past the roof: `clearancePx` above its top. Other rooms, and the walls, keep the roof as it was.
+ */
+export function roofRaisedFor(
+  roof: FirstPersonRoof | null,
+  standing: readonly RoofedStanding[],
+  clearancePx: number
+): FirstPersonRoof | null {
+  if (!roof?.rooms) return roof;
+  const raised = new Map<number, number>();
+  for (const piece of standing) {
+    const room = piece.cell >= 0 ? roof.rooms[piece.cell] : -1;
+    if (room < 0) continue;
+    const height = piece.topPx + clearancePx;
+    if (height > (raised.get(room) ?? roof.heightPx)) raised.set(room, height);
+  }
+  return raised.size === 0 ? roof : { ...roof, raised };
+}
+
+/** How high the roof stands over a cell, raised where the cell's room has been raised. */
+export function roofHeightAt(roof: FirstPersonRoof, cell: number): number {
+  const room = roof.rooms && cell >= 0 ? roof.rooms[cell] : -1;
+  return (room >= 0 ? roof.raised?.get(room) : undefined) ?? roof.heightPx;
 }

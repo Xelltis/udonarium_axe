@@ -790,6 +790,31 @@ describe('FirstPersonViewComponent', () => {
       expect(view.querySelector(`[data-piece="${offCentre.identifier}"]`)).not.toBeNull();
     });
 
+    it('raises the roof of a room shut in by walls clear over a great piece standing in it', () => {
+      for (const [col, row, width, depth] of [
+        [2, 2, 5, 1],
+        [2, 8, 5, 1],
+        [2, 3, 1, 5],
+        [6, 3, 1, 5],
+      ]) {
+        const wall = Terrain.create('壁', width, depth, 1, 'stone', 'slab');
+        wall.location = { name: 'table', x: col * GRID, y: row * GRID };
+        table.appendChild(wall);
+      }
+      const giant = GameCharacter.create('巨竜', 3, '');
+      giant.location = { name: 'table', x: 3 * GRID, y: 3 * GRID };
+      lookOutOf(pieceAt(4, 7));
+
+      const grid = cellGridOf(table.width, table.height, GRID, GridType.SQUARE);
+      const view = element(mount());
+      const ceilingOver = (col: number, row: number) =>
+        view.querySelector<HTMLElement>(`[data-quad="ceiling"][data-cell="${cellIndexOf(grid, col, row)}"]`)!;
+
+      const raisedPx = `${(3 * GRID + GRID / 2) * scaleOf(GRID)}px`;
+      expect(ceilingOver(4, 5).style.transform).toContain(`, ${raisedPx})`);
+      expect(ceilingOver(5, 6).style.transform).toContain(`, ${raisedPx})`);
+    });
+
     it('keeps what is told about a great piece as wide as for a piece of one cell', () => {
       const giant = GameCharacter.create('巨竜', 6, '');
       giant.location = { name: 'table', x: GRID, y: 0 };

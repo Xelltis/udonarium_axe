@@ -9,7 +9,7 @@ import {
   ViewOpening,
 } from '@axe/domain/tabletop/first-person/first-person-clip';
 import { FirstPersonPose } from '@axe/domain/tabletop/first-person/first-person-lattice';
-import { FirstPersonRoof } from '@axe/domain/tabletop/first-person/first-person-roof';
+import { FirstPersonRoof, roofHeightAt } from '@axe/domain/tabletop/first-person/first-person-roof';
 import {
   FirstPersonCap,
   FirstPersonFloor,
@@ -120,11 +120,12 @@ export function firstPersonScene(input: FirstPersonSceneInput): FirstPersonQuad[
       quads.push(planeQuadOf('floor', `floor:${index}`, index, '', polygon, 0, 'up', floor.image, floor, false, scene));
     }
     const roof = input.roof;
-    if (roof && roof.heightPx > input.pose.z && roof.cells.get(index)) {
-      const overhead = clipPolygonToEye(scene.eye, outline, input.nearPx, roof.heightPx);
-      if (keepsPlane(overhead, roof.heightPx, scene)) {
+    const height = roof ? roofHeightAt(roof, index) : 0;
+    if (roof && height > input.pose.z && roof.cells.get(index)) {
+      const overhead = clipPolygonToEye(scene.eye, outline, input.nearPx, height);
+      if (keepsPlane(overhead, height, scene)) {
         quads.push(
-          planeQuadOf('ceiling', `ceiling:${index}`, index, '', overhead, roof.heightPx, 'down', '', null, false, scene)
+          planeQuadOf('ceiling', `ceiling:${index}`, index, '', overhead, height, 'down', '', null, false, scene)
         );
       }
     }
