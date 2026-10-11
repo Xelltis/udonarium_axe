@@ -45,8 +45,9 @@ import {
   FirstPersonQuad,
   firstPersonScene,
 } from '@axe/domain/tabletop/first-person/first-person-scene';
+import { pieceStandPx } from '@axe/domain/tabletop/first-person/first-person-stand';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCenterOf, CellGrid, cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, CellGrid, cellIndexAt, CellPoint, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
@@ -106,8 +107,6 @@ const TARGET_CONE_DEG = 20;
 const BOARD_STEP_CELLS = 0.25;
 const EFFECT_LIFT_CELLS = 0.15;
 const EFFECT_RISE_CELLS = 0.3;
-const PIECE_WIDE_RATIO = 0.9;
-const PIECE_TALL_RATIO = 1.5;
 /** The sky over a table that has no picture to show, darkest overhead and palest at the horizon. */
 const NIGHT_SKY =
   'linear-gradient(to bottom, #04060b 0%, #0b1220 32%, #1c2840 49%, #222f47 50%, #10161f 56%, #06080c 100%)';
@@ -389,12 +388,18 @@ export class FirstPersonViewComponent {
       this.objectChange.versionOf(piece.identifier)();
       if (!piece.isVisibleOnTable || surfaceOf(piece) !== 'floor' || boardSurfaceOf(piece) !== '') continue;
       if (!this.vision.isTokenVisible(piece)) continue;
-      const size = Math.max(1, piece.size) * gridSize;
+      const size = Math.max(0, piece.size) * gridSize;
       const centre = { x: piece.location.x + size / 2, y: piece.location.y + size / 2 };
-      if (!this.inSight(pose, centre)) continue;
+      if (size <= 0 || !this.pieceInSight(pose, piece.location, size, centre)) continue;
       const badges = this.badgesOf(piece);
       const depth = depthOf(eye, centre);
-      const tall = size * PIECE_TALL_RATIO;
+      const aspect = aspects.get(piece.imageFile.url);
+      const stand = pieceStandPx({
+        sizeCells: Math.max(0, piece.size),
+        gridSize,
+        aspect,
+        specifiedHeightPx: piece.specifyKomaImageFlag ? piece.komaImageHeight : undefined,
+      });
       const base = piece.posZ + piece.altitude * gridSize;
       const lifted = base + billboardLiftPx(base, pose.z, depth, perspective, viewHeight);
       const textScale = billboardTextScale(depth, scale, perspective);
@@ -413,11 +418,11 @@ export class FirstPersonViewComponent {
         gauges,
         badges: badges.slice(0, BUFF_BADGES_PER_ROW),
         moreBadges: Math.max(0, badges.length - BUFF_BADGES_PER_ROW),
-        style: billboardStyle({ ...centre, z: lifted }, size * PIECE_WIDE_RATIO, tall, pose.yaw, scale),
+        style: billboardStyle({ ...centre, z: lifted }, stand.widthPx, stand.heightPx, pose.yaw, scale),
         hud: billboardHudTransform(textScale),
         chromeBottom: pieceChromeBottomPercent({
-          pictureTop: pictureTopPercent(PIECE_WIDE_RATIO / PIECE_TALL_RATIO, aspects.get(piece.imageFile.url)),
-          heightPx: tall,
+          pictureTop: pictureTopPercent(stand.widthPx / stand.heightPx, aspect),
+          heightPx: stand.heightPx,
           baseZ: lifted,
           eyeZ: pose.z,
           depthPx: depth,
@@ -781,6 +786,26 @@ export class FirstPersonViewComponent {
     if (seen && (cell < 0 || !seen.get(cell))) return false;
     const depth = depthOf(eyeFrameOf(pose), centre);
     return depth > this.gridSize() * NEAR_CELLS * 4 && depth <= this.firstPerson.depthPx();
+  }
+
+  /**
+   * Whether a piece stands where the view can show it: some cell under its footing is in sight, not
+   * only the one under its middle, so a great piece half behind a pillar still shows; and the face it
+   * stands up on lies ahead of the eye, its near side no further off than the view reaches.
+   */
+  private pieceInSight(pose: FirstPersonPose, at: CellPoint, groundPx: number, centre: CellPoint): boolean {
+    const grid = this.firstPerson.grid();
+    if (!grid) return false;
+    const depth = depthOf(eyeFrameOf(pose), centre);
+    if (depth <= this.gridSize() * NEAR_CELLS * 4 || depth - groundPx / 2 > this.firstPerson.depthPx()) return false;
+    const seen = this.drawnSeen();
+    if (!seen) return true;
+    const edge = Math.min(1, groundPx / 4);
+    let shown = false;
+    forEachCellInBox(grid, at.x + edge, at.y + edge, at.x + groundPx - edge, at.y + groundPx - edge, (cell) => {
+      if (!shown && seen.get(cell)) shown = true;
+    });
+    return shown;
   }
 
   /** How brightly the table's lights fall on a face, read at the middle of the cell it is drawn for. */

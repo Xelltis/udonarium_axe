@@ -469,8 +469,67 @@ describe('FirstPersonViewComponent', () => {
       view.querySelector<HTMLElement>(`[data-piece="${piece.identifier}"]`)!;
     const heightOf = (piece: GameCharacter) => parseFloat(billboardOf(piece).style.height);
 
-    expect(heightOf(far)).toBeCloseTo(GRID * 1.5 * scaleOf(GRID), 1);
+    expect(heightOf(far)).toBeCloseTo(GRID * scaleOf(GRID), 1);
     expect(heightOf(near)).toBeCloseTo(heightOf(far), 1);
+  });
+
+  describe('a piece at the table\u2019s own scale', () => {
+    function pictureLoaded(
+      fixture: ComponentFixture<FirstPersonViewComponent>,
+      piece: GameCharacter,
+      w: number,
+      h: number
+    ) {
+      const loaded = { target: { naturalWidth: w, naturalHeight: h } } as unknown as Event;
+      (
+        fixture.componentInstance as unknown as { notePictureAspect(url: string, event: Event): void }
+      ).notePictureAspect(piece.imageFile.url, loaded);
+      fixture.detectChanges();
+    }
+
+    function boxOf(fixture: ComponentFixture<FirstPersonViewComponent>, piece: GameCharacter) {
+      const billboard = element(fixture).querySelector<HTMLElement>(`[data-piece="${piece.identifier}"]`)!;
+      return { width: parseFloat(billboard.style.width), height: parseFloat(billboard.style.height) };
+    }
+
+    it('stands a great piece as wide as its ground and as tall as its picture', () => {
+      const giant = GameCharacter.create('巨竜', 3, '');
+      giant.location = { name: 'table', x: 3 * GRID, y: 0 };
+      lookOutOf(pieceAt(4, 8));
+      const fixture = mount();
+
+      pictureLoaded(fixture, giant, 100, 200);
+
+      expect(boxOf(fixture, giant).width).toBeCloseTo(3 * GRID * scaleOf(GRID), 1);
+      expect(boxOf(fixture, giant).height).toBeCloseTo(6 * GRID * scaleOf(GRID), 1);
+    });
+
+    it('stands a picture given a height of its own that tall', () => {
+      const tall = GameCharacter.create('塔', 1, '');
+      tall.location = { name: 'table', x: 4 * GRID, y: 3 * GRID };
+      tall.specifyKomaImageFlag = true;
+      tall.komaImageHeight = 120;
+      lookOutOf(pieceAt(4, 8));
+      const fixture = mount();
+
+      pictureLoaded(fixture, tall, 100, 200);
+
+      expect(boxOf(fixture, tall).height).toBeCloseTo(120 * scaleOf(GRID), 1);
+      expect(boxOf(fixture, tall).width).toBeCloseTo(60 * scaleOf(GRID), 1);
+    });
+
+    it('draws a great piece whose middle a pillar hides while its sides are in sight', () => {
+      const pillar = Terrain.create('柱', 1, 1, 2, 'stone', 'slab');
+      pillar.location = { name: 'table', x: 4 * GRID, y: 6 * GRID };
+      table.appendChild(pillar);
+      const giant = GameCharacter.create('巨竜', 5, '');
+      giant.location = { name: 'table', x: 2 * GRID, y: GRID };
+      lookOutOf(pieceAt(4, 9));
+
+      const view = element(mount());
+
+      expect(view.querySelector(`[data-piece="${giant.identifier}"]`)).not.toBeNull();
+    });
   });
 
   it('stands the readings, the name and the marks above the picture rather than over it', () => {
@@ -494,7 +553,9 @@ describe('FirstPersonViewComponent', () => {
     );
     fixture.detectChanges();
 
-    expect(chromeOf().style.bottom).toBe('30%');
+    const billboard = element(fixture).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
+    expect(parseFloat(billboard.style.height)).toBeCloseTo((GRID / 2) * scaleOf(GRID), 1);
+    expect(chromeOf().style.bottom).toBe('100%');
   });
 
   it('holds the writing on a near piece to a size that can be read, and asks nothing of a far one', () => {
