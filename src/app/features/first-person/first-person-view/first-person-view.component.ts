@@ -801,8 +801,13 @@ export class FirstPersonViewComponent {
     return this.pieceTarget.anything();
   });
 
-  protected aim(identifier: string): void {
+  /** Aims at a piece clicked in the view, unless the click only ends a look about. */
+  protected clickPiece(identifier: string): void {
     if (this.looking.takeClickAsLook()) return;
+    this.aim(identifier);
+  }
+
+  private aim(identifier: string): void {
     const piece = this.objectStore.get<GameCharacter>(identifier);
     if (!(piece instanceof GameCharacter)) return;
     if (this.effectTargeting.isPicking()) {

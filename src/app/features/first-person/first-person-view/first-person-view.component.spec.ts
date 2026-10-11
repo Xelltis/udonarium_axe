@@ -323,6 +323,20 @@ describe('FirstPersonViewComponent', () => {
       expect(enemy.targeted).toBe(true);
     });
 
+    it('aims straight ahead with T after a drag let go off any piece', () => {
+      const enemy = pieceAt(4, 4);
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+      pointer(scene, 'pointerdown', 100, 700);
+      pointer(scene, 'pointermove', 300, 700);
+      pointer(scene, 'pointerup', 300, 700);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT', bubbles: true, cancelable: true }));
+
+      expect(enemy.targeted).toBe(true);
+    });
+
     it('ends a drag with escape and keeps the view open', () => {
       lookOutOf(pieceAt(4, 7));
       const fixture = mount();

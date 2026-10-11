@@ -65,9 +65,9 @@ export class FirstPersonLookService {
    * with any but the main button, is left to them.
    */
   press(event: PointerEvent): void {
+    this.clickToSwallow = false;
     if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
     if ((event.target as Element | null)?.closest?.(NOT_A_LOOK)) return;
-    this.clickToSwallow = false;
     this.pressed = {
       pointerId: event.pointerId,
       x: event.clientX,

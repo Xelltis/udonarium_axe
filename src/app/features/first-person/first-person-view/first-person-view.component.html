@@ -55,7 +55,7 @@
         [attr.data-piece]="piece.id"
         [attr.data-targeted]="piece.targeted || null"
         [style]="piece.style"
-        (click)="aim(piece.id)"
+        (click)="clickPiece(piece.id)"
       >
         @if (piece.url) {
           <img
