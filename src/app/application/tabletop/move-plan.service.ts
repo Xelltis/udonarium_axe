@@ -1,28 +1,19 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { MoveRangeService, ReachTerms } from '@axe/application/tabletop/move-range.service';
-import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
+import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCenterOf, CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
+import { CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { cheapestPath } from '@axe/domain/tabletop/move/cheapest-path';
-import { hopHeightAt, hopLiftFor, landingHeightAt } from '@axe/domain/tabletop/move/landing-height';
 import { stepsFor } from '@axe/domain/tabletop/move/move-steps';
-import { cornerShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
 import { walkedPath } from '@axe/domain/tabletop/move/walked-path';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-
-/** How long the piece rests on each cell of the way it walks, once the way is settled. */
-export const MOVE_STEP_MS = 90;
-
-/** How a hop onto or off a ledge is drawn: how many times it is redrawn, and how long each lasts. */
-export const HOP_FRAMES = 7;
-export const HOP_FRAME_MS = 24;
 
 export interface MovePlan {
   characterIdentifier: string;
@@ -64,7 +55,7 @@ export interface MovePlan {
 @Injectable({ providedIn: 'root' })
 export class MovePlanService {
   private readonly moveRange = inject(MoveRangeService);
-  private readonly triggerFire = inject(TriggerFireService);
+  private readonly pieceStep = inject(PieceStepService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly objectStore = inject(ObjectStore);
 
@@ -315,30 +306,10 @@ export class MovePlanService {
 
     this.walking = true;
     try {
-      const corner = cornerShiftOf(character, table.gridSize);
       const steps = way.slice(1);
       let standingZ = character.posZ;
       for (const [index, cell] of steps.entries()) {
-        const centre = cellCenterOf(plan.grid, cell);
-        const landing = landingHeightAt(table.terrains, table.gridSize, centre.x, centre.y, table.gridType);
-        const from = { x: character.location.x, y: character.location.y, z: standingZ };
-        const to = { x: centre.x - corner, y: centre.y - corner, z: landing };
-        // Where the piece is going is written once, at the end of the step. Written before
-        // the hop as well, every screen but this one saw the piece arrive, go back and cross
-        // again, since the hop begins by winding it back to where it set out from.
-        if (landing === standingZ) {
-          character.location.x = to.x;
-          character.location.y = to.y;
-          character.posZ = to.z;
-          character.update();
-          await new Promise((rest) => setTimeout(rest, MOVE_STEP_MS));
-        } else {
-          await this.hop(character, from, to, table.gridSize);
-        }
-        // Sprung on arrival rather than once the walking is over, so what the ground does
-        // happens where the piece is standing when it does it.
-        this.triggerFire.stepped(character, plan.grid, cell, index === steps.length - 1);
-        standingZ = landing;
+        standingZ = await this.pieceStep.step(character, table, plan.grid, cell, index === steps.length - 1, standingZ);
       }
     } finally {
       this.walking = false;
@@ -346,33 +317,6 @@ export class MovePlanService {
     SoundEffect.play(PresetSound.piecePut);
     this.close();
     return true;
-  }
-
-  /**
-   * Draws a piece leaving the ground and coming down again on the next cell.
-   *
-   * The way across is walked evenly and the height is arched over it, so a piece is over the
-   * ledge before it is above it rather than climbing the face on the way past.
-   */
-  private async hop(
-    character: GameCharacter,
-    from: { x: number; y: number; z: number },
-    to: { x: number; y: number; z: number },
-    gridSize: number
-  ): Promise<void> {
-    const lift = hopLiftFor(from.z, to.z, gridSize);
-    for (let frame = 1; frame <= HOP_FRAMES; frame++) {
-      const along = frame / HOP_FRAMES;
-      character.location.x = from.x + (to.x - from.x) * along;
-      character.location.y = from.y + (to.y - from.y) * along;
-      character.posZ = hopHeightAt(along, from.z, to.z, lift);
-      character.update();
-      await new Promise((rest) => setTimeout(rest, HOP_FRAME_MS));
-    }
-    character.location.x = to.x;
-    character.location.y = to.y;
-    character.posZ = to.z;
-    character.update();
   }
 
   /** Puts the piece back where it began and closes the move. */

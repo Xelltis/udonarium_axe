@@ -22,6 +22,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { LegacyScratchMaskMigrationService } from '@axe/application/tabletop/legacy-scratch-mask-migration.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -66,6 +67,7 @@ import { DiceSymbolCreateDialogComponent } from '@axe/features/dice/dice-symbol-
 import { DiceThrowEventHandlerService } from '@axe/features/dice/dice-throw-event-handler.service';
 import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-event-handler.service';
 import { FilesTooLargeEventHandlerService } from '@axe/features/file/files-too-large/files-too-large-event-handler.service';
+import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
 import { NpcDragGhostComponent } from '@axe/features/gm-tools/npc-bar/npc-drag-ghost.component';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
@@ -141,6 +143,7 @@ const FAB_MARGIN_PX = 12;
   templateUrl: './app.component.html',
   imports: [
     GameTableComponent,
+    FirstPersonViewComponent,
     NetworkIndicatorComponent,
     MiniJukeboxComponent,
     GmToolbarComponent,
@@ -190,6 +193,7 @@ export class AppComponent {
   readonly viewport = inject(ViewportService);
   readonly mobile = inject(MobileLayoutService);
   readonly overlayMode = inject(OverlayModeService);
+  readonly firstPerson = inject(FirstPersonService);
 
   readonly isTableSplit = computed(() => this.mobile.isActive() && !this.visualNovel.active());
   private readonly t = inject(TRANSLATE_FN);

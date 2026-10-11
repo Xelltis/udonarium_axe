@@ -74,6 +74,19 @@ describe('CardStackCardListComponent', () => {
   });
 
   describe('drag & drop reorder (pointer events)', () => {
+    let ownElementsFromPoint: PropertyDescriptor | undefined;
+
+    beforeEach(() => {
+      ownElementsFromPoint = Object.getOwnPropertyDescriptor(document, 'elementsFromPoint');
+    });
+
+    // The page outlives this file: a stand-in left on it answers every spec that runs after this
+    // one in the same worker.
+    afterEach(() => {
+      if (ownElementsFromPoint) Object.defineProperty(document, 'elementsFromPoint', ownElementsFromPoint);
+      else delete (document as { elementsFromPoint?: unknown }).elementsFromPoint;
+    });
+
     const captureTarget = (): Element =>
       ({
         setPointerCapture: vi.fn(),

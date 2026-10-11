@@ -1,8 +1,9 @@
 import { NgStyle } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { EffectFieldRenderable, EffectFieldService } from '@axe/application/effect/effect-field.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -17,6 +18,7 @@ import {
   effectTargetCenter,
   effectTargetProgress,
 } from '@axe/domain/effect/effect-timeline';
+import { ViewRotation } from '@axe/domain/effect/effect-view';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -28,6 +30,14 @@ export interface EffectCanvasPlacement {
   width: number;
   height: number;
 }
+
+export interface EffectEye {
+  rotation: ViewRotation;
+  liftPx: number;
+  risePx: number;
+}
+
+const EYE_FLAT_RISE_PX = 1;
 
 /**
  * How far towards the camera the effect sits, in pixels.
@@ -55,6 +65,17 @@ export class TableEffectOverlayComponent {
   private readonly visionService = inject(VisionService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly firstPerson = inject(FirstPersonService);
+
+  readonly eye = input<EffectEye | null>(null);
+
+  private readonly rotation = computed(() => this.eye()?.rotation ?? this.uiSignalService.tableViewRotation());
+
+  private readonly liftPx = computed(() => this.eye()?.liftPx ?? CAMERA_LIFT_PX);
+
+  private readonly risePx = computed(() => this.eye()?.risePx ?? 0);
+
+  private readonly flatRisePx = computed(() => (this.eye() ? EYE_FLAT_RISE_PX : 0));
 
   /**
    * Gathers the effects playing and the fields left standing into one thing to draw.
@@ -82,6 +103,7 @@ export class TableEffectOverlayComponent {
    * list, so the weather keeping the frame loop running does not rebuild the sprites every frame.
    */
   private readonly renderables = computed<(EffectFieldRenderable & { hidden: ReadonlySet<string> })[]>(() => {
+    if (!this.eye() && this.firstPerson.showing()) return this.nothingToRender;
     if (this.playback.activeCasts().length < 1 && this.fieldService.fields().length < 1) return this.nothingToRender;
     perfCounters.bump(PERF_EFFECT_RENDERABLES);
     const now = this.playback.now();
@@ -107,7 +129,7 @@ export class TableEffectOverlayComponent {
       const parts = effectSprites(active.preset, active.cast, active.elapsed, {
         baseSize: gridSize,
         hiddenIdentifiers,
-        viewRotation: this.uiSignalService.tableViewRotation(),
+        viewRotation: this.rotation(),
         resolvePosition: (identifier) => this.centerOf(identifier, gridSize),
         resolveImage: (identifier) => this.imageUrlOf(identifier),
       });
@@ -237,24 +259,25 @@ export class TableEffectOverlayComponent {
   }
 
   private billboardTransform(center: { x: number; y: number; z: number }, layer: EffectParticleLayer): string {
-    const rotation = this.uiSignalService.tableViewRotation();
+    const rotation = this.rotation();
     return (
-      `translate3d(${center.x}px, ${center.y}px, ${center.z}px)` +
+      `translate3d(${center.x}px, ${center.y}px, ${center.z + this.risePx()}px)` +
       ` rotateZ(${-(rotation?.z ?? 10)}deg) rotateX(${-(rotation?.x ?? 50)}deg) rotateY(${-(rotation?.y ?? 0)}deg)` +
-      ` translateZ(${CAMERA_LIFT_PX}px) translate(${-layer.originX}px, ${-layer.originY}px)`
+      ` translateZ(${this.liftPx()}px) translate(${-layer.originX}px, ${-layer.originY}px)`
     );
   }
 
   private transform(sprite: EffectSprite): string {
-    const parts = [`translate3d(${sprite.x}px, ${sprite.y}px, ${sprite.z}px)`];
+    const rise = sprite.flat ? this.flatRisePx() : this.risePx();
+    const parts = [`translate3d(${sprite.x}px, ${sprite.y}px, ${sprite.z + rise}px)`];
 
     if (!sprite.flat) {
-      const rotation = this.uiSignalService.tableViewRotation();
+      const rotation = this.rotation();
       parts.push(
         `rotateZ(${-(rotation?.z ?? 10)}deg)`,
         `rotateX(${-(rotation?.x ?? 50)}deg)`,
         `rotateY(${-(rotation?.y ?? 0)}deg)`,
-        `translateZ(${CAMERA_LIFT_PX}px)`
+        `translateZ(${this.liftPx()}px)`
       );
     }
     // The offset is applied inside the billboard, so the arrangement holds as the camera turns.
@@ -290,7 +313,8 @@ export class TableEffectOverlayComponent {
     if (!(object instanceof TabletopObject) || !object.isVisibleOnTable) return null;
     const size = (object as { size?: number }).size;
     const half = (gridSize * (typeof size === 'number' && size > 0 ? size : 1)) / 2;
-    return { x: object.location.x + half, y: object.location.y + half, z: object.posZ };
+    const raised = this.eye() ? object.altitude * gridSize : 0;
+    return { x: object.location.x + half, y: object.location.y + half, z: object.posZ + raised };
   }
 }
 

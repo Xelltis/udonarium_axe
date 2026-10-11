@@ -4,7 +4,11 @@ import { SwitchPressService } from '@axe/application/tabletop/switch-press.servi
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { SwitchNoticeService } from '@axe/application/ui/switch-notice.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
-import { GameTableGestureService } from '@axe/features/tabletop/game-table/game-table-gesture.service';
+import {
+  GameTableGestureService,
+  MOUSE_ZOOM_MAX_Z,
+  ZOOM_MIN_Z,
+} from '@axe/features/tabletop/game-table/game-table-gesture.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('GameTableGestureService', () => {
@@ -220,6 +224,95 @@ describe('GameTableGestureService', () => {
       service.snapToViewPositionZ(1155);
 
       expect(service.viewPositionZ).toBe(1155);
+    });
+  });
+
+  describe('zooming with the wheel and the keys', () => {
+    /** One notch of the wheel, which arrives as a step of at most 300 towards or away from the board. */
+    const wheel = (tZ: number): void => {
+      service.isTableTransformMode = true;
+      const gesture = service as unknown as { onTableMouseTransform(...args: unknown[]): void };
+      gesture.onTableMouseTransform(0, 0, tZ, 0, 0, 0, {}, { cancelable: false, preventDefault: () => undefined });
+    };
+
+    beforeEach(() => {
+      document.body.focus();
+    });
+
+    it('comes in past life size and stops short of the board passing behind the camera', () => {
+      for (let notch = 0; notch < 40; notch++) wheel(180);
+
+      expect(service.viewPositionZ).toBe(MOUSE_ZOOM_MAX_Z);
+      expect(MOUSE_ZOOM_MAX_Z).toBeGreaterThan(0);
+    });
+
+    it('goes back no further than any other gesture does', () => {
+      for (let notch = 0; notch < 40; notch++) wheel(-300);
+
+      expect(service.viewPositionZ).toBe(ZOOM_MIN_Z);
+    });
+
+    it('leaves a view set nearer still where it is, coming in, and lets it back out', () => {
+      service.snapToViewPositionZ(MOUSE_ZOOM_MAX_Z + 200);
+
+      wheel(180);
+      expect(service.viewPositionZ).toBe(MOUSE_ZOOM_MAX_Z + 200);
+
+      wheel(-180);
+      expect(service.viewPositionZ).toBe(MOUSE_ZOOM_MAX_Z + 200 - 540);
+    });
+  });
+
+  describe('suspended', () => {
+    const srcEvent = { cancelable: true, preventDefault: vi.fn() };
+
+    const moveTable = (tX: number, tY: number, tZ: number, rZ: number): void => {
+      service.isTableTransformMode = true;
+      const gesture = service as unknown as {
+        onTableTouchTransform(...args: unknown[]): void;
+        onTableMouseTransform(...args: unknown[]): void;
+      };
+      gesture.onTableTouchTransform(tX, tY, tZ, 0, 0, rZ, {}, srcEvent);
+      gesture.onTableMouseTransform(tX, tY, tZ, 0, 0, rZ, {}, srcEvent);
+    };
+
+    beforeEach(() => {
+      document.body.focus();
+      srcEvent.preventDefault.mockClear();
+    });
+
+    it('holds the view still against panning, zooming and turning, from the keys as well', () => {
+      service.suspended = true;
+      const before = {
+        x: service.viewPositionX,
+        y: service.viewPositionY,
+        z: service.viewPositionZ,
+        rotateZ: service.viewRotateZ,
+      };
+
+      moveTable(40, 30, -20, 15);
+
+      expect(service.viewPositionX).toBe(before.x);
+      expect(service.viewPositionY).toBe(before.y);
+      expect(service.viewPositionZ).toBe(before.z);
+      expect(service.viewRotateZ).toBe(before.rotateZ);
+    });
+
+    it('leaves the key to whatever is showing in place of the table', () => {
+      service.suspended = true;
+
+      moveTable(40, 30, -20, 15);
+
+      expect(srcEvent.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('moves the view again once it is let go', () => {
+      service.suspended = true;
+      service.suspended = false;
+
+      moveTable(40, 30, -20, 15);
+
+      expect(service.viewPositionX).not.toBe(100);
     });
   });
 

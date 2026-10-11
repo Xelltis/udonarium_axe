@@ -58,14 +58,14 @@ describe('RangeArea', () => {
       expect(range.type).toBe('CORN');
     });
 
-    it('reads a diamond as a square turned an eighth', () => {
+    it('takes the diamond by its older name as the diamond, turned no further', () => {
       const range = RangeArea.create('test', 1, 1, 50);
       range.rotate = 10;
 
       range.type = 'DIAMOND';
 
-      expect(range.type).toBe('SQUARE');
-      expect(range.rotate).toBe(55);
+      expect(range.type).toBe('RHOMBUS');
+      expect(range.rotate).toBe(10);
     });
 
     it('starts at the default grid colour', () => {
@@ -109,8 +109,25 @@ describe('RangeArea', () => {
   });
 
   describe('reading older saved data', () => {
-    it('reads a saved diamond as a square turned an eighth', () => {
+    it('reads a diamond saved under its older name as the diamond it was saved as', () => {
       const range = ObjectSerializer.instance.parseXml('<range type="DIAMOND" rotate="0"></range>') as RangeArea;
+
+      expect(range.type).toBe('RHOMBUS');
+      expect(range.rotate).toBe(0);
+    });
+
+    it('reads the diamond back under its own name, never the older one an older version would turn', () => {
+      const range = RangeArea.create('test', 1, 1, 50);
+      range.type = 'RHOMBUS';
+
+      const saved = range.toXml();
+
+      expect(saved).toContain('type="RHOMBUS"');
+      expect(saved).not.toContain('DIAMOND');
+    });
+
+    it('reads a square saved turned an eighth as that turned square', () => {
+      const range = ObjectSerializer.instance.parseXml('<range type="SQUARE" rotate="45"></range>') as RangeArea;
 
       expect(range.type).toBe('SQUARE');
       expect(range.rotate).toBe(45);

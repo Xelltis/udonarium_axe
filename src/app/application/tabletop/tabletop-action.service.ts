@@ -12,8 +12,9 @@ import {
   type DicePlacement,
   getDiceMenuItems,
   getDicePlacements,
-  getRangeMenuItems,
+  getRangeMenuEntries,
   getTrumpCardCodes,
+  RangeMenuItem,
   TERRAIN_TEXTURE_PATH,
   TRUMP_BACK_IMAGE_PATH,
 } from '@axe/application/tabletop/tabletop-action-helpers';
@@ -269,6 +270,7 @@ export class TabletopActionService {
         range = RangeArea.create(this.t('feature.tabletop.action.defaultRangeName'), 3, 3, 100);
         break;
       case 'SQUARE':
+      case 'RHOMBUS':
         range = RangeArea.create(this.t('feature.tabletop.action.defaultRangeName'), 3, 3, 100);
         break;
       case 'TRIANGLE':
@@ -734,14 +736,19 @@ export class TabletopActionService {
   private getCreateRangeMenu(position: PointerCoordinate): ContextMenuAction {
     const subMenus: ContextMenuAction[] = [];
 
-    getRangeMenuItems().forEach((item) => {
-      subMenus.push({
-        name: this.t(item.menuName),
-        action: () => {
-          this.createRangeArea(position, item.typeName);
-          SoundEffect.play(PresetSound.dicePut);
-        },
-      });
+    const make = (item: RangeMenuItem): ContextMenuAction => ({
+      name: this.t(item.menuName),
+      action: () => {
+        this.createRangeArea(position, item.typeName);
+        SoundEffect.play(PresetSound.dicePut);
+      },
+    });
+    getRangeMenuEntries().forEach((entry) => {
+      subMenus.push(
+        entry.variants
+          ? { name: this.t(entry.menuName), action: undefined, subActions: entry.variants.map(make) }
+          : make(entry)
+      );
     });
     return { name: this.t('feature.tabletop.action.createRange'), action: undefined, subActions: subMenus };
   }

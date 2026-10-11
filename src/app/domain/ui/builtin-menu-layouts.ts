@@ -34,6 +34,7 @@ const FAB: MenuLayout = {
       'dungeonGenerator',
       'tabletopDisplay',
       'visualNovel',
+      'firstPersonView',
     ]),
     group('gameResources', 'backpack', 'app.fab.gameResources', [
       'inventory',
@@ -93,6 +94,7 @@ const GM_TOOLBAR: MenuLayout = {
     item('inventory'),
     item('darkness'),
     item('fog'),
+    item('firstPersonShare'),
     item('resourceBars'),
     item('buffs'),
     item('speechBubbles'),
@@ -109,6 +111,7 @@ const PL_TOOLBAR: MenuLayout = {
     item('ownedCharacters'),
     item('inventory'),
     item('rangeShortcut'),
+    item('firstPerson'),
     item('resourceBars'),
     item('buffs'),
     item('speechBubbles'),

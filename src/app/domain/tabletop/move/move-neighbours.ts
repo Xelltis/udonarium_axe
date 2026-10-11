@@ -40,6 +40,22 @@ export function forEachMoveNeighbour(
   }
 }
 
+/**
+ * The cell one step out of a cell, along one of the ways out of it.
+ *
+ * The ways are counted clockwise from the first a board lists: north on squares and on
+ * flat-topped hexes, north-east on pointy-topped ones. Corners are never cut, so a square has
+ * four. A count past the last goes round again, and a step off the board is -1.
+ */
+export function moveNeighbourToward(grid: CellGrid, index: number, direction: number): number {
+  if (grid.cols <= 0 || grid.rows <= 0) return -1;
+  if (index < 0 || index >= grid.cols * grid.rows) return -1;
+  const { col, row } = cellColRow(grid, index);
+  const steps = stepsFor(grid.type, col, row, false);
+  const [dx, dy] = steps[((Math.trunc(direction) % steps.length) + steps.length) % steps.length];
+  return cellIndexOf(grid, col + dx, row + dy);
+}
+
 /** The cells a piece can step to from one cell in a single step, as a list; see {@link forEachMoveNeighbour}. */
 export function moveNeighboursOf(grid: CellGrid, index: number, cutsCorners = true): number[] {
   const found: number[] = [];

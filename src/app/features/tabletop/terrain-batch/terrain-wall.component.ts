@@ -6,8 +6,8 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TerrainBatchService } from '@axe/application/tabletop/terrain-batch.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SquareWall } from '@axe/domain/tabletop/terrain-batch/square-walls';
+import { terrainWallFace } from '@axe/domain/tabletop/terrain-wall-face';
 import { WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
-import { terrainWallFace } from '@axe/features/tabletop/terrain/terrain-wall-face';
 import {
   BatchBackground,
   wallBackground,

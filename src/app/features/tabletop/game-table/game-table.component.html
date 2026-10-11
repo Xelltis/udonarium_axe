@@ -411,6 +411,28 @@
     }
   </div>
 }
+<!--
+  Said from the same band as a piece in hand, which a turn never shares it with: the turn is under
+  way only while its handle is held.
+-->
+@if (rotateHint(); as hint) {
+  <div
+    class="bg-ui-panel shadow-ui-md text-ui-muted pointer-events-none absolute bottom-28 left-1/2 z-160 flex max-w-[92vw] -translate-x-1/2 items-center gap-2 rounded-full px-4 py-1.5 text-[0.86em] leading-snug opacity-95"
+    data-testid="rotate-hint"
+  >
+    <i class="material-icons text-ui-dim text-[15px]!">rotate_right</i>
+    <span class="text-ui-text min-w-[3ch] text-right font-medium tabular-nums" data-testid="rotate-hint-angle"
+      >{{ hint.angle }}°</span
+    >
+    @if (hint.offersSnap) {
+      <span class="text-ui-dim">/</span>
+      <span class="min-w-0" [class.text-ui-accent]="hint.snapping" data-testid="rotate-hint-snap">{{
+        (hint.snapping ? 'feature.tabletop.rotateHint.snapping' : 'feature.tabletop.rotateHint.holdAlt')
+          | transloco: { step: hint.step }
+      }}</span>
+    }
+  </div>
+}
 @if (isPickingEffectTarget()) {
   <div
     class="bg-ui-panel text-ui-text pointer-events-none absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-full px-4 py-1.5 text-sm opacity-90"

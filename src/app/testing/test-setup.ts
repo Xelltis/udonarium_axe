@@ -17,6 +17,7 @@ Logger.setLevel(LogLevel.NONE);
 import { CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY } from '@axe/application/chat/chat-personal-bookmark.store';
 import { PERSONAL_VOLUME_STORAGE_KEY } from '@axe/application/media/personal-volumes';
 import { COMPASS_FACE_STORAGE_KEY } from '@axe/application/ui/compass-face.service';
+import { FIRST_PERSON_PIECE_STORAGE_KEY } from '@axe/application/ui/first-person-preference.service';
 import { LOCAL_MODE_STORAGE_KEY } from '@axe/application/ui/local-mode-preference.service';
 import { PIECE_OVERLAY_STORAGE_KEY } from '@axe/application/ui/piece-overlay-preference.service';
 import { TABLETOP_DISPLAY_STORAGE_KEY } from '@axe/application/ui/tabletop-display-preference.service';
@@ -385,6 +386,7 @@ function forgetSeatPreferences(): void {
   localStorage.removeItem(TABLETOP_DISPLAY_STORAGE_KEY);
   localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
   localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
+  localStorage.removeItem(FIRST_PERSON_PIECE_STORAGE_KEY);
   localStorage.removeItem(WIDGET_VISIBILITY_STORAGE_KEY);
   localStorage.removeItem(TOOLBAR_FOLD_STORAGE_KEY);
   localStorage.removeItem(PIECE_OVERLAY_STORAGE_KEY);

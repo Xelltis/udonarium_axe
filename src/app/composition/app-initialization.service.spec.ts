@@ -1,10 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { PERSONAL_VOLUME_STORAGE_KEY } from '@axe/application/media/personal-volumes';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { AppConfigService } from '@axe/composition/app-config.service';
 import { AppInitializationService } from '@axe/composition/app-initialization.service';
 import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
+import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { LoopPlayer } from '@axe/core/storage/loop-player';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { Alarm } from '@axe/domain/alarm/alarm';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
@@ -31,6 +34,12 @@ describe('AppInitializationService', () => {
   });
 
   afterEach(() => {
+    // Starting the app wires the page to the network and the store. Left wired, every update a
+    // later spec in the worker sends comes back and is applied after that spec's store is gone.
+    ObjectSynchronizer.instance.destroy();
+    TestBed.inject(FileArchiver).destroy();
+    TestBed.inject(FileArchiver).mayLoadDrops = () => true;
+    vi.restoreAllMocks();
     PeerCursor.myCursor = null!;
     const presets = PresetSound as unknown as Record<string, string>;
     for (const key of Object.keys(presets)) presets[key] = '';
@@ -96,6 +105,17 @@ describe('AppInitializationService', () => {
       BackgroundSound.start('fire')!.stop();
 
       expect(AudioSharingSystem.instance.preferredIdentifiers()).toEqual(['bgm', 'rain']);
+    });
+
+    it('takes dropped files in only for a seat that may change the table', () => {
+      const archiver = TestBed.inject(FileArchiver);
+      let mayEdit = false;
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockImplementation(() => mayEdit);
+
+      expect(archiver.mayLoadDrops()).toBe(false);
+
+      mayEdit = true;
+      expect(archiver.mayLoadDrops()).toBe(true);
     });
 
     it('creates the cursor for this peer', () => {

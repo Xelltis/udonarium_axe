@@ -143,6 +143,71 @@ export function renderSquare(
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting
 ): ClipAreaSquare {
+  const r = setting.range * setting.gridSize;
+  const g = setting.gridSize;
+  return renderQuadrilateral(
+    canvasElement,
+    canvasElementRange,
+    setting,
+    [
+      { x: -r, y: r },
+      { x: -r, y: -r },
+      { x: r, y: -r },
+      { x: r, y: r },
+    ],
+    [
+      { x: -r - g, y: r + g },
+      { x: -r - g, y: -r - g },
+      { x: r + g, y: -r - g },
+      { x: r + g, y: r + g },
+    ]
+  );
+}
+
+/**
+ * Draws a diamond range: the cells a walk of `range` cells reaches from its centre, counting no
+ * diagonals, so its corners stand `range` cells up, down, left and right, turned by `degree`.
+ *
+ * Fills and outlines as a square does. The clip returned reaches a little over a cell beyond each
+ * corner, which takes in the whole of every cell along the edges.
+ */
+export function renderDiamond(
+  canvasElement: HTMLCanvasElement,
+  canvasElementRange: HTMLCanvasElement,
+  setting: RangeRenderSetting
+): ClipAreaSquare {
+  const r = setting.range * setting.gridSize;
+  const reach = r + setting.gridSize * 1.2;
+  return renderQuadrilateral(
+    canvasElement,
+    canvasElementRange,
+    setting,
+    [
+      { x: -r, y: 0 },
+      { x: 0, y: -r },
+      { x: r, y: 0 },
+      { x: 0, y: r },
+    ],
+    [
+      { x: -reach, y: 0 },
+      { x: 0, y: -reach },
+      { x: reach, y: 0 },
+      { x: 0, y: reach },
+    ]
+  );
+}
+
+/**
+ * Draws a four-cornered range whose corners, and the corners of the clip around it, are given
+ * clockwise about its centre before turning by `degree`.
+ */
+function renderQuadrilateral(
+  canvasElement: HTMLCanvasElement,
+  canvasElementRange: HTMLCanvasElement,
+  setting: RangeRenderSetting,
+  corners: Point[],
+  clipCorners: Point[]
+): ClipAreaSquare {
   const offsets = calcGridOffsets(setting);
   const { gridSize, offSetX_px, offSetY_px } = offsets;
 
@@ -150,26 +215,9 @@ export function renderSquare(
   canvasElement.height = setting.areaHeight * gridSize;
   let context: CanvasRenderingContext2D = canvasElement.getContext('2d')!;
 
-  const p = rotatePoints(
-    [
-      { x: -setting.range * gridSize, y: setting.range * gridSize },
-      { x: -setting.range * gridSize, y: -setting.range * gridSize },
-      { x: setting.range * gridSize, y: -setting.range * gridSize },
-      { x: setting.range * gridSize, y: setting.range * gridSize },
-    ],
-    setting.degree
-  );
+  const p = rotatePoints(corners, setting.degree);
   const [p1, p2, p3, p4] = p;
-
-  const clipPoints = rotatePoints(
-    [
-      { x: -setting.range * gridSize - gridSize * 1.0, y: setting.range * gridSize + gridSize * 1.0 },
-      { x: -setting.range * gridSize - gridSize * 1.0, y: -setting.range * gridSize - gridSize * 1.0 },
-      { x: setting.range * gridSize + gridSize * 1.0, y: -setting.range * gridSize - gridSize * 1.0 },
-      { x: setting.range * gridSize + gridSize * 1.0, y: setting.range * gridSize + gridSize * 1.0 },
-    ],
-    setting.degree
-  );
+  const clipPoints = rotatePoints(clipCorners, setting.degree);
 
   const clip: ClipAreaSquare = {
     clip01x: clipPoints[0].x,

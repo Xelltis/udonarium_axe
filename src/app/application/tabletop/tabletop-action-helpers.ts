@@ -15,6 +15,12 @@ export interface RangeMenuItem {
   typeName: string;
 }
 
+/** A shape in the range context menu, or a family of shapes offered under one name. */
+export interface RangeMenuEntry extends RangeMenuItem {
+  /** The shapes the entry opens onto; the entry is made as its own type only without them. */
+  variants?: readonly RangeMenuItem[];
+}
+
 /** The card codes of a full deck of playing cards and its two jokers, which name the bundled card images. */
 export function getTrumpCardCodes(): string[] {
   const cardCodes: string[] = [];
@@ -98,16 +104,41 @@ export function getDicePlacements(position: { x: number; y: number }, count: num
   return placements;
 }
 
-/** The range shapes the create menu offers: a translation key for each, and the type it is made as. */
+/**
+ * Every range shape that can be made, one after another: a translation key for each, and the type it
+ * is made as. For lists that offer each shape on its own, such as a toolbar's or a hotbar slot's.
+ */
 export function getRangeMenuItems(): RangeMenuItem[] {
   return [
     { menuName: 'feature.tabletop.action.rangeShapeLine', typeName: 'LINE' },
     { menuName: 'feature.tabletop.action.rangeShapeCorn', typeName: 'CORN' },
     { menuName: 'feature.tabletop.action.rangeShapeTriangle', typeName: 'TRIANGLE' },
     { menuName: 'feature.tabletop.action.rangeShapeSquare', typeName: 'SQUARE' },
+    { menuName: 'feature.tabletop.action.rangeShapeDiamond', typeName: 'RHOMBUS' },
     { menuName: 'feature.tabletop.action.rangeShapePentagon', typeName: 'PENTAGON' },
     { menuName: 'feature.tabletop.action.rangeShapeHexagon', typeName: 'HEXAGON' },
     { menuName: 'feature.tabletop.action.rangeShapeCircle', typeName: 'CIRCLE' },
     { menuName: 'feature.tabletop.action.rangeShapeCustom', typeName: 'CUSTOM' },
   ];
+}
+
+/**
+ * The range shapes the create menu offers. The square opens onto the two ways of drawing four
+ * corners round a point: on the diagonals, as a diamond, or square to the grid.
+ */
+export function getRangeMenuEntries(): RangeMenuEntry[] {
+  return getRangeMenuItems()
+    .filter((item) => item.typeName !== 'RHOMBUS')
+    .map((item) =>
+      item.typeName === 'SQUARE'
+        ? {
+            ...item,
+            menuName: 'feature.tabletop.action.rangeShapeSquareFamily',
+            variants: [
+              { menuName: 'feature.tabletop.action.rangeShapeAsDiamond', typeName: 'RHOMBUS' },
+              { menuName: 'feature.tabletop.action.rangeShapeAsSquare', typeName: 'SQUARE' },
+            ],
+          }
+        : item
+    );
 }

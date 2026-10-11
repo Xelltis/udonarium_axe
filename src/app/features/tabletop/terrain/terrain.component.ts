@@ -45,6 +45,7 @@ import {
 } from '@axe/domain/tabletop/terrain-shade';
 import { drawnSlopeSides, gridSlopeKind, gridSlopeSides, SlopeSide } from '@axe/domain/tabletop/terrain-slope';
 import { buildSlopeRoof, SlopePoint, slopeProfileAlong, SlopeRoof } from '@axe/domain/tabletop/terrain-slope-roof';
+import { terrainWallFace, type WallSide } from '@axe/domain/tabletop/terrain-wall-face';
 import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import { fogMaskOf, terrainTextureLayout } from '@axe/features/tabletop/terrain/terrain-face-look';
@@ -55,7 +56,6 @@ import {
   TerrainHexWall,
 } from '@axe/features/tabletop/terrain/terrain-hex-shapes';
 import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';
-import { terrainWallFace, type WallSide } from '@axe/features/tabletop/terrain/terrain-wall-face';
 import {
   wallLightLayerStyle,
   wallSilhouetteBackground,

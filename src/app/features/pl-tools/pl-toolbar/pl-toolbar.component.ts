@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { getRangeMenuItems } from '@axe/application/tabletop/tabletop-action-helpers';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -53,6 +54,7 @@ export class PlToolbarComponent {
   private readonly turnOrder = inject(TurnOrderService);
   private readonly tabletopAction = inject(TabletopActionService);
   protected readonly active = inject(ActiveCharacterService);
+  private readonly firstPerson = inject(FirstPersonService);
   private readonly t = inject(TRANSLATE_FN);
 
   private readonly menuCommands = inject(MenuCommandService);
@@ -72,6 +74,50 @@ export class PlToolbarComponent {
     this.menuCommands.run(entry.command);
   }
 
+  protected readonly firstPersonOpen = signal(false);
+
+  protected readonly firstPersonSeats = this.firstPerson.seats;
+
+  protected readonly firstPersonForced = computed(() => this.firstPerson.forced());
+
+  protected readonly firstPersonLeaves = computed(() => this.firstPerson.showing() && !this.firstPersonForced());
+
+  protected readonly firstPersonDisabled = computed(
+    () => this.firstPersonForced() || (!this.firstPersonLeaves() && this.firstPersonSeats().length < 1)
+  );
+
+  protected readonly firstPersonLabelKey = computed(() => {
+    if (this.firstPersonForced()) return 'feature.firstPerson.sharedByGm';
+    if (this.firstPersonLeaves()) return 'feature.firstPerson.exit';
+    const seats = this.firstPersonSeats().length;
+    if (seats < 1) return 'feature.firstPerson.noSeat';
+    return seats > 1 ? 'feature.firstPerson.chooseSeat' : 'feature.firstPerson.enter';
+  });
+
+  protected toggleFirstPerson(): void {
+    if (this.firstPersonForced()) return;
+    if (this.firstPersonLeaves()) {
+      this.firstPersonOpen.set(false);
+      this.firstPerson.exitSeat();
+      return;
+    }
+
+    const seats = this.firstPersonSeats();
+    if (seats.length < 1) return;
+    if (seats.length === 1) {
+      this.firstPersonOpen.set(false);
+      this.firstPerson.enterSeat(seats[0].identifier);
+      return;
+    }
+
+    this.firstPersonOpen.update((open) => !open);
+  }
+
+  protected enterFirstPerson(identifier: string): void {
+    this.firstPersonOpen.set(false);
+    this.firstPerson.enterSeat(identifier);
+  }
+
   protected readonly rangeMenuItems = getRangeMenuItems();
   protected readonly rangeOpen = signal(false);
 
@@ -89,6 +135,7 @@ export class PlToolbarComponent {
   /** Folds the bar down to its title, or opens it again; what was open in it closes with it. */
   protected toggleFold(): void {
     this.rangeOpen.set(false);
+    this.firstPersonOpen.set(false);
     this.folds.toggle('pl');
   }
 

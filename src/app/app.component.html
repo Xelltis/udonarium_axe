@@ -7,10 +7,21 @@
     id="app-table-layer"
     class="absolute isolate w-full overflow-hidden"
     [class.h-full]="!isTableSplit()"
+    [class.hidden]="firstPerson.showing()"
     [style.height]="isTableSplit() ? mobile.tableRatio() * 100 + '%' : null"
   >
     <game-table></game-table>
   </div>
+  @if (firstPerson.showing()) {
+    <div
+      id="app-first-person-layer"
+      class="absolute isolate w-full overflow-hidden"
+      [class.h-full]="!isTableSplit()"
+      [style.height]="isTableSplit() ? mobile.tableRatio() * 100 + '%' : null"
+    >
+      <first-person-view />
+    </div>
+  }
   @if (mobile.isActive()) {
     @if (!visualNovel.active()) {
       @defer (on immediate) {

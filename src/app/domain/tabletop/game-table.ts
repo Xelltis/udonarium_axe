@@ -1,4 +1,5 @@
 import { emitSelectGameTable } from '@axe/core/event/domain-events';
+import { Attributes } from '@axe/core/sync/attributes';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { DEFAULT_AMBIENCE_DENSITY } from '@axe/domain/effect/ambience/ambience-kind';
@@ -70,6 +71,13 @@ export class GameTable extends ObjectNode {
   @SyncVar() gridSnapStyle: GridSnapStyle = GridSnapStyle.CENTER;
   @SyncVar() imageBillboard: boolean = false;
   @SyncVar() mode2d: boolean = false;
+  /**
+   * The piece whose first-person view the master is sharing with everyone, or nothing.
+   *
+   * It holds only while the master is there sharing it, so a save leaves it out and a load leaves
+   * it off: a room opened from a file never starts with every player held in a view.
+   */
+  @SyncVar() sharedViewPiece: string = '';
   /**
    * How the flat table is drawn and reached; see {@link TabletopDisplaySettings}.
    *
@@ -219,4 +227,19 @@ export class GameTable extends ObjectNode {
     super.onStoreAdded();
     if (this.selected) emitSelectGameTable({ identifier: this.identifier });
   }
+
+  /** What a save writes of the table: everything it holds but the view the master is sharing. */
+  override toAttributes(): Attributes {
+    const attributes = super.toAttributes();
+    delete attributes[SHARED_VIEW_ATTRIBUTE];
+    return attributes;
+  }
+
+  /** Reads the table back from a save, with no view shared whatever the file says. */
+  override parseAttributes(attributes: NamedNodeMap) {
+    super.parseAttributes(attributes);
+    this.attributes[SHARED_VIEW_ATTRIBUTE] = '';
+  }
 }
+
+const SHARED_VIEW_ATTRIBUTE = 'sharedViewPiece';

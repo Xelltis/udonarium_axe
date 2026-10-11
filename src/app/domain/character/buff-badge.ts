@@ -17,6 +17,8 @@ export interface BuffBadge {
   color: string;
 }
 
+export const BUFF_BADGES_PER_ROW = 5;
+
 const DEFAULT_ICON = '✦';
 const STRENGTH_PATTERN = /[+\-−]?\d+(?:\.\d+)?/;
 

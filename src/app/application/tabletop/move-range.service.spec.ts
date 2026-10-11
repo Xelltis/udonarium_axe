@@ -786,6 +786,71 @@ describe('MoveRangeService and the ground an enemy holds', () => {
     });
   });
 
+  describe('whether a piece may take one step', () => {
+    const at = (col: number, row: number) => row * 12 + col;
+
+    /** A wall two cells high, which is more than a piece steps over. */
+    function wallAt(col: number, fromRow: number, depthCells: number): void {
+      const terrain = Terrain.create('壁', 1, depthCells, 2, '', '');
+      terrain.location = { name: 'table', x: col * GRID, y: fromRow * GRID };
+      table.appendChild(terrain);
+    }
+
+    it('answers a step onto open ground, and not one into a wall', () => {
+      wallAt(6, 4, 3);
+      const piece = pieceAt(5, 5, 2);
+
+      expect(service.canStepTo(piece, at(4, 5))).toBe(true);
+      expect(service.canStepTo(piece, at(6, 5))).toBe(false);
+    });
+
+    it('still answers where the table keeps no range', () => {
+      table.moveRangeEnabled = false;
+      wallAt(6, 4, 3);
+      const piece = pieceAt(5, 5, 2);
+
+      expect(service.canStepTo(piece, at(4, 5))).toBe(true);
+      expect(service.canStepTo(piece, at(6, 5))).toBe(false);
+    });
+
+    it('steps up onto a block no higher than a cell, range or no range', () => {
+      const ledge = Terrain.create('段', 1, 1, 1, '', '');
+      ledge.location = { name: 'table', x: 6 * GRID, y: 5 * GRID };
+      table.appendChild(ledge);
+      const piece = pieceAt(5, 5, 2);
+
+      expect(service.canStepTo(piece, at(6, 5))).toBe(true);
+
+      table.moveRangeEnabled = false;
+      expect(service.canStepTo(piece, at(6, 5))).toBe(true);
+    });
+
+    it('lets a piece whose sheet says nothing about walking take a step all the same', () => {
+      const piece = pieceAt(5, 5, 2);
+      DataElement.findElementByReference(piece.rootDataElement!, '移動')!.destroy();
+
+      expect(service.canStepTo(piece, at(4, 5))).toBe(true);
+    });
+
+    it('keeps a piece off another where the table forbids sharing, range or no range', () => {
+      table.piecesShareCells = false;
+      pieceAt(6, 5, 2);
+      const piece = pieceAt(5, 5, 2);
+
+      expect(service.canStepTo(piece, at(6, 5))).toBe(false);
+
+      table.moveRangeEnabled = false;
+      expect(service.canStepTo(piece, at(6, 5))).toBe(false);
+    });
+
+    it('answers no for a cell that is not on the table', () => {
+      const piece = pieceAt(5, 5, 2);
+
+      expect(service.canStepTo(piece, -1)).toBe(false);
+      expect(service.canStepTo(piece, 144)).toBe(false);
+    });
+  });
+
   describe('the ground a piece stands on', () => {
     const grid = cellGridOf(12, 12, GRID, GridType.SQUARE);
 

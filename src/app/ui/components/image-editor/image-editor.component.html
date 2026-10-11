@@ -1,0 +1,293 @@
+@if (request(); as current) {
+  @if (current.position && current.position.count > 1) {
+    <p class="text-ui-dim m-0 truncate text-xs" data-testid="image-editor-position">
+      {{
+        'ui.imageEditor.position'
+          | transloco: { index: current.position.index, count: current.position.count, name: current.name }
+      }}
+    </p>
+  }
+}
+@if (overLimitSize(); as size) {
+  @if (!tooLargeSize()) {
+    <p class="text-ui-dim m-0 text-xs" data-testid="image-editor-over-limit">
+      {{ 'ui.imageEditor.overLimit' | transloco: { size } }}
+    </p>
+  }
+}
+
+<div class="flex flex-wrap items-center gap-1">
+  <button
+    type="button"
+    class="rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border border-solid px-2.5 py-1 text-xs transition-[background,color] [&_.material-icons]:text-[14px]!"
+    [class]="
+      tool() === 'crop'
+        ? 'border-ui-accent bg-ui-accent-bg text-ui-accent'
+        : 'border-ui-border-panel bg-ui-elevated text-ui-muted hover:bg-ui-hover hover:text-ui-text'
+    "
+    data-testid="image-editor-tool-crop"
+    [attr.aria-pressed]="tool() === 'crop'"
+    (click)="selectTool('crop')"
+  >
+    <i class="material-icons">crop</i>{{ 'ui.imageEditor.crop' | transloco }}
+  </button>
+  <button
+    type="button"
+    class="rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border border-solid px-2.5 py-1 text-xs transition-[background,color] [&_.material-icons]:text-[14px]!"
+    [class]="
+      tool() === 'erase'
+        ? 'border-ui-accent bg-ui-accent-bg text-ui-accent'
+        : 'border-ui-border-panel bg-ui-elevated text-ui-muted hover:bg-ui-hover hover:text-ui-text'
+    "
+    data-testid="image-editor-tool-erase"
+    [attr.aria-pressed]="tool() === 'erase'"
+    (click)="selectTool('erase')"
+  >
+    <i class="material-icons">format_color_reset</i>{{ 'ui.imageEditor.erase' | transloco }}
+  </button>
+  <span class="flex-1"></span>
+  @for (action of orientActions; track action.id) {
+    <button
+      type="button"
+      class="rounded-ui-sm text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-[background,color] hover:shadow-none disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[17px]!"
+      [attr.data-testid]="'image-editor-' + action.id"
+      [title]="action.label | transloco"
+      [attr.aria-label]="action.label | transloco"
+      [disabled]="state() !== 'ready'"
+      (click)="act(action.id)"
+    >
+      <i class="material-icons" [class.rotate-90]="action.id === 'flip-up-down'">{{ action.icon }}</i>
+    </button>
+  }
+</div>
+
+<div
+  #area
+  class="panel-no-drag rounded-ui-sm border-ui-border-panel relative flex min-h-48 flex-1 touch-none items-center justify-center overflow-hidden border border-solid bg-[repeating-conic-gradient(#d4d4d4_0_25%,#f4f4f4_0_50%)] bg-size-[16px_16px] select-none"
+  [class.cursor-crosshair]="tool() === 'crop'"
+  data-testid="image-editor-area"
+  (pointerdown)="press($event)"
+  (pointermove)="pull($event)"
+  (pointerup)="release()"
+  (pointercancel)="release()"
+>
+  <div
+    #frame
+    class="relative shrink-0 cursor-crosshair overflow-hidden"
+    data-testid="image-editor-frame"
+    [class.hidden]="state() === 'loading' || state() === 'failed'"
+    [style.width.px]="displaySize().width"
+    [style.height.px]="displaySize().height"
+  >
+    <canvas #canvas data-testid="image-editor-canvas" class="block size-full"></canvas>
+    @if (cropBox(); as box) {
+      <div
+        class="pointer-events-none absolute border-2 border-solid border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
+        data-testid="image-editor-crop"
+        [style.left]="box.left"
+        [style.top]="box.top"
+        [style.width]="box.width"
+        [style.height]="box.height"
+      >
+        <span
+          class="absolute -top-1.5 -left-1.5 size-3 rounded-full border border-solid border-black/40 bg-white"
+        ></span>
+        <span
+          class="absolute -top-1.5 -right-1.5 size-3 rounded-full border border-solid border-black/40 bg-white"
+        ></span>
+        <span
+          class="absolute -bottom-1.5 -left-1.5 size-3 rounded-full border border-solid border-black/40 bg-white"
+        ></span>
+        <span
+          class="absolute -right-1.5 -bottom-1.5 size-3 rounded-full border border-solid border-black/40 bg-white"
+        ></span>
+      </div>
+    }
+  </div>
+  @if (state() === 'loading') {
+    <i class="material-icons text-ui-dim animate-spin">sync</i>
+  } @else if (state() === 'failed') {
+    <p class="text-ui-dim m-0 p-3 text-center text-xs">{{ 'ui.imageEditor.failed' | transloco }}</p>
+  }
+</div>
+
+@if (tool() === 'crop') {
+  <p class="text-ui-dim m-0 text-xs">{{ 'ui.imageEditor.cropHint' | transloco }}</p>
+  <div class="flex flex-wrap items-center gap-1">
+    @for (choice of cropRatios; track choice.key) {
+      <button
+        type="button"
+        class="rounded-ui-sm cursor-pointer border border-solid px-2 py-0.5 text-[11px] transition-[background,color]"
+        [class]="
+          ratioKey() === choice.key
+            ? 'border-ui-accent bg-ui-accent-bg text-ui-accent'
+            : 'border-ui-border-panel bg-ui-elevated text-ui-muted hover:bg-ui-hover hover:text-ui-text'
+        "
+        [attr.data-testid]="'image-editor-ratio-' + choice.key"
+        [disabled]="state() !== 'ready'"
+        (click)="chooseRatio(choice.key)"
+      >
+        {{
+          choice.key === 'free' || choice.key === 'original'
+            ? ('ui.imageEditor.ratio_' + choice.key | transloco)
+            : choice.key
+        }}
+      </button>
+    }
+    <span class="flex-1"></span>
+    <button
+      type="button"
+      class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text cursor-pointer border border-solid px-2 py-0.5 text-[11px] transition-[background,color] disabled:cursor-default disabled:opacity-40"
+      data-testid="image-editor-keep-whole"
+      [disabled]="crop() === null"
+      (click)="keepWhole()"
+    >
+      {{ 'ui.imageEditor.keepWhole' | transloco }}
+    </button>
+  </div>
+} @else {
+  <p class="text-ui-dim m-0 text-xs">{{ 'ui.imageEditor.eraseHint' | transloco }}</p>
+  <div class="flex items-center gap-2">
+    <label class="text-ui-muted flex min-w-0 flex-1 items-center gap-2 text-xs">
+      <span class="shrink-0">{{ 'ui.imageEditor.tolerance' | transloco }}</span>
+      <input
+        type="range"
+        min="0"
+        max="128"
+        class="min-w-0 flex-1 [accent-color:var(--ui-accent)]"
+        data-testid="image-editor-tolerance"
+        [value]="tolerance()"
+        [disabled]="state() !== 'ready'"
+        (input)="setTolerance($any($event.target).valueAsNumber)"
+      />
+      <span class="w-7 shrink-0 text-right tabular-nums">{{ tolerance() }}</span>
+    </label>
+    <button
+      type="button"
+      class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text inline-flex cursor-pointer items-center gap-1 border border-solid px-2.5 py-1 text-xs transition-[background,color] disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[14px]!"
+      data-testid="image-editor-undo"
+      [disabled]="points().length === 0"
+      (click)="undo()"
+    >
+      <i class="material-icons">undo</i>{{ 'ui.imageEditor.undo' | transloco }}
+    </button>
+  </div>
+}
+
+<div class="text-ui-muted flex flex-wrap items-center gap-1.5 text-xs">
+  <span class="shrink-0">{{ 'ui.imageEditor.size' | transloco }}</span>
+  <input
+    type="number"
+    min="1"
+    class="bg-ui-input border-ui-border-panel rounded-ui-sm text-ui-text w-16 border border-solid px-1.5 py-0.5 text-xs tabular-nums"
+    data-testid="image-editor-width"
+    [attr.aria-label]="'ui.imageEditor.width' | transloco"
+    [value]="outputSize().width"
+    [disabled]="state() !== 'ready'"
+    (change)="setOutputWidth($any($event.target).valueAsNumber)"
+  />
+  <span>×</span>
+  <input
+    type="number"
+    min="1"
+    class="bg-ui-input border-ui-border-panel rounded-ui-sm text-ui-text w-16 border border-solid px-1.5 py-0.5 text-xs tabular-nums"
+    data-testid="image-editor-height"
+    [attr.aria-label]="'ui.imageEditor.height' | transloco"
+    [value]="outputSize().height"
+    [disabled]="state() !== 'ready'"
+    (change)="setOutputHeight($any($event.target).valueAsNumber)"
+  />
+  <span>px</span>
+  <label class="flex items-center gap-1">
+    <input
+      type="checkbox"
+      class="[accent-color:var(--ui-accent)]"
+      data-testid="image-editor-keep-proportions"
+      [checked]="keepProportions()"
+      (change)="setKeepProportions($any($event.target).checked)"
+    />
+    {{ 'ui.imageEditor.keepProportions' | transloco }}
+  </label>
+  <span class="flex-1"></span>
+  <div class="flex shrink-0 gap-1">
+    @for (percent of scalePresets; track percent) {
+      <button
+        type="button"
+        class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text cursor-pointer border border-solid px-1.5 py-0.5 text-[11px] tabular-nums transition-[background,color] disabled:cursor-default disabled:opacity-40"
+        [attr.data-testid]="'image-editor-scale-' + percent"
+        [disabled]="state() !== 'ready'"
+        (click)="scaleTo(percent)"
+      >
+        {{ percent }}%
+      </button>
+    }
+  </div>
+</div>
+
+@if (saveFailed()) {
+  <p class="m-0 text-xs text-amber-400" data-testid="image-editor-save-failed">
+    {{ 'ui.imageEditor.saveFailed' | transloco }}
+  </p>
+}
+
+@if (tooLargeSize(); as size) {
+  <p class="m-0 text-xs text-amber-400" data-testid="image-editor-too-large">
+    {{ 'ui.imageEditor.tooLarge' | transloco: { size } }}
+  </p>
+}
+
+<div class="flex items-center gap-1.5">
+  @if (request()?.position && request()!.position!.count > 1) {
+    <button
+      type="button"
+      class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text cursor-pointer border border-solid px-3 py-1 text-xs transition-[background,color]"
+      data-testid="image-editor-skip"
+      (click)="skip()"
+    >
+      {{ 'ui.imageEditor.skip' | transloco }}
+    </button>
+    <button
+      type="button"
+      class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text cursor-pointer border border-solid px-3 py-1 text-xs transition-[background,color]"
+      data-testid="image-editor-rest"
+      (click)="takeRestAsTheyAre()"
+    >
+      {{ 'ui.imageEditor.restAsTheyAre' | transloco }}
+    </button>
+  } @else {
+    <button
+      type="button"
+      class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text cursor-pointer border border-solid px-3 py-1 text-xs transition-[background,color]"
+      data-testid="image-editor-cancel"
+      (click)="cancel()"
+    >
+      {{ 'ui.imageEditor.cancel' | transloco }}
+    </button>
+  }
+  <span class="flex-1"></span>
+  @if (request()?.replaces) {
+    <button
+      type="button"
+      class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text inline-flex cursor-pointer items-center gap-1 border border-solid px-3 py-1 text-xs transition-[background,color] disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[14px]!"
+      data-testid="image-editor-add-copy"
+      [title]="'ui.imageEditor.addAsCopyHint' | transloco"
+      [disabled]="state() !== 'ready'"
+      (click)="add(true)"
+    >
+      <i class="material-icons">library_add</i>{{ 'ui.imageEditor.addAsCopy' | transloco }}
+    </button>
+  }
+  <button
+    type="button"
+    class="rounded-ui-sm bg-ui-accent inline-flex cursor-pointer items-center gap-1 border-none px-3 py-1 text-xs font-medium text-white transition-opacity hover:opacity-85 disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[14px]!"
+    data-testid="image-editor-add"
+    [disabled]="state() !== 'ready'"
+    (click)="add()"
+  >
+    @if (request()?.replaces) {
+      <i class="material-icons">published_with_changes</i>{{ 'ui.imageEditor.replace' | transloco }}
+    } @else {
+      <i class="material-icons">add_photo_alternate</i>{{ 'ui.imageEditor.add' | transloco }}
+    }
+  </button>
+</div>

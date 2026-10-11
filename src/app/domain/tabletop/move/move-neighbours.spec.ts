@@ -1,6 +1,6 @@
-import { cellColRow, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, cellColRow, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
-import { moveNeighboursOf } from '@axe/domain/tabletop/move/move-neighbours';
+import { moveNeighboursOf, moveNeighbourToward } from '@axe/domain/tabletop/move/move-neighbours';
 import { describe, expect, it } from 'vitest';
 
 function around(cols: number, rows: number, type: GridType, col: number, row: number): string[] {
@@ -59,5 +59,53 @@ describe('a square board that forbids corners', () => {
 
     expect(moveNeighboursOf(grid, middle, false)).toHaveLength(6);
     expect(moveNeighboursOf(grid, middle, true)).toHaveLength(6);
+  });
+});
+
+describe('the cell one step along a given way', () => {
+  function bearing(grid: CellGrid, from: number, to: number): number {
+    const a = cellCenterOf(grid, from);
+    const b = cellCenterOf(grid, to);
+    return ((Math.atan2(b.x - a.x, a.y - b.y) * 180) / Math.PI + 360) % 360;
+  }
+
+  const boards = [
+    { name: 'squares', type: GridType.SQUARE, ways: [0, 90, 180, 270] },
+    { name: 'flat-topped hexes', type: GridType.HEX_VERTICAL, ways: [0, 60, 120, 180, 240, 300] },
+    { name: 'pointy-topped hexes', type: GridType.HEX_HORIZONTAL, ways: [30, 90, 150, 210, 270, 330] },
+  ];
+
+  for (const board of boards) {
+    it(`counts the ways clockwise on ${board.name}, from odd and even cells alike`, () => {
+      const grid = cellGridOf(8, 8, 50, board.type);
+      for (const [col, row] of [
+        [3, 3],
+        [3, 4],
+        [4, 3],
+        [4, 4],
+      ]) {
+        const from = cellIndexOf(grid, col, row);
+        board.ways.forEach((expected, direction) => {
+          expect(bearing(grid, from, moveNeighbourToward(grid, from, direction))).toBeCloseTo(expected, 5);
+        });
+      }
+    });
+  }
+
+  it('goes round again past the last way, and back from before the first', () => {
+    const grid = cellGridOf(8, 8, 50, GridType.HEX_VERTICAL);
+    const from = cellIndexOf(grid, 3, 3);
+
+    expect(moveNeighbourToward(grid, from, 6)).toBe(moveNeighbourToward(grid, from, 0));
+    expect(moveNeighbourToward(grid, from, -1)).toBe(moveNeighbourToward(grid, from, 5));
+  });
+
+  it('steps off the board to nothing', () => {
+    const grid = cellGridOf(4, 4, 50, GridType.SQUARE);
+    const corner = cellIndexOf(grid, 0, 0);
+
+    expect(moveNeighbourToward(grid, corner, 0)).toBe(-1);
+    expect(moveNeighbourToward(grid, corner, 3)).toBe(-1);
+    expect(moveNeighbourToward(grid, -1, 0)).toBe(-1);
   });
 });

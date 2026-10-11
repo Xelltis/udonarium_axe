@@ -1,0 +1,447 @@
+<div
+  class="absolute inset-0 overflow-hidden"
+  [class.animate-effect-shake-soft]="shake() === 'soft'"
+  [class.animate-effect-shake-hard]="shake() === 'hard'"
+  [style.perspective.px]="perspective()"
+>
+  @if (sky(); as sky) {
+    @if (sky.gradient) {
+      <div class="pointer-events-none absolute inset-0" data-sky-gradient [style.background]="sky.gradient"></div>
+    }
+    @if (sky.background) {
+      <div
+        class="pointer-events-none absolute inset-0 bg-cover bg-center"
+        data-sky
+        [style.background-image]="'url(' + sky.background + ')'"
+      ></div>
+    }
+    @for (layer of sky.backdrops; track layer.id) {
+      <div
+        class="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-repeat-x"
+        data-backdrop
+        [style.background-image]="'url(' + layer.url + ')'"
+        [style.background-size]="'auto 100%'"
+        [style.background-position]="skyShift() + 'px bottom'"
+        [style.opacity]="layer.opacity"
+      ></div>
+    }
+  }
+  <div class="absolute top-1/2 left-1/2 size-0 transform-3d" [style.transform]="camera()">
+    @for (quad of quadViews(); track quad.id) {
+      <div
+        class="absolute top-0 left-0 bg-no-repeat backface-hidden"
+        [class]="quad.tone"
+        [attr.data-quad]="quad.kind"
+        [attr.data-cell]="quad.cell"
+        [attr.data-remembered]="quad.remembered || null"
+        [style]="quad.style"
+      ></div>
+    }
+    @for (piece of pieceViews(); track piece.id) {
+      <div
+        class="absolute top-0 left-0 flex cursor-pointer items-end justify-center"
+        [attr.data-piece]="piece.id"
+        [attr.data-targeted]="piece.targeted || null"
+        [style]="piece.style"
+        (click)="aim(piece.id)"
+      >
+        @if (piece.url) {
+          <img
+            class="size-full object-contain object-bottom"
+            [style.filter]="piece.imageFilter"
+            [src]="piece.url"
+            [alt]="piece.label"
+            draggable="false"
+            (load)="notePictureAspect(piece.url, $event)"
+          />
+        } @else {
+          <span class="rounded-sm bg-black/60 px-2 py-1 text-white">{{ piece.label || '?' }}</span>
+        }
+        @if (piece.targeted) {
+          <span
+            class="pointer-events-none absolute -bottom-3 left-1/2 h-8 w-4/5 -translate-x-1/2 rounded-[50%] border-4 border-red-500"
+          ></span>
+        }
+        <!--
+          What is told about the piece stands just above the top of the picture, not over it: the
+          marks it carries, its readings, then its name nearest the picture, as the table shows them.
+          Shrunk for a near piece, it shrinks towards the picture's top rather than down over it. Only
+          a piece so near that its top is off the view has it brought down over the picture, to stay
+          in sight.
+        -->
+        <span
+          class="absolute left-1/2 flex w-[130%] origin-bottom -translate-x-1/2 flex-col items-center gap-1.5 pb-2"
+          data-testid="first-person-piece-chrome"
+          [style.bottom.%]="piece.chromeBottom"
+          [style.transform]="piece.hud"
+        >
+          @if (piece.badges.length > 0) {
+            <span class="flex flex-nowrap justify-center gap-1.5" data-testid="first-person-buffs">
+              @for (badge of piece.badges; track badge.identifier) {
+                <span
+                  class="relative inline-flex size-12 items-center justify-center rounded-full border-2 border-solid border-white/40 text-2xl leading-none text-white shadow-[0_2px_6px_rgba(0,0,0,0.7)]"
+                  data-testid="first-person-buff"
+                  [style.background]="badge.color"
+                  [attr.title]="badge.name + (badge.effect ? ' / ' + badge.effect : '')"
+                >
+                  @if (badge.iconUrl) {
+                    <img class="pointer-events-none size-8 object-contain" [src]="badge.iconUrl" alt="" />
+                  } @else {
+                    {{ badge.icon }}
+                  }
+                  @if (badge.strength) {
+                    <span
+                      class="pointer-events-none absolute -top-2 -left-2 rounded-sm bg-amber-600 px-1 text-base/tight font-bold text-white"
+                      >{{ badge.strength }}</span
+                    >
+                  }
+                  @if (badge.expires) {
+                    <span
+                      class="pointer-events-none absolute -right-1.5 -bottom-1.5 rounded-sm border border-solid border-white/30 bg-black/90 px-1 text-base/tight font-bold text-white tabular-nums"
+                      data-testid="first-person-buff-rounds"
+                      >{{ badge.rounds }}</span
+                    >
+                  }
+                </span>
+              }
+              @if (piece.moreBadges > 0) {
+                <span
+                  class="inline-flex h-12 items-center justify-center rounded-full border-2 border-solid border-white/40 bg-black/70 px-3 text-2xl leading-none font-bold whitespace-nowrap text-white tabular-nums shadow-[0_2px_6px_rgba(0,0,0,0.7)]"
+                  data-testid="first-person-buff-more"
+                  >{{ 'feature.character.buff.more' | transloco: { count: piece.moreBadges } }}</span
+                >
+              }
+            </span>
+          }
+          @if (piece.gauges.length > 0) {
+            <span class="pointer-events-none flex w-full flex-col gap-1" data-testid="first-person-gauges">
+              @for (row of piece.gauges; track row.id) {
+                <span
+                  class="flex items-center gap-1.5 text-xl leading-none whitespace-nowrap text-white [text-shadow:0_2px_3px_#000]"
+                  data-testid="first-person-gauge"
+                  [attr.title]="row.name"
+                >
+                  <span class="w-5 shrink-0 text-center">{{ row.initial }}</span>
+                  <span class="relative block h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-black/60">
+                    <span
+                      class="absolute inset-y-0 left-0 block rounded-full"
+                      [style.width.%]="row.percent"
+                      [style.background]="row.color"
+                    ></span>
+                  </span>
+                  <span class="shrink-0 tabular-nums">{{ row.numbers }}</span>
+                </span>
+              }
+            </span>
+          }
+          @if (piece.label || piece.pick) {
+            <span class="flex items-center gap-2">
+              @if (piece.pick) {
+                <span
+                  class="grid size-12 shrink-0 place-items-center rounded-full bg-amber-400 text-2xl font-bold text-black"
+                  >{{ piece.pick }}</span
+                >
+              }
+              @if (piece.label) {
+                <span
+                  class="rounded-sm bg-black/60 px-3 py-1 text-2xl whitespace-nowrap text-white"
+                  [class.bg-red-700]="piece.targeted"
+                  >{{ piece.label }}</span
+                >
+              }
+            </span>
+          }
+        </span>
+      </div>
+    }
+    @for (prop of propViews(); track prop.id) {
+      <div
+        class="pointer-events-none absolute top-0 left-0 flex items-end justify-center"
+        [class.rounded-full]="prop.round"
+        [class.overflow-hidden]="prop.round"
+        [class.rounded-sm]="prop.what === 'card' || prop.what === 'stack'"
+        [attr.data-prop]="prop.what"
+        [style]="prop.style"
+        [style.opacity]="prop.opacity"
+        [style.background]="prop.wash || null"
+        [style.background-color]="prop.image || prop.wash ? null : prop.color || null"
+      >
+        @if (prop.image) {
+          <img
+            class="size-full"
+            [class.object-contain]="!prop.fill"
+            [class.object-bottom]="prop.kind === 'stand'"
+            [class.object-fill]="prop.fill"
+            [class.brightness-0]="prop.dark"
+            [src]="prop.image"
+            alt=""
+            draggable="false"
+          />
+        } @else if (prop.what === 'light') {
+          <i class="material-icons text-[180px]! leading-none!" [style.color]="prop.color">lightbulb</i>
+        }
+        @if (prop.text) {
+          <span class="absolute inset-0 overflow-hidden p-6 text-3xl whitespace-pre-wrap text-stone-900">{{
+            prop.text
+          }}</span>
+        }
+        @if (prop.label) {
+          <span
+            class="absolute -top-10 left-1/2 -translate-x-1/2 rounded-sm bg-black/60 px-3 py-1 text-2xl whitespace-nowrap text-white"
+            >{{ prop.label }}</span
+          >
+        }
+      </div>
+    }
+    @if (beamViews().length > 0) {
+      <div
+        class="pointer-events-none absolute top-0 left-0 origin-top-left transform-3d"
+        [style.transform]="'scale3d(' + scale() + ', ' + scale() + ', ' + scale() + ')'"
+      >
+        @for (beam of beamViews(); track beam.id) {
+          @for (fin of beam.fins; track $index) {
+            <div
+              class="pointer-events-none absolute top-0 left-0 origin-top-left opacity-[0.16] backface-visible"
+              data-beam
+              [style.width.px]="beam.width"
+              [style.height.px]="beam.height"
+              [style.transform]="fin"
+              [style.clip-path]="beam.clip"
+              [style.background]="beam.background"
+            ></div>
+          }
+        }
+      </div>
+    }
+    @for (sheet of fogAirViews(); track sheet.id) {
+      <div class="pointer-events-none absolute top-0 left-0 overflow-hidden" data-fog-air [style]="sheet.style">
+        <first-person-fog-air
+          class="block size-full"
+          [layer]="sheet.layer"
+          [index]="sheet.id"
+          [gridSize]="gridSize()"
+        />
+      </div>
+    }
+    @for (view of rangeViews(); track view.id) {
+      <div class="pointer-events-none absolute top-0 left-0" data-range [style]="view.style">
+        <first-person-range
+          class="absolute top-1/2 left-1/2 block size-0 origin-top-left"
+          [style.transform]="'scale(' + scale() + ')'"
+          [range]="view.range"
+          [gridSize]="gridSize()"
+          [gridType]="gridType()"
+        />
+      </div>
+    }
+    @for (glow of glowViews(); track glow.id) {
+      <div class="pointer-events-none absolute top-0 left-0 rounded-full" data-glow [style]="glow.style"></div>
+    }
+    @if (effectEye(); as eye) {
+      <div
+        class="pointer-events-none absolute top-0 left-0 transform-3d"
+        data-testid="first-person-effects"
+        [style.transform]="effectScale()"
+      >
+        <table-effect-overlay [eye]="eye" />
+        <effect-target-overlay [badges]="false" />
+      </div>
+    }
+  </div>
+</div>
+
+<table-weather-overlay [fromInside]="true" />
+
+@if (flash()) {
+  <div class="animate-effect-flash pointer-events-none absolute inset-0" [style.background]="flash()"></div>
+}
+
+@if (picking()) {
+  <div class="absolute top-16 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
+    <div class="pointer-events-none rounded-full bg-black/70 px-4 py-1.5 text-sm text-white">
+      {{ 'feature.effect.pickingHint' | transloco }}
+    </div>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="flex h-10 items-center gap-1 rounded-sm bg-amber-600 px-3 text-white hover:bg-amber-500 disabled:opacity-40"
+        data-testid="first-person-cast"
+        [disabled]="pickCount() < 1"
+        (click)="castPicks()"
+      >
+        <i class="material-icons text-[18px]!">bolt</i>
+        {{ 'feature.effect.fire' | transloco }}
+      </button>
+      <button
+        type="button"
+        class="flex h-10 items-center gap-1 rounded-sm bg-black/60 px-3 text-white hover:bg-black/80"
+        data-testid="first-person-cancel-pick"
+        (click)="cancelPicks()"
+      >
+        <i class="material-icons text-[18px]!">close</i>
+        {{ 'feature.effect.cancelPicking' | transloco }}
+      </button>
+    </div>
+  </div>
+}
+
+<div
+  class="pointer-events-none absolute top-2 right-2 size-16 sm:top-auto sm:right-7 sm:bottom-45 sm:size-28"
+  role="img"
+  data-testid="first-person-compass"
+  [attr.data-facing]="facing()"
+  [attr.aria-label]="'feature.firstPerson.facing.' + facing() | transloco"
+>
+  <svg viewBox="-50 -50 100 100" class="size-full drop-shadow-lg">
+    <circle r="48" fill="#4a3a28" stroke="#c9a45c" stroke-width="3" />
+    <circle r="41" fill="#f4ecd8" stroke="#8a6d3b" stroke-width="1" />
+    <g [attr.transform]="'rotate(' + compassTurn() + ')'">
+      @for (tick of compassTicks; track tick) {
+        <line
+          x1="0"
+          y1="-41"
+          x2="0"
+          [attr.y2]="tick % 90 === 0 ? -33 : tick % 45 === 0 ? -35 : -38"
+          stroke="#4a3a28"
+          [attr.stroke-width]="tick % 45 === 0 ? 1.6 : 0.8"
+          [attr.transform]="'rotate(' + tick + ')'"
+        />
+      }
+      <text y="-21" text-anchor="middle" font-size="11" font-weight="700" fill="#b3261e">N</text>
+      <text x="23" y="4" text-anchor="middle" font-size="10" font-weight="700" fill="#4a3a28">E</text>
+      <text y="29" text-anchor="middle" font-size="10" font-weight="700" fill="#4a3a28">S</text>
+      <text x="-23" y="4" text-anchor="middle" font-size="10" font-weight="700" fill="#4a3a28">W</text>
+      <path d="M0,-30 L5,0 L-5,0 Z" fill="#b3261e" />
+      <path d="M0,30 L5,0 L-5,0 Z" fill="#9aa0a6" />
+    </g>
+    <circle r="3.2" fill="#c9a45c" stroke="#4a3a28" stroke-width="0.8" />
+    <path d="M0,-47 L4,-41 L-4,-41 Z" fill="#c9a45c" stroke="#4a3a28" stroke-width="0.6" />
+  </svg>
+</div>
+
+<canvas
+  #minimap
+  width="160"
+  height="160"
+  class="pointer-events-none absolute top-20 right-2 size-24 sm:top-auto sm:right-3 sm:bottom-3 sm:size-40"
+  data-testid="first-person-minimap"
+></canvas>
+
+<div
+  class="pointer-events-none absolute bottom-0 flex flex-col items-start gap-2 p-3 text-white"
+  data-testid="first-person-controls"
+  [class]="controlsPlace()"
+>
+  <div class="pointer-events-auto flex items-center gap-2">
+    <button
+      type="button"
+      class="grid size-12 place-items-center rounded-full bg-black/60 text-white hover:bg-black/80 disabled:opacity-40"
+      data-turn="left"
+      [disabled]="!firstPerson.canWalk()"
+      [attr.aria-label]="'feature.firstPerson.hud.turnLeft' | transloco"
+      [title]="'feature.firstPerson.hud.turnLeft' | transloco"
+      (click)="turn(-1)"
+    >
+      <i class="material-icons">rotate_left</i>
+    </button>
+    <div class="grid grid-cols-3 gap-1">
+      @for (row of padRows(); track $index) {
+        @for (button of row; track $index) {
+          @if (button) {
+            <button
+              type="button"
+              class="grid size-12 place-items-center rounded-sm bg-black/60 text-white hover:bg-black/80 disabled:opacity-40"
+              [attr.data-move]="button.move"
+              [disabled]="!firstPerson.canWalk()"
+              [attr.aria-label]="'feature.firstPerson.hud.' + button.label | transloco"
+              [title]="'feature.firstPerson.hud.' + button.label | transloco"
+              (click)="move(button.move)"
+            >
+              <i class="material-icons" [style.transform]="'rotate(' + button.arrowDeg + 'deg)'">arrow_upward</i>
+            </button>
+          } @else {
+            <span class="size-12"></span>
+          }
+        }
+      }
+    </div>
+    <button
+      type="button"
+      class="grid size-12 place-items-center rounded-full bg-black/60 text-white hover:bg-black/80 disabled:opacity-40"
+      data-turn="right"
+      [disabled]="!firstPerson.canWalk()"
+      [attr.aria-label]="'feature.firstPerson.hud.turnRight' | transloco"
+      [title]="'feature.firstPerson.hud.turnRight' | transloco"
+      (click)="turn(1)"
+    >
+      <i class="material-icons">rotate_right</i>
+    </button>
+  </div>
+  <div class="pointer-events-auto flex flex-wrap items-center justify-start gap-2 text-sm">
+    @if (pieceName(); as name) {
+      <span
+        class="flex h-10 items-center rounded-sm bg-black/60 px-3 font-bold text-white"
+        data-testid="first-person-name"
+        >{{ name }}</span
+      >
+    }
+    <button
+      type="button"
+      class="flex h-10 items-center gap-1 rounded-sm bg-black/60 px-3 text-white hover:bg-black/80 disabled:opacity-40"
+      data-testid="first-person-door"
+      [disabled]="!firstPerson.canWalk()"
+      (click)="door()"
+    >
+      <i class="material-icons text-[18px]!">meeting_room</i>
+      {{ 'feature.firstPerson.hud.door' | transloco }}
+    </button>
+    <button
+      type="button"
+      class="flex h-10 items-center gap-1 rounded-sm px-3 text-white disabled:opacity-40"
+      data-testid="first-person-torch"
+      [class]="firstPerson.torchLit() ? 'bg-amber-700/80 hover:bg-amber-700' : 'bg-black/60 hover:bg-black/80'"
+      [disabled]="!firstPerson.canWalk()"
+      [title]="torchLabelKey() | transloco"
+      (click)="torch()"
+    >
+      <i class="material-icons text-[18px]!">local_fire_department</i>
+      {{ torchLabelKey() | transloco }}
+    </button>
+    @if (anyTargeted()) {
+      <button
+        type="button"
+        class="flex h-10 items-center gap-1 rounded-sm bg-red-800/80 px-3 text-white hover:bg-red-800"
+        data-testid="first-person-clear-targets"
+        (click)="clearTargets()"
+      >
+        <i class="material-icons text-[18px]!">gps_off</i>
+        {{ 'feature.firstPerson.hud.clearTargets' | transloco }}
+      </button>
+    }
+    @if (firstPerson.forced()) {
+      <span class="flex h-10 items-center rounded-sm bg-amber-700/80 px-3" data-testid="first-person-shared">
+        {{ 'feature.firstPerson.sharedBadge' | transloco }}
+      </span>
+    } @else {
+      <button
+        type="button"
+        class="flex h-10 items-center gap-1 rounded-sm bg-black/60 px-3 text-white hover:bg-black/80"
+        data-testid="first-person-exit"
+        (click)="exit()"
+      >
+        <i class="material-icons text-[18px]!">close</i>
+        {{ 'feature.firstPerson.exit' | transloco }}
+      </button>
+    }
+  </div>
+  <span
+    class="hidden rounded-sm bg-black/40 px-2 py-1 text-xs text-white/80 lg:block"
+    data-testid="first-person-keys-hint"
+  >
+    @if (isHex()) {
+      {{ 'feature.firstPerson.keysHintHex' | transloco }}
+    } @else {
+      {{ 'feature.firstPerson.keysHint' | transloco }}
+    }
+  </span>
+</div>

@@ -97,6 +97,28 @@ describe('TableWeatherOverlayComponent', () => {
     });
   });
 
+  describe('seen from inside the room', () => {
+    it('falls over the whole screen, with no mask cut to where the table camera puts the board', () => {
+      const coordinates = TestBed.inject(CoordinateService);
+      coordinates.tabletopOriginElement = document.createElement('div');
+      vi.spyOn(coordinates, 'convertManyToGlobal').mockImplementation((points) =>
+        points.map((point) => ({ x: point.x, y: point.y, z: 0 }))
+      );
+      table.weatherKind = 'rain';
+      TestBed.inject(EffectPlaybackService).now.set(0);
+      try {
+        expect(fixture.componentInstance.maskImage()).not.toBe('none');
+
+        fixture.componentRef.setInput('fromInside', true);
+
+        expect(fixture.componentInstance.maskImage()).toBe('none');
+        expect(fixture.componentInstance.wash()).toContain('to bottom');
+      } finally {
+        coordinates.tabletopOriginElement = document.body;
+      }
+    });
+  });
+
   describe('how often it looks at the view again', () => {
     let playback: EffectPlaybackService;
     let coordinates: CoordinateService;

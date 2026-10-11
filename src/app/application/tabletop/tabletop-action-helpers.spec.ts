@@ -1,6 +1,7 @@
 import {
   getDiceMenuItems,
   getDicePlacements,
+  getRangeMenuEntries,
   getRangeMenuItems,
   getTrumpCardCodes,
   TERRAIN_TEXTURE_PATH,
@@ -39,11 +40,25 @@ describe('tabletop-action-helpers', () => {
       { menuName: 'feature.tabletop.action.rangeShapeCorn', typeName: 'CORN' },
       { menuName: 'feature.tabletop.action.rangeShapeTriangle', typeName: 'TRIANGLE' },
       { menuName: 'feature.tabletop.action.rangeShapeSquare', typeName: 'SQUARE' },
+      { menuName: 'feature.tabletop.action.rangeShapeDiamond', typeName: 'RHOMBUS' },
       { menuName: 'feature.tabletop.action.rangeShapePentagon', typeName: 'PENTAGON' },
       { menuName: 'feature.tabletop.action.rangeShapeHexagon', typeName: 'HEXAGON' },
       { menuName: 'feature.tabletop.action.rangeShapeCircle', typeName: 'CIRCLE' },
       { menuName: 'feature.tabletop.action.rangeShapeCustom', typeName: 'CUSTOM' },
     ]);
+  });
+
+  it('offers the square in the create menu as a diamond or square to the grid, and the diamond nowhere else', () => {
+    const entries = getRangeMenuEntries();
+    const square = entries.find((entry) => entry.typeName === 'SQUARE');
+
+    expect(entries.map((entry) => entry.typeName)).not.toContain('RHOMBUS');
+    expect(square?.menuName).toBe('feature.tabletop.action.rangeShapeSquareFamily');
+    expect(square?.variants).toEqual([
+      { menuName: 'feature.tabletop.action.rangeShapeAsDiamond', typeName: 'RHOMBUS' },
+      { menuName: 'feature.tabletop.action.rangeShapeAsSquare', typeName: 'SQUARE' },
+    ]);
+    expect(entries.filter((entry) => entry.variants)).toHaveLength(1);
   });
 
   describe('where several dice made at once go', () => {

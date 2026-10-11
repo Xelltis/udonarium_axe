@@ -5,7 +5,7 @@
     [class.max-w-screen]="isCompact()"
     [class.flex-wrap]="isCompact()"
     appDraggable
-    [draggable.unhandle]="'button'"
+    [draggable.unhandle]="'button,.pl-range-dropdown,.pl-first-person-dropdown'"
   >
     <span class="text-ui-muted flex cursor-grab items-center gap-1 px-1 text-[11px] font-semibold tracking-wide">
       <i class="material-icons text-[16px]!">person</i>
@@ -44,6 +44,34 @@
                       (click)="createRange(item.typeName)"
                     >
                       <span class="truncate">{{ item.menuName | transloco }}</span>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          }
+          @case ('firstPerson') {
+            <div class="relative flex">
+              <ui-icon-button
+                [icon]="entry.icon"
+                [label]="firstPersonLabelKey() | transloco"
+                [active]="firstPersonLeaves()"
+                [disabled]="firstPersonDisabled()"
+                [testId]="entry.testId"
+                (press)="toggleFirstPerson()"
+              />
+
+              @if (firstPersonOpen()) {
+                <ul
+                  class="pl-first-person-dropdown border-ui-border-panel bg-ui-panel text-ui-text shadow-ui-md rounded-ui absolute top-[calc(100%+6px)] left-0 z-10 m-0 flex max-h-64 w-48 list-none flex-col gap-0.5 overflow-y-auto border border-solid p-1 [backdrop-filter:blur(24px)_saturate(1.5)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
+                >
+                  @for (seat of firstPersonSeats(); track seat.identifier) {
+                    <li
+                      class="rounded-ui-sm hover:bg-ui-menu-hover hover:text-ui-accent flex cursor-pointer items-center gap-2 px-2 py-1.5 text-[12px]"
+                      data-testid="first-person-seat"
+                      (click)="enterFirstPerson(seat.identifier)"
+                    >
+                      <span class="truncate">{{ seat.name }}</span>
                     </li>
                   }
                 </ul>

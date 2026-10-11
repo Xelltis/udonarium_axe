@@ -61,16 +61,25 @@ export const MENU_ACTS = [
   'turnPrev',
   'releaseOwnership',
   'buttonGuide',
+  'firstPersonView',
 ] as const;
 
 export type MenuActName = (typeof MENU_ACTS)[number];
 
 /**
  * The entries that are not buttons at all and draw their own thing: the round and whose turn it is,
- * the master's borrowed eyes, the shelf of non-player pieces, the piece being moved, and the reach
- * shapes.
+ * the master's borrowed eyes, the shelf of non-player pieces, the piece being moved, the reach
+ * shapes, and the first-person view, entered by a player and shared by the master.
  */
-export const MENU_CUSTOMS = ['turnIndicator', 'persona', 'npcBarShelf', 'activeCharacter', 'rangeShortcut'] as const;
+export const MENU_CUSTOMS = [
+  'turnIndicator',
+  'persona',
+  'npcBarShelf',
+  'activeCharacter',
+  'rangeShortcut',
+  'firstPerson',
+  'firstPersonShare',
+] as const;
 
 export type MenuCustomName = (typeof MENU_CUSTOMS)[number];
 
@@ -256,6 +265,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   act('turnPrev', 'chevron_left', 'feature.turnOrder.prev', { audience: 'gameMaster' }),
   act('releaseOwnership', 'key_off', 'app.fab.releaseOwnership', { audience: 'gameMaster' }),
   act('buttonGuide', 'help_outline', 'app.fab.buttonGuide'),
+  act('firstPersonView', 'visibility', 'app.fab.firstPersonEnter', { audience: 'playing', surfaces: ['fab'] }),
 
   custom('turnIndicator', 'hourglass_top', 'feature.turnOrder.title', { surfaces: TOOLBARS }),
   custom('persona', 'visibility', 'feature.gmTools.persona.title', {
@@ -268,6 +278,16 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
     surfaces: ['plToolbar'],
   }),
   custom('rangeShortcut', 'radar', 'feature.plTools.range.title', { audience: 'player', surfaces: ['plToolbar'] }),
+  custom('firstPerson', 'visibility', 'feature.firstPerson.enter', {
+    audience: 'player',
+    surfaces: ['plToolbar'],
+    testId: 'first-person-enter',
+  }),
+  custom('firstPersonShare', 'visibility', 'feature.firstPerson.shareMenu', {
+    audience: 'gameMaster',
+    surfaces: ['gmToolbar'],
+    testId: 'first-person-share',
+  }),
 ];
 
 const BY_KEY: ReadonlyMap<string, MenuCommand> = new Map(MENU_COMMANDS.map((command) => [command.key, command]));

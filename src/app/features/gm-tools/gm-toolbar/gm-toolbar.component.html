@@ -8,7 +8,7 @@
     [class.ring-ui-accent]="drag.character()"
     [class.ring-amber-400]="!drag.character() && currentPersona()"
     appDraggable
-    [draggable.unhandle]="'button,.npc-bar-dropdown,.persona-dropdown'"
+    [draggable.unhandle]="'button,.npc-bar-dropdown,.persona-dropdown,.first-person-share-dropdown'"
   >
     <span class="text-ui-muted flex cursor-grab items-center gap-1 px-1 text-[11px] font-semibold tracking-wide">
       <i class="material-icons text-[16px]!">shield</i>
@@ -131,6 +131,54 @@
                     </li>
                   } @empty {
                     <li class="text-ui-dim p-2 text-[11px]">{{ 'feature.gmTools.persona.empty' | transloco }}</li>
+                  }
+                </ul>
+              }
+            </div>
+          }
+          @case ('firstPersonShare') {
+            <div class="relative flex">
+              <ui-icon-button
+                [icon]="entry.icon"
+                [label]="shareLabelKey() | transloco"
+                [active]="shareOpen() || (sharedView() !== null && !sharedView()!.missing)"
+                [dim]="sharedView()?.missing === true"
+                [testId]="entry.testId"
+                (press)="toggleShareMenu()"
+              />
+
+              @if (shareOpen()) {
+                <ul
+                  class="first-person-share-dropdown border-ui-border-panel bg-ui-panel text-ui-text shadow-ui-md rounded-ui absolute top-[calc(100%+6px)] left-0 z-10 m-0 flex max-h-64 w-56 list-none flex-col gap-0.5 overflow-y-auto border border-solid p-1 [backdrop-filter:blur(24px)_saturate(1.5)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
+                >
+                  @if (sharedView()) {
+                    <li
+                      class="rounded-ui-sm hover:bg-ui-menu-hover hover:text-ui-accent flex cursor-pointer items-center gap-2 px-2 py-1.5 text-[12px]"
+                      data-testid="first-person-share-stop"
+                      (click)="stopSharing()"
+                    >
+                      <i class="material-icons text-[16px]!">visibility_off</i>
+                      <span class="truncate">{{ 'feature.firstPerson.stopSharing' | transloco }}</span>
+                    </li>
+                  }
+                  @for (choice of shareChoices(); track choice.identifier) {
+                    <li
+                      class="rounded-ui-sm hover:bg-ui-menu-hover hover:text-ui-accent flex cursor-pointer items-center gap-2 px-2 py-1.5 text-[12px]"
+                      data-testid="first-person-share-choice"
+                      [class.text-amber-500]="choice.shared"
+                      [class.bg-amber-400/20]="choice.shared"
+                      (click)="shareFirstPerson(choice.identifier)"
+                    >
+                      <span class="truncate">{{ choice.name }}</span>
+                      @if (choice.playerOwned) {
+                        <span
+                          class="rounded-ui-sm bg-ui-accent-bg text-ui-accent ml-auto shrink-0 px-1.5 py-0.5 text-[10px]"
+                          >{{ 'feature.firstPerson.playerOwned' | transloco }}</span
+                        >
+                      }
+                    </li>
+                  } @empty {
+                    <li class="text-ui-dim p-2 text-[11px]">{{ 'feature.firstPerson.shareEmpty' | transloco }}</li>
                   }
                 </ul>
               }

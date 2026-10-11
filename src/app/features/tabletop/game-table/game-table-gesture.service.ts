@@ -22,6 +22,15 @@ import {
 import { TableMouseGesture, TableMouseGestureEvent } from '@axe/features/tabletop/game-table/table-mouse-gesture';
 import { TableTouchGesture, TableTouchGestureEvent } from '@axe/features/tabletop/game-table/table-touch-gesture';
 
+/**
+ * How near the wheel and the keys may bring the camera: well past life size, but short of the
+ * plane the camera stands on, where the board would pass behind it and vanish from the screen.
+ */
+export const MOUSE_ZOOM_MAX_Z = TABLE_PERSPECTIVE_PX * 0.9;
+
+/** How far back any gesture may take the camera. */
+export const ZOOM_MIN_Z = -6000;
+
 @Injectable()
 export class GameTableGestureService {
   private readonly contextMenuService = inject(ContextMenuService);
@@ -57,6 +66,7 @@ export class GameTableGestureService {
   orthographicProjection = false;
   /** A display lying flat under miniatures is touched constantly; the view holds still. */
   viewLocked = false;
+  suspended = false;
 
   private frame: number | null = null;
   private turned = false;
@@ -233,6 +243,7 @@ export class GameTableGestureService {
     _event: TableTouchGestureEvent,
     srcEvent: TouchEvent | MouseEvent | PointerEvent
   ): void {
+    if (this.suspended) return;
     if (!this.isTableTransformMode || document.body !== document.activeElement) return;
 
     // Only the movement is dropped: the long press that opens the menu is a separate path,
@@ -258,7 +269,7 @@ export class GameTableGestureService {
     const maxZ = 0;
     if (maxZ < transformZ + this.viewPositionZ) transformZ += maxZ - (transformZ + this.viewPositionZ);
 
-    const minZ = -6000;
+    const minZ = ZOOM_MIN_Z;
     if (transformZ + this.viewPositionZ < minZ) transformZ += minZ - (transformZ + this.viewPositionZ);
 
     this.setTransform(transformX, transformY, transformZ, rotateX, rotateY, rotateZ);
@@ -334,6 +345,7 @@ export class GameTableGestureService {
       }
     }
 
+    if (this.suspended) return;
     if (!this.isTableTransformMode || document.body !== document.activeElement) return;
 
     // The marquee above still runs, since locking holds the view rather than the selection.
@@ -352,6 +364,8 @@ export class GameTableGestureService {
     transformX *= scale;
     transformY *= scale;
     transformZ *= 3;
+    if (0 < transformZ) transformZ = Math.min(transformZ, Math.max(0, MOUSE_ZOOM_MAX_Z - this.viewPositionZ));
+    if (transformZ < 0) transformZ = Math.max(transformZ, Math.min(0, ZOOM_MIN_Z - this.viewPositionZ));
 
     this.setTransform(transformX, transformY, transformZ, rotateX, rotateY, rotateZ);
     this.isTableTransformed = true;

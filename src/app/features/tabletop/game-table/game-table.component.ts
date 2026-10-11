@@ -24,6 +24,7 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
+import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
@@ -44,6 +45,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
+import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { buildToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -312,6 +314,7 @@ export class GameTableComponent {
   private _gridDrawnFrom: string | null = null;
   private readonly renderLite = inject(RenderLiteService);
   readonly gestureService = inject(GameTableGestureService);
+  private readonly firstPerson = inject(FirstPersonService);
   private readonly boardSwitches = inject(BoardSwitchService);
   private readonly concealment = inject(ConcealmentService);
 
@@ -344,6 +347,27 @@ export class GameTableComponent {
       this.tabletopService.mode2d();
       this.tabletopService.orthographicProjection();
       if (this._initialized) untracked(() => this.syncMode2d());
+    });
+    effect(() => {
+      const away = this.firstPerson.showing();
+      untracked(() => {
+        this.gestureService.suspended = away;
+        if (away) {
+          this.gestureService.cancelInput();
+          return;
+        }
+        if (!this._initialized) return;
+        this.setGameTableGrid(
+          this.currentTable.width,
+          this.currentTable.height,
+          this.currentTable.gridSize,
+          this.currentTable.gridType,
+          this.currentTable.gridColor,
+          this.currentTable.gridFontColor
+        );
+        this.syncMode2d();
+        this.snapToRealSize();
+      });
     });
     effect(() => {
       const focus = this.selectionSignalService.focusCoordinate();
@@ -1234,6 +1258,18 @@ export class GameTableComponent {
     };
   });
 
+  private readonly rotationGuide = inject(RotationGuideService);
+
+  /**
+   * What is said while something is being turned: how far it has turned, and how to snap it to the
+   * grid's directions. A hand with no Alt key is told only the angle.
+   */
+  protected readonly rotateHint = computed(() => {
+    const turn = this.rotationGuide.turn();
+    if (!turn) return null;
+    return { ...turn, offersSnap: !this.viewport.isTouch() };
+  });
+
   /** The two ways a move may be taken, offered as a pair so which one is on is plain to see. */
   protected readonly moveModes = [
     {
@@ -1264,11 +1300,14 @@ export class GameTableComponent {
 
   /**
    * Backs out on Escape: from picking an effect's targets first, then from picking a card's target,
-   * and otherwise clears the selection.
+   * and otherwise clears the selection. Backing out of a pick takes the key, so whatever else
+   * listens for Escape, as the first-person view does to leave, lets it be.
    */
-  onEscapeKey(_e: Event) {
-    if (this.effectTargetingService.cancel()) return;
-    if (this.cardTargetService.cancelPicking()) return;
+  onEscapeKey(event: Event) {
+    if (this.effectTargetingService.cancel() || this.cardTargetService.cancelPicking()) {
+      event.preventDefault();
+      return;
+    }
     this.selectionSignalService.clearSelection();
   }
 

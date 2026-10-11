@@ -38,11 +38,46 @@ describe('buildRangeContextMenu', () => {
     }
   });
 
-  it('leaves the diamond out of the shape menu', () => {
+  function shapeMenuOf(range: RangeArea) {
+    const actions = buildRangeContextMenu(
+      range,
+      50,
+      { x: 0, y: 0, z: 0 },
+      ObjectStore.instance,
+      { notifyInventoryUpdate: vi.fn() } as unknown as GameObjectInventoryService,
+      { makeDefaultContextMenuActions: vi.fn(() => []) } as unknown as TabletopActionService,
+      vi.fn(),
+      vi.fn(),
+      t
+    );
+    return actions.find((action) => action.name === '形状変更');
+  }
+
+  it('offers the square drawn as a diamond or square to the grid, under the square', () => {
     const range = RangeArea.create('test', 1, 1, 50);
+    range.type = 'SQUARE';
 
     try {
-      const actions = buildRangeContextMenu(
+      const square = shapeMenuOf(range)?.subActions?.find((action) => action.name.endsWith('四角形・ダイヤ'));
+      expect(square?.name).toBe('✔ 四角形・ダイヤ');
+      expect(square?.action).toBeUndefined();
+      expect(square?.subActions?.map((action) => action.name)).toEqual(['ダイヤとして出力', '✔ 四角形として出力']);
+
+      square!.subActions![0].action!();
+      expect(range.type).toBe('RHOMBUS');
+      const again = shapeMenuOf(range)?.subActions?.find((action) => action.name.endsWith('四角形・ダイヤ'));
+      expect(again?.subActions?.map((action) => action.name)).toEqual(['✔ ダイヤとして出力', '四角形として出力']);
+    } finally {
+      range.destroy();
+    }
+  });
+
+  it('lets a diamond follow a character as a square can', () => {
+    const range = RangeArea.create('test', 1, 1, 50);
+    range.type = 'RHOMBUS';
+
+    try {
+      const model = buildRangeContextMenuModel(
         range,
         50,
         { x: 0, y: 0, z: 0 },
@@ -53,9 +88,8 @@ describe('buildRangeContextMenu', () => {
         vi.fn(),
         t
       );
-      const shapeMenu = actions.find((action) => action.name === '形状変更');
 
-      expect(shapeMenu?.subActions?.map((action) => action.name.replace('✔ ', ''))).not.toContain('ひし形');
+      expect(model.actions.map((action) => action.name)).toContain(t('feature.tabletop.contextMenu.followCharacter'));
     } finally {
       range.destroy();
     }

@@ -378,7 +378,7 @@ export class VisionService {
     return character instanceof GameCharacter && characterSceneKey(character) === built;
   }
 
-  private readonly cellGrid = computed<CellGrid | null>(() => {
+  readonly cellGrid = computed<CellGrid | null>(() => {
     const table = this.currentTable();
     if (!table) return null;
     return cellGridOf(table.width, table.height, table.gridSize, table.gridType);
@@ -397,7 +397,7 @@ export class VisionService {
    * the ground under it just as walkable. Both ends are wanted, since which of them answers
    * turns on where the eye is: over the roof, under the arch, or up against the face.
    */
-  private readonly blockingCells = computed<{ cells: CellBits; tops: Float32Array; bases: Float32Array } | null>(() => {
+  readonly blockingCells = computed<{ cells: CellBits; tops: Float32Array; bases: Float32Array } | null>(() => {
     this.standingEpoch();
     const grid = this.cellGrid();
     const table = this.currentTable();
@@ -419,7 +419,7 @@ export class VisionService {
     return { cells, tops, bases };
   });
 
-  private readonly sightIndexes = computed<SegmentIndexes | null>(() => {
+  readonly sightIndexes = computed<SegmentIndexes | null>(() => {
     const standing = this.standingSegments();
     const table = this.currentTable();
     if (!standing || !table) return null;

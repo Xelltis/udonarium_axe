@@ -4,10 +4,12 @@ import { CharacterDiceService } from '@axe/application/dice/character-dice.servi
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { CutInService } from '@axe/application/media/cut-in.service';
+import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
+import { FIRST_PERSON_PIECE_STORAGE_KEY } from '@axe/application/ui/first-person-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -24,6 +26,7 @@ import { hotbarSlotTag } from '@axe/domain/hotbar/hotbar-tag';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
@@ -283,6 +286,52 @@ describe('HotbarRunnerService', () => {
 
       expect(run(slotOf('focus', ''), character)).toEqual({ ok: true });
       expect(focusOn).toHaveBeenCalledWith(character);
+    });
+
+    describe('looking out of the piece the slot names', () => {
+      let table: GameTable;
+      let firstPerson: FirstPersonService;
+
+      beforeEach(() => {
+        localStorage.removeItem(FIRST_PERSON_PIECE_STORAGE_KEY);
+        table = new GameTable();
+        table.width = 12;
+        table.height = 12;
+        table.gridSize = 50;
+        table.initialize();
+        character.location = { name: 'table', x: 100, y: 100 };
+        PeerCursor.createMyCursor();
+        firstPerson = TestBed.inject(FirstPersonService);
+      });
+
+      afterEach(() => localStorage.removeItem(FIRST_PERSON_PIECE_STORAGE_KEY));
+
+      it('goes in, and the same slot comes back out again', () => {
+        expect(run(slotOf('firstPerson', ''), character)).toEqual({ ok: true });
+        expect(firstPerson.piece()?.identifier).toBe(character.identifier);
+
+        expect(run(slotOf('firstPerson', ''), character)).toEqual({ ok: true });
+        expect(firstPerson.showing()).toBe(false);
+      });
+
+      it('moves across from one piece to another rather than coming out', () => {
+        const other = GameCharacter.create('相方', 1, '');
+        other.location = { name: 'table', x: 200, y: 200 };
+        firstPerson.enterSeat(other.identifier);
+
+        expect(run(slotOf('firstPerson', ''), character)).toEqual({ ok: true });
+        expect(firstPerson.piece()?.identifier).toBe(character.identifier);
+      });
+
+      it('says so when the piece it names has left the table', () => {
+        character.location.name = 'graveyard';
+
+        expect(run(slotOf('firstPerson', ''), character)).toEqual({ ok: false, reason: 'offTable' });
+      });
+
+      it('does nothing at all without a character', () => {
+        expect(run(slotOf('firstPerson', ''), null)).toEqual({ ok: false, reason: 'noCharacter' });
+      });
     });
   });
 

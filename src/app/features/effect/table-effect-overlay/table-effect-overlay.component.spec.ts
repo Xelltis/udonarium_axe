@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
+import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -165,6 +166,44 @@ describe('TableEffectOverlayComponent', () => {
       expect(host.querySelector('canvas')).not.toBeNull();
     }
   });
+  it('turns the sprites to face an eye it is given, and holds them up off the floor towards it', () => {
+    fixture.componentRef.setInput('eye', { rotation: { x: 90, y: 0, z: -30 }, liftPx: 5, risePx: 40 });
+    playback.play({
+      presetIdentifier: preset.identifier,
+      targets: [{ identifier: 'char', x: 100, y: 200, z: 0 }],
+      seed: 3,
+    });
+    fixture.detectChanges();
+
+    const upright = outerLayers()
+      .map((element) => element.style.transform)
+      .filter((transform) => transform.includes('rotateX('));
+    const canvas = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('effect-canvas')!;
+
+    expect(upright.length).toBeGreaterThan(0);
+    expect(upright.every((transform) => transform.includes('rotateZ(30deg) rotateX(-90deg)'))).toBe(true);
+    expect(upright.every((transform) => transform.includes('translateZ(5px)'))).toBe(true);
+    expect(canvas.style.transform).toContain('translate3d(100px, 200px, 40px)');
+  });
+
+  it('leaves the effects to the first-person view while the table is out of sight', () => {
+    vi.spyOn(TestBed.inject(FirstPersonService), 'showing').mockReturnValue(true);
+    playback.play({
+      presetIdentifier: preset.identifier,
+      targets: [{ identifier: 'char', x: 100, y: 200, z: 0 }],
+      seed: 3,
+    });
+    fixture.detectChanges();
+
+    expect(outerLayers()).toHaveLength(0);
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('effect-canvas')).toHaveLength(0);
+
+    fixture.componentRef.setInput('eye', { rotation: { x: 90, y: 0, z: 0 }, liftPx: 5, risePx: 40 });
+    fixture.detectChanges();
+
+    expect(outerLayers().length).toBeGreaterThan(0);
+  });
+
   it('glows along the outline of a drawing rather than round its box', () => {
     const sprite = {
       key: 'shot',

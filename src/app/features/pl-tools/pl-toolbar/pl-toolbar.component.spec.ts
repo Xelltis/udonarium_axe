@@ -1,14 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
+import { FIRST_PERSON_PIECE_STORAGE_KEY } from '@axe/application/ui/first-person-preference.service';
 import { MenuLayoutService } from '@axe/application/ui/menu-layout.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 import { parseMenuLayout } from '@axe/domain/ui/menu-layout';
 import { ButtonGuideEventHandlerService } from '@axe/features/button-guide/button-guide-event-handler.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
@@ -301,6 +305,130 @@ describe('PlToolbarComponent', () => {
       tool('pl-toolbar-fold')!.click();
 
       expect(toolbar.rangeOpen()).toBe(false);
+    });
+  });
+
+  describe('looking out of a piece', () => {
+    let table: GameTable;
+
+    beforeEach(() => {
+      localStorage.removeItem(FIRST_PERSON_PIECE_STORAGE_KEY);
+      table = new GameTable();
+      table.width = 12;
+      table.height = 12;
+      table.gridSize = 50;
+      table.initialize();
+      setRole(PeerRole.Player);
+    });
+
+    afterEach(() => localStorage.removeItem(FIRST_PERSON_PIECE_STORAGE_KEY));
+
+    function pieceNamed(name: string): GameCharacter {
+      const character = GameCharacter.create(name, 1, '');
+      character.location = { name: 'table', x: 100, y: 100 };
+      character.owner = PeerCursor.myCursor.userId;
+      objectChange.notifyChanged(character.identifier);
+      return character;
+    }
+
+    function button(): HTMLButtonElement {
+      return fixture.nativeElement.querySelector('[data-testid="first-person-enter"]') as HTMLButtonElement;
+    }
+
+    function seats(): HTMLElement[] {
+      return Array.from(fixture.nativeElement.querySelectorAll('[data-testid="first-person-seat"]'));
+    }
+
+    it('goes straight in when the seat has one piece to look out of', async () => {
+      const piece = pieceNamed('斥候');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      button().click();
+      fixture.detectChanges();
+
+      expect(TestBed.inject(FirstPersonService).piece()?.identifier).toBe(piece.identifier);
+      expect(seats()).toHaveLength(0);
+    });
+
+    it('asks which piece when the seat has several', async () => {
+      pieceNamed('斥候');
+      pieceNamed('狩人');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      button().click();
+      fixture.detectChanges();
+
+      const first = TestBed.inject(FirstPersonService);
+      expect(first.showing()).toBe(false);
+      expect(seats().map((seat) => seat.textContent?.trim())).toEqual(['斥候', '狩人']);
+
+      seats()[1].click();
+      fixture.detectChanges();
+
+      expect(first.piece()?.name).toBe('狩人');
+      expect(seats()).toHaveLength(0);
+    });
+
+    it('refuses the press, and says why, while the seat has no piece on the table', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(button().getAttribute('aria-disabled')).toBe('true');
+      expect(button().title).toContain('見られるコマがいません');
+
+      button().click();
+      fixture.detectChanges();
+
+      expect(TestBed.inject(FirstPersonService).showing()).toBe(false);
+    });
+
+    it('leaves the view again on the same button', async () => {
+      const piece = pieceNamed('斥候');
+      const first = TestBed.inject(FirstPersonService);
+      first.enterSeat(piece.identifier);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(button().title).toBe('卓に戻る');
+
+      button().click();
+      fixture.detectChanges();
+
+      expect(first.showing()).toBe(false);
+    });
+
+    async function sharedByGameMaster(): Promise<void> {
+      const master = new PeerCursor();
+      master.initialize();
+      master.role = PeerRole.GameMaster;
+      objectChange.notifyChanged(master.identifier);
+      const piece = pieceNamed('斥候');
+      table.sharedViewPiece = piece.identifier;
+      objectChange.notifyChanged(table.identifier);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    }
+
+    it('does not offer to leave a view the game master is holding everyone in', async () => {
+      await sharedByGameMaster();
+
+      const first = TestBed.inject(FirstPersonService);
+      expect(first.forced()).toBe(true);
+      expect(button().title).not.toBe('卓に戻る');
+
+      button().click();
+      fixture.detectChanges();
+
+      expect(first.showing()).toBe(true);
+    });
+
+    it('stands the button down while the game master is sharing a view, and says so', async () => {
+      await sharedByGameMaster();
+
+      expect(button().getAttribute('aria-disabled')).toBe('true');
+      expect(button().title).toBe('GM が共有中');
     });
   });
 });

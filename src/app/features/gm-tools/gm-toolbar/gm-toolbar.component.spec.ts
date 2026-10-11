@@ -10,8 +10,10 @@ import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 import { parseMenuLayout } from '@axe/domain/ui/menu-layout';
 import { GameObjectListPanelComponent } from '@axe/features/gm-object-list/game-object-list-panel.component';
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
@@ -363,6 +365,100 @@ describe('GmToolbarComponent', () => {
       tool('gm-toolbar-fold')!.click();
 
       expect(persona.personaOpen()).toBe(false);
+    });
+  });
+
+  describe('the view everyone was put in', () => {
+    let table: GameTable;
+
+    beforeEach(() => {
+      PeerCursor.myCursor = Object.assign(new PeerCursor('me'), { role: PeerRole.GameMaster });
+      table = new GameTable();
+      table.width = 12;
+      table.height = 12;
+      table.gridSize = 50;
+      table.initialize();
+    });
+
+    function pieceNamed(name: string, owner = ''): GameCharacter {
+      const character = GameCharacter.create(name, 1, '');
+      character.location = { name: 'table', x: 100, y: 100 };
+      character.owner = owner;
+      return character;
+    }
+
+    function sharingButton(): HTMLButtonElement {
+      return fixture.nativeElement.querySelector('[data-testid="first-person-share"]') as HTMLButtonElement;
+    }
+
+    function choices(): HTMLElement[] {
+      return Array.from(fixture.nativeElement.querySelectorAll('[data-testid="first-person-share-choice"]'));
+    }
+
+    function stopEntry(): HTMLElement | null {
+      return fixture.nativeElement.querySelector('[data-testid="first-person-share-stop"]');
+    }
+
+    it('lists the pieces on the table, saying which a player holds', () => {
+      pieceNamed('冒険者', 'player-1');
+      pieceNamed('門番');
+      fixture.detectChanges();
+
+      sharingButton().click();
+      fixture.detectChanges();
+
+      const listed = choices();
+      expect(listed.map((entry) => entry.querySelector('span')?.textContent)).toEqual(['冒険者', '門番']);
+      expect(listed[0].textContent).toContain('PL');
+      expect(listed[1].textContent).not.toContain('PL');
+    });
+
+    it('puts everyone in the piece that was chosen', () => {
+      const piece = pieceNamed('斥候', 'player-1');
+      fixture.detectChanges();
+
+      sharingButton().click();
+      fixture.detectChanges();
+      choices()[0].click();
+      fixture.detectChanges();
+
+      expect(table.sharedViewPiece).toBe(piece.identifier);
+      expect(choices()).toHaveLength(0);
+    });
+
+    it('offers no way out while nobody has been put anywhere', () => {
+      pieceNamed('門番');
+      fixture.detectChanges();
+
+      sharingButton().click();
+      fixture.detectChanges();
+
+      expect(stopEntry()).toBeNull();
+    });
+
+    it('lets everyone go from the top of the list', () => {
+      const piece = pieceNamed('斥候');
+      table.sharedViewPiece = piece.identifier;
+      fixture.detectChanges();
+
+      sharingButton().click();
+      fixture.detectChanges();
+      stopEntry()!.click();
+
+      expect(table.sharedViewPiece).toBe('');
+    });
+
+    it('lets everyone go at a press once the piece named has left the table, as the button says', () => {
+      table.sharedViewPiece = 'gone';
+      fixture.detectChanges();
+
+      expect(sharingButton().title).toContain('押すと解除');
+
+      sharingButton().click();
+      fixture.detectChanges();
+
+      expect(table.sharedViewPiece).toBe('');
+      expect(stopEntry()).toBeNull();
     });
   });
 });

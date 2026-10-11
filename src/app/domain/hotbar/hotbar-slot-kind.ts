@@ -5,6 +5,7 @@ export const HOTBAR_SLOT_KINDS = [
   'diceDeploy',
   'panel',
   'focus',
+  'firstPerson',
   'sound',
   'cutIn',
   'prefill',
@@ -24,6 +25,7 @@ const CHARACTER_BOUND_KINDS: ReadonlySet<HotbarSlotKind> = new Set<HotbarSlotKin
   'diceDeploy',
   'panel',
   'focus',
+  'firstPerson',
   'appearance',
 ]);
 

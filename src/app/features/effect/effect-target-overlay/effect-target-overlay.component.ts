@@ -1,5 +1,5 @@
 import { NgStyle } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import {
   EffectTargetingService,
   EffectTargetLink,
@@ -27,6 +27,13 @@ const BADGE_SIZE = 26;
 export class EffectTargetOverlayComponent {
   private readonly targeting = inject(EffectTargetingService);
   private readonly uiSignalService = inject(UiSignalService);
+
+  /**
+   * Whether each picked piece is given its numbered badge. The first-person view leaves them off:
+   * they are turned to face the table's camera, which that view does not look through, and its
+   * pieces carry their own numbers.
+   */
+  readonly badges = input(true);
 
   readonly marks = computed<EffectTargetMark[]>(() => this.targeting.marks());
 

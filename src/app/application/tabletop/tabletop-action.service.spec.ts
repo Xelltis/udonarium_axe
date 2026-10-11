@@ -15,6 +15,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
+import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { MAX_BOARD_PITCH } from '@axe/domain/tabletop/white-board';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -92,6 +93,27 @@ describe('TabletopActionService', () => {
 
       expect(action).toBeDefined();
       expect(action?.action).toBeInstanceOf(Function);
+    });
+  });
+
+  describe('the range create menu', () => {
+    it('makes the square as a diamond or square to the grid, from under the square', () => {
+      const menu = service
+        .makeDefaultContextMenuActions({ x: 0, y: 0, z: 0 })
+        .find((entry) => entry.name === '射程範囲を作成');
+      const square = menu?.subActions?.find((entry) => entry.name === '四角形・ダイヤ');
+
+      expect(square?.action).toBeUndefined();
+      expect(square?.subActions?.map((entry) => entry.name)).toEqual(['ダイヤとして出力', '四角形として出力']);
+
+      const before = new Set(ObjectStore.instance.getObjects(RangeArea));
+      square!.subActions![0].action!();
+      const made = ObjectStore.instance.getObjects(RangeArea).filter((range) => !before.has(range));
+      try {
+        expect(made.map((range) => range.type)).toEqual(['RHOMBUS']);
+      } finally {
+        for (const range of made) range.destroy();
+      }
     });
   });
 

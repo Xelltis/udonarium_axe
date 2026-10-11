@@ -1,6 +1,6 @@
+import { isControllableByUser } from '@axe/domain/character/character-control';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { findByReference } from '@axe/domain/hotbar/hotbar-reference';
-import { isControllableByUser } from '@axe/features/pl-tools/owned-character-list/owned-characters';
 
 export interface SlotActorRef {
   characterIdentifier: string;

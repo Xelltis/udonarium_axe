@@ -210,6 +210,36 @@ export class MoveRangeService {
     };
   }
 
+  canStepTo(character: GameCharacter, cell: number): boolean {
+    const table = this.tableSelecter.viewTable;
+    if (!table || cell < 0 || table.gridSize <= 0) return false;
+    const terms = this.termsOf(character);
+    if (terms) return cell < terms.cells.count && terms.cells.get(cell);
+    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    if (cell >= cellCount(grid)) return false;
+    if (blockedByTerrain(grid, table.terrains).get(cell)) {
+      if (blockedByTerrain(grid, table.terrains, terrainBlocksJump).get(cell)) return false;
+      const heights = landingHeightsOn(grid, table.terrains);
+      const start = pieceCellOf(grid, character, table.gridSize);
+      const standingPx = start >= 0 && start < heights.length ? heights[start] : 0;
+      if (!isWalkableStep(heights[cell], standingPx, table.gridSize)) return false;
+    }
+    if (moveBlockMapOn(table)?.read(grid)?.get(cell)) return false;
+    const rules = this.rulesOf(table);
+    const standing = this.objectStore
+      .getObjects<GameCharacter>(GameCharacter)
+      .filter((piece) => piece.identifier === character.identifier || this.vision.isTokenVisible(piece));
+    const passage = passageCells(
+      grid,
+      standing,
+      character,
+      (relation) => passageModeOf(rules, relation),
+      rules.sizeSlipsPast,
+      this.alliance()
+    );
+    return !passage.blocked.get(cell) && !passage.noStop.get(cell);
+  }
+
   /**
    * Which of the room's parties stand together, as the move layer asks it.
    *

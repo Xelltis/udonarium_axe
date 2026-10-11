@@ -146,7 +146,7 @@ function buildFollowAction(
   onDockingWindowOpen: () => void,
   t: TranslateFn
 ): ContextMenuAction | null {
-  if (!['CIRCLE', 'SQUARE', 'TRIANGLE', 'PENTAGON', 'HEXAGON'].includes(range.type)) return null;
+  if (!['CIRCLE', 'SQUARE', 'RHOMBUS', 'TRIANGLE', 'PENTAGON', 'HEXAGON'].includes(range.type)) return null;
   return objectStore.get(range.followingCharacterIdentifier) != null
     ? {
         name: t('feature.tabletop.contextMenu.unfollow'),
@@ -161,27 +161,38 @@ function buildFollowAction(
       };
 }
 
+/**
+ * The shapes a range can be switched to, the current one ticked. The square opens onto drawing its
+ * four corners on the diagonals, as a diamond, or square to the grid.
+ */
 function buildShapeAction(range: RangeArea, t: TranslateFn): ContextMenuAction {
-  const shapes = [
-    ['LINE', 'shapeLine'],
-    ['CORN', 'shapeCorn'],
-    ['TRIANGLE', 'shapeTriangle'],
-    ['SQUARE', 'shapeSquare'],
-    ['PENTAGON', 'shapePentagon'],
-    ['HEXAGON', 'shapeHexagon'],
-    ['CIRCLE', 'shapeCircle'],
-    ['CUSTOM', 'shapeCustom'],
-  ] as const;
+  const pick = (type: string, label: string): ContextMenuAction => ({
+    name: (range.type === type ? '✔ ' : '') + t(`feature.tabletop.contextMenu.${label}`),
+    action: () => {
+      range.type = type;
+      SoundEffect.play(PresetSound.sweep);
+    },
+  });
+  const quadrilateral: ContextMenuAction = {
+    name:
+      (range.type === 'SQUARE' || range.type === 'RHOMBUS' ? '✔ ' : '') +
+      t('feature.tabletop.contextMenu.shapeSquareFamily'),
+    action: undefined,
+    subActions: [pick('RHOMBUS', 'shapeAsDiamond'), pick('SQUARE', 'shapeAsSquare')],
+  };
   return {
     name: t('feature.tabletop.contextMenu.shape'),
     action: undefined,
-    subActions: shapes.map(([type, label]) => ({
-      name: (range.type === type ? '✔ ' : '') + t(`feature.tabletop.contextMenu.${label}`),
-      action: () => {
-        range.type = type;
-        SoundEffect.play(PresetSound.sweep);
-      },
-    })),
+    subActions: [
+      pick('LINE', 'shapeLine'),
+      pick('CORN', 'shapeCorn'),
+      pick('TRIANGLE', 'shapeTriangle'),
+      quadrilateral,
+      pick('PENTAGON', 'shapePentagon'),
+      pick('HEXAGON', 'shapeHexagon'),
+      pick('CIRCLE', 'shapeCircle'),
+      pick('CUSTOM', 'shapeCustom'),
+    ],
   };
 }
 

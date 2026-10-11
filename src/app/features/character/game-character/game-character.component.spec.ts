@@ -22,6 +22,7 @@ import { VolumeType } from '@axe/core/storage/audio-player';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_HEX_PEDESTAL_OUTLINE, perfCounters } from '@axe/core/util/perf-counters';
+import { BUFF_BADGES_PER_ROW } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -1009,6 +1010,30 @@ describe('GameCharacterComponent', () => {
       }
     });
 
+    it('lays the buff icons out in as many columns as the panel is reckoned by', () => {
+      const character = GameCharacter.create('バフ', 1, '');
+      character.addExtendData();
+      character.location = { name: 'table', x: 0, y: 0 };
+      fixture.componentRef.setInput('gameCharacter', character);
+      const container = DataElement.create('バフ', '', {});
+      character.buffDataElement!.appendChild(container);
+      for (let index = 0; index < 7; index++) {
+        container.appendChild(DataElement.create(`加護${index}`, 2, { type: DataElementType.NUMBER_RESOURCE }));
+      }
+      TestBed.inject(ObjectChangeService).notifyChanged(character.buffDataElement!.identifier);
+
+      try {
+        fixture.detectChanges();
+        const grid = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+          '[data-testid="buff-badge"]'
+        )?.parentElement;
+
+        expect(grid?.style.gridTemplateColumns).toBe(`repeat(${BUFF_BADGES_PER_ROW}, minmax(0, 1fr))`);
+      } finally {
+        character.destroy();
+      }
+    });
+
     it('leaves its bars alone when data is added to another piece', () => {
       const character = GameCharacter.create('こちら', 1, '');
       const other = GameCharacter.create('あちら', 1, '');
@@ -1557,6 +1582,60 @@ describe('GameCharacterComponent', () => {
 
   it('computes whether it is targeted', () => {
     expect(typeof component.isTargeted).toBe('function');
+  });
+
+  describe('the ring on the piece everyone is looking out of', () => {
+    const ringOf = () => fixture.nativeElement.querySelector('[data-testid="shared-view-ring"]');
+
+    let table: GameTable;
+
+    beforeEach(() => {
+      table = new GameTable();
+      table.width = 12;
+      table.height = 12;
+      table.gridSize = 50;
+      table.initialize();
+    });
+
+    afterEach(() => table.destroy());
+
+    function shareView(identifier: string): void {
+      table.sharedViewPiece = identifier;
+      TestBed.inject(ObjectChangeService).notifyChanged(table.identifier);
+      fixture.detectChanges();
+    }
+
+    it('marks the piece the table names, and lets it go again', () => {
+      const character = GameCharacter.create('共有コマ', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        expect(ringOf()).toBeNull();
+
+        shareView(character.identifier);
+        expect(ringOf()).toBeTruthy();
+
+        shareView('');
+        expect(ringOf()).toBeNull();
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('leaves every other piece unmarked', () => {
+      const character = GameCharacter.create('よそのコマ', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        shareView('somebody-else');
+
+        expect(ringOf()).toBeNull();
+      } finally {
+        character.destroy();
+      }
+    });
   });
 
   describe('what the character says', () => {

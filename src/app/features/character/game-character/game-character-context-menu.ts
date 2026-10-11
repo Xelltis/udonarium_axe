@@ -44,6 +44,9 @@ export interface GameCharacterContextMenuCallbacks {
   onToggleTarget?: () => void;
   /** Stops aiming at everything. Left out where nothing is aimed at. */
   onClearTargets?: () => void;
+  onViewFirstPerson?: () => void;
+  onShareFirstPerson?: () => void;
+  onStopSharingFirstPerson?: () => void;
 }
 
 export interface GameCharacterContextMenuModel {
@@ -241,6 +244,20 @@ export function buildGameCharacterContextMenuModel(
       name: (char.showVisionRange ? '✔ ' : '') + t('feature.character.contextMenu.showVisionRange'),
       action: () => (char.showVisionRange = !char.showVisionRange),
     },
+    ...(callbacks.onViewFirstPerson
+      ? [{ name: t('feature.character.contextMenu.viewFirstPerson'), action: () => callbacks.onViewFirstPerson?.() }]
+      : []),
+    ...(callbacks.onShareFirstPerson
+      ? [{ name: t('feature.character.contextMenu.shareFirstPerson'), action: () => callbacks.onShareFirstPerson?.() }]
+      : []),
+    ...(callbacks.onStopSharingFirstPerson
+      ? [
+          {
+            name: t('feature.character.contextMenu.stopSharingFirstPerson'),
+            action: () => callbacks.onStopSharingFirstPerson?.(),
+          },
+        ]
+      : []),
   ];
   const openActions = [...basicActions, ...chatActions, ...buffEffectActions, ...lightActions];
 

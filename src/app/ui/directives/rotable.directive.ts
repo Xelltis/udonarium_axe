@@ -4,7 +4,11 @@ import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeEvent, ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BatchService } from '@axe/application/ui/batch.service';
+import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
+import { GridType } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { QUARTER_TURN_DEGREES, rotationSnapStep, shownAngle, snapAngle } from '@axe/domain/tabletop/rotation-snap';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { InputHandler } from '@axe/ui/directives/input-handler';
 
@@ -26,6 +30,8 @@ export class RotableDirective {
   private readonly coordinateService = inject(CoordinateService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly rotationGuide = inject(RotationGuideService);
+  private readonly tableSelecter = inject(TableSelecter);
   private readonly destroyRef = inject(DestroyRef);
 
   private tabletopObject: RotableTabletopObject | null = null;
@@ -74,6 +80,11 @@ export class RotableDirective {
   }
 
   private rotateOffset: number = 0;
+  /** Where the pointer last put the turn, before any snap. */
+  private freeAngle: number = 0;
+  /** Whether Alt is held, which snaps the turn while it is under way. */
+  private snapping = false;
+  private readonly onSnapKey = (e: KeyboardEvent) => this.snapKey(e);
   private updateTimer: ReturnType<typeof setTimeout> | null = null;
   private grabbingElement: HTMLElement | null = null;
   private input: InputHandler | null = null;
@@ -100,6 +111,7 @@ export class RotableDirective {
       }
     });
     this.destroyRef.onDestroy(() => {
+      this.settlePendingUpdate();
       this.cancel();
       this.input?.destroy();
       this.batchService.remove(this);
@@ -166,6 +178,8 @@ export class RotableDirective {
     this.input?.cancel();
     this.grabbingElement = null;
     this.setAnimatedTransition(true);
+    this.stopListeningForSnap();
+    this.rotationGuide.end(this);
   }
 
   private get isReadOnly(): boolean {
@@ -203,7 +217,9 @@ export class RotableDirective {
 
   /**
    * Called on each pointer move during a turn; turns the element towards the pointer about its
-   * middle, keeping the angle it was grabbed at.
+   * middle, keeping the angle it was grabbed at. With Alt held it turns in steps, by the sides and
+   * diagonals of a square grid or the faces and corners of a hex one, and the screen says how far
+   * it has turned all the while.
    */
   onInputMove(e: MouseEvent | TouchEvent) {
     if (this.input?.isGrabbing && !this.pointerDeviceService.isDragging) {
@@ -219,11 +235,61 @@ export class RotableDirective {
     if (e.cancelable) e.preventDefault();
     e.stopPropagation();
     const pointer3d = this.coordinateService.convertLocalToLocal(input.pointer, grabbingElement, parentElement);
-    const angle = this.calcRotate(pointer3d, this.rotateOffset);
+    this.freeAngle = this.calcRotate(pointer3d, this.rotateOffset);
+    this.snapping = (e as MouseEvent).altKey === true;
 
-    if (!this.input?.isDragging) this.ondragstart.emit(e as PointerEvent);
+    if (!this.input?.isDragging) {
+      this.ondragstart.emit(e as PointerEvent);
+      this.listenForSnap();
+    }
     this.ondrag.emit(e as PointerEvent);
-    this.rotate = angle;
+    this.turnTo();
+  }
+
+  /**
+   * The step a held snap turns by on the table being viewed. A custom range lies only at quarter
+   * turns, which is where it settles once let go, so it is snapped by quarters on any grid.
+   */
+  private get snapStep(): number {
+    if (this.turnsByQuarters) return QUARTER_TURN_DEGREES;
+    return rotationSnapStep(this.tableSelecter.viewTable?.gridType ?? GridType.SQUARE);
+  }
+
+  /** Whether the object turns only by quarter turns, as a custom range does. */
+  private get turnsByQuarters(): boolean {
+    return this.tabletopObject instanceof RangeArea && this.tabletopObject.type === 'CUSTOM';
+  }
+
+  private turnTo(): void {
+    const step = this.snapStep;
+    this.rotate = this.snapping ? snapAngle(this.freeAngle, step) : this.freeAngle;
+    this.rotationGuide.report(this, { angle: shownAngle(this.rotate), step, snapping: this.snapping });
+  }
+
+  /**
+   * Snaps the turn the moment Alt goes down, and frees it the moment Alt comes up, without waiting
+   * for the pointer to move. The key goes no further, so the browser does not take it for its menu.
+   */
+  private snapKey(e: KeyboardEvent): void {
+    if (e.key !== 'Alt' || !this.input?.isGrabbing) return;
+    e.preventDefault();
+    const snapping = e.type === 'keydown';
+    if (snapping === this.snapping) return;
+    this.snapping = snapping;
+    this.turnTo();
+  }
+
+  private listenForSnap(): void {
+    const document = this.nativeElement.ownerDocument;
+    document.addEventListener('keydown', this.onSnapKey, true);
+    document.addEventListener('keyup', this.onSnapKey, true);
+  }
+
+  private stopListeningForSnap(): void {
+    const document = this.nativeElement.ownerDocument;
+    document.removeEventListener('keydown', this.onSnapKey, true);
+    document.removeEventListener('keyup', this.onSnapKey, true);
+    this.snapping = false;
   }
 
   /** Called when a turn is let go: ends it, snaps the angle, and emits `rotable.onend`. */
@@ -263,11 +329,22 @@ export class RotableDirective {
     if (polygonal <= 1) return;
     if (this.tabletopObject instanceof RangeArea) {
       const range = this.tabletopObject as RangeArea;
-      if (range.type === 'CUSTOM') polygonal = 4;
+      if (this.turnsByQuarters) polygonal = 360 / QUARTER_TURN_DEGREES;
       else if (range.subDivisionSnapPolygonal) polygonal = 240;
     }
     this.rotate = this.rotate < 0 ? this.rotate - 180 / polygonal : this.rotate + 180 / polygonal;
     this.rotate -= this.rotate % (360 / polygonal);
+  }
+
+  /**
+   * Writes a turn still waiting on its timer to the piece at once, as the element goes. Nothing is
+   * emitted, since whoever listened has gone with it.
+   */
+  private settlePendingUpdate(): void {
+    if (this.updateTimer === null) return;
+    clearTimeout(this.updateTimer);
+    this.updateTimer = null;
+    if (this.tabletopObject) this.tabletopObject.rotate = this.rotate;
   }
 
   private setUpdateTimer() {

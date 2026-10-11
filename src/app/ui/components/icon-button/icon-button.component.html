@@ -4,12 +4,14 @@
   [class.text-ui-accent]="active()"
   [class.bg-ui-accent-bg]="active()"
   [class.text-ui-dim]="dim()"
-  [class.opacity-45]="faded()"
+  [class.opacity-45]="faded() || disabled()"
+  [class.cursor-not-allowed]="disabled()"
+  [attr.aria-disabled]="disabled() ? 'true' : null"
   [attr.data-testid]="testId()"
   [attr.aria-label]="label()"
   [attr.data-guide-label]="label()"
   [title]="label()"
-  (click)="press.emit($event)"
+  (click)="onPress($event)"
 >
   <i class="material-icons" aria-hidden="true">{{ icon() }}</i>
 </button>

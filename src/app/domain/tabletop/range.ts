@@ -9,6 +9,8 @@ import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export const RANGE_DEFAULT_FILL_COLOR = '#FFFF00';
 export const RANGE_DEFAULT_BORDER_COLOR = '#000000';
+/** The name older rooms saved the diamond under. */
+const LEGACY_DIAMOND = 'DIAMOND';
 
 @SyncObject('range')
 export class RangeArea extends TabletopObject {
@@ -36,20 +38,19 @@ export class RangeArea extends TabletopObject {
   @SyncVar() laidByHotbarSlot: string = '';
 
   /**
-   * The range's shape, such as `CORN`, `SQUARE` or `CUSTOM`.
+   * The range's shape: `LINE`, `CORN`, `TRIANGLE`, `SQUARE`, `RHOMBUS` (the diamond: the cells a
+   * walk of the range's length reaches, counting no diagonals), `PENTAGON`, `HEXAGON`, `CIRCLE` or
+   * `CUSTOM`.
    *
-   * Setting the retired `DIAMOND` shape stores a square turned 45 degrees instead.
+   * The diamond goes by a name of its own rather than the `DIAMOND` older rooms saved it under: a
+   * version before it came back reads `DIAMOND` as a square turned an eighth and would write that
+   * back over everyone's diamond the next time it moved one. A `DIAMOND` set or read is the diamond.
    */
   get type(): string {
     return this._type;
   }
   set type(type: string) {
-    if (type === 'DIAMOND') {
-      this._type = 'SQUARE';
-      this.rotate = this.rotate + 45;
-      return;
-    }
-    this._type = type;
+    this._type = type === LEGACY_DIAMOND ? 'RHOMBUS' : type;
   }
 
   /** How far the range reaches, in grid cells, kept in its common data. */
@@ -93,22 +94,16 @@ export class RangeArea extends TabletopObject {
     if (this.followingCounterDummy >= 50) this.followingCounterDummy = 0;
   }
 
-  /**
-   * Rewrites a range saved with the retired diamond shape as a turned square when it arrives in the
-   * store.
-   */
+  /** Reads a range saved with the diamond's older name as the diamond when it arrives in the store. */
   override onStoreAdded() {
     super.onStoreAdded();
-    this.normalizeLegacyDiamondType();
+    this.normalizeLegacyDiamond();
   }
 
-  /**
-   * Applies a synced update, then rewrites the retired diamond shape as a turned square if the
-   * update carried one.
-   */
+  /** Applies a synced update, reading the diamond's older name as the diamond if it carried one. */
   override apply(context: ObjectContext) {
     super.apply(context);
-    this.normalizeLegacyDiamondType();
+    this.normalizeLegacyDiamond();
   }
 
   /**
@@ -168,9 +163,7 @@ export class RangeArea extends TabletopObject {
     return object;
   }
 
-  private normalizeLegacyDiamondType() {
-    if (this._type !== 'DIAMOND') return;
-    this.attributes['type'] = 'SQUARE';
-    this.attributes['rotate'] = Number(this.rotate) + 45;
+  private normalizeLegacyDiamond(): void {
+    if (this._type === LEGACY_DIAMOND) this.attributes['type'] = 'RHOMBUS';
   }
 }

@@ -56,7 +56,12 @@
       </select>
     </label>
   } @else if (
-    kind() !== 'diceDeploy' && kind() !== 'focus' && kind() !== 'panel' && kind() !== 'turn' && kind() !== 'group'
+    kind() !== 'diceDeploy' &&
+    kind() !== 'focus' &&
+    kind() !== 'firstPerson' &&
+    kind() !== 'panel' &&
+    kind() !== 'turn' &&
+    kind() !== 'group'
   ) {
     <label class="flex flex-1 flex-col gap-1">
       <span class="text-ui-muted">{{ 'feature.hotbar.editor.argument' | transloco }}</span>

@@ -27,8 +27,10 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
+import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
+import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
@@ -54,7 +56,7 @@ import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { VolumeType } from '@axe/core/storage/audio-player';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
+import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { gaugeNumbersOf, isGaugeInverted, PieceGauge, selectPieceGauges } from '@axe/domain/character/piece-gauge';
@@ -167,7 +169,6 @@ const TARGET_MARK_HEIGHT_PX = 34;
 const SPEECH_STAMP_PX = 56;
 const BUFF_DETAIL_ROW_HEIGHT_PX = 12;
 const BUFF_BADGE_ROW_HEIGHT_PX = 22;
-const BUFF_BADGES_PER_ROW = 5;
 const ROLL_HANDLE_MIN_PX = 20;
 const ROLL_HANDLE_MAX_PX = 56;
 const ROLL_HANDLE_SIZE_RATIO = 0.56;
@@ -220,6 +221,7 @@ export class GameCharacterComponent {
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly uiSignalService = inject(UiSignalService);
+  private readonly pieceTarget = inject(PieceTargetService);
   private readonly mobileLayout = inject(MobileLayoutService);
   private readonly buffViewPreference = inject(BuffViewPreferenceService);
   private readonly overlay = inject(PieceOverlayPreferenceService);
@@ -232,6 +234,7 @@ export class GameCharacterComponent {
   private readonly moveRangeService = inject(MoveRangeService);
   private readonly triggerFire = inject(TriggerFireService);
   private readonly movePlan = inject(MovePlanService);
+  private readonly firstPerson = inject(FirstPersonService);
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly effectCast = inject(EffectCastService);
   private readonly effectAutoPlay = inject(EffectAutoPlayService);
@@ -245,6 +248,12 @@ export class GameCharacterComponent {
   readonly isTargeted = computed(() => {
     this.uiSignalService.targetChange();
     return this.gameCharacter()?.targeted ?? false;
+  });
+
+  readonly isSharedView = computed(() => {
+    const char = this.gameCharacter();
+    if (!char) return false;
+    return this.firstPerson.sharedPiece() === char.identifier;
   });
 
   readonly isPoster = computed(() => {
@@ -967,6 +976,9 @@ export class GameCharacterComponent {
     );
   }
 
+  /** The columns the buff icons are laid out in, the same count the panel's height is reckoned by. */
+  protected readonly buffBadgeColumns = `repeat(${BUFF_BADGES_PER_ROW}, minmax(0, 1fr))`;
+
   private readonly buffPanelHeightEstimate = computed(() => {
     if (this.multiAngleResourceBuffOrbitEnabled() || this.hideBuff() || this.buffNum() < 1) return 0;
     if (this.buffViewMode() === 'detail') return this.buffChildren().length * BUFF_DETAIL_ROW_HEIGHT_PX;
@@ -1129,6 +1141,7 @@ export class GameCharacterComponent {
   protected readonly pedestalStyleShown = computed(() => this.pedestalStyleOf('#FFCC80'));
   protected readonly pedestalStyleHidden = computed(() => this.pedestalStyleOf('#A0E0FF'));
   protected readonly pedestalStyleTargeted = computed(() => this.pedestalStyleOf('#ff3b30'));
+  protected readonly pedestalStyleSharedView = computed(() => this.pedestalStyleOf('#ffd54f'));
 
   // Computed rather than read as getters, the pedestal styles hand back the same object until
   // something changes, instead of a fresh record on every change-detection pass: a thousand
@@ -1384,6 +1397,19 @@ export class GameCharacterComponent {
         onPlanMove: this.moveRangeService.canPlan(char) ? () => void this.movePlan.begin(char) : undefined,
         onToggleTarget: () => this.toggleTarget(),
         onClearTargets: this.anythingTargeted() ? () => this.clearEveryTarget() : undefined,
+        onViewFirstPerson: this.firstPerson.canLookOutOf(char)
+          ? () => this.firstPerson.enterSeat(char.identifier)
+          : undefined,
+        onShareFirstPerson:
+          this.firstPerson.isGameMaster() &&
+          this.firstPerson.canLookOutOf(char) &&
+          this.firstPerson.sharedPiece() !== char.identifier
+            ? () => this.firstPerson.share(char.identifier)
+            : undefined,
+        onStopSharingFirstPerson:
+          this.firstPerson.isGameMaster() && this.firstPerson.sharedPiece() === char.identifier
+            ? () => this.firstPerson.share(null)
+            : undefined,
       },
       this.translateFn,
       overlapEntries,
@@ -1596,22 +1622,17 @@ export class GameCharacterComponent {
   toggleTarget(): void {
     const char = this.gameCharacter();
     if (!char) return;
-    char.targeted = !char.targeted;
-    this.uiSignalService.notifyTargetChange(char.identifier, char.aliasName);
+    this.pieceTarget.toggle(char);
   }
 
   /** Takes the aim mark off every character in the room, signalling each change so its marker redraws. */
   clearEveryTarget(): void {
-    for (const object of this.objectStore.getObjects(GameCharacter)) {
-      if (!object.targeted) continue;
-      object.targeted = false;
-      this.uiSignalService.notifyTargetChange(object.identifier, object.aliasName);
-    }
+    this.pieceTarget.clear();
   }
 
   /** Whether anything on the table is aimed at, which is what makes clearing worth offering. */
   private anythingTargeted(): boolean {
-    return this.objectStore.getObjects(GameCharacter).some((object) => object.targeted);
+    return this.pieceTarget.anything();
   }
 
   /** Fires an effect from a character sheet. It is looked up by name, so the same row works in any room. */

@@ -6,6 +6,7 @@ import { EffectFieldService } from '@axe/application/effect/effect-field.service
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
+import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
@@ -64,6 +65,7 @@ export class HotbarRunnerService {
   private readonly uiSignal = inject(UiSignalService);
   private readonly cutInService = inject(CutInService);
   private readonly turnOrder = inject(TurnOrderService);
+  private readonly firstPerson = inject(FirstPersonService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -97,6 +99,8 @@ export class HotbarRunnerService {
         return this.runPanel(slot, character!);
       case 'focus':
         return this.runFocus(character!);
+      case 'firstPerson':
+        return this.runFirstPerson(character!);
       case 'sound':
         return this.runSound(slot);
       case 'cutIn':
@@ -268,6 +272,19 @@ export class HotbarRunnerService {
     if (character.location.name !== 'table') return failed('offTable');
 
     this.tableFocus.focusOn(character);
+    return OK;
+  }
+
+  private runFirstPerson(character: GameCharacter): HotbarRunResult {
+    if (!this.firstPerson.canLookOutOf(character)) return failed('offTable');
+
+    const looking = this.firstPerson.piece()?.identifier === character.identifier;
+    if (looking && !this.firstPerson.forced()) {
+      this.firstPerson.exitSeat();
+      return OK;
+    }
+
+    this.firstPerson.enterSeat(character.identifier);
     return OK;
   }
 

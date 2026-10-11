@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { FilterType, GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { DEFAULT_TABLETOP_DISPLAY_SETTINGS, resolveTabletopDisplay } from '@axe/domain/tabletop/tabletop-display';
@@ -13,6 +14,33 @@ describe('GameTable', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe('the view the master shares, in a save', () => {
+    it('leaves the shared view out of a save, keeping the rest of the table', () => {
+      const table = new GameTable();
+      table.initialize();
+      table.name = '地下一階';
+      table.sharedViewPiece = 'some-piece';
+
+      const saved = table.toXml();
+      table.destroy();
+
+      expect(saved).toContain('地下一階');
+      expect(saved).not.toContain('sharedViewPiece');
+      expect(saved).not.toContain('some-piece');
+    });
+
+    it('opens a table with no view shared, whatever the file says', () => {
+      const table = ObjectSerializer.instance.parseXml(
+        '<game-table name="地下一階" sharedViewPiece="some-piece" width="12"></game-table>'
+      ) as GameTable;
+
+      expect(table.name).toBe('地下一階');
+      expect(table.width).toBe(12);
+      expect(table.sharedViewPiece).toBe('');
+      table.destroy();
+    });
   });
 
   describe('GridType enum', () => {
@@ -102,6 +130,12 @@ describe('GameTable', () => {
       const table = new GameTable();
       table.initialize();
       expect(table.gridType).toBe(GridType.SQUARE);
+    });
+
+    it('names no piece for everyone to look through', () => {
+      const table = new GameTable();
+      table.initialize();
+      expect(table.sharedViewPiece).toBe('');
     });
 
     it('starts with nothing over the background', () => {

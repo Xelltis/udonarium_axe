@@ -12,7 +12,13 @@ export class UiIconButtonComponent {
   readonly active = input(false);
   readonly dim = input(false);
   readonly faded = input(false);
+  readonly disabled = input(false);
   readonly testId = input<string | null>(null);
 
   readonly press = output<MouseEvent>();
+
+  protected onPress(event: MouseEvent): void {
+    if (this.disabled()) return;
+    this.press.emit(event);
+  }
 }

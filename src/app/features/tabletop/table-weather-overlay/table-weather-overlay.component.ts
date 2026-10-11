@@ -5,6 +5,7 @@ import {
   DestroyRef,
   ElementRef,
   inject,
+  input,
   signal,
   untracked,
 } from '@angular/core';
@@ -70,6 +71,13 @@ export class TableWeatherOverlayComponent {
   private readonly elementRef: ElementRef<HTMLElement> = inject(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
 
+  /**
+   * Whether the weather is seen from inside the room, as the first-person view sees it: over the
+   * whole screen, with no mask cut to where the table's camera puts the board and the far side
+   * shaded downward, since the eye stands under the sky rather than looking down on it.
+   */
+  readonly fromInside = input(false);
+
   private readonly size = signal<{ width: number; height: number }>({ width: 0, height: 0 });
 
   private readonly reprojectTick = computed(() => {
@@ -98,7 +106,7 @@ export class TableWeatherOverlayComponent {
    * Above the table means the volume, not the floor.
    */
   private readonly projected = computed<ScreenPoint[]>(() => {
-    if (!this.ambienceService.weather()) return [];
+    if (!this.ambienceService.weather() || this.fromInside()) return [];
 
     const origin = this.coordinateService.tabletopOriginElement;
     if (!origin || origin === document.body) return [];

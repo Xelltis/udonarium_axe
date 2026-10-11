@@ -1,4 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { CardTargetService } from '@axe/application/card/card-target.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
+import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
@@ -7,6 +10,7 @@ import { ContextMenuAction, ContextMenuService, ContextMenuType } from '@axe/app
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { MotionService } from '@axe/application/ui/motion.service';
+import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
@@ -54,6 +58,21 @@ describe('GameTableComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('holds its camera still while the first-person view is up, and lets it go after', () => {
+    fixture.detectChanges();
+    const piece = GameCharacter.create('コマ', 1, '');
+    piece.location = { name: 'table', x: 250, y: 250 };
+    const firstPerson = TestBed.inject(FirstPersonService);
+
+    firstPerson.enterSeat(piece.identifier);
+    TestBed.tick();
+    expect(component.gestureService.suspended).toBe(true);
+
+    firstPerson.exitSeat();
+    TestBed.tick();
+    expect(component.gestureService.suspended).toBe(false);
   });
 
   describe('what drifts under the board', () => {
@@ -567,6 +586,70 @@ describe('GameTableComponent', () => {
     });
 
     afterEach(() => TestBed.inject(HeldPieceService).letGo());
+  });
+
+  describe('backing out on Escape', () => {
+    it('takes the key when it backs out of picking targets, so nothing else acts on it too', () => {
+      vi.spyOn(TestBed.inject(EffectTargetingService), 'cancel').mockReturnValue(true);
+      const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+
+      component.onEscapeKey(event);
+
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('leaves the key for others when there was nothing to back out of', () => {
+      vi.spyOn(TestBed.inject(EffectTargetingService), 'cancel').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(CardTargetService), 'cancelPicking').mockReturnValue(false);
+      const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+
+      component.onEscapeKey(event);
+
+      expect(event.defaultPrevented).toBe(false);
+    });
+  });
+
+  describe('saying how far something is being turned', () => {
+    const owner = {};
+    const hint = (): HTMLElement | null =>
+      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="rotate-hint"]');
+
+    it('says nothing while nothing is being turned', () => {
+      fixture.detectChanges();
+
+      expect(hint()).toBeNull();
+    });
+
+    it('reads out the angle and how to snap it while a turn is under way', () => {
+      TestBed.inject(RotationGuideService).report(owner, { angle: 30, step: 45, snapping: false });
+
+      fixture.detectChanges();
+
+      expect(hint()?.textContent).toContain('30°');
+      expect(hint()?.textContent).toContain('Alt を押しているあいだ 45° ごとにそろえる');
+    });
+
+    it('says the turn is being snapped while Alt is held', () => {
+      TestBed.inject(RotationGuideService).report(owner, { angle: 90, step: 45, snapping: true });
+
+      fixture.detectChanges();
+
+      expect(hint()?.querySelector('[data-testid="rotate-hint-snap"]')?.textContent).toContain(
+        '45° ごとにそろえています'
+      );
+    });
+
+    it('reads out only the angle where there is no Alt key to hold', () => {
+      vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+      TestBed.inject(RotationGuideService).report(owner, { angle: 120, step: 30, snapping: false });
+
+      fixture.detectChanges();
+
+      expect(hint()?.textContent).toContain('120°');
+      expect(hint()?.querySelector('[data-testid="rotate-hint-snap"]')).toBeNull();
+    });
+
+    afterEach(() => TestBed.inject(RotationGuideService).end(owner));
   });
 
   describe('saying how a move is worked out', () => {
