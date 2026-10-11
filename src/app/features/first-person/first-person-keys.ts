@@ -13,7 +13,8 @@ export type FirstPersonCommand =
   | { kind: 'target' }
   | { kind: 'clearTargets' }
   | { kind: 'castPicks' }
-  | { kind: 'cancelPicks' };
+  | { kind: 'cancelPicks' }
+  | { kind: 'endLook' };
 
 export interface FirstPersonKeyContext {
   typing: boolean;
@@ -24,6 +25,8 @@ export interface FirstPersonKeyContext {
   picking: boolean;
   forced: boolean;
   lattice: FirstPersonLattice;
+  /** Whether the view is being dragged about, which Escape ends before anything else. */
+  looking?: boolean;
 }
 
 const MOVES = new Map<string, FirstPersonMove>([
@@ -55,6 +58,7 @@ export function firstPersonKeyDown(code: string, context: FirstPersonKeyContext)
   if (code === 'Space') return { kind: 'door' };
   if (code === 'KeyF') return { kind: 'torch' };
   if (code === 'Escape') {
+    if (context.looking) return { kind: 'endLook' };
     if (context.picking) return { kind: 'cancelPicks' };
     return context.forced ? null : { kind: 'exit' };
   }

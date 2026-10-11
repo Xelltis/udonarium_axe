@@ -1,8 +1,15 @@
 <div
-  class="absolute inset-0 overflow-hidden"
+  class="absolute inset-0 touch-none overflow-hidden"
+  data-testid="first-person-scene"
+  [class.cursor-grabbing]="looking.dragging()"
   [class.animate-effect-shake-soft]="shake() === 'soft'"
   [class.animate-effect-shake-hard]="shake() === 'hard'"
   [style.perspective.px]="perspective()"
+  (pointerdown)="looking.press($event)"
+  (pointermove)="dragLook($event)"
+  (pointerup)="looking.letGo($event)"
+  (pointercancel)="looking.letGo($event)"
+  (lostpointercapture)="looking.letGo($event)"
 >
   @if (sky(); as sky) {
     @if (skyGradient(); as gradient) {

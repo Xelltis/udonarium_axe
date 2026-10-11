@@ -83,6 +83,13 @@ describe('firstPersonKeyDown', () => {
     });
   });
 
+  it('ends a drag of the view with escape before anything else, the view and the aiming left as they were', () => {
+    expect(firstPersonKeyDown('Escape', contextOn(GridType.SQUARE, { looking: true }))).toEqual({ kind: 'endLook' });
+    expect(firstPersonKeyDown('Escape', contextOn(GridType.SQUARE, { looking: true, picking: true }))).toEqual({
+      kind: 'endLook',
+    });
+  });
+
   it('fires the effect being aimed with enter, and leaves enter alone the rest of the time', () => {
     const picking = contextOn(GridType.SQUARE, { picking: true });
 

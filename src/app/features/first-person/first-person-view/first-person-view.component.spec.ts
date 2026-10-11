@@ -237,6 +237,137 @@ describe('FirstPersonViewComponent', () => {
     });
   });
 
+  describe('dragging the view about', () => {
+    function lookOf(fixture: ComponentFixture<FirstPersonViewComponent>): FirstPersonLookService {
+      return fixture.debugElement.injector.get(FirstPersonLookService);
+    }
+
+    function sceneOf(fixture: ComponentFixture<FirstPersonViewComponent>): HTMLElement {
+      return element(fixture).querySelector<HTMLElement>('[data-testid="first-person-scene"]')!;
+    }
+
+    function pointer(target: Element, type: string, x: number, y: number): void {
+      target.dispatchEvent(
+        new PointerEvent(type, {
+          pointerId: 1,
+          isPrimary: true,
+          pointerType: 'mouse',
+          button: 0,
+          clientX: x,
+          clientY: y,
+          bubbles: true,
+        })
+      );
+    }
+
+    beforeEach(() => {
+      TestBed.inject(MotionService).setting.set('off');
+    });
+
+    it('leaves the view alone for a press that moves less than a click might', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+
+      pointer(sceneOf(fixture), 'pointerdown', 100, 100);
+      pointer(sceneOf(fixture), 'pointermove', 105, 100);
+
+      expect(lookOf(fixture).look()).toEqual({ yaw: 0, pitch: 0 });
+    });
+
+    it('turns towards where the pointer goes and looks up as it goes up, no further than 85°', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+
+      pointer(scene, 'pointerdown', 100, 400);
+      pointer(scene, 'pointermove', 120, 400);
+      pointer(scene, 'pointermove', 220, 400);
+      expect(lookOf(fixture).look().yaw).toBeGreaterThan(0);
+
+      pointer(scene, 'pointermove', 220, 300);
+      expect(lookOf(fixture).look().pitch).toBeGreaterThan(0);
+
+      pointer(scene, 'pointermove', 220, -5000);
+      expect(lookOf(fixture).look().pitch).toBe(85);
+    });
+
+    it('goes back to where the piece faces once let go', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+
+      pointer(scene, 'pointerdown', 100, 400);
+      pointer(scene, 'pointermove', 300, 300);
+      pointer(scene, 'pointerup', 300, 300);
+
+      expect(lookOf(fixture).look()).toEqual({ yaw: 0, pitch: 0 });
+      expect(lookOf(fixture).dragging()).toBe(false);
+    });
+
+    it('aims at nothing with the click that ends a drag, and still aims with a click', () => {
+      const enemy = pieceAt(4, 4);
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const billboard = () => element(fixture).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
+
+      pointer(billboard(), 'pointerdown', 300, 300);
+      pointer(billboard(), 'pointermove', 350, 300);
+      pointer(billboard(), 'pointerup', 350, 300);
+      billboard().click();
+      expect(enemy.targeted).toBe(false);
+
+      fixture.detectChanges();
+      pointer(billboard(), 'pointerdown', 300, 300);
+      pointer(billboard(), 'pointerup', 300, 300);
+      billboard().click();
+      expect(enemy.targeted).toBe(true);
+    });
+
+    it('ends a drag with escape and keeps the view open', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+      pointer(scene, 'pointerdown', 100, 400);
+      pointer(scene, 'pointermove', 300, 400);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true, cancelable: true }));
+
+      expect(lookOf(fixture).dragging()).toBe(false);
+      expect(TestBed.inject(FirstPersonService).piece()).not.toBeNull();
+    });
+
+    it('walks with W while the view is dragged about', async () => {
+      const piece = pieceAt(4, 7);
+      lookOutOf(piece);
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+      pointer(scene, 'pointerdown', 100, 400);
+      pointer(scene, 'pointermove', 300, 400);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW', bubbles: true, cancelable: true }));
+      await fixture.whenStable();
+
+      expect(piece.location.y).toBe(6 * GRID);
+    });
+
+    it('takes a drag of one finger for itself rather than letting the page scroll', () => {
+      lookOutOf(pieceAt(4, 7));
+
+      expect(sceneOf(mount()).classList).toContain('touch-none');
+    });
+
+    it('leaves a press on the controls to them', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const button = element(fixture).querySelector<HTMLElement>('[data-turn="right"]')!;
+
+      pointer(button, 'pointerdown', 100, 400);
+      pointer(sceneOf(fixture), 'pointermove', 300, 400);
+
+      expect(lookOf(fixture).look()).toEqual({ yaw: 0, pitch: 0 });
+    });
+  });
+
   it('tells beside the controls every key it answers to', () => {
     lookOutOf(pieceAt(4, 5));
     const fixture = mount();

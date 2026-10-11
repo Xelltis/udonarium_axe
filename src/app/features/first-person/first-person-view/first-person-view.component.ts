@@ -213,6 +213,7 @@ interface SkyView {
   host: {
     class: 'absolute inset-0 block select-none overflow-hidden bg-black',
     '(document:keydown)': 'onKeydown($event)',
+    '(window:blur)': 'looking.letGo()',
   },
   imports: [
     EffectTargetOverlayComponent,
@@ -742,6 +743,7 @@ export class FirstPersonViewComponent {
   });
 
   protected aim(identifier: string): void {
+    if (this.looking.takeClickAsLook()) return;
     const piece = this.objectStore.get<GameCharacter>(identifier);
     if (!(piece instanceof GameCharacter)) return;
     if (this.effectTargeting.isPicking()) {
@@ -763,6 +765,11 @@ export class FirstPersonViewComponent {
     this.effectTargeting.cancel();
   }
 
+  /** Turns the view about as the pointer drags across it, a view's width for each turn as wide as it sees. */
+  protected dragLook(event: PointerEvent): void {
+    this.looking.drag(event, FIRST_PERSON_FOV_DEG / (this.width() || DEFAULT_VIEW_WIDTH_PX));
+  }
+
   /**
    * Walks, turns, aims and the rest from the keys, leaving alone a key something else on the page
    * has already taken, as the table takes Escape to back out of picking targets.
@@ -778,6 +785,7 @@ export class FirstPersonViewComponent {
       picking: this.effectTargeting.isPicking(),
       forced: this.firstPerson.forced(),
       lattice: this.firstPerson.lattice(),
+      looking: this.looking.dragging(),
     });
     if (!command) return;
     event.preventDefault();
@@ -826,6 +834,9 @@ export class FirstPersonViewComponent {
         return;
       case 'clearTargets':
         this.clearTargets();
+        return;
+      case 'endLook':
+        this.looking.letGo();
         return;
       case 'castPicks':
         this.castPicks();
