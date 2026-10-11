@@ -110,6 +110,7 @@ import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
+import { SeeThroughDirective } from '@axe/ui/directives/see-through.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import {
@@ -189,6 +190,7 @@ interface PieceRightDrag {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     BillboardDirective,
+    SeeThroughDirective,
     MovableDirective,
     RotableDirective,
     SelectableDirective,

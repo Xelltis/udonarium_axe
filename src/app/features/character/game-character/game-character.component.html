@@ -192,11 +192,11 @@
             />
           }
           <div
-            class="absolute inset-x-0 bottom-0 h-auto w-full [-webkit-transform-style:preserve-3d] transform-3d"
+            class="pointer-events-none absolute inset-x-0 bottom-0 h-auto w-full [-webkit-transform-style:preserve-3d] transform-3d"
             [ngStyle]="{ transform: standTransform() }"
           >
             <div
-              class="inset-x-0 bottom-0 [-webkit-transform-style:preserve-3d] transform-3d"
+              class="pointer-events-none inset-x-0 bottom-0 [-webkit-transform-style:preserve-3d] transform-3d"
               [style.width.px]="size() * gridSize"
               [style.height.px]="size() * gridSize"
               appRotable
@@ -207,12 +207,12 @@
               (rotable.ondragend)="onMoved()"
             >
               <div
-                class="absolute inset-x-0 bottom-0 h-auto w-full [-webkit-transform-style:preserve-3d] transform-3d"
+                class="pointer-events-none absolute inset-x-0 bottom-0 h-auto w-full [-webkit-transform-style:preserve-3d] transform-3d"
                 [style.height.px]="imageView.boxHeightPx()"
               >
                 @let buffEl = this.gameCharacter()!.buffDataElement;
                 @if (buffEl && buffNum() > 0 && !hideBuff() && !multiAngleResourceBuffOrbitEnabled()) {
-                  <div class="[-webkit-transform-style:preserve-3d] transform-3d">
+                  <div class="pointer-events-auto [-webkit-transform-style:preserve-3d] transform-3d">
                     <div
                       class="absolute m-auto [-webkit-transform-style:preserve-3d] transform-3d"
                       [appBillboard]="buffOrbitFacing()"
@@ -337,7 +337,7 @@
                 }
                 @if (pieceGauges().length > 0 && !multiAngleResourceBuffOrbitEnabled()) {
                   <div
-                    class="absolute [-webkit-transform-style:preserve-3d] transform-3d"
+                    class="pointer-events-auto absolute [-webkit-transform-style:preserve-3d] transform-3d"
                     [appBillboard]="gaugeOrbitFacing()"
                   >
                     <div
@@ -375,7 +375,7 @@
                 }
                 @if (name() && !hideName() && !multiAngleNameOrbitEnabled()) {
                   <div
-                    class="absolute [-webkit-transform-style:preserve-3d] transform-3d"
+                    class="pointer-events-auto absolute [-webkit-transform-style:preserve-3d] transform-3d"
                     [style.font-size.px]="nameFontSizePx"
                     [appBillboard]="nameOrbitFacing()"
                   >
@@ -415,7 +415,7 @@
                 @if (!isLock && !mode2dEnabled()) {
                   <div
                     data-testid="roll-grab-head"
-                    class="rotate-grab bg-ui-elevated text-ui-muted absolute top-0 left-0 z-1 flex cursor-default items-center justify-center rounded-full opacity-0 [-webkit-transform-style:preserve-3d] transform-3d group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
+                    class="rotate-grab bg-ui-elevated text-ui-muted pointer-events-auto absolute top-0 left-0 z-1 flex cursor-default items-center justify-center rounded-full opacity-0 [-webkit-transform-style:preserve-3d] transform-3d group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
                     [style.width.px]="rollHandleSizePx()"
                     [style.height.px]="rollHandleSizePx()"
                     [style.top]="rollHandlesBeside() ? '50%' : null"
@@ -429,7 +429,7 @@
                   </div>
                   <div
                     data-testid="roll-grab-foot"
-                    class="rotate-grab bg-ui-elevated text-ui-muted absolute bottom-0 left-0 z-1 flex cursor-default items-center justify-center rounded-full opacity-0 [-webkit-transform-style:preserve-3d] transform-3d group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
+                    class="rotate-grab bg-ui-elevated text-ui-muted pointer-events-auto absolute bottom-0 left-0 z-1 flex cursor-default items-center justify-center rounded-full opacity-0 [-webkit-transform-style:preserve-3d] transform-3d group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
                     [style.width.px]="rollHandleSizePx()"
                     [style.height.px]="rollHandleSizePx()"
                     [style.top]="rollHandlesBeside() ? '50%' : null"
@@ -445,7 +445,8 @@
                 }
                 @if (!isPoster() && 0 < imageFile().url.length && specifyKomaImageFlag() && !imageView.fitsInCell()) {
                   <img
-                    class="image chrome-smooth-image-trick inset-x-0 bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                    appSeeThrough
+                    class="image chrome-smooth-image-trick pointer-events-auto inset-x-0 bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
                     [appBillboard]="imageView.komaFacing()"
                     [ngStyle]="{
                       height: komaImageHeightSignal() * imageView.supersample() + 'px',
@@ -461,7 +462,8 @@
                 }
                 @if (!isPoster() && 0 < imageFile().url.length && !specifyKomaImageFlag() && !imageView.fitsInCell()) {
                   <img
-                    class="image chrome-smooth-image-trick inset-x-0 bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                    appSeeThrough
+                    class="image chrome-smooth-image-trick pointer-events-auto inset-x-0 bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
                     [appBillboard]="imageView.pieceFacing()"
                     [ngStyle]="{
                       width: imageView.supersamplePercent(),
@@ -475,7 +477,8 @@
                 }
                 @if (!isPoster() && 0 < imageFile().url.length && imageView.fitsInCell()) {
                   <img
-                    class="image chrome-smooth-image-trick inset-x-0 bottom-0 m-auto block object-contain align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                    appSeeThrough
+                    class="image chrome-smooth-image-trick pointer-events-auto inset-x-0 bottom-0 m-auto block object-contain align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
                     [appBillboard]="imageView.pieceFacing()"
                     [ngStyle]="{
                       width: imageView.supersamplePercent(),
