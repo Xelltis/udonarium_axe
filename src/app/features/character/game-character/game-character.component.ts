@@ -372,9 +372,11 @@ export class GameCharacterComponent {
     this.objectChange.versionOf(char.identifier)();
     return char.name;
   });
+  /** Names go unshown for a piece hiding its name here, and for every piece while this seat has them switched off. */
   readonly hideName = computed(() => {
     const char = this.gameCharacter();
     if (!char) return false;
+    if (!this.overlay.names()) return true;
     this.objectChange.versionOf(char.identifier)();
     this.objectChange.trackMyCursor();
     return char.hideName && !this.rolePermission.canSeeHidden;

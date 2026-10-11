@@ -30,6 +30,7 @@ export const MENU_TOGGLES = [
   'handRail',
   'darkness',
   'fog',
+  'nameLabels',
   'resourceBars',
   'buffs',
   'speechBubbles',
@@ -221,6 +222,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   toggle('handRail', 'style', 'app.fab.hand', { audience: 'playing', testId: 'fab-entry-hand' }),
   toggle('darkness', 'bedtime', 'app.fab.darknessOn', { audience: 'gameMaster', dims: true }),
   toggle('fog', 'foggy', 'app.fab.fogOn', { audience: 'gameMaster', dims: true }),
+  toggle('nameLabels', 'label', 'app.fab.namesShown', { testId: 'toolbar-names', dims: true }),
   toggle('resourceBars', 'align_horizontal_left', 'app.fab.resourceBarsShown', {
     testId: 'toolbar-resource-bars',
     dims: true,

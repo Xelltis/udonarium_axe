@@ -4760,6 +4760,8 @@
       "recording": "Recording",
       "fogOn": "Fog of war: on (click to turn off)",
       "fogOff": "Fog of war: off (click to turn on)",
+      "namesShown": "Names: shown (click to hide)",
+      "namesHidden": "Names: hidden (click to show)",
       "resourceBarsShown": "Resource bars: shown (click to hide)",
       "resourceBarsHidden": "Resource bars: hidden (click to show)",
       "buffsShown": "Buffs: shown (click to hide)",

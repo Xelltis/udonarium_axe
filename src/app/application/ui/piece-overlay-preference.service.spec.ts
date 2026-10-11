@@ -57,6 +57,22 @@ describe('PieceOverlayPreferenceService', () => {
     expect(service().speech()).toBe(true);
   });
 
+  it('hides the names apart from the rest, and keeps that for the next session too', () => {
+    service().toggleNames();
+
+    const overlay = service();
+    expect(overlay.names()).toBe(false);
+    expect(overlay.resourceBars()).toBe(true);
+    expect(overlay.buffs()).toBe(true);
+    expect(overlay.speech()).toBe(true);
+  });
+
+  it('shows the names where a choice was kept before they could be hidden', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ resourceBars: false, buffs: true, speech: false }));
+
+    expect(service().names()).toBe(true);
+  });
+
   it.each([
     ['nothing JSON can read', 'hidden'],
     ['something that is not an object', '7'],

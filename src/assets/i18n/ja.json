@@ -4760,6 +4760,8 @@
       "recording": "録画",
       "fogOn": "戦場の霧: オン（クリックでオフ）",
       "fogOff": "戦場の霧: オフ（クリックでオン）",
+      "namesShown": "名前: 表示中（クリックで隠す）",
+      "namesHidden": "名前: 非表示（クリックで表示）",
       "resourceBarsShown": "リソースバー: 表示中（クリックで隠す）",
       "resourceBarsHidden": "リソースバー: 非表示（クリックで表示）",
       "buffsShown": "バフ: 表示中（クリックで隠す）",
