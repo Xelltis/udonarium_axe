@@ -84,10 +84,12 @@ async function dragLook(page: Page, dx: number, dy: number) {
   await settle(page, 400);
 }
 
+/** Lets go of the view, which stays looking where it was dragged, and brings it back ahead with Escape. */
 async function letGo(page: Page) {
   await page
     .locator('[data-testid="first-person-scene"]')
     .dispatchEvent('pointerup', { pointerId: 7, isPrimary: true, pointerType: 'mouse', button: 0, bubbles: true });
+  await page.keyboard.press('Escape');
   await settle(page, 400);
 }
 
