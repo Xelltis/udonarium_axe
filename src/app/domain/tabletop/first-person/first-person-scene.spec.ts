@@ -134,11 +134,10 @@ describe('firstPersonScene on squares', () => {
       return firstPersonScene({
         world,
         grid,
-        pose: eye,
+        pose: { ...eye, pitch },
         seen: null,
         depthPx: DEPTH,
         nearPx: NEAR,
-        pitch,
         halfHeightTan: HALF_HEIGHT_TAN,
       });
     }

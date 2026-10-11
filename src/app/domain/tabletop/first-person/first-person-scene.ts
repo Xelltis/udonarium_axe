@@ -4,11 +4,11 @@ import {
   depthOf,
   EyeFrame,
   eyeFrameOf,
+  FirstPersonCamera,
   inViewOpening,
   SpacePoint,
   ViewOpening,
 } from '@axe/domain/tabletop/first-person/first-person-clip';
-import { FirstPersonPose } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import { FirstPersonRoof, roofHeightAt } from '@axe/domain/tabletop/first-person/first-person-roof';
 import {
   FirstPersonCap,
@@ -71,15 +71,14 @@ export type FirstPersonQuad = FirstPersonWallQuad | FirstPersonPlaneQuad;
 export interface FirstPersonSceneInput {
   world: FirstPersonWorld;
   grid: CellGrid;
-  pose: FirstPersonPose;
+  /** Where the eye stands and which way the camera looks, tipped up or down as far as it tips. */
+  pose: FirstPersonCamera;
   seen: CellBits | null;
   depthPx: number;
   nearPx: number;
   fovDeg?: number;
   /** The roof over the ground walls shut in; without one the sky is open everywhere. */
   roof?: FirstPersonRoof | null;
-  /** How far the camera tips up (positive) or down from level, in degrees. */
-  pitch?: number;
   /**
    * How tall the view opens above and below its middle, as the tangent of the half-angle. Left out,
    * nothing is dropped for lying above or below the view, as a level view need not drop anything.
@@ -96,7 +95,7 @@ interface SceneFrame {
 export function firstPersonScene(input: FirstPersonSceneInput): FirstPersonQuad[] {
   const limitDeg = (input.fovDeg ?? FIRST_PERSON_FOV_DEG) / 2 + FOV_MARGIN_DEG;
   const scene: SceneFrame = {
-    eye: eyeFrameOf({ ...input.pose, pitch: input.pitch }),
+    eye: eyeFrameOf(input.pose),
     input,
     opening: { tanHalfWidth: Math.tan((limitDeg * Math.PI) / 180), tanHalfHeight: input.halfHeightTan },
   };

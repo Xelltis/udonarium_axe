@@ -374,7 +374,6 @@ export class FirstPersonViewComponent {
       world,
       grid,
       pose: camera,
-      pitch: camera.pitch,
       halfHeightTan: camera.pitch ? this.halfHeightTan() : undefined,
       seen: this.drawnSeen(),
       depthPx: this.firstPerson.depthPx(),
