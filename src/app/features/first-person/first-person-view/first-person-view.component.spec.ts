@@ -48,6 +48,10 @@ describe('FirstPersonViewComponent', () => {
     PeerCursor.myCursor.role = PeerRole.Player;
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   function mount(): ComponentFixture<FirstPersonViewComponent> {
     const fixture = TestBed.createComponent(FirstPersonViewComponent);
     fixture.detectChanges();
@@ -220,7 +224,6 @@ describe('FirstPersonViewComponent', () => {
       expect(halfway.yaw).toBeGreaterThan(0);
       expect(halfway.yaw).toBeLessThan(90);
       expect(look.look()).toEqual({ yaw: 0, pitch: 0 });
-      vi.restoreAllMocks();
     });
 
     it('blurs a piece far off behind the piece once the eye turns round to it', () => {
@@ -700,7 +703,7 @@ describe('FirstPersonViewComponent', () => {
   });
 
   it('plays an effect inside the view, turned to face the eye', () => {
-    const canvas = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
     const preset = new EffectPreset();
     preset.kind = 'burst';
     preset.durationMs = 5000;
@@ -723,7 +726,6 @@ describe('FirstPersonViewComponent', () => {
     expect(sprites.length).toBeGreaterThan(0);
     expect(sprites.some((sprite) => sprite.style.transform.includes('rotateZ(90deg) rotateX(-90deg)'))).toBe(true);
     ObjectStore.instance.remove(preset);
-    canvas.mockRestore();
   });
 
   it('shakes and burns the view as it would the table', () => {
@@ -748,7 +750,7 @@ describe('FirstPersonViewComponent', () => {
   });
 
   it('fires at what is aimed at with enter, and gives the aiming up with escape', () => {
-    const canvas = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
     const preset = new EffectPreset();
     preset.kind = 'burst';
     preset.durationMs = 5000;
@@ -772,7 +774,6 @@ describe('FirstPersonViewComponent', () => {
     expect(targeting.isPicking()).toBe(false);
     expect(fire).toHaveBeenCalledWith(preset, [enemy], expect.anything());
     ObjectStore.instance.remove(preset);
-    canvas.mockRestore();
   });
 
   it('keeps the controls out of the middle of the foot of the view, where the hotbar sits', () => {
