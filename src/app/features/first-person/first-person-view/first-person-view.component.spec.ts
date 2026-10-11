@@ -17,7 +17,7 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, cellCount, cellGridOf, cellIndexAt, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { FogMemory } from '@axe/domain/tabletop/fog/fog-memory';
 import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
@@ -516,6 +516,27 @@ describe('FirstPersonViewComponent', () => {
 
       expect(boxOf(fixture, tall).height).toBeCloseTo(120 * scaleOf(GRID), 1);
       expect(boxOf(fixture, tall).width).toBeCloseTo(60 * scaleOf(GRID), 1);
+    });
+
+    it('draws a piece on a hex grid while the hex under its middle is in sight', () => {
+      table.gridType = GridType.HEX_VERTICAL;
+      const grid = cellGridOf(table.width, table.height, GRID, GridType.HEX_VERTICAL);
+      const offCentre = GameCharacter.create('小鬼', 1, '');
+      offCentre.location = { name: 'table', x: 4.4 * GRID, y: 3 * GRID };
+      const middle = cellIndexAt(grid, 4.9 * GRID, 3.5 * GRID);
+      const hexCentre = cellCenterOf(grid, middle);
+      // The hex under the piece's middle has its own middle outside the piece's footing.
+      expect(
+        hexCentre.x < 4.4 * GRID || hexCentre.x > 5.4 * GRID || hexCentre.y < 3 * GRID || hexCentre.y > 4 * GRID
+      ).toBe(true);
+      const seen = new CellBits(cellCount(grid));
+      seen.set(middle);
+      lookOutOf(pieceAt(4, 8));
+      Object.defineProperty(TestBed.inject(FirstPersonService), 'seen', { value: () => seen });
+
+      const view = element(mount());
+
+      expect(view.querySelector(`[data-piece="${offCentre.identifier}"]`)).not.toBeNull();
     });
 
     it('draws a great piece whose middle a pillar hides while its sides are in sight', () => {
