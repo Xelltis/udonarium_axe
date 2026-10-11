@@ -13,7 +13,6 @@ import {
   NIGHT_SKY,
   nightSkyAt,
   perspectivePx,
-  pictureTopPercent,
   PIECE_FOOT_MARGIN,
   pieceChromeBottomPercent,
   pieceChromeHeightPx,
@@ -290,13 +289,6 @@ describe('how large a piece comes out on the screen', () => {
     expect(billboardTextScale(FAR_PX, SCALE, PERSPECTIVE)).toBe(1);
   });
 
-  it('finds how far up its box a picture reaches, all the way until its proportions are known', () => {
-    expect(pictureTopPercent(0.6, undefined)).toBe(100);
-    expect(pictureTopPercent(0.6, 0.5)).toBe(100);
-    expect(pictureTopPercent(0.6, 2)).toBe(30);
-    expect(pictureTopPercent(0, 2)).toBe(100);
-  });
-
   it('measures what is told about a piece a row at a time', () => {
     expect(pieceChromeHeightPx({ badges: false, gauges: 0, label: false })).toBe(8);
     expect(pieceChromeHeightPx({ badges: true, gauges: 2, label: true })).toBe(8 + 54 + 48 + 46);
@@ -304,7 +296,6 @@ describe('how large a piece comes out on the screen', () => {
 
   describe('where what is told about a piece stands', () => {
     const at = {
-      pictureTop: 100,
       heightPx: 75,
       baseZ: 0,
       eyeZ: 40,
@@ -317,7 +308,6 @@ describe('how large a piece comes out on the screen', () => {
 
     it('stands just above the top of the picture for a piece far enough off', () => {
       expect(pieceChromeBottomPercent(at)).toBe(100);
-      expect(pieceChromeBottomPercent({ ...at, pictureTop: 30 })).toBe(30);
     });
 
     it('comes down to stay in the view for a piece so near that the top of it is not', () => {
@@ -337,7 +327,7 @@ describe('how large a piece comes out on the screen', () => {
 
     it('stays on the picture rather than below its feet, and asks nothing of a view not yet measured', () => {
       expect(pieceChromeBottomPercent({ ...at, depthPx: NEAR_PX, chromeScreenPx: 10_000 })).toBe(0);
-      expect(pieceChromeBottomPercent({ ...at, viewHeightPx: 0, pictureTop: 40 })).toBe(40);
+      expect(pieceChromeBottomPercent({ ...at, viewHeightPx: 0 })).toBe(100);
     });
   });
 

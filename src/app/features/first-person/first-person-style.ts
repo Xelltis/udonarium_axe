@@ -263,15 +263,6 @@ export function billboardTextScale(depthPx: number, scale: number, perspective: 
   return Math.min(fits, 1);
 }
 
-/**
- * How far up its box a picture drawn to fit it and set on its floor reaches, in percent: all the
- * way for one taller than the box's proportions or one not yet loaded, less for a wider one.
- */
-export function pictureTopPercent(boxAspect: number, pictureAspect: number | undefined): number {
-  if (!(boxAspect > 0) || pictureAspect === undefined || !(pictureAspect > 0)) return 100;
-  return round(Math.min(1, boxAspect / pictureAspect) * 100);
-}
-
 /** The rows of what is told about a piece: its marks, how many readings, and its name or pick. */
 export interface PieceChromeRows {
   readonly badges: boolean;
@@ -291,14 +282,13 @@ export function pieceChromeHeightPx(rows: PieceChromeRows): number {
 
 /**
  * Where what is told about a piece stands in its box, in percent from the bottom: just above the
- * top of the picture, unless that would carry it off the top of the view, when it comes down to
- * stay in sight, over the picture if it must. `chromeScreenPx` is how tall it shows on the screen,
+ * top of the picture, which fills the box, unless that would carry it off the top of the view, when
+ * it comes down to stay in sight, over the picture if it must. `chromeScreenPx` is how tall it shows on the screen,
  * and `marginPx` how far below the top of the view it keeps. `depthPx` is how far ahead the piece
  * stands along the way the camera faces, and `pitchDeg` how far the camera tips up, which lifts the
  * top of the view.
  */
 export function pieceChromeBottomPercent(at: {
-  pictureTop: number;
   heightPx: number;
   baseZ: number;
   eyeZ: number;
@@ -309,13 +299,13 @@ export function pieceChromeBottomPercent(at: {
   chromeScreenPx: number;
   marginPx: number;
 }): number {
-  if (at.viewHeightPx <= 0 || at.depthPx <= 0 || at.perspective <= 0 || at.heightPx <= 0) return at.pictureTop;
-  const topZ = at.baseZ + (at.heightPx * at.pictureTop) / 100;
+  if (at.viewHeightPx <= 0 || at.depthPx <= 0 || at.perspective <= 0 || at.heightPx <= 0) return 100;
+  const topZ = at.baseZ + at.heightPx;
   const roomPx = at.viewHeightPx / 2 - at.marginPx - at.chromeScreenPx;
   const angle = ((at.pitchDeg ?? 0) * Math.PI) / 180 + Math.atan(roomPx / at.perspective);
   const highestZ = angle >= Math.PI / 2 ? Infinity : at.eyeZ + at.depthPx * Math.tan(angle);
   const percent = ((Math.min(topZ, highestZ) - at.baseZ) / at.heightPx) * 100;
-  return round(Math.min(Math.max(percent, 0), at.pictureTop));
+  return round(Math.min(Math.max(percent, 0), 100));
 }
 
 export function billboardHudTransform(textScale: number): string | null {

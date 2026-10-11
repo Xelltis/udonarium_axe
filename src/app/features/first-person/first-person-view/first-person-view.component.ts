@@ -91,7 +91,6 @@ import {
   NIGHT_SKY,
   nightSkyAt,
   perspectivePx,
-  pictureTopPercent,
   pieceChromeBottomPercent,
   pieceChromeHeightPx,
   pieceImageFilter,
@@ -158,7 +157,6 @@ interface StandingPiece {
   /** How wide the ground it stands on is, in table pixels: a cell at the least, as when it moves. */
   size: number;
   centre: CellPoint;
-  aspect: number | undefined;
   stand: { widthPx: number; heightPx: number };
   basePx: number;
 }
@@ -423,7 +421,7 @@ export class FirstPersonViewComponent {
     });
   });
 
-  /** Width over height of each piece's picture, learned as it loads, so its top can be found in the box. */
+  /** Width over height of each piece's picture, learned as it loads, so the piece stands as tall as its picture. */
   private readonly pictureAspects = signal<ReadonlyMap<string, number>>(new Map());
 
   /** Learns the proportions of a piece's picture once it has loaded. */
@@ -459,7 +457,6 @@ export class FirstPersonViewComponent {
         piece,
         size,
         centre: { x: piece.location.x + size / 2, y: piece.location.y + size / 2 },
-        aspect,
         stand: pieceStandPx({
           sizeCells: drawnCells,
           gridSize,
@@ -494,7 +491,7 @@ export class FirstPersonViewComponent {
     const sight = this.firstPerson.sight();
     const grid = this.firstPerson.grid();
     const views: PieceView[] = [];
-    for (const { piece, size, centre, aspect, stand, basePx: base } of this.standing()) {
+    for (const { piece, size, centre, stand, basePx: base } of this.standing()) {
       this.objectChange.versionOf(piece.identifier)();
       if (!this.pieceInSight(camera, piece.location, size, centre)) continue;
       const badges = this.badgesOf(piece);
@@ -526,7 +523,6 @@ export class FirstPersonViewComponent {
         ),
         hud: billboardHudTransform(textScale),
         chromeBottom: pieceChromeBottomPercent({
-          pictureTop: pictureTopPercent(stand.widthPx / stand.heightPx, aspect),
           heightPx: stand.heightPx,
           baseZ: lifted,
           eyeZ: camera.z,
