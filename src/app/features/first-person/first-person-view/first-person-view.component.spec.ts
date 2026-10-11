@@ -246,13 +246,20 @@ describe('FirstPersonViewComponent', () => {
       return element(fixture).querySelector<HTMLElement>('[data-testid="first-person-scene"]')!;
     }
 
-    function pointer(target: Element, type: string, x: number, y: number): void {
+    function pointer(
+      target: Element,
+      type: string,
+      x: number,
+      y: number,
+      buttons = type === 'pointerup' ? 0 : 1
+    ): void {
       target.dispatchEvent(
         new PointerEvent(type, {
           pointerId: 1,
           isPrimary: true,
           pointerType: 'mouse',
           button: 0,
+          buttons,
           clientX: x,
           clientY: y,
           bubbles: true,
@@ -368,6 +375,48 @@ describe('FirstPersonViewComponent', () => {
       lookOutOf(pieceAt(4, 7));
 
       expect(sceneOf(mount()).classList).toContain('touch-none');
+    });
+
+    it('forgets a press let go off the view, so a pointer passing over it later turns nothing', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+      pointer(scene, 'pointerdown', 100, 400);
+
+      pointer(scene, 'pointermove', 300, 400, 0);
+      pointer(scene, 'pointermove', 400, 400, 0);
+
+      expect(lookOf(fixture).look()).toEqual({ yaw: 0, pitch: 0 });
+      expect(lookOf(fixture).dragging()).toBe(false);
+    });
+
+    it('goes on turning the view for a pointer the page cannot hold on to', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+      vi.spyOn(scene, 'setPointerCapture').mockImplementation(() => {
+        throw new DOMException('No active pointer with the given id is found.', 'NotFoundError');
+      });
+      const at = (x: number) =>
+        ({
+          pointerId: 7,
+          isPrimary: true,
+          pointerType: 'mouse',
+          button: 0,
+          buttons: 1,
+          clientX: x,
+          clientY: 400,
+          target: scene,
+          currentTarget: scene,
+        }) as unknown as PointerEvent;
+      const look = lookOf(fixture);
+      look.press(at(100));
+
+      expect(() => look.drag(at(120), 0.1)).not.toThrow();
+      look.drag(at(220), 0.1);
+
+      expect(look.dragging()).toBe(true);
+      expect(look.look().yaw).toBeCloseTo(10);
     });
 
     it('leaves a press on the controls to them', () => {

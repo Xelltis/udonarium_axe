@@ -72,6 +72,7 @@ async function dragLook(page: Page, dx: number, dy: number) {
     isPrimary: true,
     pointerType: 'mouse',
     button: 0,
+    buttons: 1,
     clientX: x,
     clientY: y,
     bubbles: true,

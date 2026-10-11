@@ -79,11 +79,16 @@ export class FirstPersonLookService {
 
   /**
    * Turns the view towards where the pointer moves, and tips it up as the pointer goes up, by
-   * `degPerPx` for each pixel, once the press has moved far enough to be more than a click.
+   * `degPerPx` for each pixel, once the press has moved far enough to be more than a click. A pointer
+   * that comes back with nothing held, let go somewhere the view did not hear of, lets go here.
    */
   drag(event: PointerEvent, degPerPx: number): void {
     const pressed = this.pressed;
     if (!pressed || event.pointerId !== pressed.pointerId) return;
+    if ((event.buttons & 1) === 0) {
+      this.letGo(event);
+      return;
+    }
     if (!this.draggingNow()) {
       if (Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) < LOOK_DRAG_THRESHOLD_PX) return;
       pressed.x = event.clientX;
@@ -91,7 +96,7 @@ export class FirstPersonLookService {
       pressed.start = this.current();
       this.draggingNow.set(true);
       this.clickToSwallow = true;
-      (pressed.element as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
+      holdOn(pressed.element, event.pointerId);
     }
     this.lookTo(lookDragged(pressed.start, event.clientX - pressed.x, event.clientY - pressed.y, degPerPx));
   }
@@ -166,5 +171,17 @@ export class FirstPersonLookService {
     if (this.frame === null) return;
     cancelAnimationFrame(this.frame);
     this.frame = null;
+  }
+}
+
+/**
+ * Holds on to a pointer, so a drag carried off the view goes on turning it. One the page cannot hold,
+ * as a pointer no longer down, is followed for as long as it stays over the view.
+ */
+function holdOn(element: Element | null, pointerId: number): void {
+  try {
+    element?.setPointerCapture?.(pointerId);
+  } catch {
+    return;
   }
 }
