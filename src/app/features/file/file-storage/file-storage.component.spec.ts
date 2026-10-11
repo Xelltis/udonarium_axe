@@ -58,6 +58,31 @@ describe('FileStorageComponent', () => {
   });
 
   describe('changeTag', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('files the ticked picture under the typed tag for a seat that may edit', () => {
+      TestBed.inject(ImageStorage).add('a-drawing');
+      component.imgBlockClick('a-drawing');
+      component.newTagName.set('地図');
+
+      component.changeTag();
+
+      expect(ImageTag.get('a-drawing')?.tag).toBe('地図');
+    });
+
+    it('leaves the tags alone for a guest', () => {
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+      TestBed.inject(ImageStorage).add('a-drawing');
+      component.imgBlockClick('a-drawing');
+      component.newTagName.set('地図');
+
+      component.changeTag();
+
+      expect(ImageTag.get('a-drawing')).toBeFalsy();
+    });
+
     it('returns early for the tag that means everything', () => {
       component['checkedFiles'].set(new Set(['img-1']));
       component.newTagName.set('全て');
@@ -295,6 +320,44 @@ describe('FileStorageComponent', () => {
         storage.delete('map-one');
         storage.delete('map-one-edited');
       }
+    });
+  });
+
+  describe('what a guest is offered', () => {
+    let canEdit: boolean;
+
+    beforeEach(() => {
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockImplementation(() => canEdit);
+      TestBed.inject(ImageStorage).add('a-drawing');
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    function shown(): Record<string, boolean> {
+      const element = fixture.nativeElement as HTMLElement;
+      return {
+        upload: element.querySelector('input[type="file"]') !== null,
+        paste: element.querySelector('[data-testid="file-storage-paste"]') !== null,
+        editFirst: element.querySelector('[data-testid="file-storage-edit-first"]') !== null,
+        changeTag: element.textContent?.includes('タグを変更') === true,
+        tick: element.querySelector('.grid input[type="checkbox"]') !== null,
+      };
+    }
+
+    it('shows a player every way to bring pictures in and file them', () => {
+      canEdit = true;
+      fixture.detectChanges();
+
+      expect(shown()).toEqual({ upload: true, paste: true, editFirst: true, changeTag: true, tick: true });
+    });
+
+    it('shows a guest none of them', () => {
+      canEdit = false;
+      fixture.detectChanges();
+
+      expect(shown()).toEqual({ upload: false, paste: false, editFirst: false, changeTag: false, tick: false });
     });
   });
 

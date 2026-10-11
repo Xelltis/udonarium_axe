@@ -51,6 +51,15 @@ export class FileStorageComponent {
     return this.rolePermission.canSeeHidden;
   }
 
+  /**
+   * Whether this seat may bring pictures in, edit them and file them under tags, which a guest may
+   * not. It follows this seat's cursor, so the panel redraws when the role changes.
+   */
+  protected readonly canEdit = computed(() => {
+    this.objectChange.trackMyCursor();
+    return this.rolePermission.canEditTabletop;
+  });
+
   /** The master's own view of what is being kept. Everyone else never sees them at all. */
   readonly showSecret = signal(true);
 
@@ -137,6 +146,7 @@ export class FileStorageComponent {
    * the tool's own pictures are refused. Tag records are shared, so the change reaches every peer.
    */
   changeTag() {
+    if (!this.rolePermission.canEditTabletop) return;
     const candidate = this.newTagName();
     if (candidate === ALL_TAG) return;
     if (candidate === SYSTEM_RESERVED_TAG) return;
