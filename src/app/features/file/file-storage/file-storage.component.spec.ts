@@ -191,6 +191,19 @@ describe('FileStorageComponent', () => {
       expect(opened).toHaveLength(0);
     });
 
+    it('names the pictures still over the size limit once the rest are in', async () => {
+      const upload = vi
+        .spyOn(TestBed.inject(ImageEditQueue), 'upload')
+        .mockResolvedValue({ images: [], oversized: ['heavy.png', 'huge.jpg'] });
+      const input = document.createElement('input');
+      Object.defineProperty(input, 'files', { value: [new File(['png'], 'heavy.png', { type: 'image/png' })] });
+
+      await component.handleFileSelect({ target: input } as unknown as Event);
+
+      expect(upload).toHaveBeenCalledTimes(1);
+      expect(component.notice()).toContain('heavy.png, huge.jpg');
+    });
+
     it('opens the picture on the clipboard from the paste button', async () => {
       const picture = new Blob(['jpg'], { type: 'image/jpeg' });
       clipboardHolding(async () => [

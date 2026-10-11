@@ -1631,6 +1631,7 @@
         "dropHere": "여기에 이미지를 드롭하세요",
         "clickToSelect": "또는 여기를 클릭해 선택하세요",
         "maxSize": "파일 하나당 2MB까지",
+        "oversized": "2MB를 넘어 추가하지 못했습니다: {{names}}",
         "newTagPlaceholder": "새 태그 이름",
         "changeTag": "태그 변경",
         "noImages": "이 분류에 이미지가 없습니다",

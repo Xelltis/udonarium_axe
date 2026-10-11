@@ -1631,6 +1631,7 @@
         "dropHere": "Drop images here",
         "clickToSelect": "or click to select",
         "maxSize": "Up to 2MB per file",
+        "oversized": "Not added, over 2 MB: {{names}}",
         "newTagPlaceholder": "New tag name",
         "changeTag": "Change tag",
         "noImages": "No images in this category",

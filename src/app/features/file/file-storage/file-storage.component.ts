@@ -189,16 +189,20 @@ export class FileStorageComponent {
   /**
    * Takes in the pictures chosen in the upload dialog, through the image editor where they are set
    * to open in it first or are too large to go straight in, then clears the input so the same file
-   * can be chosen again.
+   * can be chosen again. The panel names any picture still over the size limit once the rest are in.
    *
    * A seat that may not edit the table loads nothing.
    */
-  handleFileSelect(event: Event) {
+  async handleFileSelect(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const files = Array.from(input.files ?? []);
     input.value = '';
     if (!this.rolePermission.canEditTabletop || files.length === 0) return;
-    void this.editQueue.upload(files);
+    this.notice.set('');
+    const { oversized } = await this.editQueue.upload(files);
+    if (oversized.length > 0) {
+      this.notice.set(this.t('feature.file.fileStorage.oversized', { names: oversized.join(', ') }));
+    }
   }
 
   /** What the panel has to say about the last paste or edit asked for, empty when nothing. */

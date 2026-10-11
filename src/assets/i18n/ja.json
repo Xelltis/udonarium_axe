@@ -1631,6 +1631,7 @@
         "dropHere": "ここに画像をドロップ",
         "clickToSelect": "またはここをクリックして選択",
         "maxSize": "１ファイルにつき2MBまで",
+        "oversized": "2MBを超えるため取り込めませんでした: {{names}}",
         "newTagPlaceholder": "新タグ名",
         "changeTag": "タグを変更",
         "noImages": "この分類に画像はありません",
