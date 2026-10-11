@@ -159,6 +159,21 @@ describe('RotableDirective', () => {
       expect(directive.rotate).toBe(90);
     });
 
+    it('writes a turn still waiting to the piece when the element goes, and emits nothing after', () => {
+      vi.useFakeTimers();
+      const range = new RangeArea();
+      (directive as unknown as Record<string, unknown>)['tabletopObject'] = range;
+      const emitted = vi.spyOn(directive.valueChange, 'emit');
+
+      moveTo(31, false);
+      fixture.destroy();
+      vi.advanceTimersByTime(200);
+      vi.useRealTimers();
+
+      expect(range.rotate).toBeCloseTo(31);
+      expect(emitted).not.toHaveBeenCalled();
+    });
+
     it('snaps the moment Alt goes down and frees the turn the moment it comes up', () => {
       moveTo(31, false);
 

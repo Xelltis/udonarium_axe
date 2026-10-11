@@ -111,6 +111,7 @@ export class RotableDirective {
       }
     });
     this.destroyRef.onDestroy(() => {
+      this.settlePendingUpdate();
       this.cancel();
       this.input?.destroy();
       this.batchService.remove(this);
@@ -333,6 +334,17 @@ export class RotableDirective {
     }
     this.rotate = this.rotate < 0 ? this.rotate - 180 / polygonal : this.rotate + 180 / polygonal;
     this.rotate -= this.rotate % (360 / polygonal);
+  }
+
+  /**
+   * Writes a turn still waiting on its timer to the piece at once, as the element goes. Nothing is
+   * emitted, since whoever listened has gone with it.
+   */
+  private settlePendingUpdate(): void {
+    if (this.updateTimer === null) return;
+    clearTimeout(this.updateTimer);
+    this.updateTimer = null;
+    if (this.tabletopObject) this.tabletopObject.rotate = this.rotate;
   }
 
   private setUpdateTimer() {
