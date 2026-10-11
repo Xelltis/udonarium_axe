@@ -84,6 +84,7 @@
         <span
           class="absolute left-1/2 flex w-[130%] origin-bottom -translate-x-1/2 flex-col items-center gap-1.5 pb-2"
           data-testid="first-person-piece-chrome"
+          [style.max-width.px]="chromeMaxWidthPx"
           [style.bottom.%]="piece.chromeBottom"
           [style.transform]="piece.hud"
         >

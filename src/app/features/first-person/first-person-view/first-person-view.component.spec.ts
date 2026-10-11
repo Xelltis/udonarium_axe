@@ -790,6 +790,21 @@ describe('FirstPersonViewComponent', () => {
       expect(view.querySelector(`[data-piece="${offCentre.identifier}"]`)).not.toBeNull();
     });
 
+    it('keeps what is told about a great piece as wide as for a piece of one cell', () => {
+      const giant = GameCharacter.create('巨竜', 6, '');
+      giant.location = { name: 'table', x: GRID, y: 0 };
+      const small = pieceAt(5, 4);
+      lookOutOf(pieceAt(4, 9));
+      const view = element(mount());
+      const chromeOf = (piece: GameCharacter) =>
+        view.querySelector<HTMLElement>(
+          `[data-piece="${piece.identifier}"] [data-testid="first-person-piece-chrome"]`
+        )!;
+
+      expect(chromeOf(giant).style.maxWidth).toBe(chromeOf(small).style.maxWidth);
+      expect(parseFloat(chromeOf(giant).style.maxWidth)).toBeCloseTo(1.3 * GRID * scaleOf(GRID), 0);
+    });
+
     it('draws a great piece whose middle a pillar hides while its sides are in sight', () => {
       const pillar = Terrain.create('柱', 1, 1, 2, 'stone', 'slab');
       pillar.location = { name: 'table', x: 4 * GRID, y: 6 * GRID };

@@ -85,6 +85,7 @@ import {
   blurFilter,
   cameraTransform,
   farBlurPx,
+  FIRST_PERSON_UNIT_PX,
   litShade,
   NIGHT_SKY,
   nightSkyAt,
@@ -111,6 +112,8 @@ import { MAX_MULTI_ANGLE_RESOURCE_GAUGES } from '@axe/ui/tabletop/multi-angle-or
 import { TranslocoModule } from '@jsverse/transloco';
 
 const NEAR_CELLS = 0.05;
+/** How wide what is told about a piece runs beside the picture of a piece one cell wide. */
+const CHROME_WIDTH_RATIO = 1.3;
 /** How much more than the screen the view is taken to open above and below, so nothing at its edge is lost. */
 const VIEW_OPENING_MARGIN = 1.15;
 const GLIDE_MS = 160;
@@ -294,6 +297,12 @@ export class FirstPersonViewComponent {
   }
 
   protected readonly gridSize = computed(() => this.firstPerson.table()?.gridSize ?? 0);
+
+  /**
+   * How wide what is told about a piece may run, in the view's own pixels: as wide as for a piece of
+   * one cell, so a great piece's readings stay a size to read rather than spanning the view.
+   */
+  protected readonly chromeMaxWidthPx = Math.round(FIRST_PERSON_UNIT_PX * CHROME_WIDTH_RATIO);
 
   protected readonly scale = computed(() => scaleOf(this.gridSize()));
 
