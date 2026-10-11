@@ -962,6 +962,23 @@ describe('FirstPersonViewComponent', () => {
       expect(quads()).toBe(before);
     });
 
+    it('stands a piece smaller than a cell in the middle of its cell, as small as it is on the table', () => {
+      const small = pieceAt(4, 4);
+      small.size = 0.5;
+      const one = pieceAt(5, 4);
+      lookOutOf(pieceAt(4, 9));
+      const view = element(mount());
+      const billboardOf = (piece: GameCharacter) =>
+        view.querySelector<HTMLElement>(`[data-piece="${piece.identifier}"]`)!;
+      const chromeOf = (piece: GameCharacter) =>
+        billboardOf(piece).querySelector<HTMLElement>('[data-testid="first-person-piece-chrome"]')!;
+
+      expect(billboardOf(small).style.transform).toContain(`translate3d(${4.5 * GRID * scaleOf(GRID)}px,`);
+      expect(parseFloat(billboardOf(small).style.width)).toBeCloseTo(0.5 * GRID * scaleOf(GRID), 1);
+      expect(parseFloat(chromeOf(small).style.width)).toBeCloseTo(parseFloat(chromeOf(one).style.width), 1);
+      expect(parseFloat(chromeOf(small).style.width)).toBeGreaterThan(GRID * scaleOf(GRID));
+    });
+
     it('keeps what is told about a great piece as wide as for a piece of one cell', () => {
       const giant = GameCharacter.create('巨竜', 6, '');
       giant.location = { name: 'table', x: GRID, y: 0 };
@@ -973,8 +990,8 @@ describe('FirstPersonViewComponent', () => {
           `[data-piece="${piece.identifier}"] [data-testid="first-person-piece-chrome"]`
         )!;
 
-      expect(chromeOf(giant).style.maxWidth).toBe(chromeOf(small).style.maxWidth);
-      expect(parseFloat(chromeOf(giant).style.maxWidth)).toBeCloseTo(1.3 * GRID * scaleOf(GRID), 0);
+      expect(chromeOf(giant).style.width).toBe(chromeOf(small).style.width);
+      expect(parseFloat(chromeOf(giant).style.width)).toBeCloseTo(1.3 * GRID * scaleOf(GRID), 0);
     });
 
     it('draws a great piece whose middle a pillar hides while its sides are in sight', () => {

@@ -115,7 +115,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 const NEAR_CELLS = 0.05;
 /** How far over the top of a great piece the roof of its room is raised, in cells. */
 const ROOF_CLEARANCE_CELLS = 0.5;
-/** How wide what is told about a piece runs beside the picture of a piece one cell wide. */
+/** How wide what is told about a piece runs, against the picture of a piece one cell wide. */
 const CHROME_WIDTH_RATIO = 1.3;
 /** How much more than the screen the view is taken to open above and below, so nothing at its edge is lost. */
 const VIEW_OPENING_MARGIN = 1.15;
@@ -155,6 +155,7 @@ interface GaugeView {
 /** A piece standing on the floor in sight of the seat, and how large it stands. */
 interface StandingPiece {
   piece: GameCharacter;
+  /** How wide the ground it stands on is, in table pixels: a cell at the least, as when it moves. */
   size: number;
   centre: CellPoint;
   aspect: number | undefined;
@@ -312,10 +313,11 @@ export class FirstPersonViewComponent {
   protected readonly gridSize = computed(() => this.firstPerson.table()?.gridSize ?? 0);
 
   /**
-   * How wide what is told about a piece may run, in the view's own pixels: as wide as for a piece of
-   * one cell, so a great piece's readings stay a size to read rather than spanning the view.
+   * How wide what is told about a piece runs, in the view's own pixels: as wide for every piece as for
+   * one of a cell, so a great piece's readings stay a size to read rather than spanning the view, and
+   * a small piece's are not squeezed to nothing.
    */
-  protected readonly chromeMaxWidthPx = Math.round(FIRST_PERSON_UNIT_PX * CHROME_WIDTH_RATIO);
+  protected readonly chromeWidthPx = Math.round(FIRST_PERSON_UNIT_PX * CHROME_WIDTH_RATIO);
 
   protected readonly scale = computed(() => scaleOf(this.gridSize()));
 
@@ -450,8 +452,9 @@ export class FirstPersonViewComponent {
       this.objectChange.versionOf(piece.identifier)();
       if (!piece.isVisibleOnTable || surfaceOf(piece) !== 'floor' || boardSurfaceOf(piece) !== '') continue;
       if (!this.vision.isTokenVisible(piece)) continue;
-      const size = Math.max(0, piece.size) * gridSize;
-      if (size <= 0) continue;
+      const drawnCells = Math.max(0, piece.size);
+      if (drawnCells <= 0) continue;
+      const size = Math.max(1, drawnCells) * gridSize;
       const aspect = aspects.get(piece.imageFile.url);
       pieces.push({
         piece,
@@ -459,7 +462,7 @@ export class FirstPersonViewComponent {
         centre: { x: piece.location.x + size / 2, y: piece.location.y + size / 2 },
         aspect,
         stand: pieceStandPx({
-          sizeCells: Math.max(0, piece.size),
+          sizeCells: drawnCells,
           gridSize,
           aspect,
           specifiedHeightPx: piece.specifyKomaImageFlag ? piece.komaImageHeight : undefined,
