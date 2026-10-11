@@ -5,6 +5,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
@@ -140,6 +141,22 @@ describe('RotableDirective', () => {
 
       expect(directive.rotate).toBe(60);
       expect(guide()?.step).toBe(30);
+    });
+
+    it('turns a custom range by quarter turns with Alt held, on a hex grid too, and keeps the angle let go', () => {
+      vi.spyOn(TestBed.inject(TableSelecter), 'viewTable', 'get').mockReturnValue({
+        gridType: GridType.HEX_VERTICAL,
+      } as GameTable);
+      const range = new RangeArea();
+      range.type = 'CUSTOM';
+      (directive as unknown as Record<string, unknown>)['tabletopObject'] = range;
+
+      moveTo(70, true);
+      expect(directive.rotate).toBe(90);
+      expect(guide()?.step).toBe(90);
+
+      directive.onInputEnd(new MouseEvent('mouseup'));
+      expect(directive.rotate).toBe(90);
     });
 
     it('snaps the moment Alt goes down and frees the turn the moment it comes up', () => {

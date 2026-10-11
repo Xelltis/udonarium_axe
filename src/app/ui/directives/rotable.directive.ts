@@ -7,7 +7,7 @@ import { BatchService } from '@axe/application/ui/batch.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
-import { rotationSnapStep, shownAngle, snapAngle } from '@axe/domain/tabletop/rotation-snap';
+import { QUARTER_TURN_DEGREES, rotationSnapStep, shownAngle, snapAngle } from '@axe/domain/tabletop/rotation-snap';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { InputHandler } from '@axe/ui/directives/input-handler';
@@ -245,9 +245,18 @@ export class RotableDirective {
     this.turnTo();
   }
 
-  /** The step a held snap turns by on the table being viewed. */
+  /**
+   * The step a held snap turns by on the table being viewed. A custom range lies only at quarter
+   * turns, which is where it settles once let go, so it is snapped by quarters on any grid.
+   */
   private get snapStep(): number {
+    if (this.turnsByQuarters) return QUARTER_TURN_DEGREES;
     return rotationSnapStep(this.tableSelecter.viewTable?.gridType ?? GridType.SQUARE);
+  }
+
+  /** Whether the object turns only by quarter turns, as a custom range does. */
+  private get turnsByQuarters(): boolean {
+    return this.tabletopObject instanceof RangeArea && this.tabletopObject.type === 'CUSTOM';
   }
 
   private turnTo(): void {
@@ -319,7 +328,7 @@ export class RotableDirective {
     if (polygonal <= 1) return;
     if (this.tabletopObject instanceof RangeArea) {
       const range = this.tabletopObject as RangeArea;
-      if (range.type === 'CUSTOM') polygonal = 4;
+      if (this.turnsByQuarters) polygonal = 360 / QUARTER_TURN_DEGREES;
       else if (range.subDivisionSnapPolygonal) polygonal = 240;
     }
     this.rotate = this.rotate < 0 ? this.rotate - 180 / polygonal : this.rotate + 180 / polygonal;

@@ -6,6 +6,9 @@ export const SQUARE_GRID_SNAP_DEGREES = 45;
 /** The turn a held snap steps by on a hex grid: each face and each corner of a hex. */
 export const HEX_GRID_SNAP_DEGREES = 30;
 
+/** The turn a held snap steps by for a shape that only ever lies at quarter turns, whatever the grid. */
+export const QUARTER_TURN_DEGREES = 90;
+
 /** The turn a held snap steps by on a table of this grid. */
 export function rotationSnapStep(gridType: GridType): number {
   return isHexGrid(gridType) ? HEX_GRID_SNAP_DEGREES : SQUARE_GRID_SNAP_DEGREES;
