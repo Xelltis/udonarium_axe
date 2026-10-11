@@ -223,6 +223,17 @@ describe('PeerCursor', () => {
     });
   });
 
+  describe('taking in a peer\u2019s state', () => {
+    it('takes in an answer to a vote while the room holds no vote', () => {
+      const sent = new PeerCursor('peer-cursor-a');
+      sent.voteId = 3;
+      const received = new PeerCursor('peer-cursor-a');
+
+      expect(() => received.apply(sent.toContext())).not.toThrow();
+      expect(received.voteId).toBe(3);
+    });
+  });
+
   describe('debugReceiveDelay', () => {
     it('adds the delay onto when it was received', () => {
       const cursor = new PeerCursor();
