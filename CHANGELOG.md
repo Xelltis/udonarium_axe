@@ -1,3 +1,16 @@
+## [1.65.2](https://github.com/Xelltis/udonarium_axe/compare/v1.65.1...v1.65.2) (2026-10-11)
+
+### 🐛 Bug Fixes
+
+* **first-person:** keep the view where a drag leaves it ([d1197ba](https://github.com/Xelltis/udonarium_axe/commit/d1197ba6dfb05b34bae7152f33beed1fc16e6bf0))
+* **tabletop:** stand and stop pieces on a turned terrain where it is drawn ([ecf42cc](https://github.com/Xelltis/udonarium_axe/commit/ecf42cc75fc9f7dd13558c6b54a7cd4ed0f35b10))
+* **ui:** hide every piece's name from the toolbars, for this screen alone ([60c1be9](https://github.com/Xelltis/udonarium_axe/commit/60c1be9748c9a2f5e96fb46db2ccb16a962e66b8))
+
+### 📝 Documentation
+
+* **manual:** describe the toolbar switch that hides every piece's name ([175602f](https://github.com/Xelltis/udonarium_axe/commit/175602fc1a3d8a04b51699a6d00259f85d155f6c))
+* **manual:** say the look stays where it is let go in the first-person view ([5906234](https://github.com/Xelltis/udonarium_axe/commit/59062342a7ad292fa8831ae4f7c03ba1c23cf7e9))
+
 ## [1.65.1](https://github.com/Xelltis/udonarium_axe/compare/v1.65.0...v1.65.1) (2026-10-11)
 
 ### 🐛 Bug Fixes
