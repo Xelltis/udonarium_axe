@@ -37,6 +37,7 @@ import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import {
   clipBillboardToEye,
   depthOf,
+  EyeFrame,
   eyeFrameOf,
   FirstPersonCamera,
   lateralOf,
@@ -493,8 +494,7 @@ export class FirstPersonViewComponent {
     const grid = this.firstPerson.grid();
     const views: PieceView[] = [];
     for (const { piece, size, centre, stand, basePx: base } of this.standing()) {
-      this.objectChange.versionOf(piece.identifier)();
-      if (!this.pieceInSight(camera, piece.location, size, centre)) continue;
+      if (!this.pieceInSight(eye, piece.location, size, centre)) continue;
       const badges = this.badgesOf(piece);
       const depth = depthOf(eye, centre);
       const lifted = base + billboardLiftPx(base, camera.z, depth, perspective, viewHeight, pitch);
@@ -588,7 +588,7 @@ export class FirstPersonViewComponent {
     const views: PropView[] = [];
     for (const prop of this.props()) {
       const clip = propClip(prop, eye, gridSize * NEAR_CELLS, scale);
-      if (clip === null || !this.propInSight(pose, prop)) continue;
+      if (clip === null || !this.propInSight(eye, prop)) continue;
       const placed = propStyle(prop, pose.yaw, scale);
       const blur = blurFilter(farBlurPx(depthOf(eye, prop), clear, reach));
       const style = blur ? { ...placed, filter: blur } : placed;
@@ -629,7 +629,7 @@ export class FirstPersonViewComponent {
         rotate: 0,
       };
       const clip = propClip(footprint, eye, gridSize * NEAR_CELLS, scale);
-      if (clip === null || !this.propInSight(pose, footprint)) continue;
+      if (clip === null || !this.propInSight(eye, footprint)) continue;
       const style = propStyle(footprint, pose.yaw, scale);
       views.push({ id: range.identifier, range, style: clip ? { ...style, clipPath: clip } : style });
     }
@@ -753,7 +753,7 @@ export class FirstPersonViewComponent {
     const nearPx = this.gridSize() * NEAR_CELLS;
     return this.glows()
       .filter((glow) => {
-        if (!this.inSight(pose, glow, glow.z)) return false;
+        if (!this.inSight(eye, glow, glow.z)) return false;
         const kept = clipBillboardToEye(eye, glow, glow.z - glow.radius, glow.z + glow.radius, nearPx);
         return kept !== null && kept.highPx - kept.lowPx >= glow.radius * 2 - 1e-6;
       })
@@ -921,13 +921,12 @@ export class FirstPersonViewComponent {
    * Whether a point stands where the view can show it: over ground in sight, clear of the camera's
    * near plane at the height given (or at the eye's), and no further off than the view reaches.
    */
-  private inSight(camera: FirstPersonCamera, centre: CellPoint, zPx?: number): boolean {
+  private inSight(eye: EyeFrame, centre: CellPoint, zPx?: number): boolean {
     const grid = this.firstPerson.grid();
     const seen = this.drawnSeen();
     if (!grid) return false;
     const cell = cellIndexAt(grid, centre.x, centre.y);
     if (seen && (cell < 0 || !seen.get(cell))) return false;
-    const eye = eyeFrameOf(camera);
     const depth = depthOf(eye, centre);
     const ahead = zPx === undefined ? depth : viewDepthOf(eye, centre, zPx);
     return ahead > this.gridSize() * NEAR_CELLS * 4 && depth <= this.firstPerson.depthPx();
@@ -938,10 +937,10 @@ export class FirstPersonViewComponent {
    * cell whose middle its footing covers, so a great piece half behind a pillar still shows; and the
    * face it stands up on lies ahead of the eye, its near side no further off than the view reaches.
    */
-  private pieceInSight(camera: FirstPersonCamera, at: CellPoint, groundPx: number, centre: CellPoint): boolean {
+  private pieceInSight(eye: EyeFrame, at: CellPoint, groundPx: number, centre: CellPoint): boolean {
     const grid = this.firstPerson.grid();
     if (!grid) return false;
-    const depth = depthOf(eyeFrameOf(camera), centre);
+    const depth = depthOf(eye, centre);
     if (depth <= this.gridSize() * NEAR_CELLS * 4 || depth - groundPx / 2 > this.firstPerson.depthPx()) return false;
     const seen = this.drawnSeen();
     if (!seen) return true;
@@ -962,16 +961,16 @@ export class FirstPersonViewComponent {
     return this.vision.objectBrightness(centre.x, centre.y, 0, false, standing);
   }
 
-  private propInSight(camera: FirstPersonCamera, prop: PropShape): boolean {
+  private propInSight(eye: EyeFrame, prop: PropShape): boolean {
     if (prop.kind === 'lie') {
-      return lyingSamples(prop, this.gridSize()).some((point) => this.inSight(camera, point, prop.z));
+      return lyingSamples(prop, this.gridSize()).some((point) => this.inSight(eye, point, prop.z));
     }
     if (prop.kind === 'board') {
       const heading = headingVector(prop.rotate);
       const step = this.gridSize() * BOARD_STEP_CELLS;
-      return this.inSight(camera, { x: prop.x - heading.x * step, y: prop.y - heading.y * step });
+      return this.inSight(eye, { x: prop.x - heading.x * step, y: prop.y - heading.y * step });
     }
-    return this.inSight(camera, prop);
+    return this.inSight(eye, prop);
   }
 
   private urlOf(identifier: string): string {
