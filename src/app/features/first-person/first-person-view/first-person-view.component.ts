@@ -34,12 +34,20 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { gaugeNumbersOf, selectPieceGauges } from '@axe/domain/character/piece-gauge';
 import { DataElement } from '@axe/domain/data/data-element';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
-import { depthOf, eyeFrameOf, lateralOf } from '@axe/domain/tabletop/first-person/first-person-clip';
+import {
+  clipBillboardToEye,
+  depthOf,
+  eyeFrameOf,
+  FirstPersonCamera,
+  lateralOf,
+  viewDepthOf,
+} from '@axe/domain/tabletop/first-person/first-person-clip';
 import {
   FirstPersonMove,
   FirstPersonPose,
   headingVector,
 } from '@axe/domain/tabletop/first-person/first-person-lattice';
+import { cameraOf } from '@axe/domain/tabletop/first-person/first-person-look';
 import {
   FIRST_PERSON_FOV_DEG,
   FirstPersonQuad,
@@ -60,6 +68,7 @@ import {
 import { FirstPersonFogAirComponent } from '@axe/features/first-person/first-person-fog-air/first-person-fog-air.component';
 import { facingNameOf, isHexLattice, padRows } from '@axe/features/first-person/first-person-hud';
 import { FirstPersonCommand, firstPersonKeyDown } from '@axe/features/first-person/first-person-keys';
+import { FirstPersonLookService } from '@axe/features/first-person/first-person-look.service';
 import {
   glowStyle,
   lyingSamples,
@@ -77,6 +86,8 @@ import {
   cameraTransform,
   farBlurPx,
   litShade,
+  NIGHT_SKY,
+  nightSkyAt,
   perspectivePx,
   pictureTopPercent,
   pieceChromeBottomPercent,
@@ -88,6 +99,7 @@ import {
   scaleOf,
   shadeFor,
   wallQuadStyle,
+  withBillboardCut,
 } from '@axe/features/first-person/first-person-style';
 import { FogAirLayer, fogAirLayers } from '@axe/features/tabletop/fog-of-war/fog-air-layers';
 import { FOG_AIR_SHEET_MARGIN } from '@axe/features/tabletop/fog-of-war/fog-air-sheet';
@@ -99,6 +111,8 @@ import { MAX_MULTI_ANGLE_RESOURCE_GAUGES } from '@axe/ui/tabletop/multi-angle-or
 import { TranslocoModule } from '@jsverse/transloco';
 
 const NEAR_CELLS = 0.05;
+/** How much more than the screen the view is taken to open above and below, so nothing at its edge is lost. */
+const VIEW_OPENING_MARGIN = 1.15;
 const GLIDE_MS = 160;
 const SNAP_CELLS = 3;
 const SNAP_TURN_DEG = 135;
@@ -107,9 +121,6 @@ const TARGET_CONE_DEG = 20;
 const BOARD_STEP_CELLS = 0.25;
 const EFFECT_LIFT_CELLS = 0.15;
 const EFFECT_RISE_CELLS = 0.3;
-/** The sky over a table that has no picture to show, darkest overhead and palest at the horizon. */
-const NIGHT_SKY =
-  'linear-gradient(to bottom, #04060b 0%, #0b1220 32%, #1c2840 49%, #222f47 50%, #10161f 56%, #06080c 100%)';
 /** How far below the top of the view what is told about a near piece keeps, clear of the toolbars. */
 const CHROME_TOP_MARGIN_PX = 64;
 /** How far over the floor a range area is laid, clear of the floor and of anything lying on it. */
@@ -211,6 +222,7 @@ interface SkyView {
     TableEffectOverlayComponent,
     TableWeatherOverlayComponent,
   ],
+  providers: [FirstPersonLookService],
 })
 export class FirstPersonViewComponent {
   protected readonly firstPerson = inject(FirstPersonService);
@@ -234,6 +246,7 @@ export class FirstPersonViewComponent {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
   private readonly minimapCanvas = viewChild<ElementRef<HTMLCanvasElement>>('minimap');
+  protected readonly looking = inject(FirstPersonLookService);
 
   private readonly width = signal(0);
   private readonly height = signal(0);
@@ -287,17 +300,32 @@ export class FirstPersonViewComponent {
     perspectivePx(this.width() || DEFAULT_VIEW_WIDTH_PX, FIRST_PERSON_FOV_DEG)
   );
 
-  protected readonly camera = computed(() => {
+  /**
+   * The camera the view is drawn through: where the shown pose stands, turned and tipped as far as
+   * the screen looks away from where the piece faces.
+   */
+  private readonly viewCamera = computed<FirstPersonCamera | null>(() => {
     const pose = this.shown();
-    return pose ? cameraTransform(pose, this.scale(), this.perspective()) : 'none';
+    return pose ? cameraOf(pose, this.looking.look()) : null;
+  });
+
+  /** How tall the view opens above and below its middle, with some to spare, as a tangent. */
+  private readonly halfHeightTan = computed(() => {
+    const height = this.height();
+    return height > 0 ? ((height / 2) * VIEW_OPENING_MARGIN) / this.perspective() : undefined;
+  });
+
+  protected readonly camera = computed(() => {
+    const camera = this.viewCamera();
+    return camera ? cameraTransform(camera, this.scale(), this.perspective()) : 'none';
   });
 
   protected readonly effectEye = computed<EffectEye | null>(() => {
-    const pose = this.shown();
+    const camera = this.viewCamera();
     const gridSize = this.gridSize();
-    if (!pose || gridSize <= 0) return null;
+    if (!camera || gridSize <= 0) return null;
     return {
-      rotation: { x: 90, y: 0, z: -pose.yaw },
+      rotation: { x: 90 + (camera.pitch ?? 0), y: 0, z: -camera.yaw },
       liftPx: gridSize * EFFECT_LIFT_CELLS,
       risePx: gridSize * EFFECT_RISE_CELLS,
     };
@@ -313,14 +341,16 @@ export class FirstPersonViewComponent {
   protected readonly flash = this.playback.flash;
 
   private readonly quads = computed<FirstPersonQuad[]>(() => {
-    const pose = this.shown();
+    const camera = this.viewCamera();
     const world = this.firstPerson.world();
     const grid = this.firstPerson.grid();
-    if (!pose || !world || !grid) return [];
+    if (!camera || !world || !grid) return [];
     return firstPersonScene({
       world,
       grid,
-      pose,
+      pose: camera,
+      pitch: camera.pitch,
+      halfHeightTan: camera.pitch ? this.halfHeightTan() : undefined,
       seen: this.drawnSeen(),
       depthPx: this.firstPerson.depthPx(),
       nearPx: NEAR_CELLS * this.gridSize(),
@@ -363,9 +393,10 @@ export class FirstPersonViewComponent {
 
   protected readonly pieceViews = computed<PieceView[]>(() => {
     const pose = this.shown();
+    const camera = this.viewCamera();
     const viewer = this.firstPerson.piece();
     const gridSize = this.gridSize();
-    if (!pose || !viewer || gridSize <= 0) return [];
+    if (!pose || !camera || !viewer || gridSize <= 0) return [];
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     this.objectChange.fileVersion();
     this.uiSignal.targetChange();
@@ -373,7 +404,9 @@ export class FirstPersonViewComponent {
     this.objectChange.collectionOf('data')();
     const master = this.rolePermission.canSeeHidden;
     const picks = this.effectTargeting.picks();
-    const eye = eyeFrameOf(pose);
+    const eye = eyeFrameOf(camera);
+    const facing = eyeFrameOf(pose);
+    const nearPx = gridSize * NEAR_CELLS;
     const scale = this.scale();
     const perspective = this.perspective();
     const viewHeight = this.height();
@@ -390,9 +423,10 @@ export class FirstPersonViewComponent {
       if (!this.vision.isTokenVisible(piece)) continue;
       const size = Math.max(0, piece.size) * gridSize;
       const centre = { x: piece.location.x + size / 2, y: piece.location.y + size / 2 };
-      if (size <= 0 || !this.pieceInSight(pose, piece.location, size, centre)) continue;
+      if (size <= 0 || !this.pieceInSight(camera, piece.location, size, centre)) continue;
       const badges = this.badgesOf(piece);
       const depth = depthOf(eye, centre);
+      const ahead = depthOf(facing, centre);
       const aspect = aspects.get(piece.imageFile.url);
       const stand = pieceStandPx({
         sizeCells: Math.max(0, piece.size),
@@ -401,7 +435,9 @@ export class FirstPersonViewComponent {
         specifiedHeightPx: piece.specifyKomaImageFlag ? piece.komaImageHeight : undefined,
       });
       const base = piece.posZ + piece.altitude * gridSize;
-      const lifted = base + billboardLiftPx(base, pose.z, depth, perspective, viewHeight);
+      const lifted = base + billboardLiftPx(base, pose.z, ahead, perspective, viewHeight);
+      const kept = clipBillboardToEye(eye, centre, lifted, lifted + stand.heightPx, nearPx);
+      if (!kept) continue;
       const textScale = billboardTextScale(depth, scale, perspective);
       const gauges = this.gaugesOf(piece);
       const label = piece.hideName && !master ? '' : piece.name;
@@ -418,23 +454,31 @@ export class FirstPersonViewComponent {
         gauges,
         badges: badges.slice(0, BUFF_BADGES_PER_ROW),
         moreBadges: Math.max(0, badges.length - BUFF_BADGES_PER_ROW),
-        style: billboardStyle({ ...centre, z: lifted }, stand.widthPx, stand.heightPx, pose.yaw, scale),
+        style: withBillboardCut(
+          billboardStyle({ ...centre, z: lifted }, stand.widthPx, stand.heightPx, camera.yaw, scale),
+          kept,
+          lifted,
+          stand.heightPx
+        ),
         hud: billboardHudTransform(textScale),
         chromeBottom: pieceChromeBottomPercent({
           pictureTop: pictureTopPercent(stand.widthPx / stand.heightPx, aspect),
           heightPx: stand.heightPx,
           baseZ: lifted,
           eyeZ: pose.z,
-          depthPx: depth,
+          depthPx: ahead,
           perspective,
           viewHeightPx: viewHeight,
-          chromeScreenPx: pieceChromeHeightPx(chromeRows) * textScale * projectedScaleOf(depth, scale, perspective),
+          chromeScreenPx:
+            pieceChromeHeightPx(chromeRows) *
+            billboardTextScale(ahead, scale, perspective) *
+            projectedScaleOf(ahead, scale, perspective),
           marginPx: CHROME_TOP_MARGIN_PX,
         }),
         imageFilter: pieceImageFilter(
           this.vision.objectBrightness(centre.x, centre.y, size / 2, false, base),
           piece.targeted,
-          farBlurPx(depth, clear, reach)
+          farBlurPx(ahead, clear, reach)
         ),
       });
     }
@@ -475,7 +519,7 @@ export class FirstPersonViewComponent {
   private readonly glows = computed(() => this.propsService.glows());
 
   protected readonly propViews = computed<PropView[]>(() => {
-    const pose = this.shown();
+    const pose = this.viewCamera();
     const gridSize = this.gridSize();
     if (!pose || gridSize <= 0) return [];
     const eye = eyeFrameOf(pose);
@@ -505,7 +549,7 @@ export class FirstPersonViewComponent {
    * as wide as its canvases, cut at the eye where it runs under it.
    */
   protected readonly rangeViews = computed<RangeView[]>(() => {
-    const pose = this.shown();
+    const pose = this.viewCamera();
     const gridSize = this.gridSize();
     if (!pose || gridSize <= 0) return [];
     this.objectChange.collectionOf(RangeArea.aliasName)();
@@ -539,14 +583,16 @@ export class FirstPersonViewComponent {
    * stand through it, which a flat sheet cannot be drawn doing, so it is left out.
    */
   protected readonly beamViews = computed<BeamView[]>(() => {
-    const pose = this.shown();
+    const pose = this.viewCamera();
     const gridSize = this.gridSize();
     if (!pose || gridSize <= 0) return [];
     const eye = eyeFrameOf(pose);
     const reach = this.firstPerson.depthPx();
     return this.vision.lightBeams().flatMap((beam, index) => {
       const depth = depthOf(eye, beam.origin);
-      if (depth < gridSize || depth > reach + beam.height) return [];
+      const hung = viewDepthOf(eye, beam.origin, beam.origin.z);
+      const foot = viewDepthOf(eye, beam.origin, beam.origin.z - beam.height);
+      if (depth < gridSize || hung < gridSize || foot < gridSize || depth > reach + beam.height) return [];
       return [
         {
           id: `${index}:${beam.origin.x}:${beam.origin.y}`,
@@ -565,7 +611,7 @@ export class FirstPersonViewComponent {
    * height as the table hangs it, cut at the eye where it runs over the viewer. None without fog.
    */
   protected readonly fogAirViews = computed<FogAirView[]>(() => {
-    const pose = this.shown();
+    const pose = this.viewCamera();
     const table = this.firstPerson.table();
     const gridSize = this.gridSize();
     if (!pose || !table || gridSize <= 0 || !this.vision.overlayVision()?.fogEnabled) return [];
@@ -624,15 +670,34 @@ export class FirstPersonViewComponent {
    * each turn as wide as the view sees, as anything far enough off would be.
    */
   protected readonly skyShift = computed(
-    () => -((this.shown()?.yaw ?? 0) / FIRST_PERSON_FOV_DEG) * (this.width() || DEFAULT_VIEW_WIDTH_PX)
+    () => -((this.viewCamera()?.yaw ?? 0) / FIRST_PERSON_FOV_DEG) * (this.width() || DEFAULT_VIEW_WIDTH_PX)
   );
 
+  /** How far the horizon drops down the view as the eye looks up, or rises as it looks down. */
+  protected readonly skyLift = computed(() => {
+    const pitch = this.viewCamera()?.pitch ?? 0;
+    return pitch === 0 ? 0 : this.perspective() * Math.tan((pitch * Math.PI) / 180);
+  });
+
+  /** The night sky, its haze kept at the horizon wherever the eye looks. */
+  protected readonly skyGradient = computed(() => {
+    const gradient = this.sky()?.gradient ?? null;
+    if (!gradient) return null;
+    return nightSkyAt(this.skyLift(), this.height());
+  });
+
   protected readonly glowViews = computed<GlowView[]>(() => {
-    const pose = this.shown();
+    const pose = this.viewCamera();
     if (!pose) return [];
     const scale = this.scale();
+    const eye = eyeFrameOf(pose);
+    const nearPx = this.gridSize() * NEAR_CELLS;
     return this.glows()
-      .filter((glow) => this.inSight(pose, glow))
+      .filter((glow) => {
+        if (!this.inSight(pose, glow, glow.z)) return false;
+        const kept = clipBillboardToEye(eye, glow, glow.z - glow.radius, glow.z + glow.radius, nearPx);
+        return kept !== null && kept.highPx - kept.lowPx >= glow.radius * 2 - 1e-6;
+      })
       .map((glow) => ({ id: glow.id, style: glowStyle(glow, pose.yaw, scale) }));
   });
 
@@ -650,7 +715,7 @@ export class FirstPersonViewComponent {
 
   protected readonly facing = computed(() => facingNameOf(this.firstPerson.pose()?.yaw ?? 0));
 
-  protected readonly compassTurn = computed(() => -(this.shown()?.yaw ?? 0));
+  protected readonly compassTurn = computed(() => -(this.viewCamera()?.yaw ?? 0));
 
   protected readonly compassTicks = COMPASS_TICKS;
 
@@ -778,14 +843,20 @@ export class FirstPersonViewComponent {
     if (ahead) this.aim(ahead.id);
   }
 
-  private inSight(pose: FirstPersonPose, centre: CellPoint): boolean {
+  /**
+   * Whether a point stands where the view can show it: over ground in sight, clear of the camera's
+   * near plane at the height given (or at the eye's), and no further off than the view reaches.
+   */
+  private inSight(camera: FirstPersonCamera, centre: CellPoint, zPx?: number): boolean {
     const grid = this.firstPerson.grid();
     const seen = this.drawnSeen();
     if (!grid) return false;
     const cell = cellIndexAt(grid, centre.x, centre.y);
     if (seen && (cell < 0 || !seen.get(cell))) return false;
-    const depth = depthOf(eyeFrameOf(pose), centre);
-    return depth > this.gridSize() * NEAR_CELLS * 4 && depth <= this.firstPerson.depthPx();
+    const eye = eyeFrameOf(camera);
+    const depth = depthOf(eye, centre);
+    const ahead = zPx === undefined ? depth : viewDepthOf(eye, centre, zPx);
+    return ahead > this.gridSize() * NEAR_CELLS * 4 && depth <= this.firstPerson.depthPx();
   }
 
   /**
@@ -793,10 +864,10 @@ export class FirstPersonViewComponent {
    * cell whose middle its footing covers, so a great piece half behind a pillar still shows; and the
    * face it stands up on lies ahead of the eye, its near side no further off than the view reaches.
    */
-  private pieceInSight(pose: FirstPersonPose, at: CellPoint, groundPx: number, centre: CellPoint): boolean {
+  private pieceInSight(camera: FirstPersonCamera, at: CellPoint, groundPx: number, centre: CellPoint): boolean {
     const grid = this.firstPerson.grid();
     if (!grid) return false;
-    const depth = depthOf(eyeFrameOf(pose), centre);
+    const depth = depthOf(eyeFrameOf(camera), centre);
     if (depth <= this.gridSize() * NEAR_CELLS * 4 || depth - groundPx / 2 > this.firstPerson.depthPx()) return false;
     const seen = this.drawnSeen();
     if (!seen) return true;
@@ -817,14 +888,16 @@ export class FirstPersonViewComponent {
     return this.vision.objectBrightness(centre.x, centre.y, 0, false, standing);
   }
 
-  private propInSight(pose: FirstPersonPose, prop: PropShape): boolean {
-    if (prop.kind === 'lie') return lyingSamples(prop, this.gridSize()).some((point) => this.inSight(pose, point));
+  private propInSight(camera: FirstPersonCamera, prop: PropShape): boolean {
+    if (prop.kind === 'lie') {
+      return lyingSamples(prop, this.gridSize()).some((point) => this.inSight(camera, point, prop.z));
+    }
     if (prop.kind === 'board') {
       const heading = headingVector(prop.rotate);
       const step = this.gridSize() * BOARD_STEP_CELLS;
-      return this.inSight(pose, { x: prop.x - heading.x * step, y: prop.y - heading.y * step });
+      return this.inSight(camera, { x: prop.x - heading.x * step, y: prop.y - heading.y * step });
     }
-    return this.inSight(pose, prop);
+    return this.inSight(camera, prop);
   }
 
   private urlOf(identifier: string): string {

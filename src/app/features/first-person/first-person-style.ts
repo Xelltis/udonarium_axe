@@ -16,8 +16,33 @@ const MAX_SHADE = 0.85;
 export const MAX_FAR_BLUR_PX = 3;
 const FAR_BLUR_STEP_PX = 0.5;
 const REMEMBERED_VEIL = `linear-gradient(rgba(0, 0, 0, ${FOG_VEIL_ALPHA}), rgba(0, 0, 0, ${FOG_VEIL_ALPHA}))`;
+/** Where each colour of the night sky stands down a level view, as a share of its height. */
+const NIGHT_SKY_STOPS: readonly (readonly [string, number])[] = [
+  ['#04060b', 0],
+  ['#0b1220', 0.32],
+  ['#1c2840', 0.49],
+  ['#222f47', 0.5],
+  ['#10161f', 0.56],
+  ['#06080c', 1],
+];
+
+/** The sky over a table that has no picture to show, darkest overhead and palest at the horizon. */
+export const NIGHT_SKY = `linear-gradient(to bottom, ${NIGHT_SKY_STOPS.map(([colour, at]) => `${colour} ${round(at * 100)}%`).join(', ')})`;
 
 export type QuadStyle = Record<string, string>;
+
+/**
+ * The night sky with its horizon moved down the view by `liftPx` (up, where negative), as it moves
+ * when the eye looks up or down: the haze keeps to the horizon, and overhead and underfoot stay dark.
+ */
+export function nightSkyAt(liftPx: number, viewHeightPx: number): string {
+  if (liftPx === 0 || viewHeightPx <= 0) return NIGHT_SKY;
+  const stops = NIGHT_SKY_STOPS.map(([colour, at], index) => {
+    const edge = index === 0 || index === NIGHT_SKY_STOPS.length - 1;
+    return `${colour} ${px(edge ? at * viewHeightPx : at * viewHeightPx + liftPx)}`;
+  });
+  return `linear-gradient(to bottom, ${stops.join(', ')})`;
+}
 
 export function scaleOf(gridSize: number): number {
   return gridSize > 0 ? FIRST_PERSON_UNIT_PX / gridSize : 1;
@@ -28,9 +53,18 @@ export function perspectivePx(widthPx: number, fovDeg: number): number {
   return Math.max(1, widthPx) / 2 / Math.tan(half);
 }
 
-export function cameraTransform(pose: FirstPersonPose, scale: number, perspective: number): string {
+/**
+ * The transform that puts the camera at the eye, turned the way it faces and tipped up (positive) or
+ * down as far as it looks.
+ */
+export function cameraTransform(
+  pose: FirstPersonPose & { pitch?: number },
+  scale: number,
+  perspective: number
+): string {
   return [
     `translateZ(${px(perspective)})`,
+    ...(pose.pitch ? [`rotateX(${deg(pose.pitch)})`] : []),
     'rotateX(90deg)',
     `rotateZ(${deg(-pose.yaw)})`,
     `translate3d(${px(-pose.x * scale)}, ${px(-pose.y * scale)}, ${px(-pose.z * scale)})`,
@@ -155,6 +189,24 @@ export function billboardStyle(
     transformOrigin: '0 0',
     transform: `translate3d(${px(point.x * scale)}, ${px(point.y * scale)}, ${px(point.z * scale)}) rotateZ(${deg(yaw)}) rotateX(-90deg) translate(-50%, -100%)`,
   };
+}
+
+/**
+ * A board's style cut to the band of it a tipped camera keeps, from `kept.lowPx` to `kept.highPx`
+ * up a board standing from `basePx` and `heightPx` tall. The sides, and the end nothing cuts, are
+ * left open well past the board, so what is told above it and the ring at its feet still show.
+ */
+export function withBillboardCut(
+  style: QuadStyle,
+  kept: { lowPx: number; highPx: number },
+  basePx: number,
+  heightPx: number
+): QuadStyle {
+  const topPx = basePx + heightPx;
+  if (heightPx <= 0 || (kept.lowPx <= basePx && kept.highPx >= topPx)) return style;
+  const top = kept.highPx < topPx ? `${round(((topPx - kept.highPx) / heightPx) * 100)}%` : '-400%';
+  const bottom = kept.lowPx > basePx ? `${round(((kept.lowPx - basePx) / heightPx) * 100)}%` : '-100%';
+  return { ...style, clipPath: `inset(${top} -100% ${bottom} -100%)` };
 }
 
 export function projectedScaleOf(depthPx: number, scale: number, perspective: number): number {

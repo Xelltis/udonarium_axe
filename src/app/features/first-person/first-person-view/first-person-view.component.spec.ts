@@ -25,6 +25,7 @@ import { LightSource } from '@axe/domain/tabletop/light-source';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { FirstPersonLookService, LOOK_RETURN_MS } from '@axe/features/first-person/first-person-look.service';
 import { scaleOf } from '@axe/features/first-person/first-person-style';
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -115,6 +116,125 @@ describe('FirstPersonViewComponent', () => {
     } finally {
       ImageStorage.instance.delete('stone');
     }
+  });
+
+  describe('looking about', () => {
+    function lookOf(fixture: ComponentFixture<FirstPersonViewComponent>): FirstPersonLookService {
+      return fixture.debugElement.injector.get(FirstPersonLookService);
+    }
+
+    function cameraOf(fixture: ComponentFixture<FirstPersonViewComponent>): string {
+      return element(fixture).querySelector<HTMLElement>('[data-testid="first-person-camera"]')!.style.transform;
+    }
+
+    it('turns and tips the camera by the look and leaves the eye where it stood', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const level = cameraOf(fixture);
+
+      lookOf(fixture).lookTo({ yaw: 30, pitch: 20 });
+      fixture.detectChanges();
+
+      const looked = cameraOf(fixture);
+      expect(looked).toContain('rotateX(20deg) rotateX(90deg) rotateZ(-30deg)');
+      expect(looked.slice(looked.indexOf('translate3d'))).toBe(level.slice(level.indexOf('translate3d')));
+    });
+
+    it('draws the ground behind the eye once it looks round, with the sight all round only while it looks', () => {
+      TestBed.inject(MotionService).setting.set('off');
+      lookOutOf(pieceAt(4, 5));
+      const fixture = mount();
+      const service = TestBed.inject(FirstPersonService);
+      const behind = cellIndexOf(cellGridOf(table.width, table.height, GRID, GridType.SQUARE), 4, 8);
+      const floorBehind = () => element(fixture).querySelector(`[data-quad="floor"][data-cell="${behind}"]`);
+      expect(floorBehind()).toBeNull();
+      expect(service.seen()?.get(behind)).toBe(false);
+
+      lookOf(fixture).lookTo({ yaw: 180, pitch: 0 });
+      fixture.detectChanges();
+
+      expect(floorBehind()).not.toBeNull();
+      expect(service.seen()?.get(behind)).toBe(true);
+
+      lookOf(fixture).release();
+      fixture.detectChanges();
+
+      expect(floorBehind()).toBeNull();
+      expect(service.seen()?.get(behind)).toBe(false);
+    });
+
+    it('turns the compass needle with the look and leaves the facing as the piece faces', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+
+      lookOf(fixture).lookTo({ yaw: 90, pitch: 0 });
+      fixture.detectChanges();
+
+      const needle = element(fixture)
+        .querySelector('[data-testid="first-person-compass"] g')
+        ?.getAttribute('transform');
+      expect(needle).toBe('rotate(-90)');
+      expect(element(fixture).querySelector('[data-facing]')?.getAttribute('data-facing')).toBe('north');
+    });
+
+    it('tips the effects to face the camera as it looks up', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+
+      lookOf(fixture).lookTo({ yaw: 0, pitch: 20 });
+      fixture.detectChanges();
+
+      const eye = (fixture.componentInstance as unknown as { effectEye(): { rotation: { x: number } } }).effectEye();
+      expect(eye.rotation.x).toBe(110);
+    });
+
+    it('goes back to where the piece faces once let go, at once with motion turned down', () => {
+      TestBed.inject(MotionService).setting.set('off');
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const level = cameraOf(fixture);
+      lookOf(fixture).lookTo({ yaw: 45, pitch: -30 });
+      fixture.detectChanges();
+
+      lookOf(fixture).release();
+      fixture.detectChanges();
+
+      expect(cameraOf(fixture)).toBe(level);
+    });
+
+    it('eases back over a moment where motion is on, and lands where the piece faces', () => {
+      TestBed.inject(MotionService).setting.set('on');
+      const frames: FrameRequestCallback[] = [];
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => frames.push(callback));
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const look = lookOf(fixture);
+      look.lookTo({ yaw: 90, pitch: 40 });
+
+      const queued = frames.length;
+      look.release();
+      frames[queued](performance.now() + LOOK_RETURN_MS / 2);
+      const halfway = look.look();
+      frames[queued + 1](performance.now() + LOOK_RETURN_MS * 2);
+
+      expect(halfway.yaw).toBeGreaterThan(0);
+      expect(halfway.yaw).toBeLessThan(90);
+      expect(look.look()).toEqual({ yaw: 0, pitch: 0 });
+      vi.restoreAllMocks();
+    });
+
+    it('cuts a great piece from below once the eye looks steeply up at it', () => {
+      const giant = GameCharacter.create('巨竜', 5, '');
+      giant.location = { name: 'table', x: 2 * GRID, y: 2 * GRID };
+      lookOutOf(pieceAt(4, 8));
+      const fixture = mount();
+
+      lookOf(fixture).lookTo({ yaw: 0, pitch: 85 });
+      fixture.detectChanges();
+
+      const billboard = element(fixture).querySelector<HTMLElement>(`[data-piece="${giant.identifier}"]`)!;
+      expect(billboard.style.clipPath).toMatch(/^inset\(-400% -100% [\d.]+% -100%\)$/);
+    });
   });
 
   it('tells beside the controls every key it answers to', () => {
@@ -902,6 +1022,41 @@ describe('FirstPersonViewComponent', () => {
 
       const viewWidth = (fixture.nativeElement as HTMLElement).clientWidth || window.innerWidth;
       expect(backdrop().style.backgroundPosition).toBe(`${-viewWidth}px bottom`);
+    });
+
+    it('moves the backdrops and the haze of the night sky down the view as the eye looks up', () => {
+      picture('hills-picture');
+      const hills = new TableBackgroundLayer();
+      hills.initialize();
+      hills.imageIdentifier = 'hills-picture';
+      hills.placement = 'backdrop';
+      table.appendChild(hills);
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const gradient = () => element(fixture).querySelector<HTMLElement>('[data-sky-gradient]');
+      const backdrop = () => element(fixture).querySelector<HTMLElement>('[data-backdrop]')!;
+      expect(backdrop().style.transform).toBe('');
+
+      fixture.debugElement.injector.get(FirstPersonLookService).lookTo({ yaw: 0, pitch: 30 });
+      fixture.detectChanges();
+
+      const lift = Number(/translateY\(([-\d.]+)px\)/.exec(backdrop().style.transform)?.[1]);
+      const perspective = (fixture.componentInstance as unknown as { perspective(): number }).perspective();
+      expect(lift).toBeCloseTo(perspective * Math.tan(Math.PI / 6), 1);
+      expect(gradient()).toBeNull();
+    });
+
+    it('keeps the haze of the night sky at the horizon as the eye looks up', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const gradient = () => element(fixture).querySelector<HTMLElement>('[data-sky-gradient]')!.style.background;
+      const level = gradient();
+
+      fixture.debugElement.injector.get(FirstPersonLookService).lookTo({ yaw: 0, pitch: 30 });
+      fixture.detectChanges();
+
+      expect(gradient()).not.toBe(level);
+      expect(gradient()).toContain('px');
     });
   });
 

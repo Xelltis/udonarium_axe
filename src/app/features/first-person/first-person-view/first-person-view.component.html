@@ -5,8 +5,8 @@
   [style.perspective.px]="perspective()"
 >
   @if (sky(); as sky) {
-    @if (sky.gradient) {
-      <div class="pointer-events-none absolute inset-0" data-sky-gradient [style.background]="sky.gradient"></div>
+    @if (skyGradient(); as gradient) {
+      <div class="pointer-events-none absolute inset-0" data-sky-gradient [style.background]="gradient"></div>
     }
     @if (sky.background) {
       <div
@@ -22,11 +22,16 @@
         [style.background-image]="'url(' + layer.url + ')'"
         [style.background-size]="'auto 100%'"
         [style.background-position]="skyShift() + 'px bottom'"
+        [style.transform]="skyLift() ? 'translateY(' + skyLift() + 'px)' : null"
         [style.opacity]="layer.opacity"
       ></div>
     }
   }
-  <div class="absolute top-1/2 left-1/2 size-0 transform-3d" [style.transform]="camera()">
+  <div
+    class="absolute top-1/2 left-1/2 size-0 transform-3d"
+    data-testid="first-person-camera"
+    [style.transform]="camera()"
+  >
     @for (quad of quadViews(); track quad.id) {
       <div
         class="absolute top-0 left-0 bg-no-repeat backface-hidden"

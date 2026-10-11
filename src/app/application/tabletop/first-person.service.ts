@@ -84,6 +84,9 @@ export class FirstPersonService {
   private readonly replay = inject(ReplayPlaybackService);
 
   private readonly worldEpoch = signal(0);
+
+  /** Whether the screen is looking about, which needs the sight all round rather than ahead alone. */
+  private readonly lookingAround = signal(false);
   private busy = false;
   private queued: Action | null = null;
 
@@ -288,7 +291,9 @@ export class FirstPersonService {
       rangePx:
         own && own.rangePx > 0 && !ignoreDarkness && scene.darknessEnabled ? Math.min(own.rangePx, depth) : depth,
       direction: facingBearing(pose.yaw),
-      lobes: [{ direction: 0, angle: FIRST_PERSON_FOV_DEG + SIGHT_MARGIN_DEG, rangeScale: 1 }],
+      lobes: [
+        { direction: 0, angle: this.lookingAround() ? 360 : FIRST_PERSON_FOV_DEG + SIGHT_MARGIN_DEG, rangeScale: 1 },
+      ],
     };
     return computeVisibleCellsFor(eye, {
       scene,
@@ -349,6 +354,15 @@ export class FirstPersonService {
 
   /** Whether the piece being looked out of is carrying its own light. */
   readonly torchLit = computed(() => this.piece()?.lightEnabled === true);
+
+  /**
+   * Works the sight out all round while the screen looks about, so whatever way the eye turns finds
+   * the ground drawn, and back to what lies ahead once it looks where the piece faces again. The
+   * sight is worked out once for each, not for every step of a look.
+   */
+  lookAround(on: boolean): void {
+    this.lookingAround.set(on);
+  }
 
   toggleTorch(): boolean {
     const piece = this.piece();
