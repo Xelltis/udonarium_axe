@@ -122,6 +122,32 @@ describe('placing a wall', () => {
       'linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3))'
     );
   });
+
+  it('draws only the part a tipped camera keeps, cut to its slant, with the picture still over the whole wall', () => {
+    const cut = wall({
+      cut: {
+        basePx: 10,
+        topPx: 40,
+        outline: [
+          { u: 0, z: 40 },
+          { u: 30, z: 10 },
+          { u: 30, z: 40 },
+        ],
+      },
+    });
+
+    const style = wallQuadStyle(cut, 2, 'stone.png', 0.2);
+
+    expect(style['height']).toBe('60px');
+    expect(style['transform']).toBe('translate3d(200px, 100px, 80px) rotateZ(90deg) rotateX(-90deg)');
+    expect(style['backgroundSize']).toBe('100% 100%, 100px 100px');
+    expect(style['backgroundPosition']).toBe('0 0, -40px -20px');
+    expect(style['clipPath']).toBe('polygon(0px 0px, 60px 60px, 60px 0px)');
+  });
+
+  it('cuts nothing off a level wall', () => {
+    expect(wallQuadStyle(wall(), 2, 'stone.png', 0.2)['clipPath']).toBeUndefined();
+  });
 });
 
 describe('placing a floor, a ceiling or a lid', () => {

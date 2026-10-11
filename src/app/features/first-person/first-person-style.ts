@@ -80,6 +80,11 @@ export function pieceImageFilter(brightness: number, targeted: boolean, blurPx =
   return parts.length > 0 ? parts.join(' ') : null;
 }
 
+/**
+ * Where a wall face is drawn and how its picture lies on it. A face a tipped camera cuts across is
+ * drawn only as tall as what is kept, its outline cut to the slant, with its picture still laid over
+ * the whole height of the wall so it keeps its place.
+ */
 export function wallQuadStyle(
   quad: FirstPersonWallQuad,
   scale: number,
@@ -87,20 +92,28 @@ export function wallQuadStyle(
   shade: number,
   remembered = false
 ): QuadStyle {
-  const top = (quad.basePx + quad.heightPx) * scale;
-  return {
+  const wallTop = quad.basePx + quad.heightPx;
+  const cut = quad.cut;
+  const top = cut ? cut.topPx : wallTop;
+  const height = cut ? cut.topPx - cut.basePx : quad.heightPx;
+  const style: QuadStyle = {
     width: px(quad.length * scale),
-    height: px(quad.heightPx * scale),
+    height: px(height * scale),
     transformOrigin: '0 0',
-    transform: `translate3d(${px(quad.x * scale)}, ${px(quad.y * scale)}, ${px(top)}) rotateZ(${deg(quad.angle)}) rotateX(-90deg)`,
+    transform: `translate3d(${px(quad.x * scale)}, ${px(quad.y * scale)}, ${px(top * scale)}) rotateZ(${deg(quad.angle)}) rotateX(-90deg)`,
     ...backgroundOf(
       imageUrl,
       shade,
-      `${px(quad.fullLength * scale)} 100%`,
-      `${px(-quad.uStart * scale)} 0`,
+      cut ? `${px(quad.fullLength * scale)} ${px(quad.heightPx * scale)}` : `${px(quad.fullLength * scale)} 100%`,
+      cut ? `${px(-quad.uStart * scale)} ${px(-(wallTop - top) * scale)}` : `${px(-quad.uStart * scale)} 0`,
       remembered
     ),
   };
+  if (cut?.outline) {
+    style['clipPath'] =
+      `polygon(${cut.outline.map((point) => `${px(point.u * scale)} ${px((top - point.z) * scale)}`).join(', ')})`;
+  }
+  return style;
 }
 
 export function planeQuadStyle(

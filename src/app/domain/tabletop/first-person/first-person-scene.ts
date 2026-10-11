@@ -1,10 +1,12 @@
 import {
   clipPolygonToEye,
-  clipSpanToEye,
+  clipWallToEye,
   depthOf,
   EyeFrame,
   eyeFrameOf,
-  lateralOf,
+  inViewOpening,
+  SpacePoint,
+  ViewOpening,
 } from '@axe/domain/tabletop/first-person/first-person-clip';
 import { FirstPersonPose } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import { FirstPersonRoof } from '@axe/domain/tabletop/first-person/first-person-roof';
@@ -39,6 +41,11 @@ export interface FirstPersonWallQuad {
   door: boolean;
   depth: number;
   cell: number;
+  /**
+   * What is kept of a wall a tipped camera cuts across: up it from `basePx` to `topPx`, inside the
+   * outline, given along the kept length and up the wall. Left out where the whole height is kept.
+   */
+  cut?: { basePx: number; topPx: number; outline: { u: number; z: number }[] | null };
 }
 
 export interface FirstPersonPlaneQuad {
@@ -71,19 +78,27 @@ export interface FirstPersonSceneInput {
   fovDeg?: number;
   /** The roof over the ground walls shut in; without one the sky is open everywhere. */
   roof?: FirstPersonRoof | null;
+  /** How far the camera tips up (positive) or down from level, in degrees. */
+  pitch?: number;
+  /**
+   * How tall the view opens above and below its middle, as the tangent of the half-angle. Left out,
+   * nothing is dropped for lying above or below the view, as a level view need not drop anything.
+   */
+  halfHeightTan?: number;
 }
 
 interface SceneFrame {
   eye: EyeFrame;
   input: FirstPersonSceneInput;
-  limitDeg: number;
+  opening: ViewOpening;
 }
 
 export function firstPersonScene(input: FirstPersonSceneInput): FirstPersonQuad[] {
+  const limitDeg = (input.fovDeg ?? FIRST_PERSON_FOV_DEG) / 2 + FOV_MARGIN_DEG;
   const scene: SceneFrame = {
-    eye: eyeFrameOf(input.pose),
+    eye: eyeFrameOf({ ...input.pose, pitch: input.pitch }),
     input,
-    limitDeg: (input.fovDeg ?? FIRST_PERSON_FOV_DEG) / 2 + FOV_MARGIN_DEG,
+    opening: { tanHalfWidth: Math.tan((limitDeg * Math.PI) / 180), tanHalfHeight: input.halfHeightTan },
   };
   const quads: FirstPersonQuad[] = [];
   for (const wall of input.world.walls) {
@@ -98,15 +113,20 @@ export function firstPersonScene(input: FirstPersonSceneInput): FirstPersonQuad[
   const { x, y } = input.pose;
   forEachCellInBox(input.grid, x - reach, y - reach, x + reach, y + reach, (index) => {
     if (input.seen && !input.seen.get(index)) return;
-    const polygon = clipPolygonToEye(scene.eye, cellPolygonOf(input.grid, index), input.nearPx);
-    if (!keepsPlane(polygon, scene)) return;
-    const floor = input.world.floor;
-    quads.push(planeQuadOf('floor', `floor:${index}`, index, '', polygon, 0, 'up', floor.image, floor, false, scene));
+    const outline = cellPolygonOf(input.grid, index);
+    const polygon = clipPolygonToEye(scene.eye, outline, input.nearPx, 0);
+    if (keepsPlane(polygon, 0, scene)) {
+      const floor = input.world.floor;
+      quads.push(planeQuadOf('floor', `floor:${index}`, index, '', polygon, 0, 'up', floor.image, floor, false, scene));
+    }
     const roof = input.roof;
     if (roof && roof.heightPx > input.pose.z && roof.cells.get(index)) {
-      quads.push(
-        planeQuadOf('ceiling', `ceiling:${index}`, index, '', polygon, roof.heightPx, 'down', '', null, false, scene)
-      );
+      const overhead = clipPolygonToEye(scene.eye, outline, input.nearPx, roof.heightPx);
+      if (keepsPlane(overhead, roof.heightPx, scene)) {
+        quads.push(
+          planeQuadOf('ceiling', `ceiling:${index}`, index, '', overhead, roof.heightPx, 'down', '', null, false, scene)
+        );
+      }
     }
   });
   return quads;
@@ -117,12 +137,18 @@ function wallQuadOf(wall: FirstPersonWall, scene: SceneFrame): FirstPersonWallQu
   const a = { x: wall.ax, y: wall.ay };
   const b = { x: wall.bx, y: wall.by };
   if ((eye.x - a.x) * wall.nx + (eye.y - a.y) * wall.ny <= 0) return null;
-  const span = clipSpanToEye(eye, a, b, input.nearPx);
+  const span = clipWallToEye(eye, a, b, wall.basePx, wall.topPx, input.nearPx);
   if (!span) return null;
   const start = pointAlong(a, b, span.t0);
   const end = pointAlong(a, b, span.t1);
   if (Math.min(depthOf(eye, start), depthOf(eye, end)) > input.depthPx) return null;
-  if (!inView([start, end], scene)) return null;
+  const corners = span.outline
+    ? span.outline.map((point) => ({ ...pointAlong(a, b, point.t), z: point.z }))
+    : [start, end].flatMap((point) => [
+        { ...point, z: span.lowPx },
+        { ...point, z: span.highPx },
+      ]);
+  if (!inViewOpening(eye, corners, scene.opening)) return null;
   const cell = wallCell(wall, start, end, scene);
   if (input.seen && cell < 0) return null;
   const fullLength = Math.hypot(b.x - a.x, b.y - a.y);
@@ -145,6 +171,15 @@ function wallQuadOf(wall: FirstPersonWall, scene: SceneFrame): FirstPersonWallQu
     door: wall.door,
     depth: depthOf(eye, middle),
     cell,
+    ...(span.outline || span.lowPx !== wall.basePx || span.highPx !== wall.topPx
+      ? {
+          cut: {
+            basePx: span.lowPx,
+            topPx: span.highPx,
+            outline: span.outline?.map((point) => ({ u: (point.t - span.t0) * fullLength, z: point.z })) ?? null,
+          },
+        }
+      : {}),
   };
 }
 
@@ -165,29 +200,19 @@ function capQuadOf(cap: FirstPersonCap, scene: SceneFrame): FirstPersonPlaneQuad
   const { input } = scene;
   const eyeZ = input.pose.z;
   if (cap.facing === 'up' ? eyeZ <= cap.zPx : eyeZ >= cap.zPx) return null;
-  const polygon = clipPolygonToEye(scene.eye, cap.outline, input.nearPx);
-  if (!keepsPlane(polygon, scene)) return null;
+  const polygon = clipPolygonToEye(scene.eye, cap.outline, input.nearPx, cap.zPx);
+  if (!keepsPlane(polygon, cap.zPx, scene)) return null;
   const centre = centreOf(polygon);
   const cell = cellIndexAt(input.grid, centre.x, centre.y);
   if (input.seen && (cell < 0 || !input.seen.get(cell))) return null;
   return planeQuadOf('cap', cap.id, cell, cap.terrain, polygon, cap.zPx, cap.facing, cap.image, null, cap.glass, scene);
 }
 
-function keepsPlane(polygon: readonly CellPoint[], scene: SceneFrame): boolean {
+function keepsPlane(polygon: readonly CellPoint[], zPx: number, scene: SceneFrame): boolean {
   if (polygon.length < 3) return false;
   const nearest = Math.min(...polygon.map((point) => depthOf(scene.eye, point)));
-  return nearest <= scene.input.depthPx && inView(polygon, scene);
-}
-
-function inView(points: readonly CellPoint[], scene: SceneFrame): boolean {
-  let left = true;
-  let right = true;
-  for (const point of points) {
-    const angle = (Math.atan2(lateralOf(scene.eye, point), depthOf(scene.eye, point)) * 180) / Math.PI;
-    if (angle >= -scene.limitDeg) left = false;
-    if (angle <= scene.limitDeg) right = false;
-  }
-  return !left && !right;
+  const corners: SpacePoint[] = polygon.map((point) => ({ ...point, z: zPx }));
+  return nearest <= scene.input.depthPx && inViewOpening(scene.eye, corners, scene.opening);
 }
 
 function planeQuadOf(
