@@ -20,6 +20,8 @@ export interface FirstPersonRoof {
   readonly raised?: ReadonlyMap<number, number>;
 }
 
+const NOTHING_RAISED: ReadonlyMap<number, number> = new Map();
+
 /** What stands under the roof: the cell under its middle, and how high its top reaches. */
 export interface RoofedStanding {
   readonly cell: number;
@@ -128,4 +130,20 @@ export function roofRaisedFor(
 export function roofHeightAt(roof: FirstPersonRoof, cell: number): number {
   const room = roof.rooms && cell >= 0 ? roof.rooms[cell] : -1;
   return (room >= 0 ? roof.raised?.get(room) : undefined) ?? roof.heightPx;
+}
+
+/**
+ * Whether two roofs stand over the same cells at the same heights, room for room, so a roof raised
+ * afresh for the same pieces can be taken for the one already drawn.
+ */
+export function sameRoof(a: FirstPersonRoof | null, b: FirstPersonRoof | null): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.cells !== b.cells || a.heightPx !== b.heightPx || a.rooms !== b.rooms) return false;
+  const raisedA = a.raised ?? NOTHING_RAISED;
+  const raisedB = b.raised ?? NOTHING_RAISED;
+  if (raisedA.size !== raisedB.size) return false;
+  for (const [room, height] of raisedA) {
+    if (raisedB.get(room) !== height) return false;
+  }
+  return true;
 }

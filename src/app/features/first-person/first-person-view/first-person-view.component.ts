@@ -48,7 +48,7 @@ import {
   headingVector,
 } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import { cameraOf } from '@axe/domain/tabletop/first-person/first-person-look';
-import { roofRaisedFor } from '@axe/domain/tabletop/first-person/first-person-roof';
+import { roofRaisedFor, sameRoof } from '@axe/domain/tabletop/first-person/first-person-roof';
 import {
   FIRST_PERSON_FOV_DEG,
   FirstPersonQuad,
@@ -384,18 +384,22 @@ export class FirstPersonViewComponent {
   /**
    * The roof over the ground the board shuts in, each room's raised clear over the tallest piece this
    * seat sees standing in it, so a great piece is not cut off at the top of the walls. A piece the
-   * seat cannot see raises nothing, which would give it away.
+   * seat cannot see raises nothing, which would give it away. A piece that changes without raising
+   * the roof any differently leaves the scene as it is.
    */
-  private readonly roof = computed(() => {
-    const roof = this.firstPerson.roof();
-    const grid = this.firstPerson.grid();
-    if (!roof || !grid) return roof;
-    const standing = this.standing().map((piece) => ({
-      cell: cellIndexAt(grid, piece.centre.x, piece.centre.y),
-      topPx: piece.basePx + piece.stand.heightPx,
-    }));
-    return roofRaisedFor(roof, standing, this.gridSize() * ROOF_CLEARANCE_CELLS);
-  });
+  private readonly roof = computed(
+    () => {
+      const roof = this.firstPerson.roof();
+      const grid = this.firstPerson.grid();
+      if (!roof || !grid) return roof;
+      const standing = this.standing().map((piece) => ({
+        cell: cellIndexAt(grid, piece.centre.x, piece.centre.y),
+        topPx: piece.basePx + piece.stand.heightPx,
+      }));
+      return roofRaisedFor(roof, standing, this.gridSize() * ROOF_CLEARANCE_CELLS);
+    },
+    { equal: sameRoof }
+  );
 
   protected readonly quadViews = computed<QuadView[]>(() => {
     this.objectChange.fileVersion();

@@ -937,6 +937,31 @@ describe('FirstPersonViewComponent', () => {
       expect(ceilingOver(5, 6).style.transform).toContain(`, ${raisedPx})`);
     });
 
+    it('leaves the scene be when a piece under a raised roof changes without raising it any further', () => {
+      for (const [col, row, width, depth] of [
+        [2, 2, 5, 1],
+        [2, 8, 5, 1],
+        [2, 3, 1, 5],
+        [6, 3, 1, 5],
+      ]) {
+        const wall = Terrain.create('壁', width, depth, 1, 'stone', 'slab');
+        wall.location = { name: 'table', x: col * GRID, y: row * GRID };
+        table.appendChild(wall);
+      }
+      const giant = GameCharacter.create('巨竜', 3, '');
+      giant.location = { name: 'table', x: 3 * GRID, y: 3 * GRID };
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const quads = () => (fixture.componentInstance as unknown as { quads(): unknown[] }).quads();
+      const before = quads();
+
+      giant.rotate = 90;
+      TestBed.inject(ObjectChangeService).notifyChanged(giant.identifier);
+      fixture.detectChanges();
+
+      expect(quads()).toBe(before);
+    });
+
     it('keeps what is told about a great piece as wide as for a piece of one cell', () => {
       const giant = GameCharacter.create('巨竜', 6, '');
       giant.location = { name: 'table', x: GRID, y: 0 };

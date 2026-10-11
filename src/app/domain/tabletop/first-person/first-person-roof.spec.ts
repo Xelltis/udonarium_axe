@@ -3,6 +3,7 @@ import {
   firstPersonRoofOf,
   roofHeightAt,
   roofRaisedFor,
+  sameRoof,
 } from '@axe/domain/tabletop/first-person/first-person-roof';
 import { firstPersonWorldOf } from '@axe/domain/tabletop/first-person/first-person-world';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
@@ -106,6 +107,19 @@ describe('first-person-roof', () => {
 
       expect(roofRaisedFor(roof, [{ cell: cellIndexOf(grid, 2, 5), topPx: 10 }], 10)).toBe(roof);
       expect(roofRaisedFor(roof, [{ cell: cellIndexOf(grid, 9, 9), topPx: 500 }], 10)).toBe(roof);
+    });
+
+    it('takes a roof raised afresh for the same pieces for the one before, and not one raised otherwise', () => {
+      const { grid, roof } = roofOf(twoRooms());
+      const giant = { cell: cellIndexOf(grid, 2, 5), topPx: 6 * GRID };
+      const raised = roofRaisedFor(roof, [giant], 10);
+
+      expect(sameRoof(raised, roofRaisedFor(roof, [giant], 10))).toBe(true);
+      expect(sameRoof(raised, roofRaisedFor(roof, [{ ...giant, topPx: 7 * GRID }], 10))).toBe(false);
+      expect(sameRoof(raised, roofRaisedFor(roof, [{ ...giant, cell: cellIndexOf(grid, 5, 5) }], 10))).toBe(false);
+      expect(sameRoof(raised, roof)).toBe(false);
+      expect(sameRoof(null, null)).toBe(true);
+      expect(sameRoof(roof, null)).toBe(false);
     });
   });
 
