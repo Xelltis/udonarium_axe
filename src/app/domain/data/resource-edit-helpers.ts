@@ -18,6 +18,8 @@ export interface ResourceEdit {
   operator: string;
   diceResult: string;
   command: string;
+  /** The amount as written after the operator, options taken off, before it is made into a command. */
+  amount: string;
   replace: string;
   isDiceRoll: boolean;
   embeddedRolls: string[];
@@ -75,6 +77,7 @@ export function createDefaultResourceEdit(): ResourceEdit {
     operator: '',
     diceResult: '',
     command: '',
+    amount: '',
     replace: '',
     isDiceRoll: false,
     embeddedRolls: [],
@@ -131,7 +134,8 @@ export function convertCommandToResourceEdit(
 
   let reg3 = resourceEditResult[3].replace(/[A-CE-ZＡ-ＣＥ-Ｚ]+$/i, '');
   const commandPrefix = oneResourceEdit.operator === '-' ? '-' : '';
-  oneResourceEdit.command = `${commandPrefix}${toHalfWidth(reg3)}+(1d1-1)`;
+  oneResourceEdit.amount = toHalfWidth(reg3);
+  oneResourceEdit.command = `${commandPrefix}${oneResourceEdit.amount}+(1d1-1)`;
 
   reg3 = reg3.replace(/[A-CE-ZＡ-ＣＥ-Ｚ]+$/i, '');
   const optionCommand = parseResourceEditOption(resourceEditResult[3]);

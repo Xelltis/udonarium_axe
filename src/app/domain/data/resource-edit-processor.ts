@@ -10,7 +10,13 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { answerColorsOf } from '@axe/domain/chat/chat-color';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { findEmbeddedRolls, replaceEmbeddedRolls } from '@axe/domain/data/embedded-roll';
+import {
+  findEmbeddedRolls,
+  isPlainArithmetic,
+  replaceEmbeddedRolls,
+  unwrapEmbeddedRolls,
+  unwrapParentheses,
+} from '@axe/domain/data/embedded-roll';
 import {
   applyBuffEdit,
   applyResourceEdit,
@@ -43,6 +49,20 @@ interface ResourceByCharacter {
 interface BuffByCharacter {
   buffCommand: string;
   object: GameCharacter;
+}
+
+/**
+ * How working out an amount ended: with a number, with nothing that could be read, or with a roll
+ * that fell short of any total at all - an outright failure the system reports in words.
+ */
+type AmountOutcome = 'worked' | 'unreadable' | 'noTotal';
+
+interface RolledOnce {
+  result: string;
+  /** The total at the end of the result, or null where the roll ended without one. */
+  answer: number | null;
+  /** Whether the dice came up as an outright failure. */
+  fumble: boolean;
 }
 
 export { BuffByCharacter, BuffEdit, DiceRollResult, ResourceByCharacter, ResourceEdit, ResourceEditOption };
@@ -187,8 +207,14 @@ export class ResourceEditProcessor {
           leftAmountsAlone = true;
           continue;
         }
-        if (!(await this.rollResourceEdit(oneResourceEdit, gameSystem))) {
-          unreadableCommands.push(`${targeted ? `[${object.name}] ` : ''}${oneText}を計算できません    `);
+        const outcome = await this.rollResourceEdit(oneResourceEdit, gameSystem);
+        const named = `${targeted ? `[${object.name}] ` : ''}${oneText}`;
+        if (outcome === 'unreadable') {
+          unreadableCommands.push(`${named}を計算できません    `);
+          continue;
+        }
+        if (outcome === 'noTotal' && oneResourceEdit.operator === '=') {
+          unreadableCommands.push(`${named}は合計の出ないロールだったので変えません    `);
           continue;
         }
       }
@@ -235,45 +261,81 @@ export class ResourceEditProcessor {
     );
   }
 
-  private async rollResourceEdit(edit: ResourceEdit, gameSystem: GameSystemClass): Promise<boolean> {
-    if (!(await this.resolveEmbeddedRolls(edit, gameSystem))) return false;
+  /**
+   * Works out an edit's amount.
+   *
+   * Plain arithmetic is rolled as it stands, its bracketed commands first. An amount with more than
+   * that in it - a letter a system command takes after its total, outside the brackets - is rolled
+   * whole as one command, which the system can read where the arithmetic around it cannot. A roll
+   * that ends in an outright failure with no total leaves the whole amount at nought: whatever was
+   * to be added to it does not come into it.
+   */
+  private async rollResourceEdit(edit: ResourceEdit, gameSystem: GameSystemClass): Promise<AmountOutcome> {
+    if (!isPlainArithmetic(edit.amount)) return this.rollWholeAmount(edit, gameSystem);
+
+    const embedded = await this.resolveEmbeddedRolls(edit, gameSystem);
+    if (embedded !== 'worked') return embedded;
 
     const rolled = await this.rollOnce(edit.command, gameSystem);
-    if (rolled == null) return false;
+    if (rolled == null || rolled.answer == null) return 'unreadable';
 
     const splitResult = rolled.result.split(' ＞ ');
-    if (splitResult.length < 2) return false;
+    if (splitResult.length < 2) return 'unreadable';
     edit.diceResult = splitResult[splitResult.length - 2].replace(/\+\(1\[1\]-1\)$/, '');
     edit.calcAns = rolled.answer;
-    return true;
+    return 'worked';
   }
 
-  private async resolveEmbeddedRolls(edit: ResourceEdit, gameSystem: GameSystemClass): Promise<boolean> {
+  private async rollWholeAmount(edit: ResourceEdit, gameSystem: GameSystemClass): Promise<AmountOutcome> {
+    const command = unwrapParentheses(unwrapEmbeddedRolls(edit.amount));
+    const rolled = await this.rollOnce(command, gameSystem);
+    if (rolled == null) return 'unreadable';
+    if (rolled.answer == null) return rolled.fumble ? this.leaveAtNought(edit, command, rolled) : 'unreadable';
+
+    edit.embeddedRolls.push(`[${command}] ${rolled.result.replace(/^\S+ : /, '')}`);
+    edit.isDiceRoll = true;
+    const sign = edit.operator === '-' ? -1 : 1;
+    edit.calcAns = sign * rolled.answer;
+    edit.diceResult = `${sign < 0 ? '-' : ''}${rolled.answer < 0 ? `(${rolled.answer})` : rolled.answer}`;
+    return 'worked';
+  }
+
+  private leaveAtNought(edit: ResourceEdit, command: string, rolled: RolledOnce): AmountOutcome {
+    edit.embeddedRolls.push(`[${command}] ${rolled.result.replace(/^\S+ : /, '')}`);
+    edit.isDiceRoll = true;
+    edit.calcAns = 0;
+    edit.diceResult = edit.operator === '-' ? '-0' : '0';
+    return 'noTotal';
+  }
+
+  private async resolveEmbeddedRolls(edit: ResourceEdit, gameSystem: GameSystemClass): Promise<AmountOutcome> {
     const sites = findEmbeddedRolls(edit.command);
-    if (sites.length < 1) return true;
+    if (sites.length < 1) return 'worked';
 
     const answers: number[] = [];
     for (const site of sites) {
       const rolled = await this.rollOnce(site.command, gameSystem);
-      if (rolled == null) return false;
+      if (rolled == null) return 'unreadable';
+      if (rolled.answer == null) return rolled.fumble ? this.leaveAtNought(edit, site.command, rolled) : 'unreadable';
       answers.push(rolled.answer);
       edit.embeddedRolls.push(`[${site.command}] ${rolled.result.replace(/^\S+ : /, '')}`);
     }
 
     edit.command = replaceEmbeddedRolls(edit.command, answers);
     edit.isDiceRoll = true;
-    return true;
+    return 'worked';
   }
 
-  private async rollOnce(
-    command: string,
-    gameSystem: GameSystemClass
-  ): Promise<{ result: string; answer: number } | null> {
+  private async rollOnce(command: string, gameSystem: GameSystemClass): Promise<RolledOnce | null> {
     try {
       const rollResult = await this.diceRollAsync(command, gameSystem);
+      if (!rollResult.result) return null;
       const resultMatch = rollResult.result.match(/([-+]?\d+)$/);
-      if (!resultMatch) return null;
-      return { result: rollResult.result, answer: parseInt(resultMatch[1], 10) };
+      return {
+        result: rollResult.result,
+        answer: resultMatch ? parseInt(resultMatch[1], 10) : null,
+        fumble: rollResult.detail?.outcome === 'fumble',
+      };
     } catch (e) {
       Logger.error('[DiceBot] リソース編集のダイスロールエラー', e);
       return null;
