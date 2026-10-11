@@ -21,6 +21,7 @@ describe('EffectFieldService', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.delete(object, false);
     ObjectStore.instance.clearDeleteHistory();
   });
@@ -45,6 +46,10 @@ describe('EffectFieldService', () => {
   });
 
   it('gives two fields side by side different motion', () => {
+    // A field's offset comes from its identifier, and two random ones fall on the same moment of a
+    // one-second loop about once in a thousand runs; these two never do.
+    let drawn = 0;
+    vi.spyOn(crypto, 'randomUUID').mockImplementation(() => `00000000-0000-4000-8000-00000000000${++drawn}`);
     service.place(preset, 0, 0, 0);
     service.place(preset, 100, 0, 0);
 
