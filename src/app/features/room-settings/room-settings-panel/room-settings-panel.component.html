@@ -638,6 +638,75 @@
             {{ 'feature.roomSettings.zocHint' | transloco }}
           </p>
         </div>
+
+        <div
+          class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3"
+          data-testid="room-settings-zone"
+        >
+          <div class="min-w-0">
+            <span class="text-ui-muted text-[11px] font-semibold tracking-[0.06em] uppercase">{{
+              'feature.zone.settings.section' | transloco
+            }}</span>
+          </div>
+          <label
+            class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+          >
+            <input
+              type="checkbox"
+              class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+              [(ngModel)]="zoneEnabled"
+              name="zoneEnabled"
+            />
+            {{ 'feature.zone.settings.enabled' | transloco }}
+          </label>
+          <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+            {{ 'feature.zone.settings.enabledHint' | transloco }}
+          </p>
+          @if (zoneEnabled) {
+            <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                'feature.zone.settings.sizes' | transloco
+              }}</label>
+              <input
+                type="text"
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                [placeholder]="zoneSizesPlaceholder"
+                [(ngModel)]="zoneSizes"
+                name="zoneSizes"
+              />
+              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                'feature.zone.settings.countField' | transloco
+              }}</label>
+              <input
+                type="text"
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                [(ngModel)]="zoneCountField"
+                name="zoneCountField"
+              />
+              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                'feature.zone.settings.samePoint' | transloco
+              }}</label>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                [(ngModel)]="zoneSamePointM"
+                name="zoneSamePointM"
+              />
+            </div>
+            <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+              {{ 'feature.zone.settings.sizesHint' | transloco }}
+              {{ 'feature.zone.settings.countFieldHint' | transloco }}
+              {{ 'feature.zone.settings.samePointHint' | transloco }}
+            </p>
+            @if (zoneMeetsEngagement) {
+              <p class="text-ui-danger m-0 text-[11px] leading-relaxed" data-testid="zone-engagement-warning">
+                {{ 'feature.zone.settings.engagementWarning' | transloco }}
+              </p>
+            }
+          }
+        </div>
       </div>
     }
 

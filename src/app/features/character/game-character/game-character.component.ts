@@ -27,6 +27,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
@@ -37,6 +38,7 @@ import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.servi
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BillboardFacing, facesAlways, NOT_TURNED } from '@axe/application/ui/billboard-frame.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
+import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-menu';
@@ -99,6 +101,7 @@ import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { buildGameCharacterContextMenuModel } from '@axe/features/character/game-character/game-character-context-menu';
+import { buildZoneContextMenu } from '@axe/features/character/game-character/zone-context-menu';
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
@@ -242,6 +245,7 @@ export class GameCharacterComponent {
   private readonly effectAutoPlay = inject(EffectAutoPlayService);
   private readonly effectPlayback = inject(EffectPlaybackService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly engagementZones = inject(EngagementZoneService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly visionService = inject(VisionService);
   private readonly speechBubbles = inject(SpeechBubbleService);
@@ -1232,6 +1236,28 @@ export class GameCharacterComponent {
     if (this.input) this.input.cancel();
   }
 
+  private zoneMenuOf(char: GameCharacter): ContextMenuAction[] {
+    const zones = this.engagementZones;
+    return buildZoneContextMenu(
+      zones.menuOf(char),
+      this.rolePermission.canEditTabletop,
+      this.rolePermission.isGameMaster,
+      {
+        declare: (foeId) => {
+          const foe = this.objectStore.get<GameCharacter>(foeId);
+          if (foe instanceof GameCharacter) zones.declare(char, foe);
+        },
+        join: (zoneId) => zones.join(char, zoneId),
+        leave: () => zones.leave(char),
+        toggleOffField: () => zones.toggleOffField(char),
+        setSquare: (zoneId, square) => zones.setSquare(zoneId, square),
+        setLimit: (zoneId, limit) => zones.setLimit(zoneId, limit),
+        remove: (zoneId) => zones.remove(zoneId),
+      },
+      this.translateFn
+    );
+  }
+
   private rightDrag: PieceRightDrag | null = null;
   private rightDragCenterMarker: HTMLElement | null = null;
   private nativeContextMenuSuppressionTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1383,6 +1409,7 @@ export class GameCharacterComponent {
     const surfaceEntries = [
       ...buildSurfaceSwitchContextMenu(char, table, this.translateFn),
       ...buildConcealMenu(this.boardSwitches.canEdit(), () => this.concealment.conceal(char), this.translateFn),
+      ...this.zoneMenuOf(char),
     ];
     const menu = buildGameCharacterContextMenuModel(
       char,

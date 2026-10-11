@@ -39,6 +39,11 @@ export class PeerCursor extends GameObject {
   @SyncVar() movingWay = '';
   /** Whether that move is being taken over what stands in the way. Written as a word, not a flag. */
   @SyncVar() movingJumping = '';
+  /**
+   * `1` once this peer's version keeps engagement zones in order, so it may be the one that writes
+   * what follows from them. Empty on a cursor from a version that knows nothing of zones.
+   */
+  @SyncVar() zoneProtocol = '';
 
   @SyncVar() voteAnswer = -1; // 投票選択肢のindex値、-2:棄権
   @SyncVar() voteId = -1; // 回答した投票のID

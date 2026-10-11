@@ -155,6 +155,41 @@
     }
   },
   "feature": {
+    "zone": {
+      "menu": {
+        "title": "Engagement zone",
+        "declare": "Engage {{name}}",
+        "join": "Join this engagement zone",
+        "joinNumbered": "Join engagement zone {{number}}",
+        "leave": "Leave the engagement zone",
+        "offField": "Take out of the fight",
+        "onField": "Put back into the fight",
+        "square": "Make it square",
+        "circle": "Make it a circle",
+        "limit": "Limit",
+        "limitByTable": "As the size table allows",
+        "remove": "End the engagement zone"
+      },
+      "chat": {
+        "declared": "{{attacker}} engaged {{target}}, and an engagement zone formed",
+        "joined": "{{name}} joined the engagement zone",
+        "left": "{{name}} left the engagement zone",
+        "offField": "{{name}} was taken out of the fight",
+        "onField": "{{name}} was put back into the fight"
+      },
+      "settings": {
+        "section": "Engagement zones",
+        "enabled": "Use engagement zones",
+        "enabledHint": "When enemies at the same point declare a fight, a circular engagement zone forms around that point. It grows with the number of pieces in it, merges when its centre enters another zone, and ends when one side is gone.",
+        "sizes": "Size table",
+        "sizesHint": "Rows of \"count limit:radius (m):square side (m)\" separated by commas. The last row's count is the most a zone holds. Leave empty for the default table.",
+        "countField": "Value counted as bodies",
+        "countFieldHint": "A piece counts as the number in this sheet field. Leave empty to count each piece once.",
+        "samePoint": "Same-point distance (m)",
+        "samePointHint": "A fight can be declared with an enemy within this distance.",
+        "engagementWarning": "The move range's engagement is also on. Both judge the same thing in different ways, so use only one of them."
+      }
+    },
     "firstPerson": {
       "exit": "Back to the table",
       "enter": "Dungeondry Master mode",

@@ -66,6 +66,10 @@ export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() hideName: boolean = false;
   @SyncVar() hideBuff: boolean = false;
   @SyncVar() isNpc: boolean = false;
+  /** The engagement zone the piece is in, as its identifier, or empty for none. */
+  @SyncVar() engagementZone: string = '';
+  /** `1` while the piece is taken out of the fight, so nothing counts it; empty otherwise. */
+  @SyncVar() offField: string = '';
   @SyncVar() disclosureMode: string = '';
   @SyncVar() disclosureUserIds: string[] = [];
   @SyncVar() overViewWidth: number = 270;

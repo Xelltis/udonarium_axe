@@ -1,0 +1,87 @@
+import { ZoneMenuModel } from '@axe/application/tabletop/engagement-zone.service';
+import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
+import { buildZoneContextMenu, ZoneMenuCallbacks } from '@axe/features/character/game-character/zone-context-menu';
+
+const t = (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key);
+
+function callbacks(): ZoneMenuCallbacks & { [name: string]: ReturnType<typeof vi.fn> } {
+  return {
+    declare: vi.fn(),
+    join: vi.fn(),
+    leave: vi.fn(),
+    toggleOffField: vi.fn(),
+    setSquare: vi.fn(),
+    setLimit: vi.fn(),
+    remove: vi.fn(),
+  };
+}
+
+function model(more: Partial<ZoneMenuModel> = {}): ZoneMenuModel {
+  return { enabled: true, zone: null, joinable: [], foes: [], offField: false, ...more };
+}
+
+function names(entries: ContextMenuAction[]): string[] {
+  return (entries[0]?.subActions ?? []).map((entry) => entry.name);
+}
+
+describe('buildZoneContextMenu', () => {
+  it('offers nothing where the room does not play zones, or to somebody who may not change the table', () => {
+    expect(buildZoneContextMenu(model({ enabled: false }), true, true, callbacks(), t)).toEqual([]);
+    expect(buildZoneContextMenu(model(), false, false, callbacks(), t)).toEqual([]);
+  });
+
+  it('offers a fight with each enemy at the same point, and declares the one chosen', () => {
+    const handlers = callbacks();
+    const entries = buildZoneContextMenu(
+      model({ foes: [{ id: 'foe-1', name: 'ゴブリン' }] }),
+      true,
+      false,
+      handlers,
+      t
+    );
+
+    expect(entries[0].name).toBe('feature.zone.menu.title');
+    expect(names(entries)[0]).toBe('feature.zone.menu.declare:{"name":"ゴブリン"}');
+    entries[0].subActions![0].action!();
+    expect(handlers.declare).toHaveBeenCalledWith('foe-1');
+  });
+
+  it('numbers the zones a piece may join when it stands in more than one', () => {
+    expect(names(buildZoneContextMenu(model({ joinable: ['z1'] }), true, false, callbacks(), t))).toContain(
+      'feature.zone.menu.join'
+    );
+    expect(names(buildZoneContextMenu(model({ joinable: ['z1', 'z2'] }), true, false, callbacks(), t))).toEqual([
+      'feature.zone.menu.joinNumbered:{"number":1}',
+      'feature.zone.menu.joinNumbered:{"number":2}',
+      'feature.zone.menu.offField',
+    ]);
+  });
+
+  it('offers leaving to a piece in a zone, and shaping, limiting and ending it to the master alone', () => {
+    const zone = { id: 'z1', square: false, limit: 6 };
+
+    expect(names(buildZoneContextMenu(model({ zone }), true, false, callbacks(), t))).toEqual([
+      'feature.zone.menu.leave',
+      'feature.zone.menu.offField',
+    ]);
+    const handlers = callbacks();
+    const master = buildZoneContextMenu(model({ zone }), true, true, handlers, t);
+    expect(names(master)).toEqual([
+      'feature.zone.menu.leave',
+      'feature.zone.menu.offField',
+      'feature.zone.menu.square',
+      'feature.zone.menu.limit',
+      'feature.zone.menu.remove',
+    ]);
+    const limits = master[0].subActions![3].subActions!;
+    expect(limits.find((entry) => entry.name.startsWith('✔'))?.name).toBe('✔ 6');
+    limits[0].action!();
+    expect(handlers.setLimit).toHaveBeenCalledWith('z1', null);
+  });
+
+  it('offers putting a piece taken out of the fight back in', () => {
+    expect(names(buildZoneContextMenu(model({ offField: true }), true, false, callbacks(), t))).toEqual([
+      'feature.zone.menu.onField',
+    ]);
+  });
+});

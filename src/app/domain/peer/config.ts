@@ -35,6 +35,7 @@ import {
   FactionPhaseMode,
   TurnOrderMode,
 } from '@axe/domain/tabletop/turn-order-mode';
+import { ZoneRuleAnswers } from '@axe/domain/tabletop/zone/zone-rules';
 
 @SyncObject('config')
 export class Config extends ObjectNode implements InnerXml {
@@ -87,6 +88,12 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_facingMark') private _facingMark: string = '';
   @SyncVar('_pieceImageInCell') private _pieceImageInCell: string = '';
   @SyncVar('_diceStage') private _diceStage: string = '';
+
+  // How the room plays engagement zones, which is the room's own decision rather than a table's.
+  @SyncVar('_zoneEnabled') private _zoneEnabled: string = '';
+  @SyncVar('_zoneSizes') private _zoneSizes: string = '';
+  @SyncVar('_zoneCountField') private _zoneCountField: string = '';
+  @SyncVar('_zoneSamePoint') private _zoneSamePoint: number = -1;
 
   /**
    * Where the room shows the dice of a chat roll tumbling: in the frame of the line that gives the
@@ -262,6 +269,36 @@ export class Config extends ObjectNode implements InnerXml {
   set moveStrict(strict: boolean) {
     this._moveStrict = strict ? '1' : '';
     this._moveStrictPath = '';
+  }
+
+  /** Every engagement-zone rule the room has been asked about, null where it has not answered. */
+  get zoneRuleAnswers(): ZoneRuleAnswers {
+    return {
+      enabled: readRuleFlag(this._zoneEnabled),
+      sizes: readRuleText(this._zoneSizes),
+      countField: readRuleText(this._zoneCountField),
+      samePointM: readRuleNumber(this._zoneSamePoint),
+    };
+  }
+
+  /** Whether the room plays engagement zones, or null where it has not said. */
+  set zoneEnabled(answer: boolean | null) {
+    this._zoneEnabled = writeRuleFlag(answer);
+  }
+
+  /** The size table zones grow by, as `count:radius:side` rows, or null for the default. */
+  set zoneSizes(answer: string | null) {
+    this._zoneSizes = writeRuleText(answer);
+  }
+
+  /** The sheet field a piece gives its count in, or null to count each piece once. */
+  set zoneCountField(answer: string | null) {
+    this._zoneCountField = writeRuleText(answer);
+  }
+
+  /** How close two pieces stand, in metres, to be at the same point, or null for the default. */
+  set zoneSamePointM(answer: number | null) {
+    this._zoneSamePoint = writeRuleNumber(answer);
   }
 
   /** Whether a round taken side by side skips the phase of pieces that belong to no side. */

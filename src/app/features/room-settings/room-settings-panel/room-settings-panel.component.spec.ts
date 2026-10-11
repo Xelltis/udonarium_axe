@@ -449,6 +449,64 @@ describe('RoomSettingsPanelComponent', () => {
     });
   });
 
+  describe('engagement zones', () => {
+    function zoneSection(): HTMLElement | null {
+      return (fixture.nativeElement as HTMLElement).querySelector('[data-testid="room-settings-zone"]');
+    }
+
+    it('writes whether the room plays zones, and asks the rest only once it does', async () => {
+      component.tab.set('move');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(zoneSection()?.querySelector('input[name="zoneSizes"]')).toBeNull();
+
+      component.zoneEnabled = true;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(Config.instance.zoneRuleAnswers.enabled).toBe(true);
+      expect(zoneSection()?.querySelector('input[name="zoneSizes"]')).not.toBeNull();
+    });
+
+    it('writes the size table, the counted field and the same-point distance, and forgets what is left empty', () => {
+      component.zoneEnabled = true;
+      component.zoneSizes = ' 4:2:3,8:3:5 ';
+      component.zoneCountField = '体数';
+      component.zoneSamePointM = 1.5;
+
+      expect(Config.instance.zoneRuleAnswers).toEqual({
+        enabled: true,
+        sizes: '4:2:3,8:3:5',
+        countField: '体数',
+        samePointM: 1.5,
+      });
+
+      component.zoneSizes = '';
+      component.zoneEnabled = false;
+      expect(Config.instance.zoneRuleAnswers.sizes).toBeNull();
+      expect(Config.instance.zoneRuleAnswers.enabled).toBeNull();
+    });
+
+    it('warns while the move range holds fights of its own beside the zones', async () => {
+      component.tab.set('move');
+      component.zoneEnabled = true;
+      component.zocMode = 'stop';
+      Config.instance.zocEngages = true;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(zoneSection()?.querySelector('[data-testid="zone-engagement-warning"]')).not.toBeNull();
+    });
+
+    it('leaves the room as it was for somebody watching', () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+
+      component.zoneEnabled = true;
+
+      expect(Config.instance.zoneRuleAnswers.enabled).toBeNull();
+    });
+  });
+
   describe('the way a table lying flat is drawn', () => {
     it('writes each feature to this screen alone, so nobody else is told', () => {
       component.orthographicProjection = true;

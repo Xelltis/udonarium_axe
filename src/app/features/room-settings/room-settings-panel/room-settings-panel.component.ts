@@ -69,6 +69,7 @@ import {
   TurnOrderMode,
 } from '@axe/domain/tabletop/turn-order-mode';
 import { describeSide, encodeFactionOrder, normalizeFactionOrder } from '@axe/domain/tabletop/turn-side';
+import { DEFAULT_ZONE_SIZES, resolveZoneRules } from '@axe/domain/tabletop/zone/zone-rules';
 import {
   ROOM_SETTINGS_TABS,
   ROOM_SETTINGS_UI_TABS,
@@ -876,6 +877,51 @@ export class RoomSettingsPanelComponent {
   }
   set moveStrict(value: boolean) {
     if (this.isEditable) this.config.moveStrict = value;
+  }
+
+  /** Whether the room plays engagement zones; setting it writes the room's config, for whoever may edit the table. */
+  get zoneEnabled(): boolean {
+    this.objectChange.versionOf('Config')();
+    return this.config.zoneRuleAnswers.enabled === true;
+  }
+  set zoneEnabled(value: boolean) {
+    if (this.isEditable) this.config.zoneEnabled = value ? true : null;
+  }
+
+  /** The size table as the room wrote it, empty where it uses the default. */
+  get zoneSizes(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.zoneRuleAnswers.sizes ?? '';
+  }
+  set zoneSizes(value: string) {
+    if (this.isEditable) this.config.zoneSizes = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** The default size table, shown where the room has written none of its own. */
+  protected readonly zoneSizesPlaceholder = DEFAULT_ZONE_SIZES;
+
+  /** The sheet field a piece gives its count in, empty to count each piece once. */
+  get zoneCountField(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.zoneRuleAnswers.countField ?? '';
+  }
+  set zoneCountField(value: string) {
+    if (this.isEditable) this.config.zoneCountField = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** How close two pieces stand, in metres, to be at the same point. */
+  get zoneSamePointM(): number {
+    this.objectChange.versionOf('Config')();
+    return resolveZoneRules(this.config.zoneRuleAnswers).samePointM;
+  }
+  set zoneSamePointM(value: number) {
+    if (!this.isEditable) return;
+    this.config.zoneSamePointM = Number.isFinite(value) && value >= 0 ? value : null;
+  }
+
+  /** Whether the move range's own fights are on beside engagement zones, which judge the same thing twice. */
+  get zoneMeetsEngagement(): boolean {
+    return this.zoneEnabled && this.rules.zocEngages && this.rules.zocMode !== 'none';
   }
 
   /**

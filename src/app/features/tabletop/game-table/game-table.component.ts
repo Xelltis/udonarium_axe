@@ -124,6 +124,7 @@ import {
   overlayScale,
 } from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
+import { TableZoneOverlayComponent } from '@axe/features/tabletop/table-zone-overlay/table-zone-overlay.component';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
 import { TerrainBatchLayerComponent } from '@axe/features/tabletop/terrain-batch/terrain-batch-layer.component';
 import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
@@ -252,6 +253,7 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
     TableMoveRangeOverlayComponent,
     TableMoveBlockOverlayComponent,
     TableMoveCostOverlayComponent,
+    TableZoneOverlayComponent,
     TableTriggerOverlayComponent,
     TableEffectOverlayComponent,
     EffectTargetOverlayComponent,

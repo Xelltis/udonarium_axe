@@ -24,6 +24,22 @@ function amountOf(element: DataElement): number | null {
 }
 
 /**
+ * The first number a piece's sheet gives under any of the names, read the way a move is read: a
+ * resource by what it has now, and a field that holds no number passed over for the next name.
+ * Null where none of them gives a number.
+ */
+export function sheetNumberOf(character: GameCharacter, names: string): number | null {
+  const root = character.rootDataElement;
+  if (!root) return null;
+  for (const name of parseMoveRangeElementNames(names)) {
+    const element = DataElement.findElementByReference(root, name);
+    const amount = element ? amountOf(element) : null;
+    if (amount !== null) return amount;
+  }
+  return null;
+}
+
+/**
  * How many cells a piece walks, from what its sheet says and what the table counts in.
  *
  * What the sheet says is measured against what one cell of the table stands for, and where

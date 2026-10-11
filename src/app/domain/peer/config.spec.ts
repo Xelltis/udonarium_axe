@@ -21,6 +21,33 @@ describe('Config', () => {
     (Config as unknown as { _instance: Config | undefined })._instance = undefined;
   });
 
+  describe('engagement-zone rules', () => {
+    it('answers nothing for a room saved before it could, so the defaults are played', () => {
+      expect(Config.instance.zoneRuleAnswers).toEqual({
+        enabled: null,
+        sizes: null,
+        countField: null,
+        samePointM: null,
+      });
+    });
+
+    it('reads back what it writes, and empty again for null', () => {
+      const config = Config.instance;
+      config.zoneEnabled = true;
+      config.zoneSizes = '4:2:3';
+      config.zoneCountField = '体数';
+      config.zoneSamePointM = 0;
+
+      expect(config.zoneRuleAnswers).toEqual({ enabled: true, sizes: '4:2:3', countField: '体数', samePointM: 0 });
+
+      config.zoneEnabled = null;
+      config.zoneSizes = null;
+      config.zoneCountField = null;
+      config.zoneSamePointM = null;
+      expect(config.zoneRuleAnswers).toEqual({ enabled: null, sizes: null, countField: null, samePointM: null });
+    });
+  });
+
   describe('instance (singleton)', () => {
     it('returns the one instance', () => {
       const instance1 = Config.instance;
