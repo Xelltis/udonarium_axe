@@ -192,21 +192,32 @@ export function billboardStyle(
 }
 
 /**
- * A board's style cut to the band of it a tipped camera keeps, from `kept.lowPx` to `kept.highPx`
- * up a board standing from `basePx` and `heightPx` tall. The sides, and the end nothing cuts, are
- * left open well past the board, so what is told above it and the ring at its feet still show.
+ * The clip path that cuts a board standing from `basePx` and `heightPx` tall to the band of it a
+ * tipped camera keeps, from `kept.lowPx` to `kept.highPx`, or null where all of it is kept. The
+ * sides, and the end nothing cuts, are left open well past the board, so what is told above it and
+ * the ring at its feet still show.
  */
+export function billboardCutPath(
+  kept: { lowPx: number; highPx: number },
+  basePx: number,
+  heightPx: number
+): string | null {
+  const topPx = basePx + heightPx;
+  if (heightPx <= 0 || (kept.lowPx <= basePx && kept.highPx >= topPx)) return null;
+  const top = kept.highPx < topPx ? `${round(((topPx - kept.highPx) / heightPx) * 100)}%` : '-400%';
+  const bottom = kept.lowPx > basePx ? `${round(((kept.lowPx - basePx) / heightPx) * 100)}%` : '-100%';
+  return `inset(${top} -100% ${bottom} -100%)`;
+}
+
+/** A board's style cut as {@link billboardCutPath} cuts it. */
 export function withBillboardCut(
   style: QuadStyle,
   kept: { lowPx: number; highPx: number },
   basePx: number,
   heightPx: number
 ): QuadStyle {
-  const topPx = basePx + heightPx;
-  if (heightPx <= 0 || (kept.lowPx <= basePx && kept.highPx >= topPx)) return style;
-  const top = kept.highPx < topPx ? `${round(((topPx - kept.highPx) / heightPx) * 100)}%` : '-400%';
-  const bottom = kept.lowPx > basePx ? `${round(((kept.lowPx - basePx) / heightPx) * 100)}%` : '-100%';
-  return { ...style, clipPath: `inset(${top} -100% ${bottom} -100%)` };
+  const clipPath = billboardCutPath(kept, basePx, heightPx);
+  return clipPath ? { ...style, clipPath } : style;
 }
 
 export function projectedScaleOf(depthPx: number, scale: number, perspective: number): number {

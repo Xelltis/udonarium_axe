@@ -93,9 +93,9 @@ describe('propClip', () => {
     const lookingUp = eyeFrameOf({ x: 100, y: 100, z: 40, yaw: 0, pitch: 70 });
     const lookingDown = eyeFrameOf({ x: 100, y: 100, z: 40, yaw: 0, pitch: -70 });
 
-    it('cuts a standing thing near the eye from below as it looks up', () => {
+    it('cuts a standing thing near the eye from below as it looks up, its label over it and its sides kept', () => {
       expect(propClip(prop({ kind: 'stand', y: 90, z: 0, height: 100 }), lookingUp, 2, 2)).toMatch(
-        /^inset\(0% 0 [\d.]+% 0\)$/
+        /^inset\(-400% -100% [\d.]+% -100%\)$/
       );
     });
 

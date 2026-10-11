@@ -7,7 +7,7 @@ import {
   viewDepthOf,
 } from '@axe/domain/tabletop/first-person/first-person-clip';
 import { CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
-import { billboardStyle, QuadStyle } from '@axe/features/first-person/first-person-style';
+import { billboardCutPath, billboardStyle, QuadStyle } from '@axe/features/first-person/first-person-style';
 
 const GLOW_FALLBACK = '#ffd68c';
 
@@ -73,8 +73,7 @@ export function propClip(prop: PropShape, eye: EyeFrame, nearPx: number, scale: 
   if (prop.kind === 'stand') {
     const kept = clipBillboardToEye(eye, prop, prop.z, top, nearPx);
     if (!kept) return null;
-    if (kept.lowPx <= prop.z && kept.highPx >= top) return '';
-    return `inset(${percent((top - kept.highPx) / prop.height)} 0 ${percent((kept.lowPx - prop.z) / prop.height)} 0)`;
+    return billboardCutPath(kept, prop.z, prop.height) ?? '';
   }
   if (prop.kind === 'board') {
     const along = { x: Math.cos(radiansOf(prop)) * (prop.width / 2), y: Math.sin(radiansOf(prop)) * (prop.width / 2) };
