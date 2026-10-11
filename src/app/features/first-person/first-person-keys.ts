@@ -25,7 +25,7 @@ export interface FirstPersonKeyContext {
   picking: boolean;
   forced: boolean;
   lattice: FirstPersonLattice;
-  /** Whether the view is being dragged about, which Escape ends before anything else. */
+  /** Whether the view is dragged about or left looking away, which Escape brings back ahead before anything else. */
   looking?: boolean;
 }
 

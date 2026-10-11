@@ -274,6 +274,8 @@ export class MenuCommandService {
           return this.darknessEnabled() ? 'bedtime' : 'bedtime_off';
         case 'fog':
           return this.fogEnabled() ? 'foggy' : 'filter_drama';
+        case 'nameLabels':
+          return this.overlay.names() ? 'label' : 'label_off';
         case 'buffs':
           return this.overlay.buffs() ? 'auto_fix_high' : 'auto_fix_off';
         case 'speechBubbles':
@@ -311,6 +313,8 @@ export class MenuCommandService {
           return this.darknessEnabled() ? 'app.fab.darknessOn' : 'app.fab.darknessOff';
         case 'fog':
           return this.fogEnabled() ? 'app.fab.fogOn' : 'app.fab.fogOff';
+        case 'nameLabels':
+          return this.overlay.names() ? 'app.fab.namesShown' : 'app.fab.namesHidden';
         case 'resourceBars':
           return this.overlay.resourceBars() ? 'app.fab.resourceBarsShown' : 'app.fab.resourceBarsHidden';
         case 'buffs':
@@ -354,6 +358,8 @@ export class MenuCommandService {
         return this.darknessEnabled();
       case 'fog':
         return this.fogEnabled();
+      case 'nameLabels':
+        return this.overlay.names();
       case 'resourceBars':
         return this.overlay.resourceBars();
       case 'buffs':
@@ -470,6 +476,9 @@ export class MenuCommandService {
         return;
       case 'fog':
         this.flipTable('fogEnabled');
+        return;
+      case 'nameLabels':
+        this.overlay.toggleNames();
         return;
       case 'resourceBars':
         this.overlay.toggleResourceBars();

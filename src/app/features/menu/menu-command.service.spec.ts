@@ -9,6 +9,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { FirstPersonSeat } from '@axe/domain/tabletop/first-person/first-person-seats';
 import { defaultMenuLayout } from '@axe/domain/ui/builtin-menu-layouts';
 import { MenuCommand, menuCommandOf } from '@axe/domain/ui/menu-command';
+import { menuItemsOf } from '@axe/domain/ui/menu-layout';
 import { MenuCommandService, MenuGroupView } from '@axe/features/menu/menu-command.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -275,6 +276,26 @@ describe('MenuCommandService', () => {
       expect(commands.litOf(speech)).toBe(!shown);
       expect(commands.iconOf(speech)).toBe(shown ? 'speaker_notes_off' : 'chat_bubble');
       commands.run(speech);
+    });
+
+    it('switches the names over the pieces, and names it by whether they are drawn', () => {
+      seatAs(PeerRole.Guest);
+      const overlay = TestBed.inject(PieceOverlayPreferenceService);
+      const names = commandOf('nameLabels');
+      const shown = overlay.names();
+
+      expect(commands.labelKeyOf(names)).toBe(shown ? 'app.fab.namesShown' : 'app.fab.namesHidden');
+      commands.run(names);
+      expect(overlay.names()).toBe(!shown);
+      expect(commands.litOf(names)).toBe(!shown);
+      expect(commands.iconOf(names)).toBe(shown ? 'label_off' : 'label');
+      commands.run(names);
+    });
+
+    it('puts the names switch on both toolbars from the start', () => {
+      for (const surface of ['gmToolbar', 'plToolbar'] as const) {
+        expect(menuItemsOf(defaultMenuLayout(surface)).map((held) => held.command)).toContain('nameLabels');
+      }
     });
 
     it('writes the language out rather than drawing a mark for it', () => {

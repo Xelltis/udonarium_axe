@@ -10,6 +10,7 @@ import {
 } from '@axe/domain/tabletop/hex-geometry';
 import { WorldBox } from '@axe/domain/tabletop/surface-space';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { turnedBoxCovers } from '@axe/domain/tabletop/terrain-box';
 
 export interface MovableCoordinateResolver {
   convertToLocal(pointer: PointerCoordinate, element: HTMLElement): PointerCoordinate;
@@ -22,6 +23,13 @@ export interface ContactFootprint {
   bottom: number;
   bottomZ: number;
   topZ: number;
+  /**
+   * How far this is turned about its middle, in degrees, as a turned block is.
+   *
+   * The sides are then the ones it had before the turn, so a piece stands on the block where
+   * it is drawn rather than where it would be lying square to the table.
+   */
+  rotate?: number;
   /** Whether a piece may come to rest on top of this. A sheer face may be stood beside, not on. */
   climbable?: boolean;
   /**
@@ -174,11 +182,18 @@ function footprintsUnder(
 ): ContactFootprint[] {
   const under: ContactFootprint[] = [];
   for (const footprint of footprints) {
-    if (centerX < footprint.left || centerX > footprint.right) continue;
-    if (centerY < footprint.top || centerY > footprint.bottom) continue;
+    if (!footprintCovers(footprint, centerX, centerY)) continue;
     under.push(footprint.topAt ? { ...footprint, topZ: footprint.topAt(centerX, centerY) } : footprint);
   }
   return under;
+}
+
+function footprintCovers(footprint: ContactFootprint, x: number, y: number): boolean {
+  if (!footprint.rotate) {
+    return x >= footprint.left && x <= footprint.right && y >= footprint.top && y <= footprint.bottom;
+  }
+  const box = { minX: footprint.left, minY: footprint.top, maxX: footprint.right, maxY: footprint.bottom };
+  return turnedBoxCovers(box, footprint.rotate, x, y);
 }
 
 function contactLevels(under: readonly ContactFootprint[]): number[] {

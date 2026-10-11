@@ -192,7 +192,7 @@ describe('FirstPersonViewComponent', () => {
       expect(eye.rotation.x).toBe(110);
     });
 
-    it('goes back to where the piece faces once let go, at once with motion turned down', () => {
+    it('goes back to where the piece faces when brought back, at once with motion turned down', () => {
       TestBed.inject(MotionService).setting.set('off');
       lookOutOf(pieceAt(4, 7));
       const fixture = mount();
@@ -360,17 +360,76 @@ describe('FirstPersonViewComponent', () => {
       expect(lookOf(fixture).look().pitch).toBe(85);
     });
 
-    it('goes back to where the piece faces once let go', () => {
+    it('stays where the drag left it once let go', () => {
       lookOutOf(pieceAt(4, 7));
       const fixture = mount();
       const scene = sceneOf(fixture);
 
       pointer(scene, 'pointerdown', 100, 400);
+      pointer(scene, 'pointermove', 120, 400);
+      pointer(scene, 'pointermove', 300, 300);
+      const dragged = lookOf(fixture).look();
+      pointer(scene, 'pointerup', 300, 300);
+
+      expect(dragged.pitch).toBeGreaterThan(0);
+      expect(lookOf(fixture).look()).toEqual(dragged);
+      expect(lookOf(fixture).dragging()).toBe(false);
+    });
+
+    it('goes back to where the piece faces once the piece steps after the drag is let go', async () => {
+      const piece = pieceAt(4, 7);
+      lookOutOf(piece);
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+      pointer(scene, 'pointerdown', 100, 400);
+      pointer(scene, 'pointermove', 120, 400);
       pointer(scene, 'pointermove', 300, 300);
       pointer(scene, 'pointerup', 300, 300);
 
+      document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW', bubbles: true, cancelable: true }));
+      await fixture.whenStable();
+
+      expect(piece.location.y).toBe(6 * GRID);
       expect(lookOf(fixture).look()).toEqual({ yaw: 0, pitch: 0 });
-      expect(lookOf(fixture).dragging()).toBe(false);
+    });
+
+    it('goes back to where the piece faces once the piece turns after the drag is let go', async () => {
+      const piece = pieceAt(4, 7);
+      lookOutOf(piece);
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+      pointer(scene, 'pointerdown', 100, 400);
+      pointer(scene, 'pointermove', 120, 400);
+      pointer(scene, 'pointermove', 300, 300);
+      pointer(scene, 'pointerup', 300, 300);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE', bubbles: true, cancelable: true }));
+      await fixture.whenStable();
+
+      expect(piece.rotate).toBe(90);
+      expect(lookOf(fixture).look()).toEqual({ yaw: 0, pitch: 0 });
+    });
+
+    it('brings a look left away back ahead with escape, and leaves the view with the next', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+      const escape = () =>
+        document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true, cancelable: true }));
+      pointer(scene, 'pointerdown', 100, 400);
+      pointer(scene, 'pointermove', 120, 400);
+      pointer(scene, 'pointermove', 300, 300);
+      pointer(scene, 'pointerup', 300, 300);
+
+      escape();
+
+      expect(lookOf(fixture).look()).toEqual({ yaw: 0, pitch: 0 });
+      expect(TestBed.inject(FirstPersonService).piece()).not.toBeNull();
+
+      fixture.detectChanges();
+      escape();
+
+      expect(TestBed.inject(FirstPersonService).piece()).toBeNull();
     });
 
     it('aims at nothing with the click that ends a drag, and still aims with a click', () => {
@@ -416,6 +475,7 @@ describe('FirstPersonViewComponent', () => {
       document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true, cancelable: true }));
 
       expect(lookOf(fixture).dragging()).toBe(false);
+      expect(lookOf(fixture).look()).toEqual({ yaw: 0, pitch: 0 });
       expect(TestBed.inject(FirstPersonService).piece()).not.toBeNull();
     });
 
@@ -425,12 +485,15 @@ describe('FirstPersonViewComponent', () => {
       const fixture = mount();
       const scene = sceneOf(fixture);
       pointer(scene, 'pointerdown', 100, 400);
+      pointer(scene, 'pointermove', 120, 400);
       pointer(scene, 'pointermove', 300, 400);
 
       document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW', bubbles: true, cancelable: true }));
       await fixture.whenStable();
 
       expect(piece.location.y).toBe(6 * GRID);
+      expect(lookOf(fixture).dragging()).toBe(true);
+      expect(lookOf(fixture).look().yaw).toBeGreaterThan(0);
     });
 
     it('takes a drag of one finger for itself rather than letting the page scroll', () => {

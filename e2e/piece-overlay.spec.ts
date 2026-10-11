@@ -32,3 +32,28 @@ test.describe('リソースバーとバフの表示切り替え', () => {
     await expect(badges.first()).toBeAttached();
   });
 });
+
+/** The toolbar switches the names over the pieces off and on in the same way. */
+test.describe('名前の表示切り替え', () => {
+  test('PL ツールバーから全員の名前をまとめて隠せて、リロードしても隠したままで、もう一度押すと戻ること', async ({
+    page,
+  }) => {
+    await waitAppReady(page);
+    const toolbar = page.locator('app-pl-toolbar');
+    const names = page.locator('game-character [data-testid="piece-name"]');
+    const gauges = page.locator('game-character [data-testid="piece-gauge"]');
+    await expect(names.first()).toBeAttached({ timeout: 10000 });
+
+    await toolbar.getByTestId('toolbar-names').click();
+    await expect(names).toHaveCount(0);
+    await expect(gauges.first()).toBeAttached();
+
+    await page.reload();
+    await waitAppReady(page);
+    await expect(toolbar.getByTestId('toolbar-names')).toBeVisible({ timeout: 10000 });
+    await expect(names).toHaveCount(0);
+
+    await toolbar.getByTestId('toolbar-names').click();
+    await expect(names.first()).toBeAttached();
+  });
+});

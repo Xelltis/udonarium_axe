@@ -848,7 +848,7 @@ export class FirstPersonViewComponent {
       picking: this.effectTargeting.isPicking(),
       forced: this.firstPerson.forced(),
       lattice: this.firstPerson.lattice(),
-      looking: this.looking.dragging(),
+      looking: this.looking.away(),
     });
     if (!command) return;
     event.preventDefault();
@@ -899,7 +899,7 @@ export class FirstPersonViewComponent {
         this.clearTargets();
         return;
       case 'endLook':
-        this.looking.letGo();
+        this.looking.lookAhead();
         return;
       case 'castPicks':
         this.castPicks();

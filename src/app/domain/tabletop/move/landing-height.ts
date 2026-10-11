@@ -2,7 +2,7 @@ import { cellCount, CellGrid, forEachCellInBox } from '@axe/domain/tabletop/fog/
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
-import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
+import { terrainBoxOf, terrainCovers } from '@axe/domain/tabletop/terrain-box';
 import { SurfaceLean, terrainLeanAt, terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
 
 /** Whether a block is something a piece walked at ends up standing on top of. */
@@ -31,8 +31,7 @@ export function landingHeightAt(
   let highest = 0;
   for (const terrain of terrains) {
     if (!canBeStoodOn(terrain)) continue;
-    const box = terrainBoxOf(terrain, gridSize);
-    if (x < box.minX || x > box.maxX || y < box.minY || y > box.maxY) continue;
+    if (!terrainCovers(terrain, gridSize, x, y)) continue;
     const top = terrainTopPxAt(terrain, gridSize, gridType, x, y);
     if (top > highest) highest = top;
   }
@@ -53,6 +52,7 @@ export function landingHeightsOn(grid: CellGrid, terrains: readonly Terrain[]): 
     if (!canBeStoodOn(terrain)) continue;
     const box = terrainBoxOf(terrain, grid.sizePx);
     forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (cell, cx, cy) => {
+      if (!terrainCovers(terrain, grid.sizePx, cx, cy)) return;
       const top = terrainTopPxAt(terrain, grid.sizePx, grid.type, cx, cy);
       if (top > heights[cell]) heights[cell] = top;
     });
@@ -100,8 +100,7 @@ export function landingLeanAt(
   let leaning: SurfaceLean | null = null;
   for (const terrain of terrains) {
     if (!canBeStoodOn(terrain)) continue;
-    const box = terrainBoxOf(terrain, gridSize);
-    if (x < box.minX || x > box.maxX || y < box.minY || y > box.maxY) continue;
+    if (!terrainCovers(terrain, gridSize, x, y)) continue;
     const top = terrainTopPxAt(terrain, gridSize, gridType, x, y);
     if (top < highest) continue;
     highest = top;

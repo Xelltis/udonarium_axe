@@ -57,7 +57,23 @@ describe('landingHeightAt', () => {
 
     expect(landingHeightAt([shelf], 50, 50, 50)).toBe(0);
   });
+
+  it('is the floor in the corner of the box that holds a block turned off the square', () => {
+    const turned = diamond();
+
+    expect(landingHeightAt([turned], 50, 75, 75)).toBe(0);
+    expect(landingHeightAt([turned], 50, 175, 175)).toBe(100);
+  });
 });
+
+/** Four cells square at 100, 100, turned an eighth round: its corners stand 141.4 out from 200, 200. */
+function diamond(): Terrain {
+  const terrain = Terrain.create('block', 4, 4, 2, '', '', 'diamond');
+  terrain.location.x = 100;
+  terrain.location.y = 100;
+  terrain.rotate = 45;
+  return terrain;
+}
 
 describe('landingHeightsOn', () => {
   const grid = cellGridOf(6, 6, 50, GridType.SQUARE);
@@ -96,6 +112,13 @@ describe('landingHeightsOn', () => {
     cliff.blocksClimb = true;
 
     expect(landingHeightsOn(grid, [cliff])[cellIndexOf(grid, 0, 0)]).toBe(0);
+  });
+
+  it('leaves the floor in a cell a turned block only holds the box round', () => {
+    const heights = landingHeightsOn(grid, [diamond()]);
+
+    expect(heights[cellIndexOf(grid, 1, 1)]).toBe(0);
+    expect(heights[cellIndexOf(grid, 3, 3)]).toBe(100);
   });
 });
 

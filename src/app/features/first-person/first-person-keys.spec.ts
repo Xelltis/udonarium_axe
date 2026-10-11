@@ -83,7 +83,7 @@ describe('firstPersonKeyDown', () => {
     });
   });
 
-  it('ends a drag of the view with escape before anything else, the view and the aiming left as they were', () => {
+  it('brings a look away back ahead with escape before anything else, the view and the aiming left as they were', () => {
     expect(firstPersonKeyDown('Escape', contextOn(GridType.SQUARE, { looking: true }))).toEqual({ kind: 'endLook' });
     expect(firstPersonKeyDown('Escape', contextOn(GridType.SQUARE, { looking: true, picking: true }))).toEqual({
       kind: 'endLook',

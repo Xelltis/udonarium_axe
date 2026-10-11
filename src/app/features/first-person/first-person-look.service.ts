@@ -1,6 +1,7 @@
 import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MotionService } from '@axe/application/ui/motion.service';
+import { FirstPersonPose } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import {
   FirstPersonLook,
   homeward,
@@ -10,7 +11,7 @@ import {
   lookEased,
 } from '@axe/domain/tabletop/first-person/first-person-look';
 
-/** How long the view takes to come back to where the piece faces once the screen lets go, in ms. */
+/** How long the view takes to come back to where the piece faces, in ms. */
 export const LOOK_RETURN_MS = 240;
 
 /** How far a press has to move before it is a look rather than a click, in screen pixels. */
@@ -31,7 +32,9 @@ interface Press {
  * Where this screen looks away from where its piece faces, while the user looks about.
  *
  * The look is the screen's own: it turns and tips the camera, never the piece, and is neither shared
- * nor kept. Looking out of another piece starts level and ahead.
+ * nor kept. It stays where a drag leaves it, so the eye can be left on something while the hand goes
+ * to the chat, and goes back to where the piece faces once the piece moves or turns, unless a drag is
+ * under way. Looking out of another piece starts level and ahead.
  */
 @Injectable()
 export class FirstPersonLookService {
@@ -52,10 +55,22 @@ export class FirstPersonLookService {
   /** Whether the user is dragging the view about. */
   readonly dragging = this.draggingNow.asReadonly();
 
+  /** Whether the view is dragged about or left looking away from where the piece faces. */
+  readonly away = computed(() => this.draggingNow() || !isAtRest(this.current()));
+
   constructor() {
     effect(() => {
       this.viewer();
       untracked(() => this.reset());
+    });
+    let standing: FirstPersonPose | null = null;
+    effect(() => {
+      const pose = this.firstPerson.pose();
+      untracked(() => {
+        const moved = standing !== null && pose !== null && pose !== standing;
+        standing = pose;
+        if (moved && !this.draggingNow()) this.release();
+      });
     });
     this.destroyRef.onDestroy(() => this.reset());
   }
@@ -101,12 +116,16 @@ export class FirstPersonLookService {
     this.lookTo(lookDragged(pressed.start, event.clientX - pressed.x, event.clientY - pressed.y, degPerPx));
   }
 
-  /** Lets go of a press: a look goes back to where the piece faces; a click is left to happen. */
+  /** Lets go of a press: a look stays where it was dragged to; a click is left to happen. */
   letGo(event?: PointerEvent): void {
     if (event && this.pressed && event.pointerId !== this.pressed.pointerId) return;
     this.pressed = null;
-    if (!this.draggingNow()) return;
     this.draggingNow.set(false);
+  }
+
+  /** Drops any press under way and goes back to where the piece faces. */
+  lookAhead(): void {
+    this.letGo();
     this.release();
   }
 

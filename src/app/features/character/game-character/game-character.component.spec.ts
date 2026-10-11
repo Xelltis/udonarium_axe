@@ -2209,6 +2209,53 @@ describe('GameCharacterComponent', () => {
       }
     });
 
+    it('draws no name while this seat has names switched off from the toolbar', () => {
+      const tabletopService = TestBed.inject(TabletopService);
+      tabletopService.currentTable.mode2d = true;
+      tabletopService.currentTable.multiAngleEnabled = false;
+      const character = GameCharacter.create('名札', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+      const overlay = TestBed.inject(PieceOverlayPreferenceService);
+      const root = fixture.nativeElement as HTMLElement;
+
+      try {
+        fixture.detectChanges();
+        expect(root.querySelectorAll('[data-testid="piece-name"]')).toHaveLength(1);
+
+        overlay.toggleNames();
+        fixture.detectChanges();
+        expect(root.querySelectorAll('[data-testid="piece-name"]')).toHaveLength(0);
+
+        overlay.toggleNames();
+        fixture.detectChanges();
+        expect(root.querySelectorAll('[data-testid="piece-name"]')).toHaveLength(1);
+      } finally {
+        localStorage.removeItem('ui-piece-overlay');
+        character.destroy();
+      }
+    });
+
+    it('draws no name round the orbit either while names are switched off', () => {
+      const tabletopService = TestBed.inject(TabletopService);
+      tabletopService.currentTable.mode2d = true;
+      tabletopService.currentTable.multiAngleEnabled = true;
+      const character = GameCharacter.create('周回名札', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+      const root = fixture.nativeElement as HTMLElement;
+
+      try {
+        TestBed.inject(PieceOverlayPreferenceService).toggleNames();
+        fixture.detectChanges();
+
+        expect(component.multiAngleNameOrbitEnabled()).toBe(true);
+        expect(root.querySelector('[data-testid="multi-angle-name-orbit"]')).toBeNull();
+        expect(root.querySelectorAll('[data-testid="piece-name"]')).toHaveLength(0);
+      } finally {
+        localStorage.removeItem('ui-piece-overlay');
+        character.destroy();
+      }
+    });
+
     it('curves a short label four times around the clockwise orbit', async () => {
       const tabletopService = TestBed.inject(TabletopService);
       tabletopService.currentTable.mode2d = true;

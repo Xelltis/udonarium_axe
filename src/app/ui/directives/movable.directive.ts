@@ -18,7 +18,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ALTITUDE_STEP_CELLS, steppedAltitude } from '@axe/domain/tabletop/altitude-step';
 import { GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import { clearRunAlong, MoveBlock } from '@axe/domain/tabletop/move/blocked-path';
+import { clearRunAlong, MoveBlock, turnedMoveBlock } from '@axe/domain/tabletop/move/blocked-path';
 import { SurfaceDims, surfaceWorldBox, WorldBox } from '@axe/domain/tabletop/surface-space';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import {
@@ -29,7 +29,6 @@ import {
   TabletopObject,
 } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
-import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { terrainSlopeRoofOf, terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
 import { InputHandler } from '@axe/ui/directives/input-handler';
 import {
@@ -472,6 +471,7 @@ export class MovableDirective implements MovableInteractionContext {
         bottom: top + footprint.height,
         bottomZ: GravityService.contactBottomZ(entry.object, selfSurface, gridSize),
         topZ: GravityService.contactTopZ(entry.object, selfSurface, gridSize),
+        rotate: entry.object instanceof Terrain ? entry.object.rotate : undefined,
         climbable: !(sheer && entry.object instanceof Terrain && entry.object.blocksClimb),
         topAt: this.slopeTopReader(entry.object, selfSurface, gridSize),
         identifier: entry.object.identifier,
@@ -528,13 +528,10 @@ export class MovableDirective implements MovableInteractionContext {
       if (!(object instanceof Terrain) || !object.blocksClimb) continue;
       if (surfaceOf(object) !== selfSurface) continue;
       if (object.isDoor && object.isDoorOpen) continue;
-      const box = terrainBoxOf(object, gridSize);
-      blocks.push({
-        minX: box.minX - spread.x,
-        minY: box.minY - spread.y,
-        maxX: box.maxX + spread.x,
-        maxY: box.maxY + spread.y,
-      });
+      const left = object.location.x;
+      const top = object.location.y;
+      const box = { minX: left, minY: top, maxX: left + object.width * gridSize, maxY: top + object.depth * gridSize };
+      blocks.push(turnedMoveBlock(box, object.rotate, spread.x, spread.y));
     }
     return blocks;
   }
