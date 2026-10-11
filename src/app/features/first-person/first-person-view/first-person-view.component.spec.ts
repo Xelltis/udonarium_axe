@@ -223,6 +223,65 @@ describe('FirstPersonViewComponent', () => {
       vi.restoreAllMocks();
     });
 
+    it('blurs a piece far off behind the piece once the eye turns round to it', () => {
+      ImageStorage.instance.add({
+        identifier: 'far-face',
+        name: 'far-face.png',
+        type: 'image/png',
+        blob: null,
+        url: 'blob:far-face',
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+      try {
+        const behind = GameCharacter.create('後ろの敵', 1, 'far-face');
+        behind.location = { name: 'table', x: 4 * GRID, y: 10 * GRID };
+        lookOutOf(pieceAt(4, 1));
+        const fixture = mount();
+
+        lookOf(fixture).lookTo({ yaw: 180, pitch: 0 });
+        fixture.detectChanges();
+
+        const picture = element(fixture).querySelector<HTMLElement>(`[data-piece="${behind.identifier}"] img`)!;
+        expect(picture.style.filter).toMatch(/blur\(/);
+      } finally {
+        ImageStorage.instance.delete('far-face');
+      }
+    });
+
+    it('lets a near piece down to the floor as the eye looks down at its feet', () => {
+      const near = pieceAt(4, 6);
+      near.location = { name: 'table', x: 4 * GRID, y: 6.6 * GRID };
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const standsAt = () => {
+        const billboard = element(fixture).querySelector<HTMLElement>(`[data-piece="${near.identifier}"]`)!;
+        return parseFloat(/translate3d\([^,]+, [^,]+, ([-\d.]+)px\)/.exec(billboard.style.transform)![1]);
+      };
+      expect(standsAt()).toBeGreaterThan(0);
+
+      lookOf(fixture).lookTo({ yaw: 0, pitch: -60 });
+      fixture.detectChanges();
+
+      expect(standsAt()).toBe(0);
+    });
+
+    it('stands the readings of a great piece over its head again as the eye looks up at it', () => {
+      const giant = GameCharacter.create('巨人', 3, '');
+      giant.location = { name: 'table', x: 3 * GRID, y: 4 * GRID };
+      lookOutOf(pieceAt(4, 8));
+      const fixture = mount();
+      const chromeOf = () =>
+        element(fixture).querySelector<HTMLElement>(
+          `[data-piece="${giant.identifier}"] [data-testid="first-person-piece-chrome"]`
+        )!;
+      expect(parseFloat(chromeOf().style.bottom)).toBeLessThan(100);
+
+      lookOf(fixture).lookTo({ yaw: 0, pitch: 60 });
+      fixture.detectChanges();
+
+      expect(chromeOf().style.bottom).toBe('100%');
+    });
+
     it('cuts a great piece from below once the eye looks steeply up at it', () => {
       const giant = GameCharacter.create('巨竜', 5, '');
       giant.location = { name: 'table', x: 2 * GRID, y: 2 * GRID };

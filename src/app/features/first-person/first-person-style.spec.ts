@@ -240,6 +240,14 @@ describe('how large a piece comes out on the screen', () => {
     expect(((eyeZ - lift) * PERSPECTIVE) / NEAR_PX).toBeCloseTo((VIEW_PX / 2) * (1 - PIECE_FOOT_MARGIN), 3);
   });
 
+  it('lets a near piece down to the floor as the eye looks down at its feet, and keeps it raised looking up', () => {
+    const level = billboardLiftPx(0, 40, NEAR_PX, PERSPECTIVE, VIEW_PX);
+
+    expect(billboardLiftPx(0, 40, NEAR_PX, PERSPECTIVE, VIEW_PX, -10)).toBeLessThan(level);
+    expect(billboardLiftPx(0, 40, NEAR_PX, PERSPECTIVE, VIEW_PX, -60)).toBe(0);
+    expect(billboardLiftPx(0, 40, NEAR_PX, PERSPECTIVE, VIEW_PX, 30)).toBeCloseTo(level, 6);
+  });
+
   it('leaves a piece far enough off standing on the floor', () => {
     expect(billboardLiftPx(0, 40, FAR_PX, PERSPECTIVE, VIEW_PX)).toBe(0);
     expect(billboardLiftPx(0, 40, NEAR_PX, PERSPECTIVE, 0)).toBe(0);
@@ -318,6 +326,13 @@ describe('how large a piece comes out on the screen', () => {
 
       expect(near).toBeLessThan(100);
       expect(topOfChrome).toBeCloseTo(VIEW_PX / 2 - 64, 0);
+    });
+
+    it('goes back up to the top of the picture as the eye looks up at a near piece', () => {
+      expect(pieceChromeBottomPercent({ ...at, depthPx: NEAR_PX, pitchDeg: 20 })).toBeGreaterThan(
+        pieceChromeBottomPercent({ ...at, depthPx: NEAR_PX })
+      );
+      expect(pieceChromeBottomPercent({ ...at, depthPx: NEAR_PX, pitchDeg: 80 })).toBe(100);
     });
 
     it('stays on the picture rather than below its feet, and asks nothing of a view not yet measured', () => {

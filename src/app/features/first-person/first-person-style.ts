@@ -232,17 +232,24 @@ export function projectedHeightPx(heightPx: number, depthPx: number, scale: numb
  * How far a piece standing close has to be raised, in table pixels, for its feet to come up into
  * the view rather than below its bottom edge; nothing for a piece far enough off to show whole.
  * Raised, it floats a little off the floor, which is the price of seeing where it stands.
+ *
+ * `depthPx` is how far ahead the piece stands along the way the camera faces, and `pitchDeg` how far
+ * the camera tips. Looking down brings the feet into the view and the lift goes; looking up keeps
+ * the lift a level view gives, so a piece does not climb the view as the eye looks up at it.
  */
 export function billboardLiftPx(
   baseZ: number,
   eyeZ: number,
   depthPx: number,
   perspective: number,
-  viewHeightPx: number
+  viewHeightPx: number,
+  pitchDeg = 0
 ): number {
   if (viewHeightPx <= 0 || depthPx <= 0 || perspective <= 0) return 0;
-  const lowest = eyeZ - ((viewHeightPx / 2) * (1 - PIECE_FOOT_MARGIN) * depthPx) / perspective;
-  return Math.max(0, lowest - baseZ);
+  const bottom = Math.atan(((viewHeightPx / 2) * (1 - PIECE_FOOT_MARGIN)) / perspective);
+  const angle = (Math.min(pitchDeg, 0) * Math.PI) / 180 - bottom;
+  if (angle <= -Math.PI / 2) return 0;
+  return Math.max(0, eyeZ + depthPx * Math.tan(angle) - baseZ);
 }
 
 /**
@@ -286,7 +293,9 @@ export function pieceChromeHeightPx(rows: PieceChromeRows): number {
  * Where what is told about a piece stands in its box, in percent from the bottom: just above the
  * top of the picture, unless that would carry it off the top of the view, when it comes down to
  * stay in sight, over the picture if it must. `chromeScreenPx` is how tall it shows on the screen,
- * and `marginPx` how far below the top of the view it keeps.
+ * and `marginPx` how far below the top of the view it keeps. `depthPx` is how far ahead the piece
+ * stands along the way the camera faces, and `pitchDeg` how far the camera tips up, which lifts the
+ * top of the view.
  */
 export function pieceChromeBottomPercent(at: {
   pictureTop: number;
@@ -294,6 +303,7 @@ export function pieceChromeBottomPercent(at: {
   baseZ: number;
   eyeZ: number;
   depthPx: number;
+  pitchDeg?: number;
   perspective: number;
   viewHeightPx: number;
   chromeScreenPx: number;
@@ -302,7 +312,8 @@ export function pieceChromeBottomPercent(at: {
   if (at.viewHeightPx <= 0 || at.depthPx <= 0 || at.perspective <= 0 || at.heightPx <= 0) return at.pictureTop;
   const topZ = at.baseZ + (at.heightPx * at.pictureTop) / 100;
   const roomPx = at.viewHeightPx / 2 - at.marginPx - at.chromeScreenPx;
-  const highestZ = at.eyeZ + (roomPx * at.depthPx) / at.perspective;
+  const angle = ((at.pitchDeg ?? 0) * Math.PI) / 180 + Math.atan(roomPx / at.perspective);
+  const highestZ = angle >= Math.PI / 2 ? Infinity : at.eyeZ + at.depthPx * Math.tan(angle);
   const percent = ((Math.min(topZ, highestZ) - at.baseZ) / at.heightPx) * 100;
   return round(Math.min(Math.max(percent, 0), at.pictureTop));
 }

@@ -467,11 +467,10 @@ export class FirstPersonViewComponent {
   });
 
   protected readonly pieceViews = computed<PieceView[]>(() => {
-    const pose = this.shown();
     const camera = this.viewCamera();
     const viewer = this.firstPerson.piece();
     const gridSize = this.gridSize();
-    if (!pose || !camera || !viewer || gridSize <= 0) return [];
+    if (!camera || !viewer || gridSize <= 0) return [];
     this.objectChange.fileVersion();
     this.uiSignal.targetChange();
     this.objectChange.trackMyCursor();
@@ -479,7 +478,7 @@ export class FirstPersonViewComponent {
     const master = this.rolePermission.canSeeHidden;
     const picks = this.effectTargeting.picks();
     const eye = eyeFrameOf(camera);
-    const facing = eyeFrameOf(pose);
+    const pitch = camera.pitch ?? 0;
     const nearPx = gridSize * NEAR_CELLS;
     const scale = this.scale();
     const perspective = this.perspective();
@@ -494,8 +493,7 @@ export class FirstPersonViewComponent {
       if (!this.pieceInSight(camera, piece.location, size, centre)) continue;
       const badges = this.badgesOf(piece);
       const depth = depthOf(eye, centre);
-      const ahead = depthOf(facing, centre);
-      const lifted = base + billboardLiftPx(base, pose.z, ahead, perspective, viewHeight);
+      const lifted = base + billboardLiftPx(base, camera.z, depth, perspective, viewHeight, pitch);
       const kept = clipBillboardToEye(eye, centre, lifted, lifted + stand.heightPx, nearPx);
       if (!kept) continue;
       const textScale = billboardTextScale(depth, scale, perspective);
@@ -525,20 +523,18 @@ export class FirstPersonViewComponent {
           pictureTop: pictureTopPercent(stand.widthPx / stand.heightPx, aspect),
           heightPx: stand.heightPx,
           baseZ: lifted,
-          eyeZ: pose.z,
-          depthPx: ahead,
+          eyeZ: camera.z,
+          depthPx: depth,
+          pitchDeg: pitch,
           perspective,
           viewHeightPx: viewHeight,
-          chromeScreenPx:
-            pieceChromeHeightPx(chromeRows) *
-            billboardTextScale(ahead, scale, perspective) *
-            projectedScaleOf(ahead, scale, perspective),
+          chromeScreenPx: pieceChromeHeightPx(chromeRows) * textScale * projectedScaleOf(depth, scale, perspective),
           marginPx: CHROME_TOP_MARGIN_PX,
         }),
         imageFilter: pieceImageFilter(
           this.vision.objectBrightness(centre.x, centre.y, size / 2, false, base),
           piece.targeted,
-          farBlurPx(ahead, clear, reach)
+          farBlurPx(depth, clear, reach)
         ),
       });
     }
