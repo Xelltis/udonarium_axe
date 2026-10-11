@@ -113,8 +113,14 @@ test.describe('コマの頭上表示', () => {
     const count = await buttons.count();
     expect(count).toBeGreaterThan(3);
 
-    const tops: number[] = [];
-    for (let i = 0; i < count; i++) tops.push((await box(buttons.nth(i))).y);
+    // Read every button in the same moment: the sheet above the row can still grow as it opens,
+    // and buttons measured one by one would straddle that shift.
+    const tops = await actions.evaluate((cluster) =>
+      [...cluster.querySelectorAll('button')]
+        .filter((button) => button.offsetParent !== null && getComputedStyle(button).visibility !== 'hidden')
+        .map((button) => button.getBoundingClientRect().top)
+    );
+    expect(tops).toHaveLength(count);
     expect(Math.max(...tops) - Math.min(...tops), '操作ボタンが 2 段に折り返している').toBeLessThan(6);
     expect(cluster.height, '操作ボタンの帯が 2 段ぶんの高さになっている').toBeLessThan(34);
 
