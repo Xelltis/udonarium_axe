@@ -197,14 +197,17 @@ describe('HandRailComponent', () => {
     let card: Card;
     let surface: HTMLElement;
     const ownElementFromPoint = Object.getOwnPropertyDescriptor(document, 'elementFromPoint');
+    const ownElementsFromPoint = Object.getOwnPropertyDescriptor(document, 'elementsFromPoint');
 
     beforeEach(async () => {
       card = makeCard(handLocationOf('me'));
       surface = document.createElement('div');
       surface.dataset['surface'] = 'floor';
       document.body.appendChild(surface);
-      // The page here has no layout to find the table under the pointer in.
+      // The page here has no layout to find the table under the pointer in, and the rail asks for
+      // every element there where the browser can tell it.
       Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => surface });
+      Object.defineProperty(document, 'elementsFromPoint', { configurable: true, value: () => [surface] });
       vi.spyOn(TestBed.inject(CoordinateService), 'calcTabletopLocalCoordinate').mockReturnValue({
         x: 300,
         y: 200,
@@ -218,6 +221,8 @@ describe('HandRailComponent', () => {
     afterEach(() => {
       if (ownElementFromPoint) Object.defineProperty(document, 'elementFromPoint', ownElementFromPoint);
       else delete (document as { elementFromPoint?: unknown }).elementFromPoint;
+      if (ownElementsFromPoint) Object.defineProperty(document, 'elementsFromPoint', ownElementsFromPoint);
+      else delete (document as { elementsFromPoint?: unknown }).elementsFromPoint;
       surface.remove();
       card.destroy();
       vi.restoreAllMocks();

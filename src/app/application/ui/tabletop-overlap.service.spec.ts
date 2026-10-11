@@ -24,9 +24,11 @@ function makeElement(rect: { x: number; y: number; w: number; h: number }): HTML
 
 describe('TabletopOverlapService', () => {
   let service: TabletopOverlapService;
+  let addedElementsFromPoint = false;
 
   beforeEach(() => {
-    if (typeof document.elementsFromPoint !== 'function') {
+    addedElementsFromPoint = typeof document.elementsFromPoint !== 'function';
+    if (addedElementsFromPoint) {
       (document as unknown as { elementsFromPoint: (x: number, y: number) => Element[] }).elementsFromPoint = () => [];
     }
     TestBed.configureTestingModule({});
@@ -37,6 +39,8 @@ describe('TabletopOverlapService', () => {
   // is the same one, carrying the calls the last test made into an assertion about its own.
   afterEach(() => {
     vi.restoreAllMocks();
+    // The page outlives this file: the stand-in would answer every spec after this one in the worker.
+    if (addedElementsFromPoint) delete (document as { elementsFromPoint?: unknown }).elementsFromPoint;
   });
 
   it('returns nothing without looking when the coordinates are not numbers', () => {
