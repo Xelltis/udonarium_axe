@@ -1,5 +1,5 @@
 import { FirstPersonCamera } from '@axe/domain/tabletop/first-person/first-person-clip';
-import { FirstPersonPose } from '@axe/domain/tabletop/first-person/first-person-lattice';
+import { FirstPersonPose, signedTurnDeg } from '@axe/domain/tabletop/first-person/first-person-lattice';
 
 /**
  * How far this seat looks away from where its piece faces: turned right (positive) or left, and
@@ -39,8 +39,7 @@ export function lookDragged(start: FirstPersonLook, dxPx: number, dyPx: number, 
 
 /** The same look with its turn brought within half a turn either way, so going back takes the short way. */
 export function homeward(look: FirstPersonLook): FirstPersonLook {
-  const turned = ((((look.yaw + 180) % 360) + 360) % 360) - 180;
-  return { yaw: turned === -180 ? 180 : turned, pitch: look.pitch };
+  return { yaw: signedTurnDeg(look.yaw), pitch: look.pitch };
 }
 
 /** Where a look going back to rest stands after `t` of the way (0 to 1), easing as it arrives. */

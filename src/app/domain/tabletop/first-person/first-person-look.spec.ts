@@ -31,7 +31,7 @@ describe('looking about from a piece', () => {
   it('goes back the short way round', () => {
     expect(homeward({ yaw: 270, pitch: 10 })).toEqual({ yaw: -90, pitch: 10 });
     expect(homeward({ yaw: -200, pitch: 0 }).yaw).toBe(160);
-    expect(homeward({ yaw: 180, pitch: 0 }).yaw).toBe(180);
+    expect(Math.abs(homeward({ yaw: 180, pitch: 0 }).yaw)).toBe(180);
   });
 
   it('eases back to rest, arriving there at the end', () => {

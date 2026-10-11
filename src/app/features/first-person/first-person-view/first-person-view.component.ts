@@ -46,6 +46,7 @@ import {
   FirstPersonMove,
   FirstPersonPose,
   headingVector,
+  signedTurnDeg,
 } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import { cameraOf } from '@axe/domain/tabletop/first-person/first-person-look';
 import { roofRaisedFor, sameRoof } from '@axe/domain/tabletop/first-person/first-person-roof';
@@ -989,7 +990,7 @@ export class FirstPersonViewComponent {
       return;
     }
     this.carried.set(unionOf(before, this.carried()));
-    const turn = ((((target.yaw - from.yaw) % 360) + 540) % 360) - 180;
+    const turn = signedTurnDeg(target.yaw - from.yaw);
     const started = performance.now();
     const step = (now: number): void => {
       const along = Math.min(1, (now - started) / GLIDE_MS);
@@ -1012,7 +1013,7 @@ export class FirstPersonViewComponent {
   }
 
   private tooFar(from: FirstPersonPose, to: FirstPersonPose): boolean {
-    const turn = Math.abs(((((to.yaw - from.yaw) % 360) + 540) % 360) - 180);
+    const turn = Math.abs(signedTurnDeg(to.yaw - from.yaw));
     return Math.hypot(to.x - from.x, to.y - from.y) > SNAP_CELLS * this.gridSize() || turn > SNAP_TURN_DEG;
   }
 

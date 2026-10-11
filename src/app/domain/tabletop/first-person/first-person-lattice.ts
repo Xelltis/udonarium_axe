@@ -96,6 +96,11 @@ export function headingVector(yawDeg: number): { x: number; y: number } {
   return { x: tidy(Math.sin(radians)), y: tidy(-Math.cos(radians)) };
 }
 
+/** A turn brought within half a turn either way: from -180° up to, but not including, 180°. */
+export function signedTurnDeg(degrees: number): number {
+  return (((degrees % 360) + 540) % 360) - 180;
+}
+
 function tidy(value: number): number {
   const rounded = Math.round(value * 1e9) / 1e9;
   return rounded === 0 ? 0 : rounded;
