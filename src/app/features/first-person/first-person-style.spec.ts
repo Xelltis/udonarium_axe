@@ -10,8 +10,9 @@ import {
   farBlurPx,
   litShade,
   MAX_FAR_BLUR_PX,
+  NIGHT_SKY,
+  nightSkyAt,
   perspectivePx,
-  pictureTopPercent,
   PIECE_FOOT_MARGIN,
   pieceChromeBottomPercent,
   pieceChromeHeightPx,
@@ -22,6 +23,7 @@ import {
   scaleOf,
   shadeFor,
   wallQuadStyle,
+  withBillboardCut,
 } from '@axe/features/first-person/first-person-style';
 import { describe, expect, it } from 'vitest';
 
@@ -91,6 +93,12 @@ describe('the first-person camera', () => {
     );
   });
 
+  it('tips the world for a camera looking up, before standing it up', () => {
+    expect(cameraTransform({ x: 100, y: 200, z: 25, yaw: 90, pitch: 30 }, 2, 500)).toBe(
+      'translateZ(500px) rotateX(30deg) rotateX(90deg) rotateZ(-90deg) translate3d(-200px, -400px, -50px)'
+    );
+  });
+
   it('darkens with distance, and never quite to black', () => {
     expect(shadeFor(0, 300)).toBe(0);
     expect(shadeFor(150, 300)).toBeCloseTo(0.425);
@@ -121,6 +129,32 @@ describe('placing a wall', () => {
     expect(wallQuadStyle(wall(), 2, '', 0.3)['backgroundImage']).toBe(
       'linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3))'
     );
+  });
+
+  it('draws only the part a tipped camera keeps, cut to its slant, with the picture still over the whole wall', () => {
+    const cut = wall({
+      cut: {
+        basePx: 10,
+        topPx: 40,
+        outline: [
+          { u: 0, z: 40 },
+          { u: 30, z: 10 },
+          { u: 30, z: 40 },
+        ],
+      },
+    });
+
+    const style = wallQuadStyle(cut, 2, 'stone.png', 0.2);
+
+    expect(style['height']).toBe('60px');
+    expect(style['transform']).toBe('translate3d(200px, 100px, 80px) rotateZ(90deg) rotateX(-90deg)');
+    expect(style['backgroundSize']).toBe('100% 100%, 100px 100px');
+    expect(style['backgroundPosition']).toBe('0 0, -40px -20px');
+    expect(style['clipPath']).toBe('polygon(0px 0px, 60px 60px, 60px 0px)');
+  });
+
+  it('cuts nothing off a level wall', () => {
+    expect(wallQuadStyle(wall(), 2, 'stone.png', 0.2)['clipPath']).toBeUndefined();
   });
 });
 
@@ -205,6 +239,14 @@ describe('how large a piece comes out on the screen', () => {
     expect(((eyeZ - lift) * PERSPECTIVE) / NEAR_PX).toBeCloseTo((VIEW_PX / 2) * (1 - PIECE_FOOT_MARGIN), 3);
   });
 
+  it('lets a near piece down to the floor as the eye looks down at its feet, and keeps it raised looking up', () => {
+    const level = billboardLiftPx(0, 40, NEAR_PX, PERSPECTIVE, VIEW_PX);
+
+    expect(billboardLiftPx(0, 40, NEAR_PX, PERSPECTIVE, VIEW_PX, -10)).toBeLessThan(level);
+    expect(billboardLiftPx(0, 40, NEAR_PX, PERSPECTIVE, VIEW_PX, -60)).toBe(0);
+    expect(billboardLiftPx(0, 40, NEAR_PX, PERSPECTIVE, VIEW_PX, 30)).toBeCloseTo(level, 6);
+  });
+
   it('leaves a piece far enough off standing on the floor', () => {
     expect(billboardLiftPx(0, 40, FAR_PX, PERSPECTIVE, VIEW_PX)).toBe(0);
     expect(billboardLiftPx(0, 40, NEAR_PX, PERSPECTIVE, 0)).toBe(0);
@@ -247,13 +289,6 @@ describe('how large a piece comes out on the screen', () => {
     expect(billboardTextScale(FAR_PX, SCALE, PERSPECTIVE)).toBe(1);
   });
 
-  it('finds how far up its box a picture reaches, all the way until its proportions are known', () => {
-    expect(pictureTopPercent(0.6, undefined)).toBe(100);
-    expect(pictureTopPercent(0.6, 0.5)).toBe(100);
-    expect(pictureTopPercent(0.6, 2)).toBe(30);
-    expect(pictureTopPercent(0, 2)).toBe(100);
-  });
-
   it('measures what is told about a piece a row at a time', () => {
     expect(pieceChromeHeightPx({ badges: false, gauges: 0, label: false })).toBe(8);
     expect(pieceChromeHeightPx({ badges: true, gauges: 2, label: true })).toBe(8 + 54 + 48 + 46);
@@ -261,7 +296,6 @@ describe('how large a piece comes out on the screen', () => {
 
   describe('where what is told about a piece stands', () => {
     const at = {
-      pictureTop: 100,
       heightPx: 75,
       baseZ: 0,
       eyeZ: 40,
@@ -274,7 +308,6 @@ describe('how large a piece comes out on the screen', () => {
 
     it('stands just above the top of the picture for a piece far enough off', () => {
       expect(pieceChromeBottomPercent(at)).toBe(100);
-      expect(pieceChromeBottomPercent({ ...at, pictureTop: 30 })).toBe(30);
     });
 
     it('comes down to stay in the view for a piece so near that the top of it is not', () => {
@@ -285,14 +318,51 @@ describe('how large a piece comes out on the screen', () => {
       expect(topOfChrome).toBeCloseTo(VIEW_PX / 2 - 64, 0);
     });
 
+    it('goes back up to the top of the picture as the eye looks up at a near piece', () => {
+      expect(pieceChromeBottomPercent({ ...at, depthPx: NEAR_PX, pitchDeg: 20 })).toBeGreaterThan(
+        pieceChromeBottomPercent({ ...at, depthPx: NEAR_PX })
+      );
+      expect(pieceChromeBottomPercent({ ...at, depthPx: NEAR_PX, pitchDeg: 80 })).toBe(100);
+    });
+
     it('stays on the picture rather than below its feet, and asks nothing of a view not yet measured', () => {
       expect(pieceChromeBottomPercent({ ...at, depthPx: NEAR_PX, chromeScreenPx: 10_000 })).toBe(0);
-      expect(pieceChromeBottomPercent({ ...at, viewHeightPx: 0, pictureTop: 40 })).toBe(40);
+      expect(pieceChromeBottomPercent({ ...at, viewHeightPx: 0 })).toBe(100);
     });
   });
 
   it('leaves the chrome of a piece alone until it has to be shrunk', () => {
     expect(billboardHudTransform(1)).toBeNull();
     expect(billboardHudTransform(0.6067)).toBe('scale(0.607)');
+  });
+});
+
+describe('the night sky as the eye looks up or down', () => {
+  it('is the level sky while the eye looks level', () => {
+    expect(nightSkyAt(0, 800)).toBe(NIGHT_SKY);
+  });
+
+  it('moves the haze at the horizon down the view and keeps the top and the foot where they are', () => {
+    expect(nightSkyAt(100, 800)).toBe(
+      'linear-gradient(to bottom, #04060b 0px, #0b1220 356px, #1c2840 492px, #222f47 500px, #10161f 548px, #06080c 800px)'
+    );
+  });
+});
+
+describe('cutting a piece a tipped camera passes', () => {
+  const style = { width: '10px' };
+
+  it('leaves a piece it keeps whole as it was', () => {
+    expect(withBillboardCut(style, { lowPx: 0, highPx: 100 }, 0, 100)).toBe(style);
+  });
+
+  it('cuts it from below, leaving what is told above it in view', () => {
+    expect(withBillboardCut(style, { lowPx: 25, highPx: 100 }, 0, 100)['clipPath']).toBe(
+      'inset(-400% -100% 25% -100%)'
+    );
+  });
+
+  it('cuts it from above, taking what is told above it too', () => {
+    expect(withBillboardCut(style, { lowPx: 0, highPx: 60 }, 0, 100)['clipPath']).toBe('inset(40% -100% -100% -100%)');
   });
 });

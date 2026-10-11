@@ -16,8 +16,33 @@ const MAX_SHADE = 0.85;
 export const MAX_FAR_BLUR_PX = 3;
 const FAR_BLUR_STEP_PX = 0.5;
 const REMEMBERED_VEIL = `linear-gradient(rgba(0, 0, 0, ${FOG_VEIL_ALPHA}), rgba(0, 0, 0, ${FOG_VEIL_ALPHA}))`;
+/** Where each colour of the night sky stands down a level view, as a share of its height. */
+const NIGHT_SKY_STOPS: readonly (readonly [string, number])[] = [
+  ['#04060b', 0],
+  ['#0b1220', 0.32],
+  ['#1c2840', 0.49],
+  ['#222f47', 0.5],
+  ['#10161f', 0.56],
+  ['#06080c', 1],
+];
+
+/** The sky over a table that has no picture to show, darkest overhead and palest at the horizon. */
+export const NIGHT_SKY = `linear-gradient(to bottom, ${NIGHT_SKY_STOPS.map(([colour, at]) => `${colour} ${round(at * 100)}%`).join(', ')})`;
 
 export type QuadStyle = Record<string, string>;
+
+/**
+ * The night sky with its horizon moved down the view by `liftPx` (up, where negative), as it moves
+ * when the eye looks up or down: the haze keeps to the horizon, and overhead and underfoot stay dark.
+ */
+export function nightSkyAt(liftPx: number, viewHeightPx: number): string {
+  if (liftPx === 0 || viewHeightPx <= 0) return NIGHT_SKY;
+  const stops = NIGHT_SKY_STOPS.map(([colour, at], index) => {
+    const edge = index === 0 || index === NIGHT_SKY_STOPS.length - 1;
+    return `${colour} ${px(edge ? at * viewHeightPx : at * viewHeightPx + liftPx)}`;
+  });
+  return `linear-gradient(to bottom, ${stops.join(', ')})`;
+}
 
 export function scaleOf(gridSize: number): number {
   return gridSize > 0 ? FIRST_PERSON_UNIT_PX / gridSize : 1;
@@ -28,9 +53,18 @@ export function perspectivePx(widthPx: number, fovDeg: number): number {
   return Math.max(1, widthPx) / 2 / Math.tan(half);
 }
 
-export function cameraTransform(pose: FirstPersonPose, scale: number, perspective: number): string {
+/**
+ * The transform that puts the camera at the eye, turned the way it faces and tipped up (positive) or
+ * down as far as it looks.
+ */
+export function cameraTransform(
+  pose: FirstPersonPose & { pitch?: number },
+  scale: number,
+  perspective: number
+): string {
   return [
     `translateZ(${px(perspective)})`,
+    ...(pose.pitch ? [`rotateX(${deg(pose.pitch)})`] : []),
     'rotateX(90deg)',
     `rotateZ(${deg(-pose.yaw)})`,
     `translate3d(${px(-pose.x * scale)}, ${px(-pose.y * scale)}, ${px(-pose.z * scale)})`,
@@ -80,6 +114,11 @@ export function pieceImageFilter(brightness: number, targeted: boolean, blurPx =
   return parts.length > 0 ? parts.join(' ') : null;
 }
 
+/**
+ * Where a wall face is drawn and how its picture lies on it. A face a tipped camera cuts across is
+ * drawn only as tall as what is kept, its outline cut to the slant, with its picture still laid over
+ * the whole height of the wall so it keeps its place.
+ */
 export function wallQuadStyle(
   quad: FirstPersonWallQuad,
   scale: number,
@@ -87,20 +126,28 @@ export function wallQuadStyle(
   shade: number,
   remembered = false
 ): QuadStyle {
-  const top = (quad.basePx + quad.heightPx) * scale;
-  return {
+  const wallTop = quad.basePx + quad.heightPx;
+  const cut = quad.cut;
+  const top = cut ? cut.topPx : wallTop;
+  const height = cut ? cut.topPx - cut.basePx : quad.heightPx;
+  const style: QuadStyle = {
     width: px(quad.length * scale),
-    height: px(quad.heightPx * scale),
+    height: px(height * scale),
     transformOrigin: '0 0',
-    transform: `translate3d(${px(quad.x * scale)}, ${px(quad.y * scale)}, ${px(top)}) rotateZ(${deg(quad.angle)}) rotateX(-90deg)`,
+    transform: `translate3d(${px(quad.x * scale)}, ${px(quad.y * scale)}, ${px(top * scale)}) rotateZ(${deg(quad.angle)}) rotateX(-90deg)`,
     ...backgroundOf(
       imageUrl,
       shade,
-      `${px(quad.fullLength * scale)} 100%`,
-      `${px(-quad.uStart * scale)} 0`,
+      cut ? `${px(quad.fullLength * scale)} ${px(quad.heightPx * scale)}` : `${px(quad.fullLength * scale)} 100%`,
+      cut ? `${px(-quad.uStart * scale)} ${px(-(wallTop - top) * scale)}` : `${px(-quad.uStart * scale)} 0`,
       remembered
     ),
   };
+  if (cut?.outline) {
+    style['clipPath'] =
+      `polygon(${cut.outline.map((point) => `${px(point.u * scale)} ${px((top - point.z) * scale)}`).join(', ')})`;
+  }
+  return style;
 }
 
 export function planeQuadStyle(
@@ -144,6 +191,35 @@ export function billboardStyle(
   };
 }
 
+/**
+ * The clip path that cuts a board standing from `basePx` and `heightPx` tall to the band of it a
+ * tipped camera keeps, from `kept.lowPx` to `kept.highPx`, or null where all of it is kept. The
+ * sides, and the end nothing cuts, are left open well past the board, so what is told above it and
+ * the ring at its feet still show.
+ */
+export function billboardCutPath(
+  kept: { lowPx: number; highPx: number },
+  basePx: number,
+  heightPx: number
+): string | null {
+  const topPx = basePx + heightPx;
+  if (heightPx <= 0 || (kept.lowPx <= basePx && kept.highPx >= topPx)) return null;
+  const top = kept.highPx < topPx ? `${round(((topPx - kept.highPx) / heightPx) * 100)}%` : '-400%';
+  const bottom = kept.lowPx > basePx ? `${round(((kept.lowPx - basePx) / heightPx) * 100)}%` : '-100%';
+  return `inset(${top} -100% ${bottom} -100%)`;
+}
+
+/** A board's style cut as {@link billboardCutPath} cuts it. */
+export function withBillboardCut(
+  style: QuadStyle,
+  kept: { lowPx: number; highPx: number },
+  basePx: number,
+  heightPx: number
+): QuadStyle {
+  const clipPath = billboardCutPath(kept, basePx, heightPx);
+  return clipPath ? { ...style, clipPath } : style;
+}
+
 export function projectedScaleOf(depthPx: number, scale: number, perspective: number): number {
   return perspective / Math.max(depthPx * scale, 1);
 }
@@ -156,17 +232,24 @@ export function projectedHeightPx(heightPx: number, depthPx: number, scale: numb
  * How far a piece standing close has to be raised, in table pixels, for its feet to come up into
  * the view rather than below its bottom edge; nothing for a piece far enough off to show whole.
  * Raised, it floats a little off the floor, which is the price of seeing where it stands.
+ *
+ * `depthPx` is how far ahead the piece stands along the way the camera faces, and `pitchDeg` how far
+ * the camera tips. Looking down brings the feet into the view and the lift goes; looking up keeps
+ * the lift a level view gives, so a piece does not climb the view as the eye looks up at it.
  */
 export function billboardLiftPx(
   baseZ: number,
   eyeZ: number,
   depthPx: number,
   perspective: number,
-  viewHeightPx: number
+  viewHeightPx: number,
+  pitchDeg = 0
 ): number {
   if (viewHeightPx <= 0 || depthPx <= 0 || perspective <= 0) return 0;
-  const lowest = eyeZ - ((viewHeightPx / 2) * (1 - PIECE_FOOT_MARGIN) * depthPx) / perspective;
-  return Math.max(0, lowest - baseZ);
+  const bottom = Math.atan(((viewHeightPx / 2) * (1 - PIECE_FOOT_MARGIN)) / perspective);
+  const angle = (Math.min(pitchDeg, 0) * Math.PI) / 180 - bottom;
+  if (angle <= -Math.PI / 2) return 0;
+  return Math.max(0, eyeZ + depthPx * Math.tan(angle) - baseZ);
 }
 
 /**
@@ -178,15 +261,6 @@ export function billboardTextScale(depthPx: number, scale: number, perspective: 
   const projected = BILLBOARD_TEXT_PX * projectedScaleOf(depthPx, scale, perspective);
   const fits = projected > 0 ? MAX_PIECE_TEXT_SCREEN_PX / projected : 1;
   return Math.min(fits, 1);
-}
-
-/**
- * How far up its box a picture drawn to fit it and set on its floor reaches, in percent: all the
- * way for one taller than the box's proportions or one not yet loaded, less for a wider one.
- */
-export function pictureTopPercent(boxAspect: number, pictureAspect: number | undefined): number {
-  if (!(boxAspect > 0) || pictureAspect === undefined || !(pictureAspect > 0)) return 100;
-  return round(Math.min(1, boxAspect / pictureAspect) * 100);
 }
 
 /** The rows of what is told about a piece: its marks, how many readings, and its name or pick. */
@@ -208,27 +282,30 @@ export function pieceChromeHeightPx(rows: PieceChromeRows): number {
 
 /**
  * Where what is told about a piece stands in its box, in percent from the bottom: just above the
- * top of the picture, unless that would carry it off the top of the view, when it comes down to
- * stay in sight, over the picture if it must. `chromeScreenPx` is how tall it shows on the screen,
- * and `marginPx` how far below the top of the view it keeps.
+ * top of the picture, which fills the box, unless that would carry it off the top of the view, when
+ * it comes down to stay in sight, over the picture if it must. `chromeScreenPx` is how tall it shows on the screen,
+ * and `marginPx` how far below the top of the view it keeps. `depthPx` is how far ahead the piece
+ * stands along the way the camera faces, and `pitchDeg` how far the camera tips up, which lifts the
+ * top of the view.
  */
 export function pieceChromeBottomPercent(at: {
-  pictureTop: number;
   heightPx: number;
   baseZ: number;
   eyeZ: number;
   depthPx: number;
+  pitchDeg?: number;
   perspective: number;
   viewHeightPx: number;
   chromeScreenPx: number;
   marginPx: number;
 }): number {
-  if (at.viewHeightPx <= 0 || at.depthPx <= 0 || at.perspective <= 0 || at.heightPx <= 0) return at.pictureTop;
-  const topZ = at.baseZ + (at.heightPx * at.pictureTop) / 100;
+  if (at.viewHeightPx <= 0 || at.depthPx <= 0 || at.perspective <= 0 || at.heightPx <= 0) return 100;
+  const topZ = at.baseZ + at.heightPx;
   const roomPx = at.viewHeightPx / 2 - at.marginPx - at.chromeScreenPx;
-  const highestZ = at.eyeZ + (roomPx * at.depthPx) / at.perspective;
+  const angle = ((at.pitchDeg ?? 0) * Math.PI) / 180 + Math.atan(roomPx / at.perspective);
+  const highestZ = angle >= Math.PI / 2 ? Infinity : at.eyeZ + at.depthPx * Math.tan(angle);
   const percent = ((Math.min(topZ, highestZ) - at.baseZ) / at.heightPx) * 100;
-  return round(Math.min(Math.max(percent, 0), at.pictureTop));
+  return round(Math.min(Math.max(percent, 0), 100));
 }
 
 export function billboardHudTransform(textScale: number): string | null {

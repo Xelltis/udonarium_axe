@@ -6,6 +6,7 @@ import {
   latticeOf,
   offersMove,
   rotateOfFacing,
+  signedTurnDeg,
   snappedRotate,
   turnedRotate,
 } from '@axe/domain/tabletop/first-person/first-person-lattice';
@@ -122,6 +123,16 @@ describe('headingVector', () => {
     expect(headingVector(90)).toEqual({ x: 1, y: 0 });
     expect(headingVector(180)).toEqual({ x: 0, y: 1 });
     expect(headingVector(270)).toEqual({ x: -1, y: 0 });
+  });
+});
+
+describe('signedTurnDeg', () => {
+  it('brings a turn within half a turn either way', () => {
+    expect(signedTurnDeg(270)).toBe(-90);
+    expect(signedTurnDeg(-200)).toBe(160);
+    expect(signedTurnDeg(720 + 30)).toBe(30);
+    expect(signedTurnDeg(180)).toBe(-180);
+    expect(signedTurnDeg(0)).toBe(0);
   });
 });
 

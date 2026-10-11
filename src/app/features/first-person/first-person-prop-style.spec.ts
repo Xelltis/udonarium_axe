@@ -89,6 +89,27 @@ describe('propClip', () => {
     expect(propClip(prop({ kind: 'stand', y: 95 }), eye, 2, 2)).toBe('');
     expect(propClip(prop({ kind: 'stand', y: 105 }), eye, 2, 2)).toBeNull();
   });
+  describe('with the camera tipped', () => {
+    const lookingUp = eyeFrameOf({ x: 100, y: 100, z: 40, yaw: 0, pitch: 70 });
+    const lookingDown = eyeFrameOf({ x: 100, y: 100, z: 40, yaw: 0, pitch: -70 });
+
+    it('cuts a standing thing near the eye from below as it looks up, its label over it and its sides kept', () => {
+      expect(propClip(prop({ kind: 'stand', y: 90, z: 0, height: 100 }), lookingUp, 2, 2)).toMatch(
+        /^inset\(-400% -100% [\d.]+% -100%\)$/
+      );
+    });
+
+    it('cuts an upright board the eye stands beside on a slant as it looks up', () => {
+      expect(propClip(prop({ kind: 'board', y: 95, z: 0, height: 100, rotate: 90 }), lookingUp, 2, 2)).toMatch(
+        /^polygon\(/
+      );
+    });
+
+    it('keeps the part of a flat thing behind the feet as it looks down', () => {
+      expect(propClip(prop({ y: 115, z: 0 }), eye, 2, 2)).toBeNull();
+      expect(propClip(prop({ y: 115, z: 0 }), lookingDown, 2, 2)).not.toBeNull();
+    });
+  });
 });
 
 describe('glowStyle', () => {

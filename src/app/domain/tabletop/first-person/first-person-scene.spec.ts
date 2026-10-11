@@ -1,4 +1,4 @@
-import { depthOf, eyeFrameOf } from '@axe/domain/tabletop/first-person/first-person-clip';
+import { depthOf, eyeFrameOf, viewDepthOf } from '@axe/domain/tabletop/first-person/first-person-clip';
 import { eyePoseAt, FirstPersonPose } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import { firstPersonRoofOf } from '@axe/domain/tabletop/first-person/first-person-roof';
 import {
@@ -109,6 +109,72 @@ describe('firstPersonScene on squares', () => {
         for (const point of quad.polygon) expect(depthOf(frame, point)).toBeGreaterThanOrEqual(NEAR - 1e-9);
       }
     }
+  });
+
+  describe('a camera tipped up or down', () => {
+    /** The view of a 1280 by 800 screen opens about 32° above and below its middle. */
+    const HALF_HEIGHT_TAN = 400 / 640;
+
+    function cornersOf(quad: FirstPersonQuad): { x: number; y: number; z: number }[] {
+      if (quad.kind !== 'wall') return quad.polygon.map((point) => ({ ...point, z: quad.zPx }));
+      const turn = (quad.angle * Math.PI) / 180;
+      const along = (u: number) => ({ x: quad.x + Math.cos(turn) * u, y: quad.y + Math.sin(turn) * u });
+      if (quad.cut?.outline) return quad.cut.outline.map((point) => ({ ...along(point.u), z: point.z }));
+      const low = quad.cut?.basePx ?? quad.basePx;
+      const high = quad.cut?.topPx ?? quad.basePx + quad.heightPx;
+      return [0, quad.length].flatMap((u) => [
+        { ...along(u), z: low },
+        { ...along(u), z: high },
+      ]);
+    }
+
+    function tippedScene(gridType: GridType, terrains: Terrain[], pitch: number): FirstPersonQuad[] {
+      const grid = cellGridOf(10, 10, GRID, gridType);
+      const world = firstPersonWorldOf(tableOf(gridType), terrains);
+      return firstPersonScene({
+        world,
+        grid,
+        pose: { ...eye, pitch },
+        seen: null,
+        depthPx: DEPTH,
+        nearPx: NEAR,
+        halfHeightTan: HALF_HEIGHT_TAN,
+      });
+    }
+
+    for (const gridType of [GridType.SQUARE, GridType.HEX_VERTICAL, GridType.NONE]) {
+      for (const pitch of [60, -60]) {
+        it(`never keeps a corner behind the camera on a ${GridType[gridType]} table tipped ${pitch}°`, () => {
+          const tall = [block(3, 5, 1, 4, 3), block(5, 5, 1, 4, 3), block(4, 3, 1, 1, 0.3)];
+          const frame = eyeFrameOf({ ...eye, pitch });
+
+          const quads = tippedScene(gridType, tall, pitch);
+
+          expect(quads.length).toBeGreaterThan(0);
+          for (const quad of quads) {
+            for (const corner of cornersOf(quad)) {
+              expect(viewDepthOf(frame, corner, corner.z)).toBeGreaterThanOrEqual(NEAR - 1e-6);
+            }
+          }
+        });
+      }
+    }
+
+    it('cuts a wall the eye stands beside on a slant as it looks up', () => {
+      const tall = [block(3, 5, 1, 4, 3), block(5, 5, 1, 4, 3)];
+
+      const cut = walls(tippedScene(GridType.SQUARE, tall, 60)).filter((wall) => wall.cut?.outline);
+
+      expect(cut.length).toBeGreaterThan(0);
+    });
+
+    it('keeps the floor behind the feet in view while it looks nearly straight down, which a level camera leaves out', () => {
+      const grid = cellGridOf(10, 10, GRID, GridType.SQUARE);
+      const behind = `floor:${cellIndexOf(grid, 4, 8)}`;
+
+      expect(planes(sceneOf(GridType.SQUARE, [], eye).quads, 'floor').map((floor) => floor.id)).not.toContain(behind);
+      expect(planes(tippedScene(GridType.SQUARE, [], -85), 'floor').map((floor) => floor.id)).toContain(behind);
+    });
   });
 
   it('draws only what the eye can see', () => {

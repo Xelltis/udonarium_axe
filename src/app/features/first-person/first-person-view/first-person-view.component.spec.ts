@@ -17,7 +17,7 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, cellCount, cellGridOf, cellIndexAt, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { FogMemory } from '@axe/domain/tabletop/fog/fog-memory';
 import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
@@ -25,6 +25,7 @@ import { LightSource } from '@axe/domain/tabletop/light-source';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { FirstPersonLookService, LOOK_RETURN_MS } from '@axe/features/first-person/first-person-look.service';
 import { scaleOf } from '@axe/features/first-person/first-person-style';
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -45,6 +46,10 @@ describe('FirstPersonViewComponent', () => {
     table.initialize();
     PeerCursor.createMyCursor();
     PeerCursor.myCursor.role = PeerRole.Player;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   function mount(): ComponentFixture<FirstPersonViewComponent> {
@@ -115,6 +120,377 @@ describe('FirstPersonViewComponent', () => {
     } finally {
       ImageStorage.instance.delete('stone');
     }
+  });
+
+  describe('looking about', () => {
+    function lookOf(fixture: ComponentFixture<FirstPersonViewComponent>): FirstPersonLookService {
+      return fixture.debugElement.injector.get(FirstPersonLookService);
+    }
+
+    function cameraOf(fixture: ComponentFixture<FirstPersonViewComponent>): string {
+      return element(fixture).querySelector<HTMLElement>('[data-testid="first-person-camera"]')!.style.transform;
+    }
+
+    it('turns and tips the camera by the look and leaves the eye where it stood', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const level = cameraOf(fixture);
+
+      lookOf(fixture).lookTo({ yaw: 30, pitch: 20 });
+      fixture.detectChanges();
+
+      const looked = cameraOf(fixture);
+      expect(looked).toContain('rotateX(20deg) rotateX(90deg) rotateZ(-30deg)');
+      expect(looked.slice(looked.indexOf('translate3d'))).toBe(level.slice(level.indexOf('translate3d')));
+    });
+
+    it('draws the ground behind the eye once it looks round, with the sight all round only while it looks', () => {
+      TestBed.inject(MotionService).setting.set('off');
+      lookOutOf(pieceAt(4, 5));
+      const fixture = mount();
+      const service = TestBed.inject(FirstPersonService);
+      const behind = cellIndexOf(cellGridOf(table.width, table.height, GRID, GridType.SQUARE), 4, 8);
+      const floorBehind = () => element(fixture).querySelector(`[data-quad="floor"][data-cell="${behind}"]`);
+      expect(floorBehind()).toBeNull();
+      expect(service.seen()?.get(behind)).toBe(false);
+
+      lookOf(fixture).lookTo({ yaw: 180, pitch: 0 });
+      fixture.detectChanges();
+
+      expect(floorBehind()).not.toBeNull();
+      expect(service.seen()?.get(behind)).toBe(true);
+
+      lookOf(fixture).release();
+      fixture.detectChanges();
+
+      expect(floorBehind()).toBeNull();
+      expect(service.seen()?.get(behind)).toBe(false);
+    });
+
+    it('turns the compass needle with the look and leaves the facing as the piece faces', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+
+      lookOf(fixture).lookTo({ yaw: 90, pitch: 0 });
+      fixture.detectChanges();
+
+      const needle = element(fixture)
+        .querySelector('[data-testid="first-person-compass"] g')
+        ?.getAttribute('transform');
+      expect(needle).toBe('rotate(-90)');
+      expect(element(fixture).querySelector('[data-facing]')?.getAttribute('data-facing')).toBe('north');
+    });
+
+    it('tips the effects to face the camera as it looks up', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+
+      lookOf(fixture).lookTo({ yaw: 0, pitch: 20 });
+      fixture.detectChanges();
+
+      const eye = (fixture.componentInstance as unknown as { effectEye(): { rotation: { x: number } } }).effectEye();
+      expect(eye.rotation.x).toBe(110);
+    });
+
+    it('goes back to where the piece faces once let go, at once with motion turned down', () => {
+      TestBed.inject(MotionService).setting.set('off');
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const level = cameraOf(fixture);
+      lookOf(fixture).lookTo({ yaw: 45, pitch: -30 });
+      fixture.detectChanges();
+
+      lookOf(fixture).release();
+      fixture.detectChanges();
+
+      expect(cameraOf(fixture)).toBe(level);
+    });
+
+    it('eases back over a moment where motion is on, and lands where the piece faces', () => {
+      TestBed.inject(MotionService).setting.set('on');
+      const frames: FrameRequestCallback[] = [];
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => frames.push(callback));
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const look = lookOf(fixture);
+      look.lookTo({ yaw: 90, pitch: 40 });
+
+      const queued = frames.length;
+      look.release();
+      frames[queued](performance.now() + LOOK_RETURN_MS / 2);
+      const halfway = look.look();
+      frames[queued + 1](performance.now() + LOOK_RETURN_MS * 2);
+
+      expect(halfway.yaw).toBeGreaterThan(0);
+      expect(halfway.yaw).toBeLessThan(90);
+      expect(look.look()).toEqual({ yaw: 0, pitch: 0 });
+    });
+
+    it('blurs a piece far off behind the piece once the eye turns round to it', () => {
+      ImageStorage.instance.add({
+        identifier: 'far-face',
+        name: 'far-face.png',
+        type: 'image/png',
+        blob: null,
+        url: 'blob:far-face',
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+      try {
+        const behind = GameCharacter.create('後ろの敵', 1, 'far-face');
+        behind.location = { name: 'table', x: 4 * GRID, y: 10 * GRID };
+        lookOutOf(pieceAt(4, 1));
+        const fixture = mount();
+
+        lookOf(fixture).lookTo({ yaw: 180, pitch: 0 });
+        fixture.detectChanges();
+
+        const picture = element(fixture).querySelector<HTMLElement>(`[data-piece="${behind.identifier}"] img`)!;
+        expect(picture.style.filter).toMatch(/blur\(/);
+      } finally {
+        ImageStorage.instance.delete('far-face');
+      }
+    });
+
+    it('lets a near piece down to the floor as the eye looks down at its feet', () => {
+      const near = pieceAt(4, 6);
+      near.location = { name: 'table', x: 4 * GRID, y: 6.6 * GRID };
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const standsAt = () => {
+        const billboard = element(fixture).querySelector<HTMLElement>(`[data-piece="${near.identifier}"]`)!;
+        return parseFloat(/translate3d\([^,]+, [^,]+, ([-\d.]+)px\)/.exec(billboard.style.transform)![1]);
+      };
+      expect(standsAt()).toBeGreaterThan(0);
+
+      lookOf(fixture).lookTo({ yaw: 0, pitch: -60 });
+      fixture.detectChanges();
+
+      expect(standsAt()).toBe(0);
+    });
+
+    it('stands the readings of a great piece over its head again as the eye looks up at it', () => {
+      const giant = GameCharacter.create('巨人', 3, '');
+      giant.location = { name: 'table', x: 3 * GRID, y: 4 * GRID };
+      lookOutOf(pieceAt(4, 8));
+      const fixture = mount();
+      const chromeOf = () =>
+        element(fixture).querySelector<HTMLElement>(
+          `[data-piece="${giant.identifier}"] [data-testid="first-person-piece-chrome"]`
+        )!;
+      expect(parseFloat(chromeOf().style.bottom)).toBeLessThan(100);
+
+      lookOf(fixture).lookTo({ yaw: 0, pitch: 60 });
+      fixture.detectChanges();
+
+      expect(chromeOf().style.bottom).toBe('100%');
+    });
+
+    it('cuts a great piece from below once the eye looks steeply up at it', () => {
+      const giant = GameCharacter.create('巨竜', 5, '');
+      giant.location = { name: 'table', x: 2 * GRID, y: 2 * GRID };
+      lookOutOf(pieceAt(4, 8));
+      const fixture = mount();
+
+      lookOf(fixture).lookTo({ yaw: 0, pitch: 85 });
+      fixture.detectChanges();
+
+      const billboard = element(fixture).querySelector<HTMLElement>(`[data-piece="${giant.identifier}"]`)!;
+      expect(billboard.style.clipPath).toMatch(/^inset\(-400% -100% [\d.]+% -100%\)$/);
+    });
+  });
+
+  describe('dragging the view about', () => {
+    function lookOf(fixture: ComponentFixture<FirstPersonViewComponent>): FirstPersonLookService {
+      return fixture.debugElement.injector.get(FirstPersonLookService);
+    }
+
+    function sceneOf(fixture: ComponentFixture<FirstPersonViewComponent>): HTMLElement {
+      return element(fixture).querySelector<HTMLElement>('[data-testid="first-person-scene"]')!;
+    }
+
+    function pointer(
+      target: Element,
+      type: string,
+      x: number,
+      y: number,
+      buttons = type === 'pointerup' ? 0 : 1
+    ): void {
+      target.dispatchEvent(
+        new PointerEvent(type, {
+          pointerId: 1,
+          isPrimary: true,
+          pointerType: 'mouse',
+          button: 0,
+          buttons,
+          clientX: x,
+          clientY: y,
+          bubbles: true,
+        })
+      );
+    }
+
+    beforeEach(() => {
+      TestBed.inject(MotionService).setting.set('off');
+    });
+
+    it('leaves the view alone for a press that moves less than a click might', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+
+      pointer(sceneOf(fixture), 'pointerdown', 100, 100);
+      pointer(sceneOf(fixture), 'pointermove', 105, 100);
+
+      expect(lookOf(fixture).look()).toEqual({ yaw: 0, pitch: 0 });
+    });
+
+    it('turns towards where the pointer goes and looks up as it goes up, no further than 85°', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+
+      pointer(scene, 'pointerdown', 100, 400);
+      pointer(scene, 'pointermove', 120, 400);
+      pointer(scene, 'pointermove', 220, 400);
+      expect(lookOf(fixture).look().yaw).toBeGreaterThan(0);
+
+      pointer(scene, 'pointermove', 220, 300);
+      expect(lookOf(fixture).look().pitch).toBeGreaterThan(0);
+
+      pointer(scene, 'pointermove', 220, -5000);
+      expect(lookOf(fixture).look().pitch).toBe(85);
+    });
+
+    it('goes back to where the piece faces once let go', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+
+      pointer(scene, 'pointerdown', 100, 400);
+      pointer(scene, 'pointermove', 300, 300);
+      pointer(scene, 'pointerup', 300, 300);
+
+      expect(lookOf(fixture).look()).toEqual({ yaw: 0, pitch: 0 });
+      expect(lookOf(fixture).dragging()).toBe(false);
+    });
+
+    it('aims at nothing with the click that ends a drag, and still aims with a click', () => {
+      const enemy = pieceAt(4, 4);
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const billboard = () => element(fixture).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
+
+      pointer(billboard(), 'pointerdown', 300, 300);
+      pointer(billboard(), 'pointermove', 350, 300);
+      pointer(billboard(), 'pointerup', 350, 300);
+      billboard().click();
+      expect(enemy.targeted).toBe(false);
+
+      fixture.detectChanges();
+      pointer(billboard(), 'pointerdown', 300, 300);
+      pointer(billboard(), 'pointerup', 300, 300);
+      billboard().click();
+      expect(enemy.targeted).toBe(true);
+    });
+
+    it('aims straight ahead with T after a drag let go off any piece', () => {
+      const enemy = pieceAt(4, 4);
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+      pointer(scene, 'pointerdown', 100, 700);
+      pointer(scene, 'pointermove', 300, 700);
+      pointer(scene, 'pointerup', 300, 700);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT', bubbles: true, cancelable: true }));
+
+      expect(enemy.targeted).toBe(true);
+    });
+
+    it('ends a drag with escape and keeps the view open', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+      pointer(scene, 'pointerdown', 100, 400);
+      pointer(scene, 'pointermove', 300, 400);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true, cancelable: true }));
+
+      expect(lookOf(fixture).dragging()).toBe(false);
+      expect(TestBed.inject(FirstPersonService).piece()).not.toBeNull();
+    });
+
+    it('walks with W while the view is dragged about', async () => {
+      const piece = pieceAt(4, 7);
+      lookOutOf(piece);
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+      pointer(scene, 'pointerdown', 100, 400);
+      pointer(scene, 'pointermove', 300, 400);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW', bubbles: true, cancelable: true }));
+      await fixture.whenStable();
+
+      expect(piece.location.y).toBe(6 * GRID);
+    });
+
+    it('takes a drag of one finger for itself rather than letting the page scroll', () => {
+      lookOutOf(pieceAt(4, 7));
+
+      expect(sceneOf(mount()).classList).toContain('touch-none');
+    });
+
+    it('forgets a press let go off the view, so a pointer passing over it later turns nothing', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+      pointer(scene, 'pointerdown', 100, 400);
+
+      pointer(scene, 'pointermove', 300, 400, 0);
+      pointer(scene, 'pointermove', 400, 400, 0);
+
+      expect(lookOf(fixture).look()).toEqual({ yaw: 0, pitch: 0 });
+      expect(lookOf(fixture).dragging()).toBe(false);
+    });
+
+    it('goes on turning the view for a pointer the page cannot hold on to', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const scene = sceneOf(fixture);
+      vi.spyOn(scene, 'setPointerCapture').mockImplementation(() => {
+        throw new DOMException('No active pointer with the given id is found.', 'NotFoundError');
+      });
+      const at = (x: number) =>
+        ({
+          pointerId: 7,
+          isPrimary: true,
+          pointerType: 'mouse',
+          button: 0,
+          buttons: 1,
+          clientX: x,
+          clientY: 400,
+          target: scene,
+          currentTarget: scene,
+        }) as unknown as PointerEvent;
+      const look = lookOf(fixture);
+      look.press(at(100));
+
+      expect(() => look.drag(at(120), 0.1)).not.toThrow();
+      look.drag(at(220), 0.1);
+
+      expect(look.dragging()).toBe(true);
+      expect(look.look().yaw).toBeCloseTo(10);
+    });
+
+    it('leaves a press on the controls to them', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const button = element(fixture).querySelector<HTMLElement>('[data-turn="right"]')!;
+
+      pointer(button, 'pointerdown', 100, 400);
+      pointer(sceneOf(fixture), 'pointermove', 300, 400);
+
+      expect(lookOf(fixture).look()).toEqual({ yaw: 0, pitch: 0 });
+    });
   });
 
   it('tells beside the controls every key it answers to', () => {
@@ -327,7 +703,7 @@ describe('FirstPersonViewComponent', () => {
   });
 
   it('plays an effect inside the view, turned to face the eye', () => {
-    const canvas = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
     const preset = new EffectPreset();
     preset.kind = 'burst';
     preset.durationMs = 5000;
@@ -350,7 +726,6 @@ describe('FirstPersonViewComponent', () => {
     expect(sprites.length).toBeGreaterThan(0);
     expect(sprites.some((sprite) => sprite.style.transform.includes('rotateZ(90deg) rotateX(-90deg)'))).toBe(true);
     ObjectStore.instance.remove(preset);
-    canvas.mockRestore();
   });
 
   it('shakes and burns the view as it would the table', () => {
@@ -375,7 +750,7 @@ describe('FirstPersonViewComponent', () => {
   });
 
   it('fires at what is aimed at with enter, and gives the aiming up with escape', () => {
-    const canvas = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
     const preset = new EffectPreset();
     preset.kind = 'burst';
     preset.durationMs = 5000;
@@ -399,7 +774,6 @@ describe('FirstPersonViewComponent', () => {
     expect(targeting.isPicking()).toBe(false);
     expect(fire).toHaveBeenCalledWith(preset, [enemy], expect.anything());
     ObjectStore.instance.remove(preset);
-    canvas.mockRestore();
   });
 
   it('keeps the controls out of the middle of the foot of the view, where the hotbar sits', () => {
@@ -469,8 +843,170 @@ describe('FirstPersonViewComponent', () => {
       view.querySelector<HTMLElement>(`[data-piece="${piece.identifier}"]`)!;
     const heightOf = (piece: GameCharacter) => parseFloat(billboardOf(piece).style.height);
 
-    expect(heightOf(far)).toBeCloseTo(GRID * 1.5 * scaleOf(GRID), 1);
+    expect(heightOf(far)).toBeCloseTo(GRID * scaleOf(GRID), 1);
     expect(heightOf(near)).toBeCloseTo(heightOf(far), 1);
+  });
+
+  describe('a piece at the table\u2019s own scale', () => {
+    function pictureLoaded(
+      fixture: ComponentFixture<FirstPersonViewComponent>,
+      piece: GameCharacter,
+      w: number,
+      h: number
+    ) {
+      const loaded = { target: { naturalWidth: w, naturalHeight: h } } as unknown as Event;
+      (
+        fixture.componentInstance as unknown as { notePictureAspect(url: string, event: Event): void }
+      ).notePictureAspect(piece.imageFile.url, loaded);
+      fixture.detectChanges();
+    }
+
+    function boxOf(fixture: ComponentFixture<FirstPersonViewComponent>, piece: GameCharacter) {
+      const billboard = element(fixture).querySelector<HTMLElement>(`[data-piece="${piece.identifier}"]`)!;
+      return { width: parseFloat(billboard.style.width), height: parseFloat(billboard.style.height) };
+    }
+
+    it('stands a great piece as wide as its ground and as tall as its picture', () => {
+      const giant = GameCharacter.create('巨竜', 3, '');
+      giant.location = { name: 'table', x: 3 * GRID, y: 0 };
+      lookOutOf(pieceAt(4, 8));
+      const fixture = mount();
+
+      pictureLoaded(fixture, giant, 100, 200);
+
+      expect(boxOf(fixture, giant).width).toBeCloseTo(3 * GRID * scaleOf(GRID), 1);
+      expect(boxOf(fixture, giant).height).toBeCloseTo(6 * GRID * scaleOf(GRID), 1);
+    });
+
+    it('stands a picture given a height of its own that tall', () => {
+      const tall = GameCharacter.create('塔', 1, '');
+      tall.location = { name: 'table', x: 4 * GRID, y: 3 * GRID };
+      tall.specifyKomaImageFlag = true;
+      tall.komaImageHeight = 120;
+      lookOutOf(pieceAt(4, 8));
+      const fixture = mount();
+
+      pictureLoaded(fixture, tall, 100, 200);
+
+      expect(boxOf(fixture, tall).height).toBeCloseTo(120 * scaleOf(GRID), 1);
+      expect(boxOf(fixture, tall).width).toBeCloseTo(60 * scaleOf(GRID), 1);
+    });
+
+    it('draws a piece on a hex grid while the hex under its middle is in sight', () => {
+      table.gridType = GridType.HEX_VERTICAL;
+      const grid = cellGridOf(table.width, table.height, GRID, GridType.HEX_VERTICAL);
+      const offCentre = GameCharacter.create('小鬼', 1, '');
+      offCentre.location = { name: 'table', x: 4.4 * GRID, y: 3 * GRID };
+      const middle = cellIndexAt(grid, 4.9 * GRID, 3.5 * GRID);
+      const hexCentre = cellCenterOf(grid, middle);
+      // The hex under the piece's middle has its own middle outside the piece's footing.
+      expect(
+        hexCentre.x < 4.4 * GRID || hexCentre.x > 5.4 * GRID || hexCentre.y < 3 * GRID || hexCentre.y > 4 * GRID
+      ).toBe(true);
+      const seen = new CellBits(cellCount(grid));
+      seen.set(middle);
+      lookOutOf(pieceAt(4, 8));
+      Object.defineProperty(TestBed.inject(FirstPersonService), 'seen', { value: () => seen });
+
+      const view = element(mount());
+
+      expect(view.querySelector(`[data-piece="${offCentre.identifier}"]`)).not.toBeNull();
+    });
+
+    it('raises the roof of a room shut in by walls clear over a great piece standing in it', () => {
+      for (const [col, row, width, depth] of [
+        [2, 2, 5, 1],
+        [2, 8, 5, 1],
+        [2, 3, 1, 5],
+        [6, 3, 1, 5],
+      ]) {
+        const wall = Terrain.create('壁', width, depth, 1, 'stone', 'slab');
+        wall.location = { name: 'table', x: col * GRID, y: row * GRID };
+        table.appendChild(wall);
+      }
+      const giant = GameCharacter.create('巨竜', 3, '');
+      giant.location = { name: 'table', x: 3 * GRID, y: 3 * GRID };
+      lookOutOf(pieceAt(4, 7));
+
+      const grid = cellGridOf(table.width, table.height, GRID, GridType.SQUARE);
+      const view = element(mount());
+      const ceilingOver = (col: number, row: number) =>
+        view.querySelector<HTMLElement>(`[data-quad="ceiling"][data-cell="${cellIndexOf(grid, col, row)}"]`)!;
+
+      const raisedPx = `${(3 * GRID + GRID / 2) * scaleOf(GRID)}px`;
+      expect(ceilingOver(4, 5).style.transform).toContain(`, ${raisedPx})`);
+      expect(ceilingOver(5, 6).style.transform).toContain(`, ${raisedPx})`);
+    });
+
+    it('leaves the scene be when a piece under a raised roof changes without raising it any further', () => {
+      for (const [col, row, width, depth] of [
+        [2, 2, 5, 1],
+        [2, 8, 5, 1],
+        [2, 3, 1, 5],
+        [6, 3, 1, 5],
+      ]) {
+        const wall = Terrain.create('壁', width, depth, 1, 'stone', 'slab');
+        wall.location = { name: 'table', x: col * GRID, y: row * GRID };
+        table.appendChild(wall);
+      }
+      const giant = GameCharacter.create('巨竜', 3, '');
+      giant.location = { name: 'table', x: 3 * GRID, y: 3 * GRID };
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const quads = () => (fixture.componentInstance as unknown as { quads(): unknown[] }).quads();
+      const before = quads();
+
+      giant.rotate = 90;
+      TestBed.inject(ObjectChangeService).notifyChanged(giant.identifier);
+      fixture.detectChanges();
+
+      expect(quads()).toBe(before);
+    });
+
+    it('stands a piece smaller than a cell in the middle of its cell, as small as it is on the table', () => {
+      const small = pieceAt(4, 4);
+      small.size = 0.5;
+      const one = pieceAt(5, 4);
+      lookOutOf(pieceAt(4, 9));
+      const view = element(mount());
+      const billboardOf = (piece: GameCharacter) =>
+        view.querySelector<HTMLElement>(`[data-piece="${piece.identifier}"]`)!;
+      const chromeOf = (piece: GameCharacter) =>
+        billboardOf(piece).querySelector<HTMLElement>('[data-testid="first-person-piece-chrome"]')!;
+
+      expect(billboardOf(small).style.transform).toContain(`translate3d(${4.5 * GRID * scaleOf(GRID)}px,`);
+      expect(parseFloat(billboardOf(small).style.width)).toBeCloseTo(0.5 * GRID * scaleOf(GRID), 1);
+      expect(parseFloat(chromeOf(small).style.width)).toBeCloseTo(parseFloat(chromeOf(one).style.width), 1);
+      expect(parseFloat(chromeOf(small).style.width)).toBeGreaterThan(GRID * scaleOf(GRID));
+    });
+
+    it('keeps what is told about a great piece as wide as for a piece of one cell', () => {
+      const giant = GameCharacter.create('巨竜', 6, '');
+      giant.location = { name: 'table', x: GRID, y: 0 };
+      const small = pieceAt(5, 4);
+      lookOutOf(pieceAt(4, 9));
+      const view = element(mount());
+      const chromeOf = (piece: GameCharacter) =>
+        view.querySelector<HTMLElement>(
+          `[data-piece="${piece.identifier}"] [data-testid="first-person-piece-chrome"]`
+        )!;
+
+      expect(chromeOf(giant).style.width).toBe(chromeOf(small).style.width);
+      expect(parseFloat(chromeOf(giant).style.width)).toBeCloseTo(1.3 * GRID * scaleOf(GRID), 0);
+    });
+
+    it('draws a great piece whose middle a pillar hides while its sides are in sight', () => {
+      const pillar = Terrain.create('柱', 1, 1, 2, 'stone', 'slab');
+      pillar.location = { name: 'table', x: 4 * GRID, y: 6 * GRID };
+      table.appendChild(pillar);
+      const giant = GameCharacter.create('巨竜', 5, '');
+      giant.location = { name: 'table', x: 2 * GRID, y: GRID };
+      lookOutOf(pieceAt(4, 9));
+
+      const view = element(mount());
+
+      expect(view.querySelector(`[data-piece="${giant.identifier}"]`)).not.toBeNull();
+    });
   });
 
   it('stands the readings, the name and the marks above the picture rather than over it', () => {
@@ -494,7 +1030,9 @@ describe('FirstPersonViewComponent', () => {
     );
     fixture.detectChanges();
 
-    expect(chromeOf().style.bottom).toBe('30%');
+    const billboard = element(fixture).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
+    expect(parseFloat(billboard.style.height)).toBeCloseTo((GRID / 2) * scaleOf(GRID), 1);
+    expect(chromeOf().style.bottom).toBe('100%');
   });
 
   it('holds the writing on a near piece to a size that can be read, and asks nothing of a far one', () => {
@@ -820,6 +1358,41 @@ describe('FirstPersonViewComponent', () => {
 
       const viewWidth = (fixture.nativeElement as HTMLElement).clientWidth || window.innerWidth;
       expect(backdrop().style.backgroundPosition).toBe(`${-viewWidth}px bottom`);
+    });
+
+    it('moves the backdrops and the haze of the night sky down the view as the eye looks up', () => {
+      picture('hills-picture');
+      const hills = new TableBackgroundLayer();
+      hills.initialize();
+      hills.imageIdentifier = 'hills-picture';
+      hills.placement = 'backdrop';
+      table.appendChild(hills);
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const gradient = () => element(fixture).querySelector<HTMLElement>('[data-sky-gradient]');
+      const backdrop = () => element(fixture).querySelector<HTMLElement>('[data-backdrop]')!;
+      expect(backdrop().style.transform).toBe('');
+
+      fixture.debugElement.injector.get(FirstPersonLookService).lookTo({ yaw: 0, pitch: 30 });
+      fixture.detectChanges();
+
+      const lift = Number(/translateY\(([-\d.]+)px\)/.exec(backdrop().style.transform)?.[1]);
+      const perspective = (fixture.componentInstance as unknown as { perspective(): number }).perspective();
+      expect(lift).toBeCloseTo(perspective * Math.tan(Math.PI / 6), 1);
+      expect(gradient()).toBeNull();
+    });
+
+    it('keeps the haze of the night sky at the horizon as the eye looks up', () => {
+      lookOutOf(pieceAt(4, 7));
+      const fixture = mount();
+      const gradient = () => element(fixture).querySelector<HTMLElement>('[data-sky-gradient]')!.style.background;
+      const level = gradient();
+
+      fixture.debugElement.injector.get(FirstPersonLookService).lookTo({ yaw: 0, pitch: 30 });
+      fixture.detectChanges();
+
+      expect(gradient()).not.toBe(level);
+      expect(gradient()).toContain('px');
     });
   });
 
