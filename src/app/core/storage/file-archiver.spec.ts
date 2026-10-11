@@ -141,6 +141,17 @@ describe('FileArchiver', () => {
       expect(addAsync).not.toHaveBeenCalled();
     });
 
+    it('takes nothing dropped while the reader may not bring files in', async () => {
+      const addAsync = vi.spyOn(ImageStorage.instance, 'addAsync');
+      FileArchiver.instance.initialize();
+      FileArchiver.instance.mayLoadDrops = () => false;
+
+      drop(['Files'], [new File([new Uint8Array([1])], 'a.png', { type: 'image/png' })]);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(addAsync).not.toHaveBeenCalled();
+    });
+
     it('still lays out a picture brought in from outside', async () => {
       const addAsync = vi
         .spyOn(ImageStorage.instance, 'addAsync')

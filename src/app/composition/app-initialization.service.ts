@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
 import { AppConfigService } from '@axe/composition/app-config.service';
 import { initializeNetworkMessaging } from '@axe/core/network/network-messaging';
@@ -47,6 +48,7 @@ const PREFETCH_FALLBACK_DELAY_MS = 1500;
 @Injectable({ providedIn: 'root' })
 export class AppInitializationService {
   private readonly fileArchiver = inject(FileArchiver);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly appConfigService = inject(AppConfigService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly imageStorage = inject(ImageStorage);
@@ -71,6 +73,7 @@ export class AppInitializationService {
   initialize(): void {
     initializeNetworkMessaging();
     this.fileArchiver.initialize();
+    this.fileArchiver.mayLoadDrops = () => this.rolePermission.canEditTabletop;
     ImageSharingSystem.instance.initialize();
     AudioSharingSystem.instance.initialize();
     ObjectSynchronizer.instance.initialize();

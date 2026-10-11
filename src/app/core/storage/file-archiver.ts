@@ -75,6 +75,12 @@ export class FileArchiver {
   }
 
   networkService = Network;
+
+  /**
+   * Whether the reader may bring dropped files in, asked at each drop. A guest may not. Until the
+   * app puts in its own answer, every drop is taken.
+   */
+  mayLoadDrops: () => boolean = () => true;
   /**
    * The guard that asks, during online play, before dropped data overwrites the room settings; null
    * until the domain has put one in the object store.
@@ -148,6 +154,7 @@ export class FileArchiver {
     event.preventDefault();
     // A drop made up rather than made by a browser may carry no list of types at all.
     if (event.dataTransfer?.types?.includes(INTERNAL_DRAG_TYPE)) return;
+    if (!this.mayLoadDrops()) return;
 
     // A drop can arrive before startup finishes, or where no guard exists at all.
     this.reloadCheck?.reloadCheckStart(this.networkService.peerContext?.roomName !== '');

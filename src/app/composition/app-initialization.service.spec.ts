@@ -3,6 +3,7 @@ import { PERSONAL_VOLUME_STORAGE_KEY } from '@axe/application/media/personal-vol
 import { AppConfigService } from '@axe/composition/app-config.service';
 import { AppInitializationService } from '@axe/composition/app-initialization.service';
 import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
+import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { LoopPlayer } from '@axe/core/storage/loop-player';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Alarm } from '@axe/domain/alarm/alarm';
@@ -12,6 +13,7 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { Vote } from '@axe/domain/vote/vote';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -31,6 +33,7 @@ describe('AppInitializationService', () => {
   });
 
   afterEach(() => {
+    TestBed.inject(FileArchiver).mayLoadDrops = () => true;
     PeerCursor.myCursor = null!;
     const presets = PresetSound as unknown as Record<string, string>;
     for (const key of Object.keys(presets)) presets[key] = '';
@@ -96,6 +99,16 @@ describe('AppInitializationService', () => {
       BackgroundSound.start('fire')!.stop();
 
       expect(AudioSharingSystem.instance.preferredIdentifiers()).toEqual(['bgm', 'rain']);
+    });
+
+    it('takes dropped files in only for a seat that may change the table', () => {
+      const archiver = TestBed.inject(FileArchiver);
+
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      expect(archiver.mayLoadDrops()).toBe(false);
+
+      PeerCursor.myCursor.role = PeerRole.Player;
+      expect(archiver.mayLoadDrops()).toBe(true);
     });
 
     it('creates the cursor for this peer', () => {
