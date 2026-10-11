@@ -168,8 +168,8 @@
       "sharedByGm": "GM이 시점을 공유 중입니다",
       "stopSharing": "공유 시점 해제",
       "sharedMissing": "공유 중인 캐릭터가 테이블에 없습니다(눌러서 해제)",
-      "keysHint": "WASD·방향키로 이동 · Q/E로 방향 전환 · Space로 문 · T로 타깃",
-      "keysHintHex": "W/S·방향키로 앞뒤 · A/D로 앞 대각선 · Z/C로 뒤 대각선 · Q/E로 방향 전환 · Space로 문 · T로 타깃",
+      "keysHint": "WASD·↑↓로 이동 · Q/E·←→로 방향 전환 · Space로 문 · F로 불 · T로 타깃 · Shift+T로 타깃 모두 해제",
+      "keysHintHex": "W/S·↑↓로 앞뒤 · A/D로 앞 대각선 · Z/C로 뒤 대각선 · Q/E·←→로 방향 전환 · Space로 문 · F로 불 · T로 타깃 · Shift+T로 타깃 모두 해제",
       "facing": {
         "north": "북",
         "northEast": "북동",

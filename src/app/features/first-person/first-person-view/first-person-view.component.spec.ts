@@ -117,6 +117,27 @@ describe('FirstPersonViewComponent', () => {
     }
   });
 
+  it('tells beside the controls every key it answers to', () => {
+    lookOutOf(pieceAt(4, 5));
+    const fixture = mount();
+
+    const hint = element(fixture).querySelector('[data-testid="first-person-keys-hint"]')?.textContent ?? '';
+    for (const keys of ['WASD', '↑↓', 'Q/E・←→', 'Space', 'F で明かり', 'T でターゲット', 'Shift+T']) {
+      expect(hint).toContain(keys);
+    }
+  });
+
+  it('tells the keys of a hex grid on a hex grid', () => {
+    table.gridType = GridType.HEX_VERTICAL;
+    lookOutOf(pieceAt(4, 5));
+    const fixture = mount();
+
+    const hint = element(fixture).querySelector('[data-testid="first-person-keys-hint"]')?.textContent ?? '';
+    for (const keys of ['W/S・↑↓', 'A/D', 'Z/C', 'Q/E・←→', 'Space', 'F で明かり', 'T でターゲット', 'Shift+T']) {
+      expect(hint).toContain(keys);
+    }
+  });
+
   it('names the way the piece faces', () => {
     lookOutOf(pieceAt(4, 7, 90));
 

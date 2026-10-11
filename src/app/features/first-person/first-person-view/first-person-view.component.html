@@ -407,7 +407,10 @@
       <i class="material-icons text-[18px]!">local_fire_department</i>
       {{ torchLabelKey() | transloco }}
     </button>
-    <span class="hidden rounded-sm bg-black/40 px-2 py-1 text-xs text-white/80 lg:inline">
+    <span
+      class="hidden rounded-sm bg-black/40 px-2 py-1 text-xs text-white/80 lg:inline"
+      data-testid="first-person-keys-hint"
+    >
       @if (isHex()) {
         {{ 'feature.firstPerson.keysHintHex' | transloco }}
       } @else {
