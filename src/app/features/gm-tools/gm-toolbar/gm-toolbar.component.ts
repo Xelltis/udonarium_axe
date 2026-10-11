@@ -151,7 +151,15 @@ export class GmToolbarComponent {
     return shared ? 'feature.firstPerson.sharing' : 'feature.firstPerson.shareMenu';
   });
 
+  /**
+   * Opens or closes the list of pieces to put everyone in. While the piece everyone was put in has
+   * left the table, the press lets everyone go instead, as the button says.
+   */
   protected toggleShareMenu(): void {
+    if (this.sharedView()?.missing) {
+      this.stopSharing();
+      return;
+    }
     this.shareOpen.update((open) => !open);
   }
 

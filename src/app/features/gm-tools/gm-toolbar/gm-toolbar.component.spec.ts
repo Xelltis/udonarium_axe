@@ -436,17 +436,29 @@ describe('GmToolbarComponent', () => {
       expect(stopEntry()).toBeNull();
     });
 
-    it('lets everyone go, even when the piece named has left the table', () => {
-      table.sharedViewPiece = 'gone';
+    it('lets everyone go from the top of the list', () => {
+      const piece = pieceNamed('斥候');
+      table.sharedViewPiece = piece.identifier;
       fixture.detectChanges();
-
-      expect(sharingButton().title).toContain('卓にいません');
 
       sharingButton().click();
       fixture.detectChanges();
       stopEntry()!.click();
 
       expect(table.sharedViewPiece).toBe('');
+    });
+
+    it('lets everyone go at a press once the piece named has left the table, as the button says', () => {
+      table.sharedViewPiece = 'gone';
+      fixture.detectChanges();
+
+      expect(sharingButton().title).toContain('押すと解除');
+
+      sharingButton().click();
+      fixture.detectChanges();
+
+      expect(table.sharedViewPiece).toBe('');
+      expect(stopEntry()).toBeNull();
     });
   });
 });
