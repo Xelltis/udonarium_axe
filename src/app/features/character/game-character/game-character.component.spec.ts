@@ -37,6 +37,7 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { SlopeSide } from '@axe/domain/tabletop/terrain-slope';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
+import { PieceFigureHeightsService } from '@axe/features/character/game-character/piece-figure-heights.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 
@@ -139,20 +140,42 @@ describe('GameCharacterComponent', () => {
       return of.nativeElement as HTMLElement;
     }
 
-    it('draws those riding a mount over its own labels, the one in front nearest, with their bars', async () => {
+    it('draws a mount ridden as one card, those riding it over the mount and the one in front lowest', async () => {
       const { horse } = ride();
       fixture.componentRef.setInput('gameCharacter', horse);
 
       const element = await draw(fixture);
-      const names = [...element.querySelectorAll('[data-testid="riding-label-name"]')].map((name) =>
-        name.textContent?.trim()
+      const card = element.querySelector('[data-testid="riding-label"]')!;
+      const names = [...card.querySelectorAll('[data-testid="riding-label-name"], [data-testid="piece-name"]')].map(
+        (name) => name.textContent?.replace(/\s+/g, ' ').trim()
       );
 
-      expect(names).toEqual(['upgrade 騎士', 'group 従者']);
-      expect(
-        element.querySelectorAll('[data-testid="riding-label-piece"] [data-testid="piece-gauge"]').length
-      ).toBeGreaterThan(0);
-      expect(element.querySelector('[data-testid="piece-name"]')?.textContent).toContain('馬');
+      expect(names).toEqual(['group 従者', 'upgrade 騎士', '馬 person2']);
+      expect(card.querySelectorAll('[data-testid="riding-label-piece"]')).toHaveLength(3);
+      expect(card.querySelectorAll('[data-testid="piece-gauge"]').length).toBeGreaterThan(0);
+      expect(element.querySelectorAll('[data-testid="piece-name"]')).toHaveLength(1);
+      expect(element.querySelectorAll('[data-testid="piece-gauge"]').length).toBe(
+        card.querySelectorAll('[data-testid="piece-gauge"]').length
+      );
+    });
+
+    it('stands the card over the tallest picture on the mount, and draws a rider in front of its mount', async () => {
+      const { horse, knight } = ride();
+      fixture.componentRef.setInput('gameCharacter', horse);
+      await draw(fixture);
+      type Riding = { ridingCardRise(): number; figureHeightPx(): number };
+      const riding = component as unknown as Riding;
+      expect(riding.ridingCardRise()).toBe(0);
+
+      knight.posZ = horse.posZ + 50;
+      TestBed.inject(PieceFigureHeightsService).set(knight.identifier, riding.figureHeightPx() + 20);
+      await draw(fixture);
+      expect(riding.ridingCardRise()).toBe(70);
+
+      fixture.componentRef.setInput('gameCharacter', knight);
+      await draw(fixture);
+      const facing = (component as unknown as { pieceImageFacing(): (rotation: null) => string }).pieceImageFacing();
+      expect(facing(null)).toContain('translateZ(3px)');
     });
 
     it('draws no labels of its own over a piece riding a mount, and its labels again once it is off', async () => {

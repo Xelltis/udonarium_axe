@@ -109,6 +109,7 @@ import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { buildGameCharacterContextMenuModel } from '@axe/features/character/game-character/game-character-context-menu';
+import { PieceFigureHeightsService } from '@axe/features/character/game-character/piece-figure-heights.service';
 import { buildRideContextMenu } from '@axe/features/character/game-character/ride-context-menu';
 import { buildZoneContextMenu } from '@axe/features/character/game-character/zone-context-menu';
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
@@ -182,10 +183,16 @@ const TARGET_MARK_HEIGHT_PX = 34;
 const SPEECH_STAMP_PX = 56;
 const BUFF_DETAIL_ROW_HEIGHT_PX = 12;
 const BUFF_BADGE_ROW_HEIGHT_PX = 22;
-/** The space between a mount's own labels and the riding label over them. */
-const RIDING_STACK_GAP_PX = 4;
-/** How tall one name in the riding label is drawn, for reckoning what stands over it. */
+/** How far over a ridden mount the foot of its riding card stands: where its name stands otherwise. */
+const RIDING_CARD_LIFT_PX = 8;
+/** How far across the table from a ridden mount the foot of its riding card stands, seen from above. */
+const RIDING_CARD_LIFT_2D_PX = 38;
+/** The room each piece in the riding card takes besides its name, bars and buffs: padding and rule. */
+const RIDING_CARD_ENTRY_PX = 8;
+/** How tall one name in the riding card is drawn, for reckoning what stands over it. */
 const RIDING_NAME_HEIGHT_PX = 22;
+/** How far in front of its mount a piece riding it is drawn, so a mount's picture never hides it. */
+const RIDER_IN_FRONT_PX = 3;
 /** The mark each seat is shown with in the riding label. */
 const RIDING_SEAT_ICONS: Readonly<Record<RideSeat, string>> = {
   rider: 'upgrade',
@@ -193,12 +200,15 @@ const RIDING_SEAT_ICONS: Readonly<Record<RideSeat, string>> = {
   cargo: 'backpack',
 };
 
-/** One piece riding a mount, as the mount's riding label shows it. */
+/** One piece in a mount's riding card: one riding it, or the mount itself. */
 interface RidingLabel {
   readonly identifier: string;
   /** Its name, empty where it is not shown to this reader. */
   readonly name: string;
+  /** The mark of the seat it rides in, empty for the mount. */
   readonly icon: string;
+  /** How many ride it, for the mount; 0 for one riding. */
+  readonly aboard: number;
   readonly gauges: readonly { readonly gauge: PieceGauge; readonly numbers: string }[];
   readonly badges: readonly BuffBadge[];
 }
@@ -264,6 +274,7 @@ export class GameCharacterComponent {
   private readonly tabletopService = inject(TabletopService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly figureHeights = inject(PieceFigureHeightsService);
   private readonly translateFn = inject(TRANSLATE_FN);
   private readonly rangeShapeInvoke = inject(RangeShapeInvokeService);
   private readonly moveRangeService = inject(MoveRangeService);
@@ -319,6 +330,14 @@ export class GameCharacterComponent {
       untracked(() => this.showResourceChanges(changes));
       callResourceChange({ characterIdentifier: character.identifier, changes });
     });
+
+    effect(() => {
+      const identifier = this.gameCharacter()?.identifier ?? '';
+      if (this.figureIdentifier !== identifier) this.figureHeights.forget(this.figureIdentifier);
+      this.figureIdentifier = identifier;
+      if (identifier !== '') this.figureHeights.set(identifier, this.figureHeightPx());
+    });
+    this.destroyRef.onDestroy(() => this.figureHeights.forget(this.figureIdentifier));
 
     // What another end changed is drawn on word from it; what this end changed is already drawn.
     resourceChange$.subscribe((event) => {
@@ -466,17 +485,42 @@ export class GameCharacterComponent {
       identifier: piece.identifier,
       name: showsName ? piece.name : '',
       icon: RIDING_SEAT_ICONS[seatOf(piece.rideSeat)],
+      aboard: 0,
       gauges,
       badges,
     };
   }
 
-  /** How tall the riding label over this mount is reckoned to stand, nothing where nobody rides it. */
-  private readonly ridingLabelHeightEstimate = computed(() =>
-    this.ridingLabels().reduce(
+  /**
+   * The riding card over a mount ridden, one label for all on it: those riding it, the one in front
+   * lowest, over the mount itself, each with its name, bars and buffs. Empty where nobody rides it.
+   */
+  readonly ridingCard = computed<RidingLabel[]>(
+    () => {
+      const riders = this.ridingLabels();
+      const char = this.gameCharacter();
+      if (riders.length < 1 || !char) return [];
+      return [
+        ...[...riders].reverse(),
+        {
+          identifier: char.identifier,
+          name: this.hideName() ? '' : this.name(),
+          icon: '',
+          aboard: this.ridersAboard(),
+          gauges: this.gaugeRows(),
+          badges: this.hideBuff() ? [] : this.buffBadges(),
+        },
+      ];
+    },
+    { equal: sameRidingLabels }
+  );
+
+  /** How tall the riding card over this mount is reckoned to stand, nothing where nobody rides it. */
+  private readonly ridingCardHeightEstimate = computed(() =>
+    this.ridingCard().reduce(
       (sum, label) =>
         sum +
-        RIDING_STACK_GAP_PX +
+        RIDING_CARD_ENTRY_PX +
         (label.name ? RIDING_NAME_HEIGHT_PX : 0) +
         label.gauges.length * GAUGE_ROW_HEIGHT_PX +
         Math.ceil(label.badges.length / BUFF_BADGES_PER_ROW) * BUFF_BADGE_ROW_HEIGHT_PX,
@@ -484,25 +528,49 @@ export class GameCharacterComponent {
     )
   );
 
-  /** How far over the piece the riding label's foot stands: over its own bars and buffs. */
-  private readonly ridingLift = computed(
-    () => BUFF_STACK_GAP_PX + this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate() + RIDING_STACK_GAP_PX
+  /** The piece whose picture's height this one last gave out. */
+  private figureIdentifier = '';
+
+  /** How tall the piece's picture stands over its base, where its labels hang from. */
+  private readonly figureHeightPx = computed(
+    () => this.imageView.boxHeightPx() ?? Math.max(this.pieceImageHeightEstimate(), this.size() * this.gridSize)
+  );
+
+  /**
+   * How much higher than its own picture the riding card stands over a mount: clear of the pictures
+   * of those riding it, which stand on the mount and may reach over its own.
+   */
+  private readonly ridingCardRise = computed(() => {
+    const char = this.gameCharacter();
+    if (!char || this.ridersAboard() < 1) return 0;
+    const own = this.figureHeightPx();
+    let top = own;
+    for (const rider of this.ride.aboard(char)) {
+      const height = this.figureHeights.heightOf(rider.identifier);
+      if (height !== null) top = Math.max(top, rider.posZ - char.posZ + height);
+    }
+    return top - own;
+  });
+
+  /** Whether the mount's own labels are drawn in its riding card rather than over it. */
+  protected readonly labelsInRidingCard = computed(
+    () => this.ridingCard().length > 0 && !this.multiAngleNameOrbitEnabled()
   );
 
   readonly ridingOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.ridingOrbit()));
 
   private ridingOrbit(): BillboardFacing {
-    const lift = this.ridingLift();
-    if (this.isPoster())
-      return facesAlways(`translateY(${-(this.size() * this.gridSize + 12 + lift - BUFF_STACK_GAP_PX)}px)`);
-    return this.labelOrbitFacing(lift, 28 + lift);
+    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize - 17)}px)`);
+    return this.labelOrbitFacing(RIDING_CARD_LIFT_PX + this.ridingCardRise(), RIDING_CARD_LIFT_2D_PX);
   }
 
   readonly ridingStackFacing = computed<BillboardFacing>(() =>
-    this.labelStackFacing(this.isPoster() ? NOT_TURNED : this.billboardFacing(this.ridingLift()))
+    this.labelStackFacing(
+      this.isPoster() ? NOT_TURNED : this.billboardFacing(RIDING_CARD_LIFT_PX + this.ridingCardRise())
+    )
   );
 
-  /** How much larger a name stands in the riding label than the bars beside it, as on the piece's own label. */
+  /** How much larger a name stands in the riding card than the bars beside it, as on the piece's own label. */
   protected readonly ridingNameEm = NAME_BASE_FONT_PX / DECOR_BASE_FONT_PX;
 
   /** Names go unshown for a piece hiding its name here, and for every piece while this seat has them switched off. */
@@ -696,10 +764,15 @@ export class GameCharacterComponent {
     this.multiAngleNameOrbitEnabled() ? 'rotateZ(var(--multi-angle-piece-angle, 0deg))' : ''
   );
 
+  /**
+   * How the picture faces the reader. A piece riding a mount is drawn a little in front of it, as the
+   * two stand in one place and the mount's picture would otherwise hide the rider's.
+   */
   private readonly pieceImageFacing = computed<BillboardFacing>(() => {
     const billboard = this.imageFacing();
     const spin = this.multiAnglePieceImageRotation();
-    return (rotation) => [billboard(rotation), spin].filter((part) => part.length > 0).join(' ');
+    const inFront = this.ridingMount() ? `translateZ(${RIDER_IN_FRONT_PX}px)` : '';
+    return (rotation) => [billboard(rotation), spin, inFront].filter((part) => part.length > 0).join(' ');
   });
 
   /**
@@ -1145,7 +1218,9 @@ export class GameCharacterComponent {
   });
 
   private targetOrbit(): BillboardFacing {
-    const stack = this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate() + this.ridingLabelHeightEstimate();
+    const stack = this.labelsInRidingCard()
+      ? this.ridingCardRise() + this.ridingCardHeightEstimate()
+      : this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate();
     if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 20 + stack)}px)`);
     return this.screenLiftFacing(TARGET_STACK_GAP_PX + stack, 84 + stack);
   }
@@ -1175,10 +1250,9 @@ export class GameCharacterComponent {
    */
   private readonly speechLift = computed(
     () =>
-      BUFF_STACK_GAP_PX +
-      this.gaugePanelHeightEstimate() +
-      this.buffPanelHeightEstimate() +
-      this.ridingLabelHeightEstimate() +
+      (this.labelsInRidingCard()
+        ? RIDING_CARD_LIFT_PX + this.ridingCardRise() + this.ridingCardHeightEstimate()
+        : BUFF_STACK_GAP_PX + this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate()) +
       SPEECH_STACK_GAP_PX +
       (this.isTargeted() ? TARGET_MARK_HEIGHT_PX : 0)
   );
@@ -2032,6 +2106,7 @@ function sameRidingLabels(a: readonly RidingLabel[], b: readonly RidingLabel[]):
       label.identifier === other.identifier &&
       label.name === other.name &&
       label.icon === other.icon &&
+      label.aboard === other.aboard &&
       label.gauges.length === other.gauges.length &&
       label.gauges.every(
         (row, at) => row.numbers === other.gauges[at].numbers && sameFields(row.gauge, other.gauges[at].gauge)

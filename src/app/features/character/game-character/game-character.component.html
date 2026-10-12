@@ -212,7 +212,12 @@
               >
                 @let buffEl = this.gameCharacter()!.buffDataElement;
                 @if (
-                  buffEl && buffNum() > 0 && !hideBuff() && !multiAngleResourceBuffOrbitEnabled() && !ridingMount()
+                  buffEl &&
+                  buffNum() > 0 &&
+                  !hideBuff() &&
+                  !multiAngleResourceBuffOrbitEnabled() &&
+                  !ridingMount() &&
+                  !labelsInRidingCard()
                 ) {
                   <div class="pointer-events-auto [-webkit-transform-style:preserve-3d] transform-3d">
                     <div
@@ -307,7 +312,12 @@
                     </div>
                   </div>
                 }
-                @if (pieceGauges().length > 0 && !multiAngleResourceBuffOrbitEnabled() && !ridingMount()) {
+                @if (
+                  pieceGauges().length > 0 &&
+                  !multiAngleResourceBuffOrbitEnabled() &&
+                  !ridingMount() &&
+                  !labelsInRidingCard()
+                ) {
                   <div
                     class="pointer-events-auto absolute [-webkit-transform-style:preserve-3d] transform-3d"
                     [appBillboard]="gaugeOrbitFacing()"
@@ -323,7 +333,9 @@
                     </div>
                   </div>
                 }
-                @if (name() && !hideName() && !multiAngleNameOrbitEnabled() && !ridingMount()) {
+                @if (
+                  name() && !hideName() && !multiAngleNameOrbitEnabled() && !ridingMount() && !labelsInRidingCard()
+                ) {
                   <div
                     class="pointer-events-auto absolute [-webkit-transform-style:preserve-3d] transform-3d"
                     [style.font-size.px]="nameFontSizePx"
@@ -374,18 +386,21 @@
                     }
                   </div>
                 }
-                @if (ridingLabels().length > 0 && !multiAngleNameOrbitEnabled()) {
+                @if (labelsInRidingCard()) {
                   <div
                     class="pointer-events-none absolute [-webkit-transform-style:preserve-3d] transform-3d"
                     [appBillboard]="ridingOrbitFacing()"
                   >
                     <div
                       data-testid="riding-label"
-                      class="absolute bottom-0 left-0 flex origin-bottom-left flex-col-reverse items-center gap-[0.4em] whitespace-nowrap [-webkit-transform-style:preserve-3d] transform-3d"
+                      class="absolute bottom-0 left-0 box-border flex origin-bottom-left flex-col items-center rounded-[0.9em] bg-black/35 px-[0.6em] py-[0.35em] whitespace-nowrap [-webkit-transform-style:preserve-3d] transform-3d"
                       [style.font-size.px]="decorFontSizePx"
                       [appBillboard]="ridingStackFacing()"
                     >
-                      @for (label of ridingLabels(); track label.identifier) {
+                      @for (label of ridingCard(); track label.identifier; let first = $first) {
+                        @if (!first) {
+                          <div class="my-[0.35em] h-[0.1em] w-full shrink-0 bg-white/40"></div>
+                        }
                         <div class="flex flex-col items-center gap-[0.15em]" data-testid="riding-label-piece">
                           @if (label.badges.length > 0) {
                             <div
@@ -402,7 +417,7 @@
                           @for (row of label.gauges; track row.gauge.identifier) {
                             <ng-container *ngTemplateOutlet="gaugeRowView; context: { $implicit: row }"></ng-container>
                           }
-                          @if (label.name) {
+                          @if (label.name && label.icon) {
                             <div
                               class="bg-ui-panel text-ui-text box-border max-w-[24em] truncate rounded-[1.6em] px-[0.6em] py-[0.2em]"
                               data-testid="riding-label-name"
@@ -412,6 +427,23 @@
                                 label.icon
                               }}</i>
                               {{ label.name }}
+                            </div>
+                          } @else if (label.name) {
+                            <div
+                              class="bg-ui-panel text-ui-text pointer-events-auto box-border rounded-[1.6em] px-[0.6em] py-[0.2em]"
+                              data-testid="piece-name"
+                              [style.font-size.em]="ridingNameEm"
+                            >
+                              <div class="max-w-[24em] truncate">
+                                {{ label.name }}
+                                @if (isLock) {
+                                  <i class="material-icons inline align-middle text-[1em]!">lock</i>
+                                }
+                                <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
+                                  ><i class="material-icons inline align-middle text-[1em]!">person</i
+                                  >{{ label.aboard }}</span
+                                >
+                              </div>
                             </div>
                           }
                         </div>
