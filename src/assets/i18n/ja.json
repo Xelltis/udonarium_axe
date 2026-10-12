@@ -176,7 +176,10 @@
         "condition": "駒の状態",
         "unseen": "姿が見えない（移動を止められない）",
         "down": "倒れている（行動できない）",
-        "held": "その場から動けない"
+        "held": "その場から動けない",
+        "grab": "{{name}} をつかむ",
+        "grabbing": "{{name}} をつかんでいる",
+        "grabbedBy": "{{name}} につかまれている"
       },
       "chat": {
         "declared": "{{attacker}} が {{target}} と交戦し、交戦エリアができました",
@@ -188,7 +191,9 @@
         "held": "{{name}} は交戦エリアに止められました",
         "interrupted": "{{names}} が {{mover}} の移動に割り込みました",
         "pulledIn": "{{name}} は定員を超えた交戦エリアの中で手番を始めたので、エリアに加わりました",
-        "down": "{{name}} は倒れて、交戦エリアから外れました"
+        "down": "{{name}} は倒れて、交戦エリアから外れました",
+        "grabbed": "{{holder}} が {{captive}} をつかみました",
+        "released": "{{captive}} は {{holder}} から放れました"
       },
       "settings": {
         "section": "交戦エリア",
@@ -270,7 +275,8 @@
       "downInPlace": "{{name}} は倒れていて動けません",
       "heldFastInPlace": "{{name}} はその場から動けません",
       "offerFight": "{{name}} は {{foe}} と同じ点にいます",
-      "offerFightAction": "交戦する"
+      "offerFightAction": "交戦する",
+      "grabbedInPlace": "{{name}} は {{holder}} につかまれていて動けません"
     },
     "firstPerson": {
       "exit": "卓に戻る",

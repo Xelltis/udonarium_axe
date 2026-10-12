@@ -437,6 +437,103 @@ describe('EngagementZoneService', () => {
       expect(shown).not.toHaveBeenCalled();
     });
 
+    describe('a piece held on to by another', () => {
+      it('cannot move of its own will until it is let go, and the room is told both', () => {
+        const holder = pieceAt(12, 12, true);
+        const captive = pieceAt(12, 12);
+        said = [];
+
+        service.grab(holder, captive);
+
+        expect(captive.grabbedBy).toBe(holder.identifier);
+        expect(service.mayMove(captive, '')).toBe(false);
+        expect(service.reachTermsFor(captive, grid(), '')?.noReach).toBe(true);
+        expect(service.menuOf(captive).grabbedBy?.id).toBe(holder.identifier);
+        expect(service.menuOf(holder).grabbing.map((one) => one.id)).toEqual([captive.identifier]);
+        service.release(captive);
+        expect(service.mayMove(captive, '')).toBe(true);
+        expect(said).toHaveLength(2);
+      });
+
+      it('offers taking hold of an enemy at the same point only, and joining no zone of its own will', () => {
+        const { hero, foe } = fight();
+        pieceAt(16, 16, true);
+        expect(service.menuOf(hero).grabbable.map((one) => one.id)).toEqual([foe.identifier]);
+
+        const holder = pieceAt(11, 10, true);
+        const captive = pieceAt(11, 10);
+        expect(service.menuOf(captive).joinable).toHaveLength(1);
+        service.grab(holder, captive);
+        expect(service.menuOf(captive).joinable).toEqual([]);
+      });
+
+      it('goes into a zone with the one holding it, and the one holding it with it, when either is fought', () => {
+        fight();
+        const holder = pieceAt(11, 10, true);
+        const captive = pieceAt(11, 10);
+        service.grab(holder, captive);
+        const attacker = pieceAt(11, 10);
+
+        service.declare(attacker, holder);
+
+        expect(holder.engagementZone).not.toBe('');
+        expect(captive.engagementZone).toBe(holder.engagementZone);
+        expect(service.stateNow().zoneOf(captive.identifier)?.id).toBe(
+          service.stateNow().zoneOf(holder.identifier)?.id
+        );
+      });
+
+      it('stays where it is when it is held fast, while the one holding it is fought', () => {
+        const holder = pieceAt(12, 12, true);
+        const captive = pieceAt(12, 12);
+        service.grab(holder, captive);
+        service.setHeld(captive, true);
+
+        service.declare(pieceAt(12, 12), holder);
+
+        expect(holder.engagementZone).not.toBe('');
+        expect(captive.engagementZone).toBe('');
+      });
+
+      it('is out of its zone once the one holding it leaves', () => {
+        const { foe } = fight();
+        const captive = pieceAt(10, 10);
+        service.grab(foe, captive);
+        service.join(captive, service.stateNow().zones[0].id);
+        service.join(pieceAt(10, 10, true), service.stateNow().zones[0].id);
+
+        service.leave(foe);
+
+        expect(service.stateNow().zoneOf(captive.identifier)).toBeNull();
+      });
+
+      it('is carried to where the one holding it is put down, unless it is held fast', () => {
+        const holder = pieceAt(12, 12, true);
+        const captive = pieceAt(12, 12);
+        const fast = pieceAt(12, 12);
+        service.grab(holder, captive);
+        service.grab(holder, fast);
+        service.setHeld(fast, true);
+
+        holder.location = { name: 'table', x: 15 * GRID, y: 12 * GRID };
+        service.carryCaptives(holder);
+
+        expect(captive.location.x).toBe(15 * GRID);
+        expect(fast.location.x).toBe(12 * GRID);
+      });
+
+      it('steps into no move, held as it is', () => {
+        const holder = pieceAt(14, 10, true);
+        const captive = pieceAt(14, 10, true);
+        service.grab(holder, captive);
+        const walker = pieceAt(10, 10);
+
+        const terms = service.interruptersOf(walker)!;
+
+        expect(terms.candidates.map((one) => one.id)).toEqual([holder.identifier]);
+      });
+    });
+
     it('leaves a piece that walked past nothing as it was', () => {
       fight();
       const walker = pieceAt(16, 10);

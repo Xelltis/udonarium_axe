@@ -13,6 +13,10 @@ export interface ZoneMenuCallbacks {
   setUnseen(unseen: boolean): void;
   setDown(down: boolean): void;
   setHeld(held: boolean): void;
+  grab(captiveId: string): void;
+  release(captiveId: string): void;
+  /** Lets the piece itself go from whatever holds on to it. */
+  breakFree(): void;
   setSquare(zoneId: string, square: boolean): void;
   setLimit(zoneId: string, limit: number | null): void;
   remove(zoneId: string): void;
@@ -26,7 +30,8 @@ export const ZONE_LIMIT_CHOICES: readonly number[] = Array.from({ length: 19 }, 
 /**
  * The engagement-zone entries of a piece's menu, gathered under one entry: declaring a fight with an
  * enemy at the same point, joining a zone the piece stands in, leaving its zone, taking the piece
- * out of the fight or back in, and saying what state it is in: unseen, down, or held fast. Whoever
+ * out of the fight or back in, and saying what state it is in: unseen, down, held fast, holding on to
+ * an enemy at the same point or held on to by one. Whoever
  * keeps the table also shapes the zone, sets how many it holds and ends it.
  *
  * Nothing where the room does not play zones, or for somebody who may not change the table.
@@ -71,6 +76,22 @@ export function buildZoneContextMenu(
       { name: tick(model.unseen, 'feature.zone.menu.unseen'), action: () => callbacks.setUnseen(!model.unseen) },
       { name: tick(model.down, 'feature.zone.menu.down'), action: () => callbacks.setDown(!model.down) },
       { name: tick(model.held, 'feature.zone.menu.held'), action: () => callbacks.setHeld(!model.held) },
+      ...(model.grabbedBy
+        ? [
+            {
+              name: '☑ ' + t('feature.zone.menu.grabbedBy', { name: model.grabbedBy.name }),
+              action: () => callbacks.breakFree(),
+            },
+          ]
+        : []),
+      ...model.grabbing.map((captive) => ({
+        name: '☑ ' + t('feature.zone.menu.grabbing', { name: captive.name }),
+        action: () => callbacks.release(captive.id),
+      })),
+      ...model.grabbable.map((foe) => ({
+        name: '☐ ' + t('feature.zone.menu.grab', { name: foe.name }),
+        action: () => callbacks.grab(foe.id),
+      })),
     ],
   });
   if (model.aiming) entries.push({ name: t('feature.zone.menu.checkFire'), action: () => callbacks.checkFire() });

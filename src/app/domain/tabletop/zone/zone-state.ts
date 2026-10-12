@@ -26,6 +26,8 @@ export interface ZonePieceInput {
   readonly down?: boolean;
   /** Whether it is held fast where it stands, so a zone's centre moving off leaves it behind. */
   readonly held?: boolean;
+  /** The piece holding on to it, whose zone it is in only while that piece is; empty for none. */
+  readonly grabbedBy?: string;
 }
 
 export interface ZoneWorld {
@@ -113,8 +115,10 @@ const MOVED_PX = 1e-3;
  * 2. Zones are joined, lowest identifier first, while one's centre lies in the other: the one with
  *    the lower identifier stays, standing half way between the two, and takes in both sets of pieces
  *    but those held fast, which stay where the old centre was and are out of the zone.
- * 3. A zone left with fewer than two sides in it is over, and its pieces are out of it.
- * 4. Every other piece standing in a zone is inside it without being in it.
+ * 3. A piece held on to by another is in a zone only while the one holding it is, so a holder that
+ *    leaves takes it out as well. A holder off the table or out of the fight holds nothing.
+ * 4. A zone left with fewer than two sides in it is over, and its pieces are out of it.
+ * 5. Every other piece standing in a zone is inside it without being in it.
  */
 export function zoneStateOf(world: ZoneWorld): ZoneState {
   const { rules, pxPerMetre } = world;
@@ -183,6 +187,19 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
         working.splice(j, 1);
         joined = true;
       }
+    }
+  }
+
+  const holderOf = (id: string): string => {
+    const holder = pieces.get(pieces.get(id)?.grabbedBy ?? '');
+    return holder && !holder.offField ? holder.id : '';
+  };
+  for (let dropped = true; dropped;) {
+    dropped = false;
+    for (const zone of working) {
+      const kept = zone.members.filter((id) => !holderOf(id) || zone.members.includes(holderOf(id)));
+      if (kept.length < zone.members.length) dropped = true;
+      zone.members = kept;
     }
   }
 

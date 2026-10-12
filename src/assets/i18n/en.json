@@ -176,7 +176,10 @@
         "condition": "State of the piece",
         "unseen": "Cannot be seen (moves cannot be stopped)",
         "down": "Down (cannot act)",
-        "held": "Held fast where it stands"
+        "held": "Held fast where it stands",
+        "grab": "Take hold of {{name}}",
+        "grabbing": "Holding on to {{name}}",
+        "grabbedBy": "Held on to by {{name}}"
       },
       "chat": {
         "declared": "{{attacker}} engaged {{target}}, and an engagement zone formed",
@@ -188,7 +191,9 @@
         "held": "{{name}} was held by the engagement zone",
         "interrupted": "{{names}} stepped into {{mover}}'s move",
         "pulledIn": "{{name}} began its turn in an engagement zone holding more than its limit, and joined it",
-        "down": "{{name}} went down and is out of its engagement zone"
+        "down": "{{name}} went down and is out of its engagement zone",
+        "grabbed": "{{holder}} took hold of {{captive}}",
+        "released": "{{captive}} is free of {{holder}}"
       },
       "settings": {
         "section": "Engagement zones",
@@ -270,7 +275,8 @@
       "downInPlace": "{{name}} is down and cannot move",
       "heldFastInPlace": "{{name}} is held fast where it stands",
       "offerFight": "{{name}} stands at the same point as {{foe}}",
-      "offerFightAction": "Fight"
+      "offerFightAction": "Fight",
+      "grabbedInPlace": "{{name}} is held on to by {{holder}} and cannot move"
     },
     "firstPerson": {
       "exit": "Back to the table",

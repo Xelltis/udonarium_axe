@@ -62,6 +62,12 @@ export interface ZoneMenuModel {
   readonly down: boolean;
   /** Whether the piece is held fast where it stands. */
   readonly held: boolean;
+  /** The piece holding on to this one, or null. */
+  readonly grabbedBy: { readonly id: string; readonly name: string } | null;
+  /** The pieces this one holds on to. */
+  readonly grabbing: readonly { readonly id: string; readonly name: string }[];
+  /** The enemies at the same point this one may take hold of. */
+  readonly grabbable: readonly { readonly id: string; readonly name: string }[];
 }
 
 const NO_MENU: ZoneMenuModel = {
@@ -75,6 +81,9 @@ const NO_MENU: ZoneMenuModel = {
   unseen: false,
   down: false,
   held: false,
+  grabbedBy: null,
+  grabbing: [],
+  grabbable: [],
 };
 
 /** What a move is shaped by where zones stand on the table. */
@@ -259,8 +268,7 @@ export class EngagementZoneService {
         zone.centre = world.snap(state.pointOf(target.identifier) ?? centreOf(target, world.table.gridSize));
         world.table.appendChild(zone);
       }
-      attacker.engagementZone = zone.identifier;
-      target.engagementZone = zone.identifier;
+      for (const piece of this.withPartners([attacker, target])) piece.engagementZone = zone.identifier;
     });
     this.settle([zone!.identifier]);
     this.chat.sendSystemMessage(this.t('feature.zone.chat.declared', { attacker: attacker.name, target: target.name }));
@@ -282,7 +290,7 @@ export class EngagementZoneService {
       zone.centre = world.snap(point);
       zone.forming = !atOnce && turn && turn.phase !== 'idle' ? '1' : '';
       world.table.appendChild(zone);
-      for (const piece of pieces) piece.engagementZone = zone.identifier;
+      for (const piece of this.withPartners(pieces)) piece.engagementZone = zone.identifier;
     });
     this.settle([zone.identifier]);
     return zone;
@@ -300,8 +308,10 @@ export class EngagementZoneService {
     const crowded = state.insideOf(identifier).find((zone) => zone.overflowing);
     if (!crowded) return;
     GameObject.batch(() => {
-      piece.engagementZone = crowded.id;
-      piece.zoneLeaveRound = '';
+      for (const one of this.withPartners([piece])) {
+        one.engagementZone = crowded.id;
+        one.zoneLeaveRound = '';
+      }
     });
     this.settle([crowded.id]);
     this.chat.sendSystemMessage(this.t('feature.zone.chat.pulledIn', { name: piece.name }));
@@ -318,7 +328,7 @@ export class EngagementZoneService {
 
   /**
    * Pulls pieces into a zone, as the zone stopping a move does: each is put on the zone's centre and
-   * joins it.
+   * joins it, along with any piece holding on to it or held on to by it.
    */
   pullInto(zoneId: string, pieces: readonly GameCharacter[]): void {
     const zone = this.zoneById(zoneId);
@@ -326,7 +336,7 @@ export class EngagementZoneService {
     const centre = zone?.centre;
     if (!zone || !world || !centre || pieces.length < 1) return;
     GameObject.batch(() => {
-      for (const piece of pieces) {
+      for (const piece of this.withPartners(pieces)) {
         const half = (Math.max(0, piece.size) * world.table.gridSize) / 2;
         piece.engagementZone = zoneId;
         piece.zoneLeaveRound = '';
@@ -337,10 +347,15 @@ export class EngagementZoneService {
     this.settle([zoneId]);
   }
 
-  /** Puts a piece in a zone, its point becoming the zone's centre. */
+  /**
+   * Puts a piece in a zone, its point becoming the zone's centre, along with any piece holding on to
+   * it or held on to by it.
+   */
   join(piece: GameCharacter, zoneId: string): void {
     if (!this.zoneById(zoneId)) return;
-    piece.engagementZone = zoneId;
+    GameObject.batch(() => {
+      for (const one of this.withPartners([piece])) one.engagementZone = zoneId;
+    });
     this.settle([zoneId]);
     this.chat.sendSystemMessage(this.t('feature.zone.chat.joined', { name: piece.name }));
   }
@@ -391,6 +406,48 @@ export class EngagementZoneService {
   /** Says that a piece is held fast where it stands, or that it may move again. */
   setHeld(piece: GameCharacter, held: boolean): void {
     piece.heldFast = held ? '1' : '';
+  }
+
+  /**
+   * Has one piece take hold of another at the same point. The one held cannot move of its own will,
+   * goes where the one holding it goes, and is in a zone only while the one holding it is.
+   */
+  grab(holder: GameCharacter, captive: GameCharacter): void {
+    if (holder === captive || captive.grabbedBy === holder.identifier) return;
+    GameObject.batch(() => {
+      captive.grabbedBy = holder.identifier;
+      captive.location.x = holder.location.x;
+      captive.location.y = holder.location.y;
+    });
+    this.settle([]);
+    this.chat.sendSystemMessage(this.t('feature.zone.chat.grabbed', { holder: holder.name, captive: captive.name }));
+  }
+
+  /** Lets go of a piece held on to, which stays where it is. */
+  release(captive: GameCharacter): void {
+    const holder = this.holderOf(captive);
+    if (captive.grabbedBy === '') return;
+    captive.grabbedBy = '';
+    this.settle([]);
+    this.chat.sendSystemMessage(
+      this.t('feature.zone.chat.released', { captive: captive.name, holder: holder?.name ?? '' })
+    );
+  }
+
+  /**
+   * Brings the pieces a piece holds on to along to where it now stands, as a move of the one holding
+   * them does. One held fast where it stands is left there.
+   */
+  carryCaptives(holder: GameCharacter): void {
+    const captives = this.captivesOf(holder).filter((captive) => captive.heldFast !== '1');
+    if (captives.length < 1) return;
+    GameObject.batch(() => {
+      for (const captive of captives) {
+        captive.location.x = holder.location.x;
+        captive.location.y = holder.location.y;
+        captive.update();
+      }
+    });
   }
 
   /**
@@ -469,10 +526,32 @@ export class EngagementZoneService {
         : [];
     const standing = own ? [] : state.insideOf(piece.identifier);
     const acting = this.mayAct(piece);
+    const holder = this.holderOf(piece);
+    const named = (one: { id: string }) => ({
+      id: one.id,
+      name: this.objectStore.get<GameCharacter>(one.id)?.name ?? '',
+    });
+    const grabbable =
+      self && self.side !== null && !self.offField && here && acting && !holder
+        ? pieces
+            .filter(
+              (other) =>
+                other.id !== self.id &&
+                !other.offField &&
+                other.side !== null &&
+                other.side !== self.side &&
+                !this.objectStore.get<GameCharacter>(other.id)?.grabbedBy
+            )
+            .filter((other) => {
+              const there = state.pointOf(other.id);
+              return there !== null && Math.hypot(there.x - here.x, there.y - here.y) <= reach;
+            })
+            .map(named)
+        : [];
     return {
       enabled: true,
       zone: zone ? { id: zone.identifier, square: zone.isSquare, limit: zone.limit } : null,
-      joinable: acting ? standing.map((view) => view.id) : [],
+      joinable: acting && !holder ? standing.map((view) => view.id) : [],
       foes: own || !acting ? [] : foes,
       offField: piece.offField === '1',
       leave: own
@@ -486,7 +565,40 @@ export class EngagementZoneService {
       unseen: piece.unseen === '1',
       down: piece.downed === '1',
       held: piece.heldFast === '1',
+      grabbedBy: holder ? { id: holder.identifier, name: holder.name } : null,
+      grabbing: this.captivesOf(piece).map((captive) => ({ id: captive.identifier, name: captive.name })),
+      grabbable,
     };
+  }
+
+  /** The piece holding on to this one, where it is on the table and in the fight; null otherwise. */
+  private holderOf(piece: GameCharacter): GameCharacter | null {
+    if (piece.grabbedBy === '') return null;
+    const holder = this.objectStore.get<GameCharacter>(piece.grabbedBy);
+    return holder instanceof GameCharacter && holder.isVisibleOnTable && holder.offField !== '1' ? holder : null;
+  }
+
+  /** The pieces on the table this one holds on to. */
+  private captivesOf(piece: GameCharacter): GameCharacter[] {
+    return this.objectStore
+      .getObjects<GameCharacter>(GameCharacter)
+      .filter((one) => one.grabbedBy === piece.identifier && one.isVisibleOnTable);
+  }
+
+  /**
+   * The pieces given with every piece holding on to one of them or held on to by one of them, which
+   * go into a zone together. One held fast where it stands is left out, as it moves for nothing.
+   */
+  private withPartners(pieces: readonly GameCharacter[]): GameCharacter[] {
+    const group = new Map(pieces.map((piece) => [piece.identifier, piece]));
+    for (const piece of pieces) {
+      const holder = this.holderOf(piece);
+      for (const partner of [...(holder ? [holder] : []), ...this.captivesOf(piece)]) {
+        if (partner.heldFast === '1' || partner.offField === '1') continue;
+        group.set(partner.identifier, partner);
+      }
+    }
+    return [...group.values()];
   }
 
   /** Whether a piece may act of its own will: not down, and not held fast where it stands. */
@@ -531,7 +643,9 @@ export class EngagementZoneService {
     const counted = { side: mover.side, count: mover.count };
     const limits = { shut: [] as ZoneShape[], stops: [] as ZoneShape[], escapes: [] as ZoneShape[] };
 
-    if (!this.mayAct(piece)) return { startPoint: own?.shape.centre ?? null, noReach: true, ...limits };
+    if (!this.mayAct(piece) || this.holderOf(piece)) {
+      return { startPoint: own?.shape.centre ?? null, noReach: true, ...limits };
+    }
     if (own && leaveReasonOf(this.leaveInput(own, mover, pieces, kindName, piece.zoneLeaveRound)) === 'held') {
       return { startPoint: own.shape.centre, noReach: true, ...limits };
     }
@@ -599,7 +713,8 @@ export class EngagementZoneService {
       piece.side !== moving.side &&
       !piece.offField &&
       !piece.down &&
-      !piece.held;
+      !piece.held &&
+      !piece.grabbedBy;
     const asInterrupter = (piece: ZonePieceInput): ZoneInterrupter => ({
       id: piece.id,
       count: piece.count,
@@ -705,7 +820,7 @@ export class EngagementZoneService {
     const snapshot = this.snapshot();
     const mover = snapshot?.pieces.find((one) => one.id === piece.identifier);
     if (!snapshot || !mover || mover.side === null) return true;
-    if (!this.mayAct(piece)) return false;
+    if (!this.mayAct(piece) || this.holderOf(piece)) return false;
     const own = snapshot.state.zoneOf(piece.identifier);
     if (!own) return true;
     return leaveReasonOf(this.leaveInput(own, mover, snapshot.pieces, kindName, piece.zoneLeaveRound)) !== 'held';
@@ -785,12 +900,14 @@ export class EngagementZoneService {
     }
     // Put on the zone's centre before it is counted in, so a piece stopped a way off is not taken
     // straight back out again for standing more than a metre outside.
-    const half = (Math.max(0, piece.size) * world.table.gridSize) / 2;
     GameObject.batch(() => {
-      piece.engagementZone = stopped.id;
-      piece.zoneLeaveRound = '';
-      piece.location.x = stopped.shape.centre.x - half;
-      piece.location.y = stopped.shape.centre.y - half;
+      for (const one of this.withPartners([piece])) {
+        const half = (Math.max(0, one.size) * world.table.gridSize) / 2;
+        one.engagementZone = stopped.id;
+        one.zoneLeaveRound = '';
+        one.location.x = stopped.shape.centre.x - half;
+        one.location.y = stopped.shape.centre.y - half;
+      }
     });
     this.settle([stopped.id]);
     this.chat.sendSystemMessage(this.t('feature.zone.chat.held', { name: piece.name }));
@@ -852,6 +969,7 @@ export class EngagementZoneService {
         side: sideOf(piece),
         down: piece.downed === '1',
         held: piece.heldFast === '1',
+        grabbedBy: this.holderOf(piece)?.identifier ?? '',
       }));
     const zones = zonesOn(world.table).map((zone) => ({
       id: zone.identifier,

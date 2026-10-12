@@ -312,6 +312,88 @@ describe('zoneStateOf', () => {
     expect(state.zones[0].members).toEqual(['a', 'b']);
   });
 
+  it('keeps a piece held on to in its zone only while the one holding it is in that zone', () => {
+    const together = zoneStateOf(
+      world(
+        [zone('z1', 10, 10)],
+        [
+          piece('a', 10, 10, { zone: 'z1' }),
+          piece('b', 10, 10, { zone: 'z1', side: 'npc' }),
+          piece('c', 10, 10, { zone: 'z1', grabbedBy: 'b' }),
+        ]
+      )
+    );
+    expect(together.zones[0].members).toEqual(['a', 'b', 'c']);
+
+    const holderGone = zoneStateOf(
+      world(
+        [zone('z1', 10, 10)],
+        [
+          piece('a', 10, 10, { zone: 'z1' }),
+          piece('b', 10, 10, { side: 'npc' }),
+          piece('d', 10, 10, { zone: 'z1', side: 'npc' }),
+          piece('c', 10, 10, { zone: 'z1', grabbedBy: 'b' }),
+        ]
+      )
+    );
+    expect(holderGone.zones[0].members).toEqual(['a', 'd']);
+    expect(holderGone.zones[0].inside).toEqual(['b', 'c']);
+    expect(holderGone.writes.setPieceZones).toEqual([{ id: 'c', zone: '' }]);
+  });
+
+  it('moves a piece held on to with the one holding it when their zone joins another', () => {
+    const state = zoneStateOf(
+      world(
+        [zone('z1', 10, 10), zone('z2', 11, 10)],
+        [
+          piece('a', 10, 10, { zone: 'z1' }),
+          piece('b', 10, 10, { zone: 'z1', side: 'npc' }),
+          piece('c', 10, 10, { zone: 'z1', grabbedBy: 'b' }),
+          piece('d', 11, 10, { zone: 'z2' }),
+          piece('e', 11, 10, { zone: 'z2', side: 'npc' }),
+        ]
+      )
+    );
+
+    expect(state.zones[0].members).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(state.pointOf('c')).toEqual(state.pointOf('b'));
+  });
+
+  it('takes a piece held on to out with its holder when the holder is held fast and left behind', () => {
+    const state = zoneStateOf(
+      world(
+        [zone('z1', 10, 10), zone('z2', 11, 10)],
+        [
+          piece('a', 10, 10, { zone: 'z1' }),
+          piece('b', 10, 10, { zone: 'z1', side: 'npc', held: true }),
+          piece('c', 10, 10, { zone: 'z1', grabbedBy: 'b' }),
+          piece('d', 11, 10, { zone: 'z2' }),
+          piece('e', 11, 10, { zone: 'z2', side: 'npc' }),
+        ]
+      )
+    );
+
+    expect(state.zones[0].members).toEqual(['a', 'd', 'e']);
+    expect(state.zones[0].inside).toEqual(['b', 'c']);
+  });
+
+  it('lets go of nothing for a holder out of the fight or not on the table', () => {
+    const state = zoneStateOf(
+      world(
+        [zone('z1', 10, 10)],
+        [
+          piece('a', 10, 10, { zone: 'z1' }),
+          piece('b', 10, 10, { zone: 'z1', side: 'npc' }),
+          piece('c', 10, 10, { zone: 'z1', grabbedBy: 'gone' }),
+          piece('f', 10, 10, { side: 'npc', offField: true }),
+          piece('g', 10, 10, { zone: 'z1', grabbedBy: 'f' }),
+        ]
+      )
+    );
+
+    expect(state.zones[0].members).toEqual(['a', 'b', 'c', 'g']);
+  });
+
   it('asks for nothing to be written where everything already says what it should', () => {
     const state = zoneStateOf(world([], [piece('a', 1, 1)]));
 

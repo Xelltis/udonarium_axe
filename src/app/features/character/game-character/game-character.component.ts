@@ -1257,6 +1257,15 @@ export class GameCharacterComponent {
         setUnseen: (unseen) => zones.setUnseen(char, unseen),
         setDown: (down) => zones.setDown(char, down),
         setHeld: (held) => zones.setHeld(char, held),
+        grab: (captiveId) => {
+          const captive = this.objectStore.get<GameCharacter>(captiveId);
+          if (captive instanceof GameCharacter) zones.grab(char, captive);
+        },
+        release: (captiveId) => {
+          const captive = this.objectStore.get<GameCharacter>(captiveId);
+          if (captive instanceof GameCharacter) zones.release(captive);
+        },
+        breakFree: () => zones.release(char),
         setSquare: (zoneId, square) => zones.setSquare(zoneId, square),
         setLimit: (zoneId, limit) => zones.setLimit(zoneId, limit),
         remove: (zoneId) => zones.remove(zoneId),
@@ -1591,13 +1600,16 @@ export class GameCharacterComponent {
     if (!this.movePlan.begin(character)) {
       if (this.isHeldByZone(character)) {
         queueMicrotask(() => this.movableRef()?.cancel());
+        const holder = this.objectStore.get<GameCharacter>(character.grabbedBy);
         const why =
           character.downed === '1'
             ? 'feature.zone.downInPlace'
             : character.heldFast === '1'
               ? 'feature.zone.heldFastInPlace'
-              : 'feature.zone.heldInPlace';
-        this.snackbar.show(this.translateFn(why, { name: character.name }));
+              : holder instanceof GameCharacter
+                ? 'feature.zone.grabbedInPlace'
+                : 'feature.zone.heldInPlace';
+        this.snackbar.show(this.translateFn(why, { name: character.name, holder: holder?.name ?? '' }));
       }
       return;
     }
@@ -1647,6 +1659,7 @@ export class GameCharacterComponent {
     this.moveRangeService.hide();
     const character = this.gameCharacter();
     if (!character) return;
+    this.engagementZones.carryCaptives(character);
     this.triggerFire.putDown(character);
     this.engagementZones.offerFight(character);
   }

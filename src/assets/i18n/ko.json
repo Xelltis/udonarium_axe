@@ -176,7 +176,10 @@
         "condition": "말의 상태",
         "unseen": "모습이 보이지 않음(이동을 막을 수 없음)",
         "down": "쓰러져 있음(행동할 수 없음)",
-        "held": "그 자리에서 움직일 수 없음"
+        "held": "그 자리에서 움직일 수 없음",
+        "grab": "{{name}}을(를) 붙잡기",
+        "grabbing": "{{name}}을(를) 붙잡고 있음",
+        "grabbedBy": "{{name}}에게 붙잡혀 있음"
       },
       "chat": {
         "declared": "{{attacker}}이(가) {{target}}와(과) 교전하여 교전 구역이 생겼습니다",
@@ -188,7 +191,9 @@
         "held": "{{name}}이(가) 교전 구역에 붙잡혔습니다",
         "interrupted": "{{names}}이(가) {{mover}}의 이동에 끼어들었습니다",
         "pulledIn": "{{name}}이(가) 정원을 넘은 교전 구역 안에서 차례를 시작하여 구역에 가담했습니다",
-        "down": "{{name}}이(가) 쓰러져 교전 구역에서 빠졌습니다"
+        "down": "{{name}}이(가) 쓰러져 교전 구역에서 빠졌습니다",
+        "grabbed": "{{holder}}이(가) {{captive}}을(를) 붙잡았습니다",
+        "released": "{{captive}}이(가) {{holder}}에게서 풀려났습니다"
       },
       "settings": {
         "section": "교전 구역",
@@ -270,7 +275,8 @@
       "downInPlace": "{{name}}은(는) 쓰러져 있어 움직일 수 없습니다",
       "heldFastInPlace": "{{name}}은(는) 그 자리에서 움직일 수 없습니다",
       "offerFight": "{{name}}은(는) {{foe}}와(과) 같은 지점에 있습니다",
-      "offerFightAction": "교전하기"
+      "offerFightAction": "교전하기",
+      "grabbedInPlace": "{{name}}은(는) {{holder}}에게 붙잡혀 있어 움직일 수 없습니다"
     },
     "firstPerson": {
       "exit": "테이블로 돌아가기",

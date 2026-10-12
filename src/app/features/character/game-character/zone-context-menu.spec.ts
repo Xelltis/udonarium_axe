@@ -19,6 +19,9 @@ function callbacks(): ZoneMenuCallbacks & { [name: string]: ReturnType<typeof vi
     setUnseen: vi.fn(),
     setDown: vi.fn(),
     setHeld: vi.fn(),
+    grab: vi.fn(),
+    release: vi.fn(),
+    breakFree: vi.fn(),
     setSquare: vi.fn(),
     setLimit: vi.fn(),
     remove: vi.fn(),
@@ -39,6 +42,9 @@ function model(more: Partial<ZoneMenuModel> = {}): ZoneMenuModel {
     unseen: false,
     down: false,
     held: false,
+    grabbedBy: null,
+    grabbing: [],
+    grabbable: [],
     ...more,
   };
 }
@@ -173,6 +179,34 @@ describe('buildZoneContextMenu', () => {
     expect(handlers.setUnseen).toHaveBeenCalledWith(true);
     expect(handlers.setDown).toHaveBeenCalledWith(false);
     expect(handlers.setHeld).toHaveBeenCalledWith(true);
+  });
+
+  it('offers taking hold of an enemy at the same point, and letting go of one held or of what holds the piece', () => {
+    const handlers = callbacks();
+    const entries = buildZoneContextMenu(
+      model({
+        grabbedBy: { id: 'boss', name: '大蛇' },
+        grabbing: [{ id: 'mouse', name: 'ねずみ' }],
+        grabbable: [{ id: 'cat', name: 'ねこ' }],
+      }),
+      true,
+      false,
+      handlers,
+      t
+    );
+    const states = entries[0].subActions!.find((entry) => entry.name === 'feature.zone.menu.condition')!.subActions!;
+
+    expect(states.slice(3).map((entry) => entry.name)).toEqual([
+      '☑ feature.zone.menu.grabbedBy:{"name":"大蛇"}',
+      '☑ feature.zone.menu.grabbing:{"name":"ねずみ"}',
+      '☐ feature.zone.menu.grab:{"name":"ねこ"}',
+    ]);
+    states[3].action!();
+    states[4].action!();
+    states[5].action!();
+    expect(handlers.breakFree).toHaveBeenCalled();
+    expect(handlers.release).toHaveBeenCalledWith('mouse');
+    expect(handlers.grab).toHaveBeenCalledWith('cat');
   });
 
   it('offers every limit from two to twenty', () => {

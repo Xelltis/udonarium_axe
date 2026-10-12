@@ -298,6 +298,7 @@ export class FreeMovePlanService {
     SoundEffect.play(PresetSound.piecePut);
     const start = this.zoneStart;
     this.close();
+    this.zones.carryCaptives(character);
     if (start) this.zones.afterMove(character, start);
     if (stopped) this.interrupts.settle(character, stopped, walked[walked.length - 1]);
     else this.zones.offerFight(character);

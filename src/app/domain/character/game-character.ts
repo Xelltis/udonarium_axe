@@ -83,6 +83,11 @@ export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() heldFast: string = '';
   /** `1` while the move being worked out for the piece is one nobody may stop; empty otherwise. */
   @SyncVar() unstoppableMove: string = '';
+  /**
+   * The piece holding on to this one, as its identifier, or empty: one held on to cannot move of its
+   * own will, and goes where the one holding it goes.
+   */
+  @SyncVar() grabbedBy: string = '';
   @SyncVar() disclosureMode: string = '';
   @SyncVar() disclosureUserIds: string[] = [];
   @SyncVar() overViewWidth: number = 270;
