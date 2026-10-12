@@ -173,6 +173,27 @@ describe('resource-edit-helpers', () => {
       expect(data.getAttribute(DataElementAttribute.BUFF_ICON)).toBe('☠️');
     });
 
+    it('reads a plain buff written in the layout of a calculated one, rounds and all, and moves nothing', () => {
+      const before = character.status.getValue('HP', 'now');
+
+      const text = applyBuffEdit({ command: '&挑発攻撃/HP/-/2/1', object: character, targeted: false }, character);
+      const data = character.buffs.find('挑発攻撃')!;
+
+      expect(text).toBe('バフを付与 挑発攻撃/HP-2/1R    ');
+      expect(data.value).toBe(1);
+      expect(data.currentValue).toBe('HP-2');
+      expect(data.getAttribute(DataElementAttribute.BUFF_ICON) ?? '').toBe('');
+      expect(character.status.getValue('HP', 'now')).toBe(before);
+      expect(character.buffs.expireOneRound()).toEqual(['挑発攻撃']);
+    });
+
+    it('keeps reading a plain buff whose third word is not an operator as its rounds', () => {
+      applyBuffEdit({ command: '&猛攻撃/攻撃+2/2/red', object: character, targeted: false }, character);
+
+      expect(character.buffs.find('猛攻撃')!.value).toBe(2);
+      expect(character.buffs.find('猛攻撃')!.currentValue).toBe('攻撃+2');
+    });
+
     it('writes a plain buff over one of the same name', () => {
       applyBuffEdit({ command: '&猛攻撃/攻撃+2/3', object: character, targeted: false }, character);
       applyBuffEdit({ command: '&猛攻撃/攻撃+2/3', object: character, targeted: false }, character);
