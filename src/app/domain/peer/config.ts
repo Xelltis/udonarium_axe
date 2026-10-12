@@ -108,6 +108,8 @@ export class Config extends ObjectNode implements InnerXml {
   // How the room plays pieces riding mounts.
   @SyncVar('_rideSkillField') private _rideSkillField: string = '';
   @SyncVar('_rideRequireField') private _rideRequireField: string = '';
+  @SyncVar('_fallMinM') private _fallMinM: number = -1;
+  @SyncVar('_fallDamage') private _fallDamage: string = '';
 
   /**
    * Where the room shows the dice of a chat roll tumbling: in the frame of the line that gives the
@@ -367,6 +369,25 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set rideRequireField(answer: string | null) {
     this._rideRequireField = writeRuleText(answer);
+  }
+
+  /** The shortest fall from a mount, in metres, or null for the default. */
+  get fallMinM(): number | null {
+    return readRuleNumber(this._fallMinM);
+  }
+  set fallMinM(answer: number | null) {
+    this._fallMinM = writeRuleNumber(answer);
+  }
+
+  /**
+   * What a fall from a mount does, as a line rolled for the piece that fell with `{m}` standing for
+   * how far it fell, or null where the room has written none and a fall only says how far.
+   */
+  get fallDamage(): string | null {
+    return readRuleText(this._fallDamage);
+  }
+  set fallDamage(answer: string | null) {
+    this._fallDamage = writeRuleText(answer);
   }
 
   /** What a distance between the sides does, as `metres:note` rows, or null where the room has written none. */

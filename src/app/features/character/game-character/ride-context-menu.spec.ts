@@ -8,6 +8,7 @@ function callbacks(): RideMenuCallbacks & { [name: string]: ReturnType<typeof vi
   return {
     getOn: vi.fn(),
     getOff: vi.fn(),
+    setProne: vi.fn(),
     setMountable: vi.fn(),
     setPassenger: vi.fn(),
     setCargo: vi.fn(),
@@ -17,7 +18,7 @@ function callbacks(): RideMenuCallbacks & { [name: string]: ReturnType<typeof vi
 }
 
 function model(more: Partial<RideMenuModel> = {}): RideMenuModel {
-  return { riding: null, offers: [], mount: null, changeRefusal: null, ...more };
+  return { riding: null, offers: [], mount: null, changeRefusal: null, prone: { on: false, refusal: null }, ...more };
 }
 
 const entriesOf = (menu: ContextMenuAction[]) => menu[0]?.subActions ?? [];
@@ -61,10 +62,11 @@ describe('buildRideContextMenu', () => {
 
     expect(entriesOf(menu).map((entry) => entry.name)).toEqual([
       'feature.ride.menu.off:{"mount":"馬"}',
+      '☐ feature.ride.menu.prone',
       '☐ feature.ride.menu.mountable',
     ]);
     entriesOf(menu)[0].action!();
-    entriesOf(menu)[1].action!();
+    entriesOf(menu)[2].action!();
     expect(handlers.getOff).toHaveBeenCalled();
     expect(handlers.setMountable).toHaveBeenCalledWith(true);
   });
@@ -91,6 +93,23 @@ describe('buildRideContextMenu', () => {
     );
     expect(entriesOf(riding)[0].enabled).toBe(false);
     expect(entriesOf(walking)[0].enabled).toBe(false);
+  });
+
+  it('says the piece has fallen over, and greys out getting up in the turn it fell in its own', () => {
+    const handlers = callbacks();
+    const fallen = buildRideContextMenu(model({ prone: { on: true, refusal: null } }), true, handlers, t);
+    const justFallen = buildRideContextMenu(
+      model({ prone: { on: true, refusal: 'fellThisTurn' } }),
+      true,
+      callbacks(),
+      t
+    );
+
+    expect(entriesOf(fallen)[0].name).toBe('☑ feature.ride.menu.prone');
+    entriesOf(fallen)[0].action!();
+    expect(handlers.setProne).toHaveBeenCalledWith(false);
+    expect(entriesOf(justFallen)[0].name).toBe('☑ feature.ride.menu.pronefeature.ride.menu.refusal_fellThisTurn');
+    expect(entriesOf(justFallen)[0].enabled).toBe(false);
   });
 
   it('says how a mount is set up, and changes each part of it', () => {

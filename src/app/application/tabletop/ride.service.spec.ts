@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
+import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
@@ -40,6 +42,9 @@ describe('RideService', () => {
     TestBed.inject(MovePlanService).cancel();
     Config.instance.rideSkillField = null;
     Config.instance.rideRequireField = null;
+    Config.instance.fallMinM = null;
+    Config.instance.fallDamage = null;
+    Config.instance.zoneEnabled = null;
     const turns = TestBed.inject(TurnState);
     turns.round = 0;
     turns.phase = 'idle';
@@ -163,6 +168,8 @@ describe('RideService', () => {
     rider.location = { name: 'table', x: 12 * GRID, y: 5 * GRID };
     service.afterPutDown(rider);
     expect(rider.ridingOn).toBe('');
+    expect(rider.prone).toBe('1');
+    expect(rider.location.x).toBe(12 * GRID);
   });
 
   it('lets everybody off a piece that stops being a mount, and reads one riding a piece no longer a mount as riding nothing', () => {
@@ -306,6 +313,139 @@ describe('RideService', () => {
       expect(horse.rideMoveTurn).toBe(turn);
       expect(Number(horse.rideMoveM)).toBe(5);
       expect(rider.rideMoveTurn).toBe('');
+    });
+  });
+
+  describe('falling off', () => {
+    function loaded(): { horse: GameCharacter; knight: GameCharacter; squire: GameCharacter; crate: GameCharacter } {
+      const horse = horseAt(5, 5, { mountPassenger: '1' });
+      const knight = pieceAt('騎士', 5, 5);
+      const squire = pieceAt('従者', 5, 5);
+      const crate = pieceAt('木箱', 5, 5);
+      service.mount(knight, horse, 'rider');
+      service.mount(squire, horse, 'passenger');
+      crate.ridingOn = horse.identifier;
+      crate.rideSeat = 'cargo';
+      said = [];
+      return { horse, knight, squire, crate };
+    }
+
+    function turnOf(piece: GameCharacter, round = 1): string {
+      const turns = TestBed.inject(TurnState);
+      turns.round = round;
+      turns.phase = 'acting';
+      turns.currentIdentifier = piece.identifier;
+      return `${round}:${piece.identifier}`;
+    }
+
+    it('throws everybody off a mount that falls over, laying them where they fell and saying how far', () => {
+      const { horse, knight, squire, crate } = loaded();
+
+      service.setProne(horse, true);
+
+      expect([knight, squire, crate].map((one) => [one.ridingOn, one.prone])).toEqual([
+        ['', '1'],
+        ['', '1'],
+        ['', '1'],
+      ]);
+      expect(said).toEqual([
+        '馬 が転びました',
+        '騎士 が 馬 から落ちました（落下距離 2m）',
+        '従者 が 馬 から落ちました（落下距離 2m）',
+        '木箱 が 馬 から落ちました（落下距離 2m）',
+      ]);
+    });
+
+    it('throws the one in front off with the load where it goes down, and leaves the one behind on', () => {
+      const { knight, squire, crate } = loaded();
+
+      service.setDown(knight, true);
+
+      expect(knight.downed).toBe('1');
+      expect([knight.ridingOn, crate.ridingOn]).toEqual(['', '']);
+      expect(squire.ridingOn).not.toBe('');
+    });
+
+    it('leaves those thrown off a mount that goes down in the zone they were in', () => {
+      Config.instance.zoneEnabled = true;
+      const { horse, knight } = loaded();
+      const foe = pieceAt('敵', 5, 5);
+      foe.isNpc = true;
+      const zones = TestBed.inject(EngagementZoneService);
+      zones.declare(foe, horse);
+      zones.join(pieceAt('味方', 5, 5), horse.engagementZone);
+      const zone = horse.engagementZone;
+
+      service.setDown(horse, true);
+
+      expect(horse.engagementZone).toBe('');
+      expect(knight.engagementZone).toBe(zone);
+      expect(zones.stateNow().zoneOf(knight.identifier)?.id).toBe(zone);
+    });
+
+    it('measures a fall from how far the mount set out to move this turn, and no less than the shortest fall', () => {
+      const { horse, knight, squire } = loaded();
+      horse.rideMoveTurn = turnOf(knight);
+      horse.rideMoveM = '21';
+
+      service.setProne(knight, true);
+      Config.instance.fallMinM = 6;
+      service.setProne(squire, true);
+
+      expect(said).toContain('騎士 が 馬 から落ちました（落下距離 5m）');
+      expect(said).toContain('従者 が 馬 から落ちました（落下距離 6m）');
+    });
+
+    it('rolls what a fall does for the piece that fell, where the room says', () => {
+      const { horse, knight } = loaded();
+      Config.instance.fallDamage = '{m}d6+{m}';
+      const rolled = vi.spyOn(TestBed.inject(CharacterMacroService), 'sendAsCharacter').mockResolvedValue(null);
+
+      service.setProne(horse, true);
+
+      expect(rolled).toHaveBeenCalledWith(knight, '2d6+2');
+    });
+
+    it('keeps a piece that fell over in its own turn lying there until the turn is over', () => {
+      const walker = pieceAt('通行人', 9, 9);
+      turnOf(walker);
+
+      service.setProne(walker, true);
+
+      expect(service.proneRefusal(walker)).toBe('fellThisTurn');
+      expect(service.setProne(walker, false)).toBe(false);
+      turnOf(walker, 2);
+      expect(service.setProne(walker, false)).toBe(true);
+      expect(walker.prone).toBe('');
+    });
+
+    it('keeps a piece thrown off in its own turn lying there until the turn is over', () => {
+      const { horse, knight } = loaded();
+      turnOf(knight);
+
+      service.setProne(horse, true);
+
+      expect(service.proneRefusal(knight)).toBe('fellThisTurn');
+    });
+
+    it('lets a piece that fell over in a turn not its own get up when it likes', () => {
+      const walker = pieceAt('通行人', 9, 9);
+      turnOf(pieceAt('敵', 1, 1));
+
+      service.setProne(walker, true);
+
+      expect(service.menuOf(walker).prone).toEqual({ on: true, refusal: null });
+    });
+
+    it('gets nobody on a mount lying where it fell, and nobody lying there on any', () => {
+      const horse = horseAt(5, 5);
+      const rider = pieceAt('騎士', 5, 5);
+
+      horse.prone = '1';
+      expect(service.menuOf(rider).offers).toEqual([]);
+      horse.prone = '';
+      rider.prone = '1';
+      expect(service.menuOf(rider).offers).toEqual([]);
     });
   });
 });

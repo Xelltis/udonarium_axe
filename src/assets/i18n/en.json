@@ -4872,7 +4872,9 @@
         "anyone": "Anybody may ride",
         "seatHeight": "Rider height",
         "seatHeightDefault": "Half its size",
-        "seatHeightCells": "{{cells}} cells"
+        "seatHeightCells": "{{cells}} cells",
+        "prone": "Fallen over",
+        "refusal_fellThisTurn": " (fell this turn)"
       },
       "chat": {
         "on_rider": "{{name}} got on {{mount}} ({{action}})",
@@ -4880,14 +4882,20 @@
         "on_cargo": "{{name}} was loaded on {{mount}} ({{action}})",
         "off": "{{name}} got off {{mount}} ({{action}})",
         "majorAction": "takes the turn's action",
-        "minorAction": "takes no action"
+        "minorAction": "takes no action",
+        "prone": "{{name}} fell over",
+        "up": "{{name}} got up",
+        "fell": "{{name}} fell off {{mount}} (a fall of {{metres}} m)"
       },
       "settings": {
         "section": "Mounts",
         "skillField": "Steering skill field",
         "skillFieldPlaceholder": "Empty: everybody steers",
         "requireField": "Required skill field",
-        "hint": "With a steering skill field, only pieces with 1 or more in it steer a mount. Others may ride in front only on a mount anybody may ride. With a required skill field, a piece whose skill is below the value on the mount's sheet cannot ride it."
+        "hint": "With a steering skill field, only pieces with 1 or more in it steer a mount. Others may ride in front only on a mount anybody may ride. With a required skill field, a piece whose skill is below the value on the mount's sheet cannot ride it.",
+        "fallMin": "Shortest fall (m)",
+        "fallDamage": "Roll for a fall",
+        "fallDamagePlaceholder": "Empty: only say how far. {m} is the fall"
       },
       "carriedInPlace": "{{name}} moves with {{mount}} while riding it",
       "noRider": "{{name}} does not move without a rider",

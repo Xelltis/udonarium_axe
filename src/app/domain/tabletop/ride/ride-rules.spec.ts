@@ -1,5 +1,8 @@
 import {
   cargoRoomOf,
+  fallDistanceM,
+  fallersWhenDown,
+  fallFromM,
   freeSeats,
   frontRefusal,
   frontRidersOf,
@@ -148,6 +151,48 @@ describe('riding a mount', () => {
     it('stops nothing while turns are not being taken', () => {
       expect(rideMoveRefusal({ ...base, turn: '', onMount: true, mountMovedTurn: '2:horse' })).toBeNull();
       expect(rideMoveRefusal({ ...base, turn: '', changedTurn: '', leftSeat: 'passenger' })).toBeNull();
+    });
+  });
+
+  describe('falling off a mount', () => {
+    const pieces = [
+      { id: 'horse', ridingOn: '', rideSeat: '', mountable: true },
+      { id: 'knight', ridingOn: 'horse', rideSeat: '', mountable: false },
+      { id: 'squire', ridingOn: 'horse', rideSeat: 'passenger', mountable: false },
+      { id: 'crate', ridingOn: 'horse', rideSeat: 'cargo', mountable: false },
+      { id: 'walker', ridingOn: '', rideSeat: '', mountable: false },
+    ];
+
+    it('throws everybody off a mount that goes down, and nobody off one nobody rides', () => {
+      expect(fallersWhenDown('horse', pieces)).toEqual(['knight', 'squire', 'crate']);
+      expect(fallersWhenDown('walker', pieces)).toEqual([]);
+      expect(fallersWhenDown('nobody', pieces)).toEqual([]);
+    });
+
+    it('takes a load off with the one riding in front, and leaves whoever sits behind on', () => {
+      expect(fallersWhenDown('knight', pieces)).toEqual(['knight', 'crate']);
+      expect(fallersWhenDown('squire', pieces)).toEqual(['squire']);
+      expect(fallersWhenDown('crate', pieces)).toEqual(['crate']);
+    });
+
+    it('measures a fall from the move set out on this turn, or else the one made in the last turn', () => {
+      const base = { turn: '3:knight', movedTurn: '3:knight', movedM: 12, actedThisRound: false };
+
+      expect(fallFromM(base)).toBe(12);
+      expect(fallFromM({ ...base, movedTurn: '3:horse' })).toBe(12);
+      expect(fallFromM({ ...base, movedTurn: '2:knight' })).toBe(12);
+      expect(fallFromM({ ...base, movedTurn: '2:knight', actedThisRound: true })).toBe(0);
+      expect(fallFromM({ ...base, movedTurn: '1:knight' })).toBe(0);
+      expect(fallFromM({ ...base, turn: '', movedTurn: '1:knight' })).toBe(12);
+      expect(fallFromM({ ...base, movedM: Number.NaN })).toBe(0);
+    });
+
+    it('falls a fifth of the way the mount was moving, rounded up, and never less than the shortest fall', () => {
+      expect(fallDistanceM(0, 2)).toBe(2);
+      expect(fallDistanceM(12, 2)).toBe(3);
+      expect(fallDistanceM(15, 2)).toBe(3);
+      expect(fallDistanceM(21, 2)).toBe(5);
+      expect(fallDistanceM(21, 6)).toBe(6);
     });
   });
 });

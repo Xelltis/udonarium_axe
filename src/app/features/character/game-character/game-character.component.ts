@@ -1270,7 +1270,7 @@ export class GameCharacterComponent {
         cancelLeave: () => zones.cancelLeave(char),
         toggleOffField: () => zones.toggleOffField(char),
         setUnseen: (unseen) => zones.setUnseen(char, unseen),
-        setDown: (down) => zones.setDown(char, down),
+        setDown: (down) => this.ride.setDown(char, down),
         setHeld: (held) => zones.setHeld(char, held),
         grab: (captiveId) => {
           const captive = this.objectStore.get<GameCharacter>(captiveId);
@@ -1311,6 +1311,7 @@ export class GameCharacterComponent {
           if (mount instanceof GameCharacter) ride.mount(char, mount, seat);
         },
         getOff: () => ride.dismount(char),
+        setProne: (prone) => ride.setProne(char, prone),
         setMountable: (mountable) => ride.setMountable(char, mountable),
         setPassenger: (passenger) => ride.setPassenger(char, passenger),
         setCargo: (cargo) => ride.setCargo(char, cargo),

@@ -102,6 +102,10 @@ export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() mountAnyone: string = '';
   /** How high above its base a mount's rider stands, in cells, or empty for half its size. */
   @SyncVar() mountSeatHeight: string = '';
+  /** `1` while the piece lies where it fell, empty otherwise: it gets on no mount and no mount takes it. */
+  @SyncVar() prone: string = '';
+  /** The mark of the turn the piece fell in, where it was its own: it gets up no sooner than the next. */
+  @SyncVar() proneTurn: string = '';
   /** The mark of the turn the piece last got on or off a mount in, or empty: it does so once a turn. */
   @SyncVar() rideChangedTurn: string = '';
   /** The mount the piece last got off, as its identifier, until it gets on one again; empty otherwise. */

@@ -52,6 +52,7 @@ import {
   MultiAngleFontScale,
 } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { cellWidthInches, clampCellMm } from '@axe/domain/tabletop/physical-scale';
+import { DEFAULT_FALL_MIN_M } from '@axe/domain/tabletop/ride/ride-rules';
 import { isGroupAnswered, resolveRoomRules, RoomRuleGroup, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -926,6 +927,25 @@ export class RoomSettingsPanelComponent {
   }
   set rideRequireField(value: string) {
     if (this.isEditable) this.config.rideRequireField = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** The shortest fall from a mount, in metres. */
+  get fallMinM(): number {
+    this.objectChange.versionOf('Config')();
+    return this.config.fallMinM ?? DEFAULT_FALL_MIN_M;
+  }
+  set fallMinM(value: number) {
+    if (!this.isEditable) return;
+    this.config.fallMinM = Number.isFinite(value) && value >= 0 ? value : null;
+  }
+
+  /** The line rolled for a piece that falls off a mount, empty where a fall only says how far. */
+  get fallDamage(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.fallDamage ?? '';
+  }
+  set fallDamage(value: string) {
+    if (this.isEditable) this.config.fallDamage = value.trim().length > 0 ? value.trim() : null;
   }
 
   /** The sheet field a piece gives its count in, empty to count each piece once. */

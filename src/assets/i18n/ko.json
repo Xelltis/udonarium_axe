@@ -5148,7 +5148,9 @@
         "anyone": "기능이 없어도 탈 수 있음",
         "seatHeight": "타는 높이",
         "seatHeightDefault": "크기의 절반",
-        "seatHeightCells": "{{cells}}칸"
+        "seatHeightCells": "{{cells}}칸",
+        "prone": "넘어져 있음",
+        "refusal_fellThisTurn": "(이번 차례에 넘어짐)"
       },
       "chat": {
         "on_rider": "{{name}}이(가) {{mount}}에 탔습니다({{action}})",
@@ -5156,14 +5158,20 @@
         "on_cargo": "{{name}}이(가) {{mount}}에 실렸습니다({{action}})",
         "off": "{{name}}이(가) {{mount}}에서 내렸습니다({{action}})",
         "majorAction": "차례의 행동을 사용",
-        "minorAction": "차례의 행동을 사용하지 않음"
+        "minorAction": "차례의 행동을 사용하지 않음",
+        "prone": "{{name}}이(가) 넘어졌습니다",
+        "up": "{{name}}이(가) 일어났습니다",
+        "fell": "{{name}}이(가) {{mount}}에서 떨어졌습니다(낙하 거리 {{metres}}m)"
       },
       "settings": {
         "section": "탈것",
         "skillField": "탈것 조종 기능 항목",
         "skillFieldPlaceholder": "비우면 모두 조종 가능",
         "requireField": "타는 데 필요한 값 항목",
-        "hint": "탈것 조종 기능 항목을 쓰면, 그 값이 1 이상인 말만 탈것을 조종할 수 있습니다. 조종할 수 없는 말은 「기능이 없어도 탈 수 있음」으로 한 탈것에만 앞에 탈 수 있습니다. 타는 데 필요한 값 항목을 쓰면, 탈것 시트의 그 값보다 기능이 낮은 말은 탈 수 없습니다."
+        "hint": "탈것 조종 기능 항목을 쓰면, 그 값이 1 이상인 말만 탈것을 조종할 수 있습니다. 조종할 수 없는 말은 「기능이 없어도 탈 수 있음」으로 한 탈것에만 앞에 탈 수 있습니다. 타는 데 필요한 값 항목을 쓰면, 탈것 시트의 그 값보다 기능이 낮은 말은 탈 수 없습니다.",
+        "fallMin": "떨어질 때의 최소 거리 (m)",
+        "fallDamage": "떨어졌을 때 굴리는 식",
+        "fallDamagePlaceholder": "비우면 거리만 표시. {m}이 낙하 거리"
       },
       "carriedInPlace": "{{name}}은(는) {{mount}}에 타고 있는 동안 탈것과 함께 움직입니다",
       "noRider": "{{name}}은(는) 타는 사람이 없으면 움직이지 않습니다",

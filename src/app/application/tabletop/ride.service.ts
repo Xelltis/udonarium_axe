@@ -1,8 +1,9 @@
 import { inject, Injectable } from '@angular/core';
+import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { EngagementZoneService, metresPerCell } from '@axe/application/tabletop/engagement-zone.service';
+import { centreOf, EngagementZoneService, metresPerCell } from '@axe/application/tabletop/engagement-zone.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -11,6 +12,10 @@ import { Config } from '@axe/domain/peer/config';
 import { sheetNumberOf } from '@axe/domain/tabletop/move/move-cells';
 import {
   cargoRoomOf,
+  DEFAULT_FALL_MIN_M,
+  fallDistanceM,
+  fallersWhenDown,
+  fallFromM,
   freeSeats,
   FrontRefusal,
   frontRefusal,
@@ -29,6 +34,9 @@ import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { resolveZoneRules } from '@axe/domain/tabletop/zone/zone-rules';
 
+/** Why a piece lying where it fell may not get up just now: it fell in its own turn, which is not over. */
+export type ProneRefusal = 'fellThisTurn';
+
 /** A mount a piece could get on, and where on it. */
 export interface RideOffer {
   readonly id: string;
@@ -45,6 +53,8 @@ export interface RideMenuModel {
   readonly offers: readonly RideOffer[];
   /** Why the piece may not get on or off just now, or null where it may. */
   readonly changeRefusal: RideChangeRefusal | null;
+  /** Whether the piece lies where it fell, and why it may not get up just now, or null where it may. */
+  readonly prone: { readonly on: boolean; readonly refusal: ProneRefusal | null };
   /** How the piece is set up as a mount, or null where it is not one. */
   readonly mount: {
     readonly passenger: boolean;
@@ -68,6 +78,10 @@ export interface RideMenuModel {
  * and a piece that got off in its turn walks on only where it steered or was carried and the mount
  * stood still. A mount and whoever sits behind take their turn in the one riding in front's, so that
  * one getting off ends theirs.
+ *
+ * A piece falls off where it, or the mount, goes down or falls over, or it is taken away from the
+ * mount by hand; a load also falls with the one riding in front. It lies where it fell, and the room
+ * is told how far it fell, by how far the mount was moving.
  */
 @Injectable({ providedIn: 'root' })
 export class RideService {
@@ -75,6 +89,7 @@ export class RideService {
   private readonly tableSelecter = inject(TableSelecter);
   private readonly zones = inject(EngagementZoneService);
   private readonly chat = inject(ChatMessageService);
+  private readonly macro = inject(CharacterMacroService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly turns = inject(TurnOrderService);
   private readonly t = inject(TRANSLATE_FN);
@@ -133,6 +148,7 @@ export class RideService {
       riding: mount ? { mount: mount.name, seat: seatOf(piece.rideSeat) } : null,
       offers: mount ? [] : this.offersFor(piece),
       changeRefusal: this.changeRefusal(piece),
+      prone: { on: piece.prone === '1', refusal: this.proneRefusal(piece) },
       mount:
         piece.mountable === '1'
           ? {
@@ -222,27 +238,13 @@ export class RideService {
    * Gets a piece off its mount, where the mount stands, and says so in chat. Answers whether it got
    * off. Taken off, rather than getting off, it counts for nothing against getting on or off once a
    * turn.
-   *
-   * Getting off ends the turns of those taking theirs in the turn being taken through it: the mount
-   * and whoever sits behind, where the one riding in front gets off in its turn, or the one getting
-   * off itself, where it sits behind.
    */
   dismount(piece: GameCharacter, takenOff = false): boolean {
     const mount = this.mountOf(piece);
     const seat = seatOf(piece.rideSeat);
     if (piece.ridingOn === '') return false;
     if (!takenOff && this.changeRefusal(piece) !== null) return false;
-    const current = this.turns.currentIdentifier;
-    const sharing = mount && current !== '' ? this.turns.companionsOf(current) : [];
-    const ended = piece.identifier === current ? sharing : sharing.includes(piece) ? [piece] : [];
-    GameObject.batch(() => {
-      piece.ridingOn = '';
-      piece.rideSeat = '';
-      piece.rideLeftFrom = mount?.identifier ?? '';
-      piece.rideLeftSeat = writtenSeat(seat);
-      if (!takenOff) piece.rideChangedTurn = this.turnMark();
-    });
-    this.turns.closeTurnsInPassing(ended.map((one) => one.identifier));
+    this.getOff(piece, takenOff);
     if (!mount) return true;
     this.chat.sendSystemMessage(
       this.t('feature.ride.chat.off', {
@@ -256,7 +258,7 @@ export class RideService {
 
   /**
    * Settles a piece put down by hand: a mount brings those riding it along, and a piece riding one
-   * that is put down away from it gets off there, as it was taken off.
+   * that is put down away from it falls off there.
    */
   afterPutDown(piece: GameCharacter): void {
     const mount = this.mountOf(piece);
@@ -264,13 +266,119 @@ export class RideService {
       if (piece.mountable === '1') this.zones.carryBound(piece);
       return;
     }
-    const here = this.zones.pointOf(piece);
-    const there = this.zones.pointOf(mount);
+    const gridSize = this.tableSelecter.viewTable?.gridSize ?? 50;
+    const here = centreOf(piece, gridSize);
+    const there = centreOf(mount, gridSize);
     if (Math.hypot(there.x - here.x, there.y - here.y) <= this.samePointPx() + 1e-6) {
       this.zones.carryBound(mount);
       return;
     }
-    this.dismount(piece, true);
+    this.fall(piece);
+  }
+
+  /** Why a piece lying where it fell may not get up just now, or null where it may. */
+  proneRefusal(piece: GameCharacter): ProneRefusal | null {
+    const turn = this.turnMark();
+    return piece.prone === '1' && turn !== '' && piece.proneTurn === turn ? 'fellThisTurn' : null;
+  }
+
+  /**
+   * Says that a piece has fallen over, or got up again, and says so in chat. Answers whether it
+   * changed. Falling over throws those it takes with it off their mounts; a piece that fell over in its
+   * own turn gets up no sooner than the next.
+   */
+  setProne(piece: GameCharacter, prone: boolean): boolean {
+    if (prone === (piece.prone === '1')) return false;
+    if (!prone && this.proneRefusal(piece) !== null) return false;
+    const thrown = prone ? this.fallersWith(piece) : [];
+    GameObject.batch(() => {
+      piece.prone = prone ? '1' : '';
+      piece.proneTurn = prone ? this.ownTurnMark(piece) : '';
+    });
+    this.chat.sendSystemMessage(
+      this.t(prone ? 'feature.ride.chat.prone' : 'feature.ride.chat.up', { name: piece.name })
+    );
+    for (const one of thrown) this.fall(one);
+    return true;
+  }
+
+  /**
+   * Says that a piece is down and cannot act, or up again. Going down throws those it takes with it
+   * off their mounts first, so they fall where they were, in the zone they were in.
+   */
+  setDown(piece: GameCharacter, down: boolean): void {
+    const thrown = down && piece.downed !== '1' ? this.fallersWith(piece) : [];
+    for (const one of thrown) this.fall(one);
+    this.zones.setDown(piece, down);
+  }
+
+  /** The pieces thrown off their mounts where this one goes down or falls over. */
+  private fallersWith(piece: GameCharacter): GameCharacter[] {
+    const onTable = this.objectStore.getObjects<GameCharacter>(GameCharacter).filter((one) => one.isVisibleOnTable);
+    const ids = fallersWhenDown(
+      piece.identifier,
+      onTable.map((one) => ({
+        id: one.identifier,
+        ridingOn: one.ridingOn,
+        rideSeat: one.rideSeat,
+        mountable: one.mountable === '1',
+      }))
+    );
+    return onTable.filter((one) => ids.includes(one.identifier));
+  }
+
+  /**
+   * Throws a piece off its mount: it gets off where it stands and lies there, and the room is told
+   * how far it fell, rolling what the fall does where the room says.
+   */
+  private fall(piece: GameCharacter): void {
+    const mount = this.mountOf(piece);
+    if (!mount) return;
+    const fromM = fallFromM({
+      turn: this.turnMark(),
+      movedTurn: mount.rideMoveTurn,
+      movedM: Number(mount.rideMoveM),
+      actedThisRound: this.turns.isActed(mount.identifier),
+    });
+    const metres = fallDistanceM(fromM, this.config()?.fallMinM ?? DEFAULT_FALL_MIN_M);
+    this.getOff(piece, true);
+    GameObject.batch(() => {
+      piece.prone = '1';
+      piece.proneTurn = this.ownTurnMark(piece);
+    });
+    this.chat.sendSystemMessage(this.t('feature.ride.chat.fell', { name: piece.name, mount: mount.name, metres }));
+    const damage = this.config()?.fallDamage ?? null;
+    if (damage !== null) void this.macro.sendAsCharacter(piece, damage.replaceAll('{m}', `${metres}`));
+  }
+
+  /**
+   * Takes a piece off its mount where it stands. Getting off ends the turns of those taking theirs in
+   * the turn being taken through it: the mount and whoever sits behind, where the one riding in front
+   * gets off in its turn, or the one getting off itself, where it sits behind. Taken off, rather than
+   * getting off, it counts for nothing against getting on or off once a turn.
+   */
+  private getOff(piece: GameCharacter, takenOff: boolean): void {
+    const mount = this.mountOf(piece);
+    const seat = seatOf(piece.rideSeat);
+    const current = this.turns.currentIdentifier;
+    const sharing = mount && current !== '' ? this.turns.companionsOf(current) : [];
+    const ended = piece.identifier === current ? sharing : sharing.includes(piece) ? [piece] : [];
+    GameObject.batch(() => {
+      piece.ridingOn = '';
+      piece.rideSeat = '';
+      piece.rideLeftFrom = mount?.identifier ?? '';
+      piece.rideLeftSeat = writtenSeat(seat);
+      if (!takenOff) piece.rideChangedTurn = this.turnMark();
+    });
+    this.turns.closeTurnsInPassing(ended.map((one) => one.identifier));
+  }
+
+  /** The mark of the turn being taken, where it is the piece's own or one it takes its own in; empty otherwise. */
+  private ownTurnMark(piece: GameCharacter): string {
+    const turn = this.turnMark();
+    const current = this.turns.currentIdentifier;
+    if (turn === '') return '';
+    return current === piece.identifier || this.turns.companionsOf(current).includes(piece) ? turn : '';
   }
 
   /** Makes a piece a mount others may ride, or not; those riding it get off. */
@@ -301,8 +409,9 @@ export class RideService {
 
   /**
    * The mounts at a piece's point it could get on, with the seats free on each. A piece rides
-   * nothing while it is down, held fast, held on to, a mount ridden by others, or out of the fight,
-   * and gets on no mount down, held on to, riding another or out of the fight.
+   * nothing while it is down, lying where it fell, held fast, held on to, a mount ridden by others,
+   * or out of the fight, and gets on no mount down, lying where it fell, held on to, riding another or
+   * out of the fight.
    */
   private offersFor(piece: GameCharacter): RideOffer[] {
     if (!this.mayGetOn(piece) || this.aboard(piece).length > 0) return [];
@@ -332,6 +441,7 @@ export class RideService {
       piece.isVisibleOnTable &&
       piece.offField !== '1' &&
       piece.downed !== '1' &&
+      piece.prone !== '1' &&
       piece.heldFast !== '1' &&
       piece.grabbedBy === '' &&
       piece.mountable !== '1'
@@ -339,7 +449,13 @@ export class RideService {
   }
 
   private mayCarry(mount: GameCharacter): boolean {
-    return mount.offField !== '1' && mount.downed !== '1' && mount.grabbedBy === '' && !this.mountOf(mount);
+    return (
+      mount.offField !== '1' &&
+      mount.downed !== '1' &&
+      mount.prone !== '1' &&
+      mount.grabbedBy === '' &&
+      !this.mountOf(mount)
+    );
   }
 
   private frontRefusal(piece: GameCharacter, mount: GameCharacter): FrontRefusal | null {

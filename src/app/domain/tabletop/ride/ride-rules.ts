@@ -189,3 +189,59 @@ export function frontRidersOf(pieces: readonly RideTurnPiece[]): Map<string, str
   }
   return front;
 }
+
+/**
+ * Who falls off a mount when a piece goes down or falls over: the piece itself where it rides one,
+ * everybody on it where it is a mount, and a load on the same mount where it rides that one in front.
+ * Whoever sits behind stays on while only the one in front falls.
+ */
+export function fallersWhenDown(id: string, pieces: readonly RideTurnPiece[]): string[] {
+  const byId = new Map(pieces.map((piece) => [piece.id, piece]));
+  const piece = byId.get(id);
+  if (!piece) return [];
+  const rides = (one: RideTurnPiece) => one.id !== one.ridingOn && byId.get(one.ridingOn)?.mountable === true;
+  const inFront = rides(piece) && seatOf(piece.rideSeat) === 'rider';
+  return pieces
+    .filter((one) => rides(one))
+    .filter(
+      (one) =>
+        one.id === id ||
+        (piece.mountable && one.ridingOn === id) ||
+        (inFront && one.ridingOn === piece.ridingOn && seatOf(one.rideSeat) === 'cargo')
+    )
+    .map((one) => one.id);
+}
+
+/** The shortest fall from a mount, in metres, where the room says nothing of its own. */
+export const DEFAULT_FALL_MIN_M = 2;
+
+/** What working out how far a piece falls off a mount needs, of the mount's moves. */
+export interface FallInput {
+  /** The mark of the turn being taken, empty while turns are not being taken. */
+  readonly turn: string;
+  /** The mark of the turn the mount last set out on a move in. */
+  readonly movedTurn: string;
+  /** How far, in metres, it set out to move in that turn. */
+  readonly movedM: number;
+  /** Whether the mount has had its turn this round. */
+  readonly actedThisRound: boolean;
+}
+
+/**
+ * How far the mount was moving, in metres, as a fall from it is measured: the move it set out on in
+ * the turn being taken, and otherwise the one it made in its last turn, which is nothing where it
+ * stood still then. Outside turns, the last move it made.
+ */
+export function fallFromM(input: FallInput): number {
+  const movedM = Number.isFinite(input.movedM) && input.movedM > 0 ? input.movedM : 0;
+  if (input.turn === '' || input.movedTurn === input.turn) return movedM;
+  const round = roundOfMark(input.turn);
+  const moved = roundOfMark(input.movedTurn);
+  if (moved === round || (moved === round - 1 && !input.actedThisRound)) return movedM;
+  return 0;
+}
+
+/** How far a piece falls, in metres: a fifth of how far the mount was moving, rounded up, and no less than the shortest fall. */
+export function fallDistanceM(fromM: number, minM: number): number {
+  return Math.max(minM, Math.ceil(Math.max(0, fromM) / 5));
+}

@@ -7,6 +7,7 @@ import { RideSeat } from '@axe/domain/tabletop/ride/ride-rules';
 export interface RideMenuCallbacks {
   getOn(mountId: string, seat: RideSeat): void;
   getOff(): void;
+  setProne(prone: boolean): void;
   setMountable(mountable: boolean): void;
   setPassenger(passenger: boolean): void;
   setCargo(cargo: number): void;
@@ -22,8 +23,8 @@ export const SEAT_HEIGHT_CHOICES: readonly (number | null)[] = [null, 0, 0.5, 1,
 
 /**
  * The riding entries of a piece's menu, gathered under one entry: getting on a mount at the same
- * point, in a seat free on it, or off the one it rides, and making the piece a mount and saying what
- * it takes. A seat the piece may not take, and getting on or off where the piece has done so this
+ * point, in a seat free on it, or off the one it rides, saying the piece has fallen over or got up,
+ * and making the piece a mount and saying what it takes. A seat the piece may not take, and getting on or off where the piece has done so this
  * turn, is shown with why, and cannot be chosen.
  *
  * Nothing for somebody who may not change the table.
@@ -57,6 +58,15 @@ export function buildRideContextMenu(
       });
     }
   }
+  const prone = model.prone;
+  entries.push({
+    name:
+      (prone.on ? '☑ ' : '☐ ') +
+      t('feature.ride.menu.prone') +
+      (prone.refusal ? t(`feature.ride.menu.refusal_${prone.refusal}`) : ''),
+    action: () => callbacks.setProne(!prone.on),
+    enabled: prone.refusal === null,
+  });
   const mount = model.mount;
   entries.push({
     name: (mount ? '☑ ' : '☐ ') + t('feature.ride.menu.mountable'),

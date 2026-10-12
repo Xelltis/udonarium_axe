@@ -589,6 +589,45 @@ describe('RoomSettingsPanelComponent', () => {
     });
   });
 
+  describe('pieces riding mounts', () => {
+    it('writes the fields for steering and what a mount asks, and forgets them left empty', () => {
+      component.rideSkillField = ' 騎乗 ';
+      component.rideRequireField = '要求';
+      expect(Config.instance.rideSkillField).toBe('騎乗');
+      expect(Config.instance.rideRequireField).toBe('要求');
+
+      component.rideSkillField = '';
+      component.rideRequireField = ' ';
+      expect(Config.instance.rideSkillField).toBeNull();
+      expect(Config.instance.rideRequireField).toBeNull();
+    });
+
+    it('writes the shortest fall and the line rolled for one, showing the default fall where none is written', () => {
+      expect(component.fallMinM).toBe(2);
+
+      component.fallMinM = 3;
+      component.fallDamage = ' {m}d6 ';
+      expect(Config.instance.fallMinM).toBe(3);
+      expect(Config.instance.fallDamage).toBe('{m}d6');
+
+      component.fallMinM = Number.NaN;
+      component.fallDamage = '';
+      expect(Config.instance.fallMinM).toBeNull();
+      expect(component.fallMinM).toBe(2);
+      expect(Config.instance.fallDamage).toBeNull();
+    });
+
+    it('draws the fall settings with the rest of the riding ones', async () => {
+      component.tab.set('move');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const section = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="room-settings-ride"]');
+
+      expect(section?.querySelector('input[name="fallMinM"]')).not.toBeNull();
+      expect(section?.querySelector('input[name="fallDamage"]')).not.toBeNull();
+    });
+  });
+
   describe('the way a table lying flat is drawn', () => {
     it('writes each feature to this screen alone, so nobody else is told', () => {
       component.orthographicProjection = true;
