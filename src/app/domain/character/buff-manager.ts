@@ -239,7 +239,7 @@ export class BuffManager {
     }
     const restored: DataElement[] = [];
     for (const entry of entries) {
-      const data = this.find(entry.name) ?? this.appendBuff(entry.name, entry.value, entry.info);
+      const data = this.find(entry.name) ?? this.append(entry.name, entry.value, entry.info);
       if (!data) continue;
       data.value = entry.value;
       data.currentValue = entry.info;
@@ -259,7 +259,11 @@ export class BuffManager {
     for (const data of wanted) container.appendChild(data);
   }
 
-  private appendBuff(name: string, value: number | string, info: string): DataElement | null {
+  /**
+   * Adds a buff row of its own, whatever else goes by that name, in the container the round counts
+   * down. The container is made when the piece has none yet; null for a piece with no buff element.
+   */
+  append(name: string, value: number | string, info: string): DataElement | null {
     const container = this.ensureContainer();
     if (!container) return null;
     const created = DataElement.create(name, value, {
