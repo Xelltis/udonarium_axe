@@ -468,8 +468,9 @@ export class MoveRangeService {
     this.vision.viewer();
     this.vision.overlayVision();
     this.vision.foundPieces();
-    // Where the fights stand, which shapes where a piece may start from, enter and stop.
-    this.zones.state();
+    // Where the fights stand, which shapes where a piece may start from, enter and stop: as a key, so
+    // an edit to a piece that leaves the fights as they were keeps every reach.
+    this.zones.moveShapingKey();
     return {};
   });
 

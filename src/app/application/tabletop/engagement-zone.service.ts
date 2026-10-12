@@ -219,20 +219,68 @@ export class EngagementZoneService {
   });
 
   /** The zones on the table in view, worked out from who is in them. */
-  readonly state = computed<ZoneState>(() => {
-    this.objectChange.versionOf('Config')();
-    this.objectChange.versionOf(this.tableSelecter.identifier)();
-    this.objectChange.collectionOf(GameCharacter.aliasName)();
-    this.objectChange.collectionOf(EngagementZone.aliasName)();
-    this.objectChange.collectionOf(Party.aliasName)();
-    const table = this.tableSelecter.viewTable;
-    if (table) this.objectChange.versionOf(table.identifier)();
-    for (const zone of zonesOn(table)) this.objectChange.versionOf(zone.identifier)();
-    for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
-      this.objectChange.versionOf(piece.identifier)();
-    }
-    for (const party of this.objectStore.getObjects<Party>(Party)) this.objectChange.versionOf(party.identifier)();
-    return this.stateNow();
+  private readonly current = computed<ZoneSnapshot | null>(
+    () => {
+      this.objectChange.versionOf('Config')();
+      this.objectChange.versionOf(this.tableSelecter.identifier)();
+      this.objectChange.collectionOf(GameCharacter.aliasName)();
+      this.objectChange.collectionOf(EngagementZone.aliasName)();
+      this.objectChange.collectionOf(Party.aliasName)();
+      const table = this.tableSelecter.viewTable;
+      if (table) this.objectChange.versionOf(table.identifier)();
+      for (const zone of zonesOn(table)) this.objectChange.versionOf(zone.identifier)();
+      for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
+        this.objectChange.versionOf(piece.identifier)();
+      }
+      for (const party of this.objectStore.getObjects<Party>(Party)) this.objectChange.versionOf(party.identifier)();
+      return this.snapshot();
+    },
+    { equal: () => false }
+  );
+
+  readonly state = computed<ZoneState>(() => this.current()?.state ?? NO_ZONES);
+
+  /**
+   * What of the zones shapes a move, as one string: the zones, who is in and standing in each, and
+   * what each piece brings to them. A reach worked out is kept while it stays the same, rather than
+   * worked out again for every change to any piece, such as one to its sheet.
+   */
+  readonly moveShapingKey = computed<string>(() => {
+    const snapshot = this.current();
+    if (!snapshot) return '';
+    const zones = snapshot.state.zones.map((zone) =>
+      [
+        zone.id,
+        Math.round(zone.shape.centre.x),
+        Math.round(zone.shape.centre.y),
+        Math.round(zone.shape.reach),
+        zone.shape.square,
+        zone.limit,
+        zone.occupants,
+        zone.overflowing,
+        zone.forming,
+        zone.members.join(','),
+        zone.inside.join(','),
+      ].join(':')
+    );
+    const pieces = snapshot.pieces.map((one) => {
+      const piece = this.objectStore.get<GameCharacter>(one.id);
+      return [
+        one.id,
+        one.zone,
+        one.side ?? '',
+        one.count,
+        one.offField,
+        one.down,
+        one.held,
+        one.grabbedBy ?? '',
+        one.ridingOn ?? '',
+        piece?.zoneLeaveRound ?? '',
+        piece?.unstoppableMove ?? '',
+        piece?.unseen ?? '',
+      ].join(':');
+    });
+    return `${zones.join('|')}#${pieces.join('|')}`;
   });
 
   constructor() {

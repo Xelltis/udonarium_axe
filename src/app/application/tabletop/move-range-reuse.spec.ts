@@ -1,10 +1,13 @@
 import { TestBed } from '@angular/core/testing';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_MOVE_REACH_BUILD, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
+import { Config } from '@axe/domain/peer/config';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -36,6 +39,7 @@ describe('the reach a table keeps for the piece it is showing', () => {
   });
 
   afterEach(() => {
+    Config.instance.zoneEnabled = null;
     perfCounters.enabled = false;
     perfCounters.clear();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
@@ -88,6 +92,48 @@ describe('the reach a table keeps for the piece it is showing', () => {
     const kept = service.range();
     expect(builds()).toBe(0);
     expect(kept).toBe(first);
+  });
+
+  it('keeps it while another piece is renamed in a room that plays engagement zones', async () => {
+    Config.instance.zoneEnabled = true;
+    const picked = pieceAt(5, 5, 3);
+    const other = pieceAt(9, 9, 3);
+    pick(picked);
+    await settle();
+    watching();
+    const first = service.range();
+    expect(builds()).toBe(1);
+
+    other.name = 'べつの名前';
+    other.update();
+    await settle();
+
+    expect(service.range()).toBe(first);
+    expect(builds()).toBe(0);
+  });
+
+  it('works it out again when a piece leaves a fight the reach runs by', async () => {
+    Config.instance.zoneEnabled = true;
+    vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockReturnValue(null as never);
+    const zones = TestBed.inject(EngagementZoneService);
+    const picked = pieceAt(3, 5, 3);
+    const foe = pieceAt(6, 5, 3);
+    foe.isNpc = true;
+    const ally = pieceAt(6, 5, 3);
+    const third = pieceAt(6, 5, 3);
+    const zone = zones.declare(ally, foe)!;
+    zones.join(third, zone.identifier);
+    pick(picked);
+    await settle();
+    watching();
+    const first = service.range();
+    expect(first).not.toBeNull();
+
+    zones.leave(third);
+    await settle();
+
+    expect(service.range()).not.toBe(first);
+    expect(builds()).toBeGreaterThan(0);
   });
 
   it('works it out again when a piece in the way steps aside', async () => {
