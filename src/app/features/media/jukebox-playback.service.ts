@@ -13,12 +13,23 @@ import { Jukebox, RepeatMode } from '@axe/domain/media/jukebox';
 import { Playlist } from '@axe/domain/media/playlist';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
-/** A point in a track or its length, read out as minutes and seconds such as `1:05`; `0:00` for nothing sensible. */
+/** A point in a track, read out as the whole minutes and seconds gone such as `1:05`; `0:00` for nothing sensible. */
 export function formatTrackTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
   const minutes = Math.floor(seconds / 60);
   const rest = Math.floor(seconds % 60);
   return `${minutes}:${rest.toString().padStart(2, '0')}`;
+}
+
+/**
+ * A track's length, read out to the nearest second, such as `1:05`.
+ *
+ * Unlike a point in the track, a length is not cut down to the second it has reached: a track
+ * decoded to the speaker's own rate, as one with loop points is, can come out a few samples short
+ * of the second it was cut to, and six seconds would read as five.
+ */
+export function formatTrackLength(seconds: number): string {
+  return formatTrackTime(Number.isFinite(seconds) ? Math.round(seconds) : seconds);
 }
 
 /** A playlist as the jukebox's controls show it. */

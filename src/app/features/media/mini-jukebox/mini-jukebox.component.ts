@@ -20,7 +20,11 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { BackgroundSoundPlaybackService } from '@axe/features/media/background-sound-playback.service';
-import { formatTrackTime, JukeboxPlaybackService } from '@axe/features/media/jukebox-playback.service';
+import {
+  formatTrackLength,
+  formatTrackTime,
+  JukeboxPlaybackService,
+} from '@axe/features/media/jukebox-playback.service';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -166,7 +170,7 @@ export class MiniJukeboxComponent {
     if (!this.isPlaying() && !this.isPaused()) return '—';
     const dur = this.playback.duration();
     const ct = this.isSeeking() ? this.seekPreview() * dur : this.playback.position();
-    return `${formatTrackTime(ct)} / ${dur > 0 ? formatTrackTime(dur) : '—'}`;
+    return `${formatTrackTime(ct)} / ${dur > 0 ? formatTrackLength(dur) : '—'}`;
   });
 
   /** The tracks the room plays through, as listed. */

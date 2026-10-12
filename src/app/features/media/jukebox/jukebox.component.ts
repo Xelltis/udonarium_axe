@@ -28,7 +28,12 @@ import {
   buildPlaylistTrackMenu,
   PlaylistTarget,
 } from '@axe/features/media/jukebox/playlist-context-menu';
-import { formatTrackTime, JukeboxPlaybackService, PlaylistView } from '@axe/features/media/jukebox-playback.service';
+import {
+  formatTrackLength,
+  formatTrackTime,
+  JukeboxPlaybackService,
+  PlaylistView,
+} from '@axe/features/media/jukebox-playback.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { UiVolumeRowComponent } from '@axe/ui/components/volume-row/volume-row.component';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -213,7 +218,7 @@ export class JukeboxComponent {
     if (!this.playback.isPlaying() && !this.playback.isPaused()) return '';
     const duration = this.playback.duration();
     const at = this.isSeeking() ? this.seekPreview() * duration : this.playback.position();
-    return `${formatTrackTime(at)} / ${duration > 0 ? formatTrackTime(duration) : '—'}`;
+    return `${formatTrackTime(at)} / ${duration > 0 ? formatTrackLength(duration) : '—'}`;
   });
 
   /** How far through the room's track it is, from 0 to 1. */
