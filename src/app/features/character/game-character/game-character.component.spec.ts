@@ -566,6 +566,26 @@ describe('GameCharacterComponent', () => {
       table.gridType = GridType.SQUARE;
     });
 
+    it('cuts the hex pedestal out of the handle that turns the piece, and nothing out of the square one', async () => {
+      type Grab = { pedestalGrabStyle(): Record<string, string> };
+      fixture.componentRef.setInput('gameCharacter', GameCharacter.create('コマ', 1, ''));
+      fixture.detectChanges();
+      expect((component as unknown as Grab).pedestalGrabStyle()['clipPath']).toBeUndefined();
+
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.gridType = GridType.HEX_VERTICAL;
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      try {
+        const clipPath = (component as unknown as Grab).pedestalGrabStyle()['clipPath'];
+        expect(clipPath).toMatch(/^path\(evenodd, "M 0 [\d.]+ A /);
+        expect(clipPath.match(/ Z/g)).toHaveLength(2);
+      } finally {
+        table.gridType = GridType.SQUARE;
+      }
+    });
+
     it('keeps the ring it cut while the piece walks about', async () => {
       const table = TestBed.inject(TabletopService).currentTable;
       table.gridType = GridType.HEX_VERTICAL;

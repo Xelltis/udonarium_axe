@@ -86,7 +86,12 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
-import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
+import {
+  buildHexHoleInCircleClipPath,
+  buildHexRingClipPath,
+  calcHexFlowerParams,
+  HexFlowerParams,
+} from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
 import {
@@ -1300,6 +1305,11 @@ export class GameCharacterComponent {
     };
   });
 
+  /**
+   * The handle round a pedestal on a hex grid that turns the piece. The hex pedestal is only a rim,
+   * so the pedestal is cut out of the handle: a press inside the rim moves the piece, as one on the
+   * square pedestal standing over its handle does.
+   */
   protected readonly pedestalGrabStyle = computed<Record<string, string>>(() => {
     const params = this.pedestalHexParams();
     if (!params) return {} as Record<string, string>;
@@ -1314,6 +1324,7 @@ export class GameCharacterComponent {
       left: `${L / 2 - radius}px`,
       top: `${L / 2 - radius}px`,
       borderRadius: '50%',
+      clipPath: buildHexHoleInCircleClipPath(params.outline, radius),
     };
   });
 
