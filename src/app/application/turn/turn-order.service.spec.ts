@@ -740,6 +740,21 @@ describe('TurnOrderService', () => {
       expect(service.currentSide).toBe('');
     });
 
+    it('tells whatever waits on the turn that a turn has ended, side by side as one at a time', () => {
+      const ended = vi.fn();
+      TestBed.inject(TurnHooksService).onTurnEnd(ended);
+      service.next();
+      service.next();
+      service.next();
+      expect(service.currentIdentifier).toBe(hero.identifier);
+      expect(ended).not.toHaveBeenCalled();
+
+      service.next();
+      expect(ended).toHaveBeenCalledTimes(1);
+      service.setCurrent(monster.identifier);
+      expect(ended).toHaveBeenCalledTimes(2);
+    });
+
     it('goes round the pieces of a side before it leaves for the next', () => {
       service.next();
       service.next();

@@ -347,6 +347,7 @@ export class TurnOrderService {
     const held = this.turnState.currentIdentifier;
     if (held.length < 1) return;
     this.endTurnOf(held);
+    this.hooks.turnEnded();
   }
 
   /** Ends a piece's turn, and the turns of those that took theirs in it. */
