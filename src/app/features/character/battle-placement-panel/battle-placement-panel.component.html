@@ -83,6 +83,36 @@
     </p>
   }
 
+  @if (situations().length > 0) {
+    <div class="flex flex-col gap-1" data-testid="placement-situations">
+      <span class="text-ui-muted text-[11px]">{{ 'feature.zone.placement.situations' | transloco }}</span>
+      @for (row of situations(); track row.name) {
+        <label class="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+            data-testid="placement-situation"
+            [checked]="row.ticked"
+            (change)="toggleSituation(row.name)"
+          />
+          <span>{{ row.name }}</span>
+          <span class="text-ui-muted">{{ row.note }}</span>
+        </label>
+      }
+    </div>
+  }
+
+  @if (readout()) {
+    <button
+      type="button"
+      class="border-ui-border-panel text-ui-text cursor-pointer self-start rounded-full border border-solid bg-transparent px-4 py-1.5"
+      data-testid="placement-announce"
+      (click)="announce()"
+    >
+      {{ 'feature.zone.placement.announceButton' | transloco }}
+    </button>
+  }
+
   <div class="border-ui-border-panel flex flex-col gap-1 border-t border-solid pt-2">
     <span class="text-ui-muted text-[11px]">{{ 'feature.zone.placement.outOfFight' | transloco }}</span>
     @for (entry of pieces(); track entry.piece.identifier) {

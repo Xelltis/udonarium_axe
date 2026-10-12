@@ -216,7 +216,8 @@
         "placementDistances": "초기 배치 거리표",
         "placementDistancesHint": "「이름:거리(m)」를 쉼표로 구분해 나열합니다. 초기 배치 패널에서 고를 수 있습니다.",
         "distanceModifiers": "거리에 따른 수정표",
-        "distanceModifiersHint": "「거리 상한(m):수정」을 쉼표로 구분해 나열합니다. 초기 배치 패널에 선두끼리의 거리에 해당하는 행이 나옵니다."
+        "distanceModifiersHint": "「거리 상한(m):수정」을 쉼표로 구분해 나열합니다. 초기 배치 패널에 선두끼리의 거리에 해당하는 행이 나옵니다. 거리 대신 상황이나 이동 종류의 이름을 쓴 행(「발판이 나쁨:판정-2」 등)은 패널에서 해당하는 것에 표시할 수 있습니다.",
+        "countFieldPlaceholder": "예: 인원"
       },
       "heldInPlace": "{{name}}은(는) 교전 구역에 붙잡혀 움직일 수 없습니다. 이탈을 예고하면 다음 라운드부터 이탈할 수 있습니다",
       "interrupt": {
@@ -261,7 +262,10 @@
         "bearing_180": "왼쪽",
         "bearing_225": "왼쪽 위",
         "bearing_270": "위",
-        "bearing_315": "오른쪽 위"
+        "bearing_315": "오른쪽 위",
+        "situations": "해당하는 상황",
+        "announceButton": "채팅으로 알리기",
+        "announce": "초기 배치 거리 {{metres}}m: {{notes}}"
       },
       "downInPlace": "{{name}}은(는) 쓰러져 있어 움직일 수 없습니다",
       "heldFastInPlace": "{{name}}은(는) 그 자리에서 움직일 수 없습니다",

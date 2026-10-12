@@ -216,7 +216,8 @@
         "placementDistances": "初期配置の距離表",
         "placementDistancesHint": "「名前:距離(m)」をカンマで区切って並べます。初期配置のパネルで選べます。",
         "distanceModifiers": "距離による修正表",
-        "distanceModifiersHint": "「距離の上限(m):修正」をカンマで区切って並べます。初期配置のパネルに、先頭どうしの距離にあたる行が出ます。"
+        "distanceModifiersHint": "「距離の上限(m):修正」をカンマで区切って並べます。初期配置のパネルに、先頭どうしの距離にあたる行が出ます。距離のかわりに状況や移動の種類の名前を書いた行（「足場が悪い:判定-2」など）は、パネルで当てはまるものに印を付けられます。",
+        "countFieldPlaceholder": "例: 人数"
       },
       "heldInPlace": "{{name}} は交戦エリアに止められていて動けません。離れる予告をすると、次のラウンドから離れられます",
       "interrupt": {
@@ -261,7 +262,10 @@
         "bearing_180": "左",
         "bearing_225": "左上",
         "bearing_270": "上",
-        "bearing_315": "右上"
+        "bearing_315": "右上",
+        "situations": "当てはまる状況",
+        "announceButton": "チャットで知らせる",
+        "announce": "初期配置の距離 {{metres}}m：{{notes}}"
       },
       "downInPlace": "{{name}} は倒れていて動けません",
       "heldFastInPlace": "{{name}} はその場から動けません",

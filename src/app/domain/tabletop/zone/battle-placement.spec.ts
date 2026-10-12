@@ -2,6 +2,7 @@ import {
   modifierFor,
   parseDistanceModifiers,
   parsePlacementDistances,
+  parseSituationModifiers,
   pointAtBearing,
 } from '@axe/domain/tabletop/zone/battle-placement';
 
@@ -12,6 +13,14 @@ describe('battle placement', () => {
       { name: '普通', metres: 20 },
       { name: '霧', metres: 0 },
     ]);
+  });
+
+  it('reads the rows that name a situation rather than a distance, in the order written', () => {
+    expect(parseSituationModifiers('10:近い, 足場が悪い:判定-2、走って:動く側-4,:空, 静か: ,20:遠い')).toEqual([
+      { name: '足場が悪い', note: '判定-2' },
+      { name: '走って', note: '動く側-4' },
+    ]);
+    expect(parseDistanceModifiers('10:近い, 足場が悪い:判定-2')).toEqual([{ upToM: 10, note: '近い' }]);
   });
 
   it('reads what distances do, nearest first, a note keeping colons of its own', () => {

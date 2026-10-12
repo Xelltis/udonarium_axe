@@ -1,4 +1,6 @@
 import { inject, Injectable } from '@angular/core';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { centreOf, EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -16,8 +18,10 @@ import {
   modifierFor,
   parseDistanceModifiers,
   parsePlacementDistances,
+  parseSituationModifiers,
   PlacementDistance,
   pointAtBearing,
+  SituationModifier,
 } from '@axe/domain/tabletop/zone/battle-placement';
 
 /**
@@ -34,6 +38,8 @@ export class BattlePlacementService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly zones = inject(EngagementZoneService);
+  private readonly chat = inject(ChatMessageService);
+  private readonly t = inject(TRANSLATE_FN);
 
   /** The distances the room writes for two sides to start at. */
   distances(): PlacementDistance[] {
@@ -43,6 +49,33 @@ export class BattlePlacementService {
   /** What the room writes a distance between the sides does. */
   modifiers(): DistanceModifier[] {
     return parseDistanceModifiers(this.config()?.distanceModifiers ?? '');
+  }
+
+  /** The rows of the room's table that name a situation, such as a kind of move, rather than a distance. */
+  situations(): SituationModifier[] {
+    return parseSituationModifiers(this.config()?.distanceModifiers ?? '');
+  }
+
+  /**
+   * Says in chat how far apart two leaders stand and what follows from it: the row for the distance,
+   * and the rows of the situations named that apply. Answers whether anything was said.
+   */
+  announce(a: GameCharacter, b: GameCharacter, situationNames: readonly string[]): boolean {
+    const metres = this.distanceM(a, b);
+    if (metres === null) return false;
+    const notes = [
+      this.modifierBetween(a, b)?.note ?? null,
+      ...this.situations()
+        .filter((row) => situationNames.includes(row.name))
+        .map((row) => `${row.name}：${row.note}`),
+    ].filter((note): note is string => !!note);
+    this.chat.sendSystemMessage(
+      this.t('feature.zone.placement.announce', {
+        metres: metres.toFixed(1),
+        notes: notes.length > 0 ? notes.join(' / ') : this.t('feature.zone.placement.noNote'),
+      })
+    );
+    return true;
   }
 
   /** The pieces standing on the floor of the table, each with the side it fights on. */

@@ -216,7 +216,8 @@
         "placementDistances": "Starting distances",
         "placementDistancesHint": "Rows of \"name:distance (m)\" separated by commas, to choose from when setting out the sides.",
         "distanceModifiers": "Distance modifiers",
-        "distanceModifiersHint": "Rows of \"up to distance (m):modifier\" separated by commas. The row for the distance between the leaders shows when setting out the sides."
+        "distanceModifiersHint": "Rows of \"up to distance (m):modifier\" separated by commas. The row for the distance between the leaders shows when setting out the sides. A row named for a situation or a kind of move instead of a distance (such as \"Rough footing:check -2\") can be ticked in the panel when it applies.",
+        "countFieldPlaceholder": "e.g. Bodies"
       },
       "heldInPlace": "{{name}} is held by its engagement zone and cannot move. Say it will leave, and it may leave from the next round",
       "interrupt": {
@@ -261,7 +262,10 @@
         "bearing_180": "Left",
         "bearing_225": "Up left",
         "bearing_270": "Up",
-        "bearing_315": "Up right"
+        "bearing_315": "Up right",
+        "situations": "Situations that apply",
+        "announceButton": "Say it in chat",
+        "announce": "The sides start {{metres}} m apart: {{notes}}"
       },
       "downInPlace": "{{name}} is down and cannot move",
       "heldFastInPlace": "{{name}} is held fast where it stands",

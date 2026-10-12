@@ -12,7 +12,8 @@ export const PLACEMENT_BEARINGS = [0, 45, 90, 135, 180, 225, 270, 315] as const;
 /**
  * Sets two sides out at the start of a fight, for the game master: the piece leading the other side,
  * how far away and in which direction it starts, the distance the two leaders stand at now and what
- * the room's table says it does, and which pieces are out of the fight.
+ * the room's table says it does, which of the situations the table names apply, and which pieces are
+ * out of the fight.
  */
 @Component({
   selector: 'battle-placement-panel',
@@ -32,6 +33,8 @@ export class BattlePlacementPanelComponent {
   protected readonly otherIdentifier = signal('');
   protected readonly bearing = signal(0);
   protected readonly distanceM = signal<number | null>(null);
+  /** The situations from the room's table ticked as applying, by name. */
+  protected readonly ticked = signal<readonly string[]>([]);
   protected readonly bearings = PLACEMENT_BEARINGS;
 
   private readonly everyone = computed(() => {
@@ -80,6 +83,13 @@ export class BattlePlacementPanelComponent {
     return { metres: metres.toFixed(1), note: this.placement.modifierBetween(leader, other)?.note ?? null };
   });
 
+  /** The rows of the room's table that name a situation, each with whether it is ticked as applying. */
+  protected readonly situations = computed(() => {
+    this.objectChange.versionOf('Config')();
+    const ticked = this.ticked();
+    return this.placement.situations().map((row) => ({ ...row, ticked: ticked.includes(row.name) }));
+  });
+
   protected readonly pieces = computed(() =>
     this.everyone().map((entry) => ({ piece: entry.piece, out: entry.piece.offField === '1' }))
   );
@@ -102,6 +112,16 @@ export class BattlePlacementPanelComponent {
     const other = this.other();
     if (!leader || !other) return;
     this.placement.place(leader, other, this.bearing(), this.distance());
+  }
+
+  protected toggleSituation(name: string): void {
+    this.ticked.update((ticked) => (ticked.includes(name) ? ticked.filter((one) => one !== name) : [...ticked, name]));
+  }
+
+  protected announce(): void {
+    const leader = this.leader();
+    const other = this.other();
+    if (leader && other) this.placement.announce(leader, other, this.ticked());
   }
 
   protected toggleOut(piece: GameCharacter): void {

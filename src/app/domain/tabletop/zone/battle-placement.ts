@@ -47,6 +47,30 @@ export function parseDistanceModifiers(text: string): DistanceModifier[] {
   return rows.sort((a, b) => a.upToM - b.upToM);
 }
 
+/** One row of the table a room writes for a situation rather than a distance: its name and the note. */
+export interface SituationModifier {
+  readonly name: string;
+  readonly note: string;
+}
+
+/**
+ * Reads the rows of what distances do that name a situation instead, such as a kind of move or the
+ * lie of the ground, as `name:note`, in the order written. A row headed by a number is a distance
+ * and is left out, as is one with no name or no note.
+ */
+export function parseSituationModifiers(text: string): SituationModifier[] {
+  const rows: SituationModifier[] = [];
+  for (const written of text.split(/[,、\n]/)) {
+    const at = written.search(/[:：]/);
+    if (at < 0) continue;
+    const name = written.slice(0, at).trim();
+    const note = written.slice(at + 1).trim();
+    if (name.length < 1 || note.length < 1 || Number.isFinite(Number(name))) continue;
+    rows.push({ name, note });
+  }
+  return rows;
+}
+
 /** The row for a distance: the first whose reach takes it in, or null past every row. */
 export function modifierFor(rows: readonly DistanceModifier[], distanceM: number): DistanceModifier | null {
   return rows.find((row) => distanceM <= row.upToM + 1e-9) ?? null;
