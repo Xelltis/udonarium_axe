@@ -1,7 +1,7 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
 import { openPanel, waitAppReady } from './helpers';
-import { centreOf, pedestal, piece, pinnedPiece, Point, settle } from './see-through-helpers';
+import { centreOf, pedestal, piece, pinnedPiece, placeOf, Point, settle } from './see-through-helpers';
 
 async function becomeGm(page: Page) {
   await page
@@ -145,5 +145,44 @@ test.describe('乗り物', () => {
     await expect(menu.locator('li', { hasText: '転んでいる' }).getByRole('checkbox')).not.toBeChecked({
       timeout: 5000,
     });
+  });
+
+  test('大きな乗り物を手で何度動かしても、乗り手は乗り物の真ん中に乗ったままであること', async ({ page }) => {
+    await waitAppReady(page);
+    await becomeGm(page);
+    await closePanels(page);
+    const mount = piece(page, 'モンスターC');
+    const rider = await pinnedPiece(page, 'モンスターB');
+    await chooseRide(page, 'モンスターC', '乗り物にする');
+    await settle(rider);
+    await drag(page, await centreOf(rider.locator('img.image')), await centreOf(pedestal(mount)));
+    await settle(rider);
+    const offer = page.getByTestId('snackbar');
+    await expect(offer).toContainText('モンスターB は モンスターC の上にいます', { timeout: 5000 });
+    await offer.getByTestId('snackbar-action').click();
+    const at = async (of: typeof mount) => {
+      const [x, y] = /translate3d\(([-\d.]+)px, ([-\d.]+)px/
+        .exec(await placeOf(of))!
+        .slice(1)
+        .map(Number);
+      return { x, y };
+    };
+    const gap = async () => {
+      const [m, r] = [await at(mount), await at(rider)];
+      return `${r.x - m.x},${r.y - m.y}`;
+    };
+    await expect.poll(gap, { timeout: 5000 }).toBe('50,50');
+
+    for (const [dx, dy] of [
+      [130, 70],
+      [110, -40],
+      [-170, 90],
+    ]) {
+      const box = (await pedestal(mount).boundingBox())!;
+      const from = { x: box.x + box.width * 0.85, y: box.y + box.height * 0.5 };
+      await drag(page, from, { x: from.x + dx, y: from.y + dy });
+      await settle(mount);
+      await expect.poll(gap, { timeout: 5000 }).toBe('50,50');
+    }
   });
 });

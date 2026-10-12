@@ -1912,12 +1912,35 @@ export class GameCharacterComponent {
   }
 
   /**
-   * Puts the carried piece down: plays the put-down sound, hides the move range and fires its
-   * put-down triggers.
+   * Puts the carried piece down: plays the put-down sound and hides the move range. What follows
+   * from where it was put down waits for the press to end, when it stands where it snapped to.
    */
   onPutDown() {
     this.onMoved();
     this.moveRangeService.hide();
+    this.putDownPending = true;
+  }
+
+  /**
+   * Hides the move range once the press on the piece ends, whether or not it was dragged. A piece
+   * put down stands where it snapped to by then, and what follows from that is settled from there.
+   */
+  onLetGo() {
+    this.moveRangeService.hide();
+    if (!this.putDownPending) return;
+    this.putDownPending = false;
+    this.movableRef()?.commitPosition();
+    this.settlePutDown();
+  }
+
+  /** Whether a piece was put down and what follows from where it stands is still to be settled. */
+  private putDownPending = false;
+
+  /**
+   * Settles where a piece was put down: those it carries come along, it gets off a mount it was put
+   * down off, its put-down triggers fire, and a fight or a seat on a mount where it stands is offered.
+   */
+  private settlePutDown() {
     const character = this.gameCharacter();
     if (!character) return;
     this.engagementZones.carryBound(character);
@@ -1925,11 +1948,6 @@ export class GameCharacterComponent {
     this.triggerFire.putDown(character);
     this.engagementZones.offerFight(character);
     this.ride.offerRide(character);
-  }
-
-  /** Hides the move range once the press on the piece ends, whether or not it was dragged. */
-  onLetGo() {
-    this.moveRangeService.hide();
   }
 
   /**

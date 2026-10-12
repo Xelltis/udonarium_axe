@@ -352,6 +352,28 @@ describe('GameCharacterComponent', () => {
       expect(moveRange.range()).toBeNull();
     });
 
+    it('carries those riding a mount put down to where it was let go, not where the hand last wrote it', () => {
+      const horse = pieceThatWalks(2);
+      horse.size = 3;
+      horse.mountable = '1';
+      const knight = GameCharacter.create('騎士', 1, '');
+      knight.setLocation('table');
+      knight.location = { name: 'table', x: horse.location.x + 50, y: horse.location.y + 50 };
+      knight.ridingOn = horse.identifier;
+      fixture.componentRef.setInput('gameCharacter', horse);
+      fixture.detectChanges();
+      const movable = movableOf();
+      movable.ondragstart.emit({} as PointerEvent);
+
+      movable.posX = 300;
+      movable.posY = 200;
+      movable.ondragend.emit({} as PointerEvent);
+      movable.onend.emit({} as PointerEvent);
+
+      expect([horse.location.x, horse.location.y]).toEqual([300, 200]);
+      expect([knight.location.x, knight.location.y]).toEqual([350, 250]);
+    });
+
     it('takes it away when the pointer is let go without a drop', () => {
       const moveRange = TestBed.inject(MoveRangeService);
       fixture.componentRef.setInput('gameCharacter', pieceThatWalks(2));
