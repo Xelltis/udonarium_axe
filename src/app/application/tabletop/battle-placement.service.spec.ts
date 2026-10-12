@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { BattlePlacementService } from '@axe/application/tabletop/battle-placement.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Config } from '@axe/domain/peer/config';
@@ -84,6 +85,15 @@ describe('BattlePlacementService', () => {
     expect(Math.hypot(snake.location.x - other.location.x, snake.location.y - other.location.y)).toBeLessThanOrEqual(
       1.5 * GRID
     );
+  });
+
+  it('works the zones out once for every piece it lists, not once for each', () => {
+    for (let col = 0; col < 8; col++) pieceAt(col, 0, col % 2 === 0);
+    const zones = TestBed.inject(EngagementZoneService) as unknown as { snapshot(): unknown };
+    const worked = vi.spyOn(zones, 'snapshot');
+
+    expect(service.pieces()).toHaveLength(8);
+    expect(worked).toHaveBeenCalledTimes(1);
   });
 
   it('sets out nothing for two leaders on the same side', () => {

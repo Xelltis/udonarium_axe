@@ -216,13 +216,14 @@ export class EffectTargetingService {
    */
   private areaPicks(preset: EffectPreset, center: GameCharacter): string[] {
     const gridSize = this.tabletopService.gridSize();
-    const origin = { ...this.centerOf(center, gridSize), ...this.zones.pointOf(center) };
+    const reading = this.zones.reading();
+    const origin = { ...this.centerOf(center, gridSize), ...reading.pointOf(center) };
     const candidates = this.tabletopService.characters
       .filter((character) => character.isVisibleOnTable && character.offField !== '1')
       .map((character) => ({
         identifier: character.identifier,
         ...this.centerOf(character, gridSize),
-        ...this.zones.pointOf(character),
+        ...reading.pointOf(character),
       }));
 
     return effectAreaTargets(origin, candidates, preset.areaRadiusCells * gridSize, preset.targetLimit);

@@ -80,10 +80,11 @@ export class BattlePlacementService {
 
   /** The pieces standing on the floor of the table, each with the side it fights on. */
   pieces(): { piece: GameCharacter; side: string | null }[] {
+    const reading = this.zones.reading();
     return this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
       .filter((piece) => piece.isVisibleOnTable && surfaceOf(piece) === 'floor')
-      .map((piece) => ({ piece, side: this.zones.sideOf(piece) }));
+      .map((piece) => ({ piece, side: reading.sideOf(piece) }));
   }
 
   /** How far apart two pieces stand, in metres, as the zones measure it; null where there is no table. */

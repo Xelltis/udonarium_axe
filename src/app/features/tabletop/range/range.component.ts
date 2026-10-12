@@ -313,10 +313,11 @@ export class RangeComponent {
       rotate: range.rotate,
       origin: { x: range.location.x, y: range.location.y },
     };
+    const reading = this.zones.reading();
     const inside = this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
       .filter((piece) => piece.isVisibleOnTable && piece.offField !== '1' && this.vision.isTokenVisible(piece))
-      .filter((piece) => rangeCovers(shape, this.gridSize, this.zones.pointOf(piece)) === true);
+      .filter((piece) => rangeCovers(shape, this.gridSize, reading.pointOf(piece)) === true);
     this.pieceTarget.setOnly(inside);
   }
 

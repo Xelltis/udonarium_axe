@@ -173,6 +173,14 @@ interface ZoneTable {
   readonly snap: (point: ZonePoint) => ZonePoint;
 }
 
+/** Where pieces stand and the sides they fight on, as the zones had them at one moment. */
+export interface ZoneReading {
+  /** Where a piece counts as standing: the centre of its zone, or the middle of its token. */
+  pointOf(piece: GameCharacter): ZonePoint;
+  /** The side a piece fights on; null where it is on none or zones are not played. */
+  sideOf(piece: GameCharacter): string | null;
+}
+
 /** The pieces and zones on the table in view, as the zones see them at one moment. */
 interface ZoneSnapshot {
   readonly world: ZoneTable;
@@ -863,9 +871,22 @@ export class EngagementZoneService {
    * and the middle of its token otherwise.
    */
   pointOf(piece: GameCharacter): ZonePoint {
-    const table = this.tableSelecter.viewTable;
-    const own = centreOf(piece, table?.gridSize ?? 50);
-    return this.stateNow().pointOf(piece.identifier) ?? own;
+    return this.reading().pointOf(piece);
+  }
+
+  /**
+   * Where pieces stand and the sides they fight on, read from the zones as they are now, once: for
+   * asking it of many pieces at a time, which asking piece by piece would work the zones out for again
+   * every time.
+   */
+  reading(): ZoneReading {
+    const snapshot = this.snapshot();
+    const gridSize = this.tableSelecter.viewTable?.gridSize ?? 50;
+    const sides = new Map(snapshot?.pieces.map((one) => [one.id, one.side]) ?? []);
+    return {
+      pointOf: (piece) => snapshot?.state.pointOf(piece.identifier) ?? centreOf(piece, gridSize),
+      sideOf: (piece) => sides.get(piece.identifier) ?? null,
+    };
   }
 
   /**
@@ -906,12 +927,25 @@ export class EngagementZoneService {
 
   /** The side a piece fights on, as zones tell sides apart; null where it is on none or zones are not played. */
   sideOf(piece: GameCharacter): string | null {
-    return this.snapshot()?.pieces.find((one) => one.id === piece.identifier)?.side ?? null;
+    return this.reading().sideOf(piece);
   }
 
   /** Whether a piece may move at all by a kind, as far as zones say. */
   mayMove(piece: GameCharacter, kindName: string): boolean {
+    return this.mayMoveIn(this.snapshot(), piece, kindName);
+  }
+
+  /** The names of the room's kinds of move zones let a piece go by, worked out from the zones once. */
+  kindsAllowed(piece: GameCharacter): Set<string> {
     const snapshot = this.snapshot();
+    return new Set(
+      this.moveKinds()
+        .filter((kind) => this.mayMoveIn(snapshot, piece, kind.name))
+        .map((kind) => kind.name)
+    );
+  }
+
+  private mayMoveIn(snapshot: ZoneSnapshot | null, piece: GameCharacter, kindName: string): boolean {
     const mover = snapshot?.pieces.find((one) => one.id === piece.identifier);
     if (!snapshot || !mover || mover.side === null) return true;
     if (!this.mayAct(piece) || this.holderOf(piece)) return false;
@@ -932,8 +966,9 @@ export class EngagementZoneService {
   kindFor(piece: GameCharacter, kindName: string): string | null {
     const kinds = this.moveKinds();
     const asked = moveKindNamed(kinds, kindName).name;
-    if (this.mayMove(piece, asked)) return asked;
-    return kinds.find((kind) => kind.name !== asked && this.mayMove(piece, kind.name))?.name ?? null;
+    const snapshot = this.snapshot();
+    if (this.mayMoveIn(snapshot, piece, asked)) return asked;
+    return kinds.find((kind) => kind.name !== asked && this.mayMoveIn(snapshot, piece, kind.name))?.name ?? null;
   }
 
   /** Where a piece stands among the zones as a move by a kind begins. */

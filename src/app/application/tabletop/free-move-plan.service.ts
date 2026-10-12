@@ -101,13 +101,12 @@ export class FreeMovePlanService {
     if (kinds.length < 2 && kinds[0].name === '') return null;
     const character = this.objectStore.get<GameCharacter>(plan.characterIdentifier);
     const changeable = plan.settled.length < 2;
+    const allowed = changeable && character instanceof GameCharacter ? this.zones.kindsAllowed(character) : null;
     const metres = plan.pxPerMetre > 0 ? Math.max(0, plan.budgetPx - plan.spentPx) / plan.pxPerMetre : 0;
     return {
       kinds: kinds.map((kind) => ({
         name: kind.name,
-        mayChoose:
-          kind.name === plan.kind ||
-          (changeable && character instanceof GameCharacter && this.zones.mayMove(character, kind.name)),
+        mayChoose: kind.name === plan.kind || allowed?.has(kind.name) === true,
       })),
       chosen: plan.kind,
       metresLeft: Math.round(metres * 10) / 10,
