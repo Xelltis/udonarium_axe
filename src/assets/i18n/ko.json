@@ -5161,7 +5161,9 @@
         "minorAction": "차례의 행동을 사용하지 않음",
         "prone": "{{name}}이(가) 넘어졌습니다",
         "up": "{{name}}이(가) 일어났습니다",
-        "fell": "{{name}}이(가) {{mount}}에서 떨어졌습니다(낙하 거리 {{metres}}m)"
+        "fell": "{{name}}이(가) {{mount}}에서 떨어졌습니다(낙하 거리 {{metres}}m)",
+        "twoUpOn": "{{name}}에게 {{buff}}을(를) 붙였습니다",
+        "twoUpOff": "{{name}}의 {{buff}}을(를) 뗐습니다"
       },
       "settings": {
         "section": "탈것",
@@ -5171,7 +5173,9 @@
         "hint": "탈것 조종 기능 항목을 쓰면, 그 값이 1 이상인 말만 탈것을 조종할 수 있습니다. 조종할 수 없는 말은 「기능이 없어도 탈 수 있음」으로 한 탈것에만 앞에 탈 수 있습니다. 타는 데 필요한 값 항목을 쓰면, 탈것 시트의 그 값보다 기능이 낮은 말은 탈 수 없습니다.",
         "fallMin": "떨어질 때의 최소 거리 (m)",
         "fallDamage": "떨어졌을 때 굴리는 식",
-        "fallDamagePlaceholder": "비우면 거리만 표시. {m}이 낙하 거리"
+        "fallDamagePlaceholder": "비우면 거리만 표시. {m}이 낙하 거리",
+        "twoUpBuff": "2인승 버프",
+        "twoUpBuffPlaceholder": "비우면 붙이지 않음. 채팅 버프와 같은 형식"
       },
       "carriedInPlace": "{{name}}은(는) {{mount}}에 타고 있는 동안 탈것과 함께 움직입니다",
       "noRider": "{{name}}은(는) 타는 사람이 없으면 움직이지 않습니다",

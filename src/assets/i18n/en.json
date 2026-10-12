@@ -4885,7 +4885,9 @@
         "minorAction": "takes no action",
         "prone": "{{name}} fell over",
         "up": "{{name}} got up",
-        "fell": "{{name}} fell off {{mount}} (a fall of {{metres}} m)"
+        "fell": "{{name}} fell off {{mount}} (a fall of {{metres}} m)",
+        "twoUpOn": "{{name}} was given {{buff}}",
+        "twoUpOff": "{{buff}} was taken off {{name}}"
       },
       "settings": {
         "section": "Mounts",
@@ -4895,7 +4897,9 @@
         "hint": "With a steering skill field, only pieces with 1 or more in it steer a mount. Others may ride in front only on a mount anybody may ride. With a required skill field, a piece whose skill is below the value on the mount's sheet cannot ride it.",
         "fallMin": "Shortest fall (m)",
         "fallDamage": "Roll for a fall",
-        "fallDamagePlaceholder": "Empty: only say how far. {m} is the fall"
+        "fallDamagePlaceholder": "Empty: only say how far. {m} is the fall",
+        "twoUpBuff": "Two-up buff",
+        "twoUpBuffPlaceholder": "Empty: none. Written as a chat buff"
       },
       "carriedInPlace": "{{name}} moves with {{mount}} while riding it",
       "noRider": "{{name}} does not move without a rider",

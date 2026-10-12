@@ -110,6 +110,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_rideRequireField') private _rideRequireField: string = '';
   @SyncVar('_fallMinM') private _fallMinM: number = -1;
   @SyncVar('_fallDamage') private _fallDamage: string = '';
+  @SyncVar('_twoUpBuff') private _twoUpBuff: string = '';
 
   /**
    * Where the room shows the dice of a chat roll tumbling: in the frame of the line that gives the
@@ -388,6 +389,17 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set fallDamage(answer: string | null) {
     this._fallDamage = writeRuleText(answer);
+  }
+
+  /**
+   * The buff given the one riding a mount in front and the one behind while both are on it, written
+   * as a chat buff command, or null where the room gives none.
+   */
+  get twoUpBuff(): string | null {
+    return readRuleText(this._twoUpBuff);
+  }
+  set twoUpBuff(answer: string | null) {
+    this._twoUpBuff = writeRuleText(answer);
   }
 
   /** What a distance between the sides does, as `metres:note` rows, or null where the room has written none. */

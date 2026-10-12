@@ -1,4 +1,5 @@
 import {
+  buffNameOf,
   cargoRoomOf,
   fallDistanceM,
   fallersWhenDown,
@@ -194,5 +195,16 @@ describe('riding a mount', () => {
       expect(fallDistanceM(21, 2)).toBe(5);
       expect(fallDistanceM(21, 6)).toBe(6);
     });
+  });
+
+  it('reads the name of the buff a chat buff command gives, and none for one that gives none', () => {
+    expect(buffNameOf('&ふたり乗り/判定-4/99')).toBe('ふたり乗り');
+    expect(buffNameOf(' &!ふたり乗り/命中/-/4/99 ')).toBe('ふたり乗り');
+    expect(buffNameOf('&+重ね/攻撃+1')).toBe('重ね');
+    expect(buffNameOf('&ふたり乗り-')).toBeNull();
+    expect(buffNameOf('&R-')).toBeNull();
+    expect(buffNameOf('&D')).toBeNull();
+    expect(buffNameOf('ふたり乗り')).toBeNull();
+    expect(buffNameOf('&')).toBeNull();
   });
 });

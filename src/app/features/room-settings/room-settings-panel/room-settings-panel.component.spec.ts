@@ -617,7 +617,15 @@ describe('RoomSettingsPanelComponent', () => {
       expect(Config.instance.fallDamage).toBeNull();
     });
 
-    it('draws the fall settings with the rest of the riding ones', async () => {
+    it('writes the buff for riding two up, and forgets it left empty', () => {
+      component.twoUpBuff = ' &ふたり乗り/判定-1/99 ';
+      expect(Config.instance.twoUpBuff).toBe('&ふたり乗り/判定-1/99');
+
+      component.twoUpBuff = '';
+      expect(Config.instance.twoUpBuff).toBeNull();
+    });
+
+    it('draws the fall and two-up settings with the rest of the riding ones', async () => {
       component.tab.set('move');
       fixture.detectChanges();
       await fixture.whenStable();
@@ -625,6 +633,7 @@ describe('RoomSettingsPanelComponent', () => {
 
       expect(section?.querySelector('input[name="fallMinM"]')).not.toBeNull();
       expect(section?.querySelector('input[name="fallDamage"]')).not.toBeNull();
+      expect(section?.querySelector('input[name="twoUpBuff"]')).not.toBeNull();
     });
   });
 

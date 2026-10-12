@@ -4885,7 +4885,9 @@
         "minorAction": "手番の行動を使わない",
         "prone": "{{name}} が転びました",
         "up": "{{name}} が起き上がりました",
-        "fell": "{{name}} が {{mount}} から落ちました（落下距離 {{metres}}m）"
+        "fell": "{{name}} が {{mount}} から落ちました（落下距離 {{metres}}m）",
+        "twoUpOn": "{{name}} に {{buff}} を付けました",
+        "twoUpOff": "{{name}} の {{buff}} を外しました"
       },
       "settings": {
         "section": "乗り物",
@@ -4895,7 +4897,9 @@
         "hint": "乗り物を操る技能の欄を書くと、その値が1以上の駒だけが乗り物を操れます。操れない駒は、「技能がなくても乗れる」にした乗り物にだけ前に乗れます。乗るのに要る値の欄を書くと、乗り物のシートのその値より技能が低い駒は乗れません。",
         "fallMin": "落ちるときの最低距離 (m)",
         "fallDamage": "落ちたときに振る式",
-        "fallDamagePlaceholder": "空欄なら距離だけ出す。{m} が落下距離"
+        "fallDamagePlaceholder": "空欄なら距離だけ出す。{m} が落下距離",
+        "twoUpBuff": "ふたり乗りのバフ",
+        "twoUpBuffPlaceholder": "空欄なら付けない。チャットのバフと同じ書き方"
       },
       "carriedInPlace": "{{name}} は {{mount}} に乗っているあいだ、乗り物と一緒に動きます",
       "noRider": "{{name}} は乗り手がいないと動きません",

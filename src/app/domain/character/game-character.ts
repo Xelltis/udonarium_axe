@@ -112,6 +112,10 @@ export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() rideLeftFrom: string = '';
   /** Where the piece sat on the mount it last got off, written as {@link rideSeat} is. */
   @SyncVar() rideLeftSeat: string = '';
+  /** The mount whose buff for riding two up the piece was given, as its identifier, or empty. */
+  @SyncVar() rideTwoUpFrom: string = '';
+  /** The buff for riding two up the piece was given, as its identifier, or empty where none was. */
+  @SyncVar() rideTwoUpBuff: string = '';
   /** The mark of the turn a mount last set out on a move in, or empty. */
   @SyncVar() rideMoveTurn: string = '';
   /** How far, in metres, a mount set out to move in that turn, or empty. */

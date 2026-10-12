@@ -44,6 +44,7 @@ describe('RideService', () => {
     Config.instance.rideRequireField = null;
     Config.instance.fallMinM = null;
     Config.instance.fallDamage = null;
+    Config.instance.twoUpBuff = null;
     Config.instance.zoneEnabled = null;
     const turns = TestBed.inject(TurnState);
     turns.round = 0;
@@ -446,6 +447,64 @@ describe('RideService', () => {
       horse.prone = '';
       rider.prone = '1';
       expect(service.menuOf(rider).offers).toEqual([]);
+    });
+  });
+
+  describe('riding two up', () => {
+    function twoUp(): { horse: GameCharacter; knight: GameCharacter; squire: GameCharacter } {
+      const horse = horseAt(5, 5, { mountPassenger: '1' });
+      const knight = pieceAt('騎士', 5, 5);
+      const squire = pieceAt('従者', 5, 5);
+      service.mount(knight, horse, 'rider');
+      service.mount(squire, horse, 'passenger');
+      return { horse, knight, squire };
+    }
+
+    const carries = (piece: GameCharacter) => piece.buffs.list().map((data) => data.name);
+
+    it('gives the two riding two up the room buff, and takes it off both once either gets off', () => {
+      Config.instance.twoUpBuff = '&ふたり乗り/判定-4/99';
+      const { knight, squire } = twoUp();
+
+      expect([carries(knight), carries(squire)]).toEqual([['ふたり乗り'], ['ふたり乗り']]);
+      expect(said).toContain('騎士 に ふたり乗り を付けました');
+
+      service.dismount(squire);
+
+      expect([carries(knight), carries(squire)]).toEqual([[], []]);
+      expect(said).toContain('従者 の ふたり乗り を外しました');
+    });
+
+    it('moves a status by the buff while both ride, and back once they do not', () => {
+      Config.instance.twoUpBuff = '&!ふたり乗り/移動/-/1/99';
+      const { horse, knight } = twoUp();
+      const walk = () => DataElement.findElementByReference(knight.rootDataElement!, '移動')!.value;
+
+      expect(walk()).toBe(2);
+      service.setProne(horse, true);
+      expect(walk()).toBe(3);
+    });
+
+    it('takes off only the buff it gave, leaving one of the same name the piece already carried', () => {
+      Config.instance.twoUpBuff = '&ふたり乗り/判定-4/99';
+      const horse = horseAt(5, 5, { mountPassenger: '1' });
+      const knight = pieceAt('騎士', 5, 5);
+      knight.buffs.addRound('ふたり乗り', '自前', 5);
+      service.mount(knight, horse, 'rider');
+      const squire = pieceAt('従者', 5, 5);
+      service.mount(squire, horse, 'passenger');
+
+      service.dismount(knight);
+
+      expect(carries(knight)).toEqual(['ふたり乗り']);
+      expect(knight.buffs.find('ふたり乗り')?.currentValue).toBe('自前');
+      expect(carries(squire)).toEqual([]);
+    });
+
+    it('gives nothing where the room writes no buff for riding two up', () => {
+      const { knight, squire } = twoUp();
+
+      expect([carries(knight), carries(squire)]).toEqual([[], []]);
     });
   });
 });

@@ -245,3 +245,15 @@ export function fallFromM(input: FallInput): number {
 export function fallDistanceM(fromM: number, minM: number): number {
   return Math.max(minM, Math.ceil(Math.max(0, fromM) / 5));
 }
+
+/**
+ * The name of the buff a chat buff command gives, or null for a command that gives none, such as
+ * one that takes a buff away or moves every buff's rounds.
+ */
+export function buffNameOf(command: string): string | null {
+  const body = command.trim().match(/^[tTｔＴ]?&[+＋]{0,2}[!！]?(.*)$/)?.[1];
+  if (body === undefined) return null;
+  const name = body.split('/')[0].trim();
+  if (name.length < 1 || /^[RＲrｒ][-+]$/.test(name) || /^[DＤdｄ]$/.test(name) || name.endsWith('-')) return null;
+  return name;
+}

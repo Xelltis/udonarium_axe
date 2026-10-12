@@ -948,6 +948,15 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.fallDamage = value.trim().length > 0 ? value.trim() : null;
   }
 
+  /** The buff, as a chat buff command, given the two riding a mount two up, empty where none is. */
+  get twoUpBuff(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.twoUpBuff ?? '';
+  }
+  set twoUpBuff(value: string) {
+    if (this.isEditable) this.config.twoUpBuff = value.trim().length > 0 ? value.trim() : null;
+  }
+
   /** The sheet field a piece gives its count in, empty to count each piece once. */
   get zoneCountField(): string {
     this.objectChange.versionOf('Config')();

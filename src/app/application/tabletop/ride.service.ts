@@ -8,9 +8,11 @@ import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
 import { Config } from '@axe/domain/peer/config';
 import { sheetNumberOf } from '@axe/domain/tabletop/move/move-cells';
 import {
+  buffNameOf,
   cargoRoomOf,
   DEFAULT_FALL_MIN_M,
   fallDistanceM,
@@ -82,6 +84,9 @@ export interface RideMenuModel {
  * A piece falls off where it, or the mount, goes down or falls over, or it is taken away from the
  * mount by hand; a load also falls with the one riding in front. It lies where it fell, and the room
  * is told how far it fell, by how far the mount was moving.
+ *
+ * Where the room writes a buff for riding two up, the one in front and the one behind carry it while
+ * both are on the mount.
  */
 @Injectable({ providedIn: 'root' })
 export class RideService {
@@ -231,6 +236,7 @@ export class RideService {
         action: this.actionOf(piece, seat, 'on'),
       })
     );
+    this.settleTwoUp(mount.identifier);
     return true;
   }
 
@@ -242,17 +248,20 @@ export class RideService {
   dismount(piece: GameCharacter, takenOff = false): boolean {
     const mount = this.mountOf(piece);
     const seat = seatOf(piece.rideSeat);
-    if (piece.ridingOn === '') return false;
+    const from = piece.ridingOn;
+    if (from === '') return false;
     if (!takenOff && this.changeRefusal(piece) !== null) return false;
     this.getOff(piece, takenOff);
-    if (!mount) return true;
-    this.chat.sendSystemMessage(
-      this.t('feature.ride.chat.off', {
-        name: piece.name,
-        mount: mount.name,
-        action: this.actionOf(piece, seat, 'off'),
-      })
-    );
+    if (mount) {
+      this.chat.sendSystemMessage(
+        this.t('feature.ride.chat.off', {
+          name: piece.name,
+          mount: mount.name,
+          action: this.actionOf(piece, seat, 'off'),
+        })
+      );
+    }
+    this.settleTwoUp(from);
     return true;
   }
 
@@ -347,8 +356,62 @@ export class RideService {
       piece.proneTurn = this.ownTurnMark(piece);
     });
     this.chat.sendSystemMessage(this.t('feature.ride.chat.fell', { name: piece.name, mount: mount.name, metres }));
+    this.settleTwoUp(mount.identifier);
     const damage = this.config()?.fallDamage ?? null;
     if (damage !== null) void this.macro.sendAsCharacter(piece, damage.replaceAll('{m}', `${metres}`));
+  }
+
+  /**
+   * Gives the one riding a mount in front and the one behind the room's buff for riding two up, while
+   * both are on it, and takes it off whoever is not: only the buff given, where it is still there.
+   */
+  private settleTwoUp(mountId: string): void {
+    const mount = this.objectStore.get<GameCharacter>(mountId);
+    const aboard =
+      mount instanceof GameCharacter && mount.isVisibleOnTable && mount.mountable === '1' ? this.aboard(mount) : [];
+    const front = aboard.find((piece) => seatOf(piece.rideSeat) === 'rider');
+    const behind = aboard.find((piece) => seatOf(piece.rideSeat) === 'passenger');
+    const paired = front && behind ? [front, behind] : [];
+    for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
+      if (piece.rideTwoUpFrom === mountId && !paired.includes(piece)) this.takeTwoUpOff(piece);
+    }
+    for (const piece of paired) if (piece.rideTwoUpFrom !== mountId) this.giveTwoUp(piece, mountId);
+  }
+
+  /**
+   * Gives a piece the room's buff for riding two up, and writes down which it was. A piece that
+   * carries a buff of that name already is given nothing, so taking the buff off later leaves that
+   * one be.
+   */
+  private giveTwoUp(piece: GameCharacter, mountId: string): void {
+    const command = this.config()?.twoUpBuff ?? null;
+    const name = command === null ? null : buffNameOf(command);
+    if (command === null || name === null) return;
+    let given = '';
+    if (!piece.buffs.find(name)) {
+      const before = new Set(piece.buffs.list().map((data) => data.identifier));
+      applyBuffEdit({ command: command.trim(), object: piece, targeted: false }, piece);
+      given = piece.buffs.list().find((data) => !before.has(data.identifier))?.identifier ?? '';
+    }
+    GameObject.batch(() => {
+      piece.rideTwoUpFrom = mountId;
+      piece.rideTwoUpBuff = given;
+    });
+    if (given !== '')
+      this.chat.sendSystemMessage(this.t('feature.ride.chat.twoUpOn', { name: piece.name, buff: name }));
+  }
+
+  /** Takes the buff for riding two up off a piece, where it is still the one given. */
+  private takeTwoUpOff(piece: GameCharacter): void {
+    const given = piece.buffs.list().find((data) => data.identifier === piece.rideTwoUpBuff);
+    GameObject.batch(() => {
+      piece.rideTwoUpFrom = '';
+      piece.rideTwoUpBuff = '';
+    });
+    if (!given) return;
+    const name = given.name;
+    piece.buffs.remove(given);
+    this.chat.sendSystemMessage(this.t('feature.ride.chat.twoUpOff', { name: piece.name, buff: name }));
   }
 
   /**
