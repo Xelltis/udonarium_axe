@@ -34,8 +34,7 @@ export function countBuffRemoval(characters: readonly GameCharacter[], rule: Buf
   let reached = 0;
   let buffs = 0;
   for (const character of characters) {
-    const container = character.buffDataElement?.children[0] as DataElement | undefined;
-    const matching = (container?.children ?? []).filter((data) => matchesBuffRemoval(data as DataElement, rule)).length;
+    const matching = character.buffs.list().filter((data) => matchesBuffRemoval(data, rule)).length;
     if (matching < 1) continue;
     reached += 1;
     buffs += matching;
