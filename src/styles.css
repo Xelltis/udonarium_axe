@@ -337,10 +337,11 @@ input[type='range'].portrait-slider::-moz-range-thumb {
   border-radius: 2px;
 }
 
-/* ルビ。チャット・共有メモ・カード・ノベルモードが<ruby class="chat-ruby">を吐く。
-   chat-messageはinnerHTMLで要素を作り、Angularのview encapsulationの外になるので、ここで定める。
-   ブラウザのルビ組版に任せ、長さが違うときは短い方を1:2:1で割り付ける（ruby-align: space-around）。
-   読み手の設定は、ChatPreferencesServiceが各窓の<html>に付けるdata-ruby-*で切り替える。 */
+/* Ruby, as chat, shared notes, cards and the novel mode write it: <ruby class="chat-ruby">.
+   A chat message builds its elements through innerHTML, outside Angular's view encapsulation, so
+   the rules live here. Laying ruby out is left to the browser, which spreads the shorter of base and
+   ruby 1:2:1 where their lengths differ (ruby-align: space-around). What a reader chooses is
+   switched by the data-ruby-* attributes ChatPreferencesService sets on each window's <html>. */
 ruby.chat-ruby {
   ruby-align: space-around;
   ruby-position: over;
