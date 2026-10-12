@@ -220,6 +220,7 @@ export default defineConfig({
             { text: '暗闇・視界・光源', link: '/manual/vision-lighting' },
             { text: '移動範囲', link: '/manual/move-range' },
             { text: '交戦エリア', link: '/manual/engagement-zone' },
+            { text: '乗り物に乗る', link: '/manual/ride' },
             { text: '同行（パーティ）', link: '/manual/party' },
             { text: '地形', link: '/manual/terrain' },
             { text: 'スイッチ', link: '/manual/switch' },
