@@ -74,6 +74,9 @@ async function pressWipe(page: Page): Promise<void> {
 
 test.describe('このブラウザのデータをすべて消す', () => {
   test.beforeEach(async ({ page }) => {
+    // The app starts here, and again after a wipe, which may first wait out a database held open
+    // elsewhere: two starts and that wait are more than one start's worth of time in a busy run.
+    test.slow();
     await waitAppReady(page);
     await leaveMarks(page);
     expect(await marksLeft(page)).toEqual(['axe-dice-images', 'e2e-elsewhere', 'localStorage']);
