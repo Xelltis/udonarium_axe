@@ -633,6 +633,28 @@ export class EngagementZoneService {
     return [...group.values()];
   }
 
+  /**
+   * The piece a piece goes where it goes with: the one it is bound to, held on to or riding, and the
+   * one that one is bound to in turn; the piece itself where it is bound to none.
+   */
+  anchorOf(piece: GameCharacter): GameCharacter {
+    const counted = new Set(
+      this.objectStore
+        .getObjects<GameCharacter>(GameCharacter)
+        .filter((one) => one.isVisibleOnTable)
+        .map((one) => one.identifier)
+    );
+    const seen = new Set<string>();
+    let at = piece;
+    while (!seen.has(at.identifier)) {
+      seen.add(at.identifier);
+      const next = this.objectStore.get<GameCharacter>(boundTo(this.bondOf(at), counted));
+      if (!(next instanceof GameCharacter)) break;
+      at = next;
+    }
+    return at;
+  }
+
   /** A piece as the bonds between pieces see it: whoever holds on to it, and the mount it rides. */
   private bondOf(piece: GameCharacter): BondedPiece {
     return { id: piece.identifier, grabbedBy: piece.grabbedBy, ridingOn: this.mountOf(piece)?.identifier ?? '' };

@@ -65,6 +65,27 @@ describe('BattlePlacementService', () => {
     expect(service.distanceM(leader, other)).toBe(10);
   });
 
+  it('sets out a piece riding another, or held on to by another, with that one', () => {
+    const leader = pieceAt(5, 5);
+    const horse = pieceAt(30, 30);
+    horse.mountable = '1';
+    const knight = pieceAt(30, 30);
+    knight.ridingOn = horse.identifier;
+    const other = pieceAt(1, 1, true);
+    const snake = pieceAt(35, 2, true);
+    const caught = pieceAt(35, 2);
+    caught.grabbedBy = snake.identifier;
+
+    expect(service.place(leader, other, 0, 10)).toBe(true);
+
+    expect([knight.location.x, knight.location.y]).toEqual([horse.location.x, horse.location.y]);
+    expect(knight.ridingOn).toBe(horse.identifier);
+    expect([caught.location.x, caught.location.y]).toEqual([snake.location.x, snake.location.y]);
+    expect(Math.hypot(snake.location.x - other.location.x, snake.location.y - other.location.y)).toBeLessThanOrEqual(
+      1.5 * GRID
+    );
+  });
+
   it('sets out nothing for two leaders on the same side', () => {
     expect(service.place(pieceAt(5, 5), pieceAt(6, 6), 0, 10)).toBe(false);
   });

@@ -104,6 +104,9 @@ export class BattlePlacementService {
   /**
    * Puts the second leader `distanceM` metres from the first in a direction, and gathers each side
    * about its leader. Answers whether anything was placed.
+   *
+   * A piece riding another or held on to by another is set out with that one, where it stands, rather
+   * than on a cell of its own: with its own side, or with the other where the other holds on to it.
    */
   place(leader: GameCharacter, other: GameCharacter, bearingDeg: number, distanceM: number): boolean {
     const table = this.tableSelecter.viewTable;
@@ -119,15 +122,24 @@ export class BattlePlacementService {
     if (startA < 0 || startB < 0) return false;
 
     const everyone = this.pieces();
-    const sideOf = (side: string, first: GameCharacter) => [
-      first,
-      ...everyone
-        .filter((entry) => entry.side === side && entry.piece !== first && entry.piece.offField !== '1')
-        .map((entry) => entry.piece),
-    ];
-    const groupA = sideOf(sideA, leader);
-    const groupB = sideOf(sideB, other);
-    const moving = new Set([...groupA, ...groupB].map((piece) => piece.identifier));
+    const sides = new Map(everyone.map((entry) => [entry.piece.identifier, entry.side]));
+    const anchorOf = new Map(everyone.map((entry) => [entry.piece.identifier, this.zones.anchorOf(entry.piece)]));
+    const groupOf = (side: string, first: GameCharacter) => {
+      const group = [anchorOf.get(first.identifier) ?? first];
+      for (const entry of everyone) {
+        if (entry.side !== side || entry.piece.offField === '1') continue;
+        const anchor = anchorOf.get(entry.piece.identifier) ?? entry.piece;
+        if (sides.get(anchor.identifier) === side && !group.includes(anchor)) group.push(anchor);
+      }
+      return group;
+    };
+    const groupA = groupOf(sideA, leader);
+    const groupB = groupOf(sideB, other);
+    const anchors = new Set([...groupA, ...groupB]);
+    const carried = everyone
+      .map((entry) => entry.piece)
+      .filter((piece) => !anchors.has(piece) && anchors.has(anchorOf.get(piece.identifier) ?? piece));
+    const moving = new Set([...anchors, ...carried].map((piece) => piece.identifier));
     const taken = occupiedCells(
       grid,
       everyone.map((entry) => entry.piece).filter((piece) => !moving.has(piece.identifier)),
@@ -146,7 +158,12 @@ export class BattlePlacementService {
         spot.character.zoneLeaveRound = '';
         spot.character.update();
       }
+      for (const piece of carried) {
+        piece.engagementZone = '';
+        piece.zoneLeaveRound = '';
+      }
     });
+    for (const spot of spots) this.zones.carryBound(spot.character);
     for (const spot of spots) this.objectChange.notifyChanged(spot.character.identifier);
     if (spots.length > 0) SoundEffect.play(PresetSound.piecePut);
     return spots.length > 0;
