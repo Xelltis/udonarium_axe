@@ -6,6 +6,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
 import { Party } from '@axe/domain/party/party';
+import { sideOfPiece } from '@axe/domain/tabletop/zone/zone-sides';
 
 describe('the pieces a first table is set out with', () => {
   function clearStore(): void {}
@@ -45,9 +46,31 @@ describe('the pieces a first table is set out with', () => {
       expect(party!.name).toBe('パーティ1');
     });
 
-    it('leaves the monsters out of it, since a party shares what it sees', () => {
-      for (const name of ['モンスターA', 'モンスターB', 'モンスターC']) {
-        expect(partyOf(name)).toBe('');
+    it('keeps the monsters out of it, since a party shares what it sees, in a party of their own', () => {
+      const players = partyOf('キャラクターA');
+      const monsters = partyOf('モンスターA');
+
+      expect(monsters).toBeTruthy();
+      expect(monsters).not.toBe(players);
+      expect(partyOf('モンスターB')).toBe(monsters);
+      expect(partyOf('モンスターC')).toBe(monsters);
+      expect(ObjectStore.instance.get<Party>(monsters)!.name).toBe('モンスター');
+    });
+
+    it('sets out two sides to fight however a room tells them apart', () => {
+      const parties = ObjectStore.instance
+        .getObjects<Party>(Party)
+        .map((party) => ({ identifier: party.identifier, alliedWith: party.alliedWith }));
+      for (const by of ['npc', 'party'] as const) {
+        const sideOf = sideOfPiece(by, parties);
+        const players = ['キャラクターA', 'キャラクターB', 'キャラクターC'].map((name) => sideOf(sample(name)));
+        const monsters = ['モンスターA', 'モンスターB', 'モンスターC'].map((name) => sideOf(sample(name)));
+
+        expect(new Set(players).size).toBe(1);
+        expect(new Set(monsters).size).toBe(1);
+        expect(players[0]).not.toBeNull();
+        expect(monsters[0]).not.toBeNull();
+        expect(players[0]).not.toBe(monsters[0]);
       }
     });
 
@@ -145,6 +168,11 @@ describe('the pieces a first table is set out with', () => {
       expect(DataSummarySetting.instance.sortTag).toBe('敏捷度');
       expect(DataSummarySetting.instance.sortOrder).toBe(SortOrder.DESC);
     });
+  });
+
+  it('counts the golem, three cells across, as three bodies by a field of its own', () => {
+    expect(statOf(sample('モンスターC'), '人数')).toBe(3);
+    expect(DataElement.findElementByReference(sample('モンスターA').rootDataElement!, '人数')).toBeNull();
   });
 
   it('starts everybody whole', () => {

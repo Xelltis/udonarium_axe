@@ -3,7 +3,13 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { DEFAULT_STATUS_AILMENT_NAMES } from '@axe/domain/character/builtin-status-ailments';
 import { CharacterTemplateFactory } from '@axe/domain/character/character-template-factory';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { DataElement, DataElementType } from '@axe/domain/data/data-element';
+import {
+  DataElement,
+  DataElementAttribute,
+  DataElementFieldType,
+  DataElementRole,
+  DataElementType,
+} from '@axe/domain/data/data-element';
 import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
 import { ImageTag } from '@axe/domain/media/image-tag';
 import { Party, PARTY_COLORS } from '@axe/domain/party/party';
@@ -120,6 +126,44 @@ function makeSampleParty(): Party {
   return party;
 }
 
+/**
+ * The party the sample monsters belong to, apart from the players'.
+ *
+ * Fights told apart by party need every piece in one, or a monster in none is nobody's enemy:
+ * it holds no ground and takes no part in an engagement zone. Its sight is shared with nobody
+ * at the table, since nobody owns a monster.
+ */
+function makeSampleMonsterParty(): Party {
+  const party = new Party('testParty_2');
+  party.name = 'モンスター';
+  party.color = PARTY_COLORS[1];
+  party.initialize();
+  return party;
+}
+
+/**
+ * How many bodies the golem counts as in an engagement zone, where the room counts by this field:
+ * a piece three cells across is a crowd on its own.
+ */
+function addSampleBodyCount(character: GameCharacter, bodies: number): void {
+  const root = character.rootDataElement;
+  const walk = root ? DataElement.findElementByReference(root, '移動') : null;
+  if (!walk?.parent) return;
+  walk.parent.appendChild(
+    DataElement.create(
+      '人数',
+      bodies,
+      {
+        [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+        [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.NUMBER,
+        [DataElementAttribute.UNIT]: '体',
+        [DataElementAttribute.MIN]: '1',
+      },
+      `人数${character.identifier}`
+    )
+  );
+}
+
 /** A sample player character: it sees a little, and it sees for the rest of the party. */
 function joinSampleParty(character: GameCharacter, party: Party): void {
   character.visionRange = SAMPLE_VISION_RANGE;
@@ -147,13 +191,15 @@ function makeSampleSummaryItems(): void {
  * Sets out the sample pieces a new room opens with: three monsters and a party of three characters.
  *
  * The room's display items are set to the samples' stats, and the characters are given a little
- * sight and joined to one party so the fog and the dark can be tried at once.
+ * sight and joined to one party so the fog and the dark can be tried at once. The monsters stand in
+ * a party of their own, so a room telling sides apart by party still has two sides to fight.
  */
 export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
   let testCharacter: GameCharacter;
   let testFile: ImageFile;
   let fileContext: ImageContext;
   const party = makeSampleParty();
+  const monsters = makeSampleMonsterParty();
   makeSampleSummaryItems();
 
   testCharacter = new GameCharacter('testCharacter_1');
@@ -167,6 +213,7 @@ export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
 
   CharacterTemplateFactory.createDefault(testCharacter, 'モンスターA', 1, testFile.identifier);
   testCharacter.isNpc = true;
+  testCharacter.partyIdentifier = monsters.identifier;
   applySampleStats(testCharacter, 'ゴブリン');
   addBuffRound(testCharacter, 'テストバフ1', '防+1', 3);
 
@@ -176,6 +223,7 @@ export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
   testCharacter.initialize();
   CharacterTemplateFactory.createDefault(testCharacter, 'モンスターB', 1, testFile.identifier);
   testCharacter.isNpc = true;
+  testCharacter.partyIdentifier = monsters.identifier;
   applySampleStats(testCharacter, '手負いのゴブリン');
 
   testCharacter = new GameCharacter('testCharacter_3');
@@ -189,7 +237,9 @@ export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
   ImageTag.create(testFile.identifier).tag = 'モンスター';
   CharacterTemplateFactory.createDefault(testCharacter, 'モンスターC', 3, testFile.identifier);
   testCharacter.isNpc = true;
+  testCharacter.partyIdentifier = monsters.identifier;
   applySampleStats(testCharacter, 'ゴーレム');
+  addSampleBodyCount(testCharacter, 3);
 
   testCharacter = new GameCharacter('testCharacter_4');
   fileContext = ImageFile.createEmpty('testCharacter_4_image').toContext();
