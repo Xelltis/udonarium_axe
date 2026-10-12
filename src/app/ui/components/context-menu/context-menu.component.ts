@@ -205,17 +205,28 @@ export class ContextMenuComponent {
     panel.style.top = panel.offsetTop + diffTop + 'px';
   }
 
+  /**
+   * Lays a submenu beside the row it opens from: to the right of its menu, or to the left where
+   * the right has no room for it, and then pulls it on screen.
+   *
+   * A submenu only pulled on screen from the right would lie over its own menu, so the pointer on
+   * its way to a row there would open the submenu of whatever row it happened to cross.
+   */
   private adjustPositionSub() {
     const parent: HTMLElement = this.elementRef.nativeElement.parentElement!;
     const submenu: HTMLElement = this.rootElementRef().nativeElement;
+    const margin = 8;
 
-    let left = parent.offsetWidth - SUBMENU_OVERLAP_PX;
     let top = (this.anchorTop() ?? 0) - SUBMENU_RISE_PX;
+    const besideAt = parent.offsetWidth - SUBMENU_OVERLAP_PX;
+    const besideOverflow = this.overflowAcross(submenu, besideAt, top, margin);
+    const beforeAt = SUBMENU_OVERLAP_PX - submenu.offsetWidth;
+    let left =
+      besideOverflow > 0 && this.overflowAcross(submenu, beforeAt, top, margin) < besideOverflow ? beforeAt : besideAt;
     submenu.style.left = `${left}px`;
     submenu.style.top = `${top}px`;
 
     const placed = submenu.getBoundingClientRect();
-    const margin = 8;
     const screenX =
       placed.left < margin
         ? margin - placed.left
@@ -233,6 +244,14 @@ export class ContextMenuComponent {
     top += localCorrection.y;
     submenu.style.left = `${left}px`;
     submenu.style.top = `${top}px`;
+  }
+
+  /** How far a submenu laid at `left` runs off the sides of the screen, in pixels. */
+  private overflowAcross(submenu: HTMLElement, left: number, top: number, margin: number): number {
+    submenu.style.left = `${left}px`;
+    submenu.style.top = `${top}px`;
+    const placed = submenu.getBoundingClientRect();
+    return Math.max(0, margin - placed.left) + Math.max(0, placed.right - (window.innerWidth - margin));
   }
 
   /** How far the list this row sits in has been scrolled, which its own offset knows nothing of. */
