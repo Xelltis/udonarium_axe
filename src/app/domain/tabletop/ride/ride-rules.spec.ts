@@ -90,6 +90,17 @@ describe('riding a mount', () => {
     expect(turnCarrierOf('nobody', pieces)).toBe('');
   });
 
+  it('leaves a mount and the one behind their own turns where the one in front takes none', () => {
+    const pieces = [
+      { id: 'horse', ridingOn: '', rideSeat: '', mountable: true },
+      { id: 'knight', ridingOn: 'horse', rideSeat: '', mountable: false, takesTurns: false },
+      { id: 'squire', ridingOn: 'horse', rideSeat: 'passenger', mountable: false },
+    ];
+
+    expect(turnCarrierOf('horse', pieces)).toBe('');
+    expect(turnCarrierOf('squire', pieces)).toBe('');
+  });
+
   it('pairs each mount with the one riding it in front, and nobody behind or carried', () => {
     const pieces = [
       { id: 'horse', ridingOn: '', rideSeat: '', mountable: true },

@@ -171,6 +171,16 @@ describe('TurnOrderService', () => {
       expect(service.isActed(squire.identifier)).toBe(true);
     });
 
+    it('gives a mount and its second rider turns of their own where the one in front takes none', () => {
+      const { knight, horse, squire, crate } = riding();
+      knight.noTurn = true;
+      expect(service.orderedCharacters()).toEqual([horse, squire, crate]);
+
+      knight.noTurn = false;
+      knight.hideInventory = true;
+      expect(service.orderedCharacters()).toEqual([horse, squire, crate]);
+    });
+
     it('gives a mount nobody rides in front, and its second rider, turns of their own', () => {
       const { knight, horse, squire, crate } = riding();
       knight.ridingOn = '';

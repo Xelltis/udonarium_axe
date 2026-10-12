@@ -93,21 +93,26 @@ export interface RideTurnPiece {
   readonly ridingOn: string;
   readonly rideSeat: string;
   readonly mountable: boolean;
+  /** Whether the piece takes turns of its own at all; one that does not takes nobody else's either. Taken as so where not said. */
+  readonly takesTurns?: boolean;
 }
 
 /**
  * The piece whose turn a piece takes its own in, or empty for one that takes a turn of its own.
  *
  * One riding a mount in front takes the turn for the mount and for whoever sits behind: the three
- * act together. A load and a mount nobody rides in front take turns of their own.
+ * act together. A load and a mount nobody rides in front take turns of their own, as do a mount and
+ * whoever sits behind where the one in front takes no turns.
  */
 export function turnCarrierOf(id: string, pieces: readonly RideTurnPiece[]): string {
   const byId = new Map(pieces.map((piece) => [piece.id, piece]));
-  const frontOf = (mountId: string): string =>
-    byId.get(mountId)?.mountable
-      ? (pieces.find((one) => one.id !== mountId && one.ridingOn === mountId && seatOf(one.rideSeat) === 'rider')?.id ??
-        '')
-      : '';
+  const frontOf = (mountId: string): string => {
+    if (!byId.get(mountId)?.mountable) return '';
+    const front = pieces.find(
+      (one) => one.id !== mountId && one.ridingOn === mountId && seatOf(one.rideSeat) === 'rider'
+    );
+    return front && front.takesTurns !== false ? front.id : '';
+  };
   const piece = byId.get(id);
   if (!piece) return '';
   if (piece.mountable) return frontOf(piece.id);

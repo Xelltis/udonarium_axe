@@ -210,6 +210,7 @@ export class TurnOrderService {
       ridingOn: character.ridingOn,
       rideSeat: character.rideSeat,
       mountable: character.mountable === '1',
+      takesTurns: !character.noTurn && !character.hideInventory,
     }));
     const carried = new Map<string, string>();
     for (const piece of pieces) {
