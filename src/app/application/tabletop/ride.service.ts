@@ -117,9 +117,7 @@ export class RideService {
 
   /** The mount a piece rides, where it is on the table and still a mount; null otherwise. */
   mountOf(piece: GameCharacter): GameCharacter | null {
-    if (piece.ridingOn === '' || piece.ridingOn === piece.identifier) return null;
-    const mount = this.objectStore.get<GameCharacter>(piece.ridingOn);
-    return mount instanceof GameCharacter && mount.isVisibleOnTable && mount.mountable === '1' ? mount : null;
+    return this.zones.mountOf(piece);
   }
 
   /** Where a piece rides its mount, or null where it rides none. */

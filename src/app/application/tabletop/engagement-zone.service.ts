@@ -734,7 +734,7 @@ export class EngagementZoneService {
   }
 
   /** The mount a piece rides, where it is on the table and still a mount; null otherwise. */
-  private mountOf(piece: GameCharacter): GameCharacter | null {
+  mountOf(piece: GameCharacter): GameCharacter | null {
     if (piece.ridingOn === '' || piece.ridingOn === piece.identifier) return null;
     const mount = this.objectStore.get<GameCharacter>(piece.ridingOn);
     return mount instanceof GameCharacter && mount.isVisibleOnTable && mount.mountable === '1' ? mount : null;
