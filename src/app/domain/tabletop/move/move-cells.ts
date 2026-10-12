@@ -57,6 +57,20 @@ export function moveCellsOf(
   cellDistance: number,
   tableUnit: string = DEFAULT_CELL_DISTANCE_UNIT
 ): number | null {
+  const exact = exactMoveCellsOf(character, names, cellDistance, tableUnit);
+  return exact === null ? null : Math.floor(exact + ROUNDING_ALLOWANCE);
+}
+
+/**
+ * How many cells a piece walks, as {@link moveCellsOf} reads it but not rounded down to whole
+ * cells, for a move measured along a line rather than counted cell by cell.
+ */
+export function exactMoveCellsOf(
+  character: GameCharacter,
+  names: string,
+  cellDistance: number,
+  tableUnit: string = DEFAULT_CELL_DISTANCE_UNIT
+): number | null {
   const root = character.rootDataElement;
   if (!root) return null;
 
@@ -82,9 +96,9 @@ const ROUNDING_ALLOWANCE = 1e-9;
 
 function cellsFrom(amount: number, sheetUnit: MoveUnit | null, tableUnit: string, cellDistance: number): number {
   const ruledIn = parseMoveUnit(tableUnit);
-  if (sheetUnit === 'cell' && isLengthUnit(ruledIn)) return Math.floor(amount);
+  if (sheetUnit === 'cell' && isLengthUnit(ruledIn)) return amount;
 
   const measured =
     isLengthUnit(sheetUnit) && isLengthUnit(ruledIn) ? convertMoveLength(amount, sheetUnit, ruledIn) : amount;
-  return cellDistance > 0 ? Math.floor(measured / cellDistance + ROUNDING_ALLOWANCE) : Math.floor(measured);
+  return cellDistance > 0 ? measured / cellDistance : measured;
 }

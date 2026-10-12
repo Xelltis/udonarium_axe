@@ -2817,7 +2817,9 @@
       "stampDenyAll": "Deny all",
       "moveKinds": "Kinds of move",
       "moveKindsPlaceholder": "e.g. Full:3:,Normal:1:,Limited:1:3",
-      "moveKindsHint": "Rows of \"name:factor:cap (m)\" separated by commas. Movement is multiplied by the factor, and a kind with a cap goes no further than that. Leave the cap empty for none. The first kind is the default, and another can be chosen from the band while a move is worked out. Leave empty for a single kind that goes as far as the movement says."
+      "moveKindsHint": "Rows of \"name:factor:cap (m)\" separated by commas. Movement is multiplied by the factor, and a kind with a cap goes no further than that. Leave the cap empty for none. The first kind is the default, and another can be chosen from the band while a move is worked out. Leave empty for a single kind that goes as far as the movement says.",
+      "pathMove": "Draw the way as straight legs on a table with no grid",
+      "pathMoveHint": "On a table with no grid, a move is worked out as a way of straight legs measured in metres instead of in cells. Terrain and engagement zones stop it as they do on a grid. Tables with a grid move as before."
     },
     "skin": {
       "title": "Skin",

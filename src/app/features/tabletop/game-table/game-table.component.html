@@ -346,6 +346,7 @@
       <table-trigger-overlay class="contents"></table-trigger-overlay>
       <table-move-range-overlay class="contents"></table-move-range-overlay>
       <table-zone-overlay class="contents"></table-zone-overlay>
+      <table-free-path-overlay class="contents"></table-free-path-overlay>
       <table-altitude-guide-overlay class="contents"></table-altitude-guide-overlay>
       <table-target-overlay class="contents"></table-target-overlay>
       <table-effect-overlay class="contents"></table-effect-overlay>
@@ -369,29 +370,31 @@
     class="bg-ui-panel shadow-ui-md text-ui-text pointer-events-none absolute bottom-28 left-1/2 z-160 flex max-w-[92vw] -translate-x-1/2 items-center gap-3 rounded-full py-1.5 pr-4 pl-1.5 text-sm opacity-95"
     data-testid="move-plan-hint"
   >
-    <div
-      class="border-ui-border-panel pointer-events-auto flex shrink-0 rounded-full border border-solid p-0.5"
-      role="group"
-      data-move-plan-control
-      [attr.aria-label]="'feature.tabletop.movePlan.modeLabel' | transloco"
-    >
-      @for (mode of moveModes; track mode.jumping) {
-        <button
-          type="button"
-          class="inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-full border-none px-3.5 text-[0.86em] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[16px]!"
-          [class.bg-ui-accent]="isJumpingMove() === mode.jumping"
-          [class.text-white]="isJumpingMove() === mode.jumping"
-          [class.bg-transparent]="isJumpingMove() !== mode.jumping"
-          [class.text-ui-muted]="isJumpingMove() !== mode.jumping"
-          [attr.aria-pressed]="isJumpingMove() === mode.jumping"
-          [attr.data-testid]="mode.testId"
-          (click)="onChooseMoveMode(mode.jumping, $event)"
-        >
-          <i class="material-icons">{{ mode.icon }}</i>
-          {{ mode.label | transloco }}
-        </button>
-      }
-    </div>
+    @if (!isFreeMove()) {
+      <div
+        class="border-ui-border-panel pointer-events-auto flex shrink-0 rounded-full border border-solid p-0.5"
+        role="group"
+        data-move-plan-control
+        [attr.aria-label]="'feature.tabletop.movePlan.modeLabel' | transloco"
+      >
+        @for (mode of moveModes; track mode.jumping) {
+          <button
+            type="button"
+            class="inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-full border-none px-3.5 text-[0.86em] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[16px]!"
+            [class.bg-ui-accent]="isJumpingMove() === mode.jumping"
+            [class.text-white]="isJumpingMove() === mode.jumping"
+            [class.bg-transparent]="isJumpingMove() !== mode.jumping"
+            [class.text-ui-muted]="isJumpingMove() !== mode.jumping"
+            [attr.aria-pressed]="isJumpingMove() === mode.jumping"
+            [attr.data-testid]="mode.testId"
+            (click)="onChooseMoveMode(mode.jumping, $event)"
+          >
+            <i class="material-icons">{{ mode.icon }}</i>
+            {{ mode.label | transloco }}
+          </button>
+        }
+      </div>
+    }
     @if (moveKindBand(); as band) {
       <div
         class="border-ui-border-panel pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-full border border-solid p-0.5"

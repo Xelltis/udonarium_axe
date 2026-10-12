@@ -525,6 +525,14 @@ describe('RoomSettingsPanelComponent', () => {
       expect(zoneSection()?.querySelector('[data-testid="zone-engagement-warning"]')).not.toBeNull();
     });
 
+    it('writes whether a move on a table with no grid is drawn as straight legs', () => {
+      component.pathMove = true;
+      expect(Config.instance.pathMove).toBe(true);
+
+      component.pathMove = false;
+      expect(Config.instance.pathMove).toBe(false);
+    });
+
     it('leaves the room as it was for somebody watching', () => {
       PeerCursor.myCursor.role = PeerRole.Guest;
 

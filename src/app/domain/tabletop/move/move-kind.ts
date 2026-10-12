@@ -54,3 +54,13 @@ export function cellsByKind(kind: MoveKind, walk: number, metresPerCell: number)
   const capped = kind.capM !== null && metresPerCell > 0 ? Math.min(scaled, kind.capM / metresPerCell) : scaled;
   return Math.max(0, Math.floor(capped + ROUNDING_ALLOWANCE));
 }
+
+/**
+ * How many cells, not rounded to whole ones, a piece with `walk` cells of movement goes by a kind,
+ * for a move measured along a line: its movement times the factor, held to the cap where there is one.
+ */
+export function lengthByKind(kind: MoveKind, walk: number, metresPerCell: number): number {
+  const scaled = walk * kind.factor;
+  const capped = kind.capM !== null && metresPerCell > 0 ? Math.min(scaled, kind.capM / metresPerCell) : scaled;
+  return Math.max(0, capped);
+}

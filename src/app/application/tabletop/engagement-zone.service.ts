@@ -20,7 +20,7 @@ import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { EngagementZone, zonesOn } from '@axe/domain/tabletop/zone/engagement-zone';
 import { zoneCells } from '@axe/domain/tabletop/zone/zone-cells';
-import { gatheredAbout, zoneCovers, ZonePoint } from '@axe/domain/tabletop/zone/zone-geometry';
+import { gatheredAbout, zoneCovers, ZonePoint, ZoneShape } from '@axe/domain/tabletop/zone/zone-geometry';
 import { LeaveInput, leaveReasonOf, zoneHolds, ZoneSideCounts } from '@axe/domain/tabletop/zone/zone-leave';
 import { DEFAULT_ZONE_RULES, resolveZoneRules, ZoneRules } from '@axe/domain/tabletop/zone/zone-rules';
 import { sideOfPiece } from '@axe/domain/tabletop/zone/zone-sides';
@@ -71,6 +71,20 @@ export interface ZoneReachTerms {
   readonly blocked: CellBits | null;
   /** Cells where the move ends: into a zone that holds the piece, or out of one it stood in. */
   readonly stops: CellBits | null;
+}
+
+/** What a move is shaped by where zones stand, as the zones themselves rather than cells. */
+export interface ZoneMoveLimits {
+  /** Where the move starts instead of where the token stands: the centre of the piece's zone. */
+  readonly startPoint: ZonePoint | null;
+  /** Whether the piece may not move at all by this kind, held in its zone. */
+  readonly noReach: boolean;
+  /** Zones the piece may not enter: those already holding as many as they may. */
+  readonly shut: readonly ZoneShape[];
+  /** Zones that end the move as the piece walks into them. */
+  readonly stops: readonly ZoneShape[];
+  /** Zones that end the move as the piece walks out of them: those it stands in without being in. */
+  readonly escapes: readonly ZoneShape[];
 }
 
 /** Where a piece stood among the zones as a move began, to tell afterwards what the move did. */
@@ -282,10 +296,11 @@ export class EngagementZoneService {
   }
 
   /**
-   * What zones make of a move by a kind: where it starts, whether it may be made at all, what it may
-   * not enter and where it ends. Null where zones say nothing about this piece.
+   * What zones make of a move by a kind, as the zones themselves: where it starts, whether it may be
+   * made at all, which zones it may not enter, which end it on walking in, and which end it on
+   * walking out. Null where zones say nothing about this piece.
    */
-  reachTermsFor(piece: GameCharacter, grid: CellGrid, kindName: string): ZoneReachTerms | null {
+  moveLimitsFor(piece: GameCharacter, kindName: string): ZoneMoveLimits | null {
     const snapshot = this.snapshot();
     const mover = snapshot?.pieces.find((one) => one.id === piece.identifier);
     if (!snapshot || !mover || mover.side === null || mover.offField) return null;
@@ -293,25 +308,39 @@ export class EngagementZoneService {
     const ratio = world.rules.outnumber;
     const own = state.zoneOf(piece.identifier);
     const counted = { side: mover.side, count: mover.count };
-    const blocked = new CellBits(cellCount(grid));
-    const stops = new CellBits(cellCount(grid));
+    const limits = { shut: [] as ZoneShape[], stops: [] as ZoneShape[], escapes: [] as ZoneShape[] };
 
     if (own && leaveReasonOf(this.leaveInput(own, mover, pieces, kindName, piece.zoneLeaveRound)) === 'held') {
-      return { startPoint: own.shape.centre, noReach: true, blocked: null, stops: null };
+      return { startPoint: own.shape.centre, noReach: true, ...limits };
     }
     const standingIn = own ? [] : state.insideOf(piece.identifier);
     for (const zone of state.zones) {
       if (zone === own) continue;
-      const cells = zoneCells(grid, zone.shape);
       if (standingIn.includes(zone)) {
-        if (zoneHolds(this.countsOf(zone, pieces), counted, 'escape', ratio)) stops.or(outside(cells));
+        if (zoneHolds(this.countsOf(zone, pieces), counted, 'escape', ratio)) limits.escapes.push(zone.shape);
         continue;
       }
-      if (zone.count >= zone.limit) blocked.or(cells);
-      else if (zoneHolds(this.countsOf(zone, pieces), counted, 'pass', ratio)) stops.or(cells);
+      if (zone.count >= zone.limit) limits.shut.push(zone.shape);
+      else if (zoneHolds(this.countsOf(zone, pieces), counted, 'pass', ratio)) limits.stops.push(zone.shape);
     }
+    return { startPoint: own?.shape.centre ?? null, noReach: false, ...limits };
+  }
+
+  /**
+   * What zones make of a move by a kind on a grid: where it starts, whether it may be made at all,
+   * what it may not enter and where it ends. Null where zones say nothing about this piece.
+   */
+  reachTermsFor(piece: GameCharacter, grid: CellGrid, kindName: string): ZoneReachTerms | null {
+    const limits = this.moveLimitsFor(piece, kindName);
+    if (!limits) return null;
+    if (limits.noReach) return { startPoint: limits.startPoint, noReach: true, blocked: null, stops: null };
+    const blocked = new CellBits(cellCount(grid));
+    const stops = new CellBits(cellCount(grid));
+    for (const shape of limits.shut) blocked.or(zoneCells(grid, shape));
+    for (const shape of limits.stops) stops.or(zoneCells(grid, shape));
+    for (const shape of limits.escapes) stops.or(outside(zoneCells(grid, shape)));
     return {
-      startPoint: own?.shape.centre ?? null,
+      startPoint: limits.startPoint,
       noReach: false,
       blocked: blocked.isEmpty ? null : blocked,
       stops: stops.isEmpty ? null : stops,

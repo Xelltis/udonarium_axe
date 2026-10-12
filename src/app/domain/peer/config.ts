@@ -97,6 +97,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_zoneOutnumber') private _zoneOutnumber: number = -1;
   @SyncVar('_zoneLeaveKind') private _zoneLeaveKind: string = '';
   @SyncVar('_moveKinds') private _moveKinds: string = '';
+  @SyncVar('_pathMove') private _pathMove: string = '';
 
   /**
    * Where the room shows the dice of a chat roll tumbling: in the frame of the line that gives the
@@ -272,6 +273,17 @@ export class Config extends ObjectNode implements InnerXml {
   set moveStrict(strict: boolean) {
     this._moveStrict = strict ? '1' : '';
     this._moveStrictPath = '';
+  }
+
+  /**
+   * Whether a move on a table with no grid is drawn as a way of straight legs, measured in metres,
+   * rather than counted in the cells the table keeps out of sight. Off for a room that never said.
+   */
+  get pathMove(): boolean {
+    return this._pathMove === '1';
+  }
+  set pathMove(free: boolean) {
+    this._pathMove = free ? '1' : '';
   }
 
   /** Every engagement-zone rule the room has been asked about, null where it has not answered. */

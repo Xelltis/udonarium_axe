@@ -19,7 +19,7 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { FirstPersonProp, FirstPersonPropsService } from '@axe/application/tabletop/first-person-props.service';
-import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
+import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
@@ -259,7 +259,7 @@ export class FirstPersonViewComponent {
   private readonly motion = inject(MotionService);
   private readonly mobile = inject(MobileLayoutService);
   private readonly modal = inject(ModalService);
-  private readonly movePlan = inject(MovePlanService);
+  private readonly movePlan = inject(MovePlannerService);
   private readonly visualNovel = inject(VisualNovelModeService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);

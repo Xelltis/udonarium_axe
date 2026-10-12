@@ -194,6 +194,8 @@ export class TableMoveRangeOverlayComponent {
       // cursor's own place is on the cursor, so listening to every one of them redrew the
       // board and worked every reach out again each time anybody moved a mouse.
       this.objectChange.versionOf(cursor.identifier)();
+      // A move drawn as straight legs is drawn by the overlay for those, and has no cells.
+      if (cursor.movingPoints) continue;
 
       const piece = this.objectStore.get<GameCharacter>(cursor.movingCharacterIdentifier);
       if (!(piece instanceof GameCharacter)) continue;

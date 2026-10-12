@@ -26,7 +26,7 @@ import { BoardSwitchService } from '@axe/application/tabletop/board-switch.servi
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
-import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
+import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
@@ -112,6 +112,7 @@ import { TableAltitudeGuideOverlayComponent } from '@axe/features/tabletop/table
 import { TableAmbienceComponent } from '@axe/features/tabletop/table-ambience/table-ambience.component';
 import { TableBeamOverlayComponent } from '@axe/features/tabletop/table-beam-overlay/table-beam-overlay.component';
 import { TableDiceOverlayComponent } from '@axe/features/tabletop/table-dice-overlay/table-dice-overlay.component';
+import { TableFreePathOverlayComponent } from '@axe/features/tabletop/table-free-path-overlay/table-free-path-overlay.component';
 import { TableMoveBlockOverlayComponent } from '@axe/features/tabletop/table-move-block-overlay/table-move-block-overlay.component';
 import { TableMoveCostOverlayComponent } from '@axe/features/tabletop/table-move-cost-overlay/table-move-cost-overlay.component';
 import { TableMoveRangeOverlayComponent } from '@axe/features/tabletop/table-move-range-overlay/table-move-range-overlay.component';
@@ -253,6 +254,7 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
     TableMoveRangeOverlayComponent,
     TableMoveBlockOverlayComponent,
     TableMoveCostOverlayComponent,
+    TableFreePathOverlayComponent,
     TableZoneOverlayComponent,
     TableTriggerOverlayComponent,
     TableEffectOverlayComponent,
@@ -294,7 +296,7 @@ export class GameTableComponent {
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly cardTargetService = inject(CardTargetService);
   private readonly effectTargetingService = inject(EffectTargetingService);
-  private readonly movePlan = inject(MovePlanService);
+  private readonly movePlan = inject(MovePlannerService);
   private readonly viewport = inject(ViewportService);
   private readonly effectPlaybackService = inject(EffectPlaybackService);
   private readonly mobileLayout = inject(MobileLayoutService);
@@ -1236,6 +1238,8 @@ export class GameTableComponent {
   /** Whether a move is being worked out, which is when the table says how to work one out. */
   readonly isPlanningMove = this.movePlan.isPlanning;
   readonly isJumpingMove = this.movePlan.isJumping;
+  /** Whether the move is drawn as straight legs, which has no jumping to choose. */
+  readonly isFreeMove = this.movePlan.isFree;
   /** A hand with no keys is told what it can do rather than which keys it has not got. */
   protected readonly movePlanHintKey = computed(() =>
     this.viewport.isTouch() ? 'feature.tabletop.movePlan.hintTouch' : 'feature.tabletop.movePlan.hint'

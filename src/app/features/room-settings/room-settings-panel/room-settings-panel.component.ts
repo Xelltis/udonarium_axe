@@ -880,6 +880,15 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.moveStrict = value;
   }
 
+  /** Whether a move on a table with no grid is drawn as straight legs measured in metres. */
+  get pathMove(): boolean {
+    this.objectChange.versionOf('Config')();
+    return this.config.pathMove;
+  }
+  set pathMove(value: boolean) {
+    if (this.isEditable) this.config.pathMove = value;
+  }
+
   /** Whether the room plays engagement zones; setting it writes the room's config, for whoever may edit the table. */
   get zoneEnabled(): boolean {
     this.objectChange.versionOf('Config')();

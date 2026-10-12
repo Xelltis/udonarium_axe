@@ -73,6 +73,18 @@ describe('Config', () => {
     });
   });
 
+  describe('drawing a move as straight legs', () => {
+    it('is off for a room saved before it could be asked, and reads back what it writes', () => {
+      const config = Config.instance;
+      expect(config.pathMove).toBe(false);
+
+      config.pathMove = true;
+      expect(config.pathMove).toBe(true);
+      config.pathMove = false;
+      expect(config.pathMove).toBe(false);
+    });
+  });
+
   describe('instance (singleton)', () => {
     it('returns the one instance', () => {
       const instance1 = Config.instance;

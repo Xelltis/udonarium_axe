@@ -42,6 +42,12 @@ export class PeerCursor extends GameObject {
   /** The name of the kind of move being worked out, empty for the room's first or plain kind. */
   @SyncVar() movingKind = '';
   /**
+   * The way a move on a table with no grid is drawn along, as `x,y` points in table pixels joined by
+   * spaces; empty for a move counted in cells, or no move at all. Kept apart from `movingWay`, whose
+   * cells an older version would read these points as.
+   */
+  @SyncVar() movingPoints = '';
+  /**
    * `1` once this peer's version keeps engagement zones in order, so it may be the one that writes
    * what follows from them. Empty on a cursor from a version that knows nothing of zones.
    */

@@ -29,7 +29,7 @@ import { BoardSwitchService } from '@axe/application/tabletop/board-switch.servi
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
-import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
+import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
@@ -239,7 +239,7 @@ export class GameCharacterComponent {
   private readonly rangeShapeInvoke = inject(RangeShapeInvokeService);
   private readonly moveRangeService = inject(MoveRangeService);
   private readonly triggerFire = inject(TriggerFireService);
-  private readonly movePlan = inject(MovePlanService);
+  private readonly movePlan = inject(MovePlannerService);
   private readonly firstPerson = inject(FirstPersonService);
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly effectCast = inject(EffectCastService);
@@ -1556,8 +1556,8 @@ export class GameCharacterComponent {
 
   /** Whether this piece is the one whose move is being worked out, and so is not to be dragged. */
   readonly isPlanningMove = computed(() => {
-    const plan = this.movePlan.plan();
-    return plan != null && plan.characterIdentifier === this.gameCharacter()?.identifier;
+    const moving = this.movePlan.movingIdentifier();
+    return moving != null && moving === this.gameCharacter()?.identifier;
   });
 
   /**

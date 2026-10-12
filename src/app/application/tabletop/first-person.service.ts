@@ -1,7 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
+import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -79,7 +79,7 @@ export class FirstPersonService {
   private readonly preference = inject(FirstPersonPreferenceService);
   private readonly vision = inject(VisionService);
   private readonly moveRange = inject(MoveRangeService);
-  private readonly movePlan = inject(MovePlanService);
+  private readonly movePlan = inject(MovePlannerService);
   private readonly pieceStep = inject(PieceStepService);
   private readonly replay = inject(ReplayPlaybackService);
 
