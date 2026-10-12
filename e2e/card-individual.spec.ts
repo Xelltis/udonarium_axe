@@ -1,11 +1,11 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openTableContextMenu, waitAppReady } from './helpers';
+import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
 
 async function explodeCardStack(page: Page) {
   // 山札を作成し、「山札を崩す」で個別のcard要素を出現させる。
   const tableMenu = await openTableContextMenu(page);
-  await tableMenu.getByText('トランプの山札を作成').click();
+  await (await revealMenuEntry(page, tableMenu, 'トランプの山札を作成')).click();
   await expect(page.locator('card-stack').first()).toBeAttached({ timeout: 10000 });
   await page.locator('card-stack').first().dispatchEvent('contextmenu');
   await expect(page.locator('context-menu').locator('li').first()).toBeVisible({ timeout: 5000 });

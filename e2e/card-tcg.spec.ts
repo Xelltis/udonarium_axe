@@ -1,10 +1,10 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openTableContextMenu, waitAppReady } from './helpers';
+import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
 
 async function createCardStack(page: Page) {
   const menu = await openTableContextMenu(page);
-  await menu.getByText('トランプの山札を作成').click();
+  await (await revealMenuEntry(page, menu, 'トランプの山札を作成')).click();
   await expect(page.locator('card-stack').first()).toBeAttached({ timeout: 10000 });
 }
 
@@ -31,7 +31,7 @@ test.describe('TCG 向けのカード操作', () => {
 
   test('テーブルメニューから画像タグの山札を作るダイアログが開くこと', async ({ page }) => {
     const menu = await openTableContextMenu(page);
-    await menu.getByText('画像タグから山札を作成').click();
+    await (await revealMenuEntry(page, menu, '画像タグから山札を作成')).click();
 
     const dialog = page.locator('deck-builder-dialog');
     await expect(dialog).toBeVisible({ timeout: 5000 });

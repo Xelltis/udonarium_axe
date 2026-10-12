@@ -1,12 +1,12 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openTableContextMenu, waitAppReady } from './helpers';
+import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
 
 test.describe('地形 (terrain) の追加コンテキスト操作', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     const tableMenu = await openTableContextMenu(page);
-    await tableMenu.getByText('地形を作成').click();
+    await (await revealMenuEntry(page, tableMenu, '地形を作成')).click();
     await expect(page.locator('terrain').first()).toBeAttached({ timeout: 10000 });
   });
 
@@ -64,7 +64,7 @@ async function chooseSlope(page: Page, side: string) {
 
 async function createDiceOnTable(page: Page) {
   const menu = await openTableContextMenu(page);
-  await menu.getByText('ダイスを作成').hover();
+  await (await revealMenuEntry(page, menu, 'ダイスを作成')).hover();
   await expect(menu.getByText('D6')).toBeVisible({ timeout: 5000 });
   await menu.getByText('D6').click();
   await expect(page.locator('dice-symbol').first()).toBeAttached({ timeout: 10000 });

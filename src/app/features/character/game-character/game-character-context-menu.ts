@@ -259,79 +259,74 @@ export function buildGameCharacterContextMenuModel(
         ]
       : []),
   ];
-  const openActions = [...basicActions, ...chatActions, ...buffEffectActions, ...lightActions];
 
   // display settings
-  const displayActions: ContextMenuAction[] = [
-    buildAltitudeAction(char, t, {
-      onChanged: () => inventoryService.notifyInventoryUpdate(),
-      extraActions: [
-        buildToggleAction(
-          char.isDropShadow,
-          (next) => (char.isDropShadow = next),
-          {
-            on: t('feature.tabletop.contextMenu.shadowShowOn'),
-            off: t('feature.tabletop.contextMenu.shadowShowOff'),
+  const altitudeAction = buildAltitudeAction(char, t, {
+    onChanged: () => inventoryService.notifyInventoryUpdate(),
+    extraActions: [
+      buildToggleAction(
+        char.isDropShadow,
+        (next) => (char.isDropShadow = next),
+        {
+          on: t('feature.tabletop.contextMenu.shadowShowOn'),
+          off: t('feature.tabletop.contextMenu.shadowShowOff'),
+        },
+        () => inventoryService.notifyInventoryUpdate()
+      ),
+    ],
+  });
+  const lookToggles: ContextMenuAction[] = [
+    char.hideName
+      ? {
+          name: t('feature.character.contextMenu.hideNameOn'),
+          action: () => {
+            char.hideName = false;
+            SoundEffect.play(PresetSound.sweep);
           },
-          () => inventoryService.notifyInventoryUpdate()
-        ),
-      ],
-    }),
-    {
-      name: t('feature.character.contextMenu.displaySettings'),
-      action: undefined,
-      subActions: [
-        char.hideName
-          ? {
-              name: t('feature.character.contextMenu.hideNameOn'),
-              action: () => {
-                char.hideName = false;
-                SoundEffect.play(PresetSound.sweep);
+        }
+      : {
+          name: t('feature.character.contextMenu.hideNameOff'),
+          action: () => {
+            char.hideName = true;
+            SoundEffect.play(PresetSound.sweep);
+          },
+        },
+    char.hideBuff
+      ? {
+          name: t('feature.character.contextMenu.hideBuffOn'),
+          action: () => {
+            char.hideBuff = false;
+            SoundEffect.play(PresetSound.sweep);
+          },
+        }
+      : {
+          name: t('feature.character.contextMenu.hideBuffOff'),
+          action: () => {
+            char.hideBuff = true;
+            SoundEffect.play(PresetSound.sweep);
+          },
+        },
+    ...(PeerCursor.isMyselfGameMaster
+      ? [
+          char.isNpc
+            ? {
+                name: t('feature.character.contextMenu.npcOn'),
+                action: () => {
+                  char.isNpc = false;
+                  SoundEffect.play(PresetSound.sweep);
+                },
+              }
+            : {
+                name: t('feature.character.contextMenu.npcOff'),
+                action: () => {
+                  char.isNpc = true;
+                  SoundEffect.play(PresetSound.sweep);
+                },
               },
-            }
-          : {
-              name: t('feature.character.contextMenu.hideNameOff'),
-              action: () => {
-                char.hideName = true;
-                SoundEffect.play(PresetSound.sweep);
-              },
-            },
-        char.hideBuff
-          ? {
-              name: t('feature.character.contextMenu.hideBuffOn'),
-              action: () => {
-                char.hideBuff = false;
-                SoundEffect.play(PresetSound.sweep);
-              },
-            }
-          : {
-              name: t('feature.character.contextMenu.hideBuffOff'),
-              action: () => {
-                char.hideBuff = true;
-                SoundEffect.play(PresetSound.sweep);
-              },
-            },
-        ...(PeerCursor.isMyselfGameMaster
-          ? [
-              char.isNpc
-                ? {
-                    name: t('feature.character.contextMenu.npcOn'),
-                    action: () => {
-                      char.isNpc = false;
-                      SoundEffect.play(PresetSound.sweep);
-                    },
-                  }
-                : {
-                    name: t('feature.character.contextMenu.npcOff'),
-                    action: () => {
-                      char.isNpc = true;
-                      SoundEffect.play(PresetSound.sweep);
-                    },
-                  },
-            ]
-          : []),
-      ],
-    },
+        ]
+      : []),
+  ];
+  const handlingToggles: ContextMenuAction[] = [
     char.hideInventory
       ? {
           name: t('feature.character.contextMenu.hideInventoryOn'),
@@ -384,6 +379,11 @@ export function buildGameCharacterContextMenuModel(
           },
         },
   ];
+  const displayActions: ContextMenuAction[] = [
+    altitudeAction,
+    { name: t('feature.character.contextMenu.displaySettings'), action: undefined, subActions: lookToggles },
+    ...handlingToggles,
+  ];
 
   // moving it
   const moveActions: ContextMenuAction[] = [
@@ -433,16 +433,21 @@ export function buildGameCharacterContextMenuModel(
       : []),
   ];
 
+  // What is opened most is left a click away; what is set now and then is gathered in a few
+  // named groups, so the list stays short enough to read at a glance.
+  const group = (key: string, subActions: ContextMenuAction[]): ContextMenuAction[] =>
+    subActions.length > 0 ? [{ name: t(`feature.character.contextMenu.${key}`), action: undefined, subActions }] : [];
   const actions: ContextMenuAction[] = [
     ...(overlapEntries.length > 0 ? [...overlapEntries, ContextMenuSeparator] : []),
     ...(planActions.length > 0 ? [...planActions, ContextMenuSeparator] : []),
-    ...openActions,
+    ...basicActions,
+    ...chatActions,
+    ...group('buffGroup', buffEffectActions),
+    ...group('sightGroup', lightActions),
     ContextMenuSeparator,
-    ...displayActions,
-    // who may see it and who owns it, with permission, after a separator
-    ...disclosureActions,
-    ContextMenuSeparator,
-    ...moveActions,
+    ...group('handlingGroup', [...lookToggles, ...handlingToggles, altitudeAction]),
+    ...group('disclosureGroup', disclosureActions),
+    ...group('putAwayGroup', moveActions),
     ContextMenuSeparator,
     ...objectActions.slice(overlapEntries.length),
     ...(surfaceEntries.length > 0 ? [ContextMenuSeparator, ...surfaceEntries] : []),

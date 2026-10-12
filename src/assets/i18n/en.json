@@ -1797,7 +1797,12 @@
         "radialMove": "Move",
         "radialDisclosure": "Access & owner",
         "radialObject": "Piece actions",
-        "moveMode": "Getting about"
+        "moveMode": "Getting about",
+        "buffGroup": "Buffs & effects",
+        "sightGroup": "Sight and view",
+        "handlingGroup": "Display and handling",
+        "disclosureGroup": "Visibility and owner",
+        "putAwayGroup": "Put away"
       },
       "panel": {
         "sheet": "Character sheet",
@@ -2260,7 +2265,10 @@
         "doorStyleSink": "Sinks down",
         "doorStyleSlide": "Slides aside",
         "doorFlip": "Open the other way",
-        "rangeTargetInside": "Aim at everything inside"
+        "rangeTargetInside": "Aim at everything inside",
+        "createGroupBoard": "Terrain and notes",
+        "createGroupTokens": "Cards, dice and coins",
+        "createGroupAreas": "Ranges, lights and effects"
       },
       "holdHint": {
         "footing": "Wheel to step through what it can stand on",

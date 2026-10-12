@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openPanel, waitAppReady } from './helpers';
+import { openPanel, revealMenuEntry, waitAppReady } from './helpers';
 import { centreOf, pedestal, piece, Point, settle } from './see-through-helpers';
 
 async function becomeGm(page: Page) {
@@ -65,7 +65,7 @@ test.describe('交戦エリア', () => {
     await foe.dispatchEvent('contextmenu');
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await menu.getByText('表示', { exact: true }).hover();
+    await revealMenuEntry(page, menu, 'NPC にする');
     const npc = menu.locator('li', { hasText: 'NPC にする' });
     await expect(npc).toBeVisible({ timeout: 5000 });
     if (await npc.locator('input[type="checkbox"]').isChecked()) await page.mouse.click(5, 400);

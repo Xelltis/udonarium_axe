@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openPanel, openTableContextMenu, waitAppReady } from './helpers';
+import { openPanel, openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
 
 const SPEAKER = 'キャラクターB';
 
@@ -123,7 +123,7 @@ test.describe('ホワイトボードの拡大表示', () => {
   test('ポップアップの拡大ボタンで全画面に広がり、クリックで閉じること', async ({ page }) => {
     await waitAppReady(page);
     const menu = await openTableContextMenu(page);
-    await menu.getByText('ホワイトボードを作成').click();
+    await (await revealMenuEntry(page, menu, 'ホワイトボードを作成')).click();
     const surface = page.locator('white-board [data-surface]');
     await expect(surface).toHaveCount(1, { timeout: 10000 });
 

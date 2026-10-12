@@ -1047,22 +1047,30 @@ export class GameTableComponent {
     actions: ContextMenuAction[];
     rotatingGroups: ContextMenuRadialGroup[];
   } {
+    const createParts = this.tabletopActionService.createMenuParts(objectPosition);
     const [primaryCreateActions, secondaryCreateActions] =
-      this.tabletopActionService.makeDefaultContextMenuActionGroups(objectPosition);
-    secondaryCreateActions.push({
+      this.tabletopActionService.makeDefaultContextMenuActionGroups(objectPosition, createParts);
+    const createDeckAction: ContextMenuAction = {
       name: this.t('feature.tabletop.action.createDeck'),
       action: () => {
         void this.openDeckBuilder(objectPosition);
       },
+    };
+    const createWithOptionsActions: ContextMenuAction[] = this.mobileLayout.isActive()
+      ? [
+          {
+            name: this.t('feature.tabletop.contextMenu.createWithOptions'),
+            action: () => {
+              this.roomPanels.open('characterGenerator', { width: 460, height: 420 });
+            },
+          },
+        ]
+      : [];
+    secondaryCreateActions.push(createDeckAction, ...createWithOptionsActions);
+    const createActions = this.tabletopActionService.groupCreateMenu(createParts, {
+      besideCharacter: createWithOptionsActions,
+      withCards: [createDeckAction],
     });
-    if (this.mobileLayout.isActive()) {
-      secondaryCreateActions.push({
-        name: this.t('feature.tabletop.contextMenu.createWithOptions'),
-        action: () => {
-          this.roomPanels.open('characterGenerator', { width: 460, height: 420 });
-        },
-      });
-    }
     const tableSettingAction: ContextMenuAction = {
       name: this.t('feature.tabletop.tableSetting.title'),
       action: () => {
@@ -1103,9 +1111,7 @@ export class GameTableComponent {
         : [];
     return {
       actions: [
-        ...primaryCreateActions,
-        ContextMenuSeparator,
-        ...secondaryCreateActions,
+        ...createActions,
         ContextMenuSeparator,
         ...(partyActions.length > 0 ? [...partyActions, ContextMenuSeparator] : []),
         ...(revealActions.length > 0 ? [...revealActions, ContextMenuSeparator] : []),

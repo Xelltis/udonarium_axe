@@ -136,7 +136,7 @@ export async function createCharacter(page: Page) {
  */
 export async function createDiceSymbol(page: Page) {
   const menu = await openTableContextMenu(page);
-  await menu.getByText('ダイスを作成').hover();
+  await (await revealMenuEntry(page, menu, 'ダイスを作成')).hover();
   await expect(menu.getByText('D6')).toBeVisible({ timeout: 5000 });
   await menu.getByText('D6').click();
   await expect(page.locator('dice-symbol').first()).toBeAttached({ timeout: 10000 });
@@ -164,4 +164,58 @@ export async function selectVnSpeaker(page: Page, name: string) {
 /** ノベルモードの発言入力欄。ng-selectもinputを持つので、data-testidで拾う。 */
 export function vnMessageInput(page: Page): Locator {
   return page.locator('visual-novel-overlay [data-testid="vn-message"]');
+}
+
+/**
+ * The group of a context menu each entry kept out of the menu's first level is gathered in, by the
+ * entry's name: the table's create menu, and a character's.
+ */
+export const MENU_GROUP_OF: Readonly<Record<string, string>> = {
+  地形を作成: '地形・メモ',
+  マップマスクを作成: '地形・メモ',
+  共有メモを作成: '地形・メモ',
+  ホワイトボードを作成: '地形・メモ',
+  ブランクカードを作成: 'カード・ダイス・コイン',
+  トランプの山札を作成: 'カード・ダイス・コイン',
+  画像タグから山札を作成: 'カード・ダイス・コイン',
+  ダイスを作成: 'カード・ダイス・コイン',
+  コインを作成: 'カード・ダイス・コイン',
+  射程範囲を作成: '射程範囲・光源・エフェクト',
+  光源を作成: '射程範囲・光源・エフェクト',
+  環境エフェクトを置く: '射程範囲・光源・エフェクト',
+  バフ編集: 'バフ・演出',
+  バフの表示: 'バフ・演出',
+  登録済み射程を出す: 'バフ・演出',
+  演出を発動: 'バフ・演出',
+  ダイスを展開する: 'バフ・演出',
+  '視界・光源設定…': '視界と視点',
+  視界範囲を表示: '視界と視点',
+  このコマの視点で見る: '視界と視点',
+  全員をこのコマの視点にする: '視界と視点',
+  全員の共有視点を解除する: '視界と視点',
+  名前を隠す: '表示と扱い',
+  バフを隠す: '表示と扱い',
+  'NPC にする': '表示と扱い',
+  インベントリ非表示: '表示と扱い',
+  手番をもたない: '表示と扱い',
+  発言しない: '表示と扱い',
+  高度設定: '表示と扱い',
+  公開範囲: '公開とオーナー',
+  オーナー: '公開とオーナー',
+  共有イベントリに移動: 'しまう',
+  個人イベントリに移動: 'しまう',
+  墓場に移動: 'しまう',
+};
+
+/**
+ * An entry of an open context menu, brought into view: where it stands on the menu's first level,
+ * or in the group it is gathered in, which is opened on the way.
+ */
+export async function revealMenuEntry(page: Page, menu: Locator, name: string, exact = false): Promise<Locator> {
+  const entry = menu.getByText(name, { exact }).first();
+  if (await entry.isVisible()) return entry;
+  const group = Object.entries(MENU_GROUP_OF).find(([key]) => key === name || (!exact && key.includes(name)))?.[1];
+  if (group) await menu.getByText(group, { exact: true }).first().hover();
+  await expect(entry).toBeVisible({ timeout: 5000 });
+  return entry;
 }

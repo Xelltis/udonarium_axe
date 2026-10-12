@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { createCharacter, openPanel, waitAppReady } from './helpers';
+import { createCharacter, openPanel, revealMenuEntry, waitAppReady } from './helpers';
 
 function items(page: Page) {
   return page.locator('game-object-inventory [data-testid="inventory-item"]');
@@ -44,7 +44,7 @@ test.describe('インベントリの検索とフォルダ', () => {
     await items(page).first().click({ button: 'right' });
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await menu.getByText('共有イベントリに移動').click();
+    await (await revealMenuEntry(page, menu, '共有イベントリに移動')).click();
 
     await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(1).click();
     await expect(items(page)).toHaveCount(listed, { timeout: 5000 });

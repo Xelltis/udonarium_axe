@@ -1,6 +1,6 @@
 import { expect, Locator, Page } from '@playwright/test';
 
-import { waitAppReady } from '../helpers';
+import { MENU_GROUP_OF, waitAppReady } from '../helpers';
 
 export async function prepare(page: Page) {
   await page.addInitScript(() => {
@@ -100,13 +100,27 @@ export async function rightClickTable(page: Page, position: { x: number; y: numb
   return menu;
 }
 
+/**
+ * An entry of an open context menu, brought into view with the clock held: where it stands on the
+ * menu's first level, or in the group it is gathered in, opened on the way.
+ */
+export async function menuEntry(page: Page, menu: Locator, text: string): Promise<Locator> {
+  const entry = menu.getByText(text, { exact: true }).first();
+  const group = MENU_GROUP_OF[text];
+  if (group && !(await entry.isVisible())) {
+    await menu.getByText(group, { exact: true }).first().hover();
+    await settle(page, 400);
+  }
+  return entry;
+}
+
 export async function hoverMenu(page: Page, menu: Locator, text: string) {
-  await menu.getByText(text, { exact: true }).hover();
+  await (await menuEntry(page, menu, text)).hover();
   await settle(page, 400);
 }
 
 export async function chooseMenu(page: Page, menu: Locator, text: string) {
-  await menu.getByText(text, { exact: true }).click();
+  await (await menuEntry(page, menu, text)).click();
   await settle(page);
 }
 

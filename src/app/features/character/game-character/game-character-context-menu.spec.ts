@@ -62,6 +62,9 @@ function makeChar(overrides: Partial<MutableChar> = {}): MutableChar {
 }
 
 const names = (a: { name: string }[]) => a.map((x) => x.name);
+/** The entries of one of the menu's named groups. */
+const groupOf = (menu: { name: string; subActions?: { name: string }[] }[], name: string) =>
+  menu.find((m) => m.name === name)!.subActions! as ReturnType<typeof buildGameCharacterContextMenu>;
 const callbacks = () => ({
   onShowDetail: vi.fn(),
   onShowChatPalette: vi.fn(),
@@ -235,10 +238,54 @@ describe('buildGameCharacterContextMenu()', () => {
     expect(model.actions).toContain(surfaceAction);
   });
 
-  it('puts the altitude submenu into the display group', () => {
+  it('keeps what is opened most a click away, and gathers the rest in named groups', () => {
+    const menu = buildGameCharacterContextMenu(
+      makeChar() as unknown as GameCharacter,
+      50,
+      makeService(),
+      callbacks(),
+      t
+    );
+
+    expect(names(menu.filter((m) => m.type !== ContextMenuType.SEPARATOR))).toEqual([
+      '詳細を表示',
+      'チャットパレットを表示',
+      'リモコンを表示',
+      'バフ・演出',
+      '視界と視点',
+      '表示と扱い',
+      'しまう',
+      '固定する',
+      'コピーを作る',
+    ]);
+    expect(names(groupOf(menu, '視界と視点'))).toEqual(['視界・光源設定…', '視界範囲を表示']);
+  });
+
+  it('offers a group of who may see it and who owns it only to somebody who may change them', () => {
+    const plain = buildGameCharacterContextMenu(
+      makeChar() as unknown as GameCharacter,
+      50,
+      makeService(),
+      callbacks(),
+      t
+    );
+    expect(names(plain)).not.toContain('公開とオーナー');
+
+    PeerCursor.myCursor = { isGameMaster: true, userId: 'gm-1', name: 'GM' } as unknown as PeerCursor;
+    const master = buildGameCharacterContextMenu(
+      makeChar() as unknown as GameCharacter,
+      50,
+      makeService(),
+      callbacks(),
+      t
+    );
+    expect(names(master)).toContain('公開とオーナー');
+  });
+
+  it('puts the altitude submenu into the display and handling group', () => {
     const char = makeChar();
     const menu = buildGameCharacterContextMenu(char as unknown as GameCharacter, 50, makeService(), callbacks(), t);
-    const altitude = menu.find((m) => m.name === '高度設定');
+    const altitude = groupOf(menu, '表示と扱い').find((m) => m.name === '高度設定');
     expect(altitude).toBeDefined();
     expect(altitude!.subActions?.length).toBe(3);
   });
@@ -249,7 +296,7 @@ describe('buildGameCharacterContextMenu()', () => {
     menu.find((m) => m.name === '詳細を表示')!.action!();
     menu.find((m) => m.name === 'チャットパレットを表示')!.action!();
     menu.find((m) => m.name === 'リモコンを表示')!.action!();
-    menu.find((m) => m.name === 'バフ編集')!.action!();
+    groupOf(menu, 'バフ・演出').find((m) => m.name === 'バフ編集')!.action!();
     expect(cb.onShowDetail).toHaveBeenCalled();
     expect(cb.onShowChatPalette).toHaveBeenCalled();
     expect(cb.onShowRemoteController).toHaveBeenCalled();
@@ -264,7 +311,7 @@ describe('buildGameCharacterContextMenu()', () => {
       callbacks(),
       t
     );
-    expect(names(visibleMenu)).toContain('☐ インベントリ非表示');
+    expect(names(groupOf(visibleMenu, '表示と扱い'))).toContain('☐ インベントリ非表示');
 
     const hiddenMenu = buildGameCharacterContextMenu(
       makeChar({ hideInventory: true }) as unknown as GameCharacter,
@@ -273,7 +320,7 @@ describe('buildGameCharacterContextMenu()', () => {
       callbacks(),
       t
     );
-    expect(names(hiddenMenu)).toContain('☑ インベントリ非表示');
+    expect(names(groupOf(hiddenMenu, '表示と扱い'))).toContain('☑ インベントリ非表示');
   });
 
   it('ticks the item by whether it takes a turn', () => {
@@ -284,7 +331,7 @@ describe('buildGameCharacterContextMenu()', () => {
       callbacks(),
       t
     );
-    expect(names(acting)).toContain('☐ 手番をもたない');
+    expect(names(groupOf(acting, '表示と扱い'))).toContain('☐ 手番をもたない');
 
     const watching = buildGameCharacterContextMenu(
       makeChar({ noTurn: true }) as unknown as GameCharacter,
@@ -293,7 +340,7 @@ describe('buildGameCharacterContextMenu()', () => {
       callbacks(),
       t
     );
-    expect(names(watching)).toContain('☑ 手番をもたない');
+    expect(names(groupOf(watching, '表示と扱い'))).toContain('☑ 手番をもたない');
   });
 
   it('ticks the item by whether it may speak', () => {
@@ -304,7 +351,7 @@ describe('buildGameCharacterContextMenu()', () => {
       callbacks(),
       t
     );
-    expect(names(talking)).toContain('☐ 発言しない');
+    expect(names(groupOf(talking, '表示と扱い'))).toContain('☐ 発言しない');
 
     const silent = buildGameCharacterContextMenu(
       makeChar({ nonTalkFlag: true }) as unknown as GameCharacter,
@@ -313,7 +360,7 @@ describe('buildGameCharacterContextMenu()', () => {
       callbacks(),
       t
     );
-    expect(names(silent)).toContain('☑ 発言しない');
+    expect(names(groupOf(silent, '表示と扱い'))).toContain('☑ 発言しない');
   });
 
   it('ticks hiding the name and the buffs in the display submenu', () => {
@@ -324,8 +371,7 @@ describe('buildGameCharacterContextMenu()', () => {
       callbacks(),
       t
     );
-    const display = def.find((m) => m.name === '表示');
-    expect(names(display!.subActions!)).toEqual(['☐ 名前を隠す', '☐ バフを隠す']);
+    expect(names(groupOf(def, '表示と扱い')).slice(0, 2)).toEqual(['☐ 名前を隠す', '☐ バフを隠す']);
 
     const hidden = buildGameCharacterContextMenu(
       makeChar({ hideName: true, hideBuff: true }) as unknown as GameCharacter,
@@ -334,8 +380,7 @@ describe('buildGameCharacterContextMenu()', () => {
       callbacks(),
       t
     );
-    const display2 = hidden.find((m) => m.name === '表示');
-    expect(names(display2!.subActions!)).toEqual(['☑ 名前を隠す', '☑ バフを隠す']);
+    expect(names(groupOf(hidden, '表示と扱い')).slice(0, 2)).toEqual(['☑ 名前を隠す', '☑ バフを隠す']);
   });
 
   it('offers the game master alone a toggle for whether it is a non-player character', () => {
@@ -346,24 +391,23 @@ describe('buildGameCharacterContextMenu()', () => {
       callbacks(),
       t
     );
-    const nonGmDisplay = nonGmMenu.find((m) => m.name === '表示')!;
-    expect(names(nonGmDisplay.subActions!)).not.toContain('☐ NPC にする');
+    expect(names(groupOf(nonGmMenu, '表示と扱い'))).not.toContain('☐ NPC にする');
 
     PeerCursor.myCursor = { isGameMaster: true, userId: 'gm-1', name: 'GM' } as unknown as PeerCursor;
     const char = makeChar();
     const menu = buildGameCharacterContextMenu(char as unknown as GameCharacter, 50, makeService(), callbacks(), t);
-    const display = menu.find((m) => m.name === '表示')!;
-    expect(names(display.subActions!)).toContain('☐ NPC にする');
-    display.subActions!.find((s) => s.name === '☐ NPC にする')!.action!();
+    const display = groupOf(menu, '表示と扱い');
+    expect(names(display)).toContain('☐ NPC にする');
+    display.find((s) => s.name === '☐ NPC にする')!.action!();
     expect(char.isNpc).toBe(true);
   });
 
   it('hides and shows the name and the buffs', () => {
     const char = makeChar();
     const menu = buildGameCharacterContextMenu(char as unknown as GameCharacter, 50, makeService(), callbacks(), t);
-    const display = menu.find((m) => m.name === '表示')!;
-    display.subActions!.find((s) => s.name === '☐ 名前を隠す')!.action!();
-    display.subActions!.find((s) => s.name === '☐ バフを隠す')!.action!();
+    const display = groupOf(menu, '表示と扱い');
+    display.find((s) => s.name === '☐ 名前を隠す')!.action!();
+    display.find((s) => s.name === '☐ バフを隠す')!.action!();
     expect(char.hideName).toBe(true);
     expect(char.hideBuff).toBe(true);
   });
@@ -371,9 +415,9 @@ describe('buildGameCharacterContextMenu()', () => {
   it('always offers the shared table, your own hands and the graveyard, and moves it to each', () => {
     const char = makeChar();
     const menu = buildGameCharacterContextMenu(char as unknown as GameCharacter, 50, makeService(), callbacks(), t);
-    menu.find((m) => m.name === '共有イベントリに移動')!.action!();
+    groupOf(menu, 'しまう').find((m) => m.name === '共有イベントリに移動')!.action!();
     expect(char.setLocation).toHaveBeenLastCalledWith('common');
-    menu.find((m) => m.name === '墓場に移動')!.action!();
+    groupOf(menu, 'しまう').find((m) => m.name === '墓場に移動')!.action!();
     expect(char.setLocation).toHaveBeenLastCalledWith('graveyard');
   });
 
@@ -397,7 +441,7 @@ describe('buildGameCharacterContextMenu()', () => {
     expect(names(unlocked)).toContain('固定する');
   });
 
-  it('draws exactly three separators without permission', () => {
+  it('draws exactly two separators without a move or anything overlapping', () => {
     const menu = buildGameCharacterContextMenu(
       makeChar() as unknown as GameCharacter,
       50,
@@ -405,7 +449,7 @@ describe('buildGameCharacterContextMenu()', () => {
       callbacks(),
       t
     );
-    expect(menu.filter((m) => m.type === ContextMenuType.SEPARATOR)).toHaveLength(3);
+    expect(menu.filter((m) => m.type === ContextMenuType.SEPARATOR)).toHaveLength(2);
   });
 });
 

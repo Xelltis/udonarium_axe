@@ -1,10 +1,10 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openTableContextMenu, waitAppReady } from './helpers';
+import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
 
 async function createObject(page: Page, menuName: string, selector: string) {
   const menu = await openTableContextMenu(page);
-  await menu.getByText(menuName).click();
+  await (await revealMenuEntry(page, menu, menuName)).click();
   await expect(page.locator(selector).first()).toBeAttached({ timeout: 10000 });
 }
 
