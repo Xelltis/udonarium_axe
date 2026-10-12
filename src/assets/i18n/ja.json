@@ -171,7 +171,8 @@
         "remove": "交戦エリアを解消する",
         "prepareLeave": "次の手番で離れると予告する",
         "cancelLeave": "離れる予告を取り消す",
-        "checkFire": "射線チェック"
+        "checkFire": "射線チェック",
+        "placement": "初期配置"
       },
       "chat": {
         "declared": "{{attacker}} が {{target}} と交戦し、交戦エリアができました",
@@ -205,7 +206,11 @@
         "interruptKindFirst": "先頭の種類",
         "blockRadius": "射線を遮る半径(m)",
         "clearName": "遮りを無視する能力",
-        "fireHint": "射線チェックでは、通り道の交戦エリアと、撃つ側の敵でエリアの外にいる駒（この半径以内）を遮るものとして数えます。撃つ側のシートの項目かバフにこの名前があると、遮るものを数えません。"
+        "fireHint": "射線チェックでは、通り道の交戦エリアと、撃つ側の敵でエリアの外にいる駒（この半径以内）を遮るものとして数えます。撃つ側のシートの項目かバフにこの名前があると、遮るものを数えません。",
+        "placementDistances": "初期配置の距離表",
+        "placementDistancesHint": "「名前:距離(m)」をカンマで区切って並べます。初期配置のパネルで選べます。",
+        "distanceModifiers": "距離による修正表",
+        "distanceModifiersHint": "「距離の上限(m):修正」をカンマで区切って並べます。初期配置のパネルに、先頭どうしの距離にあたる行が出ます。"
       },
       "heldInPlace": "{{name}} は交戦エリアに止められていて動けません。離れる予告をすると、次のラウンドから離れられます",
       "interrupt": {
@@ -228,6 +233,25 @@
         "random": "無作為に選ぶ",
         "none": "ターゲットにしている駒がありません",
         "unseen": "見えない駒"
+      },
+      "placement": {
+        "title": "初期配置",
+        "leader": "こちらの先頭",
+        "other": "相手の先頭",
+        "distance": "距離",
+        "bearing": "相手のいる向き",
+        "place": "配置する",
+        "now": "いまの距離 {{metres}}m：",
+        "noNote": "修正表の範囲外です",
+        "outOfFight": "場から外す駒",
+        "bearing_0": "右",
+        "bearing_45": "右下",
+        "bearing_90": "下",
+        "bearing_135": "左下",
+        "bearing_180": "左",
+        "bearing_225": "左上",
+        "bearing_270": "上",
+        "bearing_315": "右上"
       }
     },
     "firstPerson": {

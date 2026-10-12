@@ -107,6 +107,19 @@ describe('Config', () => {
     });
   });
 
+  describe('setting the sides out', () => {
+    it('has no tables for a room saved before it could, and reads back what it writes', () => {
+      const config = Config.instance;
+      expect(config.placementDistances).toBeNull();
+      expect(config.distanceModifiers).toBeNull();
+
+      config.placementDistances = '近い:10';
+      config.distanceModifiers = '10:修正なし';
+      expect(config.placementDistances).toBe('近い:10');
+      expect(config.distanceModifiers).toBe('10:修正なし');
+    });
+  });
+
   describe('instance (singleton)', () => {
     it('returns the one instance', () => {
       const instance1 = Config.instance;

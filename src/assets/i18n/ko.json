@@ -171,7 +171,8 @@
         "remove": "교전 구역 해소",
         "prepareLeave": "다음 차례에 이탈한다고 예고",
         "cancelLeave": "이탈 예고 취소",
-        "checkFire": "사선 확인"
+        "checkFire": "사선 확인",
+        "placement": "초기 배치"
       },
       "chat": {
         "declared": "{{attacker}}이(가) {{target}}와(과) 교전하여 교전 구역이 생겼습니다",
@@ -205,7 +206,11 @@
         "interruptKindFirst": "맨 앞 종류",
         "blockRadius": "사선을 가로막는 반경(m)",
         "clearName": "가로막음을 무시하는 능력",
-        "fireHint": "사선 확인에서는 지나는 교전 구역과, 쏘는 쪽의 적이면서 구역 밖에 있는 말(이 반경 이내)을 가로막는 것으로 셉니다. 쏘는 쪽 시트의 항목이나 버프에 이 이름이 있으면 가로막는 것을 세지 않습니다."
+        "fireHint": "사선 확인에서는 지나는 교전 구역과, 쏘는 쪽의 적이면서 구역 밖에 있는 말(이 반경 이내)을 가로막는 것으로 셉니다. 쏘는 쪽 시트의 항목이나 버프에 이 이름이 있으면 가로막는 것을 세지 않습니다.",
+        "placementDistances": "초기 배치 거리표",
+        "placementDistancesHint": "「이름:거리(m)」를 쉼표로 구분해 나열합니다. 초기 배치 패널에서 고를 수 있습니다.",
+        "distanceModifiers": "거리에 따른 수정표",
+        "distanceModifiersHint": "「거리 상한(m):수정」을 쉼표로 구분해 나열합니다. 초기 배치 패널에 선두끼리의 거리에 해당하는 행이 나옵니다."
       },
       "heldInPlace": "{{name}}은(는) 교전 구역에 붙잡혀 움직일 수 없습니다. 이탈을 예고하면 다음 라운드부터 이탈할 수 있습니다",
       "interrupt": {
@@ -228,6 +233,25 @@
         "random": "무작위로 고르기",
         "none": "대상으로 지정한 말이 없습니다",
         "unseen": "보이지 않는 말"
+      },
+      "placement": {
+        "title": "초기 배치",
+        "leader": "이쪽 선두",
+        "other": "상대 선두",
+        "distance": "거리",
+        "bearing": "상대가 있는 방향",
+        "place": "배치",
+        "now": "지금 거리 {{metres}}m:",
+        "noNote": "수정표 범위 밖입니다",
+        "outOfFight": "전장에서 제외할 말",
+        "bearing_0": "오른쪽",
+        "bearing_45": "오른쪽 아래",
+        "bearing_90": "아래",
+        "bearing_135": "왼쪽 아래",
+        "bearing_180": "왼쪽",
+        "bearing_225": "왼쪽 위",
+        "bearing_270": "위",
+        "bearing_315": "오른쪽 위"
       }
     },
     "firstPerson": {

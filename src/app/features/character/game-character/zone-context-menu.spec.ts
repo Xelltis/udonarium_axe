@@ -16,6 +16,7 @@ function callbacks(): ZoneMenuCallbacks & { [name: string]: ReturnType<typeof vi
     setLimit: vi.fn(),
     remove: vi.fn(),
     checkFire: vi.fn(),
+    placeSides: vi.fn(),
   };
 }
 
@@ -81,11 +82,12 @@ describe('buildZoneContextMenu', () => {
     expect(names(master)).toEqual([
       'feature.zone.menu.leave',
       'feature.zone.menu.offField',
+      'feature.zone.menu.placement',
       'feature.zone.menu.square',
       'feature.zone.menu.limit',
       'feature.zone.menu.remove',
     ]);
-    const limits = master[0].subActions![3].subActions!;
+    const limits = master[0].subActions![4].subActions!;
     expect(limits.find((entry) => entry.name.startsWith('✔'))?.name).toBe('✔ 6');
     limits[0].action!();
     expect(handlers.setLimit).toHaveBeenCalledWith('z1', null);
@@ -107,5 +109,15 @@ describe('buildZoneContextMenu', () => {
     entry.action!();
 
     expect(handlers.checkFire).toHaveBeenCalled();
+  });
+
+  it('offers setting the sides out to the master alone', () => {
+    const handlers = callbacks();
+    expect(names(buildZoneContextMenu(model(), true, false, handlers, t))).not.toContain('feature.zone.menu.placement');
+
+    const master = buildZoneContextMenu(model(), true, true, handlers, t);
+    master[0].subActions!.find((action) => action.name === 'feature.zone.menu.placement')!.action!();
+
+    expect(handlers.placeSides).toHaveBeenCalled();
   });
 });

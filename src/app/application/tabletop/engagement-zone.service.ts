@@ -482,6 +482,11 @@ export class EngagementZoneService {
     });
   }
 
+  /** The side a piece fights on, as zones tell sides apart; null where it is on none or zones are not played. */
+  sideOf(piece: GameCharacter): string | null {
+    return this.snapshot()?.pieces.find((one) => one.id === piece.identifier)?.side ?? null;
+  }
+
   /** Whether a piece may move at all by a kind, as far as zones say. */
   mayMove(piece: GameCharacter, kindName: string): boolean {
     const snapshot = this.snapshot();

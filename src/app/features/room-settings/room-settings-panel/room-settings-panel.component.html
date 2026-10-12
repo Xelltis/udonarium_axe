@@ -815,6 +815,30 @@
             <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
               {{ 'feature.zone.settings.fireHint' | transloco }}
             </p>
+            <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                'feature.zone.settings.placementDistances' | transloco
+              }}</label>
+              <input
+                type="text"
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                [(ngModel)]="placementDistances"
+                name="placementDistances"
+              />
+              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                'feature.zone.settings.distanceModifiers' | transloco
+              }}</label>
+              <input
+                type="text"
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                [(ngModel)]="distanceModifiers"
+                name="distanceModifiers"
+              />
+            </div>
+            <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+              {{ 'feature.zone.settings.placementDistancesHint' | transloco }}
+              {{ 'feature.zone.settings.distanceModifiersHint' | transloco }}
+            </p>
             @if (zoneMeetsEngagement) {
               <p class="text-ui-danger m-0 text-[11px] leading-relaxed" data-testid="zone-engagement-warning">
                 {{ 'feature.zone.settings.engagementWarning' | transloco }}

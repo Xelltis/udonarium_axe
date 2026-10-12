@@ -105,7 +105,6 @@ import { buildGameCharacterContextMenuModel } from '@axe/features/character/game
 import { buildZoneContextMenu } from '@axe/features/character/game-character/zone-context-menu';
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
-import { LineOfFirePanelComponent } from '@axe/features/character/line-of-fire-panel/line-of-fire-panel.component';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { buildConcealMenu } from '@axe/features/tabletop/board-switch/concealment-context-menu';
 import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
@@ -1259,6 +1258,7 @@ export class GameCharacterComponent {
         setLimit: (zoneId, limit) => zones.setLimit(zoneId, limit),
         remove: (zoneId) => zones.remove(zoneId),
         checkFire: () => this.showLineOfFire(char),
+        placeSides: () => this.showBattlePlacement(char),
       },
       this.translateFn
     );
@@ -1723,6 +1723,26 @@ export class GameCharacterComponent {
     component.character.set(gameObject);
   }
 
+  /** Opens the panel that sets the sides out at the start of a fight, with this piece leading its side. */
+  private showBattlePlacement(gameObject: GameCharacter) {
+    const coordinate = this.pointerDeviceService.pointers[0];
+    const option: PanelOption = {
+      left: coordinate.x,
+      top: coordinate.y,
+      width: 380,
+      height: 420,
+    };
+    option.title = this.translateFn('feature.zone.placement.title');
+    this.panelService.openLazy(
+      () =>
+        import('@axe/features/character/battle-placement-panel/battle-placement-panel.component').then(
+          (m) => m.BattlePlacementPanelComponent
+        ),
+      option,
+      (component) => component.leaderIdentifier.set(gameObject.identifier)
+    );
+  }
+
   /** Opens the line of fire from this piece to every piece it aims at. */
   private showLineOfFire(gameObject: GameCharacter) {
     const coordinate = this.pointerDeviceService.pointers[0];
@@ -1733,8 +1753,14 @@ export class GameCharacterComponent {
       height: 280,
     };
     option.title = this.translateFn('feature.zone.fire.title', { name: gameObject.name });
-    const component = this.panelService.open<LineOfFirePanelComponent>(LineOfFirePanelComponent, option);
-    component.shooterIdentifier.set(gameObject.identifier);
+    this.panelService.openLazy(
+      () =>
+        import('@axe/features/character/line-of-fire-panel/line-of-fire-panel.component').then(
+          (m) => m.LineOfFirePanelComponent
+        ),
+      option,
+      (component) => component.shooterIdentifier.set(gameObject.identifier)
+    );
   }
 
   private showLightSettings(gameObject: GameCharacter) {

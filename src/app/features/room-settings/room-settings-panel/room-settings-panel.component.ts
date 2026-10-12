@@ -985,6 +985,24 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.zoneClearName = value.trim().length > 0 ? value.trim() : null;
   }
 
+  /** The starting distances the room writes, as `name:metres` rows. */
+  get placementDistances(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.placementDistances ?? '';
+  }
+  set placementDistances(value: string) {
+    if (this.isEditable) this.config.placementDistances = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** What a distance between the sides does, as `metres:note` rows. */
+  get distanceModifiers(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.distanceModifiers ?? '';
+  }
+  set distanceModifiers(value: string) {
+    if (this.isEditable) this.config.distanceModifiers = value.trim().length > 0 ? value.trim() : null;
+  }
+
   /** The kinds of move the room plays, as it wrote them, empty where it plays the plain kind alone. */
   get moveKinds(): string {
     this.objectChange.versionOf('Config')();

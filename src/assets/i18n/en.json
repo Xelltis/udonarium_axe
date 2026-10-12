@@ -171,7 +171,8 @@
         "remove": "End the engagement zone",
         "prepareLeave": "Say it will leave next turn",
         "cancelLeave": "Take back saying it will leave",
-        "checkFire": "Check the line of fire"
+        "checkFire": "Check the line of fire",
+        "placement": "Set out the sides"
       },
       "chat": {
         "declared": "{{attacker}} engaged {{target}}, and an engagement zone formed",
@@ -205,7 +206,11 @@
         "interruptKindFirst": "The first kind",
         "blockRadius": "Line of fire block radius (m)",
         "clearName": "Ability that fires past cover",
-        "fireHint": "A line of fire counts the engagement zones it crosses, and pieces out of every zone that are enemies of the shooter within this radius, as in the way. A shooter whose sheet field or buff goes by this name has nothing in the way."
+        "fireHint": "A line of fire counts the engagement zones it crosses, and pieces out of every zone that are enemies of the shooter within this radius, as in the way. A shooter whose sheet field or buff goes by this name has nothing in the way.",
+        "placementDistances": "Starting distances",
+        "placementDistancesHint": "Rows of \"name:distance (m)\" separated by commas, to choose from when setting out the sides.",
+        "distanceModifiers": "Distance modifiers",
+        "distanceModifiersHint": "Rows of \"up to distance (m):modifier\" separated by commas. The row for the distance between the leaders shows when setting out the sides."
       },
       "heldInPlace": "{{name}} is held by its engagement zone and cannot move. Say it will leave, and it may leave from the next round",
       "interrupt": {
@@ -228,6 +233,25 @@
         "random": "Pick at random",
         "none": "No piece is aimed at",
         "unseen": "Unseen piece"
+      },
+      "placement": {
+        "title": "Setting out the sides",
+        "leader": "This side’s leader",
+        "other": "Other side’s leader",
+        "distance": "Distance",
+        "bearing": "Direction of the other side",
+        "place": "Set out",
+        "now": "Distance now {{metres}} m:",
+        "noNote": "Past the modifier table",
+        "outOfFight": "Out of the fight",
+        "bearing_0": "Right",
+        "bearing_45": "Down right",
+        "bearing_90": "Down",
+        "bearing_135": "Down left",
+        "bearing_180": "Left",
+        "bearing_225": "Up left",
+        "bearing_270": "Up",
+        "bearing_315": "Up right"
       }
     },
     "firstPerson": {

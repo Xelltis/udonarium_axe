@@ -547,6 +547,18 @@ describe('RoomSettingsPanelComponent', () => {
       expect(Config.instance.interruptKind).toBeNull();
     });
 
+    it('writes the starting distances and what a distance does, and forgets them left empty', () => {
+      component.placementDistances = ' 近い:10 ';
+      component.distanceModifiers = '10:修正なし';
+      expect(Config.instance.placementDistances).toBe('近い:10');
+      expect(Config.instance.distanceModifiers).toBe('10:修正なし');
+
+      component.placementDistances = '';
+      component.distanceModifiers = '';
+      expect(Config.instance.placementDistances).toBeNull();
+      expect(Config.instance.distanceModifiers).toBeNull();
+    });
+
     it('writes how far a piece blocks a line of fire, and the name that fires past it', () => {
       component.zoneBlockRadiusM = 1.5;
       component.zoneClearName = ' 精密 ';

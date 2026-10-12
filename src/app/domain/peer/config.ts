@@ -102,6 +102,8 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_interruptKind') private _interruptKind: string = '';
   @SyncVar('_zoneBlockRadius') private _zoneBlockRadius: number = -1;
   @SyncVar('_zoneClearName') private _zoneClearName: string = '';
+  @SyncVar('_placementDistances') private _placementDistances: string = '';
+  @SyncVar('_distanceModifiers') private _distanceModifiers: string = '';
 
   /**
    * Where the room shows the dice of a chat roll tumbling: in the frame of the line that gives the
@@ -334,6 +336,22 @@ export class Config extends ObjectNode implements InnerXml {
   /** How many times the other side one side has to be to pass a zone unheld, or null for the default. */
   set zoneOutnumber(answer: number | null) {
     this._zoneOutnumber = writeRuleNumber(answer);
+  }
+
+  /** How far apart two sides start, as `name:metres` rows, or null where the room has written none. */
+  get placementDistances(): string | null {
+    return readRuleText(this._placementDistances);
+  }
+  set placementDistances(answer: string | null) {
+    this._placementDistances = writeRuleText(answer);
+  }
+
+  /** What a distance between the sides does, as `metres:note` rows, or null where the room has written none. */
+  get distanceModifiers(): string | null {
+    return readRuleText(this._distanceModifiers);
+  }
+  set distanceModifiers(answer: string | null) {
+    this._distanceModifiers = writeRuleText(answer);
   }
 
   /** How close to a line of fire, in metres, a piece stands to be in its way, or null for the default. */
