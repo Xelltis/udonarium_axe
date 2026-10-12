@@ -49,6 +49,7 @@ import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
@@ -246,6 +247,7 @@ export class GameCharacterComponent {
   private readonly effectPlayback = inject(EffectPlaybackService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly engagementZones = inject(EngagementZoneService);
+  private readonly snackbar = inject(SnackbarService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly visionService = inject(VisionService);
   private readonly speechBubbles = inject(SpeechBubbleService);
@@ -1249,6 +1251,8 @@ export class GameCharacterComponent {
         },
         join: (zoneId) => zones.join(char, zoneId),
         leave: () => zones.leave(char),
+        prepareLeave: () => zones.prepareLeave(char),
+        cancelLeave: () => zones.cancelLeave(char),
         toggleOffField: () => zones.toggleOffField(char),
         setSquare: (zoneId, square) => zones.setSquare(zoneId, square),
         setLimit: (zoneId, limit) => zones.setLimit(zoneId, limit),
@@ -1579,8 +1583,23 @@ export class GameCharacterComponent {
     if (this.asksForTheOtherMove(event) === this.isStrictMove()) return;
     const character = this.gameCharacter();
     if (!character || this.isLock) return;
-    if (!this.movePlan.begin(character)) return;
+    if (!this.movePlan.begin(character)) {
+      if (this.isHeldByZone(character)) {
+        queueMicrotask(() => this.movableRef()?.cancel());
+        this.snackbar.show(this.translateFn('feature.zone.heldInPlace', { name: character.name }));
+      }
+      return;
+    }
     queueMicrotask(() => this.movableRef()?.cancel());
+  }
+
+  /**
+   * Whether an engagement zone holds the piece whatever kind of move it makes, in a room that holds
+   * pieces to the way they could walk. The game master may still carry it.
+   */
+  private isHeldByZone(character: GameCharacter): boolean {
+    if (!this.isStrictMove() || PeerCursor.isMyselfGameMaster) return false;
+    return this.engagementZones.kindFor(character, '') === null;
   }
 
   /**

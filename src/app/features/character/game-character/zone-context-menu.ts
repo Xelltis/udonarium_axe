@@ -7,6 +7,8 @@ export interface ZoneMenuCallbacks {
   declare(foeId: string): void;
   join(zoneId: string): void;
   leave(): void;
+  prepareLeave(): void;
+  cancelLeave(): void;
   toggleOffField(): void;
   setSquare(zoneId: string, square: boolean): void;
   setLimit(zoneId: string, limit: number | null): void;
@@ -47,6 +49,11 @@ export function buildZoneContextMenu(
   });
   const zone = model.zone;
   if (zone) entries.push({ name: t('feature.zone.menu.leave'), action: () => callbacks.leave() });
+  if (zone && model.leave?.said) {
+    entries.push({ name: t('feature.zone.menu.cancelLeave'), action: () => callbacks.cancelLeave() });
+  } else if (zone && model.leave?.maySay) {
+    entries.push({ name: t('feature.zone.menu.prepareLeave'), action: () => callbacks.prepareLeave() });
+  }
   entries.push({
     name: t(model.offField ? 'feature.zone.menu.onField' : 'feature.zone.menu.offField'),
     action: () => callbacks.toggleOffField(),

@@ -168,14 +168,18 @@
         "circle": "円にする",
         "limit": "定員",
         "limitByTable": "大きさの表どおり",
-        "remove": "交戦エリアを解消する"
+        "remove": "交戦エリアを解消する",
+        "prepareLeave": "次の手番で離れると予告する",
+        "cancelLeave": "離れる予告を取り消す"
       },
       "chat": {
         "declared": "{{attacker}} が {{target}} と交戦し、交戦エリアができました",
         "joined": "{{name}} が交戦エリアに加わりました",
         "left": "{{name}} が交戦エリアから外れました",
         "offField": "{{name}} を場から外しました",
-        "onField": "{{name}} を場に戻しました"
+        "onField": "{{name}} を場に戻しました",
+        "prepareLeave": "{{name}} が交戦エリアから離れると予告しました",
+        "held": "{{name}} は交戦エリアに止められました"
       },
       "settings": {
         "section": "交戦エリア",
@@ -187,8 +191,14 @@
         "countFieldHint": "シートのこの欄の値を、その駒の人数として数えます。空欄なら1駒を1人と数えます。",
         "samePoint": "同じ点とみなす距離(m)",
         "samePointHint": "この距離以内にいる敵と交戦を宣言できます。",
-        "engagementWarning": "移動範囲の「交戦」もオンになっています。同じことを別の作りで判定するので、どちらか一方にしてください。"
-      }
+        "engagementWarning": "移動範囲の「交戦」もオンになっています。同じことを別の作りで判定するので、どちらか一方にしてください。",
+        "outnumber": "人数比の倍率",
+        "outnumberHint": "自分の陣営の人数が、相手の陣営のこの倍を超えていれば、エリアを通り抜けたり、予告なしに離れたりできます。",
+        "leaveKind": "超過時に離れられる種類",
+        "leaveKindAny": "どの種類でも",
+        "leaveKindHint": "定員を超えたエリアからは、この移動の種類でならすぐに離れられます。"
+      },
+      "heldInPlace": "{{name}} は交戦エリアに止められていて動けません。離れる予告をすると、次のラウンドから離れられます"
     },
     "firstPerson": {
       "exit": "卓に戻る",
@@ -2573,7 +2583,10 @@
         "jump": "跳ぶ",
         "walk": "歩く",
         "hintTouch": "タップで移動 / 長押しで経由地点 / コマをタップで中止",
-        "modeLabel": "移動のしかた"
+        "modeLabel": "移動のしかた",
+        "kindLabel": "移動の種類",
+        "plainKind": "通常",
+        "metresLeft": "残り {{metres}}m"
       },
       "displaySetting": {
         "title": "卓上ディスプレイ",
@@ -2801,7 +2814,10 @@
       "stampUseOn_reaction": "発言にリアクションを付けられるようにする",
       "stampRulesHint": "スタンプを押すと、使える・使えないが切り替わります。使えなくしても、すでに送られたものはそのまま見えます。",
       "stampAllowAll": "すべて使える",
-      "stampDenyAll": "すべて使えない"
+      "stampDenyAll": "すべて使えない",
+      "moveKinds": "移動の種類",
+      "moveKindsPlaceholder": "例: 全力:3:,通常:1:,制限:1:3",
+      "moveKindsHint": "「名前:倍率:上限(m)」をカンマで区切って並べます。移動力に倍率をかけ、上限を書いた種類はその距離までにします。上限が要らなければ空欄にします。先頭の種類が既定で、経路を決めて動かすときに帯で選び替えられます。空欄なら移動力どおりの1種類だけです。"
     },
     "skin": {
       "title": "スキン",

@@ -1272,6 +1272,16 @@ export class GameTableComponent {
     return { ...turn, offersSnap: !this.viewport.isTouch() };
   });
 
+  /** The kinds of move the room plays, offered while a move is worked out, and how far the chosen one has left. */
+  protected readonly moveKindBand = this.movePlan.kindBand;
+
+  /** Chooses the kind of move from the band, which is kept off the table underneath like the mode is. */
+  onChooseMoveKind(kind: string, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.movePlan.setKind(kind);
+  }
+
   /** The two ways a move may be taken, offered as a pair so which one is on is plain to see. */
   protected readonly moveModes = [
     {

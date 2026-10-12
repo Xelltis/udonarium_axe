@@ -479,12 +479,39 @@ describe('RoomSettingsPanelComponent', () => {
         sizes: '4:2:3,8:3:5',
         countField: '体数',
         samePointM: 1.5,
+        outnumber: null,
+        leaveKind: null,
       });
 
       component.zoneSizes = '';
       component.zoneEnabled = false;
       expect(Config.instance.zoneRuleAnswers.sizes).toBeNull();
       expect(Config.instance.zoneRuleAnswers.enabled).toBeNull();
+    });
+
+    it('writes the outnumbering factor and the kind that leaves an overflowing zone, out of the kinds written', async () => {
+      component.tab.set('move');
+      component.zoneEnabled = true;
+      component.moveKinds = ' 全力:3:,通常:1: ';
+      component.zoneOutnumber = 3;
+      component.zoneLeaveKind = '全力';
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(Config.instance.moveKinds).toBe('全力:3:,通常:1:');
+      expect(Config.instance.zoneRuleAnswers.outnumber).toBe(3);
+      expect(Config.instance.zoneRuleAnswers.leaveKind).toBe('全力');
+      const choices = [...zoneSection()!.querySelectorAll('select[name="zoneLeaveKind"] option')].map(
+        (option) => (option as HTMLOptionElement).value
+      );
+      expect(choices).toEqual(['', '全力', '通常']);
+
+      component.zoneOutnumber = 0;
+      component.zoneLeaveKind = '';
+      component.moveKinds = '';
+      expect(Config.instance.zoneRuleAnswers.outnumber).toBeNull();
+      expect(Config.instance.zoneRuleAnswers.leaveKind).toBeNull();
+      expect(Config.instance.moveKinds).toBeNull();
     });
 
     it('warns while the move range holds fights of its own beside the zones', async () => {

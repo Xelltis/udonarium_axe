@@ -70,6 +70,8 @@ export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() engagementZone: string = '';
   /** `1` while the piece is taken out of the fight, so nothing counts it; empty otherwise. */
   @SyncVar() offField: string = '';
+  /** The round the piece said it would leave its zone in, empty where it has not; `0` while no round is kept. */
+  @SyncVar() zoneLeaveRound: string = '';
   @SyncVar() disclosureMode: string = '';
   @SyncVar() disclosureUserIds: string[] = [];
   @SyncVar() overViewWidth: number = 270;

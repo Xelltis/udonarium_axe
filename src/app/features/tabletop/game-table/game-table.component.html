@@ -392,6 +392,41 @@
         </button>
       }
     </div>
+    @if (moveKindBand(); as band) {
+      <div
+        class="border-ui-border-panel pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-full border border-solid p-0.5"
+        role="group"
+        data-move-plan-control
+        data-testid="move-plan-kinds"
+        [attr.aria-label]="'feature.tabletop.movePlan.kindLabel' | transloco"
+      >
+        @for (kind of band.kinds; track kind.name) {
+          <button
+            type="button"
+            class="inline-flex min-h-9 cursor-pointer items-center rounded-full border-none px-3 text-[0.86em] whitespace-nowrap transition-[background,color] disabled:cursor-default"
+            [class]="
+              band.chosen === kind.name
+                ? 'bg-ui-accent text-white'
+                : kind.mayChoose
+                  ? 'text-ui-muted bg-transparent'
+                  : 'text-ui-dim bg-transparent'
+            "
+            [attr.aria-pressed]="band.chosen === kind.name"
+            [disabled]="!kind.mayChoose"
+            data-testid="move-plan-kind"
+            (click)="onChooseMoveKind(kind.name, $event)"
+          >
+            {{ kind.name || ('feature.tabletop.movePlan.plainKind' | transloco) }}
+          </button>
+        }
+        <span
+          class="text-ui-text px-2 text-[0.86em] whitespace-nowrap tabular-nums"
+          data-testid="move-plan-metres-left"
+        >
+          {{ 'feature.tabletop.movePlan.metresLeft' | transloco: { metres: band.metresLeft } }}
+        </span>
+      </div>
+    }
     <span class="text-ui-muted min-w-0 text-[0.86em] leading-snug">{{ movePlanHintKey() | transloco }}</span>
   </div>
 }

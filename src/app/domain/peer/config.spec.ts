@@ -28,7 +28,10 @@ describe('Config', () => {
         sizes: null,
         countField: null,
         samePointM: null,
+        outnumber: null,
+        leaveKind: null,
       });
+      expect(Config.instance.moveKinds).toBeNull();
     });
 
     it('reads back what it writes, and empty again for null', () => {
@@ -37,14 +40,36 @@ describe('Config', () => {
       config.zoneSizes = '4:2:3';
       config.zoneCountField = '体数';
       config.zoneSamePointM = 0;
+      config.zoneOutnumber = 3;
+      config.zoneLeaveKind = '全力';
+      config.moveKinds = '全力:3:,通常:1:';
 
-      expect(config.zoneRuleAnswers).toEqual({ enabled: true, sizes: '4:2:3', countField: '体数', samePointM: 0 });
+      expect(config.zoneRuleAnswers).toEqual({
+        enabled: true,
+        sizes: '4:2:3',
+        countField: '体数',
+        samePointM: 0,
+        outnumber: 3,
+        leaveKind: '全力',
+      });
+      expect(config.moveKinds).toBe('全力:3:,通常:1:');
 
       config.zoneEnabled = null;
       config.zoneSizes = null;
       config.zoneCountField = null;
       config.zoneSamePointM = null;
-      expect(config.zoneRuleAnswers).toEqual({ enabled: null, sizes: null, countField: null, samePointM: null });
+      config.zoneOutnumber = null;
+      config.zoneLeaveKind = null;
+      config.moveKinds = null;
+      expect(config.moveKinds).toBeNull();
+      expect(config.zoneRuleAnswers).toEqual({
+        enabled: null,
+        sizes: null,
+        countField: null,
+        samePointM: null,
+        outnumber: null,
+        leaveKind: null,
+      });
     });
   });
 

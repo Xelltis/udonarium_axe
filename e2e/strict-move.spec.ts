@@ -14,6 +14,15 @@ async function askForStrictMoves(page: Page) {
   await expect(strict).toBeChecked();
 }
 
+/** Closes every panel, so nothing lies over the band at the foot of the screen. */
+async function closePanels(page: Page) {
+  const panels = page.locator('ui-panel');
+  for (let round = 0; round < 8 && (await panels.count()) > 0; round++) {
+    await panels.first().locator('.bg-ui-titlebar button', { hasText: 'close' }).dispatchEvent('click');
+  }
+  await expect(panels).toHaveCount(0);
+}
+
 /** Opens the move the piece's own menu offers, which is the one a press opens under strict play. */
 async function openMove(page: Page) {
   await page.locator('game-character').first().dispatchEvent('contextmenu');
@@ -61,6 +70,27 @@ test.describe('厳密な移動', () => {
         barBox.y < hintBox.y + hintBox.height;
       expect(overlaps).toBe(false);
     }
+
+    await page.keyboard.press('Escape');
+  });
+
+  test('部屋が移動の種類を決めていれば、帯で選び替えられ、残りの距離が出ること', async ({ page }) => {
+    await page.locator('room-settings-panel input[name="moveKinds"]').fill('全力:3:,通常:1:');
+    await closePanels(page);
+    await openMove(page);
+
+    const kinds = page.getByTestId('move-plan-kind');
+    await expect(kinds).toHaveText(['全力', '通常'], { timeout: 5000 });
+    await expect(kinds.first()).toHaveAttribute('aria-pressed', 'true');
+    const left = page.getByTestId('move-plan-metres-left');
+    const metres = async () => Number((await left.textContent())!.match(/[\d.]+/)![0]);
+    const full = await metres();
+    expect(full).toBeGreaterThan(0);
+
+    await kinds.nth(1).click();
+
+    await expect(kinds.nth(1)).toHaveAttribute('aria-pressed', 'true');
+    expect(await metres()).toBe(full / 3);
 
     await page.keyboard.press('Escape');
   });

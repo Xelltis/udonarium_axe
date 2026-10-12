@@ -168,14 +168,18 @@
         "circle": "Make it a circle",
         "limit": "Limit",
         "limitByTable": "As the size table allows",
-        "remove": "End the engagement zone"
+        "remove": "End the engagement zone",
+        "prepareLeave": "Say it will leave next turn",
+        "cancelLeave": "Take back saying it will leave"
       },
       "chat": {
         "declared": "{{attacker}} engaged {{target}}, and an engagement zone formed",
         "joined": "{{name}} joined the engagement zone",
         "left": "{{name}} left the engagement zone",
         "offField": "{{name}} was taken out of the fight",
-        "onField": "{{name}} was put back into the fight"
+        "onField": "{{name}} was put back into the fight",
+        "prepareLeave": "{{name}} said it will leave the engagement zone",
+        "held": "{{name}} was held by the engagement zone"
       },
       "settings": {
         "section": "Engagement zones",
@@ -187,8 +191,14 @@
         "countFieldHint": "A piece counts as the number in this sheet field. Leave empty to count each piece once.",
         "samePoint": "Same-point distance (m)",
         "samePointHint": "A fight can be declared with an enemy within this distance.",
-        "engagementWarning": "The move range's engagement is also on. Both judge the same thing in different ways, so use only one of them."
-      }
+        "engagementWarning": "The move range's engagement is also on. Both judge the same thing in different ways, so use only one of them.",
+        "outnumber": "Outnumbering factor",
+        "outnumberHint": "A side more than this many times the other side's number walks through a zone, or out of one without saying so first.",
+        "leaveKind": "Kind that leaves an overflowing zone",
+        "leaveKindAny": "Any kind",
+        "leaveKindHint": "A piece leaves a zone holding more than its limit at once by this kind of move."
+      },
+      "heldInPlace": "{{name}} is held by its engagement zone and cannot move. Say it will leave, and it may leave from the next round"
     },
     "firstPerson": {
       "exit": "Back to the table",
@@ -2573,7 +2583,10 @@
         "jump": "Jump",
         "walk": "Walk",
         "hintTouch": "Tap to walk there / press and hold to set a corner / tap the piece to leave it",
-        "modeLabel": "How the move is taken"
+        "modeLabel": "How the move is taken",
+        "kindLabel": "Kind of move",
+        "plainKind": "Normal",
+        "metresLeft": "{{metres}} m left"
       },
       "displaySetting": {
         "title": "Tabletop display",
@@ -2801,7 +2814,10 @@
       "stampUseOn_reaction": "Let stamps be put on lines as reactions",
       "stampRulesHint": "Press a stamp to allow or deny it. Stamps already sent stay as they are.",
       "stampAllowAll": "Allow all",
-      "stampDenyAll": "Deny all"
+      "stampDenyAll": "Deny all",
+      "moveKinds": "Kinds of move",
+      "moveKindsPlaceholder": "e.g. Full:3:,Normal:1:,Limited:1:3",
+      "moveKindsHint": "Rows of \"name:factor:cap (m)\" separated by commas. Movement is multiplied by the factor, and a kind with a cap goes no further than that. Leave the cap empty for none. The first kind is the default, and another can be chosen from the band while a move is worked out. Leave empty for a single kind that goes as far as the movement says."
     },
     "skin": {
       "title": "Skin",

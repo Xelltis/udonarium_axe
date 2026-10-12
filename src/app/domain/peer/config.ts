@@ -94,6 +94,9 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_zoneSizes') private _zoneSizes: string = '';
   @SyncVar('_zoneCountField') private _zoneCountField: string = '';
   @SyncVar('_zoneSamePoint') private _zoneSamePoint: number = -1;
+  @SyncVar('_zoneOutnumber') private _zoneOutnumber: number = -1;
+  @SyncVar('_zoneLeaveKind') private _zoneLeaveKind: string = '';
+  @SyncVar('_moveKinds') private _moveKinds: string = '';
 
   /**
    * Where the room shows the dice of a chat roll tumbling: in the frame of the line that gives the
@@ -278,7 +281,27 @@ export class Config extends ObjectNode implements InnerXml {
       sizes: readRuleText(this._zoneSizes),
       countField: readRuleText(this._zoneCountField),
       samePointM: readRuleNumber(this._zoneSamePoint),
+      outnumber: readRuleNumber(this._zoneOutnumber),
+      leaveKind: readRuleText(this._zoneLeaveKind),
     };
+  }
+
+  /** The kinds of move the room plays, as `name:factor:cap` rows, or null for the plain kind alone. */
+  get moveKinds(): string | null {
+    return readRuleText(this._moveKinds);
+  }
+  set moveKinds(answer: string | null) {
+    this._moveKinds = writeRuleText(answer);
+  }
+
+  /** How many times the other side one side has to be to pass a zone unheld, or null for the default. */
+  set zoneOutnumber(answer: number | null) {
+    this._zoneOutnumber = writeRuleNumber(answer);
+  }
+
+  /** The kind of move a piece may leave an overflowing zone by at once, or null for any kind. */
+  set zoneLeaveKind(answer: string | null) {
+    this._zoneLeaveKind = writeRuleText(answer);
   }
 
   /** Whether the room plays engagement zones, or null where it has not said. */

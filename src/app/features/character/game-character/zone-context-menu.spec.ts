@@ -9,6 +9,8 @@ function callbacks(): ZoneMenuCallbacks & { [name: string]: ReturnType<typeof vi
     declare: vi.fn(),
     join: vi.fn(),
     leave: vi.fn(),
+    prepareLeave: vi.fn(),
+    cancelLeave: vi.fn(),
     toggleOffField: vi.fn(),
     setSquare: vi.fn(),
     setLimit: vi.fn(),
@@ -17,7 +19,7 @@ function callbacks(): ZoneMenuCallbacks & { [name: string]: ReturnType<typeof vi
 }
 
 function model(more: Partial<ZoneMenuModel> = {}): ZoneMenuModel {
-  return { enabled: true, zone: null, joinable: [], foes: [], offField: false, ...more };
+  return { enabled: true, zone: null, joinable: [], foes: [], offField: false, leave: null, ...more };
 }
 
 function names(entries: ContextMenuAction[]): string[] {
@@ -64,6 +66,15 @@ describe('buildZoneContextMenu', () => {
       'feature.zone.menu.leave',
       'feature.zone.menu.offField',
     ]);
+    expect(
+      names(buildZoneContextMenu(model({ zone, leave: { said: false, maySay: true } }), true, false, callbacks(), t))
+    ).toEqual(['feature.zone.menu.leave', 'feature.zone.menu.prepareLeave', 'feature.zone.menu.offField']);
+    expect(
+      names(buildZoneContextMenu(model({ zone, leave: { said: true, maySay: true } }), true, false, callbacks(), t))
+    ).toContain('feature.zone.menu.cancelLeave');
+    expect(
+      names(buildZoneContextMenu(model({ zone, leave: { said: false, maySay: false } }), true, false, callbacks(), t))
+    ).not.toContain('feature.zone.menu.prepareLeave');
     const handlers = callbacks();
     const master = buildZoneContextMenu(model({ zone }), true, true, handlers, t);
     expect(names(master)).toEqual([

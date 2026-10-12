@@ -17,6 +17,10 @@ export interface ZoneRules {
   readonly countField: string;
   /** How close two pieces stand, in metres, to be at the same point. */
   readonly samePointM: number;
+  /** How many times the other side's number one side has to be to walk past a zone, or out of it, unheld. */
+  readonly outnumber: number;
+  /** The kind of move a piece may leave an overflowing zone by at once, or empty for any kind. */
+  readonly leaveKind: string;
 }
 
 /** The sizes a room has before it writes its own: a zone grows a metre for every four bodies. */
@@ -24,11 +28,15 @@ export const DEFAULT_ZONE_SIZES = '4:2:3,8:3:5,12:4:7,16:5:9,20:6:11';
 
 export const DEFAULT_ZONE_SAME_POINT_M = 1;
 
+export const DEFAULT_ZONE_OUTNUMBER = 2;
+
 export const DEFAULT_ZONE_RULES: ZoneRules = {
   enabled: false,
   sizes: parseZoneSizes(DEFAULT_ZONE_SIZES),
   countField: '',
   samePointM: DEFAULT_ZONE_SAME_POINT_M,
+  outnumber: DEFAULT_ZONE_OUTNUMBER,
+  leaveKind: '',
 };
 
 /** What a room writes for its zones, each null where it has written nothing. */
@@ -37,17 +45,22 @@ export interface ZoneRuleAnswers {
   readonly sizes: string | null;
   readonly countField: string | null;
   readonly samePointM: number | null;
+  readonly outnumber?: number | null;
+  readonly leaveKind?: string | null;
 }
 
 /** The rules a room plays, its own answers first and the defaults for whatever it has left unwritten. */
 export function resolveZoneRules(answers: Partial<ZoneRuleAnswers> | null): ZoneRules {
   const sizes = answers?.sizes != null ? parseZoneSizes(answers.sizes) : [];
   const samePointM = answers?.samePointM;
+  const outnumber = answers?.outnumber;
   return {
     enabled: answers?.enabled ?? DEFAULT_ZONE_RULES.enabled,
     sizes: sizes.length > 0 ? sizes : DEFAULT_ZONE_RULES.sizes,
     countField: (answers?.countField ?? DEFAULT_ZONE_RULES.countField).trim(),
     samePointM: samePointM != null && samePointM >= 0 ? samePointM : DEFAULT_ZONE_RULES.samePointM,
+    outnumber: outnumber != null && outnumber > 0 ? outnumber : DEFAULT_ZONE_RULES.outnumber,
+    leaveKind: (answers?.leaveKind ?? DEFAULT_ZONE_RULES.leaveKind).trim(),
   };
 }
 

@@ -8,15 +8,20 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { cellCenterOf, cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
+import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
+import { cellCenterOf, cellCount, CellGrid, cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { sheetNumberOf } from '@axe/domain/tabletop/move/move-cells';
+import { MoveKind, moveKindNamed, parseMoveKinds } from '@axe/domain/tabletop/move/move-kind';
 import { convertMoveLength, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
+import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { EngagementZone, zonesOn } from '@axe/domain/tabletop/zone/engagement-zone';
-import { gatheredAbout, ZonePoint } from '@axe/domain/tabletop/zone/zone-geometry';
+import { zoneCells } from '@axe/domain/tabletop/zone/zone-cells';
+import { gatheredAbout, zoneCovers, ZonePoint } from '@axe/domain/tabletop/zone/zone-geometry';
+import { LeaveInput, leaveReasonOf, zoneHolds, ZoneSideCounts } from '@axe/domain/tabletop/zone/zone-leave';
 import { DEFAULT_ZONE_RULES, resolveZoneRules, ZoneRules } from '@axe/domain/tabletop/zone/zone-rules';
 import { sideOfPiece } from '@axe/domain/tabletop/zone/zone-sides';
 import {
@@ -43,9 +48,36 @@ export interface ZoneMenuModel {
   /** The enemies standing at the same point, which it may declare a fight with. */
   readonly foes: readonly { readonly id: string; readonly name: string }[];
   readonly offField: boolean;
+  /** For a piece in a zone: whether it has said it will leave, and whether it may say so. */
+  readonly leave: { readonly said: boolean; readonly maySay: boolean } | null;
 }
 
-const NO_MENU: ZoneMenuModel = { enabled: false, zone: null, joinable: [], foes: [], offField: false };
+const NO_MENU: ZoneMenuModel = {
+  enabled: false,
+  zone: null,
+  joinable: [],
+  foes: [],
+  offField: false,
+  leave: null,
+};
+
+/** What a move is shaped by where zones stand on the table. */
+export interface ZoneReachTerms {
+  /** Where the move starts instead of where the token stands: the centre of the piece's zone. */
+  readonly startPoint: ZonePoint | null;
+  /** Whether the piece may not move at all by this kind, held in its zone. */
+  readonly noReach: boolean;
+  /** Cells the piece may not enter: zones already holding as many as they may. */
+  readonly blocked: CellBits | null;
+  /** Cells where the move ends: into a zone that holds the piece, or out of one it stood in. */
+  readonly stops: CellBits | null;
+}
+
+/** Where a piece stood among the zones as a move began, to tell afterwards what the move did. */
+export interface ZoneMoveStart {
+  readonly zone: string;
+  readonly inside: readonly string[];
+}
 
 /** What the zones need to know of the table they are on. */
 interface ZoneTable {
@@ -228,7 +260,175 @@ export class EngagementZoneService {
       joinable: own ? [] : state.insideOf(piece.identifier).map((view) => view.id),
       foes: own ? [] : foes,
       offField: piece.offField === '1',
+      leave: own ? { said: piece.zoneLeaveRound !== '', maySay: !own.overflowing } : null,
     };
+  }
+
+  /** The kinds of move the room plays, the plain kind alone where it names none. */
+  moveKinds(): MoveKind[] {
+    return parseMoveKinds(this.config()?.moveKinds ?? '');
+  }
+
+  /** Says that a piece in a zone will leave it, which it may do on a move in a later round. */
+  prepareLeave(piece: GameCharacter): void {
+    const turn = this.turnState();
+    piece.zoneLeaveRound = turn && turn.phase !== 'idle' ? `${turn.round}` : '0';
+    this.chat.sendSystemMessage(this.t('feature.zone.chat.prepareLeave', { name: piece.name }));
+  }
+
+  /** Takes back a piece's word that it will leave its zone. */
+  cancelLeave(piece: GameCharacter): void {
+    piece.zoneLeaveRound = '';
+  }
+
+  /**
+   * What zones make of a move by a kind: where it starts, whether it may be made at all, what it may
+   * not enter and where it ends. Null where zones say nothing about this piece.
+   */
+  reachTermsFor(piece: GameCharacter, grid: CellGrid, kindName: string): ZoneReachTerms | null {
+    const snapshot = this.snapshot();
+    const mover = snapshot?.pieces.find((one) => one.id === piece.identifier);
+    if (!snapshot || !mover || mover.side === null || mover.offField) return null;
+    const { state, pieces, world } = snapshot;
+    const ratio = world.rules.outnumber;
+    const own = state.zoneOf(piece.identifier);
+    const counted = { side: mover.side, count: mover.count };
+    const blocked = new CellBits(cellCount(grid));
+    const stops = new CellBits(cellCount(grid));
+
+    if (own && leaveReasonOf(this.leaveInput(own, mover, pieces, kindName, piece.zoneLeaveRound)) === 'held') {
+      return { startPoint: own.shape.centre, noReach: true, blocked: null, stops: null };
+    }
+    const standingIn = own ? [] : state.insideOf(piece.identifier);
+    for (const zone of state.zones) {
+      if (zone === own) continue;
+      const cells = zoneCells(grid, zone.shape);
+      if (standingIn.includes(zone)) {
+        if (zoneHolds(this.countsOf(zone, pieces), counted, 'escape', ratio)) stops.or(outside(cells));
+        continue;
+      }
+      if (zone.count >= zone.limit) blocked.or(cells);
+      else if (zoneHolds(this.countsOf(zone, pieces), counted, 'pass', ratio)) stops.or(cells);
+    }
+    return {
+      startPoint: own?.shape.centre ?? null,
+      noReach: false,
+      blocked: blocked.isEmpty ? null : blocked,
+      stops: stops.isEmpty ? null : stops,
+    };
+  }
+
+  /** Whether a piece may move at all by a kind, as far as zones say. */
+  mayMove(piece: GameCharacter, kindName: string): boolean {
+    const snapshot = this.snapshot();
+    const mover = snapshot?.pieces.find((one) => one.id === piece.identifier);
+    if (!snapshot || !mover || mover.side === null) return true;
+    const own = snapshot.state.zoneOf(piece.identifier);
+    if (!own) return true;
+    return leaveReasonOf(this.leaveInput(own, mover, snapshot.pieces, kindName, piece.zoneLeaveRound)) !== 'held';
+  }
+
+  /**
+   * The kind a piece moves by: the one asked for where zones let it go by that kind, and otherwise
+   * the first of the room's kinds they do let it go by, as a piece in an overflowing zone may leave
+   * only by one. Null where zones hold it whatever kind it moves by.
+   */
+  kindFor(piece: GameCharacter, kindName: string): string | null {
+    const kinds = this.moveKinds();
+    const asked = moveKindNamed(kinds, kindName).name;
+    if (this.mayMove(piece, asked)) return asked;
+    return kinds.find((kind) => kind.name !== asked && this.mayMove(piece, kind.name))?.name ?? null;
+  }
+
+  /** Where a piece stands among the zones as a move begins. */
+  startOfMove(piece: GameCharacter): ZoneMoveStart {
+    const state = this.stateNow();
+    return {
+      zone: state.zoneOf(piece.identifier)?.id ?? '',
+      inside: state.insideOf(piece.identifier).map((zone) => zone.id),
+    };
+  }
+
+  /**
+   * Settles what a move did among the zones: a piece that walked out of its zone has left it; a piece
+   * held walking out of a zone it stood in, or walking into one that holds it, is pulled to that
+   * zone's centre and joins it.
+   */
+  afterMove(piece: GameCharacter, start: ZoneMoveStart): void {
+    const snapshot = this.snapshot();
+    if (!snapshot) return;
+    const { state, pieces, world } = snapshot;
+    const mover = pieces.find((one) => one.id === piece.identifier);
+    if (!mover || mover.side === null) return;
+    const point = centreOf(piece, world.table.gridSize);
+    if (start.zone.length > 0) {
+      const left = state.zones.find((zone) => zone.id === start.zone);
+      if (!left || !zoneCovers(left.shape, point)) {
+        GameObject.batch(() => {
+          piece.engagementZone = '';
+          piece.zoneLeaveRound = '';
+        });
+        this.settle([]);
+        this.chat.sendSystemMessage(this.t('feature.zone.chat.left', { name: piece.name }));
+      }
+      return;
+    }
+    const counted = { side: mover.side, count: mover.count };
+    const ratio = world.rules.outnumber;
+    const heldBack = state.zones.find(
+      (zone) =>
+        start.inside.includes(zone.id) &&
+        !zoneCovers(zone.shape, point) &&
+        zoneHolds(this.countsOf(zone, pieces), counted, 'escape', ratio)
+    );
+    const stopped =
+      heldBack ??
+      state.zones.find(
+        (zone) =>
+          !start.inside.includes(zone.id) &&
+          zoneCovers(zone.shape, point) &&
+          zone.count < zone.limit &&
+          zoneHolds(this.countsOf(zone, pieces), counted, 'pass', ratio)
+      );
+    if (!stopped) return;
+    piece.engagementZone = stopped.id;
+    this.settle([stopped.id]);
+    this.chat.sendSystemMessage(this.t('feature.zone.chat.held', { name: piece.name }));
+  }
+
+  private leaveInput(
+    zone: ZoneView,
+    mover: ZonePieceInput,
+    pieces: readonly ZonePieceInput[],
+    kindName: string,
+    leaveRound: string
+  ): LeaveInput {
+    const rules = this.rules();
+    const turn = this.turnState();
+    return {
+      counts: this.countsOf(zone, pieces),
+      mover: { side: mover.side!, count: mover.count },
+      ratio: rules.outnumber,
+      overflowing: zone.overflowing,
+      leaveRound,
+      round: turn?.round ?? 0,
+      roundsKept: !!turn && turn.phase !== 'idle',
+      leaveKind: rules.leaveKind,
+      kind: kindName,
+    };
+  }
+
+  private countsOf(zone: ZoneView, pieces: readonly ZonePieceInput[]): ZoneSideCounts {
+    const inside = new Map<string, number>();
+    for (const id of zone.inside) {
+      const piece = pieces.find((one) => one.id === id);
+      if (piece?.side) inside.set(piece.side, (inside.get(piece.side) ?? 0) + piece.count);
+    }
+    return { members: zone.sides, inside };
+  }
+
+  private turnState(): TurnState | null {
+    return this.objectStore.get<TurnState>('TurnState');
   }
 
   private snapshot(): { world: ZoneTable; pieces: ZonePieceInput[]; state: ZoneState } | null {
@@ -391,6 +591,13 @@ export function metresPerCell(rules: { cellDistance: number; cellDistanceUnit: s
   const unit = parseMoveUnit(rules.cellDistanceUnit);
   if (!(rules.cellDistance > 0) || (unit !== 'metre' && unit !== 'foot')) return 1;
   return convertMoveLength(rules.cellDistance, unit, 'metre');
+}
+
+/** Every cell a set leaves out. */
+function outside(cells: CellBits): CellBits {
+  const rest = new CellBits(cells.count);
+  for (let index = 0; index < cells.count; index++) if (!cells.get(index)) rest.set(index);
+  return rest;
 }
 
 /** Where a worked-out point is put on a table: the middle of its cell on a grid, as it is without one. */

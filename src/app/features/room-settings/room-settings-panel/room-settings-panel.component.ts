@@ -41,6 +41,7 @@ import {
 } from '@axe/domain/tabletop/move/diagonal-move';
 import { asBreakOutMode, BREAK_OUT_MODES, BreakOutMode } from '@axe/domain/tabletop/move/engagement';
 import { DEFAULT_CELL_DISTANCE, DEFAULT_CELL_DISTANCE_UNIT } from '@axe/domain/tabletop/move/move-cells';
+import { parseMoveKinds } from '@axe/domain/tabletop/move/move-kind';
 import { MOVE_UNITS, MoveUnit, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
 import { PIECE_PASSAGE_MODES, PiecePassageMode } from '@axe/domain/tabletop/move/piece-passage';
 import { asZocMode, HOSTILITY_BY, HostilityBy, ZOC_MODES, ZocMode } from '@axe/domain/tabletop/move/zone-of-control';
@@ -917,6 +918,41 @@ export class RoomSettingsPanelComponent {
   set zoneSamePointM(value: number) {
     if (!this.isEditable) return;
     this.config.zoneSamePointM = Number.isFinite(value) && value >= 0 ? value : null;
+  }
+
+  /** How many times the other side's number one side has to be to walk past a zone, or out of it, unheld. */
+  get zoneOutnumber(): number {
+    this.objectChange.versionOf('Config')();
+    return resolveZoneRules(this.config.zoneRuleAnswers).outnumber;
+  }
+  set zoneOutnumber(value: number) {
+    if (!this.isEditable) return;
+    this.config.zoneOutnumber = Number.isFinite(value) && value > 0 ? value : null;
+  }
+
+  /** The kind of move a piece may leave an overflowing zone by at once, empty for any kind. */
+  get zoneLeaveKind(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.zoneRuleAnswers.leaveKind ?? '';
+  }
+  set zoneLeaveKind(value: string) {
+    if (this.isEditable) this.config.zoneLeaveKind = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** The kinds of move the room plays, as it wrote them, empty where it plays the plain kind alone. */
+  get moveKinds(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.moveKinds ?? '';
+  }
+  set moveKinds(value: string) {
+    if (this.isEditable) this.config.moveKinds = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** The names of the kinds of move the room has written, for choosing one of them. */
+  get moveKindNames(): string[] {
+    return parseMoveKinds(this.moveKinds)
+      .map((kind) => kind.name)
+      .filter((name) => name.length > 0);
   }
 
   /** Whether the move range's own fights are on beside engagement zones, which judge the same thing twice. */

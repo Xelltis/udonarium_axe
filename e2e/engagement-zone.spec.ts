@@ -38,8 +38,21 @@ async function choose(page: Page, name: string, entry: string | RegExp, submenu?
   await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
 }
 
+/** Whether a piece's menu offers an entry of that name at its top level. */
+async function menuOffers(page: Page, name: string, entry: string): Promise<boolean> {
+  await piece(page, name).dispatchEvent('contextmenu');
+  const menu = page.locator('context-menu');
+  await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
+  const offered = (await menu.getByText(entry, { exact: true }).count()) > 0;
+  await page.mouse.click(5, 400);
+  await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
+  return offered;
+}
+
 test.describe('交戦エリア', () => {
-  test('部屋設定でオンにし、同じ点の敵と交戦を宣言すると円が出て、敵が外れると消えること', async ({ page }) => {
+  test('部屋設定でオンにし、同じ点の敵と交戦を宣言すると円が出て、予告するまで動けず、敵が外れると消えること', async ({
+    page,
+  }) => {
     await waitAppReady(page);
     await becomeGm(page);
     await openPanel(page, '部屋設定');
@@ -68,6 +81,10 @@ test.describe('交戦エリア', () => {
     const zones = page.getByTestId('zone-mark');
     await expect(zones).toHaveCount(1, { timeout: 5000 });
     await expect(zones.first().locator('text')).toHaveText('2/20');
+
+    expect(await menuOffers(page, 'キャラクターA', '移動')).toBe(false);
+    await choose(page, 'キャラクターA', '次の手番で離れると予告する', '交戦エリア');
+    expect(await menuOffers(page, 'キャラクターA', '移動')).toBe(true);
 
     await choose(page, 'モンスターA', '交戦エリアから外れる', '交戦エリア');
 

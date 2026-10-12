@@ -1,4 +1,5 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { EngagementZoneService, metresPerCell, ZoneMoveStart } from '@axe/application/tabletop/engagement-zone.service';
 import { MoveRangeService, ReachTerms } from '@axe/application/tabletop/move-range.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -9,7 +10,8 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { cheapestPath } from '@axe/domain/tabletop/move/cheapest-path';
-import { stepsFor } from '@axe/domain/tabletop/move/move-steps';
+import { MoveKind, moveKindNamed } from '@axe/domain/tabletop/move/move-kind';
+import { cellsFrom, stepsFor } from '@axe/domain/tabletop/move/move-steps';
 import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
 import { walkedPath } from '@axe/domain/tabletop/move/walked-path';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
@@ -42,6 +44,19 @@ export interface MovePlan {
   jumping: boolean;
   /** The cells the way is settled on, for showing where it has been. */
   waypoints: number[];
+  /** The name of the kind of move being made, empty for the room's first or plain kind. */
+  kind: string;
+}
+
+/** The kinds of move offered while a move is worked out, and how far the chosen one has left. */
+export interface MoveKindBand {
+  /**
+   * The room's kinds, each with whether it may be chosen now: until the first leg is settled, and
+   * where zones let the piece go by it.
+   */
+  readonly kinds: readonly { readonly name: string; readonly mayChoose: boolean }[];
+  readonly chosen: string;
+  readonly metresLeft: number;
 }
 
 /**
@@ -58,8 +73,11 @@ export class MovePlanService {
   private readonly pieceStep = inject(PieceStepService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly objectStore = inject(ObjectStore);
+  private readonly zones = inject(EngagementZoneService);
 
   private readonly held = signal<MovePlan | null>(null);
+  /** Where the piece stood among the engagement zones as the move began. */
+  private zoneStart: ZoneMoveStart | null = null;
   private terms: ReachTerms | null = null;
   private walking = false;
   /** How the move stood before each corner was set, so the last one can be taken back up. */
@@ -80,6 +98,35 @@ export class MovePlanService {
    * every step of the pointer, and a second move of the same piece reads the same as the first.
    */
   readonly openings = this.opened.asReadonly();
+
+  /**
+   * The kinds of move a room plays, offered while a move is worked out, with how far the one chosen
+   * has left in metres; null where the room has written no kinds of its own. The kind is chosen
+   * before the first leg is settled, and kept from then on.
+   */
+  readonly kindBand = computed<MoveKindBand | null>(() => {
+    const plan = this.held();
+    if (!plan) return null;
+    const kinds = this.zones.moveKinds();
+    if (kinds.length < 2 && kinds[0].name === '') return null;
+    const rules = resolveRoomRules(
+      this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null,
+      this.tableSelecter.viewTable
+    );
+    const metres = cellsFrom(Math.max(0, plan.budget - plan.spent)) * metresPerCell(rules);
+    const character = this.objectStore.get<GameCharacter>(plan.characterIdentifier);
+    const changeable = plan.settled.length < 2;
+    return {
+      kinds: kinds.map((kind) => ({
+        name: kind.name,
+        mayChoose:
+          kind.name === plan.kind ||
+          (changeable && character instanceof GameCharacter && this.zones.mayMove(character, kind.name)),
+      })),
+      chosen: plan.kind,
+      metresLeft: Math.round(metres * 10) / 10,
+    };
+  });
 
   constructor() {
     // A move being worked out is one the whole table waits on, so it is drawn on every screen
@@ -102,11 +149,13 @@ export class MovePlanService {
     const on = piece ? table!.identifier : '';
     const way = piece && plan ? this.wholeWay().join(',') : '';
     const jumping = piece && plan?.jumping ? 'true' : '';
+    const kind = piece && plan ? plan.kind : '';
     if (
       cursor.movingCharacterIdentifier === piece &&
       cursor.movingTableIdentifier === on &&
       cursor.movingWay === way &&
-      cursor.movingJumping === jumping
+      cursor.movingJumping === jumping &&
+      cursor.movingKind === kind
     ) {
       return;
     }
@@ -114,6 +163,7 @@ export class MovePlanService {
     cursor.movingTableIdentifier = on;
     cursor.movingWay = way;
     cursor.movingJumping = jumping;
+    cursor.movingKind = kind;
     cursor.update();
   }
 
@@ -122,17 +172,24 @@ export class MovePlanService {
     return this.walking;
   }
 
-  /** Opens a move for a piece standing where it began, or answers false where it has no reach. */
-  begin(character: GameCharacter): boolean {
+  /**
+   * Opens a move for a piece standing where it began, by a kind of move the room plays, or answers
+   * false where it has no reach. An empty kind is the room's first.
+   */
+  begin(character: GameCharacter, kindName = ''): boolean {
     if (this.walking) return false;
-    const terms = this.moveRange.termsOf(character);
+    const kind = this.zones.kindFor(character, kindName);
+    if (kind === null) return false;
+    const terms = this.moveRange.termsOf(character, kind);
     if (!terms) return false;
     this.terms = terms;
     this.legs = [];
+    this.zoneStart = this.zones.startOfMove(character);
     character.toTopmost();
     SoundEffect.play(PresetSound.piecePick);
     this.opened.update((count) => count + 1);
     this.held.set({
+      kind,
       characterIdentifier: character.identifier,
       grid: terms.grid,
       origin: { x: character.location.x, y: character.location.y, z: character.posZ },
@@ -147,6 +204,41 @@ export class MovePlanService {
       jumping: false,
     });
     return true;
+  }
+
+  /**
+   * Changes the kind of move being worked out, while no leg of it has been settled yet; answers
+   * whether it changed. The reach is worked out afresh for the new kind.
+   */
+  setKind(kindName: string): boolean {
+    const plan = this.held();
+    if (!plan || this.walking || plan.settled.length > 1) return false;
+    const kind = moveKindNamed(this.zones.moveKinds(), kindName).name;
+    if (kind === plan.kind) return false;
+    const character = this.objectStore.get<GameCharacter>(plan.characterIdentifier);
+    if (!(character instanceof GameCharacter) || !this.zones.mayMove(character, kind)) return false;
+    const terms = this.moveRange.termsOf(character, kind);
+    if (!terms) return false;
+    this.terms = terms;
+    this.held.set({
+      ...plan,
+      kind,
+      from: terms.start,
+      settled: [terms.start],
+      ahead: [],
+      spent: 0,
+      budget: terms.walk,
+      cornersCut: 0,
+      reach: terms.cells,
+      waypoints: [],
+      jumping: false,
+    });
+    return true;
+  }
+
+  /** The kinds of move the room plays, for choosing between them while a move is worked out. */
+  kinds(): MoveKind[] {
+    return this.zones.moveKinds();
   }
 
   /** Draws the way from the last settled cell to the table position the pointer is over. */
@@ -315,7 +407,9 @@ export class MovePlanService {
       this.walking = false;
     }
     SoundEffect.play(PresetSound.piecePut);
+    const start = this.zoneStart;
     this.close();
+    if (start) this.zones.afterMove(character, start);
     return true;
   }
 
@@ -337,5 +431,6 @@ export class MovePlanService {
     this.held.set(null);
     this.terms = null;
     this.legs = [];
+    this.zoneStart = null;
   }
 }
