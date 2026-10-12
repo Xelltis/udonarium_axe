@@ -26,7 +26,7 @@ import {
 } from '@axe/domain/tabletop/move/engagement';
 import { isLevelWith, isWalkableStep, landingHeightsOn } from '@axe/domain/tabletop/move/landing-height';
 import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
-import { moveCellsOf } from '@axe/domain/tabletop/move/move-cells';
+import { exactMoveCellsOf } from '@axe/domain/tabletop/move/move-cells';
 import { moveCostCells } from '@axe/domain/tabletop/move/move-cost-cells';
 import { cellsByKind, moveKindNamed } from '@axe/domain/tabletop/move/move-kind';
 import { moveModeTermsOf } from '@axe/domain/tabletop/move/move-mode';
@@ -281,7 +281,10 @@ export class MoveRangeService {
 
   /** Whether a piece has a reach to be had at all, told without working one out. */
   canPlan(character: GameCharacter, kindName = ''): boolean {
-    return this.opening(character) !== null && this.zones.kindFor(character, kindName) !== null;
+    const opened = this.opening(character);
+    const kind = opened ? this.zones.kindFor(character, kindName) : null;
+    if (!opened || kind === null) return false;
+    return cellsByKind(moveKindNamed(this.zones.moveKinds(), kind), opened.walk, metresPerCell(opened.rules)) >= 1;
   }
 
   /**
@@ -493,7 +496,11 @@ export class MoveRangeService {
     return entry;
   }
 
-  /** What a reach needs before any ground is walked: a table, the rules for it, and a piece that moves. */
+  /**
+   * What a reach needs before any ground is walked: a table, the rules for it, and a piece that moves,
+   * with its movement as the sheet gives it, not yet rounded down to whole cells: a kind of move
+   * multiplies it first, as a move measured along a line does.
+   */
   private opening(character: GameCharacter): { table: GameTable; rules: RoomRules; walk: number } | null {
     const table = this.tableSelecter.viewTable;
     if (!table) return null;
@@ -502,8 +509,8 @@ export class MoveRangeService {
     if (table.gridSize <= 0 || table.width <= 0 || table.height <= 0) return null;
     if (surfaceOf(character) !== 'floor') return null;
 
-    const walk = moveCellsOf(character, rules.moveRangeElementNames, rules.cellDistance, rules.cellDistanceUnit);
-    if (walk === null || walk < 1) return null;
+    const walk = exactMoveCellsOf(character, rules.moveRangeElementNames, rules.cellDistance, rules.cellDistanceUnit);
+    if (walk === null || walk <= 0) return null;
     return { table, rules, walk };
   }
 

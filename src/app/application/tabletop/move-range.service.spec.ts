@@ -1633,6 +1633,20 @@ describe('MoveRangeService with kinds of move and engagement zones', () => {
     expect(reaches(service.range()?.cells, 7, 5)).toBe(false);
   });
 
+  it('multiplies the movement on the sheet by a kind before rounding it down to whole cells', () => {
+    const piece = pieceAt(5, 5, 2.5);
+
+    service.show(piece, '全力');
+    expect(reaches(service.range()?.cells, 12, 5)).toBe(true);
+    expect(reaches(service.range()?.cells, 13, 5)).toBe(false);
+
+    const slow = pieceAt(2, 2, 0.4);
+    expect(service.canPlan(slow, '通常')).toBe(false);
+    expect(service.canPlan(slow, '全力')).toBe(true);
+    service.show(slow, '全力');
+    expect(reaches(service.range()?.cells, 3, 2)).toBe(true);
+  });
+
   it('holds a kind to its cap in metres, whatever the movement says', () => {
     table.cellDistance = 2;
     table.cellDistanceUnit = 'metre';
