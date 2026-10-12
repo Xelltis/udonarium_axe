@@ -4874,7 +4874,16 @@
         "seatHeightDefault": "大きさの半分",
         "seatHeightCells": "{{cells}}マス",
         "prone": "転んでいる",
-        "refusal_fellThisTurn": "（この手番に転んだ）"
+        "refusal_fellThisTurn": "（この手番に転んだ）",
+        "upAndOn_rider": "起き上がって {{mount}} に乗る",
+        "upAndOn_passenger": "起き上がって {{mount}} に同乗する",
+        "upAndOn_cargo": "起き上がって {{mount}} に積まれる",
+        "refusal_down": "（倒れている）",
+        "refusal_held": "（その場から動けない）",
+        "refusal_prone": "（転んでいる）",
+        "refusal_mountDown": "（乗り物が倒れている）",
+        "refusal_mountProne": "（乗り物が転んでいる）",
+        "refusal_mountHeld": "（乗り物がつかまれている）"
       },
       "chat": {
         "on_rider": "{{name}} が {{mount}} に乗りました（{{action}}）",
@@ -4910,7 +4919,10 @@
       "offerAction_passenger": "同乗する",
       "offerAction_cargo": "積まれる",
       "offerRefused": "{{name}} は {{mount}} に乗れません",
-      "stayedOn": "{{name}} はこの手番にもう乗り降りしたので、{{mount}} の上に戻しました"
+      "stayedOn": "{{name}} はこの手番にもう乗り降りしたので、{{mount}} の上に戻しました",
+      "offerActionUp_rider": "起き上がって乗る",
+      "offerActionUp_passenger": "起き上がって同乗する",
+      "offerActionUp_cargo": "起き上がって積まれる"
     }
   },
   "app": {

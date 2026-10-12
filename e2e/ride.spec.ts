@@ -113,7 +113,7 @@ test.describe('乗り物', () => {
     await expect(panel.locator('button[title="キャラクターB"]')).toHaveCount(0);
   });
 
-  test('乗り物が転ぶと乗り手が落ちて、転んでいる状態になること', async ({ page }) => {
+  test('乗り物が転ぶと乗り手が落ちて転び、乗り物が起きれば起き上がって乗り直せること', async ({ page }) => {
     await rideAOnB(page);
     const mount = piece(page, 'キャラクターB');
 
@@ -126,6 +126,10 @@ test.describe('乗り物', () => {
     await menu.getByText('乗り物', { exact: true }).hover();
     await expect(menu.locator('li', { hasText: '転んでいる' }).getByRole('checkbox')).toBeChecked({ timeout: 5000 });
     await expect(menu.getByText('キャラクターB から降りる')).toHaveCount(0);
+
+    await chooseRide(page, 'キャラクターB', '転んでいる');
+    await chooseRide(page, 'キャラクターA', '起き上がって キャラクターB に乗る');
+    await expect(mount.getByTestId('piece-riders').first()).toContainText('1', { timeout: 5000 });
   });
 
   test('乗っている駒を手で乗り物から離して置くと、そこで降りること', async ({ page }) => {

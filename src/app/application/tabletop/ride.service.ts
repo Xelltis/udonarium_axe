@@ -44,9 +44,22 @@ export type ProneRefusal = 'fellThisTurn';
 export interface RideOffer {
   readonly id: string;
   readonly name: string;
-  /** The seats free on it to this piece, each with why it may not take it, or null where it may. */
-  readonly seats: readonly { readonly seat: RideSeat; readonly refusal: FrontRefusal | null }[];
+  /**
+   * The seats free on it to this piece, each with why it may not take it, or null where it may, and
+   * whether it may take it once it gets up from where it fell, nothing else standing in the way.
+   */
+  readonly seats: readonly {
+    readonly seat: RideSeat;
+    readonly refusal: SeatRefusal | null;
+    readonly getsUp: boolean;
+  }[];
 }
+
+/**
+ * Why a piece may not take a seat on a mount: it is down, held where it stands or lying where it
+ * fell; the mount is down, lying where it fell or held; or the piece may not ride it in front.
+ */
+export type SeatRefusal = 'down' | 'held' | 'prone' | 'mountDown' | 'mountProne' | 'mountHeld' | FrontRefusal;
 
 /** What a piece's menu offers about riding. */
 export interface RideMenuModel {
@@ -223,7 +236,8 @@ export class RideService {
   mount(piece: GameCharacter, mount: GameCharacter, seat: RideSeat): boolean {
     const offer = this.offersFor(piece).find((one) => one.id === mount.identifier);
     const free = offer?.seats.find((one) => one.seat === seat);
-    if (!free || free.refusal !== null || this.changeRefusal(piece) !== null) return false;
+    if (!free || (free.refusal !== null && !free.getsUp) || this.changeRefusal(piece) !== null) return false;
+    if (free.getsUp) this.setProne(piece, false);
     GameObject.batch(() => {
       piece.ridingOn = mount.identifier;
       piece.rideSeat = writtenSeat(seat);
@@ -297,11 +311,12 @@ export class RideService {
     if (offers.length < 1) return;
     const refusal = this.changeRefusal(piece);
     for (const offer of refusal === null ? offers : []) {
-      const seat = offer.seats.find((one) => one.refusal === null)?.seat;
+      const free = offer.seats.find((one) => one.refusal === null) ?? offer.seats.find((one) => one.getsUp);
       const mount = this.objectStore.get<GameCharacter>(offer.id);
-      if (!seat || !(mount instanceof GameCharacter)) continue;
+      if (!free || !(mount instanceof GameCharacter)) continue;
+      const label = free.getsUp ? `feature.ride.offerActionUp_${free.seat}` : `feature.ride.offerAction_${free.seat}`;
       this.snackbar.show(this.t('feature.ride.offer', { name: piece.name, mount: mount.name }), {
-        action: { label: this.t(`feature.ride.offerAction_${seat}`), run: () => this.mount(piece, mount, seat) },
+        action: { label: this.t(label), run: () => this.mount(piece, mount, free.seat) },
       });
       return;
     }
@@ -515,49 +530,53 @@ export class RideService {
   }
 
   /**
-   * The mounts at a piece's point it could get on, with the seats free on each. A piece rides
-   * nothing while it is down, lying where it fell, held fast, held on to, a mount ridden by others,
-   * or out of the fight, and gets on no mount down, lying where it fell, held on to, riding another or
-   * out of the fight.
+   * The mounts a piece stands on, with the seats free on each and why it may not take each. A piece
+   * down, held where it stands or lying where it fell, or on a mount down, lying where it fell or
+   * held, is shown the seats it may not take; one lying where it fell may take a seat once it gets
+   * up. A mount, a piece out of the fight, and a mount out of the fight or riding another, are shown
+   * none.
    */
   private offersFor(piece: GameCharacter): RideOffer[] {
-    if (!this.mayGetOn(piece) || this.aboard(piece).length > 0) return [];
+    if (!piece.isVisibleOnTable || piece.offField === '1' || piece.mountable === '1') return [];
+    if (this.aboard(piece).length > 0) return [];
+    const own = this.stateRefusal(piece);
+    const getsUpFirst = own === 'prone' && this.proneRefusal(piece) === null;
     return this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
       .filter((mount) => mount !== piece && mount.mountable === '1' && mount.isVisibleOnTable)
-      .filter((mount) => this.mayCarry(mount))
+      .filter((mount) => mount.offField !== '1' && !this.mountOf(mount))
       .filter((mount) => this.isOn(piece, mount))
-      .map((mount) => ({
-        id: mount.identifier,
-        name: mount.name,
-        seats: freeSeats(
-          { passenger: mount.mountPassenger === '1', cargo: cargoRoomOf(mount.mountCargo) },
-          this.aboard(mount).map((rider) => seatOf(rider.rideSeat))
-        ).map((seat) => ({ seat, refusal: seat === 'rider' ? this.frontRefusal(piece, mount) : null })),
-      }))
+      .map((mount) => {
+        const mountState = this.mountStateRefusal(mount);
+        return {
+          id: mount.identifier,
+          name: mount.name,
+          seats: freeSeats(
+            { passenger: mount.mountPassenger === '1', cargo: cargoRoomOf(mount.mountCargo) },
+            this.aboard(mount).map((rider) => seatOf(rider.rideSeat))
+          ).map((seat) => {
+            const beyond = mountState ?? (seat === 'rider' ? this.frontRefusal(piece, mount) : null);
+            return { seat, refusal: own ?? beyond, getsUp: getsUpFirst && beyond === null };
+          }),
+        };
+      })
       .filter((offer) => offer.seats.length > 0);
   }
 
-  private mayGetOn(piece: GameCharacter): boolean {
-    return (
-      piece.isVisibleOnTable &&
-      piece.offField !== '1' &&
-      piece.downed !== '1' &&
-      piece.prone !== '1' &&
-      piece.heldFast !== '1' &&
-      piece.grabbedBy === '' &&
-      piece.mountable !== '1'
-    );
+  /** Why a piece's own state keeps it off a mount: it is down, held where it stands, or lying where it fell. */
+  private stateRefusal(piece: GameCharacter): 'down' | 'held' | 'prone' | null {
+    if (piece.downed === '1') return 'down';
+    if (piece.heldFast === '1' || piece.grabbedBy !== '') return 'held';
+    if (piece.prone === '1') return 'prone';
+    return null;
   }
 
-  private mayCarry(mount: GameCharacter): boolean {
-    return (
-      mount.offField !== '1' &&
-      mount.downed !== '1' &&
-      mount.prone !== '1' &&
-      mount.grabbedBy === '' &&
-      !this.mountOf(mount)
-    );
+  /** Why a mount's state keeps everybody off it: it is down, lying where it fell, or held. */
+  private mountStateRefusal(mount: GameCharacter): 'mountDown' | 'mountProne' | 'mountHeld' | null {
+    if (mount.downed === '1') return 'mountDown';
+    if (mount.prone === '1') return 'mountProne';
+    if (mount.grabbedBy !== '') return 'mountHeld';
+    return null;
   }
 
   private frontRefusal(piece: GameCharacter, mount: GameCharacter): FrontRefusal | null {

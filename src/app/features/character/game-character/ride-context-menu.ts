@@ -25,7 +25,7 @@ export const SEAT_HEIGHT_CHOICES: readonly (number | null)[] = [null, 0, 0.5, 1,
  * The riding entries of a piece's menu. Getting on a mount it stands on, in a seat free there, or
  * off the one it rides, stand on the menu's first level, where they are found at once; a seat the
  * piece may not take, and getting on or off where it has done so this turn, are shown with why and
- * cannot be chosen. Saying the piece has fallen over or got up, and making it a mount and saying what
+ * cannot be chosen, and one it may take once it gets up from where it fell offers to get it up first. Saying the piece has fallen over or got up, and making it a mount and saying what
  * it takes, are gathered under one entry.
  *
  * Nothing for somebody who may not change the table.
@@ -49,11 +49,11 @@ export function buildRideContextMenu(
     });
   }
   for (const offer of model.offers) {
-    for (const { seat, refusal } of offer.seats) {
-      const why = refusal ?? changeRefusal;
+    for (const { seat, refusal, getsUp } of offer.seats) {
+      const why = changeRefusal ?? (getsUp ? null : refusal);
+      const label = getsUp ? `feature.ride.menu.upAndOn_${seat}` : `feature.ride.menu.on_${seat}`;
       onAndOff.push({
-        name:
-          t(`feature.ride.menu.on_${seat}`, { mount: offer.name }) + (why ? t(`feature.ride.menu.refusal_${why}`) : ''),
+        name: t(label, { mount: offer.name }) + (why ? t(`feature.ride.menu.refusal_${why}`) : ''),
         action: () => callbacks.getOn(offer.id, seat),
         enabled: why === null,
       });

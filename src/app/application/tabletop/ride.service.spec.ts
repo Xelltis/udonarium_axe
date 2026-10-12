@@ -81,7 +81,7 @@ describe('RideService', () => {
     const rider = pieceAt('騎士', 5, 5);
 
     expect(service.menuOf(rider).offers).toEqual([
-      { id: horse.identifier, name: '馬', seats: [{ seat: 'rider', refusal: null }] },
+      { id: horse.identifier, name: '馬', seats: [{ seat: 'rider', refusal: null, getsUp: false }] },
     ]);
     expect(service.mount(rider, horse, 'rider')).toBe(true);
     const friend = pieceAt('従者', 5, 5);
@@ -273,15 +273,21 @@ describe('RideService', () => {
     expect(service.moverFor(rider)).toBe(rider);
   });
 
-  it('gets nobody on a mount that is down, and lets nobody on who is down or held fast', () => {
+  it('gets nobody on a mount that is down, and nobody on who is down or held fast, saying why', () => {
     const horse = horseAt(5, 5);
     const rider = pieceAt('騎士', 5, 5);
+    const seat = () => service.menuOf(rider).offers[0].seats[0];
 
     rider.heldFast = '1';
-    expect(service.menuOf(rider).offers).toEqual([]);
+    expect(seat()).toEqual({ seat: 'rider', refusal: 'held', getsUp: false });
+    expect(service.mount(rider, horse, 'rider')).toBe(false);
     rider.heldFast = '';
+    rider.downed = '1';
+    expect(seat().refusal).toBe('down');
+    rider.downed = '';
     horse.downed = '1';
-    expect(service.menuOf(rider).offers).toEqual([]);
+    expect(seat().refusal).toBe('mountDown');
+    expect(service.mount(rider, horse, 'rider')).toBe(false);
   });
 
   describe('while turns are taken', () => {
@@ -525,15 +531,46 @@ describe('RideService', () => {
       expect(service.menuOf(walker).prone).toEqual({ on: true, refusal: null });
     });
 
-    it('gets nobody on a mount lying where it fell, and nobody lying there on any', () => {
+    it('gets nobody on a mount lying where it fell, and gets one lying there up first to get on', () => {
       const horse = horseAt(5, 5);
       const rider = pieceAt('騎士', 5, 5);
+      const seat = () => service.menuOf(rider).offers[0].seats[0];
 
       horse.prone = '1';
-      expect(service.menuOf(rider).offers).toEqual([]);
-      horse.prone = '';
       rider.prone = '1';
-      expect(service.menuOf(rider).offers).toEqual([]);
+      expect(seat()).toEqual({ seat: 'rider', refusal: 'prone', getsUp: false });
+      expect(service.mount(rider, horse, 'rider')).toBe(false);
+      horse.prone = '';
+      expect(seat()).toEqual({ seat: 'rider', refusal: 'prone', getsUp: true });
+
+      expect(service.mount(rider, horse, 'rider')).toBe(true);
+      expect([rider.prone, rider.ridingOn]).toEqual(['', horse.identifier]);
+    });
+
+    it('offers to get one thrown off back up and on once its mount is up again', () => {
+      const notices: { label?: string; run?: () => void }[] = [];
+      vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation((_, options) => {
+        notices.push({ label: options?.action?.label, run: options?.action?.run });
+      });
+      const { horse, knight } = loaded();
+      service.setProne(horse, true);
+      service.setProne(horse, false);
+
+      service.offerRide(knight);
+
+      expect(notices.map((notice) => notice.label)).toEqual(['起き上がって乗る']);
+      notices[0].run!();
+      expect([knight.prone, knight.ridingOn]).toEqual(['', horse.identifier]);
+    });
+
+    it('keeps one that fell in its own turn off until the turn is over, saying why', () => {
+      const horse = horseAt(5, 5);
+      const rider = pieceAt('騎士', 5, 5);
+      turnOf(rider);
+      service.setProne(rider, true);
+
+      expect(service.menuOf(rider).offers[0].seats[0]).toEqual({ seat: 'rider', refusal: 'prone', getsUp: false });
+      expect(service.mount(rider, horse, 'rider')).toBe(false);
     });
   });
 

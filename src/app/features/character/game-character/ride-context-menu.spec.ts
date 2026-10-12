@@ -41,8 +41,8 @@ describe('buildRideContextMenu', () => {
             id: 'horse',
             name: '馬',
             seats: [
-              { seat: 'rider', refusal: 'needsSkill' },
-              { seat: 'cargo', refusal: null },
+              { seat: 'rider', refusal: 'needsSkill', getsUp: false },
+              { seat: 'cargo', refusal: null, getsUp: false },
             ],
           },
         ],
@@ -87,7 +87,7 @@ describe('buildRideContextMenu', () => {
     );
     const walking = buildRideContextMenu(
       model({
-        offers: [{ id: 'horse', name: '馬', seats: [{ seat: 'rider', refusal: null }] }],
+        offers: [{ id: 'horse', name: '馬', seats: [{ seat: 'rider', refusal: null, getsUp: false }] }],
         changeRefusal: 'changedThisTurn',
       }),
       true,
@@ -100,6 +100,35 @@ describe('buildRideContextMenu', () => {
     );
     expect(firstLevelOf(riding)[0].enabled).toBe(false);
     expect(firstLevelOf(walking)[0].enabled).toBe(false);
+  });
+
+  it('offers to get a piece lying where it fell up and onto a mount it may then take', () => {
+    const handlers = callbacks();
+    const menu = buildRideContextMenu(
+      model({
+        offers: [
+          {
+            id: 'horse',
+            name: '馬',
+            seats: [
+              { seat: 'rider', refusal: 'prone', getsUp: true },
+              { seat: 'cargo', refusal: 'prone', getsUp: false },
+            ],
+          },
+        ],
+      }),
+      true,
+      handlers,
+      t
+    );
+    const [front, load] = firstLevelOf(menu);
+
+    expect(front.name).toBe('feature.ride.menu.upAndOn_rider:{"mount":"馬"}');
+    expect(front.enabled).toBe(true);
+    expect(load.name).toBe('feature.ride.menu.on_cargo:{"mount":"馬"}feature.ride.menu.refusal_prone');
+    expect(load.enabled).toBe(false);
+    front.action!();
+    expect(handlers.getOn).toHaveBeenCalledWith('horse', 'rider');
   });
 
   it('says the piece has fallen over, and greys out getting up in the turn it fell in its own', () => {

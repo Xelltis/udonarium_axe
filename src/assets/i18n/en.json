@@ -4874,7 +4874,16 @@
         "seatHeightDefault": "Half its size",
         "seatHeightCells": "{{cells}} cells",
         "prone": "Fallen over",
-        "refusal_fellThisTurn": " (fell this turn)"
+        "refusal_fellThisTurn": " (fell this turn)",
+        "upAndOn_rider": "Get up and ride {{mount}}",
+        "upAndOn_passenger": "Get up and ride {{mount}} behind",
+        "upAndOn_cargo": "Get up and be loaded on {{mount}}",
+        "refusal_down": " (down)",
+        "refusal_held": " (held in place)",
+        "refusal_prone": " (fallen over)",
+        "refusal_mountDown": " (the mount is down)",
+        "refusal_mountProne": " (the mount has fallen over)",
+        "refusal_mountHeld": " (the mount is held)"
       },
       "chat": {
         "on_rider": "{{name}} got on {{mount}} ({{action}})",
@@ -4910,7 +4919,10 @@
       "offerAction_passenger": "Ride behind",
       "offerAction_cargo": "Be loaded",
       "offerRefused": "{{name}} cannot ride {{mount}}",
-      "stayedOn": "{{name}} already got on or off this turn and was put back on {{mount}}"
+      "stayedOn": "{{name}} already got on or off this turn and was put back on {{mount}}",
+      "offerActionUp_rider": "Get up and ride",
+      "offerActionUp_passenger": "Get up and ride behind",
+      "offerActionUp_cargo": "Get up and be loaded"
     }
   },
   "app": {
