@@ -1143,6 +1143,7 @@ export class EngagementZoneService {
         if (!zone) continue;
         zone.centre = update.centre;
         zone.forming = update.forming ? '1' : '';
+        zone.capacity = update.limit === null ? '' : `${update.limit}`;
       }
       for (const id of writes.removeZones) this.zoneById(id)?.destroy();
     });

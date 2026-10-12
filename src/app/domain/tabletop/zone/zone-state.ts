@@ -70,7 +70,13 @@ export interface ZoneView {
 /** What has to be written for the held values to say what the state says. */
 export interface ZoneWrites {
   readonly removeZones: readonly string[];
-  readonly updateZones: readonly { readonly id: string; readonly centre: ZonePoint; readonly forming: boolean }[];
+  readonly updateZones: readonly {
+    readonly id: string;
+    readonly centre: ZonePoint;
+    readonly forming: boolean;
+    /** The most it holds, null for as many as the size table allows: the lower of two zones joined. */
+    readonly limit: number | null;
+  }[];
   readonly setPieceZones: readonly { readonly id: string; readonly zone: string }[];
 }
 
@@ -97,6 +103,7 @@ interface Working {
   members: string[];
   moved: boolean;
   formingChanged: boolean;
+  limitChanged: boolean;
 }
 
 /** A token further than this outside its zone, in metres, has been carried out of it. */
@@ -146,6 +153,7 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
       members: [],
       moved: false,
       formingChanged: false,
+      limitChanged: false,
     });
   }
   const byId = new Map(working.map((zone) => [zone.id, zone]));
@@ -186,7 +194,9 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
           keep.forming = false;
           keep.formingChanged = true;
         }
-        keep.limit = minimumOf(keep.limit, other.limit);
+        const limit = minimumOf(keep.limit, other.limit);
+        if (limit !== keep.limit) keep.limitChanged = true;
+        keep.limit = limit;
         removeZones.push(other.id);
         working.splice(j, 1);
         joined = true;
@@ -265,9 +275,11 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
   const updateZones = standing
     .filter(
       (zone) =>
-        zone.formingChanged || (zone.moved && distanceBetween(zone.centre, originalCentre(world, zone.id)) > MOVED_PX)
+        zone.formingChanged ||
+        zone.limitChanged ||
+        (zone.moved && distanceBetween(zone.centre, originalCentre(world, zone.id)) > MOVED_PX)
     )
-    .map((zone) => ({ id: zone.id, centre: zone.centre, forming: zone.forming }));
+    .map((zone) => ({ id: zone.id, centre: zone.centre, forming: zone.forming, limit: zone.limit }));
 
   const viewById = new Map(views.map((view) => [view.id, view]));
   return {

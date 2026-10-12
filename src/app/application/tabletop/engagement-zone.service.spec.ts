@@ -104,6 +104,20 @@ describe('EngagementZoneService', () => {
     expect(service.stateNow().zones[0].members).toHaveLength(4);
   });
 
+  it('keeps the lower limit of two zones joined on the one left standing', () => {
+    const [low, high] = [
+      service.declare(pieceAt(5, 5), pieceAt(5, 5, true))!,
+      service.declare(pieceAt(20, 20), pieceAt(20, 20, true))!,
+    ].sort((a, b) => (a.identifier < b.identifier ? -1 : 1));
+    service.setLimit(high.identifier, 4);
+
+    high.centre = { x: low.centre!.x + GRID, y: low.centre!.y };
+    service.setSquare(low.identifier, false);
+
+    expect(zonesOn(table)).toEqual([low]);
+    expect(low.limit).toBe(4);
+  });
+
   it('takes a piece out of the fight, and out of its zone with it', () => {
     const hero = pieceAt(10, 10);
     const foe = pieceAt(10, 10, true);

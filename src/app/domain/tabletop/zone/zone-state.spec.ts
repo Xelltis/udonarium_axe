@@ -91,7 +91,9 @@ describe('zoneStateOf', () => {
     expect(state.zones[0].members).toEqual(['a', 'b', 'c', 'd']);
     expect(state.zones[0].shape.centre).toEqual({ x: 11 * M, y: 10 * M });
     expect(state.writes.removeZones).toEqual(['z2']);
-    expect(state.writes.updateZones).toEqual([{ id: 'z1', centre: { x: 11 * M, y: 10 * M }, forming: false }]);
+    expect(state.writes.updateZones).toEqual([
+      { id: 'z1', centre: { x: 11 * M, y: 10 * M }, forming: false, limit: null },
+    ]);
     expect(state.writes.setPieceZones).toEqual([
       { id: 'c', zone: 'z1' },
       { id: 'd', zone: 'z1' },
@@ -215,6 +217,25 @@ describe('zoneStateOf', () => {
     expect(state.zones).toEqual([]);
     expect(state.writes.removeZones).toEqual(['z1']);
     expect(state.writes.setPieceZones).toEqual([{ id: 'a', zone: '' }]);
+  });
+
+  it('writes the lower limit of two zones joined onto the one kept, though its centre stays', () => {
+    const state = zoneStateOf(
+      world(
+        [zone('z1', 10, 10), zone('z2', 10, 10, { limit: 4 })],
+        [
+          piece('a', 10, 10, { zone: 'z1' }),
+          piece('b', 10, 10, { zone: 'z1', side: 'npc' }),
+          piece('c', 10, 10, { zone: 'z2' }),
+          piece('d', 10, 10, { zone: 'z2', side: 'npc' }),
+        ]
+      )
+    );
+
+    expect(state.zones[0].limit).toBe(4);
+    expect(state.writes.updateZones).toEqual([
+      { id: 'z1', centre: { x: 10 * M, y: 10 * M }, forming: false, limit: 4 },
+    ]);
   });
 
   it('says a zone holding more than its limit is overflowing, by its own limit or by the table', () => {
