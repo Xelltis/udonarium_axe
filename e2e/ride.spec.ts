@@ -1,7 +1,7 @@
-import { expect, Page, test } from '@playwright/test';
+import { expect, Locator, Page, test } from '@playwright/test';
 
 import { openPanel, waitAppReady } from './helpers';
-import { centreOf, pedestal, piece, Point, settle } from './see-through-helpers';
+import { centreOf, pedestal, piece, pinnedPiece, Point, settle } from './see-through-helpers';
 
 async function becomeGm(page: Page) {
   await page
@@ -28,9 +28,9 @@ async function drag(page: Page, from: Point, to: Point) {
   await page.mouse.up();
 }
 
-/** Chooses an entry of a piece's riding group. */
-async function chooseRide(page: Page, name: string, entry: string | RegExp) {
-  await piece(page, name).dispatchEvent('contextmenu');
+/** Chooses an entry of a piece's riding group: a piece named, or one already found. */
+async function chooseRide(page: Page, who: string | Locator, entry: string | RegExp) {
+  await (typeof who === 'string' ? piece(page, who) : who).dispatchEvent('contextmenu');
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   await menu.getByText('乗り物', { exact: true }).hover();
@@ -43,7 +43,7 @@ async function rideAOnB(page: Page) {
   await waitAppReady(page);
   await becomeGm(page);
   await closePanels(page);
-  const rider = piece(page, 'キャラクターA');
+  const rider = await pinnedPiece(page, 'キャラクターA');
   const mount = piece(page, 'キャラクターB');
   await chooseRide(page, 'キャラクターB', '乗り物にする');
   await settle(rider);
@@ -60,7 +60,7 @@ test.describe('乗り物', () => {
     await becomeGm(page);
     await closePanels(page);
 
-    const rider = piece(page, 'キャラクターA');
+    const rider = await pinnedPiece(page, 'キャラクターA');
     const mount = piece(page, 'キャラクターB');
     await chooseRide(page, 'キャラクターB', '乗り物にする');
     await settle(rider);
@@ -88,7 +88,7 @@ test.describe('乗り物', () => {
     const [riderAt, mountAt] = [await centreOf(pedestal(rider)), await centreOf(pedestal(mount))];
     expect(Math.abs(riderAt.x - mountAt.x)).toBeLessThan(cell / 2);
 
-    await chooseRide(page, 'キャラクターA', 'キャラクターB から降りる');
+    await chooseRide(page, rider, 'キャラクターB から降りる');
     await expect(mount.getByTestId('piece-riders')).toHaveCount(0, { timeout: 5000 });
   });
 

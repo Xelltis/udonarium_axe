@@ -118,6 +118,96 @@ describe('GameCharacterComponent', () => {
     expect(riders()?.textContent).toContain('1');
   });
 
+  describe('the riding label', () => {
+    function ride(): { horse: GameCharacter; knight: GameCharacter; squire: GameCharacter } {
+      const horse = GameCharacter.create('馬', 2, '');
+      horse.setLocation('table');
+      horse.mountable = '1';
+      const knight = GameCharacter.create('騎士', 1, '');
+      knight.setLocation('table');
+      knight.ridingOn = horse.identifier;
+      const squire = GameCharacter.create('従者', 1, '');
+      squire.setLocation('table');
+      squire.ridingOn = horse.identifier;
+      squire.rideSeat = 'passenger';
+      return { horse, knight, squire };
+    }
+
+    async function draw(of: ComponentFixture<GameCharacterComponent>): Promise<HTMLElement> {
+      of.detectChanges();
+      await of.whenStable();
+      return of.nativeElement as HTMLElement;
+    }
+
+    it('draws those riding a mount over its own labels, the one in front nearest, with their bars', async () => {
+      const { horse } = ride();
+      fixture.componentRef.setInput('gameCharacter', horse);
+
+      const element = await draw(fixture);
+      const names = [...element.querySelectorAll('[data-testid="riding-label-name"]')].map((name) =>
+        name.textContent?.trim()
+      );
+
+      expect(names).toEqual(['upgrade 騎士', 'group 従者']);
+      expect(
+        element.querySelectorAll('[data-testid="riding-label-piece"] [data-testid="piece-gauge"]').length
+      ).toBeGreaterThan(0);
+      expect(element.querySelector('[data-testid="piece-name"]')?.textContent).toContain('馬');
+    });
+
+    it('draws no labels of its own over a piece riding a mount, and its labels again once it is off', async () => {
+      const { knight } = ride();
+      fixture.componentRef.setInput('gameCharacter', knight);
+
+      let element = await draw(fixture);
+      expect(element.querySelector('[data-testid="piece-name"]')).toBeNull();
+      expect(element.querySelector('[data-testid="piece-gauge"]')).toBeNull();
+
+      knight.ridingOn = '';
+      element = await draw(fixture);
+      expect(element.querySelector('[data-testid="piece-name"]')?.textContent).toContain('騎士');
+    });
+
+    it('names those riding a mount in its curved name from above, and draws no ring of their own', async () => {
+      const { horse, knight } = ride();
+      TestBed.inject(ViewModePreferenceService).choose('flat');
+      TestBed.inject(TabletopService).currentTable.multiAngleEnabled = true;
+      fixture.componentRef.setInput('gameCharacter', horse);
+      await draw(fixture);
+
+      expect(component.multiAngleLabelText()).toBe('騎士／従者／馬');
+
+      fixture.componentRef.setInput('gameCharacter', knight);
+      await draw(fixture);
+      expect(component.multiAngleOrbitVisible()).toBe(false);
+    });
+
+    it('leaves out the name of a rider hiding it, and its buffs where it hides them', async () => {
+      const { horse, knight } = ride();
+      knight.hideName = true;
+      knight.buffs.addRound('加護', '', 2);
+      fixture.componentRef.setInput('gameCharacter', horse);
+      const cursor = new PeerCursor();
+      cursor.userId = 'me';
+      cursor.role = PeerRole.Player;
+      cursor.initialize();
+      PeerCursor.myCursor = cursor;
+      onTestFinished(() => {
+        PeerCursor.myCursor = null!;
+      });
+
+      let element = await draw(fixture);
+      const names = () =>
+        [...element.querySelectorAll('[data-testid="riding-label-name"]')].map((name) => name.textContent?.trim());
+      expect(names()).toEqual(['group 従者']);
+      expect(element.querySelectorAll('[data-testid="riding-label-piece"] [data-testid="buff-badge"]').length).toBe(1);
+
+      knight.hideBuff = true;
+      element = await draw(fixture);
+      expect(element.querySelectorAll('[data-testid="riding-label-piece"] [data-testid="buff-badge"]').length).toBe(0);
+    });
+  });
+
   describe('standing on a slope', () => {
     let table: GameTable;
     const blocks: Terrain[] = [];

@@ -6,6 +6,23 @@ export function piece(page: Page, name: string): Locator {
   return page.locator('game-character').filter({ has: page.getByTestId('piece-name').getByText(name) });
 }
 
+/**
+ * A piece found by its name now, and kept hold of by a mark put on its element. A piece riding another
+ * shows its name in the mount's riding label rather than over itself, so a piece about to get on one
+ * is pinned before it does; the pieces may be drawn in another order once one has moved.
+ */
+export async function pinnedPiece(page: Page, name: string): Promise<Locator> {
+  const marked = await page.locator('game-character').evaluateAll((elements, wanted) => {
+    const found = elements.find((element) =>
+      element.querySelector('[data-testid="piece-name"]')?.textContent?.includes(wanted)
+    );
+    found?.setAttribute('data-e2e-pinned', wanted);
+    return !!found;
+  }, name);
+  expect(marked).toBe(true);
+  return page.locator(`game-character[data-e2e-pinned="${name}"]`);
+}
+
 export function pedestal(of: Locator): Locator {
   return of.getByTestId('multi-angle-piece-motion-source');
 }

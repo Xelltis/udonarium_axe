@@ -1,4 +1,4 @@
-import { NgClass, NgStyle } from '@angular/common';
+import { NgClass, NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -97,6 +97,7 @@ import {
   multiAngleRotationPhase,
 } from '@axe/domain/tabletop/multi-angle';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
+import { RideSeat, seatOf } from '@axe/domain/tabletop/ride/ride-rules';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
@@ -176,6 +177,26 @@ const TARGET_MARK_HEIGHT_PX = 34;
 const SPEECH_STAMP_PX = 56;
 const BUFF_DETAIL_ROW_HEIGHT_PX = 12;
 const BUFF_BADGE_ROW_HEIGHT_PX = 22;
+/** The space between a mount's own labels and the riding label over them. */
+const RIDING_STACK_GAP_PX = 4;
+/** How tall one name in the riding label is drawn, for reckoning what stands over it. */
+const RIDING_NAME_HEIGHT_PX = 22;
+/** The mark each seat is shown with in the riding label. */
+const RIDING_SEAT_ICONS: Readonly<Record<RideSeat, string>> = {
+  rider: 'upgrade',
+  passenger: 'group',
+  cargo: 'backpack',
+};
+
+/** One piece riding a mount, as the mount's riding label shows it. */
+interface RidingLabel {
+  readonly identifier: string;
+  /** Its name, empty where it is not shown to this reader. */
+  readonly name: string;
+  readonly icon: string;
+  readonly gauges: readonly { readonly gauge: PieceGauge; readonly numbers: string }[];
+  readonly badges: readonly BuffBadge[];
+}
 const ROLL_HANDLE_MIN_PX = 20;
 const ROLL_HANDLE_MAX_PX = 56;
 const ROLL_HANDLE_SIZE_RATIO = 0.56;
@@ -203,6 +224,7 @@ interface PieceRightDrag {
     NgClass,
     NgStyle,
     GameDataElementBuffComponent,
+    NgTemplateOutlet,
     SafePipe,
     StampComponent,
     TranslocoModule,
@@ -395,6 +417,89 @@ export class GameCharacterComponent {
     }
     return this.ride.aboard(char).length;
   });
+  /**
+   * The mount this piece rides, while it rides one. The piece's name, bars and buffs are drawn in the
+   * mount's riding label then, stacked over the mount's own, rather than over itself.
+   */
+  readonly ridingMount = computed(() => {
+    const char = this.gameCharacter();
+    if (!char) return null;
+    this.objectChange.versionOf(char.identifier)();
+    if (char.ridingOn === '') return null;
+    this.objectChange.versionOf(char.ridingOn)();
+    return this.ride.mountOf(char);
+  });
+  /**
+   * The pieces riding this one, as its riding label shows them over its own labels: their names,
+   * bars and buffs, the one in front nearest, as each would show over itself.
+   */
+  readonly ridingLabels = computed<RidingLabel[]>(
+    () => {
+      const char = this.gameCharacter();
+      if (!char || this.ridersAboard() < 1) return [];
+      this.objectChange.trackMyCursor();
+      const order: Record<RideSeat, number> = { rider: 0, passenger: 1, cargo: 2 };
+      return this.ride
+        .aboard(char)
+        .sort((a, b) => order[seatOf(a.rideSeat)] - order[seatOf(b.rideSeat)])
+        .map((piece) => this.ridingLabelOf(piece));
+    },
+    { equal: sameRidingLabels }
+  );
+
+  private ridingLabelOf(piece: GameCharacter): RidingLabel {
+    const showsName = this.overlay.names() && (!piece.hideName || this.rolePermission.canSeeHidden);
+    const detail = this.overlay.resourceBars() ? (piece.detailDataElement ?? null) : null;
+    const readable = this.disclosureService.canView(piece);
+    const gauges =
+      detail && this.followedTree(detail) !== null
+        ? selectPieceGauges(detail).map((gauge) => ({ gauge, numbers: gaugeNumbersOf(gauge, readable) }))
+        : [];
+    const buffs = this.overlay.buffs() && !piece.hideBuff ? (piece.buffDataElement ?? null) : null;
+    const badges = buffs && this.followedTree(buffs) !== null ? toBuffBadges(buffs) : [];
+    return {
+      identifier: piece.identifier,
+      name: showsName ? piece.name : '',
+      icon: RIDING_SEAT_ICONS[seatOf(piece.rideSeat)],
+      gauges,
+      badges,
+    };
+  }
+
+  /** How tall the riding label over this mount is reckoned to stand, nothing where nobody rides it. */
+  private readonly ridingLabelHeightEstimate = computed(() =>
+    this.ridingLabels().reduce(
+      (sum, label) =>
+        sum +
+        RIDING_STACK_GAP_PX +
+        (label.name ? RIDING_NAME_HEIGHT_PX : 0) +
+        label.gauges.length * GAUGE_ROW_HEIGHT_PX +
+        Math.ceil(label.badges.length / BUFF_BADGES_PER_ROW) * BUFF_BADGE_ROW_HEIGHT_PX,
+      0
+    )
+  );
+
+  /** How far over the piece the riding label's foot stands: over its own bars and buffs. */
+  private readonly ridingLift = computed(
+    () => BUFF_STACK_GAP_PX + this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate() + RIDING_STACK_GAP_PX
+  );
+
+  readonly ridingOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.ridingOrbit()));
+
+  private ridingOrbit(): BillboardFacing {
+    const lift = this.ridingLift();
+    if (this.isPoster())
+      return facesAlways(`translateY(${-(this.size() * this.gridSize + 12 + lift - BUFF_STACK_GAP_PX)}px)`);
+    return this.labelOrbitFacing(lift, 28 + lift);
+  }
+
+  readonly ridingStackFacing = computed<BillboardFacing>(() =>
+    this.labelStackFacing(this.isPoster() ? NOT_TURNED : this.billboardFacing(this.ridingLift()))
+  );
+
+  /** How much larger a name stands in the riding label than the bars beside it, as on the piece's own label. */
+  protected readonly ridingNameEm = NAME_BASE_FONT_PX / DECOR_BASE_FONT_PX;
+
   /** Names go unshown for a piece hiding its name here, and for every piece while this seat has them switched off. */
   readonly hideName = computed(() => {
     const char = this.gameCharacter();
@@ -900,6 +1005,10 @@ export class GameCharacterComponent {
   );
 
   readonly multiAngleLabelText = computed(() => {
+    const riders = this.ridingLabels()
+      .map((label) => label.name)
+      .filter((name) => name.length > 0);
+    if (riders.length > 0) return [...riders, this.name()].join('／');
     if (this.hideBuff() || this.multiAngleResourceBuffOrbitEnabled()) return this.name();
     const buffNames = this.buffBadges()
       .map((buff) => buff.name.trim())
@@ -924,6 +1033,7 @@ export class GameCharacterComponent {
   readonly multiAngleOrbitVisible = computed(
     () =>
       this.multiAngleNameOrbitEnabled() &&
+      !this.ridingMount() &&
       ((this.name().length > 0 && !this.hideName()) ||
         (this.multiAngleResourceBuffOrbitEnabled() &&
           (this.orbitPieceGauges().length > 0 || (!this.hideBuff() && this.buffBadges().length > 0))))
@@ -1030,7 +1140,7 @@ export class GameCharacterComponent {
   });
 
   private targetOrbit(): BillboardFacing {
-    const stack = this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate();
+    const stack = this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate() + this.ridingLabelHeightEstimate();
     if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 20 + stack)}px)`);
     return this.screenLiftFacing(TARGET_STACK_GAP_PX + stack, 84 + stack);
   }
@@ -1063,6 +1173,7 @@ export class GameCharacterComponent {
       BUFF_STACK_GAP_PX +
       this.gaugePanelHeightEstimate() +
       this.buffPanelHeightEstimate() +
+      this.ridingLabelHeightEstimate() +
       SPEECH_STACK_GAP_PX +
       (this.isTargeted() ? TARGET_MARK_HEIGHT_PX : 0)
   );
@@ -1897,6 +2008,25 @@ function sameEntries<T extends object>(a: readonly T[], b: readonly T[]): boolea
   if (a === b) return true;
   if (a.length !== b.length) return false;
   return a.every((entry, index) => sameFields(entry, b[index]));
+}
+
+/** The same riding label, or one showing the same pieces with the same names, bars and buffs. */
+function sameRidingLabels(a: readonly RidingLabel[], b: readonly RidingLabel[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((label, index) => {
+    const other = b[index];
+    return (
+      label.identifier === other.identifier &&
+      label.name === other.name &&
+      label.icon === other.icon &&
+      label.gauges.length === other.gauges.length &&
+      label.gauges.every(
+        (row, at) => row.numbers === other.gauges[at].numbers && sameFields(row.gauge, other.gauges[at].gauge)
+      ) &&
+      sameEntries(label.badges, other.badges)
+    );
+  });
 }
 
 /** Whether two flat records hold the same keys with the same values. */

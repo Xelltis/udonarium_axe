@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { centreOf, pedestal, piece, Point, settle as settlePiece } from '../see-through-helpers';
+import { centreOf, pedestal, piece, pinnedPiece, Point, settle as settlePiece } from '../see-through-helpers';
 import { becomeGm, closePanels, prepare, snap } from './fixtures';
 
 async function chooseRide(page: Page, name: string, entry: string) {
@@ -27,6 +27,7 @@ async function drag(page: Page, from: Point, to: Point) {
 async function useHexGridLive(page: Page) {
   await page.locator('#app-table-layer').click({ button: 'right', position: { x: 900, y: 250 } });
   const menu = page.locator('context-menu');
+  await expect(menu.getByText('テーブル設定', { exact: true })).toBeVisible({ timeout: 15000 });
   await menu.getByText('テーブル設定', { exact: true }).click();
   const gridType = page.locator('modal select[name="tableGridType"]');
   await expect(gridType).toBeVisible({ timeout: 20000 });
@@ -37,7 +38,7 @@ async function useHexGridLive(page: Page) {
 
 /** Puts キャラクターA on キャラクターB, made a mount, where キャラクターB stands. */
 async function rideAOnB(page: Page) {
-  const rider = piece(page, 'キャラクターA');
+  const rider = await pinnedPiece(page, 'キャラクターA');
   const mount = piece(page, 'キャラクターB');
   await chooseRide(page, 'キャラクターB', '乗り物にする');
   await settlePiece(rider);

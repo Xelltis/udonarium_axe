@@ -211,7 +211,9 @@
                 [style.height.px]="imageView.boxHeightPx()"
               >
                 @let buffEl = this.gameCharacter()!.buffDataElement;
-                @if (buffEl && buffNum() > 0 && !hideBuff() && !multiAngleResourceBuffOrbitEnabled()) {
+                @if (
+                  buffEl && buffNum() > 0 && !hideBuff() && !multiAngleResourceBuffOrbitEnabled() && !ridingMount()
+                ) {
                   <div class="pointer-events-auto [-webkit-transform-style:preserve-3d] transform-3d">
                     <div
                       class="absolute m-auto [-webkit-transform-style:preserve-3d] transform-3d"
@@ -270,39 +272,9 @@
                                   [style.grid-template-columns]="buffBadgeColumns"
                                 >
                                   @for (badge of buffBadges(); track badge.identifier) {
-                                    <span
-                                      data-testid="buff-badge"
-                                      class="relative inline-flex"
-                                      [attr.title]="badge.name + (badge.effect ? ' / ' + badge.effect : '')"
-                                    >
-                                      <span
-                                        class="relative inline-flex size-[1.5em] items-center justify-center rounded-full border border-solid border-white/35 text-[0.95em] leading-none shadow-[0_0.1em_0.25em_rgba(0,0,0,0.6)]"
-                                        [style.background]="badge.color"
-                                      >
-                                        @if (badge.iconUrl) {
-                                          <img
-                                            class="pointer-events-none size-[0.9em] object-contain"
-                                            [src]="badge.iconUrl | safe: 'resourceUrl'"
-                                            alt=""
-                                          />
-                                        } @else {
-                                          {{ badge.icon }}
-                                        }
-                                        @if (badge.strength) {
-                                          <span
-                                            class="bg-ui-accent pointer-events-none absolute top-[-0.35em] left-[-0.4em] rounded-[0.3em] px-[0.18em] text-[0.45em] leading-tight font-bold text-white shadow-[0_0.1em_0.2em_rgba(0,0,0,0.7)]"
-                                            >{{ badge.strength }}</span
-                                          >
-                                        }
-                                      </span>
-                                      @if (badge.expires) {
-                                        <span
-                                          data-testid="buff-rounds"
-                                          class="pointer-events-none absolute right-[-0.35em] bottom-[-0.3em] rounded-[0.25em] border border-solid border-white/30 bg-black/90 px-[0.2em] text-[0.52em] leading-tight font-bold text-white tabular-nums"
-                                          >{{ badge.rounds }}</span
-                                        >
-                                      }
-                                    </span>
+                                    <ng-container
+                                      *ngTemplateOutlet="buffBadgeView; context: { $implicit: badge }"
+                                    ></ng-container>
                                   }
                                 </div>
                               }
@@ -335,7 +307,7 @@
                     </div>
                   </div>
                 }
-                @if (pieceGauges().length > 0 && !multiAngleResourceBuffOrbitEnabled()) {
+                @if (pieceGauges().length > 0 && !multiAngleResourceBuffOrbitEnabled() && !ridingMount()) {
                   <div
                     class="pointer-events-auto absolute [-webkit-transform-style:preserve-3d] transform-3d"
                     [appBillboard]="gaugeOrbitFacing()"
@@ -346,34 +318,12 @@
                       [appBillboard]="gaugeStackFacing()"
                     >
                       @for (row of gaugeRows(); track row.gauge.identifier) {
-                        @let gauge = row.gauge;
-                        <div
-                          class="flex w-[14em] items-center gap-[0.3em] whitespace-nowrap"
-                          data-testid="piece-gauge"
-                          [attr.title]="gauge.name"
-                        >
-                          <span
-                            class="w-[0.85em] shrink-0 text-center text-[0.9em] leading-none text-white/80 [text-shadow:0_0.1em_0.2em_#000]"
-                            >{{ gauge.initial }}</span
-                          >
-                          <span
-                            class="relative block h-[0.6em] min-w-0 flex-1 overflow-hidden rounded-full bg-black/55 ring-[0.1em] ring-black/40"
-                          >
-                            <span
-                              class="absolute inset-y-0 left-0 block rounded-full transition-[width] duration-200"
-                              [ngStyle]="{ width: gauge.ratio * 100 + '%', background: gauge.color }"
-                            ></span>
-                          </span>
-                          <span
-                            class="shrink-0 text-[0.9em] leading-none text-white/85 [text-shadow:0_0.1em_0.2em_#000]"
-                            >{{ row.numbers }}</span
-                          >
-                        </div>
+                        <ng-container *ngTemplateOutlet="gaugeRowView; context: { $implicit: row }"></ng-container>
                       }
                     </div>
                   </div>
                 }
-                @if (name() && !hideName() && !multiAngleNameOrbitEnabled()) {
+                @if (name() && !hideName() && !multiAngleNameOrbitEnabled() && !ridingMount()) {
                   <div
                     class="pointer-events-auto absolute [-webkit-transform-style:preserve-3d] transform-3d"
                     [style.font-size.px]="nameFontSizePx"
@@ -422,6 +372,51 @@
                         </div>
                       </div>
                     }
+                  </div>
+                }
+                @if (ridingLabels().length > 0 && !multiAngleNameOrbitEnabled()) {
+                  <div
+                    class="pointer-events-none absolute [-webkit-transform-style:preserve-3d] transform-3d"
+                    [appBillboard]="ridingOrbitFacing()"
+                  >
+                    <div
+                      data-testid="riding-label"
+                      class="absolute bottom-0 left-0 flex origin-bottom-left flex-col-reverse items-center gap-[0.4em] whitespace-nowrap [-webkit-transform-style:preserve-3d] transform-3d"
+                      [style.font-size.px]="decorFontSizePx"
+                      [appBillboard]="ridingStackFacing()"
+                    >
+                      @for (label of ridingLabels(); track label.identifier) {
+                        <div class="flex flex-col items-center gap-[0.15em]" data-testid="riding-label-piece">
+                          @if (label.badges.length > 0) {
+                            <div
+                              class="grid w-max items-end gap-[0.8em]"
+                              [style.grid-template-columns]="buffBadgeColumns"
+                            >
+                              @for (badge of label.badges; track badge.identifier) {
+                                <ng-container
+                                  *ngTemplateOutlet="buffBadgeView; context: { $implicit: badge }"
+                                ></ng-container>
+                              }
+                            </div>
+                          }
+                          @for (row of label.gauges; track row.gauge.identifier) {
+                            <ng-container *ngTemplateOutlet="gaugeRowView; context: { $implicit: row }"></ng-container>
+                          }
+                          @if (label.name) {
+                            <div
+                              class="bg-ui-panel text-ui-text box-border max-w-[24em] truncate rounded-[1.6em] px-[0.6em] py-[0.2em]"
+                              data-testid="riding-label-name"
+                              [style.font-size.em]="ridingNameEm"
+                            >
+                              <i class="material-icons text-ui-muted inline align-middle text-[1em]!">{{
+                                label.icon
+                              }}</i>
+                              {{ label.name }}
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
                   </div>
                 }
                 @if (!isLock && !mode2dEnabled()) {
@@ -869,3 +864,64 @@
     </div>
   </div>
 }
+
+<ng-template #gaugeRowView let-row>
+  @let gauge = row.gauge;
+  <div
+    class="flex w-[14em] items-center gap-[0.3em] whitespace-nowrap"
+    data-testid="piece-gauge"
+    [attr.title]="gauge.name"
+  >
+    <span
+      class="w-[0.85em] shrink-0 text-center text-[0.9em] leading-none text-white/80 [text-shadow:0_0.1em_0.2em_#000]"
+      >{{ gauge.initial }}</span
+    >
+    <span
+      class="relative block h-[0.6em] min-w-0 flex-1 overflow-hidden rounded-full bg-black/55 ring-[0.1em] ring-black/40"
+    >
+      <span
+        class="absolute inset-y-0 left-0 block rounded-full transition-[width] duration-200"
+        [ngStyle]="{ width: gauge.ratio * 100 + '%', background: gauge.color }"
+      ></span>
+    </span>
+    <span class="shrink-0 text-[0.9em] leading-none text-white/85 [text-shadow:0_0.1em_0.2em_#000]">{{
+      row.numbers
+    }}</span>
+  </div>
+</ng-template>
+
+<ng-template #buffBadgeView let-badge>
+  <span
+    data-testid="buff-badge"
+    class="relative inline-flex"
+    [attr.title]="badge.name + (badge.effect ? ' / ' + badge.effect : '')"
+  >
+    <span
+      class="relative inline-flex size-[1.5em] items-center justify-center rounded-full border border-solid border-white/35 text-[0.95em] leading-none shadow-[0_0.1em_0.25em_rgba(0,0,0,0.6)]"
+      [style.background]="badge.color"
+    >
+      @if (badge.iconUrl) {
+        <img
+          class="pointer-events-none size-[0.9em] object-contain"
+          [src]="badge.iconUrl | safe: 'resourceUrl'"
+          alt=""
+        />
+      } @else {
+        {{ badge.icon }}
+      }
+      @if (badge.strength) {
+        <span
+          class="bg-ui-accent pointer-events-none absolute top-[-0.35em] left-[-0.4em] rounded-[0.3em] px-[0.18em] text-[0.45em] leading-tight font-bold text-white shadow-[0_0.1em_0.2em_rgba(0,0,0,0.7)]"
+          >{{ badge.strength }}</span
+        >
+      }
+    </span>
+    @if (badge.expires) {
+      <span
+        data-testid="buff-rounds"
+        class="pointer-events-none absolute right-[-0.35em] bottom-[-0.3em] rounded-[0.25em] border border-solid border-white/30 bg-black/90 px-[0.2em] text-[0.52em] leading-tight font-bold text-white tabular-nums"
+        >{{ badge.rounds }}</span
+      >
+    }
+  </span>
+</ng-template>
