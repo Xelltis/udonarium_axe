@@ -170,7 +170,8 @@
         "limitByTable": "As the size table allows",
         "remove": "End the engagement zone",
         "prepareLeave": "Say it will leave next turn",
-        "cancelLeave": "Take back saying it will leave"
+        "cancelLeave": "Take back saying it will leave",
+        "checkFire": "Check the line of fire"
       },
       "chat": {
         "declared": "{{attacker}} engaged {{target}}, and an engagement zone formed",
@@ -201,7 +202,10 @@
         "interrupt": "Let moves be stepped into",
         "interruptHint": "Before a planned move is walked, the side of every enemy that can reach the way is asked whether to step in. A piece that steps in stops the move at that point, and a new engagement zone forms there with both. While turns are kept, it is forming until the turn ends.",
         "interruptKind": "Kind used to step in",
-        "interruptKindFirst": "The first kind"
+        "interruptKindFirst": "The first kind",
+        "blockRadius": "Line of fire block radius (m)",
+        "clearName": "Ability that fires past cover",
+        "fireHint": "A line of fire counts the engagement zones it crosses, and pieces out of every zone that are enemies of the shooter within this radius, as in the way. A shooter whose sheet field or buff goes by this name has nothing in the way."
       },
       "heldInPlace": "{{name}} is held by its engagement zone and cannot move. Say it will leave, and it may leave from the next round",
       "interrupt": {
@@ -213,6 +217,17 @@
         "pass": "Let it by",
         "decideNow": "Decide now",
         "drop": "Drop the interrupts"
+      },
+      "fire": {
+        "title": "Line of fire: {{name}}",
+        "distance": "{{metres}} m",
+        "clear": "Nothing in the way",
+        "blocked": "In the way:",
+        "zones": "{{count}} engagement zone(s)",
+        "candidates": "May land on: {{names}}",
+        "random": "Pick at random",
+        "none": "No piece is aimed at",
+        "unseen": "Unseen piece"
       }
     },
     "firstPerson": {
@@ -2219,7 +2234,8 @@
         "doorStyleLift": "Rises up",
         "doorStyleSink": "Sinks down",
         "doorStyleSlide": "Slides aside",
-        "doorFlip": "Open the other way"
+        "doorFlip": "Open the other way",
+        "rangeTargetInside": "Aim at everything inside"
       },
       "holdHint": {
         "footing": "Wheel to step through what it can stand on",

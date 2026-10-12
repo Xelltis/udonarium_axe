@@ -6,6 +6,7 @@ import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { DataElement } from '@axe/domain/data/data-element';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -20,6 +21,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { EngagementZone, zonesOn } from '@axe/domain/tabletop/zone/engagement-zone';
+import { FirePiece, FireReport, lineOfFire } from '@axe/domain/tabletop/zone/line-of-fire';
 import { zoneCells } from '@axe/domain/tabletop/zone/zone-cells';
 import { gatheredAbout, zoneCovers, ZonePoint, ZoneShape } from '@axe/domain/tabletop/zone/zone-geometry';
 import { LeaveInput, leaveReasonOf, zoneHolds, ZoneSideCounts } from '@axe/domain/tabletop/zone/zone-leave';
@@ -51,6 +53,8 @@ export interface ZoneMenuModel {
   readonly offField: boolean;
   /** For a piece in a zone: whether it has said it will leave, and whether it may say so. */
   readonly leave: { readonly said: boolean; readonly maySay: boolean } | null;
+  /** Whether some other piece is aimed at, which a line of fire can be checked against. */
+  readonly aiming: boolean;
 }
 
 const NO_MENU: ZoneMenuModel = {
@@ -60,6 +64,7 @@ const NO_MENU: ZoneMenuModel = {
   foes: [],
   offField: false,
   leave: null,
+  aiming: false,
 };
 
 /** What a move is shaped by where zones stand on the table. */
@@ -327,6 +332,9 @@ export class EngagementZoneService {
       foes: own ? [] : foes,
       offField: piece.offField === '1',
       leave: own ? { said: piece.zoneLeaveRound !== '', maySay: !own.overflowing } : null,
+      aiming: pieces.some(
+        (other) => other.id !== piece.identifier && this.objectStore.get<GameCharacter>(other.id)?.targeted
+      ),
     };
   }
 
@@ -427,6 +435,51 @@ export class EngagementZoneService {
       ratio: world.rules.outnumber,
       samePointPx: world.rules.samePointM * world.pxPerMetre,
     };
+  }
+
+  /**
+   * Where a piece counts as standing for what reaches it: the centre of its zone where it is in one,
+   * and the middle of its token otherwise.
+   */
+  pointOf(piece: GameCharacter): ZonePoint {
+    const table = this.tableSelecter.viewTable;
+    const own = centreOf(piece, table?.gridSize ?? 50);
+    return this.stateNow().pointOf(piece.identifier) ?? own;
+  }
+
+  /**
+   * What stands between a shooter and a target as zones have it, and who the shot may land on; null
+   * where the room does not play zones.
+   */
+  lineOfFireFor(shooter: GameCharacter, target: GameCharacter): FireReport | null {
+    const snapshot = this.snapshot();
+    if (!snapshot) return null;
+    const { state, pieces, world } = snapshot;
+    const fireOf = (piece: ZonePieceInput): FirePiece => ({
+      id: piece.id,
+      point: state.pointOf(piece.id) ?? piece.point,
+      side: piece.side,
+      zone: state.zoneOf(piece.id)?.id ?? '',
+      offField: piece.offField,
+    });
+    const from = pieces.find((piece) => piece.id === shooter.identifier);
+    const to = pieces.find((piece) => piece.id === target.identifier);
+    if (!from || !to) return null;
+    const clearName = world.rules.clearName;
+    const clear =
+      clearName.length > 0 &&
+      (shooter.buffs.find(clearName) !== null ||
+        (shooter.rootDataElement ? DataElement.findElementByReference(shooter.rootDataElement, clearName) : null) !==
+          null);
+    return lineOfFire({
+      shooter: fireOf(from),
+      target: fireOf(to),
+      pieces: pieces.map(fireOf),
+      zones: state.zones.map((zone) => ({ id: zone.id, shape: zone.shape, members: zone.members })),
+      blockRadiusPx: world.rules.blockRadiusM * world.pxPerMetre,
+      pxPerMetre: world.pxPerMetre,
+      clear,
+    });
   }
 
   /** Whether a piece may move at all by a kind, as far as zones say. */

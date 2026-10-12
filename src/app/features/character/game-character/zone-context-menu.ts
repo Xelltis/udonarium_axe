@@ -13,6 +13,7 @@ export interface ZoneMenuCallbacks {
   setSquare(zoneId: string, square: boolean): void;
   setLimit(zoneId: string, limit: number | null): void;
   remove(zoneId: string): void;
+  checkFire(): void;
 }
 
 /** The limits offered for a zone, besides holding as many as the size table allows. */
@@ -58,6 +59,7 @@ export function buildZoneContextMenu(
     name: t(model.offField ? 'feature.zone.menu.onField' : 'feature.zone.menu.offField'),
     action: () => callbacks.toggleOffField(),
   });
+  if (model.aiming) entries.push({ name: t('feature.zone.menu.checkFire'), action: () => callbacks.checkFire() });
   if (zone && isGameMaster) {
     entries.push({
       name: t(zone.square ? 'feature.zone.menu.circle' : 'feature.zone.menu.square'),

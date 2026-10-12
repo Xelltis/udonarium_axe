@@ -1,0 +1,45 @@
+<div class="box-border flex h-full flex-col gap-2 overflow-y-auto p-2 text-[13px]" data-testid="line-of-fire">
+  @for (row of rows(); track row.id) {
+    <section
+      class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-1 border border-solid p-2"
+      data-testid="line-of-fire-row"
+    >
+      <div class="flex items-baseline justify-between gap-2">
+        <span class="font-semibold">{{ row.name }}</span>
+        <span class="text-ui-muted tabular-nums" data-testid="line-of-fire-distance">{{
+          'feature.zone.fire.distance' | transloco: { metres: row.distance }
+        }}</span>
+      </div>
+      @if (row.zones === 0 && row.pieces.length === 0) {
+        <span class="text-ui-muted" data-testid="line-of-fire-clear">{{ 'feature.zone.fire.clear' | transloco }}</span>
+      } @else {
+        <span class="text-red-500" data-testid="line-of-fire-blocked">
+          {{ 'feature.zone.fire.blocked' | transloco }}
+          @if (row.zones > 0) {
+            {{ 'feature.zone.fire.zones' | transloco: { count: row.zones } }}
+          }
+          @if (row.pieces.length > 0) {
+            {{ row.pieces.join('、') }}
+          }
+        </span>
+      }
+      @if (row.candidates.length > 1) {
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-ui-muted" data-testid="line-of-fire-candidates">{{
+            'feature.zone.fire.candidates' | transloco: { names: row.candidates.join('、') }
+          }}</span>
+          <button
+            type="button"
+            class="bg-ui-accent cursor-pointer rounded-full border-none px-3 py-1 text-[0.86em] text-white"
+            data-testid="line-of-fire-random"
+            (click)="pickAtRandom(row)"
+          >
+            {{ 'feature.zone.fire.random' | transloco }}
+          </button>
+        </div>
+      }
+    </section>
+  } @empty {
+    <p class="text-ui-dim m-0 py-3 text-center">{{ 'feature.zone.fire.none' | transloco }}</p>
+  }
+</div>

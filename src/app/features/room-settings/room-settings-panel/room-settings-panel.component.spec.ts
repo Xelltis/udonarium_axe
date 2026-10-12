@@ -481,6 +481,8 @@ describe('RoomSettingsPanelComponent', () => {
         samePointM: 1.5,
         outnumber: null,
         leaveKind: null,
+        blockRadiusM: null,
+        clearName: null,
       });
 
       component.zoneSizes = '';
@@ -543,6 +545,19 @@ describe('RoomSettingsPanelComponent', () => {
 
       component.interruptKind = '';
       expect(Config.instance.interruptKind).toBeNull();
+    });
+
+    it('writes how far a piece blocks a line of fire, and the name that fires past it', () => {
+      component.zoneBlockRadiusM = 1.5;
+      component.zoneClearName = ' 精密 ';
+
+      expect(Config.instance.zoneRuleAnswers.blockRadiusM).toBe(1.5);
+      expect(Config.instance.zoneRuleAnswers.clearName).toBe('精密');
+
+      component.zoneBlockRadiusM = -1;
+      component.zoneClearName = '';
+      expect(Config.instance.zoneRuleAnswers.blockRadiusM).toBeNull();
+      expect(Config.instance.zoneRuleAnswers.clearName).toBeNull();
     });
 
     it('writes whether a move on a table with no grid is drawn as straight legs', () => {

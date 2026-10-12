@@ -100,6 +100,8 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_pathMove') private _pathMove: string = '';
   @SyncVar('_interruptEnabled') private _interruptEnabled: string = '';
   @SyncVar('_interruptKind') private _interruptKind: string = '';
+  @SyncVar('_zoneBlockRadius') private _zoneBlockRadius: number = -1;
+  @SyncVar('_zoneClearName') private _zoneClearName: string = '';
 
   /**
    * Where the room shows the dice of a chat roll tumbling: in the frame of the line that gives the
@@ -316,6 +318,8 @@ export class Config extends ObjectNode implements InnerXml {
       samePointM: readRuleNumber(this._zoneSamePoint),
       outnumber: readRuleNumber(this._zoneOutnumber),
       leaveKind: readRuleText(this._zoneLeaveKind),
+      blockRadiusM: readRuleNumber(this._zoneBlockRadius),
+      clearName: readRuleText(this._zoneClearName),
     };
   }
 
@@ -330,6 +334,16 @@ export class Config extends ObjectNode implements InnerXml {
   /** How many times the other side one side has to be to pass a zone unheld, or null for the default. */
   set zoneOutnumber(answer: number | null) {
     this._zoneOutnumber = writeRuleNumber(answer);
+  }
+
+  /** How close to a line of fire, in metres, a piece stands to be in its way, or null for the default. */
+  set zoneBlockRadiusM(answer: number | null) {
+    this._zoneBlockRadius = writeRuleNumber(answer);
+  }
+
+  /** The sheet field or buff by which a shooter fires past what stands in the way, or null for none. */
+  set zoneClearName(answer: string | null) {
+    this._zoneClearName = writeRuleText(answer);
   }
 
   /** The kind of move a piece may leave an overflowing zone by at once, or null for any kind. */

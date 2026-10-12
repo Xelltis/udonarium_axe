@@ -170,7 +170,8 @@
         "limitByTable": "大きさの表どおり",
         "remove": "交戦エリアを解消する",
         "prepareLeave": "次の手番で離れると予告する",
-        "cancelLeave": "離れる予告を取り消す"
+        "cancelLeave": "離れる予告を取り消す",
+        "checkFire": "射線チェック"
       },
       "chat": {
         "declared": "{{attacker}} が {{target}} と交戦し、交戦エリアができました",
@@ -201,7 +202,10 @@
         "interrupt": "移動の割り込みを使う",
         "interruptHint": "経路を決めて動かすとき、歩き出す前に、経路に届く敵の側へ割り込むかどうかを尋ねます。割り込むと、その地点で移動が止まり、割り込んだ駒と一緒に新しい交戦エリアができます。手番を回しているあいだは、手番の終わりまで形成中です。",
         "interruptKind": "割り込みに使う種類",
-        "interruptKindFirst": "先頭の種類"
+        "interruptKindFirst": "先頭の種類",
+        "blockRadius": "射線を遮る半径(m)",
+        "clearName": "遮りを無視する能力",
+        "fireHint": "射線チェックでは、通り道の交戦エリアと、撃つ側の敵でエリアの外にいる駒（この半径以内）を遮るものとして数えます。撃つ側のシートの項目かバフにこの名前があると、遮るものを数えません。"
       },
       "heldInPlace": "{{name}} は交戦エリアに止められていて動けません。離れる予告をすると、次のラウンドから離れられます",
       "interrupt": {
@@ -213,6 +217,17 @@
         "pass": "割り込まない",
         "decideNow": "今すぐ決める",
         "drop": "割り込みを取り消す"
+      },
+      "fire": {
+        "title": "射線チェック：{{name}}",
+        "distance": "{{metres}}m",
+        "clear": "遮るものはありません",
+        "blocked": "遮るもの：",
+        "zones": "交戦エリア{{count}}つ",
+        "candidates": "当たりうる相手：{{names}}",
+        "random": "無作為に選ぶ",
+        "none": "ターゲットにしている駒がありません",
+        "unseen": "見えない駒"
       }
     },
     "firstPerson": {
@@ -2219,7 +2234,8 @@
         "doorStyleLift": "上へ上がる",
         "doorStyleSink": "下へ沈む",
         "doorStyleSlide": "横にスライド",
-        "doorFlip": "開く向きを反転"
+        "doorFlip": "開く向きを反転",
+        "rangeTargetInside": "範囲内を対象にする"
       },
       "holdHint": {
         "footing": "ホイールで足場を上下に辿る",

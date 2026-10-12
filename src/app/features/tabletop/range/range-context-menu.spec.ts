@@ -94,4 +94,36 @@ describe('buildRangeContextMenu', () => {
       range.destroy();
     }
   });
+
+  it('offers aiming at everything inside for a circle, a line or a square, and not for other shapes', () => {
+    const range = RangeArea.create('test', 3, 3, 50);
+    const aim = vi.fn();
+    const names = () =>
+      buildRangeContextMenu(
+        range,
+        50,
+        { x: 0, y: 0, z: 0 },
+        ObjectStore.instance,
+        { notifyInventoryUpdate: vi.fn() } as unknown as GameObjectInventoryService,
+        { makeDefaultContextMenuActions: vi.fn(() => []) } as unknown as TabletopActionService,
+        vi.fn(),
+        vi.fn(),
+        t,
+        undefined,
+        aim
+      );
+
+    try {
+      range.type = 'CIRCLE';
+      const entry = names().find((action) => action.name === '範囲内を対象にする');
+      expect(entry).toBeDefined();
+      entry!.action!();
+      expect(aim).toHaveBeenCalledWith(range);
+
+      range.type = 'CORN';
+      expect(names().some((action) => action.name === '範囲内を対象にする')).toBe(false);
+    } finally {
+      range.destroy();
+    }
+  });
 });

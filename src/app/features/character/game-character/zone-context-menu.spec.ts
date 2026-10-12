@@ -15,11 +15,12 @@ function callbacks(): ZoneMenuCallbacks & { [name: string]: ReturnType<typeof vi
     setSquare: vi.fn(),
     setLimit: vi.fn(),
     remove: vi.fn(),
+    checkFire: vi.fn(),
   };
 }
 
 function model(more: Partial<ZoneMenuModel> = {}): ZoneMenuModel {
-  return { enabled: true, zone: null, joinable: [], foes: [], offField: false, leave: null, ...more };
+  return { enabled: true, zone: null, joinable: [], foes: [], offField: false, leave: null, aiming: false, ...more };
 }
 
 function names(entries: ContextMenuAction[]): string[] {
@@ -94,5 +95,17 @@ describe('buildZoneContextMenu', () => {
     expect(names(buildZoneContextMenu(model({ offField: true }), true, false, callbacks(), t))).toEqual([
       'feature.zone.menu.onField',
     ]);
+  });
+
+  it('offers checking the line of fire while some other piece is aimed at', () => {
+    const handlers = callbacks();
+    const none = buildZoneContextMenu(model(), true, false, handlers, t);
+    expect(names(none)).not.toContain('feature.zone.menu.checkFire');
+
+    const aiming = buildZoneContextMenu(model({ aiming: true }), true, false, handlers, t);
+    const entry = aiming[0].subActions!.find((action) => action.name === 'feature.zone.menu.checkFire')!;
+    entry.action!();
+
+    expect(handlers.checkFire).toHaveBeenCalled();
   });
 });

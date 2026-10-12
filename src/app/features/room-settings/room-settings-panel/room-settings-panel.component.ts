@@ -966,6 +966,25 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.interruptKind = value.trim().length > 0 ? value.trim() : null;
   }
 
+  /** How close to a line of fire, in metres, a piece out of every zone stands to be in its way. */
+  get zoneBlockRadiusM(): number {
+    this.objectChange.versionOf('Config')();
+    return resolveZoneRules(this.config.zoneRuleAnswers).blockRadiusM;
+  }
+  set zoneBlockRadiusM(value: number) {
+    if (!this.isEditable) return;
+    this.config.zoneBlockRadiusM = Number.isFinite(value) && value >= 0 ? value : null;
+  }
+
+  /** The sheet field or buff by which a shooter fires past what stands in the way, empty for none. */
+  get zoneClearName(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.zoneRuleAnswers.clearName ?? '';
+  }
+  set zoneClearName(value: string) {
+    if (this.isEditable) this.config.zoneClearName = value.trim().length > 0 ? value.trim() : null;
+  }
+
   /** The kinds of move the room plays, as it wrote them, empty where it plays the plain kind alone. */
   get moveKinds(): string {
     this.objectChange.versionOf('Config')();

@@ -170,7 +170,8 @@
         "limitByTable": "크기 표대로",
         "remove": "교전 구역 해소",
         "prepareLeave": "다음 차례에 이탈한다고 예고",
-        "cancelLeave": "이탈 예고 취소"
+        "cancelLeave": "이탈 예고 취소",
+        "checkFire": "사선 확인"
       },
       "chat": {
         "declared": "{{attacker}}이(가) {{target}}와(과) 교전하여 교전 구역이 생겼습니다",
@@ -201,7 +202,10 @@
         "interrupt": "이동 끼어들기 사용",
         "interruptHint": "경로를 정해 움직일 때, 걷기 전에 경로에 닿는 적 쪽에 끼어들지 묻습니다. 끼어들면 그 지점에서 이동이 멈추고, 끼어든 말과 함께 새 교전 구역이 생깁니다. 차례를 돌리는 동안에는 차례가 끝날 때까지 형성 중입니다.",
         "interruptKind": "끼어들기에 쓰는 종류",
-        "interruptKindFirst": "맨 앞 종류"
+        "interruptKindFirst": "맨 앞 종류",
+        "blockRadius": "사선을 가로막는 반경(m)",
+        "clearName": "가로막음을 무시하는 능력",
+        "fireHint": "사선 확인에서는 지나는 교전 구역과, 쏘는 쪽의 적이면서 구역 밖에 있는 말(이 반경 이내)을 가로막는 것으로 셉니다. 쏘는 쪽 시트의 항목이나 버프에 이 이름이 있으면 가로막는 것을 세지 않습니다."
       },
       "heldInPlace": "{{name}}은(는) 교전 구역에 붙잡혀 움직일 수 없습니다. 이탈을 예고하면 다음 라운드부터 이탈할 수 있습니다",
       "interrupt": {
@@ -213,6 +217,17 @@
         "pass": "끼어들지 않음",
         "decideNow": "지금 결정",
         "drop": "끼어들기 취소"
+      },
+      "fire": {
+        "title": "사선 확인: {{name}}",
+        "distance": "{{metres}}m",
+        "clear": "가로막는 것이 없습니다",
+        "blocked": "가로막는 것:",
+        "zones": "교전 구역 {{count}}개",
+        "candidates": "맞을 수 있는 상대: {{names}}",
+        "random": "무작위로 고르기",
+        "none": "대상으로 지정한 말이 없습니다",
+        "unseen": "보이지 않는 말"
       }
     },
     "firstPerson": {
@@ -2219,7 +2234,8 @@
         "doorStyleLift": "위로 올라감",
         "doorStyleSink": "아래로 가라앉음",
         "doorStyleSlide": "옆으로 미닫이",
-        "doorFlip": "열리는 방향 반전"
+        "doorFlip": "열리는 방향 반전",
+        "rangeTargetInside": "범위 안을 대상으로"
       },
       "holdHint": {
         "footing": "휠로 발판을 오르내리기",

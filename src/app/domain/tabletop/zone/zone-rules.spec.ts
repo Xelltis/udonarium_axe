@@ -46,6 +46,15 @@ describe('zone-rules', () => {
     });
   });
 
+  it('blocks a line of fire half a metre out by default, and fires past nothing', () => {
+    expect(resolveZoneRules(null).blockRadiusM).toBe(0.5);
+    expect(resolveZoneRules({ blockRadiusM: 2, clearName: ' 精密 ' })).toMatchObject({
+      blockRadiusM: 2,
+      clearName: '精密',
+    });
+    expect(resolveZoneRules({ blockRadiusM: -1 }).blockRadiusM).toBe(0.5);
+  });
+
   describe('zoneSizeFor', () => {
     const sizes = parseZoneSizes('5:3:5,10:4:7,20:6:10');
 

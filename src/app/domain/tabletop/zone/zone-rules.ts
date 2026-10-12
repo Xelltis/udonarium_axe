@@ -21,6 +21,10 @@ export interface ZoneRules {
   readonly outnumber: number;
   /** The kind of move a piece may leave an overflowing zone by at once, or empty for any kind. */
   readonly leaveKind: string;
+  /** How close to a line of fire, in metres, a piece out of every zone stands to stand in its way. */
+  readonly blockRadiusM: number;
+  /** The sheet field or buff by which a shooter fires past what stands in the way, empty for none. */
+  readonly clearName: string;
 }
 
 /** The sizes a room has before it writes its own: a zone grows a metre for every four bodies. */
@@ -30,6 +34,8 @@ export const DEFAULT_ZONE_SAME_POINT_M = 1;
 
 export const DEFAULT_ZONE_OUTNUMBER = 2;
 
+export const DEFAULT_ZONE_BLOCK_RADIUS_M = 0.5;
+
 export const DEFAULT_ZONE_RULES: ZoneRules = {
   enabled: false,
   sizes: parseZoneSizes(DEFAULT_ZONE_SIZES),
@@ -37,6 +43,8 @@ export const DEFAULT_ZONE_RULES: ZoneRules = {
   samePointM: DEFAULT_ZONE_SAME_POINT_M,
   outnumber: DEFAULT_ZONE_OUTNUMBER,
   leaveKind: '',
+  blockRadiusM: DEFAULT_ZONE_BLOCK_RADIUS_M,
+  clearName: '',
 };
 
 /** What a room writes for its zones, each null where it has written nothing. */
@@ -47,6 +55,8 @@ export interface ZoneRuleAnswers {
   readonly samePointM: number | null;
   readonly outnumber?: number | null;
   readonly leaveKind?: string | null;
+  readonly blockRadiusM?: number | null;
+  readonly clearName?: string | null;
 }
 
 /** The rules a room plays, its own answers first and the defaults for whatever it has left unwritten. */
@@ -54,6 +64,7 @@ export function resolveZoneRules(answers: Partial<ZoneRuleAnswers> | null): Zone
   const sizes = answers?.sizes != null ? parseZoneSizes(answers.sizes) : [];
   const samePointM = answers?.samePointM;
   const outnumber = answers?.outnumber;
+  const blockRadiusM = answers?.blockRadiusM;
   return {
     enabled: answers?.enabled ?? DEFAULT_ZONE_RULES.enabled,
     sizes: sizes.length > 0 ? sizes : DEFAULT_ZONE_RULES.sizes,
@@ -61,6 +72,8 @@ export function resolveZoneRules(answers: Partial<ZoneRuleAnswers> | null): Zone
     samePointM: samePointM != null && samePointM >= 0 ? samePointM : DEFAULT_ZONE_RULES.samePointM,
     outnumber: outnumber != null && outnumber > 0 ? outnumber : DEFAULT_ZONE_RULES.outnumber,
     leaveKind: (answers?.leaveKind ?? DEFAULT_ZONE_RULES.leaveKind).trim(),
+    blockRadiusM: blockRadiusM != null && blockRadiusM >= 0 ? blockRadiusM : DEFAULT_ZONE_RULES.blockRadiusM,
+    clearName: (answers?.clearName ?? DEFAULT_ZONE_RULES.clearName).trim(),
   };
 }
 

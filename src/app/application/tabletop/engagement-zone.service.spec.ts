@@ -43,6 +43,7 @@ describe('EngagementZoneService', () => {
     Config.instance.moveKinds = null;
     Config.instance.zoneLeaveKind = null;
     Config.instance.zoneOutnumber = null;
+    Config.instance.zoneClearName = null;
     vi.useRealTimers();
     vi.restoreAllMocks();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
@@ -285,6 +286,41 @@ describe('EngagementZoneService', () => {
 
       expect(walker.engagementZone).toBe('');
       expect(said).toEqual([]);
+    });
+  });
+
+  describe('what reaches a piece', () => {
+    it("counts a piece in a zone as standing at the zone's centre, and any other at its token's middle", () => {
+      const hero = pieceAt(10, 10);
+      const zone = service.declare(hero, pieceAt(10, 10, true))!;
+      const loose = pieceAt(2, 2);
+
+      expect(service.pointOf(hero)).toEqual(zone.centre);
+      expect(service.pointOf(loose)).toEqual({ x: 2.5 * GRID, y: 2.5 * GRID });
+    });
+
+    it('measures a line of fire, counts an enemy standing in it, and lets a shooter with the name fire past it', () => {
+      const shooter = pieceAt(0, 0);
+      const target = pieceAt(10, 0, true);
+      const blocker = pieceAt(5, 0, true);
+
+      const report = service.lineOfFireFor(shooter, target)!;
+      expect(report.distanceM).toBe(10);
+      expect(report.pieces).toEqual([blocker.identifier]);
+
+      Config.instance.zoneClearName = '精密';
+      shooter.buffs.addRound('精密', '', 3);
+      expect(service.lineOfFireFor(shooter, target)!.pieces).toEqual([]);
+    });
+
+    it('lets a shot fired into a zone from outside land on anybody in it', () => {
+      const hero = pieceAt(10, 10);
+      const foe = pieceAt(10, 10, true);
+      service.declare(hero, foe);
+
+      expect([...service.lineOfFireFor(pieceAt(0, 10), foe)!.candidates].sort()).toEqual(
+        [hero.identifier, foe.identifier].sort()
+      );
     });
   });
 

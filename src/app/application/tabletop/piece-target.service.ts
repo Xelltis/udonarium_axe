@@ -21,6 +21,17 @@ export class PieceTargetService {
     }
   }
 
+  /** Aims at exactly these pieces, taking the aim off every other. */
+  setOnly(pieces: readonly GameCharacter[]): void {
+    const wanted = new Set(pieces.map((piece) => piece.identifier));
+    for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
+      const next = wanted.has(piece.identifier);
+      if (piece.targeted === next) continue;
+      piece.targeted = next;
+      this.uiSignal.notifyTargetChange(piece.identifier, piece.aliasName);
+    }
+  }
+
   anything(): boolean {
     return this.objectStore.getObjects<GameCharacter>(GameCharacter).some((piece) => piece.targeted);
   }

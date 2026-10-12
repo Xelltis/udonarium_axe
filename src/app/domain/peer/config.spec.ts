@@ -30,6 +30,8 @@ describe('Config', () => {
         samePointM: null,
         outnumber: null,
         leaveKind: null,
+        blockRadiusM: null,
+        clearName: null,
       });
       expect(Config.instance.moveKinds).toBeNull();
     });
@@ -51,6 +53,8 @@ describe('Config', () => {
         samePointM: 0,
         outnumber: 3,
         leaveKind: '全力',
+        blockRadiusM: null,
+        clearName: null,
       });
       expect(config.moveKinds).toBe('全力:3:,通常:1:');
 
@@ -69,6 +73,8 @@ describe('Config', () => {
         samePointM: null,
         outnumber: null,
         leaveKind: null,
+        blockRadiusM: null,
+        clearName: null,
       });
     });
   });

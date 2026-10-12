@@ -105,6 +105,7 @@ import { buildGameCharacterContextMenuModel } from '@axe/features/character/game
 import { buildZoneContextMenu } from '@axe/features/character/game-character/zone-context-menu';
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
+import { LineOfFirePanelComponent } from '@axe/features/character/line-of-fire-panel/line-of-fire-panel.component';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { buildConcealMenu } from '@axe/features/tabletop/board-switch/concealment-context-menu';
 import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
@@ -1257,6 +1258,7 @@ export class GameCharacterComponent {
         setSquare: (zoneId, square) => zones.setSquare(zoneId, square),
         setLimit: (zoneId, limit) => zones.setLimit(zoneId, limit),
         remove: (zoneId) => zones.remove(zoneId),
+        checkFire: () => this.showLineOfFire(char),
       },
       this.translateFn
     );
@@ -1719,6 +1721,20 @@ export class GameCharacterComponent {
     option.title = this.translateFn('feature.character.panel.buffEditWithName', { name: gameObject.name });
     const component = this.panelService.open<GameCharacterBuffViewComponent>(GameCharacterBuffViewComponent, option);
     component.character.set(gameObject);
+  }
+
+  /** Opens the line of fire from this piece to every piece it aims at. */
+  private showLineOfFire(gameObject: GameCharacter) {
+    const coordinate = this.pointerDeviceService.pointers[0];
+    const option: PanelOption = {
+      left: coordinate.x,
+      top: coordinate.y,
+      width: 360,
+      height: 280,
+    };
+    option.title = this.translateFn('feature.zone.fire.title', { name: gameObject.name });
+    const component = this.panelService.open<LineOfFirePanelComponent>(LineOfFirePanelComponent, option);
+    component.shooterIdentifier.set(gameObject.identifier);
   }
 
   private showLightSettings(gameObject: GameCharacter) {
