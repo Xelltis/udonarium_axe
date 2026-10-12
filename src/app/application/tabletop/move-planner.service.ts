@@ -1,6 +1,7 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { FreeMovePlanService } from '@axe/application/tabletop/free-move-plan.service';
 import { MoveKindBand, MovePlanService, UnstoppableBand } from '@axe/application/tabletop/move-plan.service';
+import { RideService } from '@axe/application/tabletop/ride.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 
 /**
@@ -14,6 +15,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 export class MovePlannerService {
   private readonly cells = inject(MovePlanService);
   private readonly free = inject(FreeMovePlanService);
+  private readonly ride = inject(RideService);
 
   /** Whether a move is being worked out, of either kind. */
   readonly isPlanning = computed(() => this.cells.isPlanning() || this.free.isPlanning());
@@ -41,11 +43,14 @@ export class MovePlannerService {
 
   /**
    * Opens a move for a piece, as straight legs where the table and the room ask for it and in cells
-   * otherwise; false where the piece has no reach.
+   * otherwise; false where the piece has no reach. A piece riding in front moves by its mount, so the
+   * move opened is the mount's; one riding behind or carried, or a mount nobody rides, opens none.
    */
   begin(character: GameCharacter, kindName = ''): boolean {
     if (this.isWalking) return false;
-    return this.free.applies() ? this.free.begin(character, kindName) : this.cells.begin(character, kindName);
+    const mover = this.ride.moverFor(character);
+    if (!mover) return false;
+    return this.free.applies() ? this.free.begin(mover, kindName) : this.cells.begin(mover, kindName);
   }
 
   /** Draws the way ahead of the pointer, at a position on the table. */

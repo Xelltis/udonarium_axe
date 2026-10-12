@@ -468,7 +468,7 @@ export class MovePlanService {
     SoundEffect.play(PresetSound.piecePut);
     const start = this.zoneStart;
     this.close();
-    this.zones.carryCaptives(character);
+    this.zones.carryBound(character);
     if (start) this.zones.afterMove(character, start);
     if (stopped) this.interrupts.settle(character, stopped.outcome, stopped.point);
     else this.zones.offerFight(character);

@@ -4853,6 +4853,43 @@
           "hint": "ジュークボックスの SE、ホットバーなど"
         }
       }
+    },
+    "ride": {
+      "menu": {
+        "title": "乗り物",
+        "on_rider": "{{mount}} に乗る",
+        "on_passenger": "{{mount}} に同乗する",
+        "on_cargo": "{{mount}} に積まれる",
+        "off": "{{mount}} から降りる",
+        "refusal_needsSkill": "（操る技能がない）",
+        "refusal_tooHard": "（技能が足りない）",
+        "mountable": "乗り物にする",
+        "settings": "乗り物の設定",
+        "passenger": "同乗できる",
+        "cargo": "積める数",
+        "cargoNone": "積めない",
+        "anyone": "技能がなくても乗れる",
+        "seatHeight": "乗る高さ",
+        "seatHeightDefault": "大きさの半分",
+        "seatHeightCells": "{{cells}}マス"
+      },
+      "chat": {
+        "on_rider": "{{name}} が {{mount}} に乗りました（{{action}}）",
+        "on_passenger": "{{name}} が {{mount}} に同乗しました（{{action}}）",
+        "on_cargo": "{{name}} が {{mount}} に積まれました（{{action}}）",
+        "off": "{{name}} が {{mount}} から降りました（{{action}}）",
+        "majorAction": "手番の行動を使う",
+        "minorAction": "手番の行動を使わない"
+      },
+      "settings": {
+        "section": "乗り物",
+        "skillField": "乗り物を操る技能の欄",
+        "skillFieldPlaceholder": "空欄なら全員が操れる",
+        "requireField": "乗るのに要る値の欄",
+        "hint": "乗り物を操る技能の欄を書くと、その値が1以上の駒だけが乗り物を操れます。操れない駒は、「技能がなくても乗れる」にした乗り物にだけ前に乗れます。乗るのに要る値の欄を書くと、乗り物のシートのその値より技能が低い駒は乗れません。"
+      },
+      "carriedInPlace": "{{name}} は {{mount}} に乗っているあいだ、乗り物と一緒に動きます",
+      "noRider": "{{name}} は乗り手がいないと動きません"
     }
   },
   "app": {

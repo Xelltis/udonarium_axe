@@ -33,6 +33,7 @@ import { MovePlannerService } from '@axe/application/tabletop/move-planner.servi
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
+import { RideService } from '@axe/application/tabletop/ride.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -102,6 +103,7 @@ import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { buildGameCharacterContextMenuModel } from '@axe/features/character/game-character/game-character-context-menu';
+import { buildRideContextMenu } from '@axe/features/character/game-character/ride-context-menu';
 import { buildZoneContextMenu } from '@axe/features/character/game-character/zone-context-menu';
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
@@ -247,6 +249,7 @@ export class GameCharacterComponent {
   private readonly effectPlayback = inject(EffectPlaybackService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly engagementZones = inject(EngagementZoneService);
+  private readonly ride = inject(RideService);
   private readonly snackbar = inject(SnackbarService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly visionService = inject(VisionService);
@@ -379,6 +382,18 @@ export class GameCharacterComponent {
     if (!char) return '';
     this.objectChange.versionOf(char.identifier)();
     return char.name;
+  });
+  /** How many ride this piece where it is a mount, shown by its name since they stand where it stands. */
+  readonly ridersAboard = computed(() => {
+    const char = this.gameCharacter();
+    if (!char) return 0;
+    this.objectChange.versionOf(char.identifier)();
+    if (char.mountable !== '1') return 0;
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
+      this.objectChange.versionOf(piece.identifier)();
+    }
+    return this.ride.aboard(char).length;
   });
   /** Names go unshown for a piece hiding its name here, and for every piece while this seat has them switched off. */
   readonly hideName = computed(() => {
@@ -1276,6 +1291,33 @@ export class GameCharacterComponent {
     );
   }
 
+  /** Whether a move can be worked out for a piece: by its mount where it rides in front, by none where it rides otherwise. */
+  private mayPlanMove(char: GameCharacter): boolean {
+    const mover = this.ride.moverFor(char);
+    return mover !== null && this.moveRangeService.canPlan(mover);
+  }
+
+  private rideMenuOf(char: GameCharacter): ContextMenuAction[] {
+    const ride = this.ride;
+    return buildRideContextMenu(
+      ride.menuOf(char),
+      this.rolePermission.canEditTabletop,
+      {
+        getOn: (mountId, seat) => {
+          const mount = this.objectStore.get<GameCharacter>(mountId);
+          if (mount instanceof GameCharacter) ride.mount(char, mount, seat);
+        },
+        getOff: () => ride.dismount(char),
+        setMountable: (mountable) => ride.setMountable(char, mountable),
+        setPassenger: (passenger) => ride.setPassenger(char, passenger),
+        setCargo: (cargo) => ride.setCargo(char, cargo),
+        setAnyone: (anyone) => ride.setAnyone(char, anyone),
+        setSeatHeight: (cells) => ride.setSeatHeight(char, cells),
+      },
+      this.translateFn
+    );
+  }
+
   private rightDrag: PieceRightDrag | null = null;
   private rightDragCenterMarker: HTMLElement | null = null;
   private nativeContextMenuSuppressionTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1428,6 +1470,7 @@ export class GameCharacterComponent {
       ...buildSurfaceSwitchContextMenu(char, table, this.translateFn),
       ...buildConcealMenu(this.boardSwitches.canEdit(), () => this.concealment.conceal(char), this.translateFn),
       ...this.zoneMenuOf(char),
+      ...this.rideMenuOf(char),
     ];
     const menu = buildGameCharacterContextMenuModel(
       char,
@@ -1443,7 +1486,7 @@ export class GameCharacterComponent {
         onInvokeRangeShape: (value) => this.rangeShapeInvoke.spawnForCharacter(char, value),
         onInvokeEffect: (name) => this.invokeEffect(char, name),
         onDeployDice: () => this.characterDice.deploy(char),
-        onPlanMove: this.moveRangeService.canPlan(char) ? () => void this.movePlan.begin(char) : undefined,
+        onPlanMove: this.mayPlanMove(char) ? () => void this.movePlan.begin(char) : undefined,
         onToggleTarget: () => this.toggleTarget(),
         onClearTargets: this.anythingTargeted() ? () => this.clearEveryTarget() : undefined,
         onViewFirstPerson: this.firstPerson.canLookOutOf(char)
@@ -1598,6 +1641,15 @@ export class GameCharacterComponent {
     const character = this.gameCharacter();
     if (!character || this.isLock) return;
     if (!this.movePlan.begin(character)) {
+      const seat = this.ride.seatOf(character);
+      const carriedBy = seat === 'passenger' || seat === 'cargo' ? this.ride.mountOf(character) : null;
+      const unridden = character.mountable === '1' && !this.ride.riderOf(character) && !PeerCursor.isMyselfGameMaster;
+      if (carriedBy || unridden) {
+        queueMicrotask(() => this.movableRef()?.cancel());
+        const why = carriedBy ? 'feature.ride.carriedInPlace' : 'feature.ride.noRider';
+        this.snackbar.show(this.translateFn(why, { name: character.name, mount: carriedBy?.name ?? '' }));
+        return;
+      }
       if (this.isHeldByZone(character)) {
         queueMicrotask(() => this.movableRef()?.cancel());
         const holder = this.objectStore.get<GameCharacter>(character.grabbedBy);
@@ -1659,7 +1711,8 @@ export class GameCharacterComponent {
     this.moveRangeService.hide();
     const character = this.gameCharacter();
     if (!character) return;
-    this.engagementZones.carryCaptives(character);
+    this.engagementZones.carryBound(character);
+    this.ride.afterPutDown(character);
     this.triggerFire.putDown(character);
     this.engagementZones.offerFight(character);
   }

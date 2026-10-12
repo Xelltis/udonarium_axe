@@ -46,3 +46,25 @@ export function bondGroupOf(id: string, pieces: readonly BondedPiece[]): string[
   }
   return pieces.map((piece) => piece.id).filter((one) => group.has(one));
 }
+
+/**
+ * The pieces that go where a piece goes: those bound to it, those bound to them, and so on, in the
+ * order the pieces are given, it not among them. Not the piece it is itself bound to, which a move
+ * of its own leaves behind.
+ */
+export function boundBelow(id: string, pieces: readonly BondedPiece[]): string[] {
+  const counted = new Set(pieces.map((piece) => piece.id));
+  const below = new Set<string>();
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const piece of pieces) {
+      if (piece.id === id || below.has(piece.id)) continue;
+      const to = boundTo(piece, counted);
+      if (to === id || below.has(to)) {
+        below.add(piece.id);
+        grew = true;
+      }
+    }
+  }
+  return pieces.map((piece) => piece.id).filter((one) => below.has(one));
+}

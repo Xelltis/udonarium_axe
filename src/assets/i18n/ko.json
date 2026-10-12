@@ -5129,6 +5129,43 @@
           "hint": "주크박스 SE, 핫바 소리 등"
         }
       }
+    },
+    "ride": {
+      "menu": {
+        "title": "탈것",
+        "on_rider": "{{mount}}에 타기",
+        "on_passenger": "{{mount}}에 동승하기",
+        "on_cargo": "{{mount}}에 실리기",
+        "off": "{{mount}}에서 내리기",
+        "refusal_needsSkill": "(조종 기능 없음)",
+        "refusal_tooHard": "(기능 부족)",
+        "mountable": "탈것으로 만들기",
+        "settings": "탈것 설정",
+        "passenger": "동승 가능",
+        "cargo": "실을 수 있는 수",
+        "cargoNone": "실을 수 없음",
+        "anyone": "기능이 없어도 탈 수 있음",
+        "seatHeight": "타는 높이",
+        "seatHeightDefault": "크기의 절반",
+        "seatHeightCells": "{{cells}}칸"
+      },
+      "chat": {
+        "on_rider": "{{name}}이(가) {{mount}}에 탔습니다({{action}})",
+        "on_passenger": "{{name}}이(가) {{mount}}에 동승했습니다({{action}})",
+        "on_cargo": "{{name}}이(가) {{mount}}에 실렸습니다({{action}})",
+        "off": "{{name}}이(가) {{mount}}에서 내렸습니다({{action}})",
+        "majorAction": "차례의 행동을 사용",
+        "minorAction": "차례의 행동을 사용하지 않음"
+      },
+      "settings": {
+        "section": "탈것",
+        "skillField": "탈것 조종 기능 항목",
+        "skillFieldPlaceholder": "비우면 모두 조종 가능",
+        "requireField": "타는 데 필요한 값 항목",
+        "hint": "탈것 조종 기능 항목을 쓰면, 그 값이 1 이상인 말만 탈것을 조종할 수 있습니다. 조종할 수 없는 말은 「기능이 없어도 탈 수 있음」으로 한 탈것에만 앞에 탈 수 있습니다. 타는 데 필요한 값 항목을 쓰면, 탈것 시트의 그 값보다 기능이 낮은 말은 탈 수 없습니다."
+      },
+      "carriedInPlace": "{{name}}은(는) {{mount}}에 타고 있는 동안 탈것과 함께 움직입니다",
+      "noRider": "{{name}}은(는) 타는 사람이 없으면 움직이지 않습니다"
     }
   },
   "app": {

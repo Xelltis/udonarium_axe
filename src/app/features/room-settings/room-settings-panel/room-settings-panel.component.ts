@@ -910,6 +910,24 @@ export class RoomSettingsPanelComponent {
   /** The default size table, shown where the room has written none of its own. */
   protected readonly zoneSizesPlaceholder = DEFAULT_ZONE_SIZES;
 
+  /** The sheet field holding the skill of steering a mount, empty where everybody riding in front steers. */
+  get rideSkillField(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.rideSkillField ?? '';
+  }
+  set rideSkillField(value: string) {
+    if (this.isEditable) this.config.rideSkillField = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** The field on a mount's sheet saying what it asks of that skill, empty where nothing is asked. */
+  get rideRequireField(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.rideRequireField ?? '';
+  }
+  set rideRequireField(value: string) {
+    if (this.isEditable) this.config.rideRequireField = value.trim().length > 0 ? value.trim() : null;
+  }
+
   /** The sheet field a piece gives its count in, empty to count each piece once. */
   get zoneCountField(): string {
     this.objectChange.versionOf('Config')();

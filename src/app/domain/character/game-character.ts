@@ -88,6 +88,20 @@ export class GameCharacter extends OwnedTabletopObject {
    * own will, and goes where the one holding it goes.
    */
   @SyncVar() grabbedBy: string = '';
+  /** The mount the piece rides, as its identifier, or empty: it stands on that mount and goes where it goes. */
+  @SyncVar() ridingOn: string = '';
+  /** Where the piece rides its mount: empty in front, `passenger` behind, `cargo` carried as a load. */
+  @SyncVar() rideSeat: string = '';
+  /** `1` while the piece is a mount others may ride; empty otherwise. */
+  @SyncVar() mountable: string = '';
+  /** `1` where a mount takes a second rider behind the one in front; empty otherwise. */
+  @SyncVar() mountPassenger: string = '';
+  /** How many a mount may carry as a load, empty for none. A mount that carries any takes no second rider. */
+  @SyncVar() mountCargo: string = '';
+  /** `1` where anybody may ride a mount in front, skilled at steering or not; empty otherwise. */
+  @SyncVar() mountAnyone: string = '';
+  /** How high above its base a mount's rider stands, in cells, or empty for half its size. */
+  @SyncVar() mountSeatHeight: string = '';
   @SyncVar() disclosureMode: string = '';
   @SyncVar() disclosureUserIds: string[] = [];
   @SyncVar() overViewWidth: number = 270;

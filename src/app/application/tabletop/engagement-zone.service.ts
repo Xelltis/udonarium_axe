@@ -17,7 +17,7 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { sheetNumberOf } from '@axe/domain/tabletop/move/move-cells';
 import { MoveKind, moveKindNamed, parseMoveKinds } from '@axe/domain/tabletop/move/move-kind';
 import { convertMoveLength, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
-import { bondGroupOf } from '@axe/domain/tabletop/move/piece-bonds';
+import { bondGroupOf, boundBelow } from '@axe/domain/tabletop/move/piece-bonds';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
@@ -417,8 +417,7 @@ export class EngagementZoneService {
     if (holder === captive || captive.grabbedBy === holder.identifier) return;
     GameObject.batch(() => {
       captive.grabbedBy = holder.identifier;
-      captive.location.x = holder.location.x;
-      captive.location.y = holder.location.y;
+      this.standAt(captive, holder);
     });
     this.settle([]);
     this.chat.sendSystemMessage(this.t('feature.zone.chat.grabbed', { holder: holder.name, captive: captive.name }));
@@ -436,19 +435,34 @@ export class EngagementZoneService {
   }
 
   /**
-   * Brings the pieces a piece holds on to along to where it now stands, as a move of the one holding
-   * them does. One held fast where it stands is left there.
+   * Brings the pieces that go where a piece goes along to where it now stands, as a move of it does:
+   * those it holds on to, those riding it, and those bound to them in turn. One held fast where it
+   * stands is left there.
    */
-  carryCaptives(holder: GameCharacter): void {
-    const captives = this.captivesOf(holder).filter((captive) => captive.heldFast !== '1');
-    if (captives.length < 1) return;
+  carryBound(anchor: GameCharacter): void {
+    const onTable = this.objectStore.getObjects<GameCharacter>(GameCharacter).filter((piece) => piece.isVisibleOnTable);
+    const bonded = onTable.map((piece) => ({
+      id: piece.identifier,
+      grabbedBy: piece.grabbedBy,
+      ridingOn: piece.ridingOn,
+    }));
+    const below = new Set(boundBelow(anchor.identifier, bonded));
+    const carried = onTable.filter((piece) => below.has(piece.identifier) && piece.heldFast !== '1');
+    if (carried.length < 1) return;
     GameObject.batch(() => {
-      for (const captive of captives) {
-        captive.location.x = holder.location.x;
-        captive.location.y = holder.location.y;
-        captive.update();
+      for (const piece of carried) {
+        this.standAt(piece, anchor);
+        piece.update();
       }
     });
+  }
+
+  /** Puts a piece's middle on another's, whatever the two sizes. */
+  private standAt(piece: GameCharacter, at: GameCharacter): void {
+    const gridSize = this.tableSelecter.viewTable?.gridSize ?? 50;
+    const offset = ((Math.max(0, at.size) - Math.max(0, piece.size)) * gridSize) / 2;
+    piece.location.x = at.location.x + offset;
+    piece.location.y = at.location.y + offset;
   }
 
   /**
@@ -594,7 +608,11 @@ export class EngagementZoneService {
     const onTable = this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
       .filter((piece) => piece.isVisibleOnTable && piece.offField !== '1');
-    const bonded = onTable.map((piece) => ({ id: piece.identifier, grabbedBy: piece.grabbedBy }));
+    const bonded = onTable.map((piece) => ({
+      id: piece.identifier,
+      grabbedBy: piece.grabbedBy,
+      ridingOn: piece.ridingOn,
+    }));
     const byId = new Map(onTable.map((piece) => [piece.identifier, piece]));
     const group = new Map(pieces.map((piece) => [piece.identifier, piece]));
     for (const piece of pieces) {

@@ -102,6 +102,22 @@ describe('GameCharacterComponent', () => {
     expect((fixture.nativeElement as HTMLElement).style.zIndex).toBe('4');
   });
 
+  it('says by its name how many ride a mount', async () => {
+    const horse = GameCharacter.create('馬', 2, '');
+    horse.mountable = '1';
+    fixture.componentRef.setInput('gameCharacter', horse);
+    fixture.detectChanges();
+    const riders = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="piece-riders"]');
+    expect(riders()).toBeNull();
+
+    const rider = GameCharacter.create('騎士', 1, '');
+    rider.ridingOn = horse.identifier;
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    expect(riders()?.textContent).toContain('1');
+  });
+
   describe('standing on a slope', () => {
     let table: GameTable;
     const blocks: Terrain[] = [];

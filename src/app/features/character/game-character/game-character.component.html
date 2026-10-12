@@ -394,6 +394,12 @@
                           @if (isLock) {
                             <i class="material-icons inline align-middle text-[1em]!">lock</i>
                           }
+                          @if (ridersAboard() > 0) {
+                            <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
+                              ><i class="material-icons inline align-middle text-[1em]!">person</i
+                              >{{ ridersAboard() }}</span
+                            >
+                          }
                         </div>
                       </div>
                     } @else {
@@ -406,6 +412,12 @@
                           {{ name() }}
                           @if (isLock) {
                             <i class="material-icons inline align-middle text-[1em]!">lock</i>
+                          }
+                          @if (ridersAboard() > 0) {
+                            <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
+                              ><i class="material-icons inline align-middle text-[1em]!">person</i
+                              >{{ ridersAboard() }}</span
+                            >
                           }
                         </div>
                       </div>

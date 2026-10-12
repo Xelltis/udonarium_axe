@@ -105,6 +105,10 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_placementDistances') private _placementDistances: string = '';
   @SyncVar('_distanceModifiers') private _distanceModifiers: string = '';
 
+  // How the room plays pieces riding mounts.
+  @SyncVar('_rideSkillField') private _rideSkillField: string = '';
+  @SyncVar('_rideRequireField') private _rideRequireField: string = '';
+
   /**
    * Where the room shows the dice of a chat roll tumbling: in the frame of the line that gives the
    * result, on the table, or nowhere.
@@ -344,6 +348,25 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set placementDistances(answer: string | null) {
     this._placementDistances = writeRuleText(answer);
+  }
+
+  /**
+   * The sheet field holding the skill of steering a mount, or null where the room names none, in
+   * which case everybody riding in front steers.
+   */
+  get rideSkillField(): string | null {
+    return readRuleText(this._rideSkillField);
+  }
+  set rideSkillField(answer: string | null) {
+    this._rideSkillField = writeRuleText(answer);
+  }
+
+  /** The field on a mount's sheet saying what it asks of that skill, or null where the room names none. */
+  get rideRequireField(): string | null {
+    return readRuleText(this._rideRequireField);
+  }
+  set rideRequireField(answer: string | null) {
+    this._rideRequireField = writeRuleText(answer);
   }
 
   /** What a distance between the sides does, as `metres:note` rows, or null where the room has written none. */

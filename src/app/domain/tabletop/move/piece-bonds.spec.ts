@@ -1,4 +1,4 @@
-import { bondGroupOf, BondedPiece, boundTo } from '@axe/domain/tabletop/move/piece-bonds';
+import { BondedPiece, bondGroupOf, boundBelow, boundTo } from '@axe/domain/tabletop/move/piece-bonds';
 
 describe('bonds between pieces', () => {
   const pieces: BondedPiece[] = [
@@ -42,5 +42,13 @@ describe('bonds between pieces', () => {
     ];
 
     expect(bondGroupOf('a', ring)).toEqual(['a', 'b']);
+  });
+
+  it('finds what goes where a piece goes, and not the piece it is itself bound to', () => {
+    const chained: BondedPiece[] = [...pieces, { id: 'mouse', grabbedBy: 'rider' }];
+
+    expect(boundBelow('horse', chained)).toEqual(['rider', 'friend', 'mouse']);
+    expect(boundBelow('rider', chained)).toEqual(['mouse']);
+    expect(boundBelow('alone', chained)).toEqual([]);
   });
 });

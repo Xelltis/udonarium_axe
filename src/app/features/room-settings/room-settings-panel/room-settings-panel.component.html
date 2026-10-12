@@ -847,6 +847,43 @@
             }
           }
         </div>
+
+        <div
+          class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3"
+          data-testid="room-settings-ride"
+        >
+          <div class="min-w-0">
+            <span class="text-ui-muted text-[11px] font-semibold tracking-[0.06em] uppercase">{{
+              'feature.ride.settings.section' | transloco
+            }}</span>
+          </div>
+          <div class="grid grid-cols-[7rem_1fr] items-center gap-x-3 gap-y-2.5">
+            <label class="text-ui-muted text-[11px] whitespace-nowrap" for="ride-skill-field">{{
+              'feature.ride.settings.skillField' | transloco
+            }}</label>
+            <input
+              id="ride-skill-field"
+              type="text"
+              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              [placeholder]="'feature.ride.settings.skillFieldPlaceholder' | transloco"
+              [(ngModel)]="rideSkillField"
+              name="rideSkillField"
+            />
+            <label class="text-ui-muted text-[11px] whitespace-nowrap" for="ride-require-field">{{
+              'feature.ride.settings.requireField' | transloco
+            }}</label>
+            <input
+              id="ride-require-field"
+              type="text"
+              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              [(ngModel)]="rideRequireField"
+              name="rideRequireField"
+            />
+          </div>
+          <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+            {{ 'feature.ride.settings.hint' | transloco }}
+          </p>
+        </div>
       </div>
     }
 

@@ -516,7 +516,7 @@ describe('EngagementZoneService', () => {
         service.setHeld(fast, true);
 
         holder.location = { name: 'table', x: 15 * GRID, y: 12 * GRID };
-        service.carryCaptives(holder);
+        service.carryBound(holder);
 
         expect(captive.location.x).toBe(15 * GRID);
         expect(fast.location.x).toBe(12 * GRID);
