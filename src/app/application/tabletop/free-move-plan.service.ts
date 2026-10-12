@@ -9,6 +9,7 @@ import {
 import { InterruptOutcome, MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
 import { MoveKindBand, UnstoppableBand } from '@axe/application/tabletop/move-plan.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
+import { RideService } from '@axe/application/tabletop/ride.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -74,6 +75,7 @@ export class FreeMovePlanService {
   private readonly pieceStep = inject(PieceStepService);
   private readonly zones = inject(EngagementZoneService);
   private readonly interrupts = inject(MoveInterruptService);
+  private readonly ride = inject(RideService);
 
   private readonly held = signal<FreePlan | null>(null);
   private readonly opened = signal(0);
@@ -285,6 +287,7 @@ export class FreeMovePlanService {
     let stopped: InterruptOutcome | null;
     let walked = way;
     try {
+      this.ride.recordMove(character, way);
       stopped = await this.interrupts.negotiate(character, way, plan.kind);
       if (stopped) walked = clipToLength(way, stopped.along);
       const steps = stepsAlong(walked, table.gridSize / 2);

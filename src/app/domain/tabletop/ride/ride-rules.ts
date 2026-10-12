@@ -86,3 +86,91 @@ export function frontRefusal(input: FrontInput): FrontRefusal | null {
   if (input.required !== null && (input.skill ?? 0) < input.required) return 'tooHard';
   return null;
 }
+
+/** A piece as whose turn it shares sees it. */
+export interface RideTurnPiece {
+  readonly id: string;
+  readonly ridingOn: string;
+  readonly rideSeat: string;
+  readonly mountable: boolean;
+}
+
+/**
+ * The piece whose turn a piece takes its own in, or empty for one that takes a turn of its own.
+ *
+ * One riding a mount in front takes the turn for the mount and for whoever sits behind: the three
+ * act together. A load and a mount nobody rides in front take turns of their own.
+ */
+export function turnCarrierOf(id: string, pieces: readonly RideTurnPiece[]): string {
+  const byId = new Map(pieces.map((piece) => [piece.id, piece]));
+  const frontOf = (mountId: string): string =>
+    byId.get(mountId)?.mountable
+      ? (pieces.find((one) => one.id !== mountId && one.ridingOn === mountId && seatOf(one.rideSeat) === 'rider')?.id ??
+        '')
+      : '';
+  const piece = byId.get(id);
+  if (!piece) return '';
+  if (piece.mountable) return frontOf(piece.id);
+  if (piece.ridingOn !== '' && seatOf(piece.rideSeat) === 'passenger') return frontOf(piece.ridingOn);
+  return '';
+}
+
+/**
+ * A mark for the turn being taken, as its round and the piece whose turn it is, or empty while
+ * nobody's turn is. The rules on getting on and off, and on moving after them, count by it and stop
+ * nothing while it is empty.
+ */
+export function turnMarkOf(round: number, phase: string, current: string): string {
+  return round > 0 && phase === 'acting' && current !== '' ? `${round}:${current}` : '';
+}
+
+/** The round a turn mark was made in, or 0 for one that is empty or cannot be read. */
+export function roundOfMark(mark: string): number {
+  const colon = mark.indexOf(':');
+  const round = Number(mark.slice(0, colon));
+  return colon > 0 && Number.isInteger(round) && round > 0 ? round : 0;
+}
+
+/** Why a piece may not get on or off a mount just now, or null where it may. */
+export type RideChangeRefusal = 'changedThisTurn';
+
+/** Whether a piece may get on or off a mount: once a turn, and as often as it likes outside turns. */
+export function rideChangeRefusal(changedTurn: string, turn: string): RideChangeRefusal | null {
+  return turn !== '' && changedTurn === turn ? 'changedThisTurn' : null;
+}
+
+/** Why a piece may not set out on a move just now, by the rules on riding, or null where it may. */
+export type RideMoveRefusal = 'mountMoved' | 'cannotAfterLeaving';
+
+/** What deciding whether a piece may set out on a move, by the rules on riding, needs. */
+export interface RideMoveInput {
+  /** The mark of the turn being taken, empty while turns are not being taken. */
+  readonly turn: string;
+  /** Whether the piece would move a mount it rides in front, rather than itself. */
+  readonly onMount: boolean;
+  /** The mark of the turn the mount last moved in: the one ridden, or else the one just left. */
+  readonly mountMovedTurn: string;
+  /** The mark of the turn the piece last got on or off a mount in. */
+  readonly changedTurn: string;
+  /** Where the piece sat on the mount it last got off, or null where it has got off none since getting on. */
+  readonly leftSeat: RideSeat | null;
+  /** Whether the piece steers a mount. */
+  readonly steers: boolean;
+}
+
+/**
+ * Whether a piece may set out on a move, by the rules on riding.
+ *
+ * A mount moves in one turn a round: a rider moves it again only in the turn it already moved in. A
+ * piece that got off a mount this turn moves on its own only where it rode in front and steers, or
+ * was carried as a load, and the mount has not moved this round. Nothing is stopped while turns are
+ * not being taken.
+ */
+export function rideMoveRefusal(input: RideMoveInput): RideMoveRefusal | null {
+  if (input.turn === '') return null;
+  const mountMoved = roundOfMark(input.mountMovedTurn) === roundOfMark(input.turn);
+  if (input.onMount) return mountMoved && input.mountMovedTurn !== input.turn ? 'mountMoved' : null;
+  if (input.changedTurn !== input.turn || input.leftSeat === null) return null;
+  const walks = input.leftSeat === 'cargo' || (input.leftSeat === 'rider' && input.steers);
+  return walks && !mountMoved ? null : 'cannotAfterLeaving';
+}

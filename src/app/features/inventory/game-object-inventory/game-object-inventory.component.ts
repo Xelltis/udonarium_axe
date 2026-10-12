@@ -442,6 +442,18 @@ export class GameObjectInventoryComponent {
       .filter((character) => this.vision.mayBeListed(character));
   });
 
+  /** The pieces this reader can see that take their turn in another's, under the one whose turn it is. */
+  readonly turnCompanions = computed<ReadonlyMap<string, GameCharacter[]>>(() => {
+    this.inventoryService.inventoryVersion();
+    this.objectChange.trackMyCursor();
+    const companions = new Map<string, GameCharacter[]>();
+    for (const [carrier, pieces] of this.turnOrderService.companionsByCarrier()) {
+      const listed = pieces.filter((piece) => this.vision.mayBeListed(piece));
+      if (listed.length > 0) companions.set(carrier, listed);
+    }
+    return companions;
+  });
+
   readonly currentTurnId = computed<string>(() => {
     this.objectChange.versionOf('TurnState')();
     return this.turnOrderService.currentIdentifier;

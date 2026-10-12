@@ -4863,6 +4863,7 @@
         "off": "{{mount}} から降りる",
         "refusal_needsSkill": "（操る技能がない）",
         "refusal_tooHard": "（技能が足りない）",
+        "refusal_changedThisTurn": "（この手番に乗り降りした）",
         "mountable": "乗り物にする",
         "settings": "乗り物の設定",
         "passenger": "同乗できる",
@@ -4889,7 +4890,9 @@
         "hint": "乗り物を操る技能の欄を書くと、その値が1以上の駒だけが乗り物を操れます。操れない駒は、「技能がなくても乗れる」にした乗り物にだけ前に乗れます。乗るのに要る値の欄を書くと、乗り物のシートのその値より技能が低い駒は乗れません。"
       },
       "carriedInPlace": "{{name}} は {{mount}} に乗っているあいだ、乗り物と一緒に動きます",
-      "noRider": "{{name}} は乗り手がいないと動きません"
+      "noRider": "{{name}} は乗り手がいないと動きません",
+      "mountMoved": "{{mount}} はこのラウンドにほかの手番で動いています",
+      "cannotAfterLeaving": "{{name}} はこの手番に {{mount}} から降りたので、自分では動けません"
     }
   },
   "app": {

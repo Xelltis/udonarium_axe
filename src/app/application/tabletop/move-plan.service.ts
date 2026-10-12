@@ -3,6 +3,7 @@ import { EngagementZoneService, metresPerCell, ZoneMoveStart } from '@axe/applic
 import { InterruptOutcome, MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
 import { MoveRangeService, ReachTerms } from '@axe/application/tabletop/move-range.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
+import { RideService } from '@axe/application/tabletop/ride.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -85,6 +86,7 @@ export class MovePlanService {
   private readonly objectStore = inject(ObjectStore);
   private readonly zones = inject(EngagementZoneService);
   private readonly interrupts = inject(MoveInterruptService);
+  private readonly ride = inject(RideService);
 
   private readonly held = signal<MovePlan | null>(null);
   /** Where the piece stood among the engagement zones as the move began. */
@@ -454,6 +456,7 @@ export class MovePlanService {
     let stopped: { outcome: InterruptOutcome; point: CellPoint } | null = null;
     try {
       const points = way.map((cell) => cellCenterOf(plan.grid, cell));
+      this.ride.recordMove(character, points);
       const outcome = await this.interrupts.negotiate(character, points, plan.kind);
       const end = outcome ? indexAtLength(points, outcome.along) : way.length - 1;
       if (outcome) stopped = { outcome, point: points[end] };

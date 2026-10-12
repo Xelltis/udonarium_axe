@@ -10,6 +10,7 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const GRID = 50;
@@ -39,6 +40,11 @@ describe('RideService', () => {
     TestBed.inject(MovePlanService).cancel();
     Config.instance.rideSkillField = null;
     Config.instance.rideRequireField = null;
+    const turns = TestBed.inject(TurnState);
+    turns.round = 0;
+    turns.phase = 'idle';
+    turns.currentIdentifier = '';
+    turns.actedIdentifiers = [];
     vi.restoreAllMocks();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
   });
@@ -181,5 +187,125 @@ describe('RideService', () => {
     rider.heldFast = '';
     horse.downed = '1';
     expect(service.menuOf(rider).offers).toEqual([]);
+  });
+
+  describe('while turns are taken', () => {
+    function turnOf(piece: GameCharacter, round = 1): string {
+      const turns = TestBed.inject(TurnState);
+      turns.round = round;
+      turns.phase = 'acting';
+      turns.currentIdentifier = piece.identifier;
+      return `${round}:${piece.identifier}`;
+    }
+
+    it('lets a piece get on or off once a turn, and as often as it likes outside turns', () => {
+      const horse = horseAt(5, 5);
+      const rider = pieceAt('騎士', 5, 5);
+      expect(service.mount(rider, horse, 'rider')).toBe(true);
+      expect(service.dismount(rider)).toBe(true);
+
+      service.mount(rider, horse, 'rider');
+
+      turnOf(rider);
+      expect(service.dismount(rider)).toBe(true);
+      expect(service.menuOf(rider).changeRefusal).toBe('changedThisTurn');
+      expect(service.mount(rider, horse, 'rider')).toBe(false);
+      turnOf(horse);
+      expect(service.mount(rider, horse, 'rider')).toBe(true);
+      expect(service.dismount(rider)).toBe(false);
+    });
+
+    it('ends the turns of the mount and the one behind where the one in front gets off in its turn', () => {
+      const horse = horseAt(5, 5, { mountPassenger: '1' });
+      const rider = pieceAt('騎士', 5, 5);
+      const friend = pieceAt('従者', 5, 5);
+      service.mount(rider, horse, 'rider');
+      service.mount(friend, horse, 'passenger');
+
+      turnOf(rider);
+      service.dismount(rider);
+
+      expect([...TestBed.inject(TurnState).actedIdentifiers].sort()).toEqual(
+        [horse.identifier, friend.identifier].sort()
+      );
+    });
+
+    it('ends the turn of the one behind where it gets off in the turn of the one in front', () => {
+      const horse = horseAt(5, 5, { mountPassenger: '1' });
+      const rider = pieceAt('騎士', 5, 5);
+      const friend = pieceAt('従者', 5, 5);
+      service.mount(rider, horse, 'rider');
+      service.mount(friend, horse, 'passenger');
+
+      turnOf(rider);
+      service.dismount(friend);
+
+      expect(TestBed.inject(TurnState).actedIdentifiers).toEqual([friend.identifier]);
+    });
+
+    it('keeps a rider from moving a mount that has moved in another turn this round', () => {
+      const horse = horseAt(5, 5);
+      const rider = pieceAt('騎士', 5, 5);
+      horse.rideMoveTurn = turnOf(horse, 2);
+
+      turnOf(rider, 2);
+      service.mount(rider, horse, 'rider');
+
+      expect(service.moveRefusal(rider)).toBe('mountMoved');
+      expect(TestBed.inject(MovePlannerService).begin(rider)).toBe(false);
+      turnOf(rider, 3);
+      expect(service.moveRefusal(rider)).toBeNull();
+    });
+
+    it('lets one that got off in its turn walk on only where it steered and the mount stood still', () => {
+      const horse = horseAt(5, 5, { mountPassenger: '1' });
+      const rider = pieceAt('騎士', 5, 5);
+      const friend = pieceAt('従者', 5, 5);
+      service.mount(rider, horse, 'rider');
+      service.mount(friend, horse, 'passenger');
+
+      const turn = turnOf(rider);
+      service.dismount(friend);
+      service.dismount(rider);
+
+      expect(service.moveRefusal(rider)).toBeNull();
+      expect(service.moveRefusal(friend)).toBe('cannotAfterLeaving');
+      horse.rideMoveTurn = turn;
+      expect(service.moveRefusal(rider)).toBe('cannotAfterLeaving');
+    });
+
+    it('counts a piece taken off for nothing against getting on or off once a turn', () => {
+      const horse = horseAt(5, 5);
+      const rider = pieceAt('騎士', 5, 5);
+      service.mount(rider, horse, 'rider');
+
+      turnOf(rider);
+      service.setMountable(horse, false);
+      service.setMountable(horse, true);
+
+      expect(rider.ridingOn).toBe('');
+      expect(service.menuOf(rider).changeRefusal).toBeNull();
+      expect(service.mount(rider, horse, 'rider')).toBe(true);
+    });
+
+    it('writes down how far a mount set out to move in the turn, adding up the moves in it', async () => {
+      const horse = horseAt(5, 5);
+      const rider = pieceAt('騎士', 5, 5);
+      service.mount(rider, horse, 'rider');
+      const turn = turnOf(rider);
+      const planner = TestBed.inject(MovePlannerService);
+      const plan = TestBed.inject(MovePlanService);
+
+      planner.begin(rider);
+      plan.lookAt(8 * GRID + 10, 5 * GRID + 10);
+      await plan.run();
+      planner.begin(rider);
+      plan.lookAt(10 * GRID + 10, 5 * GRID + 10);
+      await plan.run();
+
+      expect(horse.rideMoveTurn).toBe(turn);
+      expect(Number(horse.rideMoveM)).toBe(5);
+      expect(rider.rideMoveTurn).toBe('');
+    });
   });
 });

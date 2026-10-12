@@ -124,6 +124,61 @@ describe('TurnOrderService', () => {
     expect(service.orderedCharacters()).toEqual([visible]);
   });
 
+  describe('a piece riding a mount', () => {
+    function riding(): { knight: GameCharacter; horse: GameCharacter; squire: GameCharacter; crate: GameCharacter } {
+      orderedSpy.mockRestore();
+      const [knight, horse, squire, crate] = [
+        new GameCharacter(),
+        new GameCharacter(),
+        new GameCharacter(),
+        new GameCharacter(),
+      ];
+      [knight, horse, squire, crate].forEach((c) => c.initialize());
+      horse.mountable = '1';
+      knight.ridingOn = horse.identifier;
+      squire.ridingOn = horse.identifier;
+      squire.rideSeat = 'passenger';
+      crate.ridingOn = horse.identifier;
+      crate.rideSeat = 'cargo';
+      vi.spyOn(TestBed.inject(GameObjectInventoryService).tableInventory, 'tabletopObjects', 'get').mockReturnValue([
+        knight,
+        horse,
+        squire,
+        crate,
+      ]);
+      return { knight, horse, squire, crate };
+    }
+
+    it('takes the turn for the mount and the second rider, leaving a load its own', () => {
+      const { knight, horse, squire, crate } = riding();
+
+      expect(service.orderedCharacters()).toEqual([knight, crate]);
+      expect(service.companionsOf(knight.identifier)).toEqual([horse, squire]);
+    });
+
+    it('starts and ends the turn of those it carries with its own', () => {
+      const { knight, horse, squire } = riding();
+      const started: string[] = [];
+      TestBed.inject(TurnHooksService).onTurnStart((id) => started.push(id));
+
+      service.next();
+      service.next();
+      expect(turnState.currentIdentifier).toBe(knight.identifier);
+      expect(started).toEqual([knight.identifier, horse.identifier, squire.identifier]);
+      service.next();
+
+      expect(service.isActed(horse.identifier)).toBe(true);
+      expect(service.isActed(squire.identifier)).toBe(true);
+    });
+
+    it('gives a mount nobody rides in front, and its second rider, turns of their own', () => {
+      const { knight, horse, squire, crate } = riding();
+      knight.ridingOn = '';
+
+      expect(service.orderedCharacters()).toEqual([knight, horse, squire, crate]);
+    });
+  });
+
   it('next from idle begins round 1 without a character', () => {
     service.next();
     expect(turnState.round).toBe(1);

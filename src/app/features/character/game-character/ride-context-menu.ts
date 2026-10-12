@@ -23,7 +23,8 @@ export const SEAT_HEIGHT_CHOICES: readonly (number | null)[] = [null, 0, 0.5, 1,
 /**
  * The riding entries of a piece's menu, gathered under one entry: getting on a mount at the same
  * point, in a seat free on it, or off the one it rides, and making the piece a mount and saying what
- * it takes. A seat the piece may not take is shown with why, and cannot be chosen.
+ * it takes. A seat the piece may not take, and getting on or off where the piece has done so this
+ * turn, is shown with why, and cannot be chosen.
  *
  * Nothing for somebody who may not change the table.
  */
@@ -35,16 +36,24 @@ export function buildRideContextMenu(
 ): ContextMenuAction[] {
   if (!canEdit) return [];
   const entries: ContextMenuAction[] = [];
+  const changeRefusal = model.changeRefusal;
   if (model.riding) {
-    entries.push({ name: t('feature.ride.menu.off', { mount: model.riding.mount }), action: () => callbacks.getOff() });
+    entries.push({
+      name:
+        t('feature.ride.menu.off', { mount: model.riding.mount }) +
+        (changeRefusal ? t(`feature.ride.menu.refusal_${changeRefusal}`) : ''),
+      action: () => callbacks.getOff(),
+      enabled: changeRefusal === null,
+    });
   }
   for (const offer of model.offers) {
     for (const { seat, refusal } of offer.seats) {
-      const reason = refusal ? t(`feature.ride.menu.refusal_${refusal}`) : '';
+      const why = refusal ?? changeRefusal;
       entries.push({
-        name: t(`feature.ride.menu.on_${seat}`, { mount: offer.name }) + reason,
+        name:
+          t(`feature.ride.menu.on_${seat}`, { mount: offer.name }) + (why ? t(`feature.ride.menu.refusal_${why}`) : ''),
         action: () => callbacks.getOn(offer.id, seat),
-        enabled: refusal === null,
+        enabled: why === null,
       });
     }
   }

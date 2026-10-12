@@ -45,11 +45,12 @@ export class MovePlannerService {
    * Opens a move for a piece, as straight legs where the table and the room ask for it and in cells
    * otherwise; false where the piece has no reach. A piece riding in front moves by its mount, so the
    * move opened is the mount's; one riding behind or carried, or a mount nobody rides, opens none.
+   * Nor does a move the rules on riding stop while turns are taken.
    */
   begin(character: GameCharacter, kindName = ''): boolean {
     if (this.isWalking) return false;
     const mover = this.ride.moverFor(character);
-    if (!mover) return false;
+    if (!mover || this.ride.moveRefusal(character) !== null) return false;
     return this.free.applies() ? this.free.begin(mover, kindName) : this.cells.begin(mover, kindName);
   }
 

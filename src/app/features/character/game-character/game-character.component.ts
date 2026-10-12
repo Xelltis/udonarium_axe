@@ -1291,10 +1291,13 @@ export class GameCharacterComponent {
     );
   }
 
-  /** Whether a move can be worked out for a piece: by its mount where it rides in front, by none where it rides otherwise. */
+  /**
+   * Whether a move can be worked out for a piece: by its mount where it rides in front, by none where
+   * it rides otherwise, and none the rules on riding stop while turns are taken.
+   */
   private mayPlanMove(char: GameCharacter): boolean {
     const mover = this.ride.moverFor(char);
-    return mover !== null && this.moveRangeService.canPlan(mover);
+    return mover !== null && this.ride.moveRefusal(char) === null && this.moveRangeService.canPlan(mover);
   }
 
   private rideMenuOf(char: GameCharacter): ContextMenuAction[] {
@@ -1648,6 +1651,15 @@ export class GameCharacterComponent {
         queueMicrotask(() => this.movableRef()?.cancel());
         const why = carriedBy ? 'feature.ride.carriedInPlace' : 'feature.ride.noRider';
         this.snackbar.show(this.translateFn(why, { name: character.name, mount: carriedBy?.name ?? '' }));
+        return;
+      }
+      const rideRefusal = this.ride.moveRefusal(character);
+      if (rideRefusal) {
+        queueMicrotask(() => this.movableRef()?.cancel());
+        const mount = this.ride.mountOf(character) ?? this.ride.leftMountOf(character);
+        this.snackbar.show(
+          this.translateFn(`feature.ride.${rideRefusal}`, { name: character.name, mount: mount?.name ?? '' })
+        );
         return;
       }
       if (this.isHeldByZone(character)) {

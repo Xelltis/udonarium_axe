@@ -102,6 +102,34 @@ describe('GameObjectInventoryComponent', () => {
     });
   });
 
+  describe('the round with a piece riding a mount', () => {
+    it('draws the mount and a second rider on the round as small rounds on the one riding in front', async () => {
+      const [knight, horse, squire] = ['騎士', '馬', '従者'].map((name) => {
+        const piece = GameCharacter.create(name, 1, '');
+        piece.setLocation('table');
+        return piece;
+      });
+      horse.mountable = '1';
+      knight.ridingOn = horse.identifier;
+      squire.ridingOn = horse.identifier;
+      squire.rideSeat = 'passenger';
+      TestBed.inject(PanelService).isShrunk.set(true);
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const element = fixture.nativeElement as HTMLElement;
+      const rounds = [...element.querySelectorAll<HTMLButtonElement>('button[title]')].map((button) => button.title);
+      const companions = [...element.querySelectorAll('[data-testid="turn-companions"] [title]')].map((round) =>
+        round.getAttribute('title')
+      );
+
+      expect(rounds).toContain('騎士');
+      expect(rounds).not.toContain('馬');
+      expect(companions).toEqual(['馬', '従者']);
+      TestBed.inject(PanelService).isShrunk.set(false);
+    });
+  });
+
   describe('the round shown side by side', () => {
     function putOnTable(name: string, party = ''): GameCharacter {
       const character = GameCharacter.create(name, 1, '');

@@ -17,7 +17,7 @@ function callbacks(): RideMenuCallbacks & { [name: string]: ReturnType<typeof vi
 }
 
 function model(more: Partial<RideMenuModel> = {}): RideMenuModel {
-  return { riding: null, offers: [], mount: null, ...more };
+  return { riding: null, offers: [], mount: null, changeRefusal: null, ...more };
 }
 
 const entriesOf = (menu: ContextMenuAction[]) => menu[0]?.subActions ?? [];
@@ -67,6 +67,30 @@ describe('buildRideContextMenu', () => {
     entriesOf(menu)[1].action!();
     expect(handlers.getOff).toHaveBeenCalled();
     expect(handlers.setMountable).toHaveBeenCalledWith(true);
+  });
+
+  it('greys out getting on and off, with why, for a piece that has got on or off this turn', () => {
+    const riding = buildRideContextMenu(
+      model({ riding: { mount: '馬', seat: 'rider' }, changeRefusal: 'changedThisTurn' }),
+      true,
+      callbacks(),
+      t
+    );
+    const walking = buildRideContextMenu(
+      model({
+        offers: [{ id: 'horse', name: '馬', seats: [{ seat: 'rider', refusal: null }] }],
+        changeRefusal: 'changedThisTurn',
+      }),
+      true,
+      callbacks(),
+      t
+    );
+
+    expect(entriesOf(riding)[0].name).toBe(
+      'feature.ride.menu.off:{"mount":"馬"}feature.ride.menu.refusal_changedThisTurn'
+    );
+    expect(entriesOf(riding)[0].enabled).toBe(false);
+    expect(entriesOf(walking)[0].enabled).toBe(false);
   });
 
   it('says how a mount is set up, and changes each part of it', () => {
