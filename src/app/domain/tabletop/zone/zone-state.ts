@@ -1,3 +1,4 @@
+import { boundTo } from '@axe/domain/tabletop/move/piece-bonds';
 import { distanceBetween, midpointOf, zoneCovers, ZonePoint, ZoneShape } from '@axe/domain/tabletop/zone/zone-geometry';
 import { zoneLimitOf, ZoneRules, zoneSizeFor } from '@axe/domain/tabletop/zone/zone-rules';
 
@@ -28,6 +29,8 @@ export interface ZonePieceInput {
   readonly held?: boolean;
   /** The piece holding on to it, whose zone it is in only while that piece is; empty for none. */
   readonly grabbedBy?: string;
+  /** The piece it rides, whose zone it is in only while that piece is; empty for none. */
+  readonly ridingOn?: string;
 }
 
 export interface ZoneWorld {
@@ -115,8 +118,9 @@ const MOVED_PX = 1e-3;
  * 2. Zones are joined, lowest identifier first, while one's centre lies in the other: the one with
  *    the lower identifier stays, standing half way between the two, and takes in both sets of pieces
  *    but those held fast, which stay where the old centre was and are out of the zone.
- * 3. A piece held on to by another is in a zone only while the one holding it is, so a holder that
- *    leaves takes it out as well. A holder off the table or out of the fight holds nothing.
+ * 3. A piece bound to another, held on to by it or riding it, is in a zone only while the one it is
+ *    bound to is, so a piece that leaves takes those bound to it out as well. A piece off the table
+ *    or out of the fight binds nothing.
  * 4. A zone left with fewer than two sides in it is over, and its pieces are out of it.
  * 5. Every other piece standing in a zone is inside it without being in it.
  */
@@ -190,14 +194,12 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
     }
   }
 
-  const holderOf = (id: string): string => {
-    const holder = pieces.get(pieces.get(id)?.grabbedBy ?? '');
-    return holder && !holder.offField ? holder.id : '';
-  };
+  const binding = new Set(world.pieces.filter((piece) => !piece.offField).map((piece) => piece.id));
+  const boundOf = (id: string): string => boundTo(pieces.get(id)!, binding);
   for (let dropped = true; dropped;) {
     dropped = false;
     for (const zone of working) {
-      const kept = zone.members.filter((id) => !holderOf(id) || zone.members.includes(holderOf(id)));
+      const kept = zone.members.filter((id) => !boundOf(id) || zone.members.includes(boundOf(id)));
       if (kept.length < zone.members.length) dropped = true;
       zone.members = kept;
     }

@@ -17,6 +17,7 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { sheetNumberOf } from '@axe/domain/tabletop/move/move-cells';
 import { MoveKind, moveKindNamed, parseMoveKinds } from '@axe/domain/tabletop/move/move-kind';
 import { convertMoveLength, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
+import { bondGroupOf } from '@axe/domain/tabletop/move/piece-bonds';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
@@ -586,16 +587,21 @@ export class EngagementZoneService {
   }
 
   /**
-   * The pieces given with every piece holding on to one of them or held on to by one of them, which
-   * go into a zone together. One held fast where it stands is left out, as it moves for nothing.
+   * The pieces given with every piece bound together with one of them, held on to or riding, which go
+   * into a zone together. One held fast where it stands is left out, as it moves for nothing.
    */
   private withPartners(pieces: readonly GameCharacter[]): GameCharacter[] {
+    const onTable = this.objectStore
+      .getObjects<GameCharacter>(GameCharacter)
+      .filter((piece) => piece.isVisibleOnTable && piece.offField !== '1');
+    const bonded = onTable.map((piece) => ({ id: piece.identifier, grabbedBy: piece.grabbedBy }));
+    const byId = new Map(onTable.map((piece) => [piece.identifier, piece]));
     const group = new Map(pieces.map((piece) => [piece.identifier, piece]));
     for (const piece of pieces) {
-      const holder = this.holderOf(piece);
-      for (const partner of [...(holder ? [holder] : []), ...this.captivesOf(piece)]) {
-        if (partner.heldFast === '1' || partner.offField === '1') continue;
-        group.set(partner.identifier, partner);
+      for (const id of bondGroupOf(piece.identifier, bonded)) {
+        const partner = byId.get(id);
+        if (!partner || group.has(id) || partner.heldFast === '1') continue;
+        group.set(id, partner);
       }
     }
     return [...group.values()];

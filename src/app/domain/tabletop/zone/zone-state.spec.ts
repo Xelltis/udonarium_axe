@@ -377,6 +377,24 @@ describe('zoneStateOf', () => {
     expect(state.zones[0].inside).toEqual(['b', 'c']);
   });
 
+  it('keeps a piece riding another in its zone only while the one it rides is in that zone', () => {
+    const state = zoneStateOf(
+      world(
+        [zone('z1', 10, 10)],
+        [
+          piece('a', 10, 10, { zone: 'z1' }),
+          piece('b', 10, 10, { zone: 'z1', side: 'npc' }),
+          piece('horse', 10, 10),
+          piece('rider', 10, 10, { zone: 'z1', ridingOn: 'horse' }),
+          piece('mounted', 10, 10, { zone: 'z1', side: 'npc', ridingOn: 'b' }),
+        ]
+      )
+    );
+
+    expect(state.zones[0].members).toEqual(['a', 'b', 'mounted']);
+    expect(state.writes.setPieceZones).toEqual([{ id: 'rider', zone: '' }]);
+  });
+
   it('lets go of nothing for a holder out of the fight or not on the table', () => {
     const state = zoneStateOf(
       world(
