@@ -302,6 +302,7 @@ export class FreeMovePlanService {
     const start = this.zoneStart;
     this.close();
     this.zones.carryBound(character);
+    this.ride.dropLeftBehind(character);
     if (start) this.zones.afterMove(character, start);
     if (stopped) {
       this.interrupts.settle(character, stopped, walked[walked.length - 1]);

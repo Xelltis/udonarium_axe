@@ -260,6 +260,35 @@ describe('RideService', () => {
     });
   });
 
+  it('keeps a rider down, held where it stands or held on to from moving its mount', () => {
+    const horse = horseAt(5, 5);
+    const rider = pieceAt('騎士', 5, 5);
+    service.mount(rider, horse, 'rider');
+    const planner = TestBed.inject(MovePlannerService);
+
+    rider.heldFast = '1';
+    expect(service.moveRefusal(rider)).toBe('riderHeld');
+    expect(planner.begin(rider)).toBe(false);
+    rider.heldFast = '';
+    rider.grabbedBy = pieceAt('大蛇', 5, 5).identifier;
+    expect(service.moveRefusal(rider)).toBe('riderHeld');
+    rider.grabbedBy = '';
+    expect(service.moveRefusal(rider)).toBeNull();
+  });
+
+  it('takes off a mount a rider it left behind where it was carried, held where it stands', () => {
+    const horse = horseAt(5, 5);
+    const rider = pieceAt('騎士', 5, 5);
+    service.mount(rider, horse, 'rider');
+    rider.heldFast = '1';
+
+    horse.location = { name: 'table', x: 12 * GRID, y: 5 * GRID };
+    service.afterPutDown(horse);
+
+    expect(rider.ridingOn).toBe('');
+    expect(rider.location.x).toBe(5 * GRID);
+  });
+
   it('lets everybody off a piece that stops being a mount, and reads one riding a piece no longer a mount as riding nothing', () => {
     const horse = horseAt(5, 5);
     const rider = pieceAt('騎士', 5, 5);

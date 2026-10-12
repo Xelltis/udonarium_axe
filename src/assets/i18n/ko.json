@@ -5206,6 +5206,7 @@
       "noRider": "{{name}}은(는) 타는 사람이 없으면 움직이지 않습니다",
       "mountMoved": "{{mount}}은(는) 이번 라운드에 다른 차례에서 움직였습니다",
       "cannotAfterLeaving": "{{name}}은(는) 이번 차례에 {{mount}}에서 내렸으므로 스스로 움직일 수 없습니다",
+      "riderHeld": "{{name}}은(는) 그 자리에서 움직일 수 없어 {{mount}}을(를) 움직일 수 없습니다",
       "offer": "{{name}}은(는) {{mount}} 위에 있습니다",
       "offerAction_rider": "타기",
       "offerAction_passenger": "동승하기",

@@ -192,6 +192,7 @@ export class RideService {
   moveRefusal(piece: GameCharacter): RideMoveRefusal | null {
     const mount = this.mountOf(piece);
     const onMount = mount !== null && seatOf(piece.rideSeat) === 'rider';
+    if (onMount && (piece.downed === '1' || piece.heldFast === '1' || piece.grabbedBy !== '')) return 'riderHeld';
     const left = mount ? null : this.leftMountOf(piece);
     return rideMoveRefusal({
       turn: this.turnMark(),
@@ -289,7 +290,10 @@ export class RideService {
   afterPutDown(piece: GameCharacter): void {
     const mount = this.mountOf(piece);
     if (!mount) {
-      if (piece.mountable === '1') this.zones.carryBound(piece);
+      if (piece.mountable === '1') {
+        this.zones.carryBound(piece);
+        this.dropLeftBehind(piece);
+      }
       return;
     }
     if (this.isOn(piece, mount)) {
@@ -342,6 +346,15 @@ export class RideService {
     const base = centreOf(mount, gridSize);
     const half = (Math.max(0, mount.size) * gridSize) / 2;
     return Math.abs(middle.x - base.x) <= half + 1e-6 && Math.abs(middle.y - base.y) <= half + 1e-6;
+  }
+
+  /**
+   * Takes off a mount those riding it that it left behind where it moved: held where they stand,
+   * or held on to by somebody else, they were not carried along.
+   */
+  dropLeftBehind(mount: GameCharacter): void {
+    if (mount.mountable !== '1') return;
+    for (const rider of this.aboard(mount)) if (!this.isOn(rider, mount)) this.dismount(rider, true);
   }
 
   /** Why a piece lying where it fell may not get up just now, or null where it may. */

@@ -472,6 +472,7 @@ export class MovePlanService {
     const start = this.zoneStart;
     this.close();
     this.zones.carryBound(character);
+    this.ride.dropLeftBehind(character);
     if (start) this.zones.afterMove(character, start);
     if (stopped) {
       this.interrupts.settle(character, stopped.outcome, stopped.point);

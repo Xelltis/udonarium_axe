@@ -4930,6 +4930,7 @@
       "noRider": "{{name}} は乗り手がいないと動きません",
       "mountMoved": "{{mount}} はこのラウンドにほかの手番で動いています",
       "cannotAfterLeaving": "{{name}} はこの手番に {{mount}} から降りたので、自分では動けません",
+      "riderHeld": "{{name}} はその場から動けないので、{{mount}} を動かせません",
       "offer": "{{name}} は {{mount}} の上にいます",
       "offerAction_rider": "乗る",
       "offerAction_passenger": "同乗する",

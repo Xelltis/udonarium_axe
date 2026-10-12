@@ -4930,6 +4930,7 @@
       "noRider": "{{name}} does not move without a rider",
       "mountMoved": "{{mount}} has moved in another turn this round",
       "cannotAfterLeaving": "{{name}} got off {{mount}} this turn and cannot move on its own",
+      "riderHeld": "{{name}} is held where it stands and cannot move {{mount}}",
       "offer": "{{name}} is on {{mount}}",
       "offerAction_rider": "Ride",
       "offerAction_passenger": "Ride behind",

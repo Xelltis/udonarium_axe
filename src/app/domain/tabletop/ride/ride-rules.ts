@@ -140,7 +140,7 @@ export function rideChangeRefusal(changedTurn: string, turn: string): RideChange
 }
 
 /** Why a piece may not set out on a move just now, by the rules on riding, or null where it may. */
-export type RideMoveRefusal = 'mountMoved' | 'cannotAfterLeaving';
+export type RideMoveRefusal = 'mountMoved' | 'cannotAfterLeaving' | 'riderHeld';
 
 /** What deciding whether a piece may set out on a move, by the rules on riding, needs. */
 export interface RideMoveInput {
