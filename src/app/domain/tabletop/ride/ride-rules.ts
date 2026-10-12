@@ -257,3 +257,13 @@ export function buffNameOf(command: string): string | null {
   if (name.length < 1 || /^[RＲrｒ][-+]$/.test(name) || /^[DＤdｄ]$/.test(name) || name.endsWith('-')) return null;
   return name;
 }
+
+/**
+ * The pieces whose ground stands in the way of a piece's move, leaving out, for a piece that is no
+ * mount, the mounts and those riding them: ground the piece may walk onto to get on one.
+ */
+export function inTheWayOf<T extends RideTurnPiece>(mover: RideTurnPiece, pieces: readonly T[]): T[] {
+  if (mover.mountable) return [...pieces];
+  const mounts = new Set(pieces.filter((piece) => piece.mountable).map((piece) => piece.id));
+  return pieces.filter((piece) => piece.id === mover.id || (!mounts.has(piece.id) && !mounts.has(piece.ridingOn)));
+}

@@ -4904,7 +4904,13 @@
       "carriedInPlace": "{{name}} は {{mount}} に乗っているあいだ、乗り物と一緒に動きます",
       "noRider": "{{name}} は乗り手がいないと動きません",
       "mountMoved": "{{mount}} はこのラウンドにほかの手番で動いています",
-      "cannotAfterLeaving": "{{name}} はこの手番に {{mount}} から降りたので、自分では動けません"
+      "cannotAfterLeaving": "{{name}} はこの手番に {{mount}} から降りたので、自分では動けません",
+      "offer": "{{name}} は {{mount}} の上にいます",
+      "offerAction_rider": "乗る",
+      "offerAction_passenger": "同乗する",
+      "offerAction_cargo": "積まれる",
+      "offerRefused": "{{name}} は {{mount}} に乗れません",
+      "stayedOn": "{{name}} はこの手番にもう乗り降りしたので、{{mount}} の上に戻しました"
     }
   },
   "app": {

@@ -21,14 +21,18 @@ function model(more: Partial<RideMenuModel> = {}): RideMenuModel {
   return { riding: null, offers: [], mount: null, changeRefusal: null, prone: { on: false, refusal: null }, ...more };
 }
 
-const entriesOf = (menu: ContextMenuAction[]) => menu[0]?.subActions ?? [];
+/** The entries gathered under the riding group. */
+const entriesOf = (menu: ContextMenuAction[]) =>
+  menu.find((entry) => entry.name === 'feature.ride.menu.title')?.subActions ?? [];
+/** The entries standing on the menu's first level beside the group. */
+const firstLevelOf = (menu: ContextMenuAction[]) => menu.filter((entry) => entry.name !== 'feature.ride.menu.title');
 
 describe('buildRideContextMenu', () => {
   it('offers nothing to somebody who may not change the table', () => {
     expect(buildRideContextMenu(model(), false, callbacks(), t)).toEqual([]);
   });
 
-  it('offers each seat free on a mount at the point, greyed out with why where it may not be taken', () => {
+  it('offers each seat free on a mount it stands on at the first level, greyed out with why where it may not be taken', () => {
     const handlers = callbacks();
     const menu = buildRideContextMenu(
       model({
@@ -47,7 +51,7 @@ describe('buildRideContextMenu', () => {
       handlers,
       t
     );
-    const [front, load] = entriesOf(menu);
+    const [front, load] = firstLevelOf(menu);
 
     expect(front.name).toBe('feature.ride.menu.on_rider:{"mount":"馬"}feature.ride.menu.refusal_needsSkill');
     expect(front.enabled).toBe(false);
@@ -56,17 +60,20 @@ describe('buildRideContextMenu', () => {
     expect(handlers.getOn).toHaveBeenCalledWith('horse', 'cargo');
   });
 
-  it('offers getting off the mount ridden, and making the piece a mount', () => {
+  it('offers getting off the mount ridden at the first level, and making the piece a mount in the group', () => {
     const handlers = callbacks();
     const menu = buildRideContextMenu(model({ riding: { mount: '馬', seat: 'rider' } }), true, handlers, t);
 
-    expect(entriesOf(menu).map((entry) => entry.name)).toEqual([
+    expect(menu.map((entry) => entry.name)).toEqual([
       'feature.ride.menu.off:{"mount":"馬"}',
+      'feature.ride.menu.title',
+    ]);
+    expect(entriesOf(menu).map((entry) => entry.name)).toEqual([
       '☐ feature.ride.menu.prone',
       '☐ feature.ride.menu.mountable',
     ]);
-    entriesOf(menu)[0].action!();
-    entriesOf(menu)[2].action!();
+    menu[0].action!();
+    entriesOf(menu)[1].action!();
     expect(handlers.getOff).toHaveBeenCalled();
     expect(handlers.setMountable).toHaveBeenCalledWith(true);
   });
@@ -88,11 +95,11 @@ describe('buildRideContextMenu', () => {
       t
     );
 
-    expect(entriesOf(riding)[0].name).toBe(
+    expect(firstLevelOf(riding)[0].name).toBe(
       'feature.ride.menu.off:{"mount":"馬"}feature.ride.menu.refusal_changedThisTurn'
     );
-    expect(entriesOf(riding)[0].enabled).toBe(false);
-    expect(entriesOf(walking)[0].enabled).toBe(false);
+    expect(firstLevelOf(riding)[0].enabled).toBe(false);
+    expect(firstLevelOf(walking)[0].enabled).toBe(false);
   });
 
   it('says the piece has fallen over, and greys out getting up in the turn it fell in its own', () => {

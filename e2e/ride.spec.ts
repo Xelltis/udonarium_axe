@@ -28,13 +28,16 @@ async function drag(page: Page, from: Point, to: Point) {
   await page.mouse.up();
 }
 
-/** Chooses an entry of a piece's riding group: a piece named, or one already found. */
+/**
+ * Chooses a riding entry of a piece's menu, a piece named or one already found: getting on or off
+ * stands on the first level, the rest in the riding group.
+ */
 async function chooseRide(page: Page, who: string | Locator, entry: string | RegExp) {
   await (typeof who === 'string' ? piece(page, who) : who).dispatchEvent('contextmenu');
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-  await menu.getByText('乗り物', { exact: true }).hover();
-  await menu.getByText(entry).click();
+  if (!(await menu.getByText(entry).first().isVisible())) await menu.getByText('乗り物', { exact: true }).hover();
+  await menu.getByText(entry).first().click();
   await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
 }
 
@@ -50,7 +53,9 @@ async function rideAOnB(page: Page) {
   await settle(mount);
   await drag(page, await centreOf(pedestal(rider)), await centreOf(pedestal(mount)));
   await settle(rider);
-  await chooseRide(page, 'キャラクターA', 'キャラクターB に乗る');
+  const offer = page.getByTestId('snackbar');
+  await expect(offer).toContainText('キャラクターA は キャラクターB の上にいます', { timeout: 5000 });
+  await offer.getByTestId('snackbar-action').click();
   await expect(mount.getByTestId('piece-riders').first()).toContainText('1', { timeout: 5000 });
 }
 
@@ -121,5 +126,24 @@ test.describe('乗り物', () => {
     await menu.getByText('乗り物', { exact: true }).hover();
     await expect(menu.locator('li', { hasText: '転んでいる' }).getByRole('checkbox')).toBeChecked({ timeout: 5000 });
     await expect(menu.getByText('キャラクターB から降りる')).toHaveCount(0);
+  });
+
+  test('乗っている駒を手で乗り物から離して置くと、そこで降りること', async ({ page }) => {
+    await rideAOnB(page);
+    const mount = piece(page, 'キャラクターB');
+    const rider = page.locator('game-character[data-e2e-pinned="キャラクターA"]');
+    const from = await centreOf(rider.locator('img.image'));
+    const cell = (await pedestal(mount).boundingBox())!.width;
+
+    await drag(page, from, { x: from.x - cell * 3, y: from.y });
+
+    await expect(mount.getByTestId('piece-riders')).toHaveCount(0, { timeout: 5000 });
+    await piece(page, 'キャラクターA').dispatchEvent('contextmenu');
+    const menu = page.locator('context-menu');
+    await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
+    await menu.getByText('乗り物', { exact: true }).hover();
+    await expect(menu.locator('li', { hasText: '転んでいる' }).getByRole('checkbox')).not.toBeChecked({
+      timeout: 5000,
+    });
   });
 });

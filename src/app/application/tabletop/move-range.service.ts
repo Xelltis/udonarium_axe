@@ -37,6 +37,7 @@ import { passageCells, PiecePassageMode } from '@axe/domain/tabletop/move/piece-
 import { PieceRelation } from '@axe/domain/tabletop/move/piece-relation';
 import { reachableCells, ReachOptions } from '@axe/domain/tabletop/move/reachable-cells';
 import { isHostileTo, zoneOfControl } from '@axe/domain/tabletop/move/zone-of-control';
+import { inTheWayOf } from '@axe/domain/tabletop/ride/ride-rules';
 import { resolveRoomRules, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { moveCostsOn, TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -239,13 +240,28 @@ export class MoveRangeService {
       .filter((piece) => piece.identifier === character.identifier || this.vision.isTokenVisible(piece));
     const passage = passageCells(
       grid,
-      standing,
+      this.inTheWayOf(character, standing),
       character,
       (relation) => passageModeOf(rules, relation),
       rules.sizeSlipsPast,
       this.alliance()
     );
     return !passage.blocked.get(cell) && !passage.noStop.get(cell);
+  }
+
+  /**
+   * The pieces whose ground stands in the way of a piece's move: a mount and those riding it are
+   * ground a piece that is no mount may walk onto, to get on.
+   */
+  private inTheWayOf(character: GameCharacter, standing: readonly GameCharacter[]): GameCharacter[] {
+    const asRiding = (piece: GameCharacter) => ({
+      id: piece.identifier,
+      ridingOn: piece.ridingOn,
+      rideSeat: piece.rideSeat,
+      mountable: piece.mountable === '1',
+      piece,
+    });
+    return inTheWayOf(asRiding(character), standing.map(asRiding)).map((one) => one.piece);
   }
 
   /**
@@ -551,7 +567,7 @@ export class MoveRangeService {
     const allied = this.alliance();
     const passage = passageCells(
       grid,
-      standing,
+      this.inTheWayOf(character, standing),
       character,
       (relation) => passageModeOf(rules, relation),
       rules.sizeSlipsPast,

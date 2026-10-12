@@ -5,6 +5,7 @@ import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -152,7 +153,7 @@ describe('RideService', () => {
     expect(rider.location.x).toBe(10 * GRID);
   });
 
-  it('gets a piece put down away from its mount off it, and puts one put down close by back on it', () => {
+  it('gets a piece put down off its mount off it, and puts one put down on it back where it stands', () => {
     const horse = horseAt(5, 5);
     const rider = pieceAt('騎士', 5, 5);
     service.mount(rider, horse, 'rider');
@@ -166,11 +167,97 @@ describe('RideService', () => {
     service.afterPutDown(horse);
     expect(rider.location.x).toBe(8 * GRID);
 
+    said = [];
     rider.location = { name: 'table', x: 12 * GRID, y: 5 * GRID };
     service.afterPutDown(rider);
     expect(rider.ridingOn).toBe('');
-    expect(rider.prone).toBe('1');
+    expect(rider.prone).toBe('');
     expect(rider.location.x).toBe(12 * GRID);
+    expect(said).toEqual(['騎士 が 馬 から降りました（手番の行動を使わない）']);
+  });
+
+  describe('putting a piece down on a mount', () => {
+    function shown(): { message: string; action?: { label: string; run(): void } }[] {
+      const notices: { message: string; action?: { label: string; run(): void } }[] = [];
+      vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation((message, options) => {
+        notices.push({ message, action: options?.action });
+      });
+      return notices;
+    }
+
+    it('offers the first seat it may take on a mount whose base it stands over, and gets it on from there', () => {
+      const notices = shown();
+      const horse = horseAt(5, 5, { size: 3, mountPassenger: '1' } as Partial<GameCharacter>);
+      const rider = pieceAt('騎士', 7, 7);
+
+      service.offerRide(rider);
+
+      expect(notices.map((notice) => [notice.message, notice.action?.label])).toEqual([
+        ['騎士 は 馬 の上にいます', '乗る'],
+      ]);
+      notices[0].action!.run();
+      expect(rider.ridingOn).toBe(horse.identifier);
+      const friend = pieceAt('従者', 7, 7);
+      service.offerRide(friend);
+      expect(notices[1].action?.label).toBe('同乗する');
+    });
+
+    it('offers a seat to a piece whose planned move ends on a mount', async () => {
+      const notices = shown();
+      horseAt(8, 5);
+      const rider = pieceAt('騎士', 5, 5);
+      const planner = TestBed.inject(MovePlannerService);
+      const plan = TestBed.inject(MovePlanService);
+
+      planner.begin(rider);
+      plan.lookAt(8 * GRID + 10, 5 * GRID + 10);
+      await plan.run();
+
+      expect(notices.map((notice) => notice.action?.label)).toEqual(['乗る']);
+    });
+
+    it('offers nothing off a mount, nor to one riding already', () => {
+      const notices = shown();
+      const horse = horseAt(5, 5);
+      const rider = pieceAt('騎士', 9, 9);
+
+      service.offerRide(rider);
+      service.mount(pieceAt('従者', 5, 5), horse, 'rider');
+
+      expect(notices).toEqual([]);
+    });
+
+    it('says why a piece put down on a mount may not get on it', () => {
+      const notices = shown();
+      Config.instance.rideSkillField = '騎乗術';
+      horseAt(5, 5);
+
+      service.offerRide(pieceAt('村人', 5, 5));
+
+      expect(notices.map((notice) => [notice.message, notice.action])).toEqual([
+        ['村人 は 馬 に乗れません（操る技能がない）', undefined],
+      ]);
+    });
+
+    it('puts a piece taken off its mount back on where it got on this turn', () => {
+      const notices = shown();
+      const horse = horseAt(5, 5);
+      const rider = pieceAt('騎士', 5, 5);
+      const turns = TestBed.inject(TurnState);
+      turns.round = 1;
+      turns.phase = 'acting';
+      turns.currentIdentifier = rider.identifier;
+      service.mount(rider, horse, 'rider');
+
+      rider.location = { name: 'table', x: 12 * GRID, y: 5 * GRID };
+      service.afterPutDown(rider);
+
+      expect(rider.ridingOn).toBe(horse.identifier);
+      expect(rider.location.x).toBe(5 * GRID);
+      expect(notices.map((notice) => notice.message)).toEqual([
+        '騎士 はこの手番にもう乗り降りしたので、馬 の上に戻しました',
+      ]);
+    });
   });
 
   it('lets everybody off a piece that stops being a mount, and reads one riding a piece no longer a mount as riding nothing', () => {

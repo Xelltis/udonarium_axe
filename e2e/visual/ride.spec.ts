@@ -45,7 +45,9 @@ async function rideAOnB(page: Page) {
   await settlePiece(mount);
   await drag(page, await centreOf(rider.locator('img.image')), await centreOf(pedestal(mount)));
   await settlePiece(rider);
-  await chooseRide(page, 'キャラクターA', 'キャラクターB に乗る');
+  const offer = page.getByTestId('snackbar');
+  await expect(offer).toContainText('キャラクターB の上にいます', { timeout: 5000 });
+  await offer.getByTestId('snackbar-action').click();
   await expect(mount.getByTestId('piece-riders').first()).toContainText('1', { timeout: 5000 });
   await settlePiece(rider);
   await page.waitForTimeout(600);

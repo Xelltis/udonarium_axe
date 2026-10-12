@@ -303,8 +303,12 @@ export class FreeMovePlanService {
     this.close();
     this.zones.carryBound(character);
     if (start) this.zones.afterMove(character, start);
-    if (stopped) this.interrupts.settle(character, stopped, walked[walked.length - 1]);
-    else this.zones.offerFight(character);
+    if (stopped) {
+      this.interrupts.settle(character, stopped, walked[walked.length - 1]);
+    } else {
+      this.zones.offerFight(character);
+      this.ride.offerRide(character);
+    }
     return true;
   }
 

@@ -22,10 +22,11 @@ export const CARGO_CHOICES: readonly number[] = [0, 1, 2, 3, 4, 5, 6];
 export const SEAT_HEIGHT_CHOICES: readonly (number | null)[] = [null, 0, 0.5, 1, 1.5, 2, 3];
 
 /**
- * The riding entries of a piece's menu, gathered under one entry: getting on a mount at the same
- * point, in a seat free on it, or off the one it rides, saying the piece has fallen over or got up,
- * and making the piece a mount and saying what it takes. A seat the piece may not take, and getting on or off where the piece has done so this
- * turn, is shown with why, and cannot be chosen.
+ * The riding entries of a piece's menu. Getting on a mount it stands on, in a seat free there, or
+ * off the one it rides, stand on the menu's first level, where they are found at once; a seat the
+ * piece may not take, and getting on or off where it has done so this turn, are shown with why and
+ * cannot be chosen. Saying the piece has fallen over or got up, and making it a mount and saying what
+ * it takes, are gathered under one entry.
  *
  * Nothing for somebody who may not change the table.
  */
@@ -36,10 +37,10 @@ export function buildRideContextMenu(
   t: TranslateFn
 ): ContextMenuAction[] {
   if (!canEdit) return [];
-  const entries: ContextMenuAction[] = [];
+  const onAndOff: ContextMenuAction[] = [];
   const changeRefusal = model.changeRefusal;
   if (model.riding) {
-    entries.push({
+    onAndOff.push({
       name:
         t('feature.ride.menu.off', { mount: model.riding.mount }) +
         (changeRefusal ? t(`feature.ride.menu.refusal_${changeRefusal}`) : ''),
@@ -50,7 +51,7 @@ export function buildRideContextMenu(
   for (const offer of model.offers) {
     for (const { seat, refusal } of offer.seats) {
       const why = refusal ?? changeRefusal;
-      entries.push({
+      onAndOff.push({
         name:
           t(`feature.ride.menu.on_${seat}`, { mount: offer.name }) + (why ? t(`feature.ride.menu.refusal_${why}`) : ''),
         action: () => callbacks.getOn(offer.id, seat),
@@ -58,6 +59,7 @@ export function buildRideContextMenu(
       });
     }
   }
+  const entries: ContextMenuAction[] = [];
   const prone = model.prone;
   entries.push({
     name:
@@ -108,5 +110,5 @@ export function buildRideContextMenu(
       ],
     });
   }
-  return [{ name: t('feature.ride.menu.title'), action: undefined, subActions: entries }];
+  return [...onAndOff, { name: t('feature.ride.menu.title'), action: undefined, subActions: entries }];
 }

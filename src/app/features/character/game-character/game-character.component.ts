@@ -1850,6 +1850,7 @@ export class GameCharacterComponent {
     this.ride.afterPutDown(character);
     this.triggerFire.putDown(character);
     this.engagementZones.offerFight(character);
+    this.ride.offerRide(character);
   }
 
   /** Hides the move range once the press on the piece ends, whether or not it was dragged. */

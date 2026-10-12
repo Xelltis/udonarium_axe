@@ -5,6 +5,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { centreOf, EngagementZoneService, metresPerCell } from '@axe/application/tabletop/engagement-zone.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -81,9 +82,10 @@ export interface RideMenuModel {
  * stood still. A mount and whoever sits behind take their turn in the one riding in front's, so that
  * one getting off ends theirs.
  *
- * A piece falls off where it, or the mount, goes down or falls over, or it is taken away from the
- * mount by hand; a load also falls with the one riding in front. It lies where it fell, and the room
- * is told how far it fell, by how far the mount was moving.
+ * A piece put down on a mount is offered a seat on it, and one put down off its mount gets off. A
+ * piece falls off where it, or the mount, goes down or falls over; a load also falls with the one
+ * riding in front. It lies where it fell, and the room is told how far it fell, by how far the mount
+ * was moving.
  *
  * Where the room writes a buff for riding two up, the one in front and the one behind carry it while
  * both are on the mount.
@@ -97,6 +99,7 @@ export class RideService {
   private readonly macro = inject(CharacterMacroService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly turns = inject(TurnOrderService);
+  private readonly snackbar = inject(SnackbarService);
   private readonly t = inject(TRANSLATE_FN);
 
   /** The mount a piece rides, where it is on the table and still a mount; null otherwise. */
@@ -267,7 +270,7 @@ export class RideService {
 
   /**
    * Settles a piece put down by hand: a mount brings those riding it along, and a piece riding one
-   * that is put down away from it falls off there.
+   * that is put down off it gets off there. One that may not get off this turn is put back on.
    */
   afterPutDown(piece: GameCharacter): void {
     const mount = this.mountOf(piece);
@@ -275,14 +278,55 @@ export class RideService {
       if (piece.mountable === '1') this.zones.carryBound(piece);
       return;
     }
-    const gridSize = this.tableSelecter.viewTable?.gridSize ?? 50;
-    const here = centreOf(piece, gridSize);
-    const there = centreOf(mount, gridSize);
-    if (Math.hypot(there.x - here.x, there.y - here.y) <= this.samePointPx() + 1e-6) {
+    if (this.isOn(piece, mount)) {
       this.zones.carryBound(mount);
       return;
     }
-    this.fall(piece);
+    if (this.dismount(piece)) return;
+    this.zones.carryBound(mount);
+    this.snackbar.show(this.t('feature.ride.stayedOn', { name: piece.name, mount: mount.name }));
+  }
+
+  /**
+   * Offers, at the foot of the screen, to get a piece on the mount it stands on, in the first seat it
+   * may take there; or says why it may take none. Nothing for a piece on no mount, or one riding.
+   */
+  offerRide(piece: GameCharacter): void {
+    if (!this.rolePermission.canEditTabletop || this.mountOf(piece)) return;
+    const offers = this.offersFor(piece);
+    if (offers.length < 1) return;
+    const refusal = this.changeRefusal(piece);
+    for (const offer of refusal === null ? offers : []) {
+      const seat = offer.seats.find((one) => one.refusal === null)?.seat;
+      const mount = this.objectStore.get<GameCharacter>(offer.id);
+      if (!seat || !(mount instanceof GameCharacter)) continue;
+      this.snackbar.show(this.t('feature.ride.offer', { name: piece.name, mount: mount.name }), {
+        action: { label: this.t(`feature.ride.offerAction_${seat}`), run: () => this.mount(piece, mount, seat) },
+      });
+      return;
+    }
+    const why = refusal ?? offers[0].seats.find((one) => one.refusal !== null)?.refusal ?? null;
+    if (why) {
+      this.snackbar.show(
+        this.t('feature.ride.offerRefused', { name: piece.name, mount: offers[0].name }) +
+          this.t(`feature.ride.menu.refusal_${why}`)
+      );
+    }
+  }
+
+  /**
+   * Whether a piece stands on a mount: at the same point as it, or with its middle over the mount's
+   * base, as where it was put down on it.
+   */
+  private isOn(piece: GameCharacter, mount: GameCharacter): boolean {
+    const here = this.zones.pointOf(piece);
+    const there = this.zones.pointOf(mount);
+    if (Math.hypot(there.x - here.x, there.y - here.y) <= this.samePointPx() + 1e-6) return true;
+    const gridSize = this.tableSelecter.viewTable?.gridSize ?? 50;
+    const middle = centreOf(piece, gridSize);
+    const base = centreOf(mount, gridSize);
+    const half = (Math.max(0, mount.size) * gridSize) / 2;
+    return Math.abs(middle.x - base.x) <= half + 1e-6 && Math.abs(middle.y - base.y) <= half + 1e-6;
   }
 
   /** Why a piece lying where it fell may not get up just now, or null where it may. */
@@ -478,16 +522,11 @@ export class RideService {
    */
   private offersFor(piece: GameCharacter): RideOffer[] {
     if (!this.mayGetOn(piece) || this.aboard(piece).length > 0) return [];
-    const here = this.zones.pointOf(piece);
-    const reach = this.samePointPx();
     return this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
       .filter((mount) => mount !== piece && mount.mountable === '1' && mount.isVisibleOnTable)
       .filter((mount) => this.mayCarry(mount))
-      .filter((mount) => {
-        const there = this.zones.pointOf(mount);
-        return Math.hypot(there.x - here.x, there.y - here.y) <= reach + 1e-6;
-      })
+      .filter((mount) => this.isOn(piece, mount))
       .map((mount) => ({
         id: mount.identifier,
         name: mount.name,

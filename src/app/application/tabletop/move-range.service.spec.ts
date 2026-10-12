@@ -1172,6 +1172,19 @@ describe('MoveRangeService and the ground another piece stands on', () => {
     expect(reached(7, 5)).toBe(true);
   });
 
+  it('stops on a mount of its own side to get on it, and a mount on no other mount', () => {
+    table.samePartyPassage = 'pass';
+    const horse = pieceAt(6, 5, 1, 'heroes');
+    horse.mountable = '1';
+    const cart = pieceAt(4, 5, 1, 'heroes');
+    cart.mountable = '1';
+    service.show(pieceAt(5, 5, 2, 'heroes'));
+    expect(reached(6, 5)).toBe(true);
+
+    service.show(cart);
+    expect(reached(6, 5)).toBe(false);
+  });
+
   it('pays for squeezing past where the table charges for it', () => {
     table.samePartyPassage = 'cost';
     table.piecePassageCost = 1;

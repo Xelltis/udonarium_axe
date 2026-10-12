@@ -7,6 +7,7 @@ import {
   freeSeats,
   frontRefusal,
   frontRidersOf,
+  inTheWayOf,
   rideChangeRefusal,
   rideMoveRefusal,
   roundOfMark,
@@ -206,5 +207,17 @@ describe('riding a mount', () => {
     expect(buffNameOf('&D')).toBeNull();
     expect(buffNameOf('ふたり乗り')).toBeNull();
     expect(buffNameOf('&')).toBeNull();
+  });
+
+  it('lets a piece that is no mount walk onto a mount and those riding it, and a mount onto neither', () => {
+    const pieces = [
+      { id: 'knight', ridingOn: '', rideSeat: '', mountable: false },
+      { id: 'horse', ridingOn: '', rideSeat: '', mountable: true },
+      { id: 'squire', ridingOn: 'horse', rideSeat: 'passenger', mountable: false },
+      { id: 'guard', ridingOn: '', rideSeat: '', mountable: false },
+    ];
+
+    expect(inTheWayOf(pieces[0], pieces).map((piece) => piece.id)).toEqual(['knight', 'guard']);
+    expect(inTheWayOf(pieces[1], pieces).map((piece) => piece.id)).toEqual(['knight', 'horse', 'squire', 'guard']);
   });
 });
