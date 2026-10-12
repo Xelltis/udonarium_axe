@@ -201,6 +201,22 @@ describe('TurnOrderService', () => {
       expect(announced.some((text: string) => text.includes('feature.turnOrder.buffExpired'))).toBe(true);
     });
 
+    it('counts down the buffs of pieces kept off the table too, and leaves the graveyard alone', () => {
+      const kept = GameCharacter.create('控え', 1, '');
+      kept.setLocation('common');
+      kept.addExtendData();
+      kept.buffs.addRound('挑発攻撃', '', 1);
+      const fallen = GameCharacter.create('退場', 1, '');
+      fallen.setLocation('graveyard');
+      fallen.addExtendData();
+      fallen.buffs.addRound('挑発攻撃', '', 1);
+
+      advanceToRoundEnd();
+
+      expect(buffsOf(kept)).toHaveLength(0);
+      expect(buffsOf(fallen)).toHaveLength(1);
+    });
+
     it('leaves buffs alone while the toggle is off', () => {
       service.setBuffDecay(false);
 

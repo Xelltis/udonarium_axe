@@ -193,9 +193,20 @@ export class TurnOrderService {
     return this.allCharacters().filter((character) => !character.noTurn && (includeHidden || !character.hideInventory));
   }
 
-  /** Everyone on the table, whether or not they take a turn: a buff runs out either way. */
+  /** Everyone on the table, whether or not they take a turn. */
   private allCharacters(): GameCharacter[] {
     return this.inventory.tableInventory.tabletopObjects as GameCharacter[];
+  }
+
+  /**
+   * Everyone whose buffs the round counts down: whoever is on the table and whoever is kept in an
+   * inventory, since a piece speaking from a palette carries buffs wherever it is kept. Only a
+   * piece in the graveyard is out of the round.
+   */
+  private buffCarriers(): GameCharacter[] {
+    return this.objectStore
+      .getObjects<GameCharacter>(GameCharacter)
+      .filter((character) => character.location.name !== 'graveyard');
   }
 
   /**
@@ -454,7 +465,7 @@ export class TurnOrderService {
 
   private captureBuffs(): Map<string, BuffSnapshotEntry[]> {
     const captured = new Map<string, BuffSnapshotEntry[]>();
-    for (const character of this.allCharacters()) {
+    for (const character of this.buffCarriers()) {
       captured.set(character.identifier, character.buffs.snapshot());
     }
     return captured;
@@ -539,7 +550,7 @@ export class TurnOrderService {
     if (!this.turnState.buffDecay) return;
 
     const entries: ExpiredBuffEntry[] = [];
-    for (const character of this.allCharacters()) {
+    for (const character of this.buffCarriers()) {
       const buffNames = character.buffs.expireAt(timing, acting);
       if (buffNames.length > 0) entries.push({ characterName: character.name, buffNames });
     }
