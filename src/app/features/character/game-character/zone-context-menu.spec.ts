@@ -1,6 +1,10 @@
 import { ZoneMenuModel } from '@axe/application/tabletop/engagement-zone.service';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
-import { buildZoneContextMenu, ZoneMenuCallbacks } from '@axe/features/character/game-character/zone-context-menu';
+import {
+  buildZoneContextMenu,
+  ZONE_LIMIT_CHOICES,
+  ZoneMenuCallbacks,
+} from '@axe/features/character/game-character/zone-context-menu';
 
 const t = (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key);
 
@@ -119,5 +123,20 @@ describe('buildZoneContextMenu', () => {
     master[0].subActions!.find((action) => action.name === 'feature.zone.menu.placement')!.action!();
 
     expect(handlers.placeSides).toHaveBeenCalled();
+  });
+
+  it('offers a piece standing in a zone, not in it, saying it will leave', () => {
+    const handlers = callbacks();
+    const entries = buildZoneContextMenu(model({ leave: { said: false, maySay: true } }), true, false, handlers, t);
+
+    expect(names(entries)).toContain('feature.zone.menu.prepareLeave');
+    expect(names(entries)).not.toContain('feature.zone.menu.leave');
+  });
+
+  it('offers every limit from two to twenty', () => {
+    expect(ZONE_LIMIT_CHOICES[0]).toBe(2);
+    expect(ZONE_LIMIT_CHOICES).toContain(7);
+    expect(ZONE_LIMIT_CHOICES[ZONE_LIMIT_CHOICES.length - 1]).toBe(20);
+    expect(ZONE_LIMIT_CHOICES).toHaveLength(19);
   });
 });

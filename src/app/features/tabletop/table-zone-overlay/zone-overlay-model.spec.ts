@@ -14,9 +14,9 @@ const state = zoneStateOf({
 });
 
 describe('zoneOverlayModelOf', () => {
-  it('draws each zone at its centre and size, overflowing and forming as it is', () => {
+  it('draws each zone at its centre and size, everybody standing in it against its limit, overflowing and forming as it is', () => {
     expect(zoneOverlayModelOf(state, true).zones).toEqual([
-      { id: 'z1', cx: 100, cy: 100, reach: 100, square: false, label: '4/3', overflowing: true, forming: true },
+      { id: 'z1', cx: 100, cy: 100, reach: 100, square: false, label: '5/3', overflowing: true, forming: true },
     ]);
   });
 

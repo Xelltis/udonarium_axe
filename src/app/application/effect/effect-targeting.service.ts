@@ -211,13 +211,14 @@ export class EffectTargetingService {
 
   /**
    * Takes everything within the radius of the centre piece, nearest first. A piece in an engagement
-   * zone stands at the zone's centre for this, so a zone the area reaches is reached whole.
+   * zone stands at the zone's centre for this, so a zone the area reaches is reached whole; a piece
+   * taken out of the fight is never reached.
    */
   private areaPicks(preset: EffectPreset, center: GameCharacter): string[] {
     const gridSize = this.tabletopService.gridSize();
     const origin = { ...this.centerOf(center, gridSize), ...this.zones.pointOf(center) };
     const candidates = this.tabletopService.characters
-      .filter((character) => character.isVisibleOnTable)
+      .filter((character) => character.isVisibleOnTable && character.offField !== '1')
       .map((character) => ({
         identifier: character.identifier,
         ...this.centerOf(character, gridSize),

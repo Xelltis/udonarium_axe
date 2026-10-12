@@ -232,6 +232,23 @@ describe('zoneStateOf', () => {
     });
   });
 
+  it('sizes a zone by those in it, but holds it to its limit by everybody standing in it', () => {
+    const state = zoneStateOf(
+      world(
+        [zone('z1', 10, 10, { limit: 3 })],
+        [
+          piece('a', 10, 10, { zone: 'z1' }),
+          piece('b', 10, 10, { zone: 'z1', side: 'npc' }),
+          piece('standing', 11, 10, { count: 2 }),
+        ]
+      )
+    );
+
+    expect(state.zones[0].count).toBe(2);
+    expect(state.zones[0].occupants).toBe(4);
+    expect(state.zones[0].overflowing).toBe(true);
+  });
+
   it('brings a declared zone into force when it joins one already in force', () => {
     const state = zoneStateOf(
       world(

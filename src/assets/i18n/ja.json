@@ -182,7 +182,8 @@
         "onField": "{{name}} を場に戻しました",
         "prepareLeave": "{{name}} が交戦エリアから離れると予告しました",
         "held": "{{name}} は交戦エリアに止められました",
-        "interrupted": "{{names}} が {{mover}} の移動に割り込みました"
+        "interrupted": "{{names}} が {{mover}} の移動に割り込みました",
+        "pulledIn": "{{name}} は定員を超えた交戦エリアの中で手番を始めたので、エリアに加わりました"
       },
       "settings": {
         "section": "交戦エリア",

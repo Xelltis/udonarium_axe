@@ -187,7 +187,7 @@ export class MovePlanService {
     if (!terms) return false;
     this.terms = terms;
     this.legs = [];
-    this.zoneStart = this.zones.startOfMove(character);
+    this.zoneStart = this.zones.startOfMove(character, kind);
     character.toTopmost();
     SoundEffect.play(PresetSound.piecePick);
     this.opened.update((count) => count + 1);
@@ -222,6 +222,7 @@ export class MovePlanService {
     if (!(character instanceof GameCharacter) || !this.zones.mayMove(character, kind)) return false;
     const terms = this.moveRange.termsOf(character, kind);
     if (!terms) return false;
+    if (this.zoneStart) this.zoneStart = { ...this.zoneStart, kind };
     this.terms = terms;
     this.held.set({
       ...plan,

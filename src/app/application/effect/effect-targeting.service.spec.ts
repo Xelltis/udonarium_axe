@@ -172,6 +172,14 @@ describe('EffectTargetingService', () => {
       ObjectStore.instance.remove(table);
     });
 
+    it('never reaches a piece taken out of the fight', () => {
+      characters[0].offField = '1';
+      service.begin(preset);
+      service.pick(characters[1].identifier);
+
+      expect(service.picks()).not.toContain(characters[0].identifier);
+    });
+
     it('moves the centre when chosen again', () => {
       service.begin(preset);
       service.pick(characters[1].identifier);

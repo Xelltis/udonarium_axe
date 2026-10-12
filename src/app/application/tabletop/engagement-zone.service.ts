@@ -24,7 +24,7 @@ import { EngagementZone, zonesOn } from '@axe/domain/tabletop/zone/engagement-zo
 import { FirePiece, FireReport, lineOfFire } from '@axe/domain/tabletop/zone/line-of-fire';
 import { zoneCells } from '@axe/domain/tabletop/zone/zone-cells';
 import { gatheredAbout, zoneCovers, ZonePoint, ZoneShape } from '@axe/domain/tabletop/zone/zone-geometry';
-import { LeaveInput, leaveReasonOf, zoneHolds, ZoneSideCounts } from '@axe/domain/tabletop/zone/zone-leave';
+import { LeaveInput, leaveReasonOf, mayEscape, zoneHolds, ZoneSideCounts } from '@axe/domain/tabletop/zone/zone-leave';
 import { DEFAULT_ZONE_RULES, resolveZoneRules, ZoneRules } from '@axe/domain/tabletop/zone/zone-rules';
 import { sideOfPiece } from '@axe/domain/tabletop/zone/zone-sides';
 import {
@@ -108,6 +108,8 @@ export interface ZoneInterrupters {
 export interface ZoneMoveStart {
   readonly zone: string;
   readonly inside: readonly string[];
+  /** The kind of move it is made by, which an overflowing zone is left by. */
+  readonly kind: string;
 }
 
 /** What the zones need to know of the table they are on. */
@@ -160,7 +162,9 @@ export class EngagementZoneService {
   });
 
   constructor() {
-    const stopHook = inject(TurnHooksService).onTurnEnd(() => this.confirmForming());
+    const hooks = inject(TurnHooksService);
+    const stopTurnEnd = hooks.onTurnEnd(() => this.confirmForming());
+    const stopTurnStart = hooks.onTurnStart((identifier) => this.pullInAtTurnStart(identifier));
     // Said on this peer's cursor from the moment it is here, rather than the first time a zone needs
     // tidying: the room counts on it to keep order and to answer for its pieces when a move is
     // stepped into, and a room with no zone yet would otherwise find nobody to ask.
@@ -176,7 +180,8 @@ export class EngagementZoneService {
     });
     inject(DestroyRef).onDestroy(() => {
       if (this.tidyTimer !== null) clearTimeout(this.tidyTimer);
-      stopHook();
+      stopTurnEnd();
+      stopTurnStart();
     });
   }
 
@@ -231,6 +236,25 @@ export class EngagementZoneService {
     });
     this.settle([zone.identifier]);
     return zone;
+  }
+
+  /**
+   * Puts a piece that begins its turn standing in a zone holding more than its limit, without being
+   * in it, into that zone. A piece out of the fight is left alone.
+   */
+  pullInAtTurnStart(identifier: string): void {
+    const piece = this.objectStore.get<GameCharacter>(identifier);
+    if (!(piece instanceof GameCharacter) || piece.offField === '1') return;
+    const state = this.stateNow();
+    if (state.zoneOf(identifier)) return;
+    const crowded = state.insideOf(identifier).find((zone) => zone.overflowing);
+    if (!crowded) return;
+    GameObject.batch(() => {
+      piece.engagementZone = crowded.id;
+      piece.zoneLeaveRound = '';
+    });
+    this.settle([crowded.id]);
+    this.chat.sendSystemMessage(this.t('feature.zone.chat.pulledIn', { name: piece.name }));
   }
 
   /** Puts every zone still forming in force, as a turn ends. */
@@ -325,13 +349,18 @@ export class EngagementZoneService {
             })
             .map((other) => ({ id: other.id, name: this.objectStore.get<GameCharacter>(other.id)?.name ?? '' }))
         : [];
+    const standing = own ? [] : state.insideOf(piece.identifier);
     return {
       enabled: true,
       zone: zone ? { id: zone.identifier, square: zone.isSquare, limit: zone.limit } : null,
-      joinable: own ? [] : state.insideOf(piece.identifier).map((view) => view.id),
+      joinable: standing.map((view) => view.id),
       foes: own ? [] : foes,
       offField: piece.offField === '1',
-      leave: own ? { said: piece.zoneLeaveRound !== '', maySay: !own.overflowing } : null,
+      leave: own
+        ? { said: piece.zoneLeaveRound !== '', maySay: !own.overflowing }
+        : standing.length > 0
+          ? { said: piece.zoneLeaveRound !== '', maySay: !standing.some((view) => view.overflowing) }
+          : null,
       aiming: pieces.some(
         (other) => other.id !== piece.identifier && this.objectStore.get<GameCharacter>(other.id)?.targeted
       ),
@@ -377,10 +406,12 @@ export class EngagementZoneService {
     for (const zone of state.zones) {
       if (zone === own) continue;
       if (standingIn.includes(zone)) {
-        if (zoneHolds(this.countsOf(zone, pieces), counted, 'escape', ratio)) limits.escapes.push(zone.shape);
+        if (!mayEscape(this.leaveInput(zone, mover, pieces, kindName, piece.zoneLeaveRound))) {
+          limits.escapes.push(zone.shape);
+        }
         continue;
       }
-      if (zone.count >= zone.limit) limits.shut.push(zone.shape);
+      if (zone.occupants + mover.count > zone.limit) limits.shut.push(zone.shape);
       else if (zoneHolds(this.countsOf(zone, pieces), counted, 'pass', ratio)) limits.stops.push(zone.shape);
     }
     return { startPoint: own?.shape.centre ?? null, noReach: false, ...limits };
@@ -460,6 +491,7 @@ export class EngagementZoneService {
       point: state.pointOf(piece.id) ?? piece.point,
       side: piece.side,
       zone: state.zoneOf(piece.id)?.id ?? '',
+      inside: state.insideOf(piece.id).map((zone) => zone.id),
       offField: piece.offField,
     });
     const from = pieces.find((piece) => piece.id === shooter.identifier);
@@ -509,12 +541,13 @@ export class EngagementZoneService {
     return kinds.find((kind) => kind.name !== asked && this.mayMove(piece, kind.name))?.name ?? null;
   }
 
-  /** Where a piece stands among the zones as a move begins. */
-  startOfMove(piece: GameCharacter): ZoneMoveStart {
+  /** Where a piece stands among the zones as a move by a kind begins. */
+  startOfMove(piece: GameCharacter, kindName = ''): ZoneMoveStart {
     const state = this.stateNow();
     return {
       zone: state.zoneOf(piece.identifier)?.id ?? '',
       inside: state.insideOf(piece.identifier).map((zone) => zone.id),
+      kind: kindName,
     };
   }
 
@@ -544,11 +577,9 @@ export class EngagementZoneService {
     }
     const counted = { side: mover.side, count: mover.count };
     const ratio = world.rules.outnumber;
-    const heldBack = state.zones.find(
-      (zone) =>
-        start.inside.includes(zone.id) &&
-        !zoneCovers(zone.shape, point) &&
-        zoneHolds(this.countsOf(zone, pieces), counted, 'escape', ratio)
+    const leftZones = state.zones.filter((zone) => start.inside.includes(zone.id) && !zoneCovers(zone.shape, point));
+    const heldBack = leftZones.find(
+      (zone) => !mayEscape(this.leaveInput(zone, mover, pieces, start.kind, piece.zoneLeaveRound))
     );
     const stopped =
       heldBack ??
@@ -556,11 +587,22 @@ export class EngagementZoneService {
         (zone) =>
           !start.inside.includes(zone.id) &&
           zoneCovers(zone.shape, point) &&
-          zone.count < zone.limit &&
+          zone.occupants <= zone.limit &&
           zoneHolds(this.countsOf(zone, pieces), counted, 'pass', ratio)
       );
-    if (!stopped) return;
-    piece.engagementZone = stopped.id;
+    if (!stopped) {
+      if (leftZones.length > 0 && piece.zoneLeaveRound !== '') piece.zoneLeaveRound = '';
+      return;
+    }
+    // Put on the zone's centre before it is counted in, so a piece stopped a way off is not taken
+    // straight back out again for standing more than a metre outside.
+    const half = (Math.max(0, piece.size) * world.table.gridSize) / 2;
+    GameObject.batch(() => {
+      piece.engagementZone = stopped.id;
+      piece.zoneLeaveRound = '';
+      piece.location.x = stopped.shape.centre.x - half;
+      piece.location.y = stopped.shape.centre.y - half;
+    });
     this.settle([stopped.id]);
     this.chat.sendSystemMessage(this.t('feature.zone.chat.held', { name: piece.name }));
   }

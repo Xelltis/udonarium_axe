@@ -38,10 +38,16 @@ export interface ZoneWorld {
 export interface ZoneView {
   readonly id: string;
   readonly shape: ZoneShape;
-  /** The bodies in it, counted as the pieces count themselves. */
+  /** The bodies in it, counted as the pieces count themselves, which is what its size goes by. */
   readonly count: number;
+  /**
+   * Every body standing in it, those in it and those standing in it without being in it alike,
+   * which is what its limit goes by.
+   */
+  readonly occupants: number;
   /** The most it may hold. */
   readonly limit: number;
+  /** Whether more stand in it than its limit, those in it and those only standing in it alike. */
   readonly overflowing: boolean;
   readonly forming: boolean;
   /** The pieces in it, whose point is its centre. */
@@ -196,6 +202,7 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
       id: zone.id,
       shape: shapeOf(zone, count),
       count,
+      occupants: count,
       limit,
       overflowing: count > limit,
       forming: zone.forming,
@@ -214,7 +221,11 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
       insideByPiece.set(piece.id, [...(insideByPiece.get(piece.id) ?? []), view]);
     }
   }
-  for (const view of views) (view.inside as string[]).sort(compareIds);
+  for (const view of views) {
+    (view.inside as string[]).sort(compareIds);
+    const occupants = view.count + view.inside.reduce((sum, id) => sum + pieces.get(id)!.count, 0);
+    Object.assign(view, { occupants, overflowing: occupants > view.limit });
+  }
 
   const overlaps: [string, string][] = [];
   for (let i = 0; i < views.length; i++) {

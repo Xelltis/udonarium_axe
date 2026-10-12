@@ -501,6 +501,7 @@ export class TurnOrderService {
   private takeTurn(identifier: string): void {
     this.enterActing(identifier);
     this.expireBuffs('turnStart', this.actorOf(identifier));
+    this.hooks.turnStarted(identifier);
     this.springGround(identifier, 'turnStart');
   }
 

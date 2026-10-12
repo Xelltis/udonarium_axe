@@ -53,6 +53,27 @@ export interface LeaveInput {
 }
 
 /**
+ * Whether a piece said it would leave in time for this move: in an earlier round, or at all while no
+ * round is being kept.
+ */
+export function hasPreparedToLeave(leaveRound: string, round: number, roundsKept: boolean): boolean {
+  if (leaveRound === '') return false;
+  const said = Number(leaveRound);
+  return !roundsKept || !Number.isFinite(said) || said < round;
+}
+
+/**
+ * Whether a piece standing in a zone without being in it may walk out of it unheld: out of one
+ * holding more than its limit by the room's one kind of move whatever the count, and otherwise where
+ * it said it would leave in time or its side outnumbers the rest by the ratio.
+ */
+export function mayEscape(input: LeaveInput): boolean {
+  if (input.overflowing) return input.leaveKind === '' || input.kind === input.leaveKind;
+  if (hasPreparedToLeave(input.leaveRound, input.round, input.roundsKept)) return true;
+  return !zoneHolds(input.counts, input.mover, 'escape', input.ratio);
+}
+
+/**
  * Whether a piece in a zone may walk out of it, and why.
  *
  * Out of a zone holding more than its limit a piece goes at once, by the one kind of move the room
@@ -63,9 +84,6 @@ export interface LeaveInput {
 export function leaveReasonOf(input: LeaveInput): LeaveReason {
   if (input.overflowing) return input.leaveKind === '' || input.kind === input.leaveKind ? 'overflow' : 'held';
   if (!zoneHolds(input.counts, input.mover, 'leave', input.ratio)) return 'outnumbers';
-  if (input.leaveRound !== '') {
-    const said = Number(input.leaveRound);
-    if (!input.roundsKept || !Number.isFinite(said) || said < input.round) return 'prepared';
-  }
+  if (hasPreparedToLeave(input.leaveRound, input.round, input.roundsKept)) return 'prepared';
   return 'held';
 }

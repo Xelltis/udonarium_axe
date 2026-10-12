@@ -241,6 +241,66 @@ describe('EngagementZoneService', () => {
       expect(terms.stops?.get(cellOf(10, 10))).toBe(false);
     });
 
+    it('shuts a zone to a piece whose bodies would take it past its limit, those standing in it counted too', () => {
+      Config.instance.zoneCountField = '体数';
+      const { zone } = fight();
+      service.setLimit(zone.identifier, 4);
+      pieceAt(11, 10);
+      const pair = pieceAt(16, 10);
+      pair.rootDataElement!.appendChild(DataElement.create('体数', 2, {}, '体数' + pair.identifier));
+      const single = pieceAt(16, 12);
+
+      expect(service.reachTermsFor(pair, grid(), '')!.blocked?.get(cellOf(10, 10))).toBe(true);
+      expect(service.reachTermsFor(single, grid(), '')!.blocked).toBeNull();
+    });
+
+    it('lets a piece standing in a zone say it will leave, and then walk out unheld', () => {
+      fight();
+      const stander = pieceAt(11, 10);
+      expect(service.menuOf(stander).leave).toEqual({ said: false, maySay: true });
+
+      service.prepareLeave(stander);
+
+      expect(service.reachTermsFor(stander, grid(), '')!.stops).toBeNull();
+      const start = service.startOfMove(stander);
+      stander.location = { name: 'table', x: 16 * GRID, y: 10 * GRID };
+      service.afterMove(stander, start);
+      expect(stander.engagementZone).toBe('');
+      expect(stander.zoneLeaveRound).toBe('');
+    });
+
+    it('lets a piece standing in an overflowing zone out by the one kind the room names, and holds it by any other', () => {
+      Config.instance.moveKinds = '全力:3:,通常:1:';
+      Config.instance.zoneLeaveKind = '全力';
+      const { zone } = fight();
+      service.setLimit(zone.identifier, 2);
+      const stander = pieceAt(11, 10);
+
+      expect(service.stateNow().zones[0].overflowing).toBe(true);
+      expect(service.menuOf(stander).leave?.maySay).toBe(false);
+      expect(service.reachTermsFor(stander, grid(), '全力')!.stops).toBeNull();
+      expect(service.reachTermsFor(stander, grid(), '通常')!.stops?.get(cellOf(16, 10))).toBe(true);
+
+      const start = service.startOfMove(stander, '通常');
+      stander.location = { name: 'table', x: 16 * GRID, y: 10 * GRID };
+      service.afterMove(stander, start);
+      expect(stander.engagementZone).toBe(zone.identifier);
+    });
+
+    it('puts a piece beginning its turn standing in an overflowing zone into it, and leaves one out of the fight', () => {
+      const { zone } = fight();
+      service.setLimit(zone.identifier, 2);
+      const stander = pieceAt(11, 10);
+      const resting = pieceAt(11, 11);
+      resting.offField = '1';
+
+      TestBed.inject(TurnHooksService).turnStarted(stander.identifier);
+      TestBed.inject(TurnHooksService).turnStarted(resting.identifier);
+
+      expect(stander.engagementZone).toBe(zone.identifier);
+      expect(resting.engagementZone).toBe('');
+    });
+
     it('lets a piece by where its side outnumbers the rest by the ratio the room sets', () => {
       Config.instance.zoneOutnumber = 0.5;
       fight();

@@ -1,10 +1,11 @@
 import { FireInput, FirePiece, lineOfFire } from '@axe/domain/tabletop/zone/line-of-fire';
 
-const piece = (id: string, x: number, y: number, side: string | null, zone = ''): FirePiece => ({
+const piece = (id: string, x: number, y: number, side: string | null, zone = '', inside: string[] = []): FirePiece => ({
   id,
   point: { x, y },
   side,
   zone,
+  inside,
   offField: false,
 });
 
@@ -61,6 +62,26 @@ describe('lineOfFire', () => {
     );
 
     expect(report.pieces).toEqual(['enemy']);
+  });
+
+  it('counts no piece standing in a zone without being in it as in the way', () => {
+    const report = lineOfFire(input({ pieces: [piece('standing', 250, 0, 'npc', '', ['somewhere'])] }));
+
+    expect(report.pieces).toEqual([]);
+  });
+
+  it('lands only on the target when the shooter stands in its zone without being in it', () => {
+    const report = lineOfFire(
+      input({
+        shooter: piece('shooter', 50, 0, 'pc', '', ['theirs']),
+        target: piece('target', 0, 0, 'npc', 'theirs'),
+        zones: [
+          { id: 'theirs', shape: { centre: { x: 0, y: 0 }, square: false, reach: 100 }, members: ['target', 'other'] },
+        ],
+      })
+    );
+
+    expect(report.candidates).toEqual(['target']);
   });
 
   it('lets a shooter that fires past things see nothing in the way', () => {

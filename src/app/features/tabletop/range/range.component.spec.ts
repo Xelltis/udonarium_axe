@@ -213,7 +213,7 @@ describe('RangeComponent', () => {
     });
   });
 
-  it('aims at the pieces a circle takes in, and takes the aim off the rest', () => {
+  it('aims at the pieces a circle takes in, and takes the aim off the rest and off pieces out of the fight', () => {
     const range = RangeArea.create('円', 1, 2, 50);
     range.type = 'CIRCLE';
     range.location = { name: 'table', x: 300, y: 300 };
@@ -222,11 +222,15 @@ describe('RangeComponent', () => {
     const outside = GameCharacter.create('外', 1, '');
     outside.location = { name: 'table', x: 600, y: 600 };
     outside.targeted = true;
+    const resting = GameCharacter.create('除外', 1, '');
+    resting.location = { name: 'table', x: 300, y: 300 };
+    resting.offField = '1';
     fixture.componentRef.setInput('range', range);
 
     component.targetInside(range);
 
     expect(inside.targeted).toBe(true);
     expect(outside.targeted).toBe(false);
+    expect(resting.targeted).toBe(false);
   });
 });

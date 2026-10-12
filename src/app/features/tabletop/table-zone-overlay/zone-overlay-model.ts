@@ -8,7 +8,7 @@ export interface ZoneMark {
   /** The radius of a circle, or half the side of a square. */
   readonly reach: number;
   readonly square: boolean;
-  /** The count against the limit, for whoever may know it; empty otherwise. */
+  /** Everybody standing in it against its limit, for whoever may know it; empty otherwise. */
   readonly label: string;
   readonly overflowing: boolean;
   readonly forming: boolean;
@@ -39,7 +39,7 @@ export function zoneOverlayModelOf(state: ZoneState, seesEverything: boolean): Z
     cy: zone.shape.centre.y,
     reach: zone.shape.reach,
     square: zone.shape.square,
-    label: seesEverything ? `${zone.count}/${zone.limit}` : '',
+    label: seesEverything ? `${zone.occupants}/${zone.limit}` : '',
     overflowing: zone.overflowing,
     forming: zone.forming,
   }));

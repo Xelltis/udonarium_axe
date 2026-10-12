@@ -10,6 +10,8 @@ export interface FirePiece {
   readonly side: string | null;
   /** The zone it is in, empty where it is in none. */
   readonly zone: string;
+  /** The zones it stands in without being in them. */
+  readonly inside: readonly string[];
   readonly offField: boolean;
 }
 
@@ -37,7 +39,7 @@ export interface FireReport {
   readonly distanceM: number;
   /** The zones the line crosses on the way, the shooter's and the target's left out. */
   readonly zones: readonly string[];
-  /** The pieces out of every zone standing in the line, each an enemy of the shooter. */
+  /** The pieces out of every zone, in it or only standing in it, standing in the line, each an enemy of the shooter. */
   readonly pieces: readonly string[];
   /**
    * Who the shot may land on: the target alone, or everybody in the target's zone where the shooter
@@ -65,9 +67,10 @@ function crosses(from: MovePoint, to: MovePoint, shape: ZoneShape): boolean {
  * What stands between a shooter and a target.
  *
  * The line runs between their points. A zone it crosses is in the way, but not the shooter's own or
- * the target's. A piece in no zone, not out of the fight and an enemy of the shooter, standing within
- * the radius of the line, is in the way as well. A shooter that fires past things has nothing in its
- * way. Firing into a zone from outside it, the shot may land on anybody in that zone.
+ * the target's. A piece neither in a zone nor standing in one, not out of the fight and an enemy of
+ * the shooter, standing within the radius of the line, is in the way as well. A shooter that fires
+ * past things has nothing in its way. Firing into a zone from outside it, neither in it nor standing
+ * in it, the shot may land on anybody in that zone.
  */
 export function lineOfFire(input: FireInput): FireReport {
   const { shooter, target } = input;
@@ -87,6 +90,7 @@ export function lineOfFire(input: FireInput): FireReport {
             piece.id !== shooter.id &&
             piece.id !== target.id &&
             piece.zone === '' &&
+            piece.inside.length < 1 &&
             !piece.offField &&
             piece.side !== null &&
             shooter.side !== null &&
@@ -94,7 +98,7 @@ export function lineOfFire(input: FireInput): FireReport {
             distanceToSegment(piece.point, from, to) <= input.blockRadiusPx
         )
         .map((piece) => piece.id);
-  const into = target.zone !== '' && target.zone !== shooter.zone;
+  const into = target.zone !== '' && target.zone !== shooter.zone && !shooter.inside.includes(target.zone);
   const candidates = into ? (input.zones.find((zone) => zone.id === target.zone)?.members ?? [target.id]) : [target.id];
   return { distanceM, zones, pieces, candidates };
 }

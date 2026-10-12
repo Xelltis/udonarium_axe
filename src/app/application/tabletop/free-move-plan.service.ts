@@ -136,7 +136,7 @@ export class FreeMovePlanService {
     if (!terms) return false;
     this.terms = terms;
     this.corners = [];
-    this.zoneStart = this.zones.startOfMove(character);
+    this.zoneStart = this.zones.startOfMove(character, kind);
     character.toTopmost();
     SoundEffect.play(PresetSound.piecePick);
     this.opened.update((count) => count + 1);
@@ -167,6 +167,7 @@ export class FreeMovePlanService {
     if (!(character instanceof GameCharacter) || !this.zones.mayMove(character, kind)) return false;
     const terms = this.termsOf(character, kind);
     if (!terms) return false;
+    if (this.zoneStart) this.zoneStart = { ...this.zoneStart, kind };
     this.terms = terms;
     this.held.set({ ...plan, kind, settled: [terms.start], ahead: [], spentPx: 0, budgetPx: terms.budgetPx });
     return true;

@@ -302,7 +302,8 @@ export class RangeComponent {
 
   /**
    * Aims at every piece the range takes in that the reader can see, and at nothing else. A piece in an
-   * engagement zone is taken in where the range takes in the zone's centre.
+   * engagement zone is taken in where the range takes in the zone's centre; a piece taken out of the
+   * fight is not taken in at all.
    */
   targetInside(range: RangeArea): void {
     const shape = {
@@ -314,7 +315,7 @@ export class RangeComponent {
     };
     const inside = this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
-      .filter((piece) => piece.isVisibleOnTable && this.vision.isTokenVisible(piece))
+      .filter((piece) => piece.isVisibleOnTable && piece.offField !== '1' && this.vision.isTokenVisible(piece))
       .filter((piece) => rangeCovers(shape, this.gridSize, this.zones.pointOf(piece)) === true);
     this.pieceTarget.setOnly(inside);
   }

@@ -38,4 +38,16 @@ describe('TurnHooksService', () => {
 
     expect(after).toHaveBeenCalled();
   });
+
+  it('runs every turn-start hook with the piece whose turn begins', () => {
+    const hook = vi.fn();
+    const stop = hooks.onTurnStart(hook);
+
+    hooks.turnStarted('piece');
+    stop();
+    hooks.turnStarted('other');
+
+    expect(hook).toHaveBeenCalledTimes(1);
+    expect(hook).toHaveBeenCalledWith('piece');
+  });
 });

@@ -168,6 +168,16 @@ describe('TurnOrderService', () => {
     expect(turnState.round).toBe(0);
   });
 
+  it('tells whatever waits on the turn whose turn has begun', () => {
+    const started = vi.fn();
+    TestBed.inject(TurnHooksService).onTurnStart(started);
+
+    service.next(); // round begins
+    service.next(); // first turn opens
+
+    expect(started).toHaveBeenCalledWith(chars[0].identifier);
+  });
+
   it('tells whatever waits on the turn that a turn has ended, and that the round has', () => {
     const ended = vi.fn();
     TestBed.inject(TurnHooksService).onTurnEnd(ended);

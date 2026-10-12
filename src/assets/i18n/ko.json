@@ -182,7 +182,8 @@
         "onField": "{{name}}을(를) 전장으로 복귀시켰습니다",
         "prepareLeave": "{{name}}이(가) 교전 구역에서 이탈한다고 예고했습니다",
         "held": "{{name}}이(가) 교전 구역에 붙잡혔습니다",
-        "interrupted": "{{names}}이(가) {{mover}}의 이동에 끼어들었습니다"
+        "interrupted": "{{names}}이(가) {{mover}}의 이동에 끼어들었습니다",
+        "pulledIn": "{{name}}이(가) 정원을 넘은 교전 구역 안에서 차례를 시작하여 구역에 가담했습니다"
       },
       "settings": {
         "section": "교전 구역",

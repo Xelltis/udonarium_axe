@@ -182,7 +182,8 @@
         "onField": "{{name}} was put back into the fight",
         "prepareLeave": "{{name}} said it will leave the engagement zone",
         "held": "{{name}} was held by the engagement zone",
-        "interrupted": "{{names}} stepped into {{mover}}'s move"
+        "interrupted": "{{names}} stepped into {{mover}}'s move",
+        "pulledIn": "{{name}} began its turn in an engagement zone holding more than its limit, and joined it"
       },
       "settings": {
         "section": "Engagement zones",

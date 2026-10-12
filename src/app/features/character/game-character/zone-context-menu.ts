@@ -17,8 +17,8 @@ export interface ZoneMenuCallbacks {
   placeSides(): void;
 }
 
-/** The limits offered for a zone, besides holding as many as the size table allows. */
-export const ZONE_LIMIT_CHOICES = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20] as const;
+/** The limits offered for a zone, besides holding as many as the size table allows: any from 2 to 20. */
+export const ZONE_LIMIT_CHOICES: readonly number[] = Array.from({ length: 19 }, (_, index) => index + 2);
 
 /**
  * The engagement-zone entries of a piece's menu, gathered under one entry: declaring a fight with an
@@ -51,9 +51,9 @@ export function buildZoneContextMenu(
   });
   const zone = model.zone;
   if (zone) entries.push({ name: t('feature.zone.menu.leave'), action: () => callbacks.leave() });
-  if (zone && model.leave?.said) {
+  if (model.leave?.said) {
     entries.push({ name: t('feature.zone.menu.cancelLeave'), action: () => callbacks.cancelLeave() });
-  } else if (zone && model.leave?.maySay) {
+  } else if (model.leave?.maySay) {
     entries.push({ name: t('feature.zone.menu.prepareLeave'), action: () => callbacks.prepareLeave() });
   }
   entries.push({
