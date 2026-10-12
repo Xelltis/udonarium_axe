@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { computed, DestroyRef, effect, inject, Injectable, signal } from '@angular/core';
 import {
   ChatSoundSetting,
   clampChatSoundVolume,
@@ -7,6 +7,8 @@ import {
   DEFAULT_CHAT_SOUND_TYPE,
   isChatSoundType,
 } from '@axe/domain/chat/chat-sound';
+import { readRubyDisplay, RubyDisplay } from '@axe/domain/chat/ruby-display';
+import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 
 const AUTO_FOLLOW_KEY = 'chat-auto-follow-scroll';
 const STORAGE_KEY = 'chat-preferences';
@@ -67,6 +69,8 @@ interface StoredChatPreferences {
   portrait?: ChatScopedSetting;
   simple?: ChatScopedSetting;
   sound?: ChatScopedSoundSetting;
+  /** How this reader has ruby drawn; any part missing is the default. */
+  ruby?: Partial<RubyDisplay>;
   /**
    * What each tab was set to, under the tab's name.
    *
@@ -120,6 +124,15 @@ export class ChatPreferencesService {
    */
   readonly showMessageCount = computed(() => this.stored().showMessageCount === true);
 
+  /**
+   * How this reader has ruby drawn: over its word or in brackets after it or not at all, over the
+   * middle of the word or from its first letter, spread 1:2:1 or kept together, and how large.
+   *
+   * It is the reader's own eye, so it stays in this browser: one reader may have readings over the
+   * words while the next has them in brackets.
+   */
+  readonly rubyDisplay = computed<RubyDisplay>(() => readRubyDisplay(this.stored().ruby));
+
   constructor() {
     effect(() => {
       const v = this.autoFollowScroll();
@@ -133,6 +146,16 @@ export class ChatPreferencesService {
     effect(() => {
       this.document.documentElement.style.setProperty('--chat-font-size', `${this.fontSize()}px`);
     });
+
+    AttachedDocuments.begin(this.document);
+    const stopDressing = AttachedDocuments.onChange((documents) => dressRuby(documents, this.rubyDisplay()));
+    inject(DestroyRef).onDestroy(stopDressing);
+    effect(() => dressRuby(AttachedDocuments.all(), this.rubyDisplay()));
+  }
+
+  /** Changes how this reader has ruby drawn, part by part. */
+  setRubyDisplay(change: Partial<RubyDisplay>): void {
+    this.patch({ ruby: { ...this.rubyDisplay(), ...change } });
   }
 
   /** Whether the log scrolls to each new line as it arrives. Kept in this browser only. */
@@ -286,6 +309,7 @@ function readStored(): StoredChatPreferences {
     if (simple) stored.simple = simple;
     const sound = readScopedSound(source['sound']);
     if (sound) stored.sound = sound;
+    if (source['ruby'] && typeof source['ruby'] === 'object') stored.ruby = readRubyDisplay(source['ruby']);
     return stored;
   } catch {
     /* corrupt or unavailable storage — start from the defaults */
@@ -363,4 +387,18 @@ function readTabs(value: unknown): Record<string, ChatTabPreferences> | null {
     tabs[identifier] = { portraitDisplayFlag, chatSimpleDispFlag };
   }
   return Object.keys(tabs).length > 0 ? tabs : null;
+}
+
+/**
+ * Writes how the reader has ruby drawn onto every window the app draws into, where the style sheet
+ * reads it: a panel taken out into a window of its own draws its ruby as the reader has it too.
+ */
+function dressRuby(documents: readonly Document[], display: RubyDisplay): void {
+  for (const document of documents) {
+    const html = document.documentElement;
+    html.setAttribute('data-ruby-show', display.show);
+    html.setAttribute('data-ruby-align', display.align);
+    html.setAttribute('data-ruby-spacing', display.spacing);
+    html.setAttribute('data-ruby-size', display.size);
+  }
 }

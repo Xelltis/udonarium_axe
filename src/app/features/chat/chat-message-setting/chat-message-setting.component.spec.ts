@@ -54,6 +54,32 @@ describe('ChatMessageSettingComponent', () => {
     localStorage.removeItem('chat-preferences');
   });
 
+  describe('ruby', () => {
+    it('changes how this reader has ruby drawn, part by part', () => {
+      chooseScope('ruby-align', 'start');
+      chooseScope('ruby-spacing', 'tight');
+
+      expect(TestBed.inject(ChatPreferencesService).rubyDisplay()).toEqual({
+        show: 'over',
+        align: 'start',
+        spacing: 'tight',
+        size: 'normal',
+      });
+      expect(scopeSelect('ruby-align').selectedOptions[0].value).toBe('start');
+    });
+
+    it('greys out where a reading stands and how large while ruby is not drawn over its word', () => {
+      chooseScope('ruby-show', 'brackets');
+
+      expect(['ruby-align', 'ruby-spacing', 'ruby-size'].map((name) => scopeSelect(name).disabled)).toEqual([
+        true,
+        true,
+        true,
+      ]);
+      expect(scopeSelect('ruby-show').disabled).toBe(false);
+    });
+  });
+
   it('asks first whether a setting is one answer or one per tab', () => {
     expect([...scopeSelect('portraitScope').options].map((option) => option.value)).toEqual(['all', 'perTab']);
     expect(scopeSelect('portraitScope').value).toBe('all');

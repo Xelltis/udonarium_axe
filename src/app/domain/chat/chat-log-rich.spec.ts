@@ -3,6 +3,7 @@ import { exportChatLog } from '@axe/domain/chat/chat-log-export';
 import { ChatLogExporter, ChatLogLine, ChatLogTab } from '@axe/domain/chat/chat-log-exporter';
 import { renderRichChatLog } from '@axe/domain/chat/chat-log-rich';
 import { CHAT_LOG_THEME_CSS } from '@axe/domain/chat/chat-log-theme-css';
+import { DEFAULT_RUBY_DISPLAY, RubyDisplay, rubyDisplayCss } from '@axe/domain/chat/ruby-display';
 import type { DiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 
 const MINUTE = 60 * 1000;
@@ -361,20 +362,34 @@ describe('renderRichChatLog', () => {
 describe('exportChatLog', () => {
   const tabs = [tab('メイン', [line({ text: '開始' })])];
 
+  /** A page of the log as it is saved: with the style sheet its ruby is drawn by, before its head ends. */
+  const withRubyStyle = (html: string, display: RubyDisplay = DEFAULT_RUBY_DISPLAY) =>
+    html.replace('</head>', `<style>${rubyDisplayCss(display)}</style></head>`);
+
   it('writes the older plain layout for the standard style', () => {
-    expect(exportChatLog('standard', 'tab', tabs)).toBe(ChatLogExporter.exportTabHtml(tabs[0]));
+    expect(exportChatLog('standard', 'tab', tabs)).toBe(withRubyStyle(ChatLogExporter.exportTabHtml(tabs[0])));
     expect(exportChatLog('standard', 'all', tabs, { showTime: true })).toBe(
-      ChatLogExporter.exportAllTabsHtml(tabs, true)
+      withRubyStyle(ChatLogExporter.exportAllTabsHtml(tabs, true))
     );
   });
 
   it('writes the other older layout for its style', () => {
-    expect(exportChatLog('coc', 'tab', tabs)).toBe(ChatLogExporter.exportTabHtmlCoc(tabs[0]));
-    expect(exportChatLog('coc', 'all', tabs)).toBe(ChatLogExporter.exportAllTabsHtmlCoc(tabs));
+    expect(exportChatLog('coc', 'tab', tabs)).toBe(withRubyStyle(ChatLogExporter.exportTabHtmlCoc(tabs[0])));
+    expect(exportChatLog('coc', 'all', tabs)).toBe(withRubyStyle(ChatLogExporter.exportAllTabsHtmlCoc(tabs)));
   });
 
   it('dresses the log in a theme for any other style', () => {
-    expect(exportChatLog('washi', 'tab', tabs)).toBe(renderRichChatLog('washi', 'tab', tabs));
+    expect(exportChatLog('washi', 'tab', tabs)).toBe(withRubyStyle(renderRichChatLog('washi', 'tab', tabs)));
+  });
+
+  it('draws the ruby of a saved page as the reader saving it has ruby drawn', () => {
+    const display: RubyDisplay = { show: 'over', align: 'start', spacing: 'even', size: 'half' };
+
+    const page = exportChatLog('washi', 'tab', tabs, { ruby: display });
+
+    expect(page).toContain('ruby.chat-ruby{ruby-align:start;ruby-position:over}');
+    expect(page).toContain('font-size:0.5em');
+    expect(page).toBe(withRubyStyle(renderRichChatLog('washi', 'tab', tabs, { ruby: display }), display));
   });
 
   it('writes an empty log rather than failing when there is no tab', () => {

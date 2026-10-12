@@ -9,6 +9,7 @@ import {
 } from '@axe/domain/chat/chat-log-exporter';
 import type { RichChatLogStyle } from '@axe/domain/chat/chat-log-style';
 import { CHAT_LOG_BASE_CSS, CHAT_LOG_THEME_CSS } from '@axe/domain/chat/chat-log-theme-css';
+import type { RubyDisplay } from '@axe/domain/chat/ruby-display';
 import type { DiceRollOutcome } from '@axe/domain/dice/dice-roll-detail';
 import { vnBodyOf } from '@axe/domain/visual-novel/vn-emote';
 
@@ -58,6 +59,8 @@ export interface ChatLogRenderOptions {
   exportedAt?: number;
   /** The stamps put on each line, for the log to list under it. */
   reactionsOf?: ChatLogReactionResolver;
+  /** How the reader saving the log has ruby drawn, which the log keeps; the default where none is given. */
+  ruby?: RubyDisplay;
 }
 
 type Kind = 'say' | 'roll' | 'system';

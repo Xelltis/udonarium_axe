@@ -1,8 +1,8 @@
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { readingOf, RUBY_NOTATION } from '@axe/domain/chat/chat-ruby-notation';
 import { vnBodyOf } from '@axe/domain/visual-novel/vn-emote';
-import { splitRubyNotation } from '@axe/ui/text-decoration/decorate-chat-text';
 
 /**
  * Whether the words of a line are kept from this reader: a secret roll is, until it is disclosed,
@@ -11,6 +11,9 @@ import { splitRubyNotation } from '@axe/ui/text-decoration/decorate-chat-text';
 export function isChatTextHidden(message: ChatMessage, canSeeHidden: boolean): boolean {
   return message.isSecret && !message.isSendFromSelf && !canSeeHidden;
 }
+
+/** The `\s` the chat writes a space as. */
+const ESCAPED_SPACE = /\\s/g;
 
 /**
  * The words of a line as this reader is shown them, as plain text, or nothing where they are kept
@@ -23,9 +26,9 @@ export function isChatTextHidden(message: ChatMessage, canSeeHidden: boolean): b
 export function readableChatText(message: ChatMessage, hidden: boolean, translate: TranslateFn): string {
   if (hidden) return '';
   const text = message.isSystemMessage ? decodeI18nMessage(message.text, translate) : (message.text ?? '');
-  return splitRubyNotation(vnBodyOf(message.vnEmote, text))
-    .map((part) => (part.reading.length > 0 ? `${part.text}（${part.reading}）` : part.text))
-    .join('')
+  return vnBodyOf(message.vnEmote, text)
+    .replace(RUBY_NOTATION, (_, base: string, reading: string) => `${base}（${readingOf(reading)}）`)
+    .replace(ESCAPED_SPACE, ' ')
     .trim();
 }
 

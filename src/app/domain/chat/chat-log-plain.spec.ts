@@ -94,6 +94,15 @@ describe('renderPlainChatLog', () => {
     expect(log).toContain('アリア：火球（ファイアボール）を撃つ');
   });
 
+  it('writes a reading split over its letters as one, and leaves ruby out for a reader who hides it', () => {
+    const lines = [tab('メイン', [line({ text: '|漢字《かん|じ》を読む' })])];
+
+    expect(renderPlainChatLog('tab', lines)).toContain('アリア：漢字（かんじ）を読む');
+    expect(
+      renderPlainChatLog('tab', lines, { ruby: { show: 'hidden', align: 'center', spacing: 'even', size: 'normal' } })
+    ).toContain('アリア：漢字を読む');
+  });
+
   it('writes the line replied to under the reply, and a secret one by what stands in for it', () => {
     const said = line({ name: 'GM', text: '扉の向こうから物音がする' });
     const secret = line({ name: '<BCDice：GM>', text: '(1D100) → 3', isSecret: true });
