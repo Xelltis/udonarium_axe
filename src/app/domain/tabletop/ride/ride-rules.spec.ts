@@ -2,6 +2,7 @@ import {
   cargoRoomOf,
   freeSeats,
   frontRefusal,
+  frontRidersOf,
   rideChangeRefusal,
   rideMoveRefusal,
   roundOfMark,
@@ -82,6 +83,20 @@ describe('riding a mount', () => {
     expect(turnCarrierOf('pony', pieces)).toBe('');
     expect(turnCarrierOf('lad', pieces)).toBe('');
     expect(turnCarrierOf('nobody', pieces)).toBe('');
+  });
+
+  it('pairs each mount with the one riding it in front, and nobody behind or carried', () => {
+    const pieces = [
+      { id: 'horse', ridingOn: '', rideSeat: '', mountable: true },
+      { id: 'squire', ridingOn: 'horse', rideSeat: 'passenger', mountable: false },
+      { id: 'knight', ridingOn: 'horse', rideSeat: '', mountable: false },
+      { id: 'crate', ridingOn: 'cart', rideSeat: 'cargo', mountable: false },
+      { id: 'cart', ridingOn: '', rideSeat: '', mountable: true },
+      { id: 'statue', ridingOn: '', rideSeat: '', mountable: false },
+      { id: 'boy', ridingOn: 'statue', rideSeat: '', mountable: false },
+    ];
+
+    expect([...frontRidersOf(pieces)]).toEqual([['horse', 'knight']]);
   });
 
   it('marks the turn being taken by its round and piece, and nothing while nobody is up', () => {

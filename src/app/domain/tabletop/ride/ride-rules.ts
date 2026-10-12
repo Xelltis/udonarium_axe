@@ -174,3 +174,18 @@ export function rideMoveRefusal(input: RideMoveInput): RideMoveRefusal | null {
   const walks = input.leftSeat === 'cargo' || (input.leftSeat === 'rider' && input.steers);
   return walks && !mountMoved ? null : 'cannotAfterLeaving';
 }
+
+/**
+ * The mounts ridden in front among the pieces, each with the one riding it there. The two count as
+ * one piece, as many as both together, for who may stop a move and who may leave a zone.
+ */
+export function frontRidersOf(pieces: readonly RideTurnPiece[]): Map<string, string> {
+  const byId = new Map(pieces.map((piece) => [piece.id, piece]));
+  const front = new Map<string, string>();
+  for (const piece of pieces) {
+    const mount = byId.get(piece.ridingOn);
+    if (!mount?.mountable || mount.id === piece.id || seatOf(piece.rideSeat) !== 'rider') continue;
+    if (!front.has(mount.id)) front.set(mount.id, piece.id);
+  }
+  return front;
+}

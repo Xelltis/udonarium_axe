@@ -534,6 +534,82 @@ describe('EngagementZoneService', () => {
       });
     });
 
+    describe('a mount and those riding it', () => {
+      function mounted(col: number, row: number, npc = false): { horse: GameCharacter; knight: GameCharacter } {
+        const horse = pieceAt(col, row, npc);
+        horse.mountable = '1';
+        horse.mountPassenger = '1';
+        const knight = pieceAt(col, row, npc);
+        knight.ridingOn = horse.identifier;
+        return { horse, knight };
+      }
+
+      it('go into a zone together and stand where the mount stands once gathered', () => {
+        const { horse, knight } = mounted(12, 12);
+        const foe = pieceAt(12, 12, true);
+
+        service.declare(foe, horse);
+
+        expect(knight.engagementZone).toBe(horse.engagementZone);
+        expect(service.stateNow().zoneOf(knight.identifier)?.id).toBe(horse.engagementZone);
+        expect([knight.location.x, knight.location.y]).toEqual([horse.location.x, horse.location.y]);
+        expect([foe.location.x, foe.location.y]).not.toEqual([horse.location.x, horse.location.y]);
+      });
+
+      it('leave the one riding out of the zone once the mount is out of it', () => {
+        const { horse, knight } = mounted(12, 12);
+        const foe = pieceAt(12, 12, true);
+        service.declare(foe, horse);
+        service.join(pieceAt(12, 12), horse.engagementZone);
+
+        service.leave(horse);
+
+        expect(service.stateNow().zoneOf(knight.identifier)).toBeNull();
+      });
+
+      it('count a mount and the one riding it in front as one, as many as both, and nobody behind', () => {
+        const { horse } = mounted(16, 16);
+        const squire = pieceAt(16, 16);
+        squire.ridingOn = horse.identifier;
+        squire.rideSeat = 'passenger';
+
+        expect(service.interruptersOf(horse)?.moverCount).toBe(2);
+      });
+
+      it('step into a move by the one riding in front, counting for both, and nobody riding behind', () => {
+        const { horse, knight } = mounted(14, 10, true);
+        const squire = pieceAt(14, 10, true);
+        squire.ridingOn = horse.identifier;
+        squire.rideSeat = 'passenger';
+        const walker = pieceAt(10, 10);
+
+        const terms = service.interruptersOf(walker)!;
+
+        expect(terms.candidates.map((one) => [one.id, one.count])).toEqual([[knight.identifier, 2]]);
+      });
+
+      it('hold a mount in its zone where the two of them leaving would leave too few behind', () => {
+        const { horse, knight } = mounted(10, 10);
+        service.declare(pieceAt(10, 10, true), horse);
+        service.join(pieceAt(10, 10), horse.engagementZone);
+        service.join(pieceAt(10, 10), horse.engagementZone);
+
+        expect(service.mayMove(horse, '')).toBe(false);
+        knight.rideSeat = 'passenger';
+        expect(service.mayMove(horse, '')).toBe(true);
+      });
+
+      it('shut a zone to a mount where everybody on it would take the zone past its limit', () => {
+        const { zone } = fight();
+        service.setLimit(zone.identifier, 3);
+        const { horse, knight } = mounted(16, 10);
+
+        expect(service.reachTermsFor(horse, grid(), '')!.blocked?.get(cellOf(10, 10))).toBe(true);
+        knight.ridingOn = '';
+        expect(service.reachTermsFor(horse, grid(), '')!.blocked).toBeNull();
+      });
+    });
+
     it('leaves a piece that walked past nothing as it was', () => {
       fight();
       const walker = pieceAt(16, 10);

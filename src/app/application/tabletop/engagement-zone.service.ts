@@ -17,7 +17,8 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { sheetNumberOf } from '@axe/domain/tabletop/move/move-cells';
 import { MoveKind, moveKindNamed, parseMoveKinds } from '@axe/domain/tabletop/move/move-kind';
 import { convertMoveLength, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
-import { bondGroupOf, boundBelow } from '@axe/domain/tabletop/move/piece-bonds';
+import { BondedPiece, bondGroupOf, boundBelow, boundTo } from '@axe/domain/tabletop/move/piece-bonds';
+import { frontRidersOf } from '@axe/domain/tabletop/ride/ride-rules';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
@@ -169,6 +170,17 @@ interface ZoneTable {
   readonly rules: ZoneRules;
   readonly pxPerMetre: number;
   readonly snap: (point: ZonePoint) => ZonePoint;
+}
+
+/** The pieces and zones on the table in view, as the zones see them at one moment. */
+interface ZoneSnapshot {
+  readonly world: ZoneTable;
+  readonly pieces: ZonePieceInput[];
+  readonly state: ZoneState;
+  /** The mounts ridden in front, each with the one riding it there. */
+  readonly front: ReadonlyMap<string, string>;
+  /** The pieces riding a mount behind its rider or carried as a load. */
+  readonly carried: ReadonlySet<string>;
 }
 
 /**
@@ -441,12 +453,12 @@ export class EngagementZoneService {
    */
   carryBound(anchor: GameCharacter): void {
     const onTable = this.objectStore.getObjects<GameCharacter>(GameCharacter).filter((piece) => piece.isVisibleOnTable);
-    const bonded = onTable.map((piece) => ({
-      id: piece.identifier,
-      grabbedBy: piece.grabbedBy,
-      ridingOn: piece.ridingOn,
-    }));
-    const below = new Set(boundBelow(anchor.identifier, bonded));
+    const below = new Set(
+      boundBelow(
+        anchor.identifier,
+        onTable.map((piece) => this.bondOf(piece))
+      )
+    );
     const carried = onTable.filter((piece) => below.has(piece.identifier) && piece.heldFast !== '1');
     if (carried.length < 1) return;
     GameObject.batch(() => {
@@ -608,11 +620,7 @@ export class EngagementZoneService {
     const onTable = this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
       .filter((piece) => piece.isVisibleOnTable && piece.offField !== '1');
-    const bonded = onTable.map((piece) => ({
-      id: piece.identifier,
-      grabbedBy: piece.grabbedBy,
-      ridingOn: piece.ridingOn,
-    }));
+    const bonded = onTable.map((piece) => this.bondOf(piece));
     const byId = new Map(onTable.map((piece) => [piece.identifier, piece]));
     const group = new Map(pieces.map((piece) => [piece.identifier, piece]));
     for (const piece of pieces) {
@@ -623,6 +631,18 @@ export class EngagementZoneService {
       }
     }
     return [...group.values()];
+  }
+
+  /** A piece as the bonds between pieces see it: whoever holds on to it, and the mount it rides. */
+  private bondOf(piece: GameCharacter): BondedPiece {
+    return { id: piece.identifier, grabbedBy: piece.grabbedBy, ridingOn: this.mountOf(piece)?.identifier ?? '' };
+  }
+
+  /** The mount a piece rides, where it is on the table and still a mount; null otherwise. */
+  private mountOf(piece: GameCharacter): GameCharacter | null {
+    if (piece.ridingOn === '' || piece.ridingOn === piece.identifier) return null;
+    const mount = this.objectStore.get<GameCharacter>(piece.ridingOn);
+    return mount instanceof GameCharacter && mount.isVisibleOnTable && mount.mountable === '1' ? mount : null;
   }
 
   /** Whether a piece may act of its own will: not down, and not held fast where it stands. */
@@ -664,13 +684,15 @@ export class EngagementZoneService {
     const { state, pieces, world } = snapshot;
     const ratio = world.rules.outnumber;
     const own = state.zoneOf(piece.identifier);
-    const counted = { side: mover.side, count: mover.count };
+    const mine = this.asOne(mover, snapshot);
+    const counted = { side: mover.side, count: mine.count };
+    const entering = this.enteringCountOf(mover, pieces);
     const limits = { shut: [] as ZoneShape[], stops: [] as ZoneShape[], escapes: [] as ZoneShape[] };
 
     if (!this.mayAct(piece) || this.holderOf(piece)) {
       return { startPoint: own?.shape.centre ?? null, noReach: true, ...limits };
     }
-    if (own && leaveReasonOf(this.leaveInput(own, mover, pieces, kindName, piece.zoneLeaveRound)) === 'held') {
+    if (own && leaveReasonOf(this.leaveInput(own, mine, pieces, kindName, piece.zoneLeaveRound)) === 'held') {
       return { startPoint: own.shape.centre, noReach: true, ...limits };
     }
     // Where the side a move runs into chooses whether to stop it, no zone ends the move of itself:
@@ -680,12 +702,12 @@ export class EngagementZoneService {
     for (const zone of state.zones) {
       if (zone === own) continue;
       if (standingIn.includes(zone)) {
-        if (ofItself && !mayEscape(this.leaveInput(zone, mover, pieces, kindName, piece.zoneLeaveRound))) {
+        if (ofItself && !mayEscape(this.leaveInput(zone, mine, pieces, kindName, piece.zoneLeaveRound))) {
           limits.escapes.push(zone.shape);
         }
         continue;
       }
-      if (zone.occupants + mover.count > zone.limit) limits.shut.push(zone.shape);
+      if (zone.occupants + entering > zone.limit) limits.shut.push(zone.shape);
       else if (ofItself && zoneHolds(this.countsOf(zone, pieces), counted, 'pass', ratio)) {
         limits.stops.push(zone.shape);
       }
@@ -730,7 +752,12 @@ export class EngagementZoneService {
     if (!snapshot || !moving || moving.side === null || moving.offField) return null;
     const { state, pieces, world } = snapshot;
     const ratio = world.rules.outnumber;
-    const counted = { side: moving.side, count: moving.count };
+    const mine = this.asOne(moving, snapshot);
+    const counted = { side: moving.side, count: mine.count };
+    const entering = this.enteringCountOf(moving, pieces);
+    // A mount ridden in front steps in by the one riding it, who counts for both; whoever rides
+    // behind or is carried steps in for nobody.
+    const standsAlone = (piece: ZonePieceInput) => !snapshot.front.has(piece.id) && !snapshot.carried.has(piece.id);
     const hostile = (piece: ZonePieceInput) =>
       piece.id !== moving.id &&
       piece.side !== null &&
@@ -738,10 +765,11 @@ export class EngagementZoneService {
       !piece.offField &&
       !piece.down &&
       !piece.held &&
-      !piece.grabbedBy;
+      !piece.grabbedBy &&
+      standsAlone(piece);
     const asInterrupter = (piece: ZonePieceInput): ZoneInterrupter => ({
       id: piece.id,
-      count: piece.count,
+      count: this.asOne(piece, snapshot).count,
       point: piece.point,
     });
 
@@ -751,12 +779,15 @@ export class EngagementZoneService {
     for (const zone of state.zones) {
       if (zone === own) continue;
       const holds = standingIn.includes(zone)
-        ? !mayEscape(this.leaveInput(zone, moving, pieces, kindName, mover.zoneLeaveRound))
-        : zone.occupants + moving.count <= zone.limit && zoneHolds(this.countsOf(zone, pieces), counted, 'pass', ratio);
+        ? !mayEscape(this.leaveInput(zone, mine, pieces, kindName, mover.zoneLeaveRound))
+        : zone.occupants + entering <= zone.limit && zoneHolds(this.countsOf(zone, pieces), counted, 'pass', ratio);
       if (!holds) continue;
       const members = zone.members
         .map((id) => pieces.find((piece) => piece.id === id))
-        .filter((piece): piece is ZonePieceInput => !!piece && piece.side !== null && piece.side !== moving.side)
+        .filter(
+          (piece): piece is ZonePieceInput =>
+            !!piece && piece.side !== null && piece.side !== moving.side && standsAlone(piece)
+        )
         .map(asInterrupter);
       if (members.length > 0) holding.push({ id: zone.id, shape: zone.shape, members });
     }
@@ -774,7 +805,7 @@ export class EngagementZoneService {
       if (zones.length > 0) standing.push({ ...asInterrupter(piece), zones });
     }
     return {
-      moverCount: moving.count,
+      moverCount: mine.count,
       unstoppable: this.isUnstoppable(mover),
       candidates,
       zones: state.zones.map((zone) => zone.shape),
@@ -847,7 +878,11 @@ export class EngagementZoneService {
     if (!this.mayAct(piece) || this.holderOf(piece)) return false;
     const own = snapshot.state.zoneOf(piece.identifier);
     if (!own) return true;
-    return leaveReasonOf(this.leaveInput(own, mover, snapshot.pieces, kindName, piece.zoneLeaveRound)) !== 'held';
+    return (
+      leaveReasonOf(
+        this.leaveInput(own, this.asOne(mover, snapshot), snapshot.pieces, kindName, piece.zoneLeaveRound)
+      ) !== 'held'
+    );
   }
 
   /**
@@ -899,7 +934,8 @@ export class EngagementZoneService {
       }
       return;
     }
-    const counted = { side: mover.side, count: mover.count };
+    const mine = this.asOne(mover, snapshot);
+    const counted = { side: mover.side, count: mine.count };
     const ratio = world.rules.outnumber;
     const leftZones = state.zones.filter((zone) => start.inside.includes(zone.id) && !zoneCovers(zone.shape, point));
     if (unstoppable || this.stopsByChoice()) {
@@ -907,7 +943,7 @@ export class EngagementZoneService {
       return;
     }
     const heldBack = leftZones.find(
-      (zone) => !mayEscape(this.leaveInput(zone, mover, pieces, start.kind, piece.zoneLeaveRound))
+      (zone) => !mayEscape(this.leaveInput(zone, mine, pieces, start.kind, piece.zoneLeaveRound))
     );
     const stopped =
       heldBack ??
@@ -972,7 +1008,26 @@ export class EngagementZoneService {
     return this.objectStore.get<TurnState>('TurnState');
   }
 
-  private snapshot(): { world: ZoneTable; pieces: ZonePieceInput[]; state: ZoneState } | null {
+  /**
+   * A piece counted as one with its partner, as a mount ridden in front and the one riding it are,
+   * for who may stop a move and whether a zone may be left: as many as both together.
+   */
+  private asOne(piece: ZonePieceInput, snapshot: ZoneSnapshot): ZonePieceInput {
+    const partner =
+      snapshot.front.get(piece.id) ?? [...snapshot.front].find(([, rider]) => rider === piece.id)?.[0] ?? null;
+    const other = partner === null ? undefined : snapshot.pieces.find((one) => one.id === partner);
+    return other ? { ...piece, count: piece.count + other.count } : piece;
+  }
+
+  /** How many go into a zone with a piece: it, and everybody bound together with it but the held fast. */
+  private enteringCountOf(piece: ZonePieceInput, pieces: readonly ZonePieceInput[]): number {
+    const group = new Set(bondGroupOf(piece.id, pieces));
+    return pieces
+      .filter((one) => group.has(one.id) && (one.id === piece.id || !one.held))
+      .reduce((sum, one) => sum + one.count, 0);
+  }
+
+  private snapshot(): ZoneSnapshot | null {
     const world = this.tableNow();
     if (!world) return null;
     const parties = this.objectStore
@@ -981,20 +1036,36 @@ export class EngagementZoneService {
     const roomRules = resolveRoomRules(this.config()?.roomRuleAnswers ?? null, world.table);
     const sideOf = sideOfPiece(roomRules.hostilityBy, parties);
     const gridSize = world.table.gridSize;
-    const pieces: ZonePieceInput[] = this.objectStore
+    const onFloor = this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
-      .filter((piece) => piece.isVisibleOnTable && surfaceOf(piece) === 'floor')
-      .map((piece) => ({
+      .filter((piece) => piece.isVisibleOnTable && surfaceOf(piece) === 'floor');
+    const mounts = new Map(onFloor.map((piece) => [piece.identifier, this.mountOf(piece)?.identifier ?? '']));
+    const pieces: ZonePieceInput[] = onFloor.map((piece) => ({
+      id: piece.identifier,
+      point: centreOf(piece, gridSize),
+      zone: piece.engagementZone,
+      offField: piece.offField === '1',
+      count: this.countOf(piece, world.rules),
+      side: sideOf(piece),
+      down: piece.downed === '1',
+      held: piece.heldFast === '1',
+      grabbedBy: this.holderOf(piece)?.identifier ?? '',
+      ridingOn: mounts.get(piece.identifier) ?? '',
+    }));
+    const front = frontRidersOf(
+      onFloor.map((piece) => ({
         id: piece.identifier,
-        point: centreOf(piece, gridSize),
-        zone: piece.engagementZone,
-        offField: piece.offField === '1',
-        count: this.countOf(piece, world.rules),
-        side: sideOf(piece),
-        down: piece.downed === '1',
-        held: piece.heldFast === '1',
-        grabbedBy: this.holderOf(piece)?.identifier ?? '',
-      }));
+        ridingOn: mounts.get(piece.identifier) ?? '',
+        rideSeat: piece.rideSeat,
+        mountable: piece.mountable === '1',
+      }))
+    );
+    const riders = new Set(front.values());
+    const carried = new Set(
+      onFloor
+        .filter((piece) => mounts.get(piece.identifier) !== '' && !riders.has(piece.identifier))
+        .map((piece) => piece.identifier)
+    );
     const zones = zonesOn(world.table).map((zone) => ({
       id: zone.identifier,
       centre: zone.centre,
@@ -1003,7 +1074,7 @@ export class EngagementZoneService {
       forming: zone.isForming,
     }));
     const state = zoneStateOf({ zones, pieces, rules: world.rules, pxPerMetre: world.pxPerMetre, snap: world.snap });
-    return { world, pieces, state };
+    return { world, pieces, state, front, carried };
   }
 
   /** How many pixels make a metre on the table in view, or null where there is no table. */
@@ -1089,16 +1160,30 @@ export class EngagementZoneService {
     });
   }
 
+  /**
+   * Stands a zone's tokens about its centre. Those bound to another in the zone, riding it or held
+   * on to by it, stand where it stands rather than taking a spot of their own.
+   */
   private gatherOne(view: ZoneView, gridSize: number): void {
-    const ring = Math.min(view.shape.reach * 0.5, gridSize * Math.max(0.6, view.members.length * 0.25));
-    const spots = gatheredAbout(view.shape.centre, view.members.length, ring);
-    view.members.forEach((id, index) => {
-      const piece = this.objectStore.get<GameCharacter>(id);
-      if (!(piece instanceof GameCharacter)) return;
+    const members = view.members
+      .map((id) => this.objectStore.get<GameCharacter>(id))
+      .filter((piece): piece is GameCharacter => piece instanceof GameCharacter);
+    const bonded = members.map((piece) => this.bondOf(piece));
+    const inZone = new Set(bonded.map((piece) => piece.id));
+    const anchors = members.filter((_, index) => boundTo(bonded[index], inZone) === '');
+    const byId = new Map(members.map((piece) => [piece.identifier, piece]));
+    const ring = Math.min(view.shape.reach * 0.5, gridSize * Math.max(0.6, anchors.length * 0.25));
+    const spots = gatheredAbout(view.shape.centre, anchors.length, ring);
+    anchors.forEach((piece, index) => {
       const half = (piece.size * gridSize) / 2;
       piece.location.x = spots[index].x - half;
       piece.location.y = spots[index].y - half;
       piece.update();
+      for (const id of boundBelow(piece.identifier, bonded)) {
+        const one = byId.get(id)!;
+        this.standAt(one, piece);
+        one.update();
+      }
     });
   }
 
