@@ -4,6 +4,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -35,14 +36,20 @@ export class LineOfFirePanelComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly zones = inject(EngagementZoneService);
   private readonly vision = inject(VisionService);
+  private readonly uiSignal = inject(UiSignalService);
   private readonly macro = inject(CharacterMacroService);
   private readonly t = inject(TRANSLATE_FN);
 
   /** The piece firing, by its identifier. */
   readonly shooterIdentifier = signal('');
 
+  /**
+   * A row for each piece aimed at. Aiming is this reader's own and is not sent anywhere, so it is
+   * heard from the word given whenever a piece is aimed at or let go, not from the pieces.
+   */
   protected readonly rows = computed<FireRow[]>(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
+    this.uiSignal.targetChange();
     this.zones.state();
     const shooter = this.objectStore.get<GameCharacter>(this.shooterIdentifier());
     if (!(shooter instanceof GameCharacter)) return [];

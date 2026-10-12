@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Config } from '@axe/domain/peer/config';
@@ -48,6 +49,29 @@ describe('LineOfFirePanelComponent', () => {
     expect(host.querySelectorAll('[data-testid="line-of-fire-row"]')).toHaveLength(1);
     expect(host.querySelector('[data-testid="line-of-fire-distance"]')!.textContent).toContain('10.0');
     expect(host.querySelector('[data-testid="line-of-fire-blocked"]')!.textContent).toContain('壁役');
+  });
+
+  it('follows the aim as it moves from piece to piece while it is open', async () => {
+    const shooter = pieceAt('射手', 0, 0);
+    const first = pieceAt('一番', 10, 0, true);
+    const second = pieceAt('二番', 0, 10, true);
+    first.targeted = true;
+    const fixture = TestBed.createComponent(LineOfFirePanelComponent);
+    fixture.componentInstance.shooterIdentifier.set(shooter.identifier);
+    await fixture.whenStable();
+    const rows = () =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="line-of-fire-row"]')].map(
+        (row) => row.textContent
+      );
+    expect(rows().join()).toContain('一番');
+
+    first.targeted = false;
+    second.targeted = true;
+    TestBed.inject(UiSignalService).notifyTargetChange(second.identifier, GameCharacter.aliasName);
+    await fixture.whenStable();
+
+    expect(rows()).toHaveLength(1);
+    expect(rows().join()).toContain('二番');
   });
 
   it('picks one of everybody in a zone fired into, at random in chat as the shooter', async () => {
