@@ -85,6 +85,22 @@ describe('Config', () => {
     });
   });
 
+  describe('stepping into a move', () => {
+    it('is off for a room saved before it could be asked, with no kind named, and reads back what it writes', () => {
+      const config = Config.instance;
+      expect(config.interruptEnabled).toBe(false);
+      expect(config.interruptKind).toBeNull();
+
+      config.interruptEnabled = true;
+      config.interruptKind = '全力';
+      expect(config.interruptEnabled).toBe(true);
+      expect(config.interruptKind).toBe('全力');
+
+      config.interruptKind = null;
+      expect(config.interruptKind).toBeNull();
+    });
+  });
+
   describe('instance (singleton)', () => {
     it('returns the one instance', () => {
       const instance1 = Config.instance;

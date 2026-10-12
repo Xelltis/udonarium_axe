@@ -1,5 +1,6 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { EngagementZoneService, metresPerCell, ZoneMoveStart } from '@axe/application/tabletop/engagement-zone.service';
+import { InterruptOutcome, MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
 import { MoveRangeService, ReachTerms } from '@axe/application/tabletop/move-range.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -8,7 +9,7 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, CellGrid, cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { cheapestPath } from '@axe/domain/tabletop/move/cheapest-path';
 import { MoveKind, moveKindNamed } from '@axe/domain/tabletop/move/move-kind';
 import { cellsFrom, stepsFor } from '@axe/domain/tabletop/move/move-steps';
@@ -16,6 +17,7 @@ import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
 import { walkedPath } from '@axe/domain/tabletop/move/walked-path';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { indexAtLength } from '@axe/domain/tabletop/zone/interrupt';
 
 export interface MovePlan {
   characterIdentifier: string;
@@ -74,6 +76,7 @@ export class MovePlanService {
   private readonly tableSelecter = inject(TableSelecter);
   private readonly objectStore = inject(ObjectStore);
   private readonly zones = inject(EngagementZoneService);
+  private readonly interrupts = inject(MoveInterruptService);
 
   private readonly held = signal<MovePlan | null>(null);
   /** Where the piece stood among the engagement zones as the move began. */
@@ -397,8 +400,13 @@ export class MovePlanService {
     }
 
     this.walking = true;
+    let stopped: { outcome: InterruptOutcome; point: CellPoint } | null = null;
     try {
-      const steps = way.slice(1);
+      const points = way.map((cell) => cellCenterOf(plan.grid, cell));
+      const outcome = await this.interrupts.negotiate(character, points);
+      const end = outcome ? indexAtLength(points, outcome.along) : way.length - 1;
+      if (outcome) stopped = { outcome, point: points[end] };
+      const steps = way.slice(1, end + 1);
       let standingZ = character.posZ;
       for (const [index, cell] of steps.entries()) {
         standingZ = await this.pieceStep.step(character, table, plan.grid, cell, index === steps.length - 1, standingZ);
@@ -410,6 +418,7 @@ export class MovePlanService {
     const start = this.zoneStart;
     this.close();
     if (start) this.zones.afterMove(character, start);
+    if (stopped) this.interrupts.settle(character, stopped.outcome, stopped.point);
     return true;
   }
 

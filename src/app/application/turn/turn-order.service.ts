@@ -6,6 +6,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -44,6 +45,7 @@ export class TurnOrderService {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly vision = inject(VisionService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly hooks = inject(TurnHooksService);
   private readonly t = inject(TRANSLATE_FN);
 
   constructor() {
@@ -264,6 +266,7 @@ export class TurnOrderService {
       this.springGround(turnState.currentIdentifier, 'turnEnd');
       this.markActed(turnState.currentIdentifier);
       this.expireBuffs('turnEnd', this.actorOf(turnState.currentIdentifier));
+      this.hooks.turnEnded();
       this.handOver(this.firstUnacted(order));
     });
   }
@@ -308,6 +311,7 @@ export class TurnOrderService {
     this.springGround(held, 'turnEnd');
     this.markActed(held);
     this.expireBuffs('turnEnd', this.actorOf(held));
+    this.hooks.turnEnded();
   }
 
   /** Opens a side's phase, or closes the round where there is no side left to open. */
@@ -534,6 +538,7 @@ export class TurnOrderService {
   private finishRound(): void {
     this.endRound();
     this.expireBuffs('roundEnd', { identifier: '', name: '' });
+    this.hooks.turnEnded();
   }
 
   /**

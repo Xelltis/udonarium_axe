@@ -106,6 +106,8 @@ import {
   buildHexOuterBorderSvg,
   buildHexOutlineMask,
 } from '@axe/features/tabletop/game-table-mask/game-table-mask-helpers';
+import { InterruptPromptComponent } from '@axe/features/tabletop/interrupt-prompt/interrupt-prompt.component';
+import { TableInterruptOverlayComponent } from '@axe/features/tabletop/interrupt-prompt/table-interrupt-overlay.component';
 import { LightSourceComponent } from '@axe/features/tabletop/light-source/light-source.component';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
 import { TableAltitudeGuideOverlayComponent } from '@axe/features/tabletop/table-altitude-guide-overlay/table-altitude-guide-overlay.component';
@@ -254,6 +256,8 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
     TableMoveRangeOverlayComponent,
     TableMoveBlockOverlayComponent,
     TableMoveCostOverlayComponent,
+    TableInterruptOverlayComponent,
+    InterruptPromptComponent,
     TableFreePathOverlayComponent,
     TableZoneOverlayComponent,
     TableTriggerOverlayComponent,

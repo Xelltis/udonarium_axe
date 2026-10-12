@@ -23,6 +23,25 @@ export function pointAlong(from: MovePoint, to: MovePoint, along: number): MoveP
   return { x: from.x + (to.x - from.x) * along, y: from.y + (to.y - from.y) * along };
 }
 
+/** The first `length` pixels of a way of straight legs, ending exactly that far along it. */
+export function clipToLength(points: readonly MovePoint[], length: number): MovePoint[] {
+  if (points.length < 1) return [];
+  const clipped: MovePoint[] = [{ ...points[0] }];
+  let walked = 0;
+  for (let index = 1; index < points.length; index++) {
+    const from = points[index - 1];
+    const to = points[index];
+    const leg = Math.hypot(to.x - from.x, to.y - from.y);
+    if (walked + leg >= length) {
+      if (leg > 0 && length > walked) clipped.push(pointAlong(from, to, (length - walked) / leg));
+      return clipped;
+    }
+    clipped.push({ ...to });
+    walked += leg;
+  }
+  return clipped;
+}
+
 /**
  * The points a way of straight legs passes, every `stepPx` along it, ending on its last point.
  *

@@ -6,6 +6,7 @@ import {
   ZoneMoveLimits,
   ZoneMoveStart,
 } from '@axe/application/tabletop/engagement-zone.service';
+import { InterruptOutcome, MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
 import { MoveKindBand } from '@axe/application/tabletop/move-plan.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -15,7 +16,7 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { MoveBlock, MovePoint } from '@axe/domain/tabletop/move/blocked-path';
-import { LegLimits, stepsAlong, terrainMoveBlocks, walkLeg } from '@axe/domain/tabletop/move/free-path';
+import { clipToLength, LegLimits, stepsAlong, terrainMoveBlocks, walkLeg } from '@axe/domain/tabletop/move/free-path';
 import { exactMoveCellsOf } from '@axe/domain/tabletop/move/move-cells';
 import { lengthByKind, MoveKind, moveKindNamed } from '@axe/domain/tabletop/move/move-kind';
 import { resolveRoomRules, RoomRules } from '@axe/domain/tabletop/room-rules';
@@ -70,6 +71,7 @@ export class FreeMovePlanService {
   private readonly objectStore = inject(ObjectStore);
   private readonly pieceStep = inject(PieceStepService);
   private readonly zones = inject(EngagementZoneService);
+  private readonly interrupts = inject(MoveInterruptService);
 
   private readonly held = signal<FreePlan | null>(null);
   private readonly opened = signal(0);
@@ -244,8 +246,12 @@ export class FreeMovePlanService {
     }
 
     this.walking = true;
+    let stopped: InterruptOutcome | null;
+    let walked = way;
     try {
-      const steps = stepsAlong(way, table.gridSize / 2);
+      stopped = await this.interrupts.negotiate(character, way);
+      if (stopped) walked = clipToLength(way, stopped.along);
+      const steps = stepsAlong(walked, table.gridSize / 2);
       let standingZ = character.posZ;
       for (const [index, point] of steps.entries()) {
         standingZ = await this.pieceStep.stepToPoint(character, table, point, index === steps.length - 1, standingZ);
@@ -257,6 +263,7 @@ export class FreeMovePlanService {
     const start = this.zoneStart;
     this.close();
     if (start) this.zones.afterMove(character, start);
+    if (stopped) this.interrupts.settle(character, stopped, walked[walked.length - 1]);
     return true;
   }
 

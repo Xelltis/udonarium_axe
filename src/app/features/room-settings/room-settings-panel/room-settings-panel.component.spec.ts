@@ -525,6 +525,26 @@ describe('RoomSettingsPanelComponent', () => {
       expect(zoneSection()?.querySelector('[data-testid="zone-engagement-warning"]')).not.toBeNull();
     });
 
+    it('writes whether moves may be stepped into, and by which kind, out of the kinds written', async () => {
+      component.tab.set('move');
+      component.zoneEnabled = true;
+      component.moveKinds = '全力:3:,通常:1:';
+      component.interruptEnabled = true;
+      component.interruptKind = '通常';
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(Config.instance.interruptEnabled).toBe(true);
+      expect(Config.instance.interruptKind).toBe('通常');
+      const choices = [...zoneSection()!.querySelectorAll('select[name="interruptKind"] option')].map(
+        (option) => (option as HTMLOptionElement).value
+      );
+      expect(choices).toEqual(['', '全力', '通常']);
+
+      component.interruptKind = '';
+      expect(Config.instance.interruptKind).toBeNull();
+    });
+
     it('writes whether a move on a table with no grid is drawn as straight legs', () => {
       component.pathMove = true;
       expect(Config.instance.pathMove).toBe(true);

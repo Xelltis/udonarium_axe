@@ -2,6 +2,7 @@ import { computed, DestroyRef, effect, inject, Injectable, untracked } from '@an
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -87,6 +88,17 @@ export interface ZoneMoveLimits {
   readonly escapes: readonly ZoneShape[];
 }
 
+/** The pieces that could step into a move, and what counting them against the mover needs. */
+export interface ZoneInterrupters {
+  readonly moverCount: number;
+  readonly candidates: readonly { readonly id: string; readonly count: number; readonly point: ZonePoint }[];
+  /** Every zone on the table, inside which nobody may step in. */
+  readonly zones: readonly ZoneShape[];
+  readonly ratio: number;
+  /** How close two points are, in table pixels, to be one. */
+  readonly samePointPx: number;
+}
+
 /** Where a piece stood among the zones as a move began, to tell afterwards what the move did. */
 export interface ZoneMoveStart {
   readonly zone: string;
@@ -143,6 +155,15 @@ export class EngagementZoneService {
   });
 
   constructor() {
+    const stopHook = inject(TurnHooksService).onTurnEnd(() => this.confirmForming());
+    // Said on this peer's cursor from the moment it is here, rather than the first time a zone needs
+    // tidying: the room counts on it to keep order and to answer for its pieces when a move is
+    // stepped into, and a room with no zone yet would otherwise find nobody to ask.
+    effect(() => {
+      this.objectChange.collectionOf(PeerCursor.aliasName)();
+      const mine = PeerCursor.myCursor;
+      if (mine && mine.zoneProtocol !== '1') untracked(() => (mine.zoneProtocol = '1'));
+    });
     effect(() => {
       const writes = this.state().writes;
       if (!hasZoneWrites(writes)) return;
@@ -150,6 +171,7 @@ export class EngagementZoneService {
     });
     inject(DestroyRef).onDestroy(() => {
       if (this.tidyTimer !== null) clearTimeout(this.tidyTimer);
+      stopHook();
     });
   }
 
@@ -183,6 +205,36 @@ export class EngagementZoneService {
     this.settle([zone!.identifier]);
     this.chat.sendSystemMessage(this.t('feature.zone.chat.declared', { attacker: attacker.name, target: target.name }));
     return zone;
+  }
+
+  /**
+   * Makes a zone at a point with the pieces given in it, as stepping into a move does: forming until
+   * the turn ends where turns are being kept, and in force at once otherwise. Null where zones are
+   * not played, or fewer than two pieces are given.
+   */
+  formAt(point: ZonePoint, pieces: readonly GameCharacter[]): EngagementZone | null {
+    const world = this.tableNow();
+    if (!world || pieces.length < 2) return null;
+    const turn = this.turnState();
+    const zone = new EngagementZone();
+    GameObject.batch(() => {
+      zone.initialize();
+      zone.centre = world.snap(point);
+      zone.forming = turn && turn.phase !== 'idle' ? '1' : '';
+      world.table.appendChild(zone);
+      for (const piece of pieces) piece.engagementZone = zone.identifier;
+    });
+    this.settle([zone.identifier]);
+    return zone;
+  }
+
+  /** Puts every zone still forming in force, as a turn ends. */
+  confirmForming(): void {
+    const forming = zonesOn(this.tableSelecter.viewTable).filter((zone) => zone.isForming);
+    if (forming.length < 1) return;
+    GameObject.batch(() => {
+      for (const zone of forming) zone.forming = '';
+    });
   }
 
   /** Puts a piece in a zone, its point becoming the zone's centre. */
@@ -344,6 +396,36 @@ export class EngagementZoneService {
       noReach: false,
       blocked: blocked.isEmpty ? null : blocked,
       stops: stops.isEmpty ? null : stops,
+    };
+  }
+
+  /**
+   * Who could step into a move by this piece: every piece on another side that is in no zone, stands
+   * in none and is not out of the fight; with what the counting needs. Null where zones say nothing
+   * about this piece.
+   */
+  interruptersOf(mover: GameCharacter): ZoneInterrupters | null {
+    const snapshot = this.snapshot();
+    const moving = snapshot?.pieces.find((one) => one.id === mover.identifier);
+    if (!snapshot || !moving || moving.side === null || moving.offField) return null;
+    const { state, pieces, world } = snapshot;
+    const candidates = pieces
+      .filter(
+        (piece) =>
+          piece.id !== moving.id &&
+          piece.side !== null &&
+          piece.side !== moving.side &&
+          !piece.offField &&
+          !state.zoneOf(piece.id) &&
+          state.insideOf(piece.id).length < 1
+      )
+      .map((piece) => ({ id: piece.id, count: piece.count, point: piece.point }));
+    return {
+      moverCount: moving.count,
+      candidates,
+      zones: state.zones.map((zone) => zone.shape),
+      ratio: world.rules.outnumber,
+      samePointPx: world.rules.samePointM * world.pxPerMetre,
     };
   }
 

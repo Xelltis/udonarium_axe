@@ -948,6 +948,24 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.zoneLeaveKind = value.trim().length > 0 ? value.trim() : null;
   }
 
+  /** Whether an enemy may step into a move under way and stop it there. */
+  get interruptEnabled(): boolean {
+    this.objectChange.versionOf('Config')();
+    return this.config.interruptEnabled;
+  }
+  set interruptEnabled(value: boolean) {
+    if (this.isEditable) this.config.interruptEnabled = value;
+  }
+
+  /** The kind of move a piece steps into a move by, empty for the room's first. */
+  get interruptKind(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.interruptKind ?? '';
+  }
+  set interruptKind(value: string) {
+    if (this.isEditable) this.config.interruptKind = value.trim().length > 0 ? value.trim() : null;
+  }
+
   /** The kinds of move the room plays, as it wrote them, empty where it plays the plain kind alone. */
   get moveKinds(): string {
     this.objectChange.versionOf('Config')();

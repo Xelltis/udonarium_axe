@@ -98,6 +98,8 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_zoneLeaveKind') private _zoneLeaveKind: string = '';
   @SyncVar('_moveKinds') private _moveKinds: string = '';
   @SyncVar('_pathMove') private _pathMove: string = '';
+  @SyncVar('_interruptEnabled') private _interruptEnabled: string = '';
+  @SyncVar('_interruptKind') private _interruptKind: string = '';
 
   /**
    * Where the room shows the dice of a chat roll tumbling: in the frame of the line that gives the
@@ -284,6 +286,25 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set pathMove(free: boolean) {
     this._pathMove = free ? '1' : '';
+  }
+
+  /**
+   * Whether an enemy may step into a move under way and stop it there, under strict movement with
+   * engagement zones. Off for a room that never said.
+   */
+  get interruptEnabled(): boolean {
+    return this._interruptEnabled === '1';
+  }
+  set interruptEnabled(allowed: boolean) {
+    this._interruptEnabled = allowed ? '1' : '';
+  }
+
+  /** The kind of move a piece steps into a move by, which sets how far it reaches; null for the room's first. */
+  get interruptKind(): string | null {
+    return readRuleText(this._interruptKind);
+  }
+  set interruptKind(answer: string | null) {
+    this._interruptKind = writeRuleText(answer);
   }
 
   /** Every engagement-zone rule the room has been asked about, null where it has not answered. */

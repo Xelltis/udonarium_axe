@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { EngagementZoneService, metresPerCell } from '@axe/application/tabletop/engagement-zone.service';
+import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -9,6 +10,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { EngagementZone, zonesOn } from '@axe/domain/tabletop/zone/engagement-zone';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -286,6 +288,30 @@ describe('EngagementZoneService', () => {
     });
   });
 
+  describe('a zone formed where a move was stepped into', () => {
+    it('forms at once while no turns are kept', () => {
+      const zone = service.formAt({ x: 5.5 * GRID, y: 5.5 * GRID }, [pieceAt(5, 5), pieceAt(5, 6, true)])!;
+
+      expect(zone.isForming).toBe(false);
+      expect(zone.centre).toEqual({ x: 5.5 * GRID, y: 5.5 * GRID });
+    });
+
+    it('is forming while turns are kept, and comes into force as a turn ends', () => {
+      TestBed.inject(TurnState).phase = 'acting';
+      const zone = service.formAt({ x: 5.5 * GRID, y: 5.5 * GRID }, [pieceAt(5, 5), pieceAt(5, 6, true)])!;
+      expect(zone.isForming).toBe(true);
+
+      TestBed.inject(TurnHooksService).turnEnded();
+
+      expect(zone.isForming).toBe(false);
+      TestBed.inject(TurnState).phase = 'idle';
+    });
+
+    it('forms nothing for fewer than two pieces', () => {
+      expect(service.formAt({ x: 0, y: 0 }, [pieceAt(5, 5)])).toBeNull();
+    });
+  });
+
   describe('keeping zones in order after changes nobody made through them', () => {
     beforeEach(() => {
       vi.useFakeTimers();
@@ -322,6 +348,12 @@ describe('EngagementZoneService', () => {
       vi.advanceTimersByTime(600);
 
       expect(zonesOn(table)).toHaveLength(1);
+    });
+
+    it('says on its own cursor that it keeps zones before any zone needs tidying', () => {
+      TestBed.tick();
+
+      expect(PeerCursor.myCursor.zoneProtocol).toBe('1');
     });
 
     it('does not wait on a game master whose version knows nothing of zones', () => {

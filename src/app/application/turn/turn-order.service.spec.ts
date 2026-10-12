@@ -4,6 +4,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -165,6 +166,17 @@ describe('TurnOrderService', () => {
     service.prev(); // round 1 start -> idle
     expect(turnState.phase).toBe('idle');
     expect(turnState.round).toBe(0);
+  });
+
+  it('tells whatever waits on the turn that a turn has ended, and that the round has', () => {
+    const ended = vi.fn();
+    TestBed.inject(TurnHooksService).onTurnEnd(ended);
+
+    service.next(); // round begins
+    expect(ended).not.toHaveBeenCalled();
+    service.next(); // first turn opens
+    service.next(); // first turn ends
+    expect(ended).toHaveBeenCalledTimes(1);
   });
 
   describe('buff decay', () => {

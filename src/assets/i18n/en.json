@@ -179,7 +179,8 @@
         "offField": "{{name}} was taken out of the fight",
         "onField": "{{name}} was put back into the fight",
         "prepareLeave": "{{name}} said it will leave the engagement zone",
-        "held": "{{name}} was held by the engagement zone"
+        "held": "{{name}} was held by the engagement zone",
+        "interrupted": "{{names}} stepped into {{mover}}'s move"
       },
       "settings": {
         "section": "Engagement zones",
@@ -196,9 +197,23 @@
         "outnumberHint": "A side more than this many times the other side's number walks through a zone, or out of one without saying so first.",
         "leaveKind": "Kind that leaves an overflowing zone",
         "leaveKindAny": "Any kind",
-        "leaveKindHint": "A piece leaves a zone holding more than its limit at once by this kind of move."
+        "leaveKindHint": "A piece leaves a zone holding more than its limit at once by this kind of move.",
+        "interrupt": "Let moves be stepped into",
+        "interruptHint": "Before a planned move is walked, the side of every enemy that can reach the way is asked whether to step in. A piece that steps in stops the move at that point, and a new engagement zone forms there with both. While turns are kept, it is forming until the turn ends.",
+        "interruptKind": "Kind used to step in",
+        "interruptKindFirst": "The first kind"
       },
-      "heldInPlace": "{{name}} is held by its engagement zone and cannot move. Say it will leave, and it may leave from the next round"
+      "heldInPlace": "{{name}} is held by its engagement zone and cannot move. Say it will leave, and it may leave from the next round",
+      "interrupt": {
+        "waiting": "Waiting for the room to step in ({{seconds}} s left)",
+        "offer": "You may step into {{mover}}'s move",
+        "ruling": "{{mover}}'s move is waiting for the room to step in",
+        "point": "Point",
+        "step": "Step in",
+        "pass": "Let it by",
+        "decideNow": "Decide now",
+        "drop": "Drop the interrupts"
+      }
     },
     "firstPerson": {
       "exit": "Back to the table",

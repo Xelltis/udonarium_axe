@@ -347,6 +347,7 @@
       <table-move-range-overlay class="contents"></table-move-range-overlay>
       <table-zone-overlay class="contents"></table-zone-overlay>
       <table-free-path-overlay class="contents"></table-free-path-overlay>
+      <table-interrupt-overlay class="contents"></table-interrupt-overlay>
       <table-altitude-guide-overlay class="contents"></table-altitude-guide-overlay>
       <table-target-overlay class="contents"></table-target-overlay>
       <table-effect-overlay class="contents"></table-effect-overlay>
@@ -433,6 +434,7 @@
     <span class="text-ui-muted min-w-0 text-[0.86em] leading-snug">{{ movePlanHintKey() | transloco }}</span>
   </div>
 }
+<interrupt-prompt></interrupt-prompt>
 <!--
   Said in the same band the planned move speaks from, and only when that band is quiet, so a
   piece in hand never has two things talking over each other at the foot of the screen.
