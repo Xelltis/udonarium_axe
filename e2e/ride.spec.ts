@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { waitAppReady } from './helpers';
+import { openPanel, waitAppReady } from './helpers';
 import { centreOf, pedestal, piece, Point, settle } from './see-through-helpers';
 
 async function becomeGm(page: Page) {
@@ -36,6 +36,22 @@ async function chooseRide(page: Page, name: string, entry: string | RegExp) {
   await menu.getByText('乗り物', { exact: true }).hover();
   await menu.getByText(entry).click();
   await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
+}
+
+/** Makes キャラクターB a mount and gets キャラクターA on it in front. */
+async function rideAOnB(page: Page) {
+  await waitAppReady(page);
+  await becomeGm(page);
+  await closePanels(page);
+  const rider = piece(page, 'キャラクターA');
+  const mount = piece(page, 'キャラクターB');
+  await chooseRide(page, 'キャラクターB', '乗り物にする');
+  await settle(rider);
+  await settle(mount);
+  await drag(page, await centreOf(pedestal(rider)), await centreOf(pedestal(mount)));
+  await settle(rider);
+  await chooseRide(page, 'キャラクターA', 'キャラクターB に乗る');
+  await expect(mount.getByTestId('piece-riders').first()).toContainText('1', { timeout: 5000 });
 }
 
 test.describe('乗り物', () => {
@@ -74,5 +90,36 @@ test.describe('乗り物', () => {
 
     await chooseRide(page, 'キャラクターA', 'キャラクターB から降りる');
     await expect(mount.getByTestId('piece-riders')).toHaveCount(0, { timeout: 5000 });
+  });
+
+  test('乗られている乗り物は行動順から外れ、ラウンド表示で乗り手の丸に重なること', async ({ page }) => {
+    await rideAOnB(page);
+
+    await openPanel(page, 'インベントリ');
+    const panel = page.locator('ui-panel').filter({ hasText: 'インベントリ' });
+    await panel.locator('button[title="リッチ表示"]').dispatchEvent('click');
+    await panel.locator('button[title="簡略表示（表）"]').dispatchEvent('click');
+    await expect(panel.locator('button[title="ラウンド表示"]')).toHaveCount(1, { timeout: 10000 });
+
+    await expect(panel.locator('[data-testid="turn-companions"] [title="キャラクターB"]')).toHaveCount(1, {
+      timeout: 10000,
+    });
+    await expect(panel.locator('button[title="キャラクターA"]')).toHaveCount(1);
+    await expect(panel.locator('button[title="キャラクターB"]')).toHaveCount(0);
+  });
+
+  test('乗り物が転ぶと乗り手が落ちて、転んでいる状態になること', async ({ page }) => {
+    await rideAOnB(page);
+    const mount = piece(page, 'キャラクターB');
+
+    await chooseRide(page, 'キャラクターB', '転んでいる');
+
+    await expect(mount.getByTestId('piece-riders')).toHaveCount(0, { timeout: 5000 });
+    await piece(page, 'キャラクターA').dispatchEvent('contextmenu');
+    const menu = page.locator('context-menu');
+    await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
+    await menu.getByText('乗り物', { exact: true }).hover();
+    await expect(menu.locator('li', { hasText: '転んでいる' }).getByRole('checkbox')).toBeChecked({ timeout: 5000 });
+    await expect(menu.getByText('キャラクターB から降りる')).toHaveCount(0);
   });
 });
