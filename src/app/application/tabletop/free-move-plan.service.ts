@@ -20,6 +20,7 @@ import { MoveBlock, MovePoint } from '@axe/domain/tabletop/move/blocked-path';
 import { clipToLength, LegLimits, stepsAlong, terrainMoveBlocks, walkLeg } from '@axe/domain/tabletop/move/free-path';
 import { exactMoveCellsOf } from '@axe/domain/tabletop/move/move-cells';
 import { lengthByKind, MoveKind, moveKindNamed } from '@axe/domain/tabletop/move/move-kind';
+import { movingPointsAsRead, writeMovingPoints } from '@axe/domain/tabletop/move/moving-points';
 import { resolveRoomRules, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
@@ -288,7 +289,7 @@ export class FreeMovePlanService {
     let walked = way;
     try {
       this.ride.recordMove(character, way);
-      stopped = await this.interrupts.negotiate(character, way, plan.kind);
+      stopped = await this.interrupts.negotiate(character, movingPointsAsRead(way), plan.kind);
       if (stopped) walked = clipToLength(way, stopped.along);
       const steps = stepsAlong(walked, table.gridSize / 2);
       let standingZ = character.posZ;
@@ -390,11 +391,7 @@ export class FreeMovePlanService {
     const table = this.tableSelecter.viewTable;
     const piece = plan && table ? plan.characterIdentifier : '';
     const on = piece ? table!.identifier : '';
-    const points = piece
-      ? this.wholeWay()
-          .map((point) => `${Math.round(point.x)},${Math.round(point.y)}`)
-          .join(' ')
-      : '';
+    const points = piece ? writeMovingPoints(this.wholeWay()) : '';
     const kind = piece && plan ? plan.kind : '';
     if (
       cursor.movingCharacterIdentifier === piece &&

@@ -258,6 +258,28 @@ describe('MoveInterruptService', () => {
     expect(hero.engagementZone).not.toBe('');
   });
 
+  it('takes the answer of one stepping in at the first point offered, on a way drawn between pixels grazing its reach', async () => {
+    table.gridType = GridType.NONE;
+    Config.instance.pathMove = true;
+    const hero = pieceAt(2, 1, 6);
+    hero.location = { name: 'table', x: 2 * GRID + 0.45, y: GRID + 0.6 };
+    const foe = pieceAt(5, 3, 2, true);
+    const plan = TestBed.inject(FreeMovePlanService);
+    plan.begin(hero);
+    plan.lookAt(middleOf(8, 1).x + 0.45, middleOf(8, 1).y + 0.6);
+    TestBed.tick();
+
+    const walked = plan.run();
+    await look();
+    service.answer();
+    await vi.advanceTimersByTimeAsync(5000);
+    await walked;
+    Config.instance.pathMove = false;
+
+    expect(hero.engagementZone).not.toBe('');
+    expect(foe.engagementZone).toBe(hero.engagementZone);
+  });
+
   it('stops a move counted in cells on the cell it is stepped into at', async () => {
     const hero = pieceAt(2, 2, 6);
     const foe = pieceAt(5, 3, 2, true);

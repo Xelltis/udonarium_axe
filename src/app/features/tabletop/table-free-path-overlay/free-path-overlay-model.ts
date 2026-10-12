@@ -1,5 +1,6 @@
 import type { FreePlan } from '@axe/application/tabletop/free-move-plan.service';
 import type { MovePoint } from '@axe/domain/tabletop/move/blocked-path';
+import { readMovingPoints } from '@axe/domain/tabletop/move/moving-points';
 
 /** What the overlay draws of the move being worked out here, in table pixels. */
 export interface OwnFreePath {
@@ -27,11 +28,7 @@ function svgPoints(points: readonly MovePoint[]): string {
  * a way of fewer than two points is no way.
  */
 export function parseMovingPoints(text: string): MovePoint[] {
-  const points: MovePoint[] = [];
-  for (const pair of text.trim().split(/\s+/)) {
-    const [x, y] = pair.split(',').map(Number);
-    if (Number.isFinite(x) && Number.isFinite(y)) points.push({ x, y });
-  }
+  const points = readMovingPoints(text);
   return points.length > 1 ? points : [];
 }
 

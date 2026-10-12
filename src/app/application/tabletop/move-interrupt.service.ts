@@ -18,6 +18,7 @@ import { GameTable } from '@axe/domain/tabletop/game-table';
 import type { MovePoint } from '@axe/domain/tabletop/move/blocked-path';
 import { exactMoveCellsOf } from '@axe/domain/tabletop/move/move-cells';
 import { lengthByKind, moveKindNamed, parseMoveKinds } from '@axe/domain/tabletop/move/move-kind';
+import { readMovingPoints } from '@axe/domain/tabletop/move/moving-points';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import {
@@ -610,14 +611,7 @@ export class MoveInterruptService {
 
   /** The way a cursor has declared, as points in table pixels. */
   private pathOf(cursor: PeerCursor, table: GameTable): MovePoint[] {
-    if (cursor.movingPoints) {
-      return cursor.movingPoints
-        .trim()
-        .split(/\s+/)
-        .map((pair) => pair.split(',').map(Number))
-        .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y))
-        .map(([x, y]) => ({ x, y }));
-    }
+    if (cursor.movingPoints) return readMovingPoints(cursor.movingPoints);
     const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
     return cursor.movingWay
       .split(',')
