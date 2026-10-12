@@ -7,6 +7,7 @@ import {
   metresPerCell,
   ZoneInterrupters,
 } from '@axe/application/tabletop/engagement-zone.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { generateUuid } from '@axe/core/util/uuid';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -127,6 +128,7 @@ export class MoveInterruptService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly zones = inject(EngagementZoneService);
+  private readonly vision = inject(VisionService);
   private readonly chat = inject(ChatMessageService);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -155,6 +157,7 @@ export class MoveInterruptService {
       if (cursor.movingTableIdentifier !== table.identifier) continue;
       const mover = this.objectStore.get<GameCharacter>(cursor.movingCharacterIdentifier);
       if (!(mover instanceof GameCharacter)) continue;
+      if (!mine.isGameMaster && !this.vision.isTokenVisible(mover)) continue;
       const id = cursor.movingDeclared;
       const path = this.pathOf(cursor, table);
       const answered = mine.interruptAnswer.startsWith(`${id}|`);
@@ -174,6 +177,33 @@ export class MoveInterruptService {
       }
     }
     return null;
+  });
+
+  /**
+   * The declared moves this peer would be asked to answer but whose mover it does not see: it lets
+   * them by at once, rather than being asked about, or naming, a piece kept from it.
+   */
+  private readonly unseenDeclarations = computed<string[]>(() => {
+    this.objectChange.collectionOf(PeerCursor.aliasName)();
+    this.zones.state();
+    const table = this.tableSelecter.viewTable;
+    const mine = PeerCursor.myCursor;
+    if (!table || !mine || mine.isGameMaster) return [];
+    this.objectChange.versionOf(mine.identifier)();
+    const ids: string[] = [];
+    for (const cursor of this.objectStore.getObjects<PeerCursor>(PeerCursor)) {
+      if (!cursor.movingDeclared || cursor === mine) continue;
+      this.objectChange.versionOf(cursor.identifier)();
+      if (cursor.movingTableIdentifier !== table.identifier) continue;
+      if (mine.interruptAnswer.startsWith(`${cursor.movingDeclared}|`)) continue;
+      const mover = this.objectStore.get<GameCharacter>(cursor.movingCharacterIdentifier);
+      if (!(mover instanceof GameCharacter) || this.vision.isTokenVisible(mover)) continue;
+      const asked = this.candidatesFor(mover, this.pathOf(cursor, table), cursor.movingKind).some(
+        (candidate) => candidate.responder === mine.identifier
+      );
+      if (asked) ids.push(cursor.movingDeclared);
+    }
+    return ids;
   });
 
   /** The pieces chosen to step in, and how far along the way, for the offer standing. */
@@ -199,6 +229,11 @@ export class MoveInterruptService {
       untracked(() => {
         if (this.picked()?.id !== id) this.picked.set(null);
       });
+    });
+    effect(() => {
+      const unseen = this.unseenDeclarations();
+      const mine = untracked(() => PeerCursor.myCursor);
+      if (unseen.length > 0 && mine) untracked(() => (mine.interruptAnswer = `${unseen[0]}|pass`));
     });
   }
 

@@ -27,4 +27,11 @@ describe('zoneOverlayModelOf', () => {
   it('marks a piece standing in a zone without being in it, once', () => {
     expect(zoneOverlayModelOf(state, true).inside).toEqual([{ id: 'c', x: 130, y: 100 }]);
   });
+
+  it('marks no piece the reader does not see, and draws no zone of such pieces alone', () => {
+    expect(zoneOverlayModelOf(state, false, (id) => id !== 'c').inside).toEqual([]);
+    expect(zoneOverlayModelOf(state, false, (id) => id === 'c').zones).toEqual([]);
+    expect(zoneOverlayModelOf(state, false, (id) => id === 'a').zones).toHaveLength(1);
+    expect(zoneOverlayModelOf(state, true, () => false).inside).toHaveLength(1);
+  });
 });

@@ -30,24 +30,32 @@ export interface ZoneOverlayModel {
  * What the overlay draws for the zones on the table.
  *
  * The count against the limit is written only for whoever may see every piece: a count would tell
- * a player how many are in a fight they cannot all see.
+ * a player how many are in a fight they cannot all see. For the same reason a zone none of whose
+ * pieces the reader sees is not drawn, and a piece the reader does not see is not ringed.
  */
-export function zoneOverlayModelOf(state: ZoneState, seesEverything: boolean): ZoneOverlayModel {
-  const zones = state.zones.map((zone) => ({
-    id: zone.id,
-    cx: zone.shape.centre.x,
-    cy: zone.shape.centre.y,
-    reach: zone.shape.reach,
-    square: zone.shape.square,
-    label: seesEverything ? `${zone.occupants}/${zone.limit}` : '',
-    overflowing: zone.overflowing,
-    forming: zone.forming,
-  }));
+export function zoneOverlayModelOf(
+  state: ZoneState,
+  seesEverything: boolean,
+  isSeen: (pieceId: string) => boolean = () => true
+): ZoneOverlayModel {
+  const shown = (id: string) => seesEverything || isSeen(id);
+  const zones = state.zones
+    .filter((zone) => zone.members.some(shown))
+    .map((zone) => ({
+      id: zone.id,
+      cx: zone.shape.centre.x,
+      cy: zone.shape.centre.y,
+      reach: zone.shape.reach,
+      square: zone.shape.square,
+      label: seesEverything ? `${zone.occupants}/${zone.limit}` : '',
+      overflowing: zone.overflowing,
+      forming: zone.forming,
+    }));
   const seen = new Set<string>();
   const inside: InsideMark[] = [];
   for (const zone of state.zones) {
     for (const id of zone.inside) {
-      if (seen.has(id)) continue;
+      if (seen.has(id) || !shown(id)) continue;
       seen.add(id);
       const point = state.pointOf(id);
       if (point) inside.push({ id, x: point.x, y: point.y });

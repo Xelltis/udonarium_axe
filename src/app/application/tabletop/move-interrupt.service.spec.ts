@@ -8,6 +8,7 @@ import {
   MoveInterruptService,
 } from '@axe/application/tabletop/move-interrupt.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -119,6 +120,25 @@ describe('MoveInterruptService', () => {
     expect(outcome).toEqual({ along: 120, pieces: [foe.identifier], zone: '', pullsIn: false, atOnce: false });
     expect(PeerCursor.myCursor.movingDeclared).toBe('');
     expect(service.waiting()).toBeNull();
+  });
+
+  it('lets a move by at once, unasked, for a player who does not see the piece moving', async () => {
+    PeerCursor.myCursor.role = PeerRole.Player;
+    PeerCursor.myCursor.userId = 'user-a';
+    const hero = pieceAt(2, 2, 6, true);
+    pieceAt(5, 3, 2).owner = 'user-a';
+    vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible').mockImplementation((piece) => piece !== hero);
+    const declared = new PeerCursor();
+    declared.initialize();
+    declared.movingCharacterIdentifier = hero.identifier;
+    declared.movingTableIdentifier = table.identifier;
+    declared.movingPoints = WAY.map((point) => `${point.x},${point.y}`).join(' ');
+    declared.movingDeclared = 'move-1';
+
+    TestBed.tick();
+
+    expect(service.offer()).toBeNull();
+    expect(PeerCursor.myCursor.interruptAnswer).toBe('move-1|pass');
   });
 
   it('goes on unstopped where the answer lets it by', async () => {

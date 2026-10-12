@@ -2,6 +2,7 @@ import { computed, DestroyRef, effect, inject, Injectable, untracked } from '@an
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -199,6 +200,7 @@ export class EngagementZoneService {
   private readonly tableSelecter = inject(TableSelecter);
   private readonly chat = inject(ChatMessageService);
   private readonly snackbar = inject(SnackbarService);
+  private readonly vision = inject(VisionService);
   private readonly t = inject(TRANSLATE_FN);
   private tidyTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -533,6 +535,10 @@ export class EngagementZoneService {
     const zone = own ? this.zoneById(own.id) : null;
     const here = state.pointOf(piece.identifier);
     const reach = world.rules.samePointM * world.pxPerMetre + 1e-6;
+    const seen = (other: { id: string }) => {
+      const one = this.objectStore.get<GameCharacter>(other.id);
+      return one instanceof GameCharacter && this.vision.isTokenVisible(one);
+    };
     const foes =
       self && self.side !== null && !self.offField && here
         ? pieces
@@ -549,6 +555,7 @@ export class EngagementZoneService {
               const there = state.pointOf(other.id);
               return there !== null && Math.hypot(there.x - here.x, there.y - here.y) <= reach;
             })
+            .filter(seen)
             .map((other) => ({ id: other.id, name: this.objectStore.get<GameCharacter>(other.id)?.name ?? '' }))
         : [];
     const standing = own ? [] : state.insideOf(piece.identifier);
@@ -573,6 +580,7 @@ export class EngagementZoneService {
               const there = state.pointOf(other.id);
               return there !== null && Math.hypot(there.x - here.x, there.y - here.y) <= reach;
             })
+            .filter(seen)
             .map(named)
         : [];
     return {

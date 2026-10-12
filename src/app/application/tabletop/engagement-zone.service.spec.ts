@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { EngagementZoneService, metresPerCell } from '@axe/application/tabletop/engagement-zone.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -149,6 +150,17 @@ describe('EngagementZoneService', () => {
 
     expect(service.declare(pieceAt(10, 10), pieceAt(10, 10, true))).toBeNull();
     expect(service.stateNow().zones).toEqual([]);
+  });
+
+  it('names no enemy at the same point the reader does not see, to fight or to take hold of', () => {
+    const hero = pieceAt(10, 10);
+    const hidden = pieceAt(10, 10, true);
+    const shown = pieceAt(10, 10, true);
+    shown.name = '見える敵';
+    vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible').mockImplementation((piece) => piece !== hidden);
+
+    expect(service.menuOf(hero).foes.map((foe) => foe.id)).toEqual([shown.identifier]);
+    expect(service.menuOf(hero).grabbable.map((foe) => foe.id)).toEqual([shown.identifier]);
   });
 
   describe("what a piece's menu offers", () => {
