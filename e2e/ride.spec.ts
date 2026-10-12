@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openPanel, waitAppReady } from './helpers';
+import { openPanel, revealMenuEntry, waitAppReady } from './helpers';
 import { centreOf, pedestal, piece, pinnedPiece, placeOf, Point, settle } from './see-through-helpers';
 
 async function becomeGm(page: Page) {
@@ -30,15 +30,16 @@ async function drag(page: Page, from: Point, to: Point) {
 
 /**
  * Chooses a riding entry of a piece's menu, a piece named or one already found: getting on or off
- * stands on the first level, the rest in the riding group.
+ * stands on the first level, the rest in the group it is gathered in.
  */
-async function chooseRide(page: Page, who: string | Locator, entry: string | RegExp) {
+async function chooseRide(page: Page, who: string | Locator, entry: string) {
   await (typeof who === 'string' ? piece(page, who) : who).dispatchEvent('contextmenu');
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-  if (!(await menu.getByText(entry).first().isVisible())) await menu.getByText('乗り物', { exact: true }).hover();
-  await menu.getByText(entry).first().click();
+  await (await revealMenuEntry(page, menu, entry)).click();
   await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
+  // Off whatever piece the menu left the pointer over, whose card would cover the next one reached for.
+  await page.mouse.move(5, 400);
 }
 
 /** Makes キャラクターB a mount and gets キャラクターA on it in front. */
@@ -123,7 +124,7 @@ test.describe('乗り物', () => {
     await piece(page, 'キャラクターA').dispatchEvent('contextmenu');
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await menu.getByText('乗り物', { exact: true }).hover();
+    await menu.getByText('駒の状態', { exact: true }).hover();
     await expect(menu.locator('li', { hasText: '転んでいる' }).getByRole('checkbox')).toBeChecked({ timeout: 5000 });
     await expect(menu.getByText('キャラクターB から降りる')).toHaveCount(0);
 
@@ -145,7 +146,7 @@ test.describe('乗り物', () => {
     await piece(page, 'キャラクターA').dispatchEvent('contextmenu');
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await menu.getByText('乗り物', { exact: true }).hover();
+    await menu.getByText('駒の状態', { exact: true }).hover();
     await expect(menu.locator('li', { hasText: '転んでいる' }).getByRole('checkbox')).not.toBeChecked({
       timeout: 5000,
     });

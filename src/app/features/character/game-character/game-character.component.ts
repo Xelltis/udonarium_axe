@@ -27,13 +27,13 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
-import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { EngagementZoneService, ZoneMenuModel } from '@axe/application/tabletop/engagement-zone.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
-import { RideService } from '@axe/application/tabletop/ride.service';
+import { RideMenuModel, RideService } from '@axe/application/tabletop/ride.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -108,10 +108,17 @@ import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-f
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
-import { buildGameCharacterContextMenuModel } from '@axe/features/character/game-character/game-character-context-menu';
+import { buildConditionContextMenu } from '@axe/features/character/game-character/condition-context-menu';
+import {
+  buildGameCharacterContextMenuModel,
+  FightMenuEntries,
+} from '@axe/features/character/game-character/game-character-context-menu';
 import { PieceFigureHeightsService } from '@axe/features/character/game-character/piece-figure-heights.service';
-import { buildRideContextMenu } from '@axe/features/character/game-character/ride-context-menu';
-import { buildZoneContextMenu } from '@axe/features/character/game-character/zone-context-menu';
+import { buildRideContextMenu, RideMenuEntries } from '@axe/features/character/game-character/ride-context-menu';
+import {
+  buildZoneContextMenu,
+  buildZoneManageContextMenu,
+} from '@axe/features/character/game-character/zone-context-menu';
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
@@ -1449,12 +1456,27 @@ export class GameCharacterComponent {
     if (this.input) this.input.cancel();
   }
 
-  private zoneMenuOf(char: GameCharacter): ContextMenuAction[] {
+  /**
+   * The entries of a piece's menu that fights and mounts bring: getting on or off, its fight, its
+   * state and its being a mount, and managing the zones.
+   */
+  private fightMenuOf(char: GameCharacter): FightMenuEntries {
+    const zoneModel = this.engagementZones.menuOf(char);
+    const rideModel = this.ride.menuOf(char);
+    const ride = this.rideMenuOf(char, rideModel);
+    return {
+      onAndOff: ride.onAndOff,
+      fight: this.zoneMenuOf(char, zoneModel),
+      handling: [...this.conditionMenuOf(char, zoneModel, rideModel), ...ride.group],
+      manage: this.zoneManageMenuOf(char, zoneModel),
+    };
+  }
+
+  private zoneMenuOf(char: GameCharacter, model: ZoneMenuModel): ContextMenuAction[] {
     const zones = this.engagementZones;
     return buildZoneContextMenu(
-      zones.menuOf(char),
+      model,
       this.rolePermission.canEditTabletop,
-      this.rolePermission.isGameMaster,
       {
         declare: (foeId) => {
           const foe = this.objectStore.get<GameCharacter>(foeId);
@@ -1465,9 +1487,6 @@ export class GameCharacterComponent {
         prepareLeave: () => zones.prepareLeave(char),
         cancelLeave: () => zones.cancelLeave(char),
         toggleOffField: () => zones.toggleOffField(char),
-        setUnseen: (unseen) => zones.setUnseen(char, unseen),
-        setDown: (down) => this.ride.setDown(char, down),
-        setHeld: (held) => zones.setHeld(char, held),
         grab: (captiveId) => {
           const captive = this.objectStore.get<GameCharacter>(captiveId);
           if (captive instanceof GameCharacter) zones.grab(char, captive);
@@ -1477,11 +1496,43 @@ export class GameCharacterComponent {
           if (captive instanceof GameCharacter) zones.release(captive);
         },
         breakFree: () => zones.release(char),
+        checkFire: () => this.showLineOfFire(char),
+      },
+      this.translateFn
+    );
+  }
+
+  private zoneManageMenuOf(char: GameCharacter, model: ZoneMenuModel): ContextMenuAction[] {
+    const zones = this.engagementZones;
+    return buildZoneManageContextMenu(
+      model,
+      this.rolePermission.canEditTabletop,
+      this.rolePermission.isGameMaster,
+      {
+        placeSides: () => this.showBattlePlacement(char),
         setSquare: (zoneId, square) => zones.setSquare(zoneId, square),
         setLimit: (zoneId, limit) => zones.setLimit(zoneId, limit),
         remove: (zoneId) => zones.remove(zoneId),
-        checkFire: () => this.showLineOfFire(char),
-        placeSides: () => this.showBattlePlacement(char),
+      },
+      this.translateFn
+    );
+  }
+
+  private conditionMenuOf(
+    char: GameCharacter,
+    zoneModel: ZoneMenuModel,
+    rideModel: RideMenuModel
+  ): ContextMenuAction[] {
+    const zones = this.engagementZones;
+    return buildConditionContextMenu(
+      zoneModel,
+      rideModel,
+      this.rolePermission.canEditTabletop,
+      {
+        setUnseen: (unseen) => zones.setUnseen(char, unseen),
+        setDown: (down) => this.ride.setDown(char, down),
+        setProne: (prone) => this.ride.setProne(char, prone),
+        setHeld: (held) => zones.setHeld(char, held),
       },
       this.translateFn
     );
@@ -1496,10 +1547,10 @@ export class GameCharacterComponent {
     return mover !== null && this.ride.moveRefusal(char) === null && this.moveRangeService.canPlan(mover);
   }
 
-  private rideMenuOf(char: GameCharacter): ContextMenuAction[] {
+  private rideMenuOf(char: GameCharacter, model: RideMenuModel): RideMenuEntries {
     const ride = this.ride;
     return buildRideContextMenu(
-      ride.menuOf(char),
+      model,
       this.rolePermission.canEditTabletop,
       {
         getOn: (mountId, seat) => {
@@ -1507,7 +1558,6 @@ export class GameCharacterComponent {
           if (mount instanceof GameCharacter) ride.mount(char, mount, seat);
         },
         getOff: () => ride.dismount(char),
-        setProne: (prone) => ride.setProne(char, prone),
         setMountable: (mountable) => ride.setMountable(char, mountable),
         setPassenger: (passenger) => ride.setPassenger(char, passenger),
         setCargo: (cargo) => ride.setCargo(char, cargo),
@@ -1669,8 +1719,6 @@ export class GameCharacterComponent {
     const surfaceEntries = [
       ...buildSurfaceSwitchContextMenu(char, table, this.translateFn),
       ...buildConcealMenu(this.boardSwitches.canEdit(), () => this.concealment.conceal(char), this.translateFn),
-      ...this.zoneMenuOf(char),
-      ...this.rideMenuOf(char),
     ];
     const menu = buildGameCharacterContextMenuModel(
       char,
@@ -1706,7 +1754,8 @@ export class GameCharacterComponent {
       this.translateFn,
       overlapEntries,
       this.buffViewMode(),
-      surfaceEntries
+      surfaceEntries,
+      this.fightMenuOf(char)
     );
     if (!this.tabletopService.mode2d() || display.tabletopMenuStyle === 'standard') {
       this.contextMenuService.open(position, menu.actions, this.name());

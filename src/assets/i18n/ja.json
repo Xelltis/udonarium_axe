@@ -169,11 +169,11 @@
         "limit": "定員",
         "limitByTable": "大きさの表どおり",
         "remove": "交戦エリアを解消する",
+        "manage": "交戦エリアの管理",
         "prepareLeave": "次の手番で離れると予告する",
         "cancelLeave": "離れる予告を取り消す",
         "checkFire": "射線チェック",
         "placement": "初期配置",
-        "condition": "駒の状態",
         "unseen": "姿が見えない（移動を止められない）",
         "down": "倒れている（行動できない）",
         "held": "その場から動けない",
@@ -1818,6 +1818,7 @@
         "radialBuffEffect": "バフ・演出",
         "radialDisplay": "表示",
         "radialMove": "移動",
+        "radialZone": "交戦エリア",
         "radialDisclosure": "公開・所有",
         "radialObject": "コマ操作",
         "moveMode": "移動の仕方",
@@ -1825,7 +1826,8 @@
         "sightGroup": "視界と視点",
         "handlingGroup": "表示と扱い",
         "disclosureGroup": "公開とオーナー",
-        "putAwayGroup": "しまう"
+        "putAwayGroup": "しまう",
+        "conditionGroup": "駒の状態"
       },
       "panel": {
         "sheet": "キャラクターシート",
@@ -4881,7 +4883,6 @@
         "refusal_tooHard": "（技能が足りない）",
         "refusal_changedThisTurn": "（この手番に乗り降りした）",
         "mountable": "乗り物にする",
-        "settings": "乗り物の設定",
         "passenger": "同乗できる",
         "cargo": "積める数",
         "cargoNone": "積めない",

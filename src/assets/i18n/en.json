@@ -169,11 +169,11 @@
         "limit": "Limit",
         "limitByTable": "As the size table allows",
         "remove": "End the engagement zone",
+        "manage": "Manage engagement zones",
         "prepareLeave": "Say it will leave next turn",
         "cancelLeave": "Take back saying it will leave",
         "checkFire": "Check the line of fire",
         "placement": "Set out the sides",
-        "condition": "State of the piece",
         "unseen": "Cannot be seen (moves cannot be stopped)",
         "down": "Down (cannot act)",
         "held": "Held fast where it stands",
@@ -1818,6 +1818,7 @@
         "radialBuffEffect": "Buffs & effects",
         "radialDisplay": "Display",
         "radialMove": "Move",
+        "radialZone": "Engagement zone",
         "radialDisclosure": "Access & owner",
         "radialObject": "Piece actions",
         "moveMode": "Getting about",
@@ -1825,7 +1826,8 @@
         "sightGroup": "Sight and view",
         "handlingGroup": "Display and handling",
         "disclosureGroup": "Visibility and owner",
-        "putAwayGroup": "Put away"
+        "putAwayGroup": "Put away",
+        "conditionGroup": "State of the piece"
       },
       "panel": {
         "sheet": "Character sheet",
@@ -4881,7 +4883,6 @@
         "refusal_tooHard": " (not skilled enough)",
         "refusal_changedThisTurn": " (got on or off this turn)",
         "mountable": "Make a mount",
-        "settings": "Mount settings",
         "passenger": "Takes a second rider",
         "cargo": "Loads it carries",
         "cargoNone": "None",

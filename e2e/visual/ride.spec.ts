@@ -10,6 +10,8 @@ async function chooseRide(page: Page, name: string, entry: string) {
   await menu.getByText('乗り物', { exact: true }).hover();
   await menu.getByText(entry).click();
   await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
+  // Off whatever piece the menu left the pointer over, whose card would cover the next one reached for.
+  await page.mouse.move(5, 400);
 }
 
 async function drag(page: Page, from: Point, to: Point) {

@@ -169,11 +169,11 @@
         "limit": "정원",
         "limitByTable": "크기 표대로",
         "remove": "교전 구역 해소",
+        "manage": "교전 구역 관리",
         "prepareLeave": "다음 차례에 이탈한다고 예고",
         "cancelLeave": "이탈 예고 취소",
         "checkFire": "사선 확인",
         "placement": "초기 배치",
-        "condition": "말의 상태",
         "unseen": "모습이 보이지 않음(이동을 막을 수 없음)",
         "down": "쓰러져 있음(행동할 수 없음)",
         "held": "그 자리에서 움직일 수 없음",
@@ -1818,6 +1818,7 @@
         "radialBuffEffect": "버프·연출",
         "radialDisplay": "표시",
         "radialMove": "이동",
+        "radialZone": "교전 구역",
         "radialDisclosure": "공개·소유자",
         "radialObject": "말 조작",
         "moveMode": "이동 방법",
@@ -1825,7 +1826,8 @@
         "sightGroup": "시야와 시점",
         "handlingGroup": "표시와 취급",
         "disclosureGroup": "공개와 소유자",
-        "putAwayGroup": "치우기"
+        "putAwayGroup": "치우기",
+        "conditionGroup": "말의 상태"
       },
       "panel": {
         "sheet": "캐릭터 시트",
@@ -5157,7 +5159,6 @@
         "refusal_tooHard": "(기능 부족)",
         "refusal_changedThisTurn": "(이번 차례에 타거나 내림)",
         "mountable": "탈것으로 만들기",
-        "settings": "탈것 설정",
         "passenger": "동승 가능",
         "cargo": "실을 수 있는 수",
         "cargoNone": "실을 수 없음",

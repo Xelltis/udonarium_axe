@@ -7,12 +7,19 @@ import { RideSeat } from '@axe/domain/tabletop/ride/ride-rules';
 export interface RideMenuCallbacks {
   getOn(mountId: string, seat: RideSeat): void;
   getOff(): void;
-  setProne(prone: boolean): void;
   setMountable(mountable: boolean): void;
   setPassenger(passenger: boolean): void;
   setCargo(cargo: number): void;
   setAnyone(anyone: boolean): void;
   setSeatHeight(cells: number | null): void;
+}
+
+/** The riding entries of a piece's menu, in the two places they stand. */
+export interface RideMenuEntries {
+  /** Getting on a mount the piece stands on, or off the one it rides: offered with working a move out. */
+  readonly onAndOff: ContextMenuAction[];
+  /** Making the piece a mount and saying what it takes, gathered under one entry. */
+  readonly group: ContextMenuAction[];
 }
 
 /** How many loads a mount may be set to carry. */
@@ -23,10 +30,11 @@ export const SEAT_HEIGHT_CHOICES: readonly (number | null)[] = [null, 0, 0.5, 1,
 
 /**
  * The riding entries of a piece's menu. Getting on a mount it stands on, in a seat free there, or
- * off the one it rides, stand on the menu's first level, where they are found at once; a seat the
- * piece may not take, and getting on or off where it has done so this turn, are shown with why and
- * cannot be chosen, and one it may take once it gets up from where it fell offers to get it up first. Saying the piece has fallen over or got up, and making it a mount and saying what
- * it takes, are gathered under one entry.
+ * off the one it rides, are found at once beside working a move out; a seat the piece may not take,
+ * and getting on or off where it has done so this turn, are shown with why and cannot be chosen, and
+ * one it may take once it gets up from where it fell offers to get it up first. Making the piece a
+ * mount, and what a mount takes, are gathered under one entry. That the piece has fallen over is
+ * said with the rest of its state, in `buildConditionContextMenu`.
  *
  * Nothing for somebody who may not change the table.
  */
@@ -35,8 +43,8 @@ export function buildRideContextMenu(
   canEdit: boolean,
   callbacks: RideMenuCallbacks,
   t: TranslateFn
-): ContextMenuAction[] {
-  if (!canEdit) return [];
+): RideMenuEntries {
+  if (!canEdit) return { onAndOff: [], group: [] };
   const onAndOff: ContextMenuAction[] = [];
   const changeRefusal = model.changeRefusal;
   if (model.riding) {
@@ -59,56 +67,44 @@ export function buildRideContextMenu(
       });
     }
   }
-  const entries: ContextMenuAction[] = [];
-  const prone = model.prone;
-  entries.push({
-    name:
-      (prone.on ? '☑ ' : '☐ ') +
-      t('feature.ride.menu.prone') +
-      (prone.refusal ? t(`feature.ride.menu.refusal_${prone.refusal}`) : ''),
-    action: () => callbacks.setProne(!prone.on),
-    enabled: prone.refusal === null,
-  });
   const mount = model.mount;
-  entries.push({
-    name: (mount ? '☑ ' : '☐ ') + t('feature.ride.menu.mountable'),
-    action: () => callbacks.setMountable(!mount),
-  });
+  const entries: ContextMenuAction[] = [
+    {
+      name: (mount ? '☑ ' : '☐ ') + t('feature.ride.menu.mountable'),
+      action: () => callbacks.setMountable(!mount),
+    },
+  ];
   if (mount) {
-    entries.push({
-      name: t('feature.ride.menu.settings'),
-      action: undefined,
-      subActions: [
-        {
-          name: (mount.passenger ? '☑ ' : '☐ ') + t('feature.ride.menu.passenger'),
-          action: () => callbacks.setPassenger(!mount.passenger),
-        },
-        {
-          name: t('feature.ride.menu.cargo'),
-          action: undefined,
-          subActions: CARGO_CHOICES.map((cargo) => ({
-            name: (mount.cargo === cargo ? '✔ ' : '') + (cargo === 0 ? t('feature.ride.menu.cargoNone') : `${cargo}`),
-            action: () => callbacks.setCargo(cargo),
-          })),
-        },
-        {
-          name: (mount.anyone ? '☑ ' : '☐ ') + t('feature.ride.menu.anyone'),
-          action: () => callbacks.setAnyone(!mount.anyone),
-        },
-        {
-          name: t('feature.ride.menu.seatHeight'),
-          action: undefined,
-          subActions: SEAT_HEIGHT_CHOICES.map((cells) => ({
-            name:
-              (mount.seatHeight === cells ? '✔ ' : '') +
-              (cells === null
-                ? t('feature.ride.menu.seatHeightDefault')
-                : t('feature.ride.menu.seatHeightCells', { cells })),
-            action: () => callbacks.setSeatHeight(cells),
-          })),
-        },
-      ],
-    });
+    entries.push(
+      {
+        name: (mount.passenger ? '☑ ' : '☐ ') + t('feature.ride.menu.passenger'),
+        action: () => callbacks.setPassenger(!mount.passenger),
+      },
+      {
+        name: t('feature.ride.menu.cargo'),
+        action: undefined,
+        subActions: CARGO_CHOICES.map((cargo) => ({
+          name: (mount.cargo === cargo ? '✔ ' : '') + (cargo === 0 ? t('feature.ride.menu.cargoNone') : `${cargo}`),
+          action: () => callbacks.setCargo(cargo),
+        })),
+      },
+      {
+        name: (mount.anyone ? '☑ ' : '☐ ') + t('feature.ride.menu.anyone'),
+        action: () => callbacks.setAnyone(!mount.anyone),
+      },
+      {
+        name: t('feature.ride.menu.seatHeight'),
+        action: undefined,
+        subActions: SEAT_HEIGHT_CHOICES.map((cells) => ({
+          name:
+            (mount.seatHeight === cells ? '✔ ' : '') +
+            (cells === null
+              ? t('feature.ride.menu.seatHeightDefault')
+              : t('feature.ride.menu.seatHeightCells', { cells })),
+          action: () => callbacks.setSeatHeight(cells),
+        })),
+      }
+    );
   }
-  return [...onAndOff, { name: t('feature.ride.menu.title'), action: undefined, subActions: entries }];
+  return { onAndOff, group: [{ name: t('feature.ride.menu.title'), action: undefined, subActions: entries }] };
 }

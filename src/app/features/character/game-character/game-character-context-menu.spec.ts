@@ -229,6 +229,7 @@ describe('buildGameCharacterContextMenu()', () => {
       'チャット',
       'バフ・演出',
       '表示',
+      '交戦エリア',
       '移動',
       '公開・所有',
       'コマ操作',
@@ -236,6 +237,44 @@ describe('buildGameCharacterContextMenu()', () => {
     expect(model.radialGroups.find((group) => group.name === '移動')!.actions).toContain(surfaceAction);
     expect(model.radialGroups.find((group) => group.name === 'コマ操作')!.actions).toContain(overlapAction);
     expect(model.actions).toContain(surfaceAction);
+  });
+
+  it('sets what fights and mounts bring among the rest by what it goes with', () => {
+    const off = { name: '馬 から降りる', action: vi.fn() };
+    const zone = { name: '交戦エリア', action: undefined, subActions: [] };
+    const state = { name: '駒の状態', action: undefined, subActions: [] };
+    const mount = { name: '乗り物', action: undefined, subActions: [] };
+    const manage = { name: '交戦エリアの管理', action: undefined, subActions: [] };
+    const surface = { name: 'Move to reverse side', action: vi.fn() };
+    const model = buildGameCharacterContextMenuModel(
+      makeChar() as unknown as GameCharacter,
+      50,
+      makeService(),
+      { ...callbacks(), onPlanMove: vi.fn() },
+      t,
+      [],
+      'icon',
+      [surface],
+      { onAndOff: [off], fight: [zone], handling: [state, mount], manage: [manage] }
+    );
+    const sections: string[][] = [[]];
+    for (const entry of model.actions) {
+      if (entry.type === ContextMenuType.SEPARATOR) sections.push([]);
+      else sections[sections.length - 1].push(entry.name);
+    }
+
+    expect(sections).toEqual([
+      ['移動', '移動の仕方', '馬 から降りる'],
+      ['詳細を表示', 'チャットパレットを表示', 'リモコンを表示', 'バフ・演出', '視界と視点', '交戦エリア'],
+      ['表示と扱い', '駒の状態', '乗り物'],
+      ['しまう'],
+      ['固定する', 'コピーを作る'],
+      ['Move to reverse side', '交戦エリアの管理'],
+    ]);
+    const radial = (name: string) => model.radialGroups.find((group) => group.name === name)!.actions;
+    expect(radial('移動')).toContain(off);
+    expect(radial('交戦エリア')).toEqual([zone, manage]);
+    expect(radial('表示')).toEqual(expect.arrayContaining([state, mount]));
   });
 
   it('keeps what is opened most a click away, and gathers the rest in named groups', () => {
@@ -441,7 +480,7 @@ describe('buildGameCharacterContextMenu()', () => {
     expect(names(unlocked)).toContain('固定する');
   });
 
-  it('draws exactly two separators without a move or anything overlapping', () => {
+  it('draws exactly three separators without a move or anything overlapping', () => {
     const menu = buildGameCharacterContextMenu(
       makeChar() as unknown as GameCharacter,
       50,
@@ -449,7 +488,7 @@ describe('buildGameCharacterContextMenu()', () => {
       callbacks(),
       t
     );
-    expect(menu.filter((m) => m.type === ContextMenuType.SEPARATOR)).toHaveLength(2);
+    expect(menu.filter((m) => m.type === ContextMenuType.SEPARATOR)).toHaveLength(3);
   });
 });
 
