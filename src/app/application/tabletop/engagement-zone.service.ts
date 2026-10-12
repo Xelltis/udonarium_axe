@@ -283,7 +283,7 @@ export class EngagementZoneService {
         zone.centre = world.snap(state.pointOf(target.identifier) ?? centreOf(target, world.table.gridSize));
         world.table.appendChild(zone);
       }
-      for (const piece of this.withPartners([attacker, target])) piece.engagementZone = zone.identifier;
+      for (const piece of this.withPartners([attacker, target])) this.putInZone(piece, zone.identifier);
     });
     this.settle([zone!.identifier]);
     this.chat.sendSystemMessage(this.t('feature.zone.chat.declared', { attacker: attacker.name, target: target.name }));
@@ -305,7 +305,7 @@ export class EngagementZoneService {
       zone.centre = world.snap(point);
       zone.forming = !atOnce && turn && turn.phase !== 'idle' ? '1' : '';
       world.table.appendChild(zone);
-      for (const piece of this.withPartners(pieces)) piece.engagementZone = zone.identifier;
+      for (const piece of this.withPartners(pieces)) this.putInZone(piece, zone.identifier);
     });
     this.settle([zone.identifier]);
     return zone;
@@ -369,7 +369,7 @@ export class EngagementZoneService {
   join(piece: GameCharacter, zoneId: string): void {
     if (!this.zoneById(zoneId)) return;
     GameObject.batch(() => {
-      for (const one of this.withPartners([piece])) one.engagementZone = zoneId;
+      for (const one of this.withPartners([piece])) this.putInZone(one, zoneId);
     });
     this.settle([zoneId]);
     this.chat.sendSystemMessage(this.t('feature.zone.chat.joined', { name: piece.name }));
@@ -378,7 +378,7 @@ export class EngagementZoneService {
   /** Takes a piece out of its zone, leaving its token standing where it is. */
   leave(piece: GameCharacter): void {
     if (piece.engagementZone.length < 1) return;
-    piece.engagementZone = '';
+    this.putInZone(piece, '');
     this.settle([]);
     this.chat.sendSystemMessage(this.t('feature.zone.chat.left', { name: piece.name }));
   }
@@ -388,7 +388,7 @@ export class EngagementZoneService {
     const off = piece.offField !== '1';
     GameObject.batch(() => {
       piece.offField = off ? '1' : '';
-      if (off) piece.engagementZone = '';
+      if (off) this.putInZone(piece, '');
     });
     this.settle([]);
     this.chat.sendSystemMessage(
@@ -514,7 +514,7 @@ export class EngagementZoneService {
     if (!zone) return;
     GameObject.batch(() => {
       for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
-        if (piece.engagementZone === zoneId) piece.engagementZone = '';
+        if (piece.engagementZone === zoneId) this.putInZone(piece, '');
       }
       zone.destroy();
     });
@@ -661,6 +661,15 @@ export class EngagementZoneService {
       at = next;
     }
     return at;
+  }
+
+  /**
+   * Puts a piece in a zone, or out of every zone with an empty identifier. Its word that it would
+   * leave was given about the zone it was in, so it goes where the piece changes zones.
+   */
+  private putInZone(piece: GameCharacter, zoneId: string): void {
+    if (piece.engagementZone !== zoneId && piece.zoneLeaveRound !== '') piece.zoneLeaveRound = '';
+    piece.engagementZone = zoneId;
   }
 
   /** A piece as the bonds between pieces see it: whoever holds on to it, and the mount it rides. */
@@ -1166,7 +1175,7 @@ export class EngagementZoneService {
     GameObject.batch(() => {
       for (const change of writes.setPieceZones) {
         const piece = this.objectStore.get<GameCharacter>(change.id);
-        if (piece instanceof GameCharacter) piece.engagementZone = change.zone;
+        if (piece instanceof GameCharacter) this.putInZone(piece, change.zone);
       }
       for (const update of writes.updateZones) {
         const zone = this.zoneById(update.id);

@@ -208,6 +208,29 @@ describe('EngagementZoneService', () => {
       return { hero, foe, zone };
     }
 
+    it('forgets that a piece said it would leave once it is out of that zone, and holds it in the next', () => {
+      const { hero } = fight();
+      service.prepareLeave(hero);
+      service.leave(hero);
+      expect(hero.zoneLeaveRound).toBe('');
+
+      const next = pieceAt(0, 0, true);
+      next.location = { name: 'table', x: hero.location.x, y: hero.location.y };
+      service.declare(hero, next);
+      expect(hero.engagementZone).not.toBe('');
+      expect(service.mayMove(hero, '')).toBe(false);
+    });
+
+    it('forgets that a piece said it would leave once its zone ends', () => {
+      const { hero, foe } = fight();
+      service.prepareLeave(hero);
+
+      service.setDown(foe, true);
+
+      expect(hero.engagementZone).toBe('');
+      expect(hero.zoneLeaveRound).toBe('');
+    });
+
     it('holds a piece in its zone until it says it will leave, and starts its move at the centre', () => {
       const { hero, zone } = fight();
 
