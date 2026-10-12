@@ -3,15 +3,22 @@
  *
  * The table itself is sealed in its own stacking context, so anything here floats over it.
  * The rest of the ladder, for reference: panels and cut-in windows 1-10 (201 full screen),
- * widgets 100, hand rail 140, toolbars 150, mobile shell 160, menu FAB 200, bottom sheets 1000,
- * their notices 1010, context menu 9900, drag ghosts 10000, modal 1899999, dropdowns and text
- * tooltips 2000000.
+ * widgets 100, hand rail 140, toolbars 150, mobile shell 160, the bands that speak for a move
+ * 170, menu FAB 200, bottom sheets 1000, their notices 1010, context menu 9900, drag
+ * ghosts 10000, modal 1899999, dropdowns and text tooltips 2000000.
  *
  * Panels are numbered as they are brought forward rather than given a shelf of their own, so
  * anything that must sit above a particular panel says which shelf it wants.
  */
 export const Z_HOTBAR = 150;
 export const Z_HOTBAR_MOBILE = 155;
+
+/**
+ * The bands at the foot of the screen that speak for a move: the one saying how it is worked out,
+ * and the one asking whether to step into it. Over every panel and toolbar, as the chat window that
+ * opens with the room sits over the foot of the screen, and a move waits on what is said there.
+ */
+export const Z_TABLE_BANDS = 170;
 
 /**
  * Above the modal, and only when the reader pins it there.

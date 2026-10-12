@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
+import { Z_TABLE_BANDS } from '@axe/ui/z-layers';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /**
- * The band at the foot of the screen while a move waits for the room to step into it.
+ * The band at the foot of the screen while a move waits for the room to step into it, drawn over
+ * every panel rather than inside the table, so the few seconds it waits are not spent under one.
  *
  * The peer making the move is told how long it is waiting. A peer that answers for pieces that could
  * step in picks which of them do and where along the way, and which zone they pull the piece into
@@ -23,6 +25,7 @@ export class InterruptPromptComponent {
   private readonly rolePermission = inject(RolePermissionService);
 
   private readonly now = signal(Date.now());
+  protected readonly zIndex = Z_TABLE_BANDS;
 
   protected readonly waiting = this.interrupts.waiting;
   protected readonly offer = this.interrupts.offer;

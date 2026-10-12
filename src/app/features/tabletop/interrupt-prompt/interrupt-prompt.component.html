@@ -1,6 +1,7 @@
 @if (waiting() || offer()) {
   <div
-    class="bg-ui-panel shadow-ui-md text-ui-text pointer-events-auto absolute bottom-44 left-1/2 z-170 flex max-w-[92vw] -translate-x-1/2 flex-wrap items-center gap-2 rounded-2xl px-3 py-2 text-sm"
+    class="bg-ui-panel shadow-ui-md text-ui-text pointer-events-auto fixed bottom-44 left-1/2 flex max-w-[92vw] -translate-x-1/2 flex-wrap items-center gap-2 rounded-2xl px-3 py-2 text-sm"
+    [style.zIndex]="zIndex"
     data-testid="interrupt-prompt"
     data-move-plan-control
   >

@@ -106,7 +106,6 @@ import {
   buildHexOuterBorderSvg,
   buildHexOutlineMask,
 } from '@axe/features/tabletop/game-table-mask/game-table-mask-helpers';
-import { InterruptPromptComponent } from '@axe/features/tabletop/interrupt-prompt/interrupt-prompt.component';
 import { TableInterruptOverlayComponent } from '@axe/features/tabletop/interrupt-prompt/table-interrupt-overlay.component';
 import { LightSourceComponent } from '@axe/features/tabletop/light-source/light-source.component';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
@@ -257,7 +256,6 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
     TableMoveBlockOverlayComponent,
     TableMoveCostOverlayComponent,
     TableInterruptOverlayComponent,
-    InterruptPromptComponent,
     TableFreePathOverlayComponent,
     TableZoneOverlayComponent,
     TableTriggerOverlayComponent,
@@ -1247,13 +1245,6 @@ export class GameTableComponent {
   readonly isPickingEffectTarget = computed(() => this.effectTargetingService.isPicking());
   /** Whether a move is being worked out, which is when the table says how to work one out. */
   readonly isPlanningMove = this.movePlan.isPlanning;
-  readonly isJumpingMove = this.movePlan.isJumping;
-  /** Whether the move is drawn as straight legs, which has no jumping to choose. */
-  readonly isFreeMove = this.movePlan.isFree;
-  /** A hand with no keys is told what it can do rather than which keys it has not got. */
-  protected readonly movePlanHintKey = computed(() =>
-    this.viewport.isTouch() ? 'feature.tabletop.movePlan.hintTouch' : 'feature.tabletop.movePlan.hint'
-  );
 
   private readonly heldPiece = inject(HeldPieceService);
 
@@ -1285,54 +1276,6 @@ export class GameTableComponent {
     if (!turn) return null;
     return { ...turn, offersSnap: !this.viewport.isTouch() };
   });
-
-  /** The kinds of move the room plays, offered while a move is worked out, and how far the chosen one has left. */
-  protected readonly moveKindBand = this.movePlan.kindBand;
-
-  /** Whether the move being worked out is one nobody may stop, offered where the room plays zones. */
-  protected readonly moveUnstoppableBand = this.movePlan.unstoppableBand;
-
-  /** Makes the move one nobody may stop, or not, from the band, kept off the table underneath. */
-  onToggleUnstoppable(on: boolean, event: Event): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.movePlan.setUnstoppable(on);
-  }
-
-  /** Chooses the kind of move from the band, which is kept off the table underneath like the mode is. */
-  onChooseMoveKind(kind: string, event: Event): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.movePlan.setKind(kind);
-  }
-
-  /** The two ways a move may be taken, offered as a pair so which one is on is plain to see. */
-  protected readonly moveModes = [
-    {
-      jumping: false,
-      icon: 'directions_walk',
-      label: 'feature.tabletop.movePlan.walk',
-      testId: 'move-plan-walk',
-    },
-    {
-      jumping: true,
-      icon: 'keyboard_double_arrow_up',
-      label: 'feature.tabletop.movePlan.jump',
-      testId: 'move-plan-jump',
-    },
-  ] as const;
-
-  /**
-   * Chooses how the move is taken, from the band at the foot of the screen.
-   *
-   * A finger has no space bar. The press is kept off the table underneath, which would read
-   * it as a choice of where to walk to.
-   */
-  onChooseMoveMode(jumping: boolean, event: Event): void {
-    event.preventDefault();
-    event.stopPropagation();
-    if (this.isJumpingMove() !== jumping) this.movePlan.toggleJump();
-  }
 
   /**
    * Backs out on Escape: from picking an effect's targets first, then from picking a card's target,
