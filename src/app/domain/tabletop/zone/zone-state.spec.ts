@@ -266,6 +266,52 @@ describe('zoneStateOf', () => {
     expect(state.writes.updateZones[0].forming).toBe(false);
   });
 
+  it('keeps a piece that is down out of the zone it names, where it lies inside it without being in it', () => {
+    const state = zoneStateOf(
+      world(
+        [zone('z1', 10, 10)],
+        [
+          piece('a', 10, 10, { zone: 'z1' }),
+          piece('b', 10, 10, { zone: 'z1', side: 'npc' }),
+          piece('c', 10, 10, { zone: 'z1', side: 'npc', down: true }),
+        ]
+      )
+    );
+
+    expect(state.zones[0].members).toEqual(['a', 'b']);
+    expect(state.zones[0].inside).toEqual(['c']);
+    expect(state.writes.setPieceZones).toEqual([{ id: 'c', zone: '' }]);
+  });
+
+  it('leaves a piece held fast behind, out of the zone, when its zone joins another and the centre moves off', () => {
+    const state = zoneStateOf(
+      world(
+        [zone('z1', 10, 10), zone('z2', 11, 10)],
+        [
+          piece('a', 10, 10, { zone: 'z1' }),
+          piece('b', 10, 10, { zone: 'z1', side: 'npc', held: true }),
+          piece('c', 11, 10, { zone: 'z2' }),
+          piece('d', 11, 10, { zone: 'z2', side: 'npc' }),
+        ]
+      )
+    );
+
+    expect(state.zones[0].members).toEqual(['a', 'c', 'd']);
+    expect(state.zones[0].inside).toEqual(['b']);
+    expect(state.pointOf('b')).toEqual({ x: 10 * M, y: 10 * M });
+  });
+
+  it('keeps a piece held fast in its zone while the centre stays where it is', () => {
+    const state = zoneStateOf(
+      world(
+        [zone('z1', 10, 10)],
+        [piece('a', 10, 10, { zone: 'z1' }), piece('b', 10, 10, { zone: 'z1', side: 'npc', held: true })]
+      )
+    );
+
+    expect(state.zones[0].members).toEqual(['a', 'b']);
+  });
+
   it('asks for nothing to be written where everything already says what it should', () => {
     const state = zoneStateOf(world([], [piece('a', 1, 1)]));
 

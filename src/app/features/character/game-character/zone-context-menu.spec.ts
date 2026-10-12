@@ -16,6 +16,9 @@ function callbacks(): ZoneMenuCallbacks & { [name: string]: ReturnType<typeof vi
     prepareLeave: vi.fn(),
     cancelLeave: vi.fn(),
     toggleOffField: vi.fn(),
+    setUnseen: vi.fn(),
+    setDown: vi.fn(),
+    setHeld: vi.fn(),
     setSquare: vi.fn(),
     setLimit: vi.fn(),
     remove: vi.fn(),
@@ -25,7 +28,19 @@ function callbacks(): ZoneMenuCallbacks & { [name: string]: ReturnType<typeof vi
 }
 
 function model(more: Partial<ZoneMenuModel> = {}): ZoneMenuModel {
-  return { enabled: true, zone: null, joinable: [], foes: [], offField: false, leave: null, aiming: false, ...more };
+  return {
+    enabled: true,
+    zone: null,
+    joinable: [],
+    foes: [],
+    offField: false,
+    leave: null,
+    aiming: false,
+    unseen: false,
+    down: false,
+    held: false,
+    ...more,
+  };
 }
 
 function names(entries: ContextMenuAction[]): string[] {
@@ -62,6 +77,7 @@ describe('buildZoneContextMenu', () => {
       'feature.zone.menu.joinNumbered:{"number":1}',
       'feature.zone.menu.joinNumbered:{"number":2}',
       'feature.zone.menu.offField',
+      'feature.zone.menu.condition',
     ]);
   });
 
@@ -71,10 +87,16 @@ describe('buildZoneContextMenu', () => {
     expect(names(buildZoneContextMenu(model({ zone }), true, false, callbacks(), t))).toEqual([
       'feature.zone.menu.leave',
       'feature.zone.menu.offField',
+      'feature.zone.menu.condition',
     ]);
     expect(
       names(buildZoneContextMenu(model({ zone, leave: { said: false, maySay: true } }), true, false, callbacks(), t))
-    ).toEqual(['feature.zone.menu.leave', 'feature.zone.menu.prepareLeave', 'feature.zone.menu.offField']);
+    ).toEqual([
+      'feature.zone.menu.leave',
+      'feature.zone.menu.prepareLeave',
+      'feature.zone.menu.offField',
+      'feature.zone.menu.condition',
+    ]);
     expect(
       names(buildZoneContextMenu(model({ zone, leave: { said: true, maySay: true } }), true, false, callbacks(), t))
     ).toContain('feature.zone.menu.cancelLeave');
@@ -86,12 +108,13 @@ describe('buildZoneContextMenu', () => {
     expect(names(master)).toEqual([
       'feature.zone.menu.leave',
       'feature.zone.menu.offField',
+      'feature.zone.menu.condition',
       'feature.zone.menu.placement',
       'feature.zone.menu.square',
       'feature.zone.menu.limit',
       'feature.zone.menu.remove',
     ]);
-    const limits = master[0].subActions![4].subActions!;
+    const limits = master[0].subActions!.find((entry) => entry.name === 'feature.zone.menu.limit')!.subActions!;
     expect(limits.find((entry) => entry.name.startsWith('✔'))?.name).toBe('✔ 6');
     limits[0].action!();
     expect(handlers.setLimit).toHaveBeenCalledWith('z1', null);
@@ -100,6 +123,7 @@ describe('buildZoneContextMenu', () => {
   it('offers putting a piece taken out of the fight back in', () => {
     expect(names(buildZoneContextMenu(model({ offField: true }), true, false, callbacks(), t))).toEqual([
       'feature.zone.menu.onField',
+      'feature.zone.menu.condition',
     ]);
   });
 
@@ -131,6 +155,24 @@ describe('buildZoneContextMenu', () => {
 
     expect(names(entries)).toContain('feature.zone.menu.prepareLeave');
     expect(names(entries)).not.toContain('feature.zone.menu.leave');
+  });
+
+  it('ticks what state the piece is in, and turns each one over', () => {
+    const handlers = callbacks();
+    const entries = buildZoneContextMenu(model({ down: true }), true, false, handlers, t);
+    const states = entries[0].subActions!.find((entry) => entry.name === 'feature.zone.menu.condition')!.subActions!;
+
+    expect(states.map((entry) => entry.name)).toEqual([
+      '☐ feature.zone.menu.unseen',
+      '☑ feature.zone.menu.down',
+      '☐ feature.zone.menu.held',
+    ]);
+    states[0].action!();
+    states[1].action!();
+    states[2].action!();
+    expect(handlers.setUnseen).toHaveBeenCalledWith(true);
+    expect(handlers.setDown).toHaveBeenCalledWith(false);
+    expect(handlers.setHeld).toHaveBeenCalledWith(true);
   });
 
   it('offers every limit from two to twenty', () => {

@@ -6,6 +6,7 @@ import {
   mayBeStopped,
   pointAtLength,
   resolveClaims,
+  spansWithin,
 } from '@axe/domain/tabletop/zone/interrupt';
 
 const WAY = [
@@ -19,6 +20,31 @@ describe('stepping into a move', () => {
     expect(pointAtLength(WAY, 50)).toEqual({ x: 50, y: 0 });
     expect(pointAtLength(WAY, 130)).toEqual({ x: 100, y: 30 });
     expect(pointAtLength(WAY, 999)).toEqual({ x: 100, y: 100 });
+  });
+
+  describe('the stretches inside zones', () => {
+    it('finds where the way runs through a zone, and joins two that meet along it', () => {
+      const spans = spansWithin(WAY, [
+        { centre: { x: 50, y: 0 }, square: false, reach: 10 },
+        { centre: { x: 65, y: 0 }, square: false, reach: 10 },
+      ]);
+
+      expect(spans).toHaveLength(1);
+      expect(spans[0].from).toBeCloseTo(40);
+      expect(spans[0].to).toBeCloseTo(75);
+    });
+
+    it('leaves out the spot the way sets out from, for a way that begins in a zone', () => {
+      const spans = spansWithin(WAY, [{ centre: { x: 0, y: 0 }, square: false, reach: 10 }]);
+
+      expect(spans).toHaveLength(1);
+      expect(spans[0].from).toBeCloseTo(1);
+      expect(spans[0].to).toBeCloseTo(10);
+    });
+
+    it('finds nothing where the way stays clear of every zone', () => {
+      expect(spansWithin(WAY, [{ centre: { x: 50, y: 50 }, square: false, reach: 10 }])).toEqual([]);
+    });
   });
 
   describe('the stretches a piece reaches', () => {

@@ -10,6 +10,9 @@ export interface ZoneMenuCallbacks {
   prepareLeave(): void;
   cancelLeave(): void;
   toggleOffField(): void;
+  setUnseen(unseen: boolean): void;
+  setDown(down: boolean): void;
+  setHeld(held: boolean): void;
   setSquare(zoneId: string, square: boolean): void;
   setLimit(zoneId: string, limit: number | null): void;
   remove(zoneId: string): void;
@@ -22,9 +25,9 @@ export const ZONE_LIMIT_CHOICES: readonly number[] = Array.from({ length: 19 }, 
 
 /**
  * The engagement-zone entries of a piece's menu, gathered under one entry: declaring a fight with an
- * enemy at the same point, joining a zone the piece stands in, leaving its zone, and taking the
- * piece out of the fight or back in. Whoever keeps the table also shapes the zone, sets how many it
- * holds and ends it.
+ * enemy at the same point, joining a zone the piece stands in, leaving its zone, taking the piece
+ * out of the fight or back in, and saying what state it is in: unseen, down, or held fast. Whoever
+ * keeps the table also shapes the zone, sets how many it holds and ends it.
  *
  * Nothing where the room does not play zones, or for somebody who may not change the table.
  */
@@ -59,6 +62,16 @@ export function buildZoneContextMenu(
   entries.push({
     name: t(model.offField ? 'feature.zone.menu.onField' : 'feature.zone.menu.offField'),
     action: () => callbacks.toggleOffField(),
+  });
+  const tick = (on: boolean, key: string) => (on ? '☑ ' : '☐ ') + t(key);
+  entries.push({
+    name: t('feature.zone.menu.condition'),
+    action: undefined,
+    subActions: [
+      { name: tick(model.unseen, 'feature.zone.menu.unseen'), action: () => callbacks.setUnseen(!model.unseen) },
+      { name: tick(model.down, 'feature.zone.menu.down'), action: () => callbacks.setDown(!model.down) },
+      { name: tick(model.held, 'feature.zone.menu.held'), action: () => callbacks.setHeld(!model.held) },
+    ],
   });
   if (model.aiming) entries.push({ name: t('feature.zone.menu.checkFire'), action: () => callbacks.checkFire() });
   if (isGameMaster) entries.push({ name: t('feature.zone.menu.placement'), action: () => callbacks.placeSides() });

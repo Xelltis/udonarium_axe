@@ -7,7 +7,7 @@ import {
   ZoneMoveStart,
 } from '@axe/application/tabletop/engagement-zone.service';
 import { InterruptOutcome, MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
-import { MoveKindBand } from '@axe/application/tabletop/move-plan.service';
+import { MoveKindBand, UnstoppableBand } from '@axe/application/tabletop/move-plan.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -47,6 +47,8 @@ export interface FreePlan {
   readonly kind: string;
   /** Whether a settled leg was ended by a zone, which ends the move there. */
   readonly ended: boolean;
+  /** Whether the move is one nobody may stop. */
+  readonly unstoppable: boolean;
 }
 
 interface FreeTerms {
@@ -109,6 +111,13 @@ export class FreeMovePlanService {
     };
   });
 
+  /** Whether the move being worked out is one nobody may stop, offered where the room plays zones. */
+  readonly unstoppableBand = computed<UnstoppableBand | null>(() => {
+    const plan = this.held();
+    if (!plan || !this.zones.isEnabled()) return null;
+    return { on: plan.unstoppable, mayChange: plan.settled.length < 2 };
+  });
+
   constructor() {
     effect(() => this.tellTheRoom(this.held()));
   }
@@ -132,6 +141,7 @@ export class FreeMovePlanService {
     if (this.walking || !this.applies()) return false;
     const kind = this.zones.kindFor(character, kindName);
     if (kind === null) return false;
+    if (character.unstoppableMove !== '') character.unstoppableMove = '';
     const terms = this.termsOf(character, kind);
     if (!terms) return false;
     this.terms = terms;
@@ -150,6 +160,31 @@ export class FreeMovePlanService {
       pxPerMetre: this.pxPerMetre(),
       kind,
       ended: false,
+      unstoppable: false,
+    });
+    return true;
+  }
+
+  /**
+   * Makes the move being worked out one nobody may stop, or one that may be stopped again, while no
+   * corner has been settled yet; answers whether it changed.
+   */
+  setUnstoppable(on: boolean): boolean {
+    const plan = this.held();
+    if (!plan || this.walking || plan.settled.length > 1 || plan.unstoppable === on) return false;
+    const character = this.objectStore.get<GameCharacter>(plan.characterIdentifier);
+    if (!(character instanceof GameCharacter)) return false;
+    character.unstoppableMove = on ? '1' : '';
+    const terms = this.termsOf(character, plan.kind);
+    if (!terms) return false;
+    this.terms = terms;
+    this.held.set({
+      ...plan,
+      unstoppable: on,
+      settled: [terms.start],
+      ahead: [],
+      spentPx: 0,
+      budgetPx: terms.budgetPx,
     });
     return true;
   }
@@ -250,7 +285,7 @@ export class FreeMovePlanService {
     let stopped: InterruptOutcome | null;
     let walked = way;
     try {
-      stopped = await this.interrupts.negotiate(character, way);
+      stopped = await this.interrupts.negotiate(character, way, plan.kind);
       if (stopped) walked = clipToLength(way, stopped.along);
       const steps = stepsAlong(walked, table.gridSize / 2);
       let standingZ = character.posZ;
@@ -265,6 +300,7 @@ export class FreeMovePlanService {
     this.close();
     if (start) this.zones.afterMove(character, start);
     if (stopped) this.interrupts.settle(character, stopped, walked[walked.length - 1]);
+    else this.zones.offerFight(character);
     return true;
   }
 
@@ -277,6 +313,7 @@ export class FreeMovePlanService {
       character.location.x = plan.origin.x;
       character.location.y = plan.origin.y;
       character.posZ = plan.origin.z;
+      if (character.unstoppableMove !== '') character.unstoppableMove = '';
       character.update();
     }
     this.close();

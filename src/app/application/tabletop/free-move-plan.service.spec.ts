@@ -159,4 +159,22 @@ describe('FreeMovePlanService', () => {
 
     expect(walker.engagementZone).toBe(zone.identifier);
   });
+
+  it('draws a move nobody may stop on through a zone, and leaves the piece out of it once walked', async () => {
+    Config.instance.zoneEnabled = true;
+    const zones = TestBed.inject(EngagementZoneService);
+    zones.declare(pieceAt(2, 2, 1), pieceAt(2, 2, 1, true));
+    const walker = pieceAt(10, 2, 9);
+    service.begin(walker);
+    expect(service.setUnstoppable(true)).toBe(true);
+
+    service.lookAt(middleOf(3, 2).x, middleOf(3, 2).y);
+    service.settle();
+
+    expect(service.plan()!.ended).toBe(false);
+    expect(service.plan()!.settled[1].x).toBeCloseTo(middleOf(3, 2).x);
+    await service.run();
+    expect(walker.engagementZone).toBe('');
+    expect(walker.unstoppableMove).toBe('');
+  });
 });

@@ -22,6 +22,10 @@ export interface ZonePieceInput {
   readonly count: number;
   /** Its side, or null for a piece on no side. */
   readonly side: string | null;
+  /** Whether it is down and cannot act, which keeps it out of any zone wherever it lies. */
+  readonly down?: boolean;
+  /** Whether it is held fast where it stands, so a zone's centre moving off leaves it behind. */
+  readonly held?: boolean;
 }
 
 export interface ZoneWorld {
@@ -104,10 +108,11 @@ const MOVED_PX = 1e-3;
  * the same thing:
  *
  * 1. A zone with no readable centre is no zone. A piece names a zone it is in only while that zone
- *    stands, while the piece is on the field and on a side, and while its token is no further
- *    outside the zone than a metre; a token carried further than that has left.
+ *    stands, while the piece is on the field, on a side and not down, and while its token is no
+ *    further outside the zone than a metre; a token carried further than that has left.
  * 2. Zones are joined, lowest identifier first, while one's centre lies in the other: the one with
- *    the lower identifier stays, standing half way between the two, and takes in both sets of pieces.
+ *    the lower identifier stays, standing half way between the two, and takes in both sets of pieces
+ *    but those held fast, which stay where the old centre was and are out of the zone.
  * 3. A zone left with fewer than two sides in it is over, and its pieces are out of it.
  * 4. Every other piece standing in a zone is inside it without being in it.
  */
@@ -139,7 +144,7 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
 
   for (const piece of [...world.pieces].sort((a, b) => compareIds(a.id, b.id))) {
     const zone = piece.zone.length > 0 ? byId.get(piece.zone) : undefined;
-    if (zone && !piece.offField && piece.side !== null) zone.members.push(piece.id);
+    if (zone && !piece.offField && !piece.down && piece.side !== null) zone.members.push(piece.id);
   }
 
   const countOf = (zone: Working) => zone.members.reduce((sum, id) => sum + (pieces.get(id)?.count ?? 1), 0);
@@ -168,7 +173,7 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
         if (!zoneCovers(shapeOf(keep), other.centre) && !zoneCovers(shapeOf(other), keep.centre)) continue;
         keep.centre = snap(midpointOf(keep.centre, other.centre));
         keep.moved = true;
-        keep.members = [...keep.members, ...other.members].sort(compareIds);
+        keep.members = [...keep.members, ...other.members].filter((id) => !pieces.get(id)!.held).sort(compareIds);
         if (keep.forming && !other.forming) {
           keep.forming = false;
           keep.formingChanged = true;

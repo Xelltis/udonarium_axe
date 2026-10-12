@@ -3,6 +3,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -55,6 +56,12 @@ export interface ZoneMenuModel {
   readonly leave: { readonly said: boolean; readonly maySay: boolean } | null;
   /** Whether some other piece is aimed at, which a line of fire can be checked against. */
   readonly aiming: boolean;
+  /** Whether nobody can see the piece, whose moves nobody may stop. */
+  readonly unseen: boolean;
+  /** Whether the piece is down and cannot act. */
+  readonly down: boolean;
+  /** Whether the piece is held fast where it stands. */
+  readonly held: boolean;
 }
 
 const NO_MENU: ZoneMenuModel = {
@@ -65,6 +72,9 @@ const NO_MENU: ZoneMenuModel = {
   offField: false,
   leave: null,
   aiming: false,
+  unseen: false,
+  down: false,
+  held: false,
 };
 
 /** What a move is shaped by where zones stand on the table. */
@@ -93,12 +103,43 @@ export interface ZoneMoveLimits {
   readonly escapes: readonly ZoneShape[];
 }
 
-/** The pieces that could step into a move, and what counting them against the mover needs. */
+/** A piece that could stop a move, and how many bodies it counts as. */
+export interface ZoneInterrupter {
+  readonly id: string;
+  readonly count: number;
+  readonly point: ZonePoint;
+}
+
+/** A zone that may stop a move, with the pieces of the other sides in it, any of which may stop it. */
+export interface ZoneHold {
+  readonly id: string;
+  readonly shape: ZoneShape;
+  readonly members: readonly ZoneInterrupter[];
+}
+
+/** A piece standing in zones that may stop a move without being in them, and which those zones are. */
+export interface ZoneStander extends ZoneInterrupter {
+  readonly zones: readonly string[];
+}
+
+/** The pieces and zones that could stop a move, and what counting them against the mover needs. */
 export interface ZoneInterrupters {
   readonly moverCount: number;
-  readonly candidates: readonly { readonly id: string; readonly count: number; readonly point: ZonePoint }[];
-  /** Every zone on the table, inside which nobody may step in. */
+  /** Whether nobody may stop the move: the piece cannot be seen, or it is making a move nobody may stop. */
+  readonly unstoppable: boolean;
+  /** Pieces in no zone and standing in none, which step into a move outside every zone. */
+  readonly candidates: readonly ZoneInterrupter[];
+  /** Every zone on the table, inside which those pieces may not step in. */
   readonly zones: readonly ZoneShape[];
+  /** The zones that may stop the piece, by how many the sides in them count against it. */
+  readonly holding: readonly ZoneHold[];
+  /**
+   * Pieces standing in a zone that may stop the piece without being in it, which stop it within their
+   * own reach and within that zone.
+   */
+  readonly standing: readonly ZoneStander[];
+  /** The pieces nobody can see, a move stopped by which makes a zone there and then. */
+  readonly unseen: ReadonlySet<string>;
   readonly ratio: number;
   /** How close two points are, in table pixels, to be one. */
   readonly samePointPx: number;
@@ -135,6 +176,7 @@ export class EngagementZoneService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly chat = inject(ChatMessageService);
+  private readonly snackbar = inject(SnackbarService);
   private readonly t = inject(TRANSLATE_FN);
   private tidyTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -191,6 +233,14 @@ export class EngagementZoneService {
   }
 
   /**
+   * Whether a move is stopped by the side it runs into choosing to stop it, as the room steps into
+   * moves, rather than by every zone it runs into stopping it of itself.
+   */
+  stopsByChoice(): boolean {
+    return this.isEnabled() && this.config()?.interruptEnabled === true;
+  }
+
+  /**
    * Declares a fight between two pieces, which puts both in a zone at the second one's point.
    *
    * Where either is already in a zone, no new one is made: the other joins it. Returns the zone they
@@ -219,10 +269,10 @@ export class EngagementZoneService {
 
   /**
    * Makes a zone at a point with the pieces given in it, as stepping into a move does: forming until
-   * the turn ends where turns are being kept, and in force at once otherwise. Null where zones are
-   * not played, or fewer than two pieces are given.
+   * the turn ends where turns are being kept, and in force at once otherwise or where `atOnce` says
+   * so. Null where zones are not played, or fewer than two pieces are given.
    */
-  formAt(point: ZonePoint, pieces: readonly GameCharacter[]): EngagementZone | null {
+  formAt(point: ZonePoint, pieces: readonly GameCharacter[], atOnce = false): EngagementZone | null {
     const world = this.tableNow();
     if (!world || pieces.length < 2) return null;
     const turn = this.turnState();
@@ -230,7 +280,7 @@ export class EngagementZoneService {
     GameObject.batch(() => {
       zone.initialize();
       zone.centre = world.snap(point);
-      zone.forming = turn && turn.phase !== 'idle' ? '1' : '';
+      zone.forming = !atOnce && turn && turn.phase !== 'idle' ? '1' : '';
       world.table.appendChild(zone);
       for (const piece of pieces) piece.engagementZone = zone.identifier;
     });
@@ -244,7 +294,7 @@ export class EngagementZoneService {
    */
   pullInAtTurnStart(identifier: string): void {
     const piece = this.objectStore.get<GameCharacter>(identifier);
-    if (!(piece instanceof GameCharacter) || piece.offField === '1') return;
+    if (!(piece instanceof GameCharacter) || piece.offField === '1' || !this.mayAct(piece)) return;
     const state = this.stateNow();
     if (state.zoneOf(identifier)) return;
     const crowded = state.insideOf(identifier).find((zone) => zone.overflowing);
@@ -264,6 +314,27 @@ export class EngagementZoneService {
     GameObject.batch(() => {
       for (const zone of forming) zone.forming = '';
     });
+  }
+
+  /**
+   * Pulls pieces into a zone, as the zone stopping a move does: each is put on the zone's centre and
+   * joins it.
+   */
+  pullInto(zoneId: string, pieces: readonly GameCharacter[]): void {
+    const zone = this.zoneById(zoneId);
+    const world = this.tableNow();
+    const centre = zone?.centre;
+    if (!zone || !world || !centre || pieces.length < 1) return;
+    GameObject.batch(() => {
+      for (const piece of pieces) {
+        const half = (Math.max(0, piece.size) * world.table.gridSize) / 2;
+        piece.engagementZone = zoneId;
+        piece.zoneLeaveRound = '';
+        piece.location.x = centre.x - half;
+        piece.location.y = centre.y - half;
+      }
+    });
+    this.settle([zoneId]);
   }
 
   /** Puts a piece in a zone, its point becoming the zone's centre. */
@@ -293,6 +364,47 @@ export class EngagementZoneService {
     this.chat.sendSystemMessage(
       this.t(off ? 'feature.zone.chat.offField' : 'feature.zone.chat.onField', { name: piece.name })
     );
+  }
+
+  /** Says that nobody can see a piece, so nobody may stop its moves, or that they can again. */
+  setUnseen(piece: GameCharacter, unseen: boolean): void {
+    piece.unseen = unseen ? '1' : '';
+  }
+
+  /**
+   * Says that a piece is down and cannot act, or that it is up again. A piece that goes down in a zone
+   * is out of it where it lies, and stays out once it is up until it joins again.
+   */
+  setDown(piece: GameCharacter, down: boolean): void {
+    const wasIn = piece.engagementZone.length > 0;
+    GameObject.batch(() => {
+      piece.downed = down ? '1' : '';
+      if (down) {
+        piece.engagementZone = '';
+        piece.zoneLeaveRound = '';
+      }
+    });
+    this.settle([]);
+    if (down && wasIn) this.chat.sendSystemMessage(this.t('feature.zone.chat.down', { name: piece.name }));
+  }
+
+  /** Says that a piece is held fast where it stands, or that it may move again. */
+  setHeld(piece: GameCharacter, held: boolean): void {
+    piece.heldFast = held ? '1' : '';
+  }
+
+  /**
+   * Offers to declare a fight between a piece just put down and an enemy standing at the same point,
+   * where the room plays zones and the piece is in none.
+   */
+  offerFight(piece: GameCharacter): void {
+    const menu = this.menuOf(piece);
+    if (!menu.enabled || menu.zone || menu.down || menu.foes.length < 1) return;
+    const foe = this.objectStore.get<GameCharacter>(menu.foes[0].id);
+    if (!(foe instanceof GameCharacter)) return;
+    this.snackbar.show(this.t('feature.zone.offerFight', { name: piece.name, foe: foe.name }), {
+      action: { label: this.t('feature.zone.offerFightAction'), run: () => this.declare(piece, foe) },
+    });
   }
 
   /** Sets the most a zone may hold, or null for as many as the size table allows. */
@@ -341,7 +453,13 @@ export class EngagementZoneService {
       self && self.side !== null && !self.offField && here
         ? pieces
             .filter(
-              (other) => other.id !== self.id && !other.offField && other.side !== null && other.side !== self.side
+              (other) =>
+                other.id !== self.id &&
+                !other.offField &&
+                !other.down &&
+                !other.held &&
+                other.side !== null &&
+                other.side !== self.side
             )
             .filter((other) => {
               const there = state.pointOf(other.id);
@@ -350,11 +468,12 @@ export class EngagementZoneService {
             .map((other) => ({ id: other.id, name: this.objectStore.get<GameCharacter>(other.id)?.name ?? '' }))
         : [];
     const standing = own ? [] : state.insideOf(piece.identifier);
+    const acting = this.mayAct(piece);
     return {
       enabled: true,
       zone: zone ? { id: zone.identifier, square: zone.isSquare, limit: zone.limit } : null,
-      joinable: standing.map((view) => view.id),
-      foes: own ? [] : foes,
+      joinable: acting ? standing.map((view) => view.id) : [],
+      foes: own || !acting ? [] : foes,
       offField: piece.offField === '1',
       leave: own
         ? { said: piece.zoneLeaveRound !== '', maySay: !own.overflowing }
@@ -364,7 +483,20 @@ export class EngagementZoneService {
       aiming: pieces.some(
         (other) => other.id !== piece.identifier && this.objectStore.get<GameCharacter>(other.id)?.targeted
       ),
+      unseen: piece.unseen === '1',
+      down: piece.downed === '1',
+      held: piece.heldFast === '1',
     };
+  }
+
+  /** Whether a piece may act of its own will: not down, and not held fast where it stands. */
+  private mayAct(piece: GameCharacter): boolean {
+    return piece.downed !== '1' && piece.heldFast !== '1';
+  }
+
+  /** Whether nobody may stop a piece's move: nobody can see it, or it is making a move nobody may stop. */
+  private isUnstoppable(piece: GameCharacter): boolean {
+    return piece.unseen === '1' || piece.unstoppableMove === '1';
   }
 
   /** The kinds of move the room plays, the plain kind alone where it names none. */
@@ -399,20 +531,26 @@ export class EngagementZoneService {
     const counted = { side: mover.side, count: mover.count };
     const limits = { shut: [] as ZoneShape[], stops: [] as ZoneShape[], escapes: [] as ZoneShape[] };
 
+    if (!this.mayAct(piece)) return { startPoint: own?.shape.centre ?? null, noReach: true, ...limits };
     if (own && leaveReasonOf(this.leaveInput(own, mover, pieces, kindName, piece.zoneLeaveRound)) === 'held') {
       return { startPoint: own.shape.centre, noReach: true, ...limits };
     }
+    // Where the side a move runs into chooses whether to stop it, no zone ends the move of itself:
+    // the way is drawn on through, and stopped once it is walked if the side says so.
+    const ofItself = !this.stopsByChoice() && !this.isUnstoppable(piece);
     const standingIn = own ? [] : state.insideOf(piece.identifier);
     for (const zone of state.zones) {
       if (zone === own) continue;
       if (standingIn.includes(zone)) {
-        if (!mayEscape(this.leaveInput(zone, mover, pieces, kindName, piece.zoneLeaveRound))) {
+        if (ofItself && !mayEscape(this.leaveInput(zone, mover, pieces, kindName, piece.zoneLeaveRound))) {
           limits.escapes.push(zone.shape);
         }
         continue;
       }
       if (zone.occupants + mover.count > zone.limit) limits.shut.push(zone.shape);
-      else if (zoneHolds(this.countsOf(zone, pieces), counted, 'pass', ratio)) limits.stops.push(zone.shape);
+      else if (ofItself && zoneHolds(this.countsOf(zone, pieces), counted, 'pass', ratio)) {
+        limits.stops.push(zone.shape);
+      }
     }
     return { startPoint: own?.shape.centre ?? null, noReach: false, ...limits };
   }
@@ -439,31 +577,74 @@ export class EngagementZoneService {
   }
 
   /**
-   * Who could step into a move by this piece: every piece on another side that is in no zone, stands
-   * in none and is not out of the fight; with what the counting needs. Null where zones say nothing
-   * about this piece.
+   * Who could stop a move by this piece, by a kind of move.
+   *
+   * Outside every zone, any piece on another side that is in no zone, stands in none, is on the
+   * field and may act. Every zone the piece is not in that would hold it, as the sides in it count
+   * against the piece: walking into one, or out of one it stands in without having said it would
+   * leave; any piece of another side in such a zone may stop it there. And any piece of another side
+   * standing in such a zone without being in it, that may act, within its own reach inside the zone.
+   * Null where zones say nothing about this piece.
    */
-  interruptersOf(mover: GameCharacter): ZoneInterrupters | null {
+  interruptersOf(mover: GameCharacter, kindName = ''): ZoneInterrupters | null {
     const snapshot = this.snapshot();
     const moving = snapshot?.pieces.find((one) => one.id === mover.identifier);
     if (!snapshot || !moving || moving.side === null || moving.offField) return null;
     const { state, pieces, world } = snapshot;
-    const candidates = pieces
-      .filter(
-        (piece) =>
-          piece.id !== moving.id &&
-          piece.side !== null &&
-          piece.side !== moving.side &&
-          !piece.offField &&
-          !state.zoneOf(piece.id) &&
-          state.insideOf(piece.id).length < 1
-      )
-      .map((piece) => ({ id: piece.id, count: piece.count, point: piece.point }));
+    const ratio = world.rules.outnumber;
+    const counted = { side: moving.side, count: moving.count };
+    const hostile = (piece: ZonePieceInput) =>
+      piece.id !== moving.id &&
+      piece.side !== null &&
+      piece.side !== moving.side &&
+      !piece.offField &&
+      !piece.down &&
+      !piece.held;
+    const asInterrupter = (piece: ZonePieceInput): ZoneInterrupter => ({
+      id: piece.id,
+      count: piece.count,
+      point: piece.point,
+    });
+
+    const own = state.zoneOf(moving.id);
+    const standingIn = state.insideOf(moving.id);
+    const holding: ZoneHold[] = [];
+    for (const zone of state.zones) {
+      if (zone === own) continue;
+      const holds = standingIn.includes(zone)
+        ? !mayEscape(this.leaveInput(zone, moving, pieces, kindName, mover.zoneLeaveRound))
+        : zone.occupants + moving.count <= zone.limit && zoneHolds(this.countsOf(zone, pieces), counted, 'pass', ratio);
+      if (!holds) continue;
+      const members = zone.members
+        .map((id) => pieces.find((piece) => piece.id === id))
+        .filter((piece): piece is ZonePieceInput => !!piece && piece.side !== null && piece.side !== moving.side)
+        .map(asInterrupter);
+      if (members.length > 0) holding.push({ id: zone.id, shape: zone.shape, members });
+    }
+    const holdingIds = new Set(holding.map((zone) => zone.id));
+    const standing: ZoneStander[] = [];
+    const candidates: ZoneInterrupter[] = [];
+    for (const piece of pieces) {
+      if (!hostile(piece) || state.zoneOf(piece.id)) continue;
+      const inside = state.insideOf(piece.id);
+      if (inside.length < 1) {
+        candidates.push(asInterrupter(piece));
+        continue;
+      }
+      const zones = inside.map((zone) => zone.id).filter((id) => holdingIds.has(id));
+      if (zones.length > 0) standing.push({ ...asInterrupter(piece), zones });
+    }
     return {
       moverCount: moving.count,
+      unstoppable: this.isUnstoppable(mover),
       candidates,
       zones: state.zones.map((zone) => zone.shape),
-      ratio: world.rules.outnumber,
+      holding,
+      standing,
+      unseen: new Set(
+        pieces.filter((piece) => this.objectStore.get<GameCharacter>(piece.id)?.unseen === '1').map((piece) => piece.id)
+      ),
+      ratio,
       samePointPx: world.rules.samePointM * world.pxPerMetre,
     };
   }
@@ -524,6 +705,7 @@ export class EngagementZoneService {
     const snapshot = this.snapshot();
     const mover = snapshot?.pieces.find((one) => one.id === piece.identifier);
     if (!snapshot || !mover || mover.side === null) return true;
+    if (!this.mayAct(piece)) return false;
     const own = snapshot.state.zoneOf(piece.identifier);
     if (!own) return true;
     return leaveReasonOf(this.leaveInput(own, mover, snapshot.pieces, kindName, piece.zoneLeaveRound)) !== 'held';
@@ -552,11 +734,14 @@ export class EngagementZoneService {
   }
 
   /**
-   * Settles what a move did among the zones: a piece that walked out of its zone has left it; a piece
-   * held walking out of a zone it stood in, or walking into one that holds it, is pulled to that
-   * zone's centre and joins it.
+   * Settles what a move did among the zones: a piece that walked out of its zone has left it. Where
+   * zones stop moves of themselves, a piece held walking out of a zone it stood in, or walking into
+   * one that holds it, is pulled to that zone's centre and joins it; where the side a move runs into
+   * chooses, that was settled before the piece walked.
    */
   afterMove(piece: GameCharacter, start: ZoneMoveStart): void {
+    const unstoppable = this.isUnstoppable(piece);
+    if (piece.unstoppableMove !== '') piece.unstoppableMove = '';
     const snapshot = this.snapshot();
     if (!snapshot) return;
     const { state, pieces, world } = snapshot;
@@ -578,6 +763,10 @@ export class EngagementZoneService {
     const counted = { side: mover.side, count: mover.count };
     const ratio = world.rules.outnumber;
     const leftZones = state.zones.filter((zone) => start.inside.includes(zone.id) && !zoneCovers(zone.shape, point));
+    if (unstoppable || this.stopsByChoice()) {
+      if (leftZones.length > 0 && piece.zoneLeaveRound !== '') piece.zoneLeaveRound = '';
+      return;
+    }
     const heldBack = leftZones.find(
       (zone) => !mayEscape(this.leaveInput(zone, mover, pieces, start.kind, piece.zoneLeaveRound))
     );
@@ -661,6 +850,8 @@ export class EngagementZoneService {
         offField: piece.offField === '1',
         count: this.countOf(piece, world.rules),
         side: sideOf(piece),
+        down: piece.downed === '1',
+        held: piece.heldFast === '1',
       }));
     const zones = zonesOn(world.table).map((zone) => ({
       id: zone.identifier,

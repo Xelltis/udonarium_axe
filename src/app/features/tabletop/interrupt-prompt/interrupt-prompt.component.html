@@ -24,7 +24,27 @@
             (click)="toggle(piece.id)"
           >
             {{ piece.name }}
+            @if (piece.zones.length > 0) {
+              <span class="opacity-75" data-testid="interrupt-piece-zone">{{
+                (piece.member ? 'feature.zone.interrupt.inZone' : 'feature.zone.interrupt.standingInZone') | transloco
+              }}</span>
+            }
           </button>
+        }
+        @if ((choice()?.zones?.length ?? 0) > 1) {
+          <span class="text-ui-muted text-[0.86em]">{{ 'feature.zone.interrupt.pullInto' | transloco }}</span>
+          @for (zone of choice()!.zones; track zone.id) {
+            <button
+              type="button"
+              class="border-ui-border-panel cursor-pointer rounded-full border border-solid px-3 py-1 text-[0.86em]"
+              [class]="choice()!.zone === zone.id ? 'bg-ui-accent text-white' : 'text-ui-muted bg-transparent'"
+              [attr.aria-pressed]="choice()!.zone === zone.id"
+              data-testid="interrupt-zone"
+              (click)="chooseZone(zone.id)"
+            >
+              {{ 'feature.zone.interrupt.zoneOf' | transloco: { name: zone.name } }}
+            </button>
+          }
         }
         @if (range(); as range) {
           <label class="text-ui-muted flex items-center gap-1 text-[0.86em]">

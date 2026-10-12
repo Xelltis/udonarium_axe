@@ -578,6 +578,39 @@ describe('MovePlanService', () => {
     expect(walker.engagementZone).toBe(zone.identifier);
   });
 
+  it('walks a move nobody may stop through an engagement zone, and says it no longer is once walked', async () => {
+    Config.instance.zoneEnabled = true;
+    vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockReturnValue(null as never);
+    const zones = TestBed.inject(EngagementZoneService);
+    const foe = pieceAt(2, 2, 1);
+    foe.isNpc = true;
+    zones.declare(pieceAt(2, 2, 1), foe);
+    const walker = pieceAt(8, 2, 6);
+
+    service.begin(walker);
+    expect(service.unstoppableBand()).toEqual({ on: false, mayChange: true });
+    expect(service.setUnstoppable(true)).toBe(true);
+    expect(walker.unstoppableMove).toBe('1');
+    service.lookAt(4 * GRID + 10, 2 * GRID + 10);
+    await service.run();
+
+    expect(walker.engagementZone).toBe('');
+    expect(walker.unstoppableMove).toBe('');
+  });
+
+  it('offers no move nobody may stop where the room plays no zones, and forgets one called off', () => {
+    const piece = pieceAt(5, 5, 4);
+    service.begin(piece);
+    expect(service.unstoppableBand()).toBeNull();
+
+    Config.instance.zoneEnabled = true;
+    service.cancel();
+    service.begin(piece);
+    service.setUnstoppable(true);
+    service.cancel();
+    expect(piece.unstoppableMove).toBe('');
+  });
+
   it('puts the piece back where it began when the move is called off', () => {
     const piece = pieceAt(5, 5, 4);
     service.begin(piece);

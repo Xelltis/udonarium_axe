@@ -21,6 +21,7 @@ function plan(more: Partial<FreePlan> = {}): FreePlan {
     pxPerMetre: 50,
     kind: '',
     ended: false,
+    unstoppable: false,
     ...more,
   };
 }

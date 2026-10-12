@@ -7,8 +7,9 @@ import { TranslocoModule } from '@jsverse/transloco';
  * The band at the foot of the screen while a move waits for the room to step into it.
  *
  * The peer making the move is told how long it is waiting. A peer that answers for pieces that could
- * step in picks which of them do and where along the way, or lets the move by. A game master may
- * settle the wait at once, or let the move go on as though nobody had stepped in.
+ * step in picks which of them do and where along the way, and which zone they pull the piece into
+ * where pieces of more than one stop it, or lets the move by. A game master may settle the wait at
+ * once, or let the move go on as though nobody had stepped in.
  */
 @Component({
   selector: 'interrupt-prompt',
@@ -70,6 +71,10 @@ export class InterruptPromptComponent {
 
   protected toggle(pieceId: string): void {
     this.interrupts.togglePiece(pieceId);
+  }
+
+  protected chooseZone(zoneId: string): void {
+    this.interrupts.setZone(zoneId);
   }
 
   protected slide(event: Event): void {

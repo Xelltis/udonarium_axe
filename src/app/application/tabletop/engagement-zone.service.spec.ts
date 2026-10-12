@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { EngagementZoneService, metresPerCell } from '@axe/application/tabletop/engagement-zone.service';
 import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -44,6 +45,7 @@ describe('EngagementZoneService', () => {
     Config.instance.zoneLeaveKind = null;
     Config.instance.zoneOutnumber = null;
     Config.instance.zoneClearName = null;
+    Config.instance.interruptEnabled = false;
     vi.useRealTimers();
     vi.restoreAllMocks();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
@@ -335,6 +337,106 @@ describe('EngagementZoneService', () => {
       expect(said).toHaveLength(1);
     });
 
+    it('lets no zone end a move of itself where the side a move runs into chooses whether to stop it', () => {
+      Config.instance.interruptEnabled = true;
+      const { zone } = fight();
+      const walker = pieceAt(16, 10);
+      const stander = pieceAt(11, 10);
+
+      expect(service.reachTermsFor(walker, grid(), '')?.stops).toBeNull();
+      expect(service.reachTermsFor(stander, grid(), '')?.stops).toBeNull();
+      service.setLimit(zone.identifier, 3);
+      expect(service.reachTermsFor(walker, grid(), '')?.blocked?.get(cellOf(10, 10))).toBe(true);
+
+      const start = service.startOfMove(walker);
+      walker.location = { name: 'table', x: 11 * GRID, y: 10 * GRID };
+      service.afterMove(walker, start);
+      expect(walker.engagementZone).toBe('');
+    });
+
+    it('lets a piece nobody can see, or one making a move nobody may stop, walk through a zone unheld', () => {
+      fight();
+      const walker = pieceAt(16, 10);
+
+      walker.unseen = '1';
+      expect(service.reachTermsFor(walker, grid(), '')?.stops).toBeNull();
+      walker.unseen = '';
+      walker.unstoppableMove = '1';
+      expect(service.reachTermsFor(walker, grid(), '')?.stops).toBeNull();
+
+      const start = service.startOfMove(walker);
+      walker.location = { name: 'table', x: 11 * GRID, y: 10 * GRID };
+      service.afterMove(walker, start);
+      expect(walker.engagementZone).toBe('');
+      expect(walker.unstoppableMove).toBe('');
+    });
+
+    it('takes a piece that goes down out of its zone where it lies, and keeps it from moving or being fought', () => {
+      const { hero, foe, zone } = fight();
+      const other = pieceAt(10, 10);
+      service.join(other, zone.identifier);
+      said = [];
+
+      service.setDown(foe, true);
+
+      expect(foe.engagementZone).toBe('');
+      expect(
+        service
+          .stateNow()
+          .insideOf(foe.identifier)
+          .map((view) => view.id)
+      ).toEqual([]);
+      expect(service.mayMove(foe, '')).toBe(false);
+      expect(service.menuOf(foe).joinable).toEqual([]);
+      expect(service.menuOf(hero).foes).toEqual([]);
+      expect(said).toHaveLength(1);
+
+      service.setDown(foe, false);
+      expect(foe.engagementZone).toBe('');
+      expect(service.mayMove(foe, '')).toBe(true);
+    });
+
+    it('keeps a piece held fast from moving, and from being pulled in as its turn begins', () => {
+      const { zone } = fight();
+      service.setLimit(zone.identifier, 2);
+      const stander = pieceAt(11, 10);
+      service.setHeld(stander, true);
+
+      expect(service.mayMove(stander, '')).toBe(false);
+      expect(service.reachTermsFor(stander, grid(), '')?.noReach).toBe(true);
+      service.pullInAtTurnStart(stander.identifier);
+      expect(stander.engagementZone).toBe('');
+    });
+
+    it('pulls pieces into a zone onto its centre', () => {
+      const { zone } = fight();
+      const walker = pieceAt(14, 10);
+
+      service.pullInto(zone.identifier, [walker]);
+
+      expect(walker.engagementZone).toBe(zone.identifier);
+      expect(service.stateNow().zoneOf(walker.identifier)?.id).toBe(zone.identifier);
+    });
+
+    it('offers a fight with an enemy at the point a piece is put down on, and declares it when taken up', () => {
+      const snackbar = TestBed.inject(SnackbarService);
+      const shown = vi.spyOn(snackbar, 'show');
+      const hero = pieceAt(10, 10);
+      const foe = pieceAt(10, 10, true);
+
+      service.offerFight(hero);
+
+      expect(shown).toHaveBeenCalledOnce();
+      shown.mock.calls[0][1]!.action!.run();
+      expect(hero.engagementZone).not.toBe('');
+      expect(foe.engagementZone).toBe(hero.engagementZone);
+
+      shown.mockClear();
+      service.offerFight(hero);
+      service.offerFight(pieceAt(20, 20));
+      expect(shown).not.toHaveBeenCalled();
+    });
+
     it('leaves a piece that walked past nothing as it was', () => {
       fight();
       const walker = pieceAt(16, 10);
@@ -398,6 +500,14 @@ describe('EngagementZoneService', () => {
       expect(zone.isForming).toBe(true);
 
       TestBed.inject(TurnHooksService).turnEnded();
+
+      expect(zone.isForming).toBe(false);
+      TestBed.inject(TurnState).phase = 'idle';
+    });
+
+    it('forms at once while turns are kept, where it is asked to', () => {
+      TestBed.inject(TurnState).phase = 'acting';
+      const zone = service.formAt({ x: 5.5 * GRID, y: 5.5 * GRID }, [pieceAt(5, 5), pieceAt(5, 6, true)], true)!;
 
       expect(zone.isForming).toBe(false);
       TestBed.inject(TurnState).phase = 'idle';

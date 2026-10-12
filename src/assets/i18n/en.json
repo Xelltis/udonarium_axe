@@ -172,7 +172,11 @@
         "prepareLeave": "Say it will leave next turn",
         "cancelLeave": "Take back saying it will leave",
         "checkFire": "Check the line of fire",
-        "placement": "Set out the sides"
+        "placement": "Set out the sides",
+        "condition": "State of the piece",
+        "unseen": "Cannot be seen (moves cannot be stopped)",
+        "down": "Down (cannot act)",
+        "held": "Held fast where it stands"
       },
       "chat": {
         "declared": "{{attacker}} engaged {{target}}, and an engagement zone formed",
@@ -183,7 +187,8 @@
         "prepareLeave": "{{name}} said it will leave the engagement zone",
         "held": "{{name}} was held by the engagement zone",
         "interrupted": "{{names}} stepped into {{mover}}'s move",
-        "pulledIn": "{{name}} began its turn in an engagement zone holding more than its limit, and joined it"
+        "pulledIn": "{{name}} began its turn in an engagement zone holding more than its limit, and joined it",
+        "down": "{{name}} went down and is out of its engagement zone"
       },
       "settings": {
         "section": "Engagement zones",
@@ -202,7 +207,7 @@
         "leaveKindAny": "Any kind",
         "leaveKindHint": "A piece leaves a zone holding more than its limit at once by this kind of move.",
         "interrupt": "Let moves be stepped into",
-        "interruptHint": "Before a planned move is walked, the side of every enemy that can reach the way is asked whether to step in. A piece that steps in stops the move at that point, and a new engagement zone forms there with both. While turns are kept, it is forming until the turn ends.",
+        "interruptHint": "Before a planned move is walked, the side of every enemy that can reach the way is asked whether to step in. A piece that steps in stops the move at that point, and a new engagement zone forms there with both. While turns are kept, it is forming until the turn ends. A move into an engagement zone, or one out of a zone the piece stands in, is also put to the side in the zone, which chooses whether to stop it; a piece it stops moves to the centre and joins. A zone nobody can answer for, and every zone while this is off, always stops it.",
         "interruptKind": "Kind used to step in",
         "interruptKindFirst": "The first kind",
         "blockRadius": "Line of fire block radius (m)",
@@ -222,7 +227,11 @@
         "step": "Step in",
         "pass": "Let it by",
         "decideNow": "Decide now",
-        "drop": "Drop the interrupts"
+        "drop": "Drop the interrupts",
+        "inZone": "(in a zone)",
+        "standingInZone": "(standing in a zone)",
+        "pullInto": "Pull into",
+        "zoneOf": "{{name}}'s zone"
       },
       "fire": {
         "title": "Line of fire: {{name}}",
@@ -253,7 +262,11 @@
         "bearing_225": "Up left",
         "bearing_270": "Up",
         "bearing_315": "Up right"
-      }
+      },
+      "downInPlace": "{{name}} is down and cannot move",
+      "heldFastInPlace": "{{name}} is held fast where it stands",
+      "offerFight": "{{name}} stands at the same point as {{foe}}",
+      "offerFightAction": "Fight"
     },
     "firstPerson": {
       "exit": "Back to the table",
@@ -2650,7 +2663,9 @@
         "modeLabel": "How the move is taken",
         "kindLabel": "Kind of move",
         "plainKind": "Normal",
-        "metresLeft": "{{metres}} m left"
+        "metresLeft": "{{metres}} m left",
+        "unstoppable": "Unstoppable move",
+        "unstoppableHint": "Nobody can stop this move, by stepping in or by an engagement zone. Switch it before the first corner is set"
       },
       "displaySetting": {
         "title": "Tabletop display",

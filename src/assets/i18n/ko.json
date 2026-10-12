@@ -172,7 +172,11 @@
         "prepareLeave": "다음 차례에 이탈한다고 예고",
         "cancelLeave": "이탈 예고 취소",
         "checkFire": "사선 확인",
-        "placement": "초기 배치"
+        "placement": "초기 배치",
+        "condition": "말의 상태",
+        "unseen": "모습이 보이지 않음(이동을 막을 수 없음)",
+        "down": "쓰러져 있음(행동할 수 없음)",
+        "held": "그 자리에서 움직일 수 없음"
       },
       "chat": {
         "declared": "{{attacker}}이(가) {{target}}와(과) 교전하여 교전 구역이 생겼습니다",
@@ -183,7 +187,8 @@
         "prepareLeave": "{{name}}이(가) 교전 구역에서 이탈한다고 예고했습니다",
         "held": "{{name}}이(가) 교전 구역에 붙잡혔습니다",
         "interrupted": "{{names}}이(가) {{mover}}의 이동에 끼어들었습니다",
-        "pulledIn": "{{name}}이(가) 정원을 넘은 교전 구역 안에서 차례를 시작하여 구역에 가담했습니다"
+        "pulledIn": "{{name}}이(가) 정원을 넘은 교전 구역 안에서 차례를 시작하여 구역에 가담했습니다",
+        "down": "{{name}}이(가) 쓰러져 교전 구역에서 빠졌습니다"
       },
       "settings": {
         "section": "교전 구역",
@@ -202,7 +207,7 @@
         "leaveKindAny": "어떤 종류든",
         "leaveKindHint": "정원을 넘은 구역에서는 이 이동 종류로 바로 이탈할 수 있습니다.",
         "interrupt": "이동 끼어들기 사용",
-        "interruptHint": "경로를 정해 움직일 때, 걷기 전에 경로에 닿는 적 쪽에 끼어들지 묻습니다. 끼어들면 그 지점에서 이동이 멈추고, 끼어든 말과 함께 새 교전 구역이 생깁니다. 차례를 돌리는 동안에는 차례가 끝날 때까지 형성 중입니다.",
+        "interruptHint": "경로를 정해 움직일 때, 걷기 전에 경로에 닿는 적 쪽에 끼어들지 묻습니다. 끼어들면 그 지점에서 이동이 멈추고, 끼어든 말과 함께 새 교전 구역이 생깁니다. 차례를 돌리는 동안에는 차례가 끝날 때까지 형성 중입니다. 교전 구역으로 들어가는 이동이나 구역 안에서 움직이는 이동도 구역 쪽이 막을지 고릅니다. 막으면 움직인 말은 구역의 중심으로 옮겨져 합류합니다. 응답할 사람이 없는 구역과 이 설정이 꺼져 있을 때는 구역이 항상 막습니다.",
         "interruptKind": "끼어들기에 쓰는 종류",
         "interruptKindFirst": "맨 앞 종류",
         "blockRadius": "사선을 가로막는 반경(m)",
@@ -222,7 +227,11 @@
         "step": "끼어들기",
         "pass": "끼어들지 않음",
         "decideNow": "지금 결정",
-        "drop": "끼어들기 취소"
+        "drop": "끼어들기 취소",
+        "inZone": "(구역)",
+        "standingInZone": "(구역 안)",
+        "pullInto": "끌어들일 곳",
+        "zoneOf": "{{name}}의 구역"
       },
       "fire": {
         "title": "사선 확인: {{name}}",
@@ -253,7 +262,11 @@
         "bearing_225": "왼쪽 위",
         "bearing_270": "위",
         "bearing_315": "오른쪽 위"
-      }
+      },
+      "downInPlace": "{{name}}은(는) 쓰러져 있어 움직일 수 없습니다",
+      "heldFastInPlace": "{{name}}은(는) 그 자리에서 움직일 수 없습니다",
+      "offerFight": "{{name}}은(는) {{foe}}와(과) 같은 지점에 있습니다",
+      "offerFightAction": "교전하기"
     },
     "firstPerson": {
       "exit": "테이블로 돌아가기",
@@ -2650,7 +2663,9 @@
         "modeLabel": "이동 방식",
         "kindLabel": "이동 종류",
         "plainKind": "보통",
-        "metresLeft": "남은 거리 {{metres}}m"
+        "metresLeft": "남은 거리 {{metres}}m",
+        "unstoppable": "막을 수 없는 이동",
+        "unstoppableHint": "이 이동은 끼어들기로도 교전 구역으로도 막을 수 없습니다. 첫 모퉁이를 정하기 전에 전환합니다"
       },
       "displaySetting": {
         "title": "탁상 디스플레이",

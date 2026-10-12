@@ -73,6 +73,29 @@ export function litSpans(
     .filter((span) => span.to >= span.from);
 }
 
+/**
+ * The stretches of a way inside any of the shapes, leaving out the spot the way sets out from: where
+ * a piece in a zone, or standing in one, could stop the piece walking it.
+ */
+export function spansWithin(path: readonly MovePoint[], shapes: readonly ZoneShape[]): PathSpan[] {
+  const spans: PathSpan[] = [];
+  let walked = 0;
+  for (let index = 1; index < path.length; index++) {
+    const from = path[index - 1];
+    const to = path[index];
+    const leg = Math.hypot(to.x - from.x, to.y - from.y);
+    if (leg <= 0) continue;
+    for (const shape of shapes) {
+      const inside = insideRange(from, to, shape);
+      if (inside) spans.push({ from: walked + inside[0] * leg, to: walked + inside[1] * leg });
+    }
+    walked += leg;
+  }
+  return mergeSpans(spans)
+    .map((span) => ({ from: Math.max(span.from, SET_OUT_PX), to: span.to }))
+    .filter((span) => span.to >= span.from);
+}
+
 /** The fractions of a straight leg inside a shape, or null where none of it is. */
 function insideRange(from: MovePoint, to: MovePoint, shape: ZoneShape): [number, number] | null {
   const startsIn = zoneCovers(shape, from);

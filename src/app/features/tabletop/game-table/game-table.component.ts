@@ -1289,6 +1289,16 @@ export class GameTableComponent {
   /** The kinds of move the room plays, offered while a move is worked out, and how far the chosen one has left. */
   protected readonly moveKindBand = this.movePlan.kindBand;
 
+  /** Whether the move being worked out is one nobody may stop, offered where the room plays zones. */
+  protected readonly moveUnstoppableBand = this.movePlan.unstoppableBand;
+
+  /** Makes the move one nobody may stop, or not, from the band, kept off the table underneath. */
+  onToggleUnstoppable(on: boolean, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.movePlan.setUnstoppable(on);
+  }
+
   /** Chooses the kind of move from the band, which is kept off the table underneath like the mode is. */
   onChooseMoveKind(kind: string, event: Event): void {
     event.preventDefault();

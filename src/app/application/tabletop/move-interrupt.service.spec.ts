@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { FreeMovePlanService } from '@axe/application/tabletop/free-move-plan.service';
 import {
   INTERRUPT_WAIT_MS,
@@ -15,6 +16,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { zonesOn } from '@axe/domain/tabletop/zone/engagement-zone';
+import { pointAtLength } from '@axe/domain/tabletop/zone/interrupt';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const GRID = 50;
@@ -50,6 +52,7 @@ describe('MoveInterruptService', () => {
     Config.instance.zoneEnabled = null;
     Config.instance.interruptEnabled = false;
     Config.instance.zoneCountField = null;
+    Config.instance.zoneSizes = null;
     vi.useRealTimers();
     vi.restoreAllMocks();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
@@ -66,6 +69,13 @@ describe('MoveInterruptService', () => {
   const middleOf = (col: number, row: number) => ({ x: (col + 0.5) * GRID, y: (row + 0.5) * GRID });
   /** A way along a row, from one column to another. */
   const WAY = [middleOf(2, 2), middleOf(8, 2)];
+
+  /** Says on this peer's cursor that a piece is being moved along a way, as a plan being worked out does. */
+  function moving(piece: GameCharacter, way: readonly { x: number; y: number }[] = WAY): void {
+    PeerCursor.myCursor.movingCharacterIdentifier = piece.identifier;
+    PeerCursor.myCursor.movingTableIdentifier = table.identifier;
+    PeerCursor.myCursor.movingPoints = way.map((point) => `${point.x},${point.y}`).join(' ');
+  }
 
   /** Lets the waiting move look for its answers. */
   async function look(): Promise<void> {
@@ -106,7 +116,7 @@ describe('MoveInterruptService', () => {
     service.answer();
     await look();
 
-    expect(outcome).toEqual({ along: 120, pieces: [foe.identifier] });
+    expect(outcome).toEqual({ along: 120, pieces: [foe.identifier], zone: '', pullsIn: false, atOnce: false });
     expect(PeerCursor.myCursor.movingDeclared).toBe('');
     expect(service.waiting()).toBeNull();
   });
@@ -161,7 +171,7 @@ describe('MoveInterruptService', () => {
     owner.interruptAnswer = `${PeerCursor.myCursor.movingDeclared}|100|${foe.identifier}`;
     await look();
 
-    expect(outcome).toEqual({ along: 100, pieces: [foe.identifier] });
+    expect(outcome).toEqual({ along: 100, pieces: [foe.identifier], zone: '', pullsIn: false, atOnce: false });
   });
 
   it('lets a game master let the move go on as though nobody had stepped in', async () => {
@@ -247,5 +257,178 @@ describe('MoveInterruptService', () => {
     expect(hero.location.x).toBe(5 * GRID);
     expect(hero.engagementZone).not.toBe('');
     expect(foe.engagementZone).toBe(hero.engagementZone);
+  });
+
+  describe('a zone the move runs into', () => {
+    /** Zones two metres across whoever is in them, so where they stand along the row is plain. */
+    beforeEach(() => {
+      Config.instance.zoneSizes = '20:2:4';
+    });
+
+    function zoneAt(col: number, row: number): { friend: GameCharacter; foe: GameCharacter; zone: string } {
+      const zones = TestBed.inject(EngagementZoneService);
+      const friend = pieceAt(col, row, 2);
+      const foe = pieceAt(col, row, 2, true);
+      const zone = zones.declare(friend, foe)!;
+      return { friend, foe, zone: zone.identifier };
+    }
+
+    it('is offered to whoever answers for an enemy in it, and pulls the piece to its centre where they stop it', async () => {
+      const { foe, zone } = zoneAt(6, 2);
+      const hero = pieceAt(2, 2, 6);
+      moving(hero);
+
+      let outcome: InterruptOutcome | null | undefined;
+      void service.negotiate(hero, WAY).then((result) => (outcome = result));
+      TestBed.tick();
+      expect(service.offer()?.pieces.map((piece) => [piece.id, piece.member])).toEqual([[foe.identifier, true]]);
+      expect(service.choice()?.zone).toBe(zone);
+      service.answer();
+      await look();
+
+      expect(outcome).toEqual({ along: 100, pieces: [foe.identifier], zone, pullsIn: true, atOnce: true });
+      service.settle(hero, outcome!, middleOf(4, 2));
+      expect(hero.engagementZone).toBe(zone);
+      expect(zonesOn(table)).toHaveLength(1);
+    });
+
+    it('lets the piece walk through where the side in it lets it by', async () => {
+      zoneAt(6, 2);
+      const hero = pieceAt(2, 2, 6);
+      moving(hero);
+
+      const negotiated = service.negotiate(hero, WAY);
+      TestBed.tick();
+      service.pass();
+      await look();
+
+      expect(await negotiated).toBeNull();
+    });
+
+    it('stops the piece of itself, where it first runs in, while nobody here can answer for it', async () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      const { foe, zone } = zoneAt(6, 2);
+      const hero = pieceAt(2, 2, 6);
+
+      expect(await service.negotiate(hero, WAY)).toEqual({
+        along: 100,
+        pieces: [foe.identifier],
+        zone,
+        pullsIn: true,
+        atOnce: true,
+      });
+      expect(PeerCursor.myCursor.movingDeclared).toBe('');
+    });
+
+    it('lets a piece standing in it stop the piece within its own reach inside it, making a zone that joins it', async () => {
+      const { zone } = zoneAt(5, 3);
+      const stander = pieceAt(4, 3, 2, true);
+      const hero = pieceAt(2, 2, 6);
+      moving(hero);
+
+      let outcome: InterruptOutcome | null | undefined;
+      void service.negotiate(hero, WAY).then((result) => (outcome = result));
+      TestBed.tick();
+      const offered = service.offer()!.pieces;
+      expect(offered.find((piece) => piece.id === stander.identifier)?.member).toBe(false);
+      service.togglePiece(stander.identifier);
+      service.togglePiece(offered.find((piece) => piece.member)!.id);
+      service.setAlong(100);
+      expect(service.choice()?.pieces).toEqual([stander.identifier]);
+      service.answer();
+      await look();
+
+      expect(outcome).toMatchObject({ pieces: [stander.identifier], zone, pullsIn: false, atOnce: true });
+      service.settle(hero, outcome!, pointAtLength(WAY, outcome!.along));
+      const zones = zonesOn(table);
+      expect(zones).toHaveLength(1);
+      expect(hero.engagementZone).toBe(zones[0].identifier);
+      expect(stander.engagementZone).toBe(zones[0].identifier);
+    });
+
+    it('pulls the piece into whichever zone the answer names, where pieces of two zones stop it together', async () => {
+      const first = zoneAt(3, 2);
+      const second = zoneAt(6, 2);
+      const hero = pieceAt(2, 2, 6);
+      moving(hero);
+
+      let outcome: InterruptOutcome | null | undefined;
+      void service.negotiate(hero, WAY).then((result) => (outcome = result));
+      TestBed.tick();
+      for (const piece of service.offer()!.pieces) {
+        if (!service.choice()!.pieces.includes(piece.id)) service.togglePiece(piece.id);
+      }
+      expect(service.choice()?.pieces).toHaveLength(2);
+      expect(
+        service
+          .choice()
+          ?.zones.map((zone) => zone.id)
+          .sort()
+      ).toEqual([first.zone, second.zone].sort());
+      service.setZone(second.zone);
+      service.answer();
+      await look();
+
+      expect(outcome).toMatchObject({ zone: second.zone, pullsIn: true });
+      service.settle(hero, outcome!, pointAtLength(WAY, outcome!.along));
+      expect(hero.engagementZone).toBe(second.zone);
+      expect(first.foe.engagementZone).toBe(first.zone);
+    });
+
+    it('is offered a piece standing in it that moves inside it, and not one that said it would leave', async () => {
+      const { foe } = zoneAt(5, 2);
+      const hero = pieceAt(4, 2, 6);
+      const within = [middleOf(4, 2), middleOf(5, 2)];
+      moving(hero, within);
+
+      const negotiated = service.negotiate(hero, within);
+      TestBed.tick();
+      expect(service.offer()?.pieces.map((piece) => piece.id)).toEqual([foe.identifier]);
+      service.pass();
+      await look();
+      await negotiated;
+
+      hero.zoneLeaveRound = '0';
+      expect(await service.negotiate(hero, within)).toBeNull();
+    });
+  });
+
+  describe('a piece nobody can see', () => {
+    it('is never stopped, nor is a move nobody may stop', async () => {
+      const hero = pieceAt(2, 2, 6);
+      pieceAt(5, 3, 2, true);
+
+      hero.unseen = '1';
+      expect(await service.negotiate(hero, WAY)).toBeNull();
+      hero.unseen = '';
+      hero.unstoppableMove = '1';
+      expect(await service.negotiate(hero, WAY)).toBeNull();
+      expect(PeerCursor.myCursor.movingDeclared).toBe('');
+    });
+
+    it('makes the zone there and then where it stops a move', async () => {
+      const hero = pieceAt(2, 2, 6);
+      const foe = pieceAt(5, 3, 2, true);
+      foe.unseen = '1';
+      moving(hero);
+
+      let outcome: InterruptOutcome | null | undefined;
+      void service.negotiate(hero, WAY).then((result) => (outcome = result));
+      TestBed.tick();
+      service.answer();
+      await look();
+
+      expect(outcome).toMatchObject({ pieces: [foe.identifier], zone: '', atOnce: true });
+    });
+  });
+
+  it('does not let a piece that is down or held fast step in', async () => {
+    const hero = pieceAt(2, 2, 6);
+    const down = pieceAt(5, 3, 2, true);
+    const held = pieceAt(6, 3, 2, true);
+    down.downed = '1';
+    held.heldFast = '1';
+
+    expect(await service.negotiate(hero, WAY)).toBeNull();
   });
 });

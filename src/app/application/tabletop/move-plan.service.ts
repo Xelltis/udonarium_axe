@@ -48,6 +48,14 @@ export interface MovePlan {
   waypoints: number[];
   /** The name of the kind of move being made, empty for the room's first or plain kind. */
   kind: string;
+  /** Whether the move is one nobody may stop. */
+  unstoppable: boolean;
+}
+
+/** Whether the move being worked out is one nobody may stop, and whether that may still be changed. */
+export interface UnstoppableBand {
+  readonly on: boolean;
+  readonly mayChange: boolean;
 }
 
 /** The kinds of move offered while a move is worked out, and how far the chosen one has left. */
@@ -131,6 +139,16 @@ export class MovePlanService {
     };
   });
 
+  /**
+   * Whether the move being worked out is one nobody may stop, offered where the room plays zones;
+   * chosen before the first leg is settled, like the kind.
+   */
+  readonly unstoppableBand = computed<UnstoppableBand | null>(() => {
+    const plan = this.held();
+    if (!plan || !this.zones.isEnabled()) return null;
+    return { on: plan.unstoppable, mayChange: plan.settled.length < 2 };
+  });
+
   constructor() {
     // A move being worked out is one the whole table waits on, so it is drawn on every screen
     // rather than only the mover's. It leaves the room's sight the moment the move is over.
@@ -183,6 +201,7 @@ export class MovePlanService {
     if (this.walking) return false;
     const kind = this.zones.kindFor(character, kindName);
     if (kind === null) return false;
+    if (character.unstoppableMove !== '') character.unstoppableMove = '';
     const terms = this.moveRange.termsOf(character, kind);
     if (!terms) return false;
     this.terms = terms;
@@ -196,6 +215,37 @@ export class MovePlanService {
       characterIdentifier: character.identifier,
       grid: terms.grid,
       origin: { x: character.location.x, y: character.location.y, z: character.posZ },
+      from: terms.start,
+      settled: [terms.start],
+      ahead: [],
+      spent: 0,
+      budget: terms.walk,
+      cornersCut: 0,
+      reach: terms.cells,
+      waypoints: [],
+      jumping: false,
+      unstoppable: false,
+    });
+    return true;
+  }
+
+  /**
+   * Makes the move being worked out one nobody may stop, or one that may be stopped again, while no
+   * leg of it has been settled yet; answers whether it changed. The reach is worked out afresh, as
+   * zones that would end the move no longer do.
+   */
+  setUnstoppable(on: boolean): boolean {
+    const plan = this.held();
+    if (!plan || this.walking || plan.settled.length > 1 || plan.unstoppable === on) return false;
+    const character = this.objectStore.get<GameCharacter>(plan.characterIdentifier);
+    if (!(character instanceof GameCharacter)) return false;
+    character.unstoppableMove = on ? '1' : '';
+    const terms = this.moveRange.termsOf(character, plan.kind);
+    if (!terms) return false;
+    this.terms = terms;
+    this.held.set({
+      ...plan,
+      unstoppable: on,
       from: terms.start,
       settled: [terms.start],
       ahead: [],
@@ -404,7 +454,7 @@ export class MovePlanService {
     let stopped: { outcome: InterruptOutcome; point: CellPoint } | null = null;
     try {
       const points = way.map((cell) => cellCenterOf(plan.grid, cell));
-      const outcome = await this.interrupts.negotiate(character, points);
+      const outcome = await this.interrupts.negotiate(character, points, plan.kind);
       const end = outcome ? indexAtLength(points, outcome.along) : way.length - 1;
       if (outcome) stopped = { outcome, point: points[end] };
       const steps = way.slice(1, end + 1);
@@ -420,6 +470,7 @@ export class MovePlanService {
     this.close();
     if (start) this.zones.afterMove(character, start);
     if (stopped) this.interrupts.settle(character, stopped.outcome, stopped.point);
+    else this.zones.offerFight(character);
     return true;
   }
 
@@ -432,6 +483,7 @@ export class MovePlanService {
       character.location.x = plan.origin.x;
       character.location.y = plan.origin.y;
       character.posZ = plan.origin.z;
+      if (character.unstoppableMove !== '') character.unstoppableMove = '';
       character.update();
     }
     this.close();

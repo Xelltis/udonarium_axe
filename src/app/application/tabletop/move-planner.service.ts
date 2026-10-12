@@ -1,6 +1,6 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { FreeMovePlanService } from '@axe/application/tabletop/free-move-plan.service';
-import { MoveKindBand, MovePlanService } from '@axe/application/tabletop/move-plan.service';
+import { MoveKindBand, MovePlanService, UnstoppableBand } from '@axe/application/tabletop/move-plan.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 
 /**
@@ -25,6 +25,10 @@ export class MovePlannerService {
   readonly openings = computed(() => this.cells.openings() + this.free.openings());
   /** The kinds of move offered while a move is worked out, and how far the chosen one has left. */
   readonly kindBand = computed<MoveKindBand | null>(() => this.free.kindBand() ?? this.cells.kindBand());
+  /** Whether the move being worked out is one nobody may stop, and whether that may still be changed. */
+  readonly unstoppableBand = computed<UnstoppableBand | null>(
+    () => this.free.unstoppableBand() ?? this.cells.unstoppableBand()
+  );
   /** The piece whose move is being worked out, or null. */
   readonly movingIdentifier = computed(
     () => this.free.plan()?.characterIdentifier ?? this.cells.plan()?.characterIdentifier ?? null
@@ -80,5 +84,10 @@ export class MovePlannerService {
   /** Changes the kind of move being worked out, until the first corner is settled. */
   setKind(kindName: string): boolean {
     return this.free.isPlanning() ? this.free.setKind(kindName) : this.cells.setKind(kindName);
+  }
+
+  /** Makes the move being worked out one nobody may stop, or not, until the first corner is settled. */
+  setUnstoppable(on: boolean): boolean {
+    return this.free.isPlanning() ? this.free.setUnstoppable(on) : this.cells.setUnstoppable(on);
   }
 }

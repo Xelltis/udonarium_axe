@@ -1254,6 +1254,9 @@ export class GameCharacterComponent {
         prepareLeave: () => zones.prepareLeave(char),
         cancelLeave: () => zones.cancelLeave(char),
         toggleOffField: () => zones.toggleOffField(char),
+        setUnseen: (unseen) => zones.setUnseen(char, unseen),
+        setDown: (down) => zones.setDown(char, down),
+        setHeld: (held) => zones.setHeld(char, held),
         setSquare: (zoneId, square) => zones.setSquare(zoneId, square),
         setLimit: (zoneId, limit) => zones.setLimit(zoneId, limit),
         remove: (zoneId) => zones.remove(zoneId),
@@ -1588,7 +1591,13 @@ export class GameCharacterComponent {
     if (!this.movePlan.begin(character)) {
       if (this.isHeldByZone(character)) {
         queueMicrotask(() => this.movableRef()?.cancel());
-        this.snackbar.show(this.translateFn('feature.zone.heldInPlace', { name: character.name }));
+        const why =
+          character.downed === '1'
+            ? 'feature.zone.downInPlace'
+            : character.heldFast === '1'
+              ? 'feature.zone.heldFastInPlace'
+              : 'feature.zone.heldInPlace';
+        this.snackbar.show(this.translateFn(why, { name: character.name }));
       }
       return;
     }
@@ -1637,7 +1646,9 @@ export class GameCharacterComponent {
     this.onMoved();
     this.moveRangeService.hide();
     const character = this.gameCharacter();
-    if (character) this.triggerFire.putDown(character);
+    if (!character) return;
+    this.triggerFire.putDown(character);
+    this.engagementZones.offerFight(character);
   }
 
   /** Hides the move range once the press on the piece ends, whether or not it was dragged. */

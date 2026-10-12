@@ -72,6 +72,17 @@ export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() offField: string = '';
   /** The round the piece said it would leave its zone in, empty where it has not; `0` while no round is kept. */
   @SyncVar() zoneLeaveRound: string = '';
+  /**
+   * `1` while nobody can see the piece: no move of it can be stopped, and a move it stops makes a zone
+   * there and then; empty otherwise.
+   */
+  @SyncVar() unseen: string = '';
+  /** `1` while the piece is down and cannot act, which keeps it out of every zone; empty otherwise. */
+  @SyncVar() downed: string = '';
+  /** `1` while the piece is held fast where it stands and cannot move; empty otherwise. */
+  @SyncVar() heldFast: string = '';
+  /** `1` while the move being worked out for the piece is one nobody may stop; empty otherwise. */
+  @SyncVar() unstoppableMove: string = '';
   @SyncVar() disclosureMode: string = '';
   @SyncVar() disclosureUserIds: string[] = [];
   @SyncVar() overViewWidth: number = 270;
