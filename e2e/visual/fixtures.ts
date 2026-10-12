@@ -5,6 +5,11 @@ import { waitAppReady } from '../helpers';
 export async function prepare(page: Page) {
   await page.addInitScript(() => {
     let seed = 0x2f6e2b1;
+    Object.assign(window, {
+      reseedRandom: (next: number) => {
+        seed = next;
+      },
+    });
     Math.random = () => {
       seed = (seed + 0x6d2b79f5) | 0;
       let t = seed ^ (seed >>> 15);
@@ -23,6 +28,16 @@ export async function prepare(page: Page) {
     localStorage.removeItem('ui-widget-layout');
   });
   await waitAppReady(page);
+}
+
+/**
+ * Starts the page's randomness over from a seed. Every change to a synced object draws on it, so
+ * the numbers a scene comes to otherwise shift with whatever else the page did beforehand.
+ */
+export async function reseedRandom(page: Page, seed = 0x2f6e2b1) {
+  await page.evaluate((next) => {
+    (window as unknown as { reseedRandom(seed: number): void }).reseedRandom(next);
+  }, seed);
 }
 
 export async function becomeGm(page: Page) {
