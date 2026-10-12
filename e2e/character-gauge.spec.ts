@@ -74,6 +74,14 @@ async function settledBoxes(badge: Locator, inner: string) {
   }, inner);
 }
 
+/**
+ * The buff rows a piece shows in detail, one per buff: the buffs are kept in a container, which is
+ * drawn as a block of its own around them.
+ */
+function buffRows(piece: Locator): Locator {
+  return piece.locator('[game-data-element-buff]:not(:has([game-data-element-buff]))').filter({ hasText: 'R' });
+}
+
 test.describe('コマの頭上表示', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
@@ -167,7 +175,7 @@ test.describe('コマの頭上表示', () => {
 
     await selectBuffView(page, '詳細');
     await expect(badges).toHaveCount(0, { timeout: 5000 });
-    await expect(piece.locator('[game-data-element-buff]').filter({ hasText: 'R' }).first()).toBeVisible({
+    await expect(buffRows(piece).first()).toBeVisible({
       timeout: 5000,
     });
 
@@ -257,7 +265,7 @@ test.describe('コマの頭上表示', () => {
     const piece = newCharacterPiece(page);
     await selectBuffView(page, '詳細');
 
-    const rows = piece.locator('[game-data-element-buff]').filter({ hasText: 'R' });
+    const rows = buffRows(piece);
     await expect(rows.first()).toBeVisible({ timeout: 5000 });
 
     const gauge = await box(piece.locator('[data-testid="piece-gauge"]').first());
@@ -290,7 +298,7 @@ test.describe('コマの頭上表示', () => {
     const piece = newCharacterPiece(page);
     await selectBuffView(page, '詳細');
 
-    const rows = piece.locator('[game-data-element-buff]').filter({ hasText: 'R' });
+    const rows = buffRows(piece);
     await expect(rows.first()).toBeVisible({ timeout: 5000 });
 
     const count = await rows.count();
