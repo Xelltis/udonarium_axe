@@ -44,14 +44,37 @@ export function cargoRoomOf(written: string): number {
   return written.trim() !== '' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
 
+/** What tells how tall a mount stands. */
+export interface MountBody {
+  /** How many cells across its base is. */
+  readonly size: number;
+  /** Whether its picture is given a height of its own rather than standing as wide as its base. */
+  readonly specifyKomaImageFlag: boolean;
+  /** The height its picture is given, in pixels, which counts only where it is given one. */
+  readonly komaImageHeight: number;
+}
+
+/**
+ * How tall a mount stands, in cells: as tall as its picture where the piece is given a height of
+ * its own, which is how a towering piece is usually made, and as tall as its base is wide where it
+ * is not.
+ */
+export function mountHeightOf(mount: MountBody, gridSizePx: number): number {
+  const picture = Number(mount.komaImageHeight);
+  if (mount.specifyKomaImageFlag === true && gridSizePx > 0 && Number.isFinite(picture) && picture > 0) {
+    return picture / gridSizePx;
+  }
+  return Math.max(0, mount.size);
+}
+
 /**
  * How high above a mount's base the one riding it stands, in cells: as written down, or half the
- * mount's size where nothing readable is.
+ * mount's height, as `mountHeightOf` gives it, where nothing readable is.
  */
-export function seatHeightOf(written: string, size: number): number {
+export function seatHeightOf(written: string, height: number): number {
   const value = Number(written);
   if (written.trim() !== '' && Number.isFinite(value) && value >= 0) return value;
-  return Math.max(0, size) / 2;
+  return Math.max(0, height) / 2;
 }
 
 /** Why a piece may not ride in front of a mount, or null where it may. */

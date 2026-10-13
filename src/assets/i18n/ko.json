@@ -5249,7 +5249,7 @@
         "cargoNone": "실을 수 없음",
         "anyone": "기능이 없어도 탈 수 있음",
         "seatHeight": "타는 높이",
-        "seatHeightDefault": "크기의 절반",
+        "seatHeightDefault": "높이의 절반",
         "seatHeightCells": "{{cells}}칸",
         "prone": "넘어져 있음",
         "refusal_fellThisTurn": "(이번 차례에 넘어짐)",

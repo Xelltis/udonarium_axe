@@ -8,6 +8,7 @@ import {
   frontRefusal,
   frontRidersOf,
   inTheWayOf,
+  mountHeightOf,
   rideChangeRefusal,
   rideMoveRefusal,
   roundOfMark,
@@ -52,6 +53,17 @@ describe('riding a mount', () => {
     expect(seatHeightOf('1.5', 2)).toBe(1.5);
     expect(seatHeightOf('0', 2)).toBe(0);
     expect(seatHeightOf('x', 3)).toBe(1.5);
+  });
+
+  it('measures a mount by its picture where the piece is given a height, and by its base where it is not', () => {
+    const mount = { size: 2, specifyKomaImageFlag: true, komaImageHeight: 500 };
+
+    expect(mountHeightOf(mount, 50)).toBe(10);
+    expect(seatHeightOf('', mountHeightOf(mount, 50))).toBe(5);
+    expect(mountHeightOf({ ...mount, specifyKomaImageFlag: false }, 50)).toBe(2);
+    expect(mountHeightOf({ ...mount, komaImageHeight: 0 }, 50)).toBe(2);
+    expect(mountHeightOf({ ...mount, komaImageHeight: Number('') }, 50)).toBe(2);
+    expect(mountHeightOf(mount, 0)).toBe(2);
   });
 
   it('lets anybody steer where the room names no skill for it, and only the skilled where it does', () => {

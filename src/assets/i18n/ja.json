@@ -4973,7 +4973,7 @@
         "cargoNone": "積めない",
         "anyone": "技能がなくても乗れる",
         "seatHeight": "乗る高さ",
-        "seatHeightDefault": "大きさの半分",
+        "seatHeightDefault": "高さの半分",
         "seatHeightCells": "{{cells}}マス",
         "prone": "転んでいる",
         "refusal_fellThisTurn": "（この手番に転んだ）",

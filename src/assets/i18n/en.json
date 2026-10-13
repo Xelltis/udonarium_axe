@@ -4973,7 +4973,7 @@
         "cargoNone": "None",
         "anyone": "Anybody may ride",
         "seatHeight": "Rider height",
-        "seatHeightDefault": "Half its size",
+        "seatHeightDefault": "Half its height",
         "seatHeightCells": "{{cells}} cells",
         "prone": "Fallen over",
         "refusal_fellThisTurn": " (fell this turn)",

@@ -22,6 +22,7 @@ import {
   freeSeats,
   FrontRefusal,
   frontRefusal,
+  mountHeightOf,
   RideChangeRefusal,
   rideChangeRefusal,
   RideMoveRefusal,
@@ -155,9 +156,13 @@ export class RideService {
     return piece;
   }
 
-  /** How high above a mount's base its riders stand, in cells. */
+  /**
+   * How high above a mount's base its riders stand, in cells: half the mount's height unless one is
+   * written down.
+   */
   seatHeight(mount: GameCharacter): number {
-    return seatHeightOf(mount.mountSeatHeight, mount.size);
+    const gridSize = this.tableSelecter.viewTable?.gridSize ?? 50;
+    return seatHeightOf(mount.mountSeatHeight, mountHeightOf(mount, gridSize));
   }
 
   /** What a piece's menu offers about riding. */
