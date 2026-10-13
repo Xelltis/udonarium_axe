@@ -1364,7 +1364,7 @@ describe('Jukebox', () => {
 
       jukebox.setEffects({ filter: -0.5, echo: 0.3, reverb: 0 });
 
-      expect(JSON.parse(jukebox.fx)).toEqual({ filter: -0.5, echo: 0.3 });
+      expect(JSON.parse(jukebox.fx ?? '')).toEqual({ filter: -0.5, echo: 0.3 });
       expect(setEffects).toHaveBeenLastCalledWith(
         { filter: -0.5, echo: 0.3, reverb: 0, echoDelayS: expect.closeTo(0.45, 9) },
         0.05

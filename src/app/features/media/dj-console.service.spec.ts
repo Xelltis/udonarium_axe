@@ -182,11 +182,11 @@ describe('DjConsoleService', () => {
 
         vi.advanceTimersByTime(EFFECTS_SHARE_MS);
         expect(shared).toHaveBeenCalledOnce();
-        expect(JSON.parse(jukebox.fx)).toEqual({ filter: -0.4 });
+        expect(JSON.parse(jukebox.fx ?? '')).toEqual({ filter: -0.4 });
 
         dj.setEffect('echo', 0.5, true);
         expect(shared).toHaveBeenCalledTimes(2);
-        expect(JSON.parse(jukebox.fx)).toEqual({ filter: -0.4, echo: 0.5 });
+        expect(JSON.parse(jukebox.fx ?? '')).toEqual({ filter: -0.4, echo: 0.5 });
       } finally {
         vi.useRealTimers();
       }

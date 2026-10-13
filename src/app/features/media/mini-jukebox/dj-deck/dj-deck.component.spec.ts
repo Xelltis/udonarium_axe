@@ -143,7 +143,7 @@ describe('DjDeckComponent', () => {
       await fixture.whenStable();
 
       expect(heard).toHaveBeenCalledWith({ filter: -0.05, echo: 0, reverb: 0 });
-      expect(JSON.parse(jukebox.fx)).toEqual({ filter: -0.05 });
+      expect(JSON.parse(jukebox.fx ?? '')).toEqual({ filter: -0.05 });
       expect(knob('filter').getAttribute('aria-valuetext')).toBe('low-pass 5%');
     });
 
