@@ -23,6 +23,7 @@ import {
   TerrainPaintSpec,
   TriggerPaintSpec,
   waterDepthOf,
+  waterDirtOf,
   waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -379,6 +380,7 @@ function ambienceSpecOf(area: TableAmbience): AmbiencePaintSpec {
     blocksSight: area.blocksSight,
     surfaceHeight: waterDepthOf(area.surfaceHeight),
     turbidity: waterTurbidityOf(area.turbidity),
+    dirt: waterDirtOf(area.dirtiness),
   };
 }
 
@@ -589,6 +591,7 @@ export class FunctionalPaintService {
       area.blocksSight = block.spec.blocksSight;
       area.surfaceHeight = block.spec.surfaceHeight;
       area.turbidity = block.spec.turbidity;
+      area.dirtiness = block.spec.dirt;
       area.location = blockOrigin(null, block, grid);
       table.appendChild(area);
     }

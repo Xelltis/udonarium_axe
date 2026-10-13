@@ -22,8 +22,10 @@ import {
   TriggerTarget,
 } from '@axe/domain/tabletop/trigger-event';
 import {
+  DEFAULT_DIRT,
   DEFAULT_SURFACE_CELLS,
   DEFAULT_TURBIDITY,
+  dirtOf,
   surfaceCellsOf,
   turbidityOf,
 } from '@axe/domain/tabletop/water/water-surface';
@@ -267,6 +269,10 @@ export interface HazardPaintSpec {
   depth: number;
   /** How murky the water is, from 0 for clear to 1. Only water reads it. */
   turbidity: number;
+  /** How dirty the water is, from 0 for clean to 1. Only water reads it. */
+  dirt: number;
+  /** The colour of the water, empty for the colour of water itself. Only water reads it. */
+  color: string;
   /** What crossing it costs over plain footing, nought laying no move cost at all; null leaves it to the kind. */
   extraCost: number | null;
 }
@@ -314,6 +320,8 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
     element: DEFAULT_HAZARD_ELEMENT,
     depth: DEFAULT_SURFACE_CELLS,
     turbidity: DEFAULT_TURBIDITY,
+    dirt: DEFAULT_DIRT,
+    color: '',
     extraCost: null,
   },
   terrain: {
@@ -481,6 +489,8 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       element: textIn(hazard, 'element', fallback.hazard.element),
       depth: waterDepthOf(hazard['depth']),
       turbidity: waterTurbidityOf(hazard['turbidity']),
+      dirt: waterDirtOf(hazard['dirt']),
+      color: textIn(hazard, 'color', fallback.hazard.color),
       extraCost: asHazardExtraCost(hazard['extraCost']),
     },
     moveCost: {
@@ -608,6 +618,8 @@ export interface AmbiencePaintSpec {
   surfaceHeight: number;
   /** How murky water is, held at the default for every other kind. */
   turbidity: number;
+  /** How dirty water is, held at clean for every other kind. */
+  dirt: number;
 }
 
 /**
@@ -621,6 +633,11 @@ export function waterDepthOf(value: unknown): number {
 /** How murky water is painted, in hundredths, as the brush and the table both read it. */
 export function waterTurbidityOf(value: unknown): number {
   return Math.round(turbidityOf(value) * 100) / 100;
+}
+
+/** How dirty water is painted, in hundredths, as the brush and the table both read it. */
+export function waterDirtOf(value: unknown): number {
+  return Math.round(dirtOf(value) * 100) / 100;
 }
 
 /** A block as far as stacking cares: the cells it covers, the altitude it is laid by and its height in cells. */

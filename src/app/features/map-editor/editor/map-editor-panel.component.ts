@@ -35,6 +35,7 @@ import { downloadBlob } from '@axe/core/util/download-blob';
 import { PERF_MAP_EDITOR_DRAW, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { resourceNamesOf } from '@axe/domain/character/resource-catalog';
+import { ambiencePalette } from '@axe/domain/effect/ambience/ambience-kind';
 import { isBuiltinMaterial } from '@axe/domain/media/builtin-materials';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { ImageTag } from '@axe/domain/media/image-tag';
@@ -64,6 +65,7 @@ import {
   TerrainPaintSpec,
   TriggerPaintSpec,
   waterDepthOf,
+  waterDirtOf,
   waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
@@ -74,6 +76,12 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { asTriggerRepeat, TRIGGER_REPEATS, TriggerRepeat } from '@axe/domain/tabletop/trigger-event';
 import { TRIGGER_MOMENTS, TRIGGER_TARGETS } from '@axe/domain/tabletop/trigger-event';
+import {
+  WATER_PRESET_IDS,
+  type WaterPresetId,
+  waterPresetNamed,
+  waterPresetOf,
+} from '@axe/domain/tabletop/water/water-presets';
 import { MAX_SURFACE_CELLS } from '@axe/domain/tabletop/water/water-surface';
 import { imageStampIdentifier, isImageStampId } from '@axe/features/map-editor/assets/image-stamp';
 import { StampDef } from '@axe/features/map-editor/assets/stamp-types';
@@ -295,6 +303,33 @@ export class MapEditorPanelComponent implements AfterViewInit {
   protected setWaterTurbidity(percent: unknown): void {
     this.setHazardPaint({ turbidity: waterTurbidityOf(Number(percent) / 100) });
   }
+
+  /** How dirty the water brush paints, as a percentage. */
+  protected readonly waterDirtPercent = computed(() => Math.round(this.state.functionSpec().hazard.dirt * 100));
+
+  /** Sets how dirty the water brush paints, from a percentage. */
+  protected setWaterDirt(percent: unknown): void {
+    this.setHazardPaint({ dirt: waterDirtOf(Number(percent) / 100) });
+  }
+
+  protected readonly waterPresets = WATER_PRESET_IDS;
+
+  /** Which look the water brush paints, or null where its settings match none of them. */
+  protected readonly waterPreset = computed(() => {
+    const hazard = this.state.functionSpec().hazard;
+    return waterPresetOf(hazard.color, hazard.turbidity, hazard.dirt);
+  });
+
+  /** Sets the water brush to one look: its colour, murkiness and dirt at once. */
+  protected setWaterPreset(id: WaterPresetId | null): void {
+    const preset = waterPresetNamed(id);
+    if (preset) this.setHazardPaint({ color: preset.color, turbidity: preset.turbidity, dirt: preset.dirt });
+  }
+
+  /** The colour the water brush paints in, shown as the colour of water itself where none is set. */
+  protected readonly waterColor = computed(
+    () => this.state.functionSpec().hazard.color || ambiencePalette('water').primary
+  );
 
   protected setHazardPaint(patch: Partial<HazardPaintSpec>): void {
     const spec = this.state.functionSpec();

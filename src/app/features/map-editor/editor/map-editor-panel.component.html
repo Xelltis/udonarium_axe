@@ -678,6 +678,32 @@
             </label>
             @if (state.functionSpec().hazard.kind === 'water') {
               <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardWaterLook' | transloco }}</span>
+                <select
+                  class="bg-ui-input rounded-ui-sm w-40 px-1 py-0.5"
+                  data-testid="hazard-water-look"
+                  [ngModel]="waterPreset()"
+                  (ngModelChange)="setWaterPreset($event)"
+                  name="hazardWaterLook"
+                >
+                  <option [ngValue]="null" disabled>{{ 'feature.ambience.waterPresetCustom' | transloco }}</option>
+                  @for (preset of waterPresets; track preset) {
+                    <option [ngValue]="preset">{{ 'feature.ambience.waterPreset_' + preset | transloco }}</option>
+                  }
+                </select>
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardColor' | transloco }}</span>
+                <input
+                  type="color"
+                  class="bg-ui-input rounded-ui-sm h-7 w-12 p-0.5"
+                  data-testid="hazard-water-color"
+                  [ngModel]="waterColor()"
+                  (ngModelChange)="setHazardPaint({ color: $event })"
+                  name="hazardWaterColor"
+                />
+              </label>
+              <label class="flex items-center justify-between gap-2">
                 <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardDepth' | transloco }}</span>
                 <input
                   type="number"
@@ -705,6 +731,22 @@
                     name="hazardTurbidity"
                   />
                   <span class="text-ui-muted w-8 text-right">{{ waterTurbidityPercent() }}%</span>
+                </span>
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardDirt' | transloco }}</span>
+                <span class="flex items-center gap-1">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    class="w-24 cursor-pointer [accent-color:var(--ui-accent)]"
+                    data-testid="hazard-dirt"
+                    [ngModel]="waterDirtPercent()"
+                    (ngModelChange)="setWaterDirt($event)"
+                    name="hazardDirt"
+                  />
+                  <span class="text-ui-muted w-8 text-right">{{ waterDirtPercent() }}%</span>
                 </span>
               </label>
             }

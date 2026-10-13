@@ -477,7 +477,7 @@ describe('painting dangerous ground', () => {
     cells: string[],
     kind: string,
     element = 'HP',
-    brush: { depth?: number; turbidity?: number; extraCost?: number | null } = {}
+    brush: { depth?: number; turbidity?: number; dirt?: number; color?: string; extraCost?: number | null } = {}
   ): FunctionLayer {
     return layerOf('hazard', cells, {
       name: 'poison',
@@ -491,6 +491,15 @@ describe('painting dangerous ground', () => {
     expect(plan.ambience.add[0].spec).toMatchObject({ kind: 'water', surfaceHeight: 1.5 });
     expect(plan.moveCost.add.map((block) => block.spec.extraCost)).toEqual([1]);
     expect(plan.trigger.add).toHaveLength(0);
+  });
+
+  it('lays water as dirty and in the colour it was painted', () => {
+    const plan = planFunctionPaint(
+      sceneWith(hazardLayer(['1,1'], 'water', 'HP', { dirt: 0.8, color: '#5f6b4a' })),
+      snapshot()
+    )!;
+
+    expect(plan.ambience.add[0].spec).toMatchObject({ dirt: 0.8, color: '#5f6b4a' });
   });
 
   it('lays water as murky as it was painted', () => {
@@ -571,7 +580,15 @@ describe('painting dangerous ground', () => {
           row: 0,
           width: 1,
           height: 1,
-          spec: { kind: 'swamp', color: '', density: 0.6, blocksSight: false, surfaceHeight: 0.5, turbidity: 0.15 },
+          spec: {
+            kind: 'swamp',
+            color: '',
+            density: 0.6,
+            blocksSight: false,
+            surfaceHeight: 0.5,
+            turbidity: 0.15,
+            dirt: 0,
+          },
         },
       ],
     });
