@@ -64,6 +64,7 @@ import {
   TerrainPaintSpec,
   TriggerPaintSpec,
   waterDepthOf,
+  waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { HAZARD_KINDS, hazardPresetOf } from '@axe/domain/tabletop/hazard-presets';
@@ -283,6 +284,16 @@ export class MapEditorPanelComponent implements AfterViewInit {
   /** Sets how deep the water brush paints, held to tenths of a cell as the table reads it back. */
   protected setWaterDepth(value: unknown): void {
     this.setHazardPaint({ depth: waterDepthOf(value) });
+  }
+
+  /** How murky the water brush paints, as a percentage. */
+  protected readonly waterTurbidityPercent = computed(() =>
+    Math.round(this.state.functionSpec().hazard.turbidity * 100)
+  );
+
+  /** Sets how murky the water brush paints, from a percentage. */
+  protected setWaterTurbidity(percent: unknown): void {
+    this.setHazardPaint({ turbidity: waterTurbidityOf(Number(percent) / 100) });
   }
 
   protected setHazardPaint(patch: Partial<HazardPaintSpec>): void {

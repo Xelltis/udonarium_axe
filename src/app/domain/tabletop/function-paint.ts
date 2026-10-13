@@ -21,7 +21,12 @@ import {
   TriggerMoment,
   TriggerTarget,
 } from '@axe/domain/tabletop/trigger-event';
-import { DEFAULT_SURFACE_CELLS, surfaceCellsOf } from '@axe/domain/tabletop/water/water-surface';
+import {
+  DEFAULT_SURFACE_CELLS,
+  DEFAULT_TURBIDITY,
+  surfaceCellsOf,
+  turbidityOf,
+} from '@axe/domain/tabletop/water/water-surface';
 
 /**
  * What a painted cell does, and what it lays on the table.
@@ -260,6 +265,8 @@ export interface HazardPaintSpec {
   element: string;
   /** How many cells the water stands over the floor. Only water reads it. */
   depth: number;
+  /** How murky the water is, from 0 for clear to 1. Only water reads it. */
+  turbidity: number;
   /** What crossing it costs over plain footing, nought laying no move cost at all; null leaves it to the kind. */
   extraCost: number | null;
 }
@@ -306,6 +313,7 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
     kind: DEFAULT_HAZARD_KIND,
     element: DEFAULT_HAZARD_ELEMENT,
     depth: DEFAULT_SURFACE_CELLS,
+    turbidity: DEFAULT_TURBIDITY,
     extraCost: null,
   },
   terrain: {
@@ -472,6 +480,7 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       kind: asHazardKind(hazard['kind']),
       element: textIn(hazard, 'element', fallback.hazard.element),
       depth: waterDepthOf(hazard['depth']),
+      turbidity: waterTurbidityOf(hazard['turbidity']),
       extraCost: asHazardExtraCost(hazard['extraCost']),
     },
     moveCost: {
@@ -597,6 +606,8 @@ export interface AmbiencePaintSpec {
   blocksSight: boolean;
   /** How many cells water stands over the floor, held at the default for every other kind. */
   surfaceHeight: number;
+  /** How murky water is, held at the default for every other kind. */
+  turbidity: number;
 }
 
 /**
@@ -605,6 +616,11 @@ export interface AmbiencePaintSpec {
  */
 export function waterDepthOf(value: unknown): number {
   return Math.round(surfaceCellsOf(value) * 10) / 10;
+}
+
+/** How murky water is painted, in hundredths, as the brush and the table both read it. */
+export function waterTurbidityOf(value: unknown): number {
+  return Math.round(turbidityOf(value) * 100) / 100;
 }
 
 /** A block as far as stacking cares: the cells it covers, the altitude it is laid by and its height in cells. */

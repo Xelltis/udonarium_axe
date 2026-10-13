@@ -48,13 +48,15 @@ describe('sanitizeFunctionSpec()', () => {
     const spec = sanitizeFunctionSpec({ hazard: { kind: 'water', element: 'HP' } });
 
     expect(spec.hazard.depth).toBe(0.5);
+    expect(spec.hazard.turbidity).toBe(0.15);
     expect(spec.hazard.extraCost).toBeNull();
   });
 
   it('keeps a brush set to charge nothing, and holds the depth to tenths of a cell', () => {
-    const spec = sanitizeFunctionSpec({ hazard: { kind: 'water', depth: '1.26', extraCost: 0 } });
+    const spec = sanitizeFunctionSpec({ hazard: { kind: 'water', depth: '1.26', turbidity: '0.456', extraCost: 0 } });
 
     expect(spec.hazard.depth).toBe(1.3);
+    expect(spec.hazard.turbidity).toBe(0.46);
     expect(spec.hazard.extraCost).toBe(0);
   });
 

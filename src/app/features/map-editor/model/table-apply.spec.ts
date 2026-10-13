@@ -477,7 +477,7 @@ describe('painting dangerous ground', () => {
     cells: string[],
     kind: string,
     element = 'HP',
-    brush: { depth?: number; extraCost?: number | null } = {}
+    brush: { depth?: number; turbidity?: number; extraCost?: number | null } = {}
   ): FunctionLayer {
     return layerOf('hazard', cells, {
       name: 'poison',
@@ -493,10 +493,20 @@ describe('painting dangerous ground', () => {
     expect(plan.trigger.add).toHaveLength(0);
   });
 
+  it('lays water as murky as it was painted', () => {
+    const plan = planFunctionPaint(sceneWith(hazardLayer(['1,1'], 'water', 'HP', { turbidity: 0.7 })), snapshot())!;
+
+    expect(plan.ambience.add[0].spec.turbidity).toBe(0.7);
+  });
+
   it('holds every other kind of ground at the default depth, so what it laid before still matches', () => {
-    const plan = planFunctionPaint(sceneWith(hazardLayer(['1,1'], 'lava', 'HP', { depth: 3 })), snapshot())!;
+    const plan = planFunctionPaint(
+      sceneWith(hazardLayer(['1,1'], 'lava', 'HP', { depth: 3, turbidity: 0.9 })),
+      snapshot()
+    )!;
 
     expect(plan.ambience.add[0].spec.surfaceHeight).toBe(0.5);
+    expect(plan.ambience.add[0].spec.turbidity).toBe(0.15);
   });
 
   it('charges what the brush is set to, and lays no move cost where it is set to nothing', () => {
@@ -561,7 +571,7 @@ describe('painting dangerous ground', () => {
           row: 0,
           width: 1,
           height: 1,
-          spec: { kind: 'swamp', color: '', density: 0.6, blocksSight: false, surfaceHeight: 0.5 },
+          spec: { kind: 'swamp', color: '', density: 0.6, blocksSight: false, surfaceHeight: 0.5, turbidity: 0.15 },
         },
       ],
     });
