@@ -74,6 +74,15 @@ describe('TableAmbience', () => {
       expect(pond.murk).toBe(0.8);
     });
 
+    it('reads an empty dirt as clean', () => {
+      const pond = TableAmbience.create('池', 'water', 2, 2);
+      expect(pond.dirt).toBe(0);
+      pond.dirtiness = '' as unknown as number;
+      expect(pond.dirt).toBe(0);
+      pond.dirtiness = 0.7;
+      expect(pond.dirt).toBe(0.7);
+    });
+
     it('reads an area laid by a peer that knows nothing of the height as knee deep', () => {
       const pond = TableAmbience.create('池', 'water', 2, 2, 'pond-from-an-older-peer');
       const context = pond.toContext();

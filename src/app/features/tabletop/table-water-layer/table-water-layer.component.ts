@@ -7,17 +7,31 @@ import { waterLightMaskOf } from '@axe/domain/tabletop/water/water-light-mask';
 import {
   causticOpacity,
   deepWaterColor,
+  dirtyWaterColor,
   glintOpacity,
   rgbTripletOf,
+  scumColorOf,
+  scumOpacity,
+  scumRimColorOf,
   shadedWaterColor,
+  siltColorOf,
+  siltOpacity,
   waterFloorWash,
+  waterMurkLayer,
   waterSideWash,
   waterSurfaceWash,
 } from '@axe/domain/tabletop/water/water-look';
 import { type WaterSheet, waterSheetsOf } from '@axe/domain/tabletop/water/water-sheets';
 import { waterShoreOf } from '@axe/domain/tabletop/water/water-shore';
 import { waterSidesOf } from '@axe/domain/tabletop/water/water-sides';
-import { causticTileUrl, depthShadeUrl, lightMaskUrl } from '@axe/features/tabletop/table-water-layer/caustic-texture';
+import {
+  causticTileUrl,
+  cloudTileUrl,
+  depthShadeUrl,
+  lightMaskUrl,
+  scumRimTileUrl,
+  scumTileUrl,
+} from '@axe/features/tabletop/table-water-layer/caustic-texture';
 import { WaterPhaseDirective } from '@axe/features/tabletop/table-water-layer/water-phase.directive';
 import { Z_OFFSET_AMBIENCE_PX } from '@axe/ui/tabletop/z-offset';
 
@@ -38,6 +52,10 @@ const CAUSTIC_CELLS = 2.6;
 const SECOND_NET_SCALE = 1.45;
 /** The glints on the surface are the same net, larger still. */
 const GLINT_SCALE = 2.2;
+/** How many cells one repeat of the clouds of silt spans. */
+const SILT_CELLS = 4.2;
+/** How many cells one repeat of the scum spans. */
+const SCUM_CELLS = 2.1;
 
 /** The floor under a stretch of water, ready to draw. */
 export interface WaterFloorView {
@@ -67,6 +85,18 @@ export interface WaterSurfaceView {
   /** The picture the surface is masked with in the dark, or null where all of it shows. */
   readonly mask: string | null;
   readonly glintOpacity: number;
+  /** The clouds of silt drifting in murky water, or null in clear water. */
+  readonly silt: WaterPatternView | null;
+  /** The scum floating on dirty water, or null on clean water. */
+  readonly scum: WaterPatternView | null;
+  /** The rim along the edge of the scum, where its film catches the light, or null on clean water. */
+  readonly scumRim: WaterPatternView | null;
+}
+
+/** A pattern drifting on the surface, worn as a mask by a layer of one colour. */
+export interface WaterPatternView {
+  readonly color: string;
+  readonly opacity: number;
 }
 
 /** One side of the water, ready to draw. */
@@ -142,6 +172,25 @@ export class TableWaterLayerComponent {
     };
   });
 
+  /** The patterns of silt and scum, or null for one that could not be drawn. */
+  protected readonly patterns = computed<{
+    silt: WaterNetView | null;
+    scum: WaterNetView | null;
+    scumRim: WaterNetView | null;
+  }>(() => {
+    const grid = this.water.grid();
+    const silt = cloudTileUrl();
+    const scum = scumTileUrl();
+    const rim = scumRimTileUrl();
+    if (!grid) return { silt: null, scum: null, scumRim: null };
+    const scumTile = Math.round(grid.sizePx * SCUM_CELLS);
+    return {
+      silt: silt ? { tilePx: Math.round(grid.sizePx * SILT_CELLS), url: silt } : null,
+      scum: scum ? { tilePx: scumTile, url: scum } : null,
+      scumRim: rim ? { tilePx: scumTile, url: rim } : null,
+    };
+  });
+
   /** The floors of water lying on its own level floor. Over ground risen under the water, the ground is the floor. */
   protected readonly floorViews = computed<WaterFloorView[]>(() => {
     const grid = this.water.grid();
@@ -156,7 +205,7 @@ export class TableWaterLayerComponent {
       height: sheet.height,
       clipPath: clipOf(sheet),
       transform: `translate3d(${sheet.left}px, ${sheet.top}px, ${sheet.floorPx + FLOOR_LIFT_PX}px)`,
-      wash: waterFloorWash(sheet.color, sheet.density),
+      wash: waterFloorWash(dirtyWaterColor(sheet.color, sheet.dirt), sheet.density),
       causticOpacity: causticOpacity(
         sheet.density,
         sheet.turbidity,
@@ -183,7 +232,10 @@ export class TableWaterLayerComponent {
         (index) => (sheet.surfacePx - (cells.get(index)?.floorPx ?? sheet.surfacePx)) / Math.max(grid.sizePx, 1),
         sheet.turbidity
       );
-      const deep = shadedWaterColor(deepWaterColor(sheet.color), lit);
+      const tone = shadedWaterColor(dirtyWaterColor(sheet.color, sheet.dirt), lit);
+      const deep = deepWaterColor(tone);
+      const silt = siltOpacity(sheet.turbidity);
+      const scum = scumOpacity(sheet.dirt);
       return {
         key: sheet.key,
         left: sheet.left,
@@ -193,13 +245,23 @@ export class TableWaterLayerComponent {
         clipPath: clipOf(sheet),
         transform: `translate3d(${sheet.left}px, ${sheet.top}px, ${surfaceZ}px)`,
         background: [
-          waterSurfaceWash(shadedWaterColor(sheet.color, lit), sheet.density, sheet.turbidity),
+          waterSurfaceWash(tone, sheet.density),
+          waterMurkLayer(tone, sheet.turbidity),
           depthLayerOf(depths, deep),
         ]
           .filter((layer) => layer.length > 0)
           .join(', '),
         mask: maskUrl ? `url(${maskUrl})` : null,
-        glintOpacity: glintOpacity(sheet.density, sheet.turbidity),
+        glintOpacity: glintOpacity(sheet.density, sheet.turbidity, sheet.dirt),
+        silt: silt > 0.01 ? { color: siltColorOf(tone), opacity: silt } : null,
+        scum: scum > 0.01 ? { color: shadedWaterColor(scumColorOf(sheet.color), lit), opacity: scum } : null,
+        scumRim:
+          scum > 0.01
+            ? {
+                color: shadedWaterColor(scumRimColorOf(sheet.color), lit),
+                opacity: Math.round(scum * 0.8 * 1000) / 1000,
+              }
+            : null,
       };
     });
   });
@@ -223,7 +285,11 @@ export class TableWaterLayerComponent {
         transform:
           `translate3d(${side.x0}px, ${side.y0}px, ${side.bottomPx}px)` +
           ` rotateZ(${angle}rad) rotateX(-90deg) translateY(-100%)`,
-        wash: waterSideWash(shadedWaterColor(side.color, lit), side.density, cells.get(side.index)?.turbidity ?? 0),
+        wash: waterSideWash(
+          shadedWaterColor(dirtyWaterColor(side.color, cells.get(side.index)?.dirt ?? 0), lit),
+          side.density,
+          cells.get(side.index)?.turbidity ?? 0
+        ),
         opacity: lit,
       };
     });

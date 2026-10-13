@@ -3945,6 +3945,18 @@ body.mobile-layout ui-panel textarea {
   animation-direction: reverse;
 }
 
+/* The clouds of silt in murky water and the scum on dirty water drift far slower than the light. */
+.water-silt {
+  animation-name: water-net-forward;
+  animation-duration: 150s;
+  animation-direction: reverse;
+}
+
+.water-scum {
+  animation-name: water-net-across;
+  animation-duration: 120s;
+}
+
 @keyframes water-net-forward {
   from {
     transform: translate3d(0, 0, 0);

@@ -86,8 +86,12 @@ import {
 import { depthShadeAlpha } from '@axe/domain/tabletop/water/water-depth';
 import {
   deepWaterColor,
+  dirtyWaterColor,
   rgbTripletOf,
+  scumColorOf,
+  scumOpacity,
   underwaterDeepColor,
+  waterMurkLayer,
   waterSurfaceWash,
 } from '@axe/domain/tabletop/water/water-look';
 import { EffectTargetOverlayComponent } from '@axe/features/effect/effect-target-overlay/effect-target-overlay.component';
@@ -162,6 +166,8 @@ const EFFECT_RISE_CELLS = 0.3;
  * through leaves a fifth of it.
  */
 const MURK_SIGHT_LOSS = 0.8;
+/** How much of the scum on dirty water shows as a film over it, seen across the water from the eye. */
+const SCUM_TINT = 0.35;
 /** How murky the whole map under water is for each part of its weather's thickness. */
 const WEATHER_MURK = 0.5;
 /** What keeps the effects moving while the eye is under a pond. */
@@ -566,16 +572,25 @@ export class FirstPersonViewComponent {
       if (polygon.length < 3) continue;
       const quad = waterQuadOf(cell.index, polygon, zPx, camera.z >= zPx ? 'up' : 'down', depth);
       const fade = 1 - (1 - FAR_WATER_OPACITY) * Math.min(Math.max(depth / Math.max(reach, 1), 0), 1);
-      const deepRgb = rgbTripletOf(deepWaterColor(cell.color)) ?? BLACK_VEIL;
+      const tone = dirtyWaterColor(cell.color, cell.dirt);
+      const deepRgb = rgbTripletOf(deepWaterColor(tone)) ?? BLACK_VEIL;
       const deepAlpha = depthShadeAlpha((cell.surfacePx - cell.floorPx) / gridSize, cell.turbidity);
-      const depths = `linear-gradient(rgba(${deepRgb}, ${deepAlpha}), rgba(${deepRgb}, ${deepAlpha}))`;
+      const scumRgb = rgbTripletOf(scumColorOf(cell.color)) ?? BLACK_VEIL;
+      const scumAlpha = Math.round(scumOpacity(cell.dirt) * SCUM_TINT * 1000) / 1000;
+      // Scum is a patch here and there on the table; seen across the water from the eye it runs together into a film.
+      const layers = [
+        scumAlpha > 0 ? `linear-gradient(rgba(${scumRgb}, ${scumAlpha}), rgba(${scumRgb}, ${scumAlpha}))` : '',
+        waterSurfaceWash(tone, cell.density),
+        waterMurkLayer(tone, cell.turbidity),
+        `linear-gradient(rgba(${deepRgb}, ${deepAlpha}), rgba(${deepRgb}, ${deepAlpha}))`,
+      ].filter((layer) => layer.length > 0);
       views.push({
         id: `water:${cell.index}`,
         style: {
           ...planeQuadStyle(quad, scale, '', 0),
-          backgroundImage: `${waterSurfaceWash(cell.color, cell.density, cell.turbidity)}, ${depths}`,
-          backgroundSize: '100% 100%, 100% 100%',
-          backgroundPosition: '0 0, 0 0',
+          backgroundImage: layers.join(', '),
+          backgroundSize: layers.map(() => '100% 100%').join(', '),
+          backgroundPosition: layers.map(() => '0 0').join(', '),
           opacity: `${Math.round(fade * 1000) / 1000}`,
         },
       });
@@ -722,7 +737,7 @@ export class FirstPersonViewComponent {
     return {
       mask: waterlineMask(submersion.share, feet, water.turbidity),
       clip: submergedClip(submersion.share),
-      fade: submergedFade(submersion.share, feet),
+      fade: submergedFade(submersion.share, feet, water.turbidity),
       tint: waterTintFilter(water.color),
       tintOpacity: submergedTintOpacity(water.turbidity),
     };

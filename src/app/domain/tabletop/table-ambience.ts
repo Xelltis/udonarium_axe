@@ -11,8 +11,10 @@ import {
 import { asShownTo, ShownTo } from '@axe/domain/tabletop/shown-to';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import {
+  DEFAULT_DIRT,
   DEFAULT_SURFACE_CELLS,
   DEFAULT_TURBIDITY,
+  dirtOf,
   surfaceCellsOf,
   turbidityOf,
 } from '@axe/domain/tabletop/water/water-surface';
@@ -64,6 +66,11 @@ export class TableAmbience extends TabletopObject {
    * water reads it: the murkier, the sooner the bottom and whatever is under the surface are lost.
    */
   @SyncVar() turbidity: number = DEFAULT_TURBIDITY;
+  /**
+   * How dirty the water is, from 0 for clean to 1 for water thick with scum. Only water reads it:
+   * the dirtier, the duller its colour, the thicker the scum floating on it.
+   */
+  @SyncVar() dirtiness: number = DEFAULT_DIRT;
 
   /** How many grid cells wide the area is, kept in its common data. */
   get width(): number {
@@ -99,6 +106,11 @@ export class TableAmbience extends TabletopObject {
   /** How murky the water is, with an empty or unreadable value read as the default. */
   get murk(): number {
     return turbidityOf(this.turbidity);
+  }
+
+  /** How dirty the water is, with an empty or unreadable value read as clean. */
+  get dirt(): number {
+    return dirtOf(this.dirtiness);
   }
 
   /** The kind of effect, with an unknown stored kind read as swamp. */

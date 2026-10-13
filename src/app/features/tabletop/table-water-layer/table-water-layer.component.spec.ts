@@ -89,6 +89,26 @@ describe('TableWaterLayerComponent', () => {
     expect(element.querySelectorAll('[data-water-floor]')).toHaveLength(1);
   });
 
+  it('clouds murky water with silt and floats scum on dirty water, and lays neither on clear water', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      createImageData: (width: number, height: number) => ({ data: new Uint8ClampedArray(width * height * 4) }),
+      putImageData: () => undefined,
+    } as never);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,AAAA');
+    const pond = await lay('water', 2, 2);
+    expect(render().querySelectorAll('[data-water-silt], [data-water-scum], [data-water-scum-rim]')).toHaveLength(0);
+
+    pond.turbidity = 1;
+    pond.dirtiness = 1;
+    await Promise.resolve();
+    await Promise.resolve();
+    const element = render();
+
+    expect(element.querySelectorAll('[data-water-silt]')).toHaveLength(1);
+    expect(element.querySelectorAll('[data-water-scum]')).toHaveLength(1);
+    expect(element.querySelectorAll('[data-water-scum-rim]')).toHaveLength(1);
+  });
+
   it('draws nothing for a look on the ground that is not water', async () => {
     await lay('swamp', 3, 3);
     expect(render().querySelectorAll('[data-water-floor], [data-water-side]')).toHaveLength(0);
@@ -103,11 +123,12 @@ describe('TableWaterLayerComponent', () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,AAAA');
     await lay('water', 2, 2);
 
-    expect(render().querySelectorAll('.water-net')).toHaveLength(3);
+    const nets = '.water-net-a, .water-net-b, .water-net-glint';
+    expect(render().querySelectorAll(nets)).toHaveLength(3);
 
     TestBed.inject(RenderLiteService).setting.set('on');
     const lite = render();
-    expect(lite.querySelectorAll('.water-net')).toHaveLength(1);
+    expect(lite.querySelectorAll(nets)).toHaveLength(1);
     expect(lite.querySelectorAll('.water-net-b, .water-net-glint')).toHaveLength(0);
   });
 });

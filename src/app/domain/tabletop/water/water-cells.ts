@@ -16,6 +16,8 @@ export interface WaterArea {
   readonly density: number;
   /** How murky it is, from 0 for clear to 1 for water nothing can be seen through. */
   readonly turbidity: number;
+  /** How dirty it is, from 0 for clean to 1 for water thick with scum. */
+  readonly dirt: number;
 }
 
 /** One cell under water. */
@@ -33,6 +35,7 @@ export interface WaterCell {
   readonly color: string;
   readonly density: number;
   readonly turbidity: number;
+  readonly dirt: number;
   /** The area it belongs to. */
   readonly area: string;
 }
@@ -92,6 +95,7 @@ export function waterCellsOf(
           color: area.color,
           density: area.density,
           turbidity: area.turbidity,
+          dirt: area.dirt,
           area: area.identifier,
         });
       }
@@ -102,7 +106,7 @@ export function waterCellsOf(
 
 /** What the floor under a cell of water looks like; floors that look alike are drawn as one piece. */
 export function waterFloorLookOf(cell: WaterCell): string {
-  return `${round(cell.floorPx)}|${round(cell.surfacePx)}|${cell.color}|${round(cell.density)}|${round(cell.turbidity)}`;
+  return `${round(cell.floorPx)}|${waterSurfaceLookOf(cell)}`;
 }
 
 /**
@@ -110,7 +114,7 @@ export function waterFloorLookOf(cell: WaterCell): string {
  * piece however deep the water under them, the depth being painted onto the piece cell by cell.
  */
 export function waterSurfaceLookOf(cell: WaterCell): string {
-  return `${round(cell.surfacePx)}|${cell.color}|${round(cell.density)}|${round(cell.turbidity)}`;
+  return `${round(cell.surfacePx)}|${cell.color}|${round(cell.density)}|${round(cell.turbidity)}|${round(cell.dirt)}`;
 }
 
 function round(value: number): number {

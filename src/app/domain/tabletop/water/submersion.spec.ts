@@ -51,10 +51,17 @@ describe('murky water', () => {
 
   it('fades the picture out towards the feet as well as at the waterline', () => {
     expect(waterlineMask(0.5, 0.25, 0.5)).toBe(
-      'linear-gradient(to top, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.48) 48.5%, #000 51.5%)'
+      'linear-gradient(to top, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.39) 48.5%, #000 51.5%)'
     );
-    expect(submergedFade(0.5, 0.25)).toBe('linear-gradient(to top, rgba(0, 0, 0, 0.25) 0%, #000 50%)');
+    expect(submergedFade(0.5, 0.25)).toBe(
+      'linear-gradient(to top, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 1) 50%, #000 51.5%)'
+    );
     expect(submergedFade(0.5, 1)).toBeNull();
+  });
+
+  it('shows nothing under opaque water, not even at the waterline', () => {
+    expect(waterlineMask(0.5, 1, 1)).toContain('rgba(0, 0, 0, 0) 48.5%');
+    expect(submergedFade(0.5, 1, 1)).toContain('rgba(0, 0, 0, 0) 50%');
   });
 
   it('lays more of the colour of murky water over what is under it', () => {

@@ -2,11 +2,16 @@ import {
   causticOpacity,
   deepWaterColor,
   depthsWash,
+  dirtyWaterColor,
   glintOpacity,
+  murkAlpha,
   rgbTripletOf,
+  scumOpacity,
   shadedWaterColor,
+  siltOpacity,
   underwaterDeepColor,
   waterFloorWash,
+  waterMurkLayer,
   waterSideWash,
   waterSurfaceWash,
 } from '@axe/domain/tabletop/water/water-look';
@@ -64,8 +69,24 @@ describe('the look of water', () => {
     expect(glintOpacity(0.6, 1)).toBeLessThan(glintOpacity(0.6, 0));
   });
 
-  it('clouds the surface of murky water itself', () => {
-    const top = (wash: string) => Number(/,\s*([\d.]+)\)/.exec(wash)?.[1]);
-    expect(top(waterSurfaceWash('#3399cc', 0.6, 1))).toBeGreaterThan(top(waterSurfaceWash('#3399cc', 0.6, 0)));
+  it('lays murk over the surface in the water\u2019s own colour, opaque at the top of the scale', () => {
+    expect(waterMurkLayer('#3399cc', 0)).toBe('');
+    expect(murkAlpha(1)).toBe(1);
+    expect(murkAlpha(0.5)).toBeGreaterThan(0.3);
+    expect(murkAlpha(0.5)).toBeLessThan(0.6);
+    expect(waterMurkLayer('#3399cc', 1)).toContain('rgba(45, 135, 180, 1)');
+  });
+
+  it('turns dirty water towards the dull brown of silt and rot, and leaves clean water its colour', () => {
+    expect(dirtyWaterColor('#3399cc', 0)).toBe('#3399cc');
+    expect(dirtyWaterColor('#3399cc', 1)).not.toBe('#3399cc');
+    expect(scumOpacity(0)).toBe(0);
+    expect(scumOpacity(1)).toBeGreaterThan(0.5);
+    expect(glintOpacity(0.6, 0, 1)).toBeLessThan(glintOpacity(0.6, 0, 0) * 0.2);
+  });
+
+  it('shows no clouds of silt in clear water', () => {
+    expect(siltOpacity(0.15)).toBe(0);
+    expect(siltOpacity(1)).toBeGreaterThan(0.5);
   });
 });

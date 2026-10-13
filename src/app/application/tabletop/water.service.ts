@@ -45,6 +45,7 @@ export class WaterService {
           color: area.color,
           density: area.density,
           turbidity: area.murk,
+          dirt: area.dirt,
         };
       });
   });

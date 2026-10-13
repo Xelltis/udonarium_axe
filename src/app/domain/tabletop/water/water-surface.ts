@@ -31,3 +31,17 @@ export function turbidityOf(value: unknown): number {
   if (!Number.isFinite(numeric)) return DEFAULT_TURBIDITY;
   return Math.min(Math.max(numeric, 0), 1);
 }
+
+/** How dirty water is when nobody has said: not at all. */
+export const DEFAULT_DIRT = 0;
+
+/**
+ * How dirty water is, from 0 for clean to 1 for water thick with scum, read from what was stored.
+ * An empty or unreadable value reads as clean.
+ */
+export function dirtOf(value: unknown): number {
+  if (value === '' || value === null || value === undefined) return DEFAULT_DIRT;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return DEFAULT_DIRT;
+  return Math.min(Math.max(numeric, 0), 1);
+}

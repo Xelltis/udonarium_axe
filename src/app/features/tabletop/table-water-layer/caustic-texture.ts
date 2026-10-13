@@ -1,9 +1,27 @@
 import { CAUSTIC_TILE_PX, causticAlpha, causticFieldOf } from '@axe/domain/effect/ambience/caustics';
+import {
+  cloudAlpha,
+  scumAlpha,
+  scumRimAlpha,
+  smoothFieldOf,
+  WATER_PATTERN_TILE_PX,
+} from '@axe/domain/effect/ambience/water-patterns';
 import type { WaterLightMask } from '@axe/domain/tabletop/water/water-light-mask';
 
 const SEED = 20261013;
+/** How many waves the silt is drawn from, and how fine the finest of them runs. */
+const CLOUD_WAVES = 16;
+const CLOUD_FINEST = 3;
+/** How many waves the scum is drawn from, and how fine the finest of them runs. */
+const SCUM_WAVES = 34;
+const SCUM_FINEST = 8;
+/** How much of the surface the scum covers at its thickest. */
+const SCUM_COVERAGE = 0.3;
 
 let tileUrl: string | null = null;
+let cloudUrl: string | null = null;
+let scumUrl: string | null = null;
+let scumRimUrl: string | null = null;
 
 /**
  * The net of light water throws on the floor, as a picture to repeat, or empty where none can be drawn.
@@ -17,6 +35,47 @@ export function causticTileUrl(): string {
   // Kept only once drawn: a page that could not draw it yet, such as one still starting, tries again.
   if (url) tileUrl = url;
   return url ?? '';
+}
+
+/**
+ * The clouds of silt in murky water, as a picture to repeat, or empty where none can be drawn.
+ * Drawn in white once, to be worn as a mask by a layer in the colour of the silt.
+ */
+export function cloudTileUrl(): string {
+  if (cloudUrl !== null) return cloudUrl;
+  const url = alphaImageUrl(
+    WATER_PATTERN_TILE_PX,
+    WATER_PATTERN_TILE_PX,
+    cloudAlpha(smoothFieldOf(SEED + 1, WATER_PATTERN_TILE_PX, CLOUD_WAVES, CLOUD_FINEST))
+  );
+  if (url) cloudUrl = url;
+  return url ?? '';
+}
+
+/**
+ * The scum floating on dirty water, as a picture to repeat, or empty where none can be drawn.
+ * Drawn in white once, to be worn as a mask by a layer in the colour of the scum.
+ */
+export function scumTileUrl(): string {
+  if (scumUrl !== null) return scumUrl;
+  const url = alphaImageUrl(WATER_PATTERN_TILE_PX, WATER_PATTERN_TILE_PX, scumAlpha(scumField(), SCUM_COVERAGE));
+  if (url) scumUrl = url;
+  return url ?? '';
+}
+
+/**
+ * The rim along the edge of every patch of scum, as a picture to repeat in step with the scum, or
+ * empty where none can be drawn.
+ */
+export function scumRimTileUrl(): string {
+  if (scumRimUrl !== null) return scumRimUrl;
+  const url = alphaImageUrl(WATER_PATTERN_TILE_PX, WATER_PATTERN_TILE_PX, scumRimAlpha(scumField(), SCUM_COVERAGE));
+  if (url) scumRimUrl = url;
+  return url ?? '';
+}
+
+function scumField() {
+  return smoothFieldOf(SEED + 2, WATER_PATTERN_TILE_PX, SCUM_WAVES, SCUM_FINEST);
 }
 
 /** How much of a sheet of water shows in the dark, as a picture to mask it with, or null where none can be drawn. */

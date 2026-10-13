@@ -47,6 +47,48 @@
     [style.mask-image]="surface.mask"
     [style.mask-size]="surface.mask ? '100% 100%' : null"
   >
+    @if (surface.silt && patterns().silt; as silt) {
+      <div
+        class="water-net water-silt absolute"
+        appWaterPhase
+        data-water-silt
+        [style.--water-tile]="silt.tilePx + 'px'"
+        [style.inset.px]="-silt.tilePx"
+        [style.background-color]="surface.silt.color"
+        [style.mask-image]="'url(' + silt.url + ')'"
+        [style.mask-size]="silt.tilePx + 'px'"
+        [style.mask-position]="netPosition(silt, surface)"
+        [style.opacity]="surface.silt.opacity"
+      ></div>
+    }
+    @if (surface.scum && patterns().scum; as scum) {
+      <div
+        class="water-net water-scum absolute"
+        appWaterPhase
+        data-water-scum
+        [style.--water-tile]="scum.tilePx + 'px'"
+        [style.inset.px]="-scum.tilePx"
+        [style.background-color]="surface.scum.color"
+        [style.mask-image]="'url(' + scum.url + ')'"
+        [style.mask-size]="scum.tilePx + 'px'"
+        [style.mask-position]="netPosition(scum, surface)"
+        [style.opacity]="surface.scum.opacity"
+      ></div>
+    }
+    @if (surface.scumRim && patterns().scumRim; as rim) {
+      <div
+        class="water-net water-scum absolute"
+        appWaterPhase
+        data-water-scum-rim
+        [style.--water-tile]="rim.tilePx + 'px'"
+        [style.inset.px]="-rim.tilePx"
+        [style.background-color]="surface.scumRim.color"
+        [style.mask-image]="'url(' + rim.url + ')'"
+        [style.mask-size]="rim.tilePx + 'px'"
+        [style.mask-position]="netPosition(rim, surface)"
+        [style.opacity]="surface.scumRim.opacity"
+      ></div>
+    }
     @if (net && !lite()) {
       <div
         class="water-net water-net-glint absolute"

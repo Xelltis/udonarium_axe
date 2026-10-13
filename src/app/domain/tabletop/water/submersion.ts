@@ -57,7 +57,7 @@ export function waterlineMask(share: number, feet = 1, turbidity = 0): string {
   const line = percent(share);
   const below = round(Math.max(line - WATERLINE_SOFTNESS, 0));
   const above = round(Math.min(line + WATERLINE_SOFTNESS, 100));
-  const atLine = round(SUBMERGED_ALPHA * (1 - 0.4 * clamp01(turbidity)));
+  const atLine = round(SUBMERGED_ALPHA * (1 - Math.pow(clamp01(turbidity), 1.5)));
   if (feet >= 0.999 && atLine === SUBMERGED_ALPHA) {
     return `linear-gradient(to top, rgba(0, 0, 0, ${SUBMERGED_ALPHA}) ${below}%, #000 ${above}%)`;
   }
@@ -72,11 +72,14 @@ export function submergedClip(share: number): string {
 
 /**
  * The mask that fades the tinted copy of the part under the surface towards the feet, as a CSS
- * image, or null where the feet still show whole and nothing need fade.
+ * image, or null where the feet still show whole and nothing need fade. Under opaque water
+ * nothing of it shows even at the waterline.
  */
-export function submergedFade(share: number, feet: number): string | null {
-  if (feet >= 0.999) return null;
-  return `linear-gradient(to top, rgba(0, 0, 0, ${round(clamp01(feet))}) 0%, #000 ${round(percent(share))}%)`;
+export function submergedFade(share: number, feet: number, turbidity = 0): string | null {
+  const atLine = round(1 - Math.pow(clamp01(turbidity), 1.5));
+  if (feet >= 0.999 && atLine >= 0.999) return null;
+  const atFeet = round(atLine * clamp01(feet));
+  return `linear-gradient(to top, rgba(0, 0, 0, ${atFeet}) 0%, rgba(0, 0, 0, ${atLine}) ${round(percent(share))}%, #000 ${round(Math.min(percent(share) + WATERLINE_SOFTNESS, 100))}%)`;
 }
 
 /** How strongly the tinted copy is laid over: the murkier the water, the more of its colour. */

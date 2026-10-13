@@ -686,7 +686,7 @@ export class GameCharacterComponent {
     return {
       mask: waterlineMask(submersion.share, feet, water.turbidity),
       clip: submergedClip(submersion.share),
-      fade: submergedFade(submersion.share, feet),
+      fade: submergedFade(submersion.share, feet, water.turbidity),
       tint: waterTintFilter(water.color),
       tintOpacity: submergedTintOpacity(water.turbidity),
       ripple: submersion.share < 1 ? `translateZ(${Math.round(rise * 100) / 100}px)` : null,
