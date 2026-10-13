@@ -23,6 +23,7 @@ import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { FirstPersonLookService, LOOK_RETURN_MS } from '@axe/features/first-person/first-person-look.service';
@@ -1362,6 +1363,81 @@ describe('FirstPersonViewComponent', () => {
       rangeAt(4, 11);
 
       expect(element(mount()).querySelectorAll('[data-range]')).toHaveLength(0);
+    });
+  });
+
+  describe('water', () => {
+    function pond(col: number, row: number, cols: number, rows: number, surfaceCells: number): TableAmbience {
+      const area = TableAmbience.create('池', 'water', cols, rows);
+      area.location = { name: 'table', x: col * GRID, y: row * GRID };
+      area.surfaceHeight = surfaceCells;
+      table.appendChild(area);
+      return area;
+    }
+
+    /** Lets the change announcements of the last edits arrive. */
+    async function settled(): Promise<void> {
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+
+    function inside(fixture: ComponentFixture<FirstPersonViewComponent>) {
+      return fixture.componentInstance as unknown as {
+        skyGradient(): string | null;
+        pieceViews(): { id: string; water: unknown }[];
+      };
+    }
+
+    it('lays the surface of a pond ahead over its floor, seen from above', async () => {
+      pond(3, 2, 3, 3, 0.3);
+      lookOutOf(pieceAt(4, 7));
+      await settled();
+
+      const fixture = mount();
+      const quads = Array.from(element(fixture).querySelectorAll<HTMLElement>('[data-water-quad]'));
+
+      expect(quads.length).toBeGreaterThan(0);
+      expect(quads.every((quad) => !quad.style.transform.includes('rotateX(180deg)'))).toBe(true);
+      expect(inside(fixture).skyGradient()).not.toContain('color-mix');
+    });
+
+    it('turns the view to the depths for an eye under the surface', async () => {
+      pond(2, 4, 5, 6, 2);
+      lookOutOf(pieceAt(4, 7));
+      await settled();
+
+      const fixture = mount();
+      const view = element(fixture);
+      const quads = Array.from(view.querySelectorAll<HTMLElement>('[data-water-quad]'));
+
+      expect(inside(fixture).skyGradient()).toContain('color-mix');
+      expect(quads.some((quad) => quad.style.transform.includes('rotateX(180deg)'))).toBe(true);
+      const floor = view.querySelector<HTMLElement>('[data-quad="floor"]')!;
+      expect(floor.style.backgroundImage).not.toContain('rgba(0, 0, 0,');
+    });
+
+    it('keeps the air for an eye over the water of the pond it wades in', async () => {
+      pond(2, 4, 5, 6, 0.4);
+      lookOutOf(pieceAt(4, 7));
+      await settled();
+
+      const fixture = mount();
+      expect(inside(fixture).skyGradient()).not.toContain('color-mix');
+      const floor = element(fixture).querySelector<HTMLElement>('[data-quad="floor"]')!;
+      expect(floor.style.backgroundImage).toContain('rgba(0, 0, 0,');
+    });
+
+    it('draws the part of a piece in the water under the surface in the colour of the water', async () => {
+      pond(3, 2, 3, 3, 0.5);
+      const wader = pieceAt(4, 3);
+      const dry = pieceAt(5, 5);
+      lookOutOf(pieceAt(4, 7));
+      await settled();
+
+      const views = inside(mount()).pieceViews();
+
+      expect(views.find((view) => view.id === wader.identifier)?.water).toBeTruthy();
+      expect(views.find((view) => view.id === dry.identifier)?.water).toBeNull();
     });
   });
 

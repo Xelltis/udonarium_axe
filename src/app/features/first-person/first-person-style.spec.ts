@@ -23,6 +23,7 @@ import {
   scaleOf,
   shadeFor,
   wallQuadStyle,
+  waterSkyAt,
   withBillboardCut,
 } from '@axe/features/first-person/first-person-style';
 import { describe, expect, it } from 'vitest';
@@ -128,6 +129,12 @@ describe('placing a wall', () => {
   it('is only shade where it has no picture', () => {
     expect(wallQuadStyle(wall(), 2, '', 0.3)['backgroundImage']).toBe(
       'linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3))'
+    );
+  });
+
+  it('darkens to the colour it is given, as a face under water darkens to the depths', () => {
+    expect(wallQuadStyle(wall(), 2, '', 0.3, false, '6, 53, 79')['backgroundImage']).toBe(
+      'linear-gradient(rgba(6, 53, 79, 0.3), rgba(6, 53, 79, 0.3))'
     );
   });
 
@@ -334,6 +341,19 @@ describe('how large a piece comes out on the screen', () => {
   it('leaves the chrome of a piece alone until it has to be shrunk', () => {
     expect(billboardHudTransform(1)).toBeNull();
     expect(billboardHudTransform(0.6067)).toBe('scale(0.607)');
+  });
+});
+
+describe('the depths seen from under water', () => {
+  it('pales upward to the light from the surface and darkens below', () => {
+    expect(waterSkyAt('#06354f', 0, 800)).toBe(
+      'linear-gradient(to bottom, color-mix(in srgb, #06354f 55%, #b8e8ff) 0px,' +
+        ' color-mix(in srgb, #06354f 80%, #b8e8ff) 240px, #06354f 400px, color-mix(in srgb, #06354f 55%, #000) 800px)'
+    );
+  });
+
+  it('moves with the eye as it looks up, as the night sky does', () => {
+    expect(waterSkyAt('#06354f', 100, 800)).toContain('#06354f 500px');
   });
 });
 

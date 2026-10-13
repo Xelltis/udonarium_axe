@@ -340,12 +340,15 @@ export class FirstPersonPropsService {
       });
   }
 
+  /** The looks laid on the ground. Water is left out: the view draws it cell by cell at the height of its surface. */
   private ambiences(table: GameTable, g: number): FirstPersonProp[] {
     this.objectChange.collectionOf(TableAmbience.aliasName)();
     return table.ambiences
-      .filter((area) => this.onTheFloor(area))
-      .map((area) => {
+      .filter((area) => {
         this.objectChange.versionOf(area.identifier)();
+        return area.kind !== 'water' && this.onTheFloor(area);
+      })
+      .map((area) => {
         return {
           ...this.rect(area, 'ambience', Math.max(1, area.width) * g, Math.max(1, area.height) * g, g),
           wash: groundSurfaceWash(area.kind, area.ambienceColor, area.density),

@@ -17,11 +17,13 @@ import { DisclosureService } from '@axe/application/permission/disclosure.servic
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { AmbienceService, type WeatherAmbience } from '@axe/application/tabletop/ambience.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { FirstPersonProp, FirstPersonPropsService } from '@axe/application/tabletop/first-person-props.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { WaterService } from '@axe/application/tabletop/water.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
@@ -36,6 +38,7 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import {
   clipBillboardToEye,
+  clipPolygonToEye,
   depthOf,
   EyeFrame,
   eyeFrameOf,
@@ -53,16 +56,31 @@ import { cameraOf } from '@axe/domain/tabletop/first-person/first-person-look';
 import { roofRaisedFor, sameRoof } from '@axe/domain/tabletop/first-person/first-person-roof';
 import {
   FIRST_PERSON_FOV_DEG,
+  FirstPersonPlaneQuad,
   FirstPersonQuad,
   firstPersonScene,
 } from '@axe/domain/tabletop/first-person/first-person-scene';
 import { pieceStandPx } from '@axe/domain/tabletop/first-person/first-person-stand';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCenterOf, CellGrid, cellIndexAt, CellPoint, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import {
+  cellCenterOf,
+  CellGrid,
+  cellIndexAt,
+  CellPoint,
+  cellPolygonOf,
+  forEachCellInBox,
+} from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
+import { submergedClip, submersionOf, waterlineMask, waterTintFilter } from '@axe/domain/tabletop/water/submersion';
+import {
+  deepWaterColor,
+  rgbTripletOf,
+  underwaterDeepColor,
+  waterSurfaceWash,
+} from '@axe/domain/tabletop/water/water-look';
 import { EffectTargetOverlayComponent } from '@axe/features/effect/effect-target-overlay/effect-target-overlay.component';
 import {
   EffectEye,
@@ -85,6 +103,7 @@ import {
   billboardLiftPx,
   billboardStyle,
   billboardTextScale,
+  BLACK_VEIL,
   blurFilter,
   cameraTransform,
   farBlurPx,
@@ -102,6 +121,7 @@ import {
   scaleOf,
   shadeFor,
   wallQuadStyle,
+  waterSkyAt,
   withBillboardCut,
 } from '@axe/features/first-person/first-person-style';
 import { FogAirLayer, fogAirLayers } from '@axe/features/tabletop/fog-of-war/fog-air-layers';
@@ -128,12 +148,42 @@ const TARGET_CONE_DEG = 20;
 const BOARD_STEP_CELLS = 0.25;
 const EFFECT_LIFT_CELLS = 0.15;
 const EFFECT_RISE_CELLS = 0.3;
+/** What keeps the effects moving while the eye is under a pond. */
+const UNDER_A_POND = 'first-person-under-water';
 /** How far below the top of the view what is told about a near piece keeps, clear of the toolbars. */
 const CHROME_TOP_MARGIN_PX = 64;
 /** How far over the floor a range area is laid, clear of the floor and of anything lying on it. */
 const RANGE_LIFT_PX = 0.75;
 /** The width the view is laid out for before it has been measured. */
 const DEFAULT_VIEW_WIDTH_PX = 1280;
+
+/** What the eye is under, where it is under water: the colour of the depths, and the weather it sees. */
+interface UnderWater {
+  readonly deep: string;
+  /**
+   * The weather drawn over the view while the eye is under a pond on a dry map, or null where the
+   * map's own weather is already the water.
+   */
+  readonly weather: WeatherAmbience | null;
+}
+
+/** How a piece standing in water is drawn: what shows through, and the tinted copy of the part under the surface. */
+interface PieceWater {
+  readonly mask: string;
+  readonly clip: string;
+  readonly tint: string;
+}
+
+/** One cell of a water surface in sight, ready to draw. */
+interface WaterQuadView {
+  readonly id: string;
+  readonly style: QuadStyle;
+}
+
+/** How far a surface standing no higher than its floor is drawn over it, clear of the floor's own face. */
+const WET_FLOOR_LIFT_PX = 0.5;
+/** How much of a water surface still shows at the far end of the view. */
+const FAR_WATER_OPACITY = 0.4;
 
 interface QuadView {
   id: string;
@@ -183,6 +233,8 @@ interface PieceView {
    */
   chromeBottom: number;
   imageFilter: string | null;
+  /** How the piece stands in water, or null where it is dry. */
+  water: PieceWater | null;
 }
 
 interface PropView extends FirstPersonProp {
@@ -221,6 +273,8 @@ interface SkyView {
   backdrops: { id: string; url: string; opacity: number }[];
   /** A night sky shading to a haze at the horizon, for a table with no picture of its own to show. */
   gradient: string | null;
+  /** The colour of the depths all round, for an eye under water, which sees no sky at all. */
+  deep?: string;
 }
 
 @Component({
@@ -250,6 +304,8 @@ export class FirstPersonViewComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
   private readonly vision = inject(VisionService);
+  private readonly water = inject(WaterService);
+  private readonly ambience = inject(AmbienceService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly disclosure = inject(DisclosureService);
   private readonly pieceTarget = inject(PieceTargetService);
@@ -306,8 +362,16 @@ export class FirstPersonViewComponent {
         }
       });
     });
+    effect(() => {
+      // The map's own weather keeps the effects moving; a pond's water seen from inside it has to ask.
+      const moving = !!this.underWater()?.weather && this.motion.enabled();
+      untracked(() => this.playback.setPersistent(UNDER_A_POND, moving));
+    });
     this.watchSize();
-    this.destroyRef.onDestroy(() => this.stopGlide());
+    this.destroyRef.onDestroy(() => {
+      this.stopGlide();
+      this.playback.setPersistent(UNDER_A_POND, false);
+    });
   }
 
   protected readonly gridSize = computed(() => this.firstPerson.table()?.gridSize ?? 0);
@@ -344,6 +408,34 @@ export class FirstPersonViewComponent {
     const camera = this.viewCamera();
     return camera ? cameraTransform(camera, this.scale(), this.perspective()) : 'none';
   });
+
+  /**
+   * Whether the eye is under water, and what that water is: the whole map under water, or a pond
+   * whose surface stands over the eye where it stands. Null in the air.
+   */
+  protected readonly underWater = computed<UnderWater | null>(() => {
+    const weather = this.ambience.weather();
+    if (weather?.kind === 'underwater') return { deep: underwaterDeepColor(weather.color), weather: null };
+    const camera = this.viewCamera();
+    if (!camera) return null;
+    const water = this.water.waterAt(camera.x, camera.y);
+    if (!water || camera.z >= water.surfacePx) return null;
+    return {
+      deep: deepWaterColor(water.color),
+      weather: { kind: 'underwater', color: water.color, density: water.density },
+    };
+  });
+
+  /** The colour faces darken to with distance and the dark: the colour of the depths under water. */
+  private readonly veil = computed(() => {
+    const deep = this.underWater()?.deep;
+    return (deep && rgbTripletOf(deep)) || BLACK_VEIL;
+  });
+
+  /** The weather drawn over the view: a pond's water while the eye is in it, or else the map's own. */
+  protected readonly screenWeather = computed<WeatherAmbience | undefined>(
+    () => this.underWater()?.weather ?? undefined
+  );
 
   protected readonly effectEye = computed<EffectEye | null>(() => {
     const camera = this.viewCamera();
@@ -408,6 +500,7 @@ export class FirstPersonViewComponent {
     const depth = this.firstPerson.depthPx();
     const clear = this.firstPerson.clearPx();
     const grid = this.firstPerson.grid();
+    const veil = this.veil();
     return this.quads().map((quad) => {
       const url = this.urlOf(quad.image);
       const remembered = this.firstPerson.tierOfCell(quad.cell) === 'dim';
@@ -415,12 +508,52 @@ export class FirstPersonViewComponent {
       const shade = remembered || !grid || quad.cell < 0 ? away : litShade(away, this.lightOn(grid, quad));
       const drawn =
         quad.kind === 'wall'
-          ? wallQuadStyle(quad, scale, url, shade, remembered)
-          : planeQuadStyle(quad, scale, url, shade, remembered);
+          ? wallQuadStyle(quad, scale, url, shade, remembered, veil)
+          : planeQuadStyle(quad, scale, url, shade, remembered, veil);
       const blur = url ? blurFilter(farBlurPx(quad.depth, clear, depth)) : null;
       const style = blur ? { ...drawn, filter: blur } : drawn;
       return { id: quad.id, cell: quad.cell, kind: quad.kind, tone: toneOf(quad), remembered, style };
     });
+  });
+
+  /**
+   * The surface of the water in sight, cell by cell: seen from above where the eye stands over it,
+   * from below where the eye is under it. Each cell is cut to the near plane as the floor is, and
+   * fades with the distance as the water would.
+   */
+  protected readonly waterViews = computed<WaterQuadView[]>(() => {
+    const camera = this.viewCamera();
+    const grid = this.firstPerson.grid();
+    const gridSize = this.gridSize();
+    const cells = this.water.cells();
+    if (!camera || !grid || gridSize <= 0 || cells.size < 1) return [];
+    const eye = eyeFrameOf(camera);
+    const seen = this.drawnSeen();
+    const reach = this.firstPerson.depthPx();
+    const scale = this.scale();
+    const nearPx = gridSize * NEAR_CELLS;
+    const views: WaterQuadView[] = [];
+    for (const cell of cells.values()) {
+      if (seen && !seen.get(cell.index)) continue;
+      const depth = depthOf(eye, { x: cell.cx, y: cell.cy });
+      if (depth > reach + gridSize) continue;
+      const zPx = cell.surfacePx > cell.floorPx ? cell.surfacePx : cell.floorPx + WET_FLOOR_LIFT_PX;
+      const polygon = clipPolygonToEye(eye, cellPolygonOf(grid, cell.index), nearPx, zPx);
+      if (polygon.length < 3) continue;
+      const quad = waterQuadOf(cell.index, polygon, zPx, camera.z >= zPx ? 'up' : 'down', depth);
+      const fade = 1 - (1 - FAR_WATER_OPACITY) * Math.min(Math.max(depth / Math.max(reach, 1), 0), 1);
+      views.push({
+        id: `water:${cell.index}`,
+        style: {
+          ...planeQuadStyle(quad, scale, '', 0),
+          backgroundImage: waterSurfaceWash(cell.color, cell.density),
+          backgroundSize: '100% 100%',
+          backgroundPosition: '0 0',
+          opacity: `${Math.round(fade * 1000) / 1000}`,
+        },
+      });
+    }
+    return views;
   });
 
   /** Width over height of each piece's picture, learned as it loads, so the piece stands as tall as its picture. */
@@ -539,10 +672,26 @@ export class FirstPersonViewComponent {
           piece.targeted,
           farBlurPx(depth, clear, reach)
         ),
+        water: this.waterOn(centre, base, stand.heightPx),
       });
     }
     return views;
   });
+
+  /**
+   * How a piece standing in water is drawn, read against its own feet rather than where a near
+   * piece is lifted to, so lifting it into the view does not draw it out of the water.
+   */
+  private waterOn(centre: CellPoint, basePx: number, heightPx: number): PieceWater | null {
+    const water = this.water.waterAt(centre.x, centre.y);
+    const submersion = water ? submersionOf(basePx, heightPx, water.surfacePx) : null;
+    if (!water || !submersion) return null;
+    return {
+      mask: waterlineMask(submersion.share),
+      clip: submergedClip(submersion.share),
+      tint: waterTintFilter(water.color),
+    };
+  }
 
   private gaugesOf(piece: GameCharacter): GaugeView[] {
     const detail = piece.detailDataElement;
@@ -704,6 +853,8 @@ export class FirstPersonViewComponent {
   protected readonly sky = computed<SkyView | null>(() => {
     const table = this.firstPerson.table();
     if (!table) return null;
+    const under = this.underWater();
+    if (under) return { background: '', backdrops: [], gradient: null, deep: under.deep };
     this.objectChange.fileVersion();
     this.objectChange.collectionOf(TableBackgroundLayer.aliasName)();
     const background = this.imageService.getEmptyOr(table.backgroundImageIdentifier).url;
@@ -740,8 +891,9 @@ export class FirstPersonViewComponent {
 
   /** The night sky, its haze kept at the horizon wherever the eye looks. */
   protected readonly skyGradient = computed(() => {
-    const gradient = this.sky()?.gradient ?? null;
-    if (!gradient) return null;
+    const sky = this.sky();
+    if (sky?.deep) return waterSkyAt(sky.deep, this.skyLift(), this.height());
+    if (!sky?.gradient) return null;
     return nightSkyAt(this.skyLift(), this.height());
   });
 
@@ -1054,4 +1206,35 @@ function unionOf(seen: CellBits | null, more: CellBits | null): CellBits | null 
   const both = seen.copy();
   both.or(more);
   return both;
+}
+
+/** One cell of a water surface as a level face the view can draw, lying at a height and facing up or down. */
+function waterQuadOf(
+  index: number,
+  polygon: CellPoint[],
+  zPx: number,
+  facing: 'up' | 'down',
+  depth: number
+): FirstPersonPlaneQuad {
+  const xs = polygon.map((point) => point.x);
+  const ys = polygon.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  return {
+    kind: 'cap',
+    id: `water:${index}`,
+    terrain: '',
+    zPx,
+    facing,
+    minX,
+    minY,
+    width: Math.max(...xs) - minX,
+    height: Math.max(...ys) - minY,
+    polygon,
+    image: '',
+    frame: null,
+    glass: false,
+    depth,
+    cell: index,
+  };
 }
