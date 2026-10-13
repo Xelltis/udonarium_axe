@@ -37,6 +37,7 @@ import { RideMenuModel, RideService } from '@axe/application/tabletop/ride.servi
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { WaterService } from '@axe/application/tabletop/water.service';
 import { BillboardFacing, facesAlways, NOT_TURNED } from '@axe/application/ui/billboard-frame.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
@@ -108,6 +109,7 @@ import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-f
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
+import { submergedClip, submersionOf, waterlineMask, waterTintFilter } from '@axe/domain/tabletop/water/submersion';
 import { buildConditionContextMenu } from '@axe/features/character/game-character/condition-context-menu';
 import {
   buildGameCharacterContextMenuModel,
@@ -233,6 +235,20 @@ interface PieceRightDrag {
   dragged: boolean;
 }
 
+/** How a piece standing in water is drawn. */
+interface PieceInWater {
+  /** The mask that lets the part of the picture under the surface show through. */
+  readonly mask: string;
+  /** The cut that keeps only that part, for the copy of the picture tinted by the water. */
+  readonly clip: string;
+  readonly tint: string;
+  /** Where the ring on the surface stands over the piece's own ground, or null for a piece sunk over its head. */
+  readonly ripple: string | null;
+}
+
+/** How far over the surface the ring is drawn, so the surface does not swallow it. */
+const WATER_RIPPLE_LIFT_PX = 0.5;
+
 @Component({
   selector: 'game-character',
   templateUrl: './game-character.component.html',
@@ -298,6 +314,7 @@ export class GameCharacterComponent {
   private readonly snackbar = inject(SnackbarService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly visionService = inject(VisionService);
+  private readonly water = inject(WaterService);
   private readonly speechBubbles = inject(SpeechBubbleService);
   private readonly renderLite = inject(RenderLiteService);
 
@@ -635,6 +652,33 @@ export class GameCharacterComponent {
     if (!lean) return '';
     return `rotateY(${-Math.atan(lean.eastward).toFixed(4)}rad) rotateX(${Math.atan(lean.southward).toFixed(4)}rad)`;
   });
+  /**
+   * How the piece stands in water, as drawn on its picture, or null where it is dry.
+   *
+   * The part of the picture under the surface shows through the water and takes its colour,
+   * and a ring spreads on the surface where the piece breaks it. A piece sunk over its head
+   * breaks no surface and gets no ring.
+   */
+  protected readonly inWater = computed<PieceInWater | null>(() => {
+    const char = this.gameCharacter();
+    if (!char || this.isPoster()) return null;
+    this.objectChange.versionOf(char.identifier)();
+    const grid = this.gridSize;
+    const middle = (char.size * grid) / 2;
+    const water = this.water.waterAt(char.location.x + middle, char.location.y + middle);
+    if (!water) return null;
+    const pictureHeight = this.imageView.fitsInCell() ? this.size() * grid : this.pieceImageHeightEstimate();
+    const submersion = submersionOf(char.posZ + this.altitude() * grid, pictureHeight, water.surfacePx);
+    if (!submersion) return null;
+    const rise = water.surfacePx - char.posZ - Z_OFFSET_TALL_OBJECT_PX + WATER_RIPPLE_LIFT_PX;
+    return {
+      mask: waterlineMask(submersion.share),
+      clip: submergedClip(submersion.share),
+      tint: waterTintFilter(water.color),
+      ripple: submersion.share < 1 ? `translateZ(${Math.round(rise * 100) / 100}px)` : null,
+    };
+  });
+
   /** Sets the piece's height above the table in grid cells; does nothing while no character is bound. */
   setAltitude(altitude: number) {
     const char = this.gameCharacter();

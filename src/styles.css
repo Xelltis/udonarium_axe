@@ -3967,6 +3967,37 @@ body.mobile-layout ui-panel textarea {
   animation: none;
 }
 
+/* The ring a piece standing in water makes on the surface: two rings, half a beat apart. */
+.water-ripple {
+  opacity: 0;
+  animation: water-ripple 2.6s ease-out infinite;
+}
+
+.water-ripple-late {
+  animation-delay: -1.3s;
+}
+
+@keyframes water-ripple {
+  from {
+    transform: scale(0.55);
+    opacity: 0.85;
+  }
+  to {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+}
+
+:root.motion-reduced .water-ripple {
+  animation: none;
+  opacity: 0.55;
+  transform: scale(0.9);
+}
+
+:root.motion-reduced .water-ripple-late {
+  display: none;
+}
+
 /* 戦場の霧が空中を漂う。層ごとにdurationと負のdelayをずらして位相を散らす。 */
 @keyframes fogDrift {
   from {
