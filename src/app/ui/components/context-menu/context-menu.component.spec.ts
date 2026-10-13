@@ -225,6 +225,60 @@ describe('ContextMenuComponent', () => {
     vi.restoreAllMocks();
   });
 
+  it('moves an open submenu to the row of the next one opened', () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.textContent?.includes('Second') ? 120 : 40;
+    });
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 100,
+      right: 300,
+      top: 200,
+      bottom: 260,
+      width: 200,
+      height: 60,
+      x: 100,
+      y: 200,
+    } as DOMRect);
+    component.contextMenuService.actions = [
+      { name: 'First', subActions: [{ name: 'One', action: vi.fn() }] },
+      { name: 'Second', subActions: [{ name: 'Two', action: vi.fn() }] },
+    ];
+    fixture.detectChanges();
+    const [first, second] = Array.from(fixture.nativeElement.querySelectorAll('li')) as HTMLLIElement[];
+    first.click();
+    fixture.detectChanges();
+    const submenu = () => fixture.nativeElement.querySelector('context-menu [data-context-menu-root]') as HTMLElement;
+    const firstTop = submenu().style.top;
+
+    second.click();
+    fixture.detectChanges();
+
+    expect(submenu().textContent).toContain('Two');
+    expect(parseFloat(submenu().style.top) - parseFloat(firstTop)).toBe(80);
+    vi.restoreAllMocks();
+  });
+
+  it('closes the submenu of a submenu whose rows are changed for another', () => {
+    component.contextMenuService.actions = [
+      { name: 'First', subActions: [{ name: 'Inner', subActions: [{ name: 'Deep', action: vi.fn() }] }] },
+      { name: 'Second', subActions: [{ name: 'Two', action: vi.fn() }] },
+    ];
+    fixture.detectChanges();
+    const [first, second] = Array.from(fixture.nativeElement.querySelectorAll(':scope li')) as HTMLLIElement[];
+    first.click();
+    fixture.detectChanges();
+    const submenu = fixture.nativeElement.querySelector('context-menu') as HTMLElement;
+    (submenu.querySelector('li') as HTMLLIElement).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Deep');
+
+    second.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Two');
+    expect(fixture.nativeElement.textContent).not.toContain('Deep');
+  });
+
   it('inherits detached rows in recursively opened descendants', () => {
     const parent = {
       name: 'Display',
