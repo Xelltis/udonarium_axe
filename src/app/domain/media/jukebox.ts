@@ -10,6 +10,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
+import { type DjEffects, echoDelayS, readDjEffects, writeDjEffects } from '@axe/domain/media/dj-effects';
 import { mixLevelOf, roomMix } from '@axe/domain/media/mix-level';
 import {
   nextShuffleSeed,
@@ -57,6 +58,19 @@ export class Jukebox extends GameObject {
    * moved to still reaches every peer, as starting a track again from the top does.
    */
   @SyncVar() seekCount: number = 0;
+
+  /**
+   * The effects the room's music goes through, as text for `readDjEffects`: empty while none is on.
+   * Live, as a DJ works them, so not kept in a saved room. An older version knows nothing of them,
+   * and its peers hear the music as it is.
+   */
+  @SyncVar() fx: string = '';
+
+  /**
+   * How many times the room's track has been braked to a stop, so every peer slows it down as the
+   * one who braked it did. An older version sends no count, and its stop is an ordinary one.
+   */
+  @SyncVar() brakeCount: number = 0;
 
   /** The track the room is set to, or null when none is set or its file is not in this peer's storage. */
   get audio(): AudioFile | null {
@@ -115,6 +129,8 @@ export class Jukebox extends GameObject {
   static readonly LEVEL_GLIDE_S = 1.5;
   /** The silence at the head of a track that is skipped when tracks are mixed into each other, beyond which it is cut. */
   static readonly LEAD_IN_KEPT_S = 0.3;
+  /** How long a braked track takes to slow to a stop. */
+  static readonly BRAKE_MS = 1200;
 
   /** The room's shared settings, whose room volume scales every volume here. */
   get config(): Config {
@@ -274,6 +290,44 @@ export class Jukebox extends GameObject {
   }
 
   /**
+   * Stops the room's track as a record stops when its turntable is switched off: it slows to a
+   * stop, its pitch falling, and is held there to go on from where the braking began. Does nothing
+   * unless it is playing.
+   */
+  brakeStop(): void {
+    if (!this.isPlaying || !this.audioIdentifier) return;
+    const at = this.audioPlayer.currentTime;
+    GameObject.batch(() => {
+      this.startTime = Number.isFinite(at) && at > 0 ? at : 0;
+      this.isPlaying = false;
+      this.brakeCount = (Number(this.brakeCount) || 0) + 1;
+    });
+    this.brakeOut();
+  }
+
+  /** The effects the room's music goes through. */
+  get effects(): DjEffects {
+    return readDjEffects(this.fx);
+  }
+
+  /** Puts the room's music through these effects, for every peer. */
+  setEffects(effects: DjEffects): void {
+    const text = writeDjEffects(effects);
+    if (text !== (this.fx ?? '')) this.fx = text;
+    this.applyEffects(effects);
+  }
+
+  /**
+   * Puts this peer's music through effects, the room's unless others are given to hear ahead of
+   * sharing them, the echo timed to three quarters of a beat of the track playing, easing there
+   * over the glide in seconds.
+   */
+  applyEffects(effects: DjEffects = this.effects, glideS: number = 0.05): void {
+    const bpm = this.audioIdentifier ? (AudioProfile.gridOf(this.audioIdentifier)?.bpm ?? null) : null;
+    MusicBus.setEffects({ ...effects, echoDelayS: echoDelayS(bpm) }, glideS);
+  }
+
+  /**
    * Listens to the user's gestures for as long as the jukebox is in the room, since browsers block
    * playback until the user has interacted with the page.
    *
@@ -393,6 +447,7 @@ export class Jukebox extends GameObject {
       return;
     }
     this.startPlayer(this.audioPlayer, startAt, crossing ? fadeMs : 0);
+    this.applyEffects();
   }
 
   private startPlayer(player: AudioPlayer, startAt: number, fadeInMs: number): void {
@@ -491,6 +546,22 @@ export class Jukebox extends GameObject {
     return true;
   }
 
+  /** Lets this peer's track slow to a stop, as `brakeStop` asks, and leaves a fresh player for whatever plays next. */
+  private brakeOut(): void {
+    this.unregisterEvent();
+    const player = this.audioPlayer;
+    player.onEnded = null;
+    this.audioPlayer = new AudioPlayer();
+    if (player.paused || player.isAwaitingGesture) {
+      player.stop();
+      return;
+    }
+    this.fadingPlayers.add(player);
+    void player.brake(Jukebox.BRAKE_MS).then(() => {
+      if (this.fadingPlayers.delete(player)) player.stop();
+    });
+  }
+
   private crossfadeSeek(time: number, fadeMs: number = Jukebox.CROSSFADE_MS) {
     if (!this.audio || !this.audio.isReady) {
       this.audioPlayer.seekTo(time);
@@ -578,6 +649,11 @@ export class Jukebox extends GameObject {
     });
   }
 
+  /** Whether another peer braked the track since the count read before, which an older version, sending no count, never says. */
+  private wasBrakedSince(brakeCount: number): boolean {
+    return typeof this.brakeCount === 'number' && this.brakeCount !== brakeCount;
+  }
+
   /** Whether another peer moved the track since the count read before, which an older version, sending no count, never says. */
   private wasSoughtSince(seekCount: number): boolean {
     return typeof this.seekCount === 'number' && this.seekCount !== seekCount;
@@ -601,12 +677,16 @@ export class Jukebox extends GameObject {
     const seekCount = this.seekCount;
     const seTrigger = this.seTrigger;
     const seStopTrigger = this.seStopTrigger;
+    const brakeCount = this.brakeCount;
+    const fx = this.fx;
     super.apply(context);
     if (this.isInitialSync) {
       this.isInitialSync = false;
       if (this.isPlaying) this._play();
+      else this.applyEffects();
       return;
     }
+    if ((fx ?? '') !== (this.fx ?? '')) this.applyEffects();
     if (this.seTrigger !== seTrigger && this.seIdentifier) {
       const seAudio = AudioStorage.instance.get(this.seIdentifier);
       if (seAudio?.isReady) this.playSE(seAudio);
@@ -618,7 +698,8 @@ export class Jukebox extends GameObject {
       const resumes = audioIdentifier === this.audioIdentifier && !isPlaying;
       this._play(resumes ? Number(this.startTime) || 0 : 0);
     } else if (isPlaying !== this.isPlaying && !this.isPlaying) {
-      this._stop(Jukebox.STOP_FADE_MS);
+      if (this.wasBrakedSince(brakeCount)) this.brakeOut();
+      else this._stop(Jukebox.STOP_FADE_MS);
     } else if (this.isPlaying && (startTime !== this.startTime || this.wasSoughtSince(seekCount))) {
       const driftMs = Math.abs((this.audioPlayer.currentTime - this.startTime) * 1000);
       if (driftMs < Jukebox.SYNC_SEEK_THRESHOLD_MS) return;

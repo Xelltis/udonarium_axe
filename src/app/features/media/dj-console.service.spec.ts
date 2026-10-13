@@ -10,7 +10,7 @@ import { Jukebox } from '@axe/domain/media/jukebox';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { DjConsoleService, TAPS_TO_SET_TEMPO } from '@axe/features/media/dj-console.service';
+import { DjConsoleService, EFFECTS_SHARE_MS, TAPS_TO_SET_TEMPO } from '@axe/features/media/dj-console.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const reading: AudioAnalysis = {
@@ -164,5 +164,51 @@ describe('DjConsoleService', () => {
     Config.instance.djSettings = { ...DEFAULT_DJ_SETTINGS, autoLevel: false };
 
     expect(dj.levelDb()).toBe(0);
+  });
+
+  describe('effects', () => {
+    it('lets the room hear a knob as it turns, shares it at most every tenth of a second, and at once when it settles', () => {
+      vi.useFakeTimers();
+      try {
+        const heard = vi.spyOn(jukebox, 'applyEffects').mockImplementation(() => {});
+        const shared = vi.spyOn(jukebox, 'setEffects');
+
+        dj.setEffect('filter', -0.2);
+        dj.setEffect('filter', -0.4);
+        expect(heard).toHaveBeenLastCalledWith({ filter: -0.4, echo: 0, reverb: 0 });
+        expect(dj.effects().filter).toBe(-0.4);
+        expect(shared).not.toHaveBeenCalled();
+
+        vi.advanceTimersByTime(EFFECTS_SHARE_MS);
+        expect(shared).toHaveBeenCalledOnce();
+        expect(JSON.parse(jukebox.fx)).toEqual({ filter: -0.4 });
+
+        dj.setEffect('echo', 0.5, true);
+        expect(shared).toHaveBeenCalledTimes(2);
+        expect(JSON.parse(jukebox.fx)).toEqual({ filter: -0.4, echo: 0.5 });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('turns every effect off at once', () => {
+      vi.spyOn(jukebox, 'applyEffects').mockImplementation(() => {});
+      jukebox.fx = '{"reverb":0.3}';
+
+      dj.resetEffects();
+
+      expect(jukebox.fx).toBe('');
+    });
+
+    it('lets a guest turn no effect and brake nothing', () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      const brake = vi.spyOn(jukebox, 'brakeStop').mockImplementation(() => {});
+
+      dj.setEffect('reverb', 1, true);
+      dj.brakeStop();
+
+      expect(jukebox.fx).toBe('');
+      expect(brake).not.toHaveBeenCalled();
+    });
   });
 });

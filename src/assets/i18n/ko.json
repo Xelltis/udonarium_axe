@@ -954,7 +954,16 @@
         "duckingHint": "효과음과 컷인이 울리는 동안만 BGM을 낮춥니다",
         "crossfade": "연결",
         "crossfadeHint": "곡을 바꿀 때 앞 곡과 겹치는 길이. 겹칠 때는 곡 앞뒤의 무음도 줄입니다",
-        "seconds": "{{ seconds }}초"
+        "seconds": "{{ seconds }}초",
+        "filter": "필터",
+        "filterHint": "왼쪽으로 돌리면 높은 소리를 깎아 먹먹하게, 오른쪽으로 돌리면 낮은 소리를 깎아 가늘게 합니다. 더블클릭하면 가운데",
+        "echo": "에코",
+        "echoHint": "곡의 3/4박마다 소리를 되돌립니다",
+        "reverb": "잔향",
+        "reverbHint": "넓은 공연장에서 울리는 것처럼 울립니다",
+        "brake": "브레이크",
+        "brakeHint": "레코드를 멈춘 것처럼 음정째 떨어뜨리며 멈춥니다",
+        "resetEffects": "이펙트 모두 끄기"
       }
     },
     "card": {

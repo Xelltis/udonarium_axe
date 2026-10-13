@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
 import { AUDIO_ANALYSIS_VERSION } from '@axe/domain/media/audio-analysis';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { Jukebox } from '@axe/domain/media/jukebox';
@@ -110,5 +111,61 @@ describe('DjDeckComponent', () => {
     expect(Config.instance.djSettings.autoLevel).toBe(false);
     expect(Config.instance.djSettings.ducking).toBe(false);
     expect(element('dj-deck-auto-level').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  describe('effects', () => {
+    const knob = (name: string) =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(`[data-name="${name}"]`)!;
+
+    it('lets a player turn the filter for the room, heard here at once and shared when it settles', async () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      const jukebox = ObjectStore.instance.get<Jukebox>('Jukebox')!;
+      const heard = vi.spyOn(jukebox, 'applyEffects').mockImplementation(() => {});
+      await fixture.whenStable();
+
+      knob('filter').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+      await fixture.whenStable();
+
+      expect(heard).toHaveBeenCalledWith({ filter: -0.05, echo: 0, reverb: 0 });
+      expect(JSON.parse(jukebox.fx)).toEqual({ filter: -0.05 });
+      expect(knob('filter').getAttribute('aria-valuetext')).toBe('low-pass 5%');
+    });
+
+    it('turns every effect off at once', async () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      const jukebox = ObjectStore.instance.get<Jukebox>('Jukebox')!;
+      vi.spyOn(jukebox, 'applyEffects').mockImplementation(() => {});
+      jukebox.fx = '{"echo":0.4,"reverb":0.2}';
+      await fixture.whenStable();
+
+      element('dj-deck-reset-effects').click();
+      await fixture.whenStable();
+
+      expect(jukebox.fx).toBe('');
+      expect(element('dj-deck-reset-effects').disabled).toBe(true);
+    });
+
+    it('leaves the knobs and the brake alone for a guest', async () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      ObjectStore.instance.get<Jukebox>('Jukebox')!.isPlaying = true;
+      await fixture.whenStable();
+
+      for (const name of ['filter', 'echo', 'reverb']) {
+        expect(knob(name).getAttribute('aria-disabled'), name).toBe('true');
+      }
+      expect(element('dj-deck-brake').disabled).toBe(true);
+    });
+
+    it('lets a player brake only while the room plays', async () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      await fixture.whenStable();
+      expect(knob('filter').getAttribute('aria-disabled')).toBe('false');
+      expect(element('dj-deck-brake').disabled).toBe(true);
+
+      ObjectStore.instance.get<Jukebox>('Jukebox')!.isPlaying = true;
+      await waitZeroTimeout();
+      await fixture.whenStable();
+      expect(element('dj-deck-brake').disabled).toBe(false);
+    });
   });
 });

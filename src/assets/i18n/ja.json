@@ -954,7 +954,16 @@
         "duckingHint": "効果音とカットインが鳴る間だけBGMを下げます",
         "crossfade": "クロスフェード",
         "crossfadeHint": "曲を切り替えるとき前の曲と重ねる長さ。重ねるときは曲の前後の無音も詰めます",
-        "seconds": "{{ seconds }}秒"
+        "seconds": "{{ seconds }}秒",
+        "filter": "フィルター",
+        "filterHint": "左へ回すと高い音を削ってこもらせ、右へ回すと低い音を削って細くします。ダブルクリックで中央",
+        "echo": "エコー",
+        "echoHint": "曲の3/4拍ごとに音を返します",
+        "reverb": "残響",
+        "reverbHint": "広い会場で鳴っているように響かせます",
+        "brake": "ブレーキ",
+        "brakeHint": "レコードを止めたように音程ごと落としながら止めます",
+        "resetEffects": "エフェクトをすべて切る"
       }
     },
     "card": {

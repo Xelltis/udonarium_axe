@@ -10,6 +10,12 @@ type FakeSource = {
   disconnect: ReturnType<typeof vi.fn>;
   start: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
+  playbackRate: {
+    value: number;
+    cancelScheduledValues: ReturnType<typeof vi.fn>;
+    setValueAtTime: ReturnType<typeof vi.fn>;
+    linearRampToValueAtTime: ReturnType<typeof vi.fn>;
+  };
 };
 
 describe('LoopPointTrack', () => {
@@ -55,6 +61,12 @@ describe('LoopPointTrack', () => {
           disconnect: vi.fn(),
           start: vi.fn(),
           stop: vi.fn(),
+          playbackRate: {
+            value: 1,
+            cancelScheduledValues: vi.fn(),
+            setValueAtTime: vi.fn(),
+            linearRampToValueAtTime: vi.fn(),
+          },
         };
         sources.push(made);
         return made;
@@ -158,5 +170,28 @@ describe('LoopPointTrack', () => {
     await expect(first).resolves.toBeUndefined();
     await expect(second).resolves.toBeUndefined();
     expect(playing.volume).toBe(1);
+  });
+
+  it('slows to all but a stop on the audio clock when braked, resolving once it gets there', async () => {
+    vi.useFakeTimers();
+    try {
+      const playing = track();
+      playing.start(0);
+      let done = false;
+
+      const braked = playing.brake(1200).then(() => (done = true));
+      expect(source().playbackRate.linearRampToValueAtTime).toHaveBeenCalledWith(0.01, 101.2);
+      await vi.advanceTimersByTimeAsync(1199);
+      expect(done).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      await braked;
+      expect(done).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('brakes nothing while stopped', async () => {
+    await expect(track().brake(1000)).resolves.toBeUndefined();
   });
 });

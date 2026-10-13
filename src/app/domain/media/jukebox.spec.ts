@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { MusicBus } from '@axe/core/audio/music-bus';
 import { updateAudioResource$ } from '@axe/core/event/domain-events';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
@@ -1312,6 +1313,108 @@ describe('Jukebox', () => {
 
         expect(jukebox.audioIdentifier).toBe('a');
       });
+    });
+  });
+
+  describe('effects and braking', () => {
+    function makeJukebox(): Jukebox {
+      const jukebox = new Jukebox('Jukebox');
+      jukebox.initialize();
+      return jukebox;
+    }
+
+    function soundingPlayers(): void {
+      const sounding = new WeakSet<AudioPlayer>();
+      vi.spyOn(AudioPlayer.prototype, 'play').mockImplementation(function (this: AudioPlayer) {
+        sounding.add(this);
+      });
+      vi.spyOn(AudioPlayer.prototype, 'stop').mockImplementation(function (this: AudioPlayer) {
+        sounding.delete(this);
+      });
+      vi.spyOn(AudioPlayer.prototype, 'paused', 'get').mockImplementation(function (this: AudioPlayer) {
+        return !sounding.has(this);
+      });
+    }
+
+    beforeEach(() => {
+      vi.spyOn(AudioPlayer.prototype, 'seekTo').mockImplementation(() => {});
+      AudioStorage.instance.add(makeReadyAudio('a'));
+    });
+
+    it('puts the music through the effects for everyone, the echo timed to the track beat', () => {
+      stubAudioPlayerPlay();
+      stubAudioPlayerStop();
+      const setEffects = vi.spyOn(MusicBus, 'setEffects').mockImplementation(() => {});
+      AudioProfile.setGrid('a', { bpm: 100, bar: 0 });
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+
+      jukebox.setEffects({ filter: -0.5, echo: 0.3, reverb: 0 });
+
+      expect(JSON.parse(jukebox.fx)).toEqual({ filter: -0.5, echo: 0.3 });
+      expect(setEffects).toHaveBeenLastCalledWith(
+        { filter: -0.5, echo: 0.3, reverb: 0, echoDelayS: expect.closeTo(0.45, 9) },
+        0.05
+      );
+    });
+
+    it('follows effects another peer sets, and those the room had when this peer joined', () => {
+      const setEffects = vi.spyOn(MusicBus, 'setEffects').mockImplementation(() => {});
+      const jukebox = makeJukebox();
+      const joined = jukebox.toContext();
+      joined.syncData = { ...joined.syncData, fx: '{"reverb":0.6}' };
+      jukebox.apply(joined);
+      expect(setEffects).toHaveBeenLastCalledWith(expect.objectContaining({ reverb: 0.6 }), 0.05);
+
+      const changed = jukebox.toContext();
+      changed.syncData = { ...changed.syncData, fx: '{"filter":0.8}' };
+      jukebox.apply(changed);
+      expect(setEffects).toHaveBeenLastCalledWith(expect.objectContaining({ filter: 0.8, reverb: 0 }), 0.05);
+    });
+
+    it('brakes the track to a stop, keeping where the braking began to go on from', () => {
+      soundingPlayers();
+      const brake = vi.spyOn(AudioPlayer.prototype, 'brake').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      const playing = (jukebox as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
+      vi.spyOn(AudioPlayer.prototype, 'currentTime', 'get').mockReturnValue(33);
+
+      jukebox.brakeStop();
+
+      expect(jukebox.isPlaying).toBe(false);
+      expect(jukebox.isPaused).toBe(true);
+      expect(jukebox.startTime).toBe(33);
+      expect(jukebox.brakeCount).toBe(1);
+      expect(brake.mock.contexts).toEqual([playing]);
+      expect(brake).toHaveBeenCalledWith(Jukebox.BRAKE_MS);
+    });
+
+    it('brakes at the other peers too, and fades out an ordinary stop or one from an older version', () => {
+      soundingPlayers();
+      const brake = vi.spyOn(AudioPlayer.prototype, 'brake').mockResolvedValue();
+      const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.apply(jukebox.toContext());
+      const start = jukebox.toContext();
+      start.syncData = { ...start.syncData, audioIdentifier: 'a', isPlaying: true };
+      jukebox.apply(start);
+
+      const braked = jukebox.toContext();
+      braked.syncData = { ...braked.syncData, isPlaying: false, brakeCount: 1 };
+      jukebox.apply(braked);
+      expect(brake).toHaveBeenCalledOnce();
+
+      const again = jukebox.toContext();
+      again.syncData = { ...again.syncData, isPlaying: true };
+      jukebox.apply(again);
+      const older = jukebox.toContext();
+      const { brakeCount: _dropped, ...withoutCount } = older.syncData as Record<string, unknown>;
+      older.syncData = { ...withoutCount, isPlaying: false };
+      jukebox.apply(older);
+
+      expect(brake).toHaveBeenCalledOnce();
+      expect(fade).toHaveBeenLastCalledWith(0, Jukebox.STOP_FADE_MS);
     });
   });
 });

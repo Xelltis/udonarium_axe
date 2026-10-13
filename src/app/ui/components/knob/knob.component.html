@@ -1,0 +1,42 @@
+<div
+  class="focus-visible:outline-ui-accent size-9 cursor-ns-resize touch-none rounded-full outline-offset-1 select-none focus-visible:outline-2"
+  [class.cursor-not-allowed!]="disabled()"
+  [class.opacity-40]="disabled()"
+  role="slider"
+  [attr.tabindex]="disabled() ? -1 : 0"
+  [attr.aria-label]="label()"
+  [attr.aria-valuemin]="min()"
+  [attr.aria-valuemax]="max()"
+  [attr.aria-valuenow]="value()"
+  [attr.aria-valuetext]="valueText() || null"
+  [attr.aria-disabled]="disabled()"
+  [attr.data-name]="name() || null"
+  (pointerdown)="onPointerDown($event)"
+  (pointermove)="onPointerMove($event)"
+  (pointerup)="onPointerUp()"
+  (pointercancel)="onPointerUp()"
+  (wheel)="onWheel($event)"
+  (keydown)="onKeyDown($event)"
+  (dblclick)="onDoubleClick()"
+  (mousedown)="$event.stopPropagation()"
+>
+  <svg class="block size-9" viewBox="0 0 36 36" aria-hidden="true">
+    <circle class="fill-ui-elevated stroke-ui-border-panel" cx="18" cy="18" r="10" stroke-width="1"></circle>
+    <path class="stroke-ui-border-panel" [attr.d]="track" fill="none" stroke-width="3" stroke-linecap="round"></path>
+    @if (lit()) {
+      <path class="stroke-ui-accent" [attr.d]="lit()" fill="none" stroke-width="3" stroke-linecap="round"></path>
+    }
+    <line
+      class="stroke-ui-text"
+      [attr.x1]="pointer().x1"
+      [attr.y1]="pointer().y1"
+      [attr.x2]="pointer().x2"
+      [attr.y2]="pointer().y2"
+      stroke-width="2"
+      stroke-linecap="round"
+    ></line>
+  </svg>
+</div>
+@if (label()) {
+  <span class="text-ui-dim mt-0.5 text-[9px] leading-none tracking-wide">{{ label() }}</span>
+}

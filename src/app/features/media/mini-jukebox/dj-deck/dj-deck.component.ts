@@ -11,9 +11,11 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MusicBus } from '@axe/core/audio/music-bus';
+import { hasDjEffects } from '@axe/domain/media/dj-effects';
 import { CROSSFADE_CHOICES } from '@axe/domain/media/dj-settings';
 import { DjConsoleService } from '@axe/features/media/dj-console.service';
 import { JukeboxPlaybackService } from '@axe/features/media/jukebox-playback.service';
+import { UiKnobComponent } from '@axe/ui/components/knob/knob.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
 const SPECTRUM_BARS = 28;
@@ -32,7 +34,7 @@ const BEAT_FLASH = 0.2;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-dj-deck',
   templateUrl: './dj-deck.component.html',
-  imports: [FormsModule, TranslocoModule],
+  imports: [FormsModule, TranslocoModule, UiKnobComponent],
 })
 export class DjDeckComponent {
   protected readonly dj = inject(DjConsoleService);
@@ -60,6 +62,16 @@ export class DjDeckComponent {
     if (this.dj.isGridManual()) return 'manual';
     if (this.dj.grid()) return 'read';
     return this.dj.isAnalyzing() ? 'analyzing' : 'noBeat';
+  });
+
+  /** Whether any effect is on, so they can be turned off together. */
+  readonly hasEffects = computed(() => hasDjEffects(this.dj.effects()));
+
+  /** Where the filter stands, in words: which way and how far, or off. */
+  readonly filterText = computed(() => {
+    const filter = this.dj.effects().filter;
+    if (filter === 0) return 'off';
+    return `${filter < 0 ? 'low-pass' : 'high-pass'} ${Math.round(Math.abs(filter) * 100)}%`;
   });
 
   /** The track's loudness as read, to a tenth of a LUFS, or a dash. */

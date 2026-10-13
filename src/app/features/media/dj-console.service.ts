@@ -7,6 +7,7 @@ import { type AudioAnalysis, autoLevelGainDb } from '@axe/domain/media/audio-ana
 import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { type BeatGrid, BEATS_PER_BAR, beatsAt, clampBpm, withBpm, withDownbeatAt } from '@axe/domain/media/beat-grid';
+import { type DjEffects, NO_DJ_EFFECTS } from '@axe/domain/media/dj-effects';
 import { type DjSettings } from '@axe/domain/media/dj-settings';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { roomMix } from '@axe/domain/media/mix-level';
@@ -15,6 +16,9 @@ import { Config } from '@axe/domain/peer/config';
 
 /** How many taps it takes before the tempo they give is set on the track. */
 export const TAPS_TO_SET_TEMPO = 4;
+
+/** How often a knob being turned shares where it is with the room, at most, in milliseconds. */
+export const EFFECTS_SHARE_MS = 100;
 
 /** Where the room's track stands against its beats on this peer: which beat of the bar, and how far into it. */
 export interface BeatClock {
@@ -107,6 +111,21 @@ export class DjConsoleService {
     return autoLevelGainDb(this.trackAnalysis(), isEffect ? 'effect' : 'music');
   });
 
+  private readonly _localEffects = signal<DjEffects | null>(null);
+  private effectsTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** The effects the room's music goes through, as this reader is turning them, ahead of the room hearing of it. */
+  readonly effects = computed<DjEffects>(() => {
+    this.objectChange.versionOf('Jukebox')();
+    return this._localEffects() ?? this.jukebox?.effects ?? NO_DJ_EFFECTS;
+  });
+
+  /** Whether the room's track is playing, so it can be braked. */
+  readonly isPlaying = computed(() => {
+    this.objectChange.versionOf('Jukebox')();
+    return this.jukebox?.isPlaying === true;
+  });
+
   private readonly _tappedBpm = signal<number | null>(null);
   /** The tempo the latest taps give, or null until there are two. */
   readonly tappedBpm = this._tappedBpm.asReadonly();
@@ -190,6 +209,42 @@ export class DjConsoleService {
     this.tapTempo.reset();
     this._tappedBpm.set(null);
     AudioProfile.setGrid(identifier, null);
+  }
+
+  /**
+   * Turns one effect for the room. It is heard here at once, and shared at most every
+   * `EFFECTS_SHARE_MS` while a knob turns, and at once when it settles.
+   */
+  setEffect(kind: keyof DjEffects, value: number, settled: boolean = false): void {
+    if (!this.rolePermission.canEditTabletop) return;
+    const jukebox = this.jukebox;
+    if (!jukebox) return;
+    const next = { ...this.effects(), [kind]: value };
+    this._localEffects.set(next);
+    jukebox.applyEffects(next);
+    if (settled) this.shareEffects();
+    else this.effectsTimer ??= setTimeout(() => this.shareEffects(), EFFECTS_SHARE_MS);
+  }
+
+  /** Turns every effect off for the room. */
+  resetEffects(): void {
+    if (!this.rolePermission.canEditTabletop) return;
+    this._localEffects.set(NO_DJ_EFFECTS);
+    this.shareEffects();
+  }
+
+  /** Brakes the room's track to a stop, as a record stops when its turntable is switched off. */
+  brakeStop(): void {
+    if (!this.rolePermission.canEditTabletop) return;
+    this.jukebox?.brakeStop();
+  }
+
+  private shareEffects(): void {
+    if (this.effectsTimer !== null) clearTimeout(this.effectsTimer);
+    this.effectsTimer = null;
+    const effects = this._localEffects();
+    this._localEffects.set(null);
+    if (effects) this.jukebox?.setEffects(effects);
   }
 
   private changeGrid(change: (grid: BeatGrid) => BeatGrid): void {

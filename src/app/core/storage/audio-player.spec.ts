@@ -82,6 +82,8 @@ function makeAudioContextMock() {
 
 type AudioElmMock = {
   volume: number;
+  playbackRate?: number;
+  preservesPitch?: boolean;
   loop: boolean;
   paused: boolean;
   currentTime: number;
@@ -796,6 +798,41 @@ describe('AudioPlayer', () => {
 
       const src = audioCtxMock.createMediaElementSource.mock.results[0].value;
       expect(reachedPastTrim(src)).toBe(insert.input);
+    });
+  });
+
+  describe('brake()', () => {
+    it('slows a streamed track in steps, its pitch falling, then pauses it and puts its rate back', async () => {
+      vi.useFakeTimers();
+      try {
+        const player = new AudioPlayer(makeAudioFile({ blob: new Blob(['x']), identifier: 'brake' }));
+        player.play();
+        audioElmMock.paused = false;
+        audioElmMock.playbackRate = 1;
+
+        const braked = player.brake(1000);
+        await vi.advanceTimersByTimeAsync(510);
+        expect(audioElmMock.preservesPitch).toBe(false);
+        expect(audioElmMock.playbackRate).toBeGreaterThan(0.4);
+        expect(audioElmMock.playbackRate).toBeLessThan(0.6);
+
+        await vi.advanceTimersByTimeAsync(600);
+        await braked;
+        expect(audioElmMock.pause).toHaveBeenCalled();
+        expect(audioElmMock.playbackRate).toBe(1);
+        expect(audioElmMock.preservesPitch).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('only pauses a track that is not sounding', async () => {
+      const player = new AudioPlayer(makeAudioFile({ blob: new Blob(['x']), identifier: 'brake-silent' }));
+      player.play();
+
+      await player.brake(1000);
+
+      expect(audioElmMock.pause).toHaveBeenCalled();
     });
   });
 

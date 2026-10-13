@@ -954,7 +954,16 @@
         "duckingHint": "Lowers the music while sound effects and cut-ins play",
         "crossfade": "Crossfade",
         "crossfadeHint": "How long one track overlaps the next when the track changes. While overlapping, the silence at the ends of tracks is skipped too",
-        "seconds": "{{ seconds }}s"
+        "seconds": "{{ seconds }}s",
+        "filter": "Filter",
+        "filterHint": "Turn left to cut the treble to a muffle, right to cut the bass to a thin line. Double-click for the middle",
+        "echo": "Echo",
+        "echoHint": "Echoes the music back every three quarters of a beat",
+        "reverb": "Reverb",
+        "reverbHint": "Makes the music ring on as in a large hall",
+        "brake": "Brake",
+        "brakeHint": "Stops the music as a record stops, its pitch falling as it slows",
+        "resetEffects": "Turn every effect off"
       }
     },
     "card": {

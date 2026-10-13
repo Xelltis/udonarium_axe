@@ -515,6 +515,48 @@ export class AudioPlayer {
   }
 
   /**
+   * Slows the track to a stop over the time given, its pitch falling as a record's does when the
+   * turntable is switched off, then pauses it. Resolves once it has stopped, and at once when
+   * nothing is sounding.
+   *
+   * A track played from memory slows on the audio clock; a streamed one is slowed in steps, as an
+   * element's rate cannot be scheduled.
+   */
+  brake(durationMs: number): Promise<void> {
+    if (this.track) return this.track.brake(durationMs).then(() => this.pause());
+    const element = this._audioElm;
+    if (this.pending || !element || element.paused || durationMs <= 0) {
+      this.pause();
+      return Promise.resolve();
+    }
+    const pitched = element as HTMLAudioElement & { webkitPreservesPitch?: boolean; mozPreservesPitch?: boolean };
+    const setPreservesPitch = (preserves: boolean) => {
+      pitched.preservesPitch = preserves;
+      pitched.webkitPreservesPitch = preserves;
+      pitched.mozPreservesPitch = preserves;
+    };
+    setPreservesPitch(false);
+    const startedAt = performance.now();
+    return new Promise((resolve) => {
+      const timer = setInterval(() => {
+        const done = Math.min(1, (performance.now() - startedAt) / durationMs);
+        if (done >= 1 || this._audioElm !== element || element.paused) {
+          clearInterval(timer);
+          element.pause();
+          element.playbackRate = 1;
+          setPreservesPitch(true);
+          resolve();
+          return;
+        }
+        element.playbackRate = Math.max(AudioPlayer.SLOWEST_ELEMENT_RATE, 1 - done);
+      }, AudioPlayer.BRAKE_STEP_MS);
+    });
+  }
+
+  private static readonly SLOWEST_ELEMENT_RATE = 0.07;
+  private static readonly BRAKE_STEP_MS = 30;
+
+  /**
    * Where the player's fader stands, from 0 to 1. It multiplies the volume, and fades move it, so a
    * fade leaves the volume as it was set. It can be set before anything has played.
    */

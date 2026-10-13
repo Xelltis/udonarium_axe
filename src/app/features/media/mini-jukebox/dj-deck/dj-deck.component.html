@@ -102,6 +102,66 @@
     </button>
   </div>
 
+  <div class="mt-2 flex items-end gap-2" data-testid="dj-deck-effects">
+    <ui-knob
+      name="filter"
+      [value]="dj.effects().filter"
+      [min]="-1"
+      [max]="1"
+      [rest]="0"
+      [step]="0.05"
+      [disabled]="!dj.canOperate()"
+      [label]="'feature.media.djDeck.filter' | transloco"
+      [valueText]="filterText()"
+      [title]="'feature.media.djDeck.filterHint' | transloco"
+      (valueChange)="dj.setEffect('filter', $event)"
+      (settle)="dj.setEffect('filter', $event, true)"
+    />
+    <ui-knob
+      name="echo"
+      [value]="dj.effects().echo"
+      [disabled]="!dj.canOperate()"
+      [label]="'feature.media.djDeck.echo' | transloco"
+      [title]="'feature.media.djDeck.echoHint' | transloco"
+      (valueChange)="dj.setEffect('echo', $event)"
+      (settle)="dj.setEffect('echo', $event, true)"
+    />
+    <ui-knob
+      name="reverb"
+      [value]="dj.effects().reverb"
+      [disabled]="!dj.canOperate()"
+      [label]="'feature.media.djDeck.reverb' | transloco"
+      [title]="'feature.media.djDeck.reverbHint' | transloco"
+      (valueChange)="dj.setEffect('reverb', $event)"
+      (settle)="dj.setEffect('reverb', $event, true)"
+    />
+    <div class="flex-1"></div>
+    <div class="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-6 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[15px]!"
+        (mousedown)="$event.stopPropagation()"
+        (click)="dj.resetEffects()"
+        [disabled]="!dj.canOperate() || !hasEffects()"
+        [title]="'feature.media.djDeck.resetEffects' | transloco"
+        data-testid="dj-deck-reset-effects"
+      >
+        <i class="material-icons">layers_clear</i>
+      </button>
+      <button
+        type="button"
+        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 h-7 cursor-pointer rounded-md border border-solid bg-transparent px-2 text-[10px] font-semibold tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+        (mousedown)="$event.stopPropagation()"
+        (click)="dj.brakeStop()"
+        [disabled]="!dj.canOperate() || !dj.isPlaying()"
+        [title]="'feature.media.djDeck.brakeHint' | transloco"
+        data-testid="dj-deck-brake"
+      >
+        {{ 'feature.media.djDeck.brake' | transloco }}
+      </button>
+    </div>
+  </div>
+
   <div class="text-ui-muted mt-2 flex items-baseline gap-3 text-[11px]" data-testid="dj-deck-level">
     <span [title]="'feature.media.djDeck.loudnessHint' | transloco">
       <span class="text-ui-dim">{{ 'feature.media.djDeck.loudness' | transloco }}</span>

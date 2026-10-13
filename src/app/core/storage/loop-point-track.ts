@@ -124,6 +124,22 @@ export class LoopPointTrack {
     });
   }
 
+  /**
+   * Slows the track to all but a stop over the time given on the audio clock, its pitch falling with
+   * it, resolving once it gets there. Where it has got to is not followed while it slows, as the
+   * track is meant to be stopped once it has.
+   */
+  brake(durationMs: number): Promise<void> {
+    const source = this.source;
+    if (!source) return Promise.resolve();
+    const rate = source.playbackRate;
+    const now = this.context.currentTime;
+    rate.cancelScheduledValues(now);
+    rate.setValueAtTime(rate.value, now);
+    rate.linearRampToValueAtTime(0.01, now + Math.max(durationMs, 1) / 1000);
+    return new Promise((resolve) => setTimeout(resolve, Math.max(durationMs, 0)));
+  }
+
   /** Stops the track for good and takes it off the channel. */
   dispose(): void {
     this.cancelFade();
