@@ -19,6 +19,7 @@ import { SaveDataService } from '@axe/application/file/save-data.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -448,6 +449,7 @@ export class AppComponent {
     inject(CcfoliaRoomImportEventHandlerService);
     inject(FogMemoryWriterService);
     inject(CutInService);
+    inject(AudioAnalysisService);
     inject(SpeechBubbleService);
     inject(GravityService);
     inject(LegacyScratchMaskMigrationService);
