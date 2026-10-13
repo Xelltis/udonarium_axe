@@ -3,8 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { AmbienceService } from '@axe/application/tabletop/ambience.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
-import { ambiencePalette } from '@axe/domain/effect/ambience/ambience-kind';
-import { causticOpacity, deepWaterColor, waterFloorWash } from '@axe/domain/tabletop/water/water-look';
+import { causticOpacity, depthsWash, underwaterDeepColor } from '@axe/domain/tabletop/water/water-look';
 import { causticTileUrl } from '@axe/features/tabletop/table-water-layer/caustic-texture';
 import { translateZCss, Z_OFFSET_FOREGROUND_LAYERS_PX } from '@axe/ui/tabletop/z-offset';
 
@@ -56,12 +55,10 @@ export class TableWaterFloorComponent {
     if (weather?.kind !== 'underwater') return null;
     const url = causticTileUrl();
     if (url.length < 1) return null;
-    const palette = ambiencePalette('underwater');
-    // The colour chosen is the colour of the light; the depths under the default light keep their own blue.
-    const deep = weather.color === palette.primary ? palette.secondary : deepWaterColor(weather.color);
+    const deep = underwaterDeepColor(weather.color);
     const tilePx = Math.round(this.tabletopService.gridSize() * CAUSTIC_CELLS);
     return {
-      wash: waterFloorWash(deep, weather.density),
+      wash: depthsWash(deep, weather.density),
       opacity: Math.round(causticOpacity(weather.density) * WHOLE_FLOOR_SHARE * 1000) / 1000,
       url,
       tilePx,

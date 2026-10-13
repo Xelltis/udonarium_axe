@@ -1,3 +1,4 @@
+import { ambiencePalette } from '@axe/domain/effect/ambience/ambience-kind';
 import { withAlpha } from '@axe/domain/effect/particles/shared';
 
 /** How dark the depths are against the colour of the water. */
@@ -16,6 +17,23 @@ export function deepWaterColor(color: string): string {
 }
 
 /**
+ * The colour of the depths when the whole map is under water, from the colour chosen for its light.
+ *
+ * The colour chosen for that weather is the colour of the light coming down; darkened, the
+ * default light would turn the depths grey, so the default keeps the blue of its own kind.
+ */
+export function underwaterDeepColor(lightColor: string): string {
+  const palette = ambiencePalette('underwater');
+  return lightColor.trim().toLowerCase() === palette.primary ? palette.secondary : deepWaterColor(lightColor);
+}
+
+/** A colour as the red, green and blue a CSS `rgba()` takes, or null where it cannot be read. */
+export function rgbTripletOf(color: string): string | null {
+  const rgb = rgbOf(color);
+  return rgb ? rgb.join(', ') : null;
+}
+
+/**
  * The colour given, darkened to how lit it is.
  *
  * Water standing above the floor stands above the dark painted on it too, and faded alone it
@@ -30,8 +48,13 @@ export function shadedWaterColor(color: string, light: number): string {
 
 /** The colour laid over the floor under water: the depths, thicker the thicker the water is drawn. */
 export function waterFloorWash(color: string, density: number): string {
+  return depthsWash(deepWaterColor(color), density);
+}
+
+/** The colour of the depths laid over the floor, given the colour of the depths itself. */
+export function depthsWash(deepColor: string, density: number): string {
   const alpha = 0.22 + 0.38 * clamp01(density);
-  return withAlpha(deepWaterColor(color), round(alpha));
+  return withAlpha(deepColor, round(alpha));
 }
 
 /**

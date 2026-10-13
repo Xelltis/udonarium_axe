@@ -1,6 +1,9 @@
 import {
   deepWaterColor,
+  depthsWash,
+  rgbTripletOf,
   shadedWaterColor,
+  underwaterDeepColor,
   waterFloorWash,
   waterSideWash,
   waterSurfaceWash,
@@ -37,5 +40,19 @@ describe('the look of water', () => {
   it('keeps the surface clear enough to see the floor through', () => {
     const alphas = [...waterSurfaceWash('#3399cc', 1).matchAll(/,\s*([\d.]+)\)/g)].map((match) => Number(match[1]));
     expect(Math.max(...alphas)).toBeLessThan(0.6);
+  });
+
+  it('keeps the blue of the depths under the default light of a map under water', () => {
+    expect(underwaterDeepColor('#c8f0ff')).toBe('#06354f');
+    expect(underwaterDeepColor('#6496c8')).toBe(deepWaterColor('#6496c8'));
+  });
+
+  it('lays the depths over the floor in the colour given, not darkened again', () => {
+    expect(depthsWash('#06354f', 0)).toBe('rgba(6, 53, 79, 0.22)');
+  });
+
+  it('gives a colour as the three numbers rgba() takes', () => {
+    expect(rgbTripletOf('#06354f')).toBe('6, 53, 79');
+    expect(rgbTripletOf('teal')).toBeNull();
   });
 });
