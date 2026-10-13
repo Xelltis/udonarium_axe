@@ -25,7 +25,12 @@ export interface OnsetEnvelope {
 }
 
 const TARGET_RATE = 11025;
-const FRAME = 512;
+const FRAME = 1024;
+/**
+ * Where in a frame an onset shows as the strongest rise, as a share of the frame from its start: a
+ * sound entering the window rises most while it is still in the window's later part.
+ */
+const ONSET_LAG = 0.75;
 const HOP = 128;
 const BASS_HZ = 150;
 const MIN_BPM = 60;
@@ -35,7 +40,9 @@ const PRIOR_OCTAVES = 1;
 const MIN_SECONDS = 6;
 const BEATS_PER_BAR = 4;
 const CONFIDENCE_SCALE = 2.5;
-const MIN_LIVELINESS = 0.01;
+const MIN_LIVELINESS = 0.015;
+const UNACCENTED_DOUBT = 0.2;
+const OFFBEAT_SHARE = 0.6;
 
 /**
  * Reads how strongly something starts at each moment of a sound: the rise in each frequency's
@@ -91,7 +98,7 @@ export function onsetEnvelope(mono: Float32Array, sampleRate: number): OnsetEnve
     [previous, current] = [current, previous];
   }
   const liveliness = totalLevel > 0 ? totalRise / totalLevel : 0;
-  return { strength, bass, rate: rate / HOP, start: FRAME / 2 / rate, liveliness };
+  return { strength, bass, rate: rate / HOP, start: ONSET_LAG * (FRAME / rate), liveliness };
 }
 
 /**
@@ -110,18 +117,29 @@ export function estimateTempo(mono: Float32Array, sampleRate: number): TempoEsti
   if (envelope.liveliness < MIN_LIVELINESS) return null;
   const strength = normalised(envelope.strength, envelope.rate);
   if (!strength) return null;
-  const bass = normalised(envelope.bass, envelope.rate) ?? strength;
+  const bass = normalised(envelope.bass, envelope.rate);
   const fps = envelope.rate;
+  const onsets = bass ? blended(strength, bass) : strength;
 
-  const roughBpm = roughTempo(strength, fps);
+  const roughBpm = roughTempo(onsets, fps);
   if (roughBpm === null) return null;
-  const fit = fitBeat(strength, fps, roughBpm);
+  const fit = settleOctave(onsets, fps, fitBeat(onsets, fps, roughBpm));
   const periodFrames = (fps * 60) / fit.bpm;
-  const barBeat = strongestBeatOfBar(bass, fit.phase, periodFrames);
+  const barBeat = strongestBeatOfBar(bass ?? strength, fit.phase, periodFrames);
   const firstDownbeatFrames = fit.phase + barBeat * periodFrames;
   const barSeconds = (BEATS_PER_BAR * 60) / fit.bpm;
   const bar = positiveModulo(envelope.start + firstDownbeatFrames / fps, barSeconds);
   return { bpm: fit.bpm, bar, confidence: fit.confidence };
+}
+
+/**
+ * The onsets over every frequency and those in the bass, counted alike, so a kick drum on every
+ * beat weighs as much as a snare that sounds on every other one.
+ */
+function blended(strength: Float32Array, bass: Float32Array): Float32Array {
+  const onsets = new Float32Array(strength.length);
+  for (let i = 0; i < onsets.length; i++) onsets[i] = strength[i] + bass[i];
+  return onsets;
 }
 
 /** The envelope with its slow swell taken out, so only what stands above its surroundings is left, scaled to unit spread. */
@@ -290,8 +308,39 @@ function fitBeat(
       phase = positiveModulo(candidate, periodFrames);
     }
   }
-  const confidence = Math.min(1, Math.max(0, CONFIDENCE_SCALE * correlationAt(envelope, periodFrames)));
+  const sureness = Math.min(1, Math.max(0, CONFIDENCE_SCALE * correlationAt(envelope, periodFrames)));
+  const confidence = lacksAccent(envelope, periodFrames) ? sureness * UNACCENTED_DOUBT : sureness;
   return { bpm: fine.bpm, phase, confidence };
+}
+
+/**
+ * Whether nothing marks the beat out from what comes between its beats: the onsets match themselves
+ * at a half, a third or a quarter of the beat as closely as at the beat itself, as under a vibrato,
+ * a tremolo or a run of even notes, where the tempo could as well be any multiple of what was read.
+ */
+function lacksAccent(envelope: Float32Array, periodFrames: number): boolean {
+  const atBeat = correlationAt(envelope, periodFrames);
+  return [2, 3, 4].some(
+    (divisor) => periodFrames / divisor >= 2 && correlationAt(envelope, periodFrames / divisor) >= atBeat
+  );
+}
+
+/**
+ * The fitted beat, or twice its tempo when what falls halfway between its beats starts nearly as
+ * strongly as what falls on them: a backbeat or a steady eighth heard as the halves of slower beats
+ * is taken as the beat itself.
+ */
+function settleOctave(
+  envelope: Float32Array,
+  fps: number,
+  fit: { bpm: number; phase: number; confidence: number }
+): { bpm: number; phase: number; confidence: number } {
+  if (fit.bpm * 2 > MAX_BPM) return fit;
+  const periodFrames = (fps * 60) / fit.bpm;
+  const onBeats = alignment(envelope, periodFrames, fit.phase);
+  const between = alignment(envelope, periodFrames, fit.phase + periodFrames / 2);
+  if (!(onBeats > 0) || between < OFFBEAT_SHARE * onBeats) return fit;
+  return fitBeat(envelope, fps, fit.bpm * 2);
 }
 
 /** Which of each four beats, counted from the grid's first, carries the most bass. */
