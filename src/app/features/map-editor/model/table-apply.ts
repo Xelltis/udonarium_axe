@@ -14,6 +14,8 @@ import {
   TriggerBlock,
   waterDepthOf,
   waterDirtOf,
+  waterFlowDirectionOf,
+  waterFlowSpeedOf,
   waterLeavesOf,
   waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
@@ -155,6 +157,8 @@ function hazardBlocksOf(
     const turbidity = water ? waterTurbidityOf(spec.turbidity) : DEFAULT_TURBIDITY;
     const dirt = water ? waterDirtOf(spec.dirt) : DEFAULT_DIRT;
     const leaves = water ? waterLeavesOf(spec.leaves) : DEFAULT_LEAVES;
+    const flowSpeed = water ? waterFlowSpeedOf(spec.flowSpeed) : 0;
+    const flowDirection = water ? waterFlowDirectionOf(spec.flowDirection) : 0;
     const color = water ? (spec.color ?? '').trim() : '';
     for (const rect of blockRectsOf(Object.keys(layer.cells), hex)) {
       ambience.push({
@@ -168,6 +172,8 @@ function hazardBlocksOf(
           turbidity,
           dirt,
           leaves,
+          flowSpeed,
+          flowDirection,
         },
       });
       // Dangerous ground is dear to cross rather than shut: what nobody gets through at all is

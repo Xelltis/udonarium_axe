@@ -27,6 +27,8 @@ import {
   DEFAULT_SURFACE_CELLS,
   DEFAULT_TURBIDITY,
   dirtOf,
+  flowDirectionOf,
+  flowSpeedOf,
   leavesOf,
   surfaceCellsOf,
   turbidityOf,
@@ -277,6 +279,10 @@ export interface HazardPaintSpec {
   color: string;
   /** How much of the water floating leaves cover, from 0 to 1. Only water reads it. */
   leaves: number;
+  /** How fast the water flows, from 0 for still to 1. Only water reads it. */
+  flowSpeed: number;
+  /** Which way the water flows, in degrees clockwise from the top of the table. Only water reads it. */
+  flowDirection: number;
   /** What crossing it costs over plain footing, nought laying no move cost at all; null leaves it to the kind. */
   extraCost: number | null;
 }
@@ -327,6 +333,8 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
     dirt: DEFAULT_DIRT,
     color: '',
     leaves: DEFAULT_LEAVES,
+    flowSpeed: 0,
+    flowDirection: 0,
     extraCost: null,
   },
   terrain: {
@@ -497,6 +505,8 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       dirt: waterDirtOf(hazard['dirt']),
       color: textIn(hazard, 'color', fallback.hazard.color),
       leaves: waterLeavesOf(hazard['leaves']),
+      flowSpeed: waterFlowSpeedOf(hazard['flowSpeed']),
+      flowDirection: waterFlowDirectionOf(hazard['flowDirection']),
       extraCost: asHazardExtraCost(hazard['extraCost']),
     },
     moveCost: {
@@ -628,6 +638,10 @@ export interface AmbiencePaintSpec {
   dirt: number;
   /** How much of the water floating leaves cover, held at none for every other kind. */
   leaves: number;
+  /** How fast water flows, held still for every other kind. */
+  flowSpeed: number;
+  /** Which way water flows, held at the top of the table for every other kind. */
+  flowDirection: number;
 }
 
 /**
@@ -651,6 +665,16 @@ export function waterDirtOf(value: unknown): number {
 /** How much of the water floating leaves are painted to cover, in hundredths, as the brush and the table both read it. */
 export function waterLeavesOf(value: unknown): number {
   return Math.round(leavesOf(value) * 100) / 100;
+}
+
+/** How fast water is painted to flow, in hundredths, as the brush and the table both read it. */
+export function waterFlowSpeedOf(value: unknown): number {
+  return Math.round(flowSpeedOf(value) * 100) / 100;
+}
+
+/** Which way water is painted to flow, in whole degrees, as the brush and the table both read it. */
+export function waterFlowDirectionOf(value: unknown): number {
+  return Math.round(flowDirectionOf(value)) % 360;
 }
 
 /** A block as far as stacking cares: the cells it covers, the altitude it is laid by and its height in cells. */

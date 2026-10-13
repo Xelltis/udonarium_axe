@@ -765,6 +765,39 @@
                   <span class="text-ui-muted w-8 text-right">{{ waterLeavesPercent() }}%</span>
                 </span>
               </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardFlowSpeed' | transloco }}</span>
+                <span class="flex items-center gap-1">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    class="w-24 cursor-pointer [accent-color:var(--ui-accent)]"
+                    data-testid="hazard-flow-speed"
+                    [ngModel]="waterFlowSpeedPercent()"
+                    (ngModelChange)="setWaterFlowSpeed($event)"
+                    name="hazardFlowSpeed"
+                  />
+                  <span class="text-ui-muted w-8 text-right">{{ waterFlowSpeedPercent() }}%</span>
+                </span>
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardFlowDirection' | transloco }}</span>
+                <select
+                  class="bg-ui-input rounded-ui-sm w-40 px-1 py-0.5 disabled:opacity-40"
+                  data-testid="hazard-flow-direction"
+                  [ngModel]="state.functionSpec().hazard.flowDirection"
+                  (ngModelChange)="setWaterFlowDirection($event)"
+                  [disabled]="waterFlowSpeedPercent() === 0"
+                  name="hazardFlowDirection"
+                >
+                  @for (direction of flowDirections; track direction) {
+                    <option [ngValue]="direction">
+                      {{ 'feature.ambience.flowDirection_' + direction | transloco }}
+                    </option>
+                  }
+                </select>
+              </label>
             }
             <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.function.moveCostCharge' | transloco }}</span>

@@ -52,7 +52,16 @@ describe('sanitizeFunctionSpec()', () => {
     expect(spec.hazard.dirt).toBe(0);
     expect(spec.hazard.color).toBe('');
     expect(spec.hazard.leaves).toBe(0);
+    expect(spec.hazard.flowSpeed).toBe(0);
+    expect(spec.hazard.flowDirection).toBe(0);
     expect(spec.hazard.extraCost).toBeNull();
+  });
+
+  it('keeps the way water was painted to flow, turned back within one round', () => {
+    const spec = sanitizeFunctionSpec({ hazard: { kind: 'water', flowSpeed: '0.456', flowDirection: '-45' } });
+
+    expect(spec.hazard.flowSpeed).toBe(0.46);
+    expect(spec.hazard.flowDirection).toBe(315);
   });
 
   it('keeps a brush set to charge nothing, and holds the depth to tenths of a cell', () => {

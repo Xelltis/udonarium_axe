@@ -483,6 +483,8 @@ describe('painting dangerous ground', () => {
       dirt?: number;
       color?: string;
       leaves?: number;
+      flowSpeed?: number;
+      flowDirection?: number;
       extraCost?: number | null;
     } = {}
   ): FunctionLayer {
@@ -515,6 +517,20 @@ describe('painting dangerous ground', () => {
 
     expect(pond.ambience.add[0].spec.leaves).toBe(0.6);
     expect(bog.ambience.add[0].spec.leaves).toBe(0);
+  });
+
+  it('lays water flowing as it was painted, and other ground still', () => {
+    const river = planFunctionPaint(
+      sceneWith(hazardLayer(['1,1'], 'water', 'HP', { flowSpeed: 0.4, flowDirection: 225 })),
+      snapshot()
+    )!;
+    const bog = planFunctionPaint(
+      sceneWith(hazardLayer(['1,1'], 'bog', 'HP', { flowSpeed: 0.4, flowDirection: 225 })),
+      snapshot()
+    )!;
+
+    expect(river.ambience.add[0].spec).toMatchObject({ flowSpeed: 0.4, flowDirection: 225 });
+    expect(bog.ambience.add[0].spec).toMatchObject({ flowSpeed: 0, flowDirection: 0 });
   });
 
   it('lays water as murky as it was painted', () => {
@@ -604,6 +620,8 @@ describe('painting dangerous ground', () => {
             turbidity: 0.15,
             dirt: 0,
             leaves: 0,
+            flowSpeed: 0,
+            flowDirection: 0,
           },
         },
       ],

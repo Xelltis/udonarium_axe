@@ -24,6 +24,8 @@ import {
   TriggerPaintSpec,
   waterDepthOf,
   waterDirtOf,
+  waterFlowDirectionOf,
+  waterFlowSpeedOf,
   waterLeavesOf,
   waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
@@ -383,6 +385,8 @@ function ambienceSpecOf(area: TableAmbience): AmbiencePaintSpec {
     turbidity: waterTurbidityOf(area.turbidity),
     dirt: waterDirtOf(area.dirtiness),
     leaves: waterLeavesOf(area.floatingLeaves),
+    flowSpeed: waterFlowSpeedOf(area.flowSpeed),
+    flowDirection: waterFlowDirectionOf(area.flowDirection),
   };
 }
 
@@ -595,6 +599,8 @@ export class FunctionalPaintService {
       area.turbidity = block.spec.turbidity;
       area.dirtiness = block.spec.dirt;
       area.floatingLeaves = block.spec.leaves;
+      area.flowSpeed = block.spec.flowSpeed;
+      area.flowDirection = block.spec.flowDirection;
       area.location = blockOrigin(null, block, grid);
       table.appendChild(area);
     }

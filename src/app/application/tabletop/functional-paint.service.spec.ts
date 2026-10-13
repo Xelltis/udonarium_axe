@@ -482,6 +482,8 @@ describe('FunctionalPaintService', () => {
           turbidity: 0.15,
           dirt: 0,
           leaves: 0,
+          flowSpeed: 0,
+          flowDirection: 0,
         },
       };
 
@@ -505,6 +507,8 @@ describe('FunctionalPaintService', () => {
           turbidity: 0.15,
           dirt: 0,
           leaves: 0,
+          flowSpeed: 0,
+          flowDirection: 0,
         },
       };
       service.apply(plan({ ambience: { add: [look], remove: [] } }));
@@ -515,7 +519,7 @@ describe('FunctionalPaintService', () => {
       expect(table.ambiences[0]).toBe(laid);
     });
 
-    it('stands water as deep as it was painted, and leaves it be when painted again the same', () => {
+    it('stands water as deep and flowing as it was painted, and leaves it be when painted again the same', () => {
       const pond = {
         col: 2,
         row: 3,
@@ -530,6 +534,8 @@ describe('FunctionalPaintService', () => {
           turbidity: 0.7,
           dirt: 0.8,
           leaves: 0.6,
+          flowSpeed: 0.5,
+          flowDirection: 135,
         },
       };
       service.apply(plan({ ambience: { add: [pond], remove: [] } }));
@@ -539,6 +545,8 @@ describe('FunctionalPaintService', () => {
       expect(laid.murk).toBe(0.7);
       expect(laid.dirt).toBe(0.8);
       expect(laid.leaves).toBe(0.6);
+      expect(laid.flow).toBe(0.5);
+      expect(laid.flowHeading).toBe(135);
       expect(laid.ambienceColor).toBe('#5f6b4a');
       expect(service.snapshot()!.ambienceBlocks).toEqual([pond]);
     });
@@ -559,6 +567,8 @@ describe('FunctionalPaintService', () => {
           turbidity: 0.15,
           dirt: 0,
           leaves: 0,
+          flowSpeed: 0,
+          flowDirection: 0,
         },
       };
 
@@ -590,6 +600,8 @@ describe('FunctionalPaintService', () => {
           turbidity: 0.15,
           dirt: 0,
           leaves: 0,
+          flowSpeed: 0,
+          flowDirection: 0,
         },
       };
 
@@ -616,6 +628,8 @@ describe('FunctionalPaintService', () => {
           turbidity: 0.15,
           dirt: 0,
           leaves: 0,
+          flowSpeed: 0,
+          flowDirection: 0,
         },
       };
       service.apply(plan({ ambience: { add: [look], remove: [] } }));

@@ -66,6 +66,8 @@ import {
   TriggerPaintSpec,
   waterDepthOf,
   waterDirtOf,
+  waterFlowDirectionOf,
+  waterFlowSpeedOf,
   waterLeavesOf,
   waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
@@ -77,6 +79,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { asTriggerRepeat, TRIGGER_REPEATS, TriggerRepeat } from '@axe/domain/tabletop/trigger-event';
 import { TRIGGER_MOMENTS, TRIGGER_TARGETS } from '@axe/domain/tabletop/trigger-event';
+import { FLOW_DIRECTIONS } from '@axe/domain/tabletop/water/water-flow';
 import {
   WATER_PRESET_IDS,
   type WaterPresetId,
@@ -319,6 +322,24 @@ export class MapEditorPanelComponent implements AfterViewInit {
   /** Sets how much of the water the brush lays floating leaves over, from a percentage. */
   protected setWaterLeaves(percent: unknown): void {
     this.setHazardPaint({ leaves: waterLeavesOf(Number(percent) / 100) });
+  }
+
+  /** How fast the water brush paints the water flowing, as a percentage. */
+  protected readonly waterFlowSpeedPercent = computed(() =>
+    Math.round(this.state.functionSpec().hazard.flowSpeed * 100)
+  );
+
+  /** Sets how fast the water brush paints the water flowing, from a percentage. */
+  protected setWaterFlowSpeed(percent: unknown): void {
+    this.setHazardPaint({ flowSpeed: waterFlowSpeedOf(Number(percent) / 100) });
+  }
+
+  /** The ways the water brush can paint the water flowing. */
+  protected readonly flowDirections = FLOW_DIRECTIONS;
+
+  /** Sets which way the water brush paints the water flowing, in degrees clockwise from the top. */
+  protected setWaterFlowDirection(direction: unknown): void {
+    this.setHazardPaint({ flowDirection: waterFlowDirectionOf(direction) });
   }
 
   protected readonly waterPresets = WATER_PRESET_IDS;
