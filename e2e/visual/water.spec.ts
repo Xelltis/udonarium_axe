@@ -84,6 +84,20 @@ async function setMurkiness(page: Page, percent: string) {
   await closePanels(page);
 }
 
+/** Gives the pond one of the looks water can have, from its own settings. */
+async function setWaterLook(page: Page, label: string) {
+  await page.locator('table-ambience').first().dispatchEvent('contextmenu');
+  await settle(page, 400);
+  const menu = page.locator('context-menu');
+  await expect(menu.locator('li').first()).toBeVisible({ timeout: 7000 });
+  await chooseMenu(page, menu, '環境エフェクトの設定');
+  const field = page.locator('select[name="ambienceWaterPreset"]');
+  await settleLazy(page, field);
+  await field.selectOption({ label });
+  await settle(page, 400);
+  await closePanels(page);
+}
+
 async function wadeIn(page: Page) {
   const feet = await feetOf(page, 'キャラクターA');
   await layPond(page, { x: feet.x + 40, y: feet.y + 30 });
@@ -134,6 +148,17 @@ test('a piece fades into murky water', async ({ page }) => {
   await setMurkiness(page, '85');
   await settle(page, 400);
   await snap(page, 'water-murky', WATER_SNAP);
+});
+
+test('scum floats on stagnant water and hides what stands in it', async ({ page }) => {
+  await prepare(page);
+  await closePanels(page);
+  await freeze(page);
+  await wadeIn(page);
+  await setWaterLook(page, 'よどんだ水');
+  await expect(page.locator('[data-water-scum]').first()).toBeAttached();
+  await settle(page, 400);
+  await snap(page, 'water-stagnant', WATER_SNAP);
 });
 
 test('the whole map under water', async ({ page }) => {
