@@ -13,6 +13,7 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BackgroundSoundPlaybackService } from '@axe/features/media/background-sound-playback.service';
+import { BeatLightPreferenceService } from '@axe/features/media/beat-light/beat-light-preference.service';
 import { JukeboxPlaybackService } from '@axe/features/media/jukebox-playback.service';
 import { DjDeckComponent } from '@axe/features/media/mini-jukebox/dj-deck/dj-deck.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -254,5 +255,18 @@ describe('DjDeckComponent', () => {
       expect(element('dj-deck-pad-0').disabled).toBe(false);
       expect(element('dj-deck-pad-1').disabled).toBe(true);
     });
+  });
+
+  it('lets the game master turn the beat light on for the room, and anyone keep it off on their own screen', async () => {
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    vi.spyOn(Jukebox.prototype, 'refreshMix').mockImplementation(() => {});
+    await showTab('mix');
+
+    element('dj-deck-beat-light').click();
+    element('dj-deck-beat-light-mine').click();
+    await fixture.whenStable();
+
+    expect(Config.instance.djSettings.beatLight).toBe(true);
+    expect(TestBed.inject(BeatLightPreferenceService).off()).toBe(true);
   });
 });

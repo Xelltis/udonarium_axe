@@ -346,6 +346,23 @@
         >
           {{ 'feature.media.djDeck.quantize' | transloco }}
         </button>
+        <button
+          type="button"
+          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover m-0 h-6 cursor-pointer rounded-full border border-solid bg-transparent px-2 text-[10px] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+          [class.border-ui-accent!]="dj.settings().beatLight"
+          [class.text-ui-accent!]="dj.settings().beatLight"
+          [attr.aria-pressed]="dj.settings().beatLight"
+          (mousedown)="$event.stopPropagation()"
+          (click)="toggleBeatLight()"
+          [disabled]="!dj.canChangeSettings()"
+          [title]="
+            ('feature.media.djDeck.beatLightHint' | transloco) +
+            (dj.canChangeSettings() ? '' : ('feature.media.jukebox.gmOnlySuffix' | transloco))
+          "
+          data-testid="dj-deck-beat-light"
+        >
+          {{ 'feature.media.djDeck.beatLight' | transloco }}
+        </button>
         <label
           class="border-ui-border-panel text-ui-muted inline-flex h-6 items-center gap-1 rounded-full border border-solid px-2 text-[10px]"
           [title]="
@@ -375,6 +392,20 @@
           </select>
         </label>
       </div>
+      <label
+        class="text-ui-muted mt-1.5 flex cursor-pointer items-center gap-1.5 text-[10px]"
+        [title]="'feature.media.djDeck.beatLightMineHint' | transloco"
+        (mousedown)="$event.stopPropagation()"
+      >
+        <input
+          type="checkbox"
+          class="m-0 [accent-color:var(--ui-accent)]"
+          [checked]="beatLightOff()"
+          (change)="setBeatLightOff($any($event.target).checked)"
+          data-testid="dj-deck-beat-light-mine"
+        />
+        {{ 'feature.media.djDeck.beatLightMine' | transloco }}
+      </label>
     }
   }
 </div>

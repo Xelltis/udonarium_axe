@@ -75,6 +75,7 @@ import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.c
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
 import { NetworkIndicatorComponent } from '@axe/features/lobby/network-indicator/network-indicator.component';
+import { BeatLightComponent } from '@axe/features/media/beat-light/beat-light.component';
 import { CutInEventHandlerService } from '@axe/features/media/cut-in-event-handler.service';
 import { MiniJukeboxComponent } from '@axe/features/media/mini-jukebox/mini-jukebox.component';
 import { MixEventHandlerService } from '@axe/features/media/mix-event-handler.service';
@@ -146,6 +147,7 @@ const FAB_MARGIN_PX = 12;
   selector: 'app-root',
   templateUrl: './app.component.html',
   imports: [
+    BeatLightComponent,
     GameTableComponent,
     FirstPersonViewComponent,
     NetworkIndicatorComponent,

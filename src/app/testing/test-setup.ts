@@ -26,6 +26,7 @@ import { TABLETOP_DISPLAY_STORAGE_KEY } from '@axe/application/ui/tabletop-displ
 import { TOOLBAR_FOLD_STORAGE_KEY } from '@axe/application/ui/toolbar-fold.service';
 import { VIEW_MODE_STORAGE_KEY } from '@axe/application/ui/view-mode-preference.service';
 import { WIDGET_VISIBILITY_STORAGE_KEY } from '@axe/application/ui/widget-visibility.service';
+import { BEAT_LIGHT_OFF_STORAGE_KEY } from '@axe/features/media/beat-light/beat-light-preference.service';
 import { DJ_DECK_OPEN_STORAGE_KEY } from '@axe/features/media/mini-jukebox/dj-deck-preference';
 
 const srcAppDir = resolve(process.cwd(), 'src/app');
@@ -401,6 +402,7 @@ function forgetSeatPreferences(): void {
   localStorage.removeItem(CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY);
   localStorage.removeItem(AUDIO_ANALYSIS_CACHE_KEY);
   localStorage.removeItem(DJ_DECK_OPEN_STORAGE_KEY);
+  localStorage.removeItem(BEAT_LIGHT_OFF_STORAGE_KEY);
 }
 
 beforeAll(async () => {

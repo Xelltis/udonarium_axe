@@ -975,7 +975,11 @@
         },
         "padEmpty": "空のパッド。GMが押すと割り当てる音源を選べます",
         "padFire": "{{ name }} を鳴らす（効果音は一度、環境音は入切、BGMは曲の切り替え）。GMは右クリックで外す",
-        "padPickerTitle": "パッド {{ slot }} に割り当てる音源"
+        "padPickerTitle": "パッド {{ slot }} に割り当てる音源",
+        "beatLight": "ビートライト",
+        "beatLightHint": "曲の拍に合わせて全員の画面の縁をやわらかく光らせます。1秒に3回より速くは光りません",
+        "beatLightMine": "自分の画面ではビートライトを消す",
+        "beatLightMineHint": "このブラウザだけの設定です。「動きを減らす」をオンにしているときも光りません"
       }
     },
     "card": {

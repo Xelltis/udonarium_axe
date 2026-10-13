@@ -14,6 +14,7 @@ import { MusicBus } from '@axe/core/audio/music-bus';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { hasDjEffects } from '@axe/domain/media/dj-effects';
 import { CROSSFADE_CHOICES } from '@axe/domain/media/dj-settings';
+import { BeatLightPreferenceService } from '@axe/features/media/beat-light/beat-light-preference.service';
 import { DjConsoleService, type PadView } from '@axe/features/media/dj-console.service';
 import { formatTrackTime, JukeboxPlaybackService } from '@axe/features/media/jukebox-playback.service';
 import { UiKnobComponent } from '@axe/ui/components/knob/knob.component';
@@ -146,6 +147,21 @@ export class DjDeckComponent {
   /** Turns ducking on or off for the room. */
   toggleDucking(): void {
     this.dj.setSettings({ ducking: !this.dj.settings().ducking });
+  }
+
+  private readonly beatLightPreference = inject(BeatLightPreferenceService);
+
+  /** Whether this reader keeps the beat light off on their own screen. */
+  readonly beatLightOff = this.beatLightPreference.off;
+
+  /** Turns the beat light on or off for the room. */
+  toggleBeatLight(): void {
+    this.dj.setSettings({ beatLight: !this.dj.settings().beatLight });
+  }
+
+  /** Keeps the beat light off on this reader's screen, or lets it show again. */
+  setBeatLightOff(off: boolean): void {
+    this.beatLightPreference.setOff(off);
   }
 
   /** Turns quantising on or off for the room. */

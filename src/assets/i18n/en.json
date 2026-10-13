@@ -975,7 +975,11 @@
         },
         "padEmpty": "Empty pad. The game master can press it to choose a sound",
         "padFire": "Play {{ name }} (an effect once, a background sound on or off, music as the track). The game master can right-click to clear it",
-        "padPickerTitle": "Sound for pad {{ slot }}"
+        "padPickerTitle": "Sound for pad {{ slot }}",
+        "beatLight": "Beat light",
+        "beatLightHint": "Makes the edges of everyone's screen glow softly with the beat of the track, never more than three times a second",
+        "beatLightMine": "Keep the beat light off on my screen",
+        "beatLightMineHint": "Kept in this browser alone. The light also stays off while reduced motion is on"
       }
     },
     "card": {
