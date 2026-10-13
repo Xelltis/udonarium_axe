@@ -48,14 +48,17 @@ export function nightSkyAt(liftPx: number, viewHeightPx: number): string {
 /**
  * What is seen past the end of the view from under water: the depths all round, paling upward
  * to where the light comes down through the surface and darkening below, moved down the view by
- * `liftPx` as the eye looks up just as the night sky is.
+ * `liftPx` as the eye looks up just as the night sky is. Murky water hides the light above and
+ * the dark below alike, until water nothing can be seen through is its own colour all round.
  */
-export function waterSkyAt(deepColor: string, liftPx: number, viewHeightPx: number): string {
+export function waterSkyAt(deepColor: string, liftPx: number, viewHeightPx: number, murk = 0): string {
+  const clear = 1 - Math.min(Math.max(Number.isFinite(murk) ? murk : 0, 0), 1);
+  const toward = (share: number) => `${round(100 - share * clear)}%`;
   const stops: (readonly [string, number])[] = [
-    [`color-mix(in srgb, ${deepColor} 55%, #b8e8ff)`, 0],
-    [`color-mix(in srgb, ${deepColor} 80%, #b8e8ff)`, 0.3],
+    [`color-mix(in srgb, ${deepColor} ${toward(45)}, #b8e8ff)`, 0],
+    [`color-mix(in srgb, ${deepColor} ${toward(20)}, #b8e8ff)`, 0.3],
     [deepColor, 0.5],
-    [`color-mix(in srgb, ${deepColor} 55%, #000)`, 1],
+    [`color-mix(in srgb, ${deepColor} ${toward(45)}, #000)`, 1],
   ];
   if (viewHeightPx <= 0)
     return `linear-gradient(to bottom, ${stops.map(([colour, at]) => `${colour} ${round(at * 100)}%`).join(', ')})`;

@@ -1438,6 +1438,33 @@ describe('FirstPersonViewComponent', () => {
       expect(Number(box?.style.opacity)).toBeLessThan(0.5);
     });
 
+    it('loses a piece a few cells off in water nothing can be seen through, which clear water shows', async () => {
+      const water = pond(0, 0, 12, 12, 2);
+      const near = pieceAt(4, 4);
+      lookOutOf(pieceAt(4, 7));
+      await settled();
+      const opacityOf = () =>
+        Number(element(mount()).querySelector<HTMLElement>(`[data-piece="${near.identifier}"]`)?.style.opacity || 1);
+      expect(opacityOf()).toBeGreaterThan(0.6);
+
+      water.turbidity = 1;
+      await settled();
+
+      expect(opacityOf()).toBe(0);
+    });
+
+    it('hides the light above and the dark below in water nothing can be seen through', async () => {
+      const water = pond(0, 0, 12, 12, 2);
+      lookOutOf(pieceAt(4, 7));
+      await settled();
+      expect(inside(mount()).skyGradient()).not.toContain('100%, #b8e8ff');
+
+      water.turbidity = 1;
+      await settled();
+
+      expect(inside(mount()).skyGradient()).toContain('100%, #b8e8ff');
+    });
+
     it('leaves a piece far off whole for an eye in the air', async () => {
       const far = pieceAt(4, 1);
       lookOutOf(pieceAt(4, 7));

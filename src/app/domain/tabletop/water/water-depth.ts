@@ -16,6 +16,31 @@ export function depthShadeAlpha(depthCells: number, turbidity: number): number {
   return round(most * (1 - Math.exp(-rate * depth)));
 }
 
+/** How far one sees through the clearest water, in cells, before it hides what is there. */
+const CLEAREST_SIGHT_CELLS = 30.8;
+/** How far one sees through water nothing can be seen through: less than the cell in front. */
+const MURKIEST_SIGHT_CELLS = 0.8;
+
+/**
+ * How far one sees through water from inside it, in cells, before the water hides what is there:
+ * far in clear water, and less than a cell in water nothing can be seen through.
+ */
+export function murkSightCells(turbidity: number): number {
+  const clear = 1 - clamp01(turbidity);
+  return MURKIEST_SIGHT_CELLS + (CLEAREST_SIGHT_CELLS - MURKIEST_SIGHT_CELLS) * clear * clear;
+}
+
+/**
+ * How much of something this many cells off the water hides from an eye inside it, from 0 to 1.
+ * The water thickens with the distance, gone nearly all the way at the distance one sees, and
+ * all the way soon after: what lies past it is the colour of the water and nothing else.
+ */
+export function murkShade(distanceCells: number, turbidity: number): number {
+  const distance = Number.isFinite(distanceCells) ? Math.max(distanceCells, 0) : 0;
+  const hidden = 1 - Math.exp((-3 * distance) / murkSightCells(turbidity));
+  return hidden > 0.995 ? 1 : round(hidden);
+}
+
 /** The colour of the depths over a sheet of water: one strength over all of it, or a picture of it cell by cell. */
 export type WaterDepthShade = { readonly alpha: number } | WaterLightMask;
 
