@@ -1417,4 +1417,150 @@ describe('Jukebox', () => {
       expect(fade).toHaveBeenLastCalledWith(0, Jukebox.STOP_FADE_MS);
     });
   });
+
+  describe('quantising and jumping to marked places', () => {
+    let sounding: WeakSet<AudioPlayer>;
+    let played: string[];
+
+    function makeJukebox(): Jukebox {
+      const jukebox = new Jukebox('Jukebox');
+      jukebox.initialize();
+      return jukebox;
+    }
+
+    function roomQuantises(quantize = true): void {
+      let config = ObjectStore.instance.get<Config>('Config');
+      if (!config) {
+        config = new Config('Config');
+        config.initialize();
+      }
+      config.djSettings = { ...DEFAULT_DJ_SETTINGS, crossfadeS: 0, quantize };
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      sounding = new WeakSet<AudioPlayer>();
+      played = [];
+      vi.spyOn(AudioPlayer.prototype, 'play').mockImplementation(function (this: AudioPlayer, audio?: AudioFile) {
+        sounding.add(this);
+        played.push(audio?.identifier ?? '');
+      });
+      vi.spyOn(AudioPlayer.prototype, 'stop').mockImplementation(function (this: AudioPlayer) {
+        sounding.delete(this);
+      });
+      vi.spyOn(AudioPlayer.prototype, 'paused', 'get').mockImplementation(function (this: AudioPlayer) {
+        return !sounding.has(this);
+      });
+      vi.spyOn(AudioPlayer.prototype, 'currentTime', 'get').mockReturnValue(1.25);
+      vi.spyOn(AudioPlayer.prototype, 'seekTo').mockImplementation(() => {});
+      for (const identifier of ['a', 'b']) AudioStorage.instance.add(makeReadyAudio(identifier));
+      AudioProfile.setGrid('a', { bpm: 120, bar: 0 });
+    });
+
+    afterEach(() => vi.useRealTimers());
+
+    it('changes track on the next bar of the track sounding while the room quantises', () => {
+      roomQuantises();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+
+      jukebox.play('b');
+      expect(jukebox.audioIdentifier).toBe('b');
+      vi.advanceTimersByTime(749);
+      expect(played).toEqual(['a']);
+
+      vi.advanceTimersByTime(1);
+      expect(played).toEqual(['a', 'b']);
+    });
+
+    it('changes track at once without quantising, or when the track sounding keeps no beats', () => {
+      roomQuantises(false);
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      jukebox.play('b');
+      expect(played).toEqual(['a', 'b']);
+
+      roomQuantises();
+      jukebox.play('a');
+      expect(played).toEqual(['a', 'b', 'a']);
+    });
+
+    it('waits for the next beat instead when a bar is longer than the wait allowed', () => {
+      roomQuantises();
+      AudioProfile.setGrid('a', { bpm: 40, bar: 0 });
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+
+      jukebox.play('b');
+      vi.advanceTimersByTime(249);
+      expect(played).toEqual(['a']);
+      vi.advanceTimersByTime(1);
+      expect(played).toEqual(['a', 'b']);
+    });
+
+    it('forgets a change still waiting when the room pauses', () => {
+      roomQuantises();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      jukebox.play('b');
+
+      jukebox.pause();
+      vi.advanceTimersByTime(2000);
+
+      expect(played).toEqual(['a']);
+    });
+
+    it('jumps to a marked place on the next beat with a short crossfade, for every peer', () => {
+      roomQuantises();
+      const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const seek = vi.mocked(AudioPlayer.prototype.seekTo);
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+
+      jukebox.jumpTo(30);
+      expect(jukebox.startTime).toBe(30);
+      expect(jukebox.jumpCount).toBe(1);
+      expect(jukebox.seekCount).toBe(1);
+      vi.advanceTimersByTime(249);
+      expect(seek).not.toHaveBeenCalledWith(30);
+
+      vi.advanceTimersByTime(1);
+      expect(seek).toHaveBeenCalledWith(30);
+      expect(fade).toHaveBeenCalledWith(1, Jukebox.JUMP_FADE_MS);
+    });
+
+    it('follows a jump from another peer on its own next beat, and a seek from an older version as a seek', () => {
+      roomQuantises();
+      vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const seek = vi.mocked(AudioPlayer.prototype.seekTo);
+      const jukebox = makeJukebox();
+      jukebox.apply(jukebox.toContext());
+      const playing = jukebox.toContext();
+      playing.syncData = { ...playing.syncData, audioIdentifier: 'a', isPlaying: true };
+      jukebox.apply(playing);
+
+      const jumped = jukebox.toContext();
+      jumped.syncData = { ...jumped.syncData, startTime: 40, seekCount: 1, jumpCount: 1 };
+      jukebox.apply(jumped);
+      expect(seek).not.toHaveBeenCalledWith(40);
+      vi.advanceTimersByTime(250);
+      expect(seek).toHaveBeenCalledWith(40);
+
+      const older = jukebox.toContext();
+      const { jumpCount: _dropped, ...withoutCount } = older.syncData as Record<string, unknown>;
+      older.syncData = { ...withoutCount, startTime: 50, seekCount: 2 };
+      jukebox.apply(older);
+      expect(seek).toHaveBeenCalledWith(50);
+    });
+
+    it('keeps a jump made while the track is held, to go on from there', () => {
+      const jukebox = makeJukebox();
+      jukebox.audioIdentifier = 'a';
+
+      jukebox.jumpTo(12);
+
+      expect(jukebox.startTime).toBe(12);
+      expect(jukebox.jumpCount).toBe(0);
+    });
+  });
 });

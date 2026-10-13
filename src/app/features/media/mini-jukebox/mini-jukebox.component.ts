@@ -17,6 +17,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { BackgroundSoundPlaybackService } from '@axe/features/media/background-sound-playback.service';
@@ -175,6 +176,20 @@ export class MiniJukeboxComponent {
     const dur = this.playback.duration();
     const ct = this.isSeeking() ? this.seekPreview() * dur : this.playback.position();
     return `${formatTrackTime(ct)} / ${dur > 0 ? formatTrackLength(dur) : '—'}`;
+  });
+
+  /** Where the places marked in the room's track lie along the seek bar, as percentages of its length. */
+  readonly cueMarks = computed<{ slot: number; percent: number }[]>(() => {
+    this._tick();
+    this.objectChange.versionOf('Jukebox')();
+    const identifier = this.jukebox?.audioIdentifier ?? '';
+    if (!identifier) return [];
+    this.objectChange.versionOf(`audiotag_${identifier}`)();
+    const duration = this.playback.duration();
+    if (!(duration > 0) || !Number.isFinite(duration)) return [];
+    return AudioProfile.cuesOf(identifier).flatMap((at, slot) =>
+      at === null ? [] : [{ slot, percent: Math.min(100, (at / duration) * 100) }]
+    );
   });
 
   /** The tracks the room plays through, as listed. */

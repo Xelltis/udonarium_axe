@@ -14,7 +14,7 @@ import { MusicBus } from '@axe/core/audio/music-bus';
 import { hasDjEffects } from '@axe/domain/media/dj-effects';
 import { CROSSFADE_CHOICES } from '@axe/domain/media/dj-settings';
 import { DjConsoleService } from '@axe/features/media/dj-console.service';
-import { JukeboxPlaybackService } from '@axe/features/media/jukebox-playback.service';
+import { formatTrackTime, JukeboxPlaybackService } from '@axe/features/media/jukebox-playback.service';
 import { UiKnobComponent } from '@axe/ui/components/knob/knob.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -112,6 +112,16 @@ export class DjDeckComponent {
   /** Turns ducking on or off for the room. */
   toggleDucking(): void {
     this.dj.setSettings({ ducking: !this.dj.settings().ducking });
+  }
+
+  /** Turns quantising on or off for the room. */
+  toggleQuantize(): void {
+    this.dj.setSettings({ quantize: !this.dj.settings().quantize });
+  }
+
+  /** A marked place as shown on its pad. */
+  cueTime(seconds: number): string {
+    return formatTrackTime(seconds);
   }
 
   /** Sets how long the room's tracks fade into each other. */

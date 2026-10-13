@@ -6,7 +6,16 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { type AudioAnalysis, autoLevelGainDb } from '@axe/domain/media/audio-analysis';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AudioTag } from '@axe/domain/media/audio-tag';
-import { type BeatGrid, BEATS_PER_BAR, beatsAt, clampBpm, withBpm, withDownbeatAt } from '@axe/domain/media/beat-grid';
+import {
+  type BeatGrid,
+  beatLength,
+  BEATS_PER_BAR,
+  beatsAt,
+  clampBpm,
+  withBpm,
+  withDownbeatAt,
+} from '@axe/domain/media/beat-grid';
+import { type CuePoints, NO_CUE_POINTS, withCuePoint } from '@axe/domain/media/cue-points';
 import { type DjEffects, NO_DJ_EFFECTS } from '@axe/domain/media/dj-effects';
 import { type DjSettings } from '@axe/domain/media/dj-settings';
 import { Jukebox } from '@axe/domain/media/jukebox';
@@ -92,6 +101,14 @@ export class DjConsoleService {
     if (!identifier) return false;
     this.followProfile(identifier);
     return AudioProfile.manualGridOf(identifier) !== null;
+  });
+
+  /** The places marked in the room's track. */
+  readonly cues = computed<CuePoints>(() => {
+    const identifier = this.track();
+    if (!identifier) return NO_CUE_POINTS;
+    this.followProfile(identifier);
+    return AudioProfile.cuesOf(identifier);
   });
 
   /** Whether the room's track is being read, or waiting to be. */
@@ -237,6 +254,35 @@ export class DjConsoleService {
   brakeStop(): void {
     if (!this.rolePermission.canEditTabletop) return;
     this.jukebox?.brakeStop();
+  }
+
+  /**
+   * Presses one of the track's cue slots: an empty one is given the place the track is at, put on
+   * the nearest beat while the room quantises, and one holding a place jumps the room there.
+   */
+  pressCue(slot: number): void {
+    const identifier = this.track();
+    if (!identifier || !this.rolePermission.canEditTabletop) return;
+    const at = this.cues()[slot];
+    if (typeof at === 'number') {
+      this.jukebox?.jumpTo(at);
+      return;
+    }
+    AudioProfile.setCues(identifier, withCuePoint(this.cues(), slot, this.markablePosition()));
+  }
+
+  /** Empties one of the track's cue slots. */
+  clearCue(slot: number): void {
+    const identifier = this.track();
+    if (!identifier || !this.rolePermission.canEditTabletop) return;
+    AudioProfile.setCues(identifier, withCuePoint(this.cues(), slot, null));
+  }
+
+  private markablePosition(): number {
+    const position = this.position();
+    const grid = this.grid();
+    if (!grid || !this.settings().quantize) return position;
+    return Math.max(0, grid.bar + Math.round(beatsAt(grid, position)) * beatLength(grid));
   }
 
   private shareEffects(): void {

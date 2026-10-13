@@ -211,4 +211,46 @@ describe('DjConsoleService', () => {
       expect(brake).not.toHaveBeenCalled();
     });
   });
+
+  describe('cues', () => {
+    it('marks the place the track is at in an empty slot, and jumps the room to a slot holding one', async () => {
+      const jump = vi.spyOn(jukebox, 'jumpTo').mockImplementation(() => {});
+      position = 42.3;
+
+      dj.pressCue(1);
+      await waitZeroTimeout();
+      expect(dj.cues()).toEqual([null, 42.3, null, null]);
+      expect(jump).not.toHaveBeenCalled();
+
+      dj.pressCue(1);
+      expect(jump).toHaveBeenCalledWith(42.3);
+    });
+
+    it('puts a mark on the nearest beat while the room quantises', async () => {
+      AudioProfile.share('track', reading);
+      Config.instance.djSettings = { ...DEFAULT_DJ_SETTINGS, quantize: true };
+      position = 0.2 + 0.6 * 7 + 0.25;
+
+      dj.pressCue(0);
+      await waitZeroTimeout();
+
+      expect(dj.cues()[0]).toBeCloseTo(0.2 + 0.6 * 7, 6);
+    });
+
+    it('empties a slot, and lets a guest neither mark nor empty one', async () => {
+      AudioProfile.setCues('track', [10, 20, null, null]);
+      dj.clearCue(0);
+      await waitZeroTimeout();
+      expect(dj.cues()).toEqual([null, 20, null, null]);
+
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      const jump = vi.spyOn(jukebox, 'jumpTo').mockImplementation(() => {});
+      dj.clearCue(1);
+      dj.pressCue(2);
+      dj.pressCue(1);
+      await waitZeroTimeout();
+      expect(dj.cues()).toEqual([null, 20, null, null]);
+      expect(jump).not.toHaveBeenCalled();
+    });
+  });
 });

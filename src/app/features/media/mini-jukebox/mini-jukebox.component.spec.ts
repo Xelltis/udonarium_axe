@@ -4,6 +4,8 @@ import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { LoopPlayer } from '@axe/core/storage/loop-player';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
+import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
 import { Jukebox } from '@axe/domain/media/jukebox';
@@ -147,5 +149,20 @@ describe('MiniJukeboxComponent', () => {
       expect(deck()).toBeNull();
       expect(readDeckOpen()).toBe(false);
     });
+  });
+
+  it('marks the places marked in the room track along the seek bar', async () => {
+    const jukebox = ObjectStore.instance.get<Jukebox>('Jukebox')!;
+    jukebox.audioIdentifier = 'marked';
+    jukebox.isPlaying = true;
+    vi.spyOn(Jukebox.prototype, 'duration', 'get').mockReturnValue(200);
+    AudioProfile.setCues('marked', [50, null, 150, null]);
+    await waitZeroTimeout();
+    await fixture.whenStable();
+
+    const marks = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[data-testid="mini-jukebox-cue-mark"]'),
+    ];
+    expect(marks.map((mark) => mark.style.left)).toEqual(['25%', '75%']);
   });
 });

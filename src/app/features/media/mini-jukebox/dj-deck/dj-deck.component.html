@@ -102,6 +102,32 @@
     </button>
   </div>
 
+  <div class="mt-2 grid grid-cols-4 gap-1" data-testid="dj-deck-cues">
+    @for (cue of dj.cues(); track $index; let slot = $index) {
+      <button
+        type="button"
+        class="border-ui-border-panel text-ui-dim hover:bg-ui-hover m-0 flex h-8 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed bg-transparent p-0 text-[10px] leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+        [class.border-solid!]="cue !== null"
+        [class.border-ui-accent!]="cue !== null"
+        [class.bg-ui-accent-bg!]="cue !== null"
+        [class.text-ui-accent!]="cue !== null"
+        (mousedown)="$event.stopPropagation()"
+        (click)="dj.pressCue(slot)"
+        (contextmenu)="$event.preventDefault(); dj.clearCue(slot)"
+        [disabled]="!dj.canOperate() || !dj.track()"
+        [title]="
+          cue === null
+            ? ('feature.media.djDeck.cueSet' | transloco: { slot: slot + 1 })
+            : ('feature.media.djDeck.cueJump' | transloco: { slot: slot + 1 })
+        "
+        [attr.data-testid]="'dj-deck-cue-' + slot"
+      >
+        <span class="font-semibold">{{ slot + 1 }}</span>
+        <span class="[font-variant-numeric:tabular-nums]">{{ cue === null ? '+' : cueTime(cue) }}</span>
+      </button>
+    }
+  </div>
+
   <div class="mt-2 flex items-end gap-2" data-testid="dj-deck-effects">
     <ui-knob
       name="filter"
@@ -213,6 +239,23 @@
       data-testid="dj-deck-ducking"
     >
       {{ 'feature.media.djDeck.ducking' | transloco }}
+    </button>
+    <button
+      type="button"
+      class="border-ui-border-panel text-ui-muted hover:bg-ui-hover m-0 h-6 cursor-pointer rounded-full border border-solid bg-transparent px-2 text-[10px] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+      [class.border-ui-accent!]="dj.settings().quantize"
+      [class.text-ui-accent!]="dj.settings().quantize"
+      [attr.aria-pressed]="dj.settings().quantize"
+      (mousedown)="$event.stopPropagation()"
+      (click)="toggleQuantize()"
+      [disabled]="!dj.canChangeSettings()"
+      [title]="
+        ('feature.media.djDeck.quantizeHint' | transloco) +
+        (dj.canChangeSettings() ? '' : ('feature.media.jukebox.gmOnlySuffix' | transloco))
+      "
+      data-testid="dj-deck-quantize"
+    >
+      {{ 'feature.media.djDeck.quantize' | transloco }}
     </button>
     <label
       class="border-ui-border-panel text-ui-muted inline-flex h-6 items-center gap-1 rounded-full border border-solid px-2 text-[10px]"

@@ -963,7 +963,11 @@
         "reverbHint": "Makes the music ring on as in a large hall",
         "brake": "Brake",
         "brakeHint": "Stops the music as a record stops, its pitch falling as it slows",
-        "resetEffects": "Turn every effect off"
+        "resetEffects": "Turn every effect off",
+        "cueSet": "Mark the place the track is at as cue {{ slot }}",
+        "cueJump": "Jump to cue {{ slot }}. Right-click to clear it",
+        "quantize": "Quantize",
+        "quantizeHint": "A change of track waits for the next bar, and a jump to a cue for the next beat. Cues are placed on the beat too"
       }
     },
     "card": {

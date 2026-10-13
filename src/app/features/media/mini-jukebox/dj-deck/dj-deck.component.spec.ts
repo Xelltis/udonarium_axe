@@ -168,4 +168,13 @@ describe('DjDeckComponent', () => {
       expect(element('dj-deck-brake').disabled).toBe(false);
     });
   });
+
+  it('shows each cue slot empty or with the place it marks', async () => {
+    AudioProfile.setCues('track', [null, 83, null, null]);
+    await waitZeroTimeout();
+    await fixture.whenStable();
+
+    expect(element('dj-deck-cue-0').textContent?.replace(/\s+/g, '')).toBe('1+');
+    expect(element('dj-deck-cue-1').textContent?.replace(/\s+/g, '')).toBe('21:23');
+  });
 });
