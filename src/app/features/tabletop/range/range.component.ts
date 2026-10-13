@@ -16,8 +16,11 @@ import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
@@ -33,6 +36,7 @@ import { GameTable } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { rangeCovers } from '@axe/domain/tabletop/range-coverage';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { buildRangeContextMenuModel } from '@axe/features/tabletop/range/range-context-menu';
@@ -79,6 +83,9 @@ export class RangeComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
+  private readonly zones = inject(EngagementZoneService);
+  private readonly vision = inject(VisionService);
+  private readonly pieceTarget = inject(PieceTargetService);
 
   readonly range = input.required<RangeArea>();
 
@@ -274,7 +281,8 @@ export class RangeComponent {
       () => this.dockingWindowOpen(),
       (r) => this.showDetail(r),
       this.translateFn,
-      (r) => this.openCellEditor(r)
+      (r) => this.openCellEditor(r),
+      (r) => this.targetInside(r)
     );
     const display = this.tabletopService.display();
     if (this.tabletopService.mode2d() && display.tabletopMenuStyle !== 'standard') {
@@ -290,6 +298,27 @@ export class RangeComponent {
       return;
     }
     this.contextMenuService.open(menuPosition, menu.actions, this.name());
+  }
+
+  /**
+   * Aims at every piece the range takes in that the reader can see, and at nothing else. A piece in an
+   * engagement zone is taken in where the range takes in the zone's centre; a piece taken out of the
+   * fight is not taken in at all.
+   */
+  targetInside(range: RangeArea): void {
+    const shape = {
+      type: range.type,
+      length: range.length,
+      width: range.width,
+      rotate: range.rotate,
+      origin: { x: range.location.x, y: range.location.y },
+    };
+    const reading = this.zones.reading();
+    const inside = this.objectStore
+      .getObjects<GameCharacter>(GameCharacter)
+      .filter((piece) => piece.isVisibleOnTable && piece.offField !== '1' && this.vision.isTokenVisible(piece))
+      .filter((piece) => rangeCovers(shape, this.gridSize, reading.pointOf(piece)) === true);
+    this.pieceTarget.setOnly(inside);
   }
 
   /** Opens the panel for choosing a character for the range to follow, from the follow menu entry. */

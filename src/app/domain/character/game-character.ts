@@ -66,6 +66,60 @@ export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() hideName: boolean = false;
   @SyncVar() hideBuff: boolean = false;
   @SyncVar() isNpc: boolean = false;
+  /** The engagement zone the piece is in, as its identifier, or empty for none. */
+  @SyncVar() engagementZone: string = '';
+  /** `1` while the piece is taken out of the fight, so nothing counts it; empty otherwise. */
+  @SyncVar() offField: string = '';
+  /** The round the piece said it would leave its zone in, empty where it has not; `0` while no round is kept. */
+  @SyncVar() zoneLeaveRound: string = '';
+  /**
+   * `1` while nobody can see the piece: no move of it can be stopped, and a move it stops makes a zone
+   * there and then; empty otherwise.
+   */
+  @SyncVar() unseen: string = '';
+  /** `1` while the piece is down and cannot act, which keeps it out of every zone; empty otherwise. */
+  @SyncVar() downed: string = '';
+  /** `1` while the piece is held fast where it stands and cannot move; empty otherwise. */
+  @SyncVar() heldFast: string = '';
+  /** `1` while the move being worked out for the piece is one nobody may stop; empty otherwise. */
+  @SyncVar() unstoppableMove: string = '';
+  /**
+   * The piece holding on to this one, as its identifier, or empty: one held on to cannot move of its
+   * own will, and goes where the one holding it goes.
+   */
+  @SyncVar() grabbedBy: string = '';
+  /** The mount the piece rides, as its identifier, or empty: it stands on that mount and goes where it goes. */
+  @SyncVar() ridingOn: string = '';
+  /** Where the piece rides its mount: empty in front, `passenger` behind, `cargo` carried as a load. */
+  @SyncVar() rideSeat: string = '';
+  /** `1` while the piece is a mount others may ride; empty otherwise. */
+  @SyncVar() mountable: string = '';
+  /** `1` where a mount takes a second rider behind the one in front; empty otherwise. */
+  @SyncVar() mountPassenger: string = '';
+  /** How many a mount may carry as a load, empty for none. A mount that carries any takes no second rider. */
+  @SyncVar() mountCargo: string = '';
+  /** `1` where anybody may ride a mount in front, skilled at steering or not; empty otherwise. */
+  @SyncVar() mountAnyone: string = '';
+  /** How high above its base a mount's rider stands, in cells, or empty for half its size. */
+  @SyncVar() mountSeatHeight: string = '';
+  /** `1` while the piece lies where it fell, empty otherwise: it gets on no mount and no mount takes it. */
+  @SyncVar() prone: string = '';
+  /** The mark of the turn the piece fell in, where it was its own: it gets up no sooner than the next. */
+  @SyncVar() proneTurn: string = '';
+  /** The mark of the turn the piece last got on or off a mount in, or empty: it does so once a turn. */
+  @SyncVar() rideChangedTurn: string = '';
+  /** The mount the piece last got off, as its identifier, until it gets on one again; empty otherwise. */
+  @SyncVar() rideLeftFrom: string = '';
+  /** Where the piece sat on the mount it last got off, written as {@link rideSeat} is. */
+  @SyncVar() rideLeftSeat: string = '';
+  /** The mount whose buff for riding two up the piece was given, as its identifier, or empty. */
+  @SyncVar() rideTwoUpFrom: string = '';
+  /** The buff for riding two up the piece was given, as its identifier, or empty where none was. */
+  @SyncVar() rideTwoUpBuff: string = '';
+  /** The mark of the turn a mount last set out on a move in, or empty. */
+  @SyncVar() rideMoveTurn: string = '';
+  /** How far, in metres, a mount set out to move in that turn, or empty. */
+  @SyncVar() rideMoveM: string = '';
   @SyncVar() disclosureMode: string = '';
   @SyncVar() disclosureUserIds: string[] = [];
   @SyncVar() overViewWidth: number = 270;

@@ -18,6 +18,8 @@ export interface ResourceEdit {
   operator: string;
   diceResult: string;
   command: string;
+  /** The amount as written after the operator, options taken off, before it is made into a command. */
+  amount: string;
   replace: string;
   isDiceRoll: boolean;
   embeddedRolls: string[];
@@ -75,6 +77,7 @@ export function createDefaultResourceEdit(): ResourceEdit {
     operator: '',
     diceResult: '',
     command: '',
+    amount: '',
     replace: '',
     isDiceRoll: false,
     embeddedRolls: [],
@@ -131,7 +134,8 @@ export function convertCommandToResourceEdit(
 
   let reg3 = resourceEditResult[3].replace(/[A-CE-ZＡ-ＣＥ-Ｚ]+$/i, '');
   const commandPrefix = oneResourceEdit.operator === '-' ? '-' : '';
-  oneResourceEdit.command = `${commandPrefix}${toHalfWidth(reg3)}+(1d1-1)`;
+  oneResourceEdit.amount = toHalfWidth(reg3);
+  oneResourceEdit.command = `${commandPrefix}${oneResourceEdit.amount}+(1d1-1)`;
 
   reg3 = reg3.replace(/[A-CE-ZＡ-ＣＥ-Ｚ]+$/i, '');
   const optionCommand = parseResourceEditOption(resourceEditResult[3]);
@@ -327,7 +331,7 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
   } else if (command.match(/^[tTｔＴ]?&[!！]/i)) {
     text += applyCalculatedBuff(command, character, piles);
   } else {
-    const splittext = command.replace(/^[tTｔＴ]?&/i, '').split('/');
+    const splittext = readModifierLayout(command.replace(/^[tTｔＴ]?&/i, '').split('/'));
     let round: number | undefined = undefined;
     let sub = '';
     const buffname = splittext[0];
@@ -365,6 +369,21 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
   }
 
   return text;
+}
+
+/**
+ * A plain buff written in the `&!` layout, `name/status/op/amount/R/…`, read as the plain
+ * `name/note/R/…` it stands for, so the rounds written after the amount are the ones it lasts.
+ * Read as a plain buff, the operator would stand where the rounds go and the rounds would be
+ * taken for its look.
+ *
+ * Without the mark the status is left where it is; the note says what the buff would move.
+ */
+function readModifierLayout(parts: string[]): string[] {
+  if (parts.length < 4) return parts;
+  const request = parseBuffModifierRequest(parts[1], parts[2], parts[3]);
+  if (!request) return parts;
+  return [parts[0], describeBuffModifier(request), ...parts.slice(4)];
 }
 
 /** How a stacked buff reads once it stands, so the chat line names the total rather than the helping. */

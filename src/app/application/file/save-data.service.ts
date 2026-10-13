@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatReactionService } from '@axe/application/chat/chat-reaction.service';
 import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { stampLabel } from '@axe/application/chat/stamp-words';
@@ -72,6 +73,7 @@ export class SaveDataService {
   private readonly translate = inject(TRANSLATE_FN);
   private readonly chatReactions = inject(ChatReactionService);
   private readonly stampPacks = inject(StampPackService);
+  private readonly chatPreferences = inject(ChatPreferencesService);
 
   // The exporter would write a raw `@i18n:key:{params}` message, as system notices are,
   // so the translated text is substituted before it gets there.
@@ -333,6 +335,7 @@ export class SaveDataService {
       labels: this.chatLogLabels(),
       lang: document.documentElement.lang || undefined,
       exportedAt: Date.now(),
+      ruby: this.chatPreferences.rubyDisplay(),
       reactionsOf: (messageIdentifier) =>
         this.chatReactions.talliesOf(messageIdentifier).map((tally) => ({
           label: stampLabel(tally.stampId, this.translate, (imageIdentifier) =>

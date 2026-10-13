@@ -1,0 +1,105 @@
+@if (waiting() || offer()) {
+  <div
+    class="bg-ui-panel shadow-ui-md text-ui-text pointer-events-auto fixed bottom-44 left-1/2 flex max-w-[92vw] -translate-x-1/2 flex-wrap items-center gap-2 rounded-2xl px-3 py-2 text-sm"
+    [style.zIndex]="zIndex"
+    data-testid="interrupt-prompt"
+    data-move-plan-control
+  >
+    @if (waiting()) {
+      <span class="min-w-0" data-testid="interrupt-waiting">{{
+        'feature.zone.interrupt.waiting' | transloco: { seconds: secondsLeft() }
+      }}</span>
+    }
+    @if (offer(); as offer) {
+      @if (offer.pieces.length > 0) {
+        <span class="min-w-0 font-semibold">{{
+          'feature.zone.interrupt.offer' | transloco: { mover: offer.moverName }
+        }}</span>
+        @for (piece of offer.pieces; track piece.id) {
+          <button
+            type="button"
+            class="border-ui-border-panel cursor-pointer rounded-full border border-solid px-3 py-1 text-[0.86em]"
+            [class]="isChosen(piece.id) ? 'bg-ui-accent text-white' : 'text-ui-muted bg-transparent'"
+            [attr.aria-pressed]="isChosen(piece.id)"
+            data-testid="interrupt-piece"
+            (click)="toggle(piece.id)"
+          >
+            {{ piece.name }}
+            @if (piece.zones.length > 0) {
+              <span class="opacity-75" data-testid="interrupt-piece-zone">{{
+                (piece.member ? 'feature.zone.interrupt.inZone' : 'feature.zone.interrupt.standingInZone') | transloco
+              }}</span>
+            }
+          </button>
+        }
+        @if ((choice()?.zones?.length ?? 0) > 1) {
+          <span class="text-ui-muted text-[0.86em]">{{ 'feature.zone.interrupt.pullInto' | transloco }}</span>
+          @for (zone of choice()!.zones; track zone.id) {
+            <button
+              type="button"
+              class="border-ui-border-panel cursor-pointer rounded-full border border-solid px-3 py-1 text-[0.86em]"
+              [class]="choice()!.zone === zone.id ? 'bg-ui-accent text-white' : 'text-ui-muted bg-transparent'"
+              [attr.aria-pressed]="choice()!.zone === zone.id"
+              data-testid="interrupt-zone"
+              (click)="chooseZone(zone.id)"
+            >
+              {{ 'feature.zone.interrupt.zoneOf' | transloco: { name: zone.name } }}
+            </button>
+          }
+        }
+        @if (range(); as range) {
+          <label class="text-ui-muted flex items-center gap-1 text-[0.86em]">
+            {{ 'feature.zone.interrupt.point' | transloco }}
+            <input
+              type="range"
+              class="w-32 [accent-color:var(--ui-accent)]"
+              [min]="range.min"
+              [max]="range.max"
+              step="1"
+              [value]="choice()?.along ?? range.min"
+              data-testid="interrupt-along"
+              (input)="slide($event)"
+            />
+          </label>
+        }
+        <button
+          type="button"
+          class="bg-ui-accent cursor-pointer rounded-full border-none px-3 py-1 text-[0.86em] text-white disabled:cursor-default disabled:opacity-50"
+          [disabled]="choice()?.along === null || (choice()?.pieces?.length ?? 0) < 1"
+          data-testid="interrupt-step"
+          (click)="answer()"
+        >
+          {{ 'feature.zone.interrupt.step' | transloco }}
+        </button>
+        <button
+          type="button"
+          class="border-ui-border-panel text-ui-muted cursor-pointer rounded-full border border-solid bg-transparent px-3 py-1 text-[0.86em]"
+          data-testid="interrupt-pass"
+          (click)="pass()"
+        >
+          {{ 'feature.zone.interrupt.pass' | transloco }}
+        </button>
+      } @else if (!waiting()) {
+        <span class="min-w-0">{{ 'feature.zone.interrupt.ruling' | transloco: { mover: offer.moverName } }}</span>
+      }
+    }
+    @if (mayRule()) {
+      <button
+        type="button"
+        class="border-ui-border-panel text-ui-text cursor-pointer rounded-full border border-solid bg-transparent px-3 py-1 text-[0.86em]"
+        data-testid="interrupt-decide-now"
+        (click)="decideNow()"
+      >
+        {{ 'feature.zone.interrupt.decideNow' | transloco }}
+      </button>
+      <button
+        type="button"
+        class="border-ui-border-panel text-ui-muted cursor-pointer rounded-full border border-solid bg-transparent px-3 py-1 text-[0.86em]"
+        data-testid="interrupt-drop"
+        (click)="drop()"
+      >
+        {{ 'feature.zone.interrupt.drop' | transloco }}
+      </button>
+    }
+  </div>
+}

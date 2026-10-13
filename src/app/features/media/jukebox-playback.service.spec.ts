@@ -11,7 +11,11 @@ import { Jukebox } from '@axe/domain/media/jukebox';
 import { Playlist } from '@axe/domain/media/playlist';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { JukeboxPlaybackService } from '@axe/features/media/jukebox-playback.service';
+import {
+  formatTrackLength,
+  formatTrackTime,
+  JukeboxPlaybackService,
+} from '@axe/features/media/jukebox-playback.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function addReady(...identifiers: string[]): void {
@@ -233,5 +237,19 @@ describe('JukeboxPlaybackService', () => {
 
     expect(service.duration()).toBe(200);
     expect(service.position()).toBe(30);
+  });
+});
+
+describe('reading out a track', () => {
+  it('reads a point in it as the whole seconds gone', () => {
+    expect(formatTrackTime(5.99)).toBe('0:05');
+    expect(formatTrackTime(65.4)).toBe('1:05');
+    expect(formatTrackTime(Number.NaN)).toBe('0:00');
+  });
+
+  it('reads its length to the nearest second, as one decoded a few samples short of six seconds is six', () => {
+    expect(formatTrackLength(5.999886621315193)).toBe('0:06');
+    expect(formatTrackLength(65.4)).toBe('1:05');
+    expect(formatTrackLength(Number.POSITIVE_INFINITY)).toBe('0:00');
   });
 });

@@ -404,7 +404,7 @@ describe('ChatTab', () => {
       const tab = new ChatTab();
       tab.initialize();
       const result = tab.escapeHtml('|漢字《かんじ》');
-      expect(result).toContain('<ruby>');
+      expect(result).toContain('<ruby class="chat-ruby">');
       expect(result).toContain('<rt>かんじ</rt>');
     });
 

@@ -1,0 +1,90 @@
+<!--
+  Said at the foot of the screen rather than the head of it. The toolbars are pinned to the top
+  at a layer of their own and can be dragged anywhere along it, so a band up there is read by
+  nobody; down here it clears the hotbar and still sits above the table it is talking about.
+-->
+@if (isPlanning()) {
+  <div
+    class="bg-ui-panel shadow-ui-md text-ui-text pointer-events-none fixed bottom-28 left-1/2 flex max-w-[92vw] -translate-x-1/2 items-center gap-3 rounded-full py-1.5 pr-4 pl-1.5 text-sm opacity-95"
+    data-testid="move-plan-hint"
+    [style.zIndex]="zIndex"
+  >
+    @if (!isFree()) {
+      <div
+        class="border-ui-border-panel pointer-events-auto flex shrink-0 rounded-full border border-solid p-0.5"
+        role="group"
+        data-move-plan-control
+        [attr.aria-label]="'feature.tabletop.movePlan.modeLabel' | transloco"
+      >
+        @for (mode of modes; track mode.jumping) {
+          <button
+            type="button"
+            class="inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-full border-none px-3.5 text-[0.86em] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[16px]!"
+            [class.bg-ui-accent]="isJumping() === mode.jumping"
+            [class.text-white]="isJumping() === mode.jumping"
+            [class.bg-transparent]="isJumping() !== mode.jumping"
+            [class.text-ui-muted]="isJumping() !== mode.jumping"
+            [attr.aria-pressed]="isJumping() === mode.jumping"
+            [attr.data-testid]="mode.testId"
+            (click)="chooseMode(mode.jumping, $event)"
+          >
+            <i class="material-icons">{{ mode.icon }}</i>
+            {{ mode.label | transloco }}
+          </button>
+        }
+      </div>
+    }
+    @if (kindBand(); as band) {
+      <div
+        class="border-ui-border-panel pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-full border border-solid p-0.5"
+        role="group"
+        data-move-plan-control
+        data-testid="move-plan-kinds"
+        [attr.aria-label]="'feature.tabletop.movePlan.kindLabel' | transloco"
+      >
+        @for (kind of band.kinds; track kind.name) {
+          <button
+            type="button"
+            class="inline-flex min-h-9 cursor-pointer items-center rounded-full border-none px-3 text-[0.86em] whitespace-nowrap transition-[background,color] disabled:cursor-default"
+            [class]="
+              band.chosen === kind.name
+                ? 'bg-ui-accent text-white'
+                : kind.mayChoose
+                  ? 'text-ui-muted bg-transparent'
+                  : 'text-ui-dim bg-transparent'
+            "
+            [attr.aria-pressed]="band.chosen === kind.name"
+            [disabled]="!kind.mayChoose"
+            data-testid="move-plan-kind"
+            (click)="chooseKind(kind.name, $event)"
+          >
+            {{ kind.name || ('feature.tabletop.movePlan.plainKind' | transloco) }}
+          </button>
+        }
+        <span
+          class="text-ui-text px-2 text-[0.86em] whitespace-nowrap tabular-nums"
+          data-testid="move-plan-metres-left"
+        >
+          {{ 'feature.tabletop.movePlan.metresLeft' | transloco: { metres: band.metresLeft } }}
+        </span>
+      </div>
+    }
+    @if (unstoppableBand(); as band) {
+      <button
+        type="button"
+        class="border-ui-border-panel pointer-events-auto inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-1 rounded-full border border-solid px-3 text-[0.86em] whitespace-nowrap transition-[background,color] disabled:cursor-default disabled:opacity-60 [&_.material-icons]:text-[16px]!"
+        [class]="band.on ? 'bg-ui-accent text-white' : 'text-ui-muted bg-transparent'"
+        [attr.aria-pressed]="band.on"
+        [disabled]="!band.mayChange"
+        [attr.title]="'feature.tabletop.movePlan.unstoppableHint' | transloco"
+        data-move-plan-control
+        data-testid="move-plan-unstoppable"
+        (click)="toggleUnstoppable(!band.on, $event)"
+      >
+        <i class="material-icons">bolt</i>
+        {{ 'feature.tabletop.movePlan.unstoppable' | transloco }}
+      </button>
+    }
+    <span class="text-ui-muted min-w-0 text-[0.86em] leading-snug">{{ hintKey() | transloco }}</span>
+  </div>
+}

@@ -1,6 +1,7 @@
 import { PERF_HEX_PEDESTAL_OUTLINE, perfCounters } from '@axe/core/util/perf-counters';
 import {
   buildHexFlowerOutline,
+  buildHexHoleInCircleClipPath,
   buildHexRingClipPath,
   buildVertexClusterOutline,
   calcHexFlowerParams,
@@ -115,6 +116,23 @@ describe('hex-flower-geometry', () => {
       const insetMaxX = Math.max(...inset.map((v) => v.x));
       expect(insetMinX).toBeGreaterThan(origMinX);
       expect(insetMaxX).toBeLessThan(origMaxX);
+    });
+  });
+
+  describe('buildHexHoleInCircleClipPath', () => {
+    it('keeps a circle round the outline and cuts the outline out of it, centred on the circle', () => {
+      const outline = buildHexFlowerOutline(1, 50, true);
+      const clipPath = buildHexHoleInCircleClipPath(outline, 40);
+      const hole = clipPath.slice(clipPath.lastIndexOf('M'));
+      const corners = [...hole.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }));
+
+      expect(clipPath.startsWith('path(evenodd, "M 0 40.00 A 40.00 40.00')).toBe(true);
+      expect(corners).toHaveLength(outline.length);
+      corners.forEach((corner, index) => {
+        expect(corner.x).toBeCloseTo(outline[index].x + 40, 1);
+        expect(corner.y).toBeCloseTo(outline[index].y + 40, 1);
+        expect(Math.hypot(corner.x - 40, corner.y - 40)).toBeLessThan(40);
+      });
     });
   });
 

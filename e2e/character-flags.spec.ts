@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { createCharacter, openPanel, waitAppReady } from './helpers';
+import { createCharacter, openPanel, revealMenuEntry, waitAppReady } from './helpers';
 
 async function reopenCharacterMenu(page: Page) {
   await page.locator('game-character').first().dispatchEvent('contextmenu');
@@ -20,8 +20,10 @@ test.describe('キャラクターのフラグ切替', () => {
     // input[type=checkbox][checked?]を描画する。トグル後の状態は、li内のチェック
     // ボックスがcheckedになっていることで確認する。
     const menu = await reopenCharacterMenu(page);
+    await revealMenuEntry(page, menu, 'インベントリ非表示');
     await menu.locator('li', { hasText: 'インベントリ非表示' }).click();
     const menuAfter = await reopenCharacterMenu(page);
+    await revealMenuEntry(page, menuAfter, 'インベントリ非表示');
     await expect(
       menuAfter.locator('li', { hasText: 'インベントリ非表示' }).locator('input[type="checkbox"]')
     ).toBeChecked();
@@ -29,13 +31,16 @@ test.describe('キャラクターのフラグ切替', () => {
 
   test('「発言しない」を ON にした後、メニュー項目のチェックが checked に変わること', async ({ page }) => {
     const menu = await reopenCharacterMenu(page);
+    await revealMenuEntry(page, menu, '発言しない');
     await menu.locator('li', { hasText: '発言しない' }).click();
     const menuAfter = await reopenCharacterMenu(page);
+    await revealMenuEntry(page, menuAfter, '発言しない');
     await expect(menuAfter.locator('li', { hasText: '発言しない' }).locator('input[type="checkbox"]')).toBeChecked();
   });
 
   test('「インベントリ非表示」ON のキャラはインベントリでオパシティ低下表示になること', async ({ page }) => {
     const menu = await reopenCharacterMenu(page);
+    await revealMenuEntry(page, menu, 'インベントリ非表示');
     await menu.locator('li', { hasText: 'インベントリ非表示' }).click();
     await openPanel(page, 'インベントリ');
     await expect(page.locator('game-object-inventory input[name="tab"]')).toHaveCount(4, { timeout: 5000 });

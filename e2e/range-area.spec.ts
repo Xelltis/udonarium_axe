@@ -1,10 +1,10 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openTableContextMenu, waitAppReady } from './helpers';
+import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
 
 async function createCircleRange(page: Page) {
   const menu = await openTableContextMenu(page);
-  await menu.getByText('射程範囲を作成').hover();
+  await (await revealMenuEntry(page, menu, '射程範囲を作成')).hover();
   await expect(menu.getByText('円形', { exact: true })).toBeVisible({ timeout: 5000 });
   await menu.getByText('円形', { exact: true }).click();
   await expect(page.locator('range').first()).toBeAttached({ timeout: 10000 });
@@ -12,7 +12,7 @@ async function createCircleRange(page: Page) {
 
 async function createSquareRange(page: Page, as: 'ダイヤとして出力' | '四角形として出力') {
   const menu = await openTableContextMenu(page);
-  await menu.getByText('射程範囲を作成').hover();
+  await (await revealMenuEntry(page, menu, '射程範囲を作成')).hover();
   await menu.getByText('四角形・ダイヤ', { exact: true }).hover();
   await expect(menu.getByText(as, { exact: true })).toBeVisible({ timeout: 5000 });
   await menu.getByText(as, { exact: true }).click();

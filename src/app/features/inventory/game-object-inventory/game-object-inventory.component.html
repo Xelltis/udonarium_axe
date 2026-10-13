@@ -469,6 +469,27 @@
             <i class="material-icons text-ui-dim text-[26px]! opacity-50">person</i>
           }
         </span>
+        @let companions = turnCompanions().get(character.identifier) ?? [];
+        @if (companions.length > 0) {
+          <span class="absolute -top-1 -left-1 flex -space-x-2" data-testid="turn-companions">
+            @for (companion of companions; track companion.identifier) {
+              <span
+                class="bg-ui-input border-ui-border-panel shadow-ui-sm flex size-5 items-center justify-center overflow-hidden rounded-full border border-solid"
+                [title]="companion.name"
+              >
+                @if (companion.imageFile.url) {
+                  <img
+                    class="size-full object-cover object-top"
+                    [src]="companion.imageFile.url | safe: 'resourceUrl'"
+                    alt=""
+                  />
+                } @else {
+                  <i class="material-icons text-ui-dim text-[12px]! opacity-50">person</i>
+                }
+              </span>
+            }
+          </span>
+        }
         @if (actedIds().has(character.identifier) && currentTurnId() !== character.identifier) {
           <i
             class="material-icons bg-ui-panel text-ui-dim absolute right-0 bottom-0 rounded-full text-[14px]!"

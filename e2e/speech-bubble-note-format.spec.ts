@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openPanel, openTableContextMenu, waitAppReady } from './helpers';
+import { openPanel, openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
 
 function pieceOf(page: Page, name: string): Locator {
   return page.locator('game-character').filter({ hasText: name }).first();
@@ -99,7 +99,7 @@ test.describe('共有メモの整形表示', () => {
   test('整形にすると見出しとリストとして描かれ、通常に戻すと書いたままの文字で出ること', async ({ page }) => {
     await waitAppReady(page);
     const menu = await openTableContextMenu(page);
-    await menu.getByText('共有メモを作成').click();
+    await (await revealMenuEntry(page, menu, '共有メモを作成')).click();
     const note = page.locator('text-note').first();
     await expect(note).toBeAttached({ timeout: 10000 });
 

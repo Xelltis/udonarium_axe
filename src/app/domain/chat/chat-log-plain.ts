@@ -7,7 +7,7 @@ import {
   formatLogDate,
   formatLogTime,
 } from '@axe/domain/chat/chat-log-rich';
-import { RUBY_NOTATION } from '@axe/domain/chat/chat-ruby-notation';
+import { readingOf, RUBY_NOTATION } from '@axe/domain/chat/chat-ruby-notation';
 import { vnBodyOf } from '@axe/domain/visual-novel/vn-emote';
 
 const INDENT = '    ';
@@ -89,7 +89,10 @@ function entryLines(
 }
 
 function bodyLines(message: ChatLogLine, options: ChatLogRenderOptions): string[] {
-  const text = withRubyInBrackets(vnBodyOf(message.vnEmote, ChatLogExporter.decode(message.text, options.textDecoder)));
+  const text = withRubyInBrackets(
+    vnBodyOf(message.vnEmote, ChatLogExporter.decode(message.text, options.textDecoder)),
+    options
+  );
   const lines = text.split(/\r?\n/);
   for (const image of message.attachmentImages ?? []) lines.push(`[${image.name || '?'}]`);
   return lines;
@@ -113,10 +116,12 @@ function referenceText(
   const name = ChatLogExporter.decode(target.name, options.textDecoder);
   const text = ChatLogExporter.isSealed(target, options.userId)
     ? labels.secret
-    : withRubyInBrackets(ChatLogExporter.referenceExcerpt(target, length, options.textDecoder));
+    : withRubyInBrackets(ChatLogExporter.referenceExcerpt(target, length, options.textDecoder), options);
   return `${name}：${text}`;
 }
 
-function withRubyInBrackets(text: string): string {
-  return text.replace(RUBY_NOTATION, '$1（$2）');
+/** Ruby as plain text: the reading in brackets after its word, or the word alone for a reader who hides ruby. */
+function withRubyInBrackets(text: string, options: ChatLogRenderOptions): string {
+  if (options.ruby?.show === 'hidden') return text.replace(RUBY_NOTATION, '$1');
+  return text.replace(RUBY_NOTATION, (_, base: string, reading: string) => `${base}（${readingOf(reading)}）`);
 }

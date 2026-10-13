@@ -337,39 +337,69 @@ input[type='range'].portrait-slider::-moz-range-thumb {
   border-radius: 2px;
 }
 
-/* chat-messageのルビ表示。chat-messageはinnerHTMLで<ruby>要素を生成するので、
-   AngularのEmulated view encapsulationの範囲外になるため、グローバルに定義している。 */
-/* ルビ装飾。`decorateChatStyleText`が<ruby class="chat-ruby">を吐く。
-   チャットと共有メモ（TextNoteの非編集モード）で共用するため、`.msg-text`のスコープを外している。 */
+/* Ruby, as chat, shared notes, cards and the novel mode write it: <ruby class="chat-ruby">.
+   A chat message builds its elements through innerHTML, outside Angular's view encapsulation, so
+   the rules live here. Laying ruby out is left to the browser, which spreads the shorter of base and
+   ruby 1:2:1 where their lengths differ (ruby-align: space-around). What a reader chooses is
+   switched by the data-ruby-* attributes ChatPreferencesService sets on each window's <html>. */
 ruby.chat-ruby {
-  display: inline-flex;
-  flex-direction: column-reverse;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 1px;
-  margin: 0 1px;
-  vertical-align: text-bottom;
-  line-height: 1;
-  white-space: nowrap;
+  ruby-align: space-around;
+  ruby-position: over;
 }
 
 ruby.chat-ruby rb {
-  display: block;
   font-weight: inherit;
-  line-height: 1.25;
 }
 
 ruby.chat-ruby rt {
-  display: block;
-  box-sizing: border-box;
-  min-width: 100%;
-  padding: 0 1px;
   color: inherit;
-  font-size: 0.78em;
+  font-size: 0.65em;
   font-weight: 700;
   line-height: 1.15;
-  text-align: center;
-  white-space: nowrap;
+}
+
+:root[data-ruby-spacing='tight'] ruby.chat-ruby {
+  ruby-align: center;
+}
+
+:root[data-ruby-align='start'] ruby.chat-ruby {
+  ruby-align: start;
+}
+
+:root[data-ruby-size='half'] ruby.chat-ruby rt {
+  font-size: 0.5em;
+}
+
+:root[data-ruby-size='large'] ruby.chat-ruby rt {
+  font-size: 0.8em;
+}
+
+:root[data-ruby-show='brackets'] ruby.chat-ruby,
+:root[data-ruby-show='brackets'] ruby.chat-ruby rb {
+  display: inline;
+}
+
+:root[data-ruby-show='brackets'] ruby.chat-ruby rt {
+  display: inline;
+  font-size: 0.85em;
+  font-weight: inherit;
+}
+
+:root[data-ruby-show='brackets'] ruby.chat-ruby rt::before {
+  content: '（';
+}
+
+:root[data-ruby-show='brackets'] ruby.chat-ruby rt::after {
+  content: '）';
+}
+
+:root[data-ruby-show='brackets'] ruby.chat-ruby rt:empty::before,
+:root[data-ruby-show='brackets'] ruby.chat-ruby rt:empty::after {
+  content: none;
+}
+
+:root[data-ruby-show='hidden'] ruby.chat-ruby rt {
+  display: none;
 }
 
 /* `> `で始まる引用行は、隣り合う複数行をまとめて、アクセントの縦線が付いたblockquote風に装飾する。

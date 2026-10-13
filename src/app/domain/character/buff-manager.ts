@@ -1,3 +1,4 @@
+import { ObjectNode } from '@axe/core/sync/object-node';
 import { BuffAppearance } from '@axe/domain/character/buff-appearance';
 import {
   BuffModifier,
@@ -27,8 +28,36 @@ export class BuffManager {
     private readonly status: () => StatusAccessor | null = () => null
   ) {}
 
+  /** The element the buffs are kept in: the first thing in the buff element that is not a buff itself. */
   private get container(): DataElement | null {
-    return this.buffDataElement?.children[0] ?? null;
+    const children = this.buffDataElement?.children ?? [];
+    return (children.find((child) => !isBuffRow(child)) as DataElement | undefined) ?? null;
+  }
+
+  /**
+   * Buffs left beside the container rather than in it, which an older buff panel put there. The
+   * round counted none of them down.
+   */
+  private strays(): DataElement[] {
+    const children = this.buffDataElement?.children ?? [];
+    return children.filter((child) => isBuffRow(child)) as DataElement[];
+  }
+
+  /**
+   * Moves any buff left beside the container into it, so that it counts down, runs out and is found
+   * by name as the rest are. Run before anything that changes the buffs; reading leaves them be.
+   */
+  private gather(): void {
+    const strays = this.strays();
+    if (strays.length < 1) return;
+    const container = this.ensureContainer();
+    if (!container) return;
+    for (const stray of strays) container.appendChild(stray);
+  }
+
+  /** Every buff the piece carries, in the order they are held, those still left beside the container last. */
+  list(): DataElement[] {
+    return [...((this.container?.children ?? []) as DataElement[]), ...this.strays()];
   }
 
   /**
@@ -36,9 +65,8 @@ export class BuffManager {
    * there is no such buff or the piece has no buff container yet.
    */
   delete(name: string): boolean {
-    const container = this.container;
-    if (!container) return false;
-    const data = container.getFirstElementByName(name);
+    this.gather();
+    const data = this.find(name);
     if (!data) return false;
     this.remove(data);
     return true;
@@ -49,6 +77,7 @@ export class BuffManager {
    * returns their names in the order they were listed.
    */
   removeWhere(test: (data: DataElement) => boolean): string[] {
+    this.gather();
     const container = this.container;
     if (!container) return [];
     const removed: string[] = [];
@@ -134,6 +163,7 @@ export class BuffManager {
    * is left alone.
    */
   decreaseRound(): void {
+    this.gather();
     const container = this.container;
     if (!container) return;
     for (const data of container.children) {
@@ -148,6 +178,7 @@ export class BuffManager {
    * cleared is left alone.
    */
   increaseRound(): void {
+    this.gather();
     const container = this.container;
     if (!container) return;
     for (const data of container.children) {
@@ -162,6 +193,7 @@ export class BuffManager {
    * sheet. A buff held until cleared stays whatever its count reads.
    */
   deleteZeroRound(): void {
+    this.gather();
     const container = this.container;
     if (!container) return;
     for (const data of [...container.children]) {
@@ -183,6 +215,7 @@ export class BuffManager {
    * waits for; it is unused at the end of a round, where everything counts down.
    */
   expireAt(timing: BuffTiming, acting: BuffTurnActor): string[] {
+    this.gather();
     const container = this.container;
     if (!container) return [];
 
@@ -207,18 +240,13 @@ export class BuffManager {
    * with it, and a buff that only reads as a note has no number to find it by.
    */
   snapshot(): BuffSnapshotEntry[] {
-    const container = this.container;
-    if (!container) return [];
-    return container.children.map((child) => {
-      const data = child as DataElement;
-      return {
-        name: data.name,
-        value: data.value,
-        info: `${data.currentValue ?? ''}`,
-        appearance: readAppearance(data),
-        modifier: readBuffModifier(data),
-      };
-    });
+    return this.list().map((data) => ({
+      name: data.name,
+      value: data.value,
+      info: `${data.currentValue ?? ''}`,
+      appearance: readAppearance(data),
+      modifier: readBuffModifier(data),
+    }));
   }
 
   /**
@@ -229,6 +257,7 @@ export class BuffManager {
    * moves nothing the second time.
    */
   restore(entries: readonly BuffSnapshotEntry[]): void {
+    this.gather();
     const container = this.container;
     if (container) {
       const wanted = new Set(entries.map((entry) => entry.name));
@@ -239,7 +268,7 @@ export class BuffManager {
     }
     const restored: DataElement[] = [];
     for (const entry of entries) {
-      const data = this.find(entry.name) ?? this.appendBuff(entry.name, entry.value, entry.info);
+      const data = this.find(entry.name) ?? this.append(entry.name, entry.value, entry.info);
       if (!data) continue;
       data.value = entry.value;
       data.currentValue = entry.info;
@@ -259,7 +288,11 @@ export class BuffManager {
     for (const data of wanted) container.appendChild(data);
   }
 
-  private appendBuff(name: string, value: number | string, info: string): DataElement | null {
+  /**
+   * Adds a buff row of its own, whatever else goes by that name, in the container the round counts
+   * down. The container is made when the piece has none yet; null for a piece with no buff element.
+   */
+  append(name: string, value: number | string, info: string): DataElement | null {
     const container = this.ensureContainer();
     if (!container) return null;
     const created = DataElement.create(name, value, {
@@ -295,7 +328,7 @@ export class BuffManager {
 
   /** The buff that goes by this name, once it is there to be found. */
   find(name: string): DataElement | null {
-    return this.container?.getFirstElementByName(name) ?? null;
+    return this.container?.getFirstElementByName(name) ?? this.strays().find((data) => data.name === name) ?? null;
   }
 
   /**
@@ -306,9 +339,10 @@ export class BuffManager {
    * with no buff element at all is left untouched.
    */
   addRound(name: string, info: string = '', round: number = 3, appearance: BuffAppearance = {}): void {
+    this.gather();
     const container = this.ensureContainer();
     if (!container) return;
-    const data = this.buffDataElement?.getFirstElementByName(name);
+    const data = this.find(name);
     if (data) {
       // Putting the same buff on again starts it over, so whatever it moved goes back first.
       this.revertModifier(data);
@@ -357,7 +391,8 @@ export class BuffManager {
     appearance: BuffAppearance,
     settle: (standing: number, asked: number) => number
   ): void {
-    const data = this.buffDataElement?.getFirstElementByName(name);
+    this.gather();
+    const data = this.find(name);
     if (!data) {
       this.addRound(name, info, round, appearance);
       return;
@@ -372,6 +407,11 @@ export class BuffManager {
     const standing = parseInt(String(data.value), 10);
     data.value = Number.isFinite(standing) ? settle(standing, round) : round;
   }
+}
+
+/** Whether this is one buff rather than something buffs are kept in. */
+function isBuffRow(node: ObjectNode): boolean {
+  return node instanceof DataElement && node.isNumberResource && node.children.length < 1;
 }
 
 function readAppearance(data: DataElement): BuffAppearance {

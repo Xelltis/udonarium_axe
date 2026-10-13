@@ -4,6 +4,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -123,6 +124,71 @@ describe('TurnOrderService', () => {
     expect(service.orderedCharacters()).toEqual([visible]);
   });
 
+  describe('a piece riding a mount', () => {
+    function riding(): { knight: GameCharacter; horse: GameCharacter; squire: GameCharacter; crate: GameCharacter } {
+      orderedSpy.mockRestore();
+      const [knight, horse, squire, crate] = [
+        new GameCharacter(),
+        new GameCharacter(),
+        new GameCharacter(),
+        new GameCharacter(),
+      ];
+      [knight, horse, squire, crate].forEach((c) => c.initialize());
+      horse.mountable = '1';
+      knight.ridingOn = horse.identifier;
+      squire.ridingOn = horse.identifier;
+      squire.rideSeat = 'passenger';
+      crate.ridingOn = horse.identifier;
+      crate.rideSeat = 'cargo';
+      vi.spyOn(TestBed.inject(GameObjectInventoryService).tableInventory, 'tabletopObjects', 'get').mockReturnValue([
+        knight,
+        horse,
+        squire,
+        crate,
+      ]);
+      return { knight, horse, squire, crate };
+    }
+
+    it('takes the turn for the mount and the second rider, leaving a load its own', () => {
+      const { knight, horse, squire, crate } = riding();
+
+      expect(service.orderedCharacters()).toEqual([knight, crate]);
+      expect(service.companionsOf(knight.identifier)).toEqual([horse, squire]);
+    });
+
+    it('starts and ends the turn of those it carries with its own', () => {
+      const { knight, horse, squire } = riding();
+      const started: string[] = [];
+      TestBed.inject(TurnHooksService).onTurnStart((id) => started.push(id));
+
+      service.next();
+      service.next();
+      expect(turnState.currentIdentifier).toBe(knight.identifier);
+      expect(started).toEqual([knight.identifier, horse.identifier, squire.identifier]);
+      service.next();
+
+      expect(service.isActed(horse.identifier)).toBe(true);
+      expect(service.isActed(squire.identifier)).toBe(true);
+    });
+
+    it('gives a mount and its second rider turns of their own where the one in front takes none', () => {
+      const { knight, horse, squire, crate } = riding();
+      knight.noTurn = true;
+      expect(service.orderedCharacters()).toEqual([horse, squire, crate]);
+
+      knight.noTurn = false;
+      knight.hideInventory = true;
+      expect(service.orderedCharacters()).toEqual([horse, squire, crate]);
+    });
+
+    it('gives a mount nobody rides in front, and its second rider, turns of their own', () => {
+      const { knight, horse, squire, crate } = riding();
+      knight.ridingOn = '';
+
+      expect(service.orderedCharacters()).toEqual([knight, horse, squire, crate]);
+    });
+  });
+
   it('next from idle begins round 1 without a character', () => {
     service.next();
     expect(turnState.round).toBe(1);
@@ -167,6 +233,27 @@ describe('TurnOrderService', () => {
     expect(turnState.round).toBe(0);
   });
 
+  it('tells whatever waits on the turn whose turn has begun', () => {
+    const started = vi.fn();
+    TestBed.inject(TurnHooksService).onTurnStart(started);
+
+    service.next(); // round begins
+    service.next(); // first turn opens
+
+    expect(started).toHaveBeenCalledWith(chars[0].identifier);
+  });
+
+  it('tells whatever waits on the turn that a turn has ended, and that the round has', () => {
+    const ended = vi.fn();
+    TestBed.inject(TurnHooksService).onTurnEnd(ended);
+
+    service.next(); // round begins
+    expect(ended).not.toHaveBeenCalled();
+    service.next(); // first turn opens
+    service.next(); // first turn ends
+    expect(ended).toHaveBeenCalledTimes(1);
+  });
+
   describe('buff decay', () => {
     let buffed: GameCharacter[];
 
@@ -199,6 +286,22 @@ describe('TurnOrderService', () => {
       expect(buffsOf(buffed[1])).toHaveLength(0);
       const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[0]));
       expect(announced.some((text: string) => text.includes('feature.turnOrder.buffExpired'))).toBe(true);
+    });
+
+    it('counts down the buffs of pieces kept off the table too, and leaves the graveyard alone', () => {
+      const kept = GameCharacter.create('控え', 1, '');
+      kept.setLocation('common');
+      kept.addExtendData();
+      kept.buffs.addRound('挑発攻撃', '', 1);
+      const fallen = GameCharacter.create('退場', 1, '');
+      fallen.setLocation('graveyard');
+      fallen.addExtendData();
+      fallen.buffs.addRound('挑発攻撃', '', 1);
+
+      advanceToRoundEnd();
+
+      expect(buffsOf(kept)).toHaveLength(0);
+      expect(buffsOf(fallen)).toHaveLength(1);
     });
 
     it('leaves buffs alone while the toggle is off', () => {
@@ -645,6 +748,21 @@ describe('TurnOrderService', () => {
 
       expect(() => service.currentSide).not.toThrow();
       expect(service.currentSide).toBe('');
+    });
+
+    it('tells whatever waits on the turn that a turn has ended, side by side as one at a time', () => {
+      const ended = vi.fn();
+      TestBed.inject(TurnHooksService).onTurnEnd(ended);
+      service.next();
+      service.next();
+      service.next();
+      expect(service.currentIdentifier).toBe(hero.identifier);
+      expect(ended).not.toHaveBeenCalled();
+
+      service.next();
+      expect(ended).toHaveBeenCalledTimes(1);
+      service.setCurrent(monster.identifier);
+      expect(ended).toHaveBeenCalledTimes(2);
     });
 
     it('goes round the pieces of a side before it leaves for the next', () => {

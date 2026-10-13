@@ -196,6 +196,89 @@ describe('ContextMenuComponent', () => {
     expect(root.classList.contains('overflow-y-auto')).toBe(false);
   });
 
+  /** Opens a submenu from a menu standing `menuLeft` pixels from the left of a 1024px screen, every menu 200px wide. */
+  function openSubmenuFrom(menuLeft: number): HTMLElement {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(200);
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      const nested = this.hasAttribute('data-context-menu-root') && !!this.parentElement?.closest('context-menu');
+      const left = menuLeft + (nested ? parseFloat((this as HTMLElement).style.left || '0') : 0);
+      return { left, right: left + 200, top: 100, bottom: 160, width: 200, height: 60, x: left, y: 100 } as DOMRect;
+    });
+    component.contextMenuService.actions = [{ name: 'Display', subActions: [{ name: 'Hide name', action: vi.fn() }] }];
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('li') as HTMLLIElement).click();
+    fixture.detectChanges();
+    return fixture.nativeElement.querySelector('context-menu [data-context-menu-root]') as HTMLElement;
+  }
+
+  it('opens a submenu to the right of its menu where there is room for it', () => {
+    const submenu = openSubmenuFrom(100);
+
+    expect(submenu.style.left).toBe('196px');
+    vi.restoreAllMocks();
+  });
+
+  it('opens a submenu to the left of its menu where the right has no room, rather than over the menu', () => {
+    const submenu = openSubmenuFrom(900);
+
+    expect(submenu.style.left).toBe('-196px');
+    vi.restoreAllMocks();
+  });
+
+  it('moves an open submenu to the row of the next one opened', () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.textContent?.includes('Second') ? 120 : 40;
+    });
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 100,
+      right: 300,
+      top: 200,
+      bottom: 260,
+      width: 200,
+      height: 60,
+      x: 100,
+      y: 200,
+    } as DOMRect);
+    component.contextMenuService.actions = [
+      { name: 'First', subActions: [{ name: 'One', action: vi.fn() }] },
+      { name: 'Second', subActions: [{ name: 'Two', action: vi.fn() }] },
+    ];
+    fixture.detectChanges();
+    const [first, second] = Array.from(fixture.nativeElement.querySelectorAll('li')) as HTMLLIElement[];
+    first.click();
+    fixture.detectChanges();
+    const submenu = () => fixture.nativeElement.querySelector('context-menu [data-context-menu-root]') as HTMLElement;
+    const firstTop = submenu().style.top;
+
+    second.click();
+    fixture.detectChanges();
+
+    expect(submenu().textContent).toContain('Two');
+    expect(parseFloat(submenu().style.top) - parseFloat(firstTop)).toBe(80);
+    vi.restoreAllMocks();
+  });
+
+  it('closes the submenu of a submenu whose rows are changed for another', () => {
+    component.contextMenuService.actions = [
+      { name: 'First', subActions: [{ name: 'Inner', subActions: [{ name: 'Deep', action: vi.fn() }] }] },
+      { name: 'Second', subActions: [{ name: 'Two', action: vi.fn() }] },
+    ];
+    fixture.detectChanges();
+    const [first, second] = Array.from(fixture.nativeElement.querySelectorAll(':scope li')) as HTMLLIElement[];
+    first.click();
+    fixture.detectChanges();
+    const submenu = fixture.nativeElement.querySelector('context-menu') as HTMLElement;
+    (submenu.querySelector('li') as HTMLLIElement).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Deep');
+
+    second.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Two');
+    expect(fixture.nativeElement.textContent).not.toContain('Deep');
+  });
+
   it('inherits detached rows in recursively opened descendants', () => {
     const parent = {
       name: 'Display',

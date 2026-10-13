@@ -1,7 +1,7 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
 import { openPanel } from '../helpers';
-import { becomeGm, closePanels, prepare } from './fixtures';
+import { becomeGm, closePanels, prepare, reseedRandom } from './fixtures';
 
 // The dice are drawn with WebGL, which headless Chromium gives through SwiftShader.
 test.use({ launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } });
@@ -10,7 +10,9 @@ test.use({ launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-s
  * The clock is left running: the dice bot's numbers and the identifier of its answer, which seeds
  * the throw, both come of the seeded randomness, so the dice come to rest the same way every time
  * and the picture of them at rest is what is compared. Holding Math.random to one number, as the
- * dice symbol scene does, would hand every new line the same identifier.
+ * dice symbol scene does, would hand every new line the same identifier. The randomness is started
+ * over just before the roll that is shot, since every change to a synced object draws on it and
+ * the throw would otherwise move with anything else the page came to do on the way there.
  */
 
 async function chooseStage(page: Page, stage: 'frame' | 'table') {
@@ -124,6 +126,7 @@ test('the dice of a chat roll come to rest in the frame of its answer', async ({
   await atRest(stages.first().locator('canvas'));
 
   await seedDiceBot(page);
+  await reseedRandom(page);
   await roll(page, '2d6+1d20');
 
   await expect(stages).toHaveCount(2);
@@ -144,6 +147,7 @@ test('the dice of a chat roll come to rest on the table', async ({ page }) => {
 
   await seedDiceBot(page);
   await keepFromFading(page);
+  await reseedRandom(page);
   await roll(page, '2d6+1d20');
   // The dice come down in the middle of the screen, under the windows, which also tell the time.
   await closePanels(page);

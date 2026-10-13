@@ -1,4 +1,4 @@
-import { NgClass, NgStyle } from '@angular/common';
+import { NgClass, NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -27,16 +27,19 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
+import { EngagementZoneService, ZoneMenuModel } from '@axe/application/tabletop/engagement-zone.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
-import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
+import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
+import { RideMenuModel, RideService } from '@axe/application/tabletop/ride.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BillboardFacing, facesAlways, NOT_TURNED } from '@axe/application/ui/billboard-frame.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
+import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-menu';
@@ -47,6 +50,7 @@ import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
@@ -82,7 +86,12 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
-import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
+import {
+  buildHexHoleInCircleClipPath,
+  buildHexRingClipPath,
+  calcHexFlowerParams,
+  HexFlowerParams,
+} from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
 import {
@@ -93,12 +102,23 @@ import {
   multiAngleRotationPhase,
 } from '@axe/domain/tabletop/multi-angle';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
+import { RideSeat, seatOf } from '@axe/domain/tabletop/ride/ride-rules';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
-import { buildGameCharacterContextMenuModel } from '@axe/features/character/game-character/game-character-context-menu';
+import { buildConditionContextMenu } from '@axe/features/character/game-character/condition-context-menu';
+import {
+  buildGameCharacterContextMenuModel,
+  FightMenuEntries,
+} from '@axe/features/character/game-character/game-character-context-menu';
+import { PieceFigureHeightsService } from '@axe/features/character/game-character/piece-figure-heights.service';
+import { buildRideContextMenu, RideMenuEntries } from '@axe/features/character/game-character/ride-context-menu';
+import {
+  buildZoneContextMenu,
+  buildZoneManageContextMenu,
+} from '@axe/features/character/game-character/zone-context-menu';
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
@@ -110,6 +130,7 @@ import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
+import { SeeThroughDirective } from '@axe/ui/directives/see-through.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import {
@@ -169,6 +190,35 @@ const TARGET_MARK_HEIGHT_PX = 34;
 const SPEECH_STAMP_PX = 56;
 const BUFF_DETAIL_ROW_HEIGHT_PX = 12;
 const BUFF_BADGE_ROW_HEIGHT_PX = 22;
+/** How far over a ridden mount the foot of its riding card stands: where its name stands otherwise. */
+const RIDING_CARD_LIFT_PX = 8;
+/** How far across the table from a ridden mount the foot of its riding card stands, seen from above. */
+const RIDING_CARD_LIFT_2D_PX = 38;
+/** The room each piece in the riding card takes besides its name, bars and buffs: padding and rule. */
+const RIDING_CARD_ENTRY_PX = 8;
+/** How tall one name in the riding card is drawn, for reckoning what stands over it. */
+const RIDING_NAME_HEIGHT_PX = 22;
+/** How far in front of its mount a piece riding it is drawn, so a mount's picture never hides it. */
+const RIDER_IN_FRONT_PX = 3;
+/** The mark each seat is shown with in the riding label. */
+const RIDING_SEAT_ICONS: Readonly<Record<RideSeat, string>> = {
+  rider: 'upgrade',
+  passenger: 'group',
+  cargo: 'backpack',
+};
+
+/** One piece in a mount's riding card: one riding it, or the mount itself. */
+interface RidingLabel {
+  readonly identifier: string;
+  /** Its name, empty where it is not shown to this reader. */
+  readonly name: string;
+  /** The mark of the seat it rides in, empty for the mount. */
+  readonly icon: string;
+  /** How many ride it, for the mount; 0 for one riding. */
+  readonly aboard: number;
+  readonly gauges: readonly { readonly gauge: PieceGauge; readonly numbers: string }[];
+  readonly badges: readonly BuffBadge[];
+}
 const ROLL_HANDLE_MIN_PX = 20;
 const ROLL_HANDLE_MAX_PX = 56;
 const ROLL_HANDLE_SIZE_RATIO = 0.56;
@@ -189,12 +239,14 @@ interface PieceRightDrag {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     BillboardDirective,
+    SeeThroughDirective,
     MovableDirective,
     RotableDirective,
     SelectableDirective,
     NgClass,
     NgStyle,
     GameDataElementBuffComponent,
+    NgTemplateOutlet,
     SafePipe,
     StampComponent,
     TranslocoModule,
@@ -229,17 +281,21 @@ export class GameCharacterComponent {
   private readonly tabletopService = inject(TabletopService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly figureHeights = inject(PieceFigureHeightsService);
   private readonly translateFn = inject(TRANSLATE_FN);
   private readonly rangeShapeInvoke = inject(RangeShapeInvokeService);
   private readonly moveRangeService = inject(MoveRangeService);
   private readonly triggerFire = inject(TriggerFireService);
-  private readonly movePlan = inject(MovePlanService);
+  private readonly movePlan = inject(MovePlannerService);
   private readonly firstPerson = inject(FirstPersonService);
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly effectCast = inject(EffectCastService);
   private readonly effectAutoPlay = inject(EffectAutoPlayService);
   private readonly effectPlayback = inject(EffectPlaybackService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly engagementZones = inject(EngagementZoneService);
+  private readonly ride = inject(RideService);
+  private readonly snackbar = inject(SnackbarService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly visionService = inject(VisionService);
   private readonly speechBubbles = inject(SpeechBubbleService);
@@ -281,6 +337,14 @@ export class GameCharacterComponent {
       untracked(() => this.showResourceChanges(changes));
       callResourceChange({ characterIdentifier: character.identifier, changes });
     });
+
+    effect(() => {
+      const identifier = this.gameCharacter()?.identifier ?? '';
+      if (this.figureIdentifier !== identifier) this.figureHeights.forget(this.figureIdentifier);
+      this.figureIdentifier = identifier;
+      if (identifier !== '') this.figureHeights.set(identifier, this.figureHeightPx());
+    });
+    this.destroyRef.onDestroy(() => this.figureHeights.forget(this.figureIdentifier));
 
     // What another end changed is drawn on word from it; what this end changed is already drawn.
     resourceChange$.subscribe((event) => {
@@ -372,6 +436,150 @@ export class GameCharacterComponent {
     this.objectChange.versionOf(char.identifier)();
     return char.name;
   });
+  /** How many ride this piece where it is a mount, shown by its name since they stand where it stands. */
+  readonly ridersAboard = computed(() => {
+    const char = this.gameCharacter();
+    if (!char) return 0;
+    this.objectChange.versionOf(char.identifier)();
+    if (char.mountable !== '1') return 0;
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
+      this.objectChange.versionOf(piece.identifier)();
+    }
+    return this.ride.aboard(char).length;
+  });
+  /**
+   * The mount this piece rides, while it rides one. The piece's name, bars and buffs are drawn in the
+   * mount's riding label then, stacked over the mount's own, rather than over itself.
+   */
+  readonly ridingMount = computed(() => {
+    const char = this.gameCharacter();
+    if (!char) return null;
+    this.objectChange.versionOf(char.identifier)();
+    if (char.ridingOn === '') return null;
+    this.objectChange.versionOf(char.ridingOn)();
+    return this.ride.mountOf(char);
+  });
+  /**
+   * The pieces riding this one, as its riding label shows them over its own labels: their names,
+   * bars and buffs, the one in front nearest, as each would show over itself.
+   */
+  readonly ridingLabels = computed<RidingLabel[]>(
+    () => {
+      const char = this.gameCharacter();
+      if (!char || this.ridersAboard() < 1) return [];
+      this.objectChange.trackMyCursor();
+      const order: Record<RideSeat, number> = { rider: 0, passenger: 1, cargo: 2 };
+      return this.ride
+        .aboard(char)
+        .sort((a, b) => order[seatOf(a.rideSeat)] - order[seatOf(b.rideSeat)])
+        .map((piece) => this.ridingLabelOf(piece));
+    },
+    { equal: sameRidingLabels }
+  );
+
+  private ridingLabelOf(piece: GameCharacter): RidingLabel {
+    const showsName = this.overlay.names() && (!piece.hideName || this.rolePermission.canSeeHidden);
+    const detail = this.overlay.resourceBars() ? (piece.detailDataElement ?? null) : null;
+    const readable = this.disclosureService.canView(piece);
+    const gauges =
+      detail && this.followedTree(detail) !== null
+        ? selectPieceGauges(detail).map((gauge) => ({ gauge, numbers: gaugeNumbersOf(gauge, readable) }))
+        : [];
+    const buffs = this.overlay.buffs() && !piece.hideBuff ? (piece.buffDataElement ?? null) : null;
+    const badges = buffs && this.followedTree(buffs) !== null ? toBuffBadges(buffs) : [];
+    return {
+      identifier: piece.identifier,
+      name: showsName ? piece.name : '',
+      icon: RIDING_SEAT_ICONS[seatOf(piece.rideSeat)],
+      aboard: 0,
+      gauges,
+      badges,
+    };
+  }
+
+  /**
+   * The riding card over a mount ridden, one label for all on it: those riding it, the one in front
+   * lowest, over the mount itself, each with its name, bars and buffs. Empty where nobody rides it.
+   */
+  readonly ridingCard = computed<RidingLabel[]>(
+    () => {
+      const riders = this.ridingLabels();
+      const char = this.gameCharacter();
+      if (riders.length < 1 || !char) return [];
+      return [
+        ...[...riders].reverse(),
+        {
+          identifier: char.identifier,
+          name: this.hideName() ? '' : this.name(),
+          icon: '',
+          aboard: this.ridersAboard(),
+          gauges: this.gaugeRows(),
+          badges: this.hideBuff() ? [] : this.buffBadges(),
+        },
+      ];
+    },
+    { equal: sameRidingLabels }
+  );
+
+  /** How tall the riding card over this mount is reckoned to stand, nothing where nobody rides it. */
+  private readonly ridingCardHeightEstimate = computed(() =>
+    this.ridingCard().reduce(
+      (sum, label) =>
+        sum +
+        RIDING_CARD_ENTRY_PX +
+        (label.name ? RIDING_NAME_HEIGHT_PX : 0) +
+        label.gauges.length * GAUGE_ROW_HEIGHT_PX +
+        Math.ceil(label.badges.length / BUFF_BADGES_PER_ROW) * BUFF_BADGE_ROW_HEIGHT_PX,
+      0
+    )
+  );
+
+  /** The piece whose picture's height this one last gave out. */
+  private figureIdentifier = '';
+
+  /** How tall the piece's picture stands over its base, where its labels hang from. */
+  private readonly figureHeightPx = computed(
+    () => this.imageView.boxHeightPx() ?? Math.max(this.pieceImageHeightEstimate(), this.size() * this.gridSize)
+  );
+
+  /**
+   * How much higher than its own picture the riding card stands over a mount: clear of the pictures
+   * of those riding it, which stand on the mount and may reach over its own.
+   */
+  private readonly ridingCardRise = computed(() => {
+    const char = this.gameCharacter();
+    if (!char || this.ridersAboard() < 1) return 0;
+    const own = this.figureHeightPx();
+    let top = own;
+    for (const rider of this.ride.aboard(char)) {
+      const height = this.figureHeights.heightOf(rider.identifier);
+      if (height !== null) top = Math.max(top, rider.posZ - char.posZ + height);
+    }
+    return top - own;
+  });
+
+  /** Whether the mount's own labels are drawn in its riding card rather than over it. */
+  protected readonly labelsInRidingCard = computed(
+    () => this.ridingCard().length > 0 && !this.multiAngleNameOrbitEnabled()
+  );
+
+  readonly ridingOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.ridingOrbit()));
+
+  private ridingOrbit(): BillboardFacing {
+    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize - 17)}px)`);
+    return this.labelOrbitFacing(RIDING_CARD_LIFT_PX + this.ridingCardRise(), RIDING_CARD_LIFT_2D_PX);
+  }
+
+  readonly ridingStackFacing = computed<BillboardFacing>(() =>
+    this.labelStackFacing(
+      this.isPoster() ? NOT_TURNED : this.billboardFacing(RIDING_CARD_LIFT_PX + this.ridingCardRise())
+    )
+  );
+
+  /** How much larger a name stands in the riding card than the bars beside it, as on the piece's own label. */
+  protected readonly ridingNameEm = NAME_BASE_FONT_PX / DECOR_BASE_FONT_PX;
+
   /** Names go unshown for a piece hiding its name here, and for every piece while this seat has them switched off. */
   readonly hideName = computed(() => {
     const char = this.gameCharacter();
@@ -563,10 +771,15 @@ export class GameCharacterComponent {
     this.multiAngleNameOrbitEnabled() ? 'rotateZ(var(--multi-angle-piece-angle, 0deg))' : ''
   );
 
+  /**
+   * How the picture faces the reader. A piece riding a mount is drawn a little in front of it, as the
+   * two stand in one place and the mount's picture would otherwise hide the rider's.
+   */
   private readonly pieceImageFacing = computed<BillboardFacing>(() => {
     const billboard = this.imageFacing();
     const spin = this.multiAnglePieceImageRotation();
-    return (rotation) => [billboard(rotation), spin].filter((part) => part.length > 0).join(' ');
+    const inFront = this.ridingMount() ? `translateZ(${RIDER_IN_FRONT_PX}px)` : '';
+    return (rotation) => [billboard(rotation), spin, inFront].filter((part) => part.length > 0).join(' ');
   });
 
   /**
@@ -877,6 +1090,10 @@ export class GameCharacterComponent {
   );
 
   readonly multiAngleLabelText = computed(() => {
+    const riders = this.ridingLabels()
+      .map((label) => label.name)
+      .filter((name) => name.length > 0);
+    if (riders.length > 0) return [...riders, this.name()].join('／');
     if (this.hideBuff() || this.multiAngleResourceBuffOrbitEnabled()) return this.name();
     const buffNames = this.buffBadges()
       .map((buff) => buff.name.trim())
@@ -901,6 +1118,7 @@ export class GameCharacterComponent {
   readonly multiAngleOrbitVisible = computed(
     () =>
       this.multiAngleNameOrbitEnabled() &&
+      !this.ridingMount() &&
       ((this.name().length > 0 && !this.hideName()) ||
         (this.multiAngleResourceBuffOrbitEnabled() &&
           (this.orbitPieceGauges().length > 0 || (!this.hideBuff() && this.buffBadges().length > 0))))
@@ -1007,7 +1225,9 @@ export class GameCharacterComponent {
   });
 
   private targetOrbit(): BillboardFacing {
-    const stack = this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate();
+    const stack = this.labelsInRidingCard()
+      ? this.ridingCardRise() + this.ridingCardHeightEstimate()
+      : this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate();
     if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 20 + stack)}px)`);
     return this.screenLiftFacing(TARGET_STACK_GAP_PX + stack, 84 + stack);
   }
@@ -1037,9 +1257,9 @@ export class GameCharacterComponent {
    */
   private readonly speechLift = computed(
     () =>
-      BUFF_STACK_GAP_PX +
-      this.gaugePanelHeightEstimate() +
-      this.buffPanelHeightEstimate() +
+      (this.labelsInRidingCard()
+        ? RIDING_CARD_LIFT_PX + this.ridingCardRise() + this.ridingCardHeightEstimate()
+        : BUFF_STACK_GAP_PX + this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate()) +
       SPEECH_STACK_GAP_PX +
       (this.isTargeted() ? TARGET_MARK_HEIGHT_PX : 0)
   );
@@ -1166,6 +1386,11 @@ export class GameCharacterComponent {
     };
   });
 
+  /**
+   * The handle round a pedestal on a hex grid that turns the piece. The hex pedestal is only a rim,
+   * so the pedestal is cut out of the handle: a press inside the rim moves the piece, as one on the
+   * square pedestal standing over its handle does.
+   */
   protected readonly pedestalGrabStyle = computed<Record<string, string>>(() => {
     const params = this.pedestalHexParams();
     if (!params) return {} as Record<string, string>;
@@ -1180,6 +1405,7 @@ export class GameCharacterComponent {
       left: `${L / 2 - radius}px`,
       top: `${L / 2 - radius}px`,
       borderRadius: '50%',
+      clipPath: buildHexHoleInCircleClipPath(params.outline, radius),
     };
   });
 
@@ -1228,6 +1454,118 @@ export class GameCharacterComponent {
    */
   onInputStart(_e: MouseEvent | TouchEvent) {
     if (this.input) this.input.cancel();
+  }
+
+  /**
+   * The entries of a piece's menu that fights and mounts bring: getting on or off, its fight, its
+   * state and its being a mount, and managing the zones.
+   */
+  private fightMenuOf(char: GameCharacter): FightMenuEntries {
+    const zoneModel = this.engagementZones.menuOf(char);
+    const rideModel = this.ride.menuOf(char);
+    const ride = this.rideMenuOf(char, rideModel);
+    return {
+      onAndOff: ride.onAndOff,
+      fight: this.zoneMenuOf(char, zoneModel),
+      handling: [...this.conditionMenuOf(char, zoneModel, rideModel), ...ride.group],
+      manage: this.zoneManageMenuOf(char, zoneModel),
+    };
+  }
+
+  private zoneMenuOf(char: GameCharacter, model: ZoneMenuModel): ContextMenuAction[] {
+    const zones = this.engagementZones;
+    return buildZoneContextMenu(
+      model,
+      this.rolePermission.canEditTabletop,
+      {
+        declare: (foeId) => {
+          const foe = this.objectStore.get<GameCharacter>(foeId);
+          if (foe instanceof GameCharacter) zones.declare(char, foe);
+        },
+        join: (zoneId) => zones.join(char, zoneId),
+        leave: () => zones.leave(char),
+        prepareLeave: () => zones.prepareLeave(char),
+        cancelLeave: () => zones.cancelLeave(char),
+        toggleOffField: () => zones.toggleOffField(char),
+        grab: (captiveId) => {
+          const captive = this.objectStore.get<GameCharacter>(captiveId);
+          if (captive instanceof GameCharacter) zones.grab(char, captive);
+        },
+        release: (captiveId) => {
+          const captive = this.objectStore.get<GameCharacter>(captiveId);
+          if (captive instanceof GameCharacter) zones.release(captive);
+        },
+        breakFree: () => zones.release(char),
+        checkFire: () => this.showLineOfFire(char),
+      },
+      this.translateFn
+    );
+  }
+
+  private zoneManageMenuOf(char: GameCharacter, model: ZoneMenuModel): ContextMenuAction[] {
+    const zones = this.engagementZones;
+    return buildZoneManageContextMenu(
+      model,
+      this.rolePermission.canEditTabletop,
+      this.rolePermission.isGameMaster,
+      {
+        placeSides: () => this.showBattlePlacement(char),
+        setSquare: (zoneId, square) => zones.setSquare(zoneId, square),
+        setLimit: (zoneId, limit) => zones.setLimit(zoneId, limit),
+        remove: (zoneId) => zones.remove(zoneId),
+      },
+      this.translateFn
+    );
+  }
+
+  private conditionMenuOf(
+    char: GameCharacter,
+    zoneModel: ZoneMenuModel,
+    rideModel: RideMenuModel
+  ): ContextMenuAction[] {
+    const zones = this.engagementZones;
+    return buildConditionContextMenu(
+      zoneModel,
+      rideModel,
+      this.rolePermission.canEditTabletop,
+      {
+        setUnseen: (unseen) => zones.setUnseen(char, unseen),
+        setDown: (down) => this.ride.setDown(char, down),
+        setProne: (prone) => this.ride.setProne(char, prone),
+        setHeld: (held) => zones.setHeld(char, held),
+      },
+      this.translateFn
+    );
+  }
+
+  /**
+   * Whether a move can be worked out for a piece: by its mount where it rides in front, by none where
+   * it rides otherwise, and none the rules on riding stop while turns are taken.
+   */
+  private mayPlanMove(char: GameCharacter): boolean {
+    const mover = this.ride.moverFor(char);
+    return mover !== null && this.ride.moveRefusal(char) === null && this.moveRangeService.canPlan(mover);
+  }
+
+  private rideMenuOf(char: GameCharacter, model: RideMenuModel): RideMenuEntries {
+    const ride = this.ride;
+    return buildRideContextMenu(
+      model,
+      this.rolePermission.canEditTabletop,
+      {
+        getOn: (mountId, seat) => {
+          const mount = this.objectStore.get<GameCharacter>(mountId);
+          if (mount instanceof GameCharacter) ride.mount(char, mount, seat);
+        },
+        getOff: () => ride.dismount(char),
+        setMountable: (mountable) => ride.setMountable(char, mountable),
+        setPassenger: (passenger) => ride.setPassenger(char, passenger),
+        setCargo: (cargo) => ride.setCargo(char, cargo),
+        setAnyone: (anyone) => ride.setAnyone(char, anyone),
+        setSeatHeight: (cells) => ride.setSeatHeight(char, cells),
+      },
+      this.translateFn
+    );
   }
 
   private rightDrag: PieceRightDrag | null = null;
@@ -1396,7 +1734,7 @@ export class GameCharacterComponent {
         onInvokeRangeShape: (value) => this.rangeShapeInvoke.spawnForCharacter(char, value),
         onInvokeEffect: (name) => this.invokeEffect(char, name),
         onDeployDice: () => this.characterDice.deploy(char),
-        onPlanMove: this.moveRangeService.canPlan(char) ? () => void this.movePlan.begin(char) : undefined,
+        onPlanMove: this.mayPlanMove(char) ? () => void this.movePlan.begin(char) : undefined,
         onToggleTarget: () => this.toggleTarget(),
         onClearTargets: this.anythingTargeted() ? () => this.clearEveryTarget() : undefined,
         onViewFirstPerson: this.firstPerson.canLookOutOf(char)
@@ -1416,7 +1754,8 @@ export class GameCharacterComponent {
       this.translateFn,
       overlapEntries,
       this.buffViewMode(),
-      surfaceEntries
+      surfaceEntries,
+      this.fightMenuOf(char)
     );
     if (!this.tabletopService.mode2d() || display.tabletopMenuStyle === 'standard') {
       this.contextMenuService.open(position, menu.actions, this.name());
@@ -1523,8 +1862,8 @@ export class GameCharacterComponent {
 
   /** Whether this piece is the one whose move is being worked out, and so is not to be dragged. */
   readonly isPlanningMove = computed(() => {
-    const plan = this.movePlan.plan();
-    return plan != null && plan.characterIdentifier === this.gameCharacter()?.identifier;
+    const moving = this.movePlan.movingIdentifier();
+    return moving != null && moving === this.gameCharacter()?.identifier;
   });
 
   /**
@@ -1550,8 +1889,50 @@ export class GameCharacterComponent {
     if (this.asksForTheOtherMove(event) === this.isStrictMove()) return;
     const character = this.gameCharacter();
     if (!character || this.isLock) return;
-    if (!this.movePlan.begin(character)) return;
+    if (!this.movePlan.begin(character)) {
+      const seat = this.ride.seatOf(character);
+      const carriedBy = seat === 'passenger' || seat === 'cargo' ? this.ride.mountOf(character) : null;
+      const unridden = character.mountable === '1' && !this.ride.riderOf(character) && !PeerCursor.isMyselfGameMaster;
+      if (carriedBy || unridden) {
+        queueMicrotask(() => this.movableRef()?.cancel());
+        const why = carriedBy ? 'feature.ride.carriedInPlace' : 'feature.ride.noRider';
+        this.snackbar.show(this.translateFn(why, { name: character.name, mount: carriedBy?.name ?? '' }));
+        return;
+      }
+      const rideRefusal = this.ride.moveRefusal(character);
+      if (rideRefusal) {
+        queueMicrotask(() => this.movableRef()?.cancel());
+        const mount = this.ride.mountOf(character) ?? this.ride.leftMountOf(character);
+        this.snackbar.show(
+          this.translateFn(`feature.ride.${rideRefusal}`, { name: character.name, mount: mount?.name ?? '' })
+        );
+        return;
+      }
+      if (this.isHeldByZone(character)) {
+        queueMicrotask(() => this.movableRef()?.cancel());
+        const holder = this.objectStore.get<GameCharacter>(character.grabbedBy);
+        const why =
+          character.downed === '1'
+            ? 'feature.zone.downInPlace'
+            : character.heldFast === '1'
+              ? 'feature.zone.heldFastInPlace'
+              : holder instanceof GameCharacter
+                ? 'feature.zone.grabbedInPlace'
+                : 'feature.zone.heldInPlace';
+        this.snackbar.show(this.translateFn(why, { name: character.name, holder: holder?.name ?? '' }));
+      }
+      return;
+    }
     queueMicrotask(() => this.movableRef()?.cancel());
+  }
+
+  /**
+   * Whether an engagement zone holds the piece whatever kind of move it makes, in a room that holds
+   * pieces to the way they could walk. The game master may still carry it.
+   */
+  private isHeldByZone(character: GameCharacter): boolean {
+    if (!this.isStrictMove() || PeerCursor.isMyselfGameMaster) return false;
+    return this.engagementZones.kindFor(character, '') === null;
   }
 
   /**
@@ -1580,19 +1961,42 @@ export class GameCharacterComponent {
   }
 
   /**
-   * Puts the carried piece down: plays the put-down sound, hides the move range and fires its
-   * put-down triggers.
+   * Puts the carried piece down: plays the put-down sound and hides the move range. What follows
+   * from where it was put down waits for the press to end, when it stands where it snapped to.
    */
   onPutDown() {
     this.onMoved();
     this.moveRangeService.hide();
-    const character = this.gameCharacter();
-    if (character) this.triggerFire.putDown(character);
+    this.putDownPending = true;
   }
 
-  /** Hides the move range once the press on the piece ends, whether or not it was dragged. */
+  /**
+   * Hides the move range once the press on the piece ends, whether or not it was dragged. A piece
+   * put down stands where it snapped to by then, and what follows from that is settled from there.
+   */
   onLetGo() {
     this.moveRangeService.hide();
+    if (!this.putDownPending) return;
+    this.putDownPending = false;
+    this.movableRef()?.commitPosition();
+    this.settlePutDown();
+  }
+
+  /** Whether a piece was put down and what follows from where it stands is still to be settled. */
+  private putDownPending = false;
+
+  /**
+   * Settles where a piece was put down: those it carries come along, it gets off a mount it was put
+   * down off, its put-down triggers fire, and a fight or a seat on a mount where it stands is offered.
+   */
+  private settlePutDown() {
+    const character = this.gameCharacter();
+    if (!character) return;
+    this.engagementZones.carryBound(character);
+    this.ride.afterPutDown(character);
+    this.triggerFire.putDown(character);
+    this.engagementZones.offerFight(character);
+    this.ride.offerRide(character);
   }
 
   /**
@@ -1673,6 +2077,46 @@ export class GameCharacterComponent {
     component.character.set(gameObject);
   }
 
+  /** Opens the panel that sets the sides out at the start of a fight, with this piece leading its side. */
+  private showBattlePlacement(gameObject: GameCharacter) {
+    const coordinate = this.pointerDeviceService.pointers[0];
+    const option: PanelOption = {
+      left: coordinate.x,
+      top: coordinate.y,
+      width: 380,
+      height: 420,
+    };
+    option.title = this.translateFn('feature.zone.placement.title');
+    this.panelService.openLazy(
+      () =>
+        import('@axe/features/character/battle-placement-panel/battle-placement-panel.component').then(
+          (m) => m.BattlePlacementPanelComponent
+        ),
+      option,
+      (component) => component.leaderIdentifier.set(gameObject.identifier)
+    );
+  }
+
+  /** Opens the line of fire from this piece to every piece it aims at. */
+  private showLineOfFire(gameObject: GameCharacter) {
+    const coordinate = this.pointerDeviceService.pointers[0];
+    const option: PanelOption = {
+      left: coordinate.x,
+      top: coordinate.y,
+      width: 360,
+      height: 280,
+    };
+    option.title = this.translateFn('feature.zone.fire.title', { name: gameObject.name });
+    this.panelService.openLazy(
+      () =>
+        import('@axe/features/character/line-of-fire-panel/line-of-fire-panel.component').then(
+          (m) => m.LineOfFirePanelComponent
+        ),
+      option,
+      (component) => component.shooterIdentifier.set(gameObject.identifier)
+    );
+  }
+
   private showLightSettings(gameObject: GameCharacter) {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
@@ -1717,6 +2161,26 @@ function sameEntries<T extends object>(a: readonly T[], b: readonly T[]): boolea
   if (a === b) return true;
   if (a.length !== b.length) return false;
   return a.every((entry, index) => sameFields(entry, b[index]));
+}
+
+/** The same riding label, or one showing the same pieces with the same names, bars and buffs. */
+function sameRidingLabels(a: readonly RidingLabel[], b: readonly RidingLabel[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((label, index) => {
+    const other = b[index];
+    return (
+      label.identifier === other.identifier &&
+      label.name === other.name &&
+      label.icon === other.icon &&
+      label.aboard === other.aboard &&
+      label.gauges.length === other.gauges.length &&
+      label.gauges.every(
+        (row, at) => row.numbers === other.gauges[at].numbers && sameFields(row.gauge, other.gauges[at].gauge)
+      ) &&
+      sameEntries(label.badges, other.badges)
+    );
+  });
 }
 
 /** Whether two flat records hold the same keys with the same values. */

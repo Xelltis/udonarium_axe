@@ -1,6 +1,6 @@
 import { DestroyRef, effect, inject, Injectable } from '@angular/core';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
-import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
+import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 
 /**
@@ -13,7 +13,7 @@ import { isTypingTarget } from '@axe/core/input/typing-target';
  */
 @Injectable({ providedIn: 'root' })
 export class MovePlanEventHandlerService {
-  private readonly movePlan = inject(MovePlanService);
+  private readonly movePlan = inject(MovePlannerService);
   private readonly coordinate = inject(CoordinateService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -79,7 +79,7 @@ export class MovePlanEventHandlerService {
     }
     // A tap that would walk the piece nowhere is the way out of a move, since a hand with no
     // keys to hold has nothing else to say "leave it" with.
-    if (this.movePlan.wholeWay().length < 2) {
+    if (!this.movePlan.hasWay()) {
       this.movePlan.cancel();
       return;
     }

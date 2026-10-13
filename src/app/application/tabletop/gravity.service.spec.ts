@@ -378,6 +378,35 @@ describe('applying gravity through the spatial index', () => {
     expect(flying.object.posZ).toBe(100);
   });
 
+  it('stands a piece riding a mount on the mount, at the height its riders stand, wherever the mount is', () => {
+    const base = makeTerrain({ x: 0, y: 0, w: 4, d: 4, h: 1, identifier: 'base' });
+    const horse = makeCharacter({ x: 0, y: 0, size: 2, posZ: 300 });
+    const rider = makeCharacter({ x: 25, y: 25 });
+    const mount = horse.object as GameCharacter;
+    mount.mountable = '1';
+    (rider.object as GameCharacter).ridingOn = mount.identifier;
+    const svc = setup([base, horse, rider]);
+
+    applyNow(svc);
+    expect(horse.object.posZ).toBe(50);
+    expect(rider.object.posZ).toBe(50 + 50);
+
+    mount.mountSeatHeight = '0.5';
+    applyNow(svc);
+    expect(rider.object.posZ).toBe(50 + 25);
+  });
+
+  it('lets a piece riding nothing it can stand on come down to what is under it', () => {
+    const horse = makeCharacter({ x: 0, y: 0, size: 2 });
+    const rider = makeCharacter({ x: 25, y: 25, posZ: 200 });
+    (rider.object as GameCharacter).ridingOn = horse.object.identifier;
+    const svc = setup([horse, rider]);
+
+    applyNow(svc);
+
+    expect(rider.object.posZ).toBe(0);
+  });
+
   it('forces no reflow under a crowd of objects', () => {
     const entries: DrawnEntry[] = [];
     const ROWS = 10;

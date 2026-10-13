@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-import { createCharacter, createDiceSymbol, openPanel, openTableContextMenu, waitAppReady } from './helpers';
+import {
+  createCharacter,
+  createDiceSymbol,
+  openPanel,
+  openTableContextMenu,
+  revealMenuEntry,
+  waitAppReady,
+} from './helpers';
 
 test.describe('ゲームテーブル', () => {
   test.beforeEach(async ({ page }) => {
@@ -18,9 +25,9 @@ test.describe('ゲームテーブル', () => {
   test('コンテキストメニューに作成項目があること', async ({ page }) => {
     const menu = await openTableContextMenu(page);
     await expect(menu.getByText('キャラクターを作成')).toBeVisible();
-    await expect(menu.getByText('マップマスクを作成')).toBeVisible();
-    await expect(menu.getByText('地形を作成')).toBeVisible();
-    await expect(menu.getByText('共有メモを作成')).toBeVisible();
+    await expect(await revealMenuEntry(page, menu, 'マップマスクを作成')).toBeVisible();
+    await expect(await revealMenuEntry(page, menu, '地形を作成')).toBeVisible();
+    await expect(await revealMenuEntry(page, menu, '共有メモを作成')).toBeVisible();
   });
 });
 
@@ -35,25 +42,25 @@ test.describe('コンテキストメニューからオブジェクト作成', ()
 
   test('共有メモを作成できること', async ({ page }) => {
     const menu = await openTableContextMenu(page);
-    await menu.getByText('共有メモを作成').click();
+    await (await revealMenuEntry(page, menu, '共有メモを作成')).click();
     await expect(page.locator('text-note').first()).toBeAttached({ timeout: 10000 });
   });
 
   test('マップマスクを作成できること', async ({ page }) => {
     const menu = await openTableContextMenu(page);
-    await menu.getByText('マップマスクを作成').click();
+    await (await revealMenuEntry(page, menu, 'マップマスクを作成')).click();
     await expect(page.locator('game-table-mask').first()).toBeAttached({ timeout: 10000 });
   });
 
   test('地形を作成できること', async ({ page }) => {
     const menu = await openTableContextMenu(page);
-    await menu.getByText('地形を作成').click();
+    await (await revealMenuEntry(page, menu, '地形を作成')).click();
     await expect(page.locator('terrain').first()).toBeAttached({ timeout: 10000 });
   });
 
   test('トランプの山札を作成できること', async ({ page }) => {
     const menu = await openTableContextMenu(page);
-    await menu.getByText('トランプの山札を作成').click();
+    await (await revealMenuEntry(page, menu, 'トランプの山札を作成')).click();
     await expect(page.locator('card-stack').first()).toBeAttached({ timeout: 10000 });
   });
 
@@ -63,7 +70,7 @@ test.describe('コンテキストメニューからオブジェクト作成', ()
 
   test('射程範囲 (円形) を作成できること', async ({ page }) => {
     const menu = await openTableContextMenu(page);
-    await menu.getByText('射程範囲を作成').hover();
+    await (await revealMenuEntry(page, menu, '射程範囲を作成')).hover();
     await expect(menu.getByText('円形', { exact: true })).toBeVisible({ timeout: 5000 });
     await menu.getByText('円形', { exact: true }).click();
     await expect(page.locator('range').first()).toBeAttached({ timeout: 10000 });
@@ -71,7 +78,7 @@ test.describe('コンテキストメニューからオブジェクト作成', ()
 
   test('射程範囲の種類が揃っていること', async ({ page }) => {
     const menu = await openTableContextMenu(page);
-    await menu.getByText('射程範囲を作成').hover();
+    await (await revealMenuEntry(page, menu, '射程範囲を作成')).hover();
     for (const name of ['直線', 'コーン', '三角形', '四角形・ダイヤ', '五角形', '六角形', '円形']) {
       await expect(menu.getByText(name, { exact: true })).toBeVisible({ timeout: 5000 });
     }
@@ -143,7 +150,7 @@ test.describe('キャラクターシート操作', () => {
     await page.locator('game-character').first().dispatchEvent('contextmenu');
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await menu.getByText('墓場に移動').click();
+    await (await revealMenuEntry(page, menu, '墓場に移動')).click();
     await openPanel(page, 'インベントリ');
     await expect(page.locator('game-object-inventory input[name="tab"]')).toHaveCount(4, { timeout: 5000 });
     await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(3).click();

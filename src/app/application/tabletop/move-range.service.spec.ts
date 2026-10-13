@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -10,6 +12,7 @@ import { newStatusAilment, StatusAilment } from '@axe/domain/character/status-ai
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
+import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { stepsFor } from '@axe/domain/tabletop/move/move-steps';
@@ -1169,6 +1172,19 @@ describe('MoveRangeService and the ground another piece stands on', () => {
     expect(reached(7, 5)).toBe(true);
   });
 
+  it('stops on a mount of its own side to get on it, and a mount on no other mount', () => {
+    table.samePartyPassage = 'pass';
+    const horse = pieceAt(6, 5, 1, 'heroes');
+    horse.mountable = '1';
+    const cart = pieceAt(4, 5, 1, 'heroes');
+    cart.mountable = '1';
+    service.show(pieceAt(5, 5, 2, 'heroes'));
+    expect(reached(6, 5)).toBe(true);
+
+    service.show(cart);
+    expect(reached(6, 5)).toBe(false);
+  });
+
   it('pays for squeezing past where the table charges for it', () => {
     table.samePartyPassage = 'cost';
     table.piecePassageCost = 1;
@@ -1568,5 +1584,102 @@ describe('MoveRangeService and a piece wider than one cell', () => {
       expect(reached(6, 5)).toBe(true);
       expect(reached(7, 5)).toBe(false);
     });
+  });
+});
+
+describe('MoveRangeService with kinds of move and engagement zones', () => {
+  let service: MoveRangeService;
+  let table: GameTable;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    table = new GameTable();
+    table.width = 16;
+    table.height = 16;
+    table.gridSize = GRID;
+    table.initialize();
+    service = TestBed.inject(MoveRangeService);
+    Config.instance.moveKinds = '全力:3:,通常:1:,制限:1:2';
+  });
+
+  afterEach(() => {
+    Config.instance.moveKinds = null;
+    Config.instance.zoneEnabled = null;
+    vi.restoreAllMocks();
+    for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
+  });
+
+  function pieceAt(col: number, row: number, walk: number, npc = false): GameCharacter {
+    const character = GameCharacter.create('コマ', 1, '');
+    character.location = { name: 'table', x: col * GRID, y: row * GRID };
+    character.isNpc = npc;
+    DataElement.findElementByReference(character.rootDataElement!, '移動')!.value = walk;
+    return character;
+  }
+
+  function reaches(cells: CellBits | undefined, col: number, row: number): boolean {
+    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    return cells?.get(cellIndexOf(grid, col, row)) === true;
+  }
+
+  it("reaches as far as the room's first kind takes a piece, and as far as another where it is asked for", () => {
+    const piece = pieceAt(5, 5, 1);
+
+    service.show(piece);
+    expect(reaches(service.range()?.cells, 8, 5)).toBe(true);
+
+    service.show(piece, '通常');
+    expect(reaches(service.range()?.cells, 6, 5)).toBe(true);
+    expect(reaches(service.range()?.cells, 7, 5)).toBe(false);
+  });
+
+  it('multiplies the movement on the sheet by a kind before rounding it down to whole cells', () => {
+    const piece = pieceAt(5, 5, 2.5);
+
+    service.show(piece, '全力');
+    expect(reaches(service.range()?.cells, 12, 5)).toBe(true);
+    expect(reaches(service.range()?.cells, 13, 5)).toBe(false);
+
+    const slow = pieceAt(2, 2, 0.4);
+    expect(service.canPlan(slow, '通常')).toBe(false);
+    expect(service.canPlan(slow, '全力')).toBe(true);
+    service.show(slow, '全力');
+    expect(reaches(service.range()?.cells, 3, 2)).toBe(true);
+  });
+
+  it('holds a kind to its cap in metres, whatever the movement says', () => {
+    table.cellDistance = 2;
+    table.cellDistanceUnit = 'metre';
+    const piece = pieceAt(5, 5, 3);
+
+    service.show(piece, '制限');
+
+    expect(reaches(service.range()?.cells, 6, 5)).toBe(true);
+    expect(reaches(service.range()?.cells, 7, 5)).toBe(false);
+  });
+
+  it('keeps the reach shown for each kind apart', () => {
+    const piece = pieceAt(5, 5, 1);
+
+    expect(reaches(service.shownReachOf(piece, false, '全力')?.cells, 8, 5)).toBe(true);
+    expect(reaches(service.shownReachOf(piece, false, '通常')?.cells, 8, 5)).toBe(false);
+  });
+
+  it("gives a piece held in its zone no reach, and one that said it would leave a reach from the zone's centre", () => {
+    Config.instance.zoneEnabled = true;
+    vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockReturnValue(null as never);
+    const zones = TestBed.inject(EngagementZoneService);
+    const hero = pieceAt(5, 5, 1);
+    zones.declare(hero, pieceAt(5, 5, 1, true));
+
+    expect(service.termsOf(hero, '通常')).toBeNull();
+    expect(service.canPlan(hero)).toBe(false);
+
+    zones.prepareLeave(hero);
+
+    expect(service.canPlan(hero)).toBe(true);
+    service.show(hero, '通常');
+    expect(reaches(service.range()?.cells, 4, 5)).toBe(true);
+    expect(reaches(service.range()?.cells, 6, 5)).toBe(true);
   });
 });

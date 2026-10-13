@@ -1,0 +1,57 @@
+@if (model().own || model().others.length > 0) {
+  <svg
+    class="pointer-events-none absolute top-0 left-0 overflow-visible backface-hidden transform-3d"
+    data-testid="free-path-overlay"
+    [attr.width]="extent().width"
+    [attr.height]="extent().height"
+    [style.transform]="zTransform"
+  >
+    @for (way of model().others; track $index) {
+      <polyline
+        data-testid="free-path-other"
+        [attr.points]="way"
+        fill="none"
+        stroke="#38bdf8"
+        stroke-width="2"
+        stroke-dasharray="8 6"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    }
+    @if (model().own; as own) {
+      @if (own.reach; as reach) {
+        <circle
+          data-testid="free-path-reach"
+          [attr.cx]="reach.cx"
+          [attr.cy]="reach.cy"
+          [attr.r]="reach.r"
+          fill="#38bdf8"
+          fill-opacity="0.08"
+          stroke="#38bdf8"
+          stroke-opacity="0.5"
+          stroke-width="2"
+        />
+      }
+      <polyline
+        data-testid="free-path-settled"
+        [attr.points]="own.settled"
+        fill="none"
+        stroke="#0ea5e9"
+        stroke-width="4"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      @if (own.ahead) {
+        <polyline
+          data-testid="free-path-ahead"
+          [attr.points]="own.ahead"
+          fill="none"
+          stroke="#7dd3fc"
+          stroke-width="4"
+          stroke-dasharray="10 6"
+          stroke-linecap="round"
+        />
+      }
+    }
+  </svg>
+}

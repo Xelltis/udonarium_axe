@@ -1,19 +1,32 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { EngagementZoneService, metresPerCell, ZoneMoveStart } from '@axe/application/tabletop/engagement-zone.service';
+import { InterruptOutcome, MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
+import {
+  kindToChangeTo,
+  MoveKindBand,
+  moveKindBandOf,
+  pieceOfPlan,
+  pieceToChooseFor,
+  tellTheRoomOf,
+  UnstoppableBand,
+  unstoppableBandOf,
+} from '@axe/application/tabletop/move-plan-common';
 import { MoveRangeService, ReachTerms } from '@axe/application/tabletop/move-range.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
+import { RideService } from '@axe/application/tabletop/ride.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, CellGrid, cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { cheapestPath } from '@axe/domain/tabletop/move/cheapest-path';
-import { stepsFor } from '@axe/domain/tabletop/move/move-steps';
+import { cellsFrom, stepsFor } from '@axe/domain/tabletop/move/move-steps';
 import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
 import { walkedPath } from '@axe/domain/tabletop/move/walked-path';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { indexAtLength } from '@axe/domain/tabletop/zone/interrupt';
 
 export interface MovePlan {
   characterIdentifier: string;
@@ -42,6 +55,10 @@ export interface MovePlan {
   jumping: boolean;
   /** The cells the way is settled on, for showing where it has been. */
   waypoints: number[];
+  /** The name of the kind of move being made, empty for the room's first or plain kind. */
+  kind: string;
+  /** Whether the move is one nobody may stop. */
+  unstoppable: boolean;
 }
 
 /**
@@ -58,8 +75,13 @@ export class MovePlanService {
   private readonly pieceStep = inject(PieceStepService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly objectStore = inject(ObjectStore);
+  private readonly zones = inject(EngagementZoneService);
+  private readonly interrupts = inject(MoveInterruptService);
+  private readonly ride = inject(RideService);
 
   private readonly held = signal<MovePlan | null>(null);
+  /** Where the piece stood among the engagement zones as the move began. */
+  private zoneStart: ZoneMoveStart | null = null;
   private terms: ReachTerms | null = null;
   private walking = false;
   /** How the move stood before each corner was set, so the last one can be taken back up. */
@@ -81,6 +103,29 @@ export class MovePlanService {
    */
   readonly openings = this.opened.asReadonly();
 
+  /**
+   * The kinds of move a room plays, offered while a move is worked out, with how far the one chosen
+   * has left in metres; null where the room has written no kinds of its own. The kind is chosen
+   * before the first leg is settled, and kept from then on.
+   */
+  readonly kindBand = computed<MoveKindBand | null>(() => {
+    const plan = this.held();
+    if (!plan) return null;
+    return moveKindBandOf(this.zones, pieceOfPlan(this.objectStore, plan), plan, () => {
+      const rules = resolveRoomRules(
+        this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null,
+        this.tableSelecter.viewTable
+      );
+      return cellsFrom(Math.max(0, plan.budget - plan.spent)) * metresPerCell(rules);
+    });
+  });
+
+  /**
+   * Whether the move being worked out is one nobody may stop, offered where the room plays zones;
+   * chosen before the first leg is settled, like the kind.
+   */
+  readonly unstoppableBand = computed<UnstoppableBand | null>(() => unstoppableBandOf(this.zones, this.held()));
+
   constructor() {
     // A move being worked out is one the whole table waits on, so it is drawn on every screen
     // rather than only the mover's. It leaves the room's sight the moment the move is over.
@@ -95,26 +140,19 @@ export class MovePlanService {
    * would say where it stands, so each screen works the reach out from what it may know.
    */
   private tellTheRoom(plan: MovePlan | null): void {
-    const cursor = PeerCursor.myCursor;
-    if (!cursor) return;
     const table = this.tableSelecter.viewTable;
-    const piece = plan && table ? plan.characterIdentifier : '';
-    const on = piece ? table!.identifier : '';
-    const way = piece && plan ? this.wholeWay().join(',') : '';
-    const jumping = piece && plan?.jumping ? 'true' : '';
-    if (
-      cursor.movingCharacterIdentifier === piece &&
-      cursor.movingTableIdentifier === on &&
-      cursor.movingWay === way &&
-      cursor.movingJumping === jumping
-    ) {
+    if (!plan || !table) {
+      tellTheRoomOf({ piece: '', table: '', way: '', jumping: '', points: '', kind: '' });
       return;
     }
-    cursor.movingCharacterIdentifier = piece;
-    cursor.movingTableIdentifier = on;
-    cursor.movingWay = way;
-    cursor.movingJumping = jumping;
-    cursor.update();
+    tellTheRoomOf({
+      piece: plan.characterIdentifier,
+      table: table.identifier,
+      way: this.wholeWay().join(','),
+      jumping: plan.jumping ? 'true' : '',
+      points: '',
+      kind: plan.kind,
+    });
   }
 
   /** Whether the piece is walking a settled way, during which nothing else may be asked of it. */
@@ -122,20 +160,87 @@ export class MovePlanService {
     return this.walking;
   }
 
-  /** Opens a move for a piece standing where it began, or answers false where it has no reach. */
-  begin(character: GameCharacter): boolean {
+  /**
+   * Opens a move for a piece standing where it began, by a kind of move the room plays, or answers
+   * false where it has no reach. An empty kind is the room's first.
+   */
+  begin(character: GameCharacter, kindName = ''): boolean {
     if (this.walking) return false;
-    const terms = this.moveRange.termsOf(character);
+    const kind = this.zones.kindFor(character, kindName);
+    if (kind === null) return false;
+    if (character.unstoppableMove !== '') character.unstoppableMove = '';
+    const terms = this.moveRange.termsOf(character, kind);
     if (!terms) return false;
     this.terms = terms;
     this.legs = [];
+    this.zoneStart = this.zones.startOfMove(character, kind);
     character.toTopmost();
     SoundEffect.play(PresetSound.piecePick);
     this.opened.update((count) => count + 1);
     this.held.set({
+      kind,
       characterIdentifier: character.identifier,
       grid: terms.grid,
       origin: { x: character.location.x, y: character.location.y, z: character.posZ },
+      from: terms.start,
+      settled: [terms.start],
+      ahead: [],
+      spent: 0,
+      budget: terms.walk,
+      cornersCut: 0,
+      reach: terms.cells,
+      waypoints: [],
+      jumping: false,
+      unstoppable: false,
+    });
+    return true;
+  }
+
+  /**
+   * Makes the move being worked out one nobody may stop, or one that may be stopped again, while no
+   * leg of it has been settled yet; answers whether it changed. The reach is worked out afresh, as
+   * zones that would end the move no longer do.
+   */
+  setUnstoppable(on: boolean): boolean {
+    const plan = this.held();
+    const character = pieceToChooseFor(this.objectStore, plan, this.walking);
+    if (!plan || !character || plan.unstoppable === on) return false;
+    character.unstoppableMove = on ? '1' : '';
+    const terms = this.moveRange.termsOf(character, plan.kind);
+    if (!terms) return false;
+    this.terms = terms;
+    this.held.set({
+      ...plan,
+      unstoppable: on,
+      from: terms.start,
+      settled: [terms.start],
+      ahead: [],
+      spent: 0,
+      budget: terms.walk,
+      cornersCut: 0,
+      reach: terms.cells,
+      waypoints: [],
+      jumping: false,
+    });
+    return true;
+  }
+
+  /**
+   * Changes the kind of move being worked out, while no leg of it has been settled yet; answers
+   * whether it changed. The reach is worked out afresh for the new kind.
+   */
+  setKind(kindName: string): boolean {
+    const plan = this.held();
+    const character = pieceToChooseFor(this.objectStore, plan, this.walking);
+    const kind = plan && character ? kindToChangeTo(this.zones, character, plan, kindName) : null;
+    if (!plan || !character || kind === null) return false;
+    const terms = this.moveRange.termsOf(character, kind);
+    if (!terms) return false;
+    if (this.zoneStart) this.zoneStart = { ...this.zoneStart, kind };
+    this.terms = terms;
+    this.held.set({
+      ...plan,
+      kind,
       from: terms.start,
       settled: [terms.start],
       ahead: [],
@@ -305,8 +410,14 @@ export class MovePlanService {
     }
 
     this.walking = true;
+    let stopped: { outcome: InterruptOutcome; point: CellPoint } | null = null;
     try {
-      const steps = way.slice(1);
+      const points = way.map((cell) => cellCenterOf(plan.grid, cell));
+      this.ride.recordMove(character, points);
+      const outcome = await this.interrupts.negotiate(character, points, plan.kind);
+      const end = outcome ? indexAtLength(points, outcome.along) : way.length - 1;
+      if (outcome) stopped = { outcome, point: points[end] };
+      const steps = way.slice(1, end + 1);
       let standingZ = character.posZ;
       for (const [index, cell] of steps.entries()) {
         standingZ = await this.pieceStep.step(character, table, plan.grid, cell, index === steps.length - 1, standingZ);
@@ -315,7 +426,17 @@ export class MovePlanService {
       this.walking = false;
     }
     SoundEffect.play(PresetSound.piecePut);
+    const start = this.zoneStart;
     this.close();
+    this.zones.carryBound(character);
+    this.ride.dropLeftBehind(character);
+    if (start) this.zones.afterMove(character, start);
+    if (stopped) {
+      this.interrupts.settle(character, stopped.outcome, stopped.point);
+    } else {
+      this.zones.offerFight(character);
+      this.ride.offerRide(character);
+    }
     return true;
   }
 
@@ -328,6 +449,7 @@ export class MovePlanService {
       character.location.x = plan.origin.x;
       character.location.y = plan.origin.y;
       character.posZ = plan.origin.z;
+      if (character.unstoppableMove !== '') character.unstoppableMove = '';
       character.update();
     }
     this.close();
@@ -337,5 +459,6 @@ export class MovePlanService {
     this.held.set(null);
     this.terms = null;
     this.legs = [];
+    this.zoneStart = null;
   }
 }

@@ -1,5 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { EngagementZoneService, metresPerCell } from '@axe/application/tabletop/engagement-zone.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { characterSceneKey } from '@axe/application/tabletop/vision-scene-assembly';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -10,7 +11,7 @@ import { Party } from '@axe/domain/party/party';
 import { allianceOf, PartyAlliance } from '@axe/domain/party/party-alliance';
 import { Config } from '@axe/domain/peer/config';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCount, CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCount, CellGrid, cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { blockedByTerrain, terrainBlocksJump } from '@axe/domain/tabletop/move/blocked-cells';
 import { allowsDiagonal } from '@axe/domain/tabletop/move/diagonal-move';
@@ -25,8 +26,9 @@ import {
 } from '@axe/domain/tabletop/move/engagement';
 import { isLevelWith, isWalkableStep, landingHeightsOn } from '@axe/domain/tabletop/move/landing-height';
 import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
-import { moveCellsOf } from '@axe/domain/tabletop/move/move-cells';
+import { exactMoveCellsOf } from '@axe/domain/tabletop/move/move-cells';
 import { moveCostCells } from '@axe/domain/tabletop/move/move-cost-cells';
+import { cellsByKind, moveKindNamed } from '@axe/domain/tabletop/move/move-kind';
 import { moveModeTermsOf } from '@axe/domain/tabletop/move/move-mode';
 import { STEPS_PER_CELL, stepsFor } from '@axe/domain/tabletop/move/move-steps';
 import { pieceFitsOn } from '@axe/domain/tabletop/move/piece-footprint';
@@ -35,6 +37,7 @@ import { passageCells, PiecePassageMode } from '@axe/domain/tabletop/move/piece-
 import { PieceRelation } from '@axe/domain/tabletop/move/piece-relation';
 import { reachableCells, ReachOptions } from '@axe/domain/tabletop/move/reachable-cells';
 import { isHostileTo, zoneOfControl } from '@axe/domain/tabletop/move/zone-of-control';
+import { inTheWayOf } from '@axe/domain/tabletop/ride/ride-rules';
 import { resolveRoomRules, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { moveCostsOn, TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -132,6 +135,7 @@ export class MoveRangeService {
   private readonly vision = inject(VisionService);
   private readonly selection = inject(SelectionSignalService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly zones = inject(EngagementZoneService);
 
   private readonly held = signal<MoveRangeView | null>(null);
 
@@ -178,8 +182,8 @@ export class MoveRangeService {
   });
 
   /** Shows the reach of a piece that has just been picked up, for as long as it is carried. */
-  show(character: GameCharacter): void {
-    this.held.set(this.build(character)?.view ?? null);
+  show(character: GameCharacter, kindName = ''): void {
+    this.held.set(this.build(character, false, kindName)?.view ?? null);
   }
 
   /** Stops showing a carried piece's reach, leaving whatever the picked piece shows. */
@@ -187,9 +191,14 @@ export class MoveRangeService {
     if (this.held() !== null) this.held.set(null);
   }
 
-  /** Everything a piece's reach was worked out from, or nothing where it has none. */
-  termsOf(character: GameCharacter): ReachTerms | null {
-    const built = this.build(character);
+  /**
+   * Everything a piece's reach was worked out from, or nothing where it has none.
+   *
+   * `kindName` is the kind of move the piece makes, by the name the room gave it; empty or a name the
+   * room does not play takes the room's first kind.
+   */
+  termsOf(character: GameCharacter, kindName = ''): ReachTerms | null {
+    const built = this.build(character, false, kindName);
     if (!built) return null;
     const { grid, cells } = built.view;
     const terms = built.terms;
@@ -231,13 +240,28 @@ export class MoveRangeService {
       .filter((piece) => piece.identifier === character.identifier || this.vision.isTokenVisible(piece));
     const passage = passageCells(
       grid,
-      standing,
+      this.inTheWayOf(character, standing),
       character,
       (relation) => passageModeOf(rules, relation),
       rules.sizeSlipsPast,
       this.alliance()
     );
     return !passage.blocked.get(cell) && !passage.noStop.get(cell);
+  }
+
+  /**
+   * The pieces whose ground stands in the way of a piece's move: a mount and those riding it are
+   * ground a piece that is no mount may walk onto, to get on.
+   */
+  private inTheWayOf(character: GameCharacter, standing: readonly GameCharacter[]): GameCharacter[] {
+    const asRiding = (piece: GameCharacter) => ({
+      id: piece.identifier,
+      ridingOn: piece.ridingOn,
+      rideSeat: piece.rideSeat,
+      mountable: piece.mountable === '1',
+      piece,
+    });
+    return inTheWayOf(asRiding(character), standing.map(asRiding)).map((one) => one.piece);
   }
 
   /**
@@ -256,8 +280,11 @@ export class MoveRangeService {
   }
 
   /** Whether a piece has a reach to be had at all, told without working one out. */
-  canPlan(character: GameCharacter): boolean {
-    return this.opening(character) !== null;
+  canPlan(character: GameCharacter, kindName = ''): boolean {
+    const opened = this.opening(character);
+    const kind = opened ? this.zones.kindFor(character, kindName) : null;
+    if (!opened || kind === null) return false;
+    return cellsByKind(moveKindNamed(this.zones.moveKinds(), kind), opened.walk, metresPerCell(opened.rules)) >= 1;
   }
 
   /**
@@ -267,8 +294,8 @@ export class MoveRangeService {
    * The way they are drawing is theirs and comes over the wire; the reach around it is worked out
    * here, and a peer moving their pointer changes neither the ground nor where anybody stands.
    */
-  shownReachOf(character: GameCharacter, jumping: boolean): { grid: CellGrid; cells: CellBits } | null {
-    const held = this.reachEntry(character);
+  shownReachOf(character: GameCharacter, jumping: boolean, kindName = ''): { grid: CellGrid; cells: CellBits } | null {
+    const held = this.reachEntry(character, kindName);
     if (!held?.built) return null;
     const { view, terms, start } = held.built;
     if (!jumping) return { grid: view.grid, cells: view.cells };
@@ -441,6 +468,9 @@ export class MoveRangeService {
     this.vision.viewer();
     this.vision.overlayVision();
     this.vision.foundPieces();
+    // Where the fights stand, which shapes where a piece may start from, enter and stop: as a key, so
+    // an edit to a piece that leaves the fights as they were keeps every reach.
+    this.zones.moveShapingKey();
     return {};
   });
 
@@ -455,18 +485,23 @@ export class MoveRangeService {
 
   private readonly reaches = new Map<string, ReachEntry>();
 
-  private reachEntry(character: GameCharacter): ReachEntry | null {
+  private reachEntry(character: GameCharacter, kindName = ''): ReachEntry | null {
     const token = this.reachToken();
     const version = this.objectChange.versionOf(character.identifier)();
-    const held = this.reaches.get(character.identifier);
+    const key = `${character.identifier}|${kindName}`;
+    const held = this.reaches.get(key);
     if (held && held.token === token && held.version === version) return held;
-    const entry: ReachEntry = { token, version, built: this.build(character, true) };
+    const entry: ReachEntry = { token, version, built: this.build(character, true, kindName) };
     if (this.reaches.size >= REACH_CACHE_LIMIT) this.reaches.clear();
-    this.reaches.set(character.identifier, entry);
+    this.reaches.set(key, entry);
     return entry;
   }
 
-  /** What a reach needs before any ground is walked: a table, the rules for it, and a piece that moves. */
+  /**
+   * What a reach needs before any ground is walked: a table, the rules for it, and a piece that moves,
+   * with its movement as the sheet gives it, not yet rounded down to whole cells: a kind of move
+   * multiplies it first, as a move measured along a line does.
+   */
   private opening(character: GameCharacter): { table: GameTable; rules: RoomRules; walk: number } | null {
     const table = this.tableSelecter.viewTable;
     if (!table) return null;
@@ -475,8 +510,8 @@ export class MoveRangeService {
     if (table.gridSize <= 0 || table.width <= 0 || table.height <= 0) return null;
     if (surfaceOf(character) !== 'floor') return null;
 
-    const walk = moveCellsOf(character, rules.moveRangeElementNames, rules.cellDistance, rules.cellDistanceUnit);
-    if (walk === null || walk < 1) return null;
+    const walk = exactMoveCellsOf(character, rules.moveRangeElementNames, rules.cellDistance, rules.cellDistanceUnit);
+    if (walk === null || walk <= 0) return null;
     return { table, rules, walk };
   }
 
@@ -487,14 +522,21 @@ export class MoveRangeService {
    * caller reading through the signals may do. A caller asking outright is answered from the table
    * itself, since a wall that has just moved has not told anybody yet.
    */
-  private build(character: GameCharacter, reuse = false): BuiltReach | null {
+  private build(character: GameCharacter, reuse = false, kindName = ''): BuiltReach | null {
     const opened = this.opening(character);
     if (!opened) return null;
     perfCounters.bump(PERF_MOVE_REACH_BUILD);
-    const { table, rules, walk } = opened;
+    const { table, rules } = opened;
+    const kind = moveKindNamed(this.zones.moveKinds(), kindName);
+    const walk = cellsByKind(kind, opened.walk, metresPerCell(rules));
+    if (walk < 1) return null;
 
     const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
-    const start = pieceCellOf(grid, character, table.gridSize);
+    const fight = this.zones.reachTermsFor(character, grid, kind.name);
+    if (fight?.noReach) return null;
+    const start = fight?.startPoint
+      ? cellIndexAt(grid, fight.startPoint.x, fight.startPoint.y)
+      : pieceCellOf(grid, character, table.gridSize);
     if (start < 0) return null;
 
     const going = moveModeTermsOf(character.moveMode);
@@ -518,6 +560,7 @@ export class MoveRangeService {
     const otherwise = new CellBits(cellCount(grid));
     const painted = moveBlockMapOn(table)?.read(grid);
     if (painted) otherwise.or(painted);
+    if (fight?.blocked) otherwise.or(fight.blocked);
 
     // Only the pieces the person moving can see stand in the way. A reach with a bite taken out
     // of it where nobody is standing tells the table there is something in the dark there, and
@@ -532,7 +575,7 @@ export class MoveRangeService {
     const allied = this.alliance();
     const passage = passageCells(
       grid,
-      standing,
+      this.inTheWayOf(character, standing),
       character,
       (relation) => passageModeOf(rules, relation),
       rules.sizeSlipsPast,
@@ -617,7 +660,7 @@ export class MoveRangeService {
             return stepsFor(price);
           }
         : PLAIN_GOING,
-      stopsAt: held && mode === 'stop' ? (index) => held.get(index) : undefined,
+      stopsAt: stopsWhere(held && mode === 'stop' ? held : null, fight?.stops ?? null),
       // Where a wide piece may stand is settled by what it may enter at all, above; what is
       // left here is ground somebody else is holding, which is crossed but not stopped on.
       restsAt: noStop ? (index) => !noStop.get(index) : undefined,
@@ -683,4 +726,10 @@ function holdersOf(mover: GameCharacter, foes: readonly GameCharacter[], caught:
   for (const piece of caught?.members ?? []) holding.set(piece.identifier, piece);
   holding.delete(mover.identifier);
   return [...holding.values()];
+}
+
+/** The cells a walk ends on: ground an enemy holds, where the table stops a piece there, and zones that hold it. */
+function stopsWhere(held: CellBits | null, zones: CellBits | null): ((index: number) => boolean) | undefined {
+  if (!held && !zones) return undefined;
+  return (index) => (held?.get(index) ?? false) || (zones?.get(index) ?? false);
 }

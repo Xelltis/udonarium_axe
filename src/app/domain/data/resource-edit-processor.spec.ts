@@ -167,6 +167,7 @@ describe('ResourceEditProcessor', () => {
         operator: '+',
         diceResult: '10',
         command: '+10+(1d1-1)',
+        amount: '',
         replace: '',
         isDiceRoll: false,
         embeddedRolls: [],
@@ -188,6 +189,7 @@ describe('ResourceEditProcessor', () => {
         operator: '=',
         diceResult: '50',
         command: '50+(1d1-1)',
+        amount: '',
         replace: '',
         isDiceRoll: false,
         embeddedRolls: [],
@@ -209,6 +211,7 @@ describe('ResourceEditProcessor', () => {
         operator: '+',
         diceResult: '999',
         command: '+999+(1d1-1)',
+        amount: '',
         replace: '',
         isDiceRoll: false,
         embeddedRolls: [],
@@ -230,6 +233,7 @@ describe('ResourceEditProcessor', () => {
         operator: '+',
         diceResult: '-300',
         command: '-300+(1d1-1)',
+        amount: '',
         replace: '',
         isDiceRoll: false,
         embeddedRolls: [],
@@ -389,6 +393,92 @@ describe('ResourceEditProcessor', () => {
       expect(mockDiceRollAsync).toHaveBeenCalledTimes(1);
       expect(systemText()).toContain('t:HP-([k10]+5)を計算できません');
       expect(character.status.getValue('HP', 'now')).toBe(200);
+    });
+
+    describe('an amount the system reads only as a whole', () => {
+      const fumbled = (text: string) => ({
+        id: 'DiceBot',
+        result: `DiceBot : ${text}`,
+        isSecret: false,
+        detail: { system: 'DiceBot', faces: [], outcome: 'fumble' as const },
+      });
+
+      async function send(command: string): Promise<void> {
+        await processor.resourceEditProcess(
+          null,
+          [{ resourceCommand: command, object: character }],
+          [],
+          speak(command),
+          false
+        );
+      }
+
+      it('rolls the whole amount as one command when a letter outside the brackets belongs to it', async () => {
+        mockDiceRollAsync.mockImplementation(async (command: string) =>
+          command === 'k10@13+(2+3)+5h+1'
+            ? { id: 'DiceBot', result: 'DiceBot : KeyNo.10+10 ＞ 2D:[4,3]=7 ＞ (3+10)/2+1 ＞ 8', isSecret: false }
+            : { id: 'DiceBot', result: '', isSecret: false }
+        );
+
+        await send('t:HP-([k10@13]+(2+3)+5h+1)');
+
+        expect(mockDiceRollAsync).toHaveBeenCalledTimes(1);
+        expect(character.status.getValue('HP', 'now')).toBe(192);
+        expect(systemText()).toContain('HP:200-8＞192');
+        expect(systemText()).toContain('└ [k10@13+(2+3)+5h+1] KeyNo.10+10');
+      });
+
+      it('rolls a system command written without brackets the same way', async () => {
+        mockDiceRollAsync.mockResolvedValue({
+          id: 'DiceBot',
+          result: 'DiceBot : KeyNo.10+5 ＞ 2D:[1,3]=4 ＞ (1+5)/2+3 ＞ 6',
+          isSecret: false,
+        });
+
+        await send('t:HP-(k10@13+5h+3)');
+
+        expect(mockDiceRollAsync).toHaveBeenCalledWith('k10@13+5h+3', expect.anything());
+        expect(character.status.getValue('HP', 'now')).toBe(194);
+      });
+
+      it('changes nothing when a bracketed roll fails outright, leaving out what was to be added to it', async () => {
+        mockDiceRollAsync.mockResolvedValue(fumbled('KeyNo.10c[10] ＞ 2D:[1,1]=2 ＞ ** ＞ 自動的失敗'));
+
+        await send('t:HP-([k10@10]+5+2)');
+
+        expect(mockDiceRollAsync).toHaveBeenCalledTimes(1);
+        expect(character.status.getValue('HP', 'now')).toBe(200);
+        expect(systemText()).toContain('HP:200-0＞200');
+        expect(systemText()).toContain('自動的失敗');
+        expect(systemText()).not.toContain('計算できません');
+      });
+
+      it('changes nothing when the whole amount fails outright', async () => {
+        mockDiceRollAsync.mockResolvedValue(fumbled('KeyNo.10c[10]+5 ＞ 2D:[1,1]=2 ＞ ** ＞ 自動的失敗'));
+
+        await send('t:HP-(k10@10+5h+3)');
+
+        expect(character.status.getValue('HP', 'now')).toBe(200);
+        expect(systemText()).toContain('HP:200-0＞200');
+      });
+
+      it('leaves a value to be set alone, rather than set to nought, when its roll fails outright', async () => {
+        mockDiceRollAsync.mockResolvedValue(fumbled('KeyNo.10c[10] ＞ 2D:[1,1]=2 ＞ ** ＞ 自動的失敗'));
+
+        await send('t:HP=([k10@10]+5)');
+
+        expect(character.status.getValue('HP', 'now')).toBe(200);
+        expect(systemText()).toContain('t:HP=([k10@10]+5)は合計の出ないロールだったので変えません');
+      });
+
+      it('still cannot work out a roll that ends without a total and without failing outright', async () => {
+        mockDiceRollAsync.mockResolvedValue({ id: 'DiceBot', result: 'DiceBot : 2D:[3,4] ＞ 成功', isSecret: false });
+
+        await send('t:HP-([k10@10]+5)');
+
+        expect(character.status.getValue('HP', 'now')).toBe(200);
+        expect(systemText()).toContain('t:HP-([k10@10]+5)を計算できません');
+      });
     });
 
     it('keeps the edits it could work out when another command fails', async () => {

@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openTableContextMenu, waitAppReady } from './helpers';
+import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
 
 /** A block the master turns into a switch speaks into the chat when a player presses it. */
 test.describe('スイッチ', () => {
@@ -34,7 +34,7 @@ test.describe('スイッチ', () => {
     await becomeRole(page, 'GM');
     await expect(page.locator('app-gm-toolbar [data-testid="gm-toolbar-fold"]')).toBeVisible({ timeout: 10000 });
     const menu = await openTableContextMenu(page, { x: 1000, y: 500 });
-    await menu.getByText('地形を作成').click();
+    await (await revealMenuEntry(page, menu, '地形を作成')).click();
     await expect(page.locator('terrain')).toHaveCount(1, { timeout: 10000 });
     await terrainMenu(page, '固定する');
     await terrainMenu(page, 'スイッチを設定');

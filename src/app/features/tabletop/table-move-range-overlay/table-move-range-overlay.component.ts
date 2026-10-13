@@ -194,6 +194,8 @@ export class TableMoveRangeOverlayComponent {
       // cursor's own place is on the cursor, so listening to every one of them redrew the
       // board and worked every reach out again each time anybody moved a mouse.
       this.objectChange.versionOf(cursor.identifier)();
+      // A move drawn as straight legs is drawn by the overlay for those, and has no cells.
+      if (cursor.movingPoints) continue;
 
       const piece = this.objectStore.get<GameCharacter>(cursor.movingCharacterIdentifier);
       if (!(piece instanceof GameCharacter)) continue;
@@ -206,8 +208,9 @@ export class TableMoveRangeOverlayComponent {
       // Worked out here rather than sent: a reach is shaped by what its owner can see, and
       // the dents an unseen enemy leaves in one would say where it stands. Which rule it is
       // worked out under does come over the wire, or a mover who had turned to jumping would
-      // be drawn walking a way that leaves the reach drawn around it.
-      const shown = this.moveRange.shownReachOf(piece, cursor.movingJumping === 'true');
+      // be drawn walking a way that leaves the reach drawn around it. So does the kind of move,
+      // which sets how far it reaches.
+      const shown = this.moveRange.shownReachOf(piece, cursor.movingJumping === 'true', cursor.movingKind ?? '');
       const way = cursor.movingWay
         .split(',')
         .map((cell) => Number(cell))

@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openPanel, waitAppReady } from './helpers';
+import { openPanel, revealMenuEntry, waitAppReady } from './helpers';
 
 /**
  * 公開範囲は「見えてはいけないものが見えない」ことの機能なので、おかしくなっても
@@ -104,7 +104,7 @@ test.describe('情報の公開範囲', () => {
 
   test('公開範囲の切り替えは GM にだけ出ること', async ({ page }) => {
     await page.locator('game-character').nth(PUBLIC).dispatchEvent('contextmenu');
-    await expect(page.locator('context-menu li').filter({ hasText: '公開範囲' })).toBeVisible({ timeout: 5000 });
+    await expect(await revealMenuEntry(page, page.locator('context-menu'), '公開範囲')).toBeVisible({ timeout: 5000 });
     await dismissMenu(page);
 
     await setRole(page, 'PL');

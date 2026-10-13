@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openTableContextMenu, waitAppReady } from './helpers';
+import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
 
 /** The shade laid over every face of every block on the table, as `rgba()` parts. */
 async function shadesOnBlocks(page: Page) {
@@ -25,7 +25,7 @@ test.describe('暗闇のなかの地形', () => {
     await connection.getByRole('button', { name: /^\s*GM\s*$/ }).click();
 
     const menu = await openTableContextMenu(page);
-    await menu.getByText('地形を作成').click();
+    await (await revealMenuEntry(page, menu, '地形を作成')).click();
     await expect(page.locator('terrain').first()).toBeAttached({ timeout: 10000 });
 
     await page.locator('app-gm-toolbar [title^="暗闇"]').click();

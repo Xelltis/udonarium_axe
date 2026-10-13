@@ -1,7 +1,8 @@
 import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
-import { MovePlan, MovePlanService } from '@axe/application/tabletop/move-plan.service';
+import { MovePlan } from '@axe/application/tabletop/move-plan.service';
+import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MovePlanEventHandlerService } from '@axe/features/tabletop/table-move-range-overlay/move-plan-event-handler.service';
 
 describe('MovePlanEventHandlerService', () => {
@@ -12,7 +13,7 @@ describe('MovePlanEventHandlerService', () => {
     isPlanning: computed(() => held() !== null),
     openings: opened.asReadonly(),
     lookAt: vi.fn(),
-    wholeWay: vi.fn<() => number[]>(() => [1, 2]),
+    hasWay: vi.fn<() => boolean>(() => true),
     settle: vi.fn(),
     run: vi.fn(),
     cancel: vi.fn(),
@@ -48,10 +49,10 @@ describe('MovePlanEventHandlerService', () => {
     held.set(null);
     opened.set(0);
     for (const spy of [movePlan.lookAt, movePlan.settle, movePlan.run, movePlan.cancel]) spy.mockClear();
-    movePlan.wholeWay.mockReturnValue([1, 2]);
+    movePlan.hasWay.mockReturnValue(true);
     TestBed.configureTestingModule({
       providers: [
-        { provide: MovePlanService, useValue: movePlan },
+        { provide: MovePlannerService, useValue: movePlan },
         { provide: CoordinateService, useValue: coordinate },
       ],
     });
@@ -117,7 +118,7 @@ describe('MovePlanEventHandlerService', () => {
   it('puts the move away on a tap that would walk it nowhere', () => {
     openAMove();
     pressTheTable();
-    movePlan.wholeWay.mockReturnValue([1]);
+    movePlan.hasWay.mockReturnValue(false);
 
     clickTheTable();
 

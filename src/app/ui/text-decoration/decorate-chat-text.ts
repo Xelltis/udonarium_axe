@@ -2,7 +2,7 @@
    生のテキスト文字列を受け取り、HTML エスケープ → ルビ → 引用ブロック装飾を順に適用した HTML を返す。
    ChatMessageComponent (live chat) と TextNoteComponent (非編集モード) が同じ見た目で描画するために使う。 */
 
-import { RUBY_NOTATION } from '@axe/domain/chat/chat-ruby-notation';
+import { RUBY_NOTATION, rubyRunsOf } from '@axe/domain/chat/chat-ruby-notation';
 
 const HTML_ESCAPE_MAP: Readonly<Record<string, string>> = {
   '&': '&amp;',
@@ -24,15 +24,30 @@ export function escapeHtml(text: unknown): string {
 
 const ESCAPED_SPACE = /\\s/g;
 
+const HTML_UNESCAPE_MAP: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(HTML_ESCAPE_MAP).map(([raw, escaped]) => [escaped, raw])
+);
+
+/** Turns what {@link escapeHtml} escaped back into the characters it stood for. */
+function unescapeHtml(html: string): string {
+  return html.replace(/&(?:amp|#x27|#x60|quot|lt|gt);/g, (match) => HTML_UNESCAPE_MAP[match] ?? match);
+}
+
 /**
  * Turns the ruby notation (`|word《reading》`, with a half- or full-width bar) into `<ruby>`
- * markup, and `\s` into a space.
+ * markup, and `\s` into a space. A reading split by bars over the letters of its word,
+ * `|漢字《かん|じ》`, is written one part over each letter.
  *
  * Expects text that has already been escaped.
  */
 export function applyRubyMarkup(escapedHtml: string): string {
   return escapedHtml
-    .replace(RUBY_NOTATION, '<ruby class="chat-ruby"><rb>$1</rb><rt>$2</rt></ruby>')
+    .replace(RUBY_NOTATION, (_, base: string, reading: string) => {
+      const runs = rubyRunsOf(unescapeHtml(base), unescapeHtml(reading))
+        .map((run) => `<rb>${escapeHtml(run.base)}</rb><rt>${escapeHtml(run.reading)}</rt>`)
+        .join('');
+      return `<ruby class="chat-ruby">${runs}</ruby>`;
+    })
     .replace(ESCAPED_SPACE, ' ');
 }
 
@@ -44,7 +59,8 @@ export interface RubyPart {
 }
 
 /**
- * Cuts a line at the ruby notation (`|word《reading》`), the same way {@link applyRubyMarkup} reads it.
+ * Cuts a line at the ruby notation (`|word《reading》`), the same way {@link applyRubyMarkup} reads it,
+ * a reading split over the letters of its word into one run for each letter.
  *
  * The runs stay text rather than becoming html, for a place that shows a line a little at a time
  * and so cannot hand over a finished piece of markup.
@@ -57,7 +73,9 @@ export function splitRubyNotation(text: string): RubyPart[] {
   let at = 0;
   for (const match of text.matchAll(RUBY_NOTATION)) {
     plain(at, match.index);
-    parts.push({ text: match[1].replace(ESCAPED_SPACE, ' '), reading: match[2].replace(ESCAPED_SPACE, ' ') });
+    for (const run of rubyRunsOf(match[1], match[2])) {
+      parts.push({ text: run.base.replace(ESCAPED_SPACE, ' '), reading: run.reading.replace(ESCAPED_SPACE, ' ') });
+    }
     at = match.index + match[0].length;
   }
   plain(at, text.length);

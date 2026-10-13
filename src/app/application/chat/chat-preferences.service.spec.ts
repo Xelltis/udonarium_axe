@@ -5,6 +5,8 @@ import {
   CHAT_FONT_SIZE_MIN,
   ChatPreferencesService,
 } from '@axe/application/chat/chat-preferences.service';
+import { DEFAULT_RUBY_DISPLAY } from '@axe/domain/chat/ruby-display';
+import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ChatPreferencesService', () => {
@@ -21,6 +23,44 @@ describe('ChatPreferencesService', () => {
 
   afterEach(() => {
     localStorage.clear();
+  });
+
+  describe('how the reader has ruby drawn', () => {
+    const marks = (html: HTMLElement) =>
+      ['show', 'align', 'spacing', 'size'].map((part) => html.getAttribute(`data-ruby-${part}`));
+
+    it('draws ruby over the middle of its word, spread 1:2:1, until told otherwise', () => {
+      const service = make();
+      TestBed.tick();
+
+      expect(service.rubyDisplay()).toEqual(DEFAULT_RUBY_DISPLAY);
+      expect(marks(document.documentElement)).toEqual(['over', 'center', 'even', 'normal']);
+    });
+
+    it('keeps each part chosen for the next visit, and marks the page with it', () => {
+      const service = make();
+      service.setRubyDisplay({ align: 'start' });
+      service.setRubyDisplay({ size: 'half' });
+      TestBed.tick();
+
+      expect(marks(document.documentElement)).toEqual(['over', 'start', 'even', 'half']);
+      expect(make().rubyDisplay()).toEqual({ ...DEFAULT_RUBY_DISPLAY, align: 'start', size: 'half' });
+    });
+
+    it('marks a window a panel is taken out into as well', () => {
+      const service = make();
+      service.setRubyDisplay({ show: 'brackets' });
+      TestBed.tick();
+      const other = document.implementation.createHTMLDocument('panel');
+
+      AttachedDocuments.attach(other);
+
+      try {
+        expect(marks(other.documentElement)[0]).toBe('brackets');
+      } finally {
+        AttachedDocuments.detach(other);
+      }
+    });
   });
 
   it('starts at the size the messages are drawn at', () => {

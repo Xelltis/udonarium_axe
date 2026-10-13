@@ -219,6 +219,8 @@ export default defineConfig({
             { text: 'テーブル設定', link: '/manual/table-setting' },
             { text: '暗闇・視界・光源', link: '/manual/vision-lighting' },
             { text: '移動範囲', link: '/manual/move-range' },
+            { text: '交戦エリア', link: '/manual/engagement-zone' },
+            { text: '乗り物に乗る', link: '/manual/ride' },
             { text: '同行（パーティ）', link: '/manual/party' },
             { text: '地形', link: '/manual/terrain' },
             { text: 'スイッチ', link: '/manual/switch' },
@@ -281,6 +283,7 @@ export default defineConfig({
           text: 'リリースノート',
           items: [
             { text: '一覧', link: '/release-notes/' },
+            { text: 'v1.66.0', link: '/release-notes/v1.66.0' },
             { text: 'v1.65.2', link: '/release-notes/v1.65.2' },
             { text: 'v1.65.1', link: '/release-notes/v1.65.1' },
             { text: 'v1.65.0', link: '/release-notes/v1.65.0' },

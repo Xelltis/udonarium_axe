@@ -6,6 +6,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -15,6 +16,7 @@ import { BuffTiming, BuffTurnActor } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
+import { turnCarrierOf } from '@axe/domain/tabletop/ride/ride-rules';
 import { TriggerMoment } from '@axe/domain/tabletop/trigger-event';
 import { changedBuffs, parseTurnHistory, stringifyTurnHistory, TurnStep } from '@axe/domain/tabletop/turn-history';
 import { FactionPhaseMode, TurnOrderMode } from '@axe/domain/tabletop/turn-order-mode';
@@ -44,6 +46,7 @@ export class TurnOrderService {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly vision = inject(VisionService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly hooks = inject(TurnHooksService);
   private readonly t = inject(TRANSLATE_FN);
 
   constructor() {
@@ -190,12 +193,63 @@ export class TurnOrderService {
   }
 
   private turnPieces(includeHidden: boolean): GameCharacter[] {
-    return this.allCharacters().filter((character) => !character.noTurn && (includeHidden || !character.hideInventory));
+    const carried = this.carriedTurns();
+    return this.allCharacters().filter(
+      (character) =>
+        !character.noTurn && !carried.has(character.identifier) && (includeHidden || !character.hideInventory)
+    );
   }
 
-  /** Everyone on the table, whether or not they take a turn: a buff runs out either way. */
+  /**
+   * The pieces that take their turn in another's, each with the one whose turn it is: a mount ridden
+   * in front, and whoever sits behind on it, act in the turn of the one riding in front.
+   */
+  private carriedTurns(): Map<string, string> {
+    const pieces = this.allCharacters().map((character) => ({
+      id: character.identifier,
+      ridingOn: character.ridingOn,
+      rideSeat: character.rideSeat,
+      mountable: character.mountable === '1',
+      takesTurns: !character.noTurn && !character.hideInventory,
+    }));
+    const carried = new Map<string, string>();
+    for (const piece of pieces) {
+      const carrier = turnCarrierOf(piece.id, pieces);
+      if (carrier !== '') carried.set(piece.id, carrier);
+    }
+    return carried;
+  }
+
+  /** The pieces that take their turn in this one's, as a mount and a second rider do in their front rider's. */
+  companionsOf(identifier: string): GameCharacter[] {
+    return this.companionsByCarrier().get(identifier) ?? [];
+  }
+
+  /** Every piece that takes its turn in another's, under the one whose turn it is. */
+  companionsByCarrier(): Map<string, GameCharacter[]> {
+    const carried = this.carriedTurns();
+    const companions = new Map<string, GameCharacter[]>();
+    for (const character of this.allCharacters()) {
+      const carrier = carried.get(character.identifier);
+      if (carrier) companions.set(carrier, [...(companions.get(carrier) ?? []), character]);
+    }
+    return companions;
+  }
+
+  /** Everyone on the table, whether or not they take a turn. */
   private allCharacters(): GameCharacter[] {
     return this.inventory.tableInventory.tabletopObjects as GameCharacter[];
+  }
+
+  /**
+   * Everyone whose buffs the round counts down: whoever is on the table and whoever is kept in an
+   * inventory, since a piece speaking from a palette carries buffs wherever it is kept. Only a
+   * piece in the graveyard is out of the round.
+   */
+  private buffCarriers(): GameCharacter[] {
+    return this.objectStore
+      .getObjects<GameCharacter>(GameCharacter)
+      .filter((character) => character.location.name !== 'graveyard');
   }
 
   /**
@@ -250,9 +304,8 @@ export class TurnOrderService {
         return;
       }
       // Whoever was up has now had their turn, wherever in the order they were given it.
-      this.springGround(turnState.currentIdentifier, 'turnEnd');
-      this.markActed(turnState.currentIdentifier);
-      this.expireBuffs('turnEnd', this.actorOf(turnState.currentIdentifier));
+      this.endTurnOf(turnState.currentIdentifier);
+      this.hooks.turnEnded();
       this.handOver(this.firstUnacted(order));
     });
   }
@@ -294,9 +347,31 @@ export class TurnOrderService {
   private closeCurrentPiece(): void {
     const held = this.turnState.currentIdentifier;
     if (held.length < 1) return;
-    this.springGround(held, 'turnEnd');
-    this.markActed(held);
-    this.expireBuffs('turnEnd', this.actorOf(held));
+    this.endTurnOf(held);
+    this.hooks.turnEnded();
+  }
+
+  /** Ends a piece's turn, and the turns of those that took theirs in it. */
+  private endTurnOf(identifier: string): void {
+    for (const id of [identifier, ...this.companionsOf(identifier).map((piece) => piece.identifier)]) {
+      this.closeTurnOf(id);
+    }
+  }
+
+  /**
+   * Ends the turns of pieces taking theirs in the one being taken, ahead of it, as a mount's does
+   * when the one riding it in front gets off: they have had their turn this round. Does nothing
+   * while no turn is being taken, or for a piece that has had its turn already.
+   */
+  closeTurnsInPassing(identifiers: readonly string[]): void {
+    if (this.turnState.phase !== 'acting') return;
+    for (const id of identifiers) if (!this.isActed(id)) this.closeTurnOf(id);
+  }
+
+  private closeTurnOf(identifier: string): void {
+    this.springGround(identifier, 'turnEnd');
+    this.markActed(identifier);
+    this.expireBuffs('turnEnd', this.actorOf(identifier));
   }
 
   /** Opens a side's phase, or closes the round where there is no side left to open. */
@@ -454,7 +529,7 @@ export class TurnOrderService {
 
   private captureBuffs(): Map<string, BuffSnapshotEntry[]> {
     const captured = new Map<string, BuffSnapshotEntry[]>();
-    for (const character of this.allCharacters()) {
+    for (const character of this.buffCarriers()) {
       captured.set(character.identifier, character.buffs.snapshot());
     }
     return captured;
@@ -485,8 +560,11 @@ export class TurnOrderService {
   /** Hands the turn over, and lets whatever waits on its opening run out. */
   private takeTurn(identifier: string): void {
     this.enterActing(identifier);
-    this.expireBuffs('turnStart', this.actorOf(identifier));
-    this.springGround(identifier, 'turnStart');
+    for (const id of [identifier, ...this.companionsOf(identifier).map((piece) => piece.identifier)]) {
+      this.expireBuffs('turnStart', this.actorOf(id));
+      this.hooks.turnStarted(id);
+      this.springGround(id, 'turnStart');
+    }
   }
 
   /**
@@ -523,6 +601,7 @@ export class TurnOrderService {
   private finishRound(): void {
     this.endRound();
     this.expireBuffs('roundEnd', { identifier: '', name: '' });
+    this.hooks.turnEnded();
   }
 
   /**
@@ -539,7 +618,7 @@ export class TurnOrderService {
     if (!this.turnState.buffDecay) return;
 
     const entries: ExpiredBuffEntry[] = [];
-    for (const character of this.allCharacters()) {
+    for (const character of this.buffCarriers()) {
       const buffNames = character.buffs.expireAt(timing, acting);
       if (buffNames.length > 0) entries.push({ characterName: character.name, buffNames });
     }

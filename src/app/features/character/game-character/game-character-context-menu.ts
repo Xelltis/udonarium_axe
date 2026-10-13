@@ -4,6 +4,7 @@ import {
   ContextMenuAction,
   ContextMenuRadialGroup,
   ContextMenuSeparator,
+  ContextMenuType,
 } from '@axe/application/ui/context-menu.service';
 import {
   buildAltitudeAction,
@@ -48,6 +49,23 @@ export interface GameCharacterContextMenuCallbacks {
   onShareFirstPerson?: () => void;
   onStopSharingFirstPerson?: () => void;
 }
+
+/**
+ * The entries of a piece's menu that fights and mounts bring, built where the zones and mounts are
+ * known, each set into the part of the menu it goes with.
+ */
+export interface FightMenuEntries {
+  /** Getting on or off a mount, offered with working a move out. */
+  readonly onAndOff: ContextMenuAction[];
+  /** The fight the piece is in or may start, offered with what else the piece is used for. */
+  readonly fight: ContextMenuAction[];
+  /** The piece's state and its being a mount, offered with how it is shown and handled. */
+  readonly handling: ContextMenuAction[];
+  /** Managing the zones, for whoever keeps the table, closing the menu. */
+  readonly manage: ContextMenuAction[];
+}
+
+const NO_FIGHT_ENTRIES: FightMenuEntries = { onAndOff: [], fight: [], handling: [], manage: [] };
 
 export interface GameCharacterContextMenuModel {
   actions: ContextMenuAction[];
@@ -107,7 +125,8 @@ export function buildGameCharacterContextMenu(
   t: TranslateFn,
   overlapEntries: ContextMenuAction[] = [],
   buffViewMode = 'icon',
-  surfaceEntries: ContextMenuAction[] = []
+  surfaceEntries: ContextMenuAction[] = [],
+  fightEntries: FightMenuEntries = NO_FIGHT_ENTRIES
 ): ContextMenuAction[] {
   return buildGameCharacterContextMenuModel(
     char,
@@ -117,7 +136,8 @@ export function buildGameCharacterContextMenu(
     t,
     overlapEntries,
     buffViewMode,
-    surfaceEntries
+    surfaceEntries,
+    fightEntries
   ).actions;
 }
 
@@ -126,8 +146,11 @@ export function buildGameCharacterContextMenu(
  *
  * An entry whose callback is left out is left out of the menu, as are range shapes, effects and
  * held dice the character does not have. Overlap entries lead the flat list and surface entries
- * close it. The display toggles write the character directly and tell the inventory to refresh, and
- * the NPC toggle is offered only to the game master.
+ * close it. What fights and mounts bring is set among the rest by what it goes with: getting on or
+ * off with working a move out, the fight with what else the piece is used for, its state and its
+ * being a mount with how it is shown and handled, and managing the zones last. The display toggles
+ * write the character directly and tell the inventory to refresh, and the NPC toggle is offered only
+ * to the game master.
  */
 export function buildGameCharacterContextMenuModel(
   char: GameCharacter,
@@ -137,7 +160,8 @@ export function buildGameCharacterContextMenuModel(
   t: TranslateFn,
   overlapEntries: ContextMenuAction[] = [],
   buffViewMode = 'icon',
-  surfaceEntries: ContextMenuAction[] = []
+  surfaceEntries: ContextMenuAction[] = [],
+  fightEntries: FightMenuEntries = NO_FIGHT_ENTRIES
 ): GameCharacterContextMenuModel {
   const registeredShapes = callbacks.onInvokeRangeShape ? collectRegisteredRangeShapes(char) : [];
   const registeredEffects = callbacks.onInvokeEffect ? collectRegisteredEffects(char) : [];
@@ -259,79 +283,74 @@ export function buildGameCharacterContextMenuModel(
         ]
       : []),
   ];
-  const openActions = [...basicActions, ...chatActions, ...buffEffectActions, ...lightActions];
 
   // display settings
-  const displayActions: ContextMenuAction[] = [
-    buildAltitudeAction(char, t, {
-      onChanged: () => inventoryService.notifyInventoryUpdate(),
-      extraActions: [
-        buildToggleAction(
-          char.isDropShadow,
-          (next) => (char.isDropShadow = next),
-          {
-            on: t('feature.tabletop.contextMenu.shadowShowOn'),
-            off: t('feature.tabletop.contextMenu.shadowShowOff'),
+  const altitudeAction = buildAltitudeAction(char, t, {
+    onChanged: () => inventoryService.notifyInventoryUpdate(),
+    extraActions: [
+      buildToggleAction(
+        char.isDropShadow,
+        (next) => (char.isDropShadow = next),
+        {
+          on: t('feature.tabletop.contextMenu.shadowShowOn'),
+          off: t('feature.tabletop.contextMenu.shadowShowOff'),
+        },
+        () => inventoryService.notifyInventoryUpdate()
+      ),
+    ],
+  });
+  const lookToggles: ContextMenuAction[] = [
+    char.hideName
+      ? {
+          name: t('feature.character.contextMenu.hideNameOn'),
+          action: () => {
+            char.hideName = false;
+            SoundEffect.play(PresetSound.sweep);
           },
-          () => inventoryService.notifyInventoryUpdate()
-        ),
-      ],
-    }),
-    {
-      name: t('feature.character.contextMenu.displaySettings'),
-      action: undefined,
-      subActions: [
-        char.hideName
-          ? {
-              name: t('feature.character.contextMenu.hideNameOn'),
-              action: () => {
-                char.hideName = false;
-                SoundEffect.play(PresetSound.sweep);
+        }
+      : {
+          name: t('feature.character.contextMenu.hideNameOff'),
+          action: () => {
+            char.hideName = true;
+            SoundEffect.play(PresetSound.sweep);
+          },
+        },
+    char.hideBuff
+      ? {
+          name: t('feature.character.contextMenu.hideBuffOn'),
+          action: () => {
+            char.hideBuff = false;
+            SoundEffect.play(PresetSound.sweep);
+          },
+        }
+      : {
+          name: t('feature.character.contextMenu.hideBuffOff'),
+          action: () => {
+            char.hideBuff = true;
+            SoundEffect.play(PresetSound.sweep);
+          },
+        },
+    ...(PeerCursor.isMyselfGameMaster
+      ? [
+          char.isNpc
+            ? {
+                name: t('feature.character.contextMenu.npcOn'),
+                action: () => {
+                  char.isNpc = false;
+                  SoundEffect.play(PresetSound.sweep);
+                },
+              }
+            : {
+                name: t('feature.character.contextMenu.npcOff'),
+                action: () => {
+                  char.isNpc = true;
+                  SoundEffect.play(PresetSound.sweep);
+                },
               },
-            }
-          : {
-              name: t('feature.character.contextMenu.hideNameOff'),
-              action: () => {
-                char.hideName = true;
-                SoundEffect.play(PresetSound.sweep);
-              },
-            },
-        char.hideBuff
-          ? {
-              name: t('feature.character.contextMenu.hideBuffOn'),
-              action: () => {
-                char.hideBuff = false;
-                SoundEffect.play(PresetSound.sweep);
-              },
-            }
-          : {
-              name: t('feature.character.contextMenu.hideBuffOff'),
-              action: () => {
-                char.hideBuff = true;
-                SoundEffect.play(PresetSound.sweep);
-              },
-            },
-        ...(PeerCursor.isMyselfGameMaster
-          ? [
-              char.isNpc
-                ? {
-                    name: t('feature.character.contextMenu.npcOn'),
-                    action: () => {
-                      char.isNpc = false;
-                      SoundEffect.play(PresetSound.sweep);
-                    },
-                  }
-                : {
-                    name: t('feature.character.contextMenu.npcOff'),
-                    action: () => {
-                      char.isNpc = true;
-                      SoundEffect.play(PresetSound.sweep);
-                    },
-                  },
-            ]
-          : []),
-      ],
-    },
+        ]
+      : []),
+  ];
+  const handlingToggles: ContextMenuAction[] = [
     char.hideInventory
       ? {
           name: t('feature.character.contextMenu.hideInventoryOn'),
@@ -384,6 +403,11 @@ export function buildGameCharacterContextMenuModel(
           },
         },
   ];
+  const displayActions: ContextMenuAction[] = [
+    altitudeAction,
+    { name: t('feature.character.contextMenu.displaySettings'), action: undefined, subActions: lookToggles },
+    ...handlingToggles,
+  ];
 
   // moving it
   const moveActions: ContextMenuAction[] = [
@@ -410,7 +434,9 @@ export function buildGameCharacterContextMenuModel(
     },
   ];
 
-  const disclosureActions = buildDisclosureContextMenu(char, t);
+  const disclosureActions = buildDisclosureContextMenu(char, t).filter(
+    (entry) => entry.type !== ContextMenuType.SEPARATOR
+  );
   const objectActions: ContextMenuAction[] = [
     ...overlapEntries,
     buildLockToggleAction(char.isLock, (next) => (char.isLock = next), t),
@@ -433,19 +459,29 @@ export function buildGameCharacterContextMenuModel(
       : []),
   ];
 
+  // What is opened most is left a click away; what is set now and then is gathered in a few
+  // named groups, so the list stays short enough to read at a glance.
+  const group = (key: string, subActions: ContextMenuAction[]): ContextMenuAction[] =>
+    subActions.length > 0 ? [{ name: t(`feature.character.contextMenu.${key}`), action: undefined, subActions }] : [];
+  const movingActions = [...planActions, ...fightEntries.onAndOff];
+  const closingActions = [...surfaceEntries, ...fightEntries.manage];
   const actions: ContextMenuAction[] = [
     ...(overlapEntries.length > 0 ? [...overlapEntries, ContextMenuSeparator] : []),
-    ...(planActions.length > 0 ? [...planActions, ContextMenuSeparator] : []),
-    ...openActions,
+    ...(movingActions.length > 0 ? [...movingActions, ContextMenuSeparator] : []),
+    ...basicActions,
+    ...chatActions,
+    ...group('buffGroup', buffEffectActions),
+    ...group('sightGroup', lightActions),
+    ...fightEntries.fight,
     ContextMenuSeparator,
-    ...displayActions,
-    // who may see it and who owns it, with permission, after a separator
-    ...disclosureActions,
+    ...group('handlingGroup', [...lookToggles, ...handlingToggles, altitudeAction]),
+    ...fightEntries.handling,
+    ...group('disclosureGroup', disclosureActions),
     ContextMenuSeparator,
-    ...moveActions,
+    ...group('putAwayGroup', moveActions),
     ContextMenuSeparator,
     ...objectActions.slice(overlapEntries.length),
-    ...(surfaceEntries.length > 0 ? [ContextMenuSeparator, ...surfaceEntries] : []),
+    ...(closingActions.length > 0 ? [ContextMenuSeparator, ...closingActions] : []),
   ];
   const radialGroups: ContextMenuRadialGroup[] = [
     {
@@ -466,12 +502,17 @@ export function buildGameCharacterContextMenuModel(
     {
       name: t('feature.character.contextMenu.radialDisplay'),
       icon: 'visibility',
-      actions: [...lightActions, ...displayActions],
+      actions: [...lightActions, ...displayActions, ...fightEntries.handling],
+    },
+    {
+      name: t('feature.character.contextMenu.radialZone'),
+      icon: 'sports_kabaddi',
+      actions: [...fightEntries.fight, ...fightEntries.manage],
     },
     {
       name: t('feature.character.contextMenu.radialMove'),
       icon: 'open_with',
-      actions: [...planActions, ...moveActions, ...surfaceEntries],
+      actions: [...planActions, ...fightEntries.onAndOff, ...moveActions, ...surfaceEntries],
     },
     {
       name: t('feature.character.contextMenu.radialDisclosure'),

@@ -46,3 +46,41 @@ export function replaceEmbeddedRolls(expression: string, answers: readonly numbe
 
   return replaced + expression.slice(cursor);
 }
+
+/** The expression with each bracketed command left standing in place of its brackets. */
+export function unwrapEmbeddedRolls(expression: string): string {
+  const sites = findEmbeddedRolls(expression);
+  let unwrapped = '';
+  let cursor = 0;
+  for (const site of sites) {
+    unwrapped += expression.slice(cursor, site.start) + site.command;
+    cursor = site.end;
+  }
+  return unwrapped + expression.slice(cursor);
+}
+
+/**
+ * Whether an amount is plain arithmetic once its bracketed commands are answered: numbers, dice
+ * and the operators between them. Anything else - a letter a system command takes after its total,
+ * a reference left unfilled - leaves arithmetic that cannot be worked out on its own.
+ */
+export function isPlainArithmetic(expression: string): boolean {
+  const answered = replaceEmbeddedRolls(
+    expression,
+    findEmbeddedRolls(expression).map(() => 0)
+  );
+  return /^[\d\s+\-*/().dD]*$/.test(answered);
+}
+
+/** The expression without one pair of parentheses round the whole of it, where it has them. */
+export function unwrapParentheses(expression: string): string {
+  const trimmed = expression.trim();
+  if (!trimmed.startsWith('(') || !trimmed.endsWith(')')) return trimmed;
+  let depth = 0;
+  for (let index = 0; index < trimmed.length; index++) {
+    if (trimmed[index] === '(') depth++;
+    else if (trimmed[index] === ')') depth--;
+    if (depth === 0 && index < trimmed.length - 1) return trimmed;
+  }
+  return trimmed.slice(1, -1);
+}

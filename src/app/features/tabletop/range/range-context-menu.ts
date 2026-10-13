@@ -11,6 +11,7 @@ import { buildAltitudeAction, buildLockToggleAction } from '@axe/application/ui/
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { COVERED_RANGE_TYPES } from '@axe/domain/tabletop/range-coverage';
 
 export interface RangeContextMenuModel {
   actions: ContextMenuAction[];
@@ -28,7 +29,8 @@ export function buildRangeContextMenu(
   onDockingWindowOpen: () => void,
   onEdit: (r: RangeArea) => void,
   t: TranslateFn,
-  onEditCells?: (r: RangeArea) => void
+  onEditCells?: (r: RangeArea) => void,
+  onTargetInside?: (r: RangeArea) => void
 ): ContextMenuAction[] {
   return buildRangeContextMenuModel(
     range,
@@ -40,7 +42,8 @@ export function buildRangeContextMenu(
     onDockingWindowOpen,
     onEdit,
     t,
-    onEditCells
+    onEditCells,
+    onTargetInside
   ).actions;
 }
 
@@ -61,7 +64,8 @@ export function buildRangeContextMenuModel(
   onDockingWindowOpen: () => void,
   onEdit: (r: RangeArea) => void,
   t: TranslateFn,
-  onEditCells?: (r: RangeArea) => void
+  onEditCells?: (r: RangeArea) => void,
+  onTargetInside?: (r: RangeArea) => void
 ): RangeContextMenuModel {
   const altitudeAction = buildAltitudeAction(range, t, {
     keepPosZ: true,
@@ -75,6 +79,10 @@ export function buildRangeContextMenuModel(
     name: t('feature.tabletop.contextMenu.rangeEdit'),
     action: () => onEdit(range),
   };
+  const targetActions: ContextMenuAction[] =
+    onTargetInside && COVERED_RANGE_TYPES.includes(range.type)
+      ? [{ name: t('feature.tabletop.contextMenu.rangeTargetInside'), action: () => onTargetInside(range) }]
+      : [];
   const copyAction: ContextMenuAction = {
     name: t('feature.tabletop.contextMenu.copy'),
     action: () => {
@@ -100,7 +108,7 @@ export function buildRangeContextMenuModel(
   };
 
   const positionActions = [altitudeAction, lockAction, ...(followAction ? [followAction] : [])];
-  const shapeActions = [shapeAction, ...customActions];
+  const shapeActions = [shapeAction, ...customActions, ...targetActions];
   const actions: ContextMenuAction[] = [
     ...positionActions,
     ContextMenuSeparator,

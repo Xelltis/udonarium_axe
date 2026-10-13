@@ -82,10 +82,12 @@ export class ChatSearchBarComponent {
   readonly isSearching = computed(() => this.query().length > 0);
 
   constructor() {
+    const destroyRef = inject(DestroyRef);
+    destroyRef.onDestroy(() => (this.closedDown = true));
     this.objectChange.onObjectChangedForAlias(
       [ChatMessage.aliasName],
       () => this.linesEdited.update((v) => v + 1),
-      inject(DestroyRef)
+      destroyRef
     );
     effect(() => {
       this.query();
@@ -154,10 +156,17 @@ export class ChatSearchBarComponent {
     void this.show(next);
   }
 
+  /**
+   * Brings a line into view, then marks the words. A box closed while the line was on its way marks
+   * nothing, since closing it took its marks away.
+   */
   private async show(message: ChatMessage | null): Promise<void> {
     if (message) await this.reveal()(message);
-    this.mark();
+    if (!this.closedDown) this.mark();
   }
+
+  /** Whether the box has closed, after which nothing it was still waiting on may mark the log. */
+  private closedDown = false;
 
   private markFrame: number | null = null;
 

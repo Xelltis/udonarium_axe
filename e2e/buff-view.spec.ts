@@ -1,13 +1,13 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { createCharacter, waitAppReady } from './helpers';
+import { createCharacter, revealMenuEntry, waitAppReady } from './helpers';
 
 async function openBuffView(page: Page) {
   await waitAppReady(page);
   await createCharacter(page);
   await page.locator('game-character').first().dispatchEvent('contextmenu');
   await expect(page.locator('context-menu').locator('li').first()).toBeVisible({ timeout: 5000 });
-  await page.locator('context-menu').getByText('バフ編集').click();
+  await (await revealMenuEntry(page, page.locator('context-menu'), 'バフ編集')).click();
   await expect(page.locator('game-character-buff-view')).toBeVisible({ timeout: 5000 });
 }
 

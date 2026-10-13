@@ -14,6 +14,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
+import { RUBY_ALIGNS, RUBY_SHOWS, RUBY_SIZES, RUBY_SPACINGS, RubyDisplay } from '@axe/domain/chat/ruby-display';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { SystemAvatarMenuService } from '@axe/features/chat/system-avatar-menu.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
@@ -98,6 +99,21 @@ export class ChatMessageSettingComponent {
   readonly showVnEmoteBadge = this.chatPrefs.showVnEmoteBadge;
   readonly showMessageCount = this.chatPrefs.showMessageCount;
   readonly fontSize = this.chatPrefs.fontSize;
+
+  /** How this reader has ruby drawn, and the choices for each part of it. */
+  readonly rubyDisplay = this.chatPrefs.rubyDisplay;
+  protected readonly rubyParts: readonly (keyof RubyDisplay)[] = ['show', 'align', 'spacing', 'size'];
+  protected readonly rubyChoices = {
+    show: RUBY_SHOWS,
+    align: RUBY_ALIGNS,
+    spacing: RUBY_SPACINGS,
+    size: RUBY_SIZES,
+  } as const;
+
+  /** Changes one part of how this reader has ruby drawn. */
+  setRubyDisplay(part: keyof RubyDisplay, value: string): void {
+    this.chatPrefs.setRubyDisplay({ [part]: value } as Partial<RubyDisplay>);
+  }
   readonly minFontSize = CHAT_FONT_SIZE_MIN;
   readonly maxFontSize = CHAT_FONT_SIZE_MAX;
 

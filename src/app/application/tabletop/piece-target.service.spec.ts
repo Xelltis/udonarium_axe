@@ -38,4 +38,15 @@ describe('PieceTargetService', () => {
     expect(two.targeted).toBe(false);
     expect(service().anything()).toBe(false);
   });
+
+  it('aims at exactly the pieces given, and at nothing else', () => {
+    const one = GameCharacter.create('一', 1, '');
+    const two = GameCharacter.create('二', 1, '');
+    const three = GameCharacter.create('三', 1, '');
+    service().toggle(one);
+
+    service().setOnly([two, three]);
+
+    expect([one.targeted, two.targeted, three.targeted]).toEqual([false, true, true]);
+  });
 });

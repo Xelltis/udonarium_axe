@@ -7,6 +7,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -210,5 +211,26 @@ describe('RangeComponent', () => {
       expect(openRadial).not.toHaveBeenCalled();
       range.destroy();
     });
+  });
+
+  it('aims at the pieces a circle takes in, and takes the aim off the rest and off pieces out of the fight', () => {
+    const range = RangeArea.create('円', 1, 2, 50);
+    range.type = 'CIRCLE';
+    range.location = { name: 'table', x: 300, y: 300 };
+    const inside = GameCharacter.create('中', 1, '');
+    inside.location = { name: 'table', x: 325, y: 275 };
+    const outside = GameCharacter.create('外', 1, '');
+    outside.location = { name: 'table', x: 600, y: 600 };
+    outside.targeted = true;
+    const resting = GameCharacter.create('除外', 1, '');
+    resting.location = { name: 'table', x: 300, y: 300 };
+    resting.offField = '1';
+    fixture.componentRef.setInput('range', range);
+
+    component.targetInside(range);
+
+    expect(inside.targeted).toBe(true);
+    expect(outside.targeted).toBe(false);
+    expect(resting.targeted).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { createCharacter, openPanel, waitAppReady } from './helpers';
+import { createCharacter, openPanel, revealMenuEntry, waitAppReady } from './helpers';
 
 async function openInventory(page: Page) {
   await waitAppReady(page);
@@ -102,8 +102,8 @@ test.describe('インベントリのコンテキストメニュー', () => {
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 3000 });
     // テーブル上のオブジェクトを右クリックした場合、「テーブルに移動」は現在地と
     // 同じなので項目化されない。他3つのロケーション移動先が表示される。
-    await expect(menu.getByText('共有イベントリに移動')).toBeVisible();
-    await expect(menu.getByText('個人イベントリに移動')).toBeVisible();
-    await expect(menu.getByText('墓場に移動')).toBeVisible();
+    await expect(await revealMenuEntry(page, menu, '共有イベントリに移動')).toBeVisible();
+    await expect(await revealMenuEntry(page, menu, '個人イベントリに移動')).toBeVisible();
+    await expect(await revealMenuEntry(page, menu, '墓場に移動')).toBeVisible();
   });
 });

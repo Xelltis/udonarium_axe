@@ -64,12 +64,26 @@ describe('ChatLogExporter', () => {
 
     it('turns the ruby notation into ruby markup', () => {
       const result = ChatLogExporter.escapeHtml('|漢字《かんじ》');
-      expect(result).toContain('<ruby>漢字<rt>かんじ</rt></ruby>');
+      expect(result).toContain('<ruby class="chat-ruby"><rb>漢字</rb><rt>かんじ</rt></ruby>');
+    });
+
+    it('writes a reading split over the letters of its word one part over each letter', () => {
+      const result = ChatLogExporter.escapeHtml('|漢字《かん|じ》と|明日《あ|し|た》');
+      expect(result).toBe(
+        '<ruby class="chat-ruby"><rb>漢</rb><rt>かん</rt><rb>字</rb><rt>じ</rt></ruby>と' +
+          '<ruby class="chat-ruby"><rb>明日</rb><rt>あした</rt></ruby>'
+      );
+    });
+
+    it('escapes what stands in a word and its reading', () => {
+      expect(ChatLogExporter.escapeHtml('|<b>《&》')).toBe(
+        '<ruby class="chat-ruby"><rb>&lt;b&gt;</rb><rt>&amp;</rt></ruby>'
+      );
     });
 
     it('reads a full-width bar in that notation too', () => {
       const result = ChatLogExporter.escapeHtml('｜熟語《じゅくご》');
-      expect(result).toContain('<ruby>熟語<rt>じゅくご</rt></ruby>');
+      expect(result).toContain('<ruby class="chat-ruby"><rb>熟語</rb><rt>じゅくご</rt></ruby>');
     });
 
     it('renders anything that is not text as text', () => {

@@ -37,6 +37,7 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { SlopeSide } from '@axe/domain/tabletop/terrain-slope';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
+import { PieceFigureHeightsService } from '@axe/features/character/game-character/piece-figure-heights.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 
@@ -100,6 +101,134 @@ describe('GameCharacterComponent', () => {
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).style.zIndex).toBe('4');
+  });
+
+  it('says by its name how many ride a mount', async () => {
+    const horse = GameCharacter.create('馬', 2, '');
+    horse.mountable = '1';
+    fixture.componentRef.setInput('gameCharacter', horse);
+    fixture.detectChanges();
+    const riders = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="piece-riders"]');
+    expect(riders()).toBeNull();
+
+    const rider = GameCharacter.create('騎士', 1, '');
+    rider.ridingOn = horse.identifier;
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    expect(riders()?.textContent).toContain('1');
+  });
+
+  describe('the riding label', () => {
+    function ride(): { horse: GameCharacter; knight: GameCharacter; squire: GameCharacter } {
+      const horse = GameCharacter.create('馬', 2, '');
+      horse.setLocation('table');
+      horse.mountable = '1';
+      const knight = GameCharacter.create('騎士', 1, '');
+      knight.setLocation('table');
+      knight.ridingOn = horse.identifier;
+      const squire = GameCharacter.create('従者', 1, '');
+      squire.setLocation('table');
+      squire.ridingOn = horse.identifier;
+      squire.rideSeat = 'passenger';
+      return { horse, knight, squire };
+    }
+
+    async function draw(of: ComponentFixture<GameCharacterComponent>): Promise<HTMLElement> {
+      of.detectChanges();
+      await of.whenStable();
+      return of.nativeElement as HTMLElement;
+    }
+
+    it('draws a mount ridden as one card, those riding it over the mount and the one in front lowest', async () => {
+      const { horse } = ride();
+      fixture.componentRef.setInput('gameCharacter', horse);
+
+      const element = await draw(fixture);
+      const card = element.querySelector('[data-testid="riding-label"]')!;
+      const names = [...card.querySelectorAll('[data-testid="riding-label-name"], [data-testid="piece-name"]')].map(
+        (name) => name.textContent?.replace(/\s+/g, ' ').trim()
+      );
+
+      expect(names).toEqual(['group 従者', 'upgrade 騎士', '馬 person2']);
+      expect(card.querySelectorAll('[data-testid="riding-label-piece"]')).toHaveLength(3);
+      expect(card.querySelectorAll('[data-testid="piece-gauge"]').length).toBeGreaterThan(0);
+      expect(element.querySelectorAll('[data-testid="piece-name"]')).toHaveLength(1);
+      expect(element.querySelectorAll('[data-testid="piece-gauge"]').length).toBe(
+        card.querySelectorAll('[data-testid="piece-gauge"]').length
+      );
+    });
+
+    it('stands the card over the tallest picture on the mount, and draws a rider in front of its mount', async () => {
+      const { horse, knight } = ride();
+      fixture.componentRef.setInput('gameCharacter', horse);
+      await draw(fixture);
+      type Riding = { ridingCardRise(): number; figureHeightPx(): number };
+      const riding = component as unknown as Riding;
+      expect(riding.ridingCardRise()).toBe(0);
+
+      knight.posZ = horse.posZ + 50;
+      TestBed.inject(PieceFigureHeightsService).set(knight.identifier, riding.figureHeightPx() + 20);
+      await draw(fixture);
+      expect(riding.ridingCardRise()).toBe(70);
+
+      fixture.componentRef.setInput('gameCharacter', knight);
+      await draw(fixture);
+      const facing = (component as unknown as { pieceImageFacing(): (rotation: null) => string }).pieceImageFacing();
+      expect(facing(null)).toContain('translateZ(3px)');
+    });
+
+    it('draws no labels of its own over a piece riding a mount, and its labels again once it is off', async () => {
+      const { knight } = ride();
+      fixture.componentRef.setInput('gameCharacter', knight);
+
+      let element = await draw(fixture);
+      expect(element.querySelector('[data-testid="piece-name"]')).toBeNull();
+      expect(element.querySelector('[data-testid="piece-gauge"]')).toBeNull();
+
+      knight.ridingOn = '';
+      element = await draw(fixture);
+      expect(element.querySelector('[data-testid="piece-name"]')?.textContent).toContain('騎士');
+    });
+
+    it('names those riding a mount in its curved name from above, and draws no ring of their own', async () => {
+      const { horse, knight } = ride();
+      TestBed.inject(ViewModePreferenceService).choose('flat');
+      TestBed.inject(TabletopService).currentTable.multiAngleEnabled = true;
+      fixture.componentRef.setInput('gameCharacter', horse);
+      await draw(fixture);
+
+      expect(component.multiAngleLabelText()).toBe('騎士／従者／馬');
+
+      fixture.componentRef.setInput('gameCharacter', knight);
+      await draw(fixture);
+      expect(component.multiAngleOrbitVisible()).toBe(false);
+    });
+
+    it('leaves out the name of a rider hiding it, and its buffs where it hides them', async () => {
+      const { horse, knight } = ride();
+      knight.hideName = true;
+      knight.buffs.addRound('加護', '', 2);
+      fixture.componentRef.setInput('gameCharacter', horse);
+      const cursor = new PeerCursor();
+      cursor.userId = 'me';
+      cursor.role = PeerRole.Player;
+      cursor.initialize();
+      PeerCursor.myCursor = cursor;
+      onTestFinished(() => {
+        PeerCursor.myCursor = null!;
+      });
+
+      let element = await draw(fixture);
+      const names = () =>
+        [...element.querySelectorAll('[data-testid="riding-label-name"]')].map((name) => name.textContent?.trim());
+      expect(names()).toEqual(['group 従者']);
+      expect(element.querySelectorAll('[data-testid="riding-label-piece"] [data-testid="buff-badge"]').length).toBe(1);
+
+      knight.hideBuff = true;
+      element = await draw(fixture);
+      expect(element.querySelectorAll('[data-testid="riding-label-piece"] [data-testid="buff-badge"]').length).toBe(0);
+    });
   });
 
   describe('standing on a slope', () => {
@@ -221,6 +350,28 @@ describe('GameCharacterComponent', () => {
 
       movableOf().ondragend.emit({} as PointerEvent);
       expect(moveRange.range()).toBeNull();
+    });
+
+    it('carries those riding a mount put down to where it was let go, not where the hand last wrote it', () => {
+      const horse = pieceThatWalks(2);
+      horse.size = 3;
+      horse.mountable = '1';
+      const knight = GameCharacter.create('騎士', 1, '');
+      knight.setLocation('table');
+      knight.location = { name: 'table', x: horse.location.x + 50, y: horse.location.y + 50 };
+      knight.ridingOn = horse.identifier;
+      fixture.componentRef.setInput('gameCharacter', horse);
+      fixture.detectChanges();
+      const movable = movableOf();
+      movable.ondragstart.emit({} as PointerEvent);
+
+      movable.posX = 300;
+      movable.posY = 200;
+      movable.ondragend.emit({} as PointerEvent);
+      movable.onend.emit({} as PointerEvent);
+
+      expect([horse.location.x, horse.location.y]).toEqual([300, 200]);
+      expect([knight.location.x, knight.location.y]).toEqual([350, 250]);
     });
 
     it('takes it away when the pointer is let go without a drop', () => {
@@ -458,6 +609,26 @@ describe('GameCharacterComponent', () => {
         '#ff3b30',
       ]);
       table.gridType = GridType.SQUARE;
+    });
+
+    it('cuts the hex pedestal out of the handle that turns the piece, and nothing out of the square one', async () => {
+      type Grab = { pedestalGrabStyle(): Record<string, string> };
+      fixture.componentRef.setInput('gameCharacter', GameCharacter.create('コマ', 1, ''));
+      fixture.detectChanges();
+      expect((component as unknown as Grab).pedestalGrabStyle()['clipPath']).toBeUndefined();
+
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.gridType = GridType.HEX_VERTICAL;
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      try {
+        const clipPath = (component as unknown as Grab).pedestalGrabStyle()['clipPath'];
+        expect(clipPath).toMatch(/^path\(evenodd, "M 0 [\d.]+ A /);
+        expect(clipPath.match(/ Z/g)).toHaveLength(2);
+      } finally {
+        table.gridType = GridType.SQUARE;
+      }
     });
 
     it('keeps the ring it cut while the piece walks about', async () => {

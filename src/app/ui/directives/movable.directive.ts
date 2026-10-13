@@ -1040,6 +1040,19 @@ export class MovableDirective implements MovableInteractionContext {
     this.updateTransformCss();
   }
 
+  /**
+   * Writes where the piece stands to its object now, rather than on the next tick of the timer that
+   * gathers the moves of a drag, so what reads the object at once reads where it was let go.
+   */
+  commitPosition(): void {
+    if (this.updateTimer === null || !this.tabletopObject) return;
+    clearTimeout(this.updateTimer);
+    this.updateTimer = null;
+    this.tabletopObject.location.x = this.posX;
+    this.tabletopObject.location.y = this.posY;
+    this.tabletopObject.posZ = this.posZ;
+  }
+
   private setUpdateTimer() {
     if (this.updateTimer === null && this.tabletopObject) {
       this.updateTimer = setTimeout(() => {

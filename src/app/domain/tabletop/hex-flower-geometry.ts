@@ -165,6 +165,23 @@ export function buildHexRingClipPath(outline: Point[], bbox: BoundingBox, border
 }
 
 /**
+ * A CSS `clip-path` that keeps a circle of `radius` round a hex outline but for the outline itself,
+ * drawn relative to the circle's bounding box, the outline's centre at the circle's: the handle that
+ * turns a piece, round its pedestal, which leaves a press on the pedestal to the hand that moves it.
+ */
+export function buildHexHoleInCircleClipPath(outline: Point[], radius: number): string {
+  const f = (v: number): string => v.toFixed(2);
+  const r = f(radius);
+  const circle = `M 0 ${r} A ${r} ${r} 0 1 0 ${f(radius * 2)} ${r} A ${r} ${r} 0 1 0 0 ${r} Z`;
+  let hole = `M ${f(outline[0].x + radius)} ${f(outline[0].y + radius)}`;
+  for (let i = 1; i < outline.length; i++) {
+    hole += ` L ${f(outline[i].x + radius)} ${f(outline[i].y + radius)}`;
+  }
+  hole += ' Z';
+  return `path(evenodd, "${circle} ${hole}")`;
+}
+
+/**
  * The pedestal outline and bounding box for a piece of `size` cells on a hex grid.
  *
  * A whole size from 1 to 6 surrounds a central cell; a fractional size is centred on a hex

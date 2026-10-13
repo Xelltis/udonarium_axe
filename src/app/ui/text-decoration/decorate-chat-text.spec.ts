@@ -28,6 +28,15 @@ describe('decorate-chat-text', () => {
       const result = applyRubyMarkup('｜熟語《じゅくご》');
       expect(result).toBe('<ruby class="chat-ruby"><rb>熟語</rb><rt>じゅくご</rt></ruby>');
     });
+
+    it('writes a reading split by bars one part over each letter, an escaped letter kept whole', () => {
+      expect(applyRubyMarkup('|漢字《かん|じ》')).toBe(
+        '<ruby class="chat-ruby"><rb>漢</rb><rt>かん</rt><rb>字</rb><rt>じ</rt></ruby>'
+      );
+      expect(applyRubyMarkup('|&amp;字《アンド|じ》')).toBe(
+        '<ruby class="chat-ruby"><rb>&amp;</rb><rt>アンド</rt><rb>字</rb><rt>じ</rt></ruby>'
+      );
+    });
   });
 
   describe('splitRubyNotation', () => {
@@ -46,6 +55,14 @@ describe('decorate-chat-text', () => {
         { text: 'は', reading: '' },
         { text: '晴', reading: 'は' },
         { text: 'れ', reading: '' },
+      ]);
+    });
+
+    it('cuts a reading split over its letters into a run for each letter', () => {
+      expect(splitRubyNotation('|漢字《かん|じ》だ')).toEqual([
+        { text: '漢', reading: 'かん' },
+        { text: '字', reading: 'じ' },
+        { text: 'だ', reading: '' },
       ]);
     });
 

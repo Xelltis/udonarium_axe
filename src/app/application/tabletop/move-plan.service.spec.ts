@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -30,6 +32,8 @@ describe('MovePlanService', () => {
   });
 
   afterEach(() => {
+    Config.instance.moveKinds = null;
+    Config.instance.zoneEnabled = null;
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
   });
 
@@ -497,6 +501,114 @@ describe('MovePlanService', () => {
 
     expect(walked).toBe(false);
     expect(service.plan()).toBeNull();
+  });
+
+  describe('kinds of move', () => {
+    beforeEach(() => {
+      Config.instance.moveKinds = '全力:3:,通常:1:,制限:1:2';
+    });
+
+    it("opens by the room's first kind, and by another where one is asked for", () => {
+      const piece = pieceAt(1, 1, 2);
+
+      service.begin(piece);
+      expect(service.plan()!.kind).toBe('全力');
+      expect(service.plan()!.budget).toBe(stepsFor(6));
+      service.cancel();
+
+      service.begin(piece, '制限');
+      expect(service.plan()!.kind).toBe('制限');
+      expect(service.plan()!.budget).toBe(stepsFor(2));
+    });
+
+    it('changes the kind until the first leg is settled, and keeps it from then on', () => {
+      service.begin(pieceAt(1, 1, 2));
+
+      expect(service.setKind('通常')).toBe(true);
+      expect(service.plan()!.budget).toBe(stepsFor(2));
+      service.lookAt(2 * GRID + 10, 1 * GRID + 10);
+      service.settle();
+
+      expect(service.setKind('全力')).toBe(false);
+      expect(service.plan()!.kind).toBe('通常');
+      expect(service.kindBand()!.kinds.map((kind) => kind.mayChoose)).toEqual([false, true, false]);
+    });
+
+    it('says how many metres the move has left', () => {
+      service.begin(pieceAt(1, 1, 2), '通常');
+      expect(service.kindBand()!.metresLeft).toBe(2);
+
+      service.lookAt(2 * GRID + 10, 1 * GRID + 10);
+      service.settle();
+
+      expect(service.kindBand()!.metresLeft).toBe(1);
+    });
+
+    it('offers no kinds where the room has written none of its own', () => {
+      Config.instance.moveKinds = null;
+      service.begin(pieceAt(1, 1, 2));
+
+      expect(service.plan()!.kind).toBe('');
+      expect(service.kindBand()).toBeNull();
+    });
+
+    it('tells the room which kind the move is made by', () => {
+      PeerCursor.createMyCursor();
+      service.begin(pieceAt(1, 1, 2), '通常');
+      TestBed.tick();
+
+      expect(PeerCursor.myCursor.movingKind).toBe('通常');
+    });
+  });
+
+  it('puts a piece that walked into an engagement zone holding it into that zone', async () => {
+    Config.instance.zoneEnabled = true;
+    vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockReturnValue(null as never);
+    const zones = TestBed.inject(EngagementZoneService);
+    const hero = pieceAt(2, 2, 1);
+    const foe = pieceAt(2, 2, 1);
+    foe.isNpc = true;
+    const zone = zones.declare(hero, foe)!;
+    const walker = pieceAt(8, 2, 6);
+
+    service.begin(walker);
+    service.lookAt(4 * GRID + 10, 2 * GRID + 10);
+    await service.run();
+
+    expect(walker.engagementZone).toBe(zone.identifier);
+  });
+
+  it('walks a move nobody may stop through an engagement zone, and says it no longer is once walked', async () => {
+    Config.instance.zoneEnabled = true;
+    vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockReturnValue(null as never);
+    const zones = TestBed.inject(EngagementZoneService);
+    const foe = pieceAt(2, 2, 1);
+    foe.isNpc = true;
+    zones.declare(pieceAt(2, 2, 1), foe);
+    const walker = pieceAt(8, 2, 6);
+
+    service.begin(walker);
+    expect(service.unstoppableBand()).toEqual({ on: false, mayChange: true });
+    expect(service.setUnstoppable(true)).toBe(true);
+    expect(walker.unstoppableMove).toBe('1');
+    service.lookAt(4 * GRID + 10, 2 * GRID + 10);
+    await service.run();
+
+    expect(walker.engagementZone).toBe('');
+    expect(walker.unstoppableMove).toBe('');
+  });
+
+  it('offers no move nobody may stop where the room plays no zones, and forgets one called off', () => {
+    const piece = pieceAt(5, 5, 4);
+    service.begin(piece);
+    expect(service.unstoppableBand()).toBeNull();
+
+    Config.instance.zoneEnabled = true;
+    service.cancel();
+    service.begin(piece);
+    service.setUnstoppable(true);
+    service.cancel();
+    expect(piece.unstoppableMove).toBe('');
   });
 
   it('puts the piece back where it began when the move is called off', () => {

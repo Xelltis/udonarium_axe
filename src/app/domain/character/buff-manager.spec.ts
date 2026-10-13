@@ -16,6 +16,67 @@ describe('BuffManager', () => {
     manager = new BuffManager(buffDataElement);
   });
 
+  describe('a buff left beside the container', () => {
+    function stray(name: string, rounds: number, root = buffDataElement): DataElement {
+      const data = DataElement.create(name, rounds, { type: DataElementType.NUMBER_RESOURCE, currentValue: '' });
+      root.appendChild(data);
+      return data;
+    }
+
+    it('counts it down and lets it run out with the rest, moved into the container', () => {
+      const left = stray('挑発攻撃', 1);
+      manager.addRound('加速', '', 2);
+
+      expect(manager.expireOneRound()).toEqual(['挑発攻撃']);
+      expect(left.parent).toBeNull();
+      expect(buffDataElement.children).toEqual([container]);
+    });
+
+    it('writes a buff of the same name over it, inside the container, rather than starting another', () => {
+      const left = stray('挑発攻撃', 3);
+
+      manager.addRound('挑発攻撃', '追加D修正-2', 1);
+
+      expect(left.parent).toBe(container);
+      expect(container.children).toEqual([left]);
+      expect(left.value).toBe(1);
+      expect(manager.expireOneRound()).toEqual(['挑発攻撃']);
+    });
+
+    it('is found and listed before it is moved, and reading it moves nothing', () => {
+      manager.addRound('加速', '', 2);
+      const left = stray('挑発攻撃', 3);
+
+      expect(manager.find('挑発攻撃')).toBe(left);
+      expect(manager.list().map((data) => data.name)).toEqual(['加速', '挑発攻撃']);
+      expect(manager.snapshot().map((entry) => entry.name)).toEqual(['加速', '挑発攻撃']);
+      expect(left.parent).toBe(buffDataElement);
+    });
+
+    it('is put back where the round can reach it when a step is undone', () => {
+      stray('挑発攻撃', 1);
+      const taken = manager.snapshot();
+      manager.expireOneRound();
+
+      manager.restore(taken);
+
+      expect(container.children.map((child) => child.name)).toEqual(['挑発攻撃']);
+      expect(container.getFirstElementByName('挑発攻撃')!.value).toBe(1);
+    });
+
+    it('makes a container for it where the buffs had none but the strays', () => {
+      const root = DataElement.create('バフ', '');
+      const left = stray('挑発攻撃', 1, root);
+      const bare = new BuffManager(root);
+
+      bare.addRound('加速', '', 2);
+
+      const made = root.children.find((child) => child !== left) as DataElement;
+      expect(root.children).toEqual([made]);
+      expect(made.children.map((child) => child.name)).toEqual(['挑発攻撃', '加速']);
+    });
+  });
+
   describe('snapshot and restore', () => {
     it('puts back a buff that was taken away, with its note and its rounds', () => {
       manager.addRound('猛攻撃', '攻撃+2', 3);

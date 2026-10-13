@@ -41,6 +41,7 @@ import {
 } from '@axe/domain/tabletop/move/diagonal-move';
 import { asBreakOutMode, BREAK_OUT_MODES, BreakOutMode } from '@axe/domain/tabletop/move/engagement';
 import { DEFAULT_CELL_DISTANCE, DEFAULT_CELL_DISTANCE_UNIT } from '@axe/domain/tabletop/move/move-cells';
+import { parseMoveKinds } from '@axe/domain/tabletop/move/move-kind';
 import { MOVE_UNITS, MoveUnit, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
 import { PIECE_PASSAGE_MODES, PiecePassageMode } from '@axe/domain/tabletop/move/piece-passage';
 import { asZocMode, HOSTILITY_BY, HostilityBy, ZOC_MODES, ZocMode } from '@axe/domain/tabletop/move/zone-of-control';
@@ -51,6 +52,7 @@ import {
   MultiAngleFontScale,
 } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { cellWidthInches, clampCellMm } from '@axe/domain/tabletop/physical-scale';
+import { DEFAULT_FALL_MIN_M } from '@axe/domain/tabletop/ride/ride-rules';
 import { isGroupAnswered, resolveRoomRules, RoomRuleGroup, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -69,6 +71,7 @@ import {
   TurnOrderMode,
 } from '@axe/domain/tabletop/turn-order-mode';
 import { describeSide, encodeFactionOrder, normalizeFactionOrder } from '@axe/domain/tabletop/turn-side';
+import { DEFAULT_ZONE_SIZES, resolveZoneRules } from '@axe/domain/tabletop/zone/zone-rules';
 import {
   ROOM_SETTINGS_TABS,
   ROOM_SETTINGS_UI_TABS,
@@ -876,6 +879,196 @@ export class RoomSettingsPanelComponent {
   }
   set moveStrict(value: boolean) {
     if (this.isEditable) this.config.moveStrict = value;
+  }
+
+  /** Whether a move on a table with no grid is drawn as straight legs measured in metres. */
+  get pathMove(): boolean {
+    this.objectChange.versionOf('Config')();
+    return this.config.pathMove;
+  }
+  set pathMove(value: boolean) {
+    if (this.isEditable) this.config.pathMove = value;
+  }
+
+  /** Whether the room plays engagement zones; setting it writes the room's config, for whoever may edit the table. */
+  get zoneEnabled(): boolean {
+    this.objectChange.versionOf('Config')();
+    return this.config.zoneRuleAnswers.enabled === true;
+  }
+  set zoneEnabled(value: boolean) {
+    if (this.isEditable) this.config.zoneEnabled = value ? true : null;
+  }
+
+  /** The size table as the room wrote it, empty where it uses the default. */
+  get zoneSizes(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.zoneRuleAnswers.sizes ?? '';
+  }
+  set zoneSizes(value: string) {
+    if (this.isEditable) this.config.zoneSizes = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** The default size table, shown where the room has written none of its own. */
+  protected readonly zoneSizesPlaceholder = DEFAULT_ZONE_SIZES;
+
+  /** The sheet field holding the skill of steering a mount, empty where everybody riding in front steers. */
+  get rideSkillField(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.rideSkillField ?? '';
+  }
+  set rideSkillField(value: string) {
+    if (this.isEditable) this.config.rideSkillField = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** The field on a mount's sheet saying what it asks of that skill, empty where nothing is asked. */
+  get rideRequireField(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.rideRequireField ?? '';
+  }
+  set rideRequireField(value: string) {
+    if (this.isEditable) this.config.rideRequireField = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** The shortest fall from a mount, in metres. */
+  get fallMinM(): number {
+    this.objectChange.versionOf('Config')();
+    return this.config.fallMinM ?? DEFAULT_FALL_MIN_M;
+  }
+  set fallMinM(value: number) {
+    if (!this.isEditable) return;
+    this.config.fallMinM = Number.isFinite(value) && value >= 0 ? value : null;
+  }
+
+  /** The line rolled for a piece that falls off a mount, empty where a fall only says how far. */
+  get fallDamage(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.fallDamage ?? '';
+  }
+  set fallDamage(value: string) {
+    if (this.isEditable) this.config.fallDamage = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** The buff, as a chat buff command, given the two riding a mount two up, empty where none is. */
+  get twoUpBuff(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.twoUpBuff ?? '';
+  }
+  set twoUpBuff(value: string) {
+    if (this.isEditable) this.config.twoUpBuff = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** The sheet field a piece gives its count in, empty to count each piece once. */
+  get zoneCountField(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.zoneRuleAnswers.countField ?? '';
+  }
+  set zoneCountField(value: string) {
+    if (this.isEditable) this.config.zoneCountField = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** How close two pieces stand, in metres, to be at the same point. */
+  get zoneSamePointM(): number {
+    this.objectChange.versionOf('Config')();
+    return resolveZoneRules(this.config.zoneRuleAnswers).samePointM;
+  }
+  set zoneSamePointM(value: number) {
+    if (!this.isEditable) return;
+    this.config.zoneSamePointM = Number.isFinite(value) && value >= 0 ? value : null;
+  }
+
+  /** How many times the other side's number one side has to be to walk past a zone, or out of it, unheld. */
+  get zoneOutnumber(): number {
+    this.objectChange.versionOf('Config')();
+    return resolveZoneRules(this.config.zoneRuleAnswers).outnumber;
+  }
+  set zoneOutnumber(value: number) {
+    if (!this.isEditable) return;
+    this.config.zoneOutnumber = Number.isFinite(value) && value > 0 ? value : null;
+  }
+
+  /** The kind of move a piece may leave an overflowing zone by at once, empty for any kind. */
+  get zoneLeaveKind(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.zoneRuleAnswers.leaveKind ?? '';
+  }
+  set zoneLeaveKind(value: string) {
+    if (this.isEditable) this.config.zoneLeaveKind = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** Whether an enemy may step into a move under way and stop it there. */
+  get interruptEnabled(): boolean {
+    this.objectChange.versionOf('Config')();
+    return this.config.interruptEnabled;
+  }
+  set interruptEnabled(value: boolean) {
+    if (this.isEditable) this.config.interruptEnabled = value;
+  }
+
+  /** The kind of move a piece steps into a move by, empty for the room's first. */
+  get interruptKind(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.interruptKind ?? '';
+  }
+  set interruptKind(value: string) {
+    if (this.isEditable) this.config.interruptKind = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** How close to a line of fire, in metres, a piece out of every zone stands to be in its way. */
+  get zoneBlockRadiusM(): number {
+    this.objectChange.versionOf('Config')();
+    return resolveZoneRules(this.config.zoneRuleAnswers).blockRadiusM;
+  }
+  set zoneBlockRadiusM(value: number) {
+    if (!this.isEditable) return;
+    this.config.zoneBlockRadiusM = Number.isFinite(value) && value >= 0 ? value : null;
+  }
+
+  /** The sheet field or buff by which a shooter fires past what stands in the way, empty for none. */
+  get zoneClearName(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.zoneRuleAnswers.clearName ?? '';
+  }
+  set zoneClearName(value: string) {
+    if (this.isEditable) this.config.zoneClearName = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** The starting distances the room writes, as `name:metres` rows. */
+  get placementDistances(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.placementDistances ?? '';
+  }
+  set placementDistances(value: string) {
+    if (this.isEditable) this.config.placementDistances = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** What a distance between the sides does, as `metres:note` rows. */
+  get distanceModifiers(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.distanceModifiers ?? '';
+  }
+  set distanceModifiers(value: string) {
+    if (this.isEditable) this.config.distanceModifiers = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** The kinds of move the room plays, as it wrote them, empty where it plays the plain kind alone. */
+  get moveKinds(): string {
+    this.objectChange.versionOf('Config')();
+    return this.config.moveKinds ?? '';
+  }
+  set moveKinds(value: string) {
+    if (this.isEditable) this.config.moveKinds = value.trim().length > 0 ? value.trim() : null;
+  }
+
+  /** The names of the kinds of move the room has written, for choosing one of them. */
+  get moveKindNames(): string[] {
+    return parseMoveKinds(this.moveKinds)
+      .map((kind) => kind.name)
+      .filter((name) => name.length > 0);
+  }
+
+  /** Whether the move range's own fights are on beside engagement zones, which judge the same thing twice. */
+  get zoneMeetsEngagement(): boolean {
+    return this.zoneEnabled && this.rules.zocEngages && this.rules.zocMode !== 'none';
   }
 
   /**

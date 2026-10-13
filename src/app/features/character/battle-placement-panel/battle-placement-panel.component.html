@@ -1,0 +1,131 @@
+<div class="box-border flex h-full flex-col gap-2.5 overflow-y-auto p-3 text-[13px]" data-testid="battle-placement">
+  <div class="grid grid-cols-[7rem_1fr] items-center gap-x-3 gap-y-2">
+    <span class="text-ui-muted text-[11px]">{{ 'feature.zone.placement.leader' | transloco }}</span>
+    <span class="font-semibold">{{ leader()?.name }}</span>
+
+    <label class="text-ui-muted text-[11px]" for="placement-other">{{
+      'feature.zone.placement.other' | transloco
+    }}</label>
+    <select
+      id="placement-other"
+      class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-full border border-solid px-2 py-1 text-[13px]"
+      data-testid="placement-other"
+      (change)="chooseOther($event)"
+    >
+      @for (piece of others(); track piece.identifier) {
+        <option [value]="piece.identifier" [selected]="piece === other()">{{ piece.name }}</option>
+      }
+    </select>
+
+    <label class="text-ui-muted text-[11px]" for="placement-distance">{{
+      'feature.zone.placement.distance' | transloco
+    }}</label>
+    <div class="flex items-center gap-2">
+      @if (distances().length > 0) {
+        <select
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border min-w-0 flex-1 border border-solid px-2 py-1 text-[13px]"
+          data-testid="placement-distance-row"
+          (change)="chooseDistance($event)"
+        >
+          @for (row of distances(); track row.name) {
+            <option [value]="row.metres" [selected]="row.metres === distance()">{{ row.name }}</option>
+          }
+        </select>
+      }
+      <input
+        id="placement-distance"
+        type="number"
+        min="0"
+        step="0.5"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-20 border border-solid px-2 py-1 text-right text-[13px]"
+        data-testid="placement-distance"
+        [value]="distance()"
+        (change)="chooseDistance($event)"
+      />
+      <span class="text-ui-muted">m</span>
+    </div>
+
+    <label class="text-ui-muted text-[11px]" for="placement-bearing">{{
+      'feature.zone.placement.bearing' | transloco
+    }}</label>
+    <select
+      id="placement-bearing"
+      class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-full border border-solid px-2 py-1 text-[13px]"
+      data-testid="placement-bearing"
+      (change)="chooseBearing($event)"
+    >
+      @for (degrees of bearings; track degrees) {
+        <option [value]="degrees" [selected]="degrees === bearing()">
+          {{ 'feature.zone.placement.bearing_' + degrees | transloco }}
+        </option>
+      }
+    </select>
+  </div>
+
+  <button
+    type="button"
+    class="bg-ui-accent cursor-pointer self-start rounded-full border-none px-4 py-1.5 text-white disabled:cursor-default disabled:opacity-50"
+    data-testid="placement-place"
+    [disabled]="!leader() || !other()"
+    (click)="place()"
+  >
+    {{ 'feature.zone.placement.place' | transloco }}
+  </button>
+
+  @if (readout(); as readout) {
+    <p class="m-0" data-testid="placement-readout">
+      {{ 'feature.zone.placement.now' | transloco: { metres: readout.metres } }}
+      @if (readout.note) {
+        <span class="font-semibold" data-testid="placement-note">{{ readout.note }}</span>
+      } @else {
+        <span class="text-ui-muted">{{ 'feature.zone.placement.noNote' | transloco }}</span>
+      }
+    </p>
+  }
+
+  @if (situations().length > 0) {
+    <div class="flex flex-col gap-1" data-testid="placement-situations">
+      <span class="text-ui-muted text-[11px]">{{ 'feature.zone.placement.situations' | transloco }}</span>
+      @for (row of situations(); track row.name) {
+        <label class="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+            data-testid="placement-situation"
+            [checked]="row.ticked"
+            (change)="toggleSituation(row.name)"
+          />
+          <span>{{ row.name }}</span>
+          <span class="text-ui-muted">{{ row.note }}</span>
+        </label>
+      }
+    </div>
+  }
+
+  @if (readout()) {
+    <button
+      type="button"
+      class="border-ui-border-panel text-ui-text cursor-pointer self-start rounded-full border border-solid bg-transparent px-4 py-1.5"
+      data-testid="placement-announce"
+      (click)="announce()"
+    >
+      {{ 'feature.zone.placement.announceButton' | transloco }}
+    </button>
+  }
+
+  <div class="border-ui-border-panel flex flex-col gap-1 border-t border-solid pt-2">
+    <span class="text-ui-muted text-[11px]">{{ 'feature.zone.placement.outOfFight' | transloco }}</span>
+    @for (entry of pieces(); track entry.piece.identifier) {
+      <label class="flex cursor-pointer items-center gap-2">
+        <input
+          type="checkbox"
+          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          data-testid="placement-out"
+          [checked]="entry.out"
+          (change)="toggleOut(entry.piece)"
+        />
+        {{ entry.piece.name }}
+      </label>
+    }
+  </div>
+</div>

@@ -3,7 +3,6 @@ import { CardTargetService } from '@axe/application/card/card-target.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
-import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { ContextMenuAction, ContextMenuService, ContextMenuType } from '@axe/application/ui/context-menu.service';
@@ -18,7 +17,6 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { PERF_HEX_MASK_SVG, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { DataElement } from '@axe/domain/data/data-element';
 import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -650,49 +648,6 @@ describe('GameTableComponent', () => {
     });
 
     afterEach(() => TestBed.inject(RotationGuideService).end(owner));
-  });
-
-  describe('saying how a move is worked out', () => {
-    const hint = (): HTMLElement | null =>
-      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="move-plan-hint"]');
-
-    it('says nothing while no move is being worked out', () => {
-      fixture.detectChanges();
-
-      expect(hint()).toBeNull();
-    });
-
-    it('says how while one is', () => {
-      const plan = TestBed.inject(MovePlanService);
-      const piece = GameCharacter.create('コマ', 1, '');
-      piece.location = { name: 'table', x: 100, y: 100 };
-      DataElement.findElementByReference(piece.rootDataElement!, '移動')!.value = 3;
-      try {
-        expect(plan.begin(piece)).toBe(true);
-        fixture.detectChanges();
-
-        expect(hint()).not.toBeNull();
-      } finally {
-        plan.cancel();
-      }
-    });
-
-    it('keeps clear of the top of the screen, where the toolbars are pinned', () => {
-      const plan = TestBed.inject(MovePlanService);
-      const piece = GameCharacter.create('コマ', 1, '');
-      piece.location = { name: 'table', x: 100, y: 100 };
-      DataElement.findElementByReference(piece.rootDataElement!, '移動')!.value = 3;
-      try {
-        plan.begin(piece);
-        fixture.detectChanges();
-
-        const classes = hint()!.className.split(/\s+/);
-        expect(classes.some((name) => name.startsWith('top-'))).toBe(false);
-        expect(classes).toContain('bottom-28');
-      } finally {
-        plan.cancel();
-      }
-    });
   });
 
   describe('2D camera', () => {

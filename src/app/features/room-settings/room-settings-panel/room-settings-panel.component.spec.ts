@@ -449,6 +449,194 @@ describe('RoomSettingsPanelComponent', () => {
     });
   });
 
+  describe('engagement zones', () => {
+    function zoneSection(): HTMLElement | null {
+      return (fixture.nativeElement as HTMLElement).querySelector('[data-testid="room-settings-zone"]');
+    }
+
+    it('writes whether the room plays zones, and asks the rest only once it does', async () => {
+      component.tab.set('move');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(zoneSection()?.querySelector('input[name="zoneSizes"]')).toBeNull();
+
+      component.zoneEnabled = true;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(Config.instance.zoneRuleAnswers.enabled).toBe(true);
+      expect(zoneSection()?.querySelector('input[name="zoneSizes"]')).not.toBeNull();
+    });
+
+    it('writes the size table, the counted field and the same-point distance, and forgets what is left empty', () => {
+      component.zoneEnabled = true;
+      component.zoneSizes = ' 4:2:3,8:3:5 ';
+      component.zoneCountField = '体数';
+      component.zoneSamePointM = 1.5;
+
+      expect(Config.instance.zoneRuleAnswers).toEqual({
+        enabled: true,
+        sizes: '4:2:3,8:3:5',
+        countField: '体数',
+        samePointM: 1.5,
+        outnumber: null,
+        leaveKind: null,
+        blockRadiusM: null,
+        clearName: null,
+      });
+
+      component.zoneSizes = '';
+      component.zoneEnabled = false;
+      expect(Config.instance.zoneRuleAnswers.sizes).toBeNull();
+      expect(Config.instance.zoneRuleAnswers.enabled).toBeNull();
+    });
+
+    it('writes the outnumbering factor and the kind that leaves an overflowing zone, out of the kinds written', async () => {
+      component.tab.set('move');
+      component.zoneEnabled = true;
+      component.moveKinds = ' 全力:3:,通常:1: ';
+      component.zoneOutnumber = 3;
+      component.zoneLeaveKind = '全力';
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(Config.instance.moveKinds).toBe('全力:3:,通常:1:');
+      expect(Config.instance.zoneRuleAnswers.outnumber).toBe(3);
+      expect(Config.instance.zoneRuleAnswers.leaveKind).toBe('全力');
+      const choices = [...zoneSection()!.querySelectorAll('select[name="zoneLeaveKind"] option')].map(
+        (option) => (option as HTMLOptionElement).value
+      );
+      expect(choices).toEqual(['', '全力', '通常']);
+
+      component.zoneOutnumber = 0;
+      component.zoneLeaveKind = '';
+      component.moveKinds = '';
+      expect(Config.instance.zoneRuleAnswers.outnumber).toBeNull();
+      expect(Config.instance.zoneRuleAnswers.leaveKind).toBeNull();
+      expect(Config.instance.moveKinds).toBeNull();
+    });
+
+    it('warns while the move range holds fights of its own beside the zones', async () => {
+      component.tab.set('move');
+      component.zoneEnabled = true;
+      component.zocMode = 'stop';
+      Config.instance.zocEngages = true;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(zoneSection()?.querySelector('[data-testid="zone-engagement-warning"]')).not.toBeNull();
+    });
+
+    it('writes whether moves may be stepped into, and by which kind, out of the kinds written', async () => {
+      component.tab.set('move');
+      component.zoneEnabled = true;
+      component.moveKinds = '全力:3:,通常:1:';
+      component.interruptEnabled = true;
+      component.interruptKind = '通常';
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(Config.instance.interruptEnabled).toBe(true);
+      expect(Config.instance.interruptKind).toBe('通常');
+      const choices = [...zoneSection()!.querySelectorAll('select[name="interruptKind"] option')].map(
+        (option) => (option as HTMLOptionElement).value
+      );
+      expect(choices).toEqual(['', '全力', '通常']);
+
+      component.interruptKind = '';
+      expect(Config.instance.interruptKind).toBeNull();
+    });
+
+    it('writes the starting distances and what a distance does, and forgets them left empty', () => {
+      component.placementDistances = ' 近い:10 ';
+      component.distanceModifiers = '10:修正なし';
+      expect(Config.instance.placementDistances).toBe('近い:10');
+      expect(Config.instance.distanceModifiers).toBe('10:修正なし');
+
+      component.placementDistances = '';
+      component.distanceModifiers = '';
+      expect(Config.instance.placementDistances).toBeNull();
+      expect(Config.instance.distanceModifiers).toBeNull();
+    });
+
+    it('writes how far a piece blocks a line of fire, and the name that fires past it', () => {
+      component.zoneBlockRadiusM = 1.5;
+      component.zoneClearName = ' 精密 ';
+
+      expect(Config.instance.zoneRuleAnswers.blockRadiusM).toBe(1.5);
+      expect(Config.instance.zoneRuleAnswers.clearName).toBe('精密');
+
+      component.zoneBlockRadiusM = -1;
+      component.zoneClearName = '';
+      expect(Config.instance.zoneRuleAnswers.blockRadiusM).toBeNull();
+      expect(Config.instance.zoneRuleAnswers.clearName).toBeNull();
+    });
+
+    it('writes whether a move on a table with no grid is drawn as straight legs', () => {
+      component.pathMove = true;
+      expect(Config.instance.pathMove).toBe(true);
+
+      component.pathMove = false;
+      expect(Config.instance.pathMove).toBe(false);
+    });
+
+    it('leaves the room as it was for somebody watching', () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+
+      component.zoneEnabled = true;
+
+      expect(Config.instance.zoneRuleAnswers.enabled).toBeNull();
+    });
+  });
+
+  describe('pieces riding mounts', () => {
+    it('writes the fields for steering and what a mount asks, and forgets them left empty', () => {
+      component.rideSkillField = ' 騎乗 ';
+      component.rideRequireField = '要求';
+      expect(Config.instance.rideSkillField).toBe('騎乗');
+      expect(Config.instance.rideRequireField).toBe('要求');
+
+      component.rideSkillField = '';
+      component.rideRequireField = ' ';
+      expect(Config.instance.rideSkillField).toBeNull();
+      expect(Config.instance.rideRequireField).toBeNull();
+    });
+
+    it('writes the shortest fall and the line rolled for one, showing the default fall where none is written', () => {
+      expect(component.fallMinM).toBe(2);
+
+      component.fallMinM = 3;
+      component.fallDamage = ' {m}d6 ';
+      expect(Config.instance.fallMinM).toBe(3);
+      expect(Config.instance.fallDamage).toBe('{m}d6');
+
+      component.fallMinM = Number.NaN;
+      component.fallDamage = '';
+      expect(Config.instance.fallMinM).toBeNull();
+      expect(component.fallMinM).toBe(2);
+      expect(Config.instance.fallDamage).toBeNull();
+    });
+
+    it('writes the buff for riding two up, and forgets it left empty', () => {
+      component.twoUpBuff = ' &ふたり乗り/判定-1/99 ';
+      expect(Config.instance.twoUpBuff).toBe('&ふたり乗り/判定-1/99');
+
+      component.twoUpBuff = '';
+      expect(Config.instance.twoUpBuff).toBeNull();
+    });
+
+    it('draws the fall and two-up settings with the rest of the riding ones', async () => {
+      component.tab.set('move');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const section = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="room-settings-ride"]');
+
+      expect(section?.querySelector('input[name="fallMinM"]')).not.toBeNull();
+      expect(section?.querySelector('input[name="fallDamage"]')).not.toBeNull();
+      expect(section?.querySelector('input[name="twoUpBuff"]')).not.toBeNull();
+    });
+  });
+
   describe('the way a table lying flat is drawn', () => {
     it('writes each feature to this screen alone, so nobody else is told', () => {
       component.orthographicProjection = true;

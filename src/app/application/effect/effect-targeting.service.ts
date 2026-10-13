@@ -1,6 +1,7 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { SelectionSignalService, TabletopObjectSelection } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -40,6 +41,7 @@ export class EffectTargetingService {
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly castService = inject(EffectCastService);
+  private readonly zones = inject(EngagementZoneService);
 
   private readonly _preset = signal<EffectPreset | null>(null);
   private readonly _picks = signal<readonly string[]>([]);
@@ -207,13 +209,22 @@ export class EffectTargetingService {
     this.beganWithSelection = null;
   }
 
-  /** Takes everything within the radius of the centre piece, nearest first. */
+  /**
+   * Takes everything within the radius of the centre piece, nearest first. A piece in an engagement
+   * zone stands at the zone's centre for this, so a zone the area reaches is reached whole; a piece
+   * taken out of the fight is never reached.
+   */
   private areaPicks(preset: EffectPreset, center: GameCharacter): string[] {
     const gridSize = this.tabletopService.gridSize();
-    const origin = this.centerOf(center, gridSize);
+    const reading = this.zones.reading();
+    const origin = { ...this.centerOf(center, gridSize), ...reading.pointOf(center) };
     const candidates = this.tabletopService.characters
-      .filter((character) => character.isVisibleOnTable)
-      .map((character) => ({ identifier: character.identifier, ...this.centerOf(character, gridSize) }));
+      .filter((character) => character.isVisibleOnTable && character.offField !== '1')
+      .map((character) => ({
+        identifier: character.identifier,
+        ...this.centerOf(character, gridSize),
+        ...reading.pointOf(character),
+      }));
 
     return effectAreaTargets(origin, candidates, preset.areaRadiusCells * gridSize, preset.targetLimit);
   }

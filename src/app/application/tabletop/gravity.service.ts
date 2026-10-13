@@ -10,6 +10,7 @@ import {
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { seatHeightOf } from '@axe/domain/tabletop/ride/ride-rules';
 import { SurfaceDims, surfaceWorldBox } from '@axe/domain/tabletop/surface-space';
 import { boardSurfaceOf, surfaceOf, TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -109,11 +110,12 @@ export class GravityService {
 
       // Register every object in its cell, so a support search only walks the cell under the centre
       const grid = GravityService.buildSpatialIndex(cached);
+      const byId = new Map(cached.map((c) => [c.entry.object.identifier, c]));
 
       for (let pass = 0; pass < MAX_PASSES; pass++) {
         let changed = false;
         for (const c of targets) {
-          const support = GravityService.findSupportZAtCenter(c, grid);
+          const support = GravityService.rideSupportZ(c, byId) ?? GravityService.findSupportZAtCenter(c, grid);
           const resting = GravityService.restingPosZ(c.entry.object, support, c.altitudePx);
           if (Math.abs(c.posZ - resting) > POSZ_EPSILON) {
             c.entry.object.posZ = resting;
@@ -133,6 +135,20 @@ export class GravityService {
         this.applying = false;
       });
     }
+  }
+
+  /**
+   * What a piece riding a mount stands on: the mount's base raised by the height its riders stand
+   * at, wherever the two are; null for a piece riding nothing on the table, which comes to rest on
+   * whatever is under it.
+   */
+  private static rideSupportZ(target: CachedEntry, byId: ReadonlyMap<string, CachedEntry>): number | null {
+    const piece = target.entry.object;
+    if (!(piece instanceof GameCharacter) || piece.ridingOn === '') return null;
+    const mount = byId.get(piece.ridingOn);
+    const body = mount?.entry.object;
+    if (!mount || !(body instanceof GameCharacter) || body.mountable !== '1' || body === piece) return null;
+    return mount.bottomZ + seatHeightOf(body.mountSeatHeight, body.size) * mount.gridSizePx;
   }
 
   /**

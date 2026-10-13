@@ -4,6 +4,9 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { Config } from '@axe/domain/peer/config';
+import { GameTable } from '@axe/domain/tabletop/game-table';
+import { EngagementZone } from '@axe/domain/tabletop/zone/engagement-zone';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('EffectTargetingService', () => {
@@ -139,6 +142,42 @@ describe('EffectTargetingService', () => {
       // so the caster can see how far it reaches before committing
       expect(service.pick(characters[1].identifier)).toBeNull();
       expect(service.isPicking()).toBe(true);
+    });
+
+    it('reaches a piece in an engagement zone where it reaches the centre of the zone', () => {
+      preset.areaRadius = 3;
+      Config.instance.zoneEnabled = true;
+      const table = new GameTable();
+      table.width = 30;
+      table.height = 30;
+      table.gridSize = 50;
+      table.initialize();
+      const zone = new EngagementZone();
+      zone.initialize();
+      zone.centre = { x: 360, y: 25 };
+      table.appendChild(zone);
+      const near = makeCharacter('近', 335);
+      const far = makeCharacter('遠', 475);
+      far.isNpc = true;
+      near.engagementZone = zone.identifier;
+      far.engagementZone = zone.identifier;
+      characters.push(near, far);
+
+      service.begin(preset);
+      service.pick(characters[1].identifier);
+
+      expect(service.picks()).toContain(far.identifier);
+      Config.instance.zoneEnabled = null;
+      ObjectStore.instance.remove(zone);
+      ObjectStore.instance.remove(table);
+    });
+
+    it('never reaches a piece taken out of the fight', () => {
+      characters[0].offField = '1';
+      service.begin(preset);
+      service.pick(characters[1].identifier);
+
+      expect(service.picks()).not.toContain(characters[0].identifier);
     });
 
     it('moves the centre when chosen again', () => {

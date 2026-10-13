@@ -1,10 +1,21 @@
+import { Network as LiveNetwork } from '@axe/core/index';
 import { Network } from '@axe/core/network/network';
 
+const singleton = Network as unknown as Record<string, unknown>;
+
 describe('Network', () => {
+  let heldByTheApp: unknown;
+
   beforeEach(() => {
     // reset the singleton so no state leaks in from another test
-    (Network as unknown as Record<string, unknown>)['_instance'] = undefined;
+    heldByTheApp = singleton['_instance'];
+    singleton['_instance'] = undefined;
   });
+
+  afterEach(() => {
+    singleton['_instance'] = heldByTheApp;
+  });
+
   describe('instance (singleton)', () => {
     it('returns the one instance', () => {
       expect(Network.instance).toBe(Network.instance);
@@ -188,5 +199,11 @@ describe('Network', () => {
       expect(leaveImmediately).toHaveBeenCalled();
       instance['connection'] = null;
     });
+  });
+});
+
+describe('Network, once its own tests are done', () => {
+  it('is the instance the rest of the app imported, so a stand-in for it is read where the app reads it', () => {
+    expect(Network.instance).toBe(LiveNetwork);
   });
 });

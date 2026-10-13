@@ -301,7 +301,7 @@ export class BuffManagerPanelComponent {
   readonly sweepNames = computed<string[]>(() => {
     const names = new Set<string>();
     for (const piece of this.piecesOnTable()) {
-      for (const data of piece.buffDataElement?.children[0]?.children ?? []) names.add(data.name);
+      for (const data of piece.buffs.list()) names.add(data.name);
     }
     return [...names];
   });

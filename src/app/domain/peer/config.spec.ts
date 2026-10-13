@@ -21,6 +21,105 @@ describe('Config', () => {
     (Config as unknown as { _instance: Config | undefined })._instance = undefined;
   });
 
+  describe('engagement-zone rules', () => {
+    it('answers nothing for a room saved before it could, so the defaults are played', () => {
+      expect(Config.instance.zoneRuleAnswers).toEqual({
+        enabled: null,
+        sizes: null,
+        countField: null,
+        samePointM: null,
+        outnumber: null,
+        leaveKind: null,
+        blockRadiusM: null,
+        clearName: null,
+      });
+      expect(Config.instance.moveKinds).toBeNull();
+    });
+
+    it('reads back what it writes, and empty again for null', () => {
+      const config = Config.instance;
+      config.zoneEnabled = true;
+      config.zoneSizes = '4:2:3';
+      config.zoneCountField = '体数';
+      config.zoneSamePointM = 0;
+      config.zoneOutnumber = 3;
+      config.zoneLeaveKind = '全力';
+      config.moveKinds = '全力:3:,通常:1:';
+
+      expect(config.zoneRuleAnswers).toEqual({
+        enabled: true,
+        sizes: '4:2:3',
+        countField: '体数',
+        samePointM: 0,
+        outnumber: 3,
+        leaveKind: '全力',
+        blockRadiusM: null,
+        clearName: null,
+      });
+      expect(config.moveKinds).toBe('全力:3:,通常:1:');
+
+      config.zoneEnabled = null;
+      config.zoneSizes = null;
+      config.zoneCountField = null;
+      config.zoneSamePointM = null;
+      config.zoneOutnumber = null;
+      config.zoneLeaveKind = null;
+      config.moveKinds = null;
+      expect(config.moveKinds).toBeNull();
+      expect(config.zoneRuleAnswers).toEqual({
+        enabled: null,
+        sizes: null,
+        countField: null,
+        samePointM: null,
+        outnumber: null,
+        leaveKind: null,
+        blockRadiusM: null,
+        clearName: null,
+      });
+    });
+  });
+
+  describe('drawing a move as straight legs', () => {
+    it('is off for a room saved before it could be asked, and reads back what it writes', () => {
+      const config = Config.instance;
+      expect(config.pathMove).toBe(false);
+
+      config.pathMove = true;
+      expect(config.pathMove).toBe(true);
+      config.pathMove = false;
+      expect(config.pathMove).toBe(false);
+    });
+  });
+
+  describe('stepping into a move', () => {
+    it('is off for a room saved before it could be asked, with no kind named, and reads back what it writes', () => {
+      const config = Config.instance;
+      expect(config.interruptEnabled).toBe(false);
+      expect(config.interruptKind).toBeNull();
+
+      config.interruptEnabled = true;
+      config.interruptKind = '全力';
+      expect(config.interruptEnabled).toBe(true);
+      expect(config.interruptKind).toBe('全力');
+
+      config.interruptKind = null;
+      expect(config.interruptKind).toBeNull();
+    });
+  });
+
+  describe('setting the sides out', () => {
+    it('has no tables for a room saved before it could, and reads back what it writes', () => {
+      const config = Config.instance;
+      expect(config.placementDistances).toBeNull();
+      expect(config.distanceModifiers).toBeNull();
+
+      config.placementDistances = '近い:10';
+      config.distanceModifiers = '10:修正なし';
+      expect(config.placementDistances).toBe('近い:10');
+      expect(config.distanceModifiers).toBe('10:修正なし');
+    });
+  });
+
   describe('instance (singleton)', () => {
     it('returns the one instance', () => {
       const instance1 = Config.instance;

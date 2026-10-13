@@ -35,6 +35,7 @@ import {
   FactionPhaseMode,
   TurnOrderMode,
 } from '@axe/domain/tabletop/turn-order-mode';
+import { ZoneRuleAnswers } from '@axe/domain/tabletop/zone/zone-rules';
 
 @SyncObject('config')
 export class Config extends ObjectNode implements InnerXml {
@@ -87,6 +88,29 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_facingMark') private _facingMark: string = '';
   @SyncVar('_pieceImageInCell') private _pieceImageInCell: string = '';
   @SyncVar('_diceStage') private _diceStage: string = '';
+
+  // How the room plays engagement zones, which is the room's own decision rather than a table's.
+  @SyncVar('_zoneEnabled') private _zoneEnabled: string = '';
+  @SyncVar('_zoneSizes') private _zoneSizes: string = '';
+  @SyncVar('_zoneCountField') private _zoneCountField: string = '';
+  @SyncVar('_zoneSamePoint') private _zoneSamePoint: number = -1;
+  @SyncVar('_zoneOutnumber') private _zoneOutnumber: number = -1;
+  @SyncVar('_zoneLeaveKind') private _zoneLeaveKind: string = '';
+  @SyncVar('_moveKinds') private _moveKinds: string = '';
+  @SyncVar('_pathMove') private _pathMove: string = '';
+  @SyncVar('_interruptEnabled') private _interruptEnabled: string = '';
+  @SyncVar('_interruptKind') private _interruptKind: string = '';
+  @SyncVar('_zoneBlockRadius') private _zoneBlockRadius: number = -1;
+  @SyncVar('_zoneClearName') private _zoneClearName: string = '';
+  @SyncVar('_placementDistances') private _placementDistances: string = '';
+  @SyncVar('_distanceModifiers') private _distanceModifiers: string = '';
+
+  // How the room plays pieces riding mounts.
+  @SyncVar('_rideSkillField') private _rideSkillField: string = '';
+  @SyncVar('_rideRequireField') private _rideRequireField: string = '';
+  @SyncVar('_fallMinM') private _fallMinM: number = -1;
+  @SyncVar('_fallDamage') private _fallDamage: string = '';
+  @SyncVar('_twoUpBuff') private _twoUpBuff: string = '';
 
   /**
    * Where the room shows the dice of a chat roll tumbling: in the frame of the line that gives the
@@ -262,6 +286,163 @@ export class Config extends ObjectNode implements InnerXml {
   set moveStrict(strict: boolean) {
     this._moveStrict = strict ? '1' : '';
     this._moveStrictPath = '';
+  }
+
+  /**
+   * Whether a move on a table with no grid is drawn as a way of straight legs, measured in metres,
+   * rather than counted in the cells the table keeps out of sight. Off for a room that never said.
+   */
+  get pathMove(): boolean {
+    return this._pathMove === '1';
+  }
+  set pathMove(free: boolean) {
+    this._pathMove = free ? '1' : '';
+  }
+
+  /**
+   * Whether an enemy may step into a move under way and stop it there, under strict movement with
+   * engagement zones. Off for a room that never said.
+   */
+  get interruptEnabled(): boolean {
+    return this._interruptEnabled === '1';
+  }
+  set interruptEnabled(allowed: boolean) {
+    this._interruptEnabled = allowed ? '1' : '';
+  }
+
+  /** The kind of move a piece steps into a move by, which sets how far it reaches; null for the room's first. */
+  get interruptKind(): string | null {
+    return readRuleText(this._interruptKind);
+  }
+  set interruptKind(answer: string | null) {
+    this._interruptKind = writeRuleText(answer);
+  }
+
+  /** Every engagement-zone rule the room has been asked about, null where it has not answered. */
+  get zoneRuleAnswers(): ZoneRuleAnswers {
+    return {
+      enabled: readRuleFlag(this._zoneEnabled),
+      sizes: readRuleText(this._zoneSizes),
+      countField: readRuleText(this._zoneCountField),
+      samePointM: readRuleNumber(this._zoneSamePoint),
+      outnumber: readRuleNumber(this._zoneOutnumber),
+      leaveKind: readRuleText(this._zoneLeaveKind),
+      blockRadiusM: readRuleNumber(this._zoneBlockRadius),
+      clearName: readRuleText(this._zoneClearName),
+    };
+  }
+
+  /** The kinds of move the room plays, as `name:factor:cap` rows, or null for the plain kind alone. */
+  get moveKinds(): string | null {
+    return readRuleText(this._moveKinds);
+  }
+  set moveKinds(answer: string | null) {
+    this._moveKinds = writeRuleText(answer);
+  }
+
+  /** How many times the other side one side has to be to pass a zone unheld, or null for the default. */
+  set zoneOutnumber(answer: number | null) {
+    this._zoneOutnumber = writeRuleNumber(answer);
+  }
+
+  /** How far apart two sides start, as `name:metres` rows, or null where the room has written none. */
+  get placementDistances(): string | null {
+    return readRuleText(this._placementDistances);
+  }
+  set placementDistances(answer: string | null) {
+    this._placementDistances = writeRuleText(answer);
+  }
+
+  /**
+   * The sheet field holding the skill of steering a mount, or null where the room names none, in
+   * which case everybody riding in front steers.
+   */
+  get rideSkillField(): string | null {
+    return readRuleText(this._rideSkillField);
+  }
+  set rideSkillField(answer: string | null) {
+    this._rideSkillField = writeRuleText(answer);
+  }
+
+  /** The field on a mount's sheet saying what it asks of that skill, or null where the room names none. */
+  get rideRequireField(): string | null {
+    return readRuleText(this._rideRequireField);
+  }
+  set rideRequireField(answer: string | null) {
+    this._rideRequireField = writeRuleText(answer);
+  }
+
+  /** The shortest fall from a mount, in metres, or null for the default. */
+  get fallMinM(): number | null {
+    return readRuleNumber(this._fallMinM);
+  }
+  set fallMinM(answer: number | null) {
+    this._fallMinM = writeRuleNumber(answer);
+  }
+
+  /**
+   * What a fall from a mount does, as a line rolled for the piece that fell with `{m}` standing for
+   * how far it fell, or null where the room has written none and a fall only says how far.
+   */
+  get fallDamage(): string | null {
+    return readRuleText(this._fallDamage);
+  }
+  set fallDamage(answer: string | null) {
+    this._fallDamage = writeRuleText(answer);
+  }
+
+  /**
+   * The buff given the one riding a mount in front and the one behind while both are on it, written
+   * as a chat buff command, or null where the room gives none.
+   */
+  get twoUpBuff(): string | null {
+    return readRuleText(this._twoUpBuff);
+  }
+  set twoUpBuff(answer: string | null) {
+    this._twoUpBuff = writeRuleText(answer);
+  }
+
+  /** What a distance between the sides does, as `metres:note` rows, or null where the room has written none. */
+  get distanceModifiers(): string | null {
+    return readRuleText(this._distanceModifiers);
+  }
+  set distanceModifiers(answer: string | null) {
+    this._distanceModifiers = writeRuleText(answer);
+  }
+
+  /** How close to a line of fire, in metres, a piece stands to be in its way, or null for the default. */
+  set zoneBlockRadiusM(answer: number | null) {
+    this._zoneBlockRadius = writeRuleNumber(answer);
+  }
+
+  /** The sheet field or buff by which a shooter fires past what stands in the way, or null for none. */
+  set zoneClearName(answer: string | null) {
+    this._zoneClearName = writeRuleText(answer);
+  }
+
+  /** The kind of move a piece may leave an overflowing zone by at once, or null for any kind. */
+  set zoneLeaveKind(answer: string | null) {
+    this._zoneLeaveKind = writeRuleText(answer);
+  }
+
+  /** Whether the room plays engagement zones, or null where it has not said. */
+  set zoneEnabled(answer: boolean | null) {
+    this._zoneEnabled = writeRuleFlag(answer);
+  }
+
+  /** The size table zones grow by, as `count:radius:side` rows, or null for the default. */
+  set zoneSizes(answer: string | null) {
+    this._zoneSizes = writeRuleText(answer);
+  }
+
+  /** The sheet field a piece gives its count in, or null to count each piece once. */
+  set zoneCountField(answer: string | null) {
+    this._zoneCountField = writeRuleText(answer);
+  }
+
+  /** How close two pieces stand, in metres, to be at the same point, or null for the default. */
+  set zoneSamePointM(answer: number | null) {
+    this._zoneSamePoint = writeRuleNumber(answer);
   }
 
   /** Whether a round taken side by side skips the phase of pieces that belong to no side. */
