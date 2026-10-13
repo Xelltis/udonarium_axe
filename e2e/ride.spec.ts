@@ -58,6 +58,9 @@ async function rideAOnB(page: Page) {
   await expect(offer).toContainText('キャラクターA は キャラクターB の上にいます', { timeout: 5000 });
   await offer.getByTestId('snackbar-action').click();
   await expect(mount.getByTestId('piece-riders').first()).toContainText('1', { timeout: 5000 });
+  // Up onto the mount the rider still rises, and a hand reaching for it before it has risen takes
+  // hold of the mount below it.
+  await settle(rider);
 }
 
 test.describe('乗り物', () => {
