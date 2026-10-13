@@ -603,6 +603,7 @@ describe('painting dangerous ground', () => {
             surfaceHeight: 0.5,
             turbidity: 0.15,
             dirt: 0,
+            leaves: 0,
           },
         },
       ],

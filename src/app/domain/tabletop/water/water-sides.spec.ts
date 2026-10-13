@@ -19,6 +19,8 @@ function area(partial: Partial<WaterArea>): WaterArea {
     color: '#3399cc',
     density: 0.6,
     turbidity: 0.15,
+    dirt: 0,
+    leaves: 0,
     ...partial,
   };
 }
