@@ -14,12 +14,18 @@ import {
   TriggerBlock,
   waterDepthOf,
   waterDirtOf,
+  waterLeavesOf,
   waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
 import { hazardExtraCostOf, hazardPresetOf } from '@axe/domain/tabletop/hazard-presets';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
-import { DEFAULT_DIRT, DEFAULT_SURFACE_CELLS, DEFAULT_TURBIDITY } from '@axe/domain/tabletop/water/water-surface';
+import {
+  DEFAULT_DIRT,
+  DEFAULT_LEAVES,
+  DEFAULT_SURFACE_CELLS,
+  DEFAULT_TURBIDITY,
+} from '@axe/domain/tabletop/water/water-surface';
 import { FunctionLayer, MapScene } from '@axe/features/map-editor/model/scene';
 
 export type { BlockChange, FunctionPaintPlan };
@@ -148,6 +154,7 @@ function hazardBlocksOf(
     const surfaceHeight = water ? waterDepthOf(spec.depth) : DEFAULT_SURFACE_CELLS;
     const turbidity = water ? waterTurbidityOf(spec.turbidity) : DEFAULT_TURBIDITY;
     const dirt = water ? waterDirtOf(spec.dirt) : DEFAULT_DIRT;
+    const leaves = water ? waterLeavesOf(spec.leaves) : DEFAULT_LEAVES;
     const color = water ? (spec.color ?? '').trim() : '';
     for (const rect of blockRectsOf(Object.keys(layer.cells), hex)) {
       ambience.push({
@@ -160,6 +167,7 @@ function hazardBlocksOf(
           surfaceHeight,
           turbidity,
           dirt,
+          leaves,
         },
       });
       // Dangerous ground is dear to cross rather than shut: what nobody gets through at all is

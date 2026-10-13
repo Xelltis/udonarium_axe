@@ -66,6 +66,7 @@ import {
   TriggerPaintSpec,
   waterDepthOf,
   waterDirtOf,
+  waterLeavesOf,
   waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
@@ -312,18 +313,33 @@ export class MapEditorPanelComponent implements AfterViewInit {
     this.setHazardPaint({ dirt: waterDirtOf(Number(percent) / 100) });
   }
 
+  /** How much of the water the brush lays floating leaves over, as a percentage. */
+  protected readonly waterLeavesPercent = computed(() => Math.round(this.state.functionSpec().hazard.leaves * 100));
+
+  /** Sets how much of the water the brush lays floating leaves over, from a percentage. */
+  protected setWaterLeaves(percent: unknown): void {
+    this.setHazardPaint({ leaves: waterLeavesOf(Number(percent) / 100) });
+  }
+
   protected readonly waterPresets = WATER_PRESET_IDS;
 
   /** Which look the water brush paints, or null where its settings match none of them. */
   protected readonly waterPreset = computed(() => {
     const hazard = this.state.functionSpec().hazard;
-    return waterPresetOf(hazard.color, hazard.turbidity, hazard.dirt);
+    return waterPresetOf(hazard.color, hazard.turbidity, hazard.dirt, hazard.leaves);
   });
 
   /** Sets the water brush to one look: its colour, murkiness and dirt at once. */
   protected setWaterPreset(id: WaterPresetId | null): void {
     const preset = waterPresetNamed(id);
-    if (preset) this.setHazardPaint({ color: preset.color, turbidity: preset.turbidity, dirt: preset.dirt });
+    if (preset) {
+      this.setHazardPaint({
+        color: preset.color,
+        turbidity: preset.turbidity,
+        dirt: preset.dirt,
+        leaves: preset.leaves,
+      });
+    }
   }
 
   /** The colour the water brush paints in, shown as the colour of water itself where none is set. */

@@ -477,7 +477,14 @@ describe('painting dangerous ground', () => {
     cells: string[],
     kind: string,
     element = 'HP',
-    brush: { depth?: number; turbidity?: number; dirt?: number; color?: string; extraCost?: number | null } = {}
+    brush: {
+      depth?: number;
+      turbidity?: number;
+      dirt?: number;
+      color?: string;
+      leaves?: number;
+      extraCost?: number | null;
+    } = {}
   ): FunctionLayer {
     return layerOf('hazard', cells, {
       name: 'poison',
@@ -500,6 +507,14 @@ describe('painting dangerous ground', () => {
     )!;
 
     expect(plan.ambience.add[0].spec).toMatchObject({ dirt: 0.8, color: '#5f6b4a' });
+  });
+
+  it('lays leaves floating on the water as it was painted, and none on other ground', () => {
+    const pond = planFunctionPaint(sceneWith(hazardLayer(['1,1'], 'water', 'HP', { leaves: 0.6 })), snapshot())!;
+    const bog = planFunctionPaint(sceneWith(hazardLayer(['1,1'], 'bog', 'HP', { leaves: 0.6 })), snapshot())!;
+
+    expect(pond.ambience.add[0].spec.leaves).toBe(0.6);
+    expect(bog.ambience.add[0].spec.leaves).toBe(0);
   });
 
   it('lays water as murky as it was painted', () => {

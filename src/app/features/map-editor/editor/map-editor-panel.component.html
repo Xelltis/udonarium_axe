@@ -749,6 +749,22 @@
                   <span class="text-ui-muted w-8 text-right">{{ waterDirtPercent() }}%</span>
                 </span>
               </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardLeaves' | transloco }}</span>
+                <span class="flex items-center gap-1">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    class="w-24 cursor-pointer [accent-color:var(--ui-accent)]"
+                    data-testid="hazard-leaves"
+                    [ngModel]="waterLeavesPercent()"
+                    (ngModelChange)="setWaterLeaves($event)"
+                    name="hazardLeaves"
+                  />
+                  <span class="text-ui-muted w-8 text-right">{{ waterLeavesPercent() }}%</span>
+                </span>
+              </label>
             }
             <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.function.moveCostCharge' | transloco }}</span>

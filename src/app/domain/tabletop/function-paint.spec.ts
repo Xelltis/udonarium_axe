@@ -51,6 +51,7 @@ describe('sanitizeFunctionSpec()', () => {
     expect(spec.hazard.turbidity).toBe(0.15);
     expect(spec.hazard.dirt).toBe(0);
     expect(spec.hazard.color).toBe('');
+    expect(spec.hazard.leaves).toBe(0);
     expect(spec.hazard.extraCost).toBeNull();
   });
 
