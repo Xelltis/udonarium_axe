@@ -29,7 +29,8 @@ function arc(from: number, to: number): string {
  * The ring lights from the resting place to where the knob stands, so a knob that rests in the
  * middle, such as a filter, lights either way. Holding Shift while dragging turns it finely. It
  * reports each turn as it happens and once more when let go, so whoever holds it can preview a
- * change at once and share it when it settles; it keeps no value of its own.
+ * change at once and share it when it settles; it keeps no value of its own. The keys it turns by
+ * go no further, so the arrows that move the table leave it alone.
  */
 @Component({
   selector: 'ui-knob',
@@ -141,6 +142,7 @@ export class UiKnobComponent {
     else if (event.key in moves) this.turnTo(this.value() + moves[event.key], true);
     else return;
     event.preventDefault();
+    event.stopPropagation();
   }
 
   protected onDoubleClick(): void {

@@ -77,6 +77,18 @@ describe('UiKnobComponent', () => {
     expect(host.settled).toEqual([0.1, 1, -1]);
   });
 
+  it('keeps the keys it turns by to itself, and lets the others through', () => {
+    const heard: string[] = [];
+    const listen = (event: KeyboardEvent) => heard.push(event.key);
+    document.body.addEventListener('keydown', listen);
+
+    knob().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    knob().dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+    document.body.removeEventListener('keydown', listen);
+
+    expect(heard).toEqual(['a']);
+  });
+
   it('comes back to its resting place on a double click', async () => {
     host.value.set(0.7);
     await fixture.whenStable();
