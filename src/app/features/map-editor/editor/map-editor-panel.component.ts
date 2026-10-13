@@ -63,15 +63,17 @@ import {
   TerrainFaceImages,
   TerrainPaintSpec,
   TriggerPaintSpec,
+  waterDepthOf,
 } from '@axe/domain/tabletop/function-paint';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
-import { HAZARD_KINDS } from '@axe/domain/tabletop/hazard-presets';
+import { HAZARD_KINDS, hazardPresetOf } from '@axe/domain/tabletop/hazard-presets';
 import { asShownTo, SHOWN_TO, ShownTo } from '@axe/domain/tabletop/shown-to';
 import { DEFAULT_MOVE_COST_ROAD_COLOR, MOST_MOVE_COST_EXTRA } from '@axe/domain/tabletop/table-move-cost';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { asTriggerRepeat, TRIGGER_REPEATS, TriggerRepeat } from '@axe/domain/tabletop/trigger-event';
 import { TRIGGER_MOMENTS, TRIGGER_TARGETS } from '@axe/domain/tabletop/trigger-event';
+import { MAX_SURFACE_CELLS } from '@axe/domain/tabletop/water/water-surface';
 import { imageStampIdentifier, isImageStampId } from '@axe/features/map-editor/assets/image-stamp';
 import { StampDef } from '@axe/features/map-editor/assets/stamp-types';
 import { getStampById, STAMPS } from '@axe/features/map-editor/assets/stamps';
@@ -269,6 +271,19 @@ export class MapEditorPanelComponent implements AfterViewInit {
   }
 
   protected readonly hazardKinds = HAZARD_KINDS;
+
+  /** The highest the water brush may stand the surface over the floor, in cells. */
+  protected readonly maxWaterDepth = MAX_SURFACE_CELLS;
+
+  /** What crossing the painted ground costs where the brush leaves it to the kind. */
+  protected readonly hazardKindExtraCost = computed(
+    () => hazardPresetOf(this.state.functionSpec().hazard.kind).extraCost
+  );
+
+  /** Sets how deep the water brush paints, held to tenths of a cell as the table reads it back. */
+  protected setWaterDepth(value: unknown): void {
+    this.setHazardPaint({ depth: waterDepthOf(value) });
+  }
 
   protected setHazardPaint(patch: Partial<HazardPaintSpec>): void {
     const spec = this.state.functionSpec();

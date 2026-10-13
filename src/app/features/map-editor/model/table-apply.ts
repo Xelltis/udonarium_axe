@@ -12,10 +12,12 @@ import {
   MoveCostBlock,
   TerrainBlock,
   TriggerBlock,
+  waterDepthOf,
 } from '@axe/domain/tabletop/function-paint';
-import { hazardPresetOf } from '@axe/domain/tabletop/hazard-presets';
+import { hazardExtraCostOf, hazardPresetOf } from '@axe/domain/tabletop/hazard-presets';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
+import { DEFAULT_SURFACE_CELLS } from '@axe/domain/tabletop/water/water-surface';
 import { FunctionLayer, MapScene } from '@axe/features/map-editor/model/scene';
 
 export type { BlockChange, FunctionPaintPlan };
@@ -139,6 +141,8 @@ function hazardBlocksOf(
     const spec = layer.spec.hazard;
     const preset = hazardPresetOf(spec.kind);
     const taken = spec.element.trim();
+    const extraCost = hazardExtraCostOf(spec.kind, spec.extraCost);
+    const surfaceHeight = preset.ambience === 'water' ? waterDepthOf(spec.depth) : DEFAULT_SURFACE_CELLS;
     for (const rect of blockRectsOf(Object.keys(layer.cells), hex)) {
       ambience.push({
         ...rect,
@@ -147,14 +151,15 @@ function hazardBlocksOf(
           color: '',
           density: DEFAULT_AMBIENCE_DENSITY,
           blocksSight: preset.blocksSight,
+          surfaceHeight,
         },
       });
       // Dangerous ground is dear to cross rather than shut: what nobody gets through at all is
       // the movement brush's own far end, painted over the same cells where a table wants both.
-      if (preset.extraCost > 0) {
+      if (extraCost > 0) {
         moveCost.push({
           ...rect,
-          spec: { blocks: false, halves: false, extraCost: preset.extraCost, color: preset.color },
+          spec: { blocks: false, halves: false, extraCost, color: preset.color },
         });
       }
       // Ground that takes nothing and leaves no mark needs nothing to happen on it: laying a

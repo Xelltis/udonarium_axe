@@ -473,7 +473,7 @@ describe('FunctionalPaintService', () => {
         row: 3,
         width: 4,
         height: 2,
-        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false },
+        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false, surfaceHeight: 0.5 },
       };
 
       service.apply(plan({ ambience: { add: [look], remove: [] } }));
@@ -487,7 +487,7 @@ describe('FunctionalPaintService', () => {
         row: 3,
         width: 4,
         height: 2,
-        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false },
+        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false, surfaceHeight: 0.5 },
       };
       service.apply(plan({ ambience: { add: [look], remove: [] } }));
       const laid = table.ambiences[0];
@@ -497,6 +497,21 @@ describe('FunctionalPaintService', () => {
       expect(table.ambiences[0]).toBe(laid);
     });
 
+    it('stands water as deep as it was painted, and leaves it be when painted again the same', () => {
+      const pond = {
+        col: 2,
+        row: 3,
+        width: 4,
+        height: 2,
+        spec: { kind: 'water', color: '', density: 0.6, blocksSight: false, surfaceHeight: 1.5 },
+      };
+      service.apply(plan({ ambience: { add: [pond], remove: [] } }));
+      const laid = table.ambiences[0];
+
+      expect(laid.surface).toBe(1.5);
+      expect(service.snapshot()!.ambienceBlocks).toEqual([pond]);
+    });
+
     it('lays a look in the middle of its cell on a board of hexes, and reads it back there', () => {
       table.gridType = GridType.HEX_VERTICAL;
       const look = {
@@ -504,7 +519,7 @@ describe('FunctionalPaintService', () => {
         row: 3,
         width: 1,
         height: 1,
-        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false },
+        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false, surfaceHeight: 0.5 },
       };
 
       service.apply(plan({ ambience: { add: [look], remove: [] } }));
@@ -526,7 +541,7 @@ describe('FunctionalPaintService', () => {
         row: 3,
         width: 4,
         height: 2,
-        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false },
+        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false, surfaceHeight: 0.5 },
       };
 
       service.apply(plan({ ambience: { add: [look], remove: [] } }));
@@ -543,7 +558,7 @@ describe('FunctionalPaintService', () => {
         row: 3,
         width: 4,
         height: 2,
-        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false },
+        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false, surfaceHeight: 0.5 },
       };
       service.apply(plan({ ambience: { add: [look], remove: [] } }));
 

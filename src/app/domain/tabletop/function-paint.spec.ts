@@ -44,6 +44,20 @@ describe('sanitizeFunctionLayerLook()', () => {
 });
 
 describe('sanitizeFunctionSpec()', () => {
+  it('reads a brush saved before it held a depth or a charge as knee-deep and leaving the charge to the kind', () => {
+    const spec = sanitizeFunctionSpec({ hazard: { kind: 'water', element: 'HP' } });
+
+    expect(spec.hazard.depth).toBe(0.5);
+    expect(spec.hazard.extraCost).toBeNull();
+  });
+
+  it('keeps a brush set to charge nothing, and holds the depth to tenths of a cell', () => {
+    const spec = sanitizeFunctionSpec({ hazard: { kind: 'water', depth: '1.26', extraCost: 0 } });
+
+    expect(spec.hazard.depth).toBe(1.3);
+    expect(spec.hazard.extraCost).toBe(0);
+  });
+
   it('hands back the defaults for a layer that carries nothing', () => {
     expect(sanitizeFunctionSpec(undefined)).toEqual(DEFAULT_FUNCTION_SPEC);
     expect(sanitizeFunctionSpec({})).toEqual(DEFAULT_FUNCTION_SPEC);

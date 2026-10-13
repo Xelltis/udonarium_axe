@@ -676,6 +676,52 @@
                 (ngModelChange)="setHazardPaint({ element: $event })"
               />
             </label>
+            @if (state.functionSpec().hazard.kind === 'water') {
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardDepth' | transloco }}</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  class="bg-ui-input rounded-ui-sm w-20 px-1 py-0.5"
+                  data-testid="hazard-depth"
+                  [max]="maxWaterDepth"
+                  [ngModel]="state.functionSpec().hazard.depth"
+                  (ngModelChange)="setWaterDepth($event)"
+                  name="hazardDepth"
+                />
+              </label>
+            }
+            <label class="flex items-center justify-between gap-2">
+              <span class="text-ui-muted">{{ 'feature.mapEditor.function.moveCostCharge' | transloco }}</span>
+              <select
+                class="bg-ui-input rounded-ui-sm w-40 px-1 py-0.5"
+                data-testid="hazard-extra-cost"
+                [ngModel]="state.functionSpec().hazard.extraCost"
+                (ngModelChange)="setHazardPaint({ extraCost: $event })"
+                name="hazardExtraCost"
+              >
+                <option [ngValue]="null">
+                  {{
+                    'feature.mapEditor.function.hazardExtraCostKind'
+                      | transloco
+                        : {
+                            cost:
+                              hazardKindExtraCost() > 0
+                                ? ('feature.mapEditor.function.moveCostStep'
+                                  | transloco: { count: hazardKindExtraCost() })
+                                : ('feature.mapEditor.function.hazardExtraCostNone' | transloco),
+                          }
+                  }}
+                </option>
+                <option [ngValue]="0">{{ 'feature.mapEditor.function.hazardExtraCostNone' | transloco }}</option>
+                @for (step of moveCostSteps; track step) {
+                  <option [ngValue]="step">
+                    {{ 'feature.mapEditor.function.moveCostStep' | transloco: { count: step } }}
+                  </option>
+                }
+              </select>
+            </label>
           }
 
           @if (state.functionRole() === 'moveCost') {

@@ -1,5 +1,10 @@
 import { CellRect, rectCells } from '@axe/domain/tabletop/cell-rectangles';
-import { asHazardKind, DEFAULT_HAZARD_ELEMENT, DEFAULT_HAZARD_KIND } from '@axe/domain/tabletop/hazard-presets';
+import {
+  asHazardExtraCost,
+  asHazardKind,
+  DEFAULT_HAZARD_ELEMENT,
+  DEFAULT_HAZARD_KIND,
+} from '@axe/domain/tabletop/hazard-presets';
 import {
   asMoveCostExtra,
   DEFAULT_MOVE_COST_COLOR,
@@ -16,6 +21,7 @@ import {
   TriggerMoment,
   TriggerTarget,
 } from '@axe/domain/tabletop/trigger-event';
+import { DEFAULT_SURFACE_CELLS, surfaceCellsOf } from '@axe/domain/tabletop/water/water-surface';
 
 /**
  * What a painted cell does, and what it lays on the table.
@@ -252,6 +258,10 @@ export interface HazardPaintSpec {
   kind: string;
   /** The resource it takes from, by name. Empty takes nothing whatever the kind says. */
   element: string;
+  /** How many cells the water stands over the floor. Only water reads it. */
+  depth: number;
+  /** What crossing it costs over plain footing, nought laying no move cost at all; null leaves it to the kind. */
+  extraCost: number | null;
 }
 
 /** What a role lays on the table, the same for every cell the layer holds. */
@@ -295,6 +305,8 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
   hazard: {
     kind: DEFAULT_HAZARD_KIND,
     element: DEFAULT_HAZARD_ELEMENT,
+    depth: DEFAULT_SURFACE_CELLS,
+    extraCost: null,
   },
   terrain: {
     name: '',
@@ -459,6 +471,8 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
     hazard: {
       kind: asHazardKind(hazard['kind']),
       element: textIn(hazard, 'element', fallback.hazard.element),
+      depth: waterDepthOf(hazard['depth']),
+      extraCost: asHazardExtraCost(hazard['extraCost']),
     },
     moveCost: {
       blocks: flagIn(moveCost, 'blocks', fallback.moveCost.blocks),
@@ -581,6 +595,16 @@ export interface AmbiencePaintSpec {
   density: number;
   /** Whether nobody sees through it, which is what makes a bank of fog worth walking round. */
   blocksSight: boolean;
+  /** How many cells water stands over the floor, held at the default for every other kind. */
+  surfaceHeight: number;
+}
+
+/**
+ * How deep water is painted, in tenths of a cell, as the brush and the table both read it. The
+ * same value read either way is what lets the editor see that a pond it laid has not changed.
+ */
+export function waterDepthOf(value: unknown): number {
+  return Math.round(surfaceCellsOf(value) * 10) / 10;
 }
 
 /** A block as far as stacking cares: the cells it covers, the altitude it is laid by and its height in cells. */
