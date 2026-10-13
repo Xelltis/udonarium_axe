@@ -979,7 +979,9 @@
         "beatLight": "Beat light",
         "beatLightHint": "Makes the edges of everyone's screen glow softly with the beat of the track, never more than three times a second",
         "beatLightMine": "Keep the beat light off on my screen",
-        "beatLightMineHint": "Kept in this browser alone. The light also stays off while reduced motion is on"
+        "beatLightMineHint": "Kept in this browser alone. The light also stays off while reduced motion is on",
+        "pauseFade": "Pause fade",
+        "pauseFadeHint": "How long the music fades out when paused or stopped, and fades back in when it goes on"
       }
     },
     "card": {

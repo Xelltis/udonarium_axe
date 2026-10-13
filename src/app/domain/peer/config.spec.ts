@@ -245,6 +245,7 @@ describe('Config', () => {
         autoLevel: true,
         ducking: true,
         crossfadeS: 2,
+        pauseFadeS: 0.4,
         quantize: false,
         beatLight: false,
       });

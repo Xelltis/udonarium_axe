@@ -391,6 +391,34 @@
             }
           </select>
         </label>
+        <label
+          class="border-ui-border-panel text-ui-muted inline-flex h-6 items-center gap-1 rounded-full border border-solid px-2 text-[10px]"
+          [title]="
+            ('feature.media.djDeck.pauseFadeHint' | transloco) +
+            (dj.canChangeSettings() ? '' : ('feature.media.jukebox.gmOnlySuffix' | transloco))
+          "
+          (mousedown)="$event.stopPropagation()"
+        >
+          {{ 'feature.media.djDeck.pauseFade' | transloco }}
+          <select
+            class="text-ui-text m-0 cursor-pointer border-none bg-transparent p-0 text-[10px] disabled:cursor-not-allowed disabled:opacity-40"
+            name="pauseFade"
+            [ngModel]="dj.settings().pauseFadeS"
+            (ngModelChange)="setPauseFade($event)"
+            [disabled]="!dj.canChangeSettings()"
+            data-testid="dj-deck-pause-fade"
+          >
+            @for (seconds of pauseFadeChoices; track seconds) {
+              <option [ngValue]="seconds">
+                {{
+                  seconds === 0
+                    ? ('feature.media.djDeck.off' | transloco)
+                    : ('feature.media.djDeck.seconds' | transloco: { seconds: seconds })
+                }}
+              </option>
+            }
+          </select>
+        </label>
       </div>
       <label
         class="text-ui-muted mt-1.5 flex cursor-pointer items-center gap-1.5 text-[10px]"

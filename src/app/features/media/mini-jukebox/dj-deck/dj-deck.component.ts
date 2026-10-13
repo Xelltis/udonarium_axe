@@ -13,7 +13,7 @@ import { FormsModule } from '@angular/forms';
 import { MusicBus } from '@axe/core/audio/music-bus';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { hasDjEffects } from '@axe/domain/media/dj-effects';
-import { CROSSFADE_CHOICES } from '@axe/domain/media/dj-settings';
+import { CROSSFADE_CHOICES, PAUSE_FADE_CHOICES } from '@axe/domain/media/dj-settings';
 import { BeatLightPreferenceService } from '@axe/features/media/beat-light/beat-light-preference.service';
 import { DjConsoleService, type PadView } from '@axe/features/media/dj-console.service';
 import { formatTrackTime, JukeboxPlaybackService } from '@axe/features/media/jukebox-playback.service';
@@ -56,6 +56,7 @@ export class DjDeckComponent {
   /** Whether each pad's sound is sounding on this peer. */
   readonly padsSounding = signal<readonly boolean[]>([]);
   protected readonly crossfadeChoices = CROSSFADE_CHOICES;
+  protected readonly pauseFadeChoices = PAUSE_FADE_CHOICES;
 
   /** The beat of the bar the room's track is in on this peer, or -1 while it plays none. */
   readonly beatOfBar = signal(-1);
@@ -172,6 +173,11 @@ export class DjDeckComponent {
   /** A marked place as shown on its pad. */
   cueTime(seconds: number): string {
     return formatTrackTime(seconds);
+  }
+
+  /** Sets how long the room's music fades out when paused or stopped, and back in when it goes on. */
+  setPauseFade(seconds: number): void {
+    this.dj.setSettings({ pauseFadeS: seconds });
   }
 
   /** Sets how long the room's tracks fade into each other. */

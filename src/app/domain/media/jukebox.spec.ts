@@ -1221,11 +1221,56 @@ describe('Jukebox', () => {
       jukebox.play('a');
 
       jukebox.pause();
-      expect(fade).toHaveBeenLastCalledWith(0, Jukebox.STOP_FADE_MS);
+      expect(fade).toHaveBeenLastCalledWith(0, DEFAULT_DJ_SETTINGS.pauseFadeS * 1000);
 
       jukebox.resume();
       jukebox.stop();
-      expect(fade).toHaveBeenLastCalledWith(0, Jukebox.STOP_FADE_MS);
+      expect(fade).toHaveBeenLastCalledWith(0, DEFAULT_DJ_SETTINGS.pauseFadeS * 1000);
+    });
+
+    it('fades out over the room fade for a pause, and back in when the track goes on', () => {
+      roomMixing({ pauseFadeS: 4 });
+      playersSound();
+      const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+
+      jukebox.pause();
+      expect(fade).toHaveBeenLastCalledWith(0, 4000);
+
+      jukebox.resume();
+      expect(fade).toHaveBeenLastCalledWith(1, 4000);
+      expect(playerOf(jukebox).fader).toBe(0);
+    });
+
+    it('fades back in when another peer goes on with the track', () => {
+      roomMixing({ pauseFadeS: 2 });
+      playersSound();
+      const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.apply(jukebox.toContext());
+      const paused = jukebox.toContext();
+      paused.syncData = { ...paused.syncData, audioIdentifier: 'a', isPlaying: false, startTime: 12 };
+      jukebox.apply(paused);
+
+      const resumed = jukebox.toContext();
+      resumed.syncData = { ...resumed.syncData, isPlaying: true };
+      jukebox.apply(resumed);
+
+      expect(fade).toHaveBeenLastCalledWith(1, 2000);
+    });
+
+    it('cuts a pause at once, and goes on at once, without a fade for a pause', () => {
+      roomMixing({ pauseFadeS: 0 });
+      playersSound();
+      const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+
+      jukebox.pause();
+      jukebox.resume();
+
+      expect(fade).not.toHaveBeenCalled();
     });
 
     it('starts past the silence at the head of a track while tracks are mixed into each other', () => {
@@ -1427,7 +1472,7 @@ describe('Jukebox', () => {
       jukebox.apply(older);
 
       expect(brake).toHaveBeenCalledOnce();
-      expect(fade).toHaveBeenLastCalledWith(0, Jukebox.STOP_FADE_MS);
+      expect(fade).toHaveBeenLastCalledWith(0, DEFAULT_DJ_SETTINGS.pauseFadeS * 1000);
     });
   });
 

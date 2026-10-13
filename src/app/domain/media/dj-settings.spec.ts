@@ -27,6 +27,13 @@ describe('DJ settings', () => {
     expect(readDjSettings(JSON.stringify({ autoLevel: false })).autoLevel).toBe(false);
   });
 
+  it('reads a fade for a pause out of range as the default, and keeps a cut', () => {
+    expect(readDjSettings(JSON.stringify({ pauseFadeS: 30 })).pauseFadeS).toBe(0.4);
+    expect(readDjSettings(JSON.stringify({ pauseFadeS: '2' })).pauseFadeS).toBe(0.4);
+    expect(readDjSettings(JSON.stringify({ pauseFadeS: 0 })).pauseFadeS).toBe(0);
+    expect(readDjSettings(writeDjSettings({ ...DEFAULT_DJ_SETTINGS, pauseFadeS: 4 })).pauseFadeS).toBe(4);
+  });
+
   it('reads a fade that is missing, empty or out of range as the default, and keeps none at all', () => {
     expect(readDjSettings(JSON.stringify({ crossfadeS: '' })).crossfadeS).toBe(2);
     expect(readDjSettings(JSON.stringify({ crossfadeS: 40 })).crossfadeS).toBe(2);

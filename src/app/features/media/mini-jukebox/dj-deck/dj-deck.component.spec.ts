@@ -269,4 +269,20 @@ describe('DjDeckComponent', () => {
     expect(Config.instance.djSettings.beatLight).toBe(true);
     expect(TestBed.inject(BeatLightPreferenceService).off()).toBe(true);
   });
+
+  it('lets the game master choose how long a pause fades, and nobody else', async () => {
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    vi.spyOn(Jukebox.prototype, 'refreshMix').mockImplementation(() => {});
+    await showTab('mix');
+    const select = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>(
+      '[data-testid="dj-deck-pause-fade"]'
+    )!;
+
+    select.selectedIndex = 4;
+    select.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+
+    expect(Config.instance.djSettings.pauseFadeS).toBe(4);
+    expect(select.disabled).toBe(false);
+  });
 });

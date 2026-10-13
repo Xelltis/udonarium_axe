@@ -136,8 +136,6 @@ export class Jukebox extends GameObject {
   private static readonly CROSSFADE_MS = 600;
   private static readonly SYNC_SEEK_THRESHOLD_MS = 250;
   private static readonly RESTART_THRESHOLD_S = 3;
-  /** How long a track takes to fade out when the room pauses or stops it. */
-  static readonly STOP_FADE_MS = 400;
   /** How long a track already playing takes to come to a new level, as when its reading arrives. */
   static readonly LEVEL_GLIDE_S = 1.5;
   /** The silence at the head of a track that is skipped when tracks are mixed into each other, beyond which it is cut. */
@@ -304,14 +302,17 @@ export class Jukebox extends GameObject {
       this.startTime = Number.isFinite(at) && at > 0 ? at : 0;
       this.isPlaying = false;
     });
-    this._stop(Jukebox.STOP_FADE_MS);
+    this._stop(this.pauseFadeMs());
   }
 
-  /** Goes on with the room's paused track from where it stopped. Does nothing unless one is paused. */
+  /**
+   * Goes on with the room's paused track from where it stopped, fading back in over the room's fade
+   * for a pause. Does nothing unless one is paused.
+   */
   resume(): void {
     if (!this.isPaused) return;
     this.isPlaying = true;
-    this._play(Number(this.startTime) || 0);
+    this._play(Number(this.startTime) || 0, false, true);
   }
 
   /**
@@ -467,15 +468,16 @@ export class Jukebox extends GameObject {
    * sounding or the room has no crossfade.
    *
    * A change of track asked for while the room quantises waits for the next bar of the track
-   * sounding, or its next beat when a bar is longer than the wait allowed.
+   * sounding, or its next beat when a bar is longer than the wait allowed. A track going on after a
+   * pause fades in over the room's fade for a pause, when nothing else is sounding.
    */
-  private _play(startAt: number = 0, quantized: boolean = false) {
+  private _play(startAt: number = 0, quantized: boolean = false, resuming: boolean = false) {
     this.cancelPendingChange();
     const wait = quantized ? this.quantizeWaitMs('bar') : 0;
     if (wait > 0) {
       this.pendingChange = setTimeout(() => {
         this.pendingChange = null;
-        this._play(startAt);
+        this._play(startAt, false, resuming);
       }, wait);
       return;
     }
@@ -486,7 +488,7 @@ export class Jukebox extends GameObject {
       this.playAfterFileUpdate(startAt);
       return;
     }
-    this.startPlayer(this.audioPlayer, startAt, crossing ? fadeMs : 0);
+    this.startPlayer(this.audioPlayer, startAt, crossing ? fadeMs : resuming ? this.pauseFadeMs() : 0);
     this.applyEffects();
   }
 
@@ -533,11 +535,16 @@ export class Jukebox extends GameObject {
     player.onEnded = isSE ? null : () => this.onTrackNaturallyEnded();
   }
 
-  /** Stops the room's track, fading it out, and clears it, for every peer. */
+  /** Stops the room's track, fading it out over the room's fade for a pause, and clears it, for every peer. */
   stop() {
     this.audioIdentifier = '';
     this.isPlaying = false;
-    this._stop(Jukebox.STOP_FADE_MS);
+    this._stop(this.pauseFadeMs());
+  }
+
+  /** How long the music fades out when the room pauses or stops it, and in when it goes on, in milliseconds. */
+  private pauseFadeMs(): number {
+    return roomMix().pauseFadeS * 1000;
   }
 
   /**
@@ -801,10 +808,10 @@ export class Jukebox extends GameObject {
     }
     if ((audioIdentifier !== this.audioIdentifier || !isPlaying) && this.isPlaying) {
       const resumes = audioIdentifier === this.audioIdentifier && !isPlaying;
-      this._play(resumes ? Number(this.startTime) || 0 : 0, !resumes);
+      this._play(resumes ? Number(this.startTime) || 0 : 0, !resumes, resumes);
     } else if (isPlaying !== this.isPlaying && !this.isPlaying) {
       if (this.wasBrakedSince(brakeCount)) this.brakeOut();
-      else this._stop(Jukebox.STOP_FADE_MS);
+      else this._stop(this.pauseFadeMs());
     } else if (this.isPlaying && (startTime !== this.startTime || this.wasSoughtSince(seekCount))) {
       if (this.wasJumpedSince(jumpCount)) {
         this.followJump(Number(this.startTime) || 0);
