@@ -74,7 +74,16 @@ import { GridType } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
-import { submergedClip, submersionOf, waterlineMask, waterTintFilter } from '@axe/domain/tabletop/water/submersion';
+import {
+  feetShowingOf,
+  submergedClip,
+  submergedFade,
+  submergedTintOpacity,
+  submersionOf,
+  waterlineMask,
+  waterTintFilter,
+} from '@axe/domain/tabletop/water/submersion';
+import { depthShadeAlpha } from '@axe/domain/tabletop/water/water-depth';
 import {
   deepWaterColor,
   rgbTripletOf,
@@ -148,6 +157,13 @@ const TARGET_CONE_DEG = 20;
 const BOARD_STEP_CELLS = 0.25;
 const EFFECT_LIFT_CELLS = 0.15;
 const EFFECT_RISE_CELLS = 0.3;
+/**
+ * How much of the distance the view reaches murky water takes away: water nothing can be seen
+ * through leaves a fifth of it.
+ */
+const MURK_SIGHT_LOSS = 0.8;
+/** How murky the whole map under water is for each part of its weather's thickness. */
+const WEATHER_MURK = 0.5;
 /** What keeps the effects moving while the eye is under a pond. */
 const UNDER_A_POND = 'first-person-under-water';
 /** How far below the top of the view what is told about a near piece keeps, clear of the toolbars. */
@@ -160,6 +176,8 @@ const DEFAULT_VIEW_WIDTH_PX = 1280;
 /** What the eye is under, where it is under water: the colour of the depths, and the weather it sees. */
 interface UnderWater {
   readonly deep: string;
+  /** How murky the water is, from 0 for clear to 1 for water nothing can be seen through. */
+  readonly turbidity: number;
   /**
    * The weather drawn over the view while the eye is under a pond on a dry map, or null where the
    * map's own weather is already the water.
@@ -171,7 +189,9 @@ interface UnderWater {
 interface PieceWater {
   readonly mask: string;
   readonly clip: string;
+  readonly fade: string | null;
   readonly tint: string;
+  readonly tintOpacity: number;
 }
 
 /** One cell of a water surface in sight, ready to draw. */
@@ -415,14 +435,17 @@ export class FirstPersonViewComponent {
    */
   protected readonly underWater = computed<UnderWater | null>(() => {
     const weather = this.ambience.weather();
-    if (weather?.kind === 'underwater') return { deep: underwaterDeepColor(weather.color), weather: null };
+    if (weather?.kind === 'underwater') {
+      return { deep: underwaterDeepColor(weather.color), turbidity: weather.density * WEATHER_MURK, weather: null };
+    }
     const camera = this.viewCamera();
     if (!camera) return null;
     const water = this.water.waterAt(camera.x, camera.y);
     if (!water || camera.z >= water.surfacePx) return null;
     return {
       deep: deepWaterColor(water.color),
-      weather: { kind: 'underwater', color: water.color, density: water.density },
+      turbidity: water.turbidity,
+      weather: { kind: 'underwater', color: water.color, density: Math.min(0.35 + 0.65 * water.turbidity, 1) },
     };
   });
 
@@ -501,10 +524,11 @@ export class FirstPersonViewComponent {
     const clear = this.firstPerson.clearPx();
     const grid = this.firstPerson.grid();
     const veil = this.veil();
+    const seeing = depth * (1 - MURK_SIGHT_LOSS * (this.underWater()?.turbidity ?? 0));
     return this.quads().map((quad) => {
       const url = this.urlOf(quad.image);
       const remembered = this.firstPerson.tierOfCell(quad.cell) === 'dim';
-      const away = shadeFor(quad.depth, depth);
+      const away = shadeFor(quad.depth, seeing);
       const shade = remembered || !grid || quad.cell < 0 ? away : litShade(away, this.lightOn(grid, quad));
       const drawn =
         quad.kind === 'wall'
@@ -542,13 +566,16 @@ export class FirstPersonViewComponent {
       if (polygon.length < 3) continue;
       const quad = waterQuadOf(cell.index, polygon, zPx, camera.z >= zPx ? 'up' : 'down', depth);
       const fade = 1 - (1 - FAR_WATER_OPACITY) * Math.min(Math.max(depth / Math.max(reach, 1), 0), 1);
+      const deepRgb = rgbTripletOf(deepWaterColor(cell.color)) ?? BLACK_VEIL;
+      const deepAlpha = depthShadeAlpha((cell.surfacePx - cell.floorPx) / gridSize, cell.turbidity);
+      const depths = `linear-gradient(rgba(${deepRgb}, ${deepAlpha}), rgba(${deepRgb}, ${deepAlpha}))`;
       views.push({
         id: `water:${cell.index}`,
         style: {
           ...planeQuadStyle(quad, scale, '', 0),
-          backgroundImage: waterSurfaceWash(cell.color, cell.density),
-          backgroundSize: '100% 100%',
-          backgroundPosition: '0 0',
+          backgroundImage: `${waterSurfaceWash(cell.color, cell.density, cell.turbidity)}, ${depths}`,
+          backgroundSize: '100% 100%, 100% 100%',
+          backgroundPosition: '0 0, 0 0',
           opacity: `${Math.round(fade * 1000) / 1000}`,
         },
       });
@@ -625,6 +652,8 @@ export class FirstPersonViewComponent {
     const reach = this.firstPerson.depthPx();
     const sight = this.firstPerson.sight();
     const grid = this.firstPerson.grid();
+    const under = this.underWater();
+    const seeing = reach * (1 - MURK_SIGHT_LOSS * (under?.turbidity ?? 0));
     const views: PieceView[] = [];
     for (const { piece, size, centre, stand, basePx: base } of this.standing()) {
       if (!this.pieceInSight(eye, piece.location, size, centre)) continue;
@@ -649,11 +678,14 @@ export class FirstPersonViewComponent {
         gauges,
         badges: badges.slice(0, BUFF_BADGES_PER_ROW),
         moreBadges: Math.max(0, badges.length - BUFF_BADGES_PER_ROW),
-        style: withBillboardCut(
-          billboardStyle({ ...centre, z: lifted }, stand.widthPx, stand.heightPx, camera.yaw, scale),
-          kept,
-          lifted,
-          stand.heightPx
+        style: inTheMurk(
+          withBillboardCut(
+            billboardStyle({ ...centre, z: lifted }, stand.widthPx, stand.heightPx, camera.yaw, scale),
+            kept,
+            lifted,
+            stand.heightPx
+          ),
+          under ? shadeFor(depth, seeing) : 0
         ),
         hud: billboardHudTransform(textScale),
         chromeBottom: pieceChromeBottomPercent({
@@ -686,10 +718,13 @@ export class FirstPersonViewComponent {
     const water = this.water.waterAt(centre.x, centre.y);
     const submersion = water ? submersionOf(basePx, heightPx, water.surfacePx) : null;
     if (!water || !submersion) return null;
+    const feet = feetShowingOf(submersion.depthPx, this.gridSize(), water.turbidity);
     return {
-      mask: waterlineMask(submersion.share),
+      mask: waterlineMask(submersion.share, feet, water.turbidity),
       clip: submergedClip(submersion.share),
+      fade: submergedFade(submersion.share, feet),
       tint: waterTintFilter(water.color),
+      tintOpacity: submergedTintOpacity(water.turbidity),
     };
   }
 
@@ -1237,4 +1272,12 @@ function waterQuadOf(
     depth,
     cell: index,
   };
+}
+
+/**
+ * A piece seen through water, faded into it as far off as it stands, the way the walls and the
+ * floor darken into the depths: in murky water a piece a few cells away is a shape and no more.
+ */
+function inTheMurk(style: QuadStyle, shade: number): QuadStyle {
+  return shade > 0 ? { ...style, opacity: `${Math.round((1 - shade) * 1000) / 1000}` } : style;
 }

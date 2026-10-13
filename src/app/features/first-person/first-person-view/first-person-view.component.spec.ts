@@ -1427,6 +1427,27 @@ describe('FirstPersonViewComponent', () => {
       expect(floor.style.backgroundImage).toContain('rgba(0, 0, 0,');
     });
 
+    it('fades a piece far off into murky water around the eye, and leaves it alone in the air', async () => {
+      pond(0, 0, 12, 12, 2).turbidity = 0.9;
+      const far = pieceAt(4, 1);
+      lookOutOf(pieceAt(4, 7));
+      await settled();
+
+      const box = element(mount()).querySelector<HTMLElement>(`[data-piece="${far.identifier}"]`);
+      expect(box?.style.opacity).not.toBe('');
+      expect(Number(box?.style.opacity)).toBeLessThan(0.5);
+    });
+
+    it('leaves a piece far off whole for an eye in the air', async () => {
+      const far = pieceAt(4, 1);
+      lookOutOf(pieceAt(4, 7));
+      await settled();
+
+      const box = element(mount()).querySelector<HTMLElement>(`[data-piece="${far.identifier}"]`);
+      expect(box).not.toBeNull();
+      expect(box?.style.opacity).toBe('');
+    });
+
     it('draws the part of a piece in the water under the surface in the colour of the water', async () => {
       pond(3, 2, 3, 3, 0.5);
       const wader = pieceAt(4, 3);

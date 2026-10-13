@@ -72,10 +72,12 @@
           />
           @if (piece.water; as water) {
             <img
-              class="pointer-events-none absolute inset-0 size-full object-contain object-bottom opacity-70"
+              class="pointer-events-none absolute inset-0 size-full object-contain object-bottom"
               data-water-copy
               [style.clip-path]="water.clip"
               [style.filter]="water.tint"
+              [style.opacity]="water.tintOpacity"
+              [style.mask-image]="water.fade"
               [src]="piece.url"
               alt=""
               draggable="false"
