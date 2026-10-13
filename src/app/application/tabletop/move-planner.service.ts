@@ -1,6 +1,7 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { FreeMovePlanService } from '@axe/application/tabletop/free-move-plan.service';
-import { MoveKindBand, MovePlanService, UnstoppableBand } from '@axe/application/tabletop/move-plan.service';
+import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
+import { MoveKindBand, UnstoppableBand } from '@axe/application/tabletop/move-plan-common';
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 

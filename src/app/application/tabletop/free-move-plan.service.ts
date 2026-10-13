@@ -7,19 +7,27 @@ import {
   ZoneMoveStart,
 } from '@axe/application/tabletop/engagement-zone.service';
 import { InterruptOutcome, MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
-import { MoveKindBand, UnstoppableBand } from '@axe/application/tabletop/move-plan.service';
+import {
+  kindToChangeTo,
+  MoveKindBand,
+  moveKindBandOf,
+  pieceOfPlan,
+  pieceToChooseFor,
+  tellTheRoomOf,
+  UnstoppableBand,
+  unstoppableBandOf,
+} from '@axe/application/tabletop/move-plan-common';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { MoveBlock, MovePoint } from '@axe/domain/tabletop/move/blocked-path';
 import { clipToLength, LegLimits, stepsAlong, terrainMoveBlocks, walkLeg } from '@axe/domain/tabletop/move/free-path';
 import { exactMoveCellsOf } from '@axe/domain/tabletop/move/move-cells';
-import { lengthByKind, MoveKind, moveKindNamed } from '@axe/domain/tabletop/move/move-kind';
+import { lengthByKind, moveKindNamed } from '@axe/domain/tabletop/move/move-kind';
 import { movingPointsAsRead, writeMovingPoints } from '@axe/domain/tabletop/move/moving-points';
 import { resolveRoomRules, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -97,28 +105,13 @@ export class FreeMovePlanService {
   readonly kindBand = computed<MoveKindBand | null>(() => {
     const plan = this.held();
     if (!plan) return null;
-    const kinds = this.zones.moveKinds();
-    if (kinds.length < 2 && kinds[0].name === '') return null;
-    const character = this.objectStore.get<GameCharacter>(plan.characterIdentifier);
-    const changeable = plan.settled.length < 2;
-    const allowed = changeable && character instanceof GameCharacter ? this.zones.kindsAllowed(character) : null;
-    const metres = plan.pxPerMetre > 0 ? Math.max(0, plan.budgetPx - plan.spentPx) / plan.pxPerMetre : 0;
-    return {
-      kinds: kinds.map((kind) => ({
-        name: kind.name,
-        mayChoose: kind.name === plan.kind || allowed?.has(kind.name) === true,
-      })),
-      chosen: plan.kind,
-      metresLeft: Math.round(metres * 10) / 10,
-    };
+    return moveKindBandOf(this.zones, pieceOfPlan(this.objectStore, plan), plan, () =>
+      plan.pxPerMetre > 0 ? Math.max(0, plan.budgetPx - plan.spentPx) / plan.pxPerMetre : 0
+    );
   });
 
   /** Whether the move being worked out is one nobody may stop, offered where the room plays zones. */
-  readonly unstoppableBand = computed<UnstoppableBand | null>(() => {
-    const plan = this.held();
-    if (!plan || !this.zones.isEnabled()) return null;
-    return { on: plan.unstoppable, mayChange: plan.settled.length < 2 };
-  });
+  readonly unstoppableBand = computed<UnstoppableBand | null>(() => unstoppableBandOf(this.zones, this.held()));
 
   constructor() {
     effect(() => this.tellTheRoom(this.held()));
@@ -173,9 +166,8 @@ export class FreeMovePlanService {
    */
   setUnstoppable(on: boolean): boolean {
     const plan = this.held();
-    if (!plan || this.walking || plan.settled.length > 1 || plan.unstoppable === on) return false;
-    const character = this.objectStore.get<GameCharacter>(plan.characterIdentifier);
-    if (!(character instanceof GameCharacter)) return false;
+    const character = pieceToChooseFor(this.objectStore, plan, this.walking);
+    if (!plan || !character || plan.unstoppable === on) return false;
     character.unstoppableMove = on ? '1' : '';
     const terms = this.termsOf(character, plan.kind);
     if (!terms) return false;
@@ -197,22 +189,15 @@ export class FreeMovePlanService {
    */
   setKind(kindName: string): boolean {
     const plan = this.held();
-    if (!plan || this.walking || plan.settled.length > 1) return false;
-    const kind = moveKindNamed(this.zones.moveKinds(), kindName).name;
-    if (kind === plan.kind) return false;
-    const character = this.objectStore.get<GameCharacter>(plan.characterIdentifier);
-    if (!(character instanceof GameCharacter) || !this.zones.mayMove(character, kind)) return false;
+    const character = pieceToChooseFor(this.objectStore, plan, this.walking);
+    const kind = plan && character ? kindToChangeTo(this.zones, character, plan, kindName) : null;
+    if (!plan || !character || kind === null) return false;
     const terms = this.termsOf(character, kind);
     if (!terms) return false;
     if (this.zoneStart) this.zoneStart = { ...this.zoneStart, kind };
     this.terms = terms;
     this.held.set({ ...plan, kind, settled: [terms.start], ahead: [], spentPx: 0, budgetPx: terms.budgetPx });
     return true;
-  }
-
-  /** The kinds of move the room plays, for choosing between them while a move is worked out. */
-  kinds(): MoveKind[] {
-    return this.zones.moveKinds();
   }
 
   /** Draws the leg from the last settled corner towards the table position the pointer is over. */
@@ -385,24 +370,18 @@ export class FreeMovePlanService {
    * stands on, the kind of move, and the way drawn so far.
    */
   private tellTheRoom(plan: FreePlan | null): void {
-    const cursor = PeerCursor.myCursor;
-    if (!cursor) return;
     const table = this.tableSelecter.viewTable;
-    const piece = plan && table ? plan.characterIdentifier : '';
-    const on = piece ? table!.identifier : '';
-    const points = piece ? writeMovingPoints(this.wholeWay()) : '';
-    const kind = piece && plan ? plan.kind : '';
-    if (
-      cursor.movingCharacterIdentifier === piece &&
-      cursor.movingTableIdentifier === on &&
-      cursor.movingPoints === points &&
-      cursor.movingKind === kind
-    ) {
+    if (!plan || !table) {
+      tellTheRoomOf({ piece: '', table: '', way: '', jumping: '', points: '', kind: '' });
       return;
     }
-    cursor.movingCharacterIdentifier = piece;
-    cursor.movingTableIdentifier = on;
-    cursor.movingPoints = points;
-    cursor.movingKind = kind;
+    tellTheRoomOf({
+      piece: plan.characterIdentifier,
+      table: table.identifier,
+      way: '',
+      jumping: '',
+      points: writeMovingPoints(this.wholeWay()),
+      kind: plan.kind,
+    });
   }
 }
