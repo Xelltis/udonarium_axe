@@ -98,6 +98,22 @@ async function setWaterLook(page: Page, label: string) {
   await closePanels(page);
 }
 
+/** Sets the pond flowing, how fast as a percentage and which way by the arrow it is offered as. */
+async function setFlow(page: Page, percent: string, direction: string) {
+  await page.locator('table-ambience').first().dispatchEvent('contextmenu');
+  await settle(page, 400);
+  const menu = page.locator('context-menu');
+  await expect(menu.locator('li').first()).toBeVisible({ timeout: 7000 });
+  await chooseMenu(page, menu, '環境エフェクトの設定');
+  const speed = page.locator('input[name="ambienceFlowSpeed"]');
+  await settleLazy(page, speed);
+  await speed.fill(percent);
+  await settle(page, 200);
+  await page.locator('select[name="ambienceFlowDirection"]').selectOption({ label: direction });
+  await settle(page, 400);
+  await closePanels(page);
+}
+
 async function wadeIn(page: Page) {
   const feet = await feetOf(page, 'キャラクターA');
   await layPond(page, { x: feet.x + 40, y: feet.y + 30 });
@@ -170,6 +186,18 @@ test('lotus leaves and flowers float on a lotus pond', async ({ page }) => {
   await expect(page.locator('[data-water-layer="leaves"]').first()).toBeAttached();
   await settle(page, 400);
   await snap(page, 'water-lotus', WATER_SNAP);
+});
+
+test('murky water flows past a piece, carrying its silt and streaked by the current', async ({ page }) => {
+  await prepare(page);
+  await closePanels(page);
+  await freeze(page);
+  await wadeIn(page);
+  await setMurkiness(page, '55');
+  await setFlow(page, '70', '↘ 右下');
+  await expect(page.locator('[data-water-layer="flow"]').first()).toBeAttached();
+  await settle(page, 400);
+  await snap(page, 'water-river', WATER_SNAP);
 });
 
 test('the whole map under water', async ({ page }) => {
