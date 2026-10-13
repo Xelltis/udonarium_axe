@@ -35,21 +35,53 @@ export function submersionOf(basePx: number, pictureHeightPx: number, surfacePx:
 }
 
 /**
+ * How much of a piece's feet still shows through the water standing over them, from 1 down to
+ * nearly nothing.
+ *
+ * Clear water hides little even a few cells down; murky water swallows a piece's feet in a cell.
+ */
+export function feetShowingOf(depthPx: number, gridSize: number, turbidity: number): number {
+  const cells = gridSize > 0 && Number.isFinite(depthPx) ? Math.max(depthPx, 0) / gridSize : 0;
+  const murk = Math.min(Math.max(Number.isFinite(turbidity) ? turbidity : 0, 0), 1);
+  return round(Math.exp(-(0.15 + 2.2 * murk) * cells));
+}
+
+/**
  * The mask that lets the part of the picture under the surface show through, as a CSS image.
  *
- * Above the waterline the picture is whole; below it the water takes some of it away. The line
+ * Above the waterline the picture is whole; below it the water takes some of it away, and more
+ * the further down it reaches when the water is murky, down to `feet` of it at the feet. The line
  * is softened a little, as a surface seen side on is never a hard edge.
  */
-export function waterlineMask(share: number): string {
+export function waterlineMask(share: number, feet = 1, turbidity = 0): string {
   const line = percent(share);
   const below = round(Math.max(line - WATERLINE_SOFTNESS, 0));
   const above = round(Math.min(line + WATERLINE_SOFTNESS, 100));
-  return `linear-gradient(to top, rgba(0, 0, 0, ${SUBMERGED_ALPHA}) ${below}%, #000 ${above}%)`;
+  const atLine = round(SUBMERGED_ALPHA * (1 - 0.4 * clamp01(turbidity)));
+  if (feet >= 0.999 && atLine === SUBMERGED_ALPHA) {
+    return `linear-gradient(to top, rgba(0, 0, 0, ${SUBMERGED_ALPHA}) ${below}%, #000 ${above}%)`;
+  }
+  const atFeet = round(atLine * clamp01(feet));
+  return `linear-gradient(to top, rgba(0, 0, 0, ${atFeet}) 0%, rgba(0, 0, 0, ${atLine}) ${below}%, #000 ${above}%)`;
 }
 
 /** The cut that keeps only the part of the picture under the surface, as a CSS clip path. */
 export function submergedClip(share: number): string {
   return `inset(${round(100 - percent(share))}% 0 0 0)`;
+}
+
+/**
+ * The mask that fades the tinted copy of the part under the surface towards the feet, as a CSS
+ * image, or null where the feet still show whole and nothing need fade.
+ */
+export function submergedFade(share: number, feet: number): string | null {
+  if (feet >= 0.999) return null;
+  return `linear-gradient(to top, rgba(0, 0, 0, ${round(clamp01(feet))}) 0%, #000 ${round(percent(share))}%)`;
+}
+
+/** How strongly the tinted copy is laid over: the murkier the water, the more of its colour. */
+export function submergedTintOpacity(turbidity: number): number {
+  return round(0.7 + 0.25 * clamp01(turbidity));
 }
 
 /**
@@ -85,6 +117,11 @@ function hueOf(color: string): number | null {
   else if (max === g) hue = (b - r) / chroma + 2;
   else hue = (r - g) / chroma + 4;
   return (hue * 60 + 360) % 360;
+}
+
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(Math.max(value, 0), 1);
 }
 
 function percent(share: number): number {

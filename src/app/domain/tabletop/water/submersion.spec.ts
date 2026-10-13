@@ -1,4 +1,12 @@
-import { submergedClip, submersionOf, waterlineMask, waterTintFilter } from '@axe/domain/tabletop/water/submersion';
+import {
+  feetShowingOf,
+  submergedClip,
+  submergedFade,
+  submergedTintOpacity,
+  submersionOf,
+  waterlineMask,
+  waterTintFilter,
+} from '@axe/domain/tabletop/water/submersion';
 
 describe('submersionOf()', () => {
   it('leaves a piece whose feet are above the surface dry', () => {
@@ -31,6 +39,26 @@ describe('the waterline on a picture', () => {
   it('keeps only the part under the line for the tinted copy', () => {
     expect(submergedClip(0.25)).toBe('inset(75% 0 0 0)');
     expect(submergedClip(1)).toBe('inset(0% 0 0 0)');
+  });
+});
+
+describe('murky water', () => {
+  it('hides little of feet a cell down in clear water and nearly all of them in murky water', () => {
+    expect(feetShowingOf(50, 50, 0)).toBeGreaterThan(0.85);
+    expect(feetShowingOf(50, 50, 1)).toBeLessThanOrEqual(0.1);
+    expect(feetShowingOf(0, 50, 1)).toBe(1);
+  });
+
+  it('fades the picture out towards the feet as well as at the waterline', () => {
+    expect(waterlineMask(0.5, 0.25, 0.5)).toBe(
+      'linear-gradient(to top, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.48) 48.5%, #000 51.5%)'
+    );
+    expect(submergedFade(0.5, 0.25)).toBe('linear-gradient(to top, rgba(0, 0, 0, 0.25) 0%, #000 50%)');
+    expect(submergedFade(0.5, 1)).toBeNull();
+  });
+
+  it('lays more of the colour of murky water over what is under it', () => {
+    expect(submergedTintOpacity(1)).toBeGreaterThan(submergedTintOpacity(0));
   });
 });
 

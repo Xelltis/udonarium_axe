@@ -109,7 +109,15 @@ import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-f
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
-import { submergedClip, submersionOf, waterlineMask, waterTintFilter } from '@axe/domain/tabletop/water/submersion';
+import {
+  feetShowingOf,
+  submergedClip,
+  submergedFade,
+  submergedTintOpacity,
+  submersionOf,
+  waterlineMask,
+  waterTintFilter,
+} from '@axe/domain/tabletop/water/submersion';
 import { buildConditionContextMenu } from '@axe/features/character/game-character/condition-context-menu';
 import {
   buildGameCharacterContextMenuModel,
@@ -241,7 +249,10 @@ interface PieceInWater {
   readonly mask: string;
   /** The cut that keeps only that part, for the copy of the picture tinted by the water. */
   readonly clip: string;
+  /** The mask that fades the copy towards the feet in murky water, or null where nothing fades. */
+  readonly fade: string | null;
   readonly tint: string;
+  readonly tintOpacity: number;
   /** Where the ring on the surface stands over the piece's own ground, or null for a piece sunk over its head. */
   readonly ripple: string | null;
 }
@@ -671,10 +682,13 @@ export class GameCharacterComponent {
     const submersion = submersionOf(char.posZ + this.altitude() * grid, pictureHeight, water.surfacePx);
     if (!submersion) return null;
     const rise = water.surfacePx - char.posZ - Z_OFFSET_TALL_OBJECT_PX + WATER_RIPPLE_LIFT_PX;
+    const feet = feetShowingOf(submersion.depthPx, grid, water.turbidity);
     return {
-      mask: waterlineMask(submersion.share),
+      mask: waterlineMask(submersion.share, feet, water.turbidity),
       clip: submergedClip(submersion.share),
+      fade: submergedFade(submersion.share, feet),
       tint: waterTintFilter(water.color),
+      tintOpacity: submergedTintOpacity(water.turbidity),
       ripple: submersion.share < 1 ? `translateZ(${Math.round(rise * 100) / 100}px)` : null,
     };
   });

@@ -514,7 +514,7 @@
                   @if (inWater(); as water) {
                     <img
                       data-water-copy
-                      class="chrome-smooth-image-trick pointer-events-none absolute top-0 left-0 h-auto align-bottom opacity-70 [-webkit-transform-style:preserve-3d] transform-3d"
+                      class="chrome-smooth-image-trick pointer-events-none absolute top-0 left-0 h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
                       [appBillboard]="imageView.komaFacing()"
                       [ngStyle]="{
                         height: komaImageHeightSignal() * imageView.supersample() + 'px',
@@ -524,6 +524,8 @@
                       }"
                       [style.clip-path]="water.clip"
                       [style.filter]="water.tint"
+                      [style.opacity]="water.tintOpacity"
+                      [style.mask-image]="water.fade"
                       [src]="imageFile().url | safe: 'resourceUrl'"
                     />
                   }
@@ -546,7 +548,7 @@
                   @if (inWater(); as water) {
                     <img
                       data-water-copy
-                      class="chrome-smooth-image-trick pointer-events-none absolute top-0 left-0 h-auto align-bottom opacity-70 [-webkit-transform-style:preserve-3d] transform-3d"
+                      class="chrome-smooth-image-trick pointer-events-none absolute top-0 left-0 h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
                       [appBillboard]="imageView.pieceFacing()"
                       [ngStyle]="{
                         width: imageView.supersamplePercent(),
@@ -556,6 +558,8 @@
                       }"
                       [style.clip-path]="water.clip"
                       [style.filter]="water.tint"
+                      [style.opacity]="water.tintOpacity"
+                      [style.mask-image]="water.fade"
                       [src]="imageFile().url | safe: 'resourceUrl'"
                     />
                   }
@@ -579,7 +583,7 @@
                   @if (inWater(); as water) {
                     <img
                       data-water-copy
-                      class="chrome-smooth-image-trick pointer-events-none absolute top-0 left-0 block object-contain align-bottom opacity-70 [-webkit-transform-style:preserve-3d] transform-3d"
+                      class="chrome-smooth-image-trick pointer-events-none absolute top-0 left-0 block object-contain align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
                       [appBillboard]="imageView.pieceFacing()"
                       [ngStyle]="{
                         width: imageView.supersamplePercent(),
@@ -590,6 +594,8 @@
                       }"
                       [style.clip-path]="water.clip"
                       [style.filter]="water.tint"
+                      [style.opacity]="water.tintOpacity"
+                      [style.mask-image]="water.fade"
                       [src]="imageFile().url | safe: 'resourceUrl'"
                     />
                   }

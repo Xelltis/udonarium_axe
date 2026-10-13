@@ -384,6 +384,24 @@ describe('GameCharacterComponent', () => {
       expect(ripple()?.style.transform).toBe(`translateZ(${component.gridSize - 0.5}px)`);
     });
 
+    it('fades what is under murky water out towards the feet', async () => {
+      const feetOf = (element: HTMLElement | null) =>
+        Number(
+          /mask-image: linear-gradient\(to top, rgba\(0, 0, 0, ([\d.]+)\)/.exec(
+            element?.getAttribute('style') ?? ''
+          )?.[1]
+        );
+      await wade(1);
+      const clear = feetOf(copy());
+
+      pond!.turbidity = 0.9;
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      expect(feetOf(copy())).toBeLessThan(clear / 3);
+      expect(feetOf(picture())).toBeLessThan(0.1);
+    });
+
     it('leaves a piece outside the water dry', async () => {
       await wade(1, { x: 400, y: 400 });
 
