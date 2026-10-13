@@ -64,6 +64,7 @@ describe('BeatLightComponent', () => {
     await fixture.whenStable();
     expect(fixture.componentInstance.allowed()).toBe(false);
     expect(glow().style.opacity).toBe('0');
+    expect((fixture.nativeElement as HTMLElement).classList).toContain('hidden');
 
     TestBed.inject(BeatLightPreferenceService).setOff(false);
     motion.set(false);

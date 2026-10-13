@@ -28,15 +28,16 @@ export const BEAT_LIGHT_PEAK_OPACITY = 0.4;
  * away before the next, brighter on the first beat of a bar.
  *
  * It shines while the room turns it on and its track plays with beats known, and never for a
- * reader who keeps it off or asks for less motion. It sits over the table and under the panels,
- * and lets every press through. The glow is set straight on the element each animation frame,
- * without going through change detection, and the frames stop while it has nothing to show.
+ * reader who keeps it off or asks for less motion, and then takes up no layer at all. It sits over
+ * the table and under the panels, and lets every press through. The glow is set straight on the
+ * element each animation frame, without going through change detection, and the frames stop while
+ * it has nothing to show.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-beat-light',
   templateUrl: './beat-light.component.html',
-  host: { class: 'pointer-events-none fixed inset-0 z-0 block', 'aria-hidden': 'true' },
+  host: { class: 'pointer-events-none fixed inset-0 z-0', '[class.hidden]': '!allowed()', 'aria-hidden': 'true' },
 })
 export class BeatLightComponent {
   private readonly objectStore = inject(ObjectStore);
