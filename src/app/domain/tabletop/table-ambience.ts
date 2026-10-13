@@ -10,6 +10,7 @@ import {
 } from '@axe/domain/effect/ambience/ambience-kind';
 import { asShownTo, ShownTo } from '@axe/domain/tabletop/shown-to';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { DEFAULT_SURFACE_CELLS, surfaceCellsOf } from '@axe/domain/tabletop/water/water-surface';
 
 /**
  * An effect laid over one part of the board and left there, such as a poisoned marsh or a vent in the ground.
@@ -46,6 +47,13 @@ export class TableAmbience extends TabletopObject {
    * pool of magical darkness over a doorway, the shaft of daylight down a stairwell.
    */
   @SyncVar() brightness: string = '';
+  /**
+   * How many cells the water stands over the area's own floor. Only water reads it.
+   *
+   * A piece whose feet are lower than this is in the water, and the part of it under the
+   * surface is drawn as seen through water.
+   */
+  @SyncVar() surfaceHeight: number = DEFAULT_SURFACE_CELLS;
 
   /** How many grid cells wide the area is, kept in its common data. */
   get width(): number {
@@ -71,6 +79,11 @@ export class TableAmbience extends TabletopObject {
   /** How bright the ground under it is, with anything unknown leaving the light as it was. */
   get shade(): AmbienceBrightness {
     return ambienceBrightnessOf(this.brightness);
+  }
+
+  /** How high the water stands over the floor, in cells, with an empty or unreadable value read as the default. */
+  get surface(): number {
+    return surfaceCellsOf(this.surfaceHeight);
   }
 
   /** The kind of effect, with an unknown stored kind read as swamp. */

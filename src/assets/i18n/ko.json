@@ -4385,6 +4385,7 @@
       "nameLabel": "이름",
       "kindLabel": "종류",
       "densityLabel": "짙기",
+      "surfaceLabel": "수면 높이(칸)",
       "colorLabel": "색",
       "resetColor": "기본",
       "widthLabel": "너비(칸)",
@@ -4418,7 +4419,9 @@
         "vent": "지면 분출",
         "lava": "용암",
         "blaze": "지면 화재",
-        "frost": "빙결"
+        "frost": "빙결",
+        "water": "물",
+        "underwater": "수중"
       },
       "blocksSightLabel": "시선을 가린다",
       "brightnessLabel": "밝기",

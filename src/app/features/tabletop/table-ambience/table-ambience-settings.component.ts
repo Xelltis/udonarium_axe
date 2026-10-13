@@ -9,6 +9,7 @@ import {
 import { type AmbienceKind, ambiencePalette, GROUND_AMBIENCE_KINDS } from '@axe/domain/effect/ambience/ambience-kind';
 import { SHOWN_TO, ShownTo } from '@axe/domain/tabletop/shown-to';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
+import { MAX_SURFACE_CELLS } from '@axe/domain/tabletop/water/water-surface';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** As wide as a table can be, so a marsh can cover the whole map. */
@@ -57,6 +58,20 @@ export class TableAmbienceSettingsComponent {
   set densityPercent(value: number) {
     if (!this.target) return;
     this.target.ambienceDensity = Number(value) / 100;
+    this.target.update();
+  }
+
+  protected readonly maxSurfaceCells = MAX_SURFACE_CELLS;
+
+  /** How many cells the water stands over its floor; a change is sent to the room. Only water shows it. */
+  get surfaceCells(): number {
+    return this.target?.surface ?? 0;
+  }
+  set surfaceCells(value: number) {
+    if (!this.target) return;
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return;
+    this.target.surfaceHeight = Math.min(Math.max(Math.round(numeric * 10) / 10, 0), MAX_SURFACE_CELLS);
     this.target.update();
   }
 

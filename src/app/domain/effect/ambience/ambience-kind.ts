@@ -18,7 +18,9 @@ export type AmbienceKind =
   | 'vent'
   | 'lava'
   | 'blaze'
-  | 'frost';
+  | 'frost'
+  | 'water'
+  | 'underwater';
 
 /** The kinds over the whole map: what falls from the sky and what fills the air. */
 export const SKY_AMBIENCE_KINDS: readonly AmbienceKind[] = [
@@ -43,6 +45,7 @@ export const GROUND_AMBIENCE_KINDS: readonly AmbienceKind[] = [
   'lava',
   'frost',
   'bloom',
+  'water',
 ];
 
 export interface AmbiencePalette {
@@ -67,6 +70,8 @@ const PALETTES: Record<AmbienceKind, AmbiencePalette> = {
   lava: { primary: '#ff8a33', secondary: '#8a1f08' },
   blaze: { primary: '#ffb02e', secondary: '#5c1a00' },
   frost: { primary: '#cfeaff', secondary: '#4b7fa8' },
+  water: { primary: '#5ec4e8', secondary: '#0f4f70' },
+  underwater: { primary: '#c8f0ff', secondary: '#06354f' },
 };
 
 const AMBIENCE_KIND_SET = new Set<string>(Object.keys(PALETTES));

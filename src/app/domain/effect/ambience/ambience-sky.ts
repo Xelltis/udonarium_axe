@@ -51,6 +51,8 @@ const DENSITY_PER_AREA: Record<AmbienceKind, number> = {
   lava: 120,
   blaze: 120,
   frost: 180,
+  water: 0,
+  underwater: 150,
 };
 
 /**

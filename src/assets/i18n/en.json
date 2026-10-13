@@ -4383,6 +4383,7 @@
       "nameLabel": "Name",
       "kindLabel": "Type",
       "densityLabel": "Density",
+      "surfaceLabel": "Water level (cells)",
       "colorLabel": "Color",
       "resetColor": "Default",
       "widthLabel": "Width (cells)",
@@ -4416,7 +4417,9 @@
         "vent": "Ground vent",
         "lava": "Lava",
         "blaze": "Burning ground",
-        "frost": "Frost"
+        "frost": "Frost",
+        "water": "Water",
+        "underwater": "Underwater"
       },
       "blocksSightLabel": "Blocks sight",
       "brightnessLabel": "Brightness",

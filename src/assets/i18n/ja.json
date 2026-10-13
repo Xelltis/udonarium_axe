@@ -4383,6 +4383,7 @@
       "nameLabel": "名前",
       "kindLabel": "種類",
       "densityLabel": "濃さ",
+      "surfaceLabel": "水面の高さ（マス）",
       "colorLabel": "色",
       "resetColor": "既定",
       "widthLabel": "幅（マス）",
@@ -4416,7 +4417,9 @@
         "vent": "地面の噴出",
         "lava": "溶岩",
         "blaze": "地面の炎上",
-        "frost": "氷結"
+        "frost": "氷結",
+        "water": "水",
+        "underwater": "水中"
       },
       "blocksSightLabel": "視線を遮る",
       "brightnessLabel": "明るさ",

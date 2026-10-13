@@ -89,8 +89,9 @@ export class AmbienceService {
 
   constructor() {
     // The draw loop runs for as long as an ambience exists; unlike a cast, it never ends.
+    // Water moves by the page's own animation and needs no frame of it.
     effect(() => {
-      const active = this.areas().length > 0 || this.weather() != null;
+      const active = this.areas().some((area) => area.kind !== 'water') || this.weather() != null;
       this.playbackService.setPersistent(PERSISTENT_SOURCE, active && this.motionEnabled());
     });
   }
