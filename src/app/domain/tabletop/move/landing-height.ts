@@ -6,7 +6,7 @@ import { terrainBoxOf, terrainCovers } from '@axe/domain/tabletop/terrain-box';
 import { SurfaceLean, terrainLeanAt, terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
 
 /** Whether a block is something a piece walked at ends up standing on top of. */
-function canBeStoodOn(terrain: Terrain): boolean {
+export function canBeStoodOn(terrain: Terrain): boolean {
   if (surfaceOf(terrain) !== 'floor') return false;
   if (terrain.blocksClimb) return false;
   return !(terrain.isDoor && terrain.isDoorOpen);

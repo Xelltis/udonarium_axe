@@ -75,6 +75,13 @@ export interface WaterSideView {
   readonly width: number;
   readonly height: number;
   readonly transform: string;
+  /** The cut along a bottom that slants with the ground, or null for a level one. */
+  readonly clipPath: string | null;
+  /**
+   * How tall its colour is laid, down from the surface to the water's own floor, so that sides of
+   * different heights are the same colour at the same depth.
+   */
+  readonly washHeight: number;
   readonly wash: string;
   readonly opacity: number;
 }
@@ -202,14 +209,17 @@ export class TableWaterLayerComponent {
     const cells = this.water.cells();
     if (!grid || cells.size < 1) return [];
     const light = this.water.light();
-    return waterSidesOf(grid, cells, this.water.groundOf).map((side) => {
+    return waterSidesOf(grid, cells, this.water.groundAt).map((side) => {
       const length = Math.hypot(side.x1 - side.x0, side.y1 - side.y0);
       const angle = Math.atan2(side.y1 - side.y0, side.x1 - side.x0);
       const lit = light ? Math.round((light.get(side.index) ?? 1) * 1000) / 1000 : 1;
+      const height = side.topPx - side.bottomPx;
       return {
         key: side.key,
         width: length,
-        height: side.topPx - side.bottomPx,
+        height,
+        clipPath: slantOf(length, height, side.bottomStartPx - side.bottomPx, side.bottomEndPx - side.bottomPx),
+        washHeight: Math.max(side.topPx - side.floorPx, height),
         transform:
           `translate3d(${side.x0}px, ${side.y0}px, ${side.bottomPx}px)` +
           ` rotateZ(${angle}rad) rotateX(-90deg) translateY(-100%)`,
@@ -250,6 +260,17 @@ export class TableWaterLayerComponent {
 export function netPosition(net: WaterNetView, sheet: { left: number; top: number }): string {
   const along = (offset: number) => ((-offset % net.tilePx) + net.tilePx) % net.tilePx;
   return `${Math.round(along(sheet.left) * 100) / 100}px ${Math.round(along(sheet.top) * 100) / 100}px`;
+}
+
+/**
+ * The cut that slants the bottom of a side with the ground under it, or null where the bottom is
+ * level. The face stands from its lower end; `startRise` and `endRise` are how far above that its
+ * bottom stands at either end.
+ */
+function slantOf(length: number, height: number, startRise: number, endRise: number): string | null {
+  if (startRise < 0.5 && endRise < 0.5) return null;
+  const at = (value: number) => `${Math.round(value * 100) / 100}px`;
+  return `polygon(0 0, ${at(length)} 0, ${at(length)} ${at(height - endRise)}, 0 ${at(height - startRise)})`;
 }
 
 function clipOf(sheet: WaterSheet): string {

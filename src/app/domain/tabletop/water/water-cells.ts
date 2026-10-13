@@ -28,6 +28,8 @@ export interface WaterCell {
   readonly surfacePx: number;
   /** Whether the bottom here is the water's own level floor rather than ground risen under it. */
   readonly flat: boolean;
+  /** How high the water's own floor stands, under whatever ground has risen over it. */
+  readonly areaFloorPx: number;
   readonly color: string;
   readonly density: number;
   readonly turbidity: number;
@@ -86,6 +88,7 @@ export function waterCellsOf(
           floorPx: risen ? ground : area.floorPx,
           surfacePx,
           flat: !risen,
+          areaFloorPx: area.floorPx,
           color: area.color,
           density: area.density,
           turbidity: area.turbidity,

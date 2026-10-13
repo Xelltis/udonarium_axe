@@ -63,12 +63,14 @@
 }
 @for (side of sideViews(); track side.key) {
   <div
-    class="pointer-events-none absolute top-0 left-0 origin-top-left border-t border-solid border-t-white/35 backface-visible"
+    class="pointer-events-none absolute top-0 left-0 origin-top-left border-t border-solid border-t-white/35 bg-no-repeat backface-visible"
     data-water-side
     [style.width.px]="side.width"
     [style.height.px]="side.height"
     [style.transform]="side.transform"
+    [style.clip-path]="side.clipPath"
     [style.background-image]="side.wash"
+    [style.background-size]="'100% ' + side.washHeight + 'px'"
     [style.opacity]="side.opacity"
   ></div>
 }

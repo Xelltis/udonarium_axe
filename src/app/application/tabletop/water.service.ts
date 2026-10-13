@@ -3,9 +3,11 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { type CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
-import { landingHeightsOn } from '@axe/domain/tabletop/move/landing-height';
+import { type CellGrid, cellIndexAt, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import { canBeStoodOn, landingHeightsOn } from '@axe/domain/tabletop/move/landing-height';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { terrainBoxOf, terrainCovers } from '@axe/domain/tabletop/terrain-box';
+import { terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
 import { type WaterArea, type WaterCell, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
 
 const NO_CELLS: ReadonlyMap<number, WaterCell> = new Map();
@@ -59,11 +61,66 @@ export class WaterService {
   readonly ground = computed<Float64Array | null>(() => {
     const grid = this.grid();
     if (!grid || this.areas().length < 1) return null;
-    this.objectChange.collectionOf(Terrain.aliasName)();
-    const terrains = this.tabletopService.terrains;
-    for (const terrain of terrains) this.objectChange.versionOf(terrain.identifier)();
-    return landingHeightsOn(grid, terrains);
+    return landingHeightsOn(grid, this.terrainsByWater());
   });
+
+  /**
+   * The blocks standing in or beside the water, which are all the ground the water and its banks
+   * stand on. A board of a dungeon holds thousands of blocks, and the water asks about the ground
+   * point by point; only the few near it are worth asking.
+   */
+  private readonly terrainsByWater = computed<Terrain[]>(() => {
+    const areas = this.areas();
+    if (areas.length < 1) return [];
+    const gridSize = this.tabletopService.gridSize();
+    this.objectChange.collectionOf(Terrain.aliasName)();
+    return this.tabletopService.terrains.filter((terrain) => {
+      this.objectChange.versionOf(terrain.identifier)();
+      const box = terrainBoxOf(terrain, gridSize);
+      return areas.some(
+        (area) =>
+          box.maxX >= area.left - gridSize &&
+          box.minX <= area.left + area.width + gridSize &&
+          box.maxY >= area.top - gridSize &&
+          box.minY <= area.top + area.height + gridSize
+      );
+    });
+  });
+
+  /** The blocks standing on each cell by the water, counted by the middle of the cell as the ground is. */
+  private readonly terrainsByCell = computed<Map<number, Terrain[]>>(() => {
+    const grid = this.grid();
+    const byCell = new Map<number, Terrain[]>();
+    if (!grid || grid.sizePx <= 0) return byCell;
+    for (const terrain of this.terrainsByWater()) {
+      if (!canBeStoodOn(terrain)) continue;
+      const box = terrainBoxOf(terrain, grid.sizePx);
+      forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (index, cx, cy) => {
+        if (!terrainCovers(terrain, grid.sizePx, cx, cy)) return;
+        const held = byCell.get(index);
+        if (held) held.push(terrain);
+        else byCell.set(index, [terrain]);
+      });
+    }
+    return byCell;
+  });
+
+  /**
+   * How high the ground of one cell stands at a point of it, the floor where nothing stands there.
+   *
+   * It is the ground standing on that cell read at the point, which follows a slope across the cell
+   * rather than holding to its middle; that is what lets the bank of the water follow it. A block is
+   * asked about the cells it stands on alone, so a point near the corner of a hex never reads the
+   * ground of the hex beside it.
+   */
+  readonly groundAt = (index: number, x: number, y: number): number => {
+    const grid = this.grid();
+    const standing = this.terrainsByCell().get(index);
+    if (!grid || !standing) return 0;
+    let highest = 0;
+    for (const terrain of standing) highest = Math.max(highest, terrainTopPxAt(terrain, grid.sizePx, grid.type, x, y));
+    return highest;
+  };
 
   /** How high the ground stands in a cell, the floor where nothing stands there. */
   readonly groundOf = (index: number): number => {

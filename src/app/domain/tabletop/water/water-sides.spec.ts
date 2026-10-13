@@ -76,6 +76,47 @@ describe('waterSidesOf()', () => {
     expect(sides).toHaveLength(3);
   });
 
+  it('slants the bottom of a side with ground sloping up under the water, rather than stepping it', () => {
+    // A slope rising a pixel for every pixel eastward, from the floor at the west of the pond.
+    const grid = cellGridOf(6, 4, G, GridType.SQUARE);
+    const slope = (x: number) => Math.max(0, x - G);
+    const cells = waterCellsOf(grid, [area({ width: 2 * G, surfacePx: 120 })], (index) =>
+      slope(cellCenterOf(grid, index).x)
+    );
+
+    const sides = waterSidesOf(grid, cells, (_index, x) => slope(x));
+
+    const north = sides.find((side) => side.index === cellIndexOf(grid, 2, 1) && side.y0 === G && side.y1 === G);
+    expect(north).toBeDefined();
+    expect(north!.bottomStartPx).toBeCloseTo(G, 0);
+    expect(north!.bottomEndPx).toBeCloseTo(2 * G, 0);
+    expect(north!.bottomPx).toBe(north!.bottomStartPx);
+    expect(north!.topPx).toBe(120);
+    expect(north!.floorPx).toBe(0);
+  });
+
+  it('reads each cell\u2019s own ground at a corner, not the ground of the cell that meets it there', () => {
+    // Terraces stepping down on a hex board: each hex is level, and a corner is shared by three.
+    for (const type of [GridType.HEX_VERTICAL, GridType.HEX_HORIZONTAL]) {
+      const grid = cellGridOf(8, 8, G, type);
+      const centre = cellCenterOf(grid, cellIndexOf(grid, 3, 3));
+      const cells = waterCellsOf(grid, [area({ left: centre.x - G / 2, top: centre.y - G / 2, surfacePx: 80 })]);
+      const terraces = (index: number) => (index === cellIndexOf(grid, 3, 3) ? 0 : 100);
+
+      for (const side of waterSidesOf(grid, cells, terraces)) {
+        expect(side.bottomStartPx).toBe(side.bottomEndPx);
+      }
+    }
+  });
+
+  it('keeps the bottom level over a level floor', () => {
+    const grid = cellGridOf(4, 4, G, GridType.SQUARE);
+    for (const side of waterSidesOf(grid, waterCellsOf(grid, [area({ floorPx: 10, surfacePx: 35 })]))) {
+      expect(side.bottomStartPx).toBe(10);
+      expect(side.bottomEndPx).toBe(10);
+    }
+  });
+
   it('stands no side round water no higher than its floor', () => {
     const grid = cellGridOf(4, 4, G, GridType.SQUARE);
     expect(waterSidesOf(grid, waterCellsOf(grid, [area({ surfacePx: 0 })]))).toHaveLength(0);
