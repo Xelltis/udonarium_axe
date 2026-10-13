@@ -14,6 +14,7 @@ import { AmbienceService, type WeatherAmbience } from '@axe/application/tabletop
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { skyAmbienceFlash, skyAmbienceLayer, skyAmbienceWash } from '@axe/domain/effect/ambience/ambience-sky';
+import { CurrentCarry } from '@axe/domain/effect/ambience/current-carry';
 import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
 import { withAlpha } from '@axe/domain/effect/particles/shared';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
@@ -90,6 +91,9 @@ export class TableWeatherOverlayComponent {
   );
 
   private readonly size = signal<{ width: number; height: number }>({ width: 0, height: 0 });
+
+  /** How far the water the eye stands in has carried what drifts in it. */
+  private readonly carry = new CurrentCarry();
 
   private readonly reprojectTick = computed(() => {
     const interval = this.renderLite.active() ? LIGHT_REPROJECT_INTERVAL_MS : REPROJECT_INTERVAL_MS;
@@ -172,13 +176,15 @@ export class TableWeatherOverlayComponent {
     const { width, height } = this.size();
     if (width < 1 || height < 1) return null;
 
+    const now = this.ambienceService.now();
     const layer = skyAmbienceLayer({
       kind: weather.kind,
       color: weather.color,
       density: weather.density,
-      elapsed: this.ambienceService.now(),
+      elapsed: now,
       width,
       height,
+      current: this.carry.advance(now, weather.current ?? null),
     });
     return layer.particles.length > 0 ? layer : null;
   });

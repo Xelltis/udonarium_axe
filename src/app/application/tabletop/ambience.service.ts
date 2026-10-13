@@ -17,6 +17,11 @@ export interface WeatherAmbience {
   kind: AmbienceKind;
   color: string;
   density: number;
+  /**
+   * The water flowing past the eye, in cells a second across the view to the right and toward
+   * the eye, where the weather is the water the eye stands in; left out for still water.
+   */
+  current?: { readonly across: number; readonly toward: number } | null;
 }
 
 const PERSISTENT_SOURCE = 'ambience';

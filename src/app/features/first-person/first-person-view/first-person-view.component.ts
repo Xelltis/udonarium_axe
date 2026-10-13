@@ -84,6 +84,7 @@ import {
   waterTintFilter,
 } from '@axe/domain/tabletop/water/submersion';
 import { depthShadeAlpha, murkShade } from '@axe/domain/tabletop/water/water-depth';
+import { currentSeenFrom, flowCellsPerSecond } from '@axe/domain/tabletop/water/water-flow';
 import {
   deepWaterColor,
   dirtyWaterColor,
@@ -449,7 +450,12 @@ export class FirstPersonViewComponent {
     return {
       deep: deepWaterColor(water.color),
       turbidity: water.turbidity,
-      weather: { kind: 'underwater', color: water.color, density: Math.min(0.35 + 0.65 * water.turbidity, 1) },
+      weather: {
+        kind: 'underwater',
+        color: water.color,
+        density: Math.min(0.35 + 0.65 * water.turbidity, 1),
+        current: currentSeenFrom(eyeFrameOf(camera), water.flowDirection, flowCellsPerSecond(water.flowSpeed)),
+      },
     };
   });
 

@@ -1385,6 +1385,7 @@ describe('FirstPersonViewComponent', () => {
       return fixture.componentInstance as unknown as {
         skyGradient(): string | null;
         pieceViews(): { id: string; water: unknown }[];
+        screenWeather(): { current?: { across: number; toward: number } | null } | undefined;
       };
     }
 
@@ -1463,6 +1464,21 @@ describe('FirstPersonViewComponent', () => {
       await settled();
 
       expect(inside(mount()).skyGradient()).toContain('100%, #b8e8ff');
+    });
+
+    it('carries what drifts in the water the way a pond flows, seen from the eye, and nothing in still water', async () => {
+      const water = pond(0, 0, 12, 12, 2);
+      lookOutOf(pieceAt(4, 7));
+      await settled();
+      expect(inside(mount()).screenWeather()?.current).toBeNull();
+
+      water.flowSpeed = 1;
+      water.flowDirection = 180;
+      await settled();
+      const current = inside(mount()).screenWeather()?.current;
+
+      expect(current).toBeTruthy();
+      expect(Math.hypot(current!.across, current!.toward)).toBeCloseTo(2.2, 3);
     });
 
     it('leaves a piece far off whole for an eye in the air', async () => {

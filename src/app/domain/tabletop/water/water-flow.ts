@@ -12,6 +12,34 @@ export function flowVectorOf(directionDeg: number): { x: number; y: number } {
   return { x: round(Math.sin(turn)), y: round(-Math.cos(turn)) };
 }
 
+/**
+ * Water flowing past the eye as the eye sees it, in cells a second: how fast it runs across the
+ * view to the right, and how fast it comes at the eye (running away from it where negative).
+ */
+export interface SeenCurrent {
+  readonly across: number;
+  readonly toward: number;
+}
+
+/**
+ * Water flowing past the eye as the eye sees it, given which way the eye looks along the ground
+ * (`hx`, `hy`) and its right (`rx`, `ry`), as unit steps in table pixels; or null for still water.
+ */
+export function currentSeenFrom(
+  eye: { readonly hx: number; readonly hy: number; readonly rx: number; readonly ry: number },
+  directionDeg: number,
+  cellsPerSecond: number
+): SeenCurrent | null {
+  if (!(cellsPerSecond > 0)) return null;
+  const turn = (directionDeg * Math.PI) / 180;
+  const x = Math.sin(turn);
+  const y = -Math.cos(turn);
+  return {
+    across: round((x * eye.rx + y * eye.ry) * cellsPerSecond),
+    toward: round(-(x * eye.hx + y * eye.hy) * cellsPerSecond),
+  };
+}
+
 /** How many cells a second water flowing this fast carries what floats on it; nothing for still water. */
 export function flowCellsPerSecond(speed: number): number {
   if (!(speed > 0)) return 0;

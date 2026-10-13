@@ -1,5 +1,10 @@
 import { SKY_AMBIENCE_KINDS } from '@axe/domain/effect/ambience/ambience-kind';
-import { skyAmbienceFlash, skyAmbienceLayer, skyAmbienceWash } from '@axe/domain/effect/ambience/ambience-sky';
+import {
+  skyAmbienceFlash,
+  skyAmbienceLayer,
+  skyAmbienceWash,
+  type SkyCurrent,
+} from '@axe/domain/effect/ambience/ambience-sky';
 
 const WIDTH = 1280;
 const HEIGHT = 720;
@@ -147,6 +152,74 @@ describe('skyAmbienceWash()', () => {
     const after = layerOf('underwater', 2400).particles.filter((particle) => particle.shape === 'bubble');
     const risen = before.filter((bubble, index) => after[index].y < bubble.y).length;
     expect(risen).toBeGreaterThan(before.length * 0.8);
+  });
+
+  describe('in flowing water', () => {
+    // A large screen, so enough of the motes drifting about the eye fall within it to count.
+    const BIG_WIDTH = 2560;
+    const BIG_HEIGHT = 1440;
+    const glowsIn = (current: SkyCurrent) =>
+      skyAmbienceLayer({
+        kind: 'underwater',
+        color: '',
+        density: 1,
+        elapsed: 2000,
+        width: BIG_WIDTH,
+        height: BIG_HEIGHT,
+        current,
+      }).particles.filter((particle) => particle.shape === 'glow');
+    const still: SkyCurrent = { carriedAcross: 0, carriedToward: 0, across: 0.3, toward: 0 };
+
+    it('carries the motes across the view the way the water flows, near ones faster than far', () => {
+      const before = glowsIn(still);
+      const after = glowsIn({ ...still, carriedAcross: 0.02 });
+      // Carried across, a mote keeps its height and its size: that is how it is found again.
+      const shifts = before.flatMap((mote) => {
+        const next = after.find((moved) => moved.y === mote.y && moved.size === mote.size);
+        return next ? [next.x - mote.x] : [];
+      });
+
+      expect(shifts.length).toBeGreaterThan(20);
+      expect(shifts.every((shift) => shift > 0)).toBe(true);
+      expect(Math.max(...shifts)).toBeGreaterThan(Math.min(...shifts) * 3);
+    });
+
+    it('spreads the motes out from the middle as water comes at the eye', () => {
+      const coming: SkyCurrent = { carriedAcross: 0, carriedToward: 0, across: 0, toward: 1 };
+      const before = glowsIn(coming);
+      const after = glowsIn({ ...coming, carriedToward: 0.01 });
+      const fromMiddle = (mote: { x: number; y: number }) =>
+        Math.hypot(mote.x - BIG_WIDTH / 2, mote.y - BIG_HEIGHT / 2);
+      const nearest = (mote: { x: number; y: number }) =>
+        after.reduce((best, next) =>
+          Math.hypot(next.x - mote.x, next.y - mote.y) < Math.hypot(best.x - mote.x, best.y - mote.y) ? next : best
+        );
+      // A small step moves each mote a few pixels; one found further off has come round from the far end.
+      const moved = before
+        .map((mote) => [mote, nearest(mote)] as const)
+        .filter(([mote, next]) => Math.hypot(next.x - mote.x, next.y - mote.y) < 12);
+
+      expect(moved.length).toBeGreaterThan(20);
+      const outward = moved.filter(([mote, next]) => fromMiddle(next) > fromMiddle(mote)).length;
+      expect(outward).toBeGreaterThan(moved.length * 0.9);
+    });
+
+    it('draws fast water as streaks along the way it runs', () => {
+      const particles = skyAmbienceLayer({
+        kind: 'underwater',
+        color: '',
+        density: 1,
+        elapsed: 2000,
+        width: BIG_WIDTH,
+        height: BIG_HEIGHT,
+        current: { carriedAcross: 0, carriedToward: 0, across: 2.2, toward: 0 },
+      }).particles;
+      // The shafts of light lean down the view; the streaks of the current lie across it.
+      const across = particles.filter((particle) => particle.shape === 'streak' && Math.abs(particle.angle) < 0.2);
+
+      expect(across.length).toBeGreaterThan(10);
+      expect(glowsIn(still).length).toBeGreaterThan(0);
+    });
   });
 
   it('lays the wash along the depth of the board', () => {
