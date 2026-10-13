@@ -125,6 +125,12 @@ export function skyAmbienceWash(kind: AmbienceKind, color: string, density: numb
         `radial-gradient(ellipse at 50% 110%, ${withAlpha(tint, round(0.42 * level))}, transparent 76%),` +
         ` ${depth(0.46, 0.1, shade)}`
       );
+    case 'underwater':
+      // The depths thicken with the distance, and what light there is comes down from the surface overhead.
+      return (
+        `radial-gradient(ellipse 80% 55% at 50% -12%, ${withAlpha(tint, round(0.22 * level))}, transparent 70%),` +
+        ` ${depth(0.66, 0.26, shade)}`
+      );
     default:
       return '';
   }
@@ -201,6 +207,8 @@ function emit(
       return haze(r, elapsed, width, height, color, 0.005, 0.22);
     case 'bloom':
       return bloom(r, elapsed, width, height, color);
+    case 'underwater':
+      return underwater(r, elapsed, width, height, color);
     default:
       return null;
   }
@@ -353,6 +361,53 @@ function bloom(r: Randoms, elapsed: number, width: number, height: number, color
     stretch: 1,
     color,
     alpha: clamp01((0.45 + r.d * 0.5) * pulse),
+    shape: 'glow',
+  };
+}
+
+/**
+ * Under water: bubbles rising, motes drifting, and now and then a shaft of light from the surface.
+ *
+ * Bubbles alone read as a fish tank, and motes alone as dust in a dark room; the shafts swaying
+ * slowly are what put a surface overhead.
+ */
+function underwater(r: Randoms, elapsed: number, width: number, height: number, color: string): EffectParticle {
+  if (r.c > 0.93) {
+    const size = 40 + r.d * 70;
+    return {
+      x: r.a * width,
+      y: height * (0.15 + r.b * 0.2),
+      size,
+      angle: 1.38 + 0.07 * Math.sin(elapsed * 0.00025 + r.a * TAU),
+      stretch: (height * 0.9) / size,
+      color,
+      alpha: clamp01((0.035 + 0.04 * r.d) * (0.6 + 0.4 * Math.sin(elapsed * 0.0004 + r.b * TAU))),
+      shape: 'streak',
+    };
+  }
+  if (r.c > 0.5) {
+    const speed = 0.03 + r.d * 0.05;
+    const span = height + 60;
+    return {
+      x: wrap(r.a * width + Math.sin(elapsed * 0.002 + r.a * TAU) * 6, width),
+      y: height + 30 - wrap(r.b * span + elapsed * speed, span),
+      size: 4 + r.d * 9,
+      angle: 0,
+      stretch: 1,
+      color,
+      alpha: 0.5 + r.a * 0.4,
+      shape: 'bubble',
+    };
+  }
+  const span = height + 40;
+  return {
+    x: wrap(r.a * width + Math.sin(elapsed * 0.0003 + r.b * TAU) * 30 + elapsed * 0.004, width),
+    y: wrap(r.b * span + elapsed * (0.006 + r.d * 0.01), span) - 20,
+    size: 1.6 + r.d * 2.4,
+    angle: 0,
+    stretch: 1,
+    color,
+    alpha: 0.25 + r.d * 0.3,
     shape: 'glow',
   };
 }

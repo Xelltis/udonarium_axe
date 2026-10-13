@@ -130,6 +130,25 @@ describe('skyAmbienceWash()', () => {
     expect(Math.max(...stretches)).toBeGreaterThan(20);
   });
 
+  it('thickens the water with the distance and lets the light down from the surface', () => {
+    const wash = skyAmbienceWash('underwater', '', 0.6);
+    expect(wash).toContain('at 50% -12%');
+    const [, far, , near] = [...wash.matchAll(/rgba\([^)]*,\s*([\d.]+)\)/g)].map((match) => Number(match[1]));
+    expect(far).toBeGreaterThan(near * 2);
+  });
+
+  it('fills the water with bubbles rising, motes and a few shafts of light', () => {
+    const particles = layerOf('underwater', 2000).particles;
+    const shapes = new Set(particles.map((particle) => particle.shape));
+    expect(shapes).toEqual(new Set(['bubble', 'glow', 'streak']));
+    expect(particles.filter((particle) => particle.shape === 'streak').length).toBeLessThan(particles.length / 6);
+
+    const before = layerOf('underwater', 2000).particles.filter((particle) => particle.shape === 'bubble');
+    const after = layerOf('underwater', 2400).particles.filter((particle) => particle.shape === 'bubble');
+    const risen = before.filter((bubble, index) => after[index].y < bubble.y).length;
+    expect(risen).toBeGreaterThan(before.length * 0.8);
+  });
+
   it('lays the wash along the depth of the board', () => {
     // Washed evenly down the screen it does not meet the depth of a tilted board.
     expect(skyAmbienceWash('fog', '', 0.6, '160.5deg')).toContain('linear-gradient(160.5deg,');

@@ -26,8 +26,8 @@ function shelfFor(shape: ParticleShape): Map<string, HTMLCanvasElement> {
  * The sprite for a particle shape in a colour, baked on first request and kept for the life of the
  * page.
  *
- * Chunks are a lit polygon, smoke is a soft coreless disc, and every other shape is a disc with a
- * white-hot centre. Returns null where there is no document to make a canvas in.
+ * Chunks are a lit polygon, smoke is a soft coreless disc, a bubble is a clear ring with a glint,
+ * and every other shape is a disc with a white-hot centre. Returns null where there is no document to make a canvas in.
  */
 export function particleTexture(shape: ParticleShape, color: string): HTMLCanvasElement | null {
   const shelf = shelfFor(shape);
@@ -42,6 +42,12 @@ export function particleTexture(shape: ParticleShape, color: string): HTMLCanvas
 
   if (shape === 'chunk') {
     drawChunk(context, TEXTURE_SIZE, color);
+    shelf.set(color, canvas);
+    return canvas;
+  }
+
+  if (shape === 'bubble') {
+    drawBubble(context, TEXTURE_SIZE, color);
     shelf.set(color, canvas);
     return canvas;
   }
@@ -64,6 +70,29 @@ export function particleTexture(shape: ParticleShape, color: string): HTMLCanvas
   context.fillRect(0, 0, TEXTURE_SIZE, TEXTURE_SIZE);
   shelf.set(color, canvas);
   return canvas;
+}
+
+/**
+ * A bubble: clear in the middle and bright at the rim, where the film is seen edge on, with a
+ * glint high on one side. A filled disc reads as a mote of dust rather than as air.
+ */
+function drawBubble(context: CanvasRenderingContext2D, size: number, color: string): void {
+  const half = size / 2;
+  const film = context.createRadialGradient(half, half, half * 0.5, half, half, half);
+  film.addColorStop(0, withAlpha(color, 0));
+  film.addColorStop(0.65, withAlpha(color, 0.3));
+  film.addColorStop(0.88, withAlpha(color, 0.9));
+  film.addColorStop(1, withAlpha(color, 0));
+  context.fillStyle = film;
+  context.fillRect(0, 0, size, size);
+
+  const glintX = half * 0.68;
+  const glintY = half * 0.62;
+  const glint = context.createRadialGradient(glintX, glintY, 0, glintX, glintY, half * 0.24);
+  glint.addColorStop(0, withAlpha('#ffffff', 0.95));
+  glint.addColorStop(1, withAlpha('#ffffff', 0));
+  context.fillStyle = glint;
+  context.fillRect(0, 0, size, size);
 }
 
 /** Broken rock, filled as a polygon rather than softened, so it keeps an outline. */

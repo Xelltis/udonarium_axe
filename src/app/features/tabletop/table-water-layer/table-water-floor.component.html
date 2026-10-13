@@ -1,0 +1,28 @@
+@if (view(); as floor) {
+  <div
+    class="pointer-events-none absolute top-0 left-0 overflow-hidden backface-hidden"
+    data-water-weather-floor
+    [ngStyle]="surfaceStyle()"
+    [style.transform]="transform"
+    [style.background-color]="floor.wash"
+  >
+    <div
+      class="water-net water-net-a absolute"
+      [style.--water-tile]="floor.tilePx + 'px'"
+      [style.inset.px]="-floor.tilePx"
+      [style.background-image]="'url(' + floor.url + ')'"
+      [style.background-size.px]="floor.tilePx"
+      [style.opacity]="floor.opacity"
+    ></div>
+    @if (!lite()) {
+      <div
+        class="water-net water-net-b absolute"
+        [style.--water-tile]="floor.secondTilePx + 'px'"
+        [style.inset.px]="-floor.secondTilePx"
+        [style.background-image]="'url(' + floor.url + ')'"
+        [style.background-size.px]="floor.secondTilePx"
+        [style.opacity]="floor.opacity * 0.75"
+      ></div>
+    }
+  </div>
+}

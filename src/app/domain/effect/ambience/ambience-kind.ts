@@ -33,6 +33,7 @@ export const SKY_AMBIENCE_KINDS: readonly AmbienceKind[] = [
   'sand',
   'miasma',
   'bloom',
+  'underwater',
 ];
 
 /** The kinds laid over a marked-off area, which cling to the ground. */
