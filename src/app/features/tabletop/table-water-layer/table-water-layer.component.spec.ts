@@ -1,0 +1,92 @@
+import { TestBed } from '@angular/core/testing';
+import { RenderLiteService } from '@axe/application/ui/render-lite.service';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameTable } from '@axe/domain/tabletop/game-table';
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { TableWaterLayerComponent } from '@axe/features/tabletop/table-water-layer/table-water-layer.component';
+import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+
+describe('TableWaterLayerComponent', () => {
+  const gridSize = 50;
+  let table: GameTable;
+
+  beforeEach(() => {
+    localStorage.setItem('ui-render-lite', 'off');
+    TestBed.configureTestingModule({ imports: [TableWaterLayerComponent], providers: [...TEST_PROVIDERS] });
+    table = new GameTable();
+    table.width = 20;
+    table.height = 20;
+    table.gridSize = gridSize;
+    table.initialize();
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
+    localStorage.removeItem('ui-render-lite');
+    document.documentElement.classList.remove('render-lite');
+  });
+
+  async function lay(kind: 'water' | 'swamp', cols: number, rows: number, surface = 1): Promise<TableAmbience> {
+    const area = TableAmbience.create(kind, kind, cols, rows);
+    area.location = { name: 'table', x: gridSize, y: gridSize };
+    area.surfaceHeight = surface;
+    table.appendChild(area);
+    await Promise.resolve();
+    await Promise.resolve();
+    return area;
+  }
+
+  function render(): HTMLElement {
+    const fixture = TestBed.createComponent(TableWaterLayerComponent);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  it('draws a pond as a floor, a surface and the sides round it', async () => {
+    await lay('water', 3, 2);
+    const element = render();
+
+    expect(element.querySelectorAll('[data-water-floor]')).toHaveLength(1);
+    expect(element.querySelectorAll('[data-water-surface]')).toHaveLength(1);
+    expect(element.querySelectorAll('[data-water-side]')).toHaveLength(10);
+  });
+
+  it('stands the surface at the height of the water', async () => {
+    await lay('water', 1, 1, 2);
+    const surface = render().querySelector<HTMLElement>('[data-water-surface]')!;
+    expect(surface.style.transform).toContain(`${2 * gridSize}px)`);
+  });
+
+  it('stands no sides round water that only wets the floor', async () => {
+    await lay('water', 2, 2, 0);
+    const element = render();
+
+    expect(element.querySelectorAll('[data-water-surface]')).toHaveLength(1);
+    expect(element.querySelectorAll('[data-water-side]')).toHaveLength(0);
+  });
+
+  it('draws nothing for a look on the ground that is not water', async () => {
+    await lay('swamp', 3, 3);
+    expect(render().querySelectorAll('[data-water-floor], [data-water-side]')).toHaveLength(0);
+  });
+
+  it('leaves the second net and the glints out of a table drawn the lighter way', async () => {
+    // The net is drawn on a canvas, which the test runtime cannot draw on; a stand-in lets the nets be counted.
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      createImageData: (width: number, height: number) => ({ data: new Uint8ClampedArray(width * height * 4) }),
+      putImageData: () => undefined,
+    } as never);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,AAAA');
+    await lay('water', 2, 2);
+
+    expect(render().querySelectorAll('.water-net')).toHaveLength(3);
+
+    TestBed.inject(RenderLiteService).setting.set('on');
+    const lite = render();
+    expect(lite.querySelectorAll('.water-net')).toHaveLength(1);
+    expect(lite.querySelectorAll('.water-net-b, .water-net-glint')).toHaveLength(0);
+  });
+});

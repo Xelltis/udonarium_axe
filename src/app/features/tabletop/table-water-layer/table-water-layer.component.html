@@ -1,0 +1,66 @@
+@let net = nets();
+@for (sheet of sheetViews(); track sheet.key) {
+  <div
+    class="pointer-events-none absolute top-0 left-0 overflow-hidden backface-hidden"
+    data-water-floor
+    [style.width.px]="sheet.width"
+    [style.height.px]="sheet.height"
+    [style.transform]="sheet.floorTransform"
+    [style.clip-path]="sheet.clipPath"
+    [style.background-color]="sheet.floorWash"
+  >
+    @if (net) {
+      <div
+        class="water-net water-net-a absolute"
+        [style.--water-tile]="net.first.tilePx + 'px'"
+        [style.inset.px]="-net.first.tilePx"
+        [style.background-image]="'url(' + net.first.url + ')'"
+        [style.background-size.px]="net.first.tilePx"
+        [style.opacity]="sheet.causticOpacity"
+      ></div>
+      @if (!lite()) {
+        <div
+          class="water-net water-net-b absolute"
+          [style.--water-tile]="net.second.tilePx + 'px'"
+          [style.inset.px]="-net.second.tilePx"
+          [style.background-image]="'url(' + net.second.url + ')'"
+          [style.background-size.px]="net.second.tilePx"
+          [style.opacity]="sheet.causticOpacity * 0.75"
+        ></div>
+      }
+    }
+  </div>
+  <div
+    class="pointer-events-none absolute top-0 left-0 overflow-hidden backface-visible"
+    data-water-surface
+    [style.width.px]="sheet.width"
+    [style.height.px]="sheet.height"
+    [style.transform]="sheet.surfaceTransform"
+    [style.clip-path]="sheet.clipPath"
+    [style.background-image]="sheet.surfaceWash"
+    [style.mask-image]="sheet.surfaceMask"
+    [style.mask-size]="sheet.surfaceMask ? '100% 100%' : null"
+  >
+    @if (net && !lite()) {
+      <div
+        class="water-net water-net-glint absolute"
+        [style.--water-tile]="net.glint.tilePx + 'px'"
+        [style.inset.px]="-net.glint.tilePx"
+        [style.background-image]="'url(' + net.glint.url + ')'"
+        [style.background-size.px]="net.glint.tilePx"
+        [style.opacity]="sheet.glintOpacity"
+      ></div>
+    }
+  </div>
+}
+@for (side of sideViews(); track side.key) {
+  <div
+    class="pointer-events-none absolute top-0 left-0 origin-top-left border-t border-solid border-t-white/35 backface-visible"
+    data-water-side
+    [style.width.px]="side.width"
+    [style.height.px]="side.height"
+    [style.transform]="side.transform"
+    [style.background-image]="side.wash"
+    [style.opacity]="side.opacity"
+  ></div>
+}

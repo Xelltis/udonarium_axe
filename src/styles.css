@@ -3917,6 +3917,56 @@ body.mobile-layout ui-panel textarea {
   user-select: text;
 }
 
+/*
+ * The net of light under water. Each net moves by one repeat of its tile and starts over, so it
+ * never jumps; two nets of different sizes move different ways, and where they cross the light
+ * shifts the way it does under real water. Only the transform moves, which the compositor does alone.
+ */
+.water-net {
+  background-repeat: repeat;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+.water-net-a {
+  animation-name: water-net-forward;
+  animation-duration: 26s;
+}
+
+.water-net-b {
+  animation-name: water-net-across;
+  animation-duration: 39s;
+}
+
+.water-net-glint {
+  animation-name: water-net-across;
+  animation-duration: 57s;
+  animation-direction: reverse;
+}
+
+@keyframes water-net-forward {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(var(--water-tile, 0px), var(--water-tile, 0px), 0);
+  }
+}
+
+@keyframes water-net-across {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(calc(var(--water-tile, 0px) * -1), var(--water-tile, 0px), 0);
+  }
+}
+
+:root.motion-reduced .water-net {
+  animation: none;
+}
+
 /* 戦場の霧が空中を漂う。層ごとにdurationと負のdelayをずらして位相を散らす。 */
 @keyframes fogDrift {
   from {

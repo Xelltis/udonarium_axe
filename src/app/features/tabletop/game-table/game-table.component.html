@@ -248,6 +248,7 @@
           [ambience]="ambience"
         ></table-ambience>
       }
+      <table-water-layer />
       @if (textNotesBySurface().floor.length) {
         <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
           @for (textNote of textNotesBySurface().floor; track textNote.identifier) {
