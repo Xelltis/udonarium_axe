@@ -43,13 +43,16 @@ describe('MixEventHandlerService', () => {
     vi.restoreAllMocks();
   });
 
-  it('ducks the music under effects as the room says, from the start and on every change', () => {
+  it('ducks the music under effects while it plays and the room says so, and listens for nothing while quiet', () => {
     start();
+    expect(setDucking).toHaveBeenLastCalledWith(false);
+
+    jukebox.isPlaying = true;
+    changed('Jukebox');
     expect(setDucking).toHaveBeenLastCalledWith(true);
 
     Config.instance.djSettings = { ...DEFAULT_DJ_SETTINGS, ducking: false };
     changed('Config');
-
     expect(setDucking).toHaveBeenLastCalledWith(false);
   });
 

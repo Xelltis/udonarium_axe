@@ -13,9 +13,9 @@ export const AUTOMIX_TICK_MS = 250;
  * Keeps what this peer hears mixed as the room asks.
  *
  * It sets the music's way up as soon as the page has an audio context, ducks the music under
- * effects or not as the room's settings say, eases the tracks to their levels whenever a reading
- * arrives or changes, and, while the room plays, looks at the track a few times a second for the
- * point to fade into the next.
+ * effects while it plays and the room's settings say so, listening for nothing while it is quiet,
+ * eases the tracks to their levels whenever a reading arrives or changes, and, while the room
+ * plays, looks at the track a few times a second for the point to fade into the next.
  */
 @Injectable({ providedIn: 'root' })
 export class MixEventHandlerService {
@@ -28,7 +28,8 @@ export class MixEventHandlerService {
     MusicBus.installWhenReady();
     effect(() => {
       this.objectChange.versionOf('Config')();
-      MusicBus.setDucking(roomMix().ducking);
+      this.objectChange.versionOf('Jukebox')();
+      MusicBus.setDucking(roomMix().ducking && this.jukebox?.isPlaying === true);
     });
     effect(() => {
       this.analysis.version();

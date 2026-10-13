@@ -373,12 +373,10 @@ export class Jukebox extends GameObject {
   }
 
   /**
-   * Brings what this peer hears in line with the room's mix: the track and the background sounds
-   * eased to their levels, as when a reading arrives or the room turns levelling on or off, and the
-   * music ducked under effects or not.
+   * Brings what this peer hears in line with the room's levels: the track and the background
+   * sounds eased to them, as when a reading arrives or the room turns levelling on or off.
    */
   refreshMix(): void {
-    MusicBus.setDucking(roomMix().ducking);
     if (this.audioIdentifier) this.audioPlayer.glideTrim(this.trackLevel(), Jukebox.LEVEL_GLIDE_S);
     for (const sound of BackgroundSound.playing()) sound.refreshLevel();
   }
