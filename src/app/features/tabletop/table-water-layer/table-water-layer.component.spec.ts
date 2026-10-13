@@ -96,7 +96,7 @@ describe('TableWaterLayerComponent', () => {
     } as never);
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,AAAA');
     const pond = await lay('water', 2, 2);
-    expect(render().querySelectorAll('[data-water-silt], [data-water-scum], [data-water-scum-rim]')).toHaveLength(0);
+    expect(render().querySelectorAll('[data-water-layer]')).toHaveLength(0);
 
     pond.turbidity = 1;
     pond.dirtiness = 1;
@@ -104,9 +104,39 @@ describe('TableWaterLayerComponent', () => {
     await Promise.resolve();
     const element = render();
 
-    expect(element.querySelectorAll('[data-water-silt]')).toHaveLength(1);
-    expect(element.querySelectorAll('[data-water-scum]')).toHaveLength(1);
-    expect(element.querySelectorAll('[data-water-scum-rim]')).toHaveLength(1);
+    expect(element.querySelectorAll('[data-water-layer="silt"]')).toHaveLength(1);
+    expect(element.querySelectorAll('[data-water-layer="scum"]')).toHaveLength(1);
+    expect(element.querySelectorAll('[data-water-layer="scum-rim"]')).toHaveLength(1);
+  });
+
+  it('streaks flowing water and carries what lies on it downstream, turned the way it flows', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      createImageData: (width: number, height: number) => ({ data: new Uint8ClampedArray(width * height * 4) }),
+      putImageData: () => undefined,
+    } as never);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,AAAA');
+    const river = await lay('water', 4, 2);
+    river.turbidity = 1;
+    await Promise.resolve();
+    await Promise.resolve();
+    const still = render();
+    expect(still.querySelector('[data-water-layer="flow"]')).toBeNull();
+    expect(still.querySelector('[data-water-layer="silt"]')!.classList).toContain('water-silt');
+
+    river.flowSpeed = 0.5;
+    river.flowDirection = 180;
+    await Promise.resolve();
+    await Promise.resolve();
+    const element = render();
+    const streaks = element.querySelector<HTMLElement>('[data-water-layer="flow"]')!;
+    const silt = element.querySelector<HTMLElement>('[data-water-layer="silt"]')!;
+
+    for (const layer of [streaks, silt]) {
+      expect(layer.classList).toContain('water-flow');
+      expect(layer.style.getPropertyValue('--flow-angle')).toBe('90deg');
+      expect(parseFloat(layer.style.getPropertyValue('--flow-seconds'))).toBeGreaterThan(0);
+    }
+    expect(silt.classList).not.toContain('water-silt');
   });
 
   it('floats leaves on water given them, and none on bare water', async () => {
@@ -117,13 +147,13 @@ describe('TableWaterLayerComponent', () => {
     );
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,AAAA');
     const pond = await lay('water', 3, 3);
-    expect(render().querySelector('[data-water-leaves]')).toBeNull();
+    expect(render().querySelector('[data-water-layer="leaves"]')).toBeNull();
 
     pond.floatingLeaves = 0.6;
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(render().querySelector('[data-water-leaves]')).not.toBeNull();
+    expect(render().querySelector('[data-water-layer="leaves"]')).not.toBeNull();
   });
 
   it('draws nothing for a look on the ground that is not water', async () => {

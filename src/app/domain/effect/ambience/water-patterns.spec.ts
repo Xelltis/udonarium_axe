@@ -4,6 +4,7 @@ import {
   scumRimAlpha,
   smoothFieldAt,
   smoothFieldOf,
+  streakAlpha,
 } from '@axe/domain/effect/ambience/water-patterns';
 
 describe('the patterns on water', () => {
@@ -45,5 +46,24 @@ describe('the patterns on water', () => {
     const alpha = cloudAlpha(smoothFieldOf(5, 64, 16, 3));
     expect(Math.max(...alpha)).toBe(255);
     expect(Math.min(...alpha)).toBe(0);
+  });
+
+  it('draws the streaks of a current as thin lines along the tile that meet themselves across its edges', () => {
+    const size = 64;
+    const alpha = streakAlpha(3, size);
+    const lit = alpha.filter((value) => value > 32).length / alpha.length;
+    expect(lit).toBeGreaterThan(0.03);
+    expect(lit).toBeLessThan(0.35);
+    // Down a column the lines are crossed; along a row they run on, so a row changes far less from pixel to pixel.
+    let across = 0;
+    let along = 0;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        along += Math.abs(alpha[y * size + x] - alpha[y * size + ((x + 1) % size)]);
+        across += Math.abs(alpha[y * size + x] - alpha[((y + 1) % size) * size + x]);
+      }
+    }
+    expect(along).toBeLessThan(across / 2);
+    expect(streakAlpha(3, size)).toEqual(alpha);
   });
 });

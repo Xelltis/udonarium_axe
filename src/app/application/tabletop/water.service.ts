@@ -47,6 +47,8 @@ export class WaterService {
           turbidity: area.murk,
           dirt: area.dirt,
           leaves: area.leaves,
+          flowSpeed: area.flow,
+          flowDirection: area.flowHeading,
         };
       });
   });

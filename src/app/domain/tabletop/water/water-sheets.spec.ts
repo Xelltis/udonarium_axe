@@ -19,6 +19,8 @@ function area(partial: Partial<WaterArea>): WaterArea {
     turbidity: 0.15,
     dirt: 0,
     leaves: 0,
+    flowSpeed: 0,
+    flowDirection: 0,
     ...partial,
   };
 }

@@ -20,6 +20,9 @@ export interface WaterArea {
   readonly dirt: number;
   /** How much of it floating leaves cover, from 0 to 1. */
   readonly leaves: number;
+  /** How fast it flows, from 0 for still to 1, and which way, in degrees clockwise from the top. */
+  readonly flowSpeed: number;
+  readonly flowDirection: number;
 }
 
 /** One cell under water. */
@@ -39,6 +42,8 @@ export interface WaterCell {
   readonly turbidity: number;
   readonly dirt: number;
   readonly leaves: number;
+  readonly flowSpeed: number;
+  readonly flowDirection: number;
   /** The area it belongs to. */
   readonly area: string;
 }
@@ -100,6 +105,8 @@ export function waterCellsOf(
           turbidity: area.turbidity,
           dirt: area.dirt,
           leaves: area.leaves,
+          flowSpeed: area.flowSpeed,
+          flowDirection: area.flowDirection,
           area: area.identifier,
         });
       }
@@ -118,7 +125,7 @@ export function waterFloorLookOf(cell: WaterCell): string {
  * piece however deep the water under them, the depth being painted onto the piece cell by cell.
  */
 export function waterSurfaceLookOf(cell: WaterCell): string {
-  return `${round(cell.surfacePx)}|${cell.color}|${round(cell.density)}|${round(cell.turbidity)}|${round(cell.dirt)}|${round(cell.leaves)}`;
+  return `${round(cell.surfacePx)}|${cell.color}|${round(cell.density)}|${round(cell.turbidity)}|${round(cell.dirt)}|${round(cell.leaves)}|${round(cell.flowSpeed)}|${round(cell.flowDirection)}`;
 }
 
 function round(value: number): number {

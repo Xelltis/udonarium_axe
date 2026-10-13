@@ -4,6 +4,7 @@ import {
   scumAlpha,
   scumRimAlpha,
   smoothFieldOf,
+  streakAlpha,
   WATER_PATTERN_TILE_PX,
 } from '@axe/domain/effect/ambience/water-patterns';
 import type { WaterLightMask } from '@axe/domain/tabletop/water/water-light-mask';
@@ -22,6 +23,7 @@ let tileUrl: string | null = null;
 let cloudUrl: string | null = null;
 let scumUrl: string | null = null;
 let scumRimUrl: string | null = null;
+let streakUrl: string | null = null;
 
 /**
  * The net of light water throws on the floor, as a picture to repeat, or empty where none can be drawn.
@@ -71,6 +73,17 @@ export function scumRimTileUrl(): string {
   if (scumRimUrl !== null) return scumRimUrl;
   const url = alphaImageUrl(WATER_PATTERN_TILE_PX, WATER_PATTERN_TILE_PX, scumRimAlpha(scumField(), SCUM_COVERAGE));
   if (url) scumRimUrl = url;
+  return url ?? '';
+}
+
+/**
+ * The streaks a current draws on flowing water, as a picture to repeat, lying along its x; or
+ * empty where none can be drawn. Drawn in white once.
+ */
+export function streakTileUrl(): string {
+  if (streakUrl !== null) return streakUrl;
+  const url = alphaImageUrl(WATER_PATTERN_TILE_PX, WATER_PATTERN_TILE_PX, streakAlpha(SEED + 3));
+  if (url) streakUrl = url;
   return url ?? '';
 }
 

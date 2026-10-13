@@ -3945,6 +3945,29 @@ body.mobile-layout ui-panel textarea {
   animation-direction: reverse;
 }
 
+/*
+ * What flowing water carries along: turned to run the way the water flows (set inline), then slid
+ * along that way by one repeat of its picture, over and over.
+ */
+.water-flow {
+  transform: rotate(var(--flow-angle, 0deg));
+  animation: water-flow var(--flow-seconds, 0s) linear infinite;
+  will-change: transform;
+}
+
+@keyframes water-flow {
+  from {
+    transform: rotate(var(--flow-angle, 0deg)) translateX(calc(var(--water-tile, 0px) * -0.5));
+  }
+  to {
+    transform: rotate(var(--flow-angle, 0deg)) translateX(calc(var(--water-tile, 0px) * 0.5));
+  }
+}
+
+:root.motion-reduced .water-flow {
+  animation: none;
+}
+
 /* The clouds of silt in murky water and the scum on dirty water drift far slower than the light. */
 .water-silt {
   animation-name: water-net-forward;

@@ -3,6 +3,7 @@ import { WaterService } from '@axe/application/tabletop/water.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { waterFloorLookOf, waterSurfaceLookOf } from '@axe/domain/tabletop/water/water-cells';
 import { waterDepthShadeOf } from '@axe/domain/tabletop/water/water-depth';
+import { flowCellsPerSecond, flowLayerOf } from '@axe/domain/tabletop/water/water-flow';
 import { waterLightMaskOf } from '@axe/domain/tabletop/water/water-light-mask';
 import {
   causticOpacity,
@@ -31,6 +32,7 @@ import {
   lightMaskUrl,
   scumRimTileUrl,
   scumTileUrl,
+  streakTileUrl,
 } from '@axe/features/tabletop/table-water-layer/caustic-texture';
 import { lotusTileUrl } from '@axe/features/tabletop/table-water-layer/lotus-texture';
 import { WaterPhaseDirective } from '@axe/features/tabletop/table-water-layer/water-phase.directive';
@@ -59,6 +61,8 @@ const SILT_CELLS = 4.2;
 const SCUM_CELLS = 2.1;
 /** How many cells one repeat of the floating leaves spans: a leaf comes to about half a cell across. */
 const LEAF_CELLS = 3.6;
+/** How many cells one repeat of the streaks of a current spans. */
+const STREAK_CELLS = 3;
 
 /** The floor under a stretch of water, ready to draw. */
 export interface WaterFloorView {
@@ -88,29 +92,31 @@ export interface WaterSurfaceView {
   /** The picture the surface is masked with in the dark, or null where all of it shows. */
   readonly mask: string | null;
   readonly glintOpacity: number;
-  /** The clouds of silt drifting in murky water, or null in clear water. */
-  readonly silt: WaterPatternView | null;
-  /** The scum floating on dirty water, or null on clean water. */
-  readonly scum: WaterPatternView | null;
-  /** The rim along the edge of the scum, where its film catches the light, or null on clean water. */
-  readonly scumRim: WaterPatternView | null;
-  /** The leaves floating on the water, or null where none do. */
-  readonly leaves: WaterLeavesView | null;
+  /**
+   * What lies on the surface or drifts in the water, bottom to top: clouds of silt, scum and its
+   * rim, the streaks of a current, floating leaves.
+   */
+  readonly layers: readonly WaterSurfaceLayer[];
 }
 
-/** The leaves floating on a sheet of water, laid from the corner of the table like the nets. */
-export interface WaterLeavesView {
+/** One pattern on a sheet of water, ready to draw: still, drifting of its own, or carried by the flow. */
+export interface WaterSurfaceLayer {
+  readonly key: 'silt' | 'scum' | 'scum-rim' | 'flow' | 'leaves';
+  readonly classes: string;
+  readonly style: Readonly<Record<string, string>>;
+}
+
+/** A pattern laid on a sheet: its picture, worn as a mask by a colour or shown as it is, and how strongly. */
+interface PatternSpec {
+  readonly key: WaterSurfaceLayer['key'];
   readonly url: string;
   readonly tilePx: number;
-  readonly position: string;
-  /** How far they are darkened in the dark, or null where they are lit. */
-  readonly filter: string | null;
-}
-
-/** A pattern drifting on the surface, worn as a mask by a layer of one colour. */
-export interface WaterPatternView {
-  readonly color: string;
   readonly opacity: number;
+  /** The colour a mask is worn by; empty to show the picture in its own colours. */
+  readonly color: string;
+  /** How it moves on still water: drifting of its own, or not at all. */
+  readonly drift: string;
+  readonly filter?: string | null;
 }
 
 /** One side of the water, ready to draw. */
@@ -186,25 +192,6 @@ export class TableWaterLayerComponent {
     };
   });
 
-  /** The patterns of silt and scum, or null for one that could not be drawn. */
-  protected readonly patterns = computed<{
-    silt: WaterNetView | null;
-    scum: WaterNetView | null;
-    scumRim: WaterNetView | null;
-  }>(() => {
-    const grid = this.water.grid();
-    const silt = cloudTileUrl();
-    const scum = scumTileUrl();
-    const rim = scumRimTileUrl();
-    if (!grid) return { silt: null, scum: null, scumRim: null };
-    const scumTile = Math.round(grid.sizePx * SCUM_CELLS);
-    return {
-      silt: silt ? { tilePx: Math.round(grid.sizePx * SILT_CELLS), url: silt } : null,
-      scum: scum ? { tilePx: scumTile, url: scum } : null,
-      scumRim: rim ? { tilePx: scumTile, url: rim } : null,
-    };
-  });
-
   /** The floors of water lying on its own level floor. Over ground risen under the water, the ground is the floor. */
   protected readonly floorViews = computed<WaterFloorView[]>(() => {
     const grid = this.water.grid();
@@ -250,6 +237,50 @@ export class TableWaterLayerComponent {
       const deep = deepWaterColor(tone);
       const silt = siltOpacity(sheet.turbidity);
       const scum = scumOpacity(sheet.dirt);
+      const g = grid.sizePx;
+      const patterns: PatternSpec[] = [
+        {
+          key: 'silt',
+          url: cloudTileUrl(),
+          tilePx: Math.round(g * SILT_CELLS),
+          opacity: silt,
+          color: siltColorOf(tone),
+          drift: 'water-net water-silt',
+        },
+        {
+          key: 'scum',
+          url: scumTileUrl(),
+          tilePx: Math.round(g * SCUM_CELLS),
+          opacity: scum,
+          color: shadedWaterColor(scumColorOf(sheet.color), lit),
+          drift: 'water-net water-scum',
+        },
+        {
+          key: 'scum-rim',
+          url: scumRimTileUrl(),
+          tilePx: Math.round(g * SCUM_CELLS),
+          opacity: Math.round(scum * 0.8 * 1000) / 1000,
+          color: shadedWaterColor(scumRimColorOf(sheet.color), lit),
+          drift: 'water-net water-scum',
+        },
+        {
+          key: 'flow',
+          url: sheet.flowSpeed > 0 ? streakTileUrl() : '',
+          tilePx: Math.round(g * STREAK_CELLS),
+          opacity: Math.round((0.16 + 0.34 * sheet.flowSpeed) * (1 - 0.5 * sheet.turbidity) * lit * 1000) / 1000,
+          color: '#ffffff',
+          drift: '',
+        },
+        {
+          key: 'leaves',
+          url: lotusTileUrl(sheet.leaves),
+          tilePx: Math.round(g * LEAF_CELLS),
+          opacity: 1,
+          color: '',
+          drift: '',
+          filter: lit < 0.999 ? `brightness(${Math.round(lit * 1000) / 1000})` : null,
+        },
+      ];
       return {
         key: sheet.key,
         left: sheet.left,
@@ -267,16 +298,9 @@ export class TableWaterLayerComponent {
           .join(', '),
         mask: maskUrl ? `url(${maskUrl})` : null,
         glintOpacity: glintOpacity(sheet.density, sheet.turbidity, sheet.dirt),
-        silt: silt > 0.01 ? { color: siltColorOf(tone), opacity: silt } : null,
-        scum: scum > 0.01 ? { color: shadedWaterColor(scumColorOf(sheet.color), lit), opacity: scum } : null,
-        leaves: leavesOf(sheet, grid.sizePx, lit),
-        scumRim:
-          scum > 0.01
-            ? {
-                color: shadedWaterColor(scumRimColorOf(sheet.color), lit),
-                opacity: Math.round(scum * 0.8 * 1000) / 1000,
-              }
-            : null,
+        layers: patterns
+          .filter((pattern) => pattern.url.length > 0 && pattern.opacity > 0.01)
+          .map((pattern) => surfaceLayerOf(pattern, sheet, g)),
       };
     });
   });
@@ -358,16 +382,51 @@ function clipOf(sheet: WaterSheet): string {
   return `path('${sheet.path}')`;
 }
 
-/** The leaves floating on a sheet, or null where none do. */
-function leavesOf(sheet: WaterSheet, gridSize: number, lit: number): WaterLeavesView | null {
-  const url = lotusTileUrl(sheet.leaves);
-  if (!url) return null;
-  const net = { tilePx: Math.round(gridSize * LEAF_CELLS), url };
+/**
+ * One pattern on a sheet, ready to draw. On still water it stands a tile out past the sheet on
+ * every side and drifts of its own, or lies still; on flowing water it is turned to run the way the
+ * water flows and carried along that way. Either way it is laid from the corner of the table, so
+ * it meets itself across the join with the sheet beside.
+ */
+function surfaceLayerOf(pattern: PatternSpec, sheet: WaterSheet, gridSize: number): WaterSurfaceLayer {
+  const tile = pattern.tilePx;
+  const picture: Record<string, string> = pattern.color
+    ? {
+        'background-color': pattern.color,
+        'mask-image': `url(${pattern.url})`,
+        'mask-size': `${tile}px ${tile}px`,
+      }
+    : { 'background-image': `url(${pattern.url})`, 'background-size': `${tile}px ${tile}px` };
+  const common: Record<string, string> = {
+    ...picture,
+    '--water-tile': `${tile}px`,
+    opacity: `${pattern.opacity}`,
+    ...(pattern.filter ? { filter: pattern.filter } : {}),
+  };
+  const place = (position: string): Record<string, string> =>
+    pattern.color ? { 'mask-position': position } : { 'background-position': position };
+
+  if (sheet.flowSpeed > 0) {
+    const layer = flowLayerOf(sheet, tile, sheet.flowDirection, flowCellsPerSecond(sheet.flowSpeed), gridSize);
+    return {
+      key: pattern.key,
+      classes: 'water-flow',
+      style: {
+        ...common,
+        ...place(layer.position),
+        left: `${layer.left}px`,
+        top: `${layer.top}px`,
+        width: `${layer.size}px`,
+        height: `${layer.size}px`,
+        '--flow-angle': `${sheet.flowDirection - 90}deg`,
+        '--flow-seconds': `${layer.seconds}s`,
+      },
+    };
+  }
   return {
-    url,
-    tilePx: net.tilePx,
-    position: netPosition(net, sheet),
-    filter: lit < 0.999 ? `brightness(${Math.round(lit * 1000) / 1000})` : null,
+    key: pattern.key,
+    classes: pattern.drift,
+    style: { ...common, ...place(netPosition({ tilePx: tile, url: pattern.url }, sheet)), inset: `${-tile}px` },
   };
 }
 

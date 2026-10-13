@@ -156,7 +156,7 @@ test('scum floats on stagnant water and hides what stands in it', async ({ page 
   await freeze(page);
   await wadeIn(page);
   await setWaterLook(page, 'よどんだ水');
-  await expect(page.locator('[data-water-scum]').first()).toBeAttached();
+  await expect(page.locator('[data-water-layer="scum"]').first()).toBeAttached();
   await settle(page, 400);
   await snap(page, 'water-stagnant', WATER_SNAP);
 });
@@ -167,7 +167,7 @@ test('lotus leaves and flowers float on a lotus pond', async ({ page }) => {
   await freeze(page);
   await wadeIn(page);
   await setWaterLook(page, '蓮池');
-  await expect(page.locator('[data-water-leaves]').first()).toBeAttached();
+  await expect(page.locator('[data-water-layer="leaves"]').first()).toBeAttached();
   await settle(page, 400);
   await snap(page, 'water-lotus', WATER_SNAP);
 });

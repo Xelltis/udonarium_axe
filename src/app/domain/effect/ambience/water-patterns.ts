@@ -95,6 +95,49 @@ function quantileOf(values: Float32Array, share: number): number {
   return sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(share * sorted.length)))];
 }
 
+/** How many lines a current draws across one tile. */
+const STREAK_LINES = 22;
+
+/**
+ * The streaks a current draws on the water, as alpha over one tile: thin soft lines running along
+ * the tile's x, each wandering a little up and down and brightening and fading along its length,
+ * so what is carried past reads as moving water rather than as rain. Every wander and every
+ * swell fits the tile a whole number of times, so the tile repeats without a seam.
+ */
+export function streakAlpha(seed: number, size = WATER_PATTERN_TILE_PX): Uint8ClampedArray {
+  const random = seededRandom(seed);
+  const lines = Array.from({ length: STREAK_LINES }, () => ({
+    y: random() * size,
+    wander: (1 + random() * 3) * (size / 192),
+    wanderTimes: 1 + Math.floor(random() * 2),
+    wanderPhase: random() * Math.PI * 2,
+    swellTimes: 1 + Math.floor(random() * 3),
+    swellPhase: random() * Math.PI * 2,
+    width: (0.7 + random() * 1.1) * (size / 192),
+    strength: 0.45 + random() * 0.55,
+  }));
+  const alpha = new Uint8ClampedArray(size * size);
+  for (let x = 0; x < size; x++) {
+    const turn = ((x + 0.5) / size) * Math.PI * 2;
+    for (const line of lines) {
+      const centre = line.y + line.wander * Math.sin(turn * line.wanderTimes + line.wanderPhase);
+      // Bright for a stretch and gone for a stretch, so the lines break up rather than stripe the water.
+      const swell = Math.max(Math.sin(turn * line.swellTimes + line.swellPhase), 0);
+      const strength = line.strength * swell * swell;
+      if (strength < 0.01) continue;
+      const reach = Math.ceil(line.width * 3);
+      for (let dy = -reach; dy <= reach; dy++) {
+        const y = Math.round(centre) + dy;
+        const off = (y + 0.5 - centre) / line.width;
+        const value = strength * Math.exp(-off * off);
+        const at = (((y % size) + size) % size) * size + x;
+        alpha[at] = Math.max(alpha[at], Math.round(Math.min(value, 1) * 255));
+      }
+    }
+  }
+  return alpha;
+}
+
 /**
  * The field over the whole tile, stretched so its lowest is 0 and its highest 1. Summed from
  * many waves the values gather about the middle, and a threshold set on the plain range would

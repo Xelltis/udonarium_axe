@@ -16,6 +16,8 @@ import {
   DEFAULT_SURFACE_CELLS,
   DEFAULT_TURBIDITY,
   dirtOf,
+  flowDirectionOf,
+  flowSpeedOf,
   leavesOf,
   surfaceCellsOf,
   turbidityOf,
@@ -78,6 +80,13 @@ export class TableAmbience extends TabletopObject {
    * them, some in flower. Only water reads it.
    */
   @SyncVar() floatingLeaves: number = DEFAULT_LEAVES;
+  /**
+   * How fast the water flows, from 0 for still water to 1 for a racing river. Only water reads
+   * it: what floats on the water and what drifts in it is carried along.
+   */
+  @SyncVar() flowSpeed: number = 0;
+  /** Which way the water flows, in degrees clockwise from the top of the table. */
+  @SyncVar() flowDirection: number = 0;
 
   /** How many grid cells wide the area is, kept in its common data. */
   get width(): number {
@@ -123,6 +132,16 @@ export class TableAmbience extends TabletopObject {
   /** How much of the water floating leaves cover, with an empty or unreadable value read as none. */
   get leaves(): number {
     return leavesOf(this.floatingLeaves);
+  }
+
+  /** How fast the water flows, with an empty or unreadable value read as still. */
+  get flow(): number {
+    return flowSpeedOf(this.flowSpeed);
+  }
+
+  /** Which way the water flows, with an empty or unreadable value read as towards the top. */
+  get flowHeading(): number {
+    return flowDirectionOf(this.flowDirection);
   }
 
   /** The kind of effect, with an unknown stored kind read as swamp. */

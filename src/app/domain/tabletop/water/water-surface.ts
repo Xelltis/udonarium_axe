@@ -59,3 +59,25 @@ export function leavesOf(value: unknown): number {
   if (!Number.isFinite(numeric)) return DEFAULT_LEAVES;
   return Math.min(Math.max(numeric, 0), 1);
 }
+
+/**
+ * How fast water flows, from 0 for still water to 1 for a racing river, read from what was stored.
+ * An empty or unreadable value reads as still.
+ */
+export function flowSpeedOf(value: unknown): number {
+  if (value === '' || value === null || value === undefined) return 0;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.min(Math.max(numeric, 0), 1);
+}
+
+/**
+ * Which way water flows, in degrees clockwise from the top of the table, read from what was
+ * stored. An empty or unreadable value reads as towards the top.
+ */
+export function flowDirectionOf(value: unknown): number {
+  if (value === '' || value === null || value === undefined) return 0;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return ((numeric % 360) + 360) % 360;
+}
