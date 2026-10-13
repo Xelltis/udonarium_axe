@@ -70,6 +70,20 @@ async function setWaterLevel(page: Page, cells: string) {
 }
 
 /** Lays a pond round a piece of the starting table, which has a picture to wade with. */
+/** Sets how murky the water is from the pond's own settings, as a percentage. */
+async function setMurkiness(page: Page, percent: string) {
+  await page.locator('table-ambience').first().dispatchEvent('contextmenu');
+  await settle(page, 400);
+  const menu = page.locator('context-menu');
+  await expect(menu.locator('li').first()).toBeVisible({ timeout: 7000 });
+  await chooseMenu(page, menu, '環境エフェクトの設定');
+  const field = page.locator('input[name="ambienceTurbidity"]');
+  await settleLazy(page, field);
+  await field.fill(percent);
+  await settle(page, 400);
+  await closePanels(page);
+}
+
 async function wadeIn(page: Page) {
   const feet = await feetOf(page, 'キャラクターA');
   await layPond(page, { x: feet.x + 40, y: feet.y + 30 });
@@ -94,6 +108,32 @@ test('a piece wades into a pond on a hex grid the same way', async ({ page }) =>
   await wadeIn(page);
   await settle(page, 400);
   await snap(page, 'water-pond-hex', WATER_SNAP);
+});
+
+test('waves break on a block standing out of the water', async ({ page }) => {
+  await prepare(page);
+  await becomeGm(page);
+  await closePanels(page);
+  await freeze(page);
+  const menu = await rightClickTable(page, { x: 780, y: 400 });
+  await chooseMenu(page, menu, '地形を作成');
+  await expect(page.locator('terrain')).toHaveCount(1, { timeout: 10000 });
+  await settle(page, 400);
+  await layPond(page, { x: 700, y: 470 });
+  await setWaterLevel(page, '1');
+  await expect(page.locator('[data-water-shore]').first()).toBeAttached();
+  await settle(page, 400);
+  await snap(page, 'water-shore', { ...WATER_SNAP, animationAt: 900 });
+});
+
+test('a piece fades into murky water', async ({ page }) => {
+  await prepare(page);
+  await closePanels(page);
+  await freeze(page);
+  await wadeIn(page);
+  await setMurkiness(page, '85');
+  await settle(page, 400);
+  await snap(page, 'water-murky', WATER_SNAP);
 });
 
 test('the whole map under water', async ({ page }) => {
