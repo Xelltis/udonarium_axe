@@ -64,21 +64,24 @@ export class Jukebox extends GameObject {
    * The effects the room's music goes through, as text for `readDjEffects`: empty while none is on.
    * Live, as a DJ works them, so not kept in a saved room. An older version knows nothing of them,
    * and its peers hear the music as it is.
+   *
+   * It and the two counts below are given no starting value, so a jukebox is made without writing
+   * them, and they read as unset until first used.
    */
-  @SyncVar() fx: string = '';
+  @SyncVar() fx: string | undefined;
 
   /**
    * How many times the room's track has been braked to a stop, so every peer slows it down as the
    * one who braked it did. An older version sends no count, and its stop is an ordinary one.
    */
-  @SyncVar() brakeCount: number = 0;
+  @SyncVar() brakeCount: number | undefined;
 
   /**
    * How many times the room's track has jumped to a marked place, so every peer jumps on its own
    * next beat while the room quantises. A jump moves the seek count too, so an older version, which
    * knows nothing of jumps, follows it as a seek.
    */
-  @SyncVar() jumpCount: number = 0;
+  @SyncVar() jumpCount: number | undefined;
 
   /** The track the room is set to, or null when none is set or its file is not in this peer's storage. */
   get audio(): AudioFile | null {
@@ -746,12 +749,12 @@ export class Jukebox extends GameObject {
   }
 
   /** Whether another peer jumped the track to a marked place since the count read before, which an older version never says. */
-  private wasJumpedSince(jumpCount: number): boolean {
+  private wasJumpedSince(jumpCount: number | undefined): boolean {
     return typeof this.jumpCount === 'number' && this.jumpCount !== jumpCount;
   }
 
   /** Whether another peer braked the track since the count read before, which an older version, sending no count, never says. */
-  private wasBrakedSince(brakeCount: number): boolean {
+  private wasBrakedSince(brakeCount: number | undefined): boolean {
     return typeof this.brakeCount === 'number' && this.brakeCount !== brakeCount;
   }
 

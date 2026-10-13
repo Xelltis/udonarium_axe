@@ -208,7 +208,7 @@ describe('DjConsoleService', () => {
       dj.setEffect('reverb', 1, true);
       dj.brakeStop();
 
-      expect(jukebox.fx).toBe('');
+      expect(jukebox.fx ?? '').toBe('');
       expect(brake).not.toHaveBeenCalled();
     });
   });

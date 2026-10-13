@@ -1606,7 +1606,7 @@ describe('Jukebox', () => {
       jukebox.jumpTo(12);
 
       expect(jukebox.startTime).toBe(12);
-      expect(jukebox.jumpCount).toBe(0);
+      expect(jukebox.jumpCount ?? 0).toBe(0);
     });
   });
 });

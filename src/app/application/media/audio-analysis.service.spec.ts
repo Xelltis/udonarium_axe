@@ -157,6 +157,21 @@ describe('AudioAnalysisService', () => {
     expect(service.isPending('broken')).toBe(false);
   });
 
+  it('orders the library without drawing from Math.random, which effects and the table draw from', async () => {
+    const draw = Math.random.bind(Math);
+    const callers: string[] = [];
+    vi.spyOn(Math, 'random').mockImplementation(() => {
+      callers.push(new Error().stack ?? '');
+      return draw();
+    });
+    addSound('track-h');
+    addSound('track-i');
+    start();
+
+    await vi.waitFor(() => expect(analyzer).toHaveBeenCalledTimes(2));
+    expect(callers.filter((stack) => stack.includes('readingOrder'))).toEqual([]);
+  });
+
   it('reads nothing on a device short of memory', async () => {
     vi.stubGlobal('navigator', { ...navigator, deviceMemory: 1 });
     addSound('track-g');

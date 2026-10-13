@@ -175,7 +175,7 @@ export class AudioAnalysisService {
     ];
     const library = this.audioStorage.audios.map((audio) => audio.identifier);
     for (const identifier of library) {
-      if (!this.libraryOrder.has(identifier)) this.libraryOrder.set(identifier, Math.random());
+      if (!this.libraryOrder.has(identifier)) this.libraryOrder.set(identifier, orderingDraw());
     }
     library.sort((a, b) => (this.libraryOrder.get(a) ?? 0) - (this.libraryOrder.get(b) ?? 0));
     return [...new Set([...first, ...library])].filter((identifier) => identifier.length > 0);
@@ -186,6 +186,14 @@ export class AudioAnalysisService {
     this.cache.set(identifier, writeAudioAnalysis(analysis));
     writeAnalysisCache(this.cache);
   }
+}
+
+/**
+ * A number to order the library by, drawn apart from `Math.random`, so reading sounds in the
+ * background leaves the sequence that effects and the table draw from as it was.
+ */
+function orderingDraw(): number {
+  return crypto.getRandomValues(new Uint32Array(1))[0];
 }
 
 /** Whether this device has the memory to decode whole sounds; one that says it has under 2 GB does not. */

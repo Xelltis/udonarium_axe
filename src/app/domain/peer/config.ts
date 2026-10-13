@@ -44,8 +44,8 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_defaultDiceBot') private _defaultDiceBot: string = 'DiceBot';
   @SyncVar('_roomVolume') private _roomVolume: number = 1.0;
   @SyncVar('_roomKindVolumes') private _roomKindVolumes: string = '';
-  @SyncVar('_djSettings') private _djSettings: string = '';
-  @SyncVar('_djPads') private _djPads: string = '';
+  @SyncVar('_djSettings') private _djSettings!: string;
+  @SyncVar('_djPads') private _djPads!: string;
   @SyncVar('_systemAvatarIdentifier') private _systemAvatarIdentifier: string = '';
   @SyncVar('_systemDiceAvatarIdentifier') private _systemDiceAvatarIdentifier: string = '';
   @SyncVar('_hideSystemAvatar') private _hideSystemAvatar: string = '';
