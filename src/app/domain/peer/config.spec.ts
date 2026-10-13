@@ -278,6 +278,18 @@ describe('Config', () => {
       expect(Config.instance.djSettings.quantize).toBe(true);
     });
 
+    it('keeps the pads, every one empty for an older version that sends none', () => {
+      Config.instance.djPads = ['airhorn', '', '', '', '', '', '', 'applause'];
+      expect(Config.instance.djPads[7]).toBe('applause');
+
+      const older = Config.instance.toContext();
+      delete attributesOf(older)['_djPads'];
+      older.majorVersion += 1;
+      Config.instance.apply(older);
+
+      expect(Config.instance.djPads.every((pad) => pad === '')).toBe(true);
+    });
+
     it('remixes on the jukebox straight away when another peer changes the mix', () => {
       const jukebox = new Jukebox('Jukebox');
       jukebox.initialize();

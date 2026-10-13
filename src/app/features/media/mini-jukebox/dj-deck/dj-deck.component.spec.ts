@@ -2,14 +2,18 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
 import { AUDIO_ANALYSIS_VERSION } from '@axe/domain/media/audio-analysis';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
+import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { BackgroundSoundPlaybackService } from '@axe/features/media/background-sound-playback.service';
+import { JukeboxPlaybackService } from '@axe/features/media/jukebox-playback.service';
 import { DjDeckComponent } from '@axe/features/media/mini-jukebox/dj-deck/dj-deck.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -19,6 +23,12 @@ describe('DjDeckComponent', () => {
 
   const element = (testId: string) =>
     (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`)!;
+
+  async function showTab(tab: 'deck' | 'pads' | 'mix'): Promise<void> {
+    await fixture.whenStable();
+    element(`dj-deck-tab-${tab}`).click();
+    await fixture.whenStable();
+  }
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -55,6 +65,7 @@ describe('DjDeckComponent', () => {
     await fixture.whenStable();
 
     expect(element('dj-deck-bpm').textContent?.trim()).toBe('128.0');
+    await showTab('mix');
     expect(element('dj-deck-level').textContent).toContain('-12.3');
     expect(element('dj-deck-level-db').textContent?.trim()).toBe('−3.7');
   });
@@ -83,9 +94,11 @@ describe('DjDeckComponent', () => {
       'dj-deck-double',
       'dj-deck-downbeat',
       'dj-deck-reset-tempo',
-      'dj-deck-auto-level',
-      'dj-deck-ducking',
     ]) {
+      expect(element(testId).disabled, testId).toBe(true);
+    }
+    await showTab('mix');
+    for (const testId of ['dj-deck-auto-level', 'dj-deck-ducking', 'dj-deck-quantize']) {
       expect(element(testId).disabled, testId).toBe(true);
     }
   });
@@ -95,6 +108,7 @@ describe('DjDeckComponent', () => {
     await fixture.whenStable();
 
     expect(element('dj-deck-tap').disabled).toBe(false);
+    await showTab('mix');
     expect(element('dj-deck-auto-level').disabled).toBe(true);
     expect(element('dj-deck-ducking').disabled).toBe(true);
   });
@@ -103,6 +117,7 @@ describe('DjDeckComponent', () => {
     PeerCursor.myCursor.role = PeerRole.GameMaster;
     vi.spyOn(Jukebox.prototype, 'refreshMix').mockImplementation(() => {});
     await fixture.whenStable();
+    await showTab('mix');
 
     element('dj-deck-auto-level').click();
     element('dj-deck-ducking').click();
@@ -176,5 +191,68 @@ describe('DjDeckComponent', () => {
 
     expect(element('dj-deck-cue-0').textContent?.replace(/\s+/g, '')).toBe('1+');
     expect(element('dj-deck-cue-1').textContent?.replace(/\s+/g, '')).toBe('21:23');
+  });
+
+  describe('pads', () => {
+    function addSound(identifier: string, tag: string): void {
+      AudioStorage.instance.add({
+        identifier,
+        name: `${identifier}.mp3`,
+        type: 'audio/mpeg',
+        blob: new Blob(['x']),
+        url: 'blob:x',
+      });
+      AudioTag.create(identifier).tag = tag;
+    }
+
+    afterEach(() => {
+      for (const audio of AudioStorage.instance.audios) AudioStorage.instance.delete(audio.identifier);
+    });
+
+    it('lets the game master give an empty pad a sound from the library', async () => {
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      addSound('airhorn', 'SE');
+      await showTab('pads');
+
+      element('dj-deck-pad-2').click();
+      await fixture.whenStable();
+      (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLButtonElement>('[data-testid="dj-deck-pad-choice"]')!
+        .click();
+      await waitZeroTimeout();
+      await fixture.whenStable();
+
+      expect(Config.instance.djPads[2]).toBe('airhorn');
+      expect(element('dj-deck-pad-2').textContent).toContain('airhorn.mp3');
+      expect(element('dj-deck-pad-picker')).toBeNull();
+    });
+
+    it('sets a pad off for the room by what its sound is', async () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      addSound('airhorn', 'SE');
+      addSound('rain', AUDIO_TAG_BGS);
+      Config.instance.djPads = ['airhorn', 'rain', '', '', '', '', '', ''];
+      const play = vi.spyOn(TestBed.inject(JukeboxPlaybackService), 'play').mockImplementation(() => {});
+      const toggle = vi.spyOn(TestBed.inject(BackgroundSoundPlaybackService), 'toggle').mockImplementation(() => {});
+      await waitZeroTimeout();
+      await showTab('pads');
+
+      element('dj-deck-pad-0').click();
+      element('dj-deck-pad-1').click();
+
+      expect(play).toHaveBeenCalledWith(AudioStorage.instance.get('airhorn'));
+      expect(toggle).toHaveBeenCalledWith(AudioStorage.instance.get('rain'));
+    });
+
+    it('leaves empty pads to the game master and every pad alone for a guest', async () => {
+      addSound('airhorn', 'SE');
+      Config.instance.djPads = ['airhorn', '', '', '', '', '', '', ''];
+      PeerCursor.myCursor.role = PeerRole.Player;
+      await waitZeroTimeout();
+      await showTab('pads');
+
+      expect(element('dj-deck-pad-0').disabled).toBe(false);
+      expect(element('dj-deck-pad-1').disabled).toBe(true);
+    });
   });
 });

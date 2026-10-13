@@ -11,9 +11,10 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MusicBus } from '@axe/core/audio/music-bus';
+import { AudioTag } from '@axe/domain/media/audio-tag';
 import { hasDjEffects } from '@axe/domain/media/dj-effects';
 import { CROSSFADE_CHOICES } from '@axe/domain/media/dj-settings';
-import { DjConsoleService } from '@axe/features/media/dj-console.service';
+import { DjConsoleService, type PadView } from '@axe/features/media/dj-console.service';
 import { formatTrackTime, JukeboxPlaybackService } from '@axe/features/media/jukebox-playback.service';
 import { UiKnobComponent } from '@axe/ui/components/knob/knob.component';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -43,6 +44,16 @@ export class DjDeckComponent {
   readonly spectrum = viewChild<ElementRef<HTMLCanvasElement>>('spectrum');
 
   protected readonly beats = [0, 1, 2, 3];
+  protected readonly tabs = ['deck', 'pads', 'mix'] as const;
+
+  /** The part of the deck shown under the tempo: the deck itself, the pads, or the room's mix. */
+  readonly activeTab = signal<'deck' | 'pads' | 'mix'>('deck');
+
+  /** The pad a sound is being chosen for, counted from 1, or null while none is. */
+  readonly pickingSlot = signal<number | null>(null);
+
+  /** Whether each pad's sound is sounding on this peer. */
+  readonly padsSounding = signal<readonly boolean[]>([]);
   protected readonly crossfadeChoices = CROSSFADE_CHOICES;
 
   /** The beat of the bar the room's track is in on this peer, or -1 while it plays none. */
@@ -104,6 +115,29 @@ export class DjDeckComponent {
     inject(DestroyRef).onDestroy(() => cancelAnimationFrame(this.frame));
   }
 
+  /** Sets a pad off, or opens the choice of sound for an empty one. */
+  pressPad(pad: PadView): void {
+    if (pad.identifier === '') this.pickingSlot.set(pad.slot + 1);
+    else this.dj.firePad(pad.slot);
+  }
+
+  /** Gives a pad the sound chosen and closes the choice. */
+  assign(slot: number, identifier: string): void {
+    this.dj.assignPad(slot, identifier);
+    this.pickingSlot.set(null);
+  }
+
+  /** The icon of what a pad sets off. */
+  padIcon(pad: PadView): string {
+    if (pad.kind === 'effect') return 'flash_on';
+    return pad.kind === 'background' ? 'waves' : 'music_note';
+  }
+
+  /** The tag of a sound, BGM for one never tagged. */
+  tagOf(identifier: string): string {
+    return AudioTag.get(identifier)?.tag ?? 'BGM';
+  }
+
   /** Turns levelling on or off for the room. */
   toggleAutoLevel(): void {
     this.dj.setSettings({ autoLevel: !this.dj.settings().autoLevel });
@@ -130,6 +164,11 @@ export class DjDeckComponent {
   }
 
   private tick(): void {
+    if (this.activeTab() === 'pads') {
+      const sounding = this.dj.pads().map((pad) => this.dj.isPadSounding(pad));
+      const before = this.padsSounding();
+      if (sounding.some((on, slot) => on !== before[slot])) this.padsSounding.set(sounding);
+    }
     const playing = this.playback.isPlaying();
     const clock = playing ? this.dj.beatClock() : null;
     this.beatOfBar.set(clock?.beatOfBar ?? -1);

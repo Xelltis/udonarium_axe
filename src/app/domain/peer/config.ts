@@ -11,6 +11,7 @@ import {
 } from '@axe/domain/character/controller-resource-pick';
 import { readStampRules, StampRules, writeStampRules } from '@axe/domain/chat/stamp-rules';
 import { asDiceStage, DiceStage } from '@axe/domain/dice/dice-3d/dice-stage';
+import { type DjPads, readDjPads, writeDjPads } from '@axe/domain/media/dj-pads';
 import { type DjSettings, readDjSettings, writeDjSettings } from '@axe/domain/media/dj-settings';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import {
@@ -44,6 +45,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_roomVolume') private _roomVolume: number = 1.0;
   @SyncVar('_roomKindVolumes') private _roomKindVolumes: string = '';
   @SyncVar('_djSettings') private _djSettings: string = '';
+  @SyncVar('_djPads') private _djPads: string = '';
   @SyncVar('_systemAvatarIdentifier') private _systemAvatarIdentifier: string = '';
   @SyncVar('_systemDiceAvatarIdentifier') private _systemDiceAvatarIdentifier: string = '';
   @SyncVar('_hideSystemAvatar') private _hideSystemAvatar: string = '';
@@ -204,6 +206,17 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set djSettings(settings: DjSettings) {
     this._djSettings = writeDjSettings(settings);
+  }
+
+  /**
+   * The sounds on the DJ deck's pads, which the game master sets for the room and anyone who may
+   * change what the room plays sets off. Every pad is empty in a room saved before there were pads.
+   */
+  get djPads(): DjPads {
+    return readDjPads(this._djPads);
+  }
+  set djPads(pads: DjPads) {
+    this._djPads = writeDjPads(pads);
   }
 
   /**

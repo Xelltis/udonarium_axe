@@ -967,7 +967,15 @@
         "cueSet": "Mark the place the track is at as cue {{ slot }}",
         "cueJump": "Jump to cue {{ slot }}. Right-click to clear it",
         "quantize": "Quantize",
-        "quantizeHint": "A change of track waits for the next bar, and a jump to a cue for the next beat. Cues are placed on the beat too"
+        "quantizeHint": "A change of track waits for the next bar, and a jump to a cue for the next beat. Cues are placed on the beat too",
+        "tab": {
+          "deck": "Deck",
+          "pads": "Pads",
+          "mix": "Mix"
+        },
+        "padEmpty": "Empty pad. The game master can press it to choose a sound",
+        "padFire": "Play {{ name }} (an effect once, a background sound on or off, music as the track). The game master can right-click to clear it",
+        "padPickerTitle": "Sound for pad {{ slot }}"
       }
     },
     "card": {

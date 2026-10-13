@@ -11,6 +11,7 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { DjConsoleService, EFFECTS_SHARE_MS, TAPS_TO_SET_TEMPO } from '@axe/features/media/dj-console.service';
+import { JukeboxPlaybackService } from '@axe/features/media/jukebox-playback.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const reading: AudioAnalysis = {
@@ -251,6 +252,32 @@ describe('DjConsoleService', () => {
       await waitZeroTimeout();
       expect(dj.cues()).toEqual([null, 20, null, null]);
       expect(jump).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('pads', () => {
+    it('lets the game master alone give a pad a sound or empty it', async () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      dj.assignPad(0, 'airhorn');
+      expect(Config.instance.djPads[0]).toBe('');
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      dj.assignPad(0, 'airhorn');
+      await waitZeroTimeout();
+      expect(dj.pads()[0]).toEqual({ slot: 0, identifier: 'airhorn', name: '', kind: 'music', ready: false });
+
+      dj.clearPad(0);
+      expect(Config.instance.djPads[0]).toBe('');
+    });
+
+    it('sets off nothing for a pad whose sound is not on this device', () => {
+      Config.instance.djPads = ['missing', '', '', '', '', '', '', ''];
+      const play = vi.spyOn(TestBed.inject(JukeboxPlaybackService), 'play').mockImplementation(() => {});
+
+      dj.firePad(0);
+      dj.firePad(5);
+
+      expect(play).not.toHaveBeenCalled();
     });
   });
 });
