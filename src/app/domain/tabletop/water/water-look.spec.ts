@@ -1,6 +1,8 @@
 import {
+  causticOpacity,
   deepWaterColor,
   depthsWash,
+  glintOpacity,
   rgbTripletOf,
   shadedWaterColor,
   underwaterDeepColor,
@@ -54,5 +56,16 @@ describe('the look of water', () => {
   it('gives a colour as the three numbers rgba() takes', () => {
     expect(rgbTripletOf('#06354f')).toBe('6, 53, 79');
     expect(rgbTripletOf('teal')).toBeNull();
+  });
+
+  it('lets less light through murky and deep water onto the floor', () => {
+    expect(causticOpacity(0.6, 1)).toBeLessThan(causticOpacity(0.6, 0) * 0.2);
+    expect(causticOpacity(0.6, 0, 6)).toBeLessThan(causticOpacity(0.6, 0, 0) * 0.6);
+    expect(glintOpacity(0.6, 1)).toBeLessThan(glintOpacity(0.6, 0));
+  });
+
+  it('clouds the surface of murky water itself', () => {
+    const top = (wash: string) => Number(/,\s*([\d.]+)\)/.exec(wash)?.[1]);
+    expect(top(waterSurfaceWash('#3399cc', 0.6, 1))).toBeGreaterThan(top(waterSurfaceWash('#3399cc', 0.6, 0)));
   });
 });

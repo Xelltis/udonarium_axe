@@ -35,20 +35,32 @@ export function waterLightMaskOf(
     else if (Math.abs(light - first) > 0.002) even = false;
   }
   if (even && first >= 0.998) return null;
+  return sampleOverSheet(grid, sheet, (index) => clamp01(lightOf(index)), total / sheet.cells.length);
+}
 
+/**
+ * A value read cell by cell over a sheet's box at half a cell, as alpha from 0 to 255, to stretch
+ * over the sheet so that the value runs smoothly from cell to cell. A sample off the sheet's cells
+ * takes `fallback`, which keeps the stretching from bleeding something else in at its edge.
+ */
+export function sampleOverSheet(
+  grid: CellGrid,
+  sheet: { left: number; top: number; width: number; height: number; cells: readonly number[] },
+  valueOf: (index: number) => number,
+  fallback: number
+): WaterLightMask {
   const step = grid.sizePx / SAMPLES_PER_CELL;
   const cols = Math.max(1, Math.ceil(sheet.width / step));
   const rows = Math.max(1, Math.ceil(sheet.height / step));
   const inSheet = new Set(sheet.cells);
-  const fallback = total / sheet.cells.length;
   const alpha = new Uint8ClampedArray(cols * rows);
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const x = sheet.left + ((col + 0.5) / cols) * sheet.width;
       const y = sheet.top + ((row + 0.5) / rows) * sheet.height;
       const index = cellIndexAt(grid, x, y);
-      const light = inSheet.has(index) ? clamp01(lightOf(index)) : fallback;
-      alpha[row * cols + col] = Math.round(light * 255);
+      const value = inSheet.has(index) ? valueOf(index) : fallback;
+      alpha[row * cols + col] = Math.round(clamp01(value) * 255);
     }
   }
   return { cols, rows, alpha };

@@ -5,6 +5,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('WaterService', () => {
@@ -73,6 +74,26 @@ describe('WaterService', () => {
     vi.spyOn(TestBed.inject(VisionService), 'isHiddenByFog').mockImplementation((x) => x > 2 * gridSize);
 
     expect(service.cells().size).toBe(2);
+  });
+
+  it('stands the water on the ground risen under it, and leaves ground risen to the surface dry', async () => {
+    const pond = await lay('water', 0, 0, 4, 1);
+    pond.surfaceHeight = 2;
+    const shelf = Terrain.create('浜', 1, 1, 1, '', '');
+    shelf.location = { name: 'table', x: gridSize, y: 0 };
+    const beach = Terrain.create('浜', 1, 1, 3, '', '');
+    beach.location = { name: 'table', x: 2 * gridSize, y: 0 };
+    table.appendChild(shelf);
+    table.appendChild(beach);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const cells = service.cells();
+
+    expect(cells.get(0)).toMatchObject({ floorPx: 0, flat: true });
+    expect(cells.get(1)).toMatchObject({ floorPx: gridSize, flat: false });
+    expect(cells.has(2)).toBe(false);
+    expect(service.groundOf(2)).toBe(3 * gridSize);
   });
 
   it('reads no light while the table has no darkness', async () => {

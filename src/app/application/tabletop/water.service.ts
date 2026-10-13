@@ -1,8 +1,11 @@
 import { computed, inject, Injectable } from '@angular/core';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { type CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
+import { landingHeightsOn } from '@axe/domain/tabletop/move/landing-height';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import { type WaterArea, type WaterCell, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
 
 const NO_CELLS: ReadonlyMap<number, WaterCell> = new Map();
@@ -19,6 +22,7 @@ export class WaterService {
   private readonly ambiences = inject(TableAmbienceService);
   private readonly tabletopService = inject(TabletopService);
   private readonly vision = inject(VisionService);
+  private readonly objectChange = inject(ObjectChangeService);
 
   /** The bodies of water this seat may see, in table pixels. */
   readonly areas = computed<WaterArea[]>(() => {
@@ -38,12 +42,34 @@ export class WaterService {
           surfacePx: floorPx + area.surface * gridSize,
           color: area.color,
           density: area.density,
+          turbidity: area.murk,
         };
       });
   });
 
   /** The grid of the table in view, or null where there is none to lay water on. */
   readonly grid = computed<CellGrid | null>(() => this.vision.cellGrid());
+
+  /**
+   * How high the ground stands in every cell, read only while there is water to stand over it.
+   *
+   * The ground is the bottom of the water: a slope running down from a beach makes the water over
+   * it shallow at the top and deep at the foot, and ground reaching the surface is the shore.
+   */
+  readonly ground = computed<Float64Array | null>(() => {
+    const grid = this.grid();
+    if (!grid || this.areas().length < 1) return null;
+    this.objectChange.collectionOf(Terrain.aliasName)();
+    const terrains = this.tabletopService.terrains;
+    for (const terrain of terrains) this.objectChange.versionOf(terrain.identifier)();
+    return landingHeightsOn(grid, terrains);
+  });
+
+  /** How high the ground stands in a cell, the floor where nothing stands there. */
+  readonly groundOf = (index: number): number => {
+    const ground = this.ground();
+    return ground && index >= 0 && index < ground.length ? ground[index] : 0;
+  };
 
   /**
    * The cells under water, by index.
@@ -55,7 +81,7 @@ export class WaterService {
     const grid = this.grid();
     const areas = this.areas();
     if (!grid || areas.length < 1) return NO_CELLS;
-    const cells = waterCellsOf(grid, areas);
+    const cells = waterCellsOf(grid, areas, this.groundOf);
     for (const [index, cell] of cells) {
       if (this.vision.isHiddenByFog(cell.cx, cell.cy)) cells.delete(index);
     }

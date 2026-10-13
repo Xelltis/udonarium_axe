@@ -10,7 +10,12 @@ import {
 } from '@axe/domain/effect/ambience/ambience-kind';
 import { asShownTo, ShownTo } from '@axe/domain/tabletop/shown-to';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
-import { DEFAULT_SURFACE_CELLS, surfaceCellsOf } from '@axe/domain/tabletop/water/water-surface';
+import {
+  DEFAULT_SURFACE_CELLS,
+  DEFAULT_TURBIDITY,
+  surfaceCellsOf,
+  turbidityOf,
+} from '@axe/domain/tabletop/water/water-surface';
 
 /**
  * An effect laid over one part of the board and left there, such as a poisoned marsh or a vent in the ground.
@@ -54,6 +59,11 @@ export class TableAmbience extends TabletopObject {
    * surface is drawn as seen through water.
    */
   @SyncVar() surfaceHeight: number = DEFAULT_SURFACE_CELLS;
+  /**
+   * How murky the water is, from 0 for clear to 1 for water nothing can be seen through. Only
+   * water reads it: the murkier, the sooner the bottom and whatever is under the surface are lost.
+   */
+  @SyncVar() turbidity: number = DEFAULT_TURBIDITY;
 
   /** How many grid cells wide the area is, kept in its common data. */
   get width(): number {
@@ -84,6 +94,11 @@ export class TableAmbience extends TabletopObject {
   /** How high the water stands over the floor, in cells, with an empty or unreadable value read as the default. */
   get surface(): number {
     return surfaceCellsOf(this.surfaceHeight);
+  }
+
+  /** How murky the water is, with an empty or unreadable value read as the default. */
+  get murk(): number {
+    return turbidityOf(this.turbidity);
   }
 
   /** The kind of effect, with an unknown stored kind read as swamp. */

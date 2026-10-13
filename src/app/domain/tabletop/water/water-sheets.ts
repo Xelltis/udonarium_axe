@@ -1,6 +1,6 @@
 import { cellColRow, type CellGrid, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import { type WaterCell, waterLookOf } from '@axe/domain/tabletop/water/water-cells';
+import type { WaterCell } from '@axe/domain/tabletop/water/water-cells';
 
 /**
  * Neighbouring cells of water that look alike, drawn as one piece: once on the floor and once
@@ -14,6 +14,7 @@ export interface WaterSheet {
   readonly surfacePx: number;
   readonly color: string;
   readonly density: number;
+  readonly turbidity: number;
   readonly left: number;
   readonly top: number;
   readonly width: number;
@@ -33,13 +34,20 @@ export interface WaterSheet {
  */
 export const WATER_CHUNK_CELLS = 8;
 
-/** Gathers the cells of water into sheets: one per look within each chunk of the board. */
-export function waterSheetsOf(grid: CellGrid, cells: ReadonlyMap<number, WaterCell>): WaterSheet[] {
+/**
+ * Gathers the cells of water into sheets: one per look within each chunk of the board, the look
+ * being what `lookOf` says it is.
+ */
+export function waterSheetsOf(
+  grid: CellGrid,
+  cells: Iterable<WaterCell>,
+  lookOf: (cell: WaterCell) => string
+): WaterSheet[] {
   const groups = new Map<string, WaterCell[]>();
-  const ordered = [...cells.values()].sort((a, b) => a.index - b.index);
+  const ordered = [...cells].sort((a, b) => a.index - b.index);
   for (const cell of ordered) {
     const { col, row } = cellColRow(grid, cell.index);
-    const key = `${Math.floor(col / WATER_CHUNK_CELLS)},${Math.floor(row / WATER_CHUNK_CELLS)}:${waterLookOf(cell)}`;
+    const key = `${Math.floor(col / WATER_CHUNK_CELLS)},${Math.floor(row / WATER_CHUNK_CELLS)}:${lookOf(cell)}`;
     const group = groups.get(key);
     if (group) group.push(cell);
     else groups.set(key, [cell]);
@@ -70,6 +78,7 @@ export function waterSheetsOf(grid: CellGrid, cells: ReadonlyMap<number, WaterCe
       surfacePx: first.surfacePx,
       color: first.color,
       density: first.density,
+      turbidity: first.turbidity,
       left: minX,
       top: minY,
       width: maxX - minX,

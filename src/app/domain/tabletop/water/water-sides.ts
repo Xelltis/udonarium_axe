@@ -34,11 +34,16 @@ const SQUARE_SIDE_STEPS: readonly (readonly [number, number])[] = [
  * The sides of the water that show.
  *
  * A side between two cells of water at one height is inside the water and is not drawn. Where
- * the water beside stands lower, only the part above it shows; where there is none, the whole
- * of it from the floor up. Each side is a face of its own, one cell long: one face run along a
+ * the water or the ground beside stands lower, only the part above it shows; where there is
+ * neither, the whole of it from the bottom of the water up. `groundOf` gives how high the ground
+ * stands in a cell. Each side is a face of its own, one cell long: one face run along a
  * whole bank is a long sheet the browser can sort wrongly against what stands beside it.
  */
-export function waterSidesOf(grid: CellGrid, cells: ReadonlyMap<number, WaterCell>): WaterSide[] {
+export function waterSidesOf(
+  grid: CellGrid,
+  cells: ReadonlyMap<number, WaterCell>,
+  groundOf: (index: number) => number = () => 0
+): WaterSide[] {
   const hex = isHexGrid(grid.type);
   const flatTop = isFlatTopGrid(grid.type);
   const sides: WaterSide[] = [];
@@ -50,8 +55,10 @@ export function waterSidesOf(grid: CellGrid, cells: ReadonlyMap<number, WaterCel
     const steps = hex ? hexSideStepsAt(flatTop, col, row) : SQUARE_SIDE_STEPS;
     for (let side = 0; side < corners.length; side++) {
       const [dx, dy] = steps[side];
-      const neighbour = cells.get(cellIndexOf(grid, col + dx, row + dy));
-      const bottomPx = neighbour ? Math.max(neighbour.surfacePx, cell.floorPx) : cell.floorPx;
+      const across = cellIndexOf(grid, col + dx, row + dy);
+      const neighbour = cells.get(across);
+      const beside = Math.max(neighbour?.surfacePx ?? 0, across >= 0 ? groundOf(across) : 0);
+      const bottomPx = Math.max(beside, cell.floorPx);
       if (bottomPx >= cell.surfacePx) continue;
       const from = corners[side];
       const to = corners[(side + 1) % corners.length];

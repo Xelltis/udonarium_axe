@@ -1,6 +1,6 @@
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/grid-type';
-import { type WaterArea, waterCellsOf, waterLookOf } from '@axe/domain/tabletop/water/water-cells';
+import { type WaterArea, waterCellsOf, waterSurfaceLookOf } from '@axe/domain/tabletop/water/water-cells';
 
 const G = 50;
 
@@ -15,6 +15,7 @@ function area(partial: Partial<WaterArea>): WaterArea {
     surfacePx: 25,
     color: '#3399cc',
     density: 0.6,
+    turbidity: 0.15,
     ...partial,
   };
 }
@@ -55,19 +56,43 @@ describe('waterCellsOf()', () => {
     expect(cells.get(0)?.surfacePx).toBe(40);
   });
 
+  it('stands the water only as deep as the surface over ground risen under it', () => {
+    const grid = cellGridOf(4, 1, G, GridType.SQUARE);
+    const ground = [0, 10, 30, 0];
+    const cells = waterCellsOf(grid, [area({ width: 4 * G, surfacePx: 50 })], (index) => ground[index]);
+
+    expect(cells.get(0)).toMatchObject({ floorPx: 0, flat: true });
+    expect(cells.get(1)).toMatchObject({ floorPx: 10, flat: false });
+    expect(cells.get(2)).toMatchObject({ floorPx: 30, flat: false });
+  });
+
+  it('leaves ground risen to the surface or above dry, as the shore of the water', () => {
+    const grid = cellGridOf(3, 1, G, GridType.SQUARE);
+    const ground = [0, 50, 80];
+    const cells = waterCellsOf(grid, [area({ width: 3 * G, surfacePx: 50 })], (index) => ground[index]);
+
+    expect([...cells.keys()]).toEqual([0]);
+  });
+
+  it('keeps water that only wets its floor, as nothing has risen under it', () => {
+    const grid = cellGridOf(2, 1, G, GridType.SQUARE);
+    const cells = waterCellsOf(grid, [area({ width: 2 * G, surfacePx: 0 })], () => 0);
+    expect(cells.size).toBe(2);
+  });
+
   it('leaves out what lies off the board', () => {
     const grid = cellGridOf(2, 2, G, GridType.SQUARE);
     expect(waterCellsOf(grid, [area({ left: 5 * G })]).size).toBe(0);
   });
 });
 
-describe('waterLookOf()', () => {
+describe('waterSurfaceLookOf()', () => {
   it('tells water of another height or colour apart', () => {
     const grid = cellGridOf(2, 2, G, GridType.SQUARE);
     const [a] = waterCellsOf(grid, [area({})]).values();
     const [b] = waterCellsOf(grid, [area({ surfacePx: 30 })]).values();
     const [c] = waterCellsOf(grid, [area({ color: '#000000' })]).values();
-    expect(waterLookOf(a)).not.toBe(waterLookOf(b));
-    expect(waterLookOf(a)).not.toBe(waterLookOf(c));
+    expect(waterSurfaceLookOf(a)).not.toBe(waterSurfaceLookOf(b));
+    expect(waterSurfaceLookOf(a)).not.toBe(waterSurfaceLookOf(c));
   });
 });

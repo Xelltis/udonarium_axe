@@ -24,7 +24,20 @@ export function lightMaskUrl(mask: WaterLightMask): string | null {
   return alphaImageUrl(mask.cols, mask.rows, mask.alpha);
 }
 
-function alphaImageUrl(width: number, height: number, alpha: Uint8ClampedArray): string | null {
+/**
+ * The colour of the depths over a sheet of water as a picture to lay on it, cell by cell, or null
+ * where none can be drawn. `rgb` is the colour of the depths and the samples how strongly it shows.
+ */
+export function depthShadeUrl(shade: WaterLightMask, rgb: readonly [number, number, number]): string | null {
+  return alphaImageUrl(shade.cols, shade.rows, shade.alpha, rgb);
+}
+
+function alphaImageUrl(
+  width: number,
+  height: number,
+  alpha: Uint8ClampedArray,
+  rgb: readonly [number, number, number] = [255, 255, 255]
+): string | null {
   if (typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -33,9 +46,9 @@ function alphaImageUrl(width: number, height: number, alpha: Uint8ClampedArray):
   if (!ctx || typeof ctx.createImageData !== 'function') return null;
   const image = ctx.createImageData(width, height);
   for (let index = 0; index < alpha.length; index++) {
-    image.data[index * 4] = 255;
-    image.data[index * 4 + 1] = 255;
-    image.data[index * 4 + 2] = 255;
+    image.data[index * 4] = rgb[0];
+    image.data[index * 4 + 1] = rgb[1];
+    image.data[index * 4 + 2] = rgb[2];
     image.data[index * 4 + 3] = alpha[index];
   }
   ctx.putImageData(image, 0, 0);

@@ -75,6 +75,16 @@ export class TableAmbienceSettingsComponent {
     this.target.update();
   }
 
+  /** How murky the water is, as a percentage; a change is sent to the room. Only water shows it. */
+  get turbidityPercent(): number {
+    return Math.round((this.target?.murk ?? 0) * 100);
+  }
+  set turbidityPercent(value: number) {
+    if (!this.target) return;
+    this.target.turbidity = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
+    this.target.update();
+  }
+
   /** The default colour is shown as the field's initial value, so it can be left unset. */
   get color(): string {
     return this.target?.color ?? ambiencePalette('swamp').primary;

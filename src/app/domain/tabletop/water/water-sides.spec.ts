@@ -18,6 +18,7 @@ function area(partial: Partial<WaterArea>): WaterArea {
     surfacePx: 25,
     color: '#3399cc',
     density: 0.6,
+    turbidity: 0.15,
     ...partial,
   };
 }
@@ -53,6 +54,26 @@ describe('waterSidesOf()', () => {
     const between = sides.filter((side) => side.x0 === 2 * G && side.x1 === 2 * G);
     expect(between).toHaveLength(1);
     expect(between[0]).toMatchObject({ bottomPx: 20, topPx: 50, index: cellIndexOf(grid, 1, 1) });
+  });
+
+  it('stands a side only above the ground beside it', () => {
+    const grid = cellGridOf(4, 4, G, GridType.SQUARE);
+    const east = cellIndexOf(grid, 2, 1);
+    const sides = waterSidesOf(grid, waterCellsOf(grid, [area({ surfacePx: 50 })]), (index) =>
+      index === east ? 20 : 0
+    );
+
+    const towardsEast = sides.find((side) => side.x0 === 2 * G && side.x1 === 2 * G);
+    expect(towardsEast).toMatchObject({ bottomPx: 20, topPx: 50 });
+  });
+
+  it('stands no side towards land as high as the surface', () => {
+    const grid = cellGridOf(4, 4, G, GridType.SQUARE);
+    const east = cellIndexOf(grid, 2, 1);
+    const sides = waterSidesOf(grid, waterCellsOf(grid, [area({ surfacePx: 50 })]), (index) =>
+      index === east ? 60 : 0
+    );
+    expect(sides).toHaveLength(3);
   });
 
   it('stands no side round water no higher than its floor', () => {

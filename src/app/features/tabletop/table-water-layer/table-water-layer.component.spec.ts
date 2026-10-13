@@ -4,6 +4,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TableWaterLayerComponent } from '@axe/features/tabletop/table-water-layer/table-water-layer.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -66,6 +67,26 @@ describe('TableWaterLayerComponent', () => {
 
     expect(element.querySelectorAll('[data-water-surface]')).toHaveLength(1);
     expect(element.querySelectorAll('[data-water-side]')).toHaveLength(0);
+  });
+
+  it('breaks waves on land rising to the surface, and lays the net of light only on the level floor', async () => {
+    // Three cells of sea running east up onto a beach as high as the surface in the last.
+    const sea = await lay('water', 3, 1, 1);
+    const beach = Terrain.create('浜', 1, 1, 1, '', '');
+    beach.location = { name: 'table', x: 3 * gridSize, y: gridSize };
+    const shelf = Terrain.create('浜', 1, 1, 0.5, '', '');
+    shelf.location = { name: 'table', x: 2 * gridSize, y: gridSize };
+    table.appendChild(beach);
+    table.appendChild(shelf);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(sea.surface).toBe(1);
+
+    const element = render();
+
+    expect(element.querySelectorAll('[data-water-shore]')).toHaveLength(1);
+    expect(element.querySelectorAll('[data-water-surface]')).toHaveLength(1);
+    expect(element.querySelectorAll('[data-water-floor]')).toHaveLength(1);
   });
 
   it('draws nothing for a look on the ground that is not water', async () => {

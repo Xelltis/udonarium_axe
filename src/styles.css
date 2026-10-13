@@ -3967,6 +3967,47 @@ body.mobile-layout ui-panel textarea {
   animation: none;
 }
 
+/*
+ * The waves breaking where land rises out of the water. A strip lies on the surface along the
+ * shore with the sea below it; each wave comes in from the sea, brightest at its front, and
+ * spends itself on the shore at the top. The foam left along the shore stays put.
+ */
+.water-foam {
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.5) 0%, rgb(255 255 255 / 0.12) 14%, transparent 30%);
+}
+
+.water-wave {
+  opacity: 0;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.8) 0%, rgb(255 255 255 / 0.25) 35%, transparent 100%);
+  animation: water-wave 3.6s ease-in infinite;
+}
+
+.water-wave-late {
+  animation-delay: -1.8s;
+}
+
+@keyframes water-wave {
+  0% {
+    transform: translateY(190%);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.9;
+  }
+  85% {
+    transform: translateY(0);
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+}
+
+:root.motion-reduced .water-wave {
+  animation: none;
+}
+
 /* The ring a piece standing in water makes on the surface: two rings, half a beat apart. */
 .water-ripple {
   opacity: 0;

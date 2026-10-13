@@ -1,6 +1,6 @@
 import { cellGridOf, cellIndexOf, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/grid-type';
-import { type WaterArea, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
+import { type WaterArea, waterCellsOf, waterSurfaceLookOf } from '@axe/domain/tabletop/water/water-cells';
 import { WATER_CHUNK_CELLS, waterSheetsOf } from '@axe/domain/tabletop/water/water-sheets';
 
 const G = 50;
@@ -16,6 +16,7 @@ function area(partial: Partial<WaterArea>): WaterArea {
     surfacePx: 25,
     color: '#3399cc',
     density: 0.6,
+    turbidity: 0.15,
     ...partial,
   };
 }
@@ -25,7 +26,7 @@ describe('waterSheetsOf()', () => {
     const grid = cellGridOf(10, 10, G, GridType.SQUARE);
     const cells = waterCellsOf(grid, [area({ left: G, top: G, width: 3 * G, height: 2 * G })]);
 
-    const sheets = waterSheetsOf(grid, cells);
+    const sheets = waterSheetsOf(grid, cells.values(), waterSurfaceLookOf);
 
     expect(sheets).toHaveLength(1);
     expect(sheets[0]).toMatchObject({ left: G, top: G, width: 3 * G, height: 2 * G, surfacePx: 25 });
@@ -39,14 +40,14 @@ describe('waterSheetsOf()', () => {
       area({ identifier: 'a', width: 2 * G }),
       area({ identifier: 'b', left: 2 * G, width: 2 * G, surfacePx: 50 }),
     ]);
-    expect(waterSheetsOf(grid, cells)).toHaveLength(2);
+    expect(waterSheetsOf(grid, cells.values(), waterSurfaceLookOf)).toHaveLength(2);
   });
 
   it('cuts a wide lake into chunks', () => {
     const grid = cellGridOf(40, 4, G, GridType.SQUARE);
     const cells = waterCellsOf(grid, [area({ width: (WATER_CHUNK_CELLS + 2) * G })]);
 
-    const sheets = waterSheetsOf(grid, cells);
+    const sheets = waterSheetsOf(grid, cells.values(), waterSurfaceLookOf);
 
     expect(sheets).toHaveLength(2);
     expect(sheets.map((sheet) => sheet.cells.length).sort((a, b) => a - b)).toEqual([2, WATER_CHUNK_CELLS]);
@@ -57,7 +58,7 @@ describe('waterSheetsOf()', () => {
       const grid = cellGridOf(10, 10, G, type);
       const cells = waterCellsOf(grid, [area({ left: 2 * G, top: 2 * G, width: 3 * G, height: 3 * G })]);
 
-      const sheets = waterSheetsOf(grid, cells);
+      const sheets = waterSheetsOf(grid, cells.values(), waterSurfaceLookOf);
 
       expect(sheets).toHaveLength(1);
       const sheet = sheets[0];

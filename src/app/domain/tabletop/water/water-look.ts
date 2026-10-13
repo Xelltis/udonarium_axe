@@ -58,34 +58,40 @@ export function depthsWash(deepColor: string, density: number): string {
 }
 
 /**
- * The colour of the surface itself: light enough to see the floor through, and brighter along one
- * side than the other as a sheet of water catches the sky.
+ * The colour of the surface itself: light enough to see the floor through. Murky water is less
+ * clear at the surface itself, before any depth is counted.
+ *
+ * It is one colour all over. A pond is drawn in pieces, and a shading laid across each piece
+ * would show every join; the light moving on the water is the glints laid over it.
  */
-export function waterSurfaceWash(color: string, density: number): string {
-  const alpha = 0.16 + 0.26 * clamp01(density);
-  return (
-    `linear-gradient(135deg, ${withAlpha(color, round(alpha * 1.25))} 0%,` +
-    ` ${withAlpha(color, round(alpha * 0.8))} 55%, ${withAlpha(color, round(alpha))} 100%)`
-  );
+export function waterSurfaceWash(color: string, density: number, turbidity = 0): string {
+  const alpha = round(0.16 + 0.26 * clamp01(density) + 0.3 * clamp01(turbidity));
+  const paint = withAlpha(color, alpha);
+  return `linear-gradient(${paint}, ${paint})`;
 }
 
-/** The colour of a side of the water: dark at the floor and lighter towards the surface. */
-export function waterSideWash(color: string, density: number): string {
+/** The colour of a side of the water: dark at the floor and lighter towards the surface, and thicker the murkier. */
+export function waterSideWash(color: string, density: number, turbidity = 0): string {
   const level = clamp01(density);
+  const murk = clamp01(turbidity);
   return (
-    `linear-gradient(to top, ${withAlpha(deepWaterColor(color), round(0.45 + 0.3 * level))} 0%,` +
-    ` ${withAlpha(color, round(0.18 + 0.22 * level))} 100%)`
+    `linear-gradient(to top, ${withAlpha(deepWaterColor(color), round(Math.min(0.45 + 0.3 * level + 0.2 * murk, 0.95)))} 0%,` +
+    ` ${withAlpha(color, round(0.18 + 0.22 * level + 0.35 * murk))} 100%)`
   );
 }
 
-/** How strongly the net of light shows on the floor. */
-export function causticOpacity(density: number): number {
-  return round(0.22 + 0.33 * clamp01(density));
+/**
+ * How strongly the net of light shows on the floor. The light that makes it has to come down
+ * through the water: murk scatters it and depth spreads it thin, so it fades with both.
+ */
+export function causticOpacity(density: number, turbidity = 0, depthCells = 0): number {
+  const through = (1 - 0.9 * clamp01(turbidity)) * Math.exp(-0.12 * Math.max(depthCells, 0));
+  return round((0.22 + 0.33 * clamp01(density)) * through);
 }
 
-/** How strongly the glints show on the surface. */
-export function glintOpacity(density: number): number {
-  return round(0.1 + 0.14 * clamp01(density));
+/** How strongly the glints show on the surface; murky water catches less of the sky. */
+export function glintOpacity(density: number, turbidity = 0): number {
+  return round((0.1 + 0.14 * clamp01(density)) * (1 - 0.6 * clamp01(turbidity)));
 }
 
 function rgbOf(color: string): [number, number, number] | null {

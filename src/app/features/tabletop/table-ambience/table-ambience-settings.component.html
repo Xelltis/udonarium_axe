@@ -46,6 +46,17 @@
           [(ngModel)]="surfaceCells"
           name="ambienceSurface"
         />
+
+        <label class="text-ui-muted text-[11px]">{{ 'feature.ambience.turbidityLabel' | transloco }}</label>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          class="w-full cursor-pointer [accent-color:var(--ui-accent)]"
+          [(ngModel)]="turbidityPercent"
+          name="ambienceTurbidity"
+        />
+        <span class="text-ui-muted text-right text-[11px]">{{ turbidityPercent }}%</span>
       }
 
       <label class="text-ui-muted text-[11px]">{{ 'feature.ambience.colorLabel' | transloco }}</label>
