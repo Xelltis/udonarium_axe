@@ -238,6 +238,17 @@ describe('DjConsoleService', () => {
       expect(dj.cues()[0]).toBeCloseTo(0.2 + 0.6 * 7, 6);
     });
 
+    it('builds each change on the one before, though the signals have yet to catch up', () => {
+      AudioProfile.setCues('track', [10, 20, 30, null]);
+
+      dj.clearCue(0);
+      dj.clearCue(1);
+      position = 5;
+      dj.pressCue(3);
+
+      expect(AudioProfile.cuesOf('track')).toEqual([null, null, 30, 5]);
+    });
+
     it('empties a slot, and lets a guest neither mark nor empty one', async () => {
       AudioProfile.setCues('track', [10, 20, null, null]);
       dj.clearCue(0);

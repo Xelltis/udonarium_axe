@@ -206,6 +206,14 @@ export class DjConsoleService {
     return this.objectStore.get<Jukebox>('Jukebox') ?? null;
   }
 
+  /**
+   * The room's track as it stands now. Changes read it here rather than through the signals, which
+   * catch up with a change only once it has gone round, so two changes in a row build on each other.
+   */
+  private get playingTrack(): string {
+    return this.jukebox?.audioIdentifier ?? '';
+  }
+
   private followProfile(identifier: string): void {
     this.analysis.version();
     this.objectChange.versionOf(`audiotag_${identifier}`)();
@@ -244,13 +252,13 @@ export class DjConsoleService {
    * bar's first beat when the track had no beats.
    */
   tap(): void {
-    const identifier = this.track();
+    const identifier = this.playingTrack;
     if (!identifier || !this.rolePermission.canEditTabletop) return;
     const bpm = this.tapTempo.tap({ atMs: performance.now(), position: this.position() });
     this._tappedBpm.set(bpm);
     const last = this.tapTempo.last;
     if (bpm === null || !last || this.tapTempo.count < TAPS_TO_SET_TEMPO) return;
-    const before = this.grid();
+    const before = AudioProfile.gridOf(identifier);
     const nearest = before ? Math.round(beatsAt(before, last.position)) : 0;
     const beatOfBar = ((nearest % BEATS_PER_BAR) + BEATS_PER_BAR) % BEATS_PER_BAR;
     const tempo = clampBpm(bpm);
@@ -276,7 +284,7 @@ export class DjConsoleService {
 
   /** Lets the room's track go back to the beats its reading found. */
   resetGrid(): void {
-    const identifier = this.track();
+    const identifier = this.playingTrack;
     if (!identifier || !this.rolePermission.canEditTabletop) return;
     this.tapTempo.reset();
     this._tappedBpm.set(null);
@@ -316,26 +324,27 @@ export class DjConsoleService {
    * the nearest beat while the room quantises, and one holding a place jumps the room there.
    */
   pressCue(slot: number): void {
-    const identifier = this.track();
+    const identifier = this.playingTrack;
     if (!identifier || !this.rolePermission.canEditTabletop) return;
-    const at = this.cues()[slot];
+    const cues = AudioProfile.cuesOf(identifier);
+    const at = cues[slot];
     if (typeof at === 'number') {
       this.jukebox?.jumpTo(at);
       return;
     }
-    AudioProfile.setCues(identifier, withCuePoint(this.cues(), slot, this.markablePosition()));
+    AudioProfile.setCues(identifier, withCuePoint(cues, slot, this.markablePosition(identifier)));
   }
 
   /** Empties one of the track's cue slots. */
   clearCue(slot: number): void {
-    const identifier = this.track();
+    const identifier = this.playingTrack;
     if (!identifier || !this.rolePermission.canEditTabletop) return;
-    AudioProfile.setCues(identifier, withCuePoint(this.cues(), slot, null));
+    AudioProfile.setCues(identifier, withCuePoint(AudioProfile.cuesOf(identifier), slot, null));
   }
 
-  private markablePosition(): number {
+  private markablePosition(identifier: string): number {
     const position = this.position();
-    const grid = this.grid();
+    const grid = AudioProfile.gridOf(identifier);
     if (!grid || !this.settings().quantize) return position;
     return Math.max(0, grid.bar + Math.round(beatsAt(grid, position)) * beatLength(grid));
   }
@@ -345,10 +354,10 @@ export class DjConsoleService {
    * music becomes the room's track, crossfading and waiting for the bar as any change of track does.
    */
   firePad(slot: number): void {
-    const pad = this.pads()[slot];
-    const audio = pad?.identifier ? this.audioStorage.get(pad.identifier) : null;
-    if (!pad || !audio?.isReady || !this.rolePermission.canEditTabletop) return;
-    if (pad.kind === 'background') this.backgroundSounds.toggle(audio);
+    const identifier = this.objectStore.get<Config>('Config')?.djPads[slot] ?? '';
+    const audio = identifier ? this.audioStorage.get(identifier) : null;
+    if (!audio?.isReady || !this.rolePermission.canEditTabletop) return;
+    if (padKindOf(identifier) === 'background') this.backgroundSounds.toggle(audio);
     else this.playback.play(audio);
   }
 
@@ -382,8 +391,8 @@ export class DjConsoleService {
   }
 
   private changeGrid(change: (grid: BeatGrid) => BeatGrid): void {
-    const identifier = this.track();
-    const grid = this.grid();
+    const identifier = this.playingTrack;
+    const grid = identifier ? AudioProfile.gridOf(identifier) : null;
     if (!identifier || !grid || !this.rolePermission.canEditTabletop) return;
     this.setGrid(identifier, change(grid));
   }
