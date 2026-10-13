@@ -176,4 +176,22 @@ describe('ChatSearchBarComponent', () => {
     fixture.destroy();
     expect(drawn.hasAttribute(CHAT_SEARCH_CURRENT_ATTRIBUTE)).toBe(false);
   });
+
+  it('leaves nothing picked out when closed while the line it found is still being brought into view', async () => {
+    const line = say('松明');
+    const drawn = document.createElement('chat-message');
+    drawn.dataset['messageId'] = line.identifier;
+    log.appendChild(drawn);
+    let drawnInView: (element: HTMLElement | null) => void = () => undefined;
+    reveal.mockImplementation(() => new Promise((resolve) => (drawnInView = resolve)));
+    await open();
+    await type('松明');
+
+    fixture.destroy();
+    drawnInView(drawn);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(drawn.hasAttribute(CHAT_SEARCH_CURRENT_ATTRIBUTE)).toBe(false);
+  });
 });
