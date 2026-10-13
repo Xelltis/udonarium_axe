@@ -205,13 +205,21 @@ export class Jukebox extends GameObject {
 
   /** How far into the room's track it is, in seconds: where this peer is playing, or where it was paused. */
   get position(): number {
-    if (this.isPlaying) return this.audioPlayer.currentTime;
+    if (this.isPlaying) return this.isSoundingTrack ? this.audioPlayer.currentTime : 0;
     return this.isPaused ? Number(this.startTime) || 0 : 0;
   }
 
   /** The length of the track this peer is playing, in seconds. */
   get duration(): number {
-    return this.audioPlayer.duration;
+    return this.isSoundingTrack ? this.audioPlayer.duration : 0;
+  }
+
+  /**
+   * Whether this peer's player holds the room's track, which it does not while the track has yet to
+   * start, as when a change of track waits for the bar and the track before still sounds.
+   */
+  private get isSoundingTrack(): boolean {
+    return this.soundingIdentifier !== '' && this.soundingIdentifier === this.audioIdentifier;
   }
 
   /** Steps the room's repeat mode from none to all to one and round again, and shares the change. */
@@ -288,7 +296,7 @@ export class Jukebox extends GameObject {
   /** Stops the room's track where it is, keeping it to go on from there. Does nothing unless it is playing. */
   pause(): void {
     if (!this.isPlaying || !this.audioIdentifier) return;
-    const at = this.audioPlayer.currentTime;
+    const at = this.isSoundingTrack ? this.audioPlayer.currentTime : 0;
     GameObject.batch(() => {
       this.startTime = Number.isFinite(at) && at > 0 ? at : 0;
       this.isPlaying = false;
@@ -310,7 +318,7 @@ export class Jukebox extends GameObject {
    */
   brakeStop(): void {
     if (!this.isPlaying || !this.audioIdentifier) return;
-    const at = this.audioPlayer.currentTime;
+    const at = this.isSoundingTrack ? this.audioPlayer.currentTime : 0;
     GameObject.batch(() => {
       this.startTime = Number.isFinite(at) && at > 0 ? at : 0;
       this.isPlaying = false;
@@ -386,10 +394,12 @@ export class Jukebox extends GameObject {
    * other over the room's crossfade, and the silence at the end of a track is not waited through.
    *
    * Called a few times a second while the room plays; it does nothing on repeat one, without a
-   * crossfade, while the track's length is not known, or before the point to move on at.
+   * crossfade, while the track's length is not known, before the point to move on at, while a
+   * change of track waits for its bar, and on the last track when the room does not go round, which
+   * plays to its end.
    */
   tickAutomix(): void {
-    if (!this.isPlaying || this.repeatMode === 'one' || !this.audioIdentifier) return;
+    if (!this.isPlaying || this.repeatMode === 'one' || !this.isSoundingTrack || this.pendingChange !== null) return;
     const fadeS = roomMix().crossfadeS;
     const player = this.audioPlayer;
     if (fadeS <= 0 || player.paused) return;
@@ -397,7 +407,10 @@ export class Jukebox extends GameObject {
     if (!Number.isFinite(duration) || duration <= fadeS) return;
     const end = AudioProfile.analysisOf(this.audioIdentifier)?.end ?? duration;
     const lastSound = end > 0 && end < duration ? end : duration;
-    if (player.currentTime >= lastSound - fadeS) this.onTrackNaturallyEnded();
+    if (player.currentTime < lastSound - fadeS) return;
+    const { identifier, wrapped } = trackAfter(this.playOrder, this.audioIdentifier);
+    if (!identifier || (wrapped && this.repeatMode !== 'all')) return;
+    this.onTrackNaturallyEnded();
   }
 
   /**

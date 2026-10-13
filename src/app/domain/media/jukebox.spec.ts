@@ -1294,6 +1294,19 @@ describe('Jukebox', () => {
         expect(jukebox.audioIdentifier).toBe('b');
       });
 
+      it('lets the last track play to its end when the room does not go round', () => {
+        roomMixing({ crossfadeS: 2 });
+        const jukebox = makeJukebox();
+        jukebox.repeatMode = 'none';
+        jukebox.play('c');
+
+        playingAt(99);
+        jukebox.tickAutomix();
+
+        expect(jukebox.audioIdentifier).toBe('c');
+        expect(jukebox.isPlaying).toBe(true);
+      });
+
       it('stays on repeat one, without a crossfade, and while the length is not known', () => {
         const jukebox = makeJukebox();
         jukebox.play('a');
@@ -1496,6 +1509,39 @@ describe('Jukebox', () => {
       expect(played).toEqual(['a']);
       vi.advanceTimersByTime(1);
       expect(played).toEqual(['a', 'b']);
+    });
+
+    it('tells no place in the new track while the change waits, and keeps none if paused then', () => {
+      roomQuantises();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      vi.spyOn(AudioPlayer.prototype, 'duration', 'get').mockReturnValue(100);
+      expect(jukebox.position).toBe(1.25);
+
+      jukebox.play('b');
+      expect(jukebox.position).toBe(0);
+      expect(jukebox.duration).toBe(0);
+
+      jukebox.pause();
+      expect(jukebox.startTime).toBe(0);
+    });
+
+    it('looks for no point to move on at while a change waits for its bar', () => {
+      roomQuantises();
+      const config = ObjectStore.instance.get<Config>('Config')!;
+      config.djSettings = { ...config.djSettings, crossfadeS: 2 };
+      const playlist = new Playlist(Playlist.DEFAULT_IDENTIFIER);
+      playlist.entries = ['a', 'b', 'c'];
+      playlist.initialize();
+      const jukebox = makeJukebox();
+      jukebox.repeatMode = 'all';
+      jukebox.play('a');
+      jukebox.play('b');
+      vi.spyOn(AudioPlayer.prototype, 'duration', 'get').mockReturnValue(2.5);
+
+      jukebox.tickAutomix();
+
+      expect(jukebox.audioIdentifier).toBe('b');
     });
 
     it('forgets a change still waiting when the room pauses', () => {
