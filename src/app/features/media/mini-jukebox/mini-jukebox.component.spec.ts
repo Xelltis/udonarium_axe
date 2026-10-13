@@ -9,6 +9,7 @@ import { BackgroundSound } from '@axe/domain/media/background-sound';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { DJ_DECK_OPEN_STORAGE_KEY, readDeckOpen } from '@axe/features/media/mini-jukebox/dj-deck-preference';
 import { MiniJukeboxComponent } from '@axe/features/media/mini-jukebox/mini-jukebox.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -120,6 +121,31 @@ describe('MiniJukeboxComponent', () => {
 
       expect(BackgroundSound.playing()).toEqual([]);
       expect(line()).toBeNull();
+    });
+  });
+  describe('the DJ deck', () => {
+    const toggle = () =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+        '[data-testid="mini-jukebox-dj-deck-toggle"]'
+      )!;
+    const deck = () => (fixture.nativeElement as HTMLElement).querySelector('app-dj-deck');
+
+    it('is closed until opened, then opens under the player and is remembered in this browser', async () => {
+      await fixture.whenStable();
+      expect(deck()).toBeNull();
+      expect(toggle().getAttribute('aria-pressed')).toBe('false');
+
+      toggle().click();
+      await fixture.whenStable();
+
+      expect(deck()).not.toBeNull();
+      expect(localStorage.getItem(DJ_DECK_OPEN_STORAGE_KEY)).toBe('1');
+      expect(readDeckOpen()).toBe(true);
+
+      toggle().click();
+      await fixture.whenStable();
+      expect(deck()).toBeNull();
+      expect(readDeckOpen()).toBe(false);
     });
   });
 });

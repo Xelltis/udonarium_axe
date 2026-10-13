@@ -25,6 +25,8 @@ import {
   formatTrackTime,
   JukeboxPlaybackService,
 } from '@axe/features/media/jukebox-playback.service';
+import { DjDeckComponent } from '@axe/features/media/mini-jukebox/dj-deck/dj-deck.component';
+import { readDeckOpen, writeDeckOpen } from '@axe/features/media/mini-jukebox/dj-deck-preference';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -32,7 +34,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-mini-jukebox',
   templateUrl: './mini-jukebox.component.html',
-  imports: [FormsModule, DraggableDirective, TranslocoModule],
+  imports: [FormsModule, DraggableDirective, TranslocoModule, DjDeckComponent],
 })
 export class MiniJukeboxComponent {
   private readonly objectStore = inject(ObjectStore);
@@ -45,6 +47,8 @@ export class MiniJukeboxComponent {
 
   readonly isPlaylistOpen = signal(false);
   readonly isMinimized = signal(false);
+  /** Whether the DJ deck is open under the player, remembered in this browser. */
+  readonly isDeckOpen = signal(readDeckOpen());
   readonly isTitleScrolling = signal(false);
   readonly isSeekLocked = computed<boolean>(() => {
     this.objectChange.versionOf('Jukebox')();
@@ -234,6 +238,13 @@ export class MiniJukeboxComponent {
   /** Opens or closes the track list under the player. */
   togglePlaylist() {
     this.isPlaylistOpen.update((v) => !v);
+  }
+
+  /** Opens or closes the DJ deck under the player, and remembers which in this browser. */
+  toggleDeck() {
+    const open = !this.isDeckOpen();
+    this.isDeckOpen.set(open);
+    writeDeckOpen(open);
   }
 
   /**

@@ -930,6 +930,31 @@
         "portraitSlotHint": "Played from chat, this shows the speaking character's portrait; otherwise this layer's own picture, or a silhouette.",
         "insertSpeakerName": "Insert name",
         "speakerNameHint": "{character} becomes the name of whoever played it"
+      },
+      "djDeck": {
+        "open": "Open the DJ deck",
+        "close": "Close the DJ deck",
+        "spectrum": "How strong each frequency of the music is",
+        "analyzing": "Analyzing…",
+        "noBeat": "No beat found",
+        "manualTempo": "Beat set by hand",
+        "tapHint": "Tap along with the beat. From the fourth tap the tempo and the beat are set on this track",
+        "halve": "Halve the tempo",
+        "double": "Double the tempo",
+        "downbeatHere": "Make this point the first beat of a bar",
+        "resetTempo": "Go back to the tempo the analysis found",
+        "loudness": "Loudness",
+        "loudnessHint": "How loud the whole track was read to be (LUFS)",
+        "level": "Level",
+        "levelHint": "How far the track is turned up or down to match the others",
+        "off": "Off",
+        "autoLevel": "Auto level",
+        "autoLevelHint": "Brings music, effects and background sounds to an even loudness for their kind",
+        "ducking": "Ducking",
+        "duckingHint": "Lowers the music while sound effects and cut-ins play",
+        "crossfade": "Crossfade",
+        "crossfadeHint": "How long one track overlaps the next when the track changes. While overlapping, the silence at the ends of tracks is skipped too",
+        "seconds": "{{ seconds }}s"
       }
     },
     "card": {

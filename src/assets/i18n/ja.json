@@ -930,6 +930,31 @@
         "portraitSlotHint": "チャットから再生したときは発言したキャラの立ち絵を出します。いないときはこの層の画像を、それもなければ影絵を出します。",
         "insertSpeakerName": "名前を入れる",
         "speakerNameHint": "{character} が再生した人の名前になります"
+      },
+      "djDeck": {
+        "open": "DJデッキを開く",
+        "close": "DJデッキを閉じる",
+        "spectrum": "流れている曲の周波数ごとの強さ",
+        "analyzing": "解析中…",
+        "noBeat": "拍が見つかりません",
+        "manualTempo": "手で合わせた拍",
+        "tapHint": "曲の拍に合わせて押します。4回目からテンポと拍の位置をこの曲に設定します",
+        "halve": "テンポを半分にする",
+        "double": "テンポを2倍にする",
+        "downbeatHere": "いまの位置を小節の1拍目にする",
+        "resetTempo": "解析したテンポに戻す",
+        "loudness": "ラウドネス",
+        "loudnessHint": "解析した曲全体の大きさ（LUFS）",
+        "level": "補正",
+        "levelHint": "曲の大きさをそろえるために上げ下げしている量",
+        "off": "なし",
+        "autoLevel": "自動音量",
+        "autoLevelHint": "曲・効果音・環境音の大きさを種類ごとにそろえます",
+        "ducking": "ダッキング",
+        "duckingHint": "効果音とカットインが鳴る間だけBGMを下げます",
+        "crossfade": "クロスフェード",
+        "crossfadeHint": "曲を切り替えるとき前の曲と重ねる長さ。重ねるときは曲の前後の無音も詰めます",
+        "seconds": "{{ seconds }}秒"
       }
     },
     "card": {

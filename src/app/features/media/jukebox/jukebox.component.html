@@ -429,7 +429,17 @@
             }
           </div>
           <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-            <div class="text-ui-text truncate text-[12px] font-medium">{{ audio.name }}</div>
+            <div class="flex min-w-0 items-baseline gap-1.5">
+              <div class="text-ui-text min-w-0 truncate text-[12px] font-medium">{{ audio.name }}</div>
+              @if (playback.tempos().get(audio.identifier); as bpm) {
+                <span
+                  class="text-ui-dim shrink-0 text-[10px] [font-variant-numeric:tabular-nums]"
+                  title="BPM"
+                  data-testid="jukebox-track-bpm"
+                  >{{ bpm }}</span
+                >
+              }
+            </div>
             <select
               class="bg-ui-input border-ui-border-panel text-ui-muted rounded-ui-sm focus:border-ui-accent w-fit cursor-pointer border border-solid px-1 py-px text-[10px] outline-none disabled:cursor-not-allowed disabled:opacity-40"
               [ngModel]="getTagOf(audio)"
@@ -656,7 +666,17 @@
             }
           </div>
           <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-            <div class="text-ui-text truncate text-[12px] font-medium">{{ audio.name }}</div>
+            <div class="flex min-w-0 items-baseline gap-1.5">
+              <div class="text-ui-text min-w-0 truncate text-[12px] font-medium">{{ audio.name }}</div>
+              @if (playback.tempos().get(audio.identifier); as bpm) {
+                <span
+                  class="text-ui-dim shrink-0 text-[10px] [font-variant-numeric:tabular-nums]"
+                  title="BPM"
+                  data-testid="jukebox-track-bpm"
+                  >{{ bpm }}</span
+                >
+              }
+            </div>
             <div
               class="text-ui-accent bg-ui-accent-bg border-ui-accent rounded-ui-sm w-fit border border-solid px-1.25 text-[10px] leading-normal"
             >

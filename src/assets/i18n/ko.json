@@ -930,6 +930,31 @@
         "portraitSlotHint": "채팅에서 재생하면 발언한 캐릭터의 스탠딩을 표시합니다. 없으면 이 레이어의 이미지를, 그것도 없으면 실루엣을 표시합니다.",
         "insertSpeakerName": "이름 넣기",
         "speakerNameHint": "{character}가 재생한 사람의 이름이 됩니다"
+      },
+      "djDeck": {
+        "open": "DJ 덱 열기",
+        "close": "DJ 덱 닫기",
+        "spectrum": "재생 중인 곡의 주파수별 세기",
+        "analyzing": "분석 중…",
+        "noBeat": "박자를 찾지 못했습니다",
+        "manualTempo": "직접 맞춘 박자",
+        "tapHint": "곡의 박자에 맞춰 누릅니다. 네 번째부터 템포와 박자 위치를 이 곡에 설정합니다",
+        "halve": "템포를 절반으로",
+        "double": "템포를 두 배로",
+        "downbeatHere": "지금 위치를 마디의 첫 박으로",
+        "resetTempo": "분석한 템포로 되돌리기",
+        "loudness": "라우드니스",
+        "loudnessHint": "분석한 곡 전체의 크기(LUFS)",
+        "level": "보정",
+        "levelHint": "곡의 크기를 맞추기 위해 올리거나 내린 양",
+        "off": "없음",
+        "autoLevel": "자동 음량",
+        "autoLevelHint": "곡·효과음·환경음의 크기를 종류별로 맞춥니다",
+        "ducking": "더킹",
+        "duckingHint": "효과음과 컷인이 울리는 동안만 BGM을 낮춥니다",
+        "crossfade": "연결",
+        "crossfadeHint": "곡을 바꿀 때 앞 곡과 겹치는 길이. 겹칠 때는 곡 앞뒤의 무음도 줄입니다",
+        "seconds": "{{ seconds }}초"
       }
     },
     "card": {
