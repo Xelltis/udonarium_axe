@@ -318,6 +318,38 @@ describe('LoopPlayer', () => {
     });
   });
 
+  describe('setTrim()', () => {
+    it('glides a sounding loop to its volume times the trim', async () => {
+      const player = new LoopPlayer();
+      player.start(makeAudio(), 0.8, 0);
+      await vi.waitFor(() => expect(sources()).toHaveLength(1));
+
+      player.setTrim(1.5, 2);
+
+      expect(playerGain().gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(expect.closeTo(1.2, 9), 2);
+    });
+
+    it('is kept from before the start, the sound fading in to its volume times the trim', async () => {
+      const player = new LoopPlayer();
+      player.setTrim(0.5);
+      player.start(makeAudio(), 0.8, 1000);
+
+      await vi.waitFor(() => expect(sources()).toHaveLength(1));
+      expect(playerGain().gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(0.4, 1);
+    });
+
+    it('carries over into a later change of volume', async () => {
+      const player = new LoopPlayer();
+      player.setTrim(2);
+      player.start(makeAudio(), 0.8, 0);
+      await vi.waitFor(() => expect(sources()).toHaveLength(1));
+
+      player.setVolume(0.3);
+
+      expect(playerGain().gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(0.6, 0.08);
+    });
+  });
+
   describe('isAwaitingGesture', () => {
     it('is set when the browser refuses a streamed sound for want of a gesture', async () => {
       playResult = () => Promise.reject(Object.assign(new Error('blocked'), { name: 'NotAllowedError' }));

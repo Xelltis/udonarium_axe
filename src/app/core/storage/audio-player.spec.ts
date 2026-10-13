@@ -1,12 +1,18 @@
 import { Logger, LogLevel } from '@axe/core/logging/logger';
 import { AudioFile } from '@axe/core/storage/audio-file';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { AudioPlayer, type ChannelInsert, VolumeType } from '@axe/core/storage/audio-player';
 import { loopTaggedWavBlob } from '@axe/testing/loop-tagged-audio';
 
 // ─── AudioContext mock ────────────────────────────────────────────────────────
 
 type GainNodeMock = {
-  gain: { setValueAtTime: ReturnType<typeof vi.fn>; setTargetAtTime: ReturnType<typeof vi.fn> };
+  gain: {
+    value: number;
+    setValueAtTime: ReturnType<typeof vi.fn>;
+    setTargetAtTime: ReturnType<typeof vi.fn>;
+    cancelScheduledValues: ReturnType<typeof vi.fn>;
+    linearRampToValueAtTime: ReturnType<typeof vi.fn>;
+  };
   connect: ReturnType<typeof vi.fn>;
   disconnect: ReturnType<typeof vi.fn>;
 };
@@ -22,10 +28,23 @@ type AudioBufferSourceNodeMock = {
 
 function makeGainNode(): GainNodeMock {
   return {
-    gain: { setValueAtTime: vi.fn(), setTargetAtTime: vi.fn() },
+    gain: {
+      value: 1,
+      setValueAtTime: vi.fn(),
+      setTargetAtTime: vi.fn(),
+      cancelScheduledValues: vi.fn(),
+      linearRampToValueAtTime: vi.fn(),
+    },
     connect: vi.fn(),
     disconnect: vi.fn(),
   };
+}
+
+/** Where a source's sound goes once past the player's own fader and trim, which it always meets first. */
+function reachedPastTrim(source: { connect: ReturnType<typeof vi.fn> }): unknown {
+  const fader = source.connect.mock.calls[0][0] as GainNodeMock;
+  const trim = fader.connect.mock.calls[0][0] as GainNodeMock;
+  return trim.connect.mock.calls[0][0];
 }
 
 function makeBufferSource(): AudioBufferSourceNodeMock {
@@ -180,6 +199,18 @@ describe('AudioPlayer', () => {
       await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(3));
 
       expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(1);
+    });
+
+    it('plays it at the level asked, through the sound-effect channel', async () => {
+      const audio = makeAudioFile({ identifier: 'se-level', blob: new Blob(['x']) });
+
+      AudioPlayer.playSE(audio, 1.8);
+
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(1));
+      const source = audioCtxMock.createBufferSource.mock.results[0].value as AudioBufferSourceNodeMock;
+      const gain = source.connect.mock.calls[0][0] as GainNodeMock;
+      expect(gain.gain.setValueAtTime).toHaveBeenCalledWith(1.8, 0);
+      expect(gain.connect).toHaveBeenCalledWith(AudioPlayer.seNode);
     });
 
     it('decodes it again once the cache is cleared', async () => {
@@ -400,7 +431,7 @@ describe('AudioPlayer', () => {
       const source = audioCtxMock.createMediaElementSource.mock.results[0].value as {
         connect: ReturnType<typeof vi.fn>;
       };
-      expect(source.connect).toHaveBeenCalledWith(AudioPlayer.backgroundNode);
+      expect(reachedPastTrim(source)).toBe(AudioPlayer.backgroundNode);
     });
   });
 
@@ -602,7 +633,7 @@ describe('AudioPlayer', () => {
       const auditionNodeRef = AudioPlayer.auditionNode;
       player.play(af);
       const src = audioCtxMock.createMediaElementSource.mock.results[0].value;
-      expect(src.connect).toHaveBeenCalledWith(auditionNodeRef);
+      expect(reachedPastTrim(src)).toBe(auditionNodeRef);
     });
 
     it('connects the master volume to the root node', () => {
@@ -611,8 +642,7 @@ describe('AudioPlayer', () => {
       const af = makeAudioFile({ blob: new Blob(['x']), identifier: 'mst' });
       player.play(af);
       const src = audioCtxMock.createMediaElementSource.mock.results[0].value;
-      const masterGain = audioCtxMock.createGain.mock.results[0].value as GainNodeMock;
-      expect(src.connect).toHaveBeenCalledWith(masterGain);
+      expect(reachedPastTrim(src)).toBe(AudioPlayer.rootNode);
     });
 
     it('connects a sound effect to the effects node', () => {
@@ -623,7 +653,7 @@ describe('AudioPlayer', () => {
       const seNodeRef = AudioPlayer.seNode;
       player.play(af);
       const src = audioCtxMock.createMediaElementSource.mock.results[0].value;
-      expect(src.connect).toHaveBeenCalledWith(seNodeRef);
+      expect(reachedPastTrim(src)).toBe(seNodeRef);
     });
 
     it('carries the volume and loop onto a new element', () => {
@@ -741,6 +771,116 @@ describe('AudioPlayer', () => {
       expect(AudioPlayer.rootNode).toBe(AudioPlayer.channelNode(VolumeType.MASTER));
       expect(AudioPlayer.seNode).toBe(AudioPlayer.channelNode(VolumeType.SE));
       expect(AudioPlayer.backgroundNode).toBe(AudioPlayer.channelNode(VolumeType.BACKGROUND));
+    });
+
+    it('takes players straight to the volume while nothing is set between them', () => {
+      expect(AudioPlayer.channelInput(VolumeType.CUT_IN)).toBe(AudioPlayer.channelNode(VolumeType.CUT_IN));
+    });
+
+    it('sets something between a channel’s players and its volume, and leaves the other channels', () => {
+      const insert = { input: makeGainNode(), output: makeGainNode() };
+
+      AudioPlayer.setChannelInsert(VolumeType.MASTER, insert as unknown as ChannelInsert);
+
+      expect(AudioPlayer.channelInput(VolumeType.MASTER)).toBe(insert.input);
+      expect(insert.output.connect).toHaveBeenCalledWith(AudioPlayer.channelNode(VolumeType.MASTER));
+      expect(AudioPlayer.channelInput(VolumeType.SE)).toBe(AudioPlayer.channelNode(VolumeType.SE));
+    });
+
+    it('sends a player through what is set between it and the volume', () => {
+      const insert = { input: makeGainNode(), output: makeGainNode() };
+      AudioPlayer.setChannelInsert(VolumeType.MASTER, insert as unknown as ChannelInsert);
+      const player = new AudioPlayer(makeAudioFile({ blob: new Blob(['x']), identifier: 'through-insert' }));
+
+      player.play();
+
+      const src = audioCtxMock.createMediaElementSource.mock.results[0].value;
+      expect(reachedPastTrim(src)).toBe(insert.input);
+    });
+  });
+
+  describe('trim and fader', () => {
+    function faderOf(): GainNodeMock {
+      const src = audioCtxMock.createMediaElementSource.mock.results[0].value as { connect: ReturnType<typeof vi.fn> };
+      return src.connect.mock.calls[0][0] as GainNodeMock;
+    }
+
+    function trimOf(): GainNodeMock {
+      return faderOf().connect.mock.calls[0][0] as GainNodeMock;
+    }
+
+    it('is 1 until set, and carries a value set before playing onto the trim it plays through', () => {
+      const player = new AudioPlayer(makeAudioFile({ blob: new Blob(['x']), identifier: 'trim-early' }));
+      expect(player.trim).toBe(1);
+
+      player.trim = 2.5;
+      player.play();
+
+      expect(trimOf().gain.setValueAtTime).toHaveBeenCalledWith(2.5, 0);
+    });
+
+    it('glides a trim moved while playing in a straight line', () => {
+      const player = new AudioPlayer(makeAudioFile({ blob: new Blob(['x']), identifier: 'trim-glide' }));
+      player.play();
+
+      player.glideTrim(0.5, 1.5);
+
+      expect(player.trim).toBe(0.5);
+      expect(trimOf().gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.5, 1.5);
+    });
+
+    it('takes the trim off the channel when it stops, and puts it back when it plays again', () => {
+      const player = new AudioPlayer(makeAudioFile({ blob: new Blob(['x']), identifier: 'trim-stop' }));
+      player.play();
+      const trim = trimOf();
+
+      player.stop();
+      expect(trim.disconnect).toHaveBeenCalled();
+
+      player.play();
+      expect(trim.connect).toHaveBeenCalledTimes(2);
+    });
+
+    it('fades on the audio clock, leaving the volume as it was set', async () => {
+      vi.useFakeTimers();
+      try {
+        const player = new AudioPlayer(makeAudioFile({ blob: new Blob(['x']), identifier: 'fade-clock' }));
+        player.volume = 0.7;
+        player.fader = 0;
+        player.play();
+
+        const done = player.fadeVolumeTo(1, 2000);
+        vi.advanceTimersByTime(2000);
+        await done;
+
+        expect(faderOf().gain.linearRampToValueAtTime).toHaveBeenCalledWith(1, 2);
+        expect(player.fader).toBe(1);
+        expect(player.volume).toBe(0.7);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('resolves a fade cut short by another, or by a stop', async () => {
+      const player = new AudioPlayer(makeAudioFile({ blob: new Blob(['x']), identifier: 'fade-cut' }));
+      player.play();
+
+      const first = player.fadeVolumeTo(0, 60_000);
+      const second = player.fadeVolumeTo(1, 60_000);
+      await first;
+      player.stop();
+      await second;
+
+      expect(player.fader).toBe(1);
+    });
+
+    it('sets the fader at once before anything has played', async () => {
+      const player = new AudioPlayer();
+
+      await player.fadeVolumeTo(0.25, 1000);
+
+      expect(player.fader).toBe(0.25);
+      expect(audioCtxMock.createGain).not.toHaveBeenCalled();
     });
   });
 
