@@ -32,6 +32,7 @@ import {
   scumRimTileUrl,
   scumTileUrl,
 } from '@axe/features/tabletop/table-water-layer/caustic-texture';
+import { lotusTileUrl } from '@axe/features/tabletop/table-water-layer/lotus-texture';
 import { WaterPhaseDirective } from '@axe/features/tabletop/table-water-layer/water-phase.directive';
 import { Z_OFFSET_AMBIENCE_PX } from '@axe/ui/tabletop/z-offset';
 
@@ -56,6 +57,8 @@ const GLINT_SCALE = 2.2;
 const SILT_CELLS = 4.2;
 /** How many cells one repeat of the scum spans. */
 const SCUM_CELLS = 2.1;
+/** How many cells one repeat of the floating leaves spans: a leaf comes to about half a cell across. */
+const LEAF_CELLS = 3.6;
 
 /** The floor under a stretch of water, ready to draw. */
 export interface WaterFloorView {
@@ -91,6 +94,17 @@ export interface WaterSurfaceView {
   readonly scum: WaterPatternView | null;
   /** The rim along the edge of the scum, where its film catches the light, or null on clean water. */
   readonly scumRim: WaterPatternView | null;
+  /** The leaves floating on the water, or null where none do. */
+  readonly leaves: WaterLeavesView | null;
+}
+
+/** The leaves floating on a sheet of water, laid from the corner of the table like the nets. */
+export interface WaterLeavesView {
+  readonly url: string;
+  readonly tilePx: number;
+  readonly position: string;
+  /** How far they are darkened in the dark, or null where they are lit. */
+  readonly filter: string | null;
 }
 
 /** A pattern drifting on the surface, worn as a mask by a layer of one colour. */
@@ -255,6 +269,7 @@ export class TableWaterLayerComponent {
         glintOpacity: glintOpacity(sheet.density, sheet.turbidity, sheet.dirt),
         silt: silt > 0.01 ? { color: siltColorOf(tone), opacity: silt } : null,
         scum: scum > 0.01 ? { color: shadedWaterColor(scumColorOf(sheet.color), lit), opacity: scum } : null,
+        leaves: leavesOf(sheet, grid.sizePx, lit),
         scumRim:
           scum > 0.01
             ? {
@@ -341,6 +356,19 @@ function slantOf(length: number, height: number, startRise: number, endRise: num
 
 function clipOf(sheet: WaterSheet): string {
   return `path('${sheet.path}')`;
+}
+
+/** The leaves floating on a sheet, or null where none do. */
+function leavesOf(sheet: WaterSheet, gridSize: number, lit: number): WaterLeavesView | null {
+  const url = lotusTileUrl(sheet.leaves);
+  if (!url) return null;
+  const net = { tilePx: Math.round(gridSize * LEAF_CELLS), url };
+  return {
+    url,
+    tilePx: net.tilePx,
+    position: netPosition(net, sheet),
+    filter: lit < 0.999 ? `brightness(${Math.round(lit * 1000) / 1000})` : null,
+  };
 }
 
 /** The colour of the depths as a layer of the surface: one colour for one depth, or a picture of it. */

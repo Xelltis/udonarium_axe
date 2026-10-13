@@ -106,7 +106,7 @@ export class TableAmbienceSettingsComponent {
   /** Which of the looks water can be given it has, or null where its settings match none of them. */
   get waterPreset(): WaterPresetId | null {
     const target = this.target;
-    return target ? waterPresetOf(target.ambienceColor, target.murk, target.dirt) : null;
+    return target ? waterPresetOf(target.ambienceColor, target.murk, target.dirt, target.leaves) : null;
   }
   set waterPreset(id: WaterPresetId | null) {
     const preset = waterPresetNamed(id);
@@ -114,6 +114,17 @@ export class TableAmbienceSettingsComponent {
     this.target.ambienceColor = preset.color;
     this.target.turbidity = preset.turbidity;
     this.target.dirtiness = preset.dirt;
+    this.target.floatingLeaves = preset.leaves;
+    this.target.update();
+  }
+
+  /** How much of the water floating leaves cover, as a percentage; a change is sent to the room. Only water shows it. */
+  get leavesPercent(): number {
+    return Math.round((this.target?.leaves ?? 0) * 100);
+  }
+  set leavesPercent(value: number) {
+    if (!this.target) return;
+    this.target.floatingLeaves = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
     this.target.update();
   }
 

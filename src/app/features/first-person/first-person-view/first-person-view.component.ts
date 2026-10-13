@@ -140,6 +140,7 @@ import {
 import { FogAirLayer, fogAirLayers } from '@axe/features/tabletop/fog-of-war/fog-air-layers';
 import { FOG_AIR_SHEET_MARGIN } from '@axe/features/tabletop/fog-of-war/fog-air-sheet';
 import { rangeQuadrantCells } from '@axe/features/tabletop/range/range-paint';
+import { lotusTileUrl } from '@axe/features/tabletop/table-water-layer/lotus-texture';
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
 import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { paintMinimap } from '@axe/infrastructure/first-person/minimap-painter';
@@ -168,6 +169,8 @@ const EFFECT_RISE_CELLS = 0.3;
 const MURK_SIGHT_LOSS = 0.8;
 /** How much of the scum on dirty water shows as a film over it, seen across the water from the eye. */
 const SCUM_TINT = 0.35;
+/** How many cells one repeat of the floating leaves spans, as on the table. */
+const LEAF_CELLS = 3.6;
 /** How murky the whole map under water is for each part of its weather's thickness. */
 const WEATHER_MURK = 0.5;
 /** What keeps the effects moving while the eye is under a pond. */
@@ -584,13 +587,24 @@ export class FirstPersonViewComponent {
         waterMurkLayer(tone, cell.turbidity),
         `linear-gradient(rgba(${deepRgb}, ${deepAlpha}), rgba(${deepRgb}, ${deepAlpha}))`,
       ].filter((layer) => layer.length > 0);
+      const sizes = layers.map(() => '100% 100%');
+      const positions = layers.map(() => '0 0');
+      // The leaves lie on top of the water, so they show only from above it; from below the surface hides them.
+      const leaves = quad.facing === 'up' ? lotusTileUrl(cell.leaves) : '';
+      if (leaves) {
+        const tile = gridSize * LEAF_CELLS;
+        const along = (offset: number) => -((((offset % tile) + tile) % tile) * scale);
+        layers.unshift(`url(${leaves})`);
+        sizes.unshift(`${tile * scale}px ${tile * scale}px`);
+        positions.unshift(`${along(quad.minX)}px ${along(quad.minY)}px`);
+      }
       views.push({
         id: `water:${cell.index}`,
         style: {
           ...planeQuadStyle(quad, scale, '', 0),
           backgroundImage: layers.join(', '),
-          backgroundSize: layers.map(() => '100% 100%').join(', '),
-          backgroundPosition: layers.map(() => '0 0').join(', '),
+          backgroundSize: sizes.join(', '),
+          backgroundPosition: positions.join(', '),
           opacity: `${Math.round(fade * 1000) / 1000}`,
         },
       });

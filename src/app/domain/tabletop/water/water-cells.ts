@@ -18,6 +18,8 @@ export interface WaterArea {
   readonly turbidity: number;
   /** How dirty it is, from 0 for clean to 1 for water thick with scum. */
   readonly dirt: number;
+  /** How much of it floating leaves cover, from 0 to 1. */
+  readonly leaves: number;
 }
 
 /** One cell under water. */
@@ -36,6 +38,7 @@ export interface WaterCell {
   readonly density: number;
   readonly turbidity: number;
   readonly dirt: number;
+  readonly leaves: number;
   /** The area it belongs to. */
   readonly area: string;
 }
@@ -96,6 +99,7 @@ export function waterCellsOf(
           density: area.density,
           turbidity: area.turbidity,
           dirt: area.dirt,
+          leaves: area.leaves,
           area: area.identifier,
         });
       }
@@ -114,7 +118,7 @@ export function waterFloorLookOf(cell: WaterCell): string {
  * piece however deep the water under them, the depth being painted onto the piece cell by cell.
  */
 export function waterSurfaceLookOf(cell: WaterCell): string {
-  return `${round(cell.surfacePx)}|${cell.color}|${round(cell.density)}|${round(cell.turbidity)}|${round(cell.dirt)}`;
+  return `${round(cell.surfacePx)}|${cell.color}|${round(cell.density)}|${round(cell.turbidity)}|${round(cell.dirt)}|${round(cell.leaves)}`;
 }
 
 function round(value: number): number {

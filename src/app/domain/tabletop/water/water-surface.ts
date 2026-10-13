@@ -45,3 +45,17 @@ export function dirtOf(value: unknown): number {
   if (!Number.isFinite(numeric)) return DEFAULT_DIRT;
   return Math.min(Math.max(numeric, 0), 1);
 }
+
+/** How much of the water floating leaves cover when nobody has said: none. */
+export const DEFAULT_LEAVES = 0;
+
+/**
+ * How much of the water floating leaves cover, from 0 for none to 1 for a pond crowded with them,
+ * read from what was stored. An empty or unreadable value reads as none.
+ */
+export function leavesOf(value: unknown): number {
+  if (value === '' || value === null || value === undefined) return DEFAULT_LEAVES;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return DEFAULT_LEAVES;
+  return Math.min(Math.max(numeric, 0), 1);
+}

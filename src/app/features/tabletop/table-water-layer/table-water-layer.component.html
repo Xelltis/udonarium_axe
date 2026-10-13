@@ -101,6 +101,16 @@
         [style.opacity]="surface.glintOpacity"
       ></div>
     }
+    @if (surface.leaves; as leaves) {
+      <div
+        class="pointer-events-none absolute inset-0"
+        data-water-leaves
+        [style.background-image]="'url(' + leaves.url + ')'"
+        [style.background-size.px]="leaves.tilePx"
+        [style.background-position]="leaves.position"
+        [style.filter]="leaves.filter"
+      ></div>
+    }
   </div>
 }
 @for (side of sideViews(); track side.key) {

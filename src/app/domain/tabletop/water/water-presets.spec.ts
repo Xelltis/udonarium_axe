@@ -1,9 +1,16 @@
 import { WATER_PRESETS, waterPresetNamed, waterPresetOf } from '@axe/domain/tabletop/water/water-presets';
 
 describe('the looks water can be given', () => {
-  it('tells which look water has from its colour, murkiness and dirt', () => {
+  it('tells which look water has from its colour, murkiness, dirt and leaves', () => {
     for (const preset of WATER_PRESETS) {
-      expect(waterPresetOf(preset.color, preset.turbidity, preset.dirt)).toBe(preset.id);
+      expect(waterPresetOf(preset.color, preset.turbidity, preset.dirt, preset.leaves)).toBe(preset.id);
+    }
+  });
+
+  it('crowds a lotus pond with floating leaves, and leaves every other look bare', () => {
+    expect(waterPresetNamed('lotus')?.leaves).toBeGreaterThan(0.3);
+    for (const preset of WATER_PRESETS.filter((candidate) => candidate.id !== 'lotus')) {
+      expect(preset.leaves).toBe(0);
     }
   });
 

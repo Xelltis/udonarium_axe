@@ -12,9 +12,11 @@ import { asShownTo, ShownTo } from '@axe/domain/tabletop/shown-to';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import {
   DEFAULT_DIRT,
+  DEFAULT_LEAVES,
   DEFAULT_SURFACE_CELLS,
   DEFAULT_TURBIDITY,
   dirtOf,
+  leavesOf,
   surfaceCellsOf,
   turbidityOf,
 } from '@axe/domain/tabletop/water/water-surface';
@@ -71,6 +73,11 @@ export class TableAmbience extends TabletopObject {
    * the dirtier, the duller its colour, the thicker the scum floating on it.
    */
   @SyncVar() dirtiness: number = DEFAULT_DIRT;
+  /**
+   * How much of the water floating leaves cover, from 0 for none to 1 for a pond crowded with
+   * them, some in flower. Only water reads it.
+   */
+  @SyncVar() floatingLeaves: number = DEFAULT_LEAVES;
 
   /** How many grid cells wide the area is, kept in its common data. */
   get width(): number {
@@ -111,6 +118,11 @@ export class TableAmbience extends TabletopObject {
   /** How dirty the water is, with an empty or unreadable value read as clean. */
   get dirt(): number {
     return dirtOf(this.dirtiness);
+  }
+
+  /** How much of the water floating leaves cover, with an empty or unreadable value read as none. */
+  get leaves(): number {
+    return leavesOf(this.floatingLeaves);
   }
 
   /** The kind of effect, with an unknown stored kind read as swamp. */

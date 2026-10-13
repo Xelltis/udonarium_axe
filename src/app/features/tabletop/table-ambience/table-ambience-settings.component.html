@@ -80,6 +80,17 @@
           name="ambienceDirt"
         />
         <span class="text-ui-muted text-right text-[11px]">{{ dirtPercent }}%</span>
+
+        <label class="text-ui-muted text-[11px]">{{ 'feature.ambience.leavesLabel' | transloco }}</label>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          class="w-full cursor-pointer [accent-color:var(--ui-accent)]"
+          [(ngModel)]="leavesPercent"
+          name="ambienceLeaves"
+        />
+        <span class="text-ui-muted text-right text-[11px]">{{ leavesPercent }}%</span>
       }
 
       <label class="text-ui-muted text-[11px]">{{ 'feature.ambience.colorLabel' | transloco }}</label>

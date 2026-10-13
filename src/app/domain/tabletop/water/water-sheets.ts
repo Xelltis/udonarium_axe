@@ -16,6 +16,7 @@ export interface WaterSheet {
   readonly density: number;
   readonly turbidity: number;
   readonly dirt: number;
+  readonly leaves: number;
   readonly left: number;
   readonly top: number;
   readonly width: number;
@@ -81,6 +82,7 @@ export function waterSheetsOf(
       density: first.density,
       turbidity: first.turbidity,
       dirt: first.dirt,
+      leaves: first.leaves,
       left: minX,
       top: minY,
       width: maxX - minX,

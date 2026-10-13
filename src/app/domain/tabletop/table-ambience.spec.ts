@@ -74,6 +74,15 @@ describe('TableAmbience', () => {
       expect(pond.murk).toBe(0.8);
     });
 
+    it('reads empty floating leaves as none', () => {
+      const pond = TableAmbience.create('池', 'water', 2, 2);
+      expect(pond.leaves).toBe(0);
+      pond.floatingLeaves = '' as unknown as number;
+      expect(pond.leaves).toBe(0);
+      pond.floatingLeaves = 0.6;
+      expect(pond.leaves).toBe(0.6);
+    });
+
     it('reads an empty dirt as clean', () => {
       const pond = TableAmbience.create('池', 'water', 2, 2);
       expect(pond.dirt).toBe(0);

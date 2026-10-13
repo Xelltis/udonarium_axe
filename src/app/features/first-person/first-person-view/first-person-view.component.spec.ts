@@ -1448,6 +1448,29 @@ describe('FirstPersonViewComponent', () => {
       expect(box?.style.opacity).toBe('');
     });
 
+    it('shows the leaves floating on a pond from above it, and not from under it', async () => {
+      // The leaves are drawn on a canvas the test runtime cannot draw on; a stand-in that takes every call lets them be laid.
+      const anything: () => unknown = () => ({ addColorStop: () => undefined });
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+        new Proxy({}, { get: () => anything, set: () => true }) as never
+      );
+      vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,AAAA');
+      const leavesOn = (view: HTMLElement) =>
+        Array.from(view.querySelectorAll<HTMLElement>('[data-water-quad]')).some((quad) =>
+          quad.style.backgroundImage.includes('data:image/png')
+        );
+
+      const shallow = pond(2, 4, 5, 6, 0.4);
+      shallow.floatingLeaves = 0.6;
+      lookOutOf(pieceAt(4, 7));
+      await settled();
+      expect(leavesOn(element(mount()))).toBe(true);
+
+      shallow.surfaceHeight = 2;
+      await settled();
+      expect(leavesOn(element(mount()))).toBe(false);
+    });
+
     it('draws the part of a piece in the water under the surface in the colour of the water', async () => {
       pond(3, 2, 3, 3, 0.5);
       const wader = pieceAt(4, 3);
