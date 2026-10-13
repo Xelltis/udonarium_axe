@@ -77,6 +77,7 @@ import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-ha
 import { NetworkIndicatorComponent } from '@axe/features/lobby/network-indicator/network-indicator.component';
 import { CutInEventHandlerService } from '@axe/features/media/cut-in-event-handler.service';
 import { MiniJukeboxComponent } from '@axe/features/media/mini-jukebox/mini-jukebox.component';
+import { MixEventHandlerService } from '@axe/features/media/mix-event-handler.service';
 import {
   isMenuGroupView,
   MenuCommandService,
@@ -440,6 +441,7 @@ export class AppComponent {
     inject(EffectChatEventHandlerService);
     inject(VoteEventHandlerService);
     inject(CutInEventHandlerService);
+    inject(MixEventHandlerService);
     inject(NetworkEventHandlerService);
     inject(RoomArchiveEventHandlerService);
     inject(ReplayEventHandlerService);

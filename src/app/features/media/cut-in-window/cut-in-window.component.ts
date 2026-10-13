@@ -28,6 +28,7 @@ import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { cutInPlaybackMs } from '@axe/domain/media/cut-in-playback-window';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import type { CutInSpeaker } from '@axe/domain/media/cut-in-speaker';
+import { mixLevelOf } from '@axe/domain/media/mix-level';
 import { Config } from '@axe/domain/peer/config';
 import { CutInStageComponent } from '@axe/features/media/cut-in-stage/cut-in-stage.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -268,6 +269,7 @@ export class CutInWindowComponent {
     if (audio && this.audioEnabled) {
       this.audioPlayer.volumeType = VolumeType.CUT_IN;
       this.audioPlayer.loop = this.cutIn.isLoop;
+      this.audioPlayer.trim = mixLevelOf(audio.identifier, 'music');
       if (!this.cutIn.videoId) {
         this.audioPlayer.play(audio);
         if (this.playbackOffsetMs > 0) this.audioPlayer.seekTo(this.playbackOffsetMs / 1000);

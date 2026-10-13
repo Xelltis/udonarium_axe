@@ -1,3 +1,4 @@
+import { MusicBus } from '@axe/core/audio/music-bus';
 import { updateAudioResource$ } from '@axe/core/event/domain-events';
 import { onFirstUserInteraction } from '@axe/core/input/user-interaction-unlock';
 import { AudioFile } from '@axe/core/storage/audio-file';
@@ -6,8 +7,10 @@ import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
+import { mixLevelOf, roomMix } from '@axe/domain/media/mix-level';
 import {
   nextShuffleSeed,
   randomShuffleSeed,
@@ -98,7 +101,7 @@ export class Jukebox extends GameObject {
   }
 
   private audioPlayer: AudioPlayer = new AudioPlayer();
-  private fadingPlayer: AudioPlayer | null = null;
+  private readonly fadingPlayers = new Set<AudioPlayer>();
   private audioUpdateCleanup: (() => void) | null = null;
   private releaseGestures: (() => void) | null = null;
   private isInitialSync = true;
@@ -106,6 +109,12 @@ export class Jukebox extends GameObject {
   private static readonly CROSSFADE_MS = 600;
   private static readonly SYNC_SEEK_THRESHOLD_MS = 250;
   private static readonly RESTART_THRESHOLD_S = 3;
+  /** How long a track takes to fade out when the room pauses or stops it. */
+  static readonly STOP_FADE_MS = 400;
+  /** How long a track already playing takes to come to a new level, as when its reading arrives. */
+  static readonly LEVEL_GLIDE_S = 1.5;
+  /** The silence at the head of a track that is skipped when tracks are mixed into each other, beyond which it is cut. */
+  static readonly LEAD_IN_KEPT_S = 0.3;
 
   /** The room's shared settings, whose room volume scales every volume here. */
   get config(): Config {
@@ -254,7 +263,7 @@ export class Jukebox extends GameObject {
       this.startTime = Number.isFinite(at) && at > 0 ? at : 0;
       this.isPlaying = false;
     });
-    this._stop();
+    this._stop(Jukebox.STOP_FADE_MS);
   }
 
   /** Goes on with the room's paused track from where it stopped. Does nothing unless one is paused. */
@@ -296,6 +305,36 @@ export class Jukebox extends GameObject {
   }
 
   /**
+   * Brings what this peer hears in line with the room's mix: the track and the background sounds
+   * eased to their levels, as when a reading arrives or the room turns levelling on or off, and the
+   * music ducked under effects or not.
+   */
+  refreshMix(): void {
+    MusicBus.setDucking(roomMix().ducking);
+    if (this.audioIdentifier) this.audioPlayer.glideTrim(this.trackLevel(), Jukebox.LEVEL_GLIDE_S);
+    for (const sound of BackgroundSound.playing()) sound.refreshLevel();
+  }
+
+  /**
+   * Moves the room on to the next track a little before this one ends, so the two fade into each
+   * other over the room's crossfade, and the silence at the end of a track is not waited through.
+   *
+   * Called a few times a second while the room plays; it does nothing on repeat one, without a
+   * crossfade, while the track's length is not known, or before the point to move on at.
+   */
+  tickAutomix(): void {
+    if (!this.isPlaying || this.repeatMode === 'one' || !this.audioIdentifier) return;
+    const fadeS = roomMix().crossfadeS;
+    const player = this.audioPlayer;
+    if (fadeS <= 0 || player.paused) return;
+    const duration = player.duration;
+    if (!Number.isFinite(duration) || duration <= fadeS) return;
+    const end = AudioProfile.analysisOf(this.audioIdentifier)?.end ?? duration;
+    const lastSound = end > 0 && end < duration ? end : duration;
+    if (player.currentTime >= lastSound - fadeS) this.onTrackNaturallyEnded();
+  }
+
+  /**
    * Plays a sound for the whole room.
    *
    * A sound tagged SE is played once over the music on every peer, leaving the track alone. One
@@ -325,7 +364,7 @@ export class Jukebox extends GameObject {
   }
 
   private playSE(audio: AudioFile) {
-    AudioPlayer.playSE(audio);
+    AudioPlayer.playSE(audio, mixLevelOf(audio.identifier, 'effect'));
   }
 
   /** Stops a sound effect on this peer and on every other peer. */
@@ -340,16 +379,46 @@ export class Jukebox extends GameObject {
     return AudioPlayer.isSePlaying(identifier);
   }
 
+  /**
+   * Starts the room's track on this peer from a point in seconds, fading it in over the room's
+   * crossfade while the track before it fades out, or cutting straight across when nothing was
+   * sounding or the room has no crossfade.
+   */
   private _play(startAt: number = 0) {
-    this._stop();
+    const fadeMs = roomMix().crossfadeS * 1000;
+    const crossing = this._stop(fadeMs);
     this.playingFrom = startAt;
     if (!this.audio || !this.audio.isReady) {
       this.playAfterFileUpdate(startAt);
       return;
     }
-    this.prepare(this.audioPlayer);
-    this.audioPlayer.play(this.audio);
-    if (startAt > 0) this.audioPlayer.seekTo(startAt);
+    this.startPlayer(this.audioPlayer, startAt, crossing ? fadeMs : 0);
+  }
+
+  private startPlayer(player: AudioPlayer, startAt: number, fadeInMs: number): void {
+    if (!this.audio) return;
+    this.prepare(player);
+    if (fadeInMs > 0) player.fader = 0;
+    player.play(this.audio);
+    const from = startAt > 0 ? startAt : this.leadIn();
+    if (from > 0) player.seekTo(from);
+    if (fadeInMs > 0) void player.fadeVolumeTo(1, fadeInMs);
+  }
+
+  /**
+   * Where a track starting from the top begins: past the silence at its head while the room mixes
+   * tracks into each other, so one comes in as the other goes, and at the top otherwise.
+   */
+  private leadIn(): number {
+    if (roomMix().crossfadeS <= 0) return 0;
+    const start = AudioProfile.analysisOf(this.audioIdentifier)?.start ?? 0;
+    return start > Jukebox.LEAD_IN_KEPT_S ? start - 0.05 : 0;
+  }
+
+  /** The factor the room's track is played at to bring it to the loudness of music, or of an effect for one tagged SE. */
+  private trackLevel(): number {
+    const isSE = AudioTag.get(this.audioIdentifier)?.tag === 'SE';
+    return mixLevelOf(this.audioIdentifier, isSE ? 'effect' : 'music');
   }
 
   /**
@@ -364,14 +433,15 @@ export class Jukebox extends GameObject {
     player.volumeType = isSE ? VolumeType.SE : VolumeType.MASTER;
     player.followsLoopPoints = !isSE;
     player.loop = !isSE && this.repeatMode === 'one';
+    player.trim = this.trackLevel();
     player.onEnded = isSE ? null : () => this.onTrackNaturallyEnded();
   }
 
-  /** Stops the room's track and clears it, for every peer. */
+  /** Stops the room's track, fading it out, and clears it, for every peer. */
   stop() {
     this.audioIdentifier = '';
     this.isPlaying = false;
-    this._stop();
+    this._stop(Jukebox.STOP_FADE_MS);
   }
 
   /**
@@ -388,13 +458,37 @@ export class Jukebox extends GameObject {
     this.audioPlayer.seekTo(time);
   }
 
-  private _stop() {
+  /**
+   * Stops this peer's track, fading it out over the time given or cutting it at once, and leaves a
+   * fresh player for whatever plays next. Without a fade, tracks still fading out from before stop
+   * too. Says whether a track was left fading out.
+   */
+  private _stop(fadeMs: number = 0): boolean {
     this.unregisterEvent();
-    this.audioPlayer.stop();
-    if (this.fadingPlayer) {
-      this.fadingPlayer.stop();
-      this.fadingPlayer = null;
+    if (fadeMs <= 0) {
+      for (const player of this.fadingPlayers) player.stop();
+      this.fadingPlayers.clear();
     }
+    const fading = this.retire(this.audioPlayer, fadeMs);
+    this.audioPlayer = new AudioPlayer();
+    return fading;
+  }
+
+  /**
+   * Lets a player go: fading it out and then stopping it while it is sounding and a fade is asked
+   * for, and stopping it at once otherwise. Says whether it was left fading.
+   */
+  private retire(player: AudioPlayer, fadeMs: number): boolean {
+    player.onEnded = null;
+    if (fadeMs <= 0 || player.paused || player.isAwaitingGesture) {
+      player.stop();
+      return false;
+    }
+    this.fadingPlayers.add(player);
+    void player.fadeVolumeTo(0, fadeMs).then(() => {
+      if (this.fadingPlayers.delete(player)) player.stop();
+    });
+    return true;
   }
 
   private crossfadeSeek(time: number, fadeMs: number = Jukebox.CROSSFADE_MS) {
@@ -402,28 +496,14 @@ export class Jukebox extends GameObject {
       this.audioPlayer.seekTo(time);
       return;
     }
-    if (this.fadingPlayer) {
-      this.fadingPlayer.stop();
-      this.fadingPlayer = null;
-    }
-    const fading = this.audioPlayer;
-    fading.onEnded = null;
-    this.fadingPlayer = fading;
-
+    this.retire(this.audioPlayer, fadeMs);
     const newPlayer = new AudioPlayer();
+    this.audioPlayer = newPlayer;
     this.prepare(newPlayer);
-    newPlayer.volume = 0;
+    newPlayer.fader = 0;
     newPlayer.play(this.audio);
     newPlayer.seekTo(time);
-    this.audioPlayer = newPlayer;
-
-    newPlayer.fadeVolumeTo(1, fadeMs);
-    fading.fadeVolumeTo(0, fadeMs).then(() => {
-      if (this.fadingPlayer === fading) {
-        fading.stop();
-        this.fadingPlayer = null;
-      }
-    });
+    void newPlayer.fadeVolumeTo(1, fadeMs);
   }
 
   private playAfterFileUpdate(startAt: number = 0) {
@@ -431,9 +511,7 @@ export class Jukebox extends GameObject {
     this.audioUpdateCleanup = updateAudioResource$.subscribe(() => {
       if (!this.audio || !this.audio.isReady) return;
       this.unregisterEvent();
-      this.prepare(this.audioPlayer);
-      this.audioPlayer.play(this.audio);
-      if (startAt > 0) this.audioPlayer.seekTo(startAt);
+      this.startPlayer(this.audioPlayer, startAt, 0);
     });
   }
 
@@ -540,7 +618,7 @@ export class Jukebox extends GameObject {
       const resumes = audioIdentifier === this.audioIdentifier && !isPlaying;
       this._play(resumes ? Number(this.startTime) || 0 : 0);
     } else if (isPlaying !== this.isPlaying && !this.isPlaying) {
-      this._stop();
+      this._stop(Jukebox.STOP_FADE_MS);
     } else if (this.isPlaying && (startTime !== this.startTime || this.wasSoughtSince(seekCount))) {
       const driftMs = Math.abs((this.audioPlayer.currentTime - this.startTime) * 1000);
       if (driftMs < Jukebox.SYNC_SEEK_THRESHOLD_MS) return;

@@ -7,6 +7,7 @@ import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { backgroundSoundLevel } from '@axe/domain/media/background-sound-level';
+import { mixLevelOf } from '@axe/domain/media/mix-level';
 
 /**
  * One of the room's background sounds, such as rain or a crowd, which loops underneath the music
@@ -175,8 +176,17 @@ export class BackgroundSound extends GameObject {
     }
     this.unwatchFile();
     const player = (this.player ??= new LoopPlayer());
-    if (player.isActive) player.setVolume(this.level);
-    else player.start(audio, this.level, BackgroundSound.FADE_MS);
+    if (player.isActive) {
+      player.setVolume(this.level);
+    } else {
+      player.setTrim(mixLevelOf(this.audioIdentifier, 'background'));
+      player.start(audio, this.level, BackgroundSound.FADE_MS);
+    }
+  }
+
+  /** Eases the sound to the loudness of background sounds, as when its reading arrives or the room turns levelling on or off. */
+  refreshLevel(): void {
+    this.player?.setTrim(mixLevelOf(this.audioIdentifier, 'background'), 1.5);
   }
 
   private watchFile(): void {
