@@ -319,6 +319,7 @@ describe('buildGameCharacterContextMenu()', () => {
       t
     );
     expect(names(master)).toContain('公開とオーナー');
+    expect(groupOf(master, '公開とオーナー')[0].type).not.toBe(ContextMenuType.SEPARATOR);
   });
 
   it('puts the altitude submenu into the display and handling group', () => {

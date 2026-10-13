@@ -4,6 +4,7 @@ import {
   ContextMenuAction,
   ContextMenuRadialGroup,
   ContextMenuSeparator,
+  ContextMenuType,
 } from '@axe/application/ui/context-menu.service';
 import {
   buildAltitudeAction,
@@ -433,7 +434,9 @@ export function buildGameCharacterContextMenuModel(
     },
   ];
 
-  const disclosureActions = buildDisclosureContextMenu(char, t);
+  const disclosureActions = buildDisclosureContextMenu(char, t).filter(
+    (entry) => entry.type !== ContextMenuType.SEPARATOR
+  );
   const objectActions: ContextMenuAction[] = [
     ...overlapEntries,
     buildLockToggleAction(char.isLock, (next) => (char.isLock = next), t),
