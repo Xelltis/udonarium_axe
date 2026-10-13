@@ -62,22 +62,6 @@ const AMBIENCE_DEFAULT_SIZE = 4;
 const BOARD_DEFAULT_WIDTH = 6;
 const BOARD_DEFAULT_HEIGHT = 4;
 
-/** Each entry of the table's create menu, by what it makes. */
-export interface CreateMenuParts {
-  readonly character: ContextMenuAction;
-  readonly tableMask: ContextMenuAction;
-  readonly terrain: ContextMenuAction;
-  readonly textNote: ContextMenuAction;
-  readonly blankCard: ContextMenuAction;
-  readonly trump: ContextMenuAction;
-  readonly dice: ContextMenuAction;
-  readonly coin: ContextMenuAction;
-  readonly range: ContextMenuAction;
-  readonly lightSource: ContextMenuAction;
-  readonly whiteBoard: ContextMenuAction;
-  readonly ambience: ContextMenuAction;
-}
-
 @Injectable({
   providedIn: 'root',
 })
@@ -418,65 +402,33 @@ export class TabletopActionService {
 
   /** Everything the table's create menu offers at a point, as one list, for the menus of objects standing on it. */
   makeDefaultContextMenuActions(position: PointerCoordinate): ContextMenuAction[] {
-    return this.groupCreateMenu(this.createMenuParts(position));
-  }
-
-  /** Each entry of the table's create menu at a point, made once, for the menus to lay out. */
-  createMenuParts(position: PointerCoordinate): CreateMenuParts {
-    return {
-      character: this.getCreateCharacterMenu(position),
-      tableMask: this.getCreateTableMaskMenu(position),
-      terrain: this.getCreateTerrainMenu(position),
-      textNote: this.getCreateTextNoteMenu(position),
-      blankCard: this.getCreateBlankCardMenu(position),
-      trump: this.getCreateTrumpMenu(position),
-      dice: this.getCreateDiceSymbolMenu(position),
-      coin: this.getCreateCoinMenu(position),
-      range: this.getCreateRangeMenu(position),
-      lightSource: this.getCreateLightSourceMenu(position),
-      whiteBoard: this.getCreateWhiteBoardMenu(position),
-      ambience: this.getCreateAmbienceMenu(position),
-    };
-  }
-
-  /**
-   * The create menu as a list reads it: making a character first, since it is made most, then
-   * everything else gathered by kind, so the list stays short.
-   *
-   * `besideCharacter` goes after making a character and `withCards` among the cards, for the
-   * entries only the table itself offers.
-   */
-  groupCreateMenu(
-    parts: CreateMenuParts,
-    extra: { besideCharacter?: ContextMenuAction[]; withCards?: ContextMenuAction[] } = {}
-  ): ContextMenuAction[] {
-    const group = (key: string, subActions: ContextMenuAction[]): ContextMenuAction => ({
-      name: this.t(`feature.tabletop.contextMenu.${key}`),
-      action: undefined,
-      subActions,
-    });
-    return [
-      parts.character,
-      ...(extra.besideCharacter ?? []),
-      group('createGroupBoard', [parts.terrain, parts.tableMask, parts.textNote, parts.whiteBoard]),
-      group('createGroupTokens', [parts.blankCard, parts.trump, ...(extra.withCards ?? []), parts.dice, parts.coin]),
-      group('createGroupAreas', [parts.range, parts.lightSource, parts.ambience]),
-    ];
+    return this.makeDefaultContextMenuActionGroups(position).flat();
   }
 
   /**
    * The table's create menu at a point, in two halves.
    *
    * The halves let the table's rotating menu spread the create items over two spokes instead of
-   * piling them all onto one group.
+   * piling them all onto one group. `makeDefaultContextMenuActions` joins them into one list.
    */
-  makeDefaultContextMenuActionGroups(
-    position: PointerCoordinate,
-    parts: CreateMenuParts = this.createMenuParts(position)
-  ): ContextMenuAction[][] {
+  makeDefaultContextMenuActionGroups(position: PointerCoordinate): ContextMenuAction[][] {
     return [
-      [parts.character, parts.tableMask, parts.terrain, parts.textNote, parts.blankCard, parts.trump, parts.dice],
-      [parts.coin, parts.range, parts.lightSource, parts.whiteBoard, parts.ambience],
+      [
+        this.getCreateCharacterMenu(position),
+        this.getCreateTableMaskMenu(position),
+        this.getCreateTerrainMenu(position),
+        this.getCreateTextNoteMenu(position),
+        this.getCreateBlankCardMenu(position),
+        this.getCreateTrumpMenu(position),
+        this.getCreateDiceSymbolMenu(position),
+      ],
+      [
+        this.getCreateCoinMenu(position),
+        this.getCreateRangeMenu(position),
+        this.getCreateLightSourceMenu(position),
+        this.getCreateWhiteBoardMenu(position),
+        this.getCreateAmbienceMenu(position),
+      ],
     ];
   }
 

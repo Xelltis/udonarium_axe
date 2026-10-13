@@ -2290,10 +2290,7 @@
         "doorStyleSink": "下へ沈む",
         "doorStyleSlide": "横にスライド",
         "doorFlip": "開く向きを反転",
-        "rangeTargetInside": "範囲内を対象にする",
-        "createGroupBoard": "地形・メモ",
-        "createGroupTokens": "カード・ダイス・コイン",
-        "createGroupAreas": "射程範囲・光源・エフェクト"
+        "rangeTargetInside": "範囲内を対象にする"
       },
       "holdHint": {
         "footing": "ホイールで足場を上下に辿る",

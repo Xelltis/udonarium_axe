@@ -100,20 +100,22 @@ describe('TabletopActionService', () => {
     });
   });
 
-  it('offers making a character a click away, and gathers the rest of the create menu by kind', () => {
+  it('lists the create menu flat, in the order the table has always offered it', () => {
     const menu = service.makeDefaultContextMenuActions({ x: 0, y: 0, z: 0 });
 
     expect(menu.map((entry) => entry.name)).toEqual([
       'キャラクターを作成',
-      '地形・メモ',
-      'カード・ダイス・コイン',
-      '射程範囲・光源・エフェクト',
-    ]);
-    expect(menu[1].subActions!.map((entry) => entry.name)).toEqual([
-      '地形を作成',
       'マップマスクを作成',
+      '地形を作成',
       '共有メモを作成',
+      'ブランクカードを作成',
+      'トランプの山札を作成',
+      'ダイスを作成',
+      'コインを作成',
+      '射程範囲を作成',
+      '光源を作成',
       'ホワイトボードを作成',
+      '環境エフェクトを置く',
     ]);
   });
 

@@ -2290,10 +2290,7 @@
         "doorStyleSink": "Sinks down",
         "doorStyleSlide": "Slides aside",
         "doorFlip": "Open the other way",
-        "rangeTargetInside": "Aim at everything inside",
-        "createGroupBoard": "Terrain and notes",
-        "createGroupTokens": "Cards, dice and coins",
-        "createGroupAreas": "Ranges, lights and effects"
+        "rangeTargetInside": "Aim at everything inside"
       },
       "holdHint": {
         "footing": "Wheel to step through what it can stand on",

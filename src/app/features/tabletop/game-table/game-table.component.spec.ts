@@ -765,11 +765,7 @@ describe('GameTableComponent', () => {
 
   describe('buildContextMenuActions', () => {
     const position = { x: 0, y: 0, z: 0 };
-    const CREATE_GROUPS = ['地形・メモ', 'カード・ダイス・コイン', '射程範囲・光源・エフェクト'];
-    /** The flat menu with its create groups opened out, which is what the rotating menu holds. */
-    const openedOut = (actions: ContextMenuAction[]) =>
-      actions.flatMap((action) => (CREATE_GROUPS.includes(action.name) ? action.subActions! : [action]));
-    const names = () => openedOut(component.buildContextMenuActions(position)).map((action) => action.name);
+    const names = () => component.buildContextMenuActions(position).map((action) => action.name);
 
     it('leaves out the piece-making item on a desktop', () => {
       TestBed.inject(MobileLayoutService).prefersDesktop.set(true);
@@ -790,7 +786,7 @@ describe('GameTableComponent', () => {
     it('groups table actions for the rotating menu without dropping legacy actions', () => {
       const model = component.buildContextMenuModel(position);
       const groupedActions = model.rotatingGroups.flatMap((group) => group.actions);
-      const legacyActions = openedOut(model.actions).filter((action) => action.name.length > 0);
+      const legacyActions = model.actions.filter((action) => action.name.length > 0);
 
       expect(model.rotatingGroups.map((group) => group.name)).toEqual([
         'オブジェクト作成1',
@@ -845,7 +841,7 @@ describe('GameTableComponent', () => {
 
         const model = component.buildContextMenuModel(position);
         const groupedActions = model.rotatingGroups.flatMap((group) => group.actions);
-        const legacyActions = openedOut(model.actions).filter((action) => action.name.length > 0);
+        const legacyActions = model.actions.filter((action) => action.name.length > 0);
 
         expect(groupedActions).toEqual(expect.arrayContaining(legacyActions));
         expect(groupedActions).toHaveLength(legacyActions.length);
@@ -861,18 +857,16 @@ describe('GameTableComponent', () => {
       });
     });
 
-    it('offers making a character a click away and the rest of the create items gathered by kind, the deck among the cards', () => {
+    it('splits the create items with a separator between the dice and the coin', () => {
       const model = component.buildContextMenuModel(position);
       const separatorIndexes = model.actions
         .map((action, index) => (action.type === ContextMenuType.SEPARATOR ? index : -1))
         .filter((index) => 0 <= index);
 
-      expect(model.actions.slice(0, separatorIndexes[0]).map((action) => action.name)).toEqual([
-        'キャラクターを作成',
-        ...CREATE_GROUPS,
-      ]);
-      expect(model.actions[2].subActions!.map((action) => action.name)).toContain('画像タグから山札を作成');
-      expect(model.rotatingGroups[0].actions[0]).toBe(model.actions[0]);
+      expect(separatorIndexes).toHaveLength(2);
+      expect(model.actions[separatorIndexes[0] - 1].name).toBe('ダイスを作成');
+      expect(model.actions[separatorIndexes[0] + 1].name).toBe('コインを作成');
+      expect(model.rotatingGroups[0].actions).toHaveLength(separatorIndexes[0]);
     });
   });
 

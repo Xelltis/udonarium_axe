@@ -2290,10 +2290,7 @@
         "doorStyleSink": "아래로 가라앉음",
         "doorStyleSlide": "옆으로 미닫이",
         "doorFlip": "열리는 방향 반전",
-        "rangeTargetInside": "범위 안을 대상으로",
-        "createGroupBoard": "지형·메모",
-        "createGroupTokens": "카드·주사위·코인",
-        "createGroupAreas": "사정 범위·광원·이펙트"
+        "rangeTargetInside": "범위 안을 대상으로"
       },
       "holdHint": {
         "footing": "휠로 발판을 오르내리기",
