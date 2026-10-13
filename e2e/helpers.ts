@@ -4,7 +4,31 @@ import { expect, Locator, Page } from '@playwright/test';
  * 起動完了を待つ。ChatWindowComponent / PeerMenuComponentが自動起動するので、
  * chat-inputのtextareaが表示されればbootstrap完了とみなしてよい。
  */
+/**
+ * Turns off blurring what lies behind an element, where the page is drawn by WebKit.
+ *
+ * The WebKit that Playwright 1.64 brings (27.2 on Linux) stops drawing frames while some small
+ * elements blur what lies behind them, such as the hotbar's page buttons and the novel mode's
+ * controls: animations never finish, and an action waits on an element that never settles. The
+ * look is checked in Chromium by the visual project; what the WebKit runs check takes no part in
+ * the blur. Call it before the page is opened.
+ */
+export async function avoidWebKitBackdropStall(page: Page): Promise<void> {
+  if (page.context().browser()?.browserType().name() !== 'webkit') return;
+  await page.addInitScript(() => {
+    const unblur = () => {
+      const style = document.createElement('style');
+      style.textContent =
+        '*, *::before, *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }';
+      (document.head ?? document.documentElement).appendChild(style);
+    };
+    if (document.documentElement) unblur();
+    else document.addEventListener('DOMContentLoaded', unblur, { once: true });
+  });
+}
+
 export async function waitAppReady(page: Page) {
+  await avoidWebKitBackdropStall(page);
   // A load off the build takes well under a second, but with three browsers running the suite at
   // once a load was seen to take past the default fifteen seconds in Firefox.
   await page.goto('/', { timeout: 45_000 });
