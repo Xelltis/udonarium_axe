@@ -4,6 +4,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ModalService } from '@axe/application/ui/modal.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
+import { IRoomInfo } from '@axe/core/network/room-info';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -106,6 +107,31 @@ describe('LobbyComponent', () => {
       await component.connect([ctx]);
 
       expect(openSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('the room list', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('shows a room a server reports by its count, with no peers to count', async () => {
+      const serverRoom: IRoomInfo = {
+        id: 'Ab3',
+        name: '月夜の卓',
+        hasPassword: true,
+        peers: [],
+        memberCount: 3,
+        roomKey: '0123456789abcdef0123456789abcdef',
+        filterByPassword: () => [],
+      };
+      vi.spyOn(Network, 'listAllRooms').mockResolvedValue([serverRoom]);
+
+      await component.reload();
+      fixture.detectChanges();
+      const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+      expect(text).toContain('Ab3');
+      expect(text).toContain('月夜の卓');
+      expect(text).toContain('3人');
     });
   });
 

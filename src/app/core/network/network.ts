@@ -49,6 +49,10 @@ export class Network {
   static get bandwidthUsage(): number {
     return Network.instance.bandwidthUsage;
   }
+  /** The room server's peer id when connected through one; null with SkyWay or without a connection. */
+  static get authorityPeerId(): string | null {
+    return Network.instance.authorityPeerId;
+  }
   /** Keeps the app config, such as the backend URL, for the connection made on the next open. */
   static configure(config: Record<string, unknown>) {
     Network.instance.configure(config);
@@ -68,8 +72,8 @@ export class Network {
    * This returns before the session is open; the OPEN_NETWORK event follows once it is. From then
    * on, leaving the page asks for confirmation and hiding it leaves the room.
    */
-  static open(userId: string, roomId: string, roomName: string, password: string): void {
-    Network.instance.open(userId, roomId, roomName, password);
+  static open(userId: string, roomId: string, roomName: string, password: string, roomKey?: string): void {
+    Network.instance.open(userId, roomId, roomName, password, roomKey);
   }
 
   get isOpen(): boolean {
@@ -100,6 +104,9 @@ export class Network {
   readonly callback: ConnectionCallback = new ConnectionCallback();
   get bandwidthUsage(): number {
     return this.connection ? this.connection.bandwidthUsage : 0;
+  }
+  get authorityPeerId(): string | null {
+    return this.connection?.authorityPeerId ?? null;
   }
 
   private config: Record<string, unknown> = {};
@@ -133,12 +140,12 @@ export class Network {
     this.config = config;
   }
 
-  open(userId: string, roomId: string, roomName: string, password: string): void {
+  open(userId: string, roomId: string, roomName: string, password: string, roomKey?: string): void {
     if (this.connectionClassPromise != null) {
       Logger.warn('[Network] 既に接続済みです');
       this.close();
     }
-    this.openAsync(() => this.connection!.open(userId, roomId, roomName, password));
+    this.openAsync(() => this.connection!.open(userId, roomId, roomName, password, roomKey));
   }
 
   openStandby(userId?: string): void {

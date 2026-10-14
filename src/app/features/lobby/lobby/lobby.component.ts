@@ -7,6 +7,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
 import { PeerContext } from '@axe/core/network/peer-context';
+import { IRoomInfo } from '@axe/core/network/room-info';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   PasswordCheckComponent,
@@ -15,6 +16,14 @@ import {
 import { RoomSettingComponent } from '@axe/features/lobby/room-setting/room-setting.component';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
+
+/** One row of the room list: the room as the transport reports it, and the peers SkyWay found in it. */
+interface LobbyRoom {
+  alias: string;
+  roomName: string;
+  info: IRoomInfo;
+  peerContexts: PeerContext[];
+}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,7 +40,7 @@ export class LobbyComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
 
-  rooms = signal<{ alias: string; roomName: string; peerContexts: PeerContext[] }[]>([]);
+  rooms = signal<LobbyRoom[]>([]);
 
   isReloading = signal(false);
 
@@ -109,9 +118,10 @@ export class LobbyComponent {
         Network.listAllRooms(),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
       ]);
-      const roomsList: { alias: string; roomName: string; peerContexts: PeerContext[] }[] = roomInfos.map((room) => ({
+      const roomsList: LobbyRoom[] = roomInfos.map((room) => ({
         alias: room.id + room.name,
         roomName: room.name,
+        info: room,
         peerContexts: room.peers as PeerContext[],
       }));
       roomsList.sort((a, b) => {

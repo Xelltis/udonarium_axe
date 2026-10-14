@@ -20,10 +20,16 @@ export interface Connection {
   readonly peers: IPeerContext[];
   readonly callback: ConnectionCallback;
   readonly bandwidthUsage: number;
+  /**
+   * The peer id of the room server, which keeps the table and is the one peer to trade catalogs
+   * with. Only a connection through a room server has one; it is never among `peers`.
+   */
+  readonly authorityPeerId?: string;
 
   configure(config: Record<string, unknown>): void;
   openStandby(userId?: string): void;
-  open(userId: string, roomId: string, roomName: string, password: string): void;
+  /** Opens a session in a room. A room server finds the room by its key, which SkyWay does not use. */
+  open(userId: string, roomId: string, roomName: string, password: string, roomKey?: string): void;
   close(): void;
   leaveImmediately?(): void;
   rejoinAfterLeave?(): Promise<void>;

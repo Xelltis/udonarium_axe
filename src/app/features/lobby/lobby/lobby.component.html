@@ -57,7 +57,7 @@
             <td
               class="border-ui-border-panel text-ui-muted border-b border-solid px-2.5 py-1.75 text-center font-mono text-[0.72rem] whitespace-nowrap"
             >
-              {{ room.peerContexts[0]?.roomId }}
+              {{ room.info.id }}
             </td>
             <td
               class="border-ui-border-panel max-w-50 min-w-20 overflow-hidden border-b border-solid px-2.5 py-1.75 text-left"
@@ -65,7 +65,7 @@
             >
               {{ room.roomName }}
             </td>
-            @if (room.peerContexts[0].hasPassword) {
+            @if (room.info.hasPassword) {
               <td class="border-ui-border-panel border-b border-solid px-2.5 py-1.75 text-center whitespace-nowrap">
                 <i class="material-icons text-ui-accent align-middle text-[14px]!">lock</i>
               </td>
@@ -77,13 +77,13 @@
               </td>
             }
             <td class="border-ui-border-panel border-b border-solid px-2.5 py-1.75 text-center whitespace-nowrap">
-              {{ room.peerContexts.length }}{{ 'feature.lobby.lobby.peopleSuffix' | transloco }}
+              {{ room.info.memberCount }}{{ 'feature.lobby.lobby.peopleSuffix' | transloco }}
             </td>
             <td class="border-ui-border-panel border-b border-solid px-2.5 py-1.75 text-center whitespace-nowrap">
               @if (0 < room.alias.length) {
                 <button
                   class="rounded-ui-sm border-ui-accent text-ui-accent hover:bg-ui-accent-bg cursor-pointer border border-solid bg-transparent px-2.5 py-0.5 text-[0.8rem] whitespace-nowrap hover:shadow-[0_0_0_2px_var(--ui-accent-glow)]"
-                  [disabled]="isJoining() || room.peerContexts[0]?.roomId === currentRoom"
+                  [disabled]="isJoining() || room.info.id === currentRoom"
                   type="button"
                   (click)="connect(room.peerContexts)"
                 >

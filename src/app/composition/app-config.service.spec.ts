@@ -15,6 +15,7 @@ describe('AppConfigService', () => {
   });
 
   afterEach(() => {
+    AppConfigService.appConfig.transport = 'skyway';
     AppConfigService.appConfig.backend.url = '';
     AppConfigService.appConfig.assets.url = '';
     AssetHttpStore.instance.configure(null);
@@ -70,5 +71,28 @@ describe('AppConfigService', () => {
     await loadConfig();
 
     expect(AssetHttpStore.instance.isEnabled).toBe(false);
+  });
+
+  it('connects through a room server when config.json asks for one', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ transport: 'server', backend: { url: 'https://rooms.example' } }))
+    );
+    await loadConfig();
+
+    expect(AppConfigService.appConfig.transport).toBe('server');
+  });
+
+  it('stays on SkyWay for a config.json that names no transport, or one it does not know', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ backend: { url: 'http://localhost:3000' } }))
+    );
+    await loadConfig();
+    expect(AppConfigService.appConfig.transport).toBe('skyway');
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ transport: 'carrier-pigeon', backend: { url: 'http://localhost:3000' } }))
+    );
+    await loadConfig();
+    expect(AppConfigService.appConfig.transport).toBe('skyway');
   });
 });

@@ -2,9 +2,12 @@ import { inject, Injectable } from '@angular/core';
 import { LoggerService } from '@axe/application/logging/logger.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { emitLoadConfig } from '@axe/core/event/domain-events';
+import { Transport, transportOf } from '@axe/core/network/transport';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 
 export interface AppConfig {
+  /** How players connect: through SkyWay (the default) or through a room server at the backend url. */
+  transport: Transport;
   backend: {
     url: string;
   };
@@ -26,6 +29,7 @@ export class AppConfigService {
   isOpen: boolean = false;
 
   static appConfig: AppConfig = {
+    transport: 'skyway',
     backend: {
       url: '',
     },
@@ -59,6 +63,7 @@ export class AppConfigService {
       const response = await fetch('./assets/config.json');
       if (response.ok) {
         const config = await response.json();
+        AppConfigService.appConfig.transport = transportOf(config ?? {});
         if (config?.backend?.url) {
           AppConfigService.appConfig.backend.url = config.backend.url;
         }
