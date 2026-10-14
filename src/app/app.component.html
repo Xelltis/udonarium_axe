@@ -63,6 +63,7 @@
         class="panel-no-drag border-ui-border-panel bg-ui-panel rounded-ui-lg shadow-ui-md pointer-events-none absolute z-8 w-14 cursor-default border border-solid opacity-0 [backdrop-filter:blur(24px)_saturate(1.5)] transition-[transform,opacity] duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)] group-[.open]:pointer-events-auto group-[.open]:translate-y-0 group-[.open]:opacity-100 [@media(max-height:760px)]:w-28"
         [ngClass]="[fabDrawerPlace(), fabLabelSide(), guide.shown() ? fabGuideDrawer : '']"
         [attr.data-button-guide-keep]="guide.shown() ? '' : null"
+        [attr.data-shortcut-sheet-avoid]="guide.shown() ? '' : null"
       >
         <ul class="m-0 list-none p-1.5" [ngClass]="guide.shown() ? '' : fabColumns">
           @for (node of fabNodes(); track node.id) {
@@ -85,6 +86,7 @@
                 <span
                   class="text-ui-text absolute top-1/2 z-10 flex -translate-y-1/2 items-center gap-1 whitespace-nowrap"
                   [ngClass]="fabSubmenuSide()"
+                  data-shortcut-sheet-avoid
                 >
                   <span
                     class="bg-ui-elevated border-ui-accent rounded-ui shadow-ui-sm border border-solid px-2.5 py-0.5 text-[11px]/4"
@@ -163,6 +165,7 @@
       </button>
     </div>
   }
+  <app-shortcut-sheet />
   <app-room-restore-banner />
   <replay-staging-banner />
   <app-replay-indicator />

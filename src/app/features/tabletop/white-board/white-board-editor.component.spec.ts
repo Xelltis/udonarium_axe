@@ -1,5 +1,6 @@
 import { Signal, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { MapScene, sceneHeightPx, sceneWidthPx, ShapeItem } from '@axe/features/map-editor/model/scene';
@@ -124,6 +125,14 @@ describe('WhiteBoardEditorComponent', () => {
     ObjectStore.instance.clearDeleteHistory();
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it('puts its keys first on the cheat sheet while it is open', () => {
+    const { fixture } = mount();
+    const scopes = TestBed.inject(ShortcutScopeService);
+    expect(scopes.scopes()).toContain('whiteBoard');
+    fixture.destroy();
+    expect(scopes.scopes()).not.toContain('whiteBoard');
   });
 
   it('undoes back to the board as it was opened, not to a blank sheet', () => {

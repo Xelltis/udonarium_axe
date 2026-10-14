@@ -74,6 +74,7 @@ import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar
 import { NpcDragGhostComponent } from '@axe/features/gm-tools/npc-bar/npc-drag-ghost.component';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
 import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
+import { ShortcutSheetComponent } from '@axe/features/keyboard/shortcut-sheet.component';
 import { TabletopShortcutEventHandlerService } from '@axe/features/keyboard/tabletop-shortcut-event-handler.service';
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
@@ -167,6 +168,7 @@ const FAB_MARGIN_PX = 12;
     VoteWidgetComponent,
     HotbarBarComponent,
     MobileShellComponent,
+    ShortcutSheetComponent,
     RoomRestoreBannerComponent,
     ReplayStagingBannerComponent,
     ReplayIndicatorComponent,

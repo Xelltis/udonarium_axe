@@ -3,9 +3,9 @@
  *
  * The table itself is sealed in its own stacking context, so anything here floats over it.
  * The rest of the ladder, for reference: panels and cut-in windows 1-10 (201 full screen),
- * widgets 100, hand rail 140, toolbars 150, mobile shell 160, the bands that speak for a move
- * 170, menu FAB 200, bottom sheets 1000, their notices 1010, context menu 9900, drag
- * ghosts 10000, modal 1899999, dropdowns and text tooltips 2000000.
+ * widgets 100, hand rail 140, cheat sheet 145, toolbars 150, mobile shell 160, the bands that
+ * speak for a move 170, menu FAB 200, bottom sheets 1000, their notices 1010, context menu 9900,
+ * drag ghosts 10000, modal 1899999, dropdowns and text tooltips 2000000.
  *
  * Panels are numbered as they are brought forward rather than given a shelf of their own, so
  * anything that must sit above a particular panel says which shelf it wants.
@@ -19,6 +19,13 @@ export const Z_HOTBAR_MOBILE = 155;
  * opens with the room sits over the foot of the screen, and a move waits on what is said there.
  */
 export const Z_TABLE_BANDS = 170;
+
+/**
+ * The cheat sheet brought out with the names of the buttons. Over the panels and widgets it is read
+ * beside, and under the toolbars, the hotbar and the menu: it keeps clear of their names where it
+ * can, and where it cannot, they are drawn over it rather than hidden.
+ */
+export const Z_SHORTCUT_SHEET = 145;
 
 /**
  * Above the modal, and only when the reader pins it there.

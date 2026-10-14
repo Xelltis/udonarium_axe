@@ -1,0 +1,39 @@
+<div
+  #sheet
+  class="border-ui-border-panel bg-ui-panel text-ui-text rounded-ui-lg shadow-ui-md pointer-events-none fixed box-border w-[min(680px,calc(100vw-32px))] border border-solid px-4 py-3 [backdrop-filter:blur(24px)_saturate(1.5)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
+  role="region"
+  data-testid="shortcut-sheet"
+  [attr.aria-label]="'feature.keyboard.sheet.title' | transloco"
+  [style.z-index]="zIndex"
+  [style.left.px]="spot()?.left ?? 0"
+  [style.top.px]="spot()?.top ?? 0"
+  [style.visibility]="spot() ? null : 'hidden'"
+>
+  <div class="mb-2 flex items-baseline justify-between gap-3">
+    <span class="text-ui-accent flex items-center gap-1 self-center text-xs font-semibold">
+      <i class="material-icons text-[16px]!" aria-hidden="true">keyboard</i>
+      {{ 'feature.keyboard.sheet.title' | transloco }}
+    </span>
+    <span class="text-ui-dim text-[10px]">{{ 'feature.keyboard.sheet.macNote' | transloco }}</span>
+  </div>
+  <div class="columns-3xs gap-5">
+    @for (heading of headings(); track heading.scope) {
+      <section class="mb-2" [attr.data-testid]="'shortcut-sheet-' + heading.scope">
+        <h3 class="text-ui-dim m-0 mb-1 break-after-avoid text-[11px] font-semibold">
+          {{ heading.titleKey | transloco }}
+        </h3>
+        <dl class="m-0 text-[11px]/4">
+          @for (line of heading.lines; track line.id) {
+            <div class="mb-0.5 flex break-inside-avoid gap-3">
+              <dt class="w-30 shrink-0 font-mono">
+                {{ line.keys }}{{ line.keys && line.pointerKey ? '+' : ''
+                }}{{ line.pointerKey ? (line.pointerKey | transloco) : '' }}
+              </dt>
+              <dd class="m-0 min-w-0">{{ line.labelKey | transloco }}</dd>
+            </div>
+          }
+        </dl>
+      </section>
+    }
+  </div>
+</div>

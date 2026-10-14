@@ -1,11 +1,14 @@
 import { readFileSync } from 'node:fs';
 
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import {
   KEYBOARD_SHORTCUTS,
   keyboardShortcutsOf,
   SHORTCUT_SCOPES,
   shortcutKeysText,
   shortcutProbesOf,
+  shortcutSheetSections,
+  ShortcutSituation,
 } from '@axe/domain/ui/keyboard-shortcuts';
 
 function dictionary(language: string): Record<string, unknown> {
@@ -78,5 +81,61 @@ describe('the list of keys', () => {
       'clearTargets',
       'disclosure',
     ]);
+  });
+});
+
+describe('the sections of the cheat sheet', () => {
+  const onTheTable: ShortcutSituation = {
+    firstPerson: false,
+    openScopes: [],
+    grid: 'square',
+    role: PeerRole.GameMaster,
+  };
+
+  function scopesOf(situation: ShortcutSituation) {
+    return shortcutSheetSections(situation).map((section) => section.scope);
+  }
+
+  function idsIn(situation: ShortcutSituation, scope: string) {
+    return shortcutSheetSections(situation)
+      .find((section) => section.scope === scope)
+      ?.shortcuts.map((shortcut) => shortcut.id);
+  }
+
+  it('lists the table’s keys on the table', () => {
+    expect(scopesOf(onTheTable)).toEqual(['tabletop', 'selection', 'hotbar', 'chat', 'global']);
+  });
+
+  it('puts the first person view’s keys in place of the table’s while it is showing', () => {
+    expect(scopesOf({ ...onTheTable, firstPerson: true })).toEqual(['firstPerson', 'hotbar', 'chat', 'global']);
+  });
+
+  it('puts an open editor first, the latest ahead', () => {
+    expect(scopesOf({ ...onTheTable, openScopes: ['mapEditor', 'whiteBoard'] }).slice(0, 3)).toEqual([
+      'mapEditor',
+      'whiteBoard',
+      'tabletop',
+    ]);
+  });
+
+  it('never lists novel mode, which shows its own keys', () => {
+    expect(scopesOf({ ...onTheTable, openScopes: ['visualNovel'] })).not.toContain('visualNovel');
+  });
+
+  it('keeps a game master’s lines from a player', () => {
+    const player = { ...onTheTable, role: PeerRole.Player, openScopes: ['mapEditor' as const] };
+    expect(scopesOf(player)).not.toContain('mapEditor');
+    expect(idsIn(player, 'tabletop')).toContain('disclosure');
+    expect(idsIn({ ...onTheTable, role: PeerRole.Guest }, 'tabletop')).not.toContain('disclosure');
+  });
+
+  it('lists the moves of the grid being looked at', () => {
+    const square = { ...onTheTable, firstPerson: true };
+    expect(idsIn(square, 'firstPerson')).toContain('move');
+    expect(idsIn(square, 'firstPerson')).not.toContain('slantBack');
+    expect(idsIn({ ...square, grid: 'hex' }, 'firstPerson')).toEqual(
+      expect.arrayContaining(['frontBack', 'slantFront', 'slantBack'])
+    );
+    expect(idsIn({ ...square, grid: 'hex' }, 'firstPerson')).not.toContain('move');
   });
 });

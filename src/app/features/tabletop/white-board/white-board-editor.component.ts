@@ -16,6 +16,7 @@ import { AnimatedImageService } from '@axe/application/media/animated-image.serv
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { downloadBlob } from '@axe/core/util/download-blob';
@@ -763,6 +764,7 @@ export class WhiteBoardEditorComponent {
   }
 
   constructor() {
+    inject(ShortcutScopeService).hold('whiteBoard', this.destroyRef);
     effect(() => {
       const box = this.wordBoxRef()?.nativeElement;
       if (!this.wantsCaret || !box) return;

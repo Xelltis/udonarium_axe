@@ -1,4 +1,5 @@
-import { MenuAudience } from '@axe/domain/ui/menu-command';
+import { PeerRole } from '@axe/domain/peer/peer-role';
+import { isAudienceOffered, MenuAudience } from '@axe/domain/ui/menu-command';
 
 /** Where a key does what it does: on the table, in the hotbar, inside one of the editors, and so on. */
 export const SHORTCUT_SCOPES = [
@@ -97,7 +98,7 @@ export const KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
   ]),
   line('tabletop', 'target', [['T']], { probe: { key: 't', command: 'target' } }),
   line('tabletop', 'clearTargets', [['Shift', 'T']], { probe: { key: 'T', shift: true, command: 'clearTargets' } }),
-  line('tabletop', 'disclosure', [['G']], { probe: { key: 'g', command: 'toggleDisclosure' } }),
+  line('tabletop', 'disclosure', [['G']], { audience: 'playing', probe: { key: 'g', command: 'toggleDisclosure' } }),
   line('tabletop', 'enter', [['Enter']]),
   line('tabletop', 'escape', [['Esc']]),
 
@@ -258,4 +259,46 @@ export function shortcutProbesOf(scope: ShortcutScope): (KeyboardShortcut & { pr
 /** The keys of a line as written on a list: `Shift+T`, or `← / ↑` for keys that each do it. */
 export function shortcutKeysText(shortcut: Pick<KeyboardShortcut, 'keys'>): string {
   return shortcut.keys.map((chord) => chord.join('+')).join(' / ');
+}
+
+/** One heading of the cheat sheet and the lines under it. */
+export interface ShortcutSheetSection {
+  scope: ShortcutScope;
+  shortcuts: KeyboardShortcut[];
+}
+
+/** What the screen is showing, which decides what the cheat sheet lists and in what order. */
+export interface ShortcutSituation {
+  /** Whether the first person view stands in place of the table. */
+  firstPerson: boolean;
+  /** The editors open with keys of their own, the latest first. */
+  openScopes: readonly ShortcutScope[];
+  /** The grid of the table being looked at. */
+  grid: 'square' | 'hex';
+  role: PeerRole;
+}
+
+const ON_THE_TABLE: readonly ShortcutScope[] = ['tabletop', 'selection', 'hotbar', 'chat', 'global'];
+const IN_FIRST_PERSON: readonly ShortcutScope[] = ['firstPerson', 'hotbar', 'chat', 'global'];
+
+/**
+ * The sections of the cheat sheet: the editors open just now, then the screen under them.
+ *
+ * Only what can be used from where the reader is goes on it. The table's own keys give way to the
+ * first person view's while it stands in front of the table, a line meant for the other grid or
+ * for another role is left off, and novel mode is never listed, since it shows its own keys.
+ */
+export function shortcutSheetSections(situation: ShortcutSituation): ShortcutSheetSection[] {
+  const screen = situation.firstPerson ? IN_FIRST_PERSON : ON_THE_TABLE;
+  const opened = situation.openScopes.filter((scope) => scope !== 'visualNovel');
+  return [...new Set([...opened, ...screen])]
+    .map((scope) => ({
+      scope,
+      shortcuts: keyboardShortcutsOf(scope).filter(
+        (shortcut) =>
+          (shortcut.grid == null || shortcut.grid === situation.grid) &&
+          isAudienceOffered(shortcut.audience ?? 'anyone', situation.role)
+      ),
+    }))
+    .filter((section) => section.shortcuts.length > 0);
 }

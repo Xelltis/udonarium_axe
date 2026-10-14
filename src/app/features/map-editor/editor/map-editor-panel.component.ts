@@ -24,6 +24,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
@@ -726,6 +727,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
   });
 
   constructor() {
+    inject(ShortcutScopeService).hold('mapEditor', inject(DestroyRef));
     const stopMeasuring = useTextMeasurer((text, fontSize, bold, italic) => {
       const ctx = this.board()?.nativeElement.getContext('2d');
       if (!ctx) return guessLineWidth(text, fontSize);
