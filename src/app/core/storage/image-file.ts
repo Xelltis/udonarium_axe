@@ -171,6 +171,34 @@ export class ImageFile {
     return imageFile;
   }
 
+  /**
+   * The context for bytes fetched by their identifier, with a thumbnail made from them, ready to
+   * hand to the store like a context received from a peer.
+   *
+   * The bytes are kept exactly as they came. Converting them again, as an added file is, could
+   * change the hash they are named by. The context carries no object URLs; the entry that takes it
+   * makes its own.
+   */
+  static async contextFromBytesAsync(identifier: string, blob: Blob): Promise<ImageContext> {
+    const context: ImageContext = {
+      identifier,
+      name: '',
+      type: blob.type,
+      blob,
+      url: window.URL.createObjectURL(blob),
+      thumbnail: { type: '', blob: null, url: '' },
+    };
+    try {
+      const thumbnail = await ImageFile.createThumbnailAsync(context);
+      window.URL.revokeObjectURL(thumbnail.url);
+      context.thumbnail = { type: thumbnail.type, blob: thumbnail.blob, url: '' };
+    } finally {
+      window.URL.revokeObjectURL(context.url);
+      context.url = '';
+    }
+    return context;
+  }
+
   /** Revokes the object URLs made for the image and its thumbnail; a linked image has none to revoke. */
   destroy() {
     this.revokeURLs();

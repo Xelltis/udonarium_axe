@@ -2,6 +2,7 @@ import { xmlLoaded$ } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { localDispatch, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
+import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { BufferSharingTask } from '@axe/core/storage/buffer-sharing-task';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
 import { ImageContext, ImageFile, ImageState } from '@axe/core/storage/image-file';
@@ -28,6 +29,10 @@ export class ImageSharingSystem {
   private maxSendTask: number = 2;
   private maxReceiveTask: number = 4;
   private cleanups: (() => void)[] = [];
+  /** Images being fetched from the asset server, so a second catalogue does not fetch them again. */
+  private httpFetching: Set<string> = new Set();
+  /** Images the asset server did not have, which are asked of peers from then on. */
+  private httpMissed: Set<string> = new Set();
 
   private constructor() {}
 
@@ -58,6 +63,7 @@ export class ImageSharingSystem {
                 ImageStorage.instance.add(image);
               }
               if (image.state < ImageState.COMPLETE && !this.receiveTaskMap.has(item.identifier)) {
+                if (this.fetchOverHttp(item.identifier, msg.sendFrom)) continue;
                 request.push({ identifier: item.identifier, state: image.state });
               }
             }
@@ -156,6 +162,46 @@ export class ImageSharingSystem {
     };
 
     task.start(updateImages);
+  }
+
+  /**
+   * Starts fetching an image from the asset server, and says whether it is on its way from there,
+   * so it need not be asked of a peer.
+   *
+   * An image the server lacks, or sends bytes for that do not match, is asked of the peer whose
+   * catalogue named it, the way it would have been without the server.
+   */
+  private fetchOverHttp(identifier: string, catalogPeer: string): boolean {
+    const store = AssetHttpStore.instance;
+    if (!store.isEnabled || !AssetHttpStore.isAssetId(identifier) || this.httpMissed.has(identifier)) return false;
+    if (this.httpFetching.has(identifier)) return true;
+    this.httpFetching.add(identifier);
+    void this.receiveOverHttp(identifier)
+      .then((received) => {
+        if (received) return;
+        this.httpMissed.add(identifier);
+        const image = ImageStorage.instance.get(identifier);
+        if (!image || ImageState.COMPLETE <= image.state) return;
+        if (this.receiveTaskMap.has(identifier) || this.isLimitReceiveTask()) return;
+        this.request([{ identifier, state: image.state }], catalogPeer);
+      })
+      .finally(() => this.httpFetching.delete(identifier));
+    return true;
+  }
+
+  private async receiveOverHttp(identifier: string): Promise<boolean> {
+    const blob = await AssetHttpStore.instance.download(identifier);
+    if (!blob) return false;
+    let context: ImageContext;
+    try {
+      context = await ImageFile.contextFromBytesAsync(identifier, blob);
+    } catch (reason) {
+      Logger.warn('[ImageSync] サーバーから受け取った画像を読めませんでした', identifier, reason);
+      return false;
+    }
+    localDispatch('UPDATE_FILE_RESOURE', { identifier, updateImages: [context] });
+    ImageStorage.instance.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
+    return true;
   }
 
   private startReceiveTask(identifier: string) {

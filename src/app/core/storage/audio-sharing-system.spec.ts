@@ -1,9 +1,11 @@
 import { Network } from '@axe/core/network/network';
 import * as NetworkMessaging from '@axe/core/network/network-messaging';
+import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AudioFile, AudioFileContext, AudioState } from '@axe/core/storage/audio-file';
 import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { BufferSharingTask } from '@axe/core/storage/buffer-sharing-task';
+import type { MockInstance } from 'vitest';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -238,6 +240,75 @@ describe('AudioSharingSystem', () => {
       }
       emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: 'limit', state: AudioState.NULL }]);
       expect(sendSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── the asset server ──────────────────────────────────────────────────────
+
+  describe('fetching from the asset server', () => {
+    const store = AssetHttpStore.instance;
+    const trackId = 'd'.repeat(64);
+    const fetchedBlob = new Blob([new Uint8Array([0x4f, 0x67, 0x67, 0x53])], { type: 'audio/ogg' });
+    let download: MockInstance<AssetHttpStore['download']>;
+
+    const requestsSent = () =>
+      vi
+        .mocked(Network.instance.send)
+        .mock.calls.map(([context, sendTo]) => ({ ...(context as { eventName: string; data: unknown }), sendTo }))
+        .filter((context) => context.eventName === 'REQUEST_AUDIO_RESOURE');
+
+    beforeEach(() => {
+      store.configure('https://assets.example');
+      download = vi.spyOn(store, 'download').mockResolvedValue(fetchedBlob);
+      AudioStorageMock.get.mockImplementation((id: string) => makeAudioFile({ identifier: id }));
+      AudioSharingSystem.instance.initialize();
+    });
+
+    afterEach(() => {
+      store.configure(null);
+    });
+
+    it('takes audio it lacks from the server, without asking a peer', async () => {
+      emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }]);
+
+      await vi.waitFor(() =>
+        expect(AudioStorageMock.add).toHaveBeenCalledWith(
+          expect.objectContaining({ identifier: trackId, type: 'audio/ogg', blob: expect.any(Blob) })
+        )
+      );
+      expect(download).toHaveBeenCalledWith(trackId);
+      expect(requestsSent()).toEqual([]);
+    });
+
+    it('asks the peer that named the audio when the server does not have it', async () => {
+      download.mockResolvedValue(null);
+
+      emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-b' });
+
+      await vi.waitFor(() => expect(requestsSent()).toHaveLength(1));
+      expect(requestsSent()[0]).toMatchObject({
+        sendTo: 'peer-b',
+        data: { identifiers: [{ identifier: trackId, state: AudioState.NULL }] },
+      });
+    });
+
+    it('fetches what the room is playing before the rest', () => {
+      const otherId = 'e'.repeat(64);
+      AudioSharingSystem.instance.preferredIdentifiers = () => [trackId];
+
+      emit('SYNCHRONIZE_AUDIO_LIST', [
+        { identifier: otherId, state: AudioState.COMPLETE },
+        { identifier: trackId, state: AudioState.COMPLETE },
+      ]);
+
+      expect(download.mock.calls.map(([id]) => id)).toEqual([trackId, otherId]);
+    });
+
+    it('asks peers for audio not named by its hash', () => {
+      emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: 'assets/sounds/bell.mp3', state: AudioState.COMPLETE }]);
+
+      expect(download).not.toHaveBeenCalled();
+      expect(requestsSent()).toHaveLength(1);
     });
   });
 
