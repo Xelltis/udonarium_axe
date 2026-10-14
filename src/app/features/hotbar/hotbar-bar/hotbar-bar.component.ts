@@ -36,6 +36,7 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { presetSoundLabelKey, soundFileName } from '@axe/domain/media/preset-sound-labels';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { MenuCommand, menuCommandOf } from '@axe/domain/ui/menu-command';
 import { HotbarService } from '@axe/features/hotbar/hotbar.service';
 import { findSlotActorAmong } from '@axe/features/hotbar/hotbar-actor';
 import { bindsCharacter, HotbarCellView, hotbarCellView } from '@axe/features/hotbar/hotbar-cell-view';
@@ -44,6 +45,7 @@ import { HotbarSlotDrag } from '@axe/features/hotbar/hotbar-drag';
 import { HotbarSlotEditorComponent } from '@axe/features/hotbar/hotbar-editor/hotbar-slot-editor.component';
 import { HotbarFailure, HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
 import { hotbarKeyDown, isApplePlatform, isTypingTarget, pressEmptiesSlot } from '@axe/features/hotbar/hotbar-shortcut';
+import { MenuCommandService } from '@axe/features/menu/menu-command.service';
 import { ActiveCharacterService } from '@axe/features/pl-tools/active-character.service';
 import { selectControllableCharacters } from '@axe/features/pl-tools/owned-character-list/owned-characters';
 import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
@@ -87,6 +89,7 @@ export class HotbarBarComponent {
   private readonly fileArchiver = inject(FileArchiver);
   private readonly chatSpeaker = inject(ChatSpeakerService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly menuCommands = inject(MenuCommandService);
 
   protected readonly widgets = inject(WidgetVisibilityService);
   protected readonly preference = inject(HotbarPreferenceService);
@@ -139,6 +142,7 @@ export class HotbarBarComponent {
         controllable,
         speaker: this.speaker(),
         referencedName: (named) => this.referencedName(named),
+        referencedIcon: (named) => this.referencedIcon(named),
         keyOf: (index) => this.keyOf(index),
       });
     });
@@ -442,6 +446,10 @@ export class HotbarBarComponent {
 
   /** What a slot points at by identifier, named as it is drawn, so a rename shows through. */
   private referencedName(slot: HotbarSlot): string {
+    if (slot.slotKind === 'menu') {
+      const command = this.menuCommandOfSlot(slot);
+      return command ? this.t(this.menuCommands.labelKeyOf(command)) : '';
+    }
     const identifier = slot.argument.trim();
     if (!identifier) return '';
 
@@ -457,6 +465,17 @@ export class HotbarBarComponent {
     if (!audio) return '';
     const labelKey = presetSoundLabelKey(identifier);
     return labelKey ? this.t(labelKey) : soundFileName(audio.name);
+  }
+
+  /** The icon of the menu entry a menu slot presses, as the menu draws it just now. */
+  private referencedIcon(slot: HotbarSlot): string {
+    const command = this.menuCommandOfSlot(slot);
+    return command ? this.menuCommands.iconOf(command) : '';
+  }
+
+  private menuCommandOfSlot(slot: HotbarSlot): MenuCommand | null {
+    const options = slot.options;
+    return options.kind === 'menu' ? menuCommandOf(options.command.trim()) : null;
   }
 
   /** A pinned bar stands above where menus go, so the menus it opens ride above it in turn. */

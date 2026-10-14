@@ -4,6 +4,7 @@ export const HOTBAR_SLOT_KINDS = [
   'range',
   'diceDeploy',
   'panel',
+  'menu',
   'focus',
   'firstPerson',
   'sound',

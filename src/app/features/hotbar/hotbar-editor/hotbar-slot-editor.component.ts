@@ -41,6 +41,7 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { presetSoundLabelKey, soundFileName } from '@axe/domain/media/preset-sound-labels';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { RANGE_DEFAULT_BORDER_COLOR, RANGE_DEFAULT_FILL_COLOR } from '@axe/domain/tabletop/range';
+import { isMenuCommandOffered, MENU_COMMANDS } from '@axe/domain/ui/menu-command';
 import { CHARACTER_PANELS, DEFAULT_CHARACTER_PANEL, panelLabelKey } from '@axe/domain/ui/room-panel';
 import { findSlotActor } from '@axe/features/hotbar/hotbar-actor';
 import { HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
@@ -188,6 +189,19 @@ export class HotbarSlotEditorComponent {
   protected readonly panelName = computed(() => {
     const options = this.options();
     return options.kind === 'panel' ? options.panel : DEFAULT_CHARACTER_PANEL;
+  });
+  /**
+   * The menu entries a menu slot may press: every one this seat's role is offered, from the
+   * floating menu and the toolbars alike, but not those that draw a menu of their own.
+   */
+  protected readonly menuChoices = computed(() => {
+    this.objectChange.trackMyCursor();
+    const role = PeerCursor.myRole;
+    return MENU_COMMANDS.filter((command) => command.action.kind !== 'custom' && isMenuCommandOffered(command, role));
+  });
+  protected readonly menuCommandKey = computed(() => {
+    const options = this.options();
+    return options.kind === 'menu' ? options.command : '';
   });
   protected readonly turnAction = computed(() => {
     const options = this.options();

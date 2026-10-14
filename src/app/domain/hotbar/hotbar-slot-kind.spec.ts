@@ -25,6 +25,7 @@ describe('hotbar slot kinds', () => {
     expect(hotbarSlotNeedsCharacter('appearance')).toBe(true);
     expect(hotbarSlotNeedsCharacter('sound')).toBe(false);
     expect(hotbarSlotNeedsCharacter('cutIn')).toBe(false);
+    expect(hotbarSlotNeedsCharacter('menu')).toBe(false);
   });
 
   it('offers every kind exactly once', () => {

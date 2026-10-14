@@ -31,12 +31,22 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { menuCommandOf } from '@axe/domain/ui/menu-command';
 import { DEFAULT_CHARACTER_PANEL } from '@axe/domain/ui/room-panel';
 import { findSlotActor } from '@axe/features/hotbar/hotbar-actor';
+import { MenuCommandService } from '@axe/features/menu/menu-command.service';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 
 /** Why a slot would not run. The bar says these to the reader, so each one has a word of its own. */
-export const HOTBAR_FAILURES = ['noCharacter', 'notFound', 'noTab', 'offTable', 'empty'] as const;
+export const HOTBAR_FAILURES = [
+  'noCharacter',
+  'notFound',
+  'noTab',
+  'offTable',
+  'empty',
+  'notAllowed',
+  'unavailable',
+] as const;
 
 export type HotbarFailure = (typeof HOTBAR_FAILURES)[number];
 
@@ -66,6 +76,7 @@ export class HotbarRunnerService {
   private readonly cutInService = inject(CutInService);
   private readonly turnOrder = inject(TurnOrderService);
   private readonly firstPerson = inject(FirstPersonService);
+  private readonly menuCommands = inject(MenuCommandService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -97,6 +108,8 @@ export class HotbarRunnerService {
         return this.runDice(character!);
       case 'panel':
         return this.runPanel(slot, character!);
+      case 'menu':
+        return this.runMenu(slot);
       case 'focus':
         return this.runFocus(character!);
       case 'firstPerson':
@@ -113,6 +126,27 @@ export class HotbarRunnerService {
         return this.runAppearance(slot, character!);
       case 'group':
         return this.runGroup(slot, character);
+    }
+  }
+
+  /**
+   * Presses an entry of the menu, as the menu itself would: the reader's role is asked again, so
+   * a slot set up while game master does nothing for a player.
+   */
+  private runMenu(slot: HotbarSlot): HotbarRunResult {
+    const options = slot.options;
+    const key = options.kind === 'menu' ? options.command.trim() : '';
+    if (!key) return failed('empty');
+    const command = menuCommandOf(key);
+    if (!command) return failed('notFound');
+
+    switch (this.menuCommands.run(command)) {
+      case 'done':
+        return OK;
+      case 'notOffered':
+        return failed('notAllowed');
+      default:
+        return failed('unavailable');
     }
   }
 

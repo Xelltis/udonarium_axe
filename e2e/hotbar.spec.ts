@@ -54,6 +54,21 @@ test.describe('ホットバー', () => {
     await expect(page.locator('textarea.chat-input')).toHaveValue('走って逃げる');
   });
 
+  test('メニューの項目を置いた枠を押すと、その項目のパネルが開くこと', async ({ page }) => {
+    await slots(page).nth(3).click();
+    await expect(page.locator('hotbar-slot-editor')).toBeVisible({ timeout: 10000 });
+    await page.locator('[data-testid="hotbar-editor-kind"]').selectOption('menu');
+    await page.locator('[data-testid="hotbar-editor-menu"]').selectOption('jukebox');
+    await page.locator('[data-testid="hotbar-editor-save"]').click();
+
+    await expect(slots(page).nth(3)).toHaveAttribute('data-filled', 'true');
+    await expect(slots(page).nth(3)).toHaveAttribute('title', 'ジュークボックス');
+
+    await slots(page).nth(3).click();
+
+    await expect(page.locator('app-jukebox')).toBeVisible({ timeout: 10000 });
+  });
+
   test('ページを切り替えると別の枠になり、戻すと元の枠が出ること', async ({ page }) => {
     await slots(page).nth(0).click();
     await expect(page.locator('hotbar-slot-editor')).toBeVisible({ timeout: 10000 });

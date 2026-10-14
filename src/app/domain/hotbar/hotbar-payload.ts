@@ -42,6 +42,11 @@ export type HotbarPayload =
       shiftY: boolean;
     }
   | { kind: 'panel'; panel: CharacterPanelName }
+  /**
+   * An entry of the menu, by its key. The key is kept here rather than as the slot's value, so a
+   * version that does not know this kind, and reads it as a chat line, finds nothing to send.
+   */
+  | { kind: 'menu'; command: string }
   | { kind: 'sound'; local: boolean }
   | { kind: 'cutIn'; soundOnly: boolean }
   | { kind: 'turn'; action: TurnAction }
@@ -97,6 +102,8 @@ export function defaultHotbarPayload(kind: HotbarSlotKind): HotbarPayload {
       };
     case 'panel':
       return { kind: 'panel', panel: DEFAULT_CHARACTER_PANEL };
+    case 'menu':
+      return { kind: 'menu', command: '' };
     case 'sound':
       return { kind: 'sound', local: false };
     case 'cutIn':
@@ -155,6 +162,8 @@ export function parseHotbarPayload(kind: HotbarSlotKind, raw: unknown): HotbarPa
       };
     case 'panel':
       return { kind: 'panel', panel: toCharacterPanelName(held.panel) };
+    case 'menu':
+      return { kind: 'menu', command: readString(held.command, fallback.command) };
     case 'sound':
       return { kind: 'sound', local: readBoolean(held.local, fallback.local) };
     case 'cutIn':
