@@ -296,6 +296,14 @@ export class AudioPlayer {
     if (this.track) this.track.loop = loop;
     if (this._audioElm) this._audioElm.loop = loop;
   }
+  /**
+   * Whether the track asked for is still being read and decoded to loop between its points, so
+   * nothing of it sounds yet.
+   */
+  get isLoading(): boolean {
+    return this.pending !== null && !this.pending.paused;
+  }
+
   /** Whether nothing is playing, which is also true before the player has played anything. */
   get paused(): boolean {
     if (this.pending) return this.pending.paused;
@@ -557,10 +565,13 @@ export class AudioPlayer {
    * Glides the player's fader to a target over a duration on the audio clock, resolving when it
    * gets there, so a fade goes on in a tab put in the background.
    *
-   * A later fade cuts an earlier one short, which then resolves where it stopped. Before anything
-   * has played, or with no duration, the fader is set and the promise resolves at once.
+   * A later fade cuts an earlier one short, which then resolves where it stopped. While the track
+   * is still being read the fade runs all the same, and the track comes in partway through it once
+   * it starts. Before anything has played, or with no duration, the fader is set and the promise
+   * resolves at once.
    */
   fadeVolumeTo(target: number, durationMs: number): Promise<void> {
+    if (!this.faderNode && this.pending) this.getConnectingAudioNode();
     const node = this.faderNode;
     if (!node || durationMs <= 0) {
       this.fader = target;

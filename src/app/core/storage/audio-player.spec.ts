@@ -1308,6 +1308,24 @@ describe('AudioPlayer', () => {
       expect(audioElmMock.play).toHaveBeenCalledOnce();
     });
 
+    it('fades a track in while it is still being read, so it comes in partway through the fade', async () => {
+      const gains = () => audioCtxMock.createGain.mock.results.map((result) => result.value as GainNodeMock);
+      const player = follower();
+      player.fader = 0;
+      player.play(looping());
+      expect(player.isLoading).toBe(true);
+
+      void player.fadeVolumeTo(1, 2000);
+
+      const fader = gains().find((gain) =>
+        gain.gain.linearRampToValueAtTime.mock.calls.some(([value, at]) => value === 1 && at === 2)
+      );
+      expect(fader).toBeDefined();
+      await vi.waitFor(() => expect(sources()).toHaveLength(1));
+      expect(player.isLoading).toBe(false);
+      expect(gains().some((gain) => gain.connect.mock.calls.some(([to]) => to === fader))).toBe(true);
+    });
+
     it('starts from where it was moved to while the track was being read, and reports that place meanwhile', async () => {
       const player = follower();
       player.play(looping());
