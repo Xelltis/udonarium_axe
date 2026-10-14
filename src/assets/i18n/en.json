@@ -5362,7 +5362,13 @@
     "notConfirmed": "Pending",
     "notVoted": "Pending",
     "absent": "Absent",
-    "abstain": "Abstain"
+    "abstain": "Abstain",
+    "secret": "Hide the answers until it closes",
+    "secretHint": "Who chose what, and how many chose each choice, stay hidden from everyone until the vote closes. Only how many have answered shows",
+    "voteStartSecret": "Vote started! ({{title}}, answers hidden until it closes)",
+    "secretAnswered": "Answered ({{voted}}/{{total}})",
+    "answered": "Answered",
+    "secretNotice": "Who chose what stays hidden until the vote closes"
   },
   "feature.dataElement": {
     "placeholderName": "Name",

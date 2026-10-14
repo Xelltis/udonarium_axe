@@ -47,6 +47,10 @@ describe('Vote', () => {
       expect(vote.isRollCall).toBe(false);
     });
 
+    it('starts with its answers in the open', () => {
+      expect(vote.isSecret).toBe(false);
+    });
+
     it('starts unfinished', () => {
       expect(vote.isFinish).toBe(false);
     });
@@ -95,6 +99,38 @@ describe('Vote', () => {
       vote.makeVote('c', '再点呼', ['p1'], ['準備完了'], true);
 
       expect(vote.isFinish).toBe(false);
+    });
+
+    it('keeps the answers in the open unless asked to hide them', () => {
+      vote.makeVote('c', '投票', ['p1'], ['賛成', '反対'], false);
+
+      expect(vote.isSecret).toBe(false);
+      expect(vote.answersShown()).toBe(true);
+    });
+
+    it('hides the answers of a secret vote until it is over', () => {
+      vote.makeVote('c', '投票', ['p1'], ['賛成', '反対'], false, 'tab-main', true);
+
+      expect(vote.isSecret).toBe(true);
+      expect(vote.answersShown()).toBe(false);
+
+      vote.isFinish = true;
+      expect(vote.answersShown()).toBe(true);
+    });
+
+    it('never hides the answers of a roll call', () => {
+      vote.makeVote('c', '点呼', ['p1'], ['準備完了'], true, 'tab-main', true);
+
+      expect(vote.isSecret).toBe(false);
+      expect(vote.answersShown()).toBe(true);
+    });
+
+    it('opens the answers again for the next vote unless it is secret too', () => {
+      vote.makeVote('c', '投票', ['p1'], ['賛成', '反対'], false, 'tab-main', true);
+
+      vote.makeVote('c', '投票', ['p1'], ['賛成', '反対'], false);
+
+      expect(vote.isSecret).toBe(false);
     });
 
     it('remembers the tab it started in', () => {

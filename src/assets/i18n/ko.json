@@ -4813,7 +4813,13 @@
       "notConfirmed": "미확인",
       "notVoted": "미투표",
       "absent": "결석",
-      "abstain": "기권"
+      "abstain": "기권",
+      "secret": "마감할 때까지 내용을 숨김",
+      "secretHint": "누가 무엇을 골랐는지와 선택지별 표 수를 마감할 때까지 아무에게도 보여 주지 않습니다. 응답한 인원수만 보입니다",
+      "voteStartSecret": "투표 시작!({{title}}, 마감할 때까지 내용 비공개)",
+      "secretAnswered": "응답했습니다({{voted}}/{{total}})",
+      "answered": "응답 완료",
+      "secretNotice": "마감할 때까지 누가 무엇을 골랐는지는 숨겨집니다"
     },
     "dataElement": {
       "placeholderName": "이름",

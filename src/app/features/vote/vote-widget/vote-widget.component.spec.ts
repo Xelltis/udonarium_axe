@@ -152,4 +152,73 @@ describe('VoteWidgetComponent', () => {
 
     expect(vote.isFinish).toBe(false);
   });
+
+  describe('a vote whose answers are hidden until it closes', () => {
+    const other = { peerId: 'other-peer-id', name: 'ほかの人', voteId: 1, voteAnswer: 0 } as unknown as PeerCursor;
+
+    function answers(): string[] {
+      return [...fixture.nativeElement.querySelectorAll('[data-testid="vote-widget-answer"]')].map((badge: Element) =>
+        badge.textContent!.trim()
+      );
+    }
+
+    beforeEach(() => {
+      vote.voteTitle = '方針';
+      vote.isRollCall = false;
+      vote.isSecret = true;
+      vote.choices = ['賛成', '反対'];
+      vote.targetPeerId = ['my-peer-id', 'other-peer-id'];
+      vi.spyOn(PeerCursor, 'findByPeerId').mockImplementation((peerId: string) =>
+        peerId === 'my-peer-id' ? myCursor : peerId === 'other-peer-id' ? other : null!
+      );
+    });
+
+    it('shows how many have answered, but not who chose what or how many chose each', () => {
+      create();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="vote-widget-choice-count"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="vote-widget-abstain-count"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="vote-widget-secret"]')).not.toBeNull();
+      expect(answers()).toEqual(['未投票', '回答済み']);
+    });
+
+    it('still shows the one who answered their own answer', () => {
+      create();
+
+      internals.voteSend('反対');
+      notifyVoteChanged();
+      fixture.detectChanges();
+
+      expect(answers()).toEqual(['反対', '回答済み']);
+    });
+
+    it('tells the chat only that somebody answered', () => {
+      create();
+
+      internals.voteSend('反対');
+
+      const text = chatStub.sendSystemMessageAsLastSpeaker.mock.calls[0][0] as string;
+      expect(text).toContain('回答しました');
+      expect(text).not.toContain('反対');
+    });
+
+    it('does not tell the chat that somebody abstained either', () => {
+      create();
+
+      internals.abstain();
+
+      const text = chatStub.sendSystemMessageAsLastSpeaker.mock.calls[0][0] as string;
+      expect(text).toContain('回答しました');
+      expect(text).not.toContain('棄権');
+    });
+
+    it('shows everything as before when the vote is not secret', () => {
+      vote.isSecret = false;
+      create();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="vote-widget-choice-count"]')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="vote-widget-secret"]')).toBeNull();
+      expect(answers()).toEqual(['未投票', '賛成']);
+    });
+  });
 });

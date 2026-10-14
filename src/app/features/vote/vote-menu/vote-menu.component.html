@@ -42,6 +42,13 @@
             name="voteContents"
           />
         </label>
+        <label
+          class="text-ui-muted inline-flex cursor-pointer items-center gap-1 text-[12px] select-none [&_input[type=checkbox]]:cursor-pointer [&_input[type=checkbox]]:[accent-color:var(--ui-accent)]"
+          [title]="'feature.vote.secretHint' | transloco"
+        >
+          <input type="checkbox" [(ngModel)]="isSecret" name="isSecret" data-testid="vote-menu-secret" />
+          <span>{{ 'feature.vote.secret' | transloco }}</span>
+        </label>
       </div>
     }
     <div class="flex items-center gap-2">

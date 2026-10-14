@@ -48,9 +48,11 @@
               [disabled]="!isTarget() || isAnswered()"
             >
               <span class="font-semibold">{{ choice }}</span>
-              <span class="text-[11px] opacity-80"
-                >{{ activeVote.votedNumByChoice(choice) }}{{ 'feature.vote.peopleSuffix' | transloco }}</span
-              >
+              @if (answersShown()) {
+                <span class="text-[11px] opacity-80" data-testid="vote-widget-choice-count"
+                  >{{ activeVote.votedNumByChoice(choice) }}{{ 'feature.vote.peopleSuffix' | transloco }}</span
+                >
+              }
             </button>
           }
           @if (isTarget() && !isAnswered()) {
@@ -65,9 +67,19 @@
           }
         </div>
 
-        @if (!activeVote.isRollCall) {
-          <div class="text-ui-muted text-[11px]">
+        @if (!activeVote.isRollCall && answersShown()) {
+          <div class="text-ui-muted text-[11px]" data-testid="vote-widget-abstain-count">
             {{ 'feature.vote.abstainCount' | transloco: { count: activeVote.votedNumByIndex(-2) } }}
+          </div>
+        }
+
+        @if (!answersShown()) {
+          <div
+            class="text-ui-muted flex items-center gap-0.75 text-[11px] [&_.material-icons]:text-[13px]!"
+            data-testid="vote-widget-secret"
+          >
+            <i class="material-icons">lock</i>
+            {{ 'feature.vote.secretNotice' | transloco }}
           </div>
         }
 
@@ -89,11 +101,12 @@
           @let controlName = findPeerLastControlName(target);
           @let controlImage = findPeerLastControlImage(target);
           @let answerIdx = activeVote.voteAnswerByPeerId(target);
+          @let hidden = answerHidden(target, answerIdx);
           <div
             class="rounded-ui-sm border-ui-border-panel bg-ui-input flex items-center gap-2 border border-l-[3px] border-solid border-l-transparent px-2 py-1.5"
-            [class.border-l-ui-accent!]="answerIdx >= 0"
-            [class.border-l-ui-danger!]="answerIdx === -2"
-            [class.opacity-60]="answerIdx === -2"
+            [class.border-l-ui-accent!]="answerIdx >= 0 || hidden"
+            [class.border-l-ui-danger!]="answerIdx === -2 && !hidden"
+            [class.opacity-60]="answerIdx === -2 && !hidden"
           >
             <div class="rounded-ui-sm bg-ui-border-panel size-10 shrink-0 overflow-hidden">
               @if (peerImage) {
@@ -125,14 +138,17 @@
             }
             <div
               class="rounded-ui-sm px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap"
+              data-testid="vote-widget-answer"
               [class.bg-[rgba(200,120,0,0.12)]]="answerIdx === -1"
               [class.text-[#c87000]]="answerIdx === -1"
-              [class.bg-ui-accent-bg]="answerIdx >= 0"
-              [class.text-ui-accent]="answerIdx >= 0"
-              [class.bg-ui-danger-bg]="answerIdx === -2"
-              [class.text-ui-danger]="answerIdx === -2"
+              [class.bg-ui-accent-bg]="answerIdx >= 0 || hidden"
+              [class.text-ui-accent]="answerIdx >= 0 || hidden"
+              [class.bg-ui-danger-bg]="answerIdx === -2 && !hidden"
+              [class.text-ui-danger]="answerIdx === -2 && !hidden"
             >
-              @if (answerIdx === -1) {
+              @if (hidden) {
+                {{ 'feature.vote.answered' | transloco }}
+              } @else if (answerIdx === -1) {
                 @if (activeVote.isRollCall) {
                   {{ 'feature.vote.notConfirmed' | transloco }}
                 } @else {

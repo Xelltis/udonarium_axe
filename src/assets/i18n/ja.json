@@ -5362,7 +5362,13 @@
     "notConfirmed": "未確認",
     "notVoted": "未投票",
     "absent": "欠席",
-    "abstain": "棄権"
+    "abstain": "棄権",
+    "secret": "締め切るまで中身を伏せる",
+    "secretHint": "誰が何に入れたかと選択肢ごとの票数を、締め切るまで誰にも見せません。何人が回答したかだけ見えます",
+    "voteStartSecret": "投票開始！({{title}}・締め切るまで中身は非公開)",
+    "secretAnswered": "回答しました({{voted}}/{{total}})",
+    "answered": "回答済み",
+    "secretNotice": "締め切るまで、誰が何に入れたかは伏せられます"
   },
   "feature.dataElement": {
     "placeholderName": "名前",
