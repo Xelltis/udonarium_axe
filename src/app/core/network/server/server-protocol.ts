@@ -123,6 +123,11 @@ export type ErrorCode = (typeof ERROR_CODES)[number];
 /** The refusals that may go away on their own, so that connecting again later is worth trying. */
 export const RETRYABLE_ERROR_CODES: ReadonlySet<ErrorCode> = new Set<ErrorCode>(['room-full', 'too-many-messages']);
 
+/** Whether a code the server closed with is one worth connecting again for. */
+export function isRetryableError(code: string): boolean {
+  return (RETRYABLE_ERROR_CODES as ReadonlySet<string>).has(code);
+}
+
 export interface ErrorMessage {
   type: 'error';
   code: string;

@@ -2,6 +2,7 @@ import { Logger } from '@axe/core/logging/logger';
 import { Connection, ConnectionCallback } from '@axe/core/network/connection';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
+import { transportOf } from '@axe/core/network/transport';
 import { setZeroTimeout } from '@axe/core/util/zero-timeout';
 
 type QueueItem = { data: unknown; sendTo: string | undefined; turn: number };
@@ -310,7 +311,11 @@ export class Network {
     return connection;
   }
 
-  private async dynamicImport(_mode: string = ''): Promise<ConnectionClass> {
+  /** The connection code for the transport the config names, loaded on first use: SkyWay unless it says server. */
+  private async dynamicImport(): Promise<ConnectionClass> {
+    if (transportOf(this.config) === 'server') {
+      return (await import('@axe/core/network/server/server-connection')).ServerConnection;
+    }
     return (await import('@axe/core/network/skyway/skyway-connection')).SkyWayConnection;
   }
 }
