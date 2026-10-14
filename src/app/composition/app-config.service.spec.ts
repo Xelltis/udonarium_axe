@@ -1,7 +1,7 @@
 import { inject, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
-import { AppConfigService } from '@axe/composition/app-config.service';
+import { AppConfigService, assetServerUrl } from '@axe/composition/app-config.service';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -94,5 +94,36 @@ describe('AppConfigService', () => {
     );
     await loadConfig();
     expect(AppConfigService.appConfig.transport).toBe('skyway');
+  });
+
+  it('keeps pictures and sounds on the room server when it names no asset server', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ transport: 'server', backend: { url: 'https://rooms.example' } }))
+    );
+    await loadConfig();
+
+    expect(AssetHttpStore.instance.isEnabled).toBe(true);
+  });
+
+  it('keeps them where the asset url says, over the room server', () => {
+    expect(
+      assetServerUrl({
+        transport: 'server',
+        backend: { url: 'https://rooms.example' },
+        assets: { url: 'https://assets.example' },
+        localMode: false,
+      })
+    ).toBe('https://assets.example');
+  });
+
+  it('leaves them to SkyWay peers when SkyWay names no asset server', () => {
+    expect(
+      assetServerUrl({
+        transport: 'skyway',
+        backend: { url: 'https://token.example' },
+        assets: { url: '' },
+        localMode: false,
+      })
+    ).toBe('');
   });
 });

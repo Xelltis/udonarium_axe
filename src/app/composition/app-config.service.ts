@@ -76,7 +76,16 @@ export class AppConfigService {
     } catch (e) {
       this.logger.warn('config.json の読み込みに失敗しました', e);
     }
-    AssetHttpStore.instance.configure(AppConfigService.appConfig.assets.url);
+    AssetHttpStore.instance.configure(assetServerUrl(AppConfigService.appConfig));
     emitLoadConfig({ config: AppConfigService.appConfig });
   }
+}
+
+/**
+ * Where pictures and sounds are kept: the asset url, or for a room server, which keeps them too, the
+ * backend url when no asset url is given. Empty leaves them to travel between peers.
+ */
+export function assetServerUrl(config: AppConfig): string {
+  if (config.assets.url.trim().length > 0) return config.assets.url;
+  return config.transport === 'server' ? config.backend.url : '';
 }
