@@ -2,6 +2,7 @@ import {
   clearBuffModifier,
   describeBuffModifier,
   parseBuffModifierRequest,
+  readBuffAmount,
   readBuffModifier,
   writeBuffModifier,
 } from '@axe/domain/character/buff-modifier';
@@ -56,6 +57,49 @@ describe('buff-modifier', () => {
       expect(parseBuffModifierRequest('', '+', '2')).toBeNull();
       expect(parseBuffModifierRequest('命中', '?', '2')).toBeNull();
       expect(parseBuffModifierRequest('命中', '+', 'たくさん')).toBeNull();
+    });
+
+    it('works out an amount written as a sum', () => {
+      expect(parseBuffModifierRequest('攻撃', '+', '(3+4)÷2')?.amount).toBe(3);
+      expect(parseBuffModifierRequest('攻撃', '+', '2×3')?.amount).toBe(6);
+      expect(parseBuffModifierRequest('攻撃', '-', '2×3')?.amount).toBe(-6);
+      expect(parseBuffModifierRequest('防護点', '=', '(4+4)÷2')).toMatchObject({ operator: 'set', amount: 4 });
+    });
+
+    it('reads a sum typed in full-width characters', () => {
+      expect(parseBuffModifierRequest('攻撃', '+', '（１０＋２）／２')?.amount).toBe(6);
+      expect(parseBuffModifierRequest('攻撃', '+', '１０÷３')?.amount).toBe(3);
+      expect(parseBuffModifierRequest('攻撃', '+', '−2+5')?.amount).toBe(3);
+    });
+  });
+
+  describe('readBuffAmount()', () => {
+    it('reads a number as it always did, fraction and all', () => {
+      expect(readBuffAmount('2')).toBe(2);
+      expect(readBuffAmount('2.5')).toBe(2.5);
+      expect(readBuffAmount('-3')).toBe(-3);
+      expect(readBuffAmount('+4')).toBe(4);
+      expect(readBuffAmount('')).toBe(0);
+    });
+
+    it('rounds a division down where it falls, as the dice bot does', () => {
+      expect(readBuffAmount('7÷2')).toBe(3);
+      expect(readBuffAmount('(5÷2)×2')).toBe(4);
+      expect(readBuffAmount('-7÷2')).toBe(-4);
+      expect(readBuffAmount('+(3+4)÷2')).toBe(3);
+    });
+
+    it('leaves the rounding to floor, ceil and round when the sum asks for it', () => {
+      expect(readBuffAmount('ceil(7÷2)')).toBe(4);
+      expect(readBuffAmount('round(5÷2)')).toBe(3);
+      expect(readBuffAmount('floor(7÷2)')).toBe(3);
+      expect(readBuffAmount('max(7÷2,1)')).toBe(3);
+    });
+
+    it('gives NaN for what is not a sum, or divides by nothing', () => {
+      expect(readBuffAmount('たくさん')).toBeNaN();
+      expect(readBuffAmount('1÷0')).toBeNaN();
+      expect(readBuffAmount('(1+2')).toBeNaN();
     });
   });
 

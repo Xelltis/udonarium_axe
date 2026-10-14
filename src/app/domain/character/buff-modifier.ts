@@ -1,4 +1,6 @@
+import { toHalfWidth } from '@axe/core/util/string-util';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
+import { evalCalcFormula } from '@axe/domain/data/data-element-calc';
 import {
   asResourceSlot,
   readNamedResourceSlot,
@@ -38,6 +40,27 @@ export interface ParsedBuffModifierRequest {
   amount: number;
 }
 
+/**
+ * The amount a buff moves a status by, from the words it was written in.
+ *
+ * A number is read as it always was. Anything else is worked out as a sum: `+ - * /`, `×` and `÷`,
+ * parentheses, and floor, ceil, round, abs, min and max, full-width characters included. A
+ * division is rounded down where it falls, as the dice bot rounds `:HP-(10+2)/2`, except inside
+ * floor, ceil and round, which do their own rounding. NaN when the words are not a sum or divide by
+ * nothing.
+ */
+export function readBuffAmount(words: string): number {
+  const written = toHalfWidth(words ?? '')
+    .trim()
+    .replace(/[−‐]/g, '-')
+    .replace(/×/g, '*')
+    .replace(/÷/g, '/');
+  const plain = Number(written);
+  if (Number.isFinite(plain)) return plain;
+  const worked = evalCalcFormula(written.replace(/^\+/, ''), () => NaN, { division: 'floor' });
+  return Number.isFinite(worked) ? worked : NaN;
+}
+
 /** Reads the status, the operator and the amount out of a `&!` command. */
 export function parseBuffModifierRequest(
   target: string,
@@ -50,7 +73,7 @@ export function parseBuffModifierRequest(
   const resolved = OPERATOR_TOKENS[(operator ?? '').trim()];
   if (!resolved) return null;
 
-  const value = Number((amount ?? '').trim().replace(/[−－]/, '-').replace('＋', '+'));
+  const value = readBuffAmount(amount);
   if (!Number.isFinite(value)) return null;
 
   const named = readNamedResourceSlot(name);
