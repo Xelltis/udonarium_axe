@@ -24,6 +24,7 @@ type AudioBufferSourceNodeMock = {
   start: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
   onended: (() => void) | null;
+  playbackRate: GainNodeMock['gain'];
 };
 
 function makeGainNode(): GainNodeMock {
@@ -55,6 +56,7 @@ function makeBufferSource(): AudioBufferSourceNodeMock {
     start: vi.fn(),
     stop: vi.fn(),
     onended: null,
+    playbackRate: makeGainNode().gain,
   };
 }
 
@@ -794,6 +796,31 @@ describe('AudioPlayer', () => {
       }
     });
 
+    it('leaves a track played again while braking at its own speed, and does not pause it', async () => {
+      vi.useFakeTimers();
+      try {
+        const player = new AudioPlayer(makeAudioFile({ blob: new Blob(['x']), identifier: 'brake-again' }));
+        player.play();
+        audioElmMock.paused = false;
+        audioElmMock.playbackRate = 1;
+        const braked = player.brake(1000);
+        await vi.advanceTimersByTimeAsync(300);
+
+        player.play();
+        audioElmMock.paused = false;
+        audioElmMock.pause.mockClear();
+        await vi.advanceTimersByTimeAsync(100);
+        expect(audioElmMock.playbackRate).toBe(1);
+
+        await vi.advanceTimersByTimeAsync(1000);
+        await braked;
+        expect(audioElmMock.pause).not.toHaveBeenCalled();
+        expect(audioElmMock.preservesPitch).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('only pauses a track that is not sounding', async () => {
       const player = new AudioPlayer(makeAudioFile({ blob: new Blob(['x']), identifier: 'brake-silent' }));
       player.play();
@@ -1324,6 +1351,19 @@ describe('AudioPlayer', () => {
       await vi.waitFor(() => expect(sources()).toHaveLength(1));
       expect(player.isLoading).toBe(false);
       expect(gains().some((gain) => gain.connect.mock.calls.some(([to]) => to === fader))).toBe(true);
+    });
+
+    it('lets a track played again while the one before was braking play on', async () => {
+      const player = follower(false);
+      player.play(looping());
+      await vi.waitFor(() => expect(sources()).toHaveLength(1));
+      const braked = player.brake(20);
+
+      player.play(looping());
+      await vi.waitFor(() => expect(sources()).toHaveLength(2));
+      await braked;
+
+      expect(player.paused).toBe(false);
     });
 
     it('starts from where it was moved to while the track was being read, and reports that place meanwhile', async () => {

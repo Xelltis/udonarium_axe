@@ -508,10 +508,16 @@ export class AudioPlayer {
    * nothing is sounding.
    *
    * A track played from memory slows on the audio clock; a streamed one is slowed in steps, as an
-   * element's rate cannot be scheduled.
+   * element's rate cannot be scheduled. A track played or stopped meanwhile is left alone: it plays
+   * at its own speed and is not paused.
    */
   brake(durationMs: number): Promise<void> {
-    if (this.track) return this.track.brake(durationMs).then(() => this.pause());
+    const attempt = this.playAttempt;
+    if (this.track) {
+      return this.track.brake(durationMs).then(() => {
+        if (attempt === this.playAttempt) this.pause();
+      });
+    }
     const element = this._audioElm;
     if (this.pending || !element || element.paused || durationMs <= 0) {
       this.pause();
@@ -528,9 +534,10 @@ export class AudioPlayer {
     return new Promise((resolve) => {
       const timer = setInterval(() => {
         const done = Math.min(1, (performance.now() - startedAt) / durationMs);
-        if (done >= 1 || this._audioElm !== element || element.paused) {
+        const superseded = attempt !== this.playAttempt;
+        if (done >= 1 || superseded || element.paused) {
           clearInterval(timer);
-          element.pause();
+          if (!superseded) element.pause();
           element.playbackRate = 1;
           setPreservesPitch(true);
           resolve();
