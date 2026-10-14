@@ -265,6 +265,17 @@ describe('BuffManagerPanelComponent', () => {
       expect(component.builderCommand()).toBe('&!練技/筋力/+/2/3/turnStart/術者');
     });
 
+    it('writes a division in the amount so that the command still reads as the preview does', () => {
+      component.builderName.set('鼓舞');
+      component.builderStatus.set('攻撃');
+      component.builderOperator.set('+');
+      component.builderAmount.set('(3+4)/2');
+      component.builderRounds.set('1');
+
+      expect(component.builderPreview()).toBe('攻撃+3');
+      expect(component.builderCommand()).toBe('&!鼓舞/攻撃/+/(3+4)÷2/1');
+    });
+
     it('says nothing about an effect it cannot read', () => {
       component.builderAmount.set('たくさん');
 

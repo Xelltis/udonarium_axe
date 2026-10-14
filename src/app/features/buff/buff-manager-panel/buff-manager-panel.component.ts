@@ -404,12 +404,16 @@ export class BuffManagerPanelComponent {
   /** Whether a second helping would mean anything: holding a status at a value twice still holds it there. */
   readonly builderCanStack = computed(() => this.builderOperator() !== '=');
 
+  /**
+   * The `&!` command the builder's fields make up. A slash typed in the amount divides there, but
+   * the command is cut into its fields at every slash, so it is written as ÷, which reads the same.
+   */
   readonly builderCommand = computed(() => {
     const parts = [
       this.builderName().trim() || 'バフ',
       this.builderStatus().trim(),
       this.builderOperator(),
-      this.builderAmount().trim(),
+      this.builderAmount().trim().replace(/\//g, '÷'),
       this.builderRounds().trim(),
     ];
     const timing = this.builderTiming();
