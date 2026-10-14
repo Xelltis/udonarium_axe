@@ -6,6 +6,7 @@ import { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { markForChanged } from '@axe/core/sync/object-event-extension';
 import { ObjectFactory } from '@axe/core/sync/object-factory';
 import { CatalogItem, ObjectStore } from '@axe/core/sync/object-store';
+import { isNewerVersion } from '@axe/core/sync/object-version';
 import { SynchronizeRequest, SynchronizeTask } from '@axe/core/sync/synchronize-task';
 
 type PeerId = string;
@@ -150,7 +151,7 @@ export class ObjectSynchronizer {
   }
 
   private updateObject(object: GameObject, context: ObjectContext): GameObject {
-    if (context.majorVersion + context.minorVersion > object.version) {
+    if (isNewerVersion(context, object.version)) {
       object.apply(context);
     }
     return object;
