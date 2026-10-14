@@ -136,18 +136,22 @@ export class WaterService {
    * The cells under water, by index.
    *
    * Ground nobody has walked to keeps its water hidden with everything else on it: a lake the
-   * party has not reached is not drawn above the fog that hides its shore.
+   * party has not reached is not drawn above the fog that hides its shore. Worked out again as the
+   * fog or the ground changes, it is handed on only where the water has changed with them.
    */
-  readonly cells = computed<ReadonlyMap<number, WaterCell>>(() => {
-    const grid = this.grid();
-    const areas = this.areas();
-    if (!grid || areas.length < 1) return NO_CELLS;
-    const cells = waterCellsOf(grid, areas, this.groundOf);
-    for (const [index, cell] of cells) {
-      if (this.vision.isHiddenByFog(cell.cx, cell.cy)) cells.delete(index);
-    }
-    return cells;
-  });
+  readonly cells = computed<ReadonlyMap<number, WaterCell>>(
+    () => {
+      const grid = this.grid();
+      const areas = this.areas();
+      if (!grid || areas.length < 1) return NO_CELLS;
+      const cells = waterCellsOf(grid, areas, this.groundOf);
+      for (const [index, cell] of cells) {
+        if (this.vision.isHiddenByFog(cell.cx, cell.cy)) cells.delete(index);
+      }
+      return cells;
+    },
+    { equal: sameWaterCells }
+  );
 
   /**
    * How lit each cell of water is at its surface, or null while the table has no darkness to read.
@@ -155,19 +159,23 @@ export class WaterService {
    * The dark is painted on the floor, and a surface standing over it is not covered by it, so
    * the surface has to wear the light of its own cells. Each is read at its very middle, as the
    * dark on the floor is; read over the width of the cell, the brightest edge of it would answer
-   * and the water would show where the floor beside it is black.
+   * and the water would show where the floor beside it is black. Worked out again whenever what is
+   * seen changes, it is handed on only where the light on the water has changed with it.
    */
-  readonly light = computed<ReadonlyMap<number, number> | null>(() => {
-    if (!this.vision.active()) return null;
-    const grid = this.grid();
-    const cells = this.cells();
-    if (!grid || cells.size < 1) return null;
-    const light = new Map<number, number>();
-    for (const cell of cells.values()) {
-      light.set(cell.index, this.vision.objectBrightness(cell.cx, cell.cy, 0, true, cell.surfacePx));
-    }
-    return light;
-  });
+  readonly light = computed<ReadonlyMap<number, number> | null>(
+    () => {
+      if (!this.vision.active()) return null;
+      const grid = this.grid();
+      const cells = this.cells();
+      if (!grid || cells.size < 1) return null;
+      const light = new Map<number, number>();
+      for (const cell of cells.values()) {
+        light.set(cell.index, this.vision.objectBrightness(cell.cx, cell.cy, 0, true, cell.surfacePx));
+      }
+      return light;
+    },
+    { equal: sameLight }
+  );
 
   /** The water at a point of the table, or null where there is none. */
   waterAt(x: number, y: number): WaterCell | null {
@@ -177,4 +185,28 @@ export class WaterService {
     if (!grid) return null;
     return cells.get(cellIndexAt(grid, x, y)) ?? null;
   }
+}
+
+/** Whether two readings of the water hold the same cells, each the same in every way. */
+function sameWaterCells(a: ReadonlyMap<number, WaterCell>, b: ReadonlyMap<number, WaterCell>): boolean {
+  if (a === b) return true;
+  if (a.size !== b.size) return false;
+  for (const [index, cell] of a) {
+    const other = b.get(index);
+    if (!other) return false;
+    for (const key of Object.keys(cell) as (keyof WaterCell)[]) {
+      if (cell[key] !== other[key]) return false;
+    }
+  }
+  return true;
+}
+
+/** Whether two readings of the light on the water are the same, cell by cell. */
+function sameLight(a: ReadonlyMap<number, number> | null, b: ReadonlyMap<number, number> | null): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.size !== b.size) return false;
+  for (const [index, value] of a) {
+    if (b.get(index) !== value) return false;
+  }
+  return true;
 }

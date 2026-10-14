@@ -96,6 +96,23 @@ describe('WaterService', () => {
     expect(service.groundOf(2)).toBe(3 * gridSize);
   });
 
+  it('hands on the same water while what changed leaves it as it was', async () => {
+    const pond = await lay('water', 1, 1, 2, 2);
+    const areas = service.areas();
+    const before = service.cells();
+
+    pond.name = '池';
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(service.areas()).not.toBe(areas);
+    expect(service.cells()).toBe(before);
+
+    pond.surfaceHeight = 2;
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(service.cells()).not.toBe(before);
+  });
+
   it('reads no light while the table has no darkness', async () => {
     await lay('water', 1, 1, 2, 2);
     expect(service.light()).toBeNull();
