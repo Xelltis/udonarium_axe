@@ -3254,7 +3254,8 @@
         "hintInitial": "Press \"Refresh list\" to show available rooms.",
         "hintSearching": "Searching...",
         "hintNoRooms": "No available rooms found. Use \"Create new room\" to make one.",
-        "hintListFailed": "Failed to fetch room list. Press \"Refresh list\" to retry."
+        "hintListFailed": "Failed to fetch room list. Press \"Refresh list\" to retry.",
+        "hintNoBackend": "No server is configured (backend.url in config.json)"
       },
       "roomSetting": {
         "title": " Create room",
@@ -3271,7 +3272,8 @@
         "alreadyConnected": "You cannot create a room while connected to other peers.",
         "alreadyConnectedHint": "Disconnect from other peers before joining another room.",
         "alreadyConnectedHint2": "(Reload the page to disconnect.)",
-        "defaultRoomName": "My room"
+        "defaultRoomName": "My room",
+        "createFailed": "The room could not be created ({{reason}})"
       },
       "passwordCheck": {
         "title": "Password",
@@ -3296,7 +3298,15 @@
         "generic": "A network error occurred. ({{errorType}})",
         "reconnecting": "Attempting to reconnect...",
         "lastReconnect": "This is the last attempt. If it does not connect, leave it a while and come back in.",
-        "sameNameMember": "You are in this room in another tab, or your previous connection has not dropped yet. Close the other tab, or wait a little and join again"
+        "sameNameMember": "You are in this room in another tab, or your previous connection has not dropped yet. Close the other tab, or wait a little and join again",
+        "roomServerProtocolMismatch": "A newer version of Axe is out. Reload the page",
+        "roomServerWrongPassword": "The password is wrong",
+        "roomServerNotFound": "The room was not found. It was closed, or removed after being kept for a while",
+        "roomServerFull": "The room is full ({{max}} at most)",
+        "roomServerReplaced": "This seat came into the room again from another screen, so this connection was closed",
+        "roomServerUnreachable": "Cannot reach the room server",
+        "roomServerNoBackend": "No server is configured (backend.url in config.json)",
+        "roomServerRefused": "The room server refused the connection ({{code}})"
       },
       "waitingForPreviousConnection": "Waiting for your previous connection to drop (up to about a minute)",
       "peerCursor": {

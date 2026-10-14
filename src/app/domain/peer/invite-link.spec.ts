@@ -13,6 +13,7 @@ describe('buildInviteLink', () => {
     const link = buildInviteLink(BASE_URL, {
       roomId: 'a1b',
       roomName: '深海の街',
+      roomKey: '',
       password: '',
       role: null,
       overlay: false,
@@ -24,6 +25,7 @@ describe('buildInviteLink', () => {
     const link = buildInviteLink(BASE_URL, {
       roomId: 'a1b',
       roomName: 'room',
+      roomKey: '',
       password: 'himitsu',
       role: null,
       overlay: false,
@@ -37,6 +39,7 @@ describe('buildInviteLink', () => {
     const link = buildInviteLink(BASE_URL, {
       roomId: 'a1b',
       roomName: 'room',
+      roomKey: '',
       password: '',
       role: PeerRole.Guest,
       overlay: false,
@@ -48,6 +51,7 @@ describe('buildInviteLink', () => {
     const link = buildInviteLink(BASE_URL, {
       roomId: 'a1b',
       roomName: 'room',
+      roomKey: '',
       password: '',
       role: PeerRole.Player,
       overlay: false,
@@ -61,6 +65,7 @@ describe('parseInviteLink', () => {
     const params = {
       roomId: 'a1b',
       roomName: '深海の街 #2',
+      roomKey: '',
       password: 'p a s s',
       role: PeerRole.Player,
       overlay: false,
@@ -70,7 +75,14 @@ describe('parseInviteLink', () => {
   });
 
   it('makes it for a password of any characters', () => {
-    const params = { roomId: 'xyz', roomName: 'room', password: '合言葉＆記号<>"', role: null, overlay: false };
+    const params = {
+      roomId: 'xyz',
+      roomName: 'room',
+      roomKey: '',
+      password: '合言葉＆記号<>"',
+      role: null,
+      overlay: false,
+    };
     const link = buildInviteLink(BASE_URL, params);
     expect(parseInviteLink(link.slice(link.indexOf('#')))?.password).toBe(params.password);
   });
@@ -79,6 +91,7 @@ describe('parseInviteLink', () => {
     expect(parseInviteLink('#join?r=a1b&n=room')).toEqual({
       roomId: 'a1b',
       roomName: 'room',
+      roomKey: '',
       password: '',
       role: null,
       overlay: false,
@@ -132,5 +145,27 @@ describe('encodeInvitePassword / decodeInvitePassword', () => {
   it('returns nothing for a value it cannot restore', () => {
     expect(decodeInvitePassword('!!!', 'a1broom')).toBe('');
     expect(decodeInvitePassword('', 'a1broom')).toBe('');
+  });
+});
+
+describe('the key of a room on a room server', () => {
+  const key = '0123456789abcdef0123456789abcdef';
+
+  it('travels in the link when there is one', () => {
+    const link = buildInviteLink(BASE_URL, {
+      roomId: 'a1b',
+      roomName: 'room',
+      roomKey: key,
+      password: '',
+      role: null,
+      overlay: false,
+    });
+
+    expect(link).toBe(`${BASE_URL}#join?r=a1b&n=room&k=${key}`);
+    expect(parseInviteLink(link.slice(link.indexOf('#')))?.roomKey).toBe(key);
+  });
+
+  it('is empty for a link written before rooms had keys', () => {
+    expect(parseInviteLink('#join?r=a1b&n=room')?.roomKey).toBe('');
   });
 });

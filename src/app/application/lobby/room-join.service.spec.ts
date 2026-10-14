@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import {
   ROOM_CONNECT_TIMEOUT_MS,
   ROOM_OPEN_TIMEOUT_MS,
+  ROOM_SERVER_OPEN_TIMEOUT_MS,
   RoomJoinService,
 } from '@axe/application/lobby/room-join.service';
 import {
@@ -73,6 +74,69 @@ describe('RoomJoinService', () => {
     PeerCursor.myCursor = originalMyCursor;
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
+  });
+
+  describe('on a room server', () => {
+    const KEY = '0123456789abcdef0123456789abcdef';
+    const serverRoom = (overrides: Partial<IRoomInfo> = {}): IRoomInfo => ({
+      id: 'abc',
+      name: 'roomname',
+      hasPassword: false,
+      peers: [],
+      memberCount: 1,
+      roomKey: KEY,
+      filterByPassword: () => [],
+      ...overrides,
+    });
+
+    it('finds a room by its key, or by its id and name for a link from before keys', async () => {
+      const rooms = [serverRoom({ id: 'xyz', name: 'other', roomKey: 'f'.repeat(32) }), serverRoom()];
+      vi.spyOn(Network, 'listAllRooms').mockResolvedValue(rooms);
+
+      expect(await service.findServerRoom(KEY, '', '')).toBe(rooms[1]);
+      expect(await service.findServerRoom('', 'xyz', 'other')).toBe(rooms[0]);
+      expect(await service.findServerRoom('', 'xyz', 'wrong name')).toBeNull();
+    });
+
+    it('opens the room by its key with the password and is in once its own connection opens', async () => {
+      const joined = service.joinServerRoom(serverRoom(), 'secret');
+      livePeerId = MY_PEER;
+      stubChange.networkOpen$.emit({ peerId: MY_PEER });
+
+      expect(await joined).toBe(true);
+      expect(Network.open).toHaveBeenCalledWith('user', 'abc', 'roomname', 'secret', KEY);
+      expect(Network.connect).not.toHaveBeenCalled();
+    });
+
+    it('gives up and goes back to waiting when the server refuses', async () => {
+      const joined = service.joinServerRoom(serverRoom(), 'wrong');
+      livePeerId = MY_PEER;
+      stubChange.networkError$.emit({
+        peerId: MY_PEER,
+        errorType: 'wrong-password',
+        errorMessage: '',
+        errorObject: null,
+      } as NetworkErrorEvent);
+
+      expect(await joined).toBe(false);
+      expect(Network.openStandby).toHaveBeenCalled();
+    });
+
+    it('gives up when the server never lets it in', async () => {
+      vi.useFakeTimers();
+      const joined = service.joinServerRoom(serverRoom(), '');
+      livePeerId = MY_PEER;
+
+      vi.advanceTimersByTime(ROOM_SERVER_OPEN_TIMEOUT_MS);
+
+      expect(await joined).toBe(false);
+      vi.useRealTimers();
+    });
+
+    it('joins nothing for a room without a key', async () => {
+      expect(await service.joinServerRoom(serverRoom({ roomKey: undefined }), '')).toBe(false);
+      expect(Network.open).not.toHaveBeenCalled();
+    });
   });
 
   describe('findRoom', () => {

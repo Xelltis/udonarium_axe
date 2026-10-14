@@ -5,6 +5,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
+import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -153,6 +154,57 @@ describe('LobbyComponent', () => {
       const spy = vi.spyOn(objectChangeService, 'networkVersion');
       void component.isConnected();
       expect(spy).toHaveBeenCalled();
+    });
+  });
+
+  describe('on a room server', () => {
+    const room: IRoomInfo = {
+      id: 'Ab3',
+      name: '月夜の卓',
+      hasPassword: true,
+      peers: [],
+      memberCount: 2,
+      roomKey: '0123456789abcdef0123456789abcdef',
+      filterByPassword: () => [],
+    };
+    let originalMyCursor: PeerCursor;
+
+    beforeEach(() => {
+      originalMyCursor = PeerCursor.myCursor;
+      PeerCursor.myCursor = { peerId: '', reConnectPass: '' } as unknown as PeerCursor;
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor = originalMyCursor;
+      vi.restoreAllMocks();
+    });
+
+    it('asks for the password for the server to check, and joins through the server', async () => {
+      const openModal = vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue('pw');
+      const joinServerRoom = vi.spyOn(TestBed.inject(RoomJoinService), 'joinServerRoom').mockResolvedValue(false);
+
+      await component.connectRoom({ alias: '', roomName: room.name, info: room, peerContexts: [] });
+
+      await vi.waitFor(() => expect(joinServerRoom).toHaveBeenCalledWith(room, 'pw'));
+      expect(openModal.mock.calls[0][1]).toMatchObject({ checkedByServer: true });
+    });
+
+    it('joins nothing when the password dialogue is dismissed', async () => {
+      vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue(null);
+      const joinServerRoom = vi.spyOn(TestBed.inject(RoomJoinService), 'joinServerRoom');
+
+      await component.connectRoom({ alias: '', roomName: room.name, info: room, peerContexts: [] });
+
+      expect(joinServerRoom).not.toHaveBeenCalled();
+    });
+
+    it('says so when no room server is configured', async () => {
+      vi.spyOn(Network, 'listAllRooms').mockRejectedValue(new ServerRoomApiError(0, 'no-backend'));
+
+      await component.reload();
+
+      expect(component.help()).toContain('backend.url');
     });
   });
 });

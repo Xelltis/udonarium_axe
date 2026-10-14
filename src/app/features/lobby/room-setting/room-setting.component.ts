@@ -5,6 +5,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
+import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { saveIdentity } from '@axe/core/storage/identity-storage';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -25,6 +26,9 @@ export class RoomSettingComponent {
   readonly roomName = signal<string>(this.t('feature.lobby.roomSetting.defaultRoomName'));
   readonly password = signal<string>('');
   readonly roomNameTooLong = computed(() => this.roomName().length > 255);
+  /** Why the room server would not create the room, shown in the dialog; empty until it refuses. */
+  readonly createError = signal('');
+  readonly isCreating = signal(false);
 
   /** This browser's peer ID on the network. */
   get peerId(): string {
@@ -56,6 +60,10 @@ export class RoomSettingComponent {
    * this browser so it can find its way back after a reload.
    */
   createRoom() {
+    if (Network.transport === 'server') {
+      void this.createServerRoom();
+      return;
+    }
     const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
     const roomId = PeerContext.generateId('***');
     Network.open(userId, roomId, this.roomName(), this.password());
@@ -70,5 +78,38 @@ export class RoomSettingComponent {
       reConnectPass: this.password(),
     });
     this.modalService.resolve(true);
+  }
+
+  /**
+   * Creates the room on the room server, which gives it its key and id, then opens it as the
+   * SkyWay one is opened. A refusal, such as too many rooms created at once, leaves the dialog open
+   * and says why.
+   */
+  private async createServerRoom(): Promise<void> {
+    if (this.isCreating()) return;
+    this.isCreating.set(true);
+    this.createError.set('');
+    try {
+      const { roomKey, roomId } = await Network.createRoom(this.roomName(), this.password());
+      const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
+      Network.open(userId, roomId, this.roomName(), this.password(), roomKey);
+      PeerCursor.myCursor.peerId = Network.peerId;
+      if (PeerCursor.myCursor.role === PeerRole.Player) PeerCursor.myCursor.role = PeerRole.GameMaster;
+      this.myPeer.reConnectPass = this.password();
+      saveIdentity({
+        userId,
+        roomId,
+        roomName: this.roomName(),
+        role: PeerCursor.myCursor.role,
+        reConnectPass: this.password(),
+        roomKey,
+      });
+      this.modalService.resolve(true);
+    } catch (e) {
+      const reason = e instanceof ServerRoomApiError ? e.code : String(e);
+      this.createError.set(this.t('feature.lobby.roomSetting.createFailed', { reason }));
+    } finally {
+      this.isCreating.set(false);
+    }
   }
 }

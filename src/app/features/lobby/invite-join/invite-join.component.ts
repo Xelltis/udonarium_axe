@@ -89,6 +89,10 @@ export class InviteJoinComponent {
   }
 
   private async join(params: InviteLinkParams): Promise<void> {
+    if (Network.transport === 'server') {
+      await this.joinThroughServer(params);
+      return;
+    }
     const room = await this.roomJoin.findRoom(params.roomId);
     const peerContexts = (room?.peers ?? []) as PeerContext[];
     if (!room || peerContexts.length < 1) {
@@ -105,6 +109,38 @@ export class InviteJoinComponent {
     PeerCursor.myCursor.reConnectPass = password;
     const isJoined = await this.roomJoin.join(peerContexts, password);
     if (!isJoined) {
+      this.state.set('failed');
+      return;
+    }
+
+    this.applyRole(params.role);
+    this.state.set('done');
+  }
+
+  /**
+   * Joins the invited room on a room server, found by the key in the link or, for a link from
+   * before keys, by its id and name. The server checks the password as the room is joined.
+   */
+  private async joinThroughServer(params: InviteLinkParams): Promise<void> {
+    const room = await this.roomJoin.findServerRoom(params.roomKey, params.roomId, params.roomName);
+    if (!room) {
+      this.state.set('notFound');
+      return;
+    }
+
+    let password = params.password;
+    if (room.hasPassword && password.length < 1) {
+      const options: PasswordCheckOptions = { checkedByServer: true, title: `${room.name}/${room.id}` };
+      const typed = await this.modalService.open<string>(PasswordCheckComponent, options);
+      if (typed == null) {
+        this.state.set('failed');
+        return;
+      }
+      password = typed;
+    }
+
+    PeerCursor.myCursor.reConnectPass = password;
+    if (!(await this.roomJoin.joinServerRoom(room, password))) {
       this.state.set('failed');
       return;
     }

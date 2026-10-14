@@ -2,7 +2,8 @@ import { Logger } from '@axe/core/logging/logger';
 import { Connection, ConnectionCallback } from '@axe/core/network/connection';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
-import { transportOf } from '@axe/core/network/transport';
+import { CreateRoomResponse } from '@axe/core/network/server/server-protocol';
+import { Transport, transportOf } from '@axe/core/network/transport';
 import { setZeroTimeout } from '@axe/core/util/zero-timeout';
 
 type QueueItem = { data: unknown; sendTo: string | undefined; turn: number };
@@ -53,6 +54,14 @@ export class Network {
   /** The room server's peer id when connected through one; null with SkyWay or without a connection. */
   static get authorityPeerId(): string | null {
     return Network.instance.authorityPeerId;
+  }
+  /** How this deployment connects players, as config.json names it. */
+  static get transport(): Transport {
+    return Network.instance.transport;
+  }
+  /** The key of the open room on a room server; null with SkyWay or outside a room. */
+  static get roomKey(): string | null {
+    return Network.instance.roomKey;
   }
   /** Keeps the app config, such as the backend URL, for the connection made on the next open. */
   static configure(config: Record<string, unknown>) {
@@ -108,6 +117,12 @@ export class Network {
   }
   get authorityPeerId(): string | null {
     return this.connection?.authorityPeerId ?? null;
+  }
+  get transport(): Transport {
+    return transportOf(this.config);
+  }
+  get roomKey(): string | null {
+    return this.connection?.roomKey ?? null;
   }
 
   private config: Record<string, unknown> = {};
@@ -278,6 +293,15 @@ export class Network {
   /** The rooms listed in the lobby; empty without a connection. */
   listAllRooms(): Promise<IRoomInfo[]> {
     return this.connection ? this.connection.listAllRooms() : Promise.resolve([]);
+  }
+
+  /**
+   * Creates a room on the room server, which answers with the key to open it by. It rejects
+   * without a connection, and with SkyWay, where a room needs no creating.
+   */
+  createRoom(name: string, password: string): Promise<CreateRoomResponse> {
+    if (!this.connection?.createRoom) return Promise.reject(new Error('rooms are not created on this transport'));
+    return this.connection.createRoom(name, password);
   }
 
   private initializeConnection(): Connection {

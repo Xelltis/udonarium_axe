@@ -1,11 +1,14 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
 import { PeerContext } from '@axe/core/network/peer-context';
+import { IRoomInfo } from '@axe/core/network/room-info';
+import { loadIdentity } from '@axe/core/storage/identity-storage';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -62,8 +65,11 @@ export class ReConnectComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly roomJoin = inject(RoomJoinService);
 
   rooms: { alias: string; roomName: string; peerContexts: PeerContext[] }[] = [];
+  /** The rooms as the transport reports them, which a room server finds the room again in. */
+  private roomInfos: IRoomInfo[] = [];
 
   readonly forceCleanup = signal(false);
 
@@ -109,6 +115,11 @@ export class ReConnectComponent {
       this.deleteObject();
     }
 
+    if (Network.transport === 'server') {
+      void this.reConnectThroughServer();
+      return;
+    }
+
     for (const room of this.rooms) {
       if (room.alias == this.roomId + this.roomName) {
         Logger.info(`[Network] reconnect started (room: ${this.roomName})`);
@@ -119,11 +130,29 @@ export class ReConnectComponent {
     Logger.warn(`[Network] reconnect target not found (room: ${this.roomName}/${this.roomId})`);
   }
 
+  /**
+   * Joins the room again on a room server, found by the key this seat kept or by its id and name,
+   * with the password kept from joining. The dialog closes once the server lets the seat back in.
+   */
+  private async reConnectThroughServer(): Promise<void> {
+    const roomKey = Network.roomKey ?? loadIdentity()?.roomKey ?? '';
+    const room =
+      (roomKey.length > 0 ? this.roomInfos.find((info) => info.roomKey === roomKey) : undefined) ??
+      this.roomInfos.find((info) => info.id === this.roomId && info.name === this.roomName);
+    if (!room) {
+      Logger.warn(`[Network] reconnect target not found (room: ${this.roomName}/${this.roomId})`);
+      return;
+    }
+    if (await this.roomJoin.joinServerRoom(room, this.myPeer.reConnectPass ?? '')) this.modalService.resolve();
+  }
+
   /** Fetches the open rooms a reconnect looks its room up in; a failed fetch leaves the list empty. */
   async reload() {
     this.rooms = [];
+    this.roomInfos = [];
     try {
       const roomInfos = await Network.listAllRooms();
+      this.roomInfos = roomInfos;
       for (const room of roomInfos) {
         this.rooms.push({
           alias: room.id + room.name,

@@ -5,6 +5,8 @@ const INVITE_HASH_PREFIX = '#join?';
 export interface InviteLinkParams {
   roomId: string;
   roomName: string;
+  /** The key of the room on a room server; empty for SkyWay and for a link written before keys. */
+  roomKey: string;
   password: string;
   role: PeerRole | null;
   /** Whether it opens as an overlay for a stream. It touches nothing at the table and is how this screen alone looks. */
@@ -21,6 +23,7 @@ export function buildInviteLink(baseUrl: string, params: InviteLinkParams): stri
   const query = new URLSearchParams();
   query.set('r', params.roomId);
   query.set('n', params.roomName);
+  if (params.roomKey.length > 0) query.set('k', params.roomKey);
   if (params.password.length > 0) {
     query.set('p', encodeInvitePassword(params.password, params.roomId + params.roomName));
   }
@@ -49,6 +52,7 @@ export function parseInviteLink(hash: string): InviteLinkParams | null {
   return {
     roomId,
     roomName,
+    roomKey: query.get('k') ?? '',
     password: encodedPassword.length > 0 ? decodeInvitePassword(encodedPassword, roomId + roomName) : '',
     role: isPeerRole(role) ? role : null,
     overlay: query.get('overlay') === '1',

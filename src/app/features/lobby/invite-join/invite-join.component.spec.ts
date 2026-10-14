@@ -24,6 +24,8 @@ describe('InviteJoinComponent', () => {
   let fixture: ComponentFixture<InviteJoinComponent>;
   let findRoom: ReturnType<typeof vi.fn>;
   let join: ReturnType<typeof vi.fn>;
+  let findServerRoom: ReturnType<typeof vi.fn>;
+  let joinServerRoom: ReturnType<typeof vi.fn>;
   let modalOpen: ReturnType<typeof vi.fn>;
   let waitingForPreviousConnection: WritableSignal<boolean>;
   let originalMyCursor: PeerCursor;
@@ -34,7 +36,10 @@ describe('InviteJoinComponent', () => {
       imports: [InviteJoinComponent],
       providers: [
         ...TEST_PROVIDERS,
-        { provide: RoomJoinService, useValue: { findRoom, join, waitingForPreviousConnection } },
+        {
+          provide: RoomJoinService,
+          useValue: { findRoom, join, findServerRoom, joinServerRoom, waitingForPreviousConnection },
+        },
       ],
     }).compileComponents();
     TestBed.overrideProvider(ModalService, { useValue: { open: modalOpen } });
@@ -61,6 +66,8 @@ describe('InviteJoinComponent', () => {
   beforeEach(() => {
     findRoom = vi.fn().mockResolvedValue(createRoom());
     join = vi.fn().mockResolvedValue(true);
+    findServerRoom = vi.fn().mockResolvedValue(null);
+    joinServerRoom = vi.fn().mockResolvedValue(true);
     modalOpen = vi.fn().mockResolvedValue('');
     waitingForPreviousConnection = signal(false);
     originalMyCursor = PeerCursor.myCursor;
@@ -136,9 +143,57 @@ describe('InviteJoinComponent', () => {
 
   it('asks for nothing when it does', async () => {
     findRoom.mockResolvedValue(createRoom(true));
-    await setup(buildInviteLink('', { roomId: 'a1b', roomName: 'room', password: 'pw', role: null, overlay: false }));
+    await setup(
+      buildInviteLink('', { roomId: 'a1b', roomName: 'room', roomKey: '', password: 'pw', role: null, overlay: false })
+    );
 
     await eventually(() => expect(join).toHaveBeenCalledWith(expect.anything(), 'pw'));
     expect(modalOpen).not.toHaveBeenCalled();
+  });
+
+  describe('on a room server', () => {
+    const KEY = '0123456789abcdef0123456789abcdef';
+    const serverRoom = (hasPassword: boolean): IRoomInfo => ({
+      id: 'a1b',
+      name: 'room',
+      hasPassword,
+      peers: [],
+      memberCount: 1,
+      roomKey: KEY,
+      filterByPassword: () => [],
+    });
+    const link = (password: string) =>
+      buildInviteLink('', { roomId: 'a1b', roomName: 'room', roomKey: KEY, password, role: null, overlay: false });
+
+    beforeEach(() => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+    });
+
+    it('finds the room by the key in the link and joins it there', async () => {
+      const room = serverRoom(true);
+      findServerRoom.mockResolvedValue(room);
+      await setup(link('pw'));
+
+      await eventually(() => expect(joinServerRoom).toHaveBeenCalledWith(room, 'pw'));
+      expect(findServerRoom).toHaveBeenCalledWith(KEY, 'a1b', 'room');
+      expect(join).not.toHaveBeenCalled();
+      expect(modalOpen).not.toHaveBeenCalled();
+    });
+
+    it('asks for the password, for the server to check, when the link carries none', async () => {
+      findServerRoom.mockResolvedValue(serverRoom(true));
+      modalOpen.mockResolvedValue('typed');
+      await setup(link(''));
+
+      await eventually(() => expect(joinServerRoom).toHaveBeenCalledWith(expect.anything(), 'typed'));
+      expect(modalOpen.mock.calls[0][1]).toMatchObject({ checkedByServer: true });
+    });
+
+    it('says the room is gone when the server does not list it', async () => {
+      await setup(link(''));
+
+      await eventually(() => expect(findServerRoom).toHaveBeenCalled());
+      expect(joinServerRoom).not.toHaveBeenCalled();
+    });
   });
 });

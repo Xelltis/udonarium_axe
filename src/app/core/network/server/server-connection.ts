@@ -3,9 +3,11 @@ import { Connection, ConnectionCallback } from '@axe/core/network/connection';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { PeerReconnectScheduler } from '@axe/core/network/peer-reconnect-scheduler';
 import { IRoomInfo } from '@axe/core/network/room-info';
+import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { decodeFrame, encodeFrame, encodeSendFrames } from '@axe/core/network/server/server-frames';
 import {
   ClientMessage,
+  CreateRoomResponse,
   DataMessage,
   EventContext,
   helloMessage,
@@ -16,7 +18,7 @@ import {
   ServerMessage,
   WelcomeMessage,
 } from '@axe/core/network/server/server-protocol';
-import { listRooms, roomInfoOf, roomSocketUrl } from '@axe/core/network/server/server-room-api';
+import { createRoom, listRooms, roomInfoOf, roomSocketUrl } from '@axe/core/network/server/server-room-api';
 
 /** How long a connection waits between asking whether the server is still there. */
 export const PING_INTERVAL_MS = 25_000;
@@ -27,11 +29,6 @@ export const PONG_TIMEOUT_MS = 10_000;
  * second at most, well inside the server's limit of 2000 frames in ten seconds.
  */
 export const SEND_GATHER_MS = 16;
-
-/** The error a session reports when it never got into the room, or lost the server for good. */
-export const SERVER_UNREACHABLE = 'server-unreachable';
-/** The error a session reports when the deployment names no backend to reach. */
-export const NO_BACKEND = 'no-backend';
 
 const SOCKET_OPEN = 1;
 const SOCKET_KEY = 'room-server';
@@ -51,8 +48,8 @@ interface Outbound {
  *
  * A connection lost after getting in is tried again with the same peer id, after 1, 2, 4, 8 and
  * 15 seconds; the server lets the new one in and closes nothing, since the old one is gone. A
- * refusal ends the session with an error, except for a full room or too many messages, which are
- * tried again in the same way.
+ * refusal ends the session with an error, except for a full room or too many messages once in the
+ * room, which are tried again in the same way. Joining a full room is refused at once.
  */
 export class ServerConnection implements Connection {
   readonly callback: ConnectionCallback = new ConnectionCallback();
@@ -75,6 +72,9 @@ export class ServerConnection implements Connection {
   }
   get authorityPeerId(): string | undefined {
     return this.authority?.peerId;
+  }
+  get roomKey(): string | undefined {
+    return this.room?.roomKey;
   }
 
   private baseUrl = '';
@@ -195,6 +195,11 @@ export class ServerConnection implements Connection {
   /** The rooms on the server. It rejects when the server cannot be reached or refuses. */
   async listAllRooms(): Promise<IRoomInfo[]> {
     return (await listRooms(this.baseUrl)).map(roomInfoOf);
+  }
+
+  /** Creates a room on the server, sending the password only when there is one. */
+  createRoom(name: string, password: string): Promise<CreateRoomResponse> {
+    return createRoom(this.baseUrl, password.length > 0 ? { name, password } : { name });
   }
 
   private connectSocket(): void {
@@ -332,7 +337,7 @@ export class ServerConnection implements Connection {
 
     const refusal = this.refusal;
     this.refusal = null;
-    if (refusal != null && !isRetryableError(refusal)) {
+    if (refusal != null && (!isRetryableError(refusal) || !this.everWelcomed)) {
       this.fail(refusal, `the room server refused: ${refusal}`);
       return;
     }

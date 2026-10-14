@@ -13,6 +13,8 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 export const ROOM_OPEN_TIMEOUT_MS = SAME_NAME_MEMBER_WAIT_MS + 10_000;
 /** How long the others in the room may take to answer once it is open. */
 export const ROOM_CONNECT_TIMEOUT_MS = 15_000;
+/** How long a room server may take to let this seat in. */
+export const ROOM_SERVER_OPEN_TIMEOUT_MS = 30_000;
 
 /** Whether this tab was last in this room, which is where a reload leaves whoever was in it. */
 function wasLastIn(roomId: string): boolean {
@@ -41,6 +43,62 @@ export class RoomJoinService {
 
   constructor() {
     sameNameMemberWait$.subscribe((event) => this.waitingForPreviousConnection.set(event.waiting), this.destroyRef);
+  }
+
+  /**
+   * Looks a room up on a room server by its key, or by its id and name for a link or a saved seat
+   * from before rooms had keys; null when the server lists no such room.
+   */
+  async findServerRoom(roomKey: string, roomId: string, roomName: string): Promise<IRoomInfo | null> {
+    const rooms = await Network.listAllRooms();
+    return (
+      (roomKey.length > 0 ? rooms.find((room) => room.roomKey === roomKey) : undefined) ??
+      rooms.find((room) => room.id === roomId && room.name === roomName) ??
+      null
+    );
+  }
+
+  /**
+   * Joins a room on a room server, which checks the password and lets the seat in. A game master
+   * comes in as a player unless this tab was last in this room, as with SkyWay.
+   *
+   * There is nobody to connect to one by one: the room is joined once it opens, and an error
+   * opening it, a wrong password or a full room among them, ends the join.
+   */
+  joinServerRoom(room: IRoomInfo, password: string): Promise<boolean> {
+    const roomKey = room.roomKey;
+    if (!roomKey) return Promise.resolve(false);
+
+    if (PeerCursor.myCursor.role === PeerRole.GameMaster && !wasLastIn(room.id)) {
+      PeerCursor.myCursor.role = PeerRole.Player;
+    }
+    const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
+    Network.open(userId, room.id, room.name, password, roomKey);
+    PeerCursor.myCursor.peerId = Network.peerId;
+
+    return new Promise<boolean>((resolve) => {
+      let isSettled = false;
+      const settle = (isJoined: boolean): void => {
+        if (isSettled) return;
+        isSettled = true;
+        clearTimeout(timer);
+        offOpen();
+        offError();
+        if (!isJoined) this.resetNetwork(room.id);
+        resolve(isJoined);
+      };
+      const offOpen = this.objectChange.networkOpen$.subscribe((event) => {
+        if (!isOwnConnectionTo(room.id, event.peerId)) return;
+        this.objectStore.clearDeleteHistory();
+        settle(true);
+      }, this.destroyRef);
+      const offError = this.objectChange.networkError$.subscribe((event) => {
+        if (event.peerId && !isOwnConnectionTo(room.id, event.peerId)) return;
+        settle(false);
+      }, this.destroyRef);
+      const timer = setTimeout(() => settle(false), ROOM_SERVER_OPEN_TIMEOUT_MS);
+      this.destroyRef.onDestroy(() => clearTimeout(timer));
+    });
   }
 
   /** Looks a room up by its id in the lobby listing, or null when no open room has that id. */

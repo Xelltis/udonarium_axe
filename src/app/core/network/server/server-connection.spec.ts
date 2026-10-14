@@ -1,12 +1,11 @@
 import { IPeerContext } from '@axe/core/network/peer-context';
 import {
-  NO_BACKEND,
   PING_INTERVAL_MS,
   PONG_TIMEOUT_MS,
   SEND_GATHER_MS,
-  SERVER_UNREACHABLE,
   ServerConnection,
 } from '@axe/core/network/server/server-connection';
+import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { decodeFrame, MAX_FRAME_BYTES } from '@axe/core/network/server/server-frames';
 import { AUTHORITY_PEER_ID, EventContext, ServerMessage } from '@axe/core/network/server/server-protocol';
 import { isCompressed } from '@axe/core/util/compress';
@@ -232,6 +231,17 @@ describe('ServerConnection', () => {
 
     expect(FakeWebSocket.instances.length).toBe(1);
     expect(calls).not.toContain('open');
+  });
+
+  it('says at once that a room is full when joining it, rather than waiting in line', async () => {
+    const socket = await openRoom();
+    socket.accept();
+    socket.deliver({ type: 'error', code: 'room-full', protocolVersion: 1 });
+    await settle();
+    socket.close(4000, 'room-full');
+    await vi.waitFor(() => expect(errors).toEqual([{ code: 'room-full' }]));
+
+    expect(FakeWebSocket.instances.length).toBe(1);
   });
 
   it('stops quietly when the same seat connects again elsewhere, and reports that it was closed', async () => {

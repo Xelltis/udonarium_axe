@@ -1,5 +1,6 @@
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
+import { CreateRoomResponse } from '@axe/core/network/server/server-protocol';
 
 export type PeerReconnectState = 'retrying' | 'recovered' | 'failed';
 
@@ -25,6 +26,8 @@ export interface Connection {
    * with. Only a connection through a room server has one; it is never among `peers`.
    */
   readonly authorityPeerId?: string;
+  /** The key a room server finds the open room by; SkyWay rooms have none. */
+  readonly roomKey?: string;
 
   configure(config: Record<string, unknown>): void;
   openStandby(userId?: string): void;
@@ -39,4 +42,6 @@ export interface Connection {
   send(data: unknown, sendTo?: string): void;
   listAllPeers(): Promise<string[]>;
   listAllRooms(): Promise<IRoomInfo[]>;
+  /** Creates a room on a room server; SkyWay rooms come into being as somebody opens them. */
+  createRoom?(name: string, password: string): Promise<CreateRoomResponse>;
 }

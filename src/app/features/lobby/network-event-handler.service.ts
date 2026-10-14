@@ -4,6 +4,8 @@ import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PeerReconnectState } from '@axe/core/network/connection';
 import { Network } from '@axe/core/network/network';
+import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
+import { MAX_MEMBERS } from '@axe/core/network/server/server-protocol';
 import { SAME_NAME_MEMBER_ERROR } from '@axe/core/network/skyway/same-name-member';
 import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -51,6 +53,15 @@ export class NetworkEventHandlerService {
       const { errorType, errorMessage } = event;
       const quietErrorTypes = ['peer-unavailable'];
       if (quietErrorTypes.includes(errorType)) return;
+
+      // A room server says why it closed. The seat goes back to waiting outside the room with the
+      // reason in the chat, which no retry would change.
+      const roomServerMessage = Network.transport === 'server' ? this.roomServerErrorMessage(errorType) : null;
+      if (roomServerMessage) {
+        this.chatMessageService.sendSystemMessage(roomServerMessage);
+        Network.openStandby(loadIdentity()?.userId);
+        return;
+      }
 
       // A server error may be a slow cold start, so it backs off and tries again a few times.
       // Past the limit it treats the failure as permanent, says so and stops rather than looping.
@@ -107,6 +118,7 @@ export class NetworkEventHandlerService {
           roomName: peer.roomName,
           role: myCursor.role,
           reConnectPass: myCursor.reConnectPass,
+          roomKey: Network.roomKey ?? '',
         });
       },
       this.destroyRef
@@ -129,6 +141,7 @@ export class NetworkEventHandlerService {
       roomName: last?.roomName ?? peer.roomName,
       role: PeerCursor.myCursor.role,
       reConnectPass: PeerCursor.myCursor.reConnectPass,
+      roomKey: last ? (last.roomKey ?? '') : (Network.roomKey ?? ''),
     });
   }
 
@@ -165,6 +178,32 @@ export class NetworkEventHandlerService {
     if (cursor?.name) return cursor.name;
     if (cursor?.userId) return cursor.userId.slice(0, 6);
     return peerId.slice(0, 6);
+  }
+
+  /** What to tell the reader about a code a room server closed with, or null for any other error. */
+  private roomServerErrorMessage(code: string): string | null {
+    switch (code) {
+      case 'protocol-mismatch':
+        return encodeI18nMessage('feature.lobby.errors.roomServerProtocolMismatch');
+      case 'wrong-password':
+        return encodeI18nMessage('feature.lobby.errors.roomServerWrongPassword');
+      case 'room-not-found':
+        return encodeI18nMessage('feature.lobby.errors.roomServerNotFound');
+      case 'room-full':
+        return encodeI18nMessage('feature.lobby.errors.roomServerFull', { max: MAX_MEMBERS });
+      case 'replaced':
+        return encodeI18nMessage('feature.lobby.errors.roomServerReplaced');
+      case SERVER_UNREACHABLE:
+        return encodeI18nMessage('feature.lobby.errors.roomServerUnreachable');
+      case NO_BACKEND:
+        return encodeI18nMessage('feature.lobby.errors.roomServerNoBackend');
+      case 'hello-required':
+      case 'bad-message':
+      case 'too-many-messages':
+        return encodeI18nMessage('feature.lobby.errors.roomServerRefused', { code });
+      default:
+        return null;
+    }
   }
 
   private resolveNetworkErrorMessage(errorType: string, _errorMessage: string): string {

@@ -6,6 +6,7 @@ const sample: PersistedIdentity = {
   roomName: 'Room',
   role: 'gm',
   reConnectPass: 'secret',
+  roomKey: '0123456789abcdef0123456789abcdef',
 };
 
 describe('identity-storage', () => {
@@ -28,7 +29,21 @@ describe('identity-storage', () => {
 
   it('fills missing optional fields with empty strings', () => {
     sessionStorage.setItem('udonarium-axe.identity', JSON.stringify({ userId: 'u1' }));
-    expect(loadIdentity()).toEqual({ userId: 'u1', roomId: '', roomName: '', role: '', reConnectPass: '' });
+    expect(loadIdentity()).toEqual({
+      userId: 'u1',
+      roomId: '',
+      roomName: '',
+      role: '',
+      reConnectPass: '',
+      roomKey: '',
+    });
+  });
+
+  it('reads a seat saved before rooms had keys as having none', () => {
+    const { roomKey: _roomKey, ...saved } = sample;
+    sessionStorage.setItem('udonarium-axe.identity', JSON.stringify(saved));
+
+    expect(loadIdentity()?.roomKey).toBe('');
   });
 
   it('returns null for corrupt JSON', () => {

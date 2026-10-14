@@ -8,6 +8,7 @@ import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
+import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   PasswordCheckComponent,
@@ -133,7 +134,8 @@ export class LobbyComponent {
       this.help.set(this.t('feature.lobby.lobby.hintNoRooms'));
     } catch (e) {
       Logger.error('[Lobby] failed to fetch room list', e);
-      this.help.set(this.t('feature.lobby.lobby.hintListFailed'));
+      const noBackend = e instanceof ServerRoomApiError && e.code === 'no-backend';
+      this.help.set(this.t(noBackend ? 'feature.lobby.lobby.hintNoBackend' : 'feature.lobby.lobby.hintListFailed'));
     } finally {
       this.isReloading.set(false);
     }
@@ -169,6 +171,41 @@ export class LobbyComponent {
       isJoinStarted = true;
       void this.roomJoin
         .join(peerContexts, password)
+        .then((isJoined) => {
+          if (isJoined) this.modalService.resolve();
+        })
+        .finally(() => this.isJoining.set(false));
+    } finally {
+      if (!isJoinStarted) this.isJoining.set(false);
+    }
+  }
+
+  /** Joins the room a row stands for, through the room server or among the SkyWay peers in it. */
+  connectRoom(row: LobbyRoom): Promise<void> {
+    return Network.transport === 'server' ? this.connectServer(row.info) : this.connect(row.peerContexts);
+  }
+
+  /**
+   * Joins a room on a room server, asking for its password first when it has one. The server
+   * checks the password as the room is joined, so a wrong one ends the join rather than the dialog.
+   */
+  async connectServer(room: IRoomInfo) {
+    if (this.isJoining()) return;
+    this.isJoining.set(true);
+    let isJoinStarted = false;
+    try {
+      let password = '';
+      if (room.hasPassword) {
+        const options: PasswordCheckOptions = { checkedByServer: true, title: `${room.name}/${room.id}` };
+        const typed = await this.modalService.open<string>(PasswordCheckComponent, options);
+        if (typed == null) return;
+        password = typed;
+        this.myPeer.reConnectPass = password;
+      }
+
+      isJoinStarted = true;
+      void this.roomJoin
+        .joinServerRoom(room, password)
         .then((isJoined) => {
           if (isJoined) this.modalService.resolve();
         })

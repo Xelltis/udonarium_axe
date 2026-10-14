@@ -304,4 +304,47 @@ describe('NetworkEventHandlerService', () => {
     expect(configureSpy).toHaveBeenCalledWith({ foo: 'bar' });
     expect(openStandbySpy).toHaveBeenCalledTimes(1);
   });
+
+  describe('a room server closing the connection', () => {
+    const sent = () => chatStub.sendSystemMessage.mock.calls.map(([text]) => text as string);
+
+    it('says why and goes back to waiting, however often, without trying again', () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      const openStandbySpy = vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+
+      for (let i = 0; i < 5; i++) stubChange.networkError$.emit({ errorType: 'wrong-password', errorMessage: '' });
+
+      expect(openStandbySpy).toHaveBeenCalledTimes(5);
+      expect(sent()).toHaveLength(5);
+      expect(sent().every((text) => text.includes('feature.lobby.errors.roomServerWrongPassword'))).toBe(true);
+    });
+
+    it('names each reason the server gives', () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+      const reasons: [string, string][] = [
+        ['protocol-mismatch', 'roomServerProtocolMismatch'],
+        ['room-not-found', 'roomServerNotFound'],
+        ['room-full', 'roomServerFull'],
+        ['replaced', 'roomServerReplaced'],
+        ['server-unreachable', 'roomServerUnreachable'],
+        ['no-backend', 'roomServerNoBackend'],
+        ['bad-message', 'roomServerRefused'],
+      ];
+
+      for (const [code] of reasons) stubChange.networkError$.emit({ errorType: code, errorMessage: '' });
+
+      expect(sent().map((text, i) => text.includes(`feature.lobby.errors.${reasons[i][1]}`))).toEqual(
+        reasons.map(() => true)
+      );
+    });
+
+    it('leaves those codes to the usual handling through SkyWay', () => {
+      vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+
+      stubChange.networkError$.emit({ errorType: 'wrong-password', errorMessage: '' });
+
+      expect(sent()[0]).toContain('feature.lobby.errors.generic');
+    });
+  });
 });

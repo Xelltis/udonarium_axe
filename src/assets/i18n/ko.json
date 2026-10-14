@@ -3254,7 +3254,8 @@
         "hintInitial": "\"목록 새로고침\" 버튼을 누르면 접속할 수 있는 룸 목록이 표시됩니다.",
         "hintSearching": "검색 중...",
         "hintNoRooms": "접속할 수 있는 룸을 찾지 못했습니다. \"새 룸 만들기\"로 새 룸을 만들 수 있습니다.",
-        "hintListFailed": "룸 목록을 가져오지 못했습니다. \"목록 새로고침\"으로 다시 검색할 수 있습니다."
+        "hintListFailed": "룸 목록을 가져오지 못했습니다. \"목록 새로고침\"으로 다시 검색할 수 있습니다.",
+        "hintNoBackend": "접속처(config.json의 backend.url)가 설정되어 있지 않습니다"
       },
       "roomSetting": {
         "title": " 룸 만들기",
@@ -3271,7 +3272,8 @@
         "alreadyConnected": "다른 참가자와 연결된 상태에서는 룸을 만들 수 없습니다.",
         "alreadyConnectedHint": "다른 룸에 접속하려면 다른 참가자와의 연결을 끊어 주세요.",
         "alreadyConnectedHint2": "(※ 페이지를 새로고침하면 끊을 수 있습니다.)",
-        "defaultRoomName": "평범한 방"
+        "defaultRoomName": "평범한 방",
+        "createFailed": "방을 만들 수 없었습니다({{reason}})"
       },
       "passwordCheck": {
         "title": "비밀번호",
@@ -3296,7 +3298,15 @@
         "generic": "네트워크 오류가 발생했습니다.({{errorType}})",
         "reconnecting": "재접속을 시도합니다...",
         "lastReconnect": "이번이 마지막 재접속 시도입니다. 연결되지 않으면 잠시 후 다시 들어와 주세요.",
-        "sameNameMember": "다른 탭에서 이 방에 들어가 있거나 이전 연결이 아직 끊기지 않았습니다. 다른 탭을 닫거나 잠시 기다린 뒤 다시 들어와 주세요"
+        "sameNameMember": "다른 탭에서 이 방에 들어가 있거나 이전 연결이 아직 끊기지 않았습니다. 다른 탭을 닫거나 잠시 기다린 뒤 다시 들어와 주세요",
+        "roomServerProtocolMismatch": "새 버전의 Axe가 공개되었습니다. 페이지를 새로 고쳐 주세요",
+        "roomServerWrongPassword": "비밀번호가 다릅니다",
+        "roomServerNotFound": "방을 찾을 수 없습니다. 닫혔거나 보관 기간이 지나 삭제되었습니다",
+        "roomServerFull": "방이 가득 찼습니다(최대 {{max}}명)",
+        "roomServerReplaced": "이 자리로 다른 화면에서 방에 다시 들어왔기 때문에 이쪽 연결을 닫았습니다",
+        "roomServerUnreachable": "방 서버에 연결할 수 없습니다",
+        "roomServerNoBackend": "접속처(config.json의 backend.url)가 설정되어 있지 않습니다",
+        "roomServerRefused": "방 서버가 연결을 거부했습니다({{code}})"
       },
       "waitingForPreviousConnection": "이전 연결이 끊기기를 기다리고 있습니다 (최대 1분 정도)",
       "peerCursor": {

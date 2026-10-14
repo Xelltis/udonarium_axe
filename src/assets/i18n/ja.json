@@ -3254,7 +3254,8 @@
         "hintInitial": "「一覧を更新」ボタンを押すと接続可能なルーム一覧を表示します。",
         "hintSearching": "検索中...",
         "hintNoRooms": "接続可能なルームが見つかりませんでした。「新しいルームを作成する」で新規ルームを作成できます。",
-        "hintListFailed": "ルーム一覧の取得に失敗しました。「一覧を更新」で再検索できます。"
+        "hintListFailed": "ルーム一覧の取得に失敗しました。「一覧を更新」で再検索できます。",
+        "hintNoBackend": "接続先（config.json の backend.url）が設定されていません"
       },
       "roomSetting": {
         "title": " ルーム作成",
@@ -3271,7 +3272,8 @@
         "alreadyConnected": "他の参加者とつないだままではルームを作成できません。",
         "alreadyConnectedHint": "別のルームに接続したい場合は、他の参加者との接続を切ってください。",
         "alreadyConnectedHint2": "（※ページリロードで切断できます。）",
-        "defaultRoomName": "ふつうの部屋"
+        "defaultRoomName": "ふつうの部屋",
+        "createFailed": "部屋を作れませんでした（{{reason}}）"
       },
       "passwordCheck": {
         "title": "パスワード",
@@ -3296,7 +3298,15 @@
         "generic": "ネットワークエラーが発生しました。({{errorType}})",
         "reconnecting": "再接続を試みます...",
         "lastReconnect": "再接続はこれで最後です。つながらないときは、しばらく置いてから入り直してください。",
-        "sameNameMember": "別のタブでこの部屋に入っているか、前の接続がまだ切れていません。別のタブを閉じるか、少し待ってから入り直してください"
+        "sameNameMember": "別のタブでこの部屋に入っているか、前の接続がまだ切れていません。別のタブを閉じるか、少し待ってから入り直してください",
+        "roomServerProtocolMismatch": "新しい版のAxeが公開されています。ページを再読み込みしてください",
+        "roomServerWrongPassword": "パスワードが違います",
+        "roomServerNotFound": "部屋が見つかりません。閉じられたか、保持期間が過ぎて消えました",
+        "roomServerFull": "部屋が満員です（{{max}}人まで）",
+        "roomServerReplaced": "この席で別の画面から部屋に入り直したため、こちらの接続を閉じました",
+        "roomServerUnreachable": "部屋のサーバーにつながりません",
+        "roomServerNoBackend": "接続先（config.json の backend.url）が設定されていません",
+        "roomServerRefused": "部屋のサーバーに接続を断られました（{{code}}）"
       },
       "waitingForPreviousConnection": "前の接続が切れるのを待っています（最長1分ほど）",
       "peerCursor": {

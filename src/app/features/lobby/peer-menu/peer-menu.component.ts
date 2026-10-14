@@ -113,6 +113,7 @@ export class PeerMenuComponent {
     return buildInviteLink(location.origin + location.pathname, {
       roomId: peer.roomId,
       roomName: peer.roomName,
+      roomKey: Network.roomKey ?? '',
       password: this.includePasswordInInvite() ? peer.password : '',
       role: this.inviteRole(),
       overlay: this.inviteOverlay(),
@@ -169,6 +170,7 @@ export class PeerMenuComponent {
       roomName: peer.roomName,
       role,
       reConnectPass: this.myPeer.reConnectPass,
+      roomKey: Network.roomKey ?? '',
     });
   }
 

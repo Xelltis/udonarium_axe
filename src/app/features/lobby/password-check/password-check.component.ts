@@ -15,7 +15,10 @@ import { PeerContext } from '@axe/core/network/peer-context';
 import { TranslocoModule } from '@jsverse/transloco';
 
 export interface PasswordCheckOptions {
-  peerContext: PeerContext;
+  /** The room's peer to check the password against, for a SkyWay room. */
+  peerContext?: PeerContext;
+  /** Whether the room server checks the password, so the dialog only takes it down. */
+  checkedByServer?: boolean;
   title?: string;
 }
 
@@ -37,11 +40,13 @@ export class PasswordCheckComponent {
   readonly help = signal('');
 
   private readonly targetPeerContext: PeerContext;
+  private readonly checkedByServer: boolean;
   readonly title: string;
 
   constructor() {
     const option = this.modalService.option as Partial<PasswordCheckOptions> | undefined;
     this.targetPeerContext = option?.peerContext ?? PeerContext.parse('???');
+    this.checkedByServer = option?.checkedByServer === true;
     this.title = option?.title ?? '';
 
     queueMicrotask(
@@ -62,10 +67,11 @@ export class PasswordCheckComponent {
 
   /**
    * Checks the typed password against the room being joined, closing the dialog with the password
-   * when it matches and saying it is wrong when it does not.
+   * when it matches and saying it is wrong when it does not. For a room server, which checks it as
+   * the room is joined, it closes with the password as typed.
    */
   async submit() {
-    if (await this.targetPeerContext.verifyPassword(this.password())) {
+    if (this.checkedByServer || (await this.targetPeerContext.verifyPassword(this.password()))) {
       this.modalService.resolve(this.password());
       return;
     }

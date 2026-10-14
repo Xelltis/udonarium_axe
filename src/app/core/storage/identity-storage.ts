@@ -6,6 +6,8 @@ export interface PersistedIdentity {
   roomName: string;
   role: string;
   reConnectPass: string;
+  /** The key of the room on a room server; empty for SkyWay and for anything saved before keys. */
+  roomKey?: string;
 }
 
 /**
@@ -39,6 +41,7 @@ export function loadIdentity(): PersistedIdentity | null {
       roomName: typeof parsed.roomName === 'string' ? parsed.roomName : '',
       role: typeof parsed.role === 'string' ? parsed.role : '',
       reConnectPass: typeof parsed.reConnectPass === 'string' ? parsed.reConnectPass : '',
+      roomKey: typeof parsed.roomKey === 'string' ? parsed.roomKey : '',
     };
   } catch {
     /* corrupt or unavailable storage — fall back to a fresh identity */
