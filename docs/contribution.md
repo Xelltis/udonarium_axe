@@ -150,7 +150,9 @@ E2Eは載せていない。PlaywrightはCIだと5ブラウザぶん走る設定�
   `@semantic-release/release-notes-generator`が節を1つも出さず、リリースノートが見出しだけになる
   （おかしくなるのはリリース時だけなので、上げる前にcommit-analyzer / release-notes-generatorを直接叩いて確かめる）
 - **`bcdice`を上げたら`node scripts/generate-bcdice-importers.mjs`を実行する**。ゲームシステムと翻訳は
-  生成される`src/app/domain/dice/bcdice/bcdice-importers.generated.ts`の一覧から1つずつ読み込む。新しいシステムが一覧に無いと、そのシステムを選んでもDiceBotで振られる
+  生成される`src/app/domain/dice/bcdice/bcdice-importers.generated.ts`の一覧から読み込む。システムは継承の系統ごとに
+  約300KBずつ`groups/`のチャンクにまとめ、翻訳はその手前の別チャンクに分ける（ビルドを1,000ファイル未満に保つため）。
+  新しいシステムが一覧に無いと、そのシステムを選んでもDiceBotで振られる
 
 ## 依存の脆弱性（`npm audit`）
 

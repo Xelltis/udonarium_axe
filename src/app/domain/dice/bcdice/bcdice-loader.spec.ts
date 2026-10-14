@@ -31,6 +31,19 @@ describe('BCDiceLoader', () => {
     expect(system.HELP_MESSAGE.length).toBeGreaterThan(0);
   });
 
+  it('loads a system in another language with the translations it needs', async () => {
+    const system = await new BCDiceLoader().dynamicLoad('Cthulhu:Korean');
+
+    expect(system.ID).toBe('Cthulhu:Korean');
+    expect(system.HELP_MESSAGE).toMatch(/[\uAC00-\uD7A3]/);
+  });
+
+  it('loads a system with no translations of its own from a chunk it shares with one that has some', async () => {
+    const system = await new BCDiceLoader().dynamicLoad('DiceBot');
+
+    expect(system.ID).toBe('DiceBot');
+  });
+
   it('refuses a system it has no chunk for', async () => {
     await expect(new BCDiceLoader().dynamicImport('NoSuchGameSystem')).rejects.toThrow();
   });
@@ -41,6 +54,18 @@ describe('the importers written out for BCDice', () => {
     const listed = [...new Set(gameSystemList.gameSystems.map((info) => info.className))].sort();
 
     expect(Object.keys(BCDICE_GAME_SYSTEM_IMPORTERS).sort()).toEqual(listed);
+  });
+
+  it('spread the systems over a few dozen chunks rather than one each', () => {
+    const chunks = new Set(Object.values(BCDICE_GAME_SYSTEM_IMPORTERS));
+
+    expect(chunks.size).toBeGreaterThan(1);
+    expect(chunks.size).toBeLessThan(100);
+  });
+
+  it('keep a system and the systems built on it in one chunk', () => {
+    expect(BCDICE_GAME_SYSTEM_IMPORTERS['Cthulhu_Korean']).toBe(BCDICE_GAME_SYSTEM_IMPORTERS['Cthulhu']);
+    expect(BCDICE_GAME_SYSTEM_IMPORTERS['SwordWorld2_5']).toBe(BCDICE_GAME_SYSTEM_IMPORTERS['SwordWorld']);
   });
 
   it('cover every translation BCDice lists', () => {
