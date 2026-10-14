@@ -396,7 +396,7 @@ describe('applying gravity through the spatial index', () => {
     expect(rider.object.posZ).toBe(50 + 25);
   });
 
-  it('stands a piece riding a mount whose picture has a height of its own at half that height', () => {
+  it('stands a piece riding a mount whose picture has a height of its own on top of it, or at a part of it', () => {
     const robot = makeCharacter({ x: 0, y: 0, size: 2 });
     const pilot = makeCharacter({ x: 25, y: 25 });
     const mount = robot.object as GameCharacter;
@@ -407,8 +407,13 @@ describe('applying gravity through the spatial index', () => {
     const svc = setup([robot, pilot]);
 
     applyNow(svc);
-    expect(pilot.object.posZ).toBe(250);
+    expect(pilot.object.posZ).toBe(500);
 
+    mount.mountSeatHeight = '75%';
+    applyNow(svc);
+    expect(pilot.object.posZ).toBe(375);
+
+    mount.mountSeatHeight = '';
     mount.specifyKomaImageFlag = false;
     applyNow(svc);
     expect(pilot.object.posZ).toBe(50);

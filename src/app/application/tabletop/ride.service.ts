@@ -22,7 +22,8 @@ import {
   freeSeats,
   FrontRefusal,
   frontRefusal,
-  mountHeightOf,
+  pictureHeightOf,
+  readSeatHeight,
   RideChangeRefusal,
   rideChangeRefusal,
   RideMoveRefusal,
@@ -32,6 +33,7 @@ import {
   seatOf,
   steers,
   turnMarkOf,
+  writeSeatHeight,
   writtenSeat,
 } from '@axe/domain/tabletop/ride/ride-rules';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
@@ -77,8 +79,10 @@ export interface RideMenuModel {
     readonly passenger: boolean;
     readonly cargo: number;
     readonly anyone: boolean;
-    /** The height its rider stands at as written, null for the default of half its size. */
-    readonly seatHeight: number | null;
+    /** Where its riders are set to stand, as `writeSeatHeight` writes it: empty for the default. */
+    readonly seatHeight: string;
+    /** Where its riders stand by default: at the top of its picture where it is given a height, at half its size where not. */
+    readonly seatDefault: 'top' | 'half';
     readonly aboard: number;
   } | null;
 }
@@ -157,12 +161,15 @@ export class RideService {
   }
 
   /**
-   * How high above a mount's base its riders stand, in cells: half the mount's height unless one is
-   * written down.
+   * How high above a mount's base its riders stand, in cells: as written down, and otherwise at the
+   * top of its picture where it is given a height, at half its size where not.
    */
   seatHeight(mount: GameCharacter): number {
-    const gridSize = this.tableSelecter.viewTable?.gridSize ?? 50;
-    return seatHeightOf(mount.mountSeatHeight, mountHeightOf(mount, gridSize));
+    return seatHeightOf(mount.mountSeatHeight, mount, this.gridSize());
+  }
+
+  private gridSize(): number {
+    return this.tableSelecter.viewTable?.gridSize ?? 50;
   }
 
   /** What a piece's menu offers about riding. */
@@ -179,7 +186,8 @@ export class RideService {
               passenger: piece.mountPassenger === '1',
               cargo: cargoRoomOf(piece.mountCargo),
               anyone: piece.mountAnyone === '1',
-              seatHeight: piece.mountSeatHeight.trim() === '' ? null : this.seatHeight(piece),
+              seatHeight: writeSeatHeight(readSeatHeight(piece.mountSeatHeight)),
+              seatDefault: pictureHeightOf(piece, this.gridSize()) !== null ? 'top' : 'half',
               aboard: this.aboard(piece).length,
             }
           : null,
@@ -540,9 +548,9 @@ export class RideService {
     mount.mountAnyone = anyone ? '1' : '';
   }
 
-  /** How high above its base a mount's riders stand, in cells, or null for half its size. */
-  setSeatHeight(mount: GameCharacter, cells: number | null): void {
-    mount.mountSeatHeight = cells === null ? '' : `${Math.max(0, cells)}`;
+  /** Where a mount's riders stand, as `writeSeatHeight` writes it: cells, a part of its height, or empty for the default. */
+  setSeatHeight(mount: GameCharacter, written: string): void {
+    mount.mountSeatHeight = writeSeatHeight(readSeatHeight(written));
   }
 
   /**

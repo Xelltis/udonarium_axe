@@ -100,7 +100,10 @@ export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() mountCargo: string = '';
   /** `1` where anybody may ride a mount in front, skilled at steering or not; empty otherwise. */
   @SyncVar() mountAnyone: string = '';
-  /** How high above its base a mount's rider stands, in cells, or empty for half its size. */
+  /**
+   * Where a mount's riders stand above its base: a number of cells, a part of its height such as
+   * `75%`, or empty for the top of its picture where it is given a height and half its size where not.
+   */
   @SyncVar() mountSeatHeight: string = '';
   /** `1` while the piece lies where it fell, empty otherwise: it gets on no mount and no mount takes it. */
   @SyncVar() prone: string = '';

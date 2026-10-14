@@ -55,26 +55,55 @@ export interface MountBody {
 }
 
 /**
- * How tall a mount stands, in cells: as tall as its picture where the piece is given a height of
- * its own, which is how a towering piece is usually made, and as tall as its base is wide where it
- * is not.
+ * How tall a mount's picture stands, in cells, where the piece is given a height of its own, which
+ * is how a towering piece is usually made; null where it is not.
  */
-export function mountHeightOf(mount: MountBody, gridSizePx: number): number {
+export function pictureHeightOf(mount: MountBody, gridSizePx: number): number | null {
   const picture = Number(mount.komaImageHeight);
-  if (mount.specifyKomaImageFlag === true && gridSizePx > 0 && Number.isFinite(picture) && picture > 0) {
-    return picture / gridSizePx;
-  }
-  return Math.max(0, mount.size);
+  if (mount.specifyKomaImageFlag !== true || gridSizePx <= 0 || !Number.isFinite(picture) || picture <= 0) return null;
+  return picture / gridSizePx;
+}
+
+/** How tall a mount stands, in cells: as tall as its picture where it is given a height, and as tall as its base is wide where it is not. */
+export function mountHeightOf(mount: MountBody, gridSizePx: number): number {
+  return pictureHeightOf(mount, gridSizePx) ?? Math.max(0, mount.size);
+}
+
+/** Where a mount's riders are set to stand: a number of cells up, a part of its height, or null for the default. */
+export type SeatHeightSetting = { readonly cells: number } | { readonly share: number } | null;
+
+/**
+ * Reads where a mount's riders are set to stand, as written down: a number of cells, a part of the
+ * mount's height as a percentage such as `75%`, or anything else, empty included, for the default.
+ * A version that knows no parts reads a percentage as the default too.
+ */
+export function readSeatHeight(written: string): SeatHeightSetting {
+  const text = written.trim();
+  const percent = /^(\d+(?:\.\d+)?)%$/.exec(text);
+  if (percent) return { share: Number(percent[1]) / 100 };
+  const value = Number(text);
+  return text !== '' && Number.isFinite(value) && value >= 0 ? { cells: value } : null;
+}
+
+/** Writes where a mount's riders stand down as `readSeatHeight` reads it back: empty for the default. */
+export function writeSeatHeight(setting: SeatHeightSetting): string {
+  if (!setting) return '';
+  if ('share' in setting) return `${Math.round(Math.max(0, setting.share) * 1000) / 10}%`;
+  return `${Math.max(0, setting.cells)}`;
 }
 
 /**
- * How high above a mount's base the one riding it stands, in cells: as written down, or half the
- * mount's height, as `mountHeightOf` gives it, where nothing readable is.
+ * How high above a mount's base the one riding it stands, in cells: as written down, as a number of
+ * cells or a part of the mount's height. Where nothing readable is, it stands at the top of the
+ * mount's picture where the piece is given a height, which is the mount as drawn, and half as high
+ * as its base is wide where it is not.
  */
-export function seatHeightOf(written: string, height: number): number {
-  const value = Number(written);
-  if (written.trim() !== '' && Number.isFinite(value) && value >= 0) return value;
-  return Math.max(0, height) / 2;
+export function seatHeightOf(written: string, mount: MountBody, gridSizePx: number): number {
+  const setting = readSeatHeight(written);
+  const height = mountHeightOf(mount, gridSizePx);
+  if (setting && 'share' in setting) return height * setting.share;
+  if (setting) return setting.cells;
+  return pictureHeightOf(mount, gridSizePx) !== null ? height : height / 2;
 }
 
 /** Why a piece may not ride in front of a mount, or null where it may. */

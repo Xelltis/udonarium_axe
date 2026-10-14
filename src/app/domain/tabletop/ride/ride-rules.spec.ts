@@ -9,6 +9,8 @@ import {
   frontRidersOf,
   inTheWayOf,
   mountHeightOf,
+  pictureHeightOf,
+  readSeatHeight,
   rideChangeRefusal,
   rideMoveRefusal,
   roundOfMark,
@@ -17,6 +19,7 @@ import {
   steers,
   turnCarrierOf,
   turnMarkOf,
+  writeSeatHeight,
   writtenSeat,
 } from '@axe/domain/tabletop/ride/ride-rules';
 
@@ -43,23 +46,45 @@ describe('riding a mount', () => {
     expect(freeSeats({ passenger: false, cargo: 1 }, [])).toEqual(['rider', 'cargo']);
   });
 
-  it('reads how many a mount carries and how high its rider stands, nothing for what cannot be read', () => {
+  it('reads how many a mount carries, nothing for what cannot be read', () => {
     expect(cargoRoomOf('3')).toBe(3);
     expect(cargoRoomOf('2.7')).toBe(2);
     expect(cargoRoomOf('')).toBe(0);
     expect(cargoRoomOf('-1')).toBe(0);
     expect(cargoRoomOf('many')).toBe(0);
-    expect(seatHeightOf('', 2)).toBe(1);
-    expect(seatHeightOf('1.5', 2)).toBe(1.5);
-    expect(seatHeightOf('0', 2)).toBe(0);
-    expect(seatHeightOf('x', 3)).toBe(1.5);
+  });
+
+  it('reads where riders are set to stand as cells or a part of the height, and the default for anything else', () => {
+    expect(readSeatHeight('1.5')).toEqual({ cells: 1.5 });
+    expect(readSeatHeight('0')).toEqual({ cells: 0 });
+    expect(readSeatHeight('75%')).toEqual({ share: 0.75 });
+    expect(readSeatHeight('')).toBeNull();
+    expect(readSeatHeight('-1')).toBeNull();
+    expect(readSeatHeight('waist')).toBeNull();
+    expect(writeSeatHeight({ share: 0.75 })).toBe('75%');
+    expect(writeSeatHeight({ cells: 1.5 })).toBe('1.5');
+    expect(writeSeatHeight(null)).toBe('');
+  });
+
+  it('seats riders on top of a mount picture given a height, at half the size of one not, or where they are set', () => {
+    const robot = { size: 2, specifyKomaImageFlag: true, komaImageHeight: 500 };
+    const horse = { ...robot, specifyKomaImageFlag: false };
+
+    expect(seatHeightOf('', robot, 50)).toBe(10);
+    expect(seatHeightOf('waist', robot, 50)).toBe(10);
+    expect(seatHeightOf('', horse, 50)).toBe(1);
+    expect(seatHeightOf('75%', robot, 50)).toBe(7.5);
+    expect(seatHeightOf('100%', horse, 50)).toBe(2);
+    expect(seatHeightOf('1.5', robot, 50)).toBe(1.5);
+    expect(seatHeightOf('0', robot, 50)).toBe(0);
   });
 
   it('measures a mount by its picture where the piece is given a height, and by its base where it is not', () => {
     const mount = { size: 2, specifyKomaImageFlag: true, komaImageHeight: 500 };
 
     expect(mountHeightOf(mount, 50)).toBe(10);
-    expect(seatHeightOf('', mountHeightOf(mount, 50))).toBe(5);
+    expect(pictureHeightOf(mount, 50)).toBe(10);
+    expect(pictureHeightOf({ ...mount, specifyKomaImageFlag: false }, 50)).toBeNull();
     expect(mountHeightOf({ ...mount, specifyKomaImageFlag: false }, 50)).toBe(2);
     expect(mountHeightOf({ ...mount, komaImageHeight: 0 }, 50)).toBe(2);
     expect(mountHeightOf({ ...mount, komaImageHeight: Number('') }, 50)).toBe(2);

@@ -1620,7 +1620,7 @@ export class GameCharacterComponent {
         setPassenger: (passenger) => ride.setPassenger(char, passenger),
         setCargo: (cargo) => ride.setCargo(char, cargo),
         setAnyone: (anyone) => ride.setAnyone(char, anyone),
-        setSeatHeight: (cells) => ride.setSeatHeight(char, cells),
+        setSeatHeight: (written) => ride.setSeatHeight(char, written),
       },
       this.translateFn
     );
