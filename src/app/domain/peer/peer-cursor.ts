@@ -88,7 +88,8 @@ export class PeerCursor extends GameObject {
   private _debugReceiveDelay = 0;
 
   /**
-   * Whether this peer has gone silent: no heartbeat has arrived within the timeout.
+   * Whether this peer has gone silent: no heartbeat has arrived within the timeout or, through a
+   * room server, which sends no heartbeats, the server no longer lists it.
    *
    * Local to each screen and not synced; true until the first heartbeat is heard.
    */
