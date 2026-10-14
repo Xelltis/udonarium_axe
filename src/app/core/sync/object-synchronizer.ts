@@ -52,9 +52,11 @@ export class ObjectSynchronizer {
       networkMessage$.subscribe((msg) => {
         if (isNetworkIsolated() && OBJECT_SYNC_EVENTS.has(msg.eventName)) return;
         switch (msg.eventName) {
-          case 'CONNECT_PEER':
-            if (msg.isSendFromSelf) this.sendCatalog((msg as NetworkMessage<{ peerId: string }>).data.peerId);
+          case 'CONNECT_PEER': {
+            const peerId = (msg as NetworkMessage<{ peerId: string }>).data.peerId;
+            if (msg.isSendFromSelf && tradesCatalogWith(peerId)) this.sendCatalog(peerId);
             break;
+          }
           case 'DISCONNECT_PEER':
             this.removePeerMap((msg as NetworkMessage<{ peerId: string }>).data.peerId);
             break;
@@ -139,9 +141,12 @@ export class ObjectSynchronizer {
     this.catalogSenders.clear();
   }
 
-  /** Syncs again with every open peer by trading catalogs with each; gives how many were asked. */
+  /**
+   * Syncs again by trading catalogs with every open peer, or with the room server alone when
+   * there is one; gives how many were asked.
+   */
   requestFullSync(): number {
-    const peerIds = Network.peerContexts.filter((peer) => peer.isOpen).map((peer) => peer.peerId);
+    const peerIds = syncPeerIds();
     for (const peerId of peerIds) {
       this.sendCatalog(peerId);
       networkSend('REQUEST_CATALOG', {}, peerId);
@@ -287,28 +292,44 @@ export class ObjectSynchronizer {
   private getTargetPeerId(exclude: ReadonlySet<PeerId>): PeerId | null {
     let min = Infinity;
     let selectPeerId: PeerId | null = null;
-    const peerContexts = Network.peerContexts;
+    const peerIds = syncPeerIds();
 
-    for (let i = peerContexts.length - 1; 0 <= i; i--) {
+    for (let i = peerIds.length - 1; 0 <= i; i--) {
       const rand = Math.floor(Math.random() * (i + 1));
-      [peerContexts[i], peerContexts[rand]] = [peerContexts[rand], peerContexts[i]];
+      [peerIds[i], peerIds[rand]] = [peerIds[rand], peerIds[i]];
     }
 
-    for (const peerContext of peerContexts) {
-      if (exclude.has(peerContext.peerId)) continue;
-      const tasks = this.peerMap.get(peerContext.peerId);
-      if (peerContext.isOpen && tasks && tasks.length < min) {
+    for (const peerId of peerIds) {
+      if (exclude.has(peerId)) continue;
+      const tasks = this.peerMap.get(peerId);
+      if (tasks && tasks.length < min) {
         min = tasks.length;
-        selectPeerId = peerContext.peerId;
+        selectPeerId = peerId;
       }
     }
     return selectPeerId;
   }
 }
 
-/** The peers that can still be asked for an object: the ones connected right now. */
+/**
+ * The peers to trade catalogs with and ask for objects: the room server alone when the room has
+ * one, which keeps the table for everybody, and every open peer otherwise.
+ */
+function syncPeerIds(): PeerId[] {
+  const authority = Network.authorityPeerId;
+  if (authority != null) return [authority];
+  return Network.peerContexts.filter((peer) => peer.isOpen).map((peer) => peer.peerId);
+}
+
+/** Whether a newly connected peer is one to send this device's catalog to. */
+function tradesCatalogWith(peerId: PeerId): boolean {
+  const authority = Network.authorityPeerId;
+  return authority == null || peerId === authority;
+}
+
+/** The peers that can still be asked for an object. */
 function connectedPeerIds(): Set<PeerId> {
-  return new Set(Network.peerContexts.filter((peer) => peer.isOpen).map((peer) => peer.peerId));
+  return new Set(syncPeerIds());
 }
 
 function removeTask(tasks: SynchronizeTask[], task: SynchronizeTask): void {

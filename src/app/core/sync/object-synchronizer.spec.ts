@@ -81,6 +81,53 @@ describe('ObjectSynchronizer', () => {
     });
   });
 
+  describe('through a room server', () => {
+    const AUTHORITY = '@authority';
+    let sendCatalog: ReturnType<typeof vi.fn>;
+
+    const sentTo = (eventName: string) =>
+      vi
+        .mocked(Network.instance.send)
+        .mock.calls.filter(([context]) => (context as { eventName: string }).eventName === eventName)
+        .map(([, sendTo]) => sendTo);
+
+    beforeEach(() => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(AUTHORITY);
+      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([{ peerId: 'peer-a', isOpen: true }] as never);
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      sendCatalog = vi.fn();
+      ObjectSynchronizer.instance.initialize();
+    });
+
+    afterEach(() => {
+      localDispatch('DISCONNECT_PEER', { peerId: AUTHORITY }, AUTHORITY);
+      ObjectSynchronizer.instance.destroy();
+      vi.restoreAllMocks();
+    });
+
+    it('trades catalogs with the server alone as peers connect', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.spyOn(ObjectSynchronizer.instance as any, 'sendCatalog').mockImplementation(sendCatalog);
+
+      localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+      localDispatch('CONNECT_PEER', { peerId: AUTHORITY });
+
+      expect(sendCatalog.mock.calls).toEqual([[AUTHORITY]]);
+    });
+
+    it('asks the server alone for a full sync', () => {
+      expect(ObjectSynchronizer.instance.requestFullSync()).toBe(1);
+
+      expect(sentTo('REQUEST_CATALOG')).toEqual([AUTHORITY]);
+    });
+
+    it('asks the server for what its catalog offers', () => {
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'kept-by-the-server', version: 1 }], AUTHORITY);
+
+      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
+    });
+  });
+
   describe('hearing of a deletion', () => {
     beforeEach(() => {
       ObjectSynchronizer.instance.initialize();
