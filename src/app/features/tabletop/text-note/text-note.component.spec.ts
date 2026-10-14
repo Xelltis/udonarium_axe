@@ -143,6 +143,53 @@ describe('TextNoteComponent', () => {
     });
   });
 
+  describe('a note limited to its height', () => {
+    let note: TextNote;
+
+    function frame(): HTMLElement {
+      return (fixture.nativeElement.querySelector('[data-v]:not(textarea)') as HTMLElement).parentElement!;
+    }
+    const cap = () => `${component.height * component.gridSize}px`;
+
+    beforeEach(() => {
+      note = TextNote.create('メモ', '一行目\n'.repeat(80));
+    });
+
+    afterEach(() => {
+      note.destroy();
+    });
+
+    it('stops at its height, so a long text scrolls inside it', () => {
+      note.limitHeight = true;
+      fixture.componentRef.setInput('textNote', note);
+      fixture.detectChanges();
+
+      expect(frame().style.maxHeight).toBe(cap());
+      expect(frame().style.minHeight).toBe(cap());
+    });
+
+    it('grows with its text when the limit is off', () => {
+      fixture.componentRef.setInput('textNote', note);
+      fixture.detectChanges();
+
+      expect(frame().style.maxHeight).toBe('');
+      expect(frame().style.minHeight).toBe(cap());
+    });
+
+    it('takes up the limit as soon as it is switched on', async () => {
+      fixture.componentRef.setInput('textNote', note);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(frame().style.maxHeight).toBe('');
+
+      note.limitHeight = true;
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(frame().style.maxHeight).toBe(cap());
+    });
+  });
+
   describe('rotation in 2D mode', () => {
     let note: TextNote;
 

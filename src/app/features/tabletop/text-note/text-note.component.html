@@ -37,6 +37,7 @@
           [style.background-image]="'url(' + imageFile().url + ')' | safe: 'style'"
           [style.width.px]="width * gridSize"
           [style.min-height.px]="height * gridSize"
+          [style.max-height.px]="limitHeight() ? height * gridSize : null"
         >
           @if (title().length) {
             <div

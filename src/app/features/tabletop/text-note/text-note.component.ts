@@ -69,6 +69,16 @@ export class TextNoteComponent {
     this.objectChange.trackMyCursor();
     return this.disclosureService.canView(note);
   });
+  /**
+   * Whether the note stops at its height and scrolls a longer text inside, rather than growing to
+   * fit it.
+   */
+  readonly limitHeight = computed(() => {
+    const note = this.textNote();
+    if (!note) return false;
+    this.objectChange.versionOf(note.identifier)();
+    return note.limitHeight;
+  });
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
