@@ -991,14 +991,15 @@ describe('Jukebox', () => {
         playing.syncData = { ...playing.syncData, audioIdentifier: 'a', isPlaying: true, startTime: 0 };
         jukebox.apply(playing);
         vi.spyOn(AudioPlayer.prototype, 'currentTime', 'get').mockReturnValue(10);
-        const before = (jukebox as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
+        const play = vi.mocked(AudioPlayer.prototype.play);
+        play.mockClear();
 
         const moved = jukebox.toContext();
         moved.syncData = { ...moved.syncData, startTime: 30, seekCount: (jukebox.seekCount ?? 0) + 1 };
         jukebox.apply(moved);
 
         const after = (jukebox as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
-        expect(after).not.toBe(before);
+        expect(play.mock.contexts).toEqual([after]);
         expect(after.followsLoopPoints).toBe(true);
       });
 
@@ -1196,6 +1197,47 @@ describe('Jukebox', () => {
         [1, 4000],
       ]);
       expect(after.fader).toBe(0);
+    });
+
+    it('plays later tracks on players let go before, rather than making one for each', async () => {
+      roomMixing({ crossfadeS: 4 });
+      playersSound();
+      vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      const first = playerOf(jukebox);
+      jukebox.play('b');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      jukebox.play('c');
+
+      expect(playerOf(jukebox)).toBe(first);
+      expect(first.paused).toBe(false);
+    });
+
+    it('leaves a player playing again alone when the fade it was let go with ends late', async () => {
+      roomMixing({ crossfadeS: 4, pauseFadeS: 0 });
+      playersSound();
+      let finishFirstFade: (() => void) | null = null;
+      vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockImplementation((target) => {
+        if (target !== 0 || finishFirstFade) return Promise.resolve();
+        return new Promise<void>((resolve) => (finishFirstFade = resolve));
+      });
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      const first = playerOf(jukebox);
+      jukebox.play('b');
+      jukebox.stop();
+      jukebox.play('a');
+      jukebox.play('c');
+      expect(playerOf(jukebox)).toBe(first);
+
+      finishFirstFade!();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(first.paused).toBe(false);
     });
 
     it('cuts straight across without a crossfade, or when nothing was sounding', () => {

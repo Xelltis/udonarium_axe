@@ -126,7 +126,14 @@ export class Jukebox extends GameObject {
   }
 
   private audioPlayer: AudioPlayer = new AudioPlayer();
-  private readonly fadingPlayers = new Set<AudioPlayer>();
+  /** The players let go while still fading or slowing, each with the lease it was let go under. */
+  private readonly fadingPlayers = new Map<AudioPlayer, number>();
+  private fadeLeases = 0;
+  /**
+   * Players that have stopped, kept to play later tracks with: each holds a media element and its
+   * audio nodes, which the page keeps for as long as its audio context lives.
+   */
+  private readonly sparePlayers: AudioPlayer[] = [];
   private soundingIdentifier = '';
   private pendingChange: ReturnType<typeof setTimeout> | null = null;
   private audioUpdateCleanup: (() => void) | null = null;
@@ -496,7 +503,7 @@ export class Jukebox extends GameObject {
     if (!this.audio) return;
     this.soundingIdentifier = this.audioIdentifier;
     this.prepare(player);
-    if (fadeInMs > 0) player.fader = 0;
+    player.fader = fadeInMs > 0 ? 0 : 1;
     player.play(this.audio);
     const from = startAt > 0 ? startAt : this.leadIn();
     if (from > 0) player.seekTo(from);
@@ -563,25 +570,27 @@ export class Jukebox extends GameObject {
 
   /**
    * Stops this peer's track, fading it out over the time given or cutting it at once, and leaves a
-   * fresh player for whatever plays next. Without a fade, tracks still fading out from before stop
-   * too. Says whether a track was left fading out.
+   * player for whatever plays next. Without a fade, tracks still fading out from before stop too.
+   * Says whether a track was left fading out.
    */
   private _stop(fadeMs: number = 0): boolean {
     this.unregisterEvent();
     this.cancelPendingChange();
     this.soundingIdentifier = '';
     if (fadeMs <= 0) {
-      for (const player of this.fadingPlayers) player.stop();
+      const fading = [...this.fadingPlayers.keys()];
       this.fadingPlayers.clear();
+      for (const player of fading) this.keepSpare(player);
     }
     const fading = this.retire(this.audioPlayer, fadeMs);
-    this.audioPlayer = new AudioPlayer();
+    if (fading) this.audioPlayer = this.sparePlayer();
     return fading;
   }
 
   /**
    * Lets a player go: fading it out and then stopping it while it is sounding and a fade is asked
-   * for, and stopping it at once otherwise. Says whether it was left fading.
+   * for, and stopping it at once otherwise. Says whether it was left fading; one left fading is no
+   * longer this peer's player, and is kept spare once it has faded out.
    */
   private retire(player: AudioPlayer, fadeMs: number): boolean {
     player.onEnded = null;
@@ -589,29 +598,46 @@ export class Jukebox extends GameObject {
       player.stop();
       return false;
     }
-    this.fadingPlayers.add(player);
-    void player.fadeVolumeTo(0, fadeMs).then(() => {
-      if (this.fadingPlayers.delete(player)) player.stop();
-    });
+    this.letGo(player, player.fadeVolumeTo(0, fadeMs));
     return true;
   }
 
-  /** Lets this peer's track slow to a stop, as `brakeStop` asks, and leaves a fresh player for whatever plays next. */
+  /** Lets this peer's track slow to a stop, as `brakeStop` asks, and leaves a player for whatever plays next. */
   private brakeOut(): void {
     this.unregisterEvent();
     this.cancelPendingChange();
     this.soundingIdentifier = '';
     const player = this.audioPlayer;
     player.onEnded = null;
-    this.audioPlayer = new AudioPlayer();
     if (player.paused || player.isAwaitingGesture) {
       player.stop();
       return;
     }
-    this.fadingPlayers.add(player);
-    void player.brake(Jukebox.BRAKE_MS).then(() => {
-      if (this.fadingPlayers.delete(player)) player.stop();
+    this.audioPlayer = this.sparePlayer();
+    this.letGo(player, player.brake(Jukebox.BRAKE_MS));
+  }
+
+  /** Leaves a player to fade or slow out, keeping it spare once that is done unless it has been dealt with since. */
+  private letGo(player: AudioPlayer, done: Promise<void>): void {
+    const lease = ++this.fadeLeases;
+    this.fadingPlayers.set(player, lease);
+    void done.then(() => {
+      if (this.fadingPlayers.get(player) !== lease) return;
+      this.fadingPlayers.delete(player);
+      this.keepSpare(player);
     });
+  }
+
+  /** A player to play the next track with: one kept spare, or a new one while none is. */
+  private sparePlayer(): AudioPlayer {
+    return this.sparePlayers.pop() ?? new AudioPlayer();
+  }
+
+  /** Stops a player let go of and keeps it to play a later track with. */
+  private keepSpare(player: AudioPlayer): void {
+    player.stop();
+    player.onEnded = null;
+    if (player !== this.audioPlayer && !this.sparePlayers.includes(player)) this.sparePlayers.push(player);
   }
 
   /**
@@ -672,9 +698,8 @@ export class Jukebox extends GameObject {
       this.audioPlayer.seekTo(time);
       return;
     }
-    this.retire(this.audioPlayer, fadeMs);
-    const newPlayer = new AudioPlayer();
-    this.audioPlayer = newPlayer;
+    if (this.retire(this.audioPlayer, fadeMs)) this.audioPlayer = this.sparePlayer();
+    const newPlayer = this.audioPlayer;
     this.soundingIdentifier = this.audioIdentifier;
     this.prepare(newPlayer);
     newPlayer.fader = 0;
