@@ -1240,6 +1240,20 @@ describe('Jukebox', () => {
       expect(first.paused).toBe(false);
     });
 
+    it('cuts across from a track still being read, which has nothing yet to fade out', () => {
+      roomMixing({ crossfadeS: 4 });
+      playersSound();
+      vi.spyOn(AudioPlayer.prototype, 'isLoading', 'get').mockReturnValue(true);
+      const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+
+      jukebox.play('b');
+
+      expect(fade).not.toHaveBeenCalled();
+      expect(playerOf(jukebox).fader).toBe(1);
+    });
+
     it('cuts straight across without a crossfade, or when nothing was sounding', () => {
       roomMixing({ crossfadeS: 0 });
       const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();

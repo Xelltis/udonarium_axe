@@ -594,7 +594,7 @@ export class Jukebox extends GameObject {
    */
   private retire(player: AudioPlayer, fadeMs: number): boolean {
     player.onEnded = null;
-    if (fadeMs <= 0 || player.paused || player.isAwaitingGesture) {
+    if (fadeMs <= 0 || player.paused || player.isAwaitingGesture || player.isLoading) {
       player.stop();
       return false;
     }
@@ -609,7 +609,7 @@ export class Jukebox extends GameObject {
     this.soundingIdentifier = '';
     const player = this.audioPlayer;
     player.onEnded = null;
-    if (player.paused || player.isAwaitingGesture) {
+    if (player.paused || player.isAwaitingGesture || player.isLoading) {
       player.stop();
       return;
     }
