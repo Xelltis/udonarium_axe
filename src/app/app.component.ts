@@ -49,9 +49,10 @@ import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.s
 import { Network } from '@axe/core/network/network';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
-import { MENU_SURFACES } from '@axe/domain/ui/menu-command';
+import { MENU_SURFACES, MenuCommand } from '@axe/domain/ui/menu-command';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
 import { AlarmEventHandlerService } from '@axe/features/alarm/alarm-event-handler.service';
 import { ButtonGuideEventHandlerService } from '@axe/features/button-guide/button-guide-event-handler.service';
@@ -72,6 +73,7 @@ import { FirstPersonViewComponent } from '@axe/features/first-person/first-perso
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
 import { NpcDragGhostComponent } from '@axe/features/gm-tools/npc-bar/npc-drag-ghost.component';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
+import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
 import { TabletopShortcutEventHandlerService } from '@axe/features/keyboard/tabletop-shortcut-event-handler.service';
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
@@ -253,6 +255,7 @@ export class AppComponent {
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly pointers = inject(PointerDeviceService);
   private readonly confirm = inject(ConfirmService);
+  private readonly hotbarFill = inject(HotbarFillService);
 
   /**
    * The way back into the menus, from the drawer's own button.
@@ -392,6 +395,29 @@ export class AppComponent {
   }
 
   protected readonly isGroup = isMenuGroupView;
+
+  /**
+   * Offers to put an entry of the drawer on the hotbar, where a key presses it.
+   *
+   * An entry that draws a menu of its own has nothing a slot could press, so it offers nothing and
+   * the browser's own menu is left alone.
+   */
+  protected onFabEntryContextMenu(event: MouseEvent, entry: MenuEntryView): void {
+    if (entry.command.action.kind === 'custom' || !this.pointers.isAllowedToOpenContextMenu) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuService.open(
+      this.pointers.pointers[0],
+      [{ name: this.t('feature.hotbar.menu.fillFromHere'), action: () => this.putOnHotbar(entry.command) }],
+      this.fabNodeLabel(entry)
+    );
+  }
+
+  private putOnHotbar(command: MenuCommand): void {
+    const draft = emptyHotbarSlotDraft('menu');
+    draft.payload = { kind: 'menu', command: command.key };
+    this.hotbarFill.fill(draft);
+  }
 
   /**
    * What is written in the bubble beside an entry.

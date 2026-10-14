@@ -76,6 +76,7 @@
               [attr.data-fab-submenu-toggle]="isGroup(node) ? '' : null"
               [attr.aria-expanded]="isGroup(node) ? fabSubmenu() === node.id : null"
               (click)="chooseFab(node, $event)"
+              (contextmenu)="isGroup(node) || onFabEntryContextMenu($event, $any(node))"
             >
               <i class="material-icons" [class.vibration-amine]="node.id === 'saveLoad' && isSaving()">{{
                 node.icon
@@ -142,6 +143,7 @@
                   [disabled]="entry.disabled"
                   [testId]="entry.testId"
                   (press)="chooseFromFabSubmenu(entry)"
+                  (contextMenuRequest)="onFabEntryContextMenu($event, entry)"
                 />
               }
             </ui-fab-submenu>

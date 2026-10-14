@@ -10,10 +10,12 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { MENU_SURFACES, menuCommandOf } from '@axe/domain/ui/menu-command';
 import { parseMenuLayout } from '@axe/domain/ui/menu-layout';
+import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
 import { MenuCommandService } from '@axe/features/menu/menu-command.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { version } from '@pkg';
+import type { MockInstance } from 'vitest';
 
 describe('AppComponent', () => {
   // Booting the screen brings the room's own objects into being — the chat tabs, the config,
@@ -105,6 +107,55 @@ describe('AppComponent', () => {
       button.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
 
       expect(opened).toEqual(['menuEditor']);
+    });
+
+    describe('an entry of the drawer, right-clicked', () => {
+      let offered: { name: string; action?: () => void }[];
+      let fill: MockInstance<HotbarFillService['fill']>;
+
+      beforeEach(() => {
+        offered = [];
+        vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(((
+          _point: unknown,
+          actions: { name: string; action?: () => void }[]
+        ) => {
+          offered.push(...actions);
+        }) as never);
+        fill = vi.spyOn(TestBed.inject(HotbarFillService), 'fill').mockReturnValue(null);
+      });
+
+      function rightClick(testId: string): void {
+        const target: HTMLElement = fixture.nativeElement.querySelector(`[data-testid="${testId}"]`);
+        target.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+      }
+
+      const menuSlot = (command: string) =>
+        expect.objectContaining({ kind: 'menu', value: '', payload: { kind: 'menu', command } });
+
+      it('offers to put an entry standing in the drawer itself on the hotbar', () => {
+        rightClick('fab-entry-chat');
+
+        expect(offered.map((action) => action.name)).toEqual(['ホットバーに入れる']);
+        offered[0].action?.();
+        expect(fill).toHaveBeenCalledWith(menuSlot('chat'));
+      });
+
+      it('offers the same for an entry inside a small menu', () => {
+        (fixture.nativeElement.querySelector('[data-testid="fab-display"]') as HTMLElement).click();
+        fixture.detectChanges();
+
+        rightClick('seat-skin');
+
+        expect(offered.map((action) => action.name)).toEqual(['ホットバーに入れる']);
+        offered[0].action?.();
+        expect(fill).toHaveBeenCalledWith(menuSlot('skin'));
+      });
+
+      it('offers nothing for a small menu itself', () => {
+        rightClick('fab-display');
+
+        expect(offered).toEqual([]);
+      });
     });
 
     it('puts every menu back from there, once it is confirmed', async () => {

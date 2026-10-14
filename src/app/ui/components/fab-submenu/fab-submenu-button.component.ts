@@ -25,4 +25,6 @@ export class UiFabSubmenuButtonComponent {
   readonly testId = input<string | null>(null);
 
   readonly press = output<MouseEvent>();
+  /** The button was right-clicked, for whoever offers something to do with the entry it stands for. */
+  readonly contextMenuRequest = output<MouseEvent>();
 }
