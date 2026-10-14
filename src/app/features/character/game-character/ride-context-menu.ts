@@ -1,7 +1,7 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { RideMenuModel } from '@axe/application/tabletop/ride.service';
 import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
-import { RideSeat } from '@axe/domain/tabletop/ride/ride-rules';
+import { readSeatHeight, RideSeat, seatHeightFieldOf } from '@axe/domain/tabletop/ride/ride-rules';
 
 /** What the riding entries of a piece's menu do. */
 export interface RideMenuCallbacks {
@@ -12,6 +12,8 @@ export interface RideMenuCallbacks {
   setCargo(cargo: number): void;
   setAnyone(anyone: boolean): void;
   setSeatHeight(written: string): void;
+  /** Opens where a mount's seat height is typed as any number. */
+  editSeatHeight(): void;
 }
 
 /** The riding entries of a piece's menu, in the two places they stand. */
@@ -109,9 +111,29 @@ export function buildRideContextMenu(
           ),
           ContextMenuSeparator,
           ...SEAT_CELL_CHOICES.map((cells) => seatChoice(cells, t('feature.ride.menu.seatHeightCells', { cells }))),
+          ContextMenuSeparator,
+          customSeatHeight(mount.seatHeight, callbacks, t),
         ],
       }
     );
   }
   return { onAndOff, group: [{ name: t('feature.ride.menu.title'), action: undefined, subActions: entries }] };
+}
+
+/**
+ * The entry for typing a mount's seat height as any number, marked with the height it is set to
+ * where that is none of the heights offered.
+ */
+function customSeatHeight(written: string, callbacks: RideMenuCallbacks, t: TranslateFn): ContextMenuAction {
+  const offered = written === '' || SEAT_SHARE_CHOICES.includes(written) || SEAT_CELL_CHOICES.includes(written);
+  const field = offered ? null : seatHeightFieldOf(readSeatHeight(written));
+  const action = () => callbacks.editSeatHeight();
+  if (!field) return { name: t('feature.ride.menu.seatHeightCustom'), action };
+  const value =
+    field.unit === 'px'
+      ? `${field.value}px`
+      : field.unit === 'percent'
+        ? t('feature.ride.menu.seatHeightPercent', { percent: field.value })
+        : t('feature.ride.menu.seatHeightCells', { cells: field.value });
+  return { name: '✔ ' + t('feature.ride.menu.seatHeightCustomSet', { value }), action };
 }

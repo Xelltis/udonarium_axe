@@ -1621,6 +1621,7 @@ export class GameCharacterComponent {
         setCargo: (cargo) => ride.setCargo(char, cargo),
         setAnyone: (anyone) => ride.setAnyone(char, anyone),
         setSeatHeight: (written) => ride.setSeatHeight(char, written),
+        editSeatHeight: () => this.showSettings(char),
       },
       this.translateFn
     );
@@ -2109,6 +2110,13 @@ export class GameCharacterComponent {
     if (!this.disclosureService.canView(gameObject)) return;
     const title = sheetPanelTitle(this.translateFn('feature.character.panel.sheet'), gameObject.name);
     this.objectPanels.openSheet(gameObject, title, { width: 800, height: 600 });
+  }
+
+  /** Opens a piece's sheet on its settings, where how high a mount's riders stand is typed in. */
+  private showSettings(gameObject: GameCharacter) {
+    if (!this.disclosureService.canView(gameObject)) return;
+    const title = sheetPanelTitle(this.translateFn('feature.character.panel.sheet'), gameObject.name);
+    this.objectPanels.openSheetSettings(gameObject, title, { width: 800, height: 600 });
   }
 
   private showChatPalette(gameObject: GameCharacter) {

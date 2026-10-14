@@ -87,6 +87,10 @@ describe('RideService', () => {
     expect(robot.mountSeatHeight).toBe('75%');
     expect(service.seatHeight(robot)).toBe(3);
     expect(service.menuOf(robot).mount?.seatHeight).toBe('75%');
+
+    service.convertSeatHeight(robot, 'px');
+    expect(robot.mountSeatHeight).toBe('150px');
+    expect(service.seatHeight(robot)).toBe(3);
   });
 
   it('offers the mounts at the same point and the seats free on them, and none further off', () => {

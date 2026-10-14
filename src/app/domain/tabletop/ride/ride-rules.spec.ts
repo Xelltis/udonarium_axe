@@ -14,6 +14,9 @@ import {
   rideChangeRefusal,
   rideMoveRefusal,
   roundOfMark,
+  seatHeightFieldOf,
+  seatHeightFromField,
+  seatHeightIn,
   seatHeightOf,
   seatOf,
   steers,
@@ -58,11 +61,13 @@ describe('riding a mount', () => {
     expect(readSeatHeight('1.5')).toEqual({ cells: 1.5 });
     expect(readSeatHeight('0')).toEqual({ cells: 0 });
     expect(readSeatHeight('75%')).toEqual({ share: 0.75 });
+    expect(readSeatHeight('380px')).toEqual({ px: 380 });
     expect(readSeatHeight('')).toBeNull();
     expect(readSeatHeight('-1')).toBeNull();
     expect(readSeatHeight('waist')).toBeNull();
     expect(writeSeatHeight({ share: 0.75 })).toBe('75%');
     expect(writeSeatHeight({ cells: 1.5 })).toBe('1.5');
+    expect(writeSeatHeight({ px: 380 })).toBe('380px');
     expect(writeSeatHeight(null)).toBe('');
   });
 
@@ -77,6 +82,28 @@ describe('riding a mount', () => {
     expect(seatHeightOf('100%', horse, 50)).toBe(2);
     expect(seatHeightOf('1.5', robot, 50)).toBe(1.5);
     expect(seatHeightOf('0', robot, 50)).toBe(0);
+    expect(seatHeightOf('380px', robot, 50)).toBe(7.6);
+  });
+
+  it('shows a seat height as a number in its unit, and reads one typed in a unit back', () => {
+    expect(seatHeightFieldOf({ px: 380 })).toEqual({ value: 380, unit: 'px' });
+    expect(seatHeightFieldOf({ share: 0.333 })).toEqual({ value: 33.3, unit: 'percent' });
+    expect(seatHeightFieldOf({ cells: 2.5 })).toEqual({ value: 2.5, unit: 'cells' });
+    expect(seatHeightFieldOf(null)).toBeNull();
+    expect(seatHeightFromField(60, 'percent')).toEqual({ share: 0.6 });
+    expect(seatHeightFromField(380, 'px')).toEqual({ px: 380 });
+    expect(seatHeightFromField(2.5, 'cells')).toEqual({ cells: 2.5 });
+    expect(seatHeightFromField(-1, 'px')).toBeNull();
+    expect(seatHeightFromField(NaN, 'cells')).toBeNull();
+  });
+
+  it('writes a seat height in another unit where its riders already stand', () => {
+    const robot = { size: 2, specifyKomaImageFlag: true, komaImageHeight: 500 };
+
+    expect(seatHeightIn('cells', '380px', robot, 50)).toEqual({ cells: 7.6 });
+    expect(seatHeightIn('percent', '380px', robot, 50)).toEqual({ share: 0.76 });
+    expect(seatHeightIn('px', '75%', robot, 50)).toEqual({ px: 375 });
+    expect(seatHeightIn('px', '', robot, 50)).toEqual({ px: 500 });
   });
 
   it('measures a mount by its picture where the piece is given a height, and by its base where it is not', () => {

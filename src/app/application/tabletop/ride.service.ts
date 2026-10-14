@@ -29,7 +29,9 @@ import {
   RideMoveRefusal,
   rideMoveRefusal,
   RideSeat,
+  seatHeightIn,
   seatHeightOf,
+  SeatHeightUnit,
   seatOf,
   steers,
   turnMarkOf,
@@ -548,9 +550,14 @@ export class RideService {
     mount.mountAnyone = anyone ? '1' : '';
   }
 
-  /** Where a mount's riders stand, as `writeSeatHeight` writes it: cells, a part of its height, or empty for the default. */
+  /** Where a mount's riders stand, as `writeSeatHeight` writes it: cells, pixels, a part of its height, or empty for the default. */
   setSeatHeight(mount: GameCharacter, written: string): void {
     mount.mountSeatHeight = writeSeatHeight(readSeatHeight(written));
+  }
+
+  /** Writes where a mount's riders stand in another unit, leaving them where they are. */
+  convertSeatHeight(mount: GameCharacter, unit: SeatHeightUnit): void {
+    mount.mountSeatHeight = writeSeatHeight(seatHeightIn(unit, mount.mountSeatHeight, mount, this.gridSize()));
   }
 
   /**
