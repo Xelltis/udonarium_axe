@@ -13,8 +13,6 @@ export class LoopPointTrack {
   private startedAt = 0;
   private offset = 0;
   private _loop: boolean;
-  private fadeTimer: ReturnType<typeof setTimeout> | null = null;
-  private fadeDone: (() => void) | null = null;
 
   /** Called when the track plays to its end, which it never does while it loops. */
   onEnded: (() => void) | null = null;
@@ -65,7 +63,6 @@ export class LoopPointTrack {
     return this.gain.gain.value;
   }
   set volume(volume: number) {
-    this.cancelFade();
     const param = this.gain.gain;
     param.cancelScheduledValues(this.context.currentTime);
     param.setValueAtTime(volume, this.context.currentTime);
@@ -108,25 +105,23 @@ export class LoopPointTrack {
   }
 
   /**
-   * Glides the volume to a target over a duration on the audio clock, resolving when it gets there.
-   * A later fade or a volume set cuts it short, and it resolves then.
+   * Slows the track to all but a stop over the time given on the audio clock, its pitch falling with
+   * it, resolving once it gets there. Where it has got to is not followed while it slows, as the
+   * track is meant to be stopped once it has.
    */
-  fadeTo(target: number, durationMs: number): Promise<void> {
-    this.cancelFade();
-    const param = this.gain.gain;
+  brake(durationMs: number): Promise<void> {
+    const source = this.source;
+    if (!source) return Promise.resolve();
+    const rate = source.playbackRate;
     const now = this.context.currentTime;
-    param.cancelScheduledValues(now);
-    param.setValueAtTime(param.value, now);
-    param.linearRampToValueAtTime(target, now + Math.max(durationMs, 1) / 1000);
-    return new Promise((resolve) => {
-      this.fadeDone = resolve;
-      this.fadeTimer = setTimeout(() => this.cancelFade(), Math.max(durationMs, 0));
-    });
+    rate.cancelScheduledValues(now);
+    rate.setValueAtTime(rate.value, now);
+    rate.linearRampToValueAtTime(0.01, now + Math.max(durationMs, 1) / 1000);
+    return new Promise((resolve) => setTimeout(resolve, Math.max(durationMs, 0)));
   }
 
   /** Stops the track for good and takes it off the channel. */
   dispose(): void {
-    this.cancelFade();
     this.release();
     this.gain.disconnect();
   }
@@ -151,13 +146,5 @@ export class LoopPointTrack {
     source.onended = null;
     source.stop();
     source.disconnect();
-  }
-
-  private cancelFade(): void {
-    if (this.fadeTimer !== null) clearTimeout(this.fadeTimer);
-    this.fadeTimer = null;
-    const done = this.fadeDone;
-    this.fadeDone = null;
-    done?.();
   }
 }

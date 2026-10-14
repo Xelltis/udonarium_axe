@@ -6,7 +6,7 @@ import { clamp01 } from '@axe/domain/effect/timeline/shared';
  * Only the shape of one particle and the smoothing of colour and time. It refers to no family of effects.
  */
 
-export type ParticleShape = 'glow' | 'streak' | 'smoke' | 'chunk';
+export type ParticleShape = 'glow' | 'streak' | 'smoke' | 'chunk' | 'bubble';
 
 export interface EffectParticle {
   x: number;

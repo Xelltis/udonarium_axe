@@ -1,6 +1,6 @@
 import { Logger, LogLevel } from '@axe/core/logging/logger';
 import { AudioFile } from '@axe/core/storage/audio-file';
-import { AudioPlayer } from '@axe/core/storage/audio-player';
+import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import {
   LOOP_FROM_MEMORY_MAX_DECODED_BYTES,
   LOOP_FROM_MEMORY_MAX_FILE_BYTES,
@@ -97,7 +97,9 @@ describe('LoopPlayer', () => {
   /** The gain node the player made for itself, which comes after the background channel's own. */
   const playerGain = (): GainMock => {
     const gains = context.createGain.mock.results.map((result) => result.value as GainMock);
-    return gains.find((gain) => gain.connect.mock.calls.some(([to]) => to === AudioPlayer.backgroundNode))!;
+    return gains.find((gain) =>
+      gain.connect.mock.calls.some(([to]) => to === AudioPlayer.channelNode(VolumeType.BACKGROUND))
+    )!;
   };
   const sources = (): SourceMock[] => context.createBufferSource.mock.results.map((r) => r.value as SourceMock);
 
@@ -315,6 +317,38 @@ describe('LoopPlayer', () => {
 
       await vi.waitFor(() => expect(sources()).toHaveLength(1));
       expect(playerGain().gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(0.3, 1);
+    });
+  });
+
+  describe('setTrim()', () => {
+    it('glides a sounding loop to its volume times the trim', async () => {
+      const player = new LoopPlayer();
+      player.start(makeAudio(), 0.8, 0);
+      await vi.waitFor(() => expect(sources()).toHaveLength(1));
+
+      player.setTrim(1.5, 2);
+
+      expect(playerGain().gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(expect.closeTo(1.2, 9), 2);
+    });
+
+    it('is kept from before the start, the sound fading in to its volume times the trim', async () => {
+      const player = new LoopPlayer();
+      player.setTrim(0.5);
+      player.start(makeAudio(), 0.8, 1000);
+
+      await vi.waitFor(() => expect(sources()).toHaveLength(1));
+      expect(playerGain().gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(0.4, 1);
+    });
+
+    it('carries over into a later change of volume', async () => {
+      const player = new LoopPlayer();
+      player.setTrim(2);
+      player.start(makeAudio(), 0.8, 0);
+      await vi.waitFor(() => expect(sources()).toHaveLength(1));
+
+      player.setVolume(0.3);
+
+      expect(playerGain().gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(0.6, 0.08);
     });
   });
 

@@ -43,6 +43,16 @@ declare global {
   }
 }
 
+/**
+ * Something set between one channel's players and the channel's volume, such as the music's
+ * effects: where the players' sound goes in and where it comes out.
+ */
+export interface ChannelInsert {
+  readonly input: AudioNode;
+  readonly output: AudioNode;
+}
+
+type Channel = { volume: number; node?: GainNode; insert: ChannelInsert | null };
 type AudioCache = { url: string; blob: Blob };
 type DecodedEntry = { decoding: Promise<AudioBuffer | null>; bytes?: number };
 type DecodedLoopTrack = { buffer: AudioBuffer; region: { start: number; end: number } };
@@ -51,7 +61,6 @@ type DecodedLoopTrack = { buffer: AudioBuffer; region: { start: number; end: num
 type PendingStart = {
   position: number;
   paused: boolean;
-  fade: { target: number; durationMs: number; requestedAt: number } | null;
 };
 
 export class AudioPlayer {
@@ -63,17 +72,31 @@ export class AudioPlayer {
    * Browsers keep it suspended until the user interacts with the page; see `resumeAudioContext`.
    */
   static get audioContext(): AudioContext {
-    if (!AudioPlayer._audioContext)
+    if (!AudioPlayer._audioContext) {
       AudioPlayer._audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      for (const listener of AudioPlayer.contextListeners) listener(AudioPlayer._audioContext);
+    }
     return AudioPlayer._audioContext;
   }
 
-  private static readonly channels = new Map<VolumeType, { volume: number; node?: GainNode }>();
+  private static readonly contextListeners: ((context: AudioContext) => void)[] = [];
 
-  private static channel(type: VolumeType): { volume: number; node?: GainNode } {
+  /**
+   * Runs something each time the page's audio context is made, and at once if it already is, so
+   * what hangs off it can be built without making a context before anything plays: a browser warns
+   * of a context made before the user has touched the page.
+   */
+  static whenContextReady(listener: (context: AudioContext) => void): void {
+    AudioPlayer.contextListeners.push(listener);
+    if (AudioPlayer._audioContext) listener(AudioPlayer._audioContext);
+  }
+
+  private static readonly channels = new Map<VolumeType, Channel>();
+
+  private static channel(type: VolumeType): Channel {
     let channel = AudioPlayer.channels.get(type);
     if (!channel) {
-      channel = { volume: 0.5 };
+      channel = { volume: 0.5, insert: null };
       AudioPlayer.channels.set(type, channel);
     }
     return channel;
@@ -96,8 +119,8 @@ export class AudioPlayer {
   }
 
   /**
-   * The gain node of one channel, which the players and sounds of that kind connect to. Each channel
-   * runs straight to the speakers, so one channel's volume never touches another's.
+   * The gain node of one channel, its volume. Each channel runs straight to the speakers, so one
+   * channel's volume never touches another's.
    */
   static channelNode(type: VolumeType): GainNode {
     const channel = AudioPlayer.channel(type);
@@ -109,6 +132,26 @@ export class AudioPlayer {
       channel.node = gain;
     }
     return channel.node;
+  }
+
+  /**
+   * Where the players and sounds of one channel connect: whatever is set between them and the
+   * channel's volume, or the volume itself while nothing is.
+   */
+  static channelInput(type: VolumeType): AudioNode {
+    return AudioPlayer.channel(type).insert?.input ?? AudioPlayer.channelNode(type);
+  }
+
+  /**
+   * Sets something between one channel's players and its volume, its output running into the
+   * volume. It is meant to be set once, before anything plays through the channel: what started
+   * playing before it keeps going straight to the volume until it plays again.
+   */
+  static setChannelInsert(type: VolumeType, insert: ChannelInsert): void {
+    const channel = AudioPlayer.channel(type);
+    if (channel.insert === insert) return;
+    insert.output.connect(AudioPlayer.channelNode(type));
+    channel.insert = insert;
   }
 
   /** The volume of the master channel, from 0 to 1, which players use unless given another volume type. */
@@ -152,26 +195,6 @@ export class AudioPlayer {
     AudioPlayer.setChannelVolume(VolumeType.BACKGROUND, backgroundVolume);
   }
 
-  /** The master channel gain node, which players on the master volume type connect to. */
-  static get rootNode(): AudioNode {
-    return AudioPlayer.channelNode(VolumeType.MASTER);
-  }
-  /**
-   * The audition channel gain node, which players on the audition volume type connect to: the
-   * preview players of the jukebox and of the cut-in music picker.
-   */
-  static get auditionNode(): AudioNode {
-    return AudioPlayer.channelNode(VolumeType.AUDITION);
-  }
-  /** The sound-effect channel gain node, which one-shot effects and SE players connect to. */
-  static get seNode(): AudioNode {
-    return AudioPlayer.channelNode(VolumeType.SE);
-  }
-  /** The background channel gain node, which the looping background sounds and background players connect to. */
-  static get backgroundNode(): AudioNode {
-    return AudioPlayer.channelNode(VolumeType.BACKGROUND);
-  }
-
   private _audioElm: HTMLAudioElement | undefined;
   private get audioElm(): HTMLAudioElement {
     if (!this._audioElm) {
@@ -212,6 +235,9 @@ export class AudioPlayer {
 
   private track: LoopPointTrack | null = null;
   private pending: PendingStart | null = null;
+  private trimNode: GainNode | null = null;
+  private trimRoutedTo: VolumeType | null = null;
+  private _trim = 1;
 
   private _volume: number = 1;
   private _loop: boolean = false;
@@ -231,6 +257,35 @@ export class AudioPlayer {
     if (this.track) this.track.volume = volume;
     if (this._audioElm) this._audioElm.volume = volume;
   }
+  /**
+   * How much this player's sound is turned up or down before its channel, as a factor that may be
+   * above 1, apart from its volume and its fader. It levels one track against another.
+   *
+   * It can be set before anything has played; set while playing, it takes effect at once.
+   */
+  get trim(): number {
+    return this._trim;
+  }
+  set trim(trim: number) {
+    this._trim = trim;
+    const node = this.trimNode;
+    if (!node) return;
+    const now = AudioPlayer.audioContext.currentTime;
+    node.gain.cancelScheduledValues(now);
+    node.gain.setValueAtTime(trim, now);
+  }
+
+  /** Moves the trim to a new factor in a straight line over some seconds, so a track already playing changes level without a jump. */
+  glideTrim(trim: number, seconds: number): void {
+    this._trim = trim;
+    const node = this.trimNode;
+    if (!node) return;
+    const now = AudioPlayer.audioContext.currentTime;
+    node.gain.cancelScheduledValues(now);
+    node.gain.setValueAtTime(node.gain.value, now);
+    node.gain.linearRampToValueAtTime(trim, now + Math.max(0.01, seconds));
+  }
+
   /** Whether the track starts again when it ends; like the volume, it can be set before anything plays. */
   get loop(): boolean {
     if (this.track || this.pending) return this._loop;
@@ -241,6 +296,14 @@ export class AudioPlayer {
     if (this.track) this.track.loop = loop;
     if (this._audioElm) this._audioElm.loop = loop;
   }
+  /**
+   * Whether the track asked for is still being read and decoded to loop between its points, so
+   * nothing of it sounds yet.
+   */
+  get isLoading(): boolean {
+    return this.pending !== null && !this.pending.paused;
+  }
+
   /** Whether nothing is playing, which is also true before the player has played anything. */
   get paused(): boolean {
     if (this.pending) return this.pending.paused;
@@ -319,7 +382,8 @@ export class AudioPlayer {
   }
 
   /**
-   * Plays the audio once at the given volume, through the channel of its kind, and forgets about it.
+   * Plays the audio once at the given volume, which may be above 1, through the channel of its kind,
+   * and forgets about it.
    *
    * It goes through the sound-effect channel unless given another kind. Nothing is kept to stop it
    * with or to report it as playing; use `playSE` for an effect that may need stopping.
@@ -346,7 +410,7 @@ export class AudioPlayer {
     if (audio !== undefined) this.audio = audio;
     if (!this.audio) return;
     if (this.followsLoopPoints && AudioPlayer.mayLoopBetweenPoints(this.audio)) {
-      this.pending = { position: 0, paused: false, fade: null };
+      this.pending = { position: 0, paused: false };
       void this.playBetweenLoopPointsAsync(this.audio, attempt);
       return;
     }
@@ -400,10 +464,6 @@ export class AudioPlayer {
       if (pending.paused) track.seek(pending.position);
       else track.start(pending.position);
     }
-    if (pending.fade) {
-      const remaining = pending.fade.durationMs - (performance.now() - pending.fade.requestedAt);
-      void this.fadeVolumeTo(pending.fade.target, Math.max(0, remaining));
-    }
   }
 
   /** Pauses playback where it is, keeping the position; does nothing before anything has played. */
@@ -443,47 +503,111 @@ export class AudioPlayer {
   }
 
   /**
-   * Glides this player's volume to a target over a duration, resolving when it gets there.
+   * Slows the track to a stop over the time given, its pitch falling as a record's does when the
+   * turntable is switched off, then pauses it. Resolves once it has stopped, and at once when
+   * nothing is sounding.
    *
-   * A later fade cuts an earlier one short, which then resolves where it stopped. With nothing
-   * played yet, no real change or no duration, the volume is set and the promise resolves at once.
+   * A track played from memory slows on the audio clock; a streamed one is slowed in steps, as an
+   * element's rate cannot be scheduled. A track played or stopped meanwhile is left alone: it plays
+   * at its own speed and is not paused.
    */
-  fadeVolumeTo(target: number, durationMs: number): Promise<void> {
-    if (this.pending) {
-      this.pending.fade = { target, durationMs, requestedAt: performance.now() };
-      return new Promise((resolve) => setTimeout(resolve, Math.max(0, durationMs)));
-    }
+  brake(durationMs: number): Promise<void> {
+    const attempt = this.playAttempt;
     if (this.track) {
-      this._volume = target;
-      return this.track.fadeTo(target, durationMs);
+      return this.track.brake(durationMs).then(() => {
+        if (attempt === this.playAttempt) this.pause();
+      });
     }
-    if (!this._audioElm) return Promise.resolve();
-    const audioElm = this._audioElm;
-    const startVol = audioElm.volume;
-    if (Math.abs(startVol - target) < 1e-3 || durationMs <= 0) {
-      audioElm.volume = target;
-      this._volume = target;
+    const element = this._audioElm;
+    if (this.pending || !element || element.paused || durationMs <= 0) {
+      this.pause();
       return Promise.resolve();
     }
-    this._fadeToken += 1;
-    const myToken = this._fadeToken;
+    const pitched = element as HTMLAudioElement & { webkitPreservesPitch?: boolean; mozPreservesPitch?: boolean };
+    const setPreservesPitch = (preserves: boolean) => {
+      pitched.preservesPitch = preserves;
+      pitched.webkitPreservesPitch = preserves;
+      pitched.mozPreservesPitch = preserves;
+    };
+    setPreservesPitch(false);
+    const startedAt = performance.now();
     return new Promise((resolve) => {
-      const startTime = performance.now();
-      const tick = () => {
-        if (this._audioElm !== audioElm || this._fadeToken !== myToken) return resolve();
-        const elapsed = performance.now() - startTime;
-        const t = Math.min(elapsed / durationMs, 1);
-        const v = startVol + (target - startVol) * t;
-        audioElm.volume = v;
-        this._volume = v;
-        if (t < 1) requestAnimationFrame(tick);
-        else resolve();
-      };
-      requestAnimationFrame(tick);
+      const timer = setInterval(() => {
+        const done = Math.min(1, (performance.now() - startedAt) / durationMs);
+        const superseded = attempt !== this.playAttempt;
+        if (done >= 1 || superseded || element.paused) {
+          clearInterval(timer);
+          if (!superseded) element.pause();
+          element.playbackRate = 1;
+          setPreservesPitch(true);
+          resolve();
+          return;
+        }
+        element.playbackRate = Math.max(AudioPlayer.SLOWEST_ELEMENT_RATE, 1 - done);
+      }, AudioPlayer.BRAKE_STEP_MS);
     });
   }
 
-  private _fadeToken = 0;
+  private static readonly SLOWEST_ELEMENT_RATE = 0.07;
+  private static readonly BRAKE_STEP_MS = 30;
+
+  /**
+   * Where the player's fader stands, from 0 to 1. It multiplies the volume, and fades move it, so a
+   * fade leaves the volume as it was set. It can be set before anything has played.
+   */
+  get fader(): number {
+    return this._fader;
+  }
+  set fader(level: number) {
+    this.endFade();
+    this._fader = level;
+    const node = this.faderNode;
+    if (!node) return;
+    const now = AudioPlayer.audioContext.currentTime;
+    node.gain.cancelScheduledValues(now);
+    node.gain.setValueAtTime(level, now);
+  }
+
+  /**
+   * Glides the player's fader to a target over a duration on the audio clock, resolving when it
+   * gets there, so a fade goes on in a tab put in the background.
+   *
+   * A later fade cuts an earlier one short, which then resolves where it stopped. While the track
+   * is still being read the fade runs all the same, and the track comes in partway through it once
+   * it starts. Before anything has played, or with no duration, the fader is set and the promise
+   * resolves at once.
+   */
+  fadeVolumeTo(target: number, durationMs: number): Promise<void> {
+    if (!this.faderNode && this.pending) this.getConnectingAudioNode();
+    const node = this.faderNode;
+    if (!node || durationMs <= 0) {
+      this.fader = target;
+      return Promise.resolve();
+    }
+    this.endFade();
+    this._fader = target;
+    const now = AudioPlayer.audioContext.currentTime;
+    node.gain.cancelScheduledValues(now);
+    node.gain.setValueAtTime(node.gain.value, now);
+    node.gain.linearRampToValueAtTime(target, now + durationMs / 1000);
+    return new Promise((resolve) => {
+      this.fadeDone = resolve;
+      this.fadeTimer = setTimeout(() => this.endFade(), durationMs);
+    });
+  }
+
+  private endFade(): void {
+    if (this.fadeTimer !== null) clearTimeout(this.fadeTimer);
+    this.fadeTimer = null;
+    const done = this.fadeDone;
+    this.fadeDone = null;
+    done?.();
+  }
+
+  private _fader = 1;
+  private faderNode: GainNode | null = null;
+  private fadeTimer: ReturnType<typeof setTimeout> | null = null;
+  private fadeDone: (() => void) | null = null;
 
   /** Stops playback, rewinds and unloads the track; does nothing before anything has played. */
   stop() {
@@ -494,6 +618,9 @@ export class AudioPlayer {
       this.track.dispose();
       this.track = null;
     }
+    this.endFade();
+    this.trimNode?.disconnect();
+    this.trimRoutedTo = null;
     if (!this._audioElm) return;
     this._audioElm.pause();
     this._audioElm.currentTime = 0;
@@ -502,8 +629,27 @@ export class AudioPlayer {
     this._mediaElementSource?.disconnect();
   }
 
-  private getConnectingAudioNode() {
-    return AudioPlayer.channelNode(this.volumeType);
+  /**
+   * Where the player's sound goes in: its fader, then its trim, made the first time it plays and
+   * run into the channel of its volume type.
+   */
+  private getConnectingAudioNode(): AudioNode {
+    const context = AudioPlayer.audioContext;
+    if (!this.trimNode) {
+      this.trimNode = context.createGain();
+      this.trimNode.gain.setValueAtTime(this._trim, context.currentTime);
+    }
+    if (!this.faderNode) {
+      this.faderNode = context.createGain();
+      this.faderNode.gain.setValueAtTime(this._fader, context.currentTime);
+      this.faderNode.connect(this.trimNode);
+    }
+    if (this.trimRoutedTo !== this.volumeType) {
+      if (this.trimRoutedTo !== null) this.trimNode.disconnect();
+      this.trimNode.connect(AudioPlayer.channelInput(this.volumeType));
+      this.trimRoutedTo = this.volumeType;
+    }
+    return this.faderNode;
   }
 
   private static async playBufferAsync(audio: AudioFile, volume: number, type: VolumeType) {
@@ -513,7 +659,7 @@ export class AudioPlayer {
     const gain = AudioPlayer.audioContext.createGain();
     gain.gain.setValueAtTime(volume, AudioPlayer.audioContext.currentTime);
 
-    gain.connect(AudioPlayer.channelNode(type));
+    gain.connect(AudioPlayer.channelInput(type));
     source.connect(gain);
 
     source.onended = () => {
@@ -531,14 +677,14 @@ export class AudioPlayer {
 
   /**
    * Plays the audio as a sound effect that `stopSE` can cut off and `isSePlaying` reports
-   * from the moment it is asked for.
+   * from the moment it is asked for, turned up or down by a factor that may be above 1.
    *
    * The effect is decoded once and kept, so repeated and overlapping plays of it are cheap.
    */
-  static playSE(audio: AudioFile): void {
+  static playSE(audio: AudioFile, level: number = 1): void {
     const identifier = audio.identifier;
     AudioPlayer.sePending.set(identifier, (AudioPlayer.sePending.get(identifier) ?? 0) + 1);
-    AudioPlayer.playSeBufferAsync(audio, identifier);
+    AudioPlayer.playSeBufferAsync(audio, identifier, level);
   }
 
   /**
@@ -579,7 +725,7 @@ export class AudioPlayer {
     return (AudioPlayer.seSources.get(identifier)?.size ?? 0) > 0 || (AudioPlayer.sePending.get(identifier) ?? 0) > 0;
   }
 
-  private static async playSeBufferAsync(audio: AudioFile, identifier: string): Promise<void> {
+  private static async playSeBufferAsync(audio: AudioFile, identifier: string, level: number): Promise<void> {
     const source = await AudioPlayer.createBufferSourceAsync(audio);
     const remaining = (AudioPlayer.sePending.get(identifier) ?? 1) - 1;
     if (remaining > 0) AudioPlayer.sePending.set(identifier, remaining);
@@ -587,8 +733,8 @@ export class AudioPlayer {
     if (!source) return;
 
     const gain = AudioPlayer.audioContext.createGain();
-    gain.gain.setValueAtTime(1, AudioPlayer.audioContext.currentTime);
-    gain.connect(AudioPlayer.seNode);
+    gain.gain.setValueAtTime(level, AudioPlayer.audioContext.currentTime);
+    gain.connect(AudioPlayer.channelInput(VolumeType.SE));
     source.connect(gain);
 
     let entries = AudioPlayer.seSources.get(identifier);

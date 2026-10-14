@@ -1,0 +1,439 @@
+<div class="border-ui-border-panel border-t border-solid px-3 pt-2 pb-2.5" data-testid="dj-deck">
+  <canvas
+    class="bg-ui-elevated block h-7 w-full rounded-sm"
+    #spectrum
+    role="img"
+    [attr.aria-label]="'feature.media.djDeck.spectrum' | transloco"
+  ></canvas>
+
+  <div class="mt-2 flex items-center gap-2">
+    <div class="flex min-w-0 flex-1 items-baseline gap-1">
+      <span
+        class="text-ui-text text-[20px] leading-none font-semibold [font-variant-numeric:tabular-nums]"
+        data-testid="dj-deck-bpm"
+        >{{ bpmText() }}</span
+      >
+      <span class="text-ui-dim text-[10px] tracking-wider">BPM</span>
+      <span class="text-ui-muted ml-1 truncate text-[10px]" data-testid="dj-deck-tempo-state">
+        @switch (tempoState()) {
+          @case ('analyzing') {
+            {{ 'feature.media.djDeck.analyzing' | transloco }}
+          }
+          @case ('noBeat') {
+            {{ 'feature.media.djDeck.noBeat' | transloco }}
+          }
+          @case ('manual') {
+            {{ 'feature.media.djDeck.manualTempo' | transloco }}
+          }
+        }
+      </span>
+    </div>
+    <div class="flex items-center gap-1" aria-hidden="true" data-testid="dj-deck-beats">
+      @for (beat of beats; track beat) {
+        <span
+          class="bg-ui-border-panel size-2.5 rounded-full transition-[background-color,transform] duration-75"
+          [class.bg-ui-accent!]="beatOfBar() === beat"
+          [class.scale-125]="beatOfBar() === beat && onBeat()"
+          [class.opacity-60]="beatOfBar() === beat && !onBeat()"
+        ></span>
+      }
+    </div>
+  </div>
+
+  <div class="border-ui-border-panel mt-2 flex gap-0.5 border-b border-solid" role="tablist">
+    @for (tab of tabs; track tab) {
+      <button
+        type="button"
+        role="tab"
+        class="text-ui-dim hover:text-ui-text m-0 -mb-px cursor-pointer border-x-0 border-t-0 border-b-2 border-solid border-transparent bg-transparent px-2 pb-1 text-[11px] transition-colors"
+        [class.border-ui-accent!]="activeTab() === tab"
+        [class.text-ui-text!]="activeTab() === tab"
+        [attr.aria-selected]="activeTab() === tab"
+        (mousedown)="$event.stopPropagation()"
+        (click)="activeTab.set(tab)"
+        [attr.data-testid]="'dj-deck-tab-' + tab"
+      >
+        {{ 'feature.media.djDeck.tab.' + tab | transloco }}
+      </button>
+    }
+  </div>
+
+  @switch (activeTab()) {
+    @case ('deck') {
+      <div class="mt-2 flex items-center gap-1" data-testid="dj-deck-tempo-controls">
+        <button
+          type="button"
+          class="border-ui-border-panel bg-ui-elevated text-ui-text hover:bg-ui-hover active:bg-ui-accent-bg m-0 h-7 min-w-14 cursor-pointer rounded-md border border-solid px-2 text-[11px] font-semibold tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+          (mousedown)="$event.stopPropagation()"
+          (click)="dj.tap()"
+          [disabled]="!dj.canOperate() || !dj.track()"
+          [title]="'feature.media.djDeck.tapHint' | transloco"
+          data-testid="dj-deck-tap"
+        >
+          TAP
+          @if (dj.tappedBpm(); as tapped) {
+            <span class="text-ui-muted font-normal [font-variant-numeric:tabular-nums]">{{ tapped.toFixed(0) }}</span>
+          }
+        </button>
+        <button
+          type="button"
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 h-7 cursor-pointer rounded-md border-none bg-transparent px-1.5 text-[11px] transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+          (mousedown)="$event.stopPropagation()"
+          (click)="dj.halveTempo()"
+          [disabled]="!dj.canOperate() || !dj.grid()"
+          [title]="'feature.media.djDeck.halve' | transloco"
+          data-testid="dj-deck-halve"
+        >
+          ÷2
+        </button>
+        <button
+          type="button"
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 h-7 cursor-pointer rounded-md border-none bg-transparent px-1.5 text-[11px] transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+          (mousedown)="$event.stopPropagation()"
+          (click)="dj.doubleTempo()"
+          [disabled]="!dj.canOperate() || !dj.grid()"
+          [title]="'feature.media.djDeck.double' | transloco"
+          data-testid="dj-deck-double"
+        >
+          ×2
+        </button>
+        <button
+          type="button"
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex h-7 cursor-pointer items-center gap-0.5 rounded-md border-none bg-transparent px-1.5 text-[11px] transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+          (mousedown)="$event.stopPropagation()"
+          (click)="dj.setDownbeatHere()"
+          [disabled]="!dj.canOperate() || !dj.grid()"
+          [title]="'feature.media.djDeck.downbeatHere' | transloco"
+          data-testid="dj-deck-downbeat"
+        >
+          <i class="material-icons text-[14px]!">flag</i>1
+        </button>
+        <div class="flex-1"></div>
+        <button
+          type="button"
+          class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-7 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[16px]!"
+          (mousedown)="$event.stopPropagation()"
+          (click)="dj.resetGrid()"
+          [disabled]="!dj.canOperate() || !dj.isGridManual()"
+          [title]="'feature.media.djDeck.resetTempo' | transloco"
+          data-testid="dj-deck-reset-tempo"
+        >
+          <i class="material-icons">replay</i>
+        </button>
+      </div>
+
+      <div class="mt-2 grid grid-cols-4 gap-1" data-testid="dj-deck-cues">
+        @for (cue of dj.cues(); track $index; let slot = $index) {
+          <button
+            type="button"
+            class="border-ui-border-panel text-ui-dim hover:bg-ui-hover m-0 flex h-8 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed bg-transparent p-0 text-[10px] leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+            [class.border-solid!]="cue !== null"
+            [class.border-ui-accent!]="cue !== null"
+            [class.bg-ui-accent-bg!]="cue !== null"
+            [class.text-ui-accent!]="cue !== null"
+            (mousedown)="$event.stopPropagation()"
+            (click)="dj.pressCue(slot)"
+            (contextmenu)="$event.preventDefault(); dj.clearCue(slot)"
+            [disabled]="!dj.canOperate() || !dj.track()"
+            [title]="
+              cue === null
+                ? ('feature.media.djDeck.cueSet' | transloco: { slot: slot + 1 })
+                : ('feature.media.djDeck.cueJump' | transloco: { slot: slot + 1 })
+            "
+            [attr.data-testid]="'dj-deck-cue-' + slot"
+          >
+            <span class="font-semibold">{{ slot + 1 }}</span>
+            <span class="[font-variant-numeric:tabular-nums]">{{ cue === null ? '+' : cueTime(cue) }}</span>
+          </button>
+        }
+      </div>
+
+      <div class="mt-2 flex items-end gap-2" data-testid="dj-deck-effects">
+        <ui-knob
+          name="filter"
+          [value]="dj.effects().filter"
+          [min]="-1"
+          [max]="1"
+          [rest]="0"
+          [step]="0.05"
+          [disabled]="!dj.canOperate()"
+          [label]="'feature.media.djDeck.filter' | transloco"
+          [valueText]="filterText()"
+          [title]="'feature.media.djDeck.filterHint' | transloco"
+          (valueChange)="dj.setEffect('filter', $event)"
+          (settle)="dj.setEffect('filter', $event, true)"
+        />
+        <ui-knob
+          name="echo"
+          [value]="dj.effects().echo"
+          [disabled]="!dj.canOperate()"
+          [label]="'feature.media.djDeck.echo' | transloco"
+          [title]="'feature.media.djDeck.echoHint' | transloco"
+          (valueChange)="dj.setEffect('echo', $event)"
+          (settle)="dj.setEffect('echo', $event, true)"
+        />
+        <ui-knob
+          name="reverb"
+          [value]="dj.effects().reverb"
+          [disabled]="!dj.canOperate()"
+          [label]="'feature.media.djDeck.reverb' | transloco"
+          [title]="'feature.media.djDeck.reverbHint' | transloco"
+          (valueChange)="dj.setEffect('reverb', $event)"
+          (settle)="dj.setEffect('reverb', $event, true)"
+        />
+        <div class="flex-1"></div>
+        <div class="flex flex-col items-end gap-1">
+          <button
+            type="button"
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-6 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[15px]!"
+            (mousedown)="$event.stopPropagation()"
+            (click)="dj.resetEffects()"
+            [disabled]="!dj.canOperate() || !hasEffects()"
+            [title]="'feature.media.djDeck.resetEffects' | transloco"
+            data-testid="dj-deck-reset-effects"
+          >
+            <i class="material-icons">layers_clear</i>
+          </button>
+          <button
+            type="button"
+            class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 h-7 cursor-pointer rounded-md border border-solid bg-transparent px-2 text-[10px] font-semibold tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+            (mousedown)="$event.stopPropagation()"
+            (click)="dj.brakeStop()"
+            [disabled]="!dj.canOperate() || !dj.isPlaying()"
+            [title]="'feature.media.djDeck.brakeHint' | transloco"
+            data-testid="dj-deck-brake"
+          >
+            {{ 'feature.media.djDeck.brake' | transloco }}
+          </button>
+        </div>
+      </div>
+    }
+    @case ('pads') {
+      <div class="mt-2 grid grid-cols-4 gap-1" data-testid="dj-deck-pads">
+        @for (pad of dj.pads(); track pad.slot) {
+          <button
+            type="button"
+            class="border-ui-border-panel text-ui-dim hover:bg-ui-hover m-0 flex h-12 min-w-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border border-dashed bg-transparent px-1 py-0.5 text-[10px] leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+            [class.border-solid!]="pad.identifier !== ''"
+            [class.text-ui-text!]="pad.identifier !== ''"
+            [class.bg-ui-elevated!]="pad.identifier !== '' && !padsSounding()[pad.slot]"
+            [class.bg-ui-accent-bg!]="padsSounding()[pad.slot]"
+            [class.border-ui-accent!]="padsSounding()[pad.slot]"
+            [class.opacity-50]="pad.identifier !== '' && !pad.ready"
+            (mousedown)="$event.stopPropagation()"
+            (click)="pressPad(pad)"
+            (contextmenu)="$event.preventDefault(); dj.clearPad(pad.slot)"
+            [disabled]="pad.identifier === '' ? !dj.canChangeSettings() : !dj.canOperate() || !pad.ready"
+            [title]="
+              pad.identifier === ''
+                ? ('feature.media.djDeck.padEmpty' | transloco)
+                : ('feature.media.djDeck.padFire' | transloco: { name: pad.name })
+            "
+            [attr.data-testid]="'dj-deck-pad-' + pad.slot"
+          >
+            @if (pad.identifier === '') {
+              <i class="material-icons text-[16px]!">add</i>
+            } @else {
+              <i class="material-icons text-[14px]!">{{ padIcon(pad) }}</i>
+              <span class="line-clamp-2 w-full text-center break-all">{{ pad.name || '?' }}</span>
+            }
+          </button>
+        }
+      </div>
+      @if (pickingSlot(); as picking) {
+        <div
+          class="border-ui-border-panel bg-ui-elevated mt-1.5 rounded-md border border-solid"
+          data-testid="dj-deck-pad-picker"
+        >
+          <div class="border-ui-border-panel flex items-center gap-1 border-b border-solid py-1 pr-1 pl-2">
+            <span class="text-ui-text min-w-0 flex-1 truncate text-[11px] font-semibold">{{
+              'feature.media.djDeck.padPickerTitle' | transloco: { slot: picking }
+            }}</span>
+            <button
+              type="button"
+              class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-6 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 [&_.material-icons]:text-[15px]!"
+              (mousedown)="$event.stopPropagation()"
+              (click)="pickingSlot.set(null)"
+              [title]="'common.button.close' | transloco"
+            >
+              <i class="material-icons">close</i>
+            </button>
+          </div>
+          <div class="max-h-36 overflow-y-auto">
+            @for (audio of dj.assignable(); track audio.identifier) {
+              <button
+                type="button"
+                class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 flex w-full cursor-pointer items-center gap-1.5 border-none bg-transparent px-2 py-1 text-left text-[11px]"
+                (mousedown)="$event.stopPropagation()"
+                (click)="assign(picking - 1, audio.identifier)"
+                data-testid="dj-deck-pad-choice"
+              >
+                <span class="min-w-0 flex-1 truncate">{{ audio.name }}</span>
+                <span class="text-ui-dim shrink-0 text-[10px]">{{ playback.tagLabel(tagOf(audio.identifier)) }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
+    }
+    @case ('mix') {
+      <div class="text-ui-muted mt-2 flex items-baseline gap-3 text-[11px]" data-testid="dj-deck-level">
+        <span [title]="'feature.media.djDeck.loudnessHint' | transloco">
+          <span class="text-ui-dim">{{ 'feature.media.djDeck.loudness' | transloco }}</span>
+          <span class="text-ui-text ml-1 [font-variant-numeric:tabular-nums]">{{ loudnessText() }}</span>
+          <span class="text-ui-dim ml-0.5 text-[9px]">LUFS</span>
+        </span>
+        <span [title]="'feature.media.djDeck.levelHint' | transloco">
+          <span class="text-ui-dim">{{ 'feature.media.djDeck.level' | transloco }}</span>
+          <span class="text-ui-text ml-1 [font-variant-numeric:tabular-nums]" data-testid="dj-deck-level-db">{{
+            dj.settings().autoLevel ? levelText() : ('feature.media.djDeck.off' | transloco)
+          }}</span>
+          @if (dj.settings().autoLevel) {
+            <span class="text-ui-dim ml-0.5 text-[9px]">dB</span>
+          }
+        </span>
+      </div>
+
+      <div class="mt-1.5 flex flex-wrap items-center gap-1" data-testid="dj-deck-settings">
+        <button
+          type="button"
+          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover m-0 h-6 cursor-pointer rounded-full border border-solid bg-transparent px-2 text-[10px] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+          [class.border-ui-accent!]="dj.settings().autoLevel"
+          [class.text-ui-accent!]="dj.settings().autoLevel"
+          [attr.aria-pressed]="dj.settings().autoLevel"
+          (mousedown)="$event.stopPropagation()"
+          (click)="toggleAutoLevel()"
+          [disabled]="!dj.canChangeSettings()"
+          [title]="
+            ('feature.media.djDeck.autoLevelHint' | transloco) +
+            (dj.canChangeSettings() ? '' : ('feature.media.jukebox.gmOnlySuffix' | transloco))
+          "
+          data-testid="dj-deck-auto-level"
+        >
+          {{ 'feature.media.djDeck.autoLevel' | transloco }}
+        </button>
+        <button
+          type="button"
+          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover m-0 h-6 cursor-pointer rounded-full border border-solid bg-transparent px-2 text-[10px] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+          [class.border-ui-accent!]="dj.settings().ducking"
+          [class.text-ui-accent!]="dj.settings().ducking"
+          [attr.aria-pressed]="dj.settings().ducking"
+          (mousedown)="$event.stopPropagation()"
+          (click)="toggleDucking()"
+          [disabled]="!dj.canChangeSettings()"
+          [title]="
+            ('feature.media.djDeck.duckingHint' | transloco) +
+            (dj.canChangeSettings() ? '' : ('feature.media.jukebox.gmOnlySuffix' | transloco))
+          "
+          data-testid="dj-deck-ducking"
+        >
+          {{ 'feature.media.djDeck.ducking' | transloco }}
+        </button>
+        <button
+          type="button"
+          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover m-0 h-6 cursor-pointer rounded-full border border-solid bg-transparent px-2 text-[10px] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+          [class.border-ui-accent!]="dj.settings().quantize"
+          [class.text-ui-accent!]="dj.settings().quantize"
+          [attr.aria-pressed]="dj.settings().quantize"
+          (mousedown)="$event.stopPropagation()"
+          (click)="toggleQuantize()"
+          [disabled]="!dj.canChangeSettings()"
+          [title]="
+            ('feature.media.djDeck.quantizeHint' | transloco) +
+            (dj.canChangeSettings() ? '' : ('feature.media.jukebox.gmOnlySuffix' | transloco))
+          "
+          data-testid="dj-deck-quantize"
+        >
+          {{ 'feature.media.djDeck.quantize' | transloco }}
+        </button>
+        <button
+          type="button"
+          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover m-0 h-6 cursor-pointer rounded-full border border-solid bg-transparent px-2 text-[10px] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+          [class.border-ui-accent!]="dj.settings().beatLight"
+          [class.text-ui-accent!]="dj.settings().beatLight"
+          [attr.aria-pressed]="dj.settings().beatLight"
+          (mousedown)="$event.stopPropagation()"
+          (click)="toggleBeatLight()"
+          [disabled]="!dj.canChangeSettings()"
+          [title]="
+            ('feature.media.djDeck.beatLightHint' | transloco) +
+            (dj.canChangeSettings() ? '' : ('feature.media.jukebox.gmOnlySuffix' | transloco))
+          "
+          data-testid="dj-deck-beat-light"
+        >
+          {{ 'feature.media.djDeck.beatLight' | transloco }}
+        </button>
+        <label
+          class="border-ui-border-panel text-ui-muted inline-flex h-6 items-center gap-1 rounded-full border border-solid px-2 text-[10px]"
+          [title]="
+            ('feature.media.djDeck.crossfadeHint' | transloco) +
+            (dj.canChangeSettings() ? '' : ('feature.media.jukebox.gmOnlySuffix' | transloco))
+          "
+          (mousedown)="$event.stopPropagation()"
+        >
+          {{ 'feature.media.djDeck.crossfade' | transloco }}
+          <select
+            class="text-ui-text [&>option]:bg-ui-elevated [&>option]:text-ui-text m-0 cursor-pointer border-none bg-transparent p-0 text-[10px] disabled:cursor-not-allowed disabled:opacity-40"
+            name="crossfade"
+            [ngModel]="dj.settings().crossfadeS"
+            (ngModelChange)="setCrossfade($event)"
+            [disabled]="!dj.canChangeSettings()"
+            data-testid="dj-deck-crossfade"
+          >
+            @for (seconds of crossfadeChoices; track seconds) {
+              <option [ngValue]="seconds">
+                {{
+                  seconds === 0
+                    ? ('feature.media.djDeck.off' | transloco)
+                    : ('feature.media.djDeck.seconds' | transloco: { seconds: seconds })
+                }}
+              </option>
+            }
+          </select>
+        </label>
+        <label
+          class="border-ui-border-panel text-ui-muted inline-flex h-6 items-center gap-1 rounded-full border border-solid px-2 text-[10px]"
+          [title]="
+            ('feature.media.djDeck.pauseFadeHint' | transloco) +
+            (dj.canChangeSettings() ? '' : ('feature.media.jukebox.gmOnlySuffix' | transloco))
+          "
+          (mousedown)="$event.stopPropagation()"
+        >
+          {{ 'feature.media.djDeck.pauseFade' | transloco }}
+          <select
+            class="text-ui-text [&>option]:bg-ui-elevated [&>option]:text-ui-text m-0 cursor-pointer border-none bg-transparent p-0 text-[10px] disabled:cursor-not-allowed disabled:opacity-40"
+            name="pauseFade"
+            [ngModel]="dj.settings().pauseFadeS"
+            (ngModelChange)="setPauseFade($event)"
+            [disabled]="!dj.canChangeSettings()"
+            data-testid="dj-deck-pause-fade"
+          >
+            @for (seconds of pauseFadeChoices; track seconds) {
+              <option [ngValue]="seconds">
+                {{
+                  seconds === 0
+                    ? ('feature.media.djDeck.off' | transloco)
+                    : ('feature.media.djDeck.seconds' | transloco: { seconds: seconds })
+                }}
+              </option>
+            }
+          </select>
+        </label>
+      </div>
+      <label
+        class="text-ui-muted mt-1.5 flex cursor-pointer items-center gap-1.5 text-[10px]"
+        [title]="'feature.media.djDeck.beatLightMineHint' | transloco"
+        (mousedown)="$event.stopPropagation()"
+      >
+        <input
+          type="checkbox"
+          class="m-0 [accent-color:var(--ui-accent)]"
+          [checked]="beatLightOff()"
+          (change)="setBeatLightOff($any($event.target).checked)"
+          data-testid="dj-deck-beat-light-mine"
+        />
+        {{ 'feature.media.djDeck.beatLightMine' | transloco }}
+      </label>
+    }
+  }
+</div>

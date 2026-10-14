@@ -44,14 +44,111 @@ export function cargoRoomOf(written: string): number {
   return written.trim() !== '' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
 
+/** What tells how tall a mount stands. */
+export interface MountBody {
+  /** How many cells across its base is. */
+  readonly size: number;
+  /** Whether its picture is given a height of its own rather than standing as wide as its base. */
+  readonly specifyKomaImageFlag: boolean;
+  /** The height its picture is given, in pixels, which counts only where it is given one. */
+  readonly komaImageHeight: number;
+}
+
 /**
- * How high above a mount's base the one riding it stands, in cells: as written down, or half the
- * mount's size where nothing readable is.
+ * How tall a mount's picture stands, in cells, where the piece is given a height of its own, which
+ * is how a towering piece is usually made; null where it is not.
  */
-export function seatHeightOf(written: string, size: number): number {
-  const value = Number(written);
-  if (written.trim() !== '' && Number.isFinite(value) && value >= 0) return value;
-  return Math.max(0, size) / 2;
+export function pictureHeightOf(mount: MountBody, gridSizePx: number): number | null {
+  const picture = Number(mount.komaImageHeight);
+  if (mount.specifyKomaImageFlag !== true || gridSizePx <= 0 || !Number.isFinite(picture) || picture <= 0) return null;
+  return picture / gridSizePx;
+}
+
+/** How tall a mount stands, in cells: as tall as its picture where it is given a height, and as tall as its base is wide where it is not. */
+export function mountHeightOf(mount: MountBody, gridSizePx: number): number {
+  return pictureHeightOf(mount, gridSizePx) ?? Math.max(0, mount.size);
+}
+
+/**
+ * Where a mount's riders are set to stand: a number of cells up, a number of pixels up, a part of
+ * its height, or null for the default.
+ */
+export type SeatHeightSetting =
+  { readonly cells: number } | { readonly px: number } | { readonly share: number } | null;
+
+/** The units a mount's seat height is typed in: pixels, cells, or a percentage of the mount's height. */
+export type SeatHeightUnit = 'px' | 'cells' | 'percent';
+
+/**
+ * Reads where a mount's riders are set to stand, as written down: a number of cells, a number of
+ * pixels such as `380px`, a part of the mount's height as a percentage such as `75%`, or anything
+ * else, empty included, for the default. A version that knows only cells reads pixels and
+ * percentages as its own default.
+ */
+export function readSeatHeight(written: string): SeatHeightSetting {
+  const text = written.trim();
+  const unit = /^(\d+(?:\.\d+)?)(%|px)$/.exec(text);
+  if (unit) return unit[2] === '%' ? { share: Number(unit[1]) / 100 } : { px: Number(unit[1]) };
+  const value = Number(text);
+  return text !== '' && Number.isFinite(value) && value >= 0 ? { cells: value } : null;
+}
+
+/** Writes where a mount's riders stand down as `readSeatHeight` reads it back: empty for the default. */
+export function writeSeatHeight(setting: SeatHeightSetting): string {
+  if (!setting) return '';
+  if ('share' in setting) return `${Math.round(Math.max(0, setting.share) * 1000) / 10}%`;
+  if ('px' in setting) return `${Math.max(0, setting.px)}px`;
+  return `${Math.max(0, setting.cells)}`;
+}
+
+/**
+ * How high above a mount's base the one riding it stands, in cells: as written down, in cells, in
+ * pixels or as a part of the mount's height. Where nothing readable is, it stands at the top of
+ * the mount's picture where the piece is given a height, which is the mount as drawn, and half as
+ * high as its base is wide where it is not.
+ */
+export function seatHeightOf(written: string, mount: MountBody, gridSizePx: number): number {
+  const setting = readSeatHeight(written);
+  const height = mountHeightOf(mount, gridSizePx);
+  if (setting && 'share' in setting) return height * setting.share;
+  if (setting && 'px' in setting) return gridSizePx > 0 ? setting.px / gridSizePx : 0;
+  if (setting) return setting.cells;
+  return pictureHeightOf(mount, gridSizePx) !== null ? height : height / 2;
+}
+
+/** A seat height as a field shows it, a number in its unit, the percentage out of 100; null for the default. */
+export function seatHeightFieldOf(
+  setting: SeatHeightSetting
+): { readonly value: number; readonly unit: SeatHeightUnit } | null {
+  if (!setting) return null;
+  if ('share' in setting) return { value: Math.round(setting.share * 1000) / 10, unit: 'percent' };
+  if ('px' in setting) return { value: setting.px, unit: 'px' };
+  return { value: setting.cells, unit: 'cells' };
+}
+
+/** A seat height from a number typed in a unit, the percentage out of 100; null where it is no number of 0 or more. */
+export function seatHeightFromField(value: number, unit: SeatHeightUnit): SeatHeightSetting {
+  if (!Number.isFinite(value) || value < 0) return null;
+  if (unit === 'percent') return { share: value / 100 };
+  if (unit === 'px') return { px: value };
+  return { cells: value };
+}
+
+/**
+ * Where a mount's riders stand, written in another unit, so they stay where they are as the unit
+ * is changed: rounded to a tenth of a pixel, a hundredth of a cell or a tenth of a percent.
+ */
+export function seatHeightIn(
+  unit: SeatHeightUnit,
+  written: string,
+  mount: MountBody,
+  gridSizePx: number
+): SeatHeightSetting {
+  const cells = seatHeightOf(written, mount, gridSizePx);
+  if (unit === 'px') return { px: Math.round(cells * gridSizePx * 10) / 10 };
+  if (unit === 'cells') return { cells: Math.round(cells * 100) / 100 };
+  const height = mountHeightOf(mount, gridSizePx);
+  return { share: height > 0 ? Math.round((cells / height) * 1000) / 1000 : 0 };
 }
 
 /** Why a piece may not ride in front of a mount, or null where it may. */

@@ -44,6 +44,47 @@ describe('GameCharacterSettingsTabComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  describe("how high a mount's riders stand", () => {
+    async function field(): Promise<HTMLInputElement | null> {
+      TestBed.inject(ObjectChangeService).notifyChanged(character.identifier);
+      await fixture.whenStable();
+      return (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('[data-testid="seat-height"]');
+    }
+
+    function type(input: HTMLInputElement, value: string): void {
+      input.value = value;
+      input.dispatchEvent(new Event('change'));
+    }
+
+    it('is asked only of a mount', async () => {
+      expect(await field()).toBeNull();
+
+      character.mountable = '1';
+
+      expect(await field()).not.toBeNull();
+    });
+
+    it('takes any number in the unit chosen, keeps the riders where they stand as the unit changes, and empties to the default', async () => {
+      character.mountable = '1';
+      character.specifyKomaImageFlag = true;
+      character.komaImageHeight = 500;
+      const input = (await field())!;
+      expect(component.seatHeightField()).toEqual({ value: null, unit: 'px' });
+
+      type(input, '380');
+      expect(character.mountSeatHeight).toBe('380px');
+
+      component.setSeatHeightUnit('percent');
+      expect(character.mountSeatHeight).toBe('76%');
+
+      type(input, '-5');
+      expect(character.mountSeatHeight).toBe('76%');
+
+      type(input, '');
+      expect(character.mountSeatHeight).toBe('');
+    });
+  });
+
   describe('templates kept on the piece', () => {
     function partTables(): readonly DataElement[] {
       return character.detailDataElement!.getFirstElementByName('パーツ')!.children;

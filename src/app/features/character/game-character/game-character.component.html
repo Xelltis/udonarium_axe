@@ -17,6 +17,18 @@
     (pointercancel)="onPiecePointerCancel($event)"
     #root
   >
+    @if (inWater()?.ripple; as ripple) {
+      <div
+        data-water-ripple
+        class="pointer-events-none absolute inset-0 [-webkit-transform-style:preserve-3d] transform-3d"
+        [style.transform]="ripple"
+      >
+        <div class="water-ripple absolute inset-[-15%] rounded-full border-2 border-solid border-white/80"></div>
+        <div
+          class="water-ripple water-ripple-late absolute inset-[-15%] rounded-full border-2 border-solid border-white/80"
+        ></div>
+      </div>
+    }
     @if (hitFlash() === 'damage') {
       <div
         data-testid="hit-flash"
@@ -495,9 +507,28 @@
                       left: 'auto',
                       right: 'auto',
                     }"
+                    [style.mask-image]="inWater()?.mask ?? null"
                     (load)="imageView.onImageLoad($event)"
                     [src]="imageFile().url | safe: 'resourceUrl'"
                   />
+                  @if (inWater(); as water) {
+                    <img
+                      data-water-copy
+                      class="chrome-smooth-image-trick pointer-events-none absolute top-0 left-0 h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                      [appBillboard]="imageView.komaFacing()"
+                      [ngStyle]="{
+                        height: komaImageHeightSignal() * imageView.supersample() + 'px',
+                        width: 'auto',
+                        maxWidth: 'none',
+                        display: 'inline-block',
+                      }"
+                      [style.clip-path]="water.clip"
+                      [style.filter]="water.tint"
+                      [style.opacity]="water.tintOpacity"
+                      [style.mask-image]="water.fade"
+                      [src]="imageFile().url | safe: 'resourceUrl'"
+                    />
+                  }
                 }
                 @if (!isPoster() && 0 < imageFile().url.length && !specifyKomaImageFlag() && !imageView.fitsInCell()) {
                   <img
@@ -510,9 +541,28 @@
                       marginLeft: imageView.supersampleInset(),
                       marginRight: imageView.supersampleInset(),
                     }"
+                    [style.mask-image]="inWater()?.mask ?? null"
                     (load)="imageView.onImageLoad($event)"
                     [src]="imageFile().url | safe: 'resourceUrl'"
                   />
+                  @if (inWater(); as water) {
+                    <img
+                      data-water-copy
+                      class="chrome-smooth-image-trick pointer-events-none absolute top-0 left-0 h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                      [appBillboard]="imageView.pieceFacing()"
+                      [ngStyle]="{
+                        width: imageView.supersamplePercent(),
+                        maxWidth: 'none',
+                        marginLeft: imageView.supersampleInset(),
+                        marginRight: imageView.supersampleInset(),
+                      }"
+                      [style.clip-path]="water.clip"
+                      [style.filter]="water.tint"
+                      [style.opacity]="water.tintOpacity"
+                      [style.mask-image]="water.fade"
+                      [src]="imageFile().url | safe: 'resourceUrl'"
+                    />
+                  }
                 }
                 @if (!isPoster() && 0 < imageFile().url.length && imageView.fitsInCell()) {
                   <img
@@ -526,9 +576,29 @@
                       marginLeft: imageView.supersampleInset(),
                       marginRight: imageView.supersampleInset(),
                     }"
+                    [style.mask-image]="inWater()?.mask ?? null"
                     (load)="imageView.onImageLoad($event)"
                     [src]="imageFile().url | safe: 'resourceUrl'"
                   />
+                  @if (inWater(); as water) {
+                    <img
+                      data-water-copy
+                      class="chrome-smooth-image-trick pointer-events-none absolute top-0 left-0 block object-contain align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                      [appBillboard]="imageView.pieceFacing()"
+                      [ngStyle]="{
+                        width: imageView.supersamplePercent(),
+                        height: size() * gridSize * imageView.supersample() + 'px',
+                        maxWidth: 'none',
+                        marginLeft: imageView.supersampleInset(),
+                        marginRight: imageView.supersampleInset(),
+                      }"
+                      [style.clip-path]="water.clip"
+                      [style.filter]="water.tint"
+                      [style.opacity]="water.tintOpacity"
+                      [style.mask-image]="water.fade"
+                      [src]="imageFile().url | safe: 'resourceUrl'"
+                    />
+                  }
                 }
                 @if (isTargeted()) {
                   <div

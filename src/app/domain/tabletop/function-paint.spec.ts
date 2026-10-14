@@ -44,6 +44,34 @@ describe('sanitizeFunctionLayerLook()', () => {
 });
 
 describe('sanitizeFunctionSpec()', () => {
+  it('reads a brush saved before it held a depth or a charge as knee-deep and leaving the charge to the kind', () => {
+    const spec = sanitizeFunctionSpec({ hazard: { kind: 'water', element: 'HP' } });
+
+    expect(spec.hazard.depth).toBe(0.5);
+    expect(spec.hazard.turbidity).toBe(0.15);
+    expect(spec.hazard.dirt).toBe(0);
+    expect(spec.hazard.color).toBe('');
+    expect(spec.hazard.leaves).toBe(0);
+    expect(spec.hazard.flowSpeed).toBe(0);
+    expect(spec.hazard.flowDirection).toBe(0);
+    expect(spec.hazard.extraCost).toBeNull();
+  });
+
+  it('keeps the way water was painted to flow, turned back within one round', () => {
+    const spec = sanitizeFunctionSpec({ hazard: { kind: 'water', flowSpeed: '0.456', flowDirection: '-45' } });
+
+    expect(spec.hazard.flowSpeed).toBe(0.46);
+    expect(spec.hazard.flowDirection).toBe(315);
+  });
+
+  it('keeps a brush set to charge nothing, and holds the depth to tenths of a cell', () => {
+    const spec = sanitizeFunctionSpec({ hazard: { kind: 'water', depth: '1.26', turbidity: '0.456', extraCost: 0 } });
+
+    expect(spec.hazard.depth).toBe(1.3);
+    expect(spec.hazard.turbidity).toBe(0.46);
+    expect(spec.hazard.extraCost).toBe(0);
+  });
+
   it('hands back the defaults for a layer that carries nothing', () => {
     expect(sanitizeFunctionSpec(undefined)).toEqual(DEFAULT_FUNCTION_SPEC);
     expect(sanitizeFunctionSpec({})).toEqual(DEFAULT_FUNCTION_SPEC);

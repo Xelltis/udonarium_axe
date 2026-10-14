@@ -1,7 +1,7 @@
 import { Logger } from '@axe/core/logging/logger';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { loopPointsFitInMemory, loopRegionOf, readAudioLoopPoints } from '@axe/core/storage/audio-loop-points';
-import { AudioPlayer } from '@axe/core/storage/audio-player';
+import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
 
 /** Files up to this size are decoded and looped from memory, which joins the end to the start without a gap. */
@@ -31,6 +31,7 @@ export class LoopPlayer {
   private stopTimer: ReturnType<typeof setTimeout> | null = null;
   private attempt = 0;
   private volume = 1;
+  private trim = 1;
   private audioIdentifier = '';
   private _isActive = false;
   private _isAwaitingGesture = false;
@@ -54,7 +55,7 @@ export class LoopPlayer {
       const context = AudioPlayer.audioContext;
       const gain = context.createGain();
       gain.gain.setValueAtTime(0, context.currentTime);
-      gain.connect(AudioPlayer.backgroundNode);
+      gain.connect(AudioPlayer.channelInput(VolumeType.BACKGROUND));
       this._gain = gain;
     }
     return this._gain;
@@ -73,7 +74,7 @@ export class LoopPlayer {
       clearTimeout(this.stopTimer);
       this.stopTimer = null;
       this.attempt++;
-      this.rampTo(volume, fadeInMs / 1000);
+      this.rampTo(this.level, fadeInMs / 1000);
       return;
     }
     this.teardown();
@@ -87,7 +88,21 @@ export class LoopPlayer {
   setVolume(volume: number): void {
     this.volume = volume;
     if (!this._isActive || !this.isSounding) return;
-    this.rampTo(volume, VOLUME_GLIDE_S);
+    this.rampTo(this.level, VOLUME_GLIDE_S);
+  }
+
+  /**
+   * Turns the sound up or down by a factor that may be above 1, apart from its volume, to level it
+   * against other sounds, gliding there over some seconds. Kept for a sound still loading.
+   */
+  setTrim(trim: number, seconds: number = VOLUME_GLIDE_S): void {
+    this.trim = trim;
+    if (!this._isActive || !this.isSounding) return;
+    this.rampTo(this.level, seconds);
+  }
+
+  private get level(): number {
+    return this.volume * this.trim;
   }
 
   /** Fades the sound out and lets it go. Without a fade, or with nothing sounding yet, it goes at once. */
@@ -160,7 +175,7 @@ export class LoopPlayer {
     const now = AudioPlayer.audioContext.currentTime;
     param.cancelScheduledValues(now);
     param.setValueAtTime(0, now);
-    param.linearRampToValueAtTime(this.volume, now + Math.max(fadeInMs, 1) / 1000);
+    param.linearRampToValueAtTime(this.level, now + Math.max(fadeInMs, 1) / 1000);
   }
 
   private rampTo(target: number, seconds: number): void {

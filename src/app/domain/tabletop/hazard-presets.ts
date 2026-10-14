@@ -1,4 +1,5 @@
 import { AmbienceKind } from '@axe/domain/effect/ambience/ambience-kind';
+import { MOST_MOVE_COST_EXTRA } from '@axe/domain/tabletop/move/move-cost-limits';
 import { TriggerMoment } from '@axe/domain/tabletop/trigger-event';
 
 /**
@@ -9,7 +10,7 @@ import { TriggerMoment } from '@axe/domain/tabletop/trigger-event';
  * over the same cells, and keeping the three in step as the map is edited is work nobody
  * should have to do. Named here, one brush lays all three and the table keeps them together.
  */
-export const HAZARD_KINDS = ['bog', 'lava', 'fog', 'ice', 'briar', 'vent'] as const;
+export const HAZARD_KINDS = ['bog', 'lava', 'fog', 'ice', 'briar', 'vent', 'water'] as const;
 
 export type HazardKind = (typeof HAZARD_KINDS)[number];
 
@@ -102,12 +103,41 @@ export const HAZARD_PRESETS: Record<HazardKind, HazardPreset> = {
     ailment: '',
     color: '#d98f3a',
   },
+  // Water is slow going and nothing more: whether it drowns, chills or carries a piece off is a
+  // thing each table settles, and the move cost it lays can be set from the brush.
+  water: {
+    ambience: 'water',
+    extraCost: 1,
+    blocksSight: false,
+    amount: '',
+    moment: 'stop',
+    ailment: '',
+    color: '#3a8fd0',
+  },
 };
 
 /** What one kind comes to, reading a kind it has never heard of as a bog. */
 export function hazardPresetOf(kind: unknown): HazardPreset {
   const known = typeof kind === 'string' && (HAZARD_KINDS as readonly string[]).includes(kind);
   return HAZARD_PRESETS[known ? (kind as HazardKind) : DEFAULT_HAZARD_KIND];
+}
+
+/**
+ * Reads what the brush is set to charge for crossing, where it is set at all: from nought, which
+ * lays no move cost, up to the most a move cost may be. Anything unset or unreadable is null,
+ * which leaves it to the kind; read as nought, a scene saved before the brush could be set would
+ * stop laying the going every kind of dangerous ground has always laid.
+ */
+export function asHazardExtraCost(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return null;
+  return Math.min(MOST_MOVE_COST_EXTRA, Math.max(0, Math.round(amount)));
+}
+
+/** What crossing the ground costs over plain footing: what the brush is set to, or else the kind's own. */
+export function hazardExtraCostOf(kind: unknown, extraCost: number | null): number {
+  return extraCost ?? hazardPresetOf(kind).extraCost;
 }
 
 /** Reads a stored kind of dangerous ground, falling back to a bog for anything unknown. */

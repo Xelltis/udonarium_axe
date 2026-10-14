@@ -125,6 +125,8 @@ import {
   LIGHT_OVERLAY_PIXEL_BUDGET,
   overlayScale,
 } from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
+import { TableWaterFloorComponent } from '@axe/features/tabletop/table-water-layer/table-water-floor.component';
+import { TableWaterLayerComponent } from '@axe/features/tabletop/table-water-layer/table-water-layer.component';
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
 import { TableZoneOverlayComponent } from '@axe/features/tabletop/table-zone-overlay/table-zone-overlay.component';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
@@ -266,6 +268,8 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
     TranslocoModule,
     LightSourceComponent,
     TableAmbienceComponent,
+    TableWaterLayerComponent,
+    TableWaterFloorComponent,
     TableWeatherOverlayComponent,
     TableDiceOverlayComponent,
   ],

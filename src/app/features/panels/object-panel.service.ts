@@ -1,4 +1,4 @@
-import { inject, Injectable, Injector, ViewContainerRef } from '@angular/core';
+import { inject, Injectable, Injector, ViewContainerRef, WritableSignal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
@@ -55,6 +55,22 @@ export class ObjectPanelService {
     place: ObjectPanelPlace = {},
     host?: ViewContainerRef
   ): void {
+    this.openSheetOn('sheet', object, title, size, place, host);
+  }
+
+  /** Opens a piece's sheet on its settings, as a menu does to have something there typed in. */
+  openSheetSettings(object: GameCharacter, title: string, size: ObjectPanelSize): void {
+    this.openSheetOn('settings', object, title, size, {});
+  }
+
+  private openSheetOn(
+    tab: 'sheet' | 'settings',
+    object: CharacterSheetTarget,
+    title: string,
+    size: ObjectPanelSize,
+    place: ObjectPanelPlace,
+    host?: ViewContainerRef
+  ): void {
     this.selectionSignalService.selectObject(object.identifier, object.aliasName);
     const load = () =>
       import('@axe/features/character/game-character-sheet/game-character-sheet.component').then(
@@ -66,8 +82,15 @@ export class ObjectPanelService {
       restore: () => this.openSheet(object, title, size, place),
       taken: host !== undefined,
     });
-    if (host) this.panelService.openLazy(load, option, (component) => (component.tabletopObject = object), host);
-    else this.panelService.openLazy(load, option, (component) => (component.tabletopObject = object));
+    const setup = (component: {
+      tabletopObject: CharacterSheetTarget | null;
+      activeTab: WritableSignal<'sheet' | 'settings'>;
+    }) => {
+      component.tabletopObject = object;
+      if (tab === 'settings') component.activeTab.set('settings');
+    };
+    if (host) this.panelService.openLazy(load, option, setup, host);
+    else this.panelService.openLazy(load, option, setup);
   }
 
   /** Opens a character's sheet at the usual size, titled with the character's name when it has one. */

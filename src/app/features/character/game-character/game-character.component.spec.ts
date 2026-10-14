@@ -34,6 +34,8 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { SlopeSide } from '@axe/domain/tabletop/terrain-slope';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
@@ -312,6 +314,114 @@ describe('GameCharacterComponent', () => {
 
       expect(component.multiAnglePiecePedestalRotation()).toBe(component.groundLean());
       expect(component.standTransform()).not.toContain('rotateX(-0.4');
+    });
+  });
+
+  describe('standing in water', () => {
+    const URL = 'wading-url';
+    let table: GameTable;
+    let pond: TableAmbience | null = null;
+    let char: GameCharacter | null = null;
+
+    beforeEach(() => {
+      table = new GameTable();
+      table.width = 20;
+      table.height = 20;
+      table.gridSize = 50;
+      table.initialize();
+      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    });
+
+    afterEach(() => {
+      pond?.destroy();
+      char?.destroy();
+      pond = null;
+      char = null;
+      ImageStorage.instance.delete(URL);
+      TestBed.inject(TableSelecter).viewTableIdentifier = '';
+      ObjectStore.instance.remove(table);
+    });
+
+    /** A pond four cells a side in the corner of the table, and a piece with a picture two cells tall in it. */
+    async function wade(surfaceCells: number, at = { x: 50, y: 50 }, altitude = 0): Promise<void> {
+      const grid = component.gridSize;
+      pond = TableAmbience.create('池', 'water', 4, 4);
+      pond.location = { name: 'table', x: 0, y: 0 };
+      pond.surfaceHeight = surfaceCells;
+      table.appendChild(pond);
+      ImageStorage.instance.add(URL);
+      char = GameCharacter.create('wading', 1, URL);
+      char.location.x = at.x;
+      char.location.y = at.y;
+      char.altitude = altitude;
+      char.specifyKomaImageFlag = true;
+      char.komaImageHeight = 2 * grid;
+      fixture.componentRef.setInput('gameCharacter', char);
+      await Promise.resolve();
+      await Promise.resolve();
+      fixture.detectChanges();
+    }
+
+    function picture(): HTMLElement {
+      return fixture.nativeElement.querySelector('img.image') as HTMLElement;
+    }
+
+    function copy(): HTMLElement | null {
+      return fixture.nativeElement.querySelector('[data-water-copy]');
+    }
+
+    function ripple(): HTMLElement | null {
+      return fixture.nativeElement.querySelector('[data-water-ripple]');
+    }
+
+    it('lets the part under the surface show through in the colour of the water, and rings the surface', async () => {
+      await wade(1);
+
+      expect(picture().getAttribute('style')).toContain('mask-image: linear-gradient');
+      expect(copy()?.style.clipPath).toBe('inset(50% 0 0 0)');
+      expect(copy()?.style.filter).toContain('hue-rotate(');
+      expect(copy()?.classList.contains('pointer-events-none')).toBe(true);
+      expect(ripple()?.style.transform).toBe(`translateZ(${component.gridSize - 0.5}px)`);
+    });
+
+    it('fades what is under murky water out towards the feet', async () => {
+      const feetOf = (element: HTMLElement | null) =>
+        Number(
+          /mask-image: linear-gradient\(to top, rgba\(0, 0, 0, ([\d.]+)\)/.exec(
+            element?.getAttribute('style') ?? ''
+          )?.[1]
+        );
+      await wade(1);
+      const clear = feetOf(copy());
+
+      pond!.turbidity = 0.9;
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      expect(feetOf(copy())).toBeLessThan(clear / 3);
+      expect(feetOf(picture())).toBeLessThan(0.1);
+    });
+
+    it('leaves a piece outside the water dry', async () => {
+      await wade(1, { x: 400, y: 400 });
+
+      expect(picture().getAttribute('style') ?? '').not.toContain('mask-image');
+      expect(copy()).toBeNull();
+      expect(ripple()).toBeNull();
+    });
+
+    it('leaves a piece flying over the water dry', async () => {
+      await wade(1, { x: 50, y: 50 }, 2);
+
+      expect(copy()).toBeNull();
+      expect(ripple()).toBeNull();
+    });
+
+    it('rings no surface over a piece sunk over its head', async () => {
+      await wade(3);
+
+      expect(copy()?.style.clipPath).toBe('inset(0% 0 0 0)');
+      expect(ripple()).toBeNull();
     });
   });
 

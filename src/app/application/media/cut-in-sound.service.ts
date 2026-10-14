@@ -3,6 +3,7 @@ import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import type { CutInScene } from '@axe/domain/media/cut-in-scene';
 import type { CutInSound } from '@axe/domain/media/cut-in-sound';
+import { mixLevelOf } from '@axe/domain/media/mix-level';
 
 /** One scene's sounds, going until whoever set them going says otherwise. */
 export interface CutInSoundHandle {
@@ -88,6 +89,7 @@ export class CutInSoundService {
     player.volumeType = VolumeType.CUT_IN;
     player.loop = false;
     player.volume = Math.min(1, Math.max(0, sound.v / 100));
+    player.trim = mixLevelOf(sound.a, 'effect');
     player.play(audio);
   }
 

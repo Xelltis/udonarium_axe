@@ -10,10 +10,11 @@ import {
   untracked,
 } from '@angular/core';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
-import { AmbienceService } from '@axe/application/tabletop/ambience.service';
+import { AmbienceService, type WeatherAmbience } from '@axe/application/tabletop/ambience.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { skyAmbienceFlash, skyAmbienceLayer, skyAmbienceWash } from '@axe/domain/effect/ambience/ambience-sky';
+import { CurrentCarry } from '@axe/domain/effect/ambience/current-carry';
 import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
 import { withAlpha } from '@axe/domain/effect/particles/shared';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
@@ -78,7 +79,21 @@ export class TableWeatherOverlayComponent {
    */
   readonly fromInside = input(false);
 
+  /**
+   * The weather to draw in place of the map's own, such as the water of a pond the eye stands in.
+   * Left out, the map's own weather is drawn.
+   */
+  readonly weather = input<WeatherAmbience | undefined>(undefined);
+
+  /** The weather drawn: the one given, or else the map's own. */
+  private readonly shownWeather = computed<WeatherAmbience | null>(
+    () => this.weather() ?? this.ambienceService.weather()
+  );
+
   private readonly size = signal<{ width: number; height: number }>({ width: 0, height: 0 });
+
+  /** How far the water the eye stands in has carried what drifts in it. */
+  private readonly carry = new CurrentCarry();
 
   private readonly reprojectTick = computed(() => {
     const interval = this.renderLite.active() ? LIGHT_REPROJECT_INTERVAL_MS : REPROJECT_INTERVAL_MS;
@@ -106,7 +121,7 @@ export class TableWeatherOverlayComponent {
    * Above the table means the volume, not the floor.
    */
   private readonly projected = computed<ScreenPoint[]>(() => {
-    if (!this.ambienceService.weather() || this.fromInside()) return [];
+    if (!this.shownWeather() || this.fromInside()) return [];
 
     const origin = this.coordinateService.tabletopOriginElement;
     if (!origin || origin === document.body) return [];
@@ -139,7 +154,7 @@ export class TableWeatherOverlayComponent {
   );
 
   readonly wash = computed<string>(() => {
-    const weather = this.ambienceService.weather();
+    const weather = this.shownWeather();
     if (!weather) return '';
     const direction = weatherDepthDirection(this.projected().slice(0, 4));
     return skyAmbienceWash(weather.kind, weather.color, weather.density, direction);
@@ -147,7 +162,7 @@ export class TableWeatherOverlayComponent {
 
   /** Lightning. It lights only what is over the board, so it is struck inside the mask. */
   readonly flash = computed<string>(() => {
-    const weather = this.ambienceService.weather();
+    const weather = this.shownWeather();
     if (!weather || !this.ambienceService.motionEnabled()) return '';
 
     const power = skyAmbienceFlash(weather.kind, this.ambienceService.now(), weather.density);
@@ -155,19 +170,21 @@ export class TableWeatherOverlayComponent {
   });
 
   readonly layer = computed<EffectParticleLayer | null>(() => {
-    const weather = this.ambienceService.weather();
+    const weather = this.shownWeather();
     if (!weather || !this.ambienceService.motionEnabled()) return null;
 
     const { width, height } = this.size();
     if (width < 1 || height < 1) return null;
 
+    const now = this.ambienceService.now();
     const layer = skyAmbienceLayer({
       kind: weather.kind,
       color: weather.color,
       density: weather.density,
-      elapsed: this.ambienceService.now(),
+      elapsed: now,
       width,
       height,
+      current: this.carry.advance(now, weather.current ?? null),
     });
     return layer.particles.length > 0 ? layer : null;
   });

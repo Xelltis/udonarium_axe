@@ -17,6 +17,11 @@ export interface WeatherAmbience {
   kind: AmbienceKind;
   color: string;
   density: number;
+  /**
+   * The water flowing past the eye, in cells a second across the view to the right and toward
+   * the eye, where the weather is the water the eye stands in; left out for still water.
+   */
+  current?: { readonly across: number; readonly toward: number } | null;
 }
 
 const PERSISTENT_SOURCE = 'ambience';
@@ -89,8 +94,9 @@ export class AmbienceService {
 
   constructor() {
     // The draw loop runs for as long as an ambience exists; unlike a cast, it never ends.
+    // Water moves by the page's own animation and needs no frame of it.
     effect(() => {
-      const active = this.areas().length > 0 || this.weather() != null;
+      const active = this.areas().some((area) => area.kind !== 'water') || this.weather() != null;
       this.playbackService.setPersistent(PERSISTENT_SOURCE, active && this.motionEnabled());
     });
   }

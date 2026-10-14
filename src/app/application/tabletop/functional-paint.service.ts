@@ -22,6 +22,12 @@ import {
   TerrainBlock,
   TerrainPaintSpec,
   TriggerPaintSpec,
+  waterDepthOf,
+  waterDirtOf,
+  waterFlowDirectionOf,
+  waterFlowSpeedOf,
+  waterLeavesOf,
+  waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
@@ -375,6 +381,12 @@ function ambienceSpecOf(area: TableAmbience): AmbiencePaintSpec {
     color: area.ambienceColor,
     density: area.ambienceDensity,
     blocksSight: area.blocksSight,
+    surfaceHeight: waterDepthOf(area.surfaceHeight),
+    turbidity: waterTurbidityOf(area.turbidity),
+    dirt: waterDirtOf(area.dirtiness),
+    leaves: waterLeavesOf(area.floatingLeaves),
+    flowSpeed: waterFlowSpeedOf(area.flowSpeed),
+    flowDirection: waterFlowDirectionOf(area.flowDirection),
   };
 }
 
@@ -583,6 +595,12 @@ export class FunctionalPaintService {
       area.ambienceColor = block.spec.color;
       area.ambienceDensity = block.spec.density;
       area.blocksSight = block.spec.blocksSight;
+      area.surfaceHeight = block.spec.surfaceHeight;
+      area.turbidity = block.spec.turbidity;
+      area.dirtiness = block.spec.dirt;
+      area.floatingLeaves = block.spec.leaves;
+      area.flowSpeed = block.spec.flowSpeed;
+      area.flowDirection = block.spec.flowDirection;
       area.location = blockOrigin(null, block, grid);
       table.appendChild(area);
     }

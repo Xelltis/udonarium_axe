@@ -117,6 +117,7 @@
           wrapperTransform: foregroundLayerTransform,
         }"
       ></ng-container>
+      <table-water-floor [surfaceStyle]="tableSurfaceStyle()" />
       @for (view of wallViews(); track view.wall.surface) {
         @let wall = view.wall;
         <div
@@ -248,6 +249,7 @@
           [ambience]="ambience"
         ></table-ambience>
       }
+      <table-water-layer />
       @if (textNotesBySurface().floor.length) {
         <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
           @for (textNote of textNotesBySurface().floor; track textNote.identifier) {

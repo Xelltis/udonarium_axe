@@ -473,12 +473,91 @@ describe('reading painted ground that goes off back in and laying it down again'
 });
 
 describe('painting dangerous ground', () => {
-  function hazardLayer(cells: string[], kind: string, element = 'HP'): FunctionLayer {
+  function hazardLayer(
+    cells: string[],
+    kind: string,
+    element = 'HP',
+    brush: {
+      depth?: number;
+      turbidity?: number;
+      dirt?: number;
+      color?: string;
+      leaves?: number;
+      flowSpeed?: number;
+      flowDirection?: number;
+      extraCost?: number | null;
+    } = {}
+  ): FunctionLayer {
     return layerOf('hazard', cells, {
       name: 'poison',
-      spec: { ...DEFAULT_FUNCTION_SPEC, hazard: { kind, element } },
+      spec: { ...DEFAULT_FUNCTION_SPEC, hazard: { ...DEFAULT_FUNCTION_SPEC.hazard, kind, element, ...brush } },
     });
   }
+
+  it('lays water standing as deep as it was painted, slow to cross and doing nothing else', () => {
+    const plan = planFunctionPaint(sceneWith(hazardLayer(['1,1'], 'water', 'HP', { depth: 1.5 })), snapshot())!;
+
+    expect(plan.ambience.add[0].spec).toMatchObject({ kind: 'water', surfaceHeight: 1.5 });
+    expect(plan.moveCost.add.map((block) => block.spec.extraCost)).toEqual([1]);
+    expect(plan.trigger.add).toHaveLength(0);
+  });
+
+  it('lays water as dirty and in the colour it was painted', () => {
+    const plan = planFunctionPaint(
+      sceneWith(hazardLayer(['1,1'], 'water', 'HP', { dirt: 0.8, color: '#5f6b4a' })),
+      snapshot()
+    )!;
+
+    expect(plan.ambience.add[0].spec).toMatchObject({ dirt: 0.8, color: '#5f6b4a' });
+  });
+
+  it('lays leaves floating on the water as it was painted, and none on other ground', () => {
+    const pond = planFunctionPaint(sceneWith(hazardLayer(['1,1'], 'water', 'HP', { leaves: 0.6 })), snapshot())!;
+    const bog = planFunctionPaint(sceneWith(hazardLayer(['1,1'], 'bog', 'HP', { leaves: 0.6 })), snapshot())!;
+
+    expect(pond.ambience.add[0].spec.leaves).toBe(0.6);
+    expect(bog.ambience.add[0].spec.leaves).toBe(0);
+  });
+
+  it('lays water flowing as it was painted, and other ground still', () => {
+    const river = planFunctionPaint(
+      sceneWith(hazardLayer(['1,1'], 'water', 'HP', { flowSpeed: 0.4, flowDirection: 225 })),
+      snapshot()
+    )!;
+    const bog = planFunctionPaint(
+      sceneWith(hazardLayer(['1,1'], 'bog', 'HP', { flowSpeed: 0.4, flowDirection: 225 })),
+      snapshot()
+    )!;
+
+    expect(river.ambience.add[0].spec).toMatchObject({ flowSpeed: 0.4, flowDirection: 225 });
+    expect(bog.ambience.add[0].spec).toMatchObject({ flowSpeed: 0, flowDirection: 0 });
+  });
+
+  it('lays water as murky as it was painted', () => {
+    const plan = planFunctionPaint(sceneWith(hazardLayer(['1,1'], 'water', 'HP', { turbidity: 0.7 })), snapshot())!;
+
+    expect(plan.ambience.add[0].spec.turbidity).toBe(0.7);
+  });
+
+  it('holds every other kind of ground at the default depth, so what it laid before still matches', () => {
+    const plan = planFunctionPaint(
+      sceneWith(hazardLayer(['1,1'], 'lava', 'HP', { depth: 3, turbidity: 0.9 })),
+      snapshot()
+    )!;
+
+    expect(plan.ambience.add[0].spec.surfaceHeight).toBe(0.5);
+    expect(plan.ambience.add[0].spec.turbidity).toBe(0.15);
+  });
+
+  it('charges what the brush is set to, and lays no move cost where it is set to nothing', () => {
+    const dear = planFunctionPaint(sceneWith(hazardLayer(['1,1'], 'water', 'HP', { extraCost: 3 })), snapshot())!;
+    const free = planFunctionPaint(sceneWith(hazardLayer(['1,1'], 'water', 'HP', { extraCost: 0 })), snapshot())!;
+    const kinds = planFunctionPaint(sceneWith(hazardLayer(['1,1'], 'lava', 'HP', { extraCost: null })), snapshot())!;
+
+    expect(dear.moveCost.add.map((block) => block.spec.extraCost)).toEqual([3]);
+    expect(free.moveCost.add).toHaveLength(0);
+    expect(kinds.moveCost.add.map((block) => block.spec.extraCost)).toEqual([2]);
+  });
 
   it('lays a look, a going and a thing that happens from one stroke', () => {
     const plan = planFunctionPaint(sceneWith(hazardLayer(['1,1'], 'briar')), snapshot())!;
@@ -527,7 +606,24 @@ describe('painting dangerous ground', () => {
   it('leaves the looks a table already holds alone where the scene never picks the brush up', () => {
     const table = snapshot({
       ambienceBlocks: [
-        { col: 0, row: 0, width: 1, height: 1, spec: { kind: 'swamp', color: '', density: 0.6, blocksSight: false } },
+        {
+          col: 0,
+          row: 0,
+          width: 1,
+          height: 1,
+          spec: {
+            kind: 'swamp',
+            color: '',
+            density: 0.6,
+            blocksSight: false,
+            surfaceHeight: 0.5,
+            turbidity: 0.15,
+            dirt: 0,
+            leaves: 0,
+            flowSpeed: 0,
+            flowDirection: 0,
+          },
+        },
       ],
     });
 

@@ -16,6 +16,21 @@ export class AudioTag extends ObjectNode {
   @SyncVar() audioIdentifier: string = '';
   @SyncVar() tag: string = 'BGM';
 
+  /**
+   * The sound's reading — its loudness, the silence around it and its beat — as text for
+   * `readAudioAnalysis`. Empty until it has been read, and on a tag made by an older version.
+   *
+   * It and the two below are given no starting value, so a tag is made without writing them: a
+   * tag carries them only once it has them, and making one changes no more than it used to.
+   */
+  @SyncVar() analysis!: string;
+
+  /** The sound's beats as set by hand, as text for `readBeatGrid`; empty while the reading's are used. */
+  @SyncVar() beatGrid!: string;
+
+  /** The places marked in the sound to jump to, as text for `readCuePoints`; empty for none. */
+  @SyncVar() cues!: string;
+
   /** Whether every one of the words appears somewhere in the tag. No words at all matches every tag. */
   containsWords(words: string[]): boolean {
     return words.every((word) => this.tag.includes(word));

@@ -53,6 +53,70 @@ describe('TableAmbience', () => {
     expect(a.phaseOffset).not.toBe(b.phaseOffset);
   });
 
+  describe('the height of the water', () => {
+    it('stands knee deep when first laid', () => {
+      const pond = TableAmbience.create('池', 'water', 2, 2);
+      expect(pond.surface).toBe(0.5);
+    });
+
+    it('reads an empty value as knee deep rather than as a drained pond', () => {
+      const pond = TableAmbience.create('池', 'water', 2, 2);
+      pond.surfaceHeight = '' as unknown as number;
+      expect(pond.surface).toBe(0.5);
+    });
+
+    it('reads an empty murkiness as a little murky rather than as clear', () => {
+      const pond = TableAmbience.create('池', 'water', 2, 2);
+      expect(pond.murk).toBe(0.15);
+      pond.turbidity = '' as unknown as number;
+      expect(pond.murk).toBe(0.15);
+      pond.turbidity = 0.8;
+      expect(pond.murk).toBe(0.8);
+    });
+
+    it('reads empty floating leaves as none', () => {
+      const pond = TableAmbience.create('池', 'water', 2, 2);
+      expect(pond.leaves).toBe(0);
+      pond.floatingLeaves = '' as unknown as number;
+      expect(pond.leaves).toBe(0);
+      pond.floatingLeaves = 0.6;
+      expect(pond.leaves).toBe(0.6);
+    });
+
+    it('reads an empty dirt as clean', () => {
+      const pond = TableAmbience.create('池', 'water', 2, 2);
+      expect(pond.dirt).toBe(0);
+      pond.dirtiness = '' as unknown as number;
+      expect(pond.dirt).toBe(0);
+      pond.dirtiness = 0.7;
+      expect(pond.dirt).toBe(0.7);
+    });
+
+    it('reads an area laid by a peer that knows nothing of the height as knee deep', () => {
+      const pond = TableAmbience.create('池', 'water', 2, 2, 'pond-from-an-older-peer');
+      const context = pond.toContext();
+      delete (context.syncData['attributes'] as Record<string, unknown>)['surfaceHeight'];
+
+      pond.apply(context);
+
+      expect(pond.surface).toBe(0.5);
+    });
+
+    it('keeps the height through a change sent back by a peer that knows nothing of it', () => {
+      // An older peer holds the whole bag of attributes it was sent, and sends the whole bag back.
+      const pond = TableAmbience.create('池', 'water', 2, 2, 'pond-edited-by-an-older-peer');
+      pond.surfaceHeight = 2;
+      const context = pond.toContext();
+      (context.syncData['attributes'] as Record<string, unknown>)['ambienceDensity'] = 0.2;
+      context.majorVersion += 1;
+
+      pond.apply(context);
+
+      expect(pond.surface).toBe(2);
+      expect(pond.density).toBeCloseTo(0.2);
+    });
+  });
+
   describe('saving into the room data', () => {
     it('is registered with the factory', () => {
       const object = ObjectFactory.instance.create('table-ambience');
@@ -95,6 +159,36 @@ describe('TableAmbience', () => {
       expect(restored.height).toBe(6);
       expect(restored.density).toBeCloseTo(0.8);
       expect(restored.color).toBe('#123456');
+    });
+
+    it('keeps the height of the water through a save', () => {
+      const pond = TableAmbience.create('池', 'water', 3, 3);
+      pond.surfaceHeight = 1.5;
+
+      const xml = ObjectSerializer.instance.toXml(pond).replace(/location\.[a-z]+="[^"]*"\s*/g, '');
+      expect(xml).toContain('ambienceKind="water"');
+      expect(xml).toContain('surfaceHeight="1.5"');
+
+      const restored = ObjectSerializer.instance.parseXml(xml) as TableAmbience;
+      expect(restored.kind).toBe('water');
+      expect(restored.surface).toBe(1.5);
+    });
+
+    it('reads a marsh saved before water existed just as before', () => {
+      const marsh = TableAmbience.create('毒沼', 'swamp', 4, 6);
+      const xml = ObjectSerializer.instance
+        .toXml(marsh)
+        .replace(/location\.[a-z]+="[^"]*"\s*/g, '')
+        .replace(/surfaceHeight="[^"]*"\s*/, '');
+      expect(xml).not.toContain('surfaceHeight');
+
+      const restored = ObjectSerializer.instance.parseXml(xml) as TableAmbience;
+
+      expect(restored.kind).toBe('swamp');
+      expect(restored.width).toBe(4);
+      expect(restored.height).toBe(6);
+      expect(restored.density).toBeCloseTo(0.6);
+      expect(restored.surface).toBe(0.5);
     });
 
     it('writes the weather of the table out', () => {

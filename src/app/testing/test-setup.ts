@@ -8,6 +8,7 @@ import { Logger, LogLevel } from '@axe/core/logging/logger';
 import { resetPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { basename, join, resolve } from 'path';
@@ -15,6 +16,7 @@ import { basename, join, resolve } from 'path';
 Logger.setLevel(LogLevel.NONE);
 
 import { CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY } from '@axe/application/chat/chat-personal-bookmark.store';
+import { AUDIO_ANALYSIS_CACHE_KEY } from '@axe/application/media/audio-analysis-cache';
 import { PERSONAL_VOLUME_STORAGE_KEY } from '@axe/application/media/personal-volumes';
 import { COMPASS_FACE_STORAGE_KEY } from '@axe/application/ui/compass-face.service';
 import { FIRST_PERSON_PIECE_STORAGE_KEY } from '@axe/application/ui/first-person-preference.service';
@@ -24,6 +26,8 @@ import { TABLETOP_DISPLAY_STORAGE_KEY } from '@axe/application/ui/tabletop-displ
 import { TOOLBAR_FOLD_STORAGE_KEY } from '@axe/application/ui/toolbar-fold.service';
 import { VIEW_MODE_STORAGE_KEY } from '@axe/application/ui/view-mode-preference.service';
 import { WIDGET_VISIBILITY_STORAGE_KEY } from '@axe/application/ui/widget-visibility.service';
+import { BEAT_LIGHT_OFF_STORAGE_KEY } from '@axe/features/media/beat-light/beat-light-preference.service';
+import { DJ_DECK_OPEN_STORAGE_KEY } from '@axe/features/media/mini-jukebox/dj-deck-preference';
 
 const srcAppDir = resolve(process.cwd(), 'src/app');
 const fileMap = new Map<string, string>();
@@ -368,6 +372,8 @@ function emptyObjectStore(): void {
   // rather than entries of the store. Emptying the store alone leaves that one holding every tab
   // any spec ever added, and it hands them back the moment the next one reads it.
   ChatTabList.forget();
+  // Readings of sounds made on this device are held by their own module beside the store.
+  AudioProfile.clearLocal();
 }
 
 // The cursor of whoever is reading is a static as well, and it decides what a role is allowed to
@@ -381,7 +387,8 @@ function forgetMyCursor(): void {
 // asks for a flat screen must not leave the next one's otherwise ordinary table lying down. The
 // same goes for what a seat shows: a spec that puts a toolbar away, folds one or hides the bars
 // over the pieces writes that choice to the browser, and the file after it builds its services
-// from whatever is left there. A reader's own bookmarks on chat lines are kept there too.
+// from whatever is left there. A reader's own bookmarks on chat lines are kept there too, as are the
+// readings of sounds this device has made.
 function forgetSeatPreferences(): void {
   localStorage.removeItem(TABLETOP_DISPLAY_STORAGE_KEY);
   localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
@@ -393,6 +400,9 @@ function forgetSeatPreferences(): void {
   localStorage.removeItem(COMPASS_FACE_STORAGE_KEY);
   localStorage.removeItem(PERSONAL_VOLUME_STORAGE_KEY);
   localStorage.removeItem(CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY);
+  localStorage.removeItem(AUDIO_ANALYSIS_CACHE_KEY);
+  localStorage.removeItem(DJ_DECK_OPEN_STORAGE_KEY);
+  localStorage.removeItem(BEAT_LIGHT_OFF_STORAGE_KEY);
 }
 
 beforeAll(async () => {

@@ -2,9 +2,9 @@ import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { CellRect } from '@axe/domain/tabletop/cell-rectangles';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { MOST_MOVE_COST_EXTRA } from '@axe/domain/tabletop/move/move-cost-limits';
 
-/** The most a stretch of ground may charge over the one step it is already worth. */
-export const MOST_MOVE_COST_EXTRA = 9;
+export { MOST_MOVE_COST_EXTRA };
 
 export const DEFAULT_MOVE_COST_EXTRA = 1;
 export const DEFAULT_MOVE_COST_COLOR = '#6d9b5a';

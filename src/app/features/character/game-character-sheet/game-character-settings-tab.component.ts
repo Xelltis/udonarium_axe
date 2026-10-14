@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { RideService } from '@axe/application/tabletop/ride.service';
 import { getMyPeerId } from '@axe/core/network/peer-context-source';
 import { normalizeFolderPath } from '@axe/domain/character/character-folder';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -17,6 +18,13 @@ import {
   readElementTemplates,
 } from '@axe/domain/data/data-element-templates';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import {
+  readSeatHeight,
+  seatHeightFieldOf,
+  seatHeightFromField,
+  SeatHeightUnit,
+  writeSeatHeight,
+} from '@axe/domain/tabletop/ride/ride-rules';
 import { clampInRange, floatOr, roundOr } from '@axe/features/character/game-character-sheet/numeric-input-helpers';
 import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -32,6 +40,7 @@ export class GameCharacterSettingsTabComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly ride = inject(RideService);
 
   readonly isReadOnly = computed(() => {
     this.objectChange.trackMyCursor();
@@ -61,6 +70,46 @@ export class GameCharacterSettingsTabComponent {
     if (!char.detailDataElement) return 0;
     return countConvertibleCheckTableElements(char.detailDataElement);
   });
+
+  private readonly chosenSeatUnit = signal<SeatHeightUnit | null>(null);
+
+  /**
+   * How high a mount's riders stand, as its fields show it: the number, null for the default, and
+   * the unit it is typed in, pixels for a piece given a picture height until another is chosen.
+   * Null where the piece is no mount.
+   */
+  readonly seatHeightField = computed<{ readonly value: number | null; readonly unit: SeatHeightUnit } | null>(() => {
+    const char = this.character();
+    this.objectChange.versionOf(char.identifier)();
+    if (char.mountable !== '1') return null;
+    const field = seatHeightFieldOf(readSeatHeight(char.mountSeatHeight));
+    if (field) return field;
+    return { value: null, unit: this.chosenSeatUnit() ?? (char.specifyKomaImageFlag ? 'px' : 'cells') };
+  });
+
+  /**
+   * Sets how high the mount's riders stand from the number field, in the unit chosen. An empty field
+   * goes back to the default, and a number below 0 changes nothing and is put back as it was.
+   */
+  onSetSeatHeight(event: Event): void {
+    const field = this.seatHeightField();
+    if (!field) return;
+    const input = event.target as HTMLInputElement;
+    if (input.value.trim() === '') {
+      this.ride.setSeatHeight(this.character(), '');
+      return;
+    }
+    const setting = seatHeightFromField(input.valueAsNumber, field.unit);
+    if (setting) this.ride.setSeatHeight(this.character(), writeSeatHeight(setting));
+    else input.value = field.value === null ? '' : `${field.value}`;
+  }
+
+  /** Changes the unit the mount's seat height is typed in, rewriting a height already set so its riders stay where they are. */
+  setSeatHeightUnit(unit: SeatHeightUnit): void {
+    this.chosenSeatUnit.set(unit);
+    const char = this.character();
+    if (readSeatHeight(char.mountSeatHeight)) this.ride.convertSeatHeight(char, unit);
+  }
 
   /** Turns the fixed piece image height on or off, from the settings tab's checkbox. */
   setSpecifyKomaImageFlag(value: boolean): void {

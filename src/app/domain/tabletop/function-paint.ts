@@ -1,5 +1,10 @@
 import { CellRect, rectCells } from '@axe/domain/tabletop/cell-rectangles';
-import { asHazardKind, DEFAULT_HAZARD_ELEMENT, DEFAULT_HAZARD_KIND } from '@axe/domain/tabletop/hazard-presets';
+import {
+  asHazardExtraCost,
+  asHazardKind,
+  DEFAULT_HAZARD_ELEMENT,
+  DEFAULT_HAZARD_KIND,
+} from '@axe/domain/tabletop/hazard-presets';
 import {
   asMoveCostExtra,
   DEFAULT_MOVE_COST_COLOR,
@@ -16,6 +21,18 @@ import {
   TriggerMoment,
   TriggerTarget,
 } from '@axe/domain/tabletop/trigger-event';
+import {
+  DEFAULT_DIRT,
+  DEFAULT_LEAVES,
+  DEFAULT_SURFACE_CELLS,
+  DEFAULT_TURBIDITY,
+  dirtOf,
+  flowDirectionOf,
+  flowSpeedOf,
+  leavesOf,
+  surfaceCellsOf,
+  turbidityOf,
+} from '@axe/domain/tabletop/water/water-surface';
 
 /**
  * What a painted cell does, and what it lays on the table.
@@ -252,6 +269,22 @@ export interface HazardPaintSpec {
   kind: string;
   /** The resource it takes from, by name. Empty takes nothing whatever the kind says. */
   element: string;
+  /** How many cells the water stands over the floor. Only water reads it. */
+  depth: number;
+  /** How murky the water is, from 0 for clear to 1. Only water reads it. */
+  turbidity: number;
+  /** How dirty the water is, from 0 for clean to 1. Only water reads it. */
+  dirt: number;
+  /** The colour of the water, empty for the colour of water itself. Only water reads it. */
+  color: string;
+  /** How much of the water floating leaves cover, from 0 to 1. Only water reads it. */
+  leaves: number;
+  /** How fast the water flows, from 0 for still to 1. Only water reads it. */
+  flowSpeed: number;
+  /** Which way the water flows, in degrees clockwise from the top of the table. Only water reads it. */
+  flowDirection: number;
+  /** What crossing it costs over plain footing, nought laying no move cost at all; null leaves it to the kind. */
+  extraCost: number | null;
 }
 
 /** What a role lays on the table, the same for every cell the layer holds. */
@@ -295,6 +328,14 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
   hazard: {
     kind: DEFAULT_HAZARD_KIND,
     element: DEFAULT_HAZARD_ELEMENT,
+    depth: DEFAULT_SURFACE_CELLS,
+    turbidity: DEFAULT_TURBIDITY,
+    dirt: DEFAULT_DIRT,
+    color: '',
+    leaves: DEFAULT_LEAVES,
+    flowSpeed: 0,
+    flowDirection: 0,
+    extraCost: null,
   },
   terrain: {
     name: '',
@@ -459,6 +500,14 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
     hazard: {
       kind: asHazardKind(hazard['kind']),
       element: textIn(hazard, 'element', fallback.hazard.element),
+      depth: waterDepthOf(hazard['depth']),
+      turbidity: waterTurbidityOf(hazard['turbidity']),
+      dirt: waterDirtOf(hazard['dirt']),
+      color: textIn(hazard, 'color', fallback.hazard.color),
+      leaves: waterLeavesOf(hazard['leaves']),
+      flowSpeed: waterFlowSpeedOf(hazard['flowSpeed']),
+      flowDirection: waterFlowDirectionOf(hazard['flowDirection']),
+      extraCost: asHazardExtraCost(hazard['extraCost']),
     },
     moveCost: {
       blocks: flagIn(moveCost, 'blocks', fallback.moveCost.blocks),
@@ -581,6 +630,51 @@ export interface AmbiencePaintSpec {
   density: number;
   /** Whether nobody sees through it, which is what makes a bank of fog worth walking round. */
   blocksSight: boolean;
+  /** How many cells water stands over the floor, held at the default for every other kind. */
+  surfaceHeight: number;
+  /** How murky water is, held at the default for every other kind. */
+  turbidity: number;
+  /** How dirty water is, held at clean for every other kind. */
+  dirt: number;
+  /** How much of the water floating leaves cover, held at none for every other kind. */
+  leaves: number;
+  /** How fast water flows, held still for every other kind. */
+  flowSpeed: number;
+  /** Which way water flows, held at the top of the table for every other kind. */
+  flowDirection: number;
+}
+
+/**
+ * How deep water is painted, in tenths of a cell, as the brush and the table both read it. The
+ * same value read either way is what lets the editor see that a pond it laid has not changed.
+ */
+export function waterDepthOf(value: unknown): number {
+  return Math.round(surfaceCellsOf(value) * 10) / 10;
+}
+
+/** How murky water is painted, in hundredths, as the brush and the table both read it. */
+export function waterTurbidityOf(value: unknown): number {
+  return Math.round(turbidityOf(value) * 100) / 100;
+}
+
+/** How dirty water is painted, in hundredths, as the brush and the table both read it. */
+export function waterDirtOf(value: unknown): number {
+  return Math.round(dirtOf(value) * 100) / 100;
+}
+
+/** How much of the water floating leaves are painted to cover, in hundredths, as the brush and the table both read it. */
+export function waterLeavesOf(value: unknown): number {
+  return Math.round(leavesOf(value) * 100) / 100;
+}
+
+/** How fast water is painted to flow, in hundredths, as the brush and the table both read it. */
+export function waterFlowSpeedOf(value: unknown): number {
+  return Math.round(flowSpeedOf(value) * 100) / 100;
+}
+
+/** Which way water is painted to flow, in whole degrees, as the brush and the table both read it. */
+export function waterFlowDirectionOf(value: unknown): number {
+  return Math.round(flowDirectionOf(value)) % 360;
 }
 
 /** A block as far as stacking cares: the cells it covers, the altitude it is laid by and its height in cells. */

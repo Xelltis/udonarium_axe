@@ -4,11 +4,14 @@ import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { LoopPlayer } from '@axe/core/storage/loop-player';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
+import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { DJ_DECK_OPEN_STORAGE_KEY, readDeckOpen } from '@axe/features/media/mini-jukebox/dj-deck-preference';
 import { MiniJukeboxComponent } from '@axe/features/media/mini-jukebox/mini-jukebox.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -121,5 +124,45 @@ describe('MiniJukeboxComponent', () => {
       expect(BackgroundSound.playing()).toEqual([]);
       expect(line()).toBeNull();
     });
+  });
+  describe('the DJ deck', () => {
+    const toggle = () =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+        '[data-testid="mini-jukebox-dj-deck-toggle"]'
+      )!;
+    const deck = () => (fixture.nativeElement as HTMLElement).querySelector('app-dj-deck');
+
+    it('is closed until opened, then opens under the player and is remembered in this browser', async () => {
+      await fixture.whenStable();
+      expect(deck()).toBeNull();
+      expect(toggle().getAttribute('aria-pressed')).toBe('false');
+
+      toggle().click();
+      await fixture.whenStable();
+
+      expect(deck()).not.toBeNull();
+      expect(localStorage.getItem(DJ_DECK_OPEN_STORAGE_KEY)).toBe('1');
+      expect(readDeckOpen()).toBe(true);
+
+      toggle().click();
+      await fixture.whenStable();
+      expect(deck()).toBeNull();
+      expect(readDeckOpen()).toBe(false);
+    });
+  });
+
+  it('marks the places marked in the room track along the seek bar', async () => {
+    const jukebox = ObjectStore.instance.get<Jukebox>('Jukebox')!;
+    jukebox.audioIdentifier = 'marked';
+    jukebox.isPlaying = true;
+    vi.spyOn(Jukebox.prototype, 'duration', 'get').mockReturnValue(200);
+    AudioProfile.setCues('marked', [50, null, 150, null]);
+    await waitZeroTimeout();
+    await fixture.whenStable();
+
+    const marks = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[data-testid="mini-jukebox-cue-mark"]'),
+    ];
+    expect(marks.map((mark) => mark.style.left)).toEqual(['25%', '75%']);
   });
 });

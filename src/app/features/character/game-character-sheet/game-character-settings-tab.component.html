@@ -97,6 +97,38 @@
         'feature.inventory.settingsTab.altitudeUnit' | transloco
       }}</span>
     </div>
+    @if (seatHeightField(); as seat) {
+      <div
+        class="flex items-center gap-1.5 text-[0.82em]"
+        [title]="'feature.inventory.settingsTab.seatHeightHint' | transloco"
+      >
+        <span class="text-ui-muted min-w-[6em] shrink-0 text-[0.85em] whitespace-nowrap">{{
+          'feature.inventory.settingsTab.seatHeight' | transloco
+        }}</span>
+        <input
+          class="bg-ui-input border-ui-border-input text-ui-text rounded-ui-sm w-[5em] border border-solid px-1.25 py-0.5 text-right text-[0.82em]"
+          type="number"
+          min="0"
+          step="any"
+          name="seatHeight"
+          [ngModel]="seat.value"
+          (change)="onSetSeatHeight($event)"
+          [placeholder]="'feature.inventory.settingsTab.seatHeightDefault' | transloco"
+          data-testid="seat-height"
+        />
+        <select
+          class="bg-ui-input text-ui-text border-ui-border-input rounded-ui-sm cursor-pointer border border-solid px-1 py-0.5 text-[0.82em]"
+          name="seatHeightUnit"
+          [ngModel]="seat.unit"
+          (ngModelChange)="setSeatHeightUnit($event)"
+          data-testid="seat-height-unit"
+        >
+          <option [ngValue]="'px'">px</option>
+          <option [ngValue]="'cells'">{{ 'feature.inventory.settingsTab.seatHeightCells' | transloco }}</option>
+          <option [ngValue]="'percent'">%</option>
+        </select>
+      </div>
+    }
     <div class="flex flex-wrap items-center gap-2">
       <label
         class="text-ui-muted inline-flex cursor-pointer items-center gap-1.25 text-[0.82em] select-none [&_input[type=checkbox]]:cursor-pointer [&_input[type=checkbox]]:[accent-color:var(--ui-accent)]"

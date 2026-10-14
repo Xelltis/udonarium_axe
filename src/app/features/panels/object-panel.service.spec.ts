@@ -1,4 +1,4 @@
-import { ViewContainerRef } from '@angular/core';
+import { signal, ViewContainerRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -42,6 +42,17 @@ describe('ObjectPanelService', () => {
     const sheet = { tabletopObject: null } as unknown as GameCharacterSheetComponent;
     setup(sheet);
     expect(sheet.tabletopObject).toBe(terrain);
+  });
+
+  it("opens a piece's sheet on its settings when asked to", () => {
+    service.openSheetSettings(character, 'Sheet - Alice', { width: 800, height: 600 });
+
+    const [, option, setup] = openLazy.mock.calls[0];
+    expect(option).toEqual(expect.objectContaining({ title: 'Sheet - Alice', width: 800, height: 600 }));
+    const sheet = { tabletopObject: null, activeTab: signal<'sheet' | 'settings'>('sheet') };
+    setup(sheet);
+    expect(sheet.tabletopObject).toBe(character);
+    expect(sheet.activeTab()).toBe('settings');
   });
 
   it('offers to send the panel to a window of its own', () => {

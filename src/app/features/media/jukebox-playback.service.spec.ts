@@ -6,6 +6,8 @@ import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { AUDIO_ANALYSIS_VERSION } from '@axe/domain/media/audio-analysis';
+import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { Playlist } from '@axe/domain/media/playlist';
@@ -51,6 +53,31 @@ describe('JukeboxPlaybackService', () => {
   afterEach(() => {
     AudioStorage.instance.audios.forEach((audio) => AudioStorage.instance.delete(audio.identifier));
     vi.restoreAllMocks();
+  });
+
+  describe('the tempo of each sound', () => {
+    it('is the tempo its beats come at, to a whole beat, for a sound read surely enough or set by hand', () => {
+      addReady('steady', 'unsure', 'tapped');
+      const reading = {
+        version: AUDIO_ANALYSIS_VERSION,
+        duration: 60,
+        lufs: -14,
+        peak: -1,
+        start: 0,
+        end: 60,
+        bpm: 127.6,
+        bar: 0.1,
+        confidence: 0.8,
+      };
+      AudioProfile.share('steady', reading);
+      AudioProfile.share('unsure', { ...reading, confidence: 0.1 });
+      AudioProfile.setGrid('tapped', { bpm: 92.4, bar: 0 });
+
+      expect([...service.tempos()]).toEqual([
+        ['steady', 128],
+        ['tapped', 92],
+      ]);
+    });
   });
 
   describe('the name a playlist goes by', () => {

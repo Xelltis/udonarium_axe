@@ -1,0 +1,99 @@
+@let net = nets();
+@for (floor of floorViews(); track floor.key) {
+  <div
+    class="pointer-events-none absolute top-0 left-0 overflow-hidden backface-hidden"
+    data-water-floor
+    [style.width.px]="floor.width"
+    [style.height.px]="floor.height"
+    [style.transform]="floor.transform"
+    [style.clip-path]="floor.clipPath"
+    [style.background-color]="floor.wash"
+  >
+    @if (net && floor.causticOpacity > 0.01) {
+      <div
+        class="water-net water-net-a absolute"
+        appWaterPhase
+        [style.--water-tile]="net.first.tilePx + 'px'"
+        [style.inset.px]="-net.first.tilePx"
+        [style.background-image]="'url(' + net.first.url + ')'"
+        [style.background-size.px]="net.first.tilePx"
+        [style.background-position]="netPosition(net.first, floor)"
+        [style.opacity]="floor.causticOpacity"
+      ></div>
+      @if (!lite()) {
+        <div
+          class="water-net water-net-b absolute"
+          appWaterPhase
+          [style.--water-tile]="net.second.tilePx + 'px'"
+          [style.inset.px]="-net.second.tilePx"
+          [style.background-image]="'url(' + net.second.url + ')'"
+          [style.background-size.px]="net.second.tilePx"
+          [style.background-position]="netPosition(net.second, floor)"
+          [style.opacity]="floor.causticOpacity * 0.75"
+        ></div>
+      }
+    }
+  </div>
+}
+@for (surface of surfaceViews(); track surface.key) {
+  <div
+    class="pointer-events-none absolute top-0 left-0 overflow-hidden bg-size-[100%_100%] bg-no-repeat backface-visible"
+    data-water-surface
+    [style.width.px]="surface.width"
+    [style.height.px]="surface.height"
+    [style.transform]="surface.transform"
+    [style.clip-path]="surface.clipPath"
+    [style.background-image]="surface.background"
+    [style.mask-image]="surface.mask"
+    [style.mask-size]="surface.mask ? '100% 100%' : null"
+  >
+    @if (net && !lite()) {
+      <div
+        class="water-net water-net-glint absolute"
+        appWaterPhase
+        [style.--water-tile]="net.glint.tilePx + 'px'"
+        [style.inset.px]="-net.glint.tilePx"
+        [style.background-image]="'url(' + net.glint.url + ')'"
+        [style.background-size.px]="net.glint.tilePx"
+        [style.background-position]="netPosition(net.glint, surface)"
+        [style.opacity]="surface.glintOpacity"
+      ></div>
+    }
+    @for (layer of surface.layers; track layer.key) {
+      <div
+        class="pointer-events-none absolute"
+        appWaterPhase
+        [class]="layer.classes"
+        [attr.data-water-layer]="layer.key"
+        [style]="layer.style"
+      ></div>
+    }
+  </div>
+}
+@for (side of sideViews(); track side.key) {
+  <div
+    class="pointer-events-none absolute top-0 left-0 origin-top-left border-t border-solid border-t-white/35 bg-no-repeat backface-visible"
+    data-water-side
+    [style.width.px]="side.width"
+    [style.height.px]="side.height"
+    [style.transform]="side.transform"
+    [style.clip-path]="side.clipPath"
+    [style.background-image]="side.wash"
+    [style.background-size]="'100% ' + side.washHeight + 'px'"
+    [style.opacity]="side.opacity"
+  ></div>
+}
+@for (shore of shoreViews(); track shore.key) {
+  <div
+    class="pointer-events-none absolute top-0 left-0 origin-top-left overflow-hidden backface-visible"
+    data-water-shore
+    [style.width.px]="shore.width"
+    [style.height.px]="shore.height"
+    [style.transform]="shore.transform"
+    [style.opacity]="shore.opacity"
+  >
+    <div class="water-foam absolute inset-0"></div>
+    <div class="water-wave absolute inset-x-0 top-0 h-[35%]" appWaterPhase></div>
+    <div class="water-wave water-wave-late absolute inset-x-0 top-0 h-[35%]" appWaterPhase></div>
+  </div>
+}

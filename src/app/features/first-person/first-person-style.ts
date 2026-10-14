@@ -15,6 +15,11 @@ const MAX_SHADE = 0.85;
 /** How blurred the farthest of what is drawn is, in screen pixels. */
 export const MAX_FAR_BLUR_PX = 3;
 const FAR_BLUR_STEP_PX = 0.5;
+/**
+ * The colour a face darkens to with distance and the dark, as the red, green and blue of a CSS
+ * colour: black in the air, the colour of the depths under water.
+ */
+export const BLACK_VEIL = '0, 0, 0';
 const REMEMBERED_VEIL = `linear-gradient(rgba(0, 0, 0, ${FOG_VEIL_ALPHA}), rgba(0, 0, 0, ${FOG_VEIL_ALPHA}))`;
 /** Where each colour of the night sky stands down a level view, as a share of its height. */
 const NIGHT_SKY_STOPS: readonly (readonly [string, number])[] = [
@@ -37,11 +42,35 @@ export type QuadStyle = Record<string, string>;
  */
 export function nightSkyAt(liftPx: number, viewHeightPx: number): string {
   if (liftPx === 0 || viewHeightPx <= 0) return NIGHT_SKY;
-  const stops = NIGHT_SKY_STOPS.map(([colour, at], index) => {
-    const edge = index === 0 || index === NIGHT_SKY_STOPS.length - 1;
+  return skyAt(NIGHT_SKY_STOPS, liftPx, viewHeightPx);
+}
+
+/**
+ * What is seen past the end of the view from under water: the depths all round, paling upward
+ * to where the light comes down through the surface and darkening below, moved down the view by
+ * `liftPx` as the eye looks up just as the night sky is. Murky water hides the light above and
+ * the dark below alike, until water nothing can be seen through is its own colour all round.
+ */
+export function waterSkyAt(deepColor: string, liftPx: number, viewHeightPx: number, murk = 0): string {
+  const clear = 1 - Math.min(Math.max(Number.isFinite(murk) ? murk : 0, 0), 1);
+  const toward = (share: number) => `${round(100 - share * clear)}%`;
+  const stops: (readonly [string, number])[] = [
+    [`color-mix(in srgb, ${deepColor} ${toward(45)}, #b8e8ff)`, 0],
+    [`color-mix(in srgb, ${deepColor} ${toward(20)}, #b8e8ff)`, 0.3],
+    [deepColor, 0.5],
+    [`color-mix(in srgb, ${deepColor} ${toward(45)}, #000)`, 1],
+  ];
+  if (viewHeightPx <= 0)
+    return `linear-gradient(to bottom, ${stops.map(([colour, at]) => `${colour} ${round(at * 100)}%`).join(', ')})`;
+  return skyAt(stops, liftPx, viewHeightPx);
+}
+
+function skyAt(stops: readonly (readonly [string, number])[], liftPx: number, viewHeightPx: number): string {
+  const placed = stops.map(([colour, at], index) => {
+    const edge = index === 0 || index === stops.length - 1;
     return `${colour} ${px(edge ? at * viewHeightPx : at * viewHeightPx + liftPx)}`;
   });
-  return `linear-gradient(to bottom, ${stops.join(', ')})`;
+  return `linear-gradient(to bottom, ${placed.join(', ')})`;
 }
 
 export function scaleOf(gridSize: number): number {
@@ -124,7 +153,8 @@ export function wallQuadStyle(
   scale: number,
   imageUrl: string,
   shade: number,
-  remembered = false
+  remembered = false,
+  veil = BLACK_VEIL
 ): QuadStyle {
   const wallTop = quad.basePx + quad.heightPx;
   const cut = quad.cut;
@@ -140,7 +170,8 @@ export function wallQuadStyle(
       shade,
       cut ? `${px(quad.fullLength * scale)} ${px(quad.heightPx * scale)}` : `${px(quad.fullLength * scale)} 100%`,
       cut ? `${px(-quad.uStart * scale)} ${px(-(wallTop - top) * scale)}` : `${px(-quad.uStart * scale)} 0`,
-      remembered
+      remembered,
+      veil
     ),
   };
   if (cut?.outline) {
@@ -155,7 +186,8 @@ export function planeQuadStyle(
   scale: number,
   imageUrl: string,
   shade: number,
-  remembered = false
+  remembered = false,
+  veil = BLACK_VEIL
 ): QuadStyle {
   const up = quad.facing === 'up';
   const originY = up ? quad.minY : quad.minY + quad.height;
@@ -172,7 +204,7 @@ export function planeQuadStyle(
     transformOrigin: '0 0',
     transform: `translate3d(${px(quad.minX * scale)}, ${px(originY * scale)}, ${px(quad.zPx * scale)})${up ? '' : ' rotateX(180deg)'}`,
     clipPath: `polygon(${local.map((point) => `${px(point.x)} ${px(point.y)}`).join(', ')})`,
-    ...backgroundOf(imageUrl, shade, size, position, remembered),
+    ...backgroundOf(imageUrl, shade, size, position, remembered, veil),
   };
 }
 
@@ -312,8 +344,15 @@ export function billboardHudTransform(textScale: number): string | null {
   return textScale >= 1 ? null : `scale(${round(textScale)})`;
 }
 
-function backgroundOf(imageUrl: string, shade: number, size: string, position: string, remembered: boolean): QuadStyle {
-  const veils = [`linear-gradient(rgba(0, 0, 0, ${shade}), rgba(0, 0, 0, ${shade}))`];
+function backgroundOf(
+  imageUrl: string,
+  shade: number,
+  size: string,
+  position: string,
+  remembered: boolean,
+  veil: string
+): QuadStyle {
+  const veils = [`linear-gradient(rgba(${veil}, ${shade}), rgba(${veil}, ${shade}))`];
   if (remembered) veils.unshift(REMEMBERED_VEIL);
   const veilSizes = veils.map(() => '100% 100%');
   const veilPositions = veils.map(() => '0 0');

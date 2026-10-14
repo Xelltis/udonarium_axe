@@ -2,11 +2,13 @@ import { computed, inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { Jukebox, RepeatMode } from '@axe/domain/media/jukebox';
@@ -62,7 +64,20 @@ export class JukeboxPlaybackService {
   private readonly t = inject(TRANSLATE_FN);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly chatMessage = inject(ChatMessageService);
+  private readonly analysis = inject(AudioAnalysisService);
   private readonly knownDurations = new Map<string, number>();
+
+  /** The tempo of each sound whose beats are known, to the nearest beat per minute, by sound. */
+  readonly tempos = computed<ReadonlyMap<string, number>>(() => {
+    this.analysis.version();
+    this.objectChange.fileVersion();
+    const tempos = new Map<string, number>();
+    for (const audio of this.audioStorage.audios) {
+      const grid = AudioProfile.gridOf(audio.identifier);
+      if (grid) tempos.set(audio.identifier, Math.round(grid.bpm));
+    }
+    return tempos;
+  });
 
   /** Whether this reader may change what the room plays, which every role but a guest may. */
   readonly canOperate = computed(() => {

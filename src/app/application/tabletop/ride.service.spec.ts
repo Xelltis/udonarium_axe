@@ -75,6 +75,24 @@ describe('RideService', () => {
     return piece;
   }
 
+  it("seats a mount's riders on top of its picture by default, as its menu says, and at a part of it when set", () => {
+    const robot = horseAt(5, 5, { mountSeatHeight: 'waist', specifyKomaImageFlag: true, komaImageHeight: 200 });
+    const horse = horseAt(9, 9);
+
+    expect(service.seatHeight(robot)).toBe(4);
+    expect(service.menuOf(robot).mount).toMatchObject({ seatHeight: '', seatDefault: 'top' });
+    expect(service.menuOf(horse).mount).toMatchObject({ seatHeight: '', seatDefault: 'half' });
+
+    service.setSeatHeight(robot, '75%');
+    expect(robot.mountSeatHeight).toBe('75%');
+    expect(service.seatHeight(robot)).toBe(3);
+    expect(service.menuOf(robot).mount?.seatHeight).toBe('75%');
+
+    service.convertSeatHeight(robot, 'px');
+    expect(robot.mountSeatHeight).toBe('150px');
+    expect(service.seatHeight(robot)).toBe(3);
+  });
+
   it('offers the mounts at the same point and the seats free on them, and none further off', () => {
     const horse = horseAt(5, 5, { mountPassenger: '1' });
     horseAt(9, 9);

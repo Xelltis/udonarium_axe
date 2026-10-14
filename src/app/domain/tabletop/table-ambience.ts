@@ -10,6 +10,18 @@ import {
 } from '@axe/domain/effect/ambience/ambience-kind';
 import { asShownTo, ShownTo } from '@axe/domain/tabletop/shown-to';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import {
+  DEFAULT_DIRT,
+  DEFAULT_LEAVES,
+  DEFAULT_SURFACE_CELLS,
+  DEFAULT_TURBIDITY,
+  dirtOf,
+  flowDirectionOf,
+  flowSpeedOf,
+  leavesOf,
+  surfaceCellsOf,
+  turbidityOf,
+} from '@axe/domain/tabletop/water/water-surface';
 
 /**
  * An effect laid over one part of the board and left there, such as a poisoned marsh or a vent in the ground.
@@ -46,6 +58,35 @@ export class TableAmbience extends TabletopObject {
    * pool of magical darkness over a doorway, the shaft of daylight down a stairwell.
    */
   @SyncVar() brightness: string = '';
+  /**
+   * How many cells the water stands over the area's own floor. Only water reads it.
+   *
+   * A piece whose feet are lower than this is in the water, and the part of it under the
+   * surface is drawn as seen through water.
+   */
+  @SyncVar() surfaceHeight: number = DEFAULT_SURFACE_CELLS;
+  /**
+   * How murky the water is, from 0 for clear to 1 for water nothing can be seen through. Only
+   * water reads it: the murkier, the sooner the bottom and whatever is under the surface are lost.
+   */
+  @SyncVar() turbidity: number = DEFAULT_TURBIDITY;
+  /**
+   * How dirty the water is, from 0 for clean to 1 for water thick with scum. Only water reads it:
+   * the dirtier, the duller its colour, the thicker the scum floating on it.
+   */
+  @SyncVar() dirtiness: number = DEFAULT_DIRT;
+  /**
+   * How much of the water floating leaves cover, from 0 for none to 1 for a pond crowded with
+   * them, some in flower. Only water reads it.
+   */
+  @SyncVar() floatingLeaves: number = DEFAULT_LEAVES;
+  /**
+   * How fast the water flows, from 0 for still water to 1 for a racing river. Only water reads
+   * it: what floats on the water and what drifts in it is carried along.
+   */
+  @SyncVar() flowSpeed: number = 0;
+  /** Which way the water flows, in degrees clockwise from the top of the table. */
+  @SyncVar() flowDirection: number = 0;
 
   /** How many grid cells wide the area is, kept in its common data. */
   get width(): number {
@@ -71,6 +112,36 @@ export class TableAmbience extends TabletopObject {
   /** How bright the ground under it is, with anything unknown leaving the light as it was. */
   get shade(): AmbienceBrightness {
     return ambienceBrightnessOf(this.brightness);
+  }
+
+  /** How high the water stands over the floor, in cells, with an empty or unreadable value read as the default. */
+  get surface(): number {
+    return surfaceCellsOf(this.surfaceHeight);
+  }
+
+  /** How murky the water is, with an empty or unreadable value read as the default. */
+  get murk(): number {
+    return turbidityOf(this.turbidity);
+  }
+
+  /** How dirty the water is, with an empty or unreadable value read as clean. */
+  get dirt(): number {
+    return dirtOf(this.dirtiness);
+  }
+
+  /** How much of the water floating leaves cover, with an empty or unreadable value read as none. */
+  get leaves(): number {
+    return leavesOf(this.floatingLeaves);
+  }
+
+  /** How fast the water flows, with an empty or unreadable value read as still. */
+  get flow(): number {
+    return flowSpeedOf(this.flowSpeed);
+  }
+
+  /** Which way the water flows, with an empty or unreadable value read as towards the top. */
+  get flowHeading(): number {
+    return flowDirectionOf(this.flowDirection);
   }
 
   /** The kind of effect, with an unknown stored kind read as swamp. */

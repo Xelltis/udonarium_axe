@@ -676,6 +676,159 @@
                 (ngModelChange)="setHazardPaint({ element: $event })"
               />
             </label>
+            @if (state.functionSpec().hazard.kind === 'water') {
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardWaterLook' | transloco }}</span>
+                <select
+                  class="bg-ui-input rounded-ui-sm w-40 px-1 py-0.5"
+                  data-testid="hazard-water-look"
+                  [ngModel]="waterPreset()"
+                  (ngModelChange)="setWaterPreset($event)"
+                  name="hazardWaterLook"
+                >
+                  <option [ngValue]="null" disabled>{{ 'feature.ambience.waterPresetCustom' | transloco }}</option>
+                  @for (preset of waterPresets; track preset) {
+                    <option [ngValue]="preset">{{ 'feature.ambience.waterPreset_' + preset | transloco }}</option>
+                  }
+                </select>
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardColor' | transloco }}</span>
+                <input
+                  type="color"
+                  class="bg-ui-input rounded-ui-sm h-7 w-12 p-0.5"
+                  data-testid="hazard-water-color"
+                  [ngModel]="waterColor()"
+                  (ngModelChange)="setHazardPaint({ color: $event })"
+                  name="hazardWaterColor"
+                />
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardDepth' | transloco }}</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  class="bg-ui-input rounded-ui-sm w-20 px-1 py-0.5"
+                  data-testid="hazard-depth"
+                  [max]="maxWaterDepth"
+                  [ngModel]="state.functionSpec().hazard.depth"
+                  (ngModelChange)="setWaterDepth($event)"
+                  name="hazardDepth"
+                />
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardTurbidity' | transloco }}</span>
+                <span class="flex items-center gap-1">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    class="w-24 cursor-pointer [accent-color:var(--ui-accent)]"
+                    data-testid="hazard-turbidity"
+                    [ngModel]="waterTurbidityPercent()"
+                    (ngModelChange)="setWaterTurbidity($event)"
+                    name="hazardTurbidity"
+                  />
+                  <span class="text-ui-muted w-8 text-right">{{ waterTurbidityPercent() }}%</span>
+                </span>
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardDirt' | transloco }}</span>
+                <span class="flex items-center gap-1">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    class="w-24 cursor-pointer [accent-color:var(--ui-accent)]"
+                    data-testid="hazard-dirt"
+                    [ngModel]="waterDirtPercent()"
+                    (ngModelChange)="setWaterDirt($event)"
+                    name="hazardDirt"
+                  />
+                  <span class="text-ui-muted w-8 text-right">{{ waterDirtPercent() }}%</span>
+                </span>
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardLeaves' | transloco }}</span>
+                <span class="flex items-center gap-1">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    class="w-24 cursor-pointer [accent-color:var(--ui-accent)]"
+                    data-testid="hazard-leaves"
+                    [ngModel]="waterLeavesPercent()"
+                    (ngModelChange)="setWaterLeaves($event)"
+                    name="hazardLeaves"
+                  />
+                  <span class="text-ui-muted w-8 text-right">{{ waterLeavesPercent() }}%</span>
+                </span>
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardFlowSpeed' | transloco }}</span>
+                <span class="flex items-center gap-1">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    class="w-24 cursor-pointer [accent-color:var(--ui-accent)]"
+                    data-testid="hazard-flow-speed"
+                    [ngModel]="waterFlowSpeedPercent()"
+                    (ngModelChange)="setWaterFlowSpeed($event)"
+                    name="hazardFlowSpeed"
+                  />
+                  <span class="text-ui-muted w-8 text-right">{{ waterFlowSpeedPercent() }}%</span>
+                </span>
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardFlowDirection' | transloco }}</span>
+                <select
+                  class="bg-ui-input rounded-ui-sm w-40 px-1 py-0.5 disabled:opacity-40"
+                  data-testid="hazard-flow-direction"
+                  [ngModel]="state.functionSpec().hazard.flowDirection"
+                  (ngModelChange)="setWaterFlowDirection($event)"
+                  [disabled]="waterFlowSpeedPercent() === 0"
+                  name="hazardFlowDirection"
+                >
+                  @for (direction of flowDirections; track direction) {
+                    <option [ngValue]="direction">
+                      {{ 'feature.ambience.flowDirection_' + direction | transloco }}
+                    </option>
+                  }
+                </select>
+              </label>
+            }
+            <label class="flex items-center justify-between gap-2">
+              <span class="text-ui-muted">{{ 'feature.mapEditor.function.moveCostCharge' | transloco }}</span>
+              <select
+                class="bg-ui-input rounded-ui-sm w-40 px-1 py-0.5"
+                data-testid="hazard-extra-cost"
+                [ngModel]="state.functionSpec().hazard.extraCost"
+                (ngModelChange)="setHazardPaint({ extraCost: $event })"
+                name="hazardExtraCost"
+              >
+                <option [ngValue]="null">
+                  {{
+                    'feature.mapEditor.function.hazardExtraCostKind'
+                      | transloco
+                        : {
+                            cost:
+                              hazardKindExtraCost() > 0
+                                ? ('feature.mapEditor.function.moveCostStep'
+                                  | transloco: { count: hazardKindExtraCost() })
+                                : ('feature.mapEditor.function.hazardExtraCostNone' | transloco),
+                          }
+                  }}
+                </option>
+                <option [ngValue]="0">{{ 'feature.mapEditor.function.hazardExtraCostNone' | transloco }}</option>
+                @for (step of moveCostSteps; track step) {
+                  <option [ngValue]="step">
+                    {{ 'feature.mapEditor.function.moveCostStep' | transloco: { count: step } }}
+                  </option>
+                }
+              </select>
+            </label>
           }
 
           @if (state.functionRole() === 'moveCost') {

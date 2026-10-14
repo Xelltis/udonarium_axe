@@ -11,6 +11,8 @@ import {
 } from '@axe/domain/character/controller-resource-pick';
 import { readStampRules, StampRules, writeStampRules } from '@axe/domain/chat/stamp-rules';
 import { asDiceStage, DiceStage } from '@axe/domain/dice/dice-3d/dice-stage';
+import { type DjPads, readDjPads, writeDjPads } from '@axe/domain/media/dj-pads';
+import { type DjSettings, readDjSettings, writeDjSettings } from '@axe/domain/media/dj-settings';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import {
   readRoomVolumes,
@@ -42,6 +44,8 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_defaultDiceBot') private _defaultDiceBot: string = 'DiceBot';
   @SyncVar('_roomVolume') private _roomVolume: number = 1.0;
   @SyncVar('_roomKindVolumes') private _roomKindVolumes: string = '';
+  @SyncVar('_djSettings') private _djSettings!: string;
+  @SyncVar('_djPads') private _djPads!: string;
   @SyncVar('_systemAvatarIdentifier') private _systemAvatarIdentifier: string = '';
   @SyncVar('_systemDiceAvatarIdentifier') private _systemDiceAvatarIdentifier: string = '';
   @SyncVar('_hideSystemAvatar') private _hideSystemAvatar: string = '';
@@ -187,6 +191,32 @@ export class Config extends ObjectNode implements InnerXml {
   /** Sets the room's volume for one kind of sound, leaving the other kinds as they are. */
   setRoomVolumeOf(kind: RoomVolumeKind, volume: number): void {
     this.roomVolumes = { ...this.roomVolumes, [kind]: volume };
+  }
+
+  /**
+   * How the room mixes its music: whether sounds are levelled, whether the music goes down under
+   * effects, how long tracks fade into each other, whether changes wait for the beat, and whether
+   * the screen glows with it.
+   *
+   * The defaults until the game master changes one, so a room saved before these were there, or
+   * sent by an older version that knows nothing of them, mixes as a new room does.
+   */
+  get djSettings(): DjSettings {
+    return readDjSettings(this._djSettings);
+  }
+  set djSettings(settings: DjSettings) {
+    this._djSettings = writeDjSettings(settings);
+  }
+
+  /**
+   * The sounds on the DJ deck's pads, which the game master sets for the room and anyone who may
+   * change what the room plays sets off. Every pad is empty in a room saved before there were pads.
+   */
+  get djPads(): DjPads {
+    return readDjPads(this._djPads);
+  }
+  set djPads(pads: DjPads) {
+    this._djPads = writeDjPads(pads);
   }
 
   /**
@@ -752,14 +782,16 @@ export class Config extends ObjectNode implements InnerXml {
     this.destroy();
   }
 
-  /** Takes in synced settings, and passes a changed room volume on to the jukebox straight away. */
+  /** Takes in synced settings, and passes a changed room volume or mix on to the jukebox straight away. */
   override apply(context: ObjectContext) {
     const _roomVolume = this._roomVolume;
     const _roomKindVolumes = this._roomKindVolumes;
+    const _djSettings = this._djSettings;
     const _defaultDiceBot = this._defaultDiceBot;
     super.apply(context);
     if (_roomVolume !== this._roomVolume || _roomKindVolumes !== this._roomKindVolumes) {
       this.jukebox.setNewVolume();
     }
+    if (_djSettings !== this._djSettings) ObjectStore.instance.get<Jukebox>('Jukebox')?.refreshMix();
   }
 }

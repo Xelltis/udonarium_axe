@@ -1,11 +1,16 @@
 import { TestBed } from '@angular/core/testing';
+import { MusicBus } from '@axe/core/audio/music-bus';
 import { updateAudioResource$ } from '@axe/core/event/domain-events';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { LoopPlayer } from '@axe/core/storage/loop-player';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { AUDIO_ANALYSIS_VERSION, type AudioAnalysis } from '@axe/domain/media/audio-analysis';
+import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
+import { DEFAULT_DJ_SETTINGS, type DjSettings } from '@axe/domain/media/dj-settings';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { Playlist } from '@axe/domain/media/playlist';
 import { Config } from '@axe/domain/peer/config';
@@ -212,7 +217,7 @@ describe('Jukebox', () => {
       // the effect syncs on its own trigger and plays from its own buffer
       expect(jukebox.seIdentifier).toBe('se-01');
       expect(jukebox.seTrigger).toBe(1);
-      expect(seSpy).toHaveBeenCalledWith(seAudio);
+      expect(seSpy).toHaveBeenCalledWith(seAudio, 1);
 
       // lays a second playing over the first rather than stopping it
       jukebox.play('se-01');
@@ -986,14 +991,15 @@ describe('Jukebox', () => {
         playing.syncData = { ...playing.syncData, audioIdentifier: 'a', isPlaying: true, startTime: 0 };
         jukebox.apply(playing);
         vi.spyOn(AudioPlayer.prototype, 'currentTime', 'get').mockReturnValue(10);
-        const before = (jukebox as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
+        const play = vi.mocked(AudioPlayer.prototype.play);
+        play.mockClear();
 
         const moved = jukebox.toContext();
         moved.syncData = { ...moved.syncData, startTime: 30, seekCount: (jukebox.seekCount ?? 0) + 1 };
         jukebox.apply(moved);
 
         const after = (jukebox as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
-        expect(after).not.toBe(before);
+        expect(play.mock.contexts).toEqual([after]);
         expect(after.followsLoopPoints).toBe(true);
       });
 
@@ -1069,6 +1075,760 @@ describe('Jukebox', () => {
 
         expect(jukebox.audioIdentifier).toBe('y');
       });
+    });
+  });
+  describe('mixing', () => {
+    const reading: AudioAnalysis = {
+      version: AUDIO_ANALYSIS_VERSION,
+      duration: 100,
+      lufs: -10,
+      peak: -0.5,
+      start: 0,
+      end: 100,
+      bpm: null,
+      bar: null,
+      confidence: 0,
+    };
+
+    function roomMixing(settings: Partial<DjSettings> = {}): void {
+      let config = ObjectStore.instance.get<Config>('Config');
+      if (!config) {
+        config = new Config('Config');
+        config.initialize();
+      }
+      config.djSettings = { ...DEFAULT_DJ_SETTINGS, ...settings };
+    }
+
+    function playerOf(jukebox: Jukebox): AudioPlayer {
+      return (jukebox as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
+    }
+
+    /** Players never sound here, as the browser's are mocked; this makes each one sound from its play to its stop. */
+    function playersSound(): void {
+      const sounding = new WeakSet<AudioPlayer>();
+      vi.spyOn(AudioPlayer.prototype, 'play').mockImplementation(function (this: AudioPlayer) {
+        sounding.add(this);
+      });
+      vi.spyOn(AudioPlayer.prototype, 'stop').mockImplementation(function (this: AudioPlayer) {
+        sounding.delete(this);
+      });
+      vi.spyOn(AudioPlayer.prototype, 'paused', 'get').mockImplementation(function (this: AudioPlayer) {
+        return !sounding.has(this);
+      });
+    }
+
+    function makeJukebox(): Jukebox {
+      const jukebox = new Jukebox('Jukebox');
+      jukebox.initialize();
+      return jukebox;
+    }
+
+    beforeEach(() => {
+      stubAudioPlayerPlay();
+      stubAudioPlayerStop();
+      vi.spyOn(AudioPlayer.prototype, 'seekTo').mockImplementation(() => {});
+      for (const identifier of ['a', 'b', 'c']) AudioStorage.instance.add(makeReadyAudio(identifier));
+    });
+
+    it('brings a track to the loudness of music while the room levels its sounds', () => {
+      roomMixing();
+      AudioProfile.share('a', reading);
+      const jukebox = makeJukebox();
+
+      jukebox.play('a');
+
+      expect(playerOf(jukebox).trim).toBeCloseTo(Math.pow(10, -6 / 20), 6);
+    });
+
+    it('plays a track as it is when the room does not level, or before it has been read', () => {
+      roomMixing({ autoLevel: false });
+      AudioProfile.share('a', reading);
+      const jukebox = makeJukebox();
+
+      jukebox.play('a');
+      expect(playerOf(jukebox).trim).toBe(1);
+
+      roomMixing();
+      jukebox.play('b');
+      expect(playerOf(jukebox).trim).toBe(1);
+    });
+
+    it('plays an effect at the loudness of effects', () => {
+      roomMixing();
+      const seSpy = vi.spyOn(AudioPlayer, 'playSE').mockImplementation(() => {});
+      const se = makeReadyAudio('se-loud');
+      AudioStorage.instance.add(se);
+      AudioTag.create('se-loud').tag = 'SE';
+      AudioProfile.share('se-loud', { ...reading, lufs: -4 });
+      const jukebox = makeJukebox();
+
+      jukebox.play('se-loud');
+
+      expect(seSpy).toHaveBeenCalledWith(se, expect.closeTo(Math.pow(10, -12 / 20), 6));
+    });
+
+    it('eases a track already playing to its level once its reading arrives', () => {
+      roomMixing();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      const glide = vi.spyOn(playerOf(jukebox), 'glideTrim');
+
+      AudioProfile.share('a', reading);
+      jukebox.refreshMix();
+
+      expect(glide).toHaveBeenCalledWith(expect.closeTo(Math.pow(10, -6 / 20), 6), Jukebox.LEVEL_GLIDE_S);
+    });
+
+    it('fades the track before into the next over the room crossfade', () => {
+      roomMixing({ crossfadeS: 4 });
+      playersSound();
+      const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      const before = playerOf(jukebox);
+
+      jukebox.play('b');
+
+      const after = playerOf(jukebox);
+      expect(after).not.toBe(before);
+      expect(fade.mock.contexts).toEqual([before, after]);
+      expect(fade.mock.calls).toEqual([
+        [0, 4000],
+        [1, 4000],
+      ]);
+      expect(after.fader).toBe(0);
+    });
+
+    it('plays later tracks on players let go before, rather than making one for each', async () => {
+      roomMixing({ crossfadeS: 4 });
+      playersSound();
+      vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      const first = playerOf(jukebox);
+      jukebox.play('b');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      jukebox.play('c');
+
+      expect(playerOf(jukebox)).toBe(first);
+      expect(first.paused).toBe(false);
+    });
+
+    it('leaves a player playing again alone when the fade it was let go with ends late', async () => {
+      roomMixing({ crossfadeS: 4, pauseFadeS: 0 });
+      playersSound();
+      let finishFirstFade: (() => void) | null = null;
+      vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockImplementation((target) => {
+        if (target !== 0 || finishFirstFade) return Promise.resolve();
+        return new Promise<void>((resolve) => (finishFirstFade = resolve));
+      });
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      const first = playerOf(jukebox);
+      jukebox.play('b');
+      jukebox.stop();
+      jukebox.play('a');
+      jukebox.play('c');
+      expect(playerOf(jukebox)).toBe(first);
+
+      finishFirstFade!();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(first.paused).toBe(false);
+    });
+
+    it('cuts across from a track still being read, which has nothing yet to fade out', () => {
+      roomMixing({ crossfadeS: 4 });
+      playersSound();
+      vi.spyOn(AudioPlayer.prototype, 'isLoading', 'get').mockReturnValue(true);
+      const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+
+      jukebox.play('b');
+
+      expect(fade).not.toHaveBeenCalled();
+      expect(playerOf(jukebox).fader).toBe(1);
+    });
+
+    it('cuts straight across without a crossfade, or when nothing was sounding', () => {
+      roomMixing({ crossfadeS: 0 });
+      const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const stop = vi.mocked(AudioPlayer.prototype.stop);
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      const before = playerOf(jukebox);
+      stop.mockClear();
+
+      jukebox.play('b');
+
+      expect(fade).not.toHaveBeenCalled();
+      expect(stop.mock.contexts).toContain(before);
+    });
+
+    it('fades the track out when the room pauses or stops it', () => {
+      roomMixing();
+      playersSound();
+      const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+
+      jukebox.pause();
+      expect(fade).toHaveBeenLastCalledWith(0, DEFAULT_DJ_SETTINGS.pauseFadeS * 1000);
+
+      jukebox.resume();
+      jukebox.stop();
+      expect(fade).toHaveBeenLastCalledWith(0, DEFAULT_DJ_SETTINGS.pauseFadeS * 1000);
+    });
+
+    it('fades out over the room fade for a pause, and back in when the track goes on', () => {
+      roomMixing({ pauseFadeS: 4 });
+      playersSound();
+      const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+
+      jukebox.pause();
+      expect(fade).toHaveBeenLastCalledWith(0, 4000);
+
+      jukebox.resume();
+      expect(fade).toHaveBeenLastCalledWith(1, 4000);
+      expect(playerOf(jukebox).fader).toBe(0);
+    });
+
+    it('fades back in when another peer goes on with the track', () => {
+      roomMixing({ pauseFadeS: 2 });
+      playersSound();
+      const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.apply(jukebox.toContext());
+      const paused = jukebox.toContext();
+      paused.syncData = { ...paused.syncData, audioIdentifier: 'a', isPlaying: false, startTime: 12 };
+      jukebox.apply(paused);
+
+      const resumed = jukebox.toContext();
+      resumed.syncData = { ...resumed.syncData, isPlaying: true };
+      jukebox.apply(resumed);
+
+      expect(fade).toHaveBeenLastCalledWith(1, 2000);
+    });
+
+    it('cuts a pause at once, and goes on at once, without a fade for a pause', () => {
+      roomMixing({ pauseFadeS: 0 });
+      playersSound();
+      const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+
+      jukebox.pause();
+      jukebox.resume();
+
+      expect(fade).not.toHaveBeenCalled();
+    });
+
+    it('starts past the silence at the head of a track while tracks are mixed into each other', () => {
+      roomMixing({ crossfadeS: 2 });
+      AudioProfile.share('a', { ...reading, start: 1.2 });
+      const seek = vi.mocked(AudioPlayer.prototype.seekTo);
+      const jukebox = makeJukebox();
+
+      jukebox.play('a');
+
+      expect(seek).toHaveBeenCalledWith(expect.closeTo(1.15, 6));
+    });
+
+    it('keeps the silence at the head of a track without a crossfade, and a short one always', () => {
+      AudioProfile.share('a', { ...reading, start: 1.2 });
+      AudioProfile.share('b', { ...reading, start: 0.2 });
+      const seek = vi.mocked(AudioPlayer.prototype.seekTo);
+      const jukebox = makeJukebox();
+
+      roomMixing({ crossfadeS: 0 });
+      jukebox.play('a');
+      roomMixing({ crossfadeS: 2 });
+      jukebox.play('b');
+
+      expect(seek).not.toHaveBeenCalled();
+    });
+
+    describe('moving on before a track ends', () => {
+      function playingAt(currentTime: number, duration = 100): void {
+        vi.spyOn(AudioPlayer.prototype, 'paused', 'get').mockReturnValue(false);
+        vi.spyOn(AudioPlayer.prototype, 'currentTime', 'get').mockReturnValue(currentTime);
+        vi.spyOn(AudioPlayer.prototype, 'duration', 'get').mockReturnValue(duration);
+      }
+
+      beforeEach(() => {
+        const playlist = new Playlist(Playlist.DEFAULT_IDENTIFIER);
+        playlist.entries = ['a', 'b', 'c'];
+        playlist.initialize();
+      });
+
+      it('moves on as the crossfade before the end begins', () => {
+        roomMixing({ crossfadeS: 2 });
+        const jukebox = makeJukebox();
+        jukebox.repeatMode = 'all';
+        jukebox.play('a');
+
+        playingAt(97);
+        jukebox.tickAutomix();
+        expect(jukebox.audioIdentifier).toBe('a');
+
+        playingAt(98.1);
+        jukebox.tickAutomix();
+        expect(jukebox.audioIdentifier).toBe('b');
+      });
+
+      it('moves on at the last sound rather than at the end of the file', () => {
+        roomMixing({ crossfadeS: 2 });
+        AudioProfile.share('a', { ...reading, end: 90 });
+        const jukebox = makeJukebox();
+        jukebox.repeatMode = 'all';
+        jukebox.play('a');
+
+        playingAt(88.5);
+        jukebox.tickAutomix();
+
+        expect(jukebox.audioIdentifier).toBe('b');
+      });
+
+      it('lets the last track play to its end when the room does not go round', () => {
+        roomMixing({ crossfadeS: 2 });
+        const jukebox = makeJukebox();
+        jukebox.repeatMode = 'none';
+        jukebox.play('c');
+
+        playingAt(99);
+        jukebox.tickAutomix();
+
+        expect(jukebox.audioIdentifier).toBe('c');
+        expect(jukebox.isPlaying).toBe(true);
+      });
+
+      it('stays on repeat one, without a crossfade, and while the length is not known', () => {
+        const jukebox = makeJukebox();
+        jukebox.play('a');
+
+        roomMixing({ crossfadeS: 2 });
+        jukebox.repeatMode = 'one';
+        playingAt(99.5);
+        jukebox.tickAutomix();
+
+        roomMixing({ crossfadeS: 0 });
+        jukebox.repeatMode = 'all';
+        jukebox.tickAutomix();
+
+        roomMixing({ crossfadeS: 2 });
+        playingAt(99.5, NaN);
+        jukebox.tickAutomix();
+
+        expect(jukebox.audioIdentifier).toBe('a');
+      });
+    });
+  });
+
+  describe('effects and braking', () => {
+    function makeJukebox(): Jukebox {
+      const jukebox = new Jukebox('Jukebox');
+      jukebox.initialize();
+      return jukebox;
+    }
+
+    function soundingPlayers(): void {
+      const sounding = new WeakSet<AudioPlayer>();
+      vi.spyOn(AudioPlayer.prototype, 'play').mockImplementation(function (this: AudioPlayer) {
+        sounding.add(this);
+      });
+      vi.spyOn(AudioPlayer.prototype, 'stop').mockImplementation(function (this: AudioPlayer) {
+        sounding.delete(this);
+      });
+      vi.spyOn(AudioPlayer.prototype, 'paused', 'get').mockImplementation(function (this: AudioPlayer) {
+        return !sounding.has(this);
+      });
+    }
+
+    beforeEach(() => {
+      vi.spyOn(AudioPlayer.prototype, 'seekTo').mockImplementation(() => {});
+      AudioStorage.instance.add(makeReadyAudio('a'));
+    });
+
+    it('puts the music through the effects for everyone, the echo timed to the track beat', () => {
+      stubAudioPlayerPlay();
+      stubAudioPlayerStop();
+      const setEffects = vi.spyOn(MusicBus, 'setEffects').mockImplementation(() => {});
+      AudioProfile.setGrid('a', { bpm: 100, bar: 0 });
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+
+      jukebox.setEffects({ filter: -0.5, echo: 0.3, reverb: 0 });
+
+      expect(JSON.parse(jukebox.fx ?? '')).toEqual({ filter: -0.5, echo: 0.3 });
+      expect(setEffects).toHaveBeenLastCalledWith(
+        { filter: -0.5, echo: 0.3, reverb: 0, echoDelayS: expect.closeTo(0.45, 9) },
+        0.05
+      );
+    });
+
+    it('follows effects another peer sets, and those the room had when this peer joined', () => {
+      const setEffects = vi.spyOn(MusicBus, 'setEffects').mockImplementation(() => {});
+      const jukebox = makeJukebox();
+      const joined = jukebox.toContext();
+      joined.syncData = { ...joined.syncData, fx: '{"reverb":0.6}' };
+      jukebox.apply(joined);
+      expect(setEffects).toHaveBeenLastCalledWith(expect.objectContaining({ reverb: 0.6 }), 0.05);
+
+      const changed = jukebox.toContext();
+      changed.syncData = { ...changed.syncData, fx: '{"filter":0.8}' };
+      jukebox.apply(changed);
+      expect(setEffects).toHaveBeenLastCalledWith(expect.objectContaining({ filter: 0.8, reverb: 0 }), 0.05);
+    });
+
+    it('puts the music through the room effects on joining while the track itself is still on its way', () => {
+      const setEffects = vi.spyOn(MusicBus, 'setEffects').mockImplementation(() => {});
+      const jukebox = makeJukebox();
+      const joined = jukebox.toContext();
+      joined.syncData = { ...joined.syncData, audioIdentifier: 'not-here-yet', isPlaying: true, fx: '{"echo":0.4}' };
+
+      jukebox.apply(joined);
+
+      expect(setEffects).toHaveBeenLastCalledWith(expect.objectContaining({ echo: 0.4 }), 0.05);
+    });
+
+    it('brakes the track to a stop, keeping where the braking began to go on from', () => {
+      soundingPlayers();
+      const brake = vi.spyOn(AudioPlayer.prototype, 'brake').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      const playing = (jukebox as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
+      vi.spyOn(AudioPlayer.prototype, 'currentTime', 'get').mockReturnValue(33);
+
+      jukebox.brakeStop();
+
+      expect(jukebox.isPlaying).toBe(false);
+      expect(jukebox.isPaused).toBe(true);
+      expect(jukebox.startTime).toBe(33);
+      expect(jukebox.brakeCount).toBe(1);
+      expect(brake.mock.contexts).toEqual([playing]);
+      expect(brake).toHaveBeenCalledWith(Jukebox.BRAKE_MS);
+    });
+
+    it('brakes at the other peers too, and fades out an ordinary stop or one from an older version', () => {
+      soundingPlayers();
+      const brake = vi.spyOn(AudioPlayer.prototype, 'brake').mockResolvedValue();
+      const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const jukebox = makeJukebox();
+      jukebox.apply(jukebox.toContext());
+      const start = jukebox.toContext();
+      start.syncData = { ...start.syncData, audioIdentifier: 'a', isPlaying: true };
+      jukebox.apply(start);
+
+      const braked = jukebox.toContext();
+      braked.syncData = { ...braked.syncData, isPlaying: false, brakeCount: 1 };
+      jukebox.apply(braked);
+      expect(brake).toHaveBeenCalledOnce();
+
+      const again = jukebox.toContext();
+      again.syncData = { ...again.syncData, isPlaying: true };
+      jukebox.apply(again);
+      const older = jukebox.toContext();
+      const { brakeCount: _dropped, ...withoutCount } = older.syncData as Record<string, unknown>;
+      older.syncData = { ...withoutCount, isPlaying: false };
+      jukebox.apply(older);
+
+      expect(brake).toHaveBeenCalledOnce();
+      expect(fade).toHaveBeenLastCalledWith(0, DEFAULT_DJ_SETTINGS.pauseFadeS * 1000);
+    });
+  });
+
+  describe('quantising and jumping to marked places', () => {
+    let sounding: WeakSet<AudioPlayer>;
+    let played: string[];
+
+    function makeJukebox(): Jukebox {
+      const jukebox = new Jukebox('Jukebox');
+      jukebox.initialize();
+      return jukebox;
+    }
+
+    function roomQuantises(quantize = true): void {
+      let config = ObjectStore.instance.get<Config>('Config');
+      if (!config) {
+        config = new Config('Config');
+        config.initialize();
+      }
+      config.djSettings = { ...DEFAULT_DJ_SETTINGS, crossfadeS: 0, quantize };
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      sounding = new WeakSet<AudioPlayer>();
+      played = [];
+      vi.spyOn(AudioPlayer.prototype, 'play').mockImplementation(function (this: AudioPlayer, audio?: AudioFile) {
+        sounding.add(this);
+        played.push(audio?.identifier ?? '');
+      });
+      vi.spyOn(AudioPlayer.prototype, 'stop').mockImplementation(function (this: AudioPlayer) {
+        sounding.delete(this);
+      });
+      vi.spyOn(AudioPlayer.prototype, 'paused', 'get').mockImplementation(function (this: AudioPlayer) {
+        return !sounding.has(this);
+      });
+      vi.spyOn(AudioPlayer.prototype, 'currentTime', 'get').mockReturnValue(1.25);
+      vi.spyOn(AudioPlayer.prototype, 'seekTo').mockImplementation(() => {});
+      for (const identifier of ['a', 'b']) AudioStorage.instance.add(makeReadyAudio(identifier));
+      AudioProfile.setGrid('a', { bpm: 120, bar: 0 });
+    });
+
+    afterEach(() => vi.useRealTimers());
+
+    it('changes track on the next bar of the track sounding while the room quantises', () => {
+      roomQuantises();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+
+      jukebox.play('b');
+      expect(jukebox.audioIdentifier).toBe('b');
+      expect(jukebox.quantizeCount).toBe(1);
+      vi.advanceTimersByTime(749);
+      expect(played).toEqual(['a']);
+
+      vi.advanceTimersByTime(1);
+      expect(played).toEqual(['a', 'b']);
+    });
+
+    it('changes track at once without quantising, or when the track sounding keeps no beats', () => {
+      roomQuantises(false);
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      jukebox.play('b');
+      expect(played).toEqual(['a', 'b']);
+
+      roomQuantises();
+      jukebox.play('a');
+      expect(played).toEqual(['a', 'b', 'a']);
+      expect(jukebox.quantizeCount ?? 0).toBe(0);
+    });
+
+    function joinPlaying(jukebox: Jukebox, identifier: string): void {
+      jukebox.apply(jukebox.toContext());
+      const playing = jukebox.toContext();
+      playing.syncData = { ...playing.syncData, audioIdentifier: identifier, isPlaying: true };
+      jukebox.apply(playing);
+    }
+
+    function hear(jukebox: Jukebox, change: Record<string, unknown>): void {
+      const context = jukebox.toContext();
+      context.syncData = { ...context.syncData, ...change };
+      jukebox.apply(context);
+    }
+
+    it('follows at once a change another peer made at once, and waits for its own bar for one that peer waited for', () => {
+      roomQuantises();
+      AudioProfile.setGrid('b', { bpm: 120, bar: 0 });
+      const jukebox = makeJukebox();
+      joinPlaying(jukebox, 'a');
+
+      hear(jukebox, { audioIdentifier: 'b' });
+      expect(played).toEqual(['a', 'b']);
+
+      hear(jukebox, { audioIdentifier: 'a', quantizeCount: 1 });
+      expect(played).toEqual(['a', 'b']);
+      vi.advanceTimersByTime(750);
+      expect(played).toEqual(['a', 'b', 'a']);
+    });
+
+    it('brings a change waiting for its bar in at once, to the track chosen, when the track sounding ends first', () => {
+      roomQuantises();
+      AudioStorage.instance.add(makeReadyAudio('c'));
+      const playlist = new Playlist(Playlist.DEFAULT_IDENTIFIER);
+      playlist.entries = ['a', 'b', 'c'];
+      playlist.initialize();
+      const jukebox = makeJukebox();
+      jukebox.repeatMode = 'all';
+      jukebox.play('a');
+      const ending = (jukebox as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
+      jukebox.play('b');
+
+      ending.onEnded!();
+
+      expect(played).toEqual(['a', 'b']);
+      expect(jukebox.audioIdentifier).toBe('b');
+      vi.advanceTimersByTime(2000);
+      expect(played).toEqual(['a', 'b']);
+    });
+
+    it('starts a change waiting for its bar from where the track was moved meanwhile, leaving the one sounding be', () => {
+      roomQuantises();
+      const seek = vi.mocked(AudioPlayer.prototype.seekTo);
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      jukebox.play('b');
+      seek.mockClear();
+
+      jukebox.seek(20);
+      expect(seek).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(750);
+
+      expect(played).toEqual(['a', 'b']);
+      expect(seek).toHaveBeenLastCalledWith(20);
+    });
+
+    it('starts a change waiting for its bar where another peer moved the track meanwhile, and only then', () => {
+      roomQuantises();
+      const seek = vi.mocked(AudioPlayer.prototype.seekTo);
+      const jukebox = makeJukebox();
+      joinPlaying(jukebox, 'a');
+      hear(jukebox, { audioIdentifier: 'b', quantizeCount: 1 });
+
+      hear(jukebox, { startTime: 30, seekCount: 1 });
+      expect(played).toEqual(['a']);
+      vi.advanceTimersByTime(750);
+
+      expect(played).toEqual(['a', 'b']);
+      expect(seek).toHaveBeenLastCalledWith(30);
+    });
+
+    it('keeps the track still sounding at its own level while a change waits for its bar', () => {
+      roomQuantises();
+      const config = ObjectStore.instance.get<Config>('Config')!;
+      config.djSettings = { ...config.djSettings, autoLevel: true };
+      const reading = {
+        version: AUDIO_ANALYSIS_VERSION,
+        duration: 100,
+        start: 0,
+        end: 100,
+        peak: -0.5,
+        bpm: 120,
+        bar: 0,
+        confidence: 1,
+      };
+      AudioProfile.share('a', { ...reading, lufs: -8 });
+      AudioProfile.share('b', { ...reading, lufs: -24 });
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      const sounding = (jukebox as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
+      const levelOfA = sounding.trim;
+      const glide = vi.spyOn(sounding, 'glideTrim');
+      jukebox.play('b');
+
+      jukebox.refreshMix();
+
+      expect(glide).toHaveBeenCalledWith(levelOfA, Jukebox.LEVEL_GLIDE_S);
+      expect(levelOfA).not.toBeCloseTo(1, 3);
+    });
+
+    it('waits for the next beat instead when a bar is longer than the wait allowed', () => {
+      roomQuantises();
+      AudioProfile.setGrid('a', { bpm: 40, bar: 0 });
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+
+      jukebox.play('b');
+      vi.advanceTimersByTime(249);
+      expect(played).toEqual(['a']);
+      vi.advanceTimersByTime(1);
+      expect(played).toEqual(['a', 'b']);
+    });
+
+    it('tells no place in the new track while the change waits, and keeps none if paused then', () => {
+      roomQuantises();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      vi.spyOn(AudioPlayer.prototype, 'duration', 'get').mockReturnValue(100);
+      expect(jukebox.position).toBe(1.25);
+
+      jukebox.play('b');
+      expect(jukebox.position).toBe(0);
+      expect(jukebox.duration).toBe(0);
+
+      jukebox.pause();
+      expect(jukebox.startTime).toBe(0);
+    });
+
+    it('looks for no point to move on at while a change waits for its bar', () => {
+      roomQuantises();
+      const config = ObjectStore.instance.get<Config>('Config')!;
+      config.djSettings = { ...config.djSettings, crossfadeS: 2 };
+      const playlist = new Playlist(Playlist.DEFAULT_IDENTIFIER);
+      playlist.entries = ['a', 'b', 'c'];
+      playlist.initialize();
+      const jukebox = makeJukebox();
+      jukebox.repeatMode = 'all';
+      jukebox.play('a');
+      jukebox.play('b');
+      vi.spyOn(AudioPlayer.prototype, 'duration', 'get').mockReturnValue(2.5);
+
+      jukebox.tickAutomix();
+
+      expect(jukebox.audioIdentifier).toBe('b');
+    });
+
+    it('forgets a change still waiting when the room pauses', () => {
+      roomQuantises();
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      jukebox.play('b');
+
+      jukebox.pause();
+      vi.advanceTimersByTime(2000);
+
+      expect(played).toEqual(['a']);
+    });
+
+    it('jumps to a marked place on the next beat with a short crossfade, for every peer', () => {
+      roomQuantises();
+      const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const seek = vi.mocked(AudioPlayer.prototype.seekTo);
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+
+      jukebox.jumpTo(30);
+      expect(jukebox.startTime).toBe(30);
+      expect(jukebox.jumpCount).toBe(1);
+      expect(jukebox.seekCount).toBe(1);
+      vi.advanceTimersByTime(249);
+      expect(seek).not.toHaveBeenCalledWith(30);
+
+      vi.advanceTimersByTime(1);
+      expect(seek).toHaveBeenCalledWith(30);
+      expect(fade).toHaveBeenCalledWith(1, Jukebox.JUMP_FADE_MS);
+    });
+
+    it('follows a jump from another peer on its own next beat, and a seek from an older version as a seek', () => {
+      roomQuantises();
+      vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
+      const seek = vi.mocked(AudioPlayer.prototype.seekTo);
+      const jukebox = makeJukebox();
+      jukebox.apply(jukebox.toContext());
+      const playing = jukebox.toContext();
+      playing.syncData = { ...playing.syncData, audioIdentifier: 'a', isPlaying: true };
+      jukebox.apply(playing);
+
+      const jumped = jukebox.toContext();
+      jumped.syncData = { ...jumped.syncData, startTime: 40, seekCount: 1, jumpCount: 1 };
+      jukebox.apply(jumped);
+      expect(seek).not.toHaveBeenCalledWith(40);
+      vi.advanceTimersByTime(250);
+      expect(seek).toHaveBeenCalledWith(40);
+
+      const older = jukebox.toContext();
+      const { jumpCount: _dropped, ...withoutCount } = older.syncData as Record<string, unknown>;
+      older.syncData = { ...withoutCount, startTime: 50, seekCount: 2 };
+      jukebox.apply(older);
+      expect(seek).toHaveBeenCalledWith(50);
+    });
+
+    it('keeps a jump made while the track is held, to go on from there', () => {
+      const jukebox = makeJukebox();
+      jukebox.audioIdentifier = 'a';
+
+      jukebox.jumpTo(12);
+
+      expect(jukebox.startTime).toBe(12);
+      expect(jukebox.jumpCount ?? 0).toBe(0);
     });
   });
 });

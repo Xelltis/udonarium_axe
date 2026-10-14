@@ -49,6 +49,9 @@
         [style]="quad.style"
       ></div>
     }
+    @for (water of waterViews(); track water.id) {
+      <div class="pointer-events-none absolute top-0 left-0" data-water-quad [style]="water.style"></div>
+    }
     @for (piece of pieceViews(); track piece.id) {
       <div
         class="absolute top-0 left-0 flex cursor-pointer items-end justify-center"
@@ -61,11 +64,25 @@
           <img
             class="size-full object-contain object-bottom"
             [style.filter]="piece.imageFilter"
+            [style.mask-image]="piece.water?.mask ?? null"
             [src]="piece.url"
             [alt]="piece.label"
             draggable="false"
             (load)="notePictureAspect(piece.url, $event)"
           />
+          @if (piece.water; as water) {
+            <img
+              class="pointer-events-none absolute inset-0 size-full object-contain object-bottom"
+              data-water-copy
+              [style.clip-path]="water.clip"
+              [style.filter]="water.tint"
+              [style.opacity]="water.tintOpacity"
+              [style.mask-image]="water.fade"
+              [src]="piece.url"
+              alt=""
+              draggable="false"
+            />
+          }
         } @else {
           <span class="rounded-sm bg-black/60 px-2 py-1 text-white">{{ piece.label || '?' }}</span>
         }
@@ -263,7 +280,7 @@
   </div>
 </div>
 
-<table-weather-overlay [fromInside]="true" />
+<table-weather-overlay [fromInside]="true" [weather]="screenWeather()" />
 
 @if (flash()) {
   <div class="animate-effect-flash pointer-events-none absolute inset-0" [style.background]="flash()"></div>

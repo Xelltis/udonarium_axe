@@ -35,6 +35,7 @@ import { downloadBlob } from '@axe/core/util/download-blob';
 import { PERF_MAP_EDITOR_DRAW, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { resourceNamesOf } from '@axe/domain/character/resource-catalog';
+import { ambiencePalette } from '@axe/domain/effect/ambience/ambience-kind';
 import { isBuiltinMaterial } from '@axe/domain/media/builtin-materials';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { ImageTag } from '@axe/domain/media/image-tag';
@@ -63,15 +64,29 @@ import {
   TerrainFaceImages,
   TerrainPaintSpec,
   TriggerPaintSpec,
+  waterDepthOf,
+  waterDirtOf,
+  waterFlowDirectionOf,
+  waterFlowSpeedOf,
+  waterLeavesOf,
+  waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
-import { HAZARD_KINDS } from '@axe/domain/tabletop/hazard-presets';
+import { HAZARD_KINDS, hazardPresetOf } from '@axe/domain/tabletop/hazard-presets';
 import { asShownTo, SHOWN_TO, ShownTo } from '@axe/domain/tabletop/shown-to';
 import { DEFAULT_MOVE_COST_ROAD_COLOR, MOST_MOVE_COST_EXTRA } from '@axe/domain/tabletop/table-move-cost';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { asTriggerRepeat, TRIGGER_REPEATS, TriggerRepeat } from '@axe/domain/tabletop/trigger-event';
 import { TRIGGER_MOMENTS, TRIGGER_TARGETS } from '@axe/domain/tabletop/trigger-event';
+import { FLOW_DIRECTIONS } from '@axe/domain/tabletop/water/water-flow';
+import {
+  WATER_PRESET_IDS,
+  type WaterPresetId,
+  waterPresetNamed,
+  waterPresetOf,
+} from '@axe/domain/tabletop/water/water-presets';
+import { MAX_SURFACE_CELLS } from '@axe/domain/tabletop/water/water-surface';
 import { imageStampIdentifier, isImageStampId } from '@axe/features/map-editor/assets/image-stamp';
 import { StampDef } from '@axe/features/map-editor/assets/stamp-types';
 import { getStampById, STAMPS } from '@axe/features/map-editor/assets/stamps';
@@ -269,6 +284,89 @@ export class MapEditorPanelComponent implements AfterViewInit {
   }
 
   protected readonly hazardKinds = HAZARD_KINDS;
+
+  /** The highest the water brush may stand the surface over the floor, in cells. */
+  protected readonly maxWaterDepth = MAX_SURFACE_CELLS;
+
+  /** What crossing the painted ground costs where the brush leaves it to the kind. */
+  protected readonly hazardKindExtraCost = computed(
+    () => hazardPresetOf(this.state.functionSpec().hazard.kind).extraCost
+  );
+
+  /** Sets how deep the water brush paints, held to tenths of a cell as the table reads it back. */
+  protected setWaterDepth(value: unknown): void {
+    this.setHazardPaint({ depth: waterDepthOf(value) });
+  }
+
+  /** How murky the water brush paints, as a percentage. */
+  protected readonly waterTurbidityPercent = computed(() =>
+    Math.round(this.state.functionSpec().hazard.turbidity * 100)
+  );
+
+  /** Sets how murky the water brush paints, from a percentage. */
+  protected setWaterTurbidity(percent: unknown): void {
+    this.setHazardPaint({ turbidity: waterTurbidityOf(Number(percent) / 100) });
+  }
+
+  /** How dirty the water brush paints, as a percentage. */
+  protected readonly waterDirtPercent = computed(() => Math.round(this.state.functionSpec().hazard.dirt * 100));
+
+  /** Sets how dirty the water brush paints, from a percentage. */
+  protected setWaterDirt(percent: unknown): void {
+    this.setHazardPaint({ dirt: waterDirtOf(Number(percent) / 100) });
+  }
+
+  /** How much of the water the brush lays floating leaves over, as a percentage. */
+  protected readonly waterLeavesPercent = computed(() => Math.round(this.state.functionSpec().hazard.leaves * 100));
+
+  /** Sets how much of the water the brush lays floating leaves over, from a percentage. */
+  protected setWaterLeaves(percent: unknown): void {
+    this.setHazardPaint({ leaves: waterLeavesOf(Number(percent) / 100) });
+  }
+
+  /** How fast the water brush paints the water flowing, as a percentage. */
+  protected readonly waterFlowSpeedPercent = computed(() =>
+    Math.round(this.state.functionSpec().hazard.flowSpeed * 100)
+  );
+
+  /** Sets how fast the water brush paints the water flowing, from a percentage. */
+  protected setWaterFlowSpeed(percent: unknown): void {
+    this.setHazardPaint({ flowSpeed: waterFlowSpeedOf(Number(percent) / 100) });
+  }
+
+  /** The ways the water brush can paint the water flowing. */
+  protected readonly flowDirections = FLOW_DIRECTIONS;
+
+  /** Sets which way the water brush paints the water flowing, in degrees clockwise from the top. */
+  protected setWaterFlowDirection(direction: unknown): void {
+    this.setHazardPaint({ flowDirection: waterFlowDirectionOf(direction) });
+  }
+
+  protected readonly waterPresets = WATER_PRESET_IDS;
+
+  /** Which look the water brush paints, or null where its settings match none of them. */
+  protected readonly waterPreset = computed(() => {
+    const hazard = this.state.functionSpec().hazard;
+    return waterPresetOf(hazard.color, hazard.turbidity, hazard.dirt, hazard.leaves);
+  });
+
+  /** Sets the water brush to one look: its colour, murkiness and dirt at once. */
+  protected setWaterPreset(id: WaterPresetId | null): void {
+    const preset = waterPresetNamed(id);
+    if (preset) {
+      this.setHazardPaint({
+        color: preset.color,
+        turbidity: preset.turbidity,
+        dirt: preset.dirt,
+        leaves: preset.leaves,
+      });
+    }
+  }
+
+  /** The colour the water brush paints in, shown as the colour of water itself where none is set. */
+  protected readonly waterColor = computed(
+    () => this.state.functionSpec().hazard.color || ambiencePalette('water').primary
+  );
 
   protected setHazardPaint(patch: Partial<HazardPaintSpec>): void {
     const spec = this.state.functionSpec();

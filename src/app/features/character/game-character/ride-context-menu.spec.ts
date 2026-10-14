@@ -16,6 +16,7 @@ function callbacks(): RideMenuCallbacks & { [name: string]: ReturnType<typeof vi
     setCargo: vi.fn(),
     setAnyone: vi.fn(),
     setSeatHeight: vi.fn(),
+    editSeatHeight: vi.fn(),
   };
 }
 
@@ -131,7 +132,7 @@ describe('buildRideContextMenu', () => {
   it('says how a mount is set up, and changes each part of it', () => {
     const handlers = callbacks();
     const menu = buildRideContextMenu(
-      model({ mount: { passenger: true, cargo: 2, anyone: false, seatHeight: null, aboard: 0 } }),
+      model({ mount: { passenger: true, cargo: 2, anyone: false, seatHeight: '', seatDefault: 'top', aboard: 0 } }),
       true,
       handlers,
       t
@@ -141,14 +142,75 @@ describe('buildRideContextMenu', () => {
     expect(entriesOf(menu)[0].name).toBe('☑ feature.ride.menu.mountable');
     expect(settings[0].name).toBe('☑ feature.ride.menu.passenger');
     expect(settings[1].subActions!.find((entry) => entry.name.startsWith('✔'))?.name).toBe('✔ 2');
-    expect(settings[3].subActions![0].name).toBe('✔ feature.ride.menu.seatHeightDefault');
+    expect(settings[3].subActions!.map((entry) => entry.name)).toEqual([
+      '✔ feature.ride.menu.seatHeightDefault_top',
+      'feature.ride.menu.seatHeightShare_25',
+      'feature.ride.menu.seatHeightShare_50',
+      'feature.ride.menu.seatHeightShare_75',
+      'feature.ride.menu.seatHeightShare_100',
+      '',
+      'feature.ride.menu.seatHeightCells:{"cells":"0"}',
+      'feature.ride.menu.seatHeightCells:{"cells":"0.5"}',
+      'feature.ride.menu.seatHeightCells:{"cells":"1"}',
+      'feature.ride.menu.seatHeightCells:{"cells":"1.5"}',
+      'feature.ride.menu.seatHeightCells:{"cells":"2"}',
+      'feature.ride.menu.seatHeightCells:{"cells":"3"}',
+      '',
+      'feature.ride.menu.seatHeightCustom',
+    ]);
     settings[0].action!();
     settings[1].subActions![0].action!();
     settings[2].action!();
     settings[3].subActions![3].action!();
+    settings[3].subActions![8].action!();
     expect(handlers.setPassenger).toHaveBeenCalledWith(false);
     expect(handlers.setCargo).toHaveBeenCalledWith(0);
     expect(handlers.setAnyone).toHaveBeenCalledWith(true);
-    expect(handlers.setSeatHeight).toHaveBeenCalledWith(1);
+    expect(handlers.setSeatHeight).toHaveBeenCalledWith('75%');
+    expect(handlers.setSeatHeight).toHaveBeenCalledWith('1');
+    settings[3].subActions![13].action!();
+    expect(handlers.editSeatHeight).toHaveBeenCalledOnce();
+  });
+
+  it('marks a seat height typed as a number on the entry for typing one, with the height', () => {
+    const seatsAt = (seatHeight: string) =>
+      entriesOf(
+        buildRideContextMenu(
+          model({ mount: { passenger: false, cargo: 0, anyone: false, seatHeight, seatDefault: 'top', aboard: 0 } }),
+          true,
+          callbacks(),
+          t
+        )
+      ).slice(1)[3].subActions!;
+
+    expect(
+      seatsAt('380px')
+        .filter((entry) => entry.name.startsWith('✔'))
+        .map((entry) => entry.name)
+    ).toEqual(['✔ feature.ride.menu.seatHeightCustomSet:{"value":"380px"}']);
+    expect(seatsAt('60%').at(-1)!.name).toBe(
+      '✔ feature.ride.menu.seatHeightCustomSet:{"value":"feature.ride.menu.seatHeightPercent:{\\"percent\\":60}"}'
+    );
+    expect(seatsAt('2.5').at(-1)!.name).toBe(
+      '✔ feature.ride.menu.seatHeightCustomSet:{"value":"feature.ride.menu.seatHeightCells:{\\"cells\\":2.5}"}'
+    );
+    expect(seatsAt('1').at(-1)!.name).toBe('feature.ride.menu.seatHeightCustom');
+  });
+
+  it('marks where a mount set to stand its riders at a part of its height has them', () => {
+    const menu = buildRideContextMenu(
+      model({
+        mount: { passenger: false, cargo: 0, anyone: false, seatHeight: '50%', seatDefault: 'half', aboard: 0 },
+      }),
+      true,
+      callbacks(),
+      t
+    );
+    const seats = entriesOf(menu).slice(1)[3].subActions!;
+
+    expect(seats[0].name).toBe('feature.ride.menu.seatHeightDefault_half');
+    expect(seats.filter((entry) => entry.name.startsWith('✔')).map((entry) => entry.name)).toEqual([
+      '✔ feature.ride.menu.seatHeightShare_50',
+    ]);
   });
 });

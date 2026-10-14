@@ -473,7 +473,18 @@ describe('FunctionalPaintService', () => {
         row: 3,
         width: 4,
         height: 2,
-        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false },
+        spec: {
+          kind: 'lava',
+          color: '',
+          density: 0.6,
+          blocksSight: false,
+          surfaceHeight: 0.5,
+          turbidity: 0.15,
+          dirt: 0,
+          leaves: 0,
+          flowSpeed: 0,
+          flowDirection: 0,
+        },
       };
 
       service.apply(plan({ ambience: { add: [look], remove: [] } }));
@@ -487,7 +498,18 @@ describe('FunctionalPaintService', () => {
         row: 3,
         width: 4,
         height: 2,
-        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false },
+        spec: {
+          kind: 'lava',
+          color: '',
+          density: 0.6,
+          blocksSight: false,
+          surfaceHeight: 0.5,
+          turbidity: 0.15,
+          dirt: 0,
+          leaves: 0,
+          flowSpeed: 0,
+          flowDirection: 0,
+        },
       };
       service.apply(plan({ ambience: { add: [look], remove: [] } }));
       const laid = table.ambiences[0];
@@ -497,6 +519,38 @@ describe('FunctionalPaintService', () => {
       expect(table.ambiences[0]).toBe(laid);
     });
 
+    it('stands water as deep and flowing as it was painted, and leaves it be when painted again the same', () => {
+      const pond = {
+        col: 2,
+        row: 3,
+        width: 4,
+        height: 2,
+        spec: {
+          kind: 'water',
+          color: '#5f6b4a',
+          density: 0.6,
+          blocksSight: false,
+          surfaceHeight: 1.5,
+          turbidity: 0.7,
+          dirt: 0.8,
+          leaves: 0.6,
+          flowSpeed: 0.5,
+          flowDirection: 135,
+        },
+      };
+      service.apply(plan({ ambience: { add: [pond], remove: [] } }));
+      const laid = table.ambiences[0];
+
+      expect(laid.surface).toBe(1.5);
+      expect(laid.murk).toBe(0.7);
+      expect(laid.dirt).toBe(0.8);
+      expect(laid.leaves).toBe(0.6);
+      expect(laid.flow).toBe(0.5);
+      expect(laid.flowHeading).toBe(135);
+      expect(laid.ambienceColor).toBe('#5f6b4a');
+      expect(service.snapshot()!.ambienceBlocks).toEqual([pond]);
+    });
+
     it('lays a look in the middle of its cell on a board of hexes, and reads it back there', () => {
       table.gridType = GridType.HEX_VERTICAL;
       const look = {
@@ -504,7 +558,18 @@ describe('FunctionalPaintService', () => {
         row: 3,
         width: 1,
         height: 1,
-        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false },
+        spec: {
+          kind: 'lava',
+          color: '',
+          density: 0.6,
+          blocksSight: false,
+          surfaceHeight: 0.5,
+          turbidity: 0.15,
+          dirt: 0,
+          leaves: 0,
+          flowSpeed: 0,
+          flowDirection: 0,
+        },
       };
 
       service.apply(plan({ ambience: { add: [look], remove: [] } }));
@@ -526,7 +591,18 @@ describe('FunctionalPaintService', () => {
         row: 3,
         width: 4,
         height: 2,
-        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false },
+        spec: {
+          kind: 'lava',
+          color: '',
+          density: 0.6,
+          blocksSight: false,
+          surfaceHeight: 0.5,
+          turbidity: 0.15,
+          dirt: 0,
+          leaves: 0,
+          flowSpeed: 0,
+          flowDirection: 0,
+        },
       };
 
       service.apply(plan({ ambience: { add: [look], remove: [] } }));
@@ -543,7 +619,18 @@ describe('FunctionalPaintService', () => {
         row: 3,
         width: 4,
         height: 2,
-        spec: { kind: 'lava', color: '', density: 0.6, blocksSight: false },
+        spec: {
+          kind: 'lava',
+          color: '',
+          density: 0.6,
+          blocksSight: false,
+          surfaceHeight: 0.5,
+          turbidity: 0.15,
+          dirt: 0,
+          leaves: 0,
+          flowSpeed: 0,
+          flowDirection: 0,
+        },
       };
       service.apply(plan({ ambience: { add: [look], remove: [] } }));
 

@@ -9,6 +9,14 @@ import {
 import { type AmbienceKind, ambiencePalette, GROUND_AMBIENCE_KINDS } from '@axe/domain/effect/ambience/ambience-kind';
 import { SHOWN_TO, ShownTo } from '@axe/domain/tabletop/shown-to';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
+import { FLOW_DIRECTIONS } from '@axe/domain/tabletop/water/water-flow';
+import {
+  WATER_PRESET_IDS,
+  type WaterPresetId,
+  waterPresetNamed,
+  waterPresetOf,
+} from '@axe/domain/tabletop/water/water-presets';
+import { MAX_SURFACE_CELLS } from '@axe/domain/tabletop/water/water-surface';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** As wide as a table can be, so a marsh can cover the whole map. */
@@ -58,6 +66,103 @@ export class TableAmbienceSettingsComponent {
     if (!this.target) return;
     this.target.ambienceDensity = Number(value) / 100;
     this.target.update();
+  }
+
+  protected readonly maxSurfaceCells = MAX_SURFACE_CELLS;
+
+  /**
+   * How many cells the water stands over its floor; a change is sent to the room. Only water shows
+   * it. A field left empty, as while a new depth is typed, changes nothing.
+   */
+  get surfaceCells(): number {
+    return this.target?.surface ?? 0;
+  }
+  set surfaceCells(value: number | null) {
+    if (!this.target || value === null || `${value}`.trim() === '') return;
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return;
+    this.target.surfaceHeight = Math.min(Math.max(Math.round(numeric * 10) / 10, 0), MAX_SURFACE_CELLS);
+    this.target.update();
+  }
+
+  /** How murky the water is, as a percentage; a change is sent to the room. Only water shows it. */
+  get turbidityPercent(): number {
+    return Math.round((this.target?.murk ?? 0) * 100);
+  }
+  set turbidityPercent(value: number) {
+    if (!this.target) return;
+    this.target.turbidity = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
+    this.target.update();
+  }
+
+  /** How dirty the water is, as a percentage; a change is sent to the room. Only water shows it. */
+  get dirtPercent(): number {
+    return Math.round((this.target?.dirt ?? 0) * 100);
+  }
+  set dirtPercent(value: number) {
+    if (!this.target) return;
+    this.target.dirtiness = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
+    this.target.update();
+  }
+
+  protected readonly waterPresets = WATER_PRESET_IDS;
+
+  /** Which of the looks water can be given it has, or null where its settings match none of them. */
+  get waterPreset(): WaterPresetId | null {
+    const target = this.target;
+    return target ? waterPresetOf(target.ambienceColor, target.murk, target.dirt, target.leaves) : null;
+  }
+  set waterPreset(id: WaterPresetId | null) {
+    const preset = waterPresetNamed(id);
+    if (!preset || !this.target) return;
+    this.target.ambienceColor = preset.color;
+    this.target.turbidity = preset.turbidity;
+    this.target.dirtiness = preset.dirt;
+    this.target.floatingLeaves = preset.leaves;
+    this.target.update();
+  }
+
+  /** How much of the water floating leaves cover, as a percentage; a change is sent to the room. Only water shows it. */
+  get leavesPercent(): number {
+    return Math.round((this.target?.leaves ?? 0) * 100);
+  }
+  set leavesPercent(value: number) {
+    if (!this.target) return;
+    this.target.floatingLeaves = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
+    this.target.update();
+  }
+
+  /** The ways water can be set to flow. */
+  readonly flowDirections = FLOW_DIRECTIONS;
+
+  /** How fast the water flows, as a percentage; a change is sent to the room. Only water shows it. */
+  get flowSpeedPercent(): number {
+    return Math.round((this.target?.flow ?? 0) * 100);
+  }
+  set flowSpeedPercent(value: number) {
+    if (!this.target) return;
+    this.target.flowSpeed = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
+    this.target.update();
+  }
+
+  /** Which way the water flows, in degrees clockwise from the top of the table; a change is sent to the room. */
+  get flowDirection(): number {
+    return this.target?.flowHeading ?? 0;
+  }
+  set flowDirection(value: number) {
+    if (!this.target) return;
+    this.target.flowDirection = Number(value);
+    this.target.update();
+  }
+
+  /** What one way of flowing is called in the reader's language. */
+  flowDirectionLabel(direction: number): string {
+    return this.t(`feature.ambience.flowDirection_${direction}`);
+  }
+
+  /** What one look of water is called in the reader's language. */
+  waterPresetLabel(id: WaterPresetId): string {
+    return this.t(`feature.ambience.waterPreset_${id}`);
   }
 
   /** The default colour is shown as the field's initial value, so it can be left unset. */

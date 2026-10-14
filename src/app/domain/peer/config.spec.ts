@@ -3,6 +3,7 @@ import { VolumeType } from '@axe/core/storage/audio-player';
 import { ObjectContext } from '@axe/core/sync/game-object';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
 import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
+import { DEFAULT_DJ_SETTINGS } from '@axe/domain/media/dj-settings';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { DEFAULT_ROOM_VOLUMES } from '@axe/domain/media/room-volumes';
 import { Config } from '@axe/domain/peer/config';
@@ -228,6 +229,80 @@ describe('Config', () => {
 
       expect(setNewVolume).toHaveBeenCalled();
       expect(Config.instance.roomVolumes.bgm).toBe(0.2);
+    });
+  });
+
+  describe('the room’s mix', () => {
+    function attributesOf(context: ObjectContext): Record<string, unknown> {
+      return context.syncData['attributes'] as Record<string, unknown>;
+    }
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('levels sounds, ducks the music and crossfades for two seconds until the game master says otherwise', () => {
+      expect(Config.instance.djSettings).toEqual(DEFAULT_DJ_SETTINGS);
+      expect(DEFAULT_DJ_SETTINGS).toEqual({
+        autoLevel: true,
+        ducking: true,
+        crossfadeS: 2,
+        pauseFadeS: 0.4,
+        quantize: false,
+        beatLight: false,
+      });
+    });
+
+    it('keeps what is set', () => {
+      Config.instance.djSettings = { ...DEFAULT_DJ_SETTINGS, ducking: false, crossfadeS: 8 };
+
+      expect(Config.instance.djSettings).toEqual({ ...DEFAULT_DJ_SETTINGS, ducking: false, crossfadeS: 8 });
+    });
+
+    it('mixes as a new room does for an older version that sends none', () => {
+      Config.instance.djSettings = { ...DEFAULT_DJ_SETTINGS, autoLevel: false };
+      const older = Config.instance.toContext();
+      delete attributesOf(older)['_djSettings'];
+      older.majorVersion += 1;
+
+      Config.instance.apply(older);
+
+      expect(Config.instance.djSettings).toEqual(DEFAULT_DJ_SETTINGS);
+    });
+
+    it('keeps the mix when an older version that passed it along sends the config back', () => {
+      Config.instance.djSettings = { ...DEFAULT_DJ_SETTINGS, quantize: true };
+      const passedAlong = Config.instance.toContext();
+      attributesOf(passedAlong)['_hideSystemAvatar'] = '1';
+      passedAlong.majorVersion += 1;
+
+      Config.instance.apply(passedAlong);
+
+      expect(Config.instance.djSettings.quantize).toBe(true);
+    });
+
+    it('keeps the pads, every one empty for an older version that sends none', () => {
+      Config.instance.djPads = ['airhorn', '', '', '', '', '', '', 'applause'];
+      expect(Config.instance.djPads[7]).toBe('applause');
+
+      const older = Config.instance.toContext();
+      delete attributesOf(older)['_djPads'];
+      older.majorVersion += 1;
+      Config.instance.apply(older);
+
+      expect(Config.instance.djPads.every((pad) => pad === '')).toBe(true);
+    });
+
+    it('remixes on the jukebox straight away when another peer changes the mix', () => {
+      const jukebox = new Jukebox('Jukebox');
+      jukebox.initialize();
+      const refreshMix = vi.spyOn(jukebox, 'refreshMix').mockImplementation(() => {});
+      const changed = Config.instance.toContext();
+      attributesOf(changed)['_djSettings'] = '{"ducking":false}';
+      changed.majorVersion += 1;
+
+      Config.instance.apply(changed);
+
+      expect(refreshMix).toHaveBeenCalledOnce();
+      expect(Config.instance.djSettings.ducking).toBe(false);
     });
   });
 

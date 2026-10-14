@@ -80,6 +80,9 @@ const DEFAULT_UNIT = 50;
 /**
  * How many particles a cell of surface holds at full density.
  * Counted by area, the default size would show a handful and read as no marsh at all.
+ *
+ * Water has none of its own: one pond is often laid as many areas side by side, and drawn
+ * area by area it would show a seam at every join, so the water layer draws it whole.
  */
 const SURFACE_PER_CELL: Record<AmbienceKind, number> = {
   swamp: 9,
@@ -96,6 +99,8 @@ const SURFACE_PER_CELL: Record<AmbienceKind, number> = {
   ash: 0,
   ember: 0,
   sand: 0,
+  water: 0,
+  underwater: 0,
 };
 
 /** How many rising particles a cell of width holds at full density. */
@@ -114,6 +119,8 @@ const VAPOR_PER_CELL: Record<AmbienceKind, number> = {
   ash: 0,
   ember: 0,
   sand: 0,
+  water: 0,
+  underwater: 0,
 };
 
 /**

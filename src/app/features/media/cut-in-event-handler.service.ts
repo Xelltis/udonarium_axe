@@ -7,6 +7,7 @@ import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { CutIn, cutInPanelChrome } from '@axe/domain/media/cut-in';
 import type { CutInSpeaker } from '@axe/domain/media/cut-in-speaker';
+import { mixLevelOf } from '@axe/domain/media/mix-level';
 import { asCutInMultiDirectionMode } from '@axe/domain/tabletop/cut-in-multi-direction';
 import { makeCutInMultiDirectionLayout } from '@axe/features/media/cut-in-multi-direction-layout';
 import { CutInWindowComponent } from '@axe/features/media/cut-in-window/cut-in-window.component';
@@ -38,6 +39,7 @@ export class CutInEventHandlerService {
         if (audio) {
           this.soundOnlyPlayer.volumeType = VolumeType.CUT_IN;
           this.soundOnlyPlayer.loop = false;
+          this.soundOnlyPlayer.trim = mixLevelOf(audio.identifier, 'music');
           this.soundOnlyPlayer.play(audio);
         }
       }

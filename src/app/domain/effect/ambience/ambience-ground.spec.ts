@@ -12,13 +12,19 @@ const WIDTH = UNIT * 6;
 const HEIGHT = UNIT * 6;
 const VAPOR_HEIGHT = UNIT * 2.6;
 
+/**
+ * The kinds an area draws for itself. Water is left to the water layer, which draws every pond
+ * whole so that one laid as many areas side by side shows no seam.
+ */
+const DRAWN_BY_THE_AREA = GROUND_AMBIENCE_KINDS.filter((kind) => kind !== 'water');
+
 function specOf(kind: AmbienceKind, elapsed: number, density = 0.6, height = HEIGHT) {
   return { kind, color: '', density, elapsed, width: WIDTH, height, unit: UNIT };
 }
 
 describe('groundSurfaceLayer()', () => {
   it('returns particles for the kinds that have a surface', () => {
-    for (const kind of GROUND_AMBIENCE_KINDS.filter((candidate) => candidate !== 'fog')) {
+    for (const kind of DRAWN_BY_THE_AREA.filter((candidate) => candidate !== 'fog')) {
       expect(groundSurfaceLayer(specOf(kind, 1200)).particles.length).toBeGreaterThan(0);
     }
   });
@@ -29,13 +35,13 @@ describe('groundSurfaceLayer()', () => {
   });
 
   it('shows nothing at no density', () => {
-    for (const kind of GROUND_AMBIENCE_KINDS) {
+    for (const kind of DRAWN_BY_THE_AREA) {
       expect(groundSurfaceLayer(specOf(kind, 1200, 0)).particles).toHaveLength(0);
     }
   });
 
   it('keeps the particles inside the area', () => {
-    for (const kind of GROUND_AMBIENCE_KINDS) {
+    for (const kind of DRAWN_BY_THE_AREA) {
       for (const particle of groundSurfaceLayer(specOf(kind, 4400, 1)).particles) {
         expect(particle.x).toBeGreaterThanOrEqual(0);
         expect(particle.x).toBeLessThanOrEqual(WIDTH);
@@ -60,7 +66,7 @@ describe('groundSurfaceLayer()', () => {
 
 describe('groundVaporLayer()', () => {
   it('returns rising particles for every kind', () => {
-    for (const kind of GROUND_AMBIENCE_KINDS) {
+    for (const kind of DRAWN_BY_THE_AREA) {
       expect(groundVaporLayer(specOf(kind, 1500, 0.6, VAPOR_HEIGHT)).particles.length).toBeGreaterThan(0);
     }
   });
@@ -75,7 +81,7 @@ describe('groundVaporLayer()', () => {
   });
 
   it('shows nothing below the origin', () => {
-    for (const kind of GROUND_AMBIENCE_KINDS) {
+    for (const kind of DRAWN_BY_THE_AREA) {
       for (const particle of groundVaporLayer(specOf(kind, 2600, 1, VAPOR_HEIGHT)).particles) {
         expect(particle.y).toBeLessThanOrEqual(0);
         expect(particle.y).toBeGreaterThanOrEqual(-VAPOR_HEIGHT);
@@ -84,7 +90,7 @@ describe('groundVaporLayer()', () => {
   });
 
   it('keeps every opacity between none and full', () => {
-    for (const kind of GROUND_AMBIENCE_KINDS) {
+    for (const kind of DRAWN_BY_THE_AREA) {
       for (const particle of groundVaporLayer(specOf(kind, 3100, 1, VAPOR_HEIGHT)).particles) {
         expect(particle.alpha).toBeGreaterThanOrEqual(0);
         expect(particle.alpha).toBeLessThanOrEqual(1);
@@ -93,9 +99,17 @@ describe('groundVaporLayer()', () => {
   });
 });
 
+describe('water', () => {
+  it('draws nothing of its own, being drawn whole by the water layer', () => {
+    expect(groundSurfaceLayer(specOf('water', 1200, 1)).particles).toHaveLength(0);
+    expect(groundVaporLayer(specOf('water', 1200, 1, VAPOR_HEIGHT)).particles).toHaveLength(0);
+    expect(groundSurfaceWash('water', '', 1)).toBe('');
+  });
+});
+
 describe('groundSurfaceWash()', () => {
   it('keeps the surface filled even at a density that shows no particles', () => {
-    for (const kind of GROUND_AMBIENCE_KINDS) {
+    for (const kind of DRAWN_BY_THE_AREA) {
       expect(groundSurfaceWash(kind, '', 0).length).toBeGreaterThan(0);
     }
   });
@@ -116,7 +130,7 @@ describe('how it looks the moment it is placed', () => {
   it('shows enough particles to count even at the default size', () => {
     // Counted by area, an area this small would show a handful for some kinds and look as
     // though nothing had been placed at all.
-    for (const kind of GROUND_AMBIENCE_KINDS) {
+    for (const kind of DRAWN_BY_THE_AREA) {
       const surface = groundSurfaceLayer(placedSpec(kind, width));
       const vapor = groundVaporLayer(placedSpec(kind, UNIT * 2.6));
       expect(surface.particles.length + vapor.particles.length).toBeGreaterThanOrEqual(14);
@@ -128,7 +142,7 @@ describe('how it looks the moment it is placed', () => {
     // with its centre in the middle, and a grey square floats on the board. Thinning it is no
     // guard, so the canvas is widened until the largest particle fits.
     let checked = 0;
-    for (const kind of GROUND_AMBIENCE_KINDS) {
+    for (const kind of DRAWN_BY_THE_AREA) {
       for (const elapsed of [0, 700, 1600, 2900, 5200]) {
         const layers = [
           groundSurfaceLayer({ ...placedSpec(kind, width), elapsed }),
@@ -248,7 +262,7 @@ describe('how it looks the moment it is placed', () => {
 
   it('thins the particles towards the edge of the area', () => {
     let checked = 0;
-    for (const kind of GROUND_AMBIENCE_KINDS) {
+    for (const kind of DRAWN_BY_THE_AREA) {
       for (const elapsed of [0, 900, 2000, 3700]) {
         const layer = groundSurfaceLayer({ ...placedSpec(kind, width), elapsed });
         if (layer.particles.length < 1) continue;
@@ -266,7 +280,7 @@ describe('how it looks the moment it is placed', () => {
 
   it('always leaves the fill transparent at the edge of its box', () => {
     // A gradient at its default size runs past the box and is cut in a straight line where it does.
-    for (const kind of GROUND_AMBIENCE_KINDS) {
+    for (const kind of DRAWN_BY_THE_AREA) {
       const wash = groundSurfaceWash(kind, '', 0.6);
       const layers = wash.split('radial-gradient').filter((part) => part.trim().length > 0);
       expect(layers.length).toBeGreaterThan(0);
@@ -278,7 +292,7 @@ describe('how it looks the moment it is placed', () => {
   });
 
   it('keeps the surface thick enough to read as ground', () => {
-    for (const kind of GROUND_AMBIENCE_KINDS) {
+    for (const kind of DRAWN_BY_THE_AREA) {
       const alphas = [...groundSurfaceWash(kind, '', 0.6).matchAll(/rgba\([^)]*,\s*([\d.]+)\)/g)].map((match) =>
         Number(match[1])
       );

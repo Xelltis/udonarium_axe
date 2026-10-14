@@ -56,6 +56,15 @@ describe('TableWeatherOverlayComponent', () => {
     expect(wash!.style.background.length).toBeGreaterThan(0);
   });
 
+  it('draws the weather it is given in place of the map\u2019s own', () => {
+    fixture.componentRef.setInput('weather', { kind: 'underwater', color: '#c8f0ff', density: 0.6 });
+    fixture.detectChanges();
+
+    const wash = element().querySelector<HTMLElement>('div');
+    expect(wash).not.toBeNull();
+    expect(fixture.componentInstance.wash()).toContain('at 50% -12%');
+  });
+
   it('draws no particles before it knows its size', () => {
     // Drawing before the observer has run would make a canvas no pixels wide.
     table.weatherKind = 'rain';

@@ -69,6 +69,18 @@
         }
       </div>
       <button
+        type="button"
+        class="text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:border-transparent hover:shadow-none [&_.material-icons]:text-[16px]!"
+        [class.text-ui-accent!]="isDeckOpen()"
+        [attr.aria-pressed]="isDeckOpen()"
+        (mousedown)="$event.stopPropagation()"
+        (click)="toggleDeck()"
+        [title]="isDeckOpen() ? ('feature.media.djDeck.close' | transloco) : ('feature.media.djDeck.open' | transloco)"
+        data-testid="mini-jukebox-dj-deck-toggle"
+      >
+        <i class="material-icons">graphic_eq</i>
+      </button>
+      <button
         class="text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-5.5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 opacity-0 transition-[opacity,background,color] group-hover:opacity-100 hover:border-transparent hover:shadow-none pointer-coarse:opacity-100"
         (mousedown)="$event.stopPropagation()"
         (click)="toggleMinimize()"
@@ -101,20 +113,30 @@
       >
         <i class="material-icons">{{ isSeekLocked() ? 'lock' : 'lock_open' }}</i>
       </button>
-      <input
-        type="range"
-        class="seek-bar m-0 h-5 flex-1 cursor-pointer appearance-none bg-transparent p-0 [-webkit-appearance:none] disabled:pointer-events-none disabled:cursor-default disabled:opacity-40"
-        [class.pointer-events-none]="isSeekLocked()"
-        [class.cursor-default]="isSeekLocked()"
-        [value]="displayProgress() * 100"
-        [style.--seek-progress]="displayProgress() * 100 + '%'"
-        min="0"
-        max="100"
-        step="0.1"
-        [disabled]="!canOperate() || !isPlaying()"
-        (input)="onSeekInput($event)"
-        (change)="onSeekCommit($event)"
-      />
+      <div class="relative flex min-w-0 flex-1 items-center">
+        <input
+          type="range"
+          class="seek-bar m-0 h-5 w-full cursor-pointer appearance-none bg-transparent p-0 [-webkit-appearance:none] disabled:pointer-events-none disabled:cursor-default disabled:opacity-40"
+          [class.pointer-events-none]="isSeekLocked()"
+          [class.cursor-default]="isSeekLocked()"
+          [value]="displayProgress() * 100"
+          [style.--seek-progress]="displayProgress() * 100 + '%'"
+          min="0"
+          max="100"
+          step="0.1"
+          [disabled]="!canOperate() || !isPlaying()"
+          (input)="onSeekInput($event)"
+          (change)="onSeekCommit($event)"
+        />
+        @for (mark of cueMarks(); track mark.slot) {
+          <span
+            class="bg-ui-accent pointer-events-none absolute top-0.5 h-1.5 w-0.5 -translate-x-1/2 rounded-full"
+            [style.left.%]="mark.percent"
+            aria-hidden="true"
+            data-testid="mini-jukebox-cue-mark"
+          ></span>
+        }
+      </div>
       <span class="text-ui-dim w-18 shrink-0 text-right text-[10px] [font-variant-numeric:tabular-nums]">
         {{ timeDisplay() }}
       </span>
@@ -202,6 +224,14 @@
       </button>
     </div>
 
+    @if (isDeckOpen()) {
+      @defer (on immediate) {
+        <app-dj-deck></app-dj-deck>
+      } @placeholder {
+        <div class="border-ui-border-panel h-40 border-t border-solid"></div>
+      }
+    }
+
     @if (backgroundSounds.playing().length > 0) {
       <div
         class="border-ui-border-panel flex min-w-0 items-center gap-1.5 border-t border-solid py-1 pr-2 pl-3"
@@ -276,6 +306,11 @@
               audio.identifier === lastAudioIdentifier() && isPlaying() ? 'volume_up' : 'music_note'
             }}</i>
             <span class="flex-1 truncate">{{ audio.name }}</span>
+            @if (playback.tempos().get(audio.identifier); as bpm) {
+              <span class="text-ui-dim shrink-0 text-[10px] [font-variant-numeric:tabular-nums]" title="BPM">{{
+                bpm
+              }}</span>
+            }
           </button>
         }
         @if (!bgmList().length) {
