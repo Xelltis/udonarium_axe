@@ -1,4 +1,5 @@
 import { networkSend } from '@axe/core/network/network-messaging';
+import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { CatalogSendSchedule } from '@axe/core/storage/catalog-send-schedule';
 import { ImageContext, ImageFile, ImageState } from '@axe/core/storage/image-file';
 
@@ -16,6 +17,11 @@ export class ImageStorage {
   }
 
   private imageHash: { [identifier: string]: ImageFile } = {};
+  /**
+   * Images added on this seat that are still going up to the asset server. They are left out of
+   * the catalogue until then, so peers fetch them from the server rather than asking this seat.
+   */
+  private readonly uploading = new Set<string>();
 
   /** Every image this seat knows of, including placeholders whose data has not arrived. */
   get images(): ImageFile[] {
@@ -43,7 +49,7 @@ export class ImageStorage {
   async addAsync(arg: Blob): Promise<ImageFile> {
     const image: ImageFile = await ImageFile.createAsync(arg);
 
-    return this._add(image);
+    return this._add(image, true);
   }
 
   /**
@@ -53,25 +59,43 @@ export class ImageStorage {
    * When the identifier is already held, the new data fills in what that entry lacks and the
    * existing entry is returned. A complete image also schedules a catalogue broadcast, except a
    * context merged into an entry already held.
+   *
+   * An entry made on this seat, rather than a context from a peer, also goes up to the asset server
+   * when one is configured.
    */
   add(arg: string | ImageFile | ImageContext): ImageFile {
     let image: ImageFile;
+    let isLocal = false;
     if (typeof arg === 'string') {
       image = ImageFile.create(arg);
     } else if (arg instanceof ImageFile) {
       image = arg;
+      isLocal = true;
     } else {
       if (this.update(arg)) return this.imageHash[arg.identifier];
       image = ImageFile.create(arg);
     }
-    return this._add(image);
+    return this._add(image, isLocal);
   }
 
-  private _add(image: ImageFile): ImageFile {
+  private _add(image: ImageFile, isLocal: boolean = false): ImageFile {
+    if (isLocal) this.uploadToAssetStore(image);
     if (ImageState.COMPLETE <= image.state) this.catalogSchedule.whenQuiet(100);
     if (this.update(image)) return this.imageHash[image.identifier];
     this.imageHash[image.identifier] = image;
     return image;
+  }
+
+  private uploadToAssetStore(image: ImageFile): void {
+    const store = AssetHttpStore.instance;
+    const blob = image.blob;
+    if (!store.isEnabled || image.state !== ImageState.COMPLETE || !blob) return;
+    if (!AssetHttpStore.isAssetId(image.identifier) || this.uploading.has(image.identifier)) return;
+    this.uploading.add(image.identifier);
+    void store.upload(image.identifier, blob).finally(() => {
+      this.uploading.delete(image.identifier);
+      this.catalogSchedule.whenQuiet(100);
+    });
   }
 
   private update(image: ImageFile | ImageContext): boolean {
@@ -114,12 +138,13 @@ export class ImageStorage {
 
   /**
    * The images this seat holds in full or as a link, which is what it advertises so that peers can
-   * request what they lack. Thumbnail-only images are left out.
+   * request what they lack. Thumbnail-only images are left out, and so are images still going up to
+   * the asset server.
    */
   getCatalog(): CatalogItem[] {
     const catalog: CatalogItem[] = [];
     for (const image of this.images) {
-      if (ImageState.COMPLETE <= image.state) {
+      if (ImageState.COMPLETE <= image.state && !this.uploading.has(image.identifier)) {
         catalog.push({ identifier: image.identifier, state: image.state });
       }
     }

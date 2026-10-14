@@ -1,4 +1,5 @@
 import { networkSend } from '@axe/core/network/network-messaging';
+import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AudioFile, AudioFileContext, AudioState } from '@axe/core/storage/audio-file';
 import { CatalogSendSchedule } from '@axe/core/storage/catalog-send-schedule';
 
@@ -20,6 +21,11 @@ export class AudioStorage {
     networkSend('SYNCHRONIZE_AUDIO_LIST', this.getCatalog(), peer)
   );
   private hash: { [identifier: string]: AudioFile } = {};
+  /**
+   * Audio added on this seat that is still going up to the asset server. It is left out of the
+   * catalogue until then, so peers fetch it from the server rather than asking this seat.
+   */
+  private readonly uploading = new Set<string>();
 
   /** Every audio this seat knows of, including placeholders whose bytes have not arrived. */
   get audios(): AudioFile[] {
@@ -43,7 +49,7 @@ export class AudioStorage {
   async addAsync(arg: Blob): Promise<AudioFile> {
     const audio: AudioFile = await AudioFile.createAsync(arg);
 
-    return this._add(audio);
+    return this._add(audio, true);
   }
 
   /**
@@ -53,25 +59,43 @@ export class AudioStorage {
    * When the identifier is already held, the new data fills in what that entry lacks and the
    * existing entry is returned. Complete audio also schedules a catalogue broadcast, except a
    * context merged into an entry already held.
+   *
+   * An entry made on this seat, rather than a context from a peer, also goes up to the asset server
+   * when one is configured.
    */
   add(arg: string | AudioFile | AudioFileContext): AudioFile {
     let audio: AudioFile;
+    let isLocal = false;
     if (typeof arg === 'string') {
       audio = AudioFile.create(arg);
     } else if (arg instanceof AudioFile) {
       audio = arg;
+      isLocal = true;
     } else {
       if (this.update(arg)) return this.hash[arg.identifier];
       audio = AudioFile.create(arg);
     }
-    return this._add(audio);
+    return this._add(audio, isLocal);
   }
 
-  private _add(audio: AudioFile): AudioFile {
+  private _add(audio: AudioFile, isLocal: boolean = false): AudioFile {
+    if (isLocal) this.uploadToAssetStore(audio);
     if (AudioState.COMPLETE <= audio.state) this.catalogSchedule.whenQuiet(100);
     if (this.update(audio)) return this.hash[audio.identifier];
     this.hash[audio.identifier] = audio;
     return audio;
+  }
+
+  private uploadToAssetStore(audio: AudioFile): void {
+    const store = AssetHttpStore.instance;
+    const blob = audio.blob;
+    if (!store.isEnabled || audio.state !== AudioState.COMPLETE || !blob) return;
+    if (!AssetHttpStore.isAssetId(audio.identifier) || this.uploading.has(audio.identifier)) return;
+    this.uploading.add(audio.identifier);
+    void store.upload(audio.identifier, blob).finally(() => {
+      this.uploading.delete(audio.identifier);
+      this.catalogSchedule.whenQuiet(100);
+    });
   }
 
   private update(audio: AudioFile | AudioFileContext): boolean {
@@ -114,12 +138,12 @@ export class AudioStorage {
 
   /**
    * The audio this seat holds in full or as a link, which is what it advertises so that
-   * peers can request what they lack.
+   * peers can request what they lack. Audio still going up to the asset server is left out.
    */
   getCatalog(): CatalogItem[] {
     const catalog: CatalogItem[] = [];
     for (const audio of AudioStorage.instance.audios) {
-      if (AudioState.COMPLETE <= audio.state) {
+      if (AudioState.COMPLETE <= audio.state && !this.uploading.has(audio.identifier)) {
         catalog.push({ identifier: audio.identifier, state: audio.state, name: audio.name });
       }
     }

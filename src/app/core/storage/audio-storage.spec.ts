@@ -1,6 +1,8 @@
 import { Network } from '@axe/core/network/network';
-import { AudioFile } from '@axe/core/storage/audio-file';
+import { AssetHttpStore, AssetUploadResult } from '@axe/core/storage/asset-http-store';
+import { AudioFile, AudioFileContext } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import type { MockInstance } from 'vitest';
 
 describe('AudioStorage', () => {
   let storage: AudioStorage;
@@ -115,6 +117,62 @@ describe('AudioStorage', () => {
       expect(catalogueTargets()).toEqual([]);
       vi.advanceTimersByTime(50);
       expect(catalogueTargets()).toEqual([undefined]);
+    });
+  });
+
+  describe('the asset server', () => {
+    const store = AssetHttpStore.instance;
+    const trackId = 'f'.repeat(64);
+    const contextOf = (identifier: string): AudioFileContext => ({
+      identifier,
+      name: 'theme.ogg',
+      type: 'audio/ogg',
+      blob: new Blob([new Uint8Array([0x4f, 0x67, 0x67, 0x53])], { type: 'audio/ogg' }),
+      url: 'blob:track',
+    });
+    const catalogued = (identifier: string) => storage.getCatalog().some((item) => item.identifier === identifier);
+    const cancelWaiting = () =>
+      (storage as unknown as { catalogSchedule: { cancel(): void } }).catalogSchedule.cancel();
+
+    let finishUpload: (result: AssetUploadResult) => void;
+    let upload: MockInstance<AssetHttpStore['upload']>;
+
+    beforeEach(() => {
+      store.configure('https://assets.example');
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      upload = vi
+        .spyOn(store, 'upload')
+        .mockReturnValue(new Promise<AssetUploadResult>((resolve) => (finishUpload = resolve)));
+    });
+
+    afterEach(() => {
+      store.configure(null);
+      cancelWaiting();
+    });
+
+    it('sends audio made on this seat to the server, and names it to peers only once it is there', async () => {
+      const audio = AudioFile.create(contextOf(trackId));
+
+      storage.add(audio);
+
+      expect(upload).toHaveBeenCalledWith(trackId, audio.blob);
+      expect(catalogued(trackId)).toBe(false);
+      finishUpload('exists');
+      await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
+    });
+
+    it('leaves audio received from a peer where it came from', () => {
+      storage.add(contextOf(trackId));
+
+      expect(upload).not.toHaveBeenCalled();
+      expect(catalogued(trackId)).toBe(true);
+    });
+
+    it('sends neither linked audio nor a placeholder', () => {
+      storage.add('https://example.com/theme.mp3');
+      storage.add(AudioFile.createEmpty('0'.repeat(64)));
+
+      expect(upload).not.toHaveBeenCalled();
     });
   });
 });
