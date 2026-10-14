@@ -48,6 +48,12 @@ zipに入っている`assets/config.json`で上書きされるので、`backend.
 
 バックエンドはAPIが変わらないかぎり、そのままで動きます。
 
+Cloudflare Pagesに置いている場合は、書き換えたフォルダを[Wranglerで上げ直します](#cloudflare-pages)。
+
+## Cloudflare Pagesにドラッグ＆ドロップで置けません {#cloudflare-pages}
+
+ダッシュボードのドラッグ＆ドロップで上げられるのは1,000ファイルまでで、Axeのファイルはそれより多いためです。Cloudflare Pages自体は20,000ファイルまで置けるので、Wranglerで上げてください。手順は[クイックスタート](/guide/quickstart#cloudflare-pagesに置くとき)にあります。ダッシュボードで作ったプロジェクトのまま上げられるので、URLは変わりません。
+
 ## 部屋のデータはどこに残りますか {#room-data}
 
 参加者のブラウザの中だけです。サーバーには残りません。

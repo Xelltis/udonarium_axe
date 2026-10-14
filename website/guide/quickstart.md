@@ -30,9 +30,22 @@
 （または自分でビルドした`dist/`を使い）、中身を任意の静的ホスティング
 （Cloudflare Pages / Amazon S3 / レンタルサーバーなど）に置きます。
 
+### Cloudflare Pagesに置くとき
+
+Cloudflare Pagesのダッシュボードにドラッグ＆ドロップで上げられるのは、1,000ファイルまでです。Axeのファイルはそれより多いので、Wrangler（Node.jsが要ります）で上げます。Wranglerなら20,000ファイルまで上げられます。
+
+上げたファイルはその場で書き換えられないので、`assets/config.json`は上げる前に書き換えておきます（手順4）。
+
+```sh
+npx wrangler login
+npx wrangler pages deploy ./axe --project-name <プロジェクト名>
+```
+
+`./axe`は展開したフォルダです。ダッシュボードで作ったプロジェクトにも、その名前を指定すれば上げられます。更新するときも同じコマンドです。
+
 ## 4. 接続先を設定
 
-配置したファイルの`assets/config.json`を開き、`backend.url`を手順2のバックエンドURLに書き換えます。
+配置したファイルの`assets/config.json`を開き、`backend.url`を手順2のバックエンドURLに書き換えます。Cloudflare Pagesでは、上げる前に書き換えます。
 
 ```json
 {
