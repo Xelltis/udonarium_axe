@@ -12,6 +12,7 @@ import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { AUDIO_ANALYSIS_VERSION, writeAudioAnalysis } from '@axe/domain/media/audio-analysis';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AudioTag } from '@axe/domain/media/audio-tag';
+import { Jukebox } from '@axe/domain/media/jukebox';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const result: AudioAnalysisResult = {
@@ -179,6 +180,31 @@ describe('AudioAnalysisService', () => {
 
     await vi.waitFor(() => expect(localStorage.getItem(AUDIO_ANALYSIS_CACHE_KEY) ?? '').toContain('track-n'));
     expect(write.mock.calls.filter(([key]) => key === AUDIO_ANALYSIS_CACHE_KEY)).toHaveLength(1);
+  });
+
+  it('does not look through the library again as the room turns its effects', async () => {
+    addSound('track-j');
+    const jukebox = new Jukebox('Jukebox');
+    jukebox.initialize();
+    const service = start();
+    await vi.waitFor(() => expect(AudioTag.get('track-j')?.analysis).toBeTruthy());
+    await vi.waitFor(() => expect(service.reading()).toBe(''));
+    const look = vi.spyOn(AudioProfile, 'sharedAnalysisOf');
+    const changes = TestBed.inject(ObjectChangeService);
+
+    for (const fx of ['{"filter":0.2}', '{"filter":0.4}', '{"filter":0.6}']) {
+      jukebox.fx = fx;
+      changes.notifyChanged('Jukebox');
+      TestBed.tick();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(look).not.toHaveBeenCalled();
+
+    jukebox.audioIdentifier = 'track-j';
+    changes.notifyChanged('Jukebox');
+    TestBed.tick();
+    await vi.waitFor(() => expect(look).toHaveBeenCalled());
+    jukebox.destroy();
   });
 
   it('does not read again a sound that could not be read', async () => {

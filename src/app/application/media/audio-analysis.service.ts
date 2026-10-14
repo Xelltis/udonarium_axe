@@ -1,4 +1,4 @@
-import { DestroyRef, effect, inject, Injectable, InjectionToken, signal, untracked } from '@angular/core';
+import { computed, DestroyRef, effect, inject, Injectable, InjectionToken, signal, untracked } from '@angular/core';
 import { readAnalysisCache, writeAnalysisCache } from '@axe/application/media/audio-analysis-cache';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -75,10 +75,15 @@ export class AudioAnalysisService {
       const analysis = readAudioAnalysis(text);
       if (analysis) AudioProfile.keepLocal(identifier, analysis);
     }
+    const playing = computed(() => {
+      this.objectChange.versionOf('Jukebox')();
+      const jukebox = this.objectStore.get<Jukebox>('Jukebox');
+      return `${jukebox?.audioIdentifier ?? ''}\n${jukebox?.playlistIdentifier ?? ''}`;
+    });
     effect(() => {
       this.objectChange.fileVersion();
       this.objectChange.collectionOf(AudioTag.aliasName)();
-      this.objectChange.versionOf('Jukebox')();
+      playing();
       untracked(() => this.schedule(this.started ? this.delays.gap : this.startDelay()));
     });
     const destroyRef = inject(DestroyRef);
