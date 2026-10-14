@@ -1,5 +1,6 @@
 import { Logger } from '@axe/core/logging/logger';
 import { Connection, ConnectionCallback } from '@axe/core/network/connection';
+import { compressIfSmaller, splitAtFileChunks } from '@axe/core/network/frame-codec';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { PeerReconnectScheduler } from '@axe/core/network/peer-reconnect-scheduler';
 import { IRoomInfo, RoomInfo } from '@axe/core/network/room-info';
@@ -7,7 +8,7 @@ import { SkyWayDataStream } from '@axe/core/network/skyway/skyway-data-stream';
 import { SkyWayDataStreamList } from '@axe/core/network/skyway/skyway-data-stream-list';
 import { SkyWayFacade } from '@axe/core/network/skyway/skyway-facade';
 import { diff } from '@axe/core/util/array-util';
-import { compressAsync, decompressAsync } from '@axe/core/util/compress';
+import { decompressAsync } from '@axe/core/util/compress';
 import * as MessagePack from '@axe/core/util/message-pack';
 import { PERF_INBOUND_DRAIN, perfCounters } from '@axe/core/util/perf-counters';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
@@ -172,7 +173,7 @@ export class SkyWayConnection implements Connection {
       this.sendContainer(data, sendTo, false);
       return;
     }
-    for (const run of SkyWayConnection.splitAtFileChunks(data)) {
+    for (const run of splitAtFileChunks(data)) {
       this.sendContainer(run.messages, sendTo, !run.carriesFileChunks);
     }
   }
@@ -187,16 +188,10 @@ export class SkyWayConnection implements Connection {
     this.bandwidthUsage += byteLength;
     this.outboundQueue = this.outboundQueue.then(async () => {
       await waitZeroTimeout();
-      if (compressible && container.data.byteLength > 1024) {
-        try {
-          const compressed = await compressAsync(container.data);
-          if (compressed.byteLength < container.data.byteLength) {
-            container.data = compressed;
-            container.isCompressed = true;
-          }
-        } catch {
-          // sends it uncompressed when compression fails
-        }
+      if (compressible) {
+        const packed = await compressIfSmaller(container.data);
+        container.data = packed.bytes;
+        if (packed.compressed) container.isCompressed = true;
       }
       if (sendTo) {
         this.sendUnicast(container, sendTo);
@@ -205,27 +200,6 @@ export class SkyWayConnection implements Connection {
       }
       this.bandwidthUsage -= byteLength;
     });
-  }
-
-  /**
-   * Splits a batch, in order, into runs that are all pieces of an image or audio file or none.
-   *
-   * Those bytes are already compressed, so gzipping them costs time and saves nothing, while the
-   * messages around them still compress well.
-   */
-  private static splitAtFileChunks(batch: readonly unknown[]): { messages: unknown[]; carriesFileChunks: boolean }[] {
-    const runs: { messages: unknown[]; carriesFileChunks: boolean }[] = [];
-    for (const message of batch) {
-      const eventName = (message as { eventName?: unknown } | null)?.eventName;
-      const isFileChunk = typeof eventName === 'string' && eventName.startsWith('FILE_SEND_CHUNK_');
-      const last = runs.at(-1);
-      if (last && last.carriesFileChunks === isFileChunk) {
-        last.messages.push(message);
-      } else {
-        runs.push({ messages: [message], carriesFileChunks: isFileChunk });
-      }
-    }
-    return runs;
   }
 
   private sendUnicast(container: DataContainer, sendTo: string) {
