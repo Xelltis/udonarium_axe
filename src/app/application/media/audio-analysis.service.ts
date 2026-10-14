@@ -145,7 +145,8 @@ export class AudioAnalysisService {
 
   /**
    * The next sound to read, sharing on the way the readings this device holds for sounds the room
-   * has none for, and keeping those the room shares, so neither is read again.
+   * has none for, on the tags the room has for them, and keeping those the room shares, so neither
+   * is read again.
    */
   private nextToRead(): AudioFile | null {
     for (const identifier of this.readingOrder()) {
@@ -158,7 +159,7 @@ export class AudioAnalysisService {
       }
       const known = AudioProfile.analysisOf(identifier);
       if (!isAnalysisOutdated(known)) {
-        if (known && this.canShare) AudioProfile.share(identifier, known);
+        if (known && this.canShare) AudioProfile.shareOnTag(identifier, known);
         continue;
       }
       return audio;

@@ -118,14 +118,14 @@ describe('AudioAnalysisService', () => {
     expect(AudioProfile.analysisOf('track-d')?.lufs).toBe(-20);
   });
 
-  it('shares a reading kept in this browser without reading the sound again', async () => {
+  function keptInBrowser(identifier: string, lufs: number): void {
     localStorage.setItem(
       AUDIO_ANALYSIS_CACHE_KEY,
       JSON.stringify({
-        'track-f': writeAudioAnalysis({
+        [identifier]: writeAudioAnalysis({
           version: AUDIO_ANALYSIS_VERSION,
           duration: 9,
-          lufs: -30,
+          lufs,
           peak: -10,
           start: 0,
           end: 9,
@@ -135,10 +135,27 @@ describe('AudioAnalysisService', () => {
         }),
       })
     );
+  }
+
+  it('shares a reading kept in this browser without reading the sound again', async () => {
+    keptInBrowser('track-f', -30);
     addSound('track-f');
+    AudioTag.create('track-f');
     start();
 
     await vi.waitFor(() => expect(AudioTag.get('track-f')?.analysis).toContain('-30'));
+    expect(analyzer).not.toHaveBeenCalled();
+  });
+
+  it('makes no tag to share a reading kept in this browser on, as the room may still be sending its own', async () => {
+    keptInBrowser('track-k', -24);
+    addSound('track-k');
+    const service = start();
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(AudioTag.get('track-k')).toBeFalsy();
+    expect(AudioProfile.analysisOf('track-k')?.lufs).toBe(-24);
+    expect(service.isPending('track-k')).toBe(false);
     expect(analyzer).not.toHaveBeenCalled();
   });
 

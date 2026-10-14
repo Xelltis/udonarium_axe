@@ -52,6 +52,19 @@ export const AudioProfile = {
     if (tag.analysis !== text) tag.analysis = text;
   },
 
+  /**
+   * Gives the room a sound's reading on the tag it already has, and does nothing for a sound with
+   * none. Readings kept from before are shared this way on joining a room, when the room's own tags
+   * may not have arrived yet: a tag made here in place of one could win over the room's, and lose
+   * the tag, beats and marks it held.
+   */
+  shareOnTag(identifier: string, analysis: AudioAnalysis): void {
+    const tag = AudioTag.get(identifier);
+    if (!tag) return;
+    const text = writeAudioAnalysis(analysis);
+    if (tag.analysis !== text) tag.analysis = text;
+  },
+
   /** The beats set by hand for a sound, or null while the reading's are used. */
   manualGridOf(identifier: string): BeatGrid | null {
     return readBeatGrid(AudioTag.get(identifier)?.beatGrid);
