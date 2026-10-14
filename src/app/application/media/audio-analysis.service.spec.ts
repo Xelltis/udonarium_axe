@@ -159,6 +159,28 @@ describe('AudioAnalysisService', () => {
     expect(analyzer).not.toHaveBeenCalled();
   });
 
+  it('keeps the readings the room shares in this browser in one write, however many there are', async () => {
+    for (const identifier of ['track-l', 'track-m', 'track-n']) {
+      addSound(identifier);
+      AudioProfile.share(identifier, {
+        version: AUDIO_ANALYSIS_VERSION,
+        duration: 3,
+        lufs: -20,
+        peak: -3,
+        start: 0,
+        end: 3,
+        bpm: null,
+        bar: null,
+        confidence: 0,
+      });
+    }
+    const write = vi.spyOn(localStorage, 'setItem');
+    start();
+
+    await vi.waitFor(() => expect(localStorage.getItem(AUDIO_ANALYSIS_CACHE_KEY) ?? '').toContain('track-n'));
+    expect(write.mock.calls.filter(([key]) => key === AUDIO_ANALYSIS_CACHE_KEY)).toHaveLength(1);
+  });
+
   it('does not read again a sound that could not be read', async () => {
     analyzer.mockResolvedValue(null);
     addSound('broken');

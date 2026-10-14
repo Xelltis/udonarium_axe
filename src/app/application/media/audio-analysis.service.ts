@@ -149,22 +149,30 @@ export class AudioAnalysisService {
    * is read again.
    */
   private nextToRead(): AudioFile | null {
-    for (const identifier of this.readingOrder()) {
-      const audio = this.audioStorage.get(identifier);
-      if (!audio?.blob || audio.isHidden || this.failed.has(identifier)) continue;
-      const shared = AudioProfile.sharedAnalysisOf(identifier);
-      if (!isAnalysisOutdated(shared)) {
-        if (shared && !this.cache.has(identifier)) this.remember(identifier, shared);
-        continue;
+    let kept = false;
+    try {
+      for (const identifier of this.readingOrder()) {
+        const audio = this.audioStorage.get(identifier);
+        if (!audio?.blob || audio.isHidden || this.failed.has(identifier)) continue;
+        const shared = AudioProfile.sharedAnalysisOf(identifier);
+        if (!isAnalysisOutdated(shared)) {
+          if (shared && !this.cache.has(identifier)) {
+            this.keep(identifier, shared);
+            kept = true;
+          }
+          continue;
+        }
+        const known = AudioProfile.analysisOf(identifier);
+        if (!isAnalysisOutdated(known)) {
+          if (known && this.canShare) AudioProfile.shareOnTag(identifier, known);
+          continue;
+        }
+        return audio;
       }
-      const known = AudioProfile.analysisOf(identifier);
-      if (!isAnalysisOutdated(known)) {
-        if (known && this.canShare) AudioProfile.shareOnTag(identifier, known);
-        continue;
-      }
-      return audio;
+      return null;
+    } finally {
+      if (kept) writeAnalysisCache(this.cache);
     }
-    return null;
   }
 
   private readingOrder(): string[] {
@@ -183,9 +191,14 @@ export class AudioAnalysisService {
   }
 
   private remember(identifier: string, analysis: AudioAnalysis): void {
+    this.keep(identifier, analysis);
+    writeAnalysisCache(this.cache);
+  }
+
+  /** Puts a reading in the cache as the latest, without writing the cache out. */
+  private keep(identifier: string, analysis: AudioAnalysis): void {
     this.cache.delete(identifier);
     this.cache.set(identifier, writeAudioAnalysis(analysis));
-    writeAnalysisCache(this.cache);
   }
 }
 
