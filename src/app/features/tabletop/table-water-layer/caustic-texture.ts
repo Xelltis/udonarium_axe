@@ -93,7 +93,7 @@ function scumField() {
 
 /** How much of a sheet of water shows in the dark, as a picture to mask it with, or null where none can be drawn. */
 export function lightMaskUrl(mask: WaterLightMask): string | null {
-  return alphaImageUrl(mask.cols, mask.rows, mask.alpha);
+  return sheetPictureUrl(mask.cols, mask.rows, mask.alpha);
 }
 
 /**
@@ -101,7 +101,45 @@ export function lightMaskUrl(mask: WaterLightMask): string | null {
  * where none can be drawn. `rgb` is the colour of the depths and the samples how strongly it shows.
  */
 export function depthShadeUrl(shade: WaterLightMask, rgb: readonly [number, number, number]): string | null {
-  return alphaImageUrl(shade.cols, shade.rows, shade.alpha, rgb);
+  return sheetPictureUrl(shade.cols, shade.rows, shade.alpha, rgb);
+}
+
+/** The pictures of sheets drawn lately, by what they show, the most recently asked for last. */
+const sheetPictures = new Map<string, string>();
+/** How many pictures of sheets are kept, enough for every sheet of a large lake and its shades. */
+const SHEET_PICTURES_KEPT = 256;
+
+/**
+ * A picture laid over a sheet of water, drawn once for as long as what it shows stays the same:
+ * the light on the water and the shade of its depths are worked out again as anything on the table
+ * moves, and mostly come out as they were.
+ */
+function sheetPictureUrl(
+  width: number,
+  height: number,
+  alpha: Uint8ClampedArray,
+  rgb?: readonly [number, number, number]
+): string | null {
+  const key = `${width}x${height}:${rgb?.join(',') ?? ''}:${bytesAsText(alpha)}`;
+  const kept = sheetPictures.get(key);
+  if (kept !== undefined) {
+    sheetPictures.delete(key);
+    sheetPictures.set(key, kept);
+    return kept;
+  }
+  const url = alphaImageUrl(width, height, alpha, rgb);
+  if (!url) return null;
+  sheetPictures.set(key, url);
+  if (sheetPictures.size > SHEET_PICTURES_KEPT) sheetPictures.delete(sheetPictures.keys().next().value!);
+  return url;
+}
+
+function bytesAsText(bytes: Uint8ClampedArray): string {
+  let text = '';
+  for (let start = 0; start < bytes.length; start += 4096) {
+    text += String.fromCharCode(...bytes.subarray(start, start + 4096));
+  }
+  return text;
 }
 
 function alphaImageUrl(
