@@ -1580,6 +1580,7 @@ describe('Jukebox', () => {
 
       jukebox.play('b');
       expect(jukebox.audioIdentifier).toBe('b');
+      expect(jukebox.quantizeCount).toBe(1);
       vi.advanceTimersByTime(749);
       expect(played).toEqual(['a']);
 
@@ -1597,6 +1598,115 @@ describe('Jukebox', () => {
       roomQuantises();
       jukebox.play('a');
       expect(played).toEqual(['a', 'b', 'a']);
+      expect(jukebox.quantizeCount ?? 0).toBe(0);
+    });
+
+    function joinPlaying(jukebox: Jukebox, identifier: string): void {
+      jukebox.apply(jukebox.toContext());
+      const playing = jukebox.toContext();
+      playing.syncData = { ...playing.syncData, audioIdentifier: identifier, isPlaying: true };
+      jukebox.apply(playing);
+    }
+
+    function hear(jukebox: Jukebox, change: Record<string, unknown>): void {
+      const context = jukebox.toContext();
+      context.syncData = { ...context.syncData, ...change };
+      jukebox.apply(context);
+    }
+
+    it('follows at once a change another peer made at once, and waits for its own bar for one that peer waited for', () => {
+      roomQuantises();
+      AudioProfile.setGrid('b', { bpm: 120, bar: 0 });
+      const jukebox = makeJukebox();
+      joinPlaying(jukebox, 'a');
+
+      hear(jukebox, { audioIdentifier: 'b' });
+      expect(played).toEqual(['a', 'b']);
+
+      hear(jukebox, { audioIdentifier: 'a', quantizeCount: 1 });
+      expect(played).toEqual(['a', 'b']);
+      vi.advanceTimersByTime(750);
+      expect(played).toEqual(['a', 'b', 'a']);
+    });
+
+    it('brings a change waiting for its bar in at once, to the track chosen, when the track sounding ends first', () => {
+      roomQuantises();
+      AudioStorage.instance.add(makeReadyAudio('c'));
+      const playlist = new Playlist(Playlist.DEFAULT_IDENTIFIER);
+      playlist.entries = ['a', 'b', 'c'];
+      playlist.initialize();
+      const jukebox = makeJukebox();
+      jukebox.repeatMode = 'all';
+      jukebox.play('a');
+      const ending = (jukebox as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
+      jukebox.play('b');
+
+      ending.onEnded!();
+
+      expect(played).toEqual(['a', 'b']);
+      expect(jukebox.audioIdentifier).toBe('b');
+      vi.advanceTimersByTime(2000);
+      expect(played).toEqual(['a', 'b']);
+    });
+
+    it('starts a change waiting for its bar from where the track was moved meanwhile, leaving the one sounding be', () => {
+      roomQuantises();
+      const seek = vi.mocked(AudioPlayer.prototype.seekTo);
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      jukebox.play('b');
+      seek.mockClear();
+
+      jukebox.seek(20);
+      expect(seek).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(750);
+
+      expect(played).toEqual(['a', 'b']);
+      expect(seek).toHaveBeenLastCalledWith(20);
+    });
+
+    it('starts a change waiting for its bar where another peer moved the track meanwhile, and only then', () => {
+      roomQuantises();
+      const seek = vi.mocked(AudioPlayer.prototype.seekTo);
+      const jukebox = makeJukebox();
+      joinPlaying(jukebox, 'a');
+      hear(jukebox, { audioIdentifier: 'b', quantizeCount: 1 });
+
+      hear(jukebox, { startTime: 30, seekCount: 1 });
+      expect(played).toEqual(['a']);
+      vi.advanceTimersByTime(750);
+
+      expect(played).toEqual(['a', 'b']);
+      expect(seek).toHaveBeenLastCalledWith(30);
+    });
+
+    it('keeps the track still sounding at its own level while a change waits for its bar', () => {
+      roomQuantises();
+      const config = ObjectStore.instance.get<Config>('Config')!;
+      config.djSettings = { ...config.djSettings, autoLevel: true };
+      const reading = {
+        version: AUDIO_ANALYSIS_VERSION,
+        duration: 100,
+        start: 0,
+        end: 100,
+        peak: -0.5,
+        bpm: 120,
+        bar: 0,
+        confidence: 1,
+      };
+      AudioProfile.share('a', { ...reading, lufs: -8 });
+      AudioProfile.share('b', { ...reading, lufs: -24 });
+      const jukebox = makeJukebox();
+      jukebox.play('a');
+      const sounding = (jukebox as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
+      const levelOfA = sounding.trim;
+      const glide = vi.spyOn(sounding, 'glideTrim');
+      jukebox.play('b');
+
+      jukebox.refreshMix();
+
+      expect(glide).toHaveBeenCalledWith(levelOfA, Jukebox.LEVEL_GLIDE_S);
+      expect(levelOfA).not.toBeCloseTo(1, 3);
     });
 
     it('waits for the next beat instead when a bar is longer than the wait allowed', () => {

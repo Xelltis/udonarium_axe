@@ -25,6 +25,13 @@ import { Config } from '@axe/domain/peer/config';
 
 export type RepeatMode = 'none' | 'all' | 'one';
 
+/** A change held back for the next bar or beat: of the track, or a jump to a marked place in it. */
+interface PendingChange {
+  readonly kind: 'track' | 'jump';
+  readonly timer: ReturnType<typeof setTimeout>;
+  readonly run: () => void;
+}
+
 @SyncObject('jukebox')
 export class Jukebox extends GameObject {
   @SyncVar() audioIdentifier: string = '';
@@ -83,6 +90,14 @@ export class Jukebox extends GameObject {
    */
   @SyncVar() jumpCount: number | undefined;
 
+  /**
+   * How many times the room's track has been changed on the next bar or beat, so every peer waits
+   * for its own as the one who changed it did, and cuts straight across for a change that did not
+   * wait, such as one into the next track as the last ends. An older version sends no count, and a
+   * change from it is followed at once, as it was made.
+   */
+  @SyncVar() quantizeCount: number | undefined;
+
   /** The track the room is set to, or null when none is set or its file is not in this peer's storage. */
   get audio(): AudioFile | null {
     return AudioStorage.instance.get(this.audioIdentifier);
@@ -135,7 +150,7 @@ export class Jukebox extends GameObject {
    */
   private readonly sparePlayers: AudioPlayer[] = [];
   private soundingIdentifier = '';
-  private pendingChange: ReturnType<typeof setTimeout> | null = null;
+  private pendingChange: PendingChange | null = null;
   private audioUpdateCleanup: (() => void) | null = null;
   private releaseGestures: (() => void) | null = null;
   private isInitialSync = true;
@@ -396,7 +411,9 @@ export class Jukebox extends GameObject {
    * sounds eased to them, as when a reading arrives or the room turns levelling on or off.
    */
   refreshMix(): void {
-    if (this.audioIdentifier) this.audioPlayer.glideTrim(this.trackLevel(), Jukebox.LEVEL_GLIDE_S);
+    if (this.soundingIdentifier) {
+      this.audioPlayer.glideTrim(this.trackLevel(this.soundingIdentifier), Jukebox.LEVEL_GLIDE_S);
+    }
     for (const sound of BackgroundSound.playing()) sound.refreshLevel();
   }
 
@@ -445,12 +462,14 @@ export class Jukebox extends GameObject {
       this.playSE(audio);
       return;
     }
+    const waits = this.quantizeWaitMs('bar') > 0;
     GameObject.batch(() => {
       this.startTime = 0;
       this.audioIdentifier = identifier;
       this.isPlaying = true;
+      if (waits) this.quantizeCount = (Number(this.quantizeCount) || 0) + 1;
     });
-    this._play(0, true);
+    this._play(0, waits);
   }
 
   private playSE(audio: AudioFile) {
@@ -475,19 +494,18 @@ export class Jukebox extends GameObject {
    * sounding or the room has no crossfade.
    *
    * A change of track asked for while the room quantises waits for the next bar of the track
-   * sounding, or its next beat when a bar is longer than the wait allowed. A track going on after a
-   * pause fades in over the room's fade for a pause, when nothing else is sounding.
+   * sounding, or its next beat when a bar is longer than the wait allowed, and starts from wherever
+   * the room's track has been moved to meanwhile; it comes at once should that track end first. A
+   * track going on after a pause fades in over the room's fade for a pause, when nothing else is
+   * sounding.
    */
   private _play(startAt: number = 0, quantized: boolean = false, resuming: boolean = false) {
-    this.cancelPendingChange();
     const wait = quantized ? this.quantizeWaitMs('bar') : 0;
     if (wait > 0) {
-      this.pendingChange = setTimeout(() => {
-        this.pendingChange = null;
-        this._play(startAt, false, resuming);
-      }, wait);
+      this.holdChange('track', wait, () => this._play(Number(this.startTime) || 0));
       return;
     }
+    this.cancelPendingChange();
     const fadeMs = roomMix().crossfadeS * 1000;
     const crossing = this._stop(fadeMs);
     this.playingFrom = startAt;
@@ -520,10 +538,10 @@ export class Jukebox extends GameObject {
     return start > Jukebox.LEAD_IN_KEPT_S ? start - 0.05 : 0;
   }
 
-  /** The factor the room's track is played at to bring it to the loudness of music, or of an effect for one tagged SE. */
-  private trackLevel(): number {
-    const isSE = AudioTag.get(this.audioIdentifier)?.tag === 'SE';
-    return mixLevelOf(this.audioIdentifier, isSE ? 'effect' : 'music');
+  /** The factor a track is played at to bring it to the loudness of music, or of an effect for one tagged SE: the room's unless another is named. */
+  private trackLevel(identifier: string = this.audioIdentifier): number {
+    const isSE = AudioTag.get(identifier)?.tag === 'SE';
+    return mixLevelOf(identifier, isSE ? 'effect' : 'music');
   }
 
   /**
@@ -539,7 +557,12 @@ export class Jukebox extends GameObject {
     player.followsLoopPoints = !isSE;
     player.loop = !isSE && this.repeatMode === 'one';
     player.trim = this.trackLevel();
-    player.onEnded = isSE ? null : () => this.onTrackNaturallyEnded();
+    player.onEnded = isSE ? null : () => this.onPlayerEnded();
+  }
+
+  /** Follows the end of the track sounding: a change waiting for its bar or beat comes now, and otherwise the room moves on. */
+  private onPlayerEnded(): void {
+    if (!this.flushPendingChange()) this.onTrackNaturallyEnded();
   }
 
   /** Stops the room's track, fading it out over the room's fade for a pause, and clears it, for every peer. */
@@ -558,14 +581,16 @@ export class Jukebox extends GameObject {
    * Moves the room's track to a point in seconds.
    *
    * Other peers cross-fade to the new point, unless they are already within a quarter of a
-   * second of it.
+   * second of it. While a change of track waits for its bar or beat, the track to come is moved,
+   * and starts from there; a jump to a marked place still waiting is called off.
    */
   seek(time: number) {
     GameObject.batch(() => {
       this.startTime = time;
       this.seekCount = (Number(this.seekCount) || 0) + 1;
     });
-    this.audioPlayer.seekTo(time);
+    if (this.pendingChange?.kind === 'jump') this.cancelPendingChange();
+    if (this.isSoundingTrack) this.audioPlayer.seekTo(time);
   }
 
   /**
@@ -659,14 +684,14 @@ export class Jukebox extends GameObject {
   }
 
   private followJump(time: number): void {
-    this.cancelPendingChange();
     const wait = this.quantizeWaitMs('beat');
-    const jump = () => {
-      this.pendingChange = null;
-      this.crossfadeSeek(time, Jukebox.JUMP_FADE_MS);
-    };
-    if (wait > 0) this.pendingChange = setTimeout(jump, wait);
-    else jump();
+    const jump = () => this.crossfadeSeek(time, Jukebox.JUMP_FADE_MS);
+    if (wait > 0) {
+      this.holdChange('jump', wait, jump);
+      return;
+    }
+    this.cancelPendingChange();
+    jump();
   }
 
   /**
@@ -688,8 +713,27 @@ export class Jukebox extends GameObject {
     return waitMs > 0 && waitMs <= Jukebox.MAX_QUANTIZE_MS ? waitMs : 0;
   }
 
+  /** Holds a change back for some milliseconds, for the next bar or beat, in place of any held before. */
+  private holdChange(kind: PendingChange['kind'], waitMs: number, run: () => void): void {
+    this.cancelPendingChange();
+    const timer = setTimeout(() => {
+      this.pendingChange = null;
+      run();
+    }, waitMs);
+    this.pendingChange = { kind, timer, run };
+  }
+
+  /** Makes the change held back for its bar or beat at once, as when the track it waits on ends. Says whether one was held. */
+  private flushPendingChange(): boolean {
+    const pending = this.pendingChange;
+    if (!pending) return false;
+    this.cancelPendingChange();
+    pending.run();
+    return true;
+  }
+
   private cancelPendingChange(): void {
-    if (this.pendingChange !== null) clearTimeout(this.pendingChange);
+    if (this.pendingChange !== null) clearTimeout(this.pendingChange.timer);
     this.pendingChange = null;
   }
 
@@ -790,6 +834,11 @@ export class Jukebox extends GameObject {
     return typeof this.brakeCount === 'number' && this.brakeCount !== brakeCount;
   }
 
+  /** Whether another peer changed the track on its next bar or beat since the count read before, which an older version never says. */
+  private wasQuantizedSince(quantizeCount: number | undefined): boolean {
+    return typeof this.quantizeCount === 'number' && this.quantizeCount !== quantizeCount;
+  }
+
   /** Whether another peer moved the track since the count read before, which an older version, sending no count, never says. */
   private wasSoughtSince(seekCount: number): boolean {
     return typeof this.seekCount === 'number' && this.seekCount !== seekCount;
@@ -815,6 +864,7 @@ export class Jukebox extends GameObject {
     const seStopTrigger = this.seStopTrigger;
     const brakeCount = this.brakeCount;
     const jumpCount = this.jumpCount;
+    const quantizeCount = this.quantizeCount;
     const fx = this.fx;
     super.apply(context);
     if (this.isInitialSync) {
@@ -833,7 +883,7 @@ export class Jukebox extends GameObject {
     }
     if ((audioIdentifier !== this.audioIdentifier || !isPlaying) && this.isPlaying) {
       const resumes = audioIdentifier === this.audioIdentifier && !isPlaying;
-      this._play(resumes ? Number(this.startTime) || 0 : 0, !resumes, resumes);
+      this._play(resumes ? Number(this.startTime) || 0 : 0, !resumes && this.wasQuantizedSince(quantizeCount), resumes);
     } else if (isPlaying !== this.isPlaying && !this.isPlaying) {
       if (this.wasBrakedSince(brakeCount)) this.brakeOut();
       else this._stop(this.pauseFadeMs());
@@ -842,6 +892,8 @@ export class Jukebox extends GameObject {
         this.followJump(Number(this.startTime) || 0);
         return;
       }
+      if (this.pendingChange?.kind === 'track') return;
+      this.cancelPendingChange();
       const driftMs = Math.abs((this.audioPlayer.currentTime - this.startTime) * 1000);
       if (driftMs < Jukebox.SYNC_SEEK_THRESHOLD_MS) return;
       this.crossfadeSeek(this.startTime);
