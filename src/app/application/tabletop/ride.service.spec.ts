@@ -75,6 +75,13 @@ describe('RideService', () => {
     return piece;
   }
 
+  it("shows a mount's seat height in its menu where its riders are seated, by its picture's height", () => {
+    const robot = horseAt(5, 5, { mountSeatHeight: 'waist', specifyKomaImageFlag: true, komaImageHeight: 200 });
+
+    expect(service.seatHeight(robot)).toBe(2);
+    expect(service.menuOf(robot).mount?.seatHeight).toBe(2);
+  });
+
   it('offers the mounts at the same point and the seats free on them, and none further off', () => {
     const horse = horseAt(5, 5, { mountPassenger: '1' });
     horseAt(9, 9);

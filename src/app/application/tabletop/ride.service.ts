@@ -179,7 +179,7 @@ export class RideService {
               passenger: piece.mountPassenger === '1',
               cargo: cargoRoomOf(piece.mountCargo),
               anyone: piece.mountAnyone === '1',
-              seatHeight: piece.mountSeatHeight.trim() === '' ? null : seatHeightOf(piece.mountSeatHeight, piece.size),
+              seatHeight: piece.mountSeatHeight.trim() === '' ? null : this.seatHeight(piece),
               aboard: this.aboard(piece).length,
             }
           : null,
