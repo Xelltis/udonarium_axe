@@ -1,6 +1,6 @@
 import { Logger, LogLevel } from '@axe/core/logging/logger';
 import { AudioFile } from '@axe/core/storage/audio-file';
-import { AudioPlayer } from '@axe/core/storage/audio-player';
+import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import {
   LOOP_FROM_MEMORY_MAX_DECODED_BYTES,
   LOOP_FROM_MEMORY_MAX_FILE_BYTES,
@@ -97,7 +97,9 @@ describe('LoopPlayer', () => {
   /** The gain node the player made for itself, which comes after the background channel's own. */
   const playerGain = (): GainMock => {
     const gains = context.createGain.mock.results.map((result) => result.value as GainMock);
-    return gains.find((gain) => gain.connect.mock.calls.some(([to]) => to === AudioPlayer.backgroundNode))!;
+    return gains.find((gain) =>
+      gain.connect.mock.calls.some(([to]) => to === AudioPlayer.channelNode(VolumeType.BACKGROUND))
+    )!;
   };
   const sources = (): SourceMock[] => context.createBufferSource.mock.results.map((r) => r.value as SourceMock);
 

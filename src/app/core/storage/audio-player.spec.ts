@@ -212,7 +212,7 @@ describe('AudioPlayer', () => {
       const source = audioCtxMock.createBufferSource.mock.results[0].value as AudioBufferSourceNodeMock;
       const gain = source.connect.mock.calls[0][0] as GainNodeMock;
       expect(gain.gain.setValueAtTime).toHaveBeenCalledWith(1.8, 0);
-      expect(gain.connect).toHaveBeenCalledWith(AudioPlayer.seNode);
+      expect(gain.connect).toHaveBeenCalledWith(AudioPlayer.channelNode(VolumeType.SE));
     });
 
     it('decodes it again once the cache is cleared', async () => {
@@ -362,23 +362,6 @@ describe('AudioPlayer', () => {
     });
   });
 
-  // ─── static rootNode / auditionNode ──────────────────────────────────────
-
-  describe('static rootNode', () => {
-    it('returns the master gain', () => {
-      const node = AudioPlayer.rootNode;
-      expect(audioCtxMock.createGain).toHaveBeenCalledOnce();
-      expect(node).toBeDefined();
-    });
-  });
-
-  describe('static auditionNode', () => {
-    it('returns the audition gain', () => {
-      const node = AudioPlayer.auditionNode;
-      expect(node).toBeDefined();
-    });
-  });
-
   // ─── static seVolume ─────────────────────────────────────────────────────
 
   describe('static seVolume', () => {
@@ -394,16 +377,7 @@ describe('AudioPlayer', () => {
     });
   });
 
-  // ─── static seNode ───────────────────────────────────────────────────────
-
-  describe('static seNode', () => {
-    it('returns the effects gain', () => {
-      const node = AudioPlayer.seNode;
-      expect(node).toBeDefined();
-    });
-  });
-
-  // ─── static backgroundVolume / backgroundNode ─────────────────────────────
+  // ─── static backgroundVolume / background channel ─────────────────────────
 
   describe('static backgroundVolume', () => {
     it('is half by default', () => {
@@ -418,12 +392,12 @@ describe('AudioPlayer', () => {
     });
   });
 
-  describe('static backgroundNode', () => {
+  describe('the background channel', () => {
     it('is a channel of its own, apart from the music and the effects', () => {
-      const node = AudioPlayer.backgroundNode;
-      expect(node).toBe(AudioPlayer.backgroundNode);
-      expect(node).not.toBe(AudioPlayer.rootNode);
-      expect(node).not.toBe(AudioPlayer.seNode);
+      const node = AudioPlayer.channelNode(VolumeType.BACKGROUND);
+      expect(node).toBe(AudioPlayer.channelNode(VolumeType.BACKGROUND));
+      expect(node).not.toBe(AudioPlayer.channelNode(VolumeType.MASTER));
+      expect(node).not.toBe(AudioPlayer.channelNode(VolumeType.SE));
     });
 
     it('is where a player on the background volume type plays through', () => {
@@ -433,7 +407,7 @@ describe('AudioPlayer', () => {
       const source = audioCtxMock.createMediaElementSource.mock.results[0].value as {
         connect: ReturnType<typeof vi.fn>;
       };
-      expect(reachedPastTrim(source)).toBe(AudioPlayer.backgroundNode);
+      expect(reachedPastTrim(source)).toBe(AudioPlayer.channelNode(VolumeType.BACKGROUND));
     });
   });
 
@@ -632,7 +606,7 @@ describe('AudioPlayer', () => {
       player.volumeType = VolumeType.AUDITION;
       const af = makeAudioFile({ blob: new Blob(['x']), identifier: 'aud' });
       // touch the audition node first so its gain exists
-      const auditionNodeRef = AudioPlayer.auditionNode;
+      const auditionNodeRef = AudioPlayer.channelNode(VolumeType.AUDITION);
       player.play(af);
       const src = audioCtxMock.createMediaElementSource.mock.results[0].value;
       expect(reachedPastTrim(src)).toBe(auditionNodeRef);
@@ -644,7 +618,7 @@ describe('AudioPlayer', () => {
       const af = makeAudioFile({ blob: new Blob(['x']), identifier: 'mst' });
       player.play(af);
       const src = audioCtxMock.createMediaElementSource.mock.results[0].value;
-      expect(reachedPastTrim(src)).toBe(AudioPlayer.rootNode);
+      expect(reachedPastTrim(src)).toBe(AudioPlayer.channelNode(VolumeType.MASTER));
     });
 
     it('connects a sound effect to the effects node', () => {
@@ -652,7 +626,7 @@ describe('AudioPlayer', () => {
       player.volumeType = VolumeType.SE;
       const af = makeAudioFile({ blob: new Blob(['x']), identifier: 'se1' });
       // touch the effects node first so its gain exists
-      const seNodeRef = AudioPlayer.seNode;
+      const seNodeRef = AudioPlayer.channelNode(VolumeType.SE);
       player.play(af);
       const src = audioCtxMock.createMediaElementSource.mock.results[0].value;
       expect(reachedPastTrim(src)).toBe(seNodeRef);
@@ -767,12 +741,6 @@ describe('AudioPlayer', () => {
       expect(AudioPlayer.channelVolume(VolumeType.SE)).toBe(0.5);
       const node = AudioPlayer.channelNode(VolumeType.HANDLING) as unknown as GainNodeMock;
       expect(node.gain.setTargetAtTime).toHaveBeenCalledWith(0.3, 0, 0.01);
-    });
-
-    it('is the same node the named accessors give', () => {
-      expect(AudioPlayer.rootNode).toBe(AudioPlayer.channelNode(VolumeType.MASTER));
-      expect(AudioPlayer.seNode).toBe(AudioPlayer.channelNode(VolumeType.SE));
-      expect(AudioPlayer.backgroundNode).toBe(AudioPlayer.channelNode(VolumeType.BACKGROUND));
     });
 
     it('takes players straight to the volume while nothing is set between them', () => {
@@ -935,7 +903,7 @@ describe('AudioPlayer', () => {
     it('plays through the sound-effect channel unless given another kind', async () => {
       AudioPlayer.play(makeAudioFile({ blob: new Blob(['x']), identifier: 'kind-se' }), 0.5);
 
-      expect(await connectedChannel()).toBe(AudioPlayer.seNode);
+      expect(await connectedChannel()).toBe(AudioPlayer.channelNode(VolumeType.SE));
     });
 
     it('plays through the channel of the kind it is given', async () => {

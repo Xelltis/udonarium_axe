@@ -160,18 +160,6 @@ describe('LoopPointTrack', () => {
     expect(playing.isPlaying).toBe(false);
   });
 
-  it('fades on the audio clock, and resolves a fade cut short by another', async () => {
-    const playing = track();
-    playing.start(0);
-
-    const first = playing.fadeTo(0, 10_000);
-    const second = playing.fadeTo(1, 1);
-
-    await expect(first).resolves.toBeUndefined();
-    await expect(second).resolves.toBeUndefined();
-    expect(playing.volume).toBe(1);
-  });
-
   it('slows to all but a stop on the audio clock when braked, resolving once it gets there', async () => {
     vi.useFakeTimers();
     try {

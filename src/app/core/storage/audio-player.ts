@@ -195,26 +195,6 @@ export class AudioPlayer {
     AudioPlayer.setChannelVolume(VolumeType.BACKGROUND, backgroundVolume);
   }
 
-  /** The master channel gain node, which players on the master volume type connect to. */
-  static get rootNode(): AudioNode {
-    return AudioPlayer.channelNode(VolumeType.MASTER);
-  }
-  /**
-   * The audition channel gain node, which players on the audition volume type connect to: the
-   * preview players of the jukebox and of the cut-in music picker.
-   */
-  static get auditionNode(): AudioNode {
-    return AudioPlayer.channelNode(VolumeType.AUDITION);
-  }
-  /** The sound-effect channel gain node, which one-shot effects and SE players connect to. */
-  static get seNode(): AudioNode {
-    return AudioPlayer.channelNode(VolumeType.SE);
-  }
-  /** The background channel gain node, which the looping background sounds and background players connect to. */
-  static get backgroundNode(): AudioNode {
-    return AudioPlayer.channelNode(VolumeType.BACKGROUND);
-  }
-
   private _audioElm: HTMLAudioElement | undefined;
   private get audioElm(): HTMLAudioElement {
     if (!this._audioElm) {
