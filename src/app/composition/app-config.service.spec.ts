@@ -2,6 +2,7 @@ import { inject, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { AppConfigService } from '@axe/composition/app-config.service';
+import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('AppConfigService', () => {
@@ -9,7 +10,20 @@ describe('AppConfigService', () => {
     TestBed.configureTestingModule({
       providers: [...TEST_PROVIDERS, AppConfigService],
     });
+    // the preference outlives the test bed in localStorage, so a test that turned it on would leak
+    TestBed.inject(LocalModePreferenceService).set(false);
   });
+
+  afterEach(() => {
+    AppConfigService.appConfig.backend.url = '';
+    AppConfigService.appConfig.assets.url = '';
+    AssetHttpStore.instance.configure(null);
+    vi.restoreAllMocks();
+  });
+
+  // initialize() hands back nothing to wait on, so the loading it starts is awaited directly
+  const loadConfig = () =>
+    (TestBed.inject(AppConfigService) as unknown as { initAppConfig(): Promise<void> }).initAppConfig();
 
   it('should be created', inject([AppConfigService], (service: AppConfigService) => {
     expect(service).toBeTruthy();
@@ -28,5 +42,33 @@ describe('AppConfigService', () => {
 
     expect(await loaded).toBe(true);
     expect(fetched).not.toHaveBeenCalled();
+  });
+
+  it('points the asset store at the server config.json names', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ backend: { url: 'http://localhost:3000' }, assets: { url: 'https://assets.example' } })
+      )
+    );
+    await loadConfig();
+
+    expect(AppConfigService.appConfig.assets.url).toBe('https://assets.example');
+    expect(AssetHttpStore.instance.isEnabled).toBe(true);
+  });
+
+  it('leaves the asset store off for a config.json without an asset server', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ backend: { url: 'http://localhost:3000' }, assets: { url: '' } }))
+    );
+    await loadConfig();
+
+    expect(AssetHttpStore.instance.isEnabled).toBe(false);
+  });
+
+  it('leaves the asset store off in local mode', async () => {
+    TestBed.inject(LocalModePreferenceService).set(true);
+    await loadConfig();
+
+    expect(AssetHttpStore.instance.isEnabled).toBe(false);
   });
 });

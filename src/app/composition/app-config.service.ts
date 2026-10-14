@@ -2,9 +2,14 @@ import { inject, Injectable } from '@angular/core';
 import { LoggerService } from '@axe/application/logging/logger.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { emitLoadConfig } from '@axe/core/event/domain-events';
+import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 
 export interface AppConfig {
   backend: {
+    url: string;
+  };
+  /** The asset server that keeps pictures and sounds; an empty url leaves them to travel between peers. */
+  assets: {
     url: string;
   };
   localMode: boolean;
@@ -24,15 +29,18 @@ export class AppConfigService {
     backend: {
       url: '',
     },
+    assets: {
+      url: '',
+    },
     localMode: false,
   };
 
   /**
    * Loads the app configuration and announces it with the load-config event.
    *
-   * In local mode no network is used and the file is not read. Otherwise the backend address
-   * comes from `assets/config.json`; a missing or unreadable file is logged and the defaults
-   * are kept. The loading finishes after this returns.
+   * In local mode no network is used and the file is not read. Otherwise the backend and asset
+   * server addresses come from `assets/config.json`; a missing or unreadable file is logged and
+   * the defaults are kept. The loading finishes after this returns.
    */
   initialize() {
     this.initAppConfig();
@@ -54,12 +62,16 @@ export class AppConfigService {
         if (config?.backend?.url) {
           AppConfigService.appConfig.backend.url = config.backend.url;
         }
+        if (typeof config?.assets?.url === 'string') {
+          AppConfigService.appConfig.assets.url = config.assets.url;
+        }
       } else {
         this.logger.info('config.json が見つかりません。config.json.example を参考に作成してください。');
       }
     } catch (e) {
       this.logger.warn('config.json の読み込みに失敗しました', e);
     }
+    AssetHttpStore.instance.configure(AppConfigService.appConfig.assets.url);
     emitLoadConfig({ config: AppConfigService.appConfig });
   }
 }
