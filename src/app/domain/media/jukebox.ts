@@ -509,12 +509,12 @@ export class Jukebox extends GameObject {
     const fadeMs = roomMix().crossfadeS * 1000;
     const crossing = this._stop(fadeMs);
     this.playingFrom = startAt;
+    this.applyEffects();
     if (!this.audio || !this.audio.isReady) {
       this.playAfterFileUpdate(startAt);
       return;
     }
     this.startPlayer(this.audioPlayer, startAt, crossing ? fadeMs : resuming ? this.pauseFadeMs() : 0);
-    this.applyEffects();
   }
 
   private startPlayer(player: AudioPlayer, startAt: number, fadeInMs: number): void {

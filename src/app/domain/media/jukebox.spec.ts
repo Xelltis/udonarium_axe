@@ -1486,6 +1486,17 @@ describe('Jukebox', () => {
       expect(setEffects).toHaveBeenLastCalledWith(expect.objectContaining({ filter: 0.8, reverb: 0 }), 0.05);
     });
 
+    it('puts the music through the room effects on joining while the track itself is still on its way', () => {
+      const setEffects = vi.spyOn(MusicBus, 'setEffects').mockImplementation(() => {});
+      const jukebox = makeJukebox();
+      const joined = jukebox.toContext();
+      joined.syncData = { ...joined.syncData, audioIdentifier: 'not-here-yet', isPlaying: true, fx: '{"echo":0.4}' };
+
+      jukebox.apply(joined);
+
+      expect(setEffects).toHaveBeenLastCalledWith(expect.objectContaining({ echo: 0.4 }), 0.05);
+    });
+
     it('brakes the track to a stop, keeping where the braking began to go on from', () => {
       soundingPlayers();
       const brake = vi.spyOn(AudioPlayer.prototype, 'brake').mockResolvedValue();
