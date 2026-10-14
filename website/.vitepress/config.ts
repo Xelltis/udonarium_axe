@@ -193,6 +193,7 @@ export default defineConfig({
           text: 'はじめに',
           items: [
             { text: '画面の見かた', link: '/manual/' },
+            { text: 'キー操作の一覧', link: '/manual/shortcuts' },
             { text: '部屋とロビー', link: '/manual/rooms' },
             { text: 'スマートフォンで使う', link: '/manual/mobile' },
             { text: '遊びはじめる', link: '/play/' },
