@@ -373,7 +373,7 @@
         >
           {{ 'feature.media.djDeck.crossfade' | transloco }}
           <select
-            class="text-ui-text m-0 cursor-pointer border-none bg-transparent p-0 text-[10px] disabled:cursor-not-allowed disabled:opacity-40"
+            class="text-ui-text [&>option]:bg-ui-elevated [&>option]:text-ui-text m-0 cursor-pointer border-none bg-transparent p-0 text-[10px] disabled:cursor-not-allowed disabled:opacity-40"
             name="crossfade"
             [ngModel]="dj.settings().crossfadeS"
             (ngModelChange)="setCrossfade($event)"
@@ -401,7 +401,7 @@
         >
           {{ 'feature.media.djDeck.pauseFade' | transloco }}
           <select
-            class="text-ui-text m-0 cursor-pointer border-none bg-transparent p-0 text-[10px] disabled:cursor-not-allowed disabled:opacity-40"
+            class="text-ui-text [&>option]:bg-ui-elevated [&>option]:text-ui-text m-0 cursor-pointer border-none bg-transparent p-0 text-[10px] disabled:cursor-not-allowed disabled:opacity-40"
             name="pauseFade"
             [ngModel]="dj.settings().pauseFadeS"
             (ngModelChange)="setPauseFade($event)"
