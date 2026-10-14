@@ -73,3 +73,15 @@ export function canClaimOwnership(viewer: DisclosureViewer): boolean {
 export function toggleDisclosureUserId(userIds: readonly string[], userId: string): string[] {
   return userIds.includes(userId) ? userIds.filter((id) => id !== userId) : [...userIds, userId];
 }
+
+/**
+ * Where a key that switches several objects at once sends them: to everyone while any of them is
+ * still kept from someone, and back to the game master alone once all of them are open.
+ *
+ * Picked players are never the answer, since a key has no way to say which players.
+ */
+export function switchedDisclosureMode(modes: readonly unknown[]): DisclosureMode {
+  return modes.every((mode) => normalizeDisclosureMode(mode) === DisclosureMode.All)
+    ? DisclosureMode.GameMaster
+    : DisclosureMode.All;
+}

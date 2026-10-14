@@ -1803,6 +1803,16 @@
         "foldsOnOpenHint": "次に開くインベントリから効きます。フォルダに入れていないコマはそのまま出ます"
       }
     },
+    "keyboard": {
+      "tabletop": {
+        "targeted": "{{count}}体をターゲットにしました",
+        "targetsCleared": "ターゲットを全部外しました",
+        "nothingToTarget": "キャラクターのコマを選んでから T を押してください",
+        "disclosedToAll": "{{count}}個の公開範囲を全員にしました",
+        "disclosedToGm": "{{count}}個の公開範囲をGMのみにしました",
+        "nothingToDisclose": "公開範囲を変えられるコマを選んでから G を押してください"
+      }
+    },
     "file": {
       "fileStorage": {
         "unset": "未設定",

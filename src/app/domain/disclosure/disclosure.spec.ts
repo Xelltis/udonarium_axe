@@ -7,6 +7,7 @@ import {
   DisclosureMode,
   isDisclosureMode,
   normalizeDisclosureMode,
+  switchedDisclosureMode,
   toggleDisclosureUserId,
 } from '@axe/domain/disclosure/disclosure';
 
@@ -71,5 +72,22 @@ describe('disclosure', () => {
     expect(canClaimOwnership({ userId: 'p1', isGameMaster: false })).toBe(true);
     expect(canClaimOwnership({ userId: 'p1', isGameMaster: false, ownerUserId: '' })).toBe(true);
     expect(canClaimOwnership({ userId: 'p1', isGameMaster: false, ownerUserId: 'p2' })).toBe(false);
+  });
+
+  describe('switchedDisclosureMode', () => {
+    it('opens everything to everyone while any of it is kept from someone', () => {
+      expect(switchedDisclosureMode(['gm', 'all'])).toBe(DisclosureMode.All);
+      expect(switchedDisclosureMode(['selected'])).toBe(DisclosureMode.All);
+      expect(switchedDisclosureMode(['all', 'gm', 'gm'])).toBe(DisclosureMode.All);
+    });
+
+    it('keeps everything to the game master once all of it is open', () => {
+      expect(switchedDisclosureMode(['all', 'all'])).toBe(DisclosureMode.GameMaster);
+    });
+
+    it('counts a mode never set as open to everyone, as everywhere else', () => {
+      expect(switchedDisclosureMode(['', 'all'])).toBe(DisclosureMode.GameMaster);
+      expect(switchedDisclosureMode(['', 'gm'])).toBe(DisclosureMode.All);
+    });
   });
 });

@@ -1803,6 +1803,16 @@
         "foldsOnOpenHint": "Takes effect on the next inventory opened. Pieces in no folder are shown as before"
       }
     },
+    "keyboard": {
+      "tabletop": {
+        "targeted": "Aiming at {{count}} characters",
+        "targetsCleared": "Stopped aiming at everything",
+        "nothingToTarget": "Pick character pieces, then press T",
+        "disclosedToAll": "Disclosed {{count}} pieces to everyone",
+        "disclosedToGm": "Disclosed {{count}} pieces to the GM only",
+        "nothingToDisclose": "Pick pieces whose disclosure you may change, then press G"
+      }
+    },
     "file": {
       "fileStorage": {
         "unset": "Untagged",

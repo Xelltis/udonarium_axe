@@ -72,6 +72,7 @@ import { FirstPersonViewComponent } from '@axe/features/first-person/first-perso
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
 import { NpcDragGhostComponent } from '@axe/features/gm-tools/npc-bar/npc-drag-ghost.component';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
+import { TabletopShortcutEventHandlerService } from '@axe/features/keyboard/tabletop-shortcut-event-handler.service';
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
 import { NetworkIndicatorComponent } from '@axe/features/lobby/network-indicator/network-indicator.component';
@@ -435,6 +436,7 @@ export class AppComponent {
     // so there is nothing to hold onto here — the injection is the point.
     inject(AlarmEventHandlerService);
     inject(ButtonGuideEventHandlerService);
+    inject(TabletopShortcutEventHandlerService);
     inject(DiceChatEventHandlerService);
     inject(DiceThrowEventHandlerService);
     inject(DiceThrowService);
