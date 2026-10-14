@@ -1,4 +1,5 @@
-import { BoardKeyContext, boardKeyDown } from '@axe/features/tabletop/white-board/white-board-shortcuts';
+import { keyboardShortcutsOf, shortcutProbesOf } from '@axe/domain/ui/keyboard-shortcuts';
+import { BoardKeyContext, boardKeyDown, TOOL_KEYS } from '@axe/features/tabletop/white-board/white-board-shortcuts';
 
 const plain: BoardKeyContext = { chord: false, shift: false, laying: false };
 const chord: BoardKeyContext = { ...plain, chord: true };
@@ -48,5 +49,19 @@ describe('boardKeyDown', () => {
     expect(boardKeyDown(']', chord)).toEqual({ command: 'bringForward' });
     expect(boardKeyDown('[', chord)).toEqual({ command: 'sendBackward' });
     expect(boardKeyDown('p', chord)).toBeNull();
+  });
+});
+
+describe('the white board’s lines on the list of keys', () => {
+  for (const { id, probe } of shortcutProbesOf('whiteBoard')) {
+    it(`answers ${id} as listed`, () => {
+      const context = { ...plain, chord: !!probe.ctrl, shift: !!probe.shift, ...probe.when };
+      expect(boardKeyDown(probe.key ?? '', context)?.command).toBe(probe.command);
+    });
+  }
+
+  it('lists every letter that picks a tool', () => {
+    const tools = keyboardShortcutsOf('whiteBoard').find((shortcut) => shortcut.id === 'tools');
+    expect(tools?.keys.map(([letter]) => letter.toLowerCase()).sort()).toEqual(Object.keys(TOOL_KEYS).sort());
   });
 });

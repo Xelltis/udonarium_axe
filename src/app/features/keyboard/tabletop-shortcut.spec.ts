@@ -1,3 +1,4 @@
+import { shortcutProbesOf } from '@axe/domain/ui/keyboard-shortcuts';
 import { TabletopKeyContext, tabletopKeyDown } from '@axe/features/keyboard/tabletop-shortcut';
 
 describe('tabletopKeyDown', () => {
@@ -32,4 +33,13 @@ describe('tabletopKeyDown', () => {
     expect(tabletopKeyDown('r', idle)).toBeNull();
     expect(tabletopKeyDown('Enter', idle)).toBeNull();
   });
+});
+
+describe('the table’s lines on the list of keys', () => {
+  for (const { id, probe } of shortcutProbesOf('tabletop')) {
+    it(`answers ${id} as listed`, () => {
+      const context = { typing: false, composing: false, chord: !!(probe.ctrl || probe.alt), shift: !!probe.shift };
+      expect(tabletopKeyDown(probe.key ?? '', context)).toBe(probe.command);
+    });
+  }
 });

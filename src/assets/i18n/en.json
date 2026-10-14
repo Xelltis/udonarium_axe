@@ -1816,6 +1816,113 @@
         "disclosedToAll": "Disclosed {{count}} pieces to everyone",
         "disclosedToGm": "Disclosed {{count}} pieces to the GM only",
         "nothingToDisclose": "Pick pieces whose disclosure you may change, then press G"
+      },
+      "scope": {
+        "global": "Anywhere",
+        "tabletop": "Table",
+        "selection": "Picking pieces",
+        "hotbar": "Hotbar",
+        "chat": "Chat",
+        "firstPerson": "Dungeondry Master mode",
+        "visualNovel": "Novel mode",
+        "whiteBoard": "Editing a white board",
+        "mapEditor": "Map editor",
+        "cutInEditor": "Editing a cut-in"
+      },
+      "pointer": {
+        "click": "Click",
+        "drag": "Drag"
+      },
+      "sheet": {
+        "title": "Keys",
+        "macNote": "On a Mac, read Ctrl as ⌘"
+      },
+      "keys": {
+        "global": {
+          "guide": "Show or hide button names and this list of keys"
+        },
+        "tabletop": {
+          "pan": "Move the table",
+          "turn": "Turn the table",
+          "tilt": "Tilt the table",
+          "zoom": "Zoom in or out",
+          "target": "Aim at the picked characters only",
+          "clearTargets": "Stop aiming at everything",
+          "disclosure": "Switch who the picked pieces are disclosed to (GM only ⇔ everyone)",
+          "enter": "Confirm the targets picked for an effect",
+          "escape": "Stop picking targets, or drop the selection"
+        },
+        "selection": {
+          "add": "Add a piece to the selection, or take it out",
+          "box": "Drag across an empty spot to pick the pieces inside",
+          "boxAdd": "Add the pieces inside to the selection",
+          "boxToggle": "Flip whether the pieces inside are picked",
+          "aim": "Aim at a piece, or stop",
+          "clearAims": "Stop aiming at everything",
+          "snap": "While turning a piece, snap to 45° (30° on hexes)"
+        },
+        "hotbar": {
+          "fire": "Fire the slot with that number",
+          "page": "Go to a page",
+          "turnPage": "Turn to the page before or after",
+          "empty": "Empty a slot"
+        },
+        "chat": {
+          "send": "Send",
+          "newline": "Start a new line",
+          "history": "Bring back what you sent",
+          "search": "Search the log, with the pointer over the chat window"
+        },
+        "firstPerson": {
+          "move": "Move",
+          "frontBack": "Step forward or back",
+          "slantFront": "Step forward at a slant",
+          "slantBack": "Step back at a slant",
+          "turn": "Turn",
+          "door": "Open or close a door",
+          "torch": "Light or put out the torch",
+          "target": "Aim at the piece ahead",
+          "clearTargets": "Stop aiming at everything",
+          "cast": "Confirm the targets picked for an effect",
+          "escape": "Face ahead again, stop picking targets, or go back to the table",
+          "look": "Drag to look around"
+        },
+        "whiteBoard": {
+          "tools": "Pick a tool",
+          "pan": "Hold and drag to move the view",
+          "undo": "Undo",
+          "redo": "Redo",
+          "delete": "Delete what is picked",
+          "finish": "Finish the line being drawn",
+          "drop": "Drop the line being drawn",
+          "zoom": "Zoom in or out",
+          "zoomReset": "Back to actual size",
+          "zoomFit": "Fit everything in view",
+          "selectAll": "Pick everything",
+          "duplicate": "Duplicate",
+          "copyPaste": "Copy or paste",
+          "order": "Bring forward or send backward"
+        },
+        "mapEditor": {
+          "tools": "Pick a tool by the letter on its button",
+          "pan": "Hold and drag to move the view",
+          "undo": "Undo",
+          "redo": "Redo",
+          "delete": "Delete what is picked",
+          "commit": "Finish what is being drawn",
+          "cancel": "Drop what is being drawn"
+        },
+        "cutInEditor": {
+          "play": "Play or stop",
+          "step": "Step back or forward",
+          "jump": "Jump to the keyframe before or after",
+          "edges": "To the start or the end",
+          "nudge": "Nudge the picked layer (further with Alt)",
+          "undo": "Undo",
+          "redo": "Redo",
+          "pose": "Copy or paste the picked layer’s pose",
+          "delete": "Delete the picked layer"
+        }
       }
     },
     "file": {

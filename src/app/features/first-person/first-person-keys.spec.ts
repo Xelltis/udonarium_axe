@@ -1,5 +1,6 @@
 import { latticeOf } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { shortcutProbesOf } from '@axe/domain/ui/keyboard-shortcuts';
 import { FirstPersonKeyContext, firstPersonKeyDown } from '@axe/features/first-person/first-person-keys';
 import { describe, expect, it } from 'vitest';
 
@@ -97,4 +98,17 @@ describe('firstPersonKeyDown', () => {
     expect(firstPersonKeyDown('NumpadEnter', picking)).toEqual({ kind: 'castPicks' });
     expect(firstPersonKeyDown('Enter', contextOn(GridType.SQUARE))).toBeNull();
   });
+});
+
+describe('the first person view’s lines on the list of keys', () => {
+  for (const { id, grid, probe } of shortcutProbesOf('firstPerson')) {
+    it(`answers ${id} as listed`, () => {
+      const context = contextOn(grid === 'hex' ? GridType.HEX_VERTICAL : GridType.SQUARE, {
+        chord: !!(probe.ctrl || probe.alt),
+        shift: !!probe.shift,
+        ...probe.when,
+      });
+      expect(firstPersonKeyDown(probe.code ?? '', context)?.kind).toBe(probe.command);
+    });
+  }
 });

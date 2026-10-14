@@ -33,6 +33,7 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { keyboardShortcutsOf, shortcutKeysText } from '@axe/domain/ui/keyboard-shortcuts';
 import { encodeVnEmote, VN_EMOTION_MARK_CHARS, vnEmoteOf, VnEmotionMark } from '@axe/domain/visual-novel/vn-emote';
 import {
   isVnPortraitPosSet,
@@ -100,17 +101,6 @@ import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 
 const WHEEL_THROTTLE_MS = 160;
-
-const SHORTCUT_HELP_ITEMS: readonly { keys: string; labelKey: string }[] = [
-  { keys: 'Enter / Space / → / ↓', labelKey: 'next' },
-  { keys: '← / ↑', labelKey: 'prev' },
-  { keys: 'Ctrl', labelKey: 'skip' },
-  { keys: 'Home / End', labelKey: 'edges' },
-  { keys: 'A', labelKey: 'autoPlay' },
-  { keys: 'L', labelKey: 'log' },
-  { keys: 'S', labelKey: 'slot' },
-  { keys: 'Esc', labelKey: 'close' },
-];
 
 const EMOTION_MARK_COLORS: Record<Exclude<VnEmotionMark, 'none'>, string> = {
   surprise: 'text-red-500',
@@ -230,7 +220,10 @@ export class VisualNovelOverlayComponent {
   readonly messageKindOptions = this.emoteSelection.messageKindOptions;
   readonly isGameMaster = this.emoteSelection.isGameMaster;
   readonly slotIndexes = Array.from({ length: VN_STAGE_SLOT_COUNT }, (_, i) => i);
-  readonly shortcutHelpItems = SHORTCUT_HELP_ITEMS;
+  readonly shortcutHelpItems = keyboardShortcutsOf('visualNovel').map((shortcut) => ({
+    keys: shortcutKeysText(shortcut),
+    labelKey: shortcut.labelKey,
+  }));
 
   /**
    * The chat tab being read in novel mode; choosing another stops auto play, returns to its newest

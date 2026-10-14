@@ -272,6 +272,20 @@ describe('VisualNovelOverlayComponent', () => {
     expect(vnMode.active()).toBe(false);
   });
 
+  it('lists its keys from the list of keys', () => {
+    createComponent();
+    component.toggleShortcutHelp();
+    fixture.detectChanges();
+
+    const rows = [...fixture.nativeElement.querySelectorAll('dt')].map((term: HTMLElement) => [
+      term.textContent?.trim(),
+      term.nextElementSibling?.textContent?.trim(),
+    ]);
+    expect(rows[0]).toEqual(['Enter / Space / → / ↓', '次へ進む / 全文表示']);
+    expect(rows.at(-1)).toEqual(['Esc', '閉じる / 終了']);
+    expect(rows).toHaveLength(8);
+  });
+
   it('does not advance the text from a key pressed in a field', () => {
     addMessage('こんにちは');
     createComponent();

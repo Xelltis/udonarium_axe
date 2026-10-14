@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { shortcutProbesOf } from '@axe/domain/ui/keyboard-shortcuts';
 import {
   chatSearchOffsets,
   chatSearchQuery,
@@ -133,4 +134,19 @@ describe('chat search', () => {
       expect(press({ key: 'g', code: 'KeyG', ctrlKey: true })).toBe(false);
     });
   });
+});
+
+describe('the chat’s lines on the list of keys', () => {
+  for (const { id, probe } of shortcutProbesOf('chat')) {
+    it(`answers ${id} as listed`, () => {
+      const event = new KeyboardEvent('keydown', {
+        key: probe.key,
+        code: probe.code,
+        ctrlKey: !!probe.ctrl,
+        shiftKey: !!probe.shift,
+        altKey: !!probe.alt,
+      });
+      expect(isChatSearchShortcut(event) ? 'search' : null).toBe(probe.command);
+    });
+  }
 });

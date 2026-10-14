@@ -1,3 +1,4 @@
+import { shortcutProbesOf } from '@axe/domain/ui/keyboard-shortcuts';
 import {
   isTypingTarget,
   type VisualNovelKeyContext,
@@ -87,4 +88,13 @@ describe('isTypingTarget()', () => {
     expect(isTypingTarget(document.createElement('div'))).toBe(false);
     expect(isTypingTarget(null)).toBe(false);
   });
+});
+
+describe('novel mode’s lines on the list of keys', () => {
+  for (const { id, probe } of shortcutProbesOf('visualNovel')) {
+    it(`answers ${id} as listed`, () => {
+      const context = { ...IDLE, chord: !!(probe.ctrl || probe.alt), ...probe.when };
+      expect(visualNovelKeyDown(probe.key ?? '', context)?.command).toBe(probe.command);
+    });
+  }
 });

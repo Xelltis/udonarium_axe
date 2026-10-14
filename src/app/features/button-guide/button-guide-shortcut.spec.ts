@@ -1,3 +1,4 @@
+import { shortcutProbesOf } from '@axe/domain/ui/keyboard-shortcuts';
 import { ButtonGuideKeyContext, buttonGuideKeyDown } from '@axe/features/button-guide/button-guide-shortcut';
 
 describe('the keys the guide to the buttons answers', () => {
@@ -30,4 +31,13 @@ describe('the keys the guide to the buttons answers', () => {
     expect(buttonGuideKeyDown('/', context)).toBeNull();
     expect(buttonGuideKeyDown('h', context)).toBeNull();
   });
+});
+
+describe('the guide’s line on the list of keys', () => {
+  for (const { id, probe } of shortcutProbesOf('global')) {
+    it(`answers ${id} as listed`, () => {
+      const context = { typing: false, composing: false, chord: !!(probe.ctrl || probe.alt), shown: false };
+      expect(buttonGuideKeyDown(probe.key ?? '', context)?.command).toBe(probe.command);
+    });
+  }
 });

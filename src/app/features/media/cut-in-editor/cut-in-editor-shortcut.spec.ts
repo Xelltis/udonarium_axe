@@ -1,3 +1,4 @@
+import { shortcutProbesOf } from '@axe/domain/ui/keyboard-shortcuts';
 import { cutInEditorKeyDown, NUDGE_FAR_PX, NUDGE_PX } from '@axe/features/media/cut-in-editor/cut-in-editor-shortcut';
 
 const plain = { typing: false, chord: false, shift: false, hasSelection: true };
@@ -116,4 +117,20 @@ describe('cutInEditorKeyDown()', () => {
       expect(cutInEditorKeyDown('ArrowUp', { ...plain, hasSelection: false })).toBeNull();
     });
   });
+});
+
+describe('the cut-in editor’s lines on the list of keys', () => {
+  for (const { id, probe } of shortcutProbesOf('cutInEditor')) {
+    it(`answers ${id} as listed`, () => {
+      const context = {
+        ...plain,
+        hasSelection: false,
+        chord: !!probe.ctrl,
+        shift: !!probe.shift,
+        alt: !!probe.alt,
+        ...probe.when,
+      };
+      expect(cutInEditorKeyDown(probe.key ?? '', context)?.command).toBe(probe.command);
+    });
+  }
 });

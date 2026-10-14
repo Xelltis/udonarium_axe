@@ -1816,6 +1816,113 @@
         "disclosedToAll": "말 {{count}}개의 공개 범위를 전원으로 했습니다",
         "disclosedToGm": "말 {{count}}개의 공개 범위를 GM만으로 했습니다",
         "nothingToDisclose": "공개 범위를 바꿀 수 있는 말을 선택한 뒤 G를 누르세요"
+      },
+      "scope": {
+        "global": "전체",
+        "tabletop": "탁자",
+        "selection": "말 선택",
+        "hotbar": "핫바",
+        "chat": "채팅",
+        "firstPerson": "던전드리 마스터 모드",
+        "visualNovel": "노벨 모드",
+        "whiteBoard": "화이트보드 편집",
+        "mapEditor": "맵 에디터",
+        "cutInEditor": "컷인 편집"
+      },
+      "pointer": {
+        "click": "클릭",
+        "drag": "드래그"
+      },
+      "sheet": {
+        "title": "키 조작",
+        "macNote": "Mac에서는 Ctrl을 ⌘로 바꿔 읽어 주세요"
+      },
+      "keys": {
+        "global": {
+          "guide": "버튼 이름과 키 조작 목록을 표시하거나 숨기기"
+        },
+        "tabletop": {
+          "pan": "탁자를 움직이기",
+          "turn": "탁자를 돌리기",
+          "tilt": "탁자를 기울이기",
+          "zoom": "확대·축소",
+          "target": "선택한 캐릭터만 타깃으로 지정",
+          "clearTargets": "타깃을 모두 해제",
+          "disclosure": "선택한 말의 공개 범위 전환(GM만 ⇔ 전원)",
+          "enter": "이펙트 대상 선택 확정",
+          "escape": "대상 선택 중지·선택 해제"
+        },
+        "selection": {
+          "add": "말을 선택에 추가하거나 빼기",
+          "box": "빈 곳을 드래그해 둘러싼 말을 선택",
+          "boxAdd": "둘러싼 말을 선택에 추가",
+          "boxToggle": "둘러싼 말의 선택을 반전",
+          "aim": "말을 타깃으로 지정하거나 해제",
+          "clearAims": "타깃을 모두 해제",
+          "snap": "회전하는 동안 45°(헥스는 30°) 단위로 맞추기"
+        },
+        "hotbar": {
+          "fire": "그 번호의 슬롯 실행",
+          "page": "페이지 전환",
+          "turnPage": "앞뒤 페이지로 넘기기",
+          "empty": "슬롯 비우기"
+        },
+        "chat": {
+          "send": "보내기",
+          "newline": "줄 바꾸기",
+          "history": "보낸 발언 불러오기",
+          "search": "채팅 창 위에서 로그 검색"
+        },
+        "firstPerson": {
+          "move": "이동",
+          "frontBack": "앞뒤로 이동",
+          "slantFront": "비스듬히 앞으로 이동",
+          "slantBack": "비스듬히 뒤로 이동",
+          "turn": "방향 바꾸기",
+          "door": "문 열고 닫기",
+          "torch": "불을 켜거나 끄기",
+          "target": "앞에 있는 말을 타깃으로 지정",
+          "clearTargets": "타깃을 모두 해제",
+          "cast": "이펙트 대상 선택 확정",
+          "escape": "정면으로 돌아보기·대상 선택 중지·탁자로 돌아가기",
+          "look": "드래그해서 둘러보기"
+        },
+        "whiteBoard": {
+          "tools": "도구 선택",
+          "pan": "누른 채 드래그해 보는 위치 이동",
+          "undo": "실행 취소",
+          "redo": "다시 실행",
+          "delete": "선택한 것 지우기",
+          "finish": "그리는 선 확정",
+          "drop": "그리는 선 버리기",
+          "zoom": "확대·축소",
+          "zoomReset": "원래 크기로",
+          "zoomFit": "전체 맞추기",
+          "selectAll": "모두 선택",
+          "duplicate": "복제",
+          "copyPaste": "복사·붙여넣기",
+          "order": "앞으로·뒤로"
+        },
+        "mapEditor": {
+          "tools": "도구 버튼에 적힌 글자로 도구 선택",
+          "pan": "누른 채 드래그해 보는 위치 이동",
+          "undo": "실행 취소",
+          "redo": "다시 실행",
+          "delete": "선택한 것 지우기",
+          "commit": "그리던 것 확정",
+          "cancel": "그리던 것 취소"
+        },
+        "cutInEditor": {
+          "play": "재생·정지",
+          "step": "한 프레임 뒤로·앞으로",
+          "jump": "앞뒤 키프레임으로 이동",
+          "edges": "처음·끝으로",
+          "nudge": "선택한 레이어를 조금씩 이동(Alt로 크게)",
+          "undo": "실행 취소",
+          "redo": "다시 실행",
+          "pose": "선택한 레이어의 자세 복사·붙여넣기",
+          "delete": "선택한 레이어 지우기"
+        }
       }
     },
     "file": {
