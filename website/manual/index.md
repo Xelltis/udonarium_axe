@@ -116,6 +116,7 @@ Udonarium Axeの画面構成と基本操作をまとめた操作マニュアル�
 - [移動範囲](/manual/move-range) — 持ち上げたコマが動けるマス・単位の換算・ZOC・道すじの計画
 - [同行（パーティ）](/manual/party) — 仲間どうしの視界共有（GM専用）
 - [地形](/manual/terrain) / [マップマスク](/manual/map-mask)
+- [水域と水中](/manual/water) — 池・川・海辺を置く、卓全体を水の中にする
 - [スイッチ](/manual/switch) — 盤面を押すとチャットに出る・隠し扉が開く、といった仕掛け（作るのはGM）
 - [ダンジョンドリィマスターモード](/manual/dungeondry-master) — コマの目線でダンジョンを1マスずつ歩く
 - [ホワイトボード](/manual/white-board) — その場で描いて卓に立てるボード

@@ -223,6 +223,7 @@ export default defineConfig({
             { text: '乗り物に乗る', link: '/manual/ride' },
             { text: '同行（パーティ）', link: '/manual/party' },
             { text: '地形', link: '/manual/terrain' },
+            { text: '水域と水中', link: '/manual/water' },
             { text: 'スイッチ', link: '/manual/switch' },
             { text: 'ダンジョンドリィマスターモード', link: '/manual/dungeondry-master' },
             { text: 'マップマスク', link: '/manual/map-mask' },
