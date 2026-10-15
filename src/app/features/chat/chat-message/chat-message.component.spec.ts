@@ -1437,6 +1437,49 @@ describe('ChatMessageComponent', () => {
     });
   });
 
+  describe('a line the room server rolled', () => {
+    let tab: ChatTab;
+    const mark = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="chat-message-server-roll"]');
+
+    beforeEach(() => {
+      beMyself('me');
+      tab = ChatTabList.instance.addChatTab('メイン');
+    });
+
+    afterEach(() => tab.destroy());
+
+    it('wears a mark saying the server rolled it, as read back from a saved room too', () => {
+      const answer = tab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'someone',
+        name: '<BCDice：ノア>',
+        text: 'DiceBot : (2D6) → 7',
+        tag: 'system',
+        timestamp: 1000,
+      });
+      answer.serverRoll = 'true';
+      fixture.componentRef.setInput('chatMessage', answer);
+      fixture.detectChanges();
+
+      expect(mark()).not.toBeNull();
+    });
+
+    it('wears none on a roll made by a player’s own device', () => {
+      const answer = tab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'someone',
+        name: '<BCDice：ノア>',
+        text: 'DiceBot : (2D6) → 7',
+        tag: 'system',
+        timestamp: 1000,
+      });
+      fixture.componentRef.setInput('chatMessage', answer);
+      fixture.detectChanges();
+
+      expect(mark()).toBeNull();
+    });
+  });
+
   describe('following a line back to the one it answers', () => {
     let tab: ChatTab;
 

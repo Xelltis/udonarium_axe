@@ -184,6 +184,22 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
   }
 
   /**
+   * The node as it would travel once appended to the parent, without appending it or touching the
+   * parent: a context for somebody else to place, such as a room server asked to say a line.
+   */
+  contextAsLastChildOf(parent: ObjectNode): ObjectContext {
+    const children = parent.children;
+    const context = this.toContext();
+    context.syncData = {
+      ...(context.syncData as Record<string, unknown>),
+      parentIdentifier: parent.identifier,
+      majorIndex: children.length > 0 ? children[children.length - 1].majorIndex + 1 : 0,
+      minorIndex: Math.random(),
+    };
+    return context;
+  }
+
+  /**
    * Moves a node into this node's children just before the reference node.
    *
    * The new index falls between the reference and the sibling before it, and every child is

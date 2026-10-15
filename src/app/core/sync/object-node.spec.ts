@@ -226,6 +226,28 @@ describe('ObjectNode', () => {
     });
   });
 
+  describe('contextAsLastChildOf()', () => {
+    it('gives the node as it would travel at the end of the parent, touching neither', () => {
+      const parent = new ObjectNode();
+      parent.initialize();
+      const first = new ObjectNode();
+      first.initialize();
+      parent.appendChild(first);
+      const line = new ObjectNode();
+
+      const context = line.contextAsLastChildOf(parent);
+
+      expect(context.identifier).toBe(line.identifier);
+      expect(context.syncData['parentIdentifier']).toBe(parent.identifier);
+      expect(context.syncData['majorIndex']).toBe(first.index - (first.index % 1) + 1);
+      expect(parent.children).toEqual([first]);
+      expect(line.parentId).toBe('');
+      expect(store.get(line.identifier)).toBeNull();
+      first.destroy();
+      parent.destroy();
+    });
+  });
+
   describe('insertBefore()', () => {
     it('should insert child before reference node', () => {
       const parent = new ObjectNode('parent');

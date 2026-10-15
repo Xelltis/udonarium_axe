@@ -155,6 +155,25 @@ describe('ChatMessage', () => {
     });
   });
 
+  describe('isServerRoll', () => {
+    it('is true for a line a room server rolled, whether as sent or as read back from a saved room', () => {
+      const sent = new ChatMessage();
+      sent.serverRoll = true;
+      const saved = new ChatMessage();
+      saved.serverRoll = 'true';
+
+      expect(sent.isServerRoll).toBe(true);
+      expect(saved.isServerRoll).toBe(true);
+    });
+
+    it('is false for any other line, which carries no such field at all', () => {
+      const line = new ChatMessage();
+
+      expect(line.isServerRoll).toBe(false);
+      expect(line.toContext().syncData['attributes']).not.toHaveProperty('serverRoll');
+    });
+  });
+
   describe('isDicebot', () => {
     it('is true for one from the dice bot', () => {
       const msg = new ChatMessage();

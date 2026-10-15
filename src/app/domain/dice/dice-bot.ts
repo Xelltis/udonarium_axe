@@ -11,8 +11,11 @@ import {
   SendMessageEvent,
 } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
+import { networkSend } from '@axe/core/network/network-messaging';
+import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { SyncObject } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
+import { objectAdded$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PromiseQueue } from '@axe/core/util/promise-queue';
 import { toHalfWidth } from '@axe/core/util/string-util';
@@ -31,6 +34,44 @@ export const PLAIN_DICE_BOT = 'DiceBot';
 
 /** How long the code of a game system may take to arrive before a call gives up on it for now. */
 const FETCH_TIMEOUT_MS = 10_000;
+
+/** How long a roll asked of a room server waits for the answer before it stops listening. */
+const SERVER_ROLL_WAIT_MS = 60_000;
+
+/**
+ * The answer to a roll as a line: said by the dice bot, after the line it answers, to whoever that
+ * line was said to and to its speaker, in that line's colours and dice.
+ */
+function resultMessageContextOf(
+  originalMessage: ChatMessage,
+  text: string,
+  isSecret: boolean,
+  dicebot: string
+): ChatMessageContext {
+  const context: ChatMessageContext = {
+    identifier: '',
+    tabIdentifier: originalMessage.tabIdentifier,
+    originFrom: originalMessage.from,
+    from: 'System-BCDice',
+    timestamp: originalMessage.timestamp + 1,
+    imageIdentifier: '',
+    tag: isSecret ? 'system secret' : 'system',
+    dicebot,
+    name: isSecret ? `<Secret-BCDice：${originalMessage.name}>` : `<BCDice：${originalMessage.name}>`,
+    text,
+    ...answerColorsOf(originalMessage),
+    diceLook: originalMessage.diceLook,
+    diceImageIdentifier: originalMessage.diceImageIdentifier,
+  };
+
+  if (originalMessage.to != null && 0 < originalMessage.to.length) {
+    context.to = originalMessage.to;
+    if (originalMessage.to.indexOf(originalMessage.from) < 0) {
+      context.to += ` ${originalMessage.from}`;
+    }
+  }
+  return context;
+}
 
 @SyncObject('dice-bot')
 export class DiceBot extends GameObject {
@@ -470,6 +511,13 @@ export class DiceBot extends GameObject {
         return;
       }
 
+      // A room server rolls the dice itself, so that nobody can change what they showed.
+      if (getAuthorityPeerId()) {
+        const target = data.messageTarget?.object;
+        this.askServerToRoll(text, gameSystem.ID, chatMessage, target ? ` [${target.name}]` : undefined);
+        return;
+      }
+
       if (repeat > 1) {
         rollText = `x${repeat} ${rollText}`;
       }
@@ -572,8 +620,6 @@ export class DiceBot extends GameObject {
 
   private sendResultMessage(rollResult: DiceRollResult, originalMessage: ChatMessage, multiTargetOption?: string) {
     let result: string = rollResult.result;
-    const isSecret: boolean = rollResult.isSecret;
-
     if (result.length < 1) {
       return;
     }
@@ -583,28 +629,12 @@ export class DiceBot extends GameObject {
       result = result.replace(/ → /g, '\n→ ');
     }
 
-    const diceBotMessage: ChatMessageContext = {
-      identifier: '',
-      tabIdentifier: originalMessage.tabIdentifier,
-      originFrom: originalMessage.from,
-      from: 'System-BCDice',
-      timestamp: originalMessage.timestamp + 1,
-      imageIdentifier: '',
-      tag: isSecret ? 'system secret' : 'system',
-      dicebot: encodeDiceRollDetail(rollResult.detail ?? null),
-      name: isSecret ? `<Secret-BCDice：${originalMessage.name}>` : `<BCDice：${originalMessage.name}>`,
-      text: multiTargetOption ? `${result}${multiTargetOption}` : result,
-      ...answerColorsOf(originalMessage),
-      diceLook: originalMessage.diceLook,
-      diceImageIdentifier: originalMessage.diceImageIdentifier,
-    };
-
-    if (originalMessage.to != null && 0 < originalMessage.to.length) {
-      diceBotMessage.to = originalMessage.to;
-      if (originalMessage.to.indexOf(originalMessage.from) < 0) {
-        diceBotMessage.to += ` ${originalMessage.from}`;
-      }
-    }
+    const diceBotMessage = resultMessageContextOf(
+      originalMessage,
+      multiTargetOption ? `${result}${multiTargetOption}` : result,
+      rollResult.isSecret,
+      encodeDiceRollDetail(rollResult.detail ?? null)
+    );
     const chatTab = ObjectStore.instance.get<ChatTab>(originalMessage.tabIdentifier);
     if (chatTab) {
       const chat = chatTab.addMessage(diceBotMessage);
@@ -613,6 +643,43 @@ export class DiceBot extends GameObject {
       // so anything that ties the two together needs both.
       emitDiceRolled({ sourceMessageIdentifier: originalMessage.identifier, resultMessageIdentifier: chat.identifier });
     }
+  }
+
+  /**
+   * Asks the room server to roll a line's dice. The answer is made ready here, as for a roll made
+   * here, but left for the server to fill in and say; once it arrives, it is treated as a roll made
+   * here, rolling its dice sound and its dice.
+   */
+  private askServerToRoll(command: string, gameSystem: string, originalMessage: ChatMessage, suffix?: string) {
+    const authority = getAuthorityPeerId();
+    const chatTab = ObjectStore.instance.get<ChatTab>(originalMessage.tabIdentifier);
+    if (!authority || !(chatTab instanceof ChatTab)) return;
+
+    const answer = chatTab.createMessage(resultMessageContextOf(originalMessage, '', false, ''));
+    this.answerOnArrival(answer.identifier, originalMessage.identifier);
+    const request: Record<string, unknown> = {
+      message: answer.contextAsLastChildOf(chatTab),
+      command,
+      gameSystem,
+      speaker: originalMessage.name,
+    };
+    if (suffix) request['suffix'] = suffix;
+    networkSend('ROLL_REQUEST', request, authority);
+  }
+
+  /** Treats the server's answer to a roll as a roll made here once it arrives, or forgets it after a while. */
+  private answerOnArrival(answerIdentifier: string, sourceIdentifier: string) {
+    const stop = () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
+    const unsubscribe = objectAdded$.subscribe((event) => {
+      if (event.identifier !== answerIdentifier) return;
+      stop();
+      emitSendMessage({ messageIdentifier: answerIdentifier, messageTarget: null });
+      emitDiceRolled({ sourceMessageIdentifier: sourceIdentifier, resultMessageIdentifier: answerIdentifier });
+    });
+    const timer = setTimeout(stop, SERVER_ROLL_WAIT_MS);
   }
 
   /** Stops answering chat lines once the dice bot leaves the store. */

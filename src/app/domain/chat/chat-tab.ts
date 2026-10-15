@@ -274,50 +274,57 @@ export class ChatTab extends ObjectNode implements InnerXml {
   addMessage(message: ChatMessageContext): ChatMessage {
     message.tabIdentifier = this.identifier;
 
-    const chat = new ChatMessage();
-    for (const key of Object.keys(message as Record<string, unknown>)) {
-      if (key === 'identifier') continue;
-      if (key === 'tabIdentifier') continue;
-
-      if (key === 'text') {
-        chat.value = (message as Record<string, unknown>)[key] as string;
-        continue;
-      }
-      if ((message as Record<string, unknown>)[key] == null || (message as Record<string, unknown>)[key] === '')
-        continue;
-
-      if (key === 'imagePos') {
-        if (message.to != null && message.to !== '') continue;
-        this.pos_num = (message as Record<string, unknown>)[key] as number;
-        if (this.pos_num >= 0 && this.pos_num < this.imageIdentifier.length) {
-          const oldpos = this.portraitSlotOf(message.name ?? '');
-          if (oldpos >= 0) {
-            this.imageIdentifier[oldpos] = '';
-            this.imageCharacterName[oldpos] = '';
-            this.imageDispFlag[oldpos] = false;
-          }
-
-          if (message.imageIdentifier !== '') {
-            this.imageIdentifier[this.pos_num] = message.imageIdentifier ?? '';
-            this.imageCharacterName[this.pos_num] = message.name ?? '';
-            this.replacePortraitZIndex(this.pos_num);
-            this.imageDispFlag[this.pos_num] = true;
-
-            chat.imagePos = (message as Record<string, unknown>)[key] as number;
-          }
-          this.imageIdentifierDummy = message.imageIdentifier ?? '';
+    const chat = this.createMessage(message);
+    const pos = message.imagePos as unknown;
+    if (pos != null && pos !== '' && (message.to == null || message.to === '')) {
+      this.pos_num = pos as number;
+      if (this.pos_num >= 0 && this.pos_num < this.imageIdentifier.length) {
+        const oldpos = this.portraitSlotOf(message.name ?? '');
+        if (oldpos >= 0) {
+          this.imageIdentifier[oldpos] = '';
+          this.imageCharacterName[oldpos] = '';
+          this.imageDispFlag[oldpos] = false;
         }
-        continue;
-      }
 
-      if (key === 'timestamp') {
-        chat.setAttribute(key, (message as Record<string, unknown>)[key] as string | number);
-      } else {
-        (chat as unknown as Record<string, unknown>)[key] = (message as Record<string, unknown>)[key];
+        if (message.imageIdentifier !== '') {
+          this.imageIdentifier[this.pos_num] = message.imageIdentifier ?? '';
+          this.imageCharacterName[this.pos_num] = message.name ?? '';
+          this.replacePortraitZIndex(this.pos_num);
+          this.imageDispFlag[this.pos_num] = true;
+
+          chat.imagePos = pos as number;
+        }
+        this.imageIdentifierDummy = message.imageIdentifier ?? '';
       }
     }
     chat.initialize();
     this.appendChild(chat);
+    return chat;
+  }
+
+  /**
+   * A line built from a message context, not yet in the store nor in this tab: for a line somebody
+   * else will place, such as the room server rolling its dice. Fields left empty are not copied,
+   * and the portrait slot is left for addMessage to fill.
+   */
+  createMessage(message: ChatMessageContext): ChatMessage {
+    const chat = new ChatMessage();
+    for (const key of Object.keys(message as Record<string, unknown>)) {
+      if (key === 'identifier' || key === 'tabIdentifier' || key === 'imagePos') continue;
+      const value = (message as Record<string, unknown>)[key];
+
+      if (key === 'text') {
+        chat.value = value as string;
+        continue;
+      }
+      if (value == null || value === '') continue;
+
+      if (key === 'timestamp') {
+        chat.setAttribute(key, value as string | number);
+      } else {
+        (chat as unknown as Record<string, unknown>)[key] = value;
+      }
+    }
     return chat;
   }
 

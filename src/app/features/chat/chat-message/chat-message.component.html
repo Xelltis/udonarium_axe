@@ -41,6 +41,14 @@
             <span class="msg-name min-w-0 truncate" [title]="displayName(chatMessage.name)">{{
               displayName(chatMessage.name)
             }}</span>
+            @if (chatMessage.isServerRoll) {
+              <i
+                class="material-icons text-ui-accent shrink-0 self-center text-[13px]!"
+                data-testid="chat-message-server-roll"
+                [title]="'feature.chat.message.serverRoll' | transloco"
+                >verified_user</i
+              >
+            }
             <span class="min-w-0 shrink-100 truncate">
               <span class="tip"> | </span>
               <span class="tip msg-from" [title]="chatMessage.from">{{ shortFrom(chatMessage.from) }}</span>
@@ -222,8 +230,16 @@
           "
         >
           <span class="pl-2.5 align-top text-(length:--chat-font-size) font-medium text-inherit">
-            <font class="msg-name">{{ displayName(chatMessage.name) }}</font
-            >：
+            <font class="msg-name">{{ displayName(chatMessage.name) }}</font>
+            @if (chatMessage.isServerRoll) {
+              <i
+                class="material-icons text-ui-accent align-middle text-[12px]!"
+                data-testid="chat-message-server-roll"
+                [title]="'feature.chat.message.serverRoll' | transloco"
+                >verified_user</i
+              >
+            }
+            ：
             @if (simpleDispFlagUserId()) {
               <font class="tip msg-from" [title]="chatMessage.from">{{ shortFrom(chatMessage.from) }}</font>
             }

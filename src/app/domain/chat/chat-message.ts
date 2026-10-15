@@ -134,6 +134,12 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
   @SyncVar() editHistory: string;
   @SyncVar() disclosedAt: number;
   /**
+   * Set by a room server on a line whose dice it rolled itself, so nobody could have changed them;
+   * read with `isServerRoll`. Left without an initialiser: no line a client writes carries it, and
+   * the server takes it off any that does.
+   */
+  @SyncVar() serverRoll: boolean | string;
+  /**
    * When the one who said the line made it an after-the-fact whisper (あとから秘話), in epoch
    * milliseconds; read with `isAfterWhisper`.
    *
@@ -360,6 +366,11 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
   /** Whether the line is a dice bot's answer to a roll. */
   get isDicebot(): boolean {
     return this.isSystem && this.from === 'System-BCDice';
+  }
+
+  /** Whether a room server rolled the line's dice, read the same from a saved room, where it is text. */
+  get isServerRoll(): boolean {
+    return this.serverRoll === true || this.serverRoll === 'true';
   }
 
   /** What was rolled and whether it succeeded. Anything rolled before this was recorded has neither. */

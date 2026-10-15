@@ -3514,7 +3514,8 @@
         },
         "actions": "Line actions",
         "more": "More actions",
-        "edit": "Edit"
+        "edit": "Edit",
+        "serverRoll": "The room server rolled these dice, so the roller could not change them."
       },
       "stream": {
         "title": "Message stream",

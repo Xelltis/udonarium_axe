@@ -1,9 +1,16 @@
 import { TestBed } from '@angular/core/testing';
-import { diceBotUnreachable$, DiceBotUnreachableEvent, emitSendMessage } from '@axe/core/event/domain-events';
+import {
+  diceBotUnreachable$,
+  DiceBotUnreachableEvent,
+  diceRolled$,
+  emitSendMessage,
+} from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
+import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -43,6 +50,68 @@ describe('DiceBot', () => {
 
       bot.destroy();
       tab.destroy();
+    });
+  });
+
+  describe('in a room on a room server', () => {
+    it('asks the server to roll, with the answer made ready but not placed', async () => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'acct_me';
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const asked = tab.addMessage({
+        from: PeerCursor.myUserId,
+        to: 'someone',
+        name: 'わたし',
+        text: '３ 2d6',
+        tag: 'DiceBot',
+        timestamp: 1000,
+      });
+      const bot = new DiceBot();
+      bot.initialize();
+
+      await bot['handleSendMessage']({ messageIdentifier: asked.identifier, messageTarget: null });
+
+      const [context, sendTo] = send.mock.calls.find(
+        ([sent]) => (sent as { eventName: string }).eventName === 'ROLL_REQUEST'
+      )!;
+      const request = (context as { data: Record<string, unknown> }).data;
+      const message = request['message'] as { aliasName: string; syncData: Record<string, unknown> };
+      const attributes = message.syncData['attributes'] as Record<string, unknown>;
+      expect(sendTo).toBe('@authority');
+      expect(request['command']).toBe('3 2d6');
+      expect(request['gameSystem']).toBe('DiceBot');
+      expect(request['speaker']).toBe('わたし');
+      expect(message.aliasName).toBe('chat');
+      expect(message.syncData['parentIdentifier']).toBe(tab.identifier);
+      expect(attributes['from']).toBe('System-BCDice');
+      expect(attributes['originFrom']).toBe(PeerCursor.myUserId);
+      expect(attributes['timestamp']).toBe(1001);
+      expect(attributes['to']).toBe(`someone ${PeerCursor.myUserId}`);
+      expect(tab.chatMessages).toHaveLength(1);
+
+      bot.destroy();
+      tab.destroy();
+    });
+
+    it('takes the server’s answer, once it arrives, as a roll made here', () => {
+      const bot = new DiceBot();
+      bot.initialize();
+      const rolled = vi.fn();
+      const off = diceRolled$.subscribe(rolled);
+
+      bot['answerOnArrival']('the-answer', 'the-line');
+      const answer = new ChatMessage('the-answer');
+      answer.initialize();
+
+      expect(rolled).toHaveBeenCalledWith({
+        sourceMessageIdentifier: 'the-line',
+        resultMessageIdentifier: 'the-answer',
+      });
+      off();
+      answer.destroy();
+      bot.destroy();
     });
   });
 
