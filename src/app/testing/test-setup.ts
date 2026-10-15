@@ -406,6 +406,19 @@ function forgetSeatPreferences(): void {
   localStorage.removeItem(BEAT_LIGHT_OFF_STORAGE_KEY);
 }
 
+/**
+ * The page's address as the setup found it. A spec that clicks a link, as saving a file does, has
+ * happy-dom set the page's address to the link's, since it cannot load another page; a blob's
+ * address left there is no base for the relative addresses later specs in the worker resolve.
+ */
+const PAGE_URL = location.href;
+
+/** Puts the page back at the address the setup found it at, if a spec moved it. */
+function returnToPageUrl(): void {
+  if (location.href === PAGE_URL) return;
+  (window as unknown as { happyDOM?: { setURL(url: string): void } }).happyDOM?.setURL(PAGE_URL);
+}
+
 beforeAll(async () => {
   (globalThis as unknown as Record<string, GlobalTestProviders | null>)[GLOBAL_TEST_PROVIDERS_KEY] = specUsesTestBed()
     ? await loadGlobalTestProviders()
@@ -418,6 +431,7 @@ beforeEach(async () => {
   emptyObjectStore();
   forgetMyCursor();
   forgetSeatPreferences();
+  returnToPageUrl();
   resetPeerContextProvider();
   // The configuration a test announced is replayed to whoever subscribes later, in other files too.
   loadConfig$.forget();

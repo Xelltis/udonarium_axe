@@ -59,4 +59,18 @@ describe('the shared test setup', () => {
 
     expect(heard).toEqual([]);
   });
+
+  it('takes a link clicked, as saving a file does, which moves the page to the link’s address', () => {
+    const link = document.createElement('a');
+    link.href = 'blob:http://localhost/left-behind';
+    link.download = 'room.zip';
+    link.click();
+
+    expect(location.href).toBe('blob:http://localhost/left-behind');
+  });
+
+  it('puts the page back where it was for the next test, so relative addresses resolve again', () => {
+    expect(location.href.startsWith('blob:')).toBe(false);
+    expect(new URL('assets/login-callback.html', document.baseURI).pathname).toMatch(/assets\/login-callback\.html$/);
+  });
 });
