@@ -1,6 +1,7 @@
 import { IPeerContext } from '@axe/core/network/peer-context';
 import {
   ASSET_TOKEN_MARGIN_MS,
+  ASSET_TOKEN_WAIT_MS,
   INVITE_TIMEOUT_MS,
   PING_INTERVAL_MS,
   PONG_TIMEOUT_MS,
@@ -492,6 +493,52 @@ describe('ServerConnection', () => {
 
     await vi.waitFor(() => expect(connection.serverRole).toBe('gm'));
     expect(roles).toEqual(['gm']);
+  });
+
+  it('asks for a fresh asset token when one is turned down, and gives the access once it comes', async () => {
+    const socket = await enterRoom();
+
+    const refreshed = connection.refreshAssetAccess();
+    const again = connection.refreshAssetAccess();
+    await vi.waitFor(async () =>
+      expect((await socket.frames()).filter((frame) => frame['type'] === 'asset-token')).toHaveLength(1)
+    );
+    socket.deliver({ type: 'asset-token', assetToken: 'asset-2', expiresAt: Date.now() + 15 * 60_000 });
+
+    expect(await refreshed).toEqual({ roomKey: ROOM_KEY, token: 'asset-2' });
+    expect(await again).toEqual({ roomKey: ROOM_KEY, token: 'asset-2' });
+  });
+
+  it('gives no fresh asset access outside a room, once it leaves, or when the server says nothing', async () => {
+    expect(await connection.refreshAssetAccess()).toBeNull();
+
+    await enterRoom();
+    const leaving = connection.refreshAssetAccess();
+    connection.close();
+    expect(await leaving).toBeNull();
+
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    connection = new ServerConnection();
+    connection.configure({ backend: { url: BASE_URL } });
+    connection.callback.onOpen = () => calls.push('open again');
+    connection.open('my-user', 'Ab3', '月夜の卓', '', ROOM_KEY);
+    await vi.waitFor(() => expect(FakeWebSocket.instances.length).toBeGreaterThan(1));
+    latest().accept();
+    latest().deliver({
+      type: 'welcome',
+      protocolVersion: PROTOCOL_VERSION,
+      peerId: connection.peerId,
+      authorityPeerId: AUTHORITY_PEER_ID,
+      role: 'pl',
+      members: [],
+      serverTime: Date.now(),
+      assetToken: 'asset-1',
+      assetTokenExpiresAt: Date.now() + 15 * 60_000,
+    });
+    await vi.waitFor(() => expect(calls).toContain('open again'));
+    const unanswered = connection.refreshAssetAccess();
+    await vi.advanceTimersByTimeAsync(ASSET_TOKEN_WAIT_MS);
+    expect(await unanswered).toBeNull();
   });
 
   it('lists the server’s rooms for the lobby', async () => {

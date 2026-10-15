@@ -10,8 +10,11 @@ import { PeerContext } from '@axe/core/network/peer-context';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { AuthorityEvent, MAX_MEMBERS } from '@axe/core/network/server/server-protocol';
 import { SAME_NAME_MEMBER_ERROR } from '@axe/core/network/skyway/same-name-member';
+import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
+import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { guestUserIdAfter, guestUserIdOf, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
+import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { handOverOwnership } from '@axe/domain/peer/ownership';
 import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -80,6 +83,7 @@ export class NetworkEventHandlerService {
       PeerCursor.myCursor.userId = peer.userId;
       this.takeServerRole();
       this.bringAssetsIntoRoom();
+      this.fetchRoomAssets();
       // Outside a room nobody hands out roles, and a role a room gave must not keep the solo table
       // read-only; on a room server, waiting outside a room is playing as a player.
       if (Network.transport === 'server' && !peer.isRoom) PeerCursor.myCursor.role = DEFAULT_PEER_ROLE;
@@ -143,6 +147,7 @@ export class NetworkEventHandlerService {
       if (event.state === 'recovered' && event.peerId === Network.peerId) {
         this.takeServerRole();
         this.bringAssetsIntoRoom();
+        this.fetchRoomAssets();
       }
       const key = NetworkEventHandlerService.RECONNECT_MESSAGE_KEYS[event.state];
       if (!key) return;
@@ -207,6 +212,24 @@ export class NetworkEventHandlerService {
     if (!Network.peerContext.isRoom || (role !== 'gm' && role !== 'pl')) return;
     ImageStorage.instance.uploadAllToAssetStore();
     AudioStorage.instance.uploadAllToAssetStore();
+  }
+
+  /**
+   * Fetches what the room server's room holds that this seat lacks: the pictures and sounds left in
+   * a room everybody had gone from, which no member's catalog names any more. Each room starts with
+   * a clean slate of what the store was found to lack.
+   */
+  private fetchRoomAssets(): void {
+    if (Network.transport !== 'server' || !Network.peerContext.isRoom) return;
+    ImageSharingSystem.instance.forgetMisses();
+    AudioSharingSystem.instance.forgetMisses();
+    void AssetHttpStore.instance.listRoomAssets().then((assets) => {
+      if (!assets) return;
+      ImageSharingSystem.instance.fetchListed(
+        assets.filter((asset) => asset.type.startsWith('image/')).map((asset) => asset.id)
+      );
+      AudioSharingSystem.instance.fetchListed(assets.filter((asset) => asset.type.startsWith('audio/')));
+    });
   }
 
   /** Says why the room server would not change somebody's role. */

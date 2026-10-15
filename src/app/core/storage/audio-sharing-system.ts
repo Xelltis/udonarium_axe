@@ -147,13 +147,34 @@ export class AudioSharingSystem {
   }
 
   /**
+   * Fetches from the room's asset store the sounds it holds that this seat lacks, named by the room's
+   * list rather than by a peer's catalogue: those left in a room that everybody had gone from, say.
+   * One the store cannot give waits for a catalogue to name it.
+   */
+  fetchListed(assets: readonly { id: string; name: string }[]): void {
+    for (const { id, name } of assets) {
+      let audio = AudioStorage.instance.get(id);
+      if (audio === null) {
+        audio = AudioFile.createEmpty(id, name);
+        AudioStorage.instance.add(audio);
+      }
+      if (audio.state < AudioState.COMPLETE && !this.receiveTaskMap.has(id)) this.fetchOverHttp(id, null);
+    }
+  }
+
+  /** Forgets which sounds the asset store lacked, for another room, which may hold them. */
+  forgetMisses(): void {
+    this.httpMissed.clear();
+  }
+
+  /**
    * Starts fetching audio from the asset server, and says whether it is on its way from there, so it
    * need not be asked of a peer.
    *
    * Audio the server lacks, or sends bytes for that do not match, is asked of the peer whose
-   * catalogue named it, the way it would have been without the server.
+   * catalogue named it, the way it would have been without the server; with no such peer it is left.
    */
-  private fetchOverHttp(identifier: string, catalogPeer: string): boolean {
+  private fetchOverHttp(identifier: string, catalogPeer: string | null): boolean {
     const store = AssetHttpStore.instance;
     if (!store.isEnabled || !AssetHttpStore.isAssetId(identifier) || this.httpMissed.has(identifier)) return false;
     if (this.httpFetching.has(identifier)) return true;
@@ -162,13 +183,15 @@ export class AudioSharingSystem {
       .download(identifier)
       .then((blob) => {
         if (blob) {
-          localDispatch('UPDATE_AUDIO_RESOURE', [{ identifier, name: '', type: blob.type, blob, url: '' }]);
+          // The name stays the one the catalogue or the room's list gave.
+          const name = AudioStorage.instance.get(identifier)?.name ?? '';
+          localDispatch('UPDATE_AUDIO_RESOURE', [{ identifier, name, type: blob.type, blob, url: '' }]);
           AudioStorage.instance.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
           return;
         }
         this.httpMissed.add(identifier);
         const audio = AudioStorage.instance.get(identifier);
-        if (!audio || AudioState.COMPLETE <= audio.state) return;
+        if (!audio || AudioState.COMPLETE <= audio.state || catalogPeer === null) return;
         if (this.receiveTaskMap.has(identifier) || this.isLimitReceiveTask()) return;
         this.request([{ identifier, state: audio.state }], catalogPeer);
       })

@@ -165,13 +165,35 @@ export class ImageSharingSystem {
   }
 
   /**
+   * Fetches from the room's asset store the pictures it holds that this seat lacks, named by the
+   * room's list rather than by a peer's catalogue: those left in a room that everybody had gone
+   * from, say. One the store cannot give waits for a catalogue to name it.
+   */
+  fetchListed(identifiers: readonly string[]): void {
+    for (const identifier of identifiers) {
+      let image = ImageStorage.instance.get(identifier);
+      if (image === null) {
+        image = ImageFile.createEmpty(identifier);
+        ImageStorage.instance.add(image);
+      }
+      if (image.state < ImageState.COMPLETE && !this.receiveTaskMap.has(identifier))
+        this.fetchOverHttp(identifier, null);
+    }
+  }
+
+  /** Forgets which pictures the asset store lacked, for another room, which may hold them. */
+  forgetMisses(): void {
+    this.httpMissed.clear();
+  }
+
+  /**
    * Starts fetching an image from the asset server, and says whether it is on its way from there,
    * so it need not be asked of a peer.
    *
    * An image the server lacks, or sends bytes for that do not match, is asked of the peer whose
-   * catalogue named it, the way it would have been without the server.
+   * catalogue named it, the way it would have been without the server; with no such peer it is left.
    */
-  private fetchOverHttp(identifier: string, catalogPeer: string): boolean {
+  private fetchOverHttp(identifier: string, catalogPeer: string | null): boolean {
     const store = AssetHttpStore.instance;
     if (!store.isEnabled || !AssetHttpStore.isAssetId(identifier) || this.httpMissed.has(identifier)) return false;
     if (this.httpFetching.has(identifier)) return true;
@@ -181,7 +203,7 @@ export class ImageSharingSystem {
         if (received) return;
         this.httpMissed.add(identifier);
         const image = ImageStorage.instance.get(identifier);
-        if (!image || ImageState.COMPLETE <= image.state) return;
+        if (!image || ImageState.COMPLETE <= image.state || catalogPeer === null) return;
         if (this.receiveTaskMap.has(identifier) || this.isLimitReceiveTask()) return;
         this.request([{ identifier, state: image.state }], catalogPeer);
       })

@@ -159,6 +159,27 @@ describe('ImageSharingSystem', () => {
       expect(requestsSent()).toHaveLength(1);
     });
 
+    it('takes a picture the room lists, though no catalogue names it', async () => {
+      ImageSharingSystem.instance.fetchListed([pictureId]);
+
+      await vi.waitFor(() => expect(ImageStorage.instance.get(pictureId)?.state).toBe(ImageState.COMPLETE));
+      expect(download).toHaveBeenCalledWith(pictureId);
+    });
+
+    it('asks no peer for a listed picture the server cannot give, and tries the server again in another room', async () => {
+      download.mockResolvedValue(null);
+      ImageSharingSystem.instance.fetchListed([pictureId]);
+      await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(requestsSent()).toEqual([]);
+
+      ImageSharingSystem.instance.fetchListed([pictureId]);
+      expect(download).toHaveBeenCalledTimes(1);
+      ImageSharingSystem.instance.forgetMisses();
+      ImageSharingSystem.instance.fetchListed([pictureId]);
+      expect(download).toHaveBeenCalledTimes(2);
+    });
+
     it('asks peers for everything while no server is configured', () => {
       store.configure(null);
       store.useAccess(null);

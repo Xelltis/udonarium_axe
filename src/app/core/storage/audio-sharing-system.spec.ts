@@ -294,6 +294,43 @@ describe('AudioSharingSystem', () => {
       });
     });
 
+    it('takes a sound the room lists, keeping the name it was listed under', async () => {
+      AudioStorageMock.get.mockImplementation((id: string) => AudioFile.createEmpty(id, 'theme.ogg'));
+
+      AudioSharingSystem.instance.fetchListed([{ id: trackId, name: 'theme.ogg' }]);
+
+      await vi.waitFor(() =>
+        expect(AudioStorageMock.add).toHaveBeenCalledWith(
+          expect.objectContaining({ identifier: trackId, name: 'theme.ogg', blob: expect.any(Blob) })
+        )
+      );
+    });
+
+    it('makes a place for a listed sound it has never heard of', () => {
+      AudioStorageMock.get.mockReturnValue(null);
+
+      AudioSharingSystem.instance.fetchListed([{ id: trackId, name: 'theme.ogg' }]);
+
+      expect(AudioStorageMock.add).toHaveBeenCalledWith(
+        expect.objectContaining({ identifier: trackId, name: 'theme.ogg' })
+      );
+      expect(download).toHaveBeenCalledWith(trackId);
+    });
+
+    it('asks no peer for a listed sound the server cannot give, and tries the server again in another room', async () => {
+      download.mockResolvedValue(null);
+      AudioSharingSystem.instance.fetchListed([{ id: trackId, name: '' }]);
+      await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(requestsSent()).toEqual([]);
+
+      AudioSharingSystem.instance.fetchListed([{ id: trackId, name: '' }]);
+      expect(download).toHaveBeenCalledTimes(1);
+      AudioSharingSystem.instance.forgetMisses();
+      AudioSharingSystem.instance.fetchListed([{ id: trackId, name: '' }]);
+      expect(download).toHaveBeenCalledTimes(2);
+    });
+
     it('fetches what the room is playing before the rest', () => {
       const otherId = 'e'.repeat(64);
       AudioSharingSystem.instance.preferredIdentifiers = () => [trackId];

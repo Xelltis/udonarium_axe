@@ -174,7 +174,7 @@ describe('ImageStorage', () => {
       storage.add(image);
       await vi.advanceTimersByTimeAsync(100);
 
-      expect(upload).toHaveBeenCalledWith(pictureId, image.blob);
+      expect(upload).toHaveBeenCalledWith(pictureId, image.blob, '');
       expect(catalogued(pictureId)).toBe(false);
       expect(sentCatalogues().flat()).not.toContain(pictureId);
 
@@ -207,7 +207,7 @@ describe('ImageStorage', () => {
       storage.uploadAllToAssetStore();
 
       expect(upload).toHaveBeenCalledTimes(1);
-      expect(upload).toHaveBeenCalledWith(pictureId, expect.any(Blob));
+      expect(upload).toHaveBeenCalledWith(pictureId, expect.any(Blob), '');
       finishUpload('exists');
       await vi.waitFor(() => expect(catalogued(pictureId)).toBe(true));
     });

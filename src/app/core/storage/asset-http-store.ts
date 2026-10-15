@@ -1,5 +1,11 @@
 import { Logger } from '@axe/core/logging/logger';
 import type { AssetAccess } from '@axe/core/network/connection';
+import {
+  ASSET_NAME_HEADER,
+  MAX_ASSET_NAME_LENGTH,
+  readRoomAssetList,
+  RoomAsset,
+} from '@axe/core/network/server/server-protocol';
 import { sha256Hex } from '@axe/core/util/crypto-util';
 
 /** What became of an upload. */
@@ -61,6 +67,7 @@ export class AssetHttpStore {
 
   private baseUrl: string | null = null;
   private access: (() => AssetAccess | null) | null = null;
+  private refresh: (() => Promise<AssetAccess | null>) | null = null;
   private readonly uploads = new TaskQueue(UPLOAD_CONCURRENCY);
   private readonly downloads = new TaskQueue(DOWNLOAD_CONCURRENCY);
   /** Waits between retries; replaced in tests so they need not sit through the backoff. */
@@ -79,9 +86,16 @@ export class AssetHttpStore {
     this.baseUrl = trimmed ? trimmed.replace(/\/+$/, '') : null;
   }
 
-  /** Tells the store which room the seat is in and the token to reach its assets with; null when in none. */
-  useAccess(access: (() => AssetAccess | null) | null): void {
+  /**
+   * Tells the store which room the seat is in and the token to reach its assets with; null when in
+   * none. `refresh` asks for a fresh token, for a request the server turned down with the one held.
+   */
+  useAccess(
+    access: (() => AssetAccess | null) | null,
+    refresh: (() => Promise<AssetAccess | null>) | null = null
+  ): void {
     this.access = access;
+    this.refresh = refresh;
   }
 
   /**
@@ -90,18 +104,30 @@ export class AssetHttpStore {
    * A refusal means the server will never take them, so they keep travelling between peers. A
    * failure, after retries for a server that asked for fewer uploads, may pass on a later try.
    */
-  upload(identifier: string, blob: Blob): Promise<AssetUploadResult> {
+  upload(identifier: string, blob: Blob, name = ''): Promise<AssetUploadResult> {
     if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return Promise.resolve('refused');
+    // The name goes along so that the room's list can name a picture or sound nobody else describes.
+    const named: Record<string, string> = name
+      ? { [ASSET_NAME_HEADER]: encodeURIComponent(name.slice(0, MAX_ASSET_NAME_LENGTH)) }
+      : {};
     return this.uploads.run(async () => {
       try {
         // Asked when its turn comes, so that a queued upload goes to the room the seat is in by then.
-        const access = this.access?.();
-        if (!access) return 'failed';
-        const url = this.urlOf(access, identifier);
-        const headers = this.headersOf(access);
-        if ((await this.request(url, { method: 'HEAD', headers })).ok) return 'exists';
+        const head = await this.authorized((access) =>
+          this.request(this.urlOf(access, identifier), { method: 'HEAD', headers: this.headersOf(access) })
+        );
+        // A token turned down even after a fresh one was asked for will be turned down for the PUT too.
+        if (!head || head.status === 401) return 'failed';
+        if (head.ok) return 'exists';
         for (let attempt = 0; ; attempt++) {
-          const res = await this.request(url, { method: 'PUT', body: blob, headers });
+          const res = await this.authorized((access) =>
+            this.request(this.urlOf(access, identifier), {
+              method: 'PUT',
+              body: blob,
+              headers: { ...this.headersOf(access), ...named },
+            })
+          );
+          if (!res) return 'failed';
           if (res.status === 201) return 'stored';
           if (res.ok) return 'exists';
           if (REFUSED_STATUSES.has(res.status)) return 'refused';
@@ -123,13 +149,10 @@ export class AssetHttpStore {
     if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return Promise.resolve(null);
     return this.downloads.run(async () => {
       try {
-        const access = this.access?.();
-        if (!access) return null;
-        const res = await this.request(this.urlOf(access, identifier), {
-          method: 'GET',
-          headers: this.headersOf(access),
-        });
-        if (!res.ok) return null;
+        const res = await this.authorized((access) =>
+          this.request(this.urlOf(access, identifier), { method: 'GET', headers: this.headersOf(access) })
+        );
+        if (!res?.ok) return null;
         const bytes = await res.arrayBuffer();
         if ((await sha256Hex(bytes)) !== identifier) {
           Logger.warn('[AssetHttpStore] 受け取ったデータのハッシュが名前と一致しません', identifier);
@@ -141,6 +164,40 @@ export class AssetHttpStore {
         return null;
       }
     });
+  }
+
+  /**
+   * Everything the room holds, for pictures and sounds that no member's catalog names, such as those
+   * left in a room everybody had gone from. Null when not in a room or the server cannot say.
+   */
+  async listRoomAssets(): Promise<RoomAsset[] | null> {
+    if (!this.baseUrl) return null;
+    try {
+      const res = await this.authorized((access) =>
+        this.request(`${this.baseUrl}/v1/rooms/${encodeURIComponent(access.roomKey)}/assets`, {
+          method: 'GET',
+          headers: this.headersOf(access),
+        })
+      );
+      if (!res?.ok) return null;
+      return readRoomAssetList(await res.json());
+    } catch (reason) {
+      Logger.warn('[AssetHttpStore] 部屋のアセットの一覧を受け取れませんでした', reason);
+      return null;
+    }
+  }
+
+  /**
+   * Sends a request with the access the seat holds, and once more with a fresh token when the server
+   * turned the one held down (it ran out, or the seat's role changed). Null outside a room.
+   */
+  private async authorized(send: (access: AssetAccess) => Promise<Response>): Promise<Response | null> {
+    const access = this.access?.();
+    if (!access) return null;
+    const first = await send(access);
+    if (first.status !== 401 || !this.refresh) return first;
+    const fresh = await this.refresh();
+    return fresh ? send(fresh) : first;
   }
 
   private urlOf(access: AssetAccess, identifier: string): string {

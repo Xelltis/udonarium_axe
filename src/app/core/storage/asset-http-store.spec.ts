@@ -106,6 +106,47 @@ describe('AssetHttpStore', () => {
       expect(await store.upload(id, new Blob([bytes]))).toBe('failed');
     });
 
+    it('asks for a fresh token once when the one held is turned away, and goes on with it', async () => {
+      const refresh = vi.fn(async () => ({ roomKey: ROOM, token: 'asset-2' }));
+      store.useAccess(() => access, refresh);
+      respond(
+        new Response(null, { status: 401 }),
+        new Response(null, { status: 404 }),
+        new Response('{}', { status: 401 }),
+        new Response('{}', { status: 201 })
+      );
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('stored');
+      expect(refresh).toHaveBeenCalledTimes(2);
+      expect([0, 1, 2, 3].map(authorizationOf)).toEqual([
+        'Bearer asset-1',
+        'Bearer asset-2',
+        'Bearer asset-1',
+        'Bearer asset-2',
+      ]);
+    });
+
+    it('fails when no fresh token comes for one turned away', async () => {
+      store.useAccess(
+        () => access,
+        vi.fn(async () => null)
+      );
+      respond(new Response(null, { status: 401 }));
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('failed');
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('names what it puts up, cut to the longest name the server keeps', async () => {
+      respond(new Response(null, { status: 404 }), new Response('{}', { status: 201 }));
+
+      await store.upload(id, new Blob([bytes]), `ドラゴン${'x'.repeat(300)}`);
+
+      const put = new Headers((fetchSpy.mock.calls[1][1] as RequestInit).headers);
+      expect(decodeURIComponent(put.get('X-Asset-Name')!)).toBe(`ドラゴン${'x'.repeat(251)}`);
+      expect(new Headers((fetchSpy.mock.calls[0][1] as RequestInit).headers).has('X-Asset-Name')).toBe(false);
+    });
+
     it('fails for now outside a room, without asking the server anything', async () => {
       access = null;
 
@@ -220,6 +261,44 @@ describe('AssetHttpStore', () => {
       access = null;
       expect(await store.download(id)).toBeNull();
       expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('fetches again with a fresh token when the one held is turned away', async () => {
+      store.useAccess(
+        () => access,
+        async () => ({ roomKey: ROOM, token: 'asset-2' })
+      );
+      respond(
+        new Response(null, { status: 401 }),
+        new Response(bytes, { status: 200, headers: { 'Content-Type': 'image/png' } })
+      );
+
+      expect(await store.download(id)).not.toBeNull();
+      expect(authorizationOf(1)).toBe('Bearer asset-2');
+    });
+  });
+
+  describe('listRoomAssets', () => {
+    const listed = { id: 'a'.repeat(64), type: 'image/png', size: 8, name: 'dragon.png' };
+
+    it('lists what the room holds, asking with the room’s token', async () => {
+      respond(new Response(JSON.stringify({ assets: [listed] }), { status: 200 }));
+
+      expect(await store.listRoomAssets()).toEqual([listed]);
+      expect(callsOf()).toEqual([['GET', `${BASE}/v1/rooms/${ROOM}/assets`]]);
+      expect(authorizationOf(0)).toBe('Bearer asset-1');
+    });
+
+    it('gives nothing when the server says nothing it can read, cannot be reached, or the seat is outside', async () => {
+      respond(new Response(null, { status: 401 }), new Response('{"assets":[{"id":1}]}', { status: 200 }));
+      expect(await store.listRoomAssets()).toBeNull();
+      expect(await store.listRoomAssets()).toBeNull();
+      fetchSpy.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      expect(await store.listRoomAssets()).toBeNull();
+      access = null;
+      expect(await store.listRoomAssets()).toBeNull();
+      store.configure(null);
+      expect(await store.listRoomAssets()).toBeNull();
     });
   });
 });

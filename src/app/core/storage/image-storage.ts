@@ -101,7 +101,7 @@ export class ImageStorage {
     if (!store.isEnabled || image.state !== ImageState.COMPLETE || !blob) return;
     if (!AssetHttpStore.isAssetId(image.identifier) || this.uploading.has(image.identifier)) return;
     this.uploading.add(image.identifier);
-    void store.upload(image.identifier, blob).finally(() => {
+    void store.upload(image.identifier, blob, image.name).finally(() => {
       this.uploading.delete(image.identifier);
       this.catalogSchedule.whenQuiet(100);
     });

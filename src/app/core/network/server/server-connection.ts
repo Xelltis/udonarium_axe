@@ -53,6 +53,8 @@ export const INVITE_TIMEOUT_MS = 10_000;
 export const TOKEN_CHECK_MS = 30_000;
 /** How long before the asset token runs out a fresh one is asked for, a few checks ahead of the end. */
 export const ASSET_TOKEN_MARGIN_MS = 2 * 60_000;
+/** How long a refresh of the asset token waits for the server before giving up. */
+export const ASSET_TOKEN_WAIT_MS = 10_000;
 /** How many requests to the server a seat keeps while it gets back into the room. */
 export const MAX_HELD_EVENTS = 64;
 /**
@@ -143,6 +145,8 @@ export class ServerConnection implements Connection {
   /** Whether a fresh asset token has been asked for and has not come yet. */
   private assetTokenAsked = false;
   private assetTokenTimer: ReturnType<typeof setInterval> | null = null;
+  /** Those waiting for the fresh asset token asked for, given the access once it comes. */
+  private assetTokenWaiters: (() => void)[] = [];
   /**
    * How far the server's clock is ahead of this one, in milliseconds, from the welcome. The asset
    * token runs out by the server's clock, so a clock running behind would renew it too late.
@@ -501,6 +505,28 @@ export class ServerConnection implements Connection {
   private takeAssetToken(token: string, expiresAt: number): void {
     this.assetToken = { token, expiresAt };
     this.assetTokenAsked = false;
+    const waiters = this.assetTokenWaiters;
+    this.assetTokenWaiters = [];
+    for (const waiter of waiters) waiter();
+  }
+
+  /**
+   * Asks for a fresh asset token now, for one the asset store turned down, and gives the access once
+   * it comes. Outside a room, without an answer after a while, or on leaving the room, it gives null.
+   */
+  refreshAssetAccess(): Promise<AssetAccess | null> {
+    if (!this.welcomed) return Promise.resolve(null);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(null), ASSET_TOKEN_WAIT_MS);
+      this.assetTokenWaiters.push(() => {
+        clearTimeout(timer);
+        resolve(this.assetAccess);
+      });
+      if (!this.assetTokenAsked) {
+        this.assetTokenAsked = true;
+        this.post(assetTokenRequest());
+      }
+    });
   }
 
   /** Asks the server for a fresh asset token a while before the one held runs out, once each time. */
@@ -678,6 +704,10 @@ export class ServerConnection implements Connection {
     const socket = this.socket;
     this.socket = null;
     this.welcomed = false;
+    // Out of the room, there is no fresh token to wait for.
+    const waiters = this.assetTokenWaiters;
+    this.assetTokenWaiters = [];
+    for (const waiter of waiters) waiter();
     if (socket && socket.readyState <= SOCKET_OPEN) socket.close(1000);
   }
 

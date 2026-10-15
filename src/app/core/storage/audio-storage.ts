@@ -101,7 +101,7 @@ export class AudioStorage {
     if (!store.isEnabled || audio.state !== AudioState.COMPLETE || !blob) return;
     if (!AssetHttpStore.isAssetId(audio.identifier) || this.uploading.has(audio.identifier)) return;
     this.uploading.add(audio.identifier);
-    void store.upload(audio.identifier, blob).finally(() => {
+    void store.upload(audio.identifier, blob, audio.name).finally(() => {
       this.uploading.delete(audio.identifier);
       this.catalogSchedule.whenQuiet(100);
     });

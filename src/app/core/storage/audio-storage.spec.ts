@@ -157,7 +157,7 @@ describe('AudioStorage', () => {
 
       storage.add(audio);
 
-      expect(upload).toHaveBeenCalledWith(trackId, audio.blob);
+      expect(upload).toHaveBeenCalledWith(trackId, audio.blob, 'theme.ogg');
       expect(catalogued(trackId)).toBe(false);
       finishUpload('exists');
       await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
@@ -170,7 +170,7 @@ describe('AudioStorage', () => {
       storage.uploadAllToAssetStore();
 
       expect(upload).toHaveBeenCalledTimes(1);
-      expect(upload).toHaveBeenCalledWith(trackId, expect.any(Blob));
+      expect(upload).toHaveBeenCalledWith(trackId, expect.any(Blob), 'theme.ogg');
       finishUpload('exists');
       await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
     });

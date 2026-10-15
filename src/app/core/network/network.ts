@@ -353,6 +353,11 @@ export class Network {
     return this.connection?.assetAccess ?? null;
   }
 
+  /** Asks the room server for a fresh asset token, once the store has been turned down with the one held. */
+  refreshAssetAccess(): Promise<AssetAccess | null> {
+    return this.connection?.refreshAssetAccess?.() ?? Promise.resolve(null);
+  }
+
   /**
    * Creates a room on the room server, which answers with the key to open it by. It rejects
    * without a connection, and with SkyWay, where a room needs no creating.

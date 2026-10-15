@@ -83,7 +83,10 @@ export class AppConfigService {
     if (config.transport !== 'server' || config.backend.url.trim().length === 0) return;
     this.serverAuth.configure(config.backend.url);
     Network.setServerCredentials(this.serverAuth);
-    AssetHttpStore.instance.useAccess(() => Network.instance.assetAccess);
+    AssetHttpStore.instance.useAccess(
+      () => Network.instance.assetAccess,
+      () => Network.instance.refreshAssetAccess()
+    );
   }
 }
 

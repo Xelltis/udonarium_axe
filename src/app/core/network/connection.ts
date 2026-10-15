@@ -72,6 +72,8 @@ export interface Connection {
   createRoom?(name: string, password: string): Promise<CreateRoomResponse>;
   /** The room's pictures and sounds as this seat may reach them, while it is in a room server's room. */
   readonly assetAccess?: AssetAccess | null;
+  /** Asks the room server for a fresh asset token, for one it turned down, and gives the access then. */
+  refreshAssetAccess?(): Promise<AssetAccess | null>;
   deleteRoom?(roomKey: string): Promise<void>;
   /** Gives a room server connection the login to say hello with. */
   useCredentials?(source: ServerCredentialSource | null): void;
