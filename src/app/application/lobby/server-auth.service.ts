@@ -1,5 +1,6 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { ServerCredentials, ServerCredentialSource } from '@axe/core/network/connection';
+import { Network } from '@axe/core/network/network';
 import {
   fetchLoginProviders,
   LOGIN_CHANNEL,
@@ -14,6 +15,8 @@ export const LOGIN_CALLBACK_PATH = 'assets/login-callback.html';
 const POPUP_FEATURES = 'popup,width=520,height=760';
 /** How often an open login popup is checked for having been closed without logging in. */
 const POPUP_WATCH_MS = 1000;
+/** Where an invitation waiting for a login is kept while the page itself goes to log in. */
+export const PENDING_INVITE_STORAGE_KEY = 'udonarium-axe.pending-invite';
 
 /** Whether a fragment is one the login came back with rather than an invite or nothing. */
 function isLoginFragment(hash: string): boolean {
@@ -72,6 +75,7 @@ export class ServerAuthService implements ServerCredentialSource {
   configure(baseUrl: string, login: ServerLogin = new ServerLogin(baseUrl)): void {
     this.login = login;
     this.takeAccount(login.account);
+    this.takeBackPendingInvite();
     void this.refreshProviders();
     const stop = login.onChange(() => this.takeAccount(login.account));
     this.destroyRef.onDestroy(stop);
@@ -101,7 +105,9 @@ export class ServerAuthService implements ServerCredentialSource {
       this.watchPopup(popup, attempt);
       return;
     }
-    location.href = await login.loginUrl(location.origin + location.pathname);
+    const url = await login.loginUrl(location.origin + location.pathname);
+    this.keepPendingInvite();
+    location.href = url;
   }
 
   /** Asks the backend again whether it offers a login; an unreachable one leaves the answer as it was. */
@@ -155,6 +161,35 @@ export class ServerAuthService implements ServerCredentialSource {
   private takeAccount(account: Account | null): void {
     if (account) this.accountUserIds.add(account.userId);
     this._account.set(account);
+  }
+
+  /**
+   * Keeps the invitation a guest was let in with, which waits for a login to take effect, while the
+   * page itself goes to log in and starts afresh on coming back.
+   */
+  private keepPendingInvite(): void {
+    const pending = Network.pendingServerInvite;
+    if (!pending) return;
+    try {
+      sessionStorage.setItem(PENDING_INVITE_STORAGE_KEY, JSON.stringify(pending));
+    } catch {
+      // without storage the invitation goes with the page, and the seat comes back in its own role
+    }
+  }
+
+  /** Takes back an invitation kept while the page went to log in, for the room the page goes back into. */
+  private takeBackPendingInvite(): void {
+    let kept: unknown;
+    try {
+      kept = JSON.parse(sessionStorage.getItem(PENDING_INVITE_STORAGE_KEY) ?? 'null');
+      sessionStorage.removeItem(PENDING_INVITE_STORAGE_KEY);
+    } catch {
+      return;
+    }
+    const pending = kept as { invite?: unknown; roomKey?: unknown } | null;
+    if (typeof pending?.invite === 'string' && typeof pending.roomKey === 'string') {
+      Network.setServerInvite(pending.invite, pending.roomKey);
+    }
   }
 
   private listenToOtherTabs(): void {

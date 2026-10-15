@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { LOGIN_CALLBACK_PATH, ServerAuthService } from '@axe/application/lobby/server-auth.service';
+import { Network } from '@axe/core/network/network';
 import { LOGIN_CHANNEL, LOGIN_STORAGE_KEY, ServerLogin } from '@axe/core/network/server/server-login';
 import { Account } from '@axe/core/network/server/server-protocol';
 
@@ -47,6 +48,7 @@ describe('ServerAuthService', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     history.replaceState(null, '', location.pathname);
     vi.restoreAllMocks();
   });
@@ -104,6 +106,25 @@ describe('ServerAuthService', () => {
     expect(landing.origin + landing.pathname).toBe(new URL(LOGIN_CALLBACK_PATH, document.baseURI).href);
     expect(landing.searchParams.get('attempt')).toMatch(/^[0-9a-f-]{36}$/);
     expect(popup.location.href).toContain('https://rooms.example/v1/login/discord');
+  });
+
+  it('keeps a guest’s invitation while the page itself goes to log in, and takes it back on return', async () => {
+    vi.spyOn(window, 'open').mockReturnValue(null);
+    const page = { origin: 'https://axe.example', pathname: '/', hash: '', href: 'https://axe.example/' };
+    vi.stubGlobal('location', page);
+    configure();
+    Network.setServerInvite('signed-gm', 'room-key');
+
+    await service.startLogin();
+    Network.setServerInvite('', '');
+
+    expect(page.href).toContain('https://rooms.example/v1/login/discord');
+    vi.unstubAllGlobals();
+    configure();
+    expect(Network.pendingServerInvite).toEqual({ invite: 'signed-gm', roomKey: 'room-key' });
+    Network.setServerInvite('', '');
+    configure();
+    expect(Network.pendingServerInvite).toBeNull();
   });
 
   it('takes the code the landing page hands back, only in the tab that opened the login', async () => {

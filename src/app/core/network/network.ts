@@ -82,6 +82,10 @@ export class Network {
   static setServerInvite(invite: string, roomKey: string) {
     Network.instance.setServerInvite(invite, roomKey);
   }
+  /** The invitation kept for the room it was given for, until a logged-in seat is let in with it. */
+  static get pendingServerInvite(): { invite: string; roomKey: string } | null {
+    return Network.instance.pendingServerInvite;
+  }
   /** Asks the room server for an invitation in a role; rejects with SkyWay or outside a room. */
   static requestInvite(role: ServerRole): Promise<InviteMessage> {
     return Network.instance.requestInvite(role);
@@ -195,6 +199,11 @@ export class Network {
 
   setServerInvite(invite: string, roomKey: string) {
     this.pendingInvite = invite && roomKey ? { invite, roomKey } : null;
+  }
+
+  /** The invitation kept for the room it was given for, until a logged-in seat is let in with it. */
+  get pendingServerInvite(): { invite: string; roomKey: string } | null {
+    return this.pendingInvite;
   }
 
   requestInvite(role: ServerRole): Promise<InviteMessage> {
