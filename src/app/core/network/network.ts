@@ -170,6 +170,14 @@ export class Network {
     if (!e.persisted) this.close();
   };
 
+  /**
+   * Comes back into the room when a page left for the back-forward cache is shown again; without
+   * this, the restored page looked open while it sent and heard nothing.
+   */
+  private callbackPageShow: (e: PageTransitionEvent) => void = (e: PageTransitionEvent) => {
+    if (e.persisted) void this.connection?.rejoinAfterLeave?.();
+  };
+
   private callbackBeforeUnload: (e: BeforeUnloadEvent) => void = (e: BeforeUnloadEvent) => {
     e.preventDefault();
   };
@@ -226,6 +234,7 @@ export class Network {
     connectFn();
 
     window.addEventListener('pagehide', this.callbackPageHide);
+    window.addEventListener('pageshow', this.callbackPageShow);
     window.addEventListener('beforeunload', this.callbackBeforeUnload);
   }
 
@@ -234,6 +243,7 @@ export class Network {
     this.connection = null;
     this.connectionClassPromise = null;
     window.removeEventListener('pagehide', this.callbackPageHide);
+    window.removeEventListener('pageshow', this.callbackPageShow);
     window.removeEventListener('beforeunload', this.callbackBeforeUnload);
     Logger.debug('[Network] close');
   }

@@ -190,6 +190,20 @@ describe('Network', () => {
       instance['connection'] = null;
     });
 
+    it('comes back into the room when a page left for the cache is shown again', () => {
+      const instance = Network.instance as unknown as Record<string, unknown>;
+      const rejoinAfterLeave = vi.fn(async () => {});
+      instance['connection'] = { rejoinAfterLeave } as unknown;
+      const show = instance['callbackPageShow'] as (e: PageTransitionEvent) => void;
+
+      show({ persisted: false } as PageTransitionEvent);
+      expect(rejoinAfterLeave).not.toHaveBeenCalled();
+      show({ persisted: true } as PageTransitionEvent);
+
+      expect(rejoinAfterLeave).toHaveBeenCalled();
+      instance['connection'] = null;
+    });
+
     it('closes the connection when the page is simply hidden', () => {
       const instance = Network.instance as unknown as Record<string, unknown>;
       const leaveImmediately = vi.fn();
