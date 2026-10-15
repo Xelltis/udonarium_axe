@@ -4,35 +4,59 @@ import { deflateSync } from 'node:zlib';
 import { Page } from '@playwright/test';
 
 import { openPanel } from '../helpers';
-import { createRoom, expect, joinRoom, leaveAll, openSeat, RoomServer, test, uniqueName } from './room-server';
+import {
+  assetTokenFor,
+  createRoom,
+  expect,
+  joinRoom,
+  leaveAll,
+  openSeat,
+  RoomServer,
+  test,
+  uniqueName,
+} from './room-server';
 
-// Pictures and sounds on the room server: the Worker keeps them under the SHA-256 of their bytes,
-// takes them only from somebody logged in, and hands them to anybody.
+// Pictures and sounds on the room server: the Worker keeps each room's under the SHA-256 of their
+// bytes, and hands them only to the room's seats, with the token the room gives them. Only a GM or
+// a PL puts them up.
 
 /** What a page asked of the asset store, and how it was answered. */
 interface AssetCall {
   method: string;
+  roomKey: string;
   id: string;
   status: number;
   authorized: boolean;
 }
+
+const ASSET_PATH = /\/v1\/rooms\/([0-9a-f]{32})\/assets\/([0-9a-f]{64})$/;
 
 /** Records every request a page makes of the room server's asset store. */
 function watchAssets(page: Page, server: RoomServer): AssetCall[] {
   const calls: AssetCall[] = [];
   page.on('response', async (response) => {
     const url = response.url();
-    if (!url.startsWith(`${server.apiUrl}/v1/assets/`)) return;
+    const match = ASSET_PATH.exec(url);
+    if (!url.startsWith(server.apiUrl) || !match) return;
     const request = response.request();
+    if (request.method() === 'OPTIONS') return;
     calls.push({
       method: request.method(),
-      id: url.split('/').pop() ?? '',
+      roomKey: match[1],
+      id: match[2],
       status: response.status(),
       authorized: (await request.headerValue('authorization'))?.startsWith('Bearer ') ?? false,
     });
   });
   return calls;
 }
+
+/** Asks the asset store from outside the browser, as anybody might who learnt a room key and a hash. */
+const askStore = (server: RoomServer, roomKey: string, id: string, authorization?: string) =>
+  fetch(`${server.apiUrl}/v1/rooms/${roomKey}/assets/${id}`, {
+    method: 'HEAD',
+    headers: { Origin: server.appUrl, ...(authorization ? { Authorization: authorization } : {}) },
+  });
 
 /** The upload a page made, once it has made one. */
 async function uploadOf(calls: AssetCall[]): Promise<AssetCall> {
@@ -128,8 +152,49 @@ test.describe('部屋のサーバーのアセット', () => {
         timeout: 20_000,
       })
       .toBe(true);
-    expect(plCalls.every((call) => !call.authorized)).toBe(true);
+    expect(plCalls.every((call) => call.authorized && call.roomKey === upload.roomKey)).toBe(true);
     await leaveAll(gm, pl);
+  });
+
+  test('部屋の画像は、その部屋のトークンを持たない人には渡らない', async ({ browser, roomServer }) => {
+    const gm = await openSeat(browser, roomServer, 'GMさん');
+    const room = uniqueName('閉じた画像の卓');
+    await createRoom(gm.page, room);
+    const gmCalls = watchAssets(gm.page, roomServer);
+    await addImage(gm.page, 'closed.png', uniquePng());
+    const { roomKey, id } = await uploadOf(gmCalls);
+    const elsewhere = '0'.repeat(32);
+
+    const seat = await askStore(roomServer, roomKey, id, `Bearer ${assetTokenFor(roomServer, roomKey, 'guest')}`);
+    const none = await askStore(roomServer, roomKey, id);
+    const otherRoom = await askStore(roomServer, roomKey, id, `Bearer ${assetTokenFor(roomServer, elsewhere, 'gm')}`);
+    const otherPlace = await askStore(
+      roomServer,
+      elsewhere,
+      id,
+      `Bearer ${assetTokenFor(roomServer, elsewhere, 'gm')}`
+    );
+
+    expect([seat.status, none.status, otherRoom.status, otherPlace.status]).toEqual([200, 401, 401, 404]);
+    await leaveAll(gm);
+  });
+
+  test('部屋を削除すると、その部屋の画像もサーバーから消える', async ({ browser, roomServer }) => {
+    const gm = await openSeat(browser, roomServer, 'GMさん');
+    const room = uniqueName('消える画像の卓');
+    await createRoom(gm.page, room);
+    const gmCalls = watchAssets(gm.page, roomServer);
+    await addImage(gm.page, 'gone.png', uniquePng());
+    const { roomKey, id } = await uploadOf(gmCalls);
+    const token = `Bearer ${assetTokenFor(roomServer, roomKey, 'gm')}`;
+    expect((await askStore(roomServer, roomKey, id, token)).status).toBe(200);
+
+    // The picture panel opened to add the picture lies over the peer menu.
+    await gm.page.getByTestId('peer-menu-delete-room').dispatchEvent('click');
+    await gm.page.getByRole('button', { name: '削除する' }).click();
+
+    await expect.poll(async () => (await askStore(roomServer, roomKey, id, token)).status).toBe(404);
+    await leaveAll(gm);
   });
 
   test('あとから入った人も、それまでに足された画像をサーバーから受け取る', async ({ browser, roomServer }) => {
@@ -175,11 +240,14 @@ test.describe('部屋のサーバーのアセット', () => {
     await joinRoom(pl.page, room);
     // The upload fails, as it would on a dropped line or a login that cannot be refreshed.
     let refused = '';
-    await gm.page.route(`${roomServer.apiUrl}/v1/assets/*`, async (route) => {
-      if (route.request().method() !== 'PUT') return route.continue();
-      refused = route.request().url().split('/').pop() ?? '';
-      return route.fulfill({ status: 503, body: '' });
-    });
+    await gm.page.route(
+      (url) => ASSET_PATH.test(url.pathname),
+      async (route) => {
+        if (route.request().method() !== 'PUT') return route.continue();
+        refused = route.request().url().split('/').pop() ?? '';
+        return route.fulfill({ status: 503, body: '' });
+      }
+    );
     await openPanel(pl.page, '画像');
     await expect(pl.page.locator('file-storage')).toBeVisible({ timeout: 10_000 });
     const plImages = pl.page.locator('file-storage img');

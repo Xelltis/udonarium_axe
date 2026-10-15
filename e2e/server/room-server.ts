@@ -230,6 +230,16 @@ export function accessTokenFor(server: RoomServer, userId: string, name: string,
   return `${body}.${createHmac('sha256', server.secret).update(body).digest('base64url')}`;
 }
 
+/** An asset token the room server would hand a seat of the room in this role, for checking from outside. */
+export function assetTokenFor(server: RoomServer, roomKey: string, role: 'gm' | 'pl' | 'guest'): string {
+  const header = base64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payload = base64url(
+    JSON.stringify({ aud: 'asset', room: roomKey, role, exp: Math.floor(Date.now() / 1000) + 900 })
+  );
+  const body = `${header}.${payload}`;
+  return `${body}.${createHmac('sha256', server.secret).update(body).digest('base64url')}`;
+}
+
 /**
  * A login as the client keeps it. The access token runs for `seconds`; the refresh token is made
  * up, as only a login through Discord gets a real one, so a refresh fails unless a test answers it.
