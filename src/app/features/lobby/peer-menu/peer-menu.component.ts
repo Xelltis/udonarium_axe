@@ -22,7 +22,8 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
-import { networkSend } from '@axe/core/network/network-messaging';
+import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
+import { transportOf } from '@axe/core/network/transport';
 import { saveIdentity } from '@axe/core/storage/identity-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
@@ -41,6 +42,11 @@ import { ReConnectComponent } from '@axe/features/lobby/re-connect/re-connect.co
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
+
+/** Where an invitation is kept: one for each room and role. */
+function inviteKey(roomKey: string | null, role: PeerRole): string {
+  return `${roomKey ?? ''}:${role}`;
+}
 
 /** How long before it runs out an invitation from the room server is asked for afresh. */
 const INVITE_RENEW_MARGIN_MS = 24 * 60 * 60 * 1000;
@@ -109,8 +115,11 @@ export class PeerMenuComponent {
   readonly dispDetailFlag = signal(false);
 
   readonly assignableRoles = ASSIGNABLE_PEER_ROLES;
-  /** Whether a room server decides the roles, which nobody then takes for themselves. */
-  protected readonly isServerTransport = Network.transport === 'server';
+  /**
+   * Whether a room server decides the roles, which nobody then takes for themselves. Followed from
+   * the config, which may load after the panel opens at startup.
+   */
+  protected readonly isServerTransport = signal(Network.transport === 'server');
   protected readonly roleShortLabelKey = roleShortLabelKey;
   protected readonly roleBadgeClass = roleBadgeClass;
 
@@ -118,18 +127,28 @@ export class PeerMenuComponent {
    * The roles a link may invite in. A room server signs an invitation, so its game master may
    * invite in any role, a fellow game master among them.
    */
-  protected readonly inviteRoles: readonly PeerRole[] = this.isServerTransport
-    ? [PeerRole.GameMaster, PeerRole.Player, PeerRole.Guest]
-    : [PeerRole.Player, PeerRole.Guest];
+  protected readonly inviteRoles = computed<readonly PeerRole[]>(() =>
+    this.isServerTransport()
+      ? [PeerRole.GameMaster, PeerRole.Player, PeerRole.Guest]
+      : [PeerRole.Player, PeerRole.Guest]
+  );
   protected readonly inviteRole = signal<PeerRole>(PeerRole.Player);
-  /** The invitations the room server has signed this session, by role, while they last. */
-  private readonly serverInvites = signal<ReadonlyMap<PeerRole, { invite: string; expiresAt: number }>>(new Map());
+  /** The invitations the room server has signed this session, by room and role, while they last. */
+  private readonly serverInvites = signal<ReadonlyMap<string, { invite: string; expiresAt: number }>>(new Map());
+  /**
+   * Bumped when the room server keeps a role as it was, so that the role pickers are drawn again
+   * from the roles as they stand rather than as last picked.
+   */
+  protected readonly roleSelectsDrawn = signal(0);
+  /** The invitations being asked for, so a request is not sent again while one is on its way. */
+  private readonly askingInvites = new Set<string>();
   /** Whether the room server turned down or did not answer the last request for an invitation. */
   protected readonly serverInviteFailed = signal(false);
   /** When the invitation in the link runs out, on a room server; null without one. */
-  protected readonly serverInviteExpiresAt = computed(
-    () => this.serverInvites().get(this.inviteRole())?.expiresAt ?? null
-  );
+  protected readonly serverInviteExpiresAt = computed(() => {
+    this.objectChange.networkVersion();
+    return this.serverInvites().get(inviteKey(Network.roomKey, this.inviteRole()))?.expiresAt ?? null;
+  });
   protected readonly includePasswordInInvite = signal(true);
   protected readonly inviteOverlay = signal(false);
   protected readonly isInviteCopied = transientSignal(false, 2000);
@@ -144,9 +163,11 @@ export class PeerMenuComponent {
       roomName: peer.roomName,
       roomKey: Network.roomKey ?? '',
       password: this.includePasswordInInvite() ? peer.password : '',
-      role: this.isServerTransport ? null : this.inviteRole(),
+      role: this.isServerTransport() ? null : this.inviteRole(),
       overlay: this.inviteOverlay(),
-      invite: this.isServerTransport ? (this.serverInvites().get(this.inviteRole())?.invite ?? '') : '',
+      invite: this.isServerTransport()
+        ? (this.serverInvites().get(inviteKey(Network.roomKey, this.inviteRole()))?.invite ?? '')
+        : '',
     });
   });
 
@@ -209,9 +230,12 @@ export class PeerMenuComponent {
    * that role is in hand with a day still to run. Anybody else's link carries none.
    */
   private async requestServerInvite(role: PeerRole): Promise<void> {
-    if (!this.isServerTransport || !Network.peerContext.isRoom || !this.isMyselfGameMaster) return;
-    const held = this.serverInvites().get(role);
+    if (!this.isServerTransport() || !Network.peerContext.isRoom || !this.isMyselfGameMaster) return;
+    const key = inviteKey(Network.roomKey, role);
+    const held = this.serverInvites().get(key);
     if (held && held.expiresAt - Date.now() > INVITE_RENEW_MARGIN_MS) return;
+    if (this.askingInvites.has(key)) return;
+    this.askingInvites.add(key);
     try {
       const answer = await Network.requestInvite(role);
       if (!answer.invite || answer.expiresAt == null) {
@@ -219,11 +243,13 @@ export class PeerMenuComponent {
         return;
       }
       const invites = new Map(this.serverInvites());
-      invites.set(role, { invite: answer.invite, expiresAt: answer.expiresAt });
+      invites.set(key, { invite: answer.invite, expiresAt: answer.expiresAt });
       this.serverInvites.set(invites);
       this.serverInviteFailed.set(false);
     } catch {
       this.serverInviteFailed.set(true);
+    } finally {
+      this.askingInvites.delete(key);
     }
   }
 
@@ -263,6 +289,12 @@ export class PeerMenuComponent {
   }
 
   constructor() {
+    this.objectChange.loadConfig$.subscribe((event) => {
+      this.isServerTransport.set(transportOf(event.config as Record<string, unknown>) === 'server');
+    }, this.destroyRef);
+    networkMessage$.subscribe((message) => {
+      if (message.eventName === 'ROLE_REJECTED') this.roleSelectsDrawn.update((drawn) => drawn + 1);
+    }, this.destroyRef);
     effect(() => {
       const role = this.inviteRole();
       this.objectChange.networkVersion();

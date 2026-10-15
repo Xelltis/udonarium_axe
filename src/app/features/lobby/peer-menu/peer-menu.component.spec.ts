@@ -1,7 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { LOCAL_MODE_STORAGE_KEY, LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { Network } from '@axe/core/network/network';
+import { localDispatch } from '@axe/core/network/network-messaging';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { PeerMenuComponent } from '@axe/features/lobby/peer-menu/peer-menu.component';
@@ -178,6 +180,77 @@ describe('PeerMenuComponent', () => {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await vi.waitFor(() => expect((component as any).serverInviteFailed()).toBe(true));
+    });
+
+    it('follows the config that loads after the panel opened at startup', () => {
+      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('skyway');
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.querySelector('[data-testid="peer-menu-server-role"]')).toBeNull();
+
+      TestBed.inject(ObjectChangeService).loadConfig$.emit({ config: { transport: 'server' } });
+      fixture.detectChanges();
+
+      expect(root.querySelector('[data-testid="peer-menu-server-role"]')).not.toBeNull();
+    });
+
+    it('keeps an invitation to its own room, and asks again in another', async () => {
+      const room = (roomKey: string) => {
+        vi.spyOn(Network.instance, 'roomKey', 'get').mockReturnValue(roomKey);
+      };
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        isRoom: true,
+        roomId: 'Ab3',
+        roomName: '月夜の卓',
+        password: '',
+        hasPassword: false,
+      } as never);
+      room('room-a');
+      const requestInvite = vi.spyOn(Network.instance, 'requestInvite').mockImplementation(async (role) => ({
+        type: 'invite',
+        role,
+        invite: `signed-${Date.now()}`,
+        expiresAt: Date.now() + 1e10,
+      }));
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+      const bump = async () => {
+        TestBed.inject(ObjectChangeService).networkVersion.update((v) => v + 1);
+        fixture.detectChanges();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      };
+      await vi.waitFor(() => expect(requestInvite).toHaveBeenCalled());
+      await bump();
+      const asked = requestInvite.mock.calls.length;
+
+      await bump();
+      expect(requestInvite).toHaveBeenCalledTimes(asked);
+
+      room('room-b');
+      await bump();
+      expect(requestInvite.mock.calls.length).toBeGreaterThan(asked);
+    });
+
+    it('draws the role picker again from the role as it stands when the server keeps it', () => {
+      vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([
+        { peerId: 'other-peer', isOpen: true },
+      ] as never);
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      fixture.detectChanges();
+      const picker = () =>
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>(
+          '[data-testid="peer-menu-role-other-peer"]'
+        );
+      const before = picker();
+      expect(before).not.toBeNull();
+
+      localDispatch('ROLE_REJECTED', { peerId: 'other-peer', role: 'guest', reason: 'not-logged-in' }, '@authority');
+      fixture.detectChanges();
+
+      expect(picker()).not.toBe(before);
     });
 
     it('asks the server to change somebody’s role, leaving their cursor for the server to change', () => {

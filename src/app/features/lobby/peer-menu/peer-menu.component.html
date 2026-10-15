@@ -38,7 +38,7 @@
       </div>
       <div class="flex items-center gap-1.5">
         <span>{{ 'feature.lobby.peerMenu.roleLabel' | transloco }}</span>
-        @if (isServerTransport) {
+        @if (isServerTransport()) {
           <span
             class="rounded-sm px-1.5 py-0.5 text-[0.7rem] font-bold"
             [class]="roleBadgeClass(myPeer.role)"
@@ -130,8 +130,8 @@
       <div class="space-y-1.5 pt-1">
         <div class="flex flex-wrap items-center gap-1.5">
           <span>{{ 'feature.lobby.peerMenu.inviteLabel' | transloco }}</span>
-          @if (!isServerTransport || isMyselfGameMaster) {
-            @for (role of inviteRoles; track role) {
+          @if (!isServerTransport() || isMyselfGameMaster) {
+            @for (role of inviteRoles(); track role) {
               <button
                 class="rounded-sm px-1.5 py-0.5 text-[0.7rem]"
                 [class]="
@@ -184,7 +184,7 @@
             }}
           </button>
         </div>
-        @if (isServerTransport) {
+        @if (isServerTransport()) {
           @if (!isMyselfGameMaster) {
             <p class="m-0 text-[0.7rem] text-(--ui-text-dim)">
               {{ 'feature.lobby.peerMenu.inviteWithoutRole' | transloco }}
@@ -239,16 +239,20 @@
           findPeerName(context.peerId) || shortId(context.peerId)
         }}</span>
         @if (isMyselfGameMaster) {
-          <select
-            class="shrink-0 text-[0.7rem]"
-            [ngModel]="findPeerRole(context.peerId)"
-            (ngModelChange)="reassignRole(context.peerId, $event)"
-            [name]="'peer-role-' + context.peerId"
-          >
-            @for (role of assignableRoles; track role) {
-              <option [ngValue]="role">{{ roleShortLabelKey(role) | transloco }}</option>
-            }
-          </select>
+          <!-- Drawn again when the room server keeps a role as it was, so the picker shows the role as it stands. -->
+          @for (drawn of [roleSelectsDrawn()]; track drawn) {
+            <select
+              class="shrink-0 text-[0.7rem]"
+              [ngModel]="findPeerRole(context.peerId)"
+              (ngModelChange)="reassignRole(context.peerId, $event)"
+              [name]="'peer-role-' + context.peerId"
+              [attr.data-testid]="'peer-menu-role-' + context.peerId"
+            >
+              @for (role of assignableRoles; track role) {
+                <option [ngValue]="role">{{ roleShortLabelKey(role) | transloco }}</option>
+              }
+            </select>
+          }
         } @else {
           <span
             class="shrink-0 rounded-sm px-1.5 py-0.5 text-[0.65rem] font-bold"
