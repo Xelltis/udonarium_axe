@@ -32,6 +32,8 @@ SkyWayのSecretをブラウザに置けないので、署名する場所が外�
 2. バックエンドの`ACCESS_CONTROL_ALLOW_ORIGIN`が、Axeを公開しているURLを許可しているか
 3. フロントエンドの`assets/config.json`の`backend.url`が、そのバックエンドを指しているか
 
+部屋のサーバー（Cloudflare版）には`/v1/status`がありません。1の代わりに`https://<バックエンドのURL>/`を開いて、`Hello udonarium-axe-backend!`が返るかを見てください。2と3はSkyWay版と同じです。
+
 3つとも通っているのにつながらないなら、[Issue](https://github.com/Xelltis/udonarium_axe/issues)で報告してください。
 
 ## ゲームデータはサーバーに保存されますか {#storage}

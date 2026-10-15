@@ -74,6 +74,10 @@ Axeの側は、`assets/config.json`で`transport`を`"server"`にし、`backend.
 `transport`を書かないか`"skyway"`にすれば、これまでどおりSkyWayでつながります。
 1つの配置先で使えるのはどちらか片方です。部屋ごとには選べません。
 
+部屋のサーバーは、ログインした人の情報と卓を預かります。
+身内の外にも開いて運営するなら、預かるものと消えるときを[運営する人へ](https://xelltis.github.io/udonarium_axe_backend/cloudflare/policies)で確かめてください。
+プライバシーポリシーと利用規約のひな形も、そこから開けます。
+
 ::: warning ベータです
 部屋のサーバーは、まだ試験中です。
 SkyWay版にある機能はすべて動くように作っていますが、実際の卓で使った数はまだ多くありません。
