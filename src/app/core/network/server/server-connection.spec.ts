@@ -791,6 +791,75 @@ describe('ServerConnection', () => {
       expect(FakeWebSocket.instances.length).toBe(2);
     });
 
+    it('ends the attempt with the server out of reach when the login cannot be refreshed before it got in', async () => {
+      tokens = ['token-1', 'token-2'];
+      replaceRejected.mockRejectedValueOnce(new Error('offline'));
+      const socket = await openRoom();
+      socket.accept();
+      await hello(socket);
+
+      socket.deliver({ type: 'error', code: 'unauthorized', protocolVersion: PROTOCOL_VERSION });
+      socket.close(4000, 'unauthorized');
+
+      await vi.waitFor(() => expect(errors).toEqual([{ code: SERVER_UNREACHABLE }]));
+      expect(FakeWebSocket.instances.length).toBe(1);
+    });
+
+    it('ends the session with the server out of reach once it has no tries left to get back in', async () => {
+      const socket = await enterRoom();
+      replaceRejected.mockRejectedValueOnce(new Error('offline'));
+      const scheduler = (connection as unknown as { reconnectScheduler: { schedule: () => number | null } })
+        .reconnectScheduler;
+      vi.spyOn(scheduler, 'schedule').mockReturnValue(null);
+
+      socket.deliver({ type: 'error', code: 'unauthorized', protocolVersion: PROTOCOL_VERSION });
+      socket.close(4000, 'unauthorized');
+
+      await vi.waitFor(() => expect(errors).toEqual([{ code: SERVER_UNREACHABLE }]));
+      expect(calls).not.toContain('reconnect retrying');
+    });
+
+    it('opens nothing, the server being out of reach, when the login cannot be refreshed as it opens', async () => {
+      connection.useCredentials({
+        credentials: () => Promise.reject(new Error('offline')),
+        accessToken: async () => null,
+        replaceRejected,
+        isAccountUserId: (userId) => userId === account,
+      });
+
+      connection.open('my-user', 'Ab3', '月夜の卓', '', ROOM_KEY);
+
+      await vi.waitFor(() => expect(errors).toEqual([{ code: SERVER_UNREACHABLE }]));
+      expect(FakeWebSocket.instances).toEqual([]);
+    });
+
+    it('closes the socket and gets back in when the login cannot be refreshed as it says hello', async () => {
+      const socket = await enterRoom();
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+      let offline = true;
+      connection.useCredentials({
+        credentials: async () => {
+          if (offline) throw new Error('offline');
+          return { userId: account, accessToken: 'token-1' };
+        },
+        accessToken: async () => 'token-1',
+        replaceRejected,
+        isAccountUserId: (userId) => userId === account,
+      });
+      socket.close(1006);
+      await vi.advanceTimersByTimeAsync(1000);
+      const again = latest();
+      const closed = vi.spyOn(again, 'close');
+      again.accept();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(closed).toHaveBeenCalledWith(4001, 'the login could not be refreshed');
+      expect(errors).toEqual([]);
+      offline = false;
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(FakeWebSocket.instances.length).toBeGreaterThan(2);
+    });
+
     it('gives up when the server turns the login down again', async () => {
       tokens = ['token-1', 'token-2'];
       const socket = await openRoom();
