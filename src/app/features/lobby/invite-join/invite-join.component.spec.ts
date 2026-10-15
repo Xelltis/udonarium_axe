@@ -205,7 +205,7 @@ describe('InviteJoinComponent', () => {
       );
 
       await eventually(() => expect(joinServerRoom).toHaveBeenCalled());
-      expect(setServerInvite).toHaveBeenCalledWith('signed-invite');
+      expect(setServerInvite).toHaveBeenCalledWith('signed-invite', KEY);
       expect(setServerInvite.mock.invocationCallOrder[0]).toBeLessThan(joinServerRoom.mock.invocationCallOrder[0]);
     });
 

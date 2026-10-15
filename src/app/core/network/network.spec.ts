@@ -207,7 +207,7 @@ describe('Network', () => {
       vi.restoreAllMocks();
     });
 
-    it('hands the login to every connection it makes, and an invitation to the next room opened only', async () => {
+    it('hands the login to every connection it makes, and an invitation to its room until a login uses it', async () => {
       class SilentSocket {
         binaryType = '';
         readyState = 0;
@@ -222,17 +222,30 @@ describe('Network', () => {
         accessToken: async () => null,
         replaceRejected: async () => null,
       };
+      const ROOM = '0123456789abcdef0123456789abcdef';
+      const OTHER_ROOM = 'fedcba9876543210fedcba9876543210';
+      const opened = async (roomKey: string, times: number) => {
+        Network.open('my-user', 'Ab3', '月夜の卓', '', roomKey);
+        await vi.waitFor(() => expect(useCredentials).toHaveBeenCalledTimes(times));
+      };
       Network.configure({ transport: 'server', backend: { url: 'https://rooms.example' } });
       Network.setServerCredentials(source);
-      Network.setServerInvite('the-invite');
+      Network.setServerInvite('the-invite', ROOM);
 
-      Network.open('my-user', 'Ab3', '月夜の卓', '', '0123456789abcdef0123456789abcdef');
-      await vi.waitFor(() => expect(useInvite).toHaveBeenCalledWith('the-invite'));
-      Network.open('my-user', 'Ab3', '月夜の卓', '', '0123456789abcdef0123456789abcdef');
-      await vi.waitFor(() => expect(useCredentials).toHaveBeenCalledTimes(2));
+      await opened(ROOM, 1);
+      await opened(OTHER_ROOM, 2);
+      await opened(ROOM, 3);
+      expect(useInvite.mock.calls).toEqual([['the-invite'], ['the-invite']]);
+
+      // a logged-in seat getting into the room uses the invitation up
+      const connection = (Network.instance as unknown as { connection: InstanceType<typeof ServerConnection> })
+        .connection;
+      Object.assign(connection, { role: 'pl', room: { roomKey: ROOM, password: '' } });
+      connection.callback.onOpen(connection.peer);
+      await opened(ROOM, 4);
 
       expect(useCredentials.mock.calls.every(([given]) => given === source)).toBe(true);
-      expect(useInvite).toHaveBeenCalledTimes(1);
+      expect(useInvite).toHaveBeenCalledTimes(2);
       (Network.instance as unknown as { close(): void }).close();
     });
   });

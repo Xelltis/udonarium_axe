@@ -75,9 +75,12 @@ export class Network {
   static setServerCredentials(source: ServerCredentialSource | null) {
     Network.instance.setServerCredentials(source);
   }
-  /** Keeps an invitation from a link for the next room opened on a room server. */
-  static setServerInvite(invite: string) {
-    Network.instance.setServerInvite(invite);
+  /**
+   * Keeps an invitation from a link for the room it invites to, carried by every hello to that room
+   * until a logged-in seat gets in with it; a guest's seat leaves it for after a login.
+   */
+  static setServerInvite(invite: string, roomKey: string) {
+    Network.instance.setServerInvite(invite, roomKey);
   }
   /** Asks the room server for an invitation in a role; rejects with SkyWay or outside a room. */
   static requestInvite(role: ServerRole): Promise<InviteMessage> {
@@ -146,7 +149,7 @@ export class Network {
 
   private config: Record<string, unknown> = {};
   private credentialSource: ServerCredentialSource | null = null;
-  private pendingInvite = '';
+  private pendingInvite: { invite: string; roomKey: string } | null = null;
   private connectionClassPromise: Promise<ConnectionClass> | null = null;
   private connectionClass!: ConnectionClass;
   private connection: Connection | null = null;
@@ -182,8 +185,8 @@ export class Network {
     this.connection?.useCredentials?.(source);
   }
 
-  setServerInvite(invite: string) {
-    this.pendingInvite = invite;
+  setServerInvite(invite: string, roomKey: string) {
+    this.pendingInvite = invite && roomKey ? { invite, roomKey } : null;
   }
 
   requestInvite(role: ServerRole): Promise<InviteMessage> {
@@ -196,8 +199,8 @@ export class Network {
       Logger.warn('[Network] 既に接続済みです');
       this.close();
     }
-    const invite = this.pendingInvite;
-    this.pendingInvite = '';
+    const pending = this.pendingInvite;
+    const invite = pending && pending.roomKey === roomKey ? pending.invite : '';
     this.openAsync(() => {
       if (invite) this.connection!.useInvite?.(invite);
       this.connection!.open(userId, roomId, roomName, password, roomKey);
@@ -350,6 +353,14 @@ export class Network {
     connection.useCredentials?.(this.credentialSource);
 
     connection.callback.onOpen = (peer) => {
+      // A logged-in seat got into the invited room, and the invitation has done its work.
+      if (
+        connection.serverRole &&
+        connection.serverRole !== 'guest' &&
+        connection.roomKey === this.pendingInvite?.roomKey
+      ) {
+        this.pendingInvite = null;
+      }
       if (this.callback.onOpen) this.callback.onOpen(peer);
     };
     connection.callback.onClose = (peer) => {

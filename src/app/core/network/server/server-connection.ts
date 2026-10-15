@@ -43,6 +43,13 @@ export const INVITE_TIMEOUT_MS = 10_000;
  * before it does, so a check every half minute hands the new one over in time.
  */
 export const TOKEN_CHECK_MS = 30_000;
+/** How many requests to the server a seat keeps while it gets back into the room. */
+export const MAX_HELD_EVENTS = 64;
+/**
+ * Requests to the server that would be lost while reconnecting, and that the catalogs traded on
+ * getting back in do not mend: a roll and a role change asked for in the meantime.
+ */
+const HELD_EVENT_NAMES: ReadonlySet<string> = new Set(['ROLL_REQUEST', 'ROLE_REQUEST']);
 /** The refusal for a hello whose login is gone or belongs to somebody else. */
 const UNAUTHORIZED = 'unauthorized';
 
@@ -135,6 +142,8 @@ export class ServerConnection implements Connection {
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private pongTimer: ReturnType<typeof setTimeout> | null = null;
   private tokenTimer: ReturnType<typeof setInterval> | null = null;
+  /** Requests to the server sent while getting back into the room, to send once back in. */
+  private held: Outbound[] = [];
 
   /** Takes the room server's address from the app config's backend url. */
   configure(config: Record<string, unknown>): void {
@@ -233,8 +242,12 @@ export class ServerConnection implements Connection {
    * with nobody connected; the catalogs traded on getting back in mend what was missed.
    */
   send(data: unknown, sendTo?: string): void {
-    if (!this.welcomed || !Array.isArray(data) || data.length === 0) return;
+    if (!Array.isArray(data) || data.length === 0) return;
     const events = data as EventContext[];
+    if (!this.welcomed) {
+      this.hold(events, sendTo);
+      return;
+    }
     const last = this.outbound.at(-1);
     if (last && last.to === sendTo) {
       last.events.push(...events);
@@ -247,6 +260,17 @@ export class ServerConnection implements Connection {
         this.flush();
       }, SEND_GATHER_MS);
     }
+  }
+
+  /**
+   * Keeps the requests to the server among events sent while getting back into the room, to send
+   * once back in; the rest go, as SkyWay drops what it sends with nobody connected.
+   */
+  private hold(events: EventContext[], sendTo: string | undefined): void {
+    if (!this.everWelcomed || this.stopped || sendTo !== this.authority?.peerId) return;
+    const kept = events.filter((event) => HELD_EVENT_NAMES.has(event.eventName));
+    const room = MAX_HELD_EVENTS - this.held.reduce((count, batch) => count + batch.events.length, 0);
+    if (kept.length > 0 && room > 0) this.held.push({ to: sendTo, events: kept.slice(0, room) });
   }
 
   async listAllPeers(): Promise<string[]> {
@@ -390,7 +414,8 @@ export class ServerConnection implements Connection {
   private welcome(message: WelcomeMessage): void {
     this.welcomed = true;
     this.role = message.role;
-    this.invite = '';
+    // A guest's invitation waits for a login; only an account's first visit takes it.
+    if (message.role !== 'guest') this.invite = '';
     this.retriedUnauthorized = false;
     this.reconnectScheduler.reset(SOCKET_KEY);
     const authority = PeerContext.parse(message.authorityPeerId);
@@ -409,6 +434,9 @@ export class ServerConnection implements Connection {
       if (!present.has(peerId)) this.removeMember(peerId);
     }
     for (const member of message.members) this.addMember(member);
+    const held = this.held;
+    this.held = [];
+    for (const batch of held) this.send(batch.events, batch.to);
     if (this.me.userId.startsWith(ACCOUNT_USER_ID_PREFIX)) this.startTokenChecks();
   }
 
@@ -562,6 +590,7 @@ export class ServerConnection implements Connection {
     this.reconnectScheduler.cancelAll();
     this.stopPing();
     this.stopTokenChecks();
+    this.held = [];
     this.dropQueued();
     const socket = this.socket;
     this.socket = null;
@@ -610,7 +639,10 @@ export class ServerConnection implements Connection {
       if (this.pongTimer == null) {
         this.pongTimer = setTimeout(() => {
           this.pongTimer = null;
-          if (socket === this.socket) socket.close(4001, 'no answer to ping');
+          if (socket !== this.socket) return;
+          // A dead link may take a minute to report the close; take it as lost now.
+          socket.close(4001, 'no answer to ping');
+          if (socket === this.socket) this.socketClosed();
         }, PONG_TIMEOUT_MS);
       }
     }, PING_INTERVAL_MS);

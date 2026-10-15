@@ -327,6 +327,47 @@ describe('ServerConnection', () => {
     expect(calls).toContain('reconnect retrying');
   });
 
+  it('takes a silent link as lost at once, without waiting for a close that may never come', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    const socket = await enterRoom([OTHER]);
+    socket.close = () => {
+      socket.readyState = 2;
+    };
+
+    vi.advanceTimersByTime(PING_INTERVAL_MS + PONG_TIMEOUT_MS);
+
+    expect(calls.slice(-3)).toEqual(['disconnect authority', `disconnect ${OTHER.peerId}`, 'reconnect retrying']);
+  });
+
+  it('keeps a roll and a role change asked for while getting back in, and sends them once back', async () => {
+    const socket = await enterRoom();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    socket.close(1006);
+    connection.send([event('ROLL_REQUEST', { command: '2d6' }), event('CHAT')], AUTHORITY_PEER_ID);
+    connection.send([event('UPDATE_GAME_OBJECT')]);
+    vi.advanceTimersByTime(1000);
+    vi.useRealTimers();
+
+    const again = latest();
+    again.accept();
+    again.deliver({
+      type: 'welcome',
+      protocolVersion: PROTOCOL_VERSION,
+      peerId: connection.peerId,
+      authorityPeerId: AUTHORITY_PEER_ID,
+      role: 'pl',
+      members: [],
+      serverTime: Date.now(),
+    });
+
+    await vi.waitFor(async () => expect((await again.frames()).length).toBe(2));
+    expect((await again.frames())[1]).toEqual({
+      type: 'send',
+      to: AUTHORITY_PEER_ID,
+      events: [event('ROLL_REQUEST', { command: '2d6' })],
+    });
+  });
+
   it('keeps the connection while the server answers', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
     const socket = await enterRoom();
@@ -435,6 +476,31 @@ describe('ServerConnection', () => {
       again.accept();
 
       expect(await hello(again)).not.toHaveProperty('invite');
+    });
+
+    it('keeps the invitation of a seat let in as a guest, for when it comes back logged in', async () => {
+      connection.useInvite('the-invite');
+      const socket = await openRoom();
+      socket.accept();
+      socket.deliver({
+        type: 'welcome',
+        protocolVersion: PROTOCOL_VERSION,
+        peerId: connection.peerId,
+        authorityPeerId: AUTHORITY_PEER_ID,
+        role: 'guest',
+        members: [],
+        serverTime: Date.now(),
+      });
+      await vi.waitFor(() => expect(calls).toContain('open'));
+
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+      socket.close(1006);
+      vi.advanceTimersByTime(1000);
+      vi.useRealTimers();
+      const again = latest();
+      again.accept();
+
+      expect((await hello(again))['invite']).toBe('the-invite');
     });
 
     it('hands the server each fresh access token while in the room', async () => {
