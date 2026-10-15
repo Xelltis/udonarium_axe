@@ -271,10 +271,18 @@ export class ImageFile {
     return ImageFile.createThumbnailOnMainThread(context);
   }
 
+  /**
+   * Draws the thumbnail on this page. Settles either way, as when the canvas makes no blob of an
+   * image that reads as having no size, so that whoever waits on it is not left waiting for ever.
+   */
   private static createThumbnailOnMainThread(context: ImageContext): Promise<ThumbnailContext> {
     return new Promise((resolve, reject) => {
       const image: HTMLImageElement = new Image();
       image.onload = () => {
+        if (!image.width || !image.height) {
+          reject(new Error('the image has no size to draw a thumbnail of'));
+          return;
+        }
         const scale: number = Math.min(THUMBNAIL_MAX_SIZE / Math.max(image.width, image.height), 1.0);
         const dstWidth = image.width * scale;
         const dstHeight = image.height * scale;
@@ -286,12 +294,11 @@ export class ImageFile {
         render.drawImage(image, 0, 0, dstWidth, dstHeight);
 
         canvas.toBlob((blob) => {
-          const thumbnail: ThumbnailContext = {
-            type: blob!.type,
-            blob: blob,
-            url: window.URL.createObjectURL(blob!),
-          };
-          resolve(thumbnail);
+          if (!blob) {
+            reject(new Error('the canvas made no thumbnail'));
+            return;
+          }
+          resolve({ type: blob.type, blob, url: window.URL.createObjectURL(blob) });
         }, context.blob!.type);
       };
       image.onabort = image.onerror = () => {
