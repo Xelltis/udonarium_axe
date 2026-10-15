@@ -108,6 +108,14 @@ describe('identity-storage', () => {
     expect(guestUserIdAfter(account, loadIdentity(), account)).toBe('');
   });
 
+  it('takes the user id of an identity saved before the account was kept beside it as maybe an account’s', () => {
+    const account = 'e0100553-8866-4924-8a4a-d4900ac59de5';
+    const { accountUserId: _kept, ...saved } = { ...sample, userId: account, guestUserId: account };
+    sessionStorage.setItem('udonarium-axe.identity', JSON.stringify(saved));
+
+    expect(guestUserIdOf(loadIdentity())).toBe('');
+  });
+
   it('returns null for corrupt JSON', () => {
     sessionStorage.setItem('udonarium-axe.identity', '{not json');
     expect(loadIdentity()).toBeNull();

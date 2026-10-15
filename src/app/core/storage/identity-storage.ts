@@ -80,7 +80,14 @@ export function loadIdentity(): PersistedIdentity | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<PersistedIdentity> | null;
     if (!parsed || typeof parsed.userId !== 'string' || parsed.userId.length < 1) return null;
-    const accountUserId = typeof parsed.accountUserId === 'string' ? parsed.accountUserId : '';
+    // Saved after logins came and before the account was kept beside it, a user id the tab saved as
+    // its guest id may have been an account's, which nothing else can tell any more: it is taken as one.
+    const accountUserId =
+      typeof parsed.accountUserId === 'string'
+        ? parsed.accountUserId
+        : typeof parsed.guestUserId === 'string'
+          ? parsed.userId
+          : '';
     return {
       userId: parsed.userId,
       roomId: typeof parsed.roomId === 'string' ? parsed.roomId : '',
