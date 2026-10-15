@@ -228,6 +228,14 @@ describe('InviteJoinComponent', () => {
       expect(PeerCursor.myCursor.role).toBe(PeerRole.Player);
     });
 
+    it('says it could not get in when the server cannot be asked about the room', async () => {
+      findServerRoom.mockRejectedValue(new Error('out of reach'));
+      await setup(link(''));
+
+      await eventually(() => expect(bannerText()).toContain('参加できません'));
+      expect(joinServerRoom).not.toHaveBeenCalled();
+    });
+
     it('says the room is gone when the server does not list it', async () => {
       await setup(link(''));
 

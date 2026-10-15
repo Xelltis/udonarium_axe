@@ -64,12 +64,12 @@ export class InviteJoinComponent {
     this.state.set('joining');
 
     if (Network.isOpen) {
-      void this.join(params);
+      void this.joinOrSayFailed(params);
       return;
     }
     const offOpen = this.objectChange.networkOpen$.subscribe(() => {
       offOpen();
-      void this.join(params);
+      void this.joinOrSayFailed(params);
     }, this.destroyRef);
   }
 
@@ -86,6 +86,18 @@ export class InviteJoinComponent {
 
   protected dismiss(): void {
     this.state.set('done');
+  }
+
+  /**
+   * Joins as the link says, and says it could not when looking the room up failed, as when the
+   * server cannot be reached, rather than leaving the banner saying it is joining.
+   */
+  private async joinOrSayFailed(params: InviteLinkParams): Promise<void> {
+    try {
+      await this.join(params);
+    } catch {
+      this.state.set('failed');
+    }
   }
 
   private async join(params: InviteLinkParams): Promise<void> {
