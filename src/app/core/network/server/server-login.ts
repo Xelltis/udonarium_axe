@@ -249,18 +249,19 @@ export class ServerLogin {
     }).catch(() => undefined);
   }
 
-  /** Deletes the account on the server, its name, avatar and tokens, and logs out here. */
+  /**
+   * Deletes the account on the server, its name, avatar and tokens, and logs out here. Rejects,
+   * keeping the login, when the server could not be told: with no token to tell it by, or one it
+   * turns away. An account deleted already, from another device, counts as deleted.
+   */
   async deleteAccount(): Promise<void> {
     const token = await this.accessToken();
-    if (!token) {
-      this.clear();
-      return;
-    }
+    if (!token) throw new ServerRoomApiError(401, 'login-required');
     const response = await fetch(apiUrl(this.baseUrl, '/v1/account'), {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!response.ok && response.status !== 401) return refusal(response);
+    if (!response.ok && response.status !== 404) return refusal(response);
     this.clear();
   }
 

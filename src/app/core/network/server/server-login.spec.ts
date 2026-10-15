@@ -277,6 +277,30 @@ describe('ServerLogin', () => {
     expect(storage.getItem(LOGIN_STORAGE_KEY)).toBeNull();
   });
 
+  it('keeps the login and fails when the server turns the token away, the account still being there', async () => {
+    store(kept(1, NOW + 600_000));
+    answer = () => json(401, { error: 'login-required' });
+
+    await expect(login().deleteAccount()).rejects.toMatchObject({ status: 401 });
+
+    expect(storage.getItem(LOGIN_STORAGE_KEY)).not.toBeNull();
+  });
+
+  it('fails without a word to the server when it holds no login to tell it by', async () => {
+    await expect(login().deleteAccount()).rejects.toMatchObject({ status: 401 });
+
+    expect(requests).toEqual([]);
+  });
+
+  it('takes an account deleted already, from another device, as deleted', async () => {
+    store(kept(1, NOW + 600_000));
+    answer = () => json(404, { error: 'not-found' });
+
+    await login().deleteAccount();
+
+    expect(storage.getItem(LOGIN_STORAGE_KEY)).toBeNull();
+  });
+
   it('reads no login from a missing, broken or incomplete value', () => {
     expect(readStoredLogin(storage)).toBeNull();
     storage.setItem(LOGIN_STORAGE_KEY, '{not json');
