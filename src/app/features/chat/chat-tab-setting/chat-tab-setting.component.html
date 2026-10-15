@@ -125,7 +125,7 @@
               name="pl-view"
               [ngModel]="perm('plCanView') || perm('plCanSpeak')"
               (ngModelChange)="setPerm('plCanView', $event)"
-              [disabled]="!canEditPermission || perm('plCanSpeak')"
+              [disabled]="!canEditPerm('plCanView') || perm('plCanSpeak')"
             />
             <input
               type="checkbox"
@@ -133,7 +133,7 @@
               name="pl-speak"
               [ngModel]="perm('plCanSpeak')"
               (ngModelChange)="setPerm('plCanSpeak', $event)"
-              [disabled]="!canEditPermission"
+              [disabled]="!canEditPerm('plCanSpeak')"
             />
 
             <span class="text-ui-text">{{ 'feature.role.guest' | transloco }}</span>
@@ -143,7 +143,7 @@
               name="guest-view"
               [ngModel]="perm('guestCanView') || perm('guestCanSpeak')"
               (ngModelChange)="setPerm('guestCanView', $event)"
-              [disabled]="!canEditPermission || perm('guestCanSpeak')"
+              [disabled]="!canEditPerm('guestCanView') || perm('guestCanSpeak')"
             />
             <input
               type="checkbox"
@@ -151,10 +151,13 @@
               name="guest-speak"
               [ngModel]="perm('guestCanSpeak')"
               (ngModelChange)="setPerm('guestCanSpeak', $event)"
-              [disabled]="!canEditPermission"
+              [disabled]="!canEditPerm('guestCanSpeak')"
             />
           </div>
           <span class="text-ui-dim text-[11px]">{{ 'feature.chat.tabSetting.permGmNote' | transloco }}</span>
+          @if (canEditPermission && isKeptToGameMasterByServer) {
+            <span class="text-ui-dim text-[11px]">{{ 'feature.chat.tabSetting.permViewGmOnServer' | transloco }}</span>
+          }
         </div>
       }
 

@@ -5,6 +5,7 @@ import {
   CHAT_LOG_STYLE_STORAGE_KEY,
 } from '@axe/application/chat/chat-log-style-preference.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -346,6 +347,65 @@ describe('ChatTabSettingComponent', () => {
       component.setPerm('guestCanSpeak', true);
 
       expect(tab.guestCanSpeak).toBe(true);
+    });
+  });
+
+  describe('in a room server’s room, holds a player to what the server lets them change', () => {
+    const beSeat = (role: PeerRole) => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = role;
+    };
+
+    beforeEach(() => {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+      PeerCursor.myCursor = null!;
+    });
+
+    it('lets a player change who may speak where they may read, but not who may read', () => {
+      beSeat(PeerRole.Player);
+      const tab = ChatTabList.instance.addChatTab('test');
+      tab.plCanView = false;
+      tab.plCanSpeak = false;
+      tab.guestCanView = true;
+      tab.guestCanSpeak = false;
+      component.selectedTab.set(tab);
+
+      component.setPerm('plCanView', true);
+      component.setPerm('plCanSpeak', true);
+      component.setPerm('guestCanView', false);
+      component.setPerm('guestCanSpeak', true);
+
+      expect([tab.plCanView, tab.plCanSpeak, tab.guestCanView, tab.guestCanSpeak]).toEqual([false, false, true, true]);
+      expect(component.canEditPerm('plCanView')).toBe(false);
+      expect(component.canEditPerm('guestCanSpeak')).toBe(true);
+    });
+
+    it('lets the game master change who may read', () => {
+      beSeat(PeerRole.GameMaster);
+      const tab = ChatTabList.instance.addChatTab('test');
+      tab.plCanView = false;
+      component.selectedTab.set(tab);
+
+      component.setPerm('plCanView', true);
+
+      expect(tab.plCanView).toBe(true);
+    });
+
+    it('lets a player among peers change who may read, as before', () => {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+      beSeat(PeerRole.Player);
+      const tab = ChatTabList.instance.addChatTab('test');
+      tab.plCanView = false;
+      component.selectedTab.set(tab);
+
+      component.setPerm('plCanView', true);
+
+      expect(tab.plCanView).toBe(true);
     });
   });
 

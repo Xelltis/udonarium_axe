@@ -3641,6 +3641,7 @@
         "permView": "View",
         "permSpeak": "Speak",
         "permGmNote": "GM can always view and speak",
+        "permViewGmOnServer": "On a room server, only the GM can change who can view",
         "moveUpTooltip": "Move up",
         "moveDownTooltip": "Move down",
         "deletedNotice": "This tab is deleted",

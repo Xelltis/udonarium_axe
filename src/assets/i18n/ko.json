@@ -3641,6 +3641,7 @@
         "permView": "열람",
         "permSpeak": "발언",
         "permGmNote": "GM은 언제나 열람·발언할 수 있습니다",
+        "permViewGmOnServer": "방 서버에서는 열람할 수 있는 사람을 GM만 바꿀 수 있습니다",
         "moveUpTooltip": "위로 이동",
         "moveDownTooltip": "아래로 이동",
         "deletedNotice": "이 탭은 삭제되었습니다",

@@ -10,6 +10,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
+import { Network } from '@axe/core/network/network';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CHAT_LOG_STYLES, ChatLogStyle } from '@axe/domain/chat/chat-log-style';
@@ -99,7 +100,7 @@ export class ChatTabSettingComponent {
    */
   setPerm(key: 'plCanView' | 'plCanSpeak' | 'guestCanView' | 'guestCanSpeak', value: boolean): void {
     const tab = this.selectedTab();
-    if (!this.canEditPermission || !tab || tab.isSystemTab) return;
+    if (!this.canEditPerm(key) || !tab || tab.isSystemTab) return;
     tab[key] = value;
     // whoever may speak may read, so speaking without reading cannot happen
     if (key === 'plCanSpeak' && value) tab.plCanView = true;
@@ -180,6 +181,30 @@ export class ChatTabSettingComponent {
   /** Whether the read and speak permissions of the selected tab can be changed from this seat. */
   get canEditPermission(): boolean {
     return this.isEditable && this.canEditTabs;
+  }
+
+  /**
+   * Whether a room server holds this seat to what only the game master may change in the tabs: who
+   * may read a tab. Among peers nothing is held back.
+   */
+  get isKeptToGameMasterByServer(): boolean {
+    this.objectChange.trackMyCursor();
+    return Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
+  }
+
+  /**
+   * Whether this seat may change one of the selected tab's permissions.
+   *
+   * In a room server's room, who may read a tab is the game master's alone to change, as the server
+   * holds. Anyone else may change who may speak only where those who would speak may already read,
+   * since speaking brings reading with it.
+   */
+  canEditPerm(key: 'plCanView' | 'plCanSpeak' | 'guestCanView' | 'guestCanSpeak'): boolean {
+    if (!this.canEditPermission) return false;
+    if (!this.isKeptToGameMasterByServer) return true;
+    if (key === 'plCanSpeak') return this.perm('plCanView');
+    if (key === 'guestCanSpeak') return this.perm('guestCanView');
+    return false;
   }
 
   readonly isSaving = signal(false);

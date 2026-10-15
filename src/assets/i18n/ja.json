@@ -3641,6 +3641,7 @@
         "permView": "閲覧",
         "permSpeak": "発言",
         "permGmNote": "GM は常に閲覧・発言できます",
+        "permViewGmOnServer": "部屋のサーバーでは、閲覧できる人を変えられるのは GM だけです",
         "moveUpTooltip": "上に移動",
         "moveDownTooltip": "下に移動",
         "deletedNotice": "このタブは削除されています",
