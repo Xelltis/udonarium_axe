@@ -1,4 +1,10 @@
-import { clearIdentity, loadIdentity, PersistedIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
+import {
+  clearIdentity,
+  guestUserIdOf,
+  loadIdentity,
+  PersistedIdentity,
+  saveIdentity,
+} from '@axe/core/storage/identity-storage';
 
 const sample: PersistedIdentity = {
   userId: '550e8400-e29b-41d4-a716-446655440000',
@@ -7,6 +13,7 @@ const sample: PersistedIdentity = {
   role: 'gm',
   reConnectPass: 'secret',
   roomKey: '0123456789abcdef0123456789abcdef',
+  guestUserId: '',
 };
 
 describe('identity-storage', () => {
@@ -36,6 +43,7 @@ describe('identity-storage', () => {
       role: '',
       reConnectPass: '',
       roomKey: '',
+      guestUserId: '',
     });
   });
 
@@ -44,6 +52,20 @@ describe('identity-storage', () => {
     sessionStorage.setItem('udonarium-axe.identity', JSON.stringify(saved));
 
     expect(loadIdentity()?.roomKey).toBe('');
+  });
+
+  it('goes by the saved user id without a login, as it did before logins', () => {
+    expect(guestUserIdOf(sample)).toBe(sample.userId);
+  });
+
+  it('never goes by an account’s user id without a login', () => {
+    const loggedIn = { ...sample, userId: 'acct_1234', guestUserId: 'tab-own' };
+    saveIdentity(loggedIn);
+
+    expect(guestUserIdOf(loadIdentity())).toBe('tab-own');
+    expect(guestUserIdOf({ ...loggedIn, guestUserId: '' })).toBe('');
+    sessionStorage.setItem('udonarium-axe.identity', JSON.stringify({ ...loggedIn, guestUserId: 'acct_forged' }));
+    expect(guestUserIdOf(loadIdentity())).toBe('');
   });
 
   it('returns null for corrupt JSON', () => {

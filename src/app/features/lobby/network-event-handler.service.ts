@@ -1,20 +1,31 @@
-import { DestroyRef, inject, Injectable } from '@angular/core';
+import { DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PeerReconnectState } from '@axe/core/network/connection';
 import { Network } from '@axe/core/network/network';
+import { PeerContext } from '@axe/core/network/peer-context';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { MAX_MEMBERS } from '@axe/core/network/server/server-protocol';
 import { SAME_NAME_MEMBER_ERROR } from '@axe/core/network/skyway/same-name-member';
-import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import {
+  guestUserIdOf,
+  isAccountUserId,
+  loadIdentity,
+  PersistedIdentity,
+  saveIdentity,
+} from '@axe/core/storage/identity-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
+import { handOverOwnership } from '@axe/domain/peer/ownership';
+import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
 
 @Injectable({ providedIn: 'root' })
 export class NetworkEventHandlerService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatMessageService = inject(ChatMessageService);
+  private readonly auth = inject(ServerAuthService);
 
   /**
    * How often and how slowly it reconnects after a server error, meaning the token backend is out of reach.
@@ -32,14 +43,20 @@ export class NetworkEventHandlerService {
   private otherErrorReconnectAttempts = 0;
   private serverErrorReconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private localMode = false;
+  /** The account last followed; undefined until the first look, which changes nothing. */
+  private followedAccountUserId: string | null | undefined = undefined;
 
   constructor() {
+    effect(() => {
+      const account = this.auth.account();
+      untracked(() => this.followAccount(account?.userId ?? null));
+    });
     this.objectChange.loadConfig$.subscribe((event) => {
       const config = event.config as Record<string, unknown>;
       this.localMode = config.localMode === true;
       Network.configure(config);
       if (this.localMode) return;
-      Network.openStandby(loadIdentity()?.userId);
+      Network.openStandby(this.standbyUserId());
     }, this.destroyRef);
     this.objectChange.networkOpen$.subscribe(() => {
       this.resetServerErrorReconnect();
@@ -47,6 +64,8 @@ export class NetworkEventHandlerService {
       PeerCursor.myCursor.peerId = peer.peerId;
       PeerCursor.myCursor.userId = peer.userId;
       this.rememberIdentity(peer);
+      const account = Network.transport === 'server' ? this.auth.account() : null;
+      if (account) this.lendAccountLook(account.name, account.avatarUrl);
     }, this.destroyRef);
     this.objectChange.networkError$.subscribe((event) => {
       if (this.localMode) return;
@@ -59,7 +78,7 @@ export class NetworkEventHandlerService {
       const roomServerMessage = Network.transport === 'server' ? this.roomServerErrorMessage(errorType) : null;
       if (roomServerMessage) {
         this.chatMessageService.sendSystemMessage(roomServerMessage);
-        Network.openStandby(loadIdentity()?.userId);
+        Network.openStandby(this.standbyUserId());
         return;
       }
 
@@ -75,7 +94,7 @@ export class NetworkEventHandlerService {
       // to waiting and says why, without spending one of the tries the other errors are allowed.
       if (errorType === SAME_NAME_MEMBER_ERROR) {
         this.chatMessageService.sendSystemMessage(encodeI18nMessage('feature.lobby.errors.sameNameMember'));
-        Network.openStandby(loadIdentity()?.userId);
+        Network.openStandby(this.standbyUserId());
         return;
       }
 
@@ -94,7 +113,7 @@ export class NetworkEventHandlerService {
       } else {
         this.chatMessageService.sendSystemMessage(encodeI18nMessage('feature.lobby.errors.reconnecting'));
       }
-      Network.openStandby(loadIdentity()?.userId);
+      Network.openStandby(this.standbyUserId());
     }, this.destroyRef);
     this.objectChange.peerConnect$.subscribe(() => {
       this.chatMessageService.calibrateTimeOffset();
@@ -119,6 +138,7 @@ export class NetworkEventHandlerService {
           role: myCursor.role,
           reConnectPass: myCursor.reConnectPass,
           roomKey: Network.roomKey ?? '',
+          guestUserId: guestUserIdAfter(peer.userId, loadIdentity()),
         });
       },
       this.destroyRef
@@ -134,7 +154,8 @@ export class NetworkEventHandlerService {
    * somebody else's. Outside a room, the room last written down is kept.
    */
   private rememberIdentity(peer: { userId: string; roomId: string; roomName: string; isRoom: boolean }): void {
-    const last = peer.isRoom ? null : loadIdentity();
+    const saved = loadIdentity();
+    const last = peer.isRoom ? null : saved;
     saveIdentity({
       userId: peer.userId,
       roomId: last?.roomId ?? peer.roomId,
@@ -142,7 +163,51 @@ export class NetworkEventHandlerService {
       role: PeerCursor.myCursor.role,
       reConnectPass: PeerCursor.myCursor.reConnectPass,
       roomKey: last ? (last.roomKey ?? '') : (Network.roomKey ?? ''),
+      guestUserId: guestUserIdAfter(peer.userId, saved),
     });
+  }
+
+  /**
+   * The user id to wait outside a room as: on a room server, the account's while somebody is logged
+   * in, and the tab's own otherwise, never an account's; with SkyWay, the one saved before a reload.
+   */
+  private standbyUserId(): string | undefined {
+    const account = Network.transport === 'server' ? this.auth.account() : null;
+    if (account) return account.userId;
+    return guestUserIdOf(loadIdentity()) || undefined;
+  }
+
+  /**
+   * Follows a login or logout, in this tab or another, on a room server. In a room, the seat goes in
+   * again as whoever is logged in now; outside one, it waits as them, taking what the old id held
+   * along. A login also lends the cursor the account's name and avatar while it has the defaults.
+   */
+  private followAccount(userId: string | null): void {
+    const previous = this.followedAccountUserId;
+    this.followedAccountUserId = userId;
+    if (this.localMode || Network.transport !== 'server') return;
+    const account = this.auth.account();
+    if (account) this.lendAccountLook(account.name, account.avatarUrl);
+    if (previous === undefined || previous === userId || !Network.isOpen) return;
+
+    const peer = Network.peerContext;
+    const next = this.standbyUserId() ?? PeerContext.generateUserId();
+    if (peer.isRoom) {
+      Network.open(next, peer.roomId, peer.roomName, PeerCursor.myCursor.reConnectPass, Network.roomKey ?? undefined);
+      return;
+    }
+    handOverOwnership(peer.userId, next);
+    Network.openStandby(next);
+  }
+
+  /** Puts the account's name and avatar on the cursor where it still has the defaults. */
+  private lendAccountLook(name: string, avatarUrl: string | null): void {
+    const cursor = PeerCursor.myCursor;
+    if (!cursor) return;
+    if (cursor.name === DEFAULT_CURSOR_NAME && name) cursor.name = name;
+    if (cursor.imageIdentifier === DEFAULT_CURSOR_IMAGE_IDENTIFIER && avatarUrl) {
+      cursor.imageIdentifier = ImageStorage.instance.add(avatarUrl).identifier;
+    }
   }
 
   private handleServerErrorReconnect(): void {
@@ -160,7 +225,7 @@ export class NetworkEventHandlerService {
     if (this.serverErrorReconnectTimer != null) clearTimeout(this.serverErrorReconnectTimer);
     this.serverErrorReconnectTimer = setTimeout(() => {
       this.serverErrorReconnectTimer = null;
-      Network.openStandby(loadIdentity()?.userId);
+      Network.openStandby(this.standbyUserId());
     }, delayMs);
   }
 
@@ -197,6 +262,8 @@ export class NetworkEventHandlerService {
         return encodeI18nMessage('feature.lobby.errors.roomServerUnreachable');
       case NO_BACKEND:
         return encodeI18nMessage('feature.lobby.errors.roomServerNoBackend');
+      case 'unauthorized':
+        return encodeI18nMessage('feature.lobby.errors.roomServerUnauthorized');
       case 'hello-required':
       case 'bad-message':
       case 'too-many-messages':
@@ -216,4 +283,12 @@ export class NetworkEventHandlerService {
         return encodeI18nMessage('feature.lobby.errors.generic', { errorType });
     }
   }
+}
+
+/**
+ * The guest id to keep beside a user id about to be saved: the user id itself when it is the tab's
+ * own, or the one kept before when it is an account's.
+ */
+function guestUserIdAfter(userId: string, saved: PersistedIdentity | null): string {
+  return isAccountUserId(userId) ? guestUserIdOf(saved) : userId;
 }

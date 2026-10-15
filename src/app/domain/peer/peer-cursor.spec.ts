@@ -213,6 +213,18 @@ describe('PeerCursor', () => {
       expect(PeerCursor.findByPeerId('nonexistent')).toBeFalsy();
     });
 
+    it('is no longer found by a user id written over since it was last looked up', () => {
+      const cursor = new PeerCursor();
+      cursor.initialize();
+      cursor.userId = 'guest-1';
+      expect(PeerCursor.findByUserId('guest-1')).toBe(cursor);
+
+      cursor.userId = 'acct_1';
+
+      expect(PeerCursor.findByUserId('guest-1')).toBeNull();
+      expect(PeerCursor.findByUserId('acct_1')).toBe(cursor);
+    });
+
     it('matches no unset cursor for an empty identifier', () => {
       const cursor = new PeerCursor();
       cursor.initialize();

@@ -107,7 +107,11 @@ export class RoomSettingComponent {
       this.modalService.resolve(true);
     } catch (e) {
       const reason = e instanceof ServerRoomApiError ? e.code : String(e);
-      this.createError.set(this.t('feature.lobby.roomSetting.createFailed', { reason }));
+      this.createError.set(
+        reason === 'login-required'
+          ? this.t('feature.lobby.roomSetting.loginRequired')
+          : this.t('feature.lobby.roomSetting.createFailed', { reason })
+      );
     } finally {
       this.isCreating.set(false);
     }

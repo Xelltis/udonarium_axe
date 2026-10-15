@@ -7,6 +7,7 @@ const ACCOUNT: Account = { userId: 'acct_1234', name: 'Kai', avatarUrl: null };
 
 /** A login whose answers the test sets, standing in for the one that talks to the Worker. */
 class FakeLogin {
+  readonly baseUrl = 'https://rooms.example';
   account: Account | null = null;
   isAwaitingCode = false;
   token: string | null = 'access-1';
@@ -35,6 +36,9 @@ describe('ServerAuthService', () => {
   beforeEach(() => {
     login = new FakeLogin();
     service = TestBed.inject(ServerAuthService);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ providers: ['discord'] }), { status: 200 })
+    );
   });
 
   afterEach(() => {
@@ -107,6 +111,17 @@ describe('ServerAuthService', () => {
     landing.postMessage({ type: 'login-callback', fragment: 'login_code=mine' });
     await vi.waitFor(() => expect(login.finishLogin).toHaveBeenCalledWith('login_code=mine'));
     landing.close();
+  });
+
+  it('learns whether the backend offers a login, which rooms on it need', async () => {
+    const fetch = vi.mocked(globalThis.fetch);
+    fetch.mockResolvedValue(new Response(JSON.stringify({ providers: [] }), { status: 200 }));
+    expect(service.offersLogin()).toBeNull();
+
+    configure();
+
+    await vi.waitFor(() => expect(service.offersLogin()).toBe(false));
+    expect(String(fetch.mock.calls[0][0])).toBe('https://rooms.example/v1/auth/config');
   });
 
   it('follows a login or logout in another tab', () => {

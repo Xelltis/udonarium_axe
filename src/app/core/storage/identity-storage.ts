@@ -1,3 +1,5 @@
+import { ACCOUNT_USER_ID_PREFIX } from '@axe/core/network/server/server-protocol';
+
 const STORAGE_KEY = 'udonarium-axe.identity';
 
 export interface PersistedIdentity {
@@ -8,6 +10,26 @@ export interface PersistedIdentity {
   reConnectPass: string;
   /** The key of the room on a room server; empty for SkyWay and for anything saved before keys. */
   roomKey?: string;
+  /**
+   * The user id this tab goes by when nobody is logged in, kept apart from an account's, which a
+   * seat may never claim without its token. Missing from anything saved before logins.
+   */
+  guestUserId?: string;
+}
+
+/** Whether a user id is a logged-in account's rather than a tab's own. */
+export function isAccountUserId(userId: string): boolean {
+  return userId.startsWith(ACCOUNT_USER_ID_PREFIX);
+}
+
+/**
+ * The user id the tab goes by without a login: the one kept for that, or else the saved user id
+ * when it is not an account's. Empty when there is neither.
+ */
+export function guestUserIdOf(identity: PersistedIdentity | null): string {
+  if (!identity) return '';
+  if (identity.guestUserId) return identity.guestUserId;
+  return isAccountUserId(identity.userId) ? '' : identity.userId;
 }
 
 /**
@@ -42,6 +64,8 @@ export function loadIdentity(): PersistedIdentity | null {
       role: typeof parsed.role === 'string' ? parsed.role : '',
       reConnectPass: typeof parsed.reConnectPass === 'string' ? parsed.reConnectPass : '',
       roomKey: typeof parsed.roomKey === 'string' ? parsed.roomKey : '',
+      guestUserId:
+        typeof parsed.guestUserId === 'string' && !isAccountUserId(parsed.guestUserId) ? parsed.guestUserId : '',
     };
   } catch {
     /* corrupt or unavailable storage — fall back to a fresh identity */

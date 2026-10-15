@@ -33,7 +33,7 @@ import { Jukebox } from '@axe/domain/media/jukebox';
 import { Playlist } from '@axe/domain/media/playlist';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { normalizePeerRole } from '@axe/domain/peer/peer-role';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -285,12 +285,12 @@ export class AppInitializationService {
   }
 
   private initializePeerCursor(): void {
-    const fileContext = ImageFile.createEmpty('none_icon').toContext();
+    const fileContext = ImageFile.createEmpty(DEFAULT_CURSOR_IMAGE_IDENTIFIER).toContext();
     fileContext.url = './assets/images/avatar_default.png';
     const noneIconImage = this.imageStorage.add(fileContext);
 
     PeerCursor.createMyCursor();
-    PeerCursor.myCursor.name = 'プレイヤー';
+    PeerCursor.myCursor.name = DEFAULT_CURSOR_NAME;
     PeerCursor.myCursor.imageIdentifier = noneIconImage.identifier;
 
     const storedIdentity = loadIdentity();

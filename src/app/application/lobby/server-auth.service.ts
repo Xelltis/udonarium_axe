@@ -1,6 +1,11 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { ServerCredentials, ServerCredentialSource } from '@axe/core/network/connection';
-import { LOGIN_CHANNEL, LOGIN_STORAGE_KEY, ServerLogin } from '@axe/core/network/server/server-login';
+import {
+  fetchLoginProviders,
+  LOGIN_CHANNEL,
+  LOGIN_STORAGE_KEY,
+  ServerLogin,
+} from '@axe/core/network/server/server-login';
 import { Account } from '@axe/core/network/server/server-protocol';
 
 /** The landing page the login popup comes back to, next to the app. */
@@ -31,6 +36,7 @@ export class ServerAuthService implements ServerCredentialSource {
   private readonly _account = signal<Account | null>(null);
   private readonly _pending = signal(false);
   private readonly _error = signal<string | null>(null);
+  private readonly _providers = signal<string[] | null>(null);
 
   /** Whoever is logged in, or null. */
   readonly account = this._account.asReadonly();
@@ -39,6 +45,14 @@ export class ServerAuthService implements ServerCredentialSource {
   readonly isLoggingIn = this._pending.asReadonly();
   /** Why the last login failed, as a code; null after one that worked. */
   readonly error = this._error.asReadonly();
+  /**
+   * Whether the backend offers a login, without which it keeps neither logins nor rooms; null until
+   * it has answered.
+   */
+  readonly offersLogin = computed(() => {
+    const providers = this._providers();
+    return providers === null ? null : providers.length > 0;
+  });
 
   constructor() {
     this.destroyRef.onDestroy(() => this.channel?.close());
@@ -56,6 +70,7 @@ export class ServerAuthService implements ServerCredentialSource {
   configure(baseUrl: string, login: ServerLogin = new ServerLogin(baseUrl)): void {
     this.login = login;
     this._account.set(login.account);
+    void this.refreshProviders();
     const stop = login.onChange(() => this._account.set(login.account));
     this.destroyRef.onDestroy(stop);
     this.listenToOtherTabs();
@@ -82,6 +97,17 @@ export class ServerAuthService implements ServerCredentialSource {
       return;
     }
     location.href = await login.loginUrl(location.origin + location.pathname);
+  }
+
+  /** Asks the backend again whether it offers a login; an unreachable one leaves the answer as it was. */
+  async refreshProviders(): Promise<void> {
+    const login = this.login;
+    if (!login) return;
+    try {
+      this._providers.set(await fetchLoginProviders(login.baseUrl));
+    } catch {
+      // unknown until the backend answers
+    }
   }
 
   /** Logs out in every tab. */

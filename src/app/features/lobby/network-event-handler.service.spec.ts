@@ -1,5 +1,7 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import {
   type NetworkErrorEvent,
@@ -8,9 +10,12 @@ import {
 } from '@axe/application/sync/object-change-network-helpers';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { Network } from '@axe/core/network/network';
+import { Account } from '@axe/core/network/server/server-protocol';
 import { clearIdentity, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { Card } from '@axe/domain/card/card';
+import { handLocationOf } from '@axe/domain/card/hand-location';
+import { DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -36,8 +41,10 @@ describe('NetworkEventHandlerService', () => {
     calibrateTimeOffset: ReturnType<typeof vi.fn>;
   };
   let stubChange: StubObjectChange;
+  let account: ReturnType<typeof signal<Account | null>>;
 
   beforeEach(() => {
+    account = signal<Account | null>(null);
     chatStub = {
       sendSystemMessage: vi.fn(),
       calibrateTimeOffset: vi.fn(),
@@ -46,6 +53,7 @@ describe('NetworkEventHandlerService', () => {
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     TestBed.overrideProvider(ChatMessageService, { useValue: chatStub });
     TestBed.overrideProvider(ObjectChangeService, { useValue: stubChange });
+    TestBed.overrideProvider(ServerAuthService, { useValue: { account } });
     TestBed.inject(NetworkEventHandlerService);
   });
 
@@ -329,6 +337,7 @@ describe('NetworkEventHandlerService', () => {
         ['replaced', 'roomServerReplaced'],
         ['server-unreachable', 'roomServerUnreachable'],
         ['no-backend', 'roomServerNoBackend'],
+        ['unauthorized', 'roomServerUnauthorized'],
         ['bad-message', 'roomServerRefused'],
       ];
 
@@ -345,6 +354,78 @@ describe('NetworkEventHandlerService', () => {
       stubChange.networkError$.emit({ errorType: 'wrong-password', errorMessage: '' });
 
       expect(sent()[0]).toContain('feature.lobby.errors.generic');
+    });
+  });
+
+  describe('a login on a room server', () => {
+    const ACCOUNT: Account = { userId: 'acct_1', name: 'Kai', avatarUrl: null };
+
+    beforeEach(() => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(true);
+      PeerCursor.myCursor = new PeerCursor();
+      TestBed.tick();
+    });
+
+    it('waits outside a room as the account while logged in, and as the tab’s own id after', () => {
+      const openStandby = vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+      saveIdentity({ userId: 'acct_1', roomId: '', roomName: '', role: '', reConnectPass: '', guestUserId: 'tab-1' });
+      account.set(ACCOUNT);
+      TestBed.tick();
+      openStandby.mockClear();
+
+      stubChange.networkError$.emit({ errorType: 'room-not-found', errorMessage: '' });
+      account.set(null);
+      stubChange.networkError$.emit({ errorType: 'room-not-found', errorMessage: '' });
+
+      expect(openStandby.mock.calls.map(([userId]) => userId)).toEqual(['acct_1', 'tab-1']);
+    });
+
+    it('goes into the same room again as whoever has logged in', () => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({
+        isRoom: true,
+        userId: 'tab-1',
+        roomId: 'Ab3',
+        roomName: '月夜の卓',
+      } as never);
+      vi.spyOn(Network, 'roomKey', 'get').mockReturnValue('0123456789abcdef0123456789abcdef');
+      const open = vi.spyOn(Network, 'open').mockImplementation(() => {});
+      PeerCursor.myCursor.reConnectPass = 'secret';
+
+      account.set(ACCOUNT);
+      TestBed.tick();
+
+      expect(open).toHaveBeenCalledWith('acct_1', 'Ab3', '月夜の卓', 'secret', '0123456789abcdef0123456789abcdef');
+    });
+
+    it('takes the hand along when logging in outside a room', () => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: false, userId: 'tab-1' } as never);
+      const openStandby = vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+      const card = Card.create('held', '', '');
+      card.toHand('tab-1');
+
+      account.set(ACCOUNT);
+      TestBed.tick();
+
+      expect(card.location.name).toBe(handLocationOf('acct_1'));
+      expect(openStandby).toHaveBeenCalledWith('acct_1');
+      ObjectStore.instance.delete(card, false);
+    });
+
+    it('lends the account’s name to a cursor that still has the default, and leaves a chosen one', () => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: false, userId: 'tab-1' } as never);
+      vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+      PeerCursor.myCursor.name = DEFAULT_CURSOR_NAME;
+      account.set(ACCOUNT);
+      TestBed.tick();
+      expect(PeerCursor.myCursor.name).toBe('Kai');
+
+      PeerCursor.myCursor.name = 'ゴブリン使い';
+      account.set(null);
+      TestBed.tick();
+      account.set({ ...ACCOUNT, name: 'Another' });
+      TestBed.tick();
+      expect(PeerCursor.myCursor.name).toBe('ゴブリン使い');
     });
   });
 });

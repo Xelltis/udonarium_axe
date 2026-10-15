@@ -1,16 +1,25 @@
+@if (isServerTransport) {
+  <server-account />
+}
 @if (!isConnected()) {
   <div class="mb-4 flex gap-2">
     <button (click)="reload()" [disabled]="isReloading()">
       <i class="material-icons" style="font-size: 14px; vertical-align: middle; margin-right: 3px">refresh</i
       >{{ 'feature.lobby.lobby.reload' | transloco }}
     </button>
-    <button
-      class="rounded-ui-sm border-ui-accent bg-ui-accent hover:border-ui-accent-hover hover:bg-ui-accent-hover cursor-pointer border border-solid px-[1em] py-[0.4em] text-[0.875rem] whitespace-nowrap text-white hover:shadow-[0_0_0_3px_var(--ui-accent-glow)]"
-      (click)="showRoomSetting()"
-    >
-      <i class="material-icons" style="font-size: 14px; vertical-align: middle; margin-right: 3px">add</i
-      >{{ 'feature.lobby.lobby.createRoom' | transloco }}
-    </button>
+    @if (canCreateRoom()) {
+      <button
+        class="rounded-ui-sm border-ui-accent bg-ui-accent hover:border-ui-accent-hover hover:bg-ui-accent-hover cursor-pointer border border-solid px-[1em] py-[0.4em] text-[0.875rem] whitespace-nowrap text-white hover:shadow-[0_0_0_3px_var(--ui-accent-glow)]"
+        data-testid="lobby-create-room"
+        (click)="showRoomSetting()"
+      >
+        <i class="material-icons" style="font-size: 14px; vertical-align: middle; margin-right: 3px">add</i
+        >{{
+          (mustLogInToCreate() ? 'feature.lobby.lobby.createRoomAfterLogin' : 'feature.lobby.lobby.createRoom')
+            | transloco
+        }}
+      </button>
+    }
   </div>
   @if (waitingForPreviousConnection()) {
     <p

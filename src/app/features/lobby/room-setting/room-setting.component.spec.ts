@@ -79,5 +79,14 @@ describe('RoomSettingComponent', () => {
       await vi.waitFor(() => expect(component.createError()).toContain('rate-limited'));
       expect(open).not.toHaveBeenCalled();
     });
+
+    it('says a login is needed when the server asks for one', async () => {
+      vi.spyOn(Network, 'createRoom').mockRejectedValue(new ServerRoomApiError(401, 'login-required'));
+      vi.spyOn(Network, 'open').mockImplementation(() => {});
+
+      component.createRoom();
+
+      await vi.waitFor(() => expect(component.createError()).toContain('ログインが要ります'));
+    });
   });
 });

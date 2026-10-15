@@ -3255,7 +3255,8 @@
         "hintSearching": "Searching...",
         "hintNoRooms": "No available rooms found. Use \"Create new room\" to make one.",
         "hintListFailed": "Failed to fetch room list. Press \"Refresh list\" to retry.",
-        "hintNoBackend": "No server is configured (backend.url in config.json)"
+        "hintNoBackend": "No server is configured (backend.url in config.json)",
+        "createRoomAfterLogin": "Log in to create a room"
       },
       "roomSetting": {
         "title": " Create room",
@@ -3273,7 +3274,8 @@
         "alreadyConnectedHint": "Disconnect from other peers before joining another room.",
         "alreadyConnectedHint2": "(Reload the page to disconnect.)",
         "defaultRoomName": "My room",
-        "createFailed": "The room could not be created ({{reason}})"
+        "createFailed": "The room could not be created ({{reason}})",
+        "loginRequired": "Creating a room needs a login."
       },
       "passwordCheck": {
         "title": "Password",
@@ -3306,7 +3308,8 @@
         "roomServerReplaced": "This seat came into the room again from another screen, so this connection was closed",
         "roomServerUnreachable": "Cannot reach the room server",
         "roomServerNoBackend": "No server is configured (backend.url in config.json)",
-        "roomServerRefused": "The room server refused the connection ({{code}})"
+        "roomServerRefused": "The room server refused the connection ({{code}})",
+        "roomServerUnauthorized": "Your login expired, or you logged in as someone else. Please join the room again."
       },
       "waitingForPreviousConnection": "Waiting for your previous connection to drop (up to about a minute)",
       "peerCursor": {
@@ -3338,6 +3341,26 @@
         "failed": "Could not join \"{{roomName}}\"",
         "openLobby": "Open lobby",
         "dismiss": "Dismiss"
+      },
+      "account": {
+        "login": "Log in with Discord",
+        "loggingIn": "Opening the login…",
+        "loggedInAs": "Logged in as {{name}}",
+        "logout": "Log out",
+        "delete": "Delete account",
+        "deleteConfirm": "This deletes your account on this server: your Discord name and avatar, and your logins. Logging in again afterwards makes a new account.",
+        "deleteConfirmButton": "Delete",
+        "deleteCancel": "Cancel",
+        "deleteFailed": "The account could not be deleted. Please try again later.",
+        "guestHint": "Without logging in you join as a guest. Log in to create rooms and move things on the table.",
+        "unavailable": "This server offers no login, so it has no rooms.",
+        "errors": {
+          "denied": "The login was cancelled.",
+          "providerFailed": "Talking to Discord failed. Please try again later.",
+          "rateLimited": "Too many login attempts. Please wait a while.",
+          "network": "The login server cannot be reached.",
+          "retry": "Please log in again."
+        }
       }
     },
     "chat": {

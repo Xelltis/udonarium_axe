@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RoomJoinService } from '@axe/application/lobby/room-join.service';
+import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { Network } from '@axe/core/index';
@@ -205,6 +206,42 @@ describe('LobbyComponent', () => {
       await component.reload();
 
       expect(component.help()).toContain('backend.url');
+    });
+  });
+
+  describe('creating a room on a room server', () => {
+    const createButton = () =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[data-testid="lobby-create-room"]');
+
+    beforeEach(() => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network, 'listAllRooms').mockResolvedValue([]);
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('sends somebody not logged in to log in rather than to the dialog', async () => {
+      const auth = TestBed.inject(ServerAuthService);
+      const startLogin = vi.spyOn(auth, 'startLogin').mockResolvedValue();
+      const openModal = vi.spyOn(TestBed.inject(ModalService), 'open');
+      fixture = TestBed.createComponent(LobbyComponent);
+      fixture.detectChanges();
+
+      createButton()!.click();
+
+      expect(startLogin).toHaveBeenCalled();
+      expect(openModal).not.toHaveBeenCalled();
+    });
+
+    it('offers no room to create on a server without a login', () => {
+      const auth = TestBed.inject(ServerAuthService);
+      vi.spyOn(auth, 'offersLogin').mockReturnValue(false);
+      fixture = TestBed.createComponent(LobbyComponent);
+      fixture.detectChanges();
+
+      expect(createButton()).toBeNull();
     });
   });
 });

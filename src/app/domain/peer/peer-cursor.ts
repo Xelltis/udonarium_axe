@@ -11,6 +11,11 @@ import { Vote } from '@axe/domain/vote/vote';
 
 const PEER_DISCONNECT_TIMEOUT_MS = 30_000;
 
+/** The name a cursor starts with, until the reader gives one. */
+export const DEFAULT_CURSOR_NAME = 'プレイヤー';
+/** The picture a cursor starts with, the plain avatar, until the reader chooses one. */
+export const DEFAULT_CURSOR_IMAGE_IDENTIFIER = 'none_icon';
+
 type UserId = string;
 type PeerId = string;
 type ObjectIdentifier = string;
@@ -321,9 +326,12 @@ export class PeerCursor extends GameObject {
   private static find(map: Map<string, string>, key: string, isUserId: boolean): PeerCursor | null {
     if (key.length < 1) return null;
 
+    // The id on a cursor can be written straight over, as it is when the seat's own user id
+    // changes, leaving the lookup pointing at it under the old id; it holds only while it matches.
     const identifier = map.get(key);
-    if (identifier != null && ObjectStore.instance.get(identifier))
-      return ObjectStore.instance.get<PeerCursor>(identifier)!;
+    const known = identifier != null ? ObjectStore.instance.get<PeerCursor>(identifier) : null;
+    if (known && (isUserId ? known.userId : known.peerId) === key) return known;
+    if (identifier != null) map.delete(key);
     const cursors = ObjectStore.instance.getObjects<PeerCursor>(PeerCursor);
     for (const cursor of cursors) {
       const id = isUserId ? cursor.userId : cursor.peerId;

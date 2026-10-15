@@ -3255,7 +3255,8 @@
         "hintSearching": "검색 중...",
         "hintNoRooms": "접속할 수 있는 룸을 찾지 못했습니다. \"새 룸 만들기\"로 새 룸을 만들 수 있습니다.",
         "hintListFailed": "룸 목록을 가져오지 못했습니다. \"목록 새로고침\"으로 다시 검색할 수 있습니다.",
-        "hintNoBackend": "접속처(config.json의 backend.url)가 설정되어 있지 않습니다"
+        "hintNoBackend": "접속처(config.json의 backend.url)가 설정되어 있지 않습니다",
+        "createRoomAfterLogin": "로그인하고 방 만들기"
       },
       "roomSetting": {
         "title": " 룸 만들기",
@@ -3273,7 +3274,8 @@
         "alreadyConnectedHint": "다른 룸에 접속하려면 다른 참가자와의 연결을 끊어 주세요.",
         "alreadyConnectedHint2": "(※ 페이지를 새로고침하면 끊을 수 있습니다.)",
         "defaultRoomName": "평범한 방",
-        "createFailed": "방을 만들 수 없었습니다({{reason}})"
+        "createFailed": "방을 만들 수 없었습니다({{reason}})",
+        "loginRequired": "방을 만들려면 로그인이 필요합니다."
       },
       "passwordCheck": {
         "title": "비밀번호",
@@ -3306,7 +3308,8 @@
         "roomServerReplaced": "이 자리로 다른 화면에서 방에 다시 들어왔기 때문에 이쪽 연결을 닫았습니다",
         "roomServerUnreachable": "방 서버에 연결할 수 없습니다",
         "roomServerNoBackend": "접속처(config.json의 backend.url)가 설정되어 있지 않습니다",
-        "roomServerRefused": "방 서버가 연결을 거부했습니다({{code}})"
+        "roomServerRefused": "방 서버가 연결을 거부했습니다({{code}})",
+        "roomServerUnauthorized": "로그인이 만료되었거나 다른 계정으로 다시 로그인했습니다. 방에 다시 들어가 주세요."
       },
       "waitingForPreviousConnection": "이전 연결이 끊기기를 기다리고 있습니다 (최대 1분 정도)",
       "peerCursor": {
@@ -3338,6 +3341,26 @@
         "failed": "\"{{roomName}}\"에 참가하지 못했습니다",
         "openLobby": "로비 열기",
         "dismiss": "닫기"
+      },
+      "account": {
+        "login": "Discord로 로그인",
+        "loggingIn": "로그인 화면을 여는 중…",
+        "loggedInAs": "{{name}}(으)로 로그인 중",
+        "logout": "로그아웃",
+        "delete": "계정 삭제",
+        "deleteConfirm": "이 서버에서 계정(Discord 이름과 아바타, 로그인 기록)을 삭제합니다. 삭제한 뒤 다시 로그인하면 새 계정이 됩니다.",
+        "deleteConfirmButton": "삭제",
+        "deleteCancel": "취소",
+        "deleteFailed": "계정을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        "guestHint": "로그인하지 않으면 관전자로 들어갑니다. 방을 만들거나 테이블을 움직이려면 로그인해 주세요.",
+        "unavailable": "이 서버에는 로그인이 준비되어 있지 않아 방을 쓸 수 없습니다.",
+        "errors": {
+          "denied": "로그인이 취소되었습니다.",
+          "providerFailed": "Discord와 통신하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+          "rateLimited": "로그인 시도가 많아 잠시 받을 수 없습니다.",
+          "network": "로그인 서버에 연결할 수 없습니다.",
+          "retry": "다시 로그인해 주세요."
+        }
       }
     },
     "chat": {

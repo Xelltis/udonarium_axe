@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RoomJoinService } from '@axe/application/lobby/room-join.service';
+import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -15,6 +16,7 @@ import {
   type PasswordCheckOptions,
 } from '@axe/features/lobby/password-check/password-check.component';
 import { RoomSettingComponent } from '@axe/features/lobby/room-setting/room-setting.component';
+import { ServerAccountComponent } from '@axe/features/lobby/server-account/server-account.component';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -31,7 +33,7 @@ interface LobbyRoom {
   selector: 'lobby',
   templateUrl: './lobby.component.html',
   host: { class: 'block' },
-  imports: [TextTooltipDirective, TranslocoModule],
+  imports: [ServerAccountComponent, TextTooltipDirective, TranslocoModule],
 })
 export class LobbyComponent {
   private readonly t = inject(TRANSLATE_FN);
@@ -40,6 +42,14 @@ export class LobbyComponent {
   private readonly roomJoin = inject(RoomJoinService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly auth = inject(ServerAuthService);
+
+  /** Whether rooms are on a room server, where creating one takes a login. */
+  protected readonly isServerTransport = Network.transport === 'server';
+  /** Whether the reader would have to log in before creating a room. */
+  protected readonly mustLogInToCreate = computed(() => this.isServerTransport && !this.auth.isLoggedIn());
+  /** Whether rooms can be created here at all: a room server without a login keeps none. */
+  protected readonly canCreateRoom = computed(() => !this.isServerTransport || this.auth.offersLogin() !== false);
 
   rooms = signal<LobbyRoom[]>([]);
 
@@ -112,6 +122,7 @@ export class LobbyComponent {
    */
   async reload() {
     this.isReloading.set(true);
+    if (this.isServerTransport) void this.auth.refreshProviders();
     this.help.set(this.t('feature.lobby.lobby.hintSearching'));
     this.rooms.set([]);
     try {
@@ -217,9 +228,13 @@ export class LobbyComponent {
 
   /**
    * Opens the dialog for creating a room, and refreshes the room list when it closes without
-   * creating one.
+   * creating one. On a room server, somebody not logged in is sent to log in first.
    */
   async showRoomSetting() {
+    if (this.mustLogInToCreate()) {
+      void this.auth.startLogin();
+      return;
+    }
     const created = await this.modalService.open<boolean>(RoomSettingComponent, {
       width: 700,
       height: 400,
