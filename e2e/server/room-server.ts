@@ -303,14 +303,17 @@ export async function openLobby(page: Page): Promise<void> {
   await expect(lobby).toBeVisible({ timeout: 10_000 });
 }
 
-/** Lists the rooms afresh in the lobby. */
+/**
+ * Lists the rooms afresh in the lobby. The lobby lists them by itself as it opens, and holds the
+ * button back until that is done, which takes the Worker a while under load; the lobby gives up
+ * after 15 seconds, so the button is waited for a little longer.
+ */
 export async function reloadLobby(page: Page): Promise<void> {
   await openLobby(page);
-  await page
-    .locator('lobby')
-    .getByRole('button', { name: /一覧を更新/ })
-    .click();
-  await expect(page.locator('lobby').getByRole('button', { name: /一覧を更新/ })).toBeEnabled();
+  const reload = page.locator('lobby').getByRole('button', { name: /一覧を更新/ });
+  await expect(reload).toBeEnabled({ timeout: 20_000 });
+  await reload.click();
+  await expect(reload).toBeEnabled({ timeout: 20_000 });
 }
 
 /** Creates a room from the lobby, and waits until its creator is in it. */
@@ -329,9 +332,12 @@ export async function joinRoom(page: Page, name: string): Promise<void> {
   await expectInRoom(page, name);
 }
 
-/** Waits until the peer menu shows the page in the room and online. */
+/**
+ * Waits until the peer menu shows the page in the room and online. A room's first seat wakes its
+ * Durable Object, which takes the Worker a while under load.
+ */
 export async function expectInRoom(page: Page, name: string): Promise<void> {
-  await expect(page.locator('peer-menu')).toContainText(name, { timeout: 20_000 });
+  await expect(page.locator('peer-menu')).toContainText(name, { timeout: 40_000 });
   await expect(page.getByTestId('peer-menu-server-role')).toBeVisible({ timeout: 20_000 });
 }
 
