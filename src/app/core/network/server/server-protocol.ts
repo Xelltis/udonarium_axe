@@ -287,9 +287,11 @@ export const ROLE_REJECT_REASONS = ['not-game-master', 'unknown-peer', 'not-logg
 export type RoleRejectReason = (typeof ROLE_REJECT_REASONS)[number];
 
 /**
- * Why a ROLL_REQUEST was not rolled: a request of the wrong shape, a guest in a tab guests may not
- * speak in, too many asked for at once, too many waiting in the room, a line BCDice could not
- * roll (which rolled here would show nothing either), or a failure on the server.
+ * Why a ROLL_REQUEST was not rolled: a request of the wrong shape (a line not in a tab right under
+ * the tab list, a version a line does not start at, a target of the wrong form, something too big),
+ * a guest in a tab guests may not speak in, too many asked for at once, too many waiting in the
+ * room, a line BCDice could not roll (which rolled here would show nothing either), or a failure on
+ * the server.
  */
 export const ROLL_REJECT_REASONS = [
   'invalid',
@@ -319,6 +321,11 @@ export interface ServerObjectContext {
  * Asks the server to roll a chat line's dice. The message is the result line the client would
  * have said itself, not yet placed; the server fills in its text, roll detail, tag, name, sender
  * and SERVER_ROLL_FIELD and says it to everybody, the asker included.
+ *
+ * The line goes in a tab right under the tab list. The server pulls a time more than ten minutes
+ * before its own forward to ten minutes before, leaving later ones be; keeps majorIndex at 0 and
+ * minorIndex between 0 and 1; and brings in no stamp, attachment, reply, quote or mark of editing,
+ * deletion, disclosure or after-the-fact whisper.
  */
 export interface RollRequest {
   message: ServerObjectContext;
@@ -328,7 +335,10 @@ export interface RollRequest {
   gameSystem: string;
   /** The speaker's name, which the result line is named after. */
   speaker: string;
-  /** The targeted character's name after the result, as ` [name]` on one line; anything else is refused. */
+  /**
+   * The targeted character's name after the result, as ` [name]` with no line break, square bracket
+   * or `→` in the name; anything else is refused.
+   */
   suffix?: string;
 }
 
