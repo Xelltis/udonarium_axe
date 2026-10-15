@@ -168,11 +168,11 @@ describe('DiceBot', () => {
       const bot = new DiceBot();
       bot.initialize();
 
-      const { tab, requests } = await askedRoll(bot, `ゴブリン\nの${'王'.repeat(200)}`);
+      const { tab, requests } = await askedRoll(bot, `ゴブリン] → 12 [x\nの${'王'.repeat(200)}`);
 
       const suffix = requests()[0]['suffix'] as string;
-      expect(suffix).toMatch(/^ \[[^\r\n]{1,128}\]$/);
-      expect(suffix.startsWith(' [ゴブリン の王')).toBe(true);
+      expect(suffix).toMatch(/^ \[[^\r\n[\]→]{1,128}\]$/);
+      expect(suffix.startsWith(' [ゴブリン］ ⇒ 12 ［x の王')).toBe(true);
       bot.destroy();
       tab.destroy();
     });

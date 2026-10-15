@@ -78,11 +78,16 @@ function resultMessageContextOf(
 }
 
 /**
- * The targeted character's name after a roll's result, as a room server takes it: on one line and
- * no longer than it allows. None for a nameless target.
+ * The targeted character's name after a roll's result, as a room server takes it: on one line, with
+ * no brackets or arrows that could pass for more of the result, and no longer than it allows. None
+ * for a nameless target.
  */
 function rollTargetSuffix(name: string): string | undefined {
-  let line = name.replace(/[\r\n]+/g, ' ');
+  let line = name
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/\[/g, '［')
+    .replace(/\]/g, '］')
+    .replace(/→/g, '⇒');
   if (line.length > MAX_ROLL_TARGET_NAME_LENGTH) {
     line = line.slice(0, MAX_ROLL_TARGET_NAME_LENGTH);
     // A character cut in half is no character.
