@@ -5,14 +5,15 @@ import {
   emitDiceBotUnreachable,
   emitDiceRolled,
   emitSendMessage,
+  emitServerRollUnanswered,
   resourceEditMessage$,
   ResourceEditMessageEvent,
   sendMessage$,
   SendMessageEvent,
 } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
-import { networkSend } from '@axe/core/network/network-messaging';
-import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
+import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
+import { getAuthorityPeerId, getMyPeerId } from '@axe/core/network/peer-context-source';
 import {
   AuthorityEvent,
   MAX_ROLL_COMMAND_LENGTH,
@@ -30,6 +31,7 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { DiceRollResult, ResourceEditProcessor } from '@axe/domain/data/resource-edit-processor';
 import { diceRollDetailOf, encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { DiceTable } from '@axe/domain/dice/dice-table';
+import { ServerRollRequests } from '@axe/domain/dice/server-roll-requests';
 import { GameSystemInfo } from 'bcdice/lib/bcdice/game_system_list.json';
 import GameSystemClass from 'bcdice/lib/game_system';
 import type Loader from 'bcdice/lib/loader/loader';
@@ -39,9 +41,6 @@ export const PLAIN_DICE_BOT = 'DiceBot';
 
 /** How long the code of a game system may take to arrive before a call gives up on it for now. */
 const FETCH_TIMEOUT_MS = 10_000;
-
-/** How long a roll asked of a room server waits for the answer before it stops listening. */
-const SERVER_ROLL_WAIT_MS = 60_000;
 
 /**
  * The answer to a roll as a line: said by the dice bot, after the line it answers, to whoever that
@@ -105,6 +104,21 @@ export class DiceBot extends GameObject {
     DiceBot.isUnreachable.bind(DiceBot)
   );
   private cleanups: (() => void)[] = [];
+  /** The rolls this seat asked of the room server and has no answer to yet. */
+  private readonly serverRolls = new ServerRollRequests({
+    send: (request) => {
+      const authority = getAuthorityPeerId();
+      if (authority) networkSend(AuthorityEvent.ROLL_REQUEST, request, authority);
+    },
+    answered: (answerIdentifier, sourceIdentifier) => {
+      emitSendMessage({ messageIdentifier: answerIdentifier, messageTarget: null });
+      emitDiceRolled({ sourceMessageIdentifier: sourceIdentifier, resultMessageIdentifier: answerIdentifier });
+    },
+    unanswered: (sourceIdentifier, reason) => {
+      // Out of the room by then, the line is in no room to answer it.
+      if (getAuthorityPeerId()) emitServerRollUnanswered({ messageIdentifier: sourceIdentifier, reason });
+    },
+  });
 
   static diceBotInfos: GameSystemInfo[] = [];
 
@@ -493,6 +507,32 @@ export class DiceBot extends GameObject {
     this.cleanups.push(sendMessage$.subscribe((data) => this.handleSendMessage(data)));
     this.cleanups.push(diceTableMessage$.subscribe((data) => this.handleDiceTableMessage(data)));
     this.cleanups.push(resourceEditMessage$.subscribe((data) => this.handleResourceEditMessage(data)));
+    this.cleanups.push(objectAdded$.subscribe((event) => this.serverRolls.arrived(event.identifier)));
+    this.cleanups.push(networkMessage$.subscribe((message) => this.followServerRolls(message)));
+  }
+
+  /**
+   * Follows what becomes of the rolls asked of the room server: one it would not make, the seat
+   * getting back into the room, where it asks again for what is unanswered, and a room left or
+   * another entered, where nothing asked before is answered any more.
+   */
+  private followServerRolls(message: { eventName: string; data: unknown }): void {
+    switch (message.eventName) {
+      case AuthorityEvent.ROLL_REJECTED: {
+        const data = message.data as { identifier?: unknown; reason?: unknown } | null;
+        if (typeof data?.identifier !== 'string') return;
+        this.serverRolls.rejected(data.identifier, typeof data.reason === 'string' ? data.reason : 'failed');
+        return;
+      }
+      case 'PEER_RECONNECT': {
+        const data = message.data as { peerId?: unknown; state?: unknown } | null;
+        if (data?.state === 'recovered' && data.peerId === getMyPeerId()) this.serverRolls.askAgain();
+        return;
+      }
+      case 'OPEN_NETWORK':
+        this.serverRolls.clear();
+        return;
+    }
   }
 
   private async handleSendMessage(data: SendMessageEvent) {
@@ -671,12 +711,10 @@ export class DiceBot extends GameObject {
    * here, rolling its dice sound and its dice.
    */
   private askServerToRoll(command: string, gameSystem: string, originalMessage: ChatMessage, suffix?: string) {
-    const authority = getAuthorityPeerId();
     const chatTab = ObjectStore.instance.get<ChatTab>(originalMessage.tabIdentifier);
-    if (!authority || !(chatTab instanceof ChatTab)) return;
+    if (!getAuthorityPeerId() || !(chatTab instanceof ChatTab)) return;
 
     const answer = chatTab.createMessage(resultMessageContextOf(originalMessage, '', false, ''));
-    this.answerOnArrival(answer.identifier, originalMessage.identifier);
     const request: Record<string, unknown> = {
       message: answer.contextAsLastChildOf(chatTab),
       command,
@@ -684,22 +722,7 @@ export class DiceBot extends GameObject {
       speaker: originalMessage.name,
     };
     if (suffix) request['suffix'] = suffix;
-    networkSend(AuthorityEvent.ROLL_REQUEST, request, authority);
-  }
-
-  /** Treats the server's answer to a roll as a roll made here once it arrives, or forgets it after a while. */
-  private answerOnArrival(answerIdentifier: string, sourceIdentifier: string) {
-    const stop = () => {
-      clearTimeout(timer);
-      unsubscribe();
-    };
-    const unsubscribe = objectAdded$.subscribe((event) => {
-      if (event.identifier !== answerIdentifier) return;
-      stop();
-      emitSendMessage({ messageIdentifier: answerIdentifier, messageTarget: null });
-      emitDiceRolled({ sourceMessageIdentifier: sourceIdentifier, resultMessageIdentifier: answerIdentifier });
-    });
-    const timer = setTimeout(stop, SERVER_ROLL_WAIT_MS);
+    this.serverRolls.ask(answer.identifier, originalMessage.identifier, request);
   }
 
   /** Stops answering chat lines once the dice bot leaves the store. */
@@ -707,5 +730,6 @@ export class DiceBot extends GameObject {
     super.onStoreRemoved();
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
+    this.serverRolls.clear();
   }
 }

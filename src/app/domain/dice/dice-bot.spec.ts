@@ -4,9 +4,11 @@ import {
   DiceBotUnreachableEvent,
   diceRolled$,
   emitSendMessage,
+  serverRollUnanswered$,
 } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
+import { localDispatch } from '@axe/core/network/network-messaging';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -122,12 +124,14 @@ describe('DiceBot', () => {
     });
 
     it('takes the server’s answer, once it arrives, as a roll made here', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
       const bot = new DiceBot();
       bot.initialize();
       const rolled = vi.fn();
       const off = diceRolled$.subscribe(rolled);
 
-      bot['answerOnArrival']('the-answer', 'the-line');
+      bot['serverRolls'].ask('the-answer', 'the-line', {});
       const answer = new ChatMessage('the-answer');
       answer.initialize();
 
@@ -169,6 +173,84 @@ describe('DiceBot', () => {
       const suffix = requests()[0]['suffix'] as string;
       expect(suffix).toMatch(/^ \[[^\r\n]{1,128}\]$/);
       expect(suffix.startsWith(' [ゴブリン の王')).toBe(true);
+      bot.destroy();
+      tab.destroy();
+    });
+
+    it('tells of a roll the server would not make, and keeps quiet about a line that is no command', async () => {
+      const bot = new DiceBot();
+      bot.initialize();
+      const told = vi.fn();
+      const off = serverRollUnanswered$.subscribe(told);
+      const first = await askedRoll(bot);
+      const second = await askedRoll(bot);
+      const answerOf = (request: Record<string, unknown>) => (request['message'] as { identifier: string }).identifier;
+
+      localDispatch(
+        'ROLL_REJECTED',
+        { identifier: answerOf(first.requests()[0]), reason: 'not-allowed' },
+        '@authority'
+      );
+      localDispatch(
+        'ROLL_REJECTED',
+        { identifier: answerOf(second.requests()[1]), reason: 'not-a-command' },
+        '@authority'
+      );
+
+      expect(told.mock.calls).toEqual([[{ messageIdentifier: first.asked.identifier, reason: 'not-allowed' }]]);
+      expect(bot['serverRolls'].size).toBe(0);
+      off();
+      bot.destroy();
+      first.tab.destroy();
+      second.tab.destroy();
+    });
+
+    it('asks again for a roll unanswered when the seat gets back into the room', async () => {
+      const bot = new DiceBot();
+      bot.initialize();
+      vi.spyOn(Network, 'peerId', 'get').mockReturnValue('me');
+      const { tab, requests } = await askedRoll(bot);
+
+      localDispatch('PEER_RECONNECT', { peerId: 'somebody', state: 'recovered' }, 'somebody');
+      expect(requests()).toHaveLength(1);
+      localDispatch('PEER_RECONNECT', { peerId: 'me', state: 'recovered' });
+
+      expect(requests()).toHaveLength(2);
+      expect(requests()[1]).toEqual(requests()[0]);
+      bot.destroy();
+      tab.destroy();
+    });
+
+    it('forgets the rolls asked in a room once another room, or none, is opened', async () => {
+      const bot = new DiceBot();
+      bot.initialize();
+      const { tab } = await askedRoll(bot);
+
+      localDispatch('OPEN_NETWORK', { peerId: 'me' });
+
+      expect(bot['serverRolls'].size).toBe(0);
+      bot.destroy();
+      tab.destroy();
+    });
+  });
+
+  describe('with SkyWay, or outside a room', () => {
+    it('rolls here and asks no server', async () => {
+      PeerCursor.createMyCursor();
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const asked = tab.addMessage({ from: PeerCursor.myUserId, name: 'わたし', text: '2d6', tag: 'DiceBot' });
+      const bot = new DiceBot();
+      bot.initialize();
+
+      await bot['handleSendMessage']({ messageIdentifier: asked.identifier, messageTarget: null });
+
+      expect(send.mock.calls.some(([sent]) => (sent as { eventName: string }).eventName === 'ROLL_REQUEST')).toBe(
+        false
+      );
+      expect(tab.chatMessages).toHaveLength(2);
+      expect(tab.chatMessages[1].isServerRoll).toBe(false);
       bot.destroy();
       tab.destroy();
     });

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { diceBotUnreachable$, emitDiceRolled } from '@axe/core/event/domain-events';
+import { diceBotUnreachable$, emitDiceRolled, serverRollUnanswered$ } from '@axe/core/event/domain-events';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { PeerSessionGrade } from '@axe/core/network/peer-session-state';
@@ -203,6 +203,33 @@ describe('DiceChatEventHandlerService', () => {
       expect(where).toBe(tab);
       expect(text).toContain('feature.chat.diceBot.unreachable');
       expect(to).toBe(PeerCursor.myCursor.identifier);
+      tell.mockRestore();
+    });
+  });
+
+  describe('a line the room server did not roll', () => {
+    it('is pointed out once for all its targets, to the sender alone, with the reason', () => {
+      const tell = vi
+        .spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageOnePlayer')
+        .mockReturnValue(null as unknown as ChatMessage);
+      const line = tab.addMessage({ from: SELF_USER_ID, text: '2d6', timestamp: 1, tag: 'DiceBot', name: 'わたし' });
+
+      serverRollUnanswered$.emit({ messageIdentifier: line.identifier, reason: 'not-allowed' });
+      serverRollUnanswered$.emit({ messageIdentifier: line.identifier, reason: 'not-allowed' });
+      serverRollUnanswered$.emit({ messageIdentifier: line.identifier, reason: 'something-new' });
+
+      expect(tell.mock.calls.map(([where, text, to]) => [where, text, to])).toEqual([
+        [
+          tab,
+          expect.stringContaining('feature.chat.diceBot.serverRollUnanswered.not-allowed'),
+          PeerCursor.myCursor.identifier,
+        ],
+        [
+          tab,
+          expect.stringContaining('feature.chat.diceBot.serverRollUnanswered.failed'),
+          PeerCursor.myCursor.identifier,
+        ],
+      ]);
       tell.mockRestore();
     });
   });

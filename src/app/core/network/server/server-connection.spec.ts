@@ -345,18 +345,10 @@ describe('ServerConnection', () => {
     expect(calls.slice(-3)).toEqual(['disconnect authority', `disconnect ${OTHER.peerId}`, 'reconnect retrying']);
   });
 
-  it('keeps a roll and a role change asked for while getting back in, and sends them once back', async () => {
-    const socket = await enterRoom();
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
-    socket.close(1006);
-    connection.send([event('ROLL_REQUEST', { command: '2d6' }), event('CHAT')], AUTHORITY_PEER_ID);
-    connection.send([event('UPDATE_GAME_OBJECT')]);
-    vi.advanceTimersByTime(1000);
-    vi.useRealTimers();
-
-    const again = latest();
-    again.accept();
-    again.deliver({
+  /** Lets the seat back in over the newest socket. */
+  function welcomeBack(socket: FakeWebSocket): void {
+    socket.accept();
+    socket.deliver({
       type: 'welcome',
       protocolVersion: PROTOCOL_VERSION,
       peerId: connection.peerId,
@@ -367,13 +359,23 @@ describe('ServerConnection', () => {
       assetToken: 'asset-1',
       assetTokenExpiresAt: Date.now() + 15 * 60_000,
     });
+  }
+
+  it('keeps a role change asked for while getting back in, and sends it once back; a roll it leaves to the dice bot', async () => {
+    const socket = await enterRoom();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    socket.close(1006);
+    const roleRequest = event('ROLE_REQUEST', { peerId: OTHER.peerId, role: 'gm' });
+    connection.send([event('ROLL_REQUEST', { command: '2d6' }), roleRequest, event('CHAT')], AUTHORITY_PEER_ID);
+    connection.send([event('UPDATE_GAME_OBJECT')]);
+    vi.advanceTimersByTime(1000);
+    vi.useRealTimers();
+
+    const again = latest();
+    welcomeBack(again);
 
     await vi.waitFor(async () => expect((await again.frames()).length).toBe(2));
-    expect((await again.frames())[1]).toEqual({
-      type: 'send',
-      to: AUTHORITY_PEER_ID,
-      events: [event('ROLL_REQUEST', { command: '2d6' })],
-    });
+    expect((await again.frames())[1]).toEqual({ type: 'send', to: AUTHORITY_PEER_ID, events: [roleRequest] });
   });
 
   it('keeps the connection while the server answers', async () => {

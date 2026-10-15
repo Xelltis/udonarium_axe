@@ -59,9 +59,10 @@ export const ASSET_TOKEN_WAIT_MS = 10_000;
 export const MAX_HELD_EVENTS = 64;
 /**
  * Requests to the server that would be lost while reconnecting, and that the catalogs traded on
- * getting back in do not mend: a roll and a role change asked for in the meantime.
+ * getting back in do not mend: a role change asked for in the meantime. A roll is not among them:
+ * the dice bot asks again for every roll unanswered, those lost on the way included.
  */
-const HELD_EVENT_NAMES: ReadonlySet<string> = new Set([AuthorityEvent.ROLL_REQUEST, AuthorityEvent.ROLE_REQUEST]);
+const HELD_EVENT_NAMES: ReadonlySet<string> = new Set([AuthorityEvent.ROLE_REQUEST]);
 /** The refusal for a hello whose login is gone or belongs to somebody else. */
 const UNAUTHORIZED = 'unauthorized';
 
