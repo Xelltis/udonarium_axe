@@ -86,6 +86,16 @@ export class ServerRollRequests {
     this.pump();
   }
 
+  /**
+   * Stops waiting while the link is down, keeping every roll to ask again for once back: a roll that
+   * timed out while away would never be asked for again.
+   */
+  pause(): void {
+    this.stopPacing();
+    this.waiting = [];
+    for (const roll of this.pending.values()) this.stopWaiting(roll);
+  }
+
   /** Forgets every roll, without a word, as when leaving the room they were asked in. */
   clear(): void {
     this.stopPacing();

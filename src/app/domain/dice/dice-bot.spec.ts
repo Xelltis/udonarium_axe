@@ -239,6 +239,44 @@ describe('DiceBot', () => {
       tab.destroy();
     });
 
+    it('tells of no roll that times out once the room is left', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const bot = new DiceBot();
+      bot.initialize();
+      const told = vi.fn();
+      const off = serverRollUnanswered$.subscribe(told);
+      const { tab } = await askedRoll(bot);
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
+
+      vi.advanceTimersByTime(60_000);
+
+      expect(told).not.toHaveBeenCalled();
+      off();
+      vi.useRealTimers();
+      bot.destroy();
+      tab.destroy();
+    });
+
+    it('waits on no roll while its link is down', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const bot = new DiceBot();
+      bot.initialize();
+      vi.spyOn(Network, 'peerId', 'get').mockReturnValue('me');
+      const told = vi.fn();
+      const off = serverRollUnanswered$.subscribe(told);
+      const { tab } = await askedRoll(bot);
+
+      localDispatch('PEER_RECONNECT', { peerId: 'me', state: 'retrying' });
+      vi.advanceTimersByTime(120_000);
+
+      expect(told).not.toHaveBeenCalled();
+      expect(bot['serverRolls'].size).toBe(1);
+      off();
+      vi.useRealTimers();
+      bot.destroy();
+      tab.destroy();
+    });
+
     it('forgets the rolls asked in a room once another room, or none, is opened', async () => {
       const bot = new DiceBot();
       bot.initialize();

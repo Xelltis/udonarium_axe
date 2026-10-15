@@ -104,6 +104,19 @@ describe('ServerRollRequests', () => {
     expect(sent).toEqual(many);
   });
 
+  it('stops waiting while the link is down, and asks again once back', () => {
+    ask('answer-1');
+
+    requests.pause();
+    vi.advanceTimersByTime(SERVER_ROLL_WAIT_MS * 2);
+    expect(unanswered).toEqual([]);
+
+    requests.askAgain();
+    expect(sent).toEqual(['answer-1', 'answer-1']);
+    vi.advanceTimersByTime(SERVER_ROLL_WAIT_MS);
+    expect(unanswered).toEqual([['line', 'timeout']]);
+  });
+
   it('forgets everything without a word on leaving the room', () => {
     ask('answer-1');
     for (let i = 2; i < MAX_ROLLS_PER_WINDOW + 3; i++) ask(`answer-${i}`);
