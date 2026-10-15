@@ -140,4 +140,16 @@ describe('ServerAuthService', () => {
 
     expect(service.account()).toEqual(ACCOUNT);
   });
+
+  it('knows an account logged in here as one after it has logged out, whatever its user id looks like', () => {
+    const unprefixed: Account = { ...ACCOUNT, userId: 'e0100553-8866-4924-8a4a-d4900ac59de5' };
+    login.account = unprefixed;
+    configure();
+    login.account = null;
+    window.dispatchEvent(new StorageEvent('storage', { key: LOGIN_STORAGE_KEY }));
+
+    expect(service.account()).toBeNull();
+    expect(service.isAccountUserId(unprefixed.userId)).toBe(true);
+    expect(service.isAccountUserId('tab-own')).toBe(false);
+  });
 });

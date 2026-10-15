@@ -36,6 +36,8 @@ export interface ServerCredentialSource {
   credentials(): Promise<ServerCredentials | null>;
   accessToken(): Promise<string | null>;
   replaceRejected(rejected: string): Promise<string | null>;
+  /** Whether a user id is that of an account logged in while the page has been open, logged out or not. */
+  isAccountUserId(userId: string): boolean;
 }
 
 export interface Connection {

@@ -590,6 +590,7 @@ describe('ServerConnection', () => {
         credentials: async () => (tokens[0] ? { userId: account, accessToken: tokens[0] } : null),
         accessToken: async () => tokens[0] ?? null,
         replaceRejected,
+        isAccountUserId: (userId) => userId === account,
       });
     });
 
@@ -620,6 +621,19 @@ describe('ServerConnection', () => {
       socket.accept();
 
       expect(await hello(socket)).toMatchObject({ userId: account, accessToken: 'token-1' });
+    });
+
+    it('never claims, logged out, the user id of an account that lacks the account prefix', async () => {
+      account = 'e0100553-8866-4924-8a4a-d4900ac59de5';
+      tokens = [];
+      connection.open(account, 'Ab3', '月夜の卓', '', ROOM_KEY);
+      await vi.waitFor(() => expect(FakeWebSocket.instances.length).toBe(1));
+      const socket = latest();
+      socket.accept();
+
+      const said = await hello(socket);
+      expect(said['userId']).not.toBe(account);
+      expect(said).not.toHaveProperty('accessToken');
     });
 
     it('hands the server fresh tokens for an account whose user id lacks the account prefix', async () => {
@@ -786,6 +800,7 @@ describe('ServerConnection', () => {
         credentials: async () => null,
         accessToken: () => Promise.reject(new Error('offline')),
         replaceRejected,
+        isAccountUserId: () => false,
       });
       const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ rooms: [] })));
 

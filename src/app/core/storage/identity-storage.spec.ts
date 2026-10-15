@@ -1,5 +1,6 @@
 import {
   clearIdentity,
+  guestUserIdAfter,
   guestUserIdOf,
   loadIdentity,
   PersistedIdentity,
@@ -14,6 +15,7 @@ const sample: PersistedIdentity = {
   reConnectPass: 'secret',
   roomKey: '0123456789abcdef0123456789abcdef',
   guestUserId: '',
+  accountUserId: '',
 };
 
 describe('identity-storage', () => {
@@ -44,6 +46,7 @@ describe('identity-storage', () => {
       reConnectPass: '',
       roomKey: '',
       guestUserId: '',
+      accountUserId: '',
     });
   });
 
@@ -73,6 +76,36 @@ describe('identity-storage', () => {
     saveIdentity({ userId: 'acct_1234', roomId: 'r', roomName: 'n', role: 'gm', reConnectPass: '' });
 
     expect(guestUserIdOf(loadIdentity())).toBe('tab-own');
+  });
+
+  it('never goes by the user id of an account without the prefix, once it is known as one', () => {
+    const account = 'e0100553-8866-4924-8a4a-d4900ac59de5';
+    saveIdentity({ ...sample, userId: 'tab-own' });
+    saveIdentity({ ...sample, userId: account, guestUserId: undefined, accountUserId: account });
+
+    expect(guestUserIdOf(loadIdentity())).toBe('tab-own');
+
+    // Logged out: whoever saves next names neither the guest id nor the account.
+    saveIdentity({ ...sample, userId: account, guestUserId: undefined, accountUserId: undefined });
+    expect(loadIdentity()?.accountUserId).toBe(account);
+    expect(guestUserIdOf(loadIdentity())).toBe('tab-own');
+  });
+
+  it('drops a guest id that is the account’s, as a version before this one could save it', () => {
+    const account = 'e0100553-8866-4924-8a4a-d4900ac59de5';
+    sessionStorage.setItem(
+      'udonarium-axe.identity',
+      JSON.stringify({ ...sample, userId: account, guestUserId: account, accountUserId: account })
+    );
+
+    expect(guestUserIdOf(loadIdentity())).toBe('');
+    // Saved without the account, the logged-in one still keeps it from being the guest's.
+    sessionStorage.setItem(
+      'udonarium-axe.identity',
+      JSON.stringify({ ...sample, userId: account, guestUserId: account })
+    );
+    expect(guestUserIdOf(loadIdentity(), account)).toBe('');
+    expect(guestUserIdAfter(account, loadIdentity(), account)).toBe('');
   });
 
   it('returns null for corrupt JSON', () => {

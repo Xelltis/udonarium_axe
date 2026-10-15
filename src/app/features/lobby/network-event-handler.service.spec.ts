@@ -388,6 +388,29 @@ describe('NetworkEventHandlerService', () => {
       expect(openStandby.mock.calls.map(([userId]) => userId)).toEqual(['acct_1', 'tab-1']);
     });
 
+    it('never waits as an account without the prefix after its logout, though a version before saved it as the tab’s', () => {
+      const unprefixed = 'e0100553-8866-4924-8a4a-d4900ac59de5';
+      const openStandby = vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+      saveIdentity({
+        userId: unprefixed,
+        roomId: '',
+        roomName: '',
+        role: '',
+        reConnectPass: '',
+        guestUserId: unprefixed,
+      });
+      account.set({ ...ACCOUNT, userId: unprefixed });
+      TestBed.tick();
+      account.set(null);
+      TestBed.tick();
+      openStandby.mockClear();
+
+      stubChange.networkError$.emit({ errorType: 'room-not-found', errorMessage: '' });
+
+      expect(openStandby).toHaveBeenCalledTimes(1);
+      expect(openStandby.mock.calls[0][0]).not.toBe(unprefixed);
+    });
+
     it('goes into the same room again as whoever has logged in', () => {
       vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({
         isRoom: true,

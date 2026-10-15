@@ -15,21 +15,35 @@ export interface PersistedIdentity {
    * seat may never claim without its token. Missing from anything saved before logins.
    */
   guestUserId?: string;
+  /**
+   * The user id of the account this tab was last logged in as, which it still knows after a logout.
+   * An account made before ids had their prefix is told from a tab's own id only by this.
+   */
+  accountUserId?: string;
 }
 
-/** Whether a user id is a logged-in account's rather than a tab's own. */
+/** Whether a user id looks like a logged-in account's rather than a tab's own. */
 export function isAccountUserId(userId: string): boolean {
   return userId.startsWith(ACCOUNT_USER_ID_PREFIX);
 }
 
+/** Whether a user id is an account's, by its look or by the account the identity says the tab was in. */
+function isAccountOf(userId: string, identity: PersistedIdentity | null, accountUserId = ''): boolean {
+  if (isAccountUserId(userId)) return true;
+  return (
+    (!!accountUserId && userId === accountUserId) || (!!identity?.accountUserId && userId === identity.accountUserId)
+  );
+}
+
 /**
- * The user id the tab goes by without a login: the one kept for that, or else the saved user id
- * when it is not an account's. Empty when there is neither.
+ * The user id the tab goes by without a login: the one kept for that, or else the saved user id.
+ * Empty when there is neither, or when that is an account's, the one logged in now or the one the
+ * identity says the tab was in.
  */
-export function guestUserIdOf(identity: PersistedIdentity | null): string {
+export function guestUserIdOf(identity: PersistedIdentity | null, accountUserId = ''): string {
   if (!identity) return '';
-  if (identity.guestUserId) return identity.guestUserId;
-  return isAccountUserId(identity.userId) ? '' : identity.userId;
+  const userId = identity.guestUserId || identity.userId;
+  return isAccountOf(userId, identity, accountUserId) ? '' : userId;
 }
 
 /**
@@ -40,8 +54,15 @@ export function guestUserIdOf(identity: PersistedIdentity | null): string {
  * storage is unavailable nothing is kept and nothing is thrown.
  */
 export function saveIdentity(identity: PersistedIdentity): void {
-  // Whoever saves without naming the guest id keeps the one saved before, so a login never loses it.
-  const kept = { ...identity, guestUserId: identity.guestUserId ?? guestUserIdAfter(identity.userId, loadIdentity()) };
+  // Whoever saves without naming the guest id or the account keeps those saved before, so a login
+  // never loses the one, nor a logout the other.
+  const saved = loadIdentity();
+  const accountUserId = identity.accountUserId || saved?.accountUserId || '';
+  const kept = {
+    ...identity,
+    accountUserId,
+    guestUserId: identity.guestUserId ?? guestUserIdAfter(identity.userId, saved, accountUserId),
+  };
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(kept));
   } catch {
@@ -59,6 +80,7 @@ export function loadIdentity(): PersistedIdentity | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<PersistedIdentity> | null;
     if (!parsed || typeof parsed.userId !== 'string' || parsed.userId.length < 1) return null;
+    const accountUserId = typeof parsed.accountUserId === 'string' ? parsed.accountUserId : '';
     return {
       userId: parsed.userId,
       roomId: typeof parsed.roomId === 'string' ? parsed.roomId : '',
@@ -67,7 +89,10 @@ export function loadIdentity(): PersistedIdentity | null {
       reConnectPass: typeof parsed.reConnectPass === 'string' ? parsed.reConnectPass : '',
       roomKey: typeof parsed.roomKey === 'string' ? parsed.roomKey : '',
       guestUserId:
-        typeof parsed.guestUserId === 'string' && !isAccountUserId(parsed.guestUserId) ? parsed.guestUserId : '',
+        typeof parsed.guestUserId === 'string' && !isAccountOf(parsed.guestUserId, null, accountUserId)
+          ? parsed.guestUserId
+          : '',
+      accountUserId,
     };
   } catch {
     /* corrupt or unavailable storage — fall back to a fresh identity */
@@ -77,10 +102,10 @@ export function loadIdentity(): PersistedIdentity | null {
 
 /**
  * The guest id to keep beside a user id about to be saved: the user id itself when it is the tab's
- * own, or the one kept before when it is an account's.
+ * own, or the one kept before when it is an account's, the one logged in now or the one before.
  */
-export function guestUserIdAfter(userId: string, saved: PersistedIdentity | null): string {
-  return isAccountUserId(userId) ? guestUserIdOf(saved) : userId;
+export function guestUserIdAfter(userId: string, saved: PersistedIdentity | null, accountUserId = ''): string {
+  return isAccountOf(userId, saved, accountUserId) ? guestUserIdOf(saved, accountUserId) : userId;
 }
 
 /** Forgets the identity saved for this tab, so the next load starts as a new user. */

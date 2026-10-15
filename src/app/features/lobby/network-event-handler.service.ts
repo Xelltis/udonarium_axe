@@ -53,6 +53,8 @@ export class NetworkEventHandlerService {
   private localMode = false;
   /** The account last followed; undefined until the first look, which changes nothing. */
   private followedAccountUserId: string | null | undefined = undefined;
+  /** The last account followed, kept after a logout so its user id is never taken for the tab's own. */
+  private lastAccountUserId = '';
 
   constructor() {
     networkMessage$.subscribe((message) => {
@@ -167,7 +169,8 @@ export class NetworkEventHandlerService {
           role: myCursor.role,
           reConnectPass: myCursor.reConnectPass,
           roomKey: Network.roomKey ?? '',
-          guestUserId: guestUserIdAfter(peer.userId, loadIdentity()),
+          guestUserId: guestUserIdAfter(peer.userId, loadIdentity(), this.accountUserId()),
+          accountUserId: this.accountUserId(),
         });
       },
       this.destroyRef
@@ -192,8 +195,18 @@ export class NetworkEventHandlerService {
       role: PeerCursor.myCursor.role,
       reConnectPass: PeerCursor.myCursor.reConnectPass,
       roomKey: last ? (last.roomKey ?? '') : (Network.roomKey ?? ''),
-      guestUserId: guestUserIdAfter(peer.userId, saved),
+      guestUserId: guestUserIdAfter(peer.userId, saved, this.accountUserId()),
+      accountUserId: this.accountUserId(),
     });
+  }
+
+  /**
+   * The user id of the account logged in to the room server, or of the last one this page saw after
+   * a logout; empty with SkyWay, or before any login.
+   */
+  private accountUserId(): string {
+    if (Network.transport !== 'server') return '';
+    return this.auth.account()?.userId ?? this.lastAccountUserId;
   }
 
   /** Takes on the role the room server gave this seat on letting it in; SkyWay gives none. */
@@ -247,7 +260,7 @@ export class NetworkEventHandlerService {
   private standbyUserId(): string | undefined {
     const account = Network.transport === 'server' ? this.auth.account() : null;
     if (account) return account.userId;
-    return guestUserIdOf(loadIdentity()) || undefined;
+    return guestUserIdOf(loadIdentity(), this.accountUserId()) || undefined;
   }
 
   /**
@@ -258,6 +271,7 @@ export class NetworkEventHandlerService {
   private followAccount(userId: string | null): void {
     const previous = this.followedAccountUserId;
     this.followedAccountUserId = userId;
+    if (userId) this.lastAccountUserId = userId;
     if (this.localMode || Network.transport !== 'server') return;
     const account = this.auth.account();
     if (account) this.lendAccountLook(account.name, account.avatarUrl);

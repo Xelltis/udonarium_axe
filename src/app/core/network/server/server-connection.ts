@@ -220,7 +220,7 @@ export class ServerConnection implements Connection {
       if (!this.stopped) this.fail(SERVER_UNREACHABLE, 'the login could not be refreshed');
       return;
     }
-    const peer = await PeerContext.createRoom(credentials?.userId ?? guestUserId(userId), roomId, roomName, '');
+    const peer = await PeerContext.createRoom(credentials?.userId ?? this.guestUserId(userId), roomId, roomName, '');
     if (this.stopped) return;
     peer.password = password;
     this.me = peer;
@@ -231,6 +231,15 @@ export class ServerConnection implements Connection {
     }
     this.room = { roomKey, password };
     this.connectSocket();
+  }
+
+  /**
+   * A guest's user id, never an account's, which a hello without a token may not claim: neither one
+   * that looks like an account's, nor that of an account the page was logged in as.
+   */
+  private guestUserId(userId: string): string {
+    const isAccount = userId.startsWith(ACCOUNT_USER_ID_PREFIX) || this.credentialSource?.isAccountUserId(userId);
+    return isAccount ? PeerContext.generateUserId() : userId;
   }
 
   /** Leaves the room for good, without reporting anything. */
@@ -772,9 +781,4 @@ export class ServerConnection implements Connection {
     this.pingTimer = null;
     this.heardFrom();
   }
-}
-
-/** A guest's user id, never one that looks like an account's, which a hello without a token may not claim. */
-function guestUserId(userId: string): string {
-  return userId.startsWith(ACCOUNT_USER_ID_PREFIX) ? PeerContext.generateUserId() : userId;
 }

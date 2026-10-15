@@ -37,6 +37,8 @@ export class ServerAuthService implements ServerCredentialSource {
   private readonly _pending = signal(false);
   private readonly _error = signal<string | null>(null);
   private readonly _providers = signal<string[] | null>(null);
+  /** Every account logged in while the page has been open, which a guest may never go by. */
+  private readonly accountUserIds = new Set<string>();
 
   /** Whoever is logged in, or null. */
   readonly account = this._account.asReadonly();
@@ -69,9 +71,9 @@ export class ServerAuthService implements ServerCredentialSource {
    */
   configure(baseUrl: string, login: ServerLogin = new ServerLogin(baseUrl)): void {
     this.login = login;
-    this._account.set(login.account);
+    this.takeAccount(login.account);
     void this.refreshProviders();
-    const stop = login.onChange(() => this._account.set(login.account));
+    const stop = login.onChange(() => this.takeAccount(login.account));
     this.destroyRef.onDestroy(stop);
     this.listenToOtherTabs();
     if (isLoginFragment(location.hash)) {
@@ -145,10 +147,20 @@ export class ServerAuthService implements ServerCredentialSource {
     return (await this.login?.replaceRejected(rejected)) ?? null;
   }
 
+  /** Whether a user id is that of an account logged in while the page has been open, logged out or not. */
+  isAccountUserId(userId: string): boolean {
+    return this.accountUserIds.has(userId);
+  }
+
+  private takeAccount(account: Account | null): void {
+    if (account) this.accountUserIds.add(account.userId);
+    this._account.set(account);
+  }
+
   private listenToOtherTabs(): void {
     if (this.channel) return;
     const onStorage = (event: StorageEvent) => {
-      if (event.key === LOGIN_STORAGE_KEY || event.key === null) this._account.set(this.login?.account ?? null);
+      if (event.key === LOGIN_STORAGE_KEY || event.key === null) this.takeAccount(this.login?.account ?? null);
     };
     window.addEventListener('storage', onStorage);
     this.destroyRef.onDestroy(() => window.removeEventListener('storage', onStorage));

@@ -235,6 +235,7 @@ describe('Network', () => {
         credentials: async () => null,
         accessToken: async () => null,
         replaceRejected: async () => null,
+        isAccountUserId: () => false,
       };
       const ROOM = '0123456789abcdef0123456789abcdef';
       const OTHER_ROOM = 'fedcba9876543210fedcba9876543210';
