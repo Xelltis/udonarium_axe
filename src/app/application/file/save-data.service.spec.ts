@@ -1,12 +1,14 @@
 import { inject, TestBed } from '@angular/core/testing';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Logger } from '@axe/core/logging/logger';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
+import { ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { exportChatLog } from '@axe/domain/chat/chat-log-export';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
@@ -303,6 +305,27 @@ describe('SaveDataService', () => {
 
       await expect(service.saveRoomAsync('room')).resolves.toBeUndefined();
       expect(Logger.error).toHaveBeenCalled();
+    });
+
+    it('tells the reader of every save that fails, and to reload when the code could not be fetched', async () => {
+      const service = TestBed.inject(SaveDataService);
+      const t = TestBed.inject(TRANSLATE_FN);
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+      vi.spyOn(Logger, 'error').mockImplementation(() => {});
+      vi.spyOn(TestBed.inject(FileArchiver), 'saveAsync')
+        .mockRejectedValueOnce(new ZipCodeUnavailableError(new TypeError('Failed to fetch')))
+        .mockRejectedValueOnce(new ZipCodeUnavailableError(new TypeError('Failed to fetch')))
+        .mockRejectedValueOnce(new Error('out of memory'));
+
+      await service.saveRoomAsync('room');
+      await service.saveRoomAsync('room');
+      await service.saveRoomAsync('room');
+
+      expect(shown.mock.calls.map(([message]) => message)).toEqual([
+        t('common.dialog.saveFailedReload'),
+        t('common.dialog.saveFailedReload'),
+        t('common.dialog.saveFailed'),
+      ]);
     });
 
     it('reports the same percentage only once', async () => {

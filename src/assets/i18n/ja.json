@@ -16,7 +16,9 @@
       "updatedTitle": "Udonarium Axe が更新されました",
       "updatedMessage": "新しい版に切り替えるため、ページを再読み込みしてください。再読み込みするまで、開けない画面があります。",
       "reload": "再読み込み",
-      "later": "あとで"
+      "later": "あとで",
+      "saveFailed": "保存できませんでした",
+      "saveFailedReload": "保存できませんでした。ページを再読み込みしてから、もう一度お試しください"
     },
     "language": {
       "ja": "日本語",

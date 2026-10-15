@@ -5,6 +5,7 @@ import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { stampLabel } from '@axe/application/chat/stamp-words';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
 import { AudioFile } from '@axe/core/storage/audio-file';
@@ -15,6 +16,7 @@ import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
+import { ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { downloadBlob } from '@axe/core/util/download-blob';
@@ -72,6 +74,7 @@ export class SaveDataService {
   private readonly dataSummarySetting = inject(DataSummarySetting);
   private readonly statusAilmentCatalog = inject(StatusAilmentCatalog);
   private readonly translate = inject(TRANSLATE_FN);
+  private readonly snackbar = inject(SnackbarService);
   private readonly chatReactions = inject(ChatReactionService);
   private readonly stampPacks = inject(StampPackService);
   private readonly chatPreferences = inject(ChatPreferencesService);
@@ -211,8 +214,9 @@ export class SaveDataService {
 
   /**
    * Packs and downloads the files. A save that fails is logged and settles all the same, so that
-   * whoever waits on it is not left saving for ever; one whose code could not be fetched has the
-   * archiver ask for a reload.
+   * whoever waits on it is not left saving for ever, and the reader is told every time, since the
+   * reload the archiver asks for once when the code could not be fetched is asked only once a page.
+   * Then the notice says to reload.
    */
   private async saveAsync(files: File[], zipName: string, updateCallback?: UpdateCallback): Promise<void> {
     let progressPercent = -1;
@@ -225,6 +229,9 @@ export class SaveDataService {
       });
     } catch (reason) {
       Logger.error('[SaveDataService] 保存に失敗しました', zipName, reason);
+      const notice =
+        reason instanceof ZipCodeUnavailableError ? 'common.dialog.saveFailedReload' : 'common.dialog.saveFailed';
+      this.snackbar.show(this.translate(notice));
     }
   }
 
