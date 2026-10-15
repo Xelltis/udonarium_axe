@@ -5,6 +5,7 @@ import { NetworkMessage, networkMessage$, networkSend } from '@axe/core/network/
 import { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { markForChanged } from '@axe/core/sync/object-event-extension';
 import { ObjectFactory } from '@axe/core/sync/object-factory';
+import { ObjectNode } from '@axe/core/sync/object-node';
 import { CatalogItem, ObjectStore } from '@axe/core/sync/object-store';
 import { isNewerVersion } from '@axe/core/sync/object-version';
 import { SynchronizeRequest, SynchronizeTask } from '@axe/core/sync/synchronize-task';
@@ -19,6 +20,8 @@ const OBJECT_SYNC_EVENTS: ReadonlySet<string> = new Set([
   'REQUEST_GAME_OBJECT',
   'REQUEST_CATALOG',
   'FORGET_DELETED_OBJECTS',
+  'AUTHORITATIVE_OBJECT',
+  'WITHDRAW_GAME_OBJECT',
 ]);
 
 const CATALOG_BATCH = 2048;
@@ -126,6 +129,30 @@ export class ObjectSynchronizer {
             if (msg.isSendFromSelf) break;
             const identifier: ObjectIdentifier = (msg.data as { identifier: string }).identifier;
             ObjectStore.instance.delete(identifier, false);
+            break;
+          }
+          // The room server's word on an object outranks any version: it undoes a change this
+          // seat may not make, and hands over what has just come into its view.
+          case 'AUTHORITATIVE_OBJECT': {
+            if (!isFromAuthority(msg.sendFrom)) break;
+            const context = msg.data as ObjectContext;
+            ObjectStore.instance.forgetDeleted([context.identifier]);
+            const object = ObjectStore.instance.get(context.identifier);
+            if (object) {
+              object.apply(context);
+              markForChanged(object, msg.sendFrom);
+            } else {
+              const created = this.createObject(context);
+              if (created) markForChanged(created, msg.sendFrom);
+            }
+            break;
+          }
+          // What has gone out of this seat's view, or what it made but may not, goes without
+          // being marked deleted, so it can come back.
+          case 'WITHDRAW_GAME_OBJECT': {
+            if (!isFromAuthority(msg.sendFrom)) break;
+            const object = ObjectStore.instance.get((msg.data as { identifier: string }).identifier);
+            if (object) withdraw(object);
             break;
           }
         }
@@ -319,6 +346,20 @@ function syncPeerIds(): PeerId[] {
   const authority = Network.authorityPeerId;
   if (authority != null) return [authority];
   return Network.peerContexts.filter((peer) => peer.isOpen).map((peer) => peer.peerId);
+}
+
+/** Whether a message comes from the room server itself, the only one whose word outranks versions. */
+function isFromAuthority(sendFrom: PeerId): boolean {
+  const authority = Network.authorityPeerId;
+  return authority != null && sendFrom === authority;
+}
+
+/** Takes an object and everything beneath it out of the store, deepest first, marking nothing deleted. */
+function withdraw(object: GameObject): void {
+  if (object instanceof ObjectNode) {
+    for (const child of [...object.children]) withdraw(child);
+  }
+  ObjectStore.instance.remove(object);
 }
 
 /** Whether a newly connected peer is one to send this device's catalog to. */

@@ -46,6 +46,13 @@ export class SynchronizeTask {
             if (!msg.isSendFromSelf)
               SynchronizeTask.onUpdate((msg as NetworkMessage<{ identifier: string }>).data.identifier);
             break;
+          // The room server answers a request with its own word on the object, or by taking
+          // away what this seat may not see.
+          case 'AUTHORITATIVE_OBJECT':
+          case 'WITHDRAW_GAME_OBJECT':
+            if (!msg.isSendFromSelf)
+              SynchronizeTask.onUpdate((msg as NetworkMessage<{ identifier: string }>).data.identifier);
+            break;
         }
       });
       SynchronizeTask.cleanup = off;

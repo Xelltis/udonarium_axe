@@ -147,6 +147,19 @@ describe('object-change-network-helpers', () => {
     }
   });
 
+  it('closes what shows an object the room server took away, as for one deleted', () => {
+    const targets = makeTargets();
+    const offBindings = subscribeNetworkBindings(networkMessage$, targets);
+    const received: ObjectDeleteEvent[] = [];
+    const offReceive = targets.objectDeleted$.subscribe((e) => received.push(e));
+
+    localDispatch('WITHDRAW_GAME_OBJECT', { identifier: 'hidden-card' }, '@authority');
+
+    expect(received).toEqual([{ identifier: 'hidden-card', aliasName: '', isSendFromSelf: false }]);
+    offReceive();
+    offBindings();
+  });
+
   it('unsubscribes when the cleanup is called', () => {
     const targets = makeTargets();
     const offBindings = subscribeNetworkBindings(networkMessage$, targets);

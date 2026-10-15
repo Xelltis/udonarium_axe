@@ -2,12 +2,14 @@ import { TestBed } from '@angular/core/testing';
 import { messageAdded$, selectGameTable$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
+import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { SynchronizeRequest, SynchronizeTask } from '@axe/core/sync/synchronize-task';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { DataElement } from '@axe/domain/data/data-element';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 
@@ -125,6 +127,71 @@ describe('ObjectSynchronizer', () => {
       localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'kept-by-the-server', version: 1 }], AUTHORITY);
 
       expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
+    });
+
+    describe('the server’s own word on objects', () => {
+      const elementContext = (identifier: string, value: string, majorVersion = 1) => ({
+        aliasName: 'data',
+        identifier,
+        majorVersion,
+        minorVersion: 0.5,
+        syncData: { value, attributes: { name: identifier } },
+      });
+
+      afterEach(() => {
+        for (const identifier of ['held', 'gone', 'parent', 'child']) {
+          const object = ObjectStore.instance.get(identifier);
+          if (object) ObjectStore.instance.remove(object);
+        }
+        ObjectStore.instance.clearDeleteHistory();
+      });
+
+      it('takes on what the server says an object is, whatever its version', () => {
+        const held = DataElement.create('held', 'mine', {}, 'held');
+        held.initialize();
+        held.apply({ ...held.toContext(), majorVersion: 9 });
+
+        localDispatch(AuthorityEvent.AUTHORITATIVE, elementContext('held', 'the server’s'), AUTHORITY);
+
+        expect(held.value).toBe('the server’s');
+        expect(held.majorVersion).toBe(1);
+      });
+
+      it('brings back an object it had marked deleted when the server hands it over', () => {
+        ObjectStore.instance.delete('gone', false);
+
+        localDispatch(AuthorityEvent.AUTHORITATIVE, elementContext('gone', 'back'), AUTHORITY);
+
+        expect(ObjectStore.instance.isDeleted('gone')).toBe(false);
+        expect(ObjectStore.instance.get<DataElement>('gone')?.value).toBe('back');
+      });
+
+      it('takes nobody else’s word over its versions', () => {
+        const held = DataElement.create('held', 'mine', {}, 'held');
+        held.initialize();
+
+        localDispatch(AuthorityEvent.AUTHORITATIVE, elementContext('held', 'forged'), 'peer-a');
+        localDispatch(AuthorityEvent.WITHDRAW, { identifier: 'held' }, 'peer-a');
+
+        expect(ObjectStore.instance.get<DataElement>('held')?.value).toBe('mine');
+      });
+
+      it('takes away what the server withdraws, with all beneath it, marking nothing deleted and telling nobody', () => {
+        const parent = DataElement.create('parent', '', {}, 'parent');
+        const child = DataElement.create('child', 'hidden', {}, 'child');
+        parent.appendChild(child);
+        parent.initialize();
+        child.initialize();
+        vi.mocked(Network.instance.send).mockClear();
+
+        localDispatch(AuthorityEvent.WITHDRAW, { identifier: 'parent' }, AUTHORITY);
+
+        expect(ObjectStore.instance.get('parent')).toBeNull();
+        expect(ObjectStore.instance.get('child')).toBeNull();
+        expect(ObjectStore.instance.isDeleted('parent')).toBe(false);
+        expect(ObjectStore.instance.isDeleted('child')).toBe(false);
+        expect(Network.instance.send).not.toHaveBeenCalled();
+      });
     });
   });
 

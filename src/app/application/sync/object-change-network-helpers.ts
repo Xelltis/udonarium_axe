@@ -99,6 +99,13 @@ export function subscribeNetworkBindings(
         });
         break;
       }
+      // Taken away by the room server, the object is gone from here as if deleted, and the
+      // panels showing it close.
+      case 'WITHDRAW_GAME_OBJECT': {
+        const data = msg.data as { identifier: string };
+        targets.objectDeleted$.emit({ identifier: data.identifier, aliasName: '', isSendFromSelf: false });
+        break;
+      }
       case 'SYNCHRONIZE_FILE_LIST':
         targets.fileSyncList$.emit({ isSendFromSelf: msg.isSendFromSelf });
         break;

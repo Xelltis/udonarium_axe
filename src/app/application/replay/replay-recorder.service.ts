@@ -285,6 +285,15 @@ export class ReplayRecorderService {
   }
 
   private handleMessage(eventName: string, data: unknown, sendFrom: string): void {
+    // The room server's own word on an object is a change like any other, and what it takes away
+    // is gone from the board like anything deleted.
+    if (eventName === 'AUTHORITATIVE_OBJECT') {
+      eventName = 'UPDATE_GAME_OBJECT';
+    } else if (eventName === 'WITHDRAW_GAME_OBJECT') {
+      const identifier = (data as { identifier: string }).identifier;
+      eventName = 'DELETE_GAME_OBJECT';
+      data = { identifier, aliasName: ObjectStore.instance.get(identifier)?.aliasName ?? '' };
+    }
     if (isIgnoredReplayEvent(eventName)) return;
     const at = Date.now();
     this.boardDirty = true;

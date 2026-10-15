@@ -343,6 +343,20 @@ describe('ReplayRecorderService', () => {
     expect(service.recentEvents()[0].kind).toBe(ReplayEventKind.ObjectRemove);
   });
 
+  it('records the room server’s word on an object as a change, and its taking one away as a removal', async () => {
+    await service.start();
+    vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+    localDispatch(
+      'AUTHORITATIVE_OBJECT',
+      context('c1', 'character', { location: { name: 'table', x: 10, y: 0 }, posZ: 0 }),
+      '@authority'
+    );
+    localDispatch('WITHDRAW_GAME_OBJECT', { identifier: 'c1' }, '@authority');
+
+    expect(service.recentEvents().map((event) => event.kind)).toContain(ReplayEventKind.ObjectRemove);
+    expect(service.recentEvents().length).toBeGreaterThan(1);
+  });
+
   it('records a whisper as private, with its recipients', async () => {
     await service.start();
     vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
