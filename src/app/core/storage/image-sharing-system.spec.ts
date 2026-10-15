@@ -87,7 +87,8 @@ describe('ImageSharingSystem', () => {
       Object.defineProperty(Network, 'peerIds', { get: () => ['self-peer', 'peer-a'], configurable: true });
       Object.defineProperty(Network, 'peerId', { get: () => 'self-peer', configurable: true });
       send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
-      store.configure('https://assets.example');
+      store.configure('https://rooms.example');
+      store.useAccess(() => ({ roomKey: '0123456789abcdef0123456789abcdef', token: 'asset-1' }));
       download = vi.spyOn(store, 'download').mockResolvedValue(fetchedBlob);
       vi.spyOn(ImageFile, 'contextFromBytesAsync').mockImplementation(async (identifier, blob) => ({
         identifier,
@@ -106,6 +107,7 @@ describe('ImageSharingSystem', () => {
       sharingStatic._instance?.cleanups.forEach((cleanup) => cleanup());
       sharingStatic._instance = undefined;
       store.configure(null);
+      store.useAccess(null);
       for (const image of ImageStorage.instance.images) ImageStorage.instance.delete(image.identifier);
       Object.defineProperty(Network, 'peerId', ORIGINAL_PEER_ID);
       Object.defineProperty(Network, 'peerIds', ORIGINAL_PEER_IDS);
@@ -159,6 +161,7 @@ describe('ImageSharingSystem', () => {
 
     it('asks peers for everything while no server is configured', () => {
       store.configure(null);
+      store.useAccess(null);
 
       receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }]);
 

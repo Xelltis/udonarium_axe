@@ -14,6 +14,12 @@ export class ConnectionCallback {
   onError!: (peer: IPeerContext, errorType: string, errorMessage: string, errorObject: unknown) => void;
 }
 
+/** How a seat reaches its room's pictures and sounds on the room server: the room and its token. */
+export interface AssetAccess {
+  roomKey: string;
+  token: string;
+}
+
 /** Who a hello to a room server says is connecting, when somebody is logged in. */
 export interface ServerCredentials {
   userId: string;
@@ -62,6 +68,8 @@ export interface Connection {
   listAllRooms(): Promise<IRoomInfo[]>;
   /** Creates a room on a room server; SkyWay rooms come into being as somebody opens them. */
   createRoom?(name: string, password: string): Promise<CreateRoomResponse>;
+  /** The room's pictures and sounds as this seat may reach them, while it is in a room server's room. */
+  readonly assetAccess?: AssetAccess | null;
   deleteRoom?(roomKey: string): Promise<void>;
   /** Gives a room server connection the login to say hello with. */
   useCredentials?(source: ServerCredentialSource | null): void;

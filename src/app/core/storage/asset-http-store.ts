@@ -1,4 +1,5 @@
 import { Logger } from '@axe/core/logging/logger';
+import type { AssetAccess } from '@axe/core/network/connection';
 import { sha256Hex } from '@axe/core/util/crypto-util';
 
 /** What became of an upload. */
@@ -12,8 +13,11 @@ const REQUEST_TIMEOUT_MS = 60_000;
 /** How long to wait before each retry of an upload the server turned away as too frequent. */
 const RATE_LIMIT_BACKOFF_MS = [10_000, 20_000, 40_000];
 
-/** Statuses meaning the server will never take these bytes: a bad name, a hash mismatch, too big, not a picture or a sound. */
-const REFUSED_STATUSES = new Set([400, 413, 415, 451]);
+/**
+ * Statuses meaning the server will never take these bytes from this seat: a bad name, a hash
+ * mismatch, a guest's seat, too big, not a picture or a sound, taken down.
+ */
+const REFUSED_STATUSES = new Set([400, 403, 413, 415, 451]);
 
 /** Runs at most `limit` tasks at a time, the rest in the order they were queued. */
 class TaskQueue {
@@ -35,11 +39,12 @@ class TaskQueue {
 }
 
 /**
- * The asset server, which keeps pictures and sounds under the SHA-256 of their bytes, so a table
- * fetches each of them over HTTP once instead of pulling it from every peer.
+ * The room server's store for a room's pictures and sounds, kept under the SHA-256 of their bytes,
+ * so a table fetches each of them over HTTP once instead of pulling it from every peer.
  *
- * Nothing happens until an address is configured; without one, every image and sound travels
- * between peers as before.
+ * The store keeps each room apart and answers only a seat of the room, with the token the room
+ * hands it. Nothing happens without an address, or outside a room; then every image and sound
+ * travels between peers as before.
  */
 export class AssetHttpStore {
   private static _instance: AssetHttpStore;
@@ -55,7 +60,7 @@ export class AssetHttpStore {
   }
 
   private baseUrl: string | null = null;
-  private authorization: (() => Promise<string | null>) | null = null;
+  private access: (() => AssetAccess | null) | null = null;
   private readonly uploads = new TaskQueue(UPLOAD_CONCURRENCY);
   private readonly downloads = new TaskQueue(DOWNLOAD_CONCURRENCY);
   /** Waits between retries; replaced in tests so they need not sit through the backoff. */
@@ -63,9 +68,9 @@ export class AssetHttpStore {
 
   private constructor() {}
 
-  /** Whether an address is configured, so uploads and downloads go to the server at all. */
+  /** Whether an address is configured and this seat is in a room, so uploads and downloads go to the server at all. */
   get isEnabled(): boolean {
-    return this.baseUrl !== null;
+    return this.baseUrl !== null && this.access?.() != null;
   }
 
   /** Sets the server's address, or turns the store off with an empty or missing one. */
@@ -74,12 +79,9 @@ export class AssetHttpStore {
     this.baseUrl = trimmed ? trimmed.replace(/\/+$/, '') : null;
   }
 
-  /**
-   * Gives the uploads an access token to send, for a server that takes them only from somebody
-   * logged in; null sends none. Downloads never carry one.
-   */
-  setAuthorization(token: (() => Promise<string | null>) | null): void {
-    this.authorization = token;
+  /** Tells the store which room the seat is in and the token to reach its assets with; null when in none. */
+  useAccess(access: (() => AssetAccess | null) | null): void {
+    this.access = access;
   }
 
   /**
@@ -90,16 +92,16 @@ export class AssetHttpStore {
    */
   upload(identifier: string, blob: Blob): Promise<AssetUploadResult> {
     if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return Promise.resolve('refused');
-    const url = `${this.baseUrl}/v1/assets/${identifier}`;
     return this.uploads.run(async () => {
       try {
-        if ((await this.request(url, { method: 'HEAD' })).ok) return 'exists';
+        // Asked when its turn comes, so that a queued upload goes to the room the seat is in by then.
+        const access = this.access?.();
+        if (!access) return 'failed';
+        const url = this.urlOf(access, identifier);
+        const headers = this.headersOf(access);
+        if ((await this.request(url, { method: 'HEAD', headers })).ok) return 'exists';
         for (let attempt = 0; ; attempt++) {
-          const res = await this.request(url, {
-            method: 'PUT',
-            body: blob,
-            headers: await this.authorizationHeaders(),
-          });
+          const res = await this.request(url, { method: 'PUT', body: blob, headers });
           if (res.status === 201) return 'stored';
           if (res.ok) return 'exists';
           if (REFUSED_STATUSES.has(res.status)) return 'refused';
@@ -119,10 +121,14 @@ export class AssetHttpStore {
    */
   download(identifier: string): Promise<Blob | null> {
     if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return Promise.resolve(null);
-    const url = `${this.baseUrl}/v1/assets/${identifier}`;
     return this.downloads.run(async () => {
       try {
-        const res = await this.request(url, { method: 'GET' });
+        const access = this.access?.();
+        if (!access) return null;
+        const res = await this.request(this.urlOf(access, identifier), {
+          method: 'GET',
+          headers: this.headersOf(access),
+        });
         if (!res.ok) return null;
         const bytes = await res.arrayBuffer();
         if ((await sha256Hex(bytes)) !== identifier) {
@@ -137,10 +143,12 @@ export class AssetHttpStore {
     });
   }
 
-  /** The header carrying the access token, when there is one to be had. */
-  private async authorizationHeaders(): Promise<Record<string, string>> {
-    const token = await this.authorization?.().catch(() => null);
-    return token ? { Authorization: `Bearer ${token}` } : {};
+  private urlOf(access: AssetAccess, identifier: string): string {
+    return `${this.baseUrl}/v1/rooms/${encodeURIComponent(access.roomKey)}/assets/${identifier}`;
+  }
+
+  private headersOf(access: AssetAccess): Record<string, string> {
+    return { Authorization: `Bearer ${access.token}` };
   }
 
   private async request(url: string, init: RequestInit): Promise<Response> {

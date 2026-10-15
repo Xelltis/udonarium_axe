@@ -10,6 +10,7 @@ import { PeerContext } from '@axe/core/network/peer-context';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { MAX_MEMBERS } from '@axe/core/network/server/server-protocol';
 import { SAME_NAME_MEMBER_ERROR } from '@axe/core/network/skyway/same-name-member';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { guestUserIdAfter, guestUserIdOf, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { handOverOwnership } from '@axe/domain/peer/ownership';
@@ -72,6 +73,7 @@ export class NetworkEventHandlerService {
       PeerCursor.myCursor.peerId = peer.peerId;
       PeerCursor.myCursor.userId = peer.userId;
       this.takeServerRole();
+      this.bringAssetsIntoRoom();
       // Outside a room nobody hands out roles, and a role a room gave must not keep the solo table
       // read-only; on a room server, waiting outside a room is playing as a player.
       if (Network.transport === 'server' && !peer.isRoom) PeerCursor.myCursor.role = DEFAULT_PEER_ROLE;
@@ -132,7 +134,10 @@ export class NetworkEventHandlerService {
     }, this.destroyRef);
     this.objectChange.peerReconnect$.subscribe((event) => {
       if (this.localMode) return;
-      if (event.state === 'recovered' && event.peerId === Network.peerId) this.takeServerRole();
+      if (event.state === 'recovered' && event.peerId === Network.peerId) {
+        this.takeServerRole();
+        this.bringAssetsIntoRoom();
+      }
       const key = NetworkEventHandlerService.RECONNECT_MESSAGE_KEYS[event.state];
       if (!key) return;
       this.chatMessageService.sendSystemMessage(encodeI18nMessage(key, { name: this.resolvePeerName(event.peerId) }));
@@ -185,6 +190,17 @@ export class NetworkEventHandlerService {
     const role = Network.serverRole;
     const cursor = PeerCursor.myCursor;
     if (role && cursor && cursor.role !== role) cursor.role = role;
+  }
+
+  /**
+   * Puts the pictures and sounds this seat holds up to the room server's room it is in, as a GM or a
+   * PL may: those added outside the room, brought from another, or added while the line was down.
+   */
+  private bringAssetsIntoRoom(): void {
+    const role = Network.serverRole;
+    if (!Network.peerContext.isRoom || (role !== 'gm' && role !== 'pl')) return;
+    ImageStorage.instance.uploadAllToAssetStore();
+    AudioStorage.instance.uploadAllToAssetStore();
   }
 
   /** Says why the room server would not change somebody's role. */

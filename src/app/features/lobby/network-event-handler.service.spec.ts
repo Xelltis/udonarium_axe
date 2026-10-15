@@ -12,7 +12,9 @@ import { EventChannel } from '@axe/core/event/event-channel';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { Account } from '@axe/core/network/server/server-protocol';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { clearIdentity, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { handLocationOf } from '@axe/domain/card/hand-location';
@@ -460,6 +462,35 @@ describe('NetworkEventHandlerService', () => {
       stubChange.networkOpen$.emit({ peerId: 'p' });
 
       expect(PeerCursor.myCursor.role).toBe('pl');
+    });
+
+    it.each([
+      ['a GM in a room', 'gm', true, 1],
+      ['a PL in a room', 'pl', true, 1],
+      ['a guest in a room', 'guest', true, 0],
+      ['somebody waiting outside a room', null, false, 0],
+    ] as const)('brings the pictures and sounds it holds into the room as %s may', (_name, role, isRoom, times) => {
+      const images = vi.spyOn(ImageStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
+      const audios = vi.spyOn(AudioStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
+      vi.spyOn(Network, 'serverRole', 'get').mockReturnValue(role);
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ peerId: 'p', userId: 'u', isRoom } as never);
+
+      stubChange.networkOpen$.emit({ peerId: 'p' });
+
+      expect(images).toHaveBeenCalledTimes(times);
+      expect(audios).toHaveBeenCalledTimes(times);
+    });
+
+    it('brings them in again once back in the room after the line dropped', () => {
+      const images = vi.spyOn(ImageStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
+      vi.spyOn(AudioStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
+      vi.spyOn(Network, 'serverRole', 'get').mockReturnValue('pl');
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ peerId: 'p', userId: 'u', isRoom: true } as never);
+      vi.spyOn(Network, 'peerId', 'get').mockReturnValue('p');
+
+      stubChange.peerReconnect$.emit({ peerId: 'p', state: 'recovered' });
+
+      expect(images).toHaveBeenCalledTimes(1);
     });
 
     it('says why the server kept a role as it was', () => {

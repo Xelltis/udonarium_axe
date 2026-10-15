@@ -1,5 +1,6 @@
 import { IPeerContext } from '@axe/core/network/peer-context';
 import {
+  ASSET_TOKEN_MARGIN_MS,
   INVITE_TIMEOUT_MS,
   PING_INTERVAL_MS,
   PONG_TIMEOUT_MS,
@@ -96,6 +97,8 @@ describe('ServerConnection', () => {
       role: 'pl',
       members,
       serverTime: Date.now(),
+      assetToken: 'asset-1',
+      assetTokenExpiresAt: Date.now() + 15 * 60_000,
     });
     await vi.waitFor(() => expect(calls).toContain('open'));
     return socket;
@@ -308,6 +311,8 @@ describe('ServerConnection', () => {
       role: 'pl',
       members: [OTHER],
       serverTime: Date.now(),
+      assetToken: 'asset-1',
+      assetTokenExpiresAt: Date.now() + 15 * 60_000,
     });
     await vi.waitFor(() => expect(calls).toContain('reconnect recovered'));
 
@@ -358,6 +363,8 @@ describe('ServerConnection', () => {
       role: 'pl',
       members: [],
       serverTime: Date.now(),
+      assetToken: 'asset-1',
+      assetTokenExpiresAt: Date.now() + 15 * 60_000,
     });
 
     await vi.waitFor(async () => expect((await again.frames()).length).toBe(2));
@@ -389,6 +396,46 @@ describe('ServerConnection', () => {
     expect(socket.readyState).toBe(3);
     expect(calls).toEqual([]);
     expect(errors).toEqual([]);
+  });
+
+  it('reaches the room’s pictures and sounds with the welcome’s token while in the room, and not outside', async () => {
+    expect(connection.assetAccess).toBeNull();
+
+    const socket = await enterRoom();
+
+    expect(connection.assetAccess).toEqual({ roomKey: ROOM_KEY, token: 'asset-1' });
+    socket.close(1006);
+    await vi.waitFor(() => expect(connection.assetAccess).toBeNull());
+  });
+
+  it('asks once for a fresh asset token a while before it runs out, and takes what comes', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    const socket = await openRoom();
+    socket.accept();
+    socket.deliver({
+      type: 'welcome',
+      protocolVersion: PROTOCOL_VERSION,
+      peerId: connection.peerId,
+      authorityPeerId: AUTHORITY_PEER_ID,
+      role: 'pl',
+      members: [],
+      serverTime: Date.now(),
+      assetToken: 'asset-1',
+      assetTokenExpiresAt: Date.now() + ASSET_TOKEN_MARGIN_MS + 2 * TOKEN_CHECK_MS,
+    });
+    await vi.waitFor(() => expect(calls).toContain('open'));
+    const asked = async () => (await socket.frames()).filter((frame) => frame['type'] === 'asset-token');
+
+    await vi.advanceTimersByTimeAsync(TOKEN_CHECK_MS);
+    expect(await asked()).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(2 * TOKEN_CHECK_MS);
+    await vi.advanceTimersByTimeAsync(TOKEN_CHECK_MS);
+    expect(await asked()).toEqual([{ type: 'asset-token' }]);
+
+    socket.deliver({ type: 'asset-token', assetToken: 'asset-2', expiresAt: Date.now() + 15 * 60_000 });
+    await vi.waitFor(() => expect(connection.assetAccess?.token).toBe('asset-2'));
+    await vi.advanceTimersByTimeAsync(TOKEN_CHECK_MS);
+    expect(await asked()).toHaveLength(1);
   });
 
   it('lists the server’s rooms for the lobby', async () => {
@@ -498,6 +545,8 @@ describe('ServerConnection', () => {
         role: 'gm',
         members: [],
         serverTime: Date.now(),
+        assetToken: 'asset-1',
+        assetTokenExpiresAt: Date.now() + 15 * 60_000,
       });
       await vi.waitFor(() => expect(calls).toContain('open'));
       expect(connection.serverRole).toBe('gm');
@@ -524,6 +573,8 @@ describe('ServerConnection', () => {
         role: 'guest',
         members: [],
         serverTime: Date.now(),
+        assetToken: 'asset-1',
+        assetTokenExpiresAt: Date.now() + 15 * 60_000,
       });
       await vi.waitFor(() => expect(calls).toContain('open'));
 

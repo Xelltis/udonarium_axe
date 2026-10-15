@@ -151,7 +151,8 @@ describe('ImageStorage', () => {
     let upload: MockInstance<AssetHttpStore['upload']>;
 
     beforeEach(() => {
-      store.configure('https://assets.example');
+      store.configure('https://rooms.example');
+      store.useAccess(() => ({ roomKey: '0123456789abcdef0123456789abcdef', token: 'asset-1' }));
       cancelWaiting();
       vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
       upload = vi
@@ -161,6 +162,7 @@ describe('ImageStorage', () => {
 
     afterEach(() => {
       store.configure(null);
+      store.useAccess(null);
       cancelWaiting();
       vi.useRealTimers();
     });
@@ -197,8 +199,22 @@ describe('ImageStorage', () => {
       expect(catalogued(pictureId)).toBe(true);
     });
 
+    it('sends every image held in full up to a room just entered, received ones too', async () => {
+      storage.add(contextOf(pictureId));
+      storage.add('https://example.com/linked.png');
+      upload.mockClear();
+
+      storage.uploadAllToAssetStore();
+
+      expect(upload).toHaveBeenCalledTimes(1);
+      expect(upload).toHaveBeenCalledWith(pictureId, expect.any(Blob));
+      finishUpload('exists');
+      await vi.waitFor(() => expect(catalogued(pictureId)).toBe(true));
+    });
+
     it('sends nothing while no server is configured', () => {
       store.configure(null);
+      store.useAccess(null);
 
       storage.add(ImageFile.create(contextOf(pictureId)));
 

@@ -138,7 +138,8 @@ describe('AudioStorage', () => {
     let upload: MockInstance<AssetHttpStore['upload']>;
 
     beforeEach(() => {
-      store.configure('https://assets.example');
+      store.configure('https://rooms.example');
+      store.useAccess(() => ({ roomKey: '0123456789abcdef0123456789abcdef', token: 'asset-1' }));
       vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
       upload = vi
         .spyOn(store, 'upload')
@@ -147,6 +148,7 @@ describe('AudioStorage', () => {
 
     afterEach(() => {
       store.configure(null);
+      store.useAccess(null);
       cancelWaiting();
     });
 
@@ -157,6 +159,18 @@ describe('AudioStorage', () => {
 
       expect(upload).toHaveBeenCalledWith(trackId, audio.blob);
       expect(catalogued(trackId)).toBe(false);
+      finishUpload('exists');
+      await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
+    });
+
+    it('sends every sound held in full up to a room just entered, received ones too', async () => {
+      storage.add(contextOf(trackId));
+      storage.add('https://example.com/theme.mp3');
+
+      storage.uploadAllToAssetStore();
+
+      expect(upload).toHaveBeenCalledTimes(1);
+      expect(upload).toHaveBeenCalledWith(trackId, expect.any(Blob));
       finishUpload('exists');
       await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
     });

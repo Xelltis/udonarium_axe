@@ -10,8 +10,6 @@ name: Deploy
 #   - AWS_DEPLOY_ROLE_ARN
 #   - CLOUDFRONT_DISTRIBUTION_ID
 #   - BACKEND_URL
-# 次のSecretは任意。無ければ画像と音声はこれまでどおりP2Pだけで配る。
-#   - ASSETS_URL（画像と音声を置くサーバー。udonarium_axe_backendのapps/cloudflare）
 
 on:
   workflow_call:
@@ -58,17 +56,16 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Inject backend and asset server URLs
+      - name: Inject the backend URL
         env:
           BACKEND_URL: ${{ secrets.BACKEND_URL }}
-          ASSETS_URL: ${{ secrets.ASSETS_URL }}
         run: |
           if [ -z "$BACKEND_URL" ]; then
             echo "::error::BACKEND_URL secret is not configured for environment '${{ inputs.environment }}'"
             exit 1
           fi
           mkdir -p dist/assets
-          jq --arg url "$BACKEND_URL" --arg assets "$ASSETS_URL" '.backend.url = $url | .assets.url = $assets' \
+          jq --arg url "$BACKEND_URL" '.backend.url = $url' \
             src/assets/config.json.example > dist/assets/config.json
           test -s dist/assets/config.json
 

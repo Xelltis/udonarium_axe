@@ -105,7 +105,12 @@ export interface AuthMessage {
   accessToken: string;
 }
 
-export type ClientMessage = HelloMessage | SendMessage | TimeRequest | InviteRequest | AuthMessage;
+/** Asks for a fresh asset token before the one held runs out; the answer comes as asset-token. */
+export interface AssetTokenRequest {
+  type: 'asset-token';
+}
+
+export type ClientMessage = HelloMessage | SendMessage | TimeRequest | InviteRequest | AuthMessage | AssetTokenRequest;
 
 // ---- server to client ----
 
@@ -121,6 +126,13 @@ export interface WelcomeMessage {
   members: Member[];
   /** The server's clock, in Unix milliseconds. */
   serverTime: number;
+  /**
+   * The token for this room's pictures and sounds at /v1/rooms/:roomKey/assets/:sha256, sent as a
+   * Bearer token. Any seat may read with it; only a GM or a PL may put something up.
+   */
+  assetToken: string;
+  /** When the asset token runs out, in Unix milliseconds; ask for another before then. */
+  assetTokenExpiresAt: number;
 }
 
 export interface JoinMessage {
@@ -155,6 +167,14 @@ export interface InviteMessage {
   invite: string | null;
   /** Unix milliseconds. */
   expiresAt: number | null;
+}
+
+/** A fresh asset token, asked for or sent when the seat's role changed, to take the old one's place. */
+export interface AssetTokenMessage {
+  type: 'asset-token';
+  assetToken: string;
+  /** Unix milliseconds. */
+  expiresAt: number;
 }
 
 /**
@@ -198,7 +218,14 @@ export interface ErrorMessage {
 }
 
 export type ServerMessage =
-  WelcomeMessage | JoinMessage | LeaveMessage | DataMessage | TimeMessage | InviteMessage | ErrorMessage;
+  | WelcomeMessage
+  | JoinMessage
+  | LeaveMessage
+  | DataMessage
+  | TimeMessage
+  | InviteMessage
+  | AssetTokenMessage
+  | ErrorMessage;
 
 // ---- events with the server ----
 
@@ -339,6 +366,10 @@ export function authMessage(accessToken: string): AuthMessage {
   return { type: 'auth', accessToken };
 }
 
+export function assetTokenRequest(): AssetTokenRequest {
+  return { type: 'asset-token' };
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -368,7 +399,9 @@ export function readServerMessage(value: unknown): ServerMessage | null {
         isServerRole(value['role']) &&
         Array.isArray(value['members']) &&
         value['members'].every(isMember) &&
-        typeof value['serverTime'] === 'number'
+        typeof value['serverTime'] === 'number' &&
+        typeof value['assetToken'] === 'string' &&
+        typeof value['assetTokenExpiresAt'] === 'number'
         ? (value as unknown as WelcomeMessage)
         : null;
     case 'join':
@@ -384,6 +417,10 @@ export function readServerMessage(value: unknown): ServerMessage | null {
     case 'invite':
       return isServerRole(value['role']) && isStringOrNull(value['invite']) && isNumberOrNull(value['expiresAt'])
         ? (value as unknown as InviteMessage)
+        : null;
+    case 'asset-token':
+      return typeof value['assetToken'] === 'string' && typeof value['expiresAt'] === 'number'
+        ? (value as unknown as AssetTokenMessage)
         : null;
     case 'error':
       return typeof value['code'] === 'string' ? (value as unknown as ErrorMessage) : null;

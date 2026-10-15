@@ -1,26 +1,33 @@
+import type { AssetAccess } from '@axe/core/network/connection';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { sha256Hex } from '@axe/core/util/crypto-util';
 import type { MockInstance } from 'vitest';
 
-const BASE = 'https://assets.example';
+const BASE = 'https://rooms.example';
+const ROOM = '0123456789abcdef0123456789abcdef';
+const OTHER_ROOM = 'fedcba9876543210fedcba9876543210';
 const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
+const urlOf = (assetId: string, room = ROOM) => `${BASE}/v1/rooms/${room}/assets/${assetId}`;
 
 describe('AssetHttpStore', () => {
   const store = AssetHttpStore.instance;
   const originalDelay = store.delay;
   let id: string;
   let fetchSpy: MockInstance<typeof fetch>;
+  let access: AssetAccess | null;
 
   beforeEach(async () => {
     id = await sha256Hex(bytes.buffer);
+    access = { roomKey: ROOM, token: 'asset-1' };
     store.configure(BASE);
+    store.useAccess(() => access);
     store.delay = vi.fn(() => Promise.resolve());
     fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 
   afterEach(() => {
     store.configure(null);
-    store.setAuthorization(null);
+    store.useAccess(null);
     store.delay = originalDelay;
     vi.restoreAllMocks();
   });
@@ -29,6 +36,8 @@ describe('AssetHttpStore', () => {
     for (const response of responses) fetchSpy.mockResolvedValueOnce(response);
   };
   const callsOf = () => fetchSpy.mock.calls.map(([url, init]) => [init?.method, String(url)]);
+  const authorizationOf = (call: number) =>
+    new Headers((fetchSpy.mock.calls[call][1] as RequestInit).headers).get('Authorization');
 
   describe('configure', () => {
     it('is off until an address is given, and off again for an empty one', () => {
@@ -40,13 +49,20 @@ describe('AssetHttpStore', () => {
       expect(store.isEnabled).toBe(true);
     });
 
+    it('is off outside a room, and with nothing to tell which room the seat is in', () => {
+      access = null;
+      expect(store.isEnabled).toBe(false);
+      store.useAccess(null);
+      expect(store.isEnabled).toBe(false);
+    });
+
     it('drops trailing slashes from the address', async () => {
       store.configure(`${BASE}//`);
       respond(new Response(null, { status: 200 }));
 
       await store.upload(id, new Blob([bytes]));
 
-      expect(callsOf()).toEqual([['HEAD', `${BASE}/v1/assets/${id}`]]);
+      expect(callsOf()).toEqual([['HEAD', urlOf(id)]]);
     });
   });
 
@@ -60,46 +76,60 @@ describe('AssetHttpStore', () => {
   });
 
   describe('upload', () => {
-    it('stores bytes the server lacks', async () => {
+    it('stores bytes the room lacks, asking and sending with the room’s token', async () => {
       respond(new Response(null, { status: 404 }), new Response('{}', { status: 201 }));
       const blob = new Blob([bytes]);
 
       expect(await store.upload(id, blob)).toBe('stored');
       expect(callsOf()).toEqual([
-        ['HEAD', `${BASE}/v1/assets/${id}`],
-        ['PUT', `${BASE}/v1/assets/${id}`],
+        ['HEAD', urlOf(id)],
+        ['PUT', urlOf(id)],
       ]);
       expect((fetchSpy.mock.calls[1][1] as RequestInit).body).toBe(blob);
+      expect([authorizationOf(0), authorizationOf(1)]).toEqual(['Bearer asset-1', 'Bearer asset-1']);
     });
 
-    it('sends nothing when the server already has the bytes', async () => {
+    it('sends nothing when the room already has the bytes', async () => {
       respond(new Response(null, { status: 200 }));
 
       expect(await store.upload(id, new Blob([bytes]))).toBe('exists');
-      expect(callsOf()).toEqual([['HEAD', `${BASE}/v1/assets/${id}`]]);
+      expect(callsOf()).toEqual([['HEAD', urlOf(id)]]);
     });
 
-    it.each([400, 413, 415, 451])('gives up for good on %i', async (status) => {
+    it.each([400, 403, 413, 415, 451])('gives up for good on %i', async (status) => {
       respond(new Response(null, { status: 404 }), new Response('{}', { status }));
       expect(await store.upload(id, new Blob([bytes]))).toBe('refused');
     });
 
-    it('sends the access token with the bytes, and none with asking whether the server has them', async () => {
-      store.setAuthorization(async () => 'access-1');
-      respond(new Response(null, { status: 404 }), new Response('{}', { status: 201 }));
-
-      expect(await store.upload(id, new Blob([bytes]))).toBe('stored');
-      const headersOf = (call: number) => new Headers((fetchSpy.mock.calls[call][1] as RequestInit).headers);
-      expect(headersOf(0).get('Authorization')).toBeNull();
-      expect(headersOf(1).get('Authorization')).toBe('Bearer access-1');
+    it('fails for now when the token was turned away, for a later try with a fresh one', async () => {
+      respond(new Response(null, { status: 401 }), new Response('{}', { status: 401 }));
+      expect(await store.upload(id, new Blob([bytes]))).toBe('failed');
     });
 
-    it('uploads without a token when none can be had, and fails for now when the server wants one', async () => {
-      store.setAuthorization(() => Promise.reject(new Error('offline')));
-      respond(new Response(null, { status: 404 }), new Response('{}', { status: 401 }));
+    it('fails for now outside a room, without asking the server anything', async () => {
+      access = null;
 
       expect(await store.upload(id, new Blob([bytes]))).toBe('failed');
-      expect(new Headers((fetchSpy.mock.calls[1][1] as RequestInit).headers).get('Authorization')).toBeNull();
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('sends a queued upload to the room the seat is in by its turn', async () => {
+      const releases: (() => void)[] = [];
+      fetchSpy.mockImplementation(
+        () => new Promise<Response>((resolve) => releases.push(() => resolve(new Response(null, { status: 200 }))))
+      );
+      const ids = await Promise.all([0, 1, 2].map((n) => sha256Hex(`queued-${n}`)));
+
+      const uploads = Promise.all(ids.map((assetId) => store.upload(assetId, new Blob([bytes]))));
+      await vi.waitFor(() => expect(releases).toHaveLength(2));
+      access = { roomKey: OTHER_ROOM, token: 'asset-2' };
+      releases.shift()?.();
+      await vi.waitFor(() => expect(releases).toHaveLength(2));
+      while (releases.length > 0) releases.shift()?.();
+      await uploads;
+
+      expect(callsOf().map(([, url]) => url)).toEqual([urlOf(ids[0]), urlOf(ids[1]), urlOf(ids[2], OTHER_ROOM)]);
+      expect(authorizationOf(2)).toBe('Bearer asset-2');
     });
 
     it('waits and tries again when the server asks for fewer uploads', async () => {
@@ -169,7 +199,8 @@ describe('AssetHttpStore', () => {
 
       expect(blob?.type).toBe('image/png');
       expect(new Uint8Array(await blob!.arrayBuffer())).toEqual(bytes);
-      expect(callsOf()).toEqual([['GET', `${BASE}/v1/assets/${id}`]]);
+      expect(callsOf()).toEqual([['GET', urlOf(id)]]);
+      expect(authorizationOf(0)).toBe('Bearer asset-1');
     });
 
     it('throws away bytes whose hash is not the name', async () => {
@@ -184,8 +215,10 @@ describe('AssetHttpStore', () => {
       expect(await store.download(id)).toBeNull();
     });
 
-    it('does not ask for names that are not hashes', async () => {
+    it('does not ask for names that are not hashes, or outside a room', async () => {
       expect(await store.download('none_icon')).toBeNull();
+      access = null;
+      expect(await store.download(id)).toBeNull();
       expect(fetchSpy).not.toHaveBeenCalled();
     });
   });

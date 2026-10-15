@@ -4,6 +4,7 @@ import messages from '@axe/core/network/server/contract/messages.json';
 import source from '@axe/core/network/server/contract/source.json';
 import {
   ACCOUNT_USER_ID_PREFIX,
+  assetTokenRequest,
   authMessage,
   AUTHORITY_PEER_ID,
   AuthorityEvent,
@@ -69,6 +70,18 @@ describe('the room server protocol, held to the server’s fixtures', () => {
 
   it('hands over a fresh access token as the server expects', () => {
     expect(authMessage(messages.client.auth.accessToken)).toEqual(messages.client.auth);
+  });
+
+  it('asks for a fresh asset token as the server expects', () => {
+    expect(assetTokenRequest()).toEqual(messages.client.assetToken);
+  });
+
+  it('reads no welcome without the asset token, and no asset token without its end', () => {
+    const { assetToken: _token, ...welcome } = messages.server.welcome;
+    const { expiresAt: _end, ...assetToken } = messages.server.assetToken;
+
+    expect(readServerMessage(welcome)).toBeNull();
+    expect(readServerMessage(assetToken)).toBeNull();
   });
 
   it('knows how the user id of somebody logged in begins', () => {

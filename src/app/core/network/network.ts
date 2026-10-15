@@ -1,5 +1,5 @@
 import { Logger } from '@axe/core/logging/logger';
-import { Connection, ConnectionCallback, ServerCredentialSource } from '@axe/core/network/connection';
+import { AssetAccess, Connection, ConnectionCallback, ServerCredentialSource } from '@axe/core/network/connection';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { CreateRoomResponse, InviteMessage, ServerRole } from '@axe/core/network/server/server-protocol';
@@ -346,6 +346,11 @@ export class Network {
   /** The rooms listed in the lobby; empty without a connection. */
   listAllRooms(): Promise<IRoomInfo[]> {
     return this.connection ? this.connection.listAllRooms() : Promise.resolve([]);
+  }
+
+  /** The room's pictures and sounds as this seat may reach them, while in a room server's room. */
+  get assetAccess(): AssetAccess | null {
+    return this.connection?.assetAccess ?? null;
   }
 
   /**

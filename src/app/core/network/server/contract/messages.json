@@ -100,6 +100,9 @@
     "auth": {
       "type": "auth",
       "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…"
+    },
+    "assetToken": {
+      "type": "asset-token"
     }
   },
   "invalid": [
@@ -157,7 +160,9 @@
           "role": "gm"
         }
       ],
-      "serverTime": 1792000000000
+      "serverTime": 1792000000000,
+      "assetToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…",
+      "assetTokenExpiresAt": 1792000900000
     },
     "join": {
       "type": "join",
@@ -202,6 +207,11 @@
       "role": "gm",
       "invite": null,
       "expiresAt": null
+    },
+    "assetToken": {
+      "type": "asset-token",
+      "assetToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…",
+      "expiresAt": 1792000900000
     },
     "authoritative": {
       "type": "data",

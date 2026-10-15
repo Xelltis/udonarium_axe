@@ -1,5 +1,6 @@
 import { Logger } from '@axe/core/logging/logger';
 import {
+  AssetAccess,
   Connection,
   ConnectionCallback,
   ServerCredentials,
@@ -12,6 +13,7 @@ import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-
 import { decodeFrame, encodeFrame, encodeSendFrames } from '@axe/core/network/server/server-frames';
 import {
   ACCOUNT_USER_ID_PREFIX,
+  assetTokenRequest,
   authMessage,
   ClientMessage,
   CLOSE_CODE,
@@ -48,6 +50,8 @@ export const INVITE_TIMEOUT_MS = 10_000;
  * before it does, so a check every half minute hands the new one over in time.
  */
 export const TOKEN_CHECK_MS = 30_000;
+/** How long before the asset token runs out a fresh one is asked for, a few checks ahead of the end. */
+export const ASSET_TOKEN_MARGIN_MS = 2 * 60_000;
 /** How many requests to the server a seat keeps while it gets back into the room. */
 export const MAX_HELD_EVENTS = 64;
 /**
@@ -133,6 +137,11 @@ export class ServerConnection implements Connection {
    */
   private accountSeat = false;
   private invite = '';
+  /** The token for the room's pictures and sounds, and when it runs out. */
+  private assetToken: { token: string; expiresAt: number } | null = null;
+  /** Whether a fresh asset token has been asked for and has not come yet. */
+  private assetTokenAsked = false;
+  private assetTokenTimer: ReturnType<typeof setInterval> | null = null;
   /** The access token the last hello carried, which the server may turn down. */
   private helloToken: string | null = null;
   private retriedUnauthorized = false;
@@ -426,6 +435,9 @@ export class ServerConnection implements Connection {
       case 'invite':
         this.answerInvite(message);
         return;
+      case 'asset-token':
+        this.takeAssetToken(message.assetToken, message.expiresAt);
+        return;
       case 'error':
         this.refusal = message.code;
         return;
@@ -459,6 +471,37 @@ export class ServerConnection implements Connection {
     this.held = [];
     for (const batch of held) this.send(batch.events, batch.to);
     if (this.accountSeat) this.startTokenChecks();
+    this.takeAssetToken(message.assetToken, message.assetTokenExpiresAt);
+    this.startAssetTokenChecks();
+  }
+
+  /** The room's pictures and sounds as this seat may reach them: the room and the token, while in it. */
+  get assetAccess(): AssetAccess | null {
+    if (!this.welcomed || !this.room || !this.assetToken) return null;
+    return { roomKey: this.room.roomKey, token: this.assetToken.token };
+  }
+
+  private takeAssetToken(token: string, expiresAt: number): void {
+    this.assetToken = { token, expiresAt };
+    this.assetTokenAsked = false;
+  }
+
+  /** Asks the server for a fresh asset token a while before the one held runs out, once each time. */
+  private startAssetTokenChecks(): void {
+    this.stopAssetTokenChecks();
+    this.assetTokenTimer = setInterval(() => this.renewAssetToken(), TOKEN_CHECK_MS);
+  }
+
+  private renewAssetToken(): void {
+    if (!this.welcomed || !this.assetToken || this.assetTokenAsked) return;
+    if (this.assetToken.expiresAt - Date.now() > ASSET_TOKEN_MARGIN_MS) return;
+    this.assetTokenAsked = true;
+    this.post(assetTokenRequest());
+  }
+
+  private stopAssetTokenChecks(): void {
+    if (this.assetTokenTimer != null) clearInterval(this.assetTokenTimer);
+    this.assetTokenTimer = null;
   }
 
   /**
@@ -542,6 +585,7 @@ export class ServerConnection implements Connection {
     this.welcomed = false;
     this.stopPing();
     this.stopTokenChecks();
+    this.stopAssetTokenChecks();
     this.dropQueued();
     if (wasWelcomed && this.authority) {
       this.authority.isOpen = false;
@@ -611,6 +655,7 @@ export class ServerConnection implements Connection {
     this.reconnectScheduler.cancelAll();
     this.stopPing();
     this.stopTokenChecks();
+    this.stopAssetTokenChecks();
     this.held = [];
     this.dropQueued();
     const socket = this.socket;

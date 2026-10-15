@@ -19,9 +19,8 @@ describe('AppConfigService', () => {
   afterEach(() => {
     AppConfigService.appConfig.transport = 'skyway';
     AppConfigService.appConfig.backend.url = '';
-    AppConfigService.appConfig.assets.url = '';
     AssetHttpStore.instance.configure(null);
-    AssetHttpStore.instance.setAuthorization(null);
+    AssetHttpStore.instance.useAccess(null);
     Network.setServerCredentials(null);
     vi.restoreAllMocks();
   });
@@ -49,7 +48,7 @@ describe('AppConfigService', () => {
     expect(fetched).not.toHaveBeenCalled();
   });
 
-  it('points the asset store at the server config.json names', async () => {
+  it('leaves the asset store off with SkyWay, whatever asset server config.json names', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({ backend: { url: 'http://localhost:3000' }, assets: { url: 'https://assets.example' } })
@@ -57,72 +56,14 @@ describe('AppConfigService', () => {
     );
     await loadConfig();
 
-    expect(AppConfigService.appConfig.assets.url).toBe('https://assets.example');
-    expect(AssetHttpStore.instance.isEnabled).toBe(true);
-  });
-
-  it('leaves the asset store off for a config.json without an asset server', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ backend: { url: 'http://localhost:3000' }, assets: { url: '' } }))
-    );
-    await loadConfig();
-
+    expect(AppConfigService.appConfig.transport).toBe('skyway');
     expect(AssetHttpStore.instance.isEnabled).toBe(false);
   });
 
-  it('leaves the asset store off in local mode', async () => {
-    TestBed.inject(LocalModePreferenceService).set(true);
-    await loadConfig();
-
-    expect(AssetHttpStore.instance.isEnabled).toBe(false);
-  });
-
-  it('connects through a room server when config.json asks for one', async () => {
+  it('keeps pictures and sounds in the room server’s room the seat is in, with the room’s token', async () => {
+    const access = { roomKey: '0123456789abcdef0123456789abcdef', token: 'asset-1' };
+    const inRoom = vi.spyOn(Network.instance, 'assetAccess', 'get').mockReturnValue(null);
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ transport: 'server', backend: { url: 'https://rooms.example' } }))
-    );
-    await loadConfig();
-
-    expect(AppConfigService.appConfig.transport).toBe('server');
-  });
-
-  it('stays on SkyWay for a config.json that names no transport, or one it does not know', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ backend: { url: 'http://localhost:3000' } }))
-    );
-    await loadConfig();
-    expect(AppConfigService.appConfig.transport).toBe('skyway');
-
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ transport: 'carrier-pigeon', backend: { url: 'http://localhost:3000' } }))
-    );
-    await loadConfig();
-    expect(AppConfigService.appConfig.transport).toBe('skyway');
-  });
-
-  it('keeps pictures and sounds on the room server when it names no asset server', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ transport: 'server', backend: { url: 'https://rooms.example' } }))
-    );
-    await loadConfig();
-
-    expect(AssetHttpStore.instance.isEnabled).toBe(true);
-  });
-
-  it('has the room server log in for rooms and uploads, sending its token nowhere else', async () => {
-    const setAuthorization = vi.spyOn(AssetHttpStore.instance, 'setAuthorization');
-    const setCredentials = vi.spyOn(Network, 'setServerCredentials');
-    const fetch = vi.spyOn(globalThis, 'fetch');
-    fetch.mockResolvedValue(
-      new Response(JSON.stringify({ transport: 'server', backend: { url: 'https://rooms.example/' } }))
-    );
-    await loadConfig();
-
-    expect(setCredentials).toHaveBeenCalledWith(TestBed.inject(ServerAuthService));
-    expect(setAuthorization).toHaveBeenCalledTimes(1);
-
-    setAuthorization.mockClear();
-    fetch.mockResolvedValue(
       new Response(
         JSON.stringify({
           transport: 'server',
@@ -133,28 +74,27 @@ describe('AppConfigService', () => {
     );
     await loadConfig();
 
-    expect(setAuthorization).not.toHaveBeenCalled();
+    expect(AssetHttpStore.instance.isEnabled).toBe(false);
+    inRoom.mockReturnValue(access);
+    expect(AssetHttpStore.instance.isEnabled).toBe(true);
   });
 
-  it('keeps them where the asset url says, over the room server', () => {
-    expect(
-      assetServerUrl({
-        transport: 'server',
-        backend: { url: 'https://rooms.example' },
-        assets: { url: 'https://assets.example' },
-        localMode: false,
-      })
-    ).toBe('https://assets.example');
+  it('has the room server log in for rooms', async () => {
+    const setCredentials = vi.spyOn(Network, 'setServerCredentials');
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ transport: 'server', backend: { url: 'https://rooms.example/' } }))
+    );
+    await loadConfig();
+
+    expect(setCredentials).toHaveBeenCalledWith(TestBed.inject(ServerAuthService));
   });
 
-  it('leaves them to SkyWay peers when SkyWay names no asset server', () => {
-    expect(
-      assetServerUrl({
-        transport: 'skyway',
-        backend: { url: 'https://token.example' },
-        assets: { url: '' },
-        localMode: false,
-      })
-    ).toBe('');
+  it('keeps them on the room server, and with SkyWay nowhere', () => {
+    expect(assetServerUrl({ transport: 'server', backend: { url: 'https://rooms.example' }, localMode: false })).toBe(
+      'https://rooms.example'
+    );
+    expect(assetServerUrl({ transport: 'skyway', backend: { url: 'https://token.example' }, localMode: false })).toBe(
+      ''
+    );
   });
 });

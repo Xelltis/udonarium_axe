@@ -258,7 +258,8 @@ describe('AudioSharingSystem', () => {
         .filter((context) => context.eventName === 'REQUEST_AUDIO_RESOURE');
 
     beforeEach(() => {
-      store.configure('https://assets.example');
+      store.configure('https://rooms.example');
+      store.useAccess(() => ({ roomKey: '0123456789abcdef0123456789abcdef', token: 'asset-1' }));
       download = vi.spyOn(store, 'download').mockResolvedValue(fetchedBlob);
       AudioStorageMock.get.mockImplementation((id: string) => makeAudioFile({ identifier: id }));
       AudioSharingSystem.instance.initialize();
@@ -266,6 +267,7 @@ describe('AudioSharingSystem', () => {
 
     afterEach(() => {
       store.configure(null);
+      store.useAccess(null);
     });
 
     it('takes audio it lacks from the server, without asking a peer', async () => {

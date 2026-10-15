@@ -86,6 +86,15 @@ export class ImageStorage {
     return image;
   }
 
+  /**
+   * Puts every image held in full up to the room just entered. The room server keeps each room's
+   * pictures apart, so those added outside it, or brought from another room, are not there yet;
+   * those that are only get asked about.
+   */
+  uploadAllToAssetStore(): void {
+    for (const image of this.images) this.uploadToAssetStore(image);
+  }
+
   private uploadToAssetStore(image: ImageFile): void {
     const store = AssetHttpStore.instance;
     const blob = image.blob;

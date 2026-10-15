@@ -86,6 +86,15 @@ export class AudioStorage {
     return audio;
   }
 
+  /**
+   * Puts every audio held in full up to the room just entered. The room server keeps each room's
+   * sounds apart, so those added outside it, or brought from another room, are not there yet;
+   * those that are only get asked about.
+   */
+  uploadAllToAssetStore(): void {
+    for (const audio of this.audios) this.uploadToAssetStore(audio);
+  }
+
   private uploadToAssetStore(audio: AudioFile): void {
     const store = AssetHttpStore.instance;
     const blob = audio.blob;
