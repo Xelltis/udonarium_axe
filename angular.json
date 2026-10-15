@@ -78,7 +78,11 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
-          "options": {},
+          "options": {
+            "prebundle": {
+              "exclude": ["bcdice"]
+            }
+          },
           "configurations": {
             "production": {
               "buildTarget": "udonarium_axe:build:production"
