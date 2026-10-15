@@ -1,6 +1,7 @@
 import { EventChannel, ReadableChannel } from '@axe/core/event/event-channel';
 import { PeerReconnectState } from '@axe/core/network/connection';
 import { NetworkMessage } from '@axe/core/network/network-messaging';
+import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 
 export interface ObjectDeleteEvent {
   identifier: string;
@@ -101,7 +102,7 @@ export function subscribeNetworkBindings(
       }
       // Taken away by the room server, the object is gone from here as if deleted, and the
       // panels showing it close.
-      case 'WITHDRAW_GAME_OBJECT': {
+      case AuthorityEvent.WITHDRAW: {
         const data = msg.data as { identifier: string; aliasName?: string };
         targets.objectDeleted$.emit({
           identifier: data.identifier,

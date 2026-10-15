@@ -5,6 +5,7 @@ import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
+import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { keepStoragePersistent } from '@axe/core/storage/persistent-storage';
 import { ReplayLogStore, type ReplayRecordingMeta, selectExpiredRecordings } from '@axe/core/storage/replay-log-store';
 import type { ObjectContext } from '@axe/core/sync/game-object';
@@ -287,9 +288,9 @@ export class ReplayRecorderService {
   private handleMessage(eventName: string, data: unknown, sendFrom: string): void {
     // The room server's own word on an object is a change like any other, and what it takes away
     // is gone from the board like anything deleted.
-    if (eventName === 'AUTHORITATIVE_OBJECT') {
+    if (eventName === AuthorityEvent.AUTHORITATIVE) {
       eventName = 'UPDATE_GAME_OBJECT';
-    } else if (eventName === 'WITHDRAW_GAME_OBJECT') {
+    } else if (eventName === AuthorityEvent.WITHDRAW) {
       // The synchronizer, which hears it first, names what it took away.
       const withdrawn = data as { identifier: string; aliasName?: string };
       eventName = 'DELETE_GAME_OBJECT';
