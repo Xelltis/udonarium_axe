@@ -57,13 +57,15 @@ export function canEditDisclosure(viewer: DisclosureViewer): boolean {
 }
 
 /**
- * Whether the object has no owner yet, so that a viewer could take it over.
+ * Whether a viewer could take over an object nobody owns yet: one they may see the contents of.
+ * Owning it would show them what it keeps back, so one kept from them, such as the game master's
+ * alone, is not theirs to take; a room server refuses that too.
  *
- * Only ownership is looked at here; callers also check the viewer's role and that they have a user
- * id.
+ * Callers also check the viewer's role and that they have a user id.
  */
-export function canClaimOwnership(viewer: DisclosureViewer): boolean {
-  return !viewer.ownerUserId || viewer.ownerUserId.length === 0;
+export function canClaimOwnership(object: Disclosable, viewer: DisclosureViewer): boolean {
+  if (viewer.ownerUserId && viewer.ownerUserId.length > 0) return false;
+  return canViewDisclosable(object, viewer);
 }
 
 /**

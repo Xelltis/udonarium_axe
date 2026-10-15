@@ -69,9 +69,20 @@ describe('disclosure', () => {
   });
 
   it('treats only unowned objects as claimable', () => {
-    expect(canClaimOwnership({ userId: 'p1', isGameMaster: false })).toBe(true);
-    expect(canClaimOwnership({ userId: 'p1', isGameMaster: false, ownerUserId: '' })).toBe(true);
-    expect(canClaimOwnership({ userId: 'p1', isGameMaster: false, ownerUserId: 'p2' })).toBe(false);
+    const open = { disclosureMode: 'all', disclosureUserIds: [] };
+    expect(canClaimOwnership(open, { userId: 'p1', isGameMaster: false })).toBe(true);
+    expect(canClaimOwnership(open, { userId: 'p1', isGameMaster: false, ownerUserId: '' })).toBe(true);
+    expect(canClaimOwnership(open, { userId: 'p1', isGameMaster: false, ownerUserId: 'p2' })).toBe(false);
+  });
+
+  it('lets nobody claim what is kept from them, as the game master’s alone', () => {
+    const player = { userId: 'p1', isGameMaster: false };
+    expect(canClaimOwnership({ disclosureMode: 'gm', disclosureUserIds: [] }, player)).toBe(false);
+    expect(canClaimOwnership({ disclosureMode: 'selected', disclosureUserIds: ['p2'] }, player)).toBe(false);
+    expect(canClaimOwnership({ disclosureMode: 'selected', disclosureUserIds: ['p1'] }, player)).toBe(true);
+    expect(canClaimOwnership({ disclosureMode: 'gm', disclosureUserIds: [] }, { ...player, isGameMaster: true })).toBe(
+      true
+    );
   });
 
   describe('switchedDisclosureMode', () => {

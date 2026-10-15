@@ -32,6 +32,11 @@ describe('buildDisclosureContextMenu', () => {
     expect(find(menu, 'feature.disclosure.label')).toBeFalsy();
   });
 
+  it('offers a player no ownership of an unowned memo kept for the game master', () => {
+    setMe('p1', PeerRole.Player);
+    expect(buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'gm' }, t)).toEqual([]);
+  });
+
   it('offers a player nothing on somebody elses character', () => {
     setMe('p1', PeerRole.Player);
     expect(buildDisclosureContextMenu(obj('p2'), t)).toEqual([]);
