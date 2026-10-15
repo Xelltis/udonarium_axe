@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { emitSoundOnlyCutIn, emitStartCutIn } from '@axe/core/event/domain-events';
+import { emitSoundOnlyCutIn, emitStartCutIn, emitStopCutIn, emitStopCutInByBgm } from '@axe/core/event/domain-events';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { AudioTag } from '@axe/domain/media/audio-tag';
@@ -39,7 +39,7 @@ describe('CutInEventHandlerService', () => {
     table.cutInMultiDirectionMode = mode;
   }
 
-  beforeEach(() => {
+  beforeEach(async () => {
     panelStub = {
       open: vi.fn().mockReturnValue({
         cutIn: null,
@@ -53,6 +53,7 @@ describe('CutInEventHandlerService', () => {
     TestBed.overrideProvider(PanelService, { useValue: panelStub });
     TestBed.overrideProvider(AudioStorage, { useValue: audioStub });
     service = TestBed.inject(CutInEventHandlerService);
+    await service.prepareWindow();
   });
 
   afterEach(() => {
@@ -254,5 +255,65 @@ describe('CutInEventHandlerService', () => {
 
     const player = (service as unknown as { soundOnlyPlayer: AudioPlayer }).soundOnlyPlayer;
     expect(player.volumeType).toBe(VolumeType.CUT_IN);
+  });
+});
+
+describe('CutInEventHandlerService before its window arrives', () => {
+  let panelStub: { open: ReturnType<typeof vi.fn> };
+  let audioStub: { get: ReturnType<typeof vi.fn> };
+  let service: CutInEventHandlerService;
+
+  beforeEach(() => {
+    panelStub = { open: vi.fn().mockReturnValue({ cutIn: null, forceNoLoop: false, startCutIn: vi.fn() }) };
+    audioStub = { get: vi.fn() };
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    TestBed.overrideProvider(PanelService, { useValue: panelStub });
+    TestBed.overrideProvider(AudioStorage, { useValue: audioStub });
+    service = TestBed.inject(CutInEventHandlerService);
+    TestBed.inject(TabletopService).currentTable.mode2d = false;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('opens a cut-in asked for meanwhile once the window is here', async () => {
+    emitStartCutIn({ cutIn: makeCutIn() });
+
+    expect(panelStub.open).not.toHaveBeenCalled();
+    await service.prepareWindow();
+    await vi.waitFor(() => expect(panelStub.open).toHaveBeenCalledTimes(1));
+  });
+
+  it('opens nothing for a cut-in stopped while the window was on its way', async () => {
+    const cutIn = makeCutIn();
+    emitStartCutIn({ cutIn });
+    emitStopCutIn({ cutIn });
+    emitStartCutIn({ cutIn: makeCutIn({ identifier: 'cut-2' }) });
+
+    await service.prepareWindow();
+    await vi.waitFor(() => expect(panelStub.open).toHaveBeenCalledTimes(1));
+    expect(panelStub.open.mock.calls[0][1].cutInIdentifier).toBe('cut-2');
+  });
+
+  it('opens nothing for an untagged cut-in with music once music stops it meanwhile', async () => {
+    audioStub.get.mockImplementation((id: string) => (id === 'bgm' ? { identifier: 'bgm' } : undefined));
+    emitStartCutIn({ cutIn: makeCutIn({ audioIdentifier: 'bgm', tagName: '' }) });
+    emitStopCutInByBgm();
+    emitStartCutIn({ cutIn: makeCutIn({ identifier: 'cut-2', audioIdentifier: '', tagName: '' }) });
+
+    await service.prepareWindow();
+    await vi.waitFor(() => expect(panelStub.open).toHaveBeenCalledTimes(1));
+    expect(panelStub.open.mock.calls[0][1].cutInIdentifier).toBe('cut-2');
+  });
+
+  it('opens only the sound-only window when the same video is asked for sound only meanwhile', async () => {
+    const cutIn = makeCutIn({ videoId: 'youtube123' });
+    emitStartCutIn({ cutIn });
+    emitSoundOnlyCutIn({ cutIn });
+
+    await service.prepareWindow();
+    await vi.waitFor(() => expect(panelStub.open).toHaveBeenCalledTimes(1));
+    expect(panelStub.open.mock.calls[0][1].invisible).toBe(true);
   });
 });

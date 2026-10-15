@@ -4,7 +4,6 @@ import { ɵChangeDetectionScheduler as ChangeDetectionScheduler } from '@angular
 import { APP_INITIALIZER, enableProdMode, importProvidersFrom, provideZonelessChangeDetection } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { bootstrapApplication, BrowserModule } from '@angular/platform-browser';
-import { YouTubePlayerModule } from '@angular/youtube-player';
 import { AppComponent } from '@axe/app.component';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
@@ -34,7 +33,7 @@ if (environment.production) {
 function bootstrap(): Promise<void> {
   return bootstrapApplication(AppComponent, {
     providers: [
-      importProvidersFrom(BrowserModule, CommonModule, FormsModule, YouTubePlayerModule),
+      importProvidersFrom(BrowserModule, CommonModule, FormsModule),
       provideZonelessChangeDetection(),
       provideHttpClient(withXhr()),
       provideTransloco({ config: transLocoConfig, loader: TranslocoHttpLoader }),
