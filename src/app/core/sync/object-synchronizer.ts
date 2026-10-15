@@ -2,6 +2,7 @@ import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { NetworkMessage, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
+import { AuthorityEvent, CATALOG_BATCH } from '@axe/core/network/server/server-protocol';
 import { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { markForChanged } from '@axe/core/sync/object-event-extension';
 import { ObjectFactory } from '@axe/core/sync/object-factory';
@@ -20,11 +21,10 @@ const OBJECT_SYNC_EVENTS: ReadonlySet<string> = new Set([
   'REQUEST_GAME_OBJECT',
   'REQUEST_CATALOG',
   'FORGET_DELETED_OBJECTS',
-  'AUTHORITATIVE_OBJECT',
-  'WITHDRAW_GAME_OBJECT',
+  AuthorityEvent.AUTHORITATIVE,
+  AuthorityEvent.WITHDRAW,
 ]);
 
-const CATALOG_BATCH = 2048;
 const CATALOG_TICK_MS = 16;
 
 export class ObjectSynchronizer {
@@ -133,7 +133,7 @@ export class ObjectSynchronizer {
           }
           // The room server's word on an object outranks any version: it undoes a change this
           // seat may not make, and hands over what has just come into its view.
-          case 'AUTHORITATIVE_OBJECT': {
+          case AuthorityEvent.AUTHORITATIVE: {
             if (!isFromAuthority(msg.sendFrom)) break;
             const context = msg.data as ObjectContext;
             ObjectStore.instance.forgetDeleted([context.identifier]);
@@ -149,7 +149,7 @@ export class ObjectSynchronizer {
           }
           // What has gone out of this seat's view, or what it made but may not, goes without
           // being marked deleted, so it can come back.
-          case 'WITHDRAW_GAME_OBJECT': {
+          case AuthorityEvent.WITHDRAW: {
             if (!isFromAuthority(msg.sendFrom)) break;
             const data = msg.data as { identifier: string; aliasName?: string };
             // Something asked for that went out of view before it came is no longer waited on.

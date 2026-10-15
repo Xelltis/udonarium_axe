@@ -13,6 +13,7 @@ import {
 import { Logger } from '@axe/core/logging/logger';
 import { networkSend } from '@axe/core/network/network-messaging';
 import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
+import { AuthorityEvent, MAX_ROLL_COMMAND_LENGTH } from '@axe/core/network/server/server-protocol';
 import { SyncObject } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { objectAdded$ } from '@axe/core/sync/object-event-extension';
@@ -37,8 +38,6 @@ const FETCH_TIMEOUT_MS = 10_000;
 
 /** How long a roll asked of a room server waits for the answer before it stops listening. */
 const SERVER_ROLL_WAIT_MS = 60_000;
-/** The longest command a room server rolls; it takes no longer one. */
-const MAX_SERVER_ROLL_COMMAND_LENGTH = 4000;
 
 /**
  * The answer to a roll as a line: said by the dice bot, after the line it answers, to whoever that
@@ -515,7 +514,7 @@ export class DiceBot extends GameObject {
 
       // A room server rolls the dice itself, so that nobody can change what they showed; a line too
       // long for it to take is rolled here, as without one.
-      if (getAuthorityPeerId() && text.length <= MAX_SERVER_ROLL_COMMAND_LENGTH) {
+      if (getAuthorityPeerId() && text.length <= MAX_ROLL_COMMAND_LENGTH) {
         const target = data.messageTarget?.object;
         this.askServerToRoll(text, gameSystem.ID, chatMessage, target ? ` [${target.name}]` : undefined);
         return;
@@ -667,7 +666,7 @@ export class DiceBot extends GameObject {
       speaker: originalMessage.name,
     };
     if (suffix) request['suffix'] = suffix;
-    networkSend('ROLL_REQUEST', request, authority);
+    networkSend(AuthorityEvent.ROLL_REQUEST, request, authority);
   }
 
   /** Treats the server's answer to a roll as a roll made here once it arrives, or forgets it after a while. */

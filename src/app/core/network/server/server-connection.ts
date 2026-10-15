@@ -15,6 +15,7 @@ import {
   ACCOUNT_USER_ID_PREFIX,
   assetTokenRequest,
   authMessage,
+  AuthorityEvent,
   ClientMessage,
   CLOSE_CODE,
   CreateRoomResponse,
@@ -58,7 +59,7 @@ export const MAX_HELD_EVENTS = 64;
  * Requests to the server that would be lost while reconnecting, and that the catalogs traded on
  * getting back in do not mend: a roll and a role change asked for in the meantime.
  */
-const HELD_EVENT_NAMES: ReadonlySet<string> = new Set(['ROLL_REQUEST', 'ROLE_REQUEST']);
+const HELD_EVENT_NAMES: ReadonlySet<string> = new Set([AuthorityEvent.ROLL_REQUEST, AuthorityEvent.ROLE_REQUEST]);
 /** The refusal for a hello whose login is gone or belongs to somebody else. */
 const UNAUTHORIZED = 'unauthorized';
 
