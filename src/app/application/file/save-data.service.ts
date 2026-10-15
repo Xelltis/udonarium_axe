@@ -16,7 +16,7 @@ import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
-import { ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
+import { createZipBlob, ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { downloadBlob } from '@axe/core/util/download-blob';
@@ -98,10 +98,11 @@ export class SaveDataService {
 
   /**
    * Builds the same archive as `saveRoomAsync` as a blob, without downloading it. Used for room
-   * snapshots; queued with the saves.
+   * snapshots; queued with the saves. Snapshots are taken in the background, so code for zips that
+   * could not be fetched asks no reload from here: the reader hears of it from what they do.
    */
   createRoomArchiveAsync(): Promise<Blob> {
-    return SaveDataService.queue.add(() => this.fileArchiver.createZipBlobAsync(this.buildRoomFiles(false)));
+    return SaveDataService.queue.add(() => createZipBlob(this.buildRoomFiles(false)));
   }
 
   /**

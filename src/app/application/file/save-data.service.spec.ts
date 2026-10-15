@@ -280,6 +280,18 @@ describe('SaveDataService', () => {
     });
   });
 
+  describe('the archive a room snapshot is taken from', () => {
+    it('is packed without the archiver, which would ask for a reload over a snapshot in the background', async () => {
+      const service = TestBed.inject(SaveDataService);
+      const viaArchiver = vi.spyOn(TestBed.inject(FileArchiver), 'createZipBlobAsync');
+
+      const archive = await service.createRoomArchiveAsync();
+
+      expect(archive).toBeInstanceOf(Blob);
+      expect(viaArchiver).not.toHaveBeenCalled();
+    });
+  });
+
   describe('hands saving off to the file archiver', () => {
     it('reports a hundred percent when it finishes', async () => {
       const service = TestBed.inject(SaveDataService);
