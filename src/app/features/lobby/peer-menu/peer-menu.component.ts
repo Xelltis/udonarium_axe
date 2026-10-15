@@ -151,11 +151,23 @@ export class PeerMenuComponent {
   private readonly askingInvites = new Set<string>();
   /** Whether the room server turned down or did not answer the last request for an invitation. */
   protected readonly serverInviteFailed = signal(false);
-  /** When the invitation in the link runs out, on a room server; null without one. */
-  protected readonly serverInviteExpiresAt = computed(() => {
+  /**
+   * Whether the reader is the game master, followed as their cursor changes: the room server may
+   * make them one, or no longer one, at any time.
+   */
+  protected readonly amGameMaster = computed(() => {
     this.objectChange.networkVersion();
-    return this.serverInvites().get(inviteKey(Network.roomKey, this.inviteRole()))?.expiresAt ?? null;
+    this.objectChange.versionOf(PeerCursor.myCursor?.identifier ?? '')();
+    return PeerCursor.isMyselfGameMaster;
   });
+  /** The invitation in the link, on a room server, while the reader is the game master. */
+  private readonly serverInvite = computed(() => {
+    this.objectChange.networkVersion();
+    if (!this.isServerTransport() || !this.amGameMaster()) return null;
+    return this.serverInvites().get(inviteKey(Network.roomKey, this.inviteRole())) ?? null;
+  });
+  /** When the invitation in the link runs out, on a room server; null without one. */
+  protected readonly serverInviteExpiresAt = computed(() => this.serverInvite()?.expiresAt ?? null);
   protected readonly includePasswordInInvite = signal(true);
   protected readonly inviteOverlay = signal(false);
   protected readonly isInviteCopied = transientSignal(false, 2000);
@@ -172,9 +184,7 @@ export class PeerMenuComponent {
       password: this.includePasswordInInvite() ? peer.password : '',
       role: this.isServerTransport() ? null : this.inviteRole(),
       overlay: this.inviteOverlay(),
-      invite: this.isServerTransport()
-        ? (this.serverInvites().get(inviteKey(Network.roomKey, this.inviteRole()))?.invite ?? '')
-        : '',
+      invite: this.serverInvite()?.invite ?? '',
     });
   });
 
@@ -323,8 +333,18 @@ export class PeerMenuComponent {
     }, this.destroyRef);
     effect(() => {
       const role = this.inviteRole();
+      const gameMaster = this.amGameMaster();
       this.objectChange.networkVersion();
-      untracked(() => void this.requestServerInvite(role));
+      untracked(() => {
+        // What the last request came to says nothing of this one, nor of a reader who is no longer
+        // the game master, whose invitations are put away.
+        this.serverInviteFailed.set(false);
+        if (!gameMaster) {
+          this.serverInvites.set(new Map());
+          return;
+        }
+        void this.requestServerInvite(role);
+      });
     });
     queueMicrotask(() => (this.panelService.title = this.t('common.panel.peerMenu')));
     const timer = setInterval(() => this.dispInfo(), 1000);

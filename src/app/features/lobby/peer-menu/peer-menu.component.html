@@ -130,7 +130,7 @@
       <div class="space-y-1.5 pt-1">
         <div class="flex flex-wrap items-center gap-1.5">
           <span>{{ 'feature.lobby.peerMenu.inviteLabel' | transloco }}</span>
-          @if (!isServerTransport() || isMyselfGameMaster) {
+          @if (!isServerTransport() || amGameMaster()) {
             @for (role of inviteRoles(); track role) {
               <button
                 class="rounded-sm px-1.5 py-0.5 text-[0.7rem]"
@@ -185,7 +185,7 @@
           </button>
         </div>
         @if (isServerTransport()) {
-          @if (!isMyselfGameMaster) {
+          @if (!amGameMaster()) {
             <p class="m-0 text-[0.7rem] text-(--ui-text-dim)">
               {{ 'feature.lobby.peerMenu.inviteWithoutRole' | transloco }}
             </p>
@@ -200,7 +200,7 @@
           }
         }
       </div>
-      @if (isServerTransport() && isMyselfGameMaster) {
+      @if (isServerTransport() && amGameMaster()) {
         <div class="space-y-1 pt-1">
           <button
             class="danger flex items-center gap-1 text-xs"
@@ -259,7 +259,7 @@
         <span class="min-w-0 flex-1 truncate" [title]="findUserId(context.peerId)">{{
           findPeerName(context.peerId) || shortId(context.peerId)
         }}</span>
-        @if (isMyselfGameMaster) {
+        @if (amGameMaster()) {
           <!-- Drawn again when the room server keeps a role as it was, so the picker shows the role as it stands. -->
           @for (drawn of [roleSelectsDrawn()]; track drawn) {
             <select

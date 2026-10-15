@@ -184,6 +184,51 @@ describe('PeerMenuComponent', () => {
       await vi.waitFor(() => expect((component as any).serverInviteFailed()).toBe(true));
     });
 
+    it('puts its invitation away when the reader is no longer the game master, and asks again once they are', async () => {
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        isRoom: true,
+        roomId: 'Ab3',
+        roomName: '月夜の卓',
+        password: '',
+        hasPassword: false,
+      } as never);
+      let failing = true;
+      const requestInvite = vi
+        .spyOn(Network.instance, 'requestInvite')
+        .mockImplementation(async (role) =>
+          failing
+            ? { type: 'invite', role, invite: null, expiresAt: null }
+            : { type: 'invite', role, invite: `signed-${role}`, expiresAt: Date.now() + 1e9 }
+        );
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const view = component as any;
+      await vi.waitFor(() => expect(view.serverInviteFailed()).toBe(true));
+
+      const settle = async () => {
+        await Promise.resolve();
+        fixture.detectChanges();
+        await fixture.whenStable();
+      };
+      PeerCursor.myCursor.role = PeerRole.Player;
+      await settle();
+      expect(view.serverInviteFailed()).toBe(false);
+      expect(view.inviteLink()).not.toContain('i=');
+      const asked = requestInvite.mock.calls.length;
+
+      failing = false;
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      await settle();
+
+      await vi.waitFor(() => expect(view.inviteLink()).toContain('i=signed-pl'));
+      expect(requestInvite.mock.calls.length).toBeGreaterThan(asked);
+      PeerCursor.myCursor.role = PeerRole.Player;
+      await settle();
+      expect(view.inviteLink()).not.toContain('i=');
+    });
+
     it('follows the config that loads after the panel opened at startup', () => {
       vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('skyway');
       fixture = TestBed.createComponent(PeerMenuComponent);
