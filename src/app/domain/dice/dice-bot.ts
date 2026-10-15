@@ -13,7 +13,11 @@ import {
 import { Logger } from '@axe/core/logging/logger';
 import { networkSend } from '@axe/core/network/network-messaging';
 import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
-import { AuthorityEvent, MAX_ROLL_COMMAND_LENGTH } from '@axe/core/network/server/server-protocol';
+import {
+  AuthorityEvent,
+  MAX_ROLL_COMMAND_LENGTH,
+  MAX_ROLL_TARGET_NAME_LENGTH,
+} from '@axe/core/network/server/server-protocol';
 import { SyncObject } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { objectAdded$ } from '@axe/core/sync/object-event-extension';
@@ -72,6 +76,20 @@ function resultMessageContextOf(
     }
   }
   return context;
+}
+
+/**
+ * The targeted character's name after a roll's result, as a room server takes it: on one line and
+ * no longer than it allows. None for a nameless target.
+ */
+function rollTargetSuffix(name: string): string | undefined {
+  let line = name.replace(/[\r\n]+/g, ' ');
+  if (line.length > MAX_ROLL_TARGET_NAME_LENGTH) {
+    line = line.slice(0, MAX_ROLL_TARGET_NAME_LENGTH);
+    // A character cut in half is no character.
+    if (/[\uD800-\uDBFF]$/.test(line)) line = line.slice(0, -1);
+  }
+  return line ? ` [${line}]` : undefined;
 }
 
 @SyncObject('dice-bot')
@@ -516,7 +534,7 @@ export class DiceBot extends GameObject {
       // long for it to take is rolled here, as without one.
       if (getAuthorityPeerId() && text.length <= MAX_ROLL_COMMAND_LENGTH) {
         const target = data.messageTarget?.object;
-        this.askServerToRoll(text, gameSystem.ID, chatMessage, target ? ` [${target.name}]` : undefined);
+        this.askServerToRoll(text, gameSystem.ID, chatMessage, target ? rollTargetSuffix(target.name) : undefined);
         return;
       }
 

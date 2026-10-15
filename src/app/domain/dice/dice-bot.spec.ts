@@ -139,6 +139,39 @@ describe('DiceBot', () => {
       answer.destroy();
       bot.destroy();
     });
+
+    /** Asks the server for a roll of a line, as sent to the target named, and gives the request. */
+    async function askedRoll(bot: DiceBot, targetName?: string) {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'acct_me';
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const asked = tab.addMessage({ from: PeerCursor.myUserId, name: 'わたし', text: '2d6', tag: 'DiceBot' });
+      await bot['handleSendMessage']({
+        messageIdentifier: asked.identifier,
+        messageTarget: targetName === undefined ? null : { text: '2d6', object: { name: targetName } },
+      });
+      const requests = () =>
+        send.mock.calls
+          .map(([context]) => context as { eventName: string; data: Record<string, unknown> })
+          .filter((context) => context.eventName === 'ROLL_REQUEST')
+          .map((context) => context.data);
+      return { tab, asked, requests };
+    }
+
+    it('names a target on one line, no longer than the server takes', async () => {
+      const bot = new DiceBot();
+      bot.initialize();
+
+      const { tab, requests } = await askedRoll(bot, `ゴブリン\nの${'王'.repeat(200)}`);
+
+      const suffix = requests()[0]['suffix'] as string;
+      expect(suffix).toMatch(/^ \[[^\r\n]{1,128}\]$/);
+      expect(suffix.startsWith(' [ゴブリン の王')).toBe(true);
+      bot.destroy();
+      tab.destroy();
+    });
   });
 
   it('throws the dice in the look the roll asked for, and in none where it asked for none', () => {
