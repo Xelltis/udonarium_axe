@@ -54,6 +54,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { MENU_SURFACES, MenuCommand } from '@axe/domain/ui/menu-command';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
+import type { Vote } from '@axe/domain/vote/vote';
 import { AlarmEventHandlerService } from '@axe/features/alarm/alarm-event-handler.service';
 import { ButtonGuideEventHandlerService } from '@axe/features/button-guide/button-guide-event-handler.service';
 import { CardStackListImageComponent } from '@axe/features/card/card-stack-list-img/card-stack-list-img.component';
@@ -367,6 +368,12 @@ export class AppComponent {
   protected readonly tabletop = inject(TabletopService);
   /** The ticker is drawn for the screens that asked for it, and not fetched for the rest. */
   protected readonly tickerWanted = computed(() => this.tabletop.display().multiAngleTickerEnabled);
+
+  /** The vote widget is fetched once somebody has called a vote, and not for a table that never does. */
+  protected readonly voteCalled = computed(() => {
+    this.objectChange.versionOf('Vote')();
+    return (this.objectStore.get<Vote>('Vote')?.initTimeStamp ?? 0) > 0;
+  });
 
   /**
    * Opens a small menu of the drawer, or does what one of its own entries is for.
