@@ -19,7 +19,11 @@
       [class.h-full]="!isTableSplit()"
       [style.height]="isTableSplit() ? mobile.tableRatio() * 100 + '%' : null"
     >
-      <first-person-view />
+      @defer (on immediate) {
+        <first-person-view />
+      } @error {
+        <ng-container appReloadNotice />
+      }
     </div>
   }
   <app-beat-light />
