@@ -639,6 +639,8 @@ export class ServerConnection implements Connection {
     this.stopPing();
     this.stopTokenChecks();
     this.stopAssetTokenChecks();
+    // What was still gathering to go out goes with the link, but for the requests kept for later.
+    this.keepRequests(this.outbound);
     this.dropQueued();
     if (wasWelcomed && this.authority) {
       this.authority.isOpen = false;
@@ -721,6 +723,17 @@ export class ServerConnection implements Connection {
     if (socket && socket.readyState <= SOCKET_OPEN) socket.close(1000);
   }
 
+  /**
+   * Sends again, over the link there is now or the next, the requests to the server among batches
+   * that never went out; the rest are left to the catalogs traded on getting back in.
+   */
+  private keepRequests(batches: Outbound[]): void {
+    for (const batch of batches) {
+      const requests = batch.events.filter((event) => HELD_EVENT_NAMES.has(event.eventName));
+      if (requests.length > 0) this.send(requests, batch.to);
+    }
+  }
+
   private dropQueued(): void {
     if (this.flushTimer != null) clearTimeout(this.flushTimer);
     this.flushTimer = null;
@@ -733,11 +746,14 @@ export class ServerConnection implements Connection {
     const socket = this.socket;
     this.sending = this.sending
       .then(async () => {
-        for (const batch of batches) {
-          for (const frame of await encodeSendFrames(batch.events, batch.to)) {
-            if (socket == null || socket !== this.socket || socket.readyState !== SOCKET_OPEN) return;
-            socket.send(frame);
+        for (const [index, batch] of batches.entries()) {
+          const frames = await encodeSendFrames(batch.events, batch.to);
+          if (socket == null || socket !== this.socket || socket.readyState !== SOCKET_OPEN) {
+            // The link went while these were on their way out: the requests among them are kept.
+            this.keepRequests(batches.slice(index));
+            return;
           }
+          for (const frame of frames) socket.send(frame);
         }
       })
       .catch((e) => Logger.warn('[ServerConnection] a send failed', e));

@@ -378,6 +378,23 @@ describe('ServerConnection', () => {
     expect((await again.frames())[1]).toEqual({ type: 'send', to: AUTHORITY_PEER_ID, events: [roleRequest] });
   });
 
+  it('keeps a role change still gathering to go out when the link drops', async () => {
+    const socket = await enterRoom();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    const roleRequest = event('ROLE_REQUEST', { peerId: OTHER.peerId, role: 'gm' });
+    connection.send([roleRequest, event('CHAT')], AUTHORITY_PEER_ID);
+    socket.close(1006);
+    vi.advanceTimersByTime(1000);
+    vi.useRealTimers();
+
+    const again = latest();
+    welcomeBack(again);
+
+    await vi.waitFor(async () => expect((await again.frames()).length).toBe(2));
+    expect((await again.frames())[1]).toEqual({ type: 'send', to: AUTHORITY_PEER_ID, events: [roleRequest] });
+    expect(await socket.frames()).not.toContainEqual(expect.objectContaining({ type: 'send' }));
+  });
+
   it('keeps the connection while the server answers', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
     const socket = await enterRoom();
