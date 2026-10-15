@@ -330,6 +330,19 @@ describe('AudioSharingSystem', () => {
       await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(2));
     });
 
+    it('asks a peer whose catalogue named a listed sound while the server was failing to send it', async () => {
+      let fail: () => void = () => undefined;
+      download.mockReturnValue(new Promise((resolve) => (fail = () => resolve('failed'))));
+      AudioSharingSystem.instance.fetchListed([{ id: trackId, name: '' }]);
+      emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-b' });
+      expect(requestsSent()).toEqual([]);
+
+      fail();
+
+      await vi.waitFor(() => expect(requestsSent()).toHaveLength(1));
+      expect(requestsSent()[0]).toMatchObject({ sendTo: 'peer-b' });
+    });
+
     it('tries a listed sound the server could not send again a few times, and asks no peer for it', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
       download.mockResolvedValue('failed');

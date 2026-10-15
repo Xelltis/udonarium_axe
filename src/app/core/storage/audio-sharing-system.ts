@@ -27,8 +27,11 @@ export class AudioSharingSystem {
   private maxSendTask: number = 2;
   private maxReceiveTask: number = 4;
   private cleanups: (() => void)[] = [];
-  /** Audio being fetched from the asset server, so a second catalogue does not fetch it again. */
-  private httpFetching: Set<string> = new Set();
+  /**
+   * Audio being fetched from the asset server, so a second catalogue does not fetch it again, each
+   * with the first peer whose catalogue named it meanwhile, to ask should the server fail.
+   */
+  private httpFetching: Map<string, string | null> = new Map();
   /** Audio the asset server did not have, which is asked of peers from then on. */
   private httpMissed: Set<string> = new Set();
   /** Sounds the room's list named that the asset server could not send just then. */
@@ -193,8 +196,11 @@ export class AudioSharingSystem {
   private fetchOverHttp(identifier: string, catalogPeer: string | null): boolean {
     const store = AssetHttpStore.instance;
     if (!store.isEnabled || !AssetHttpStore.isAssetId(identifier) || this.httpMissed.has(identifier)) return false;
-    if (this.httpFetching.has(identifier)) return true;
-    this.httpFetching.add(identifier);
+    if (this.httpFetching.has(identifier)) {
+      if (this.httpFetching.get(identifier) === null) this.httpFetching.set(identifier, catalogPeer);
+      return true;
+    }
+    this.httpFetching.set(identifier, catalogPeer);
     void store
       .download(identifier)
       .then((blob) => {
@@ -209,12 +215,13 @@ export class AudioSharingSystem {
         if (blob === 'missing') this.httpMissed.add(identifier);
         const audio = AudioStorage.instance.get(identifier);
         if (!audio || AudioState.COMPLETE <= audio.state) return;
-        if (catalogPeer === null) {
+        const namedBy = this.httpFetching.get(identifier) ?? null;
+        if (namedBy === null) {
           if (blob === 'failed') this.httpRetries.schedule(identifier, () => this.fetchListedAgain(identifier));
           return;
         }
         if (this.receiveTaskMap.has(identifier) || this.isLimitReceiveTask()) return;
-        this.request([{ identifier, state: audio.state }], catalogPeer);
+        this.request([{ identifier, state: audio.state }], namedBy);
       })
       .finally(() => this.httpFetching.delete(identifier));
     return true;

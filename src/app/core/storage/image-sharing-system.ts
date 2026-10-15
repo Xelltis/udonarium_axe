@@ -30,8 +30,11 @@ export class ImageSharingSystem {
   private maxSendTask: number = 2;
   private maxReceiveTask: number = 4;
   private cleanups: (() => void)[] = [];
-  /** Images being fetched from the asset server, so a second catalogue does not fetch them again. */
-  private httpFetching: Set<string> = new Set();
+  /**
+   * Images being fetched from the asset server, so a second catalogue does not fetch them again,
+   * each with the first peer whose catalogue named it meanwhile, to ask should the server fail.
+   */
+  private httpFetching: Map<string, string | null> = new Map();
   /** Images the asset server did not have, which are asked of peers from then on. */
   private httpMissed: Set<string> = new Set();
   /** Images the room's list named that the asset server could not send just then. */
@@ -213,8 +216,11 @@ export class ImageSharingSystem {
   private fetchOverHttp(identifier: string, catalogPeer: string | null): boolean {
     const store = AssetHttpStore.instance;
     if (!store.isEnabled || !AssetHttpStore.isAssetId(identifier) || this.httpMissed.has(identifier)) return false;
-    if (this.httpFetching.has(identifier)) return true;
-    this.httpFetching.add(identifier);
+    if (this.httpFetching.has(identifier)) {
+      if (this.httpFetching.get(identifier) === null) this.httpFetching.set(identifier, catalogPeer);
+      return true;
+    }
+    this.httpFetching.set(identifier, catalogPeer);
     void this.receiveOverHttp(identifier)
       .then((received) => {
         if (received === true) {
@@ -224,12 +230,13 @@ export class ImageSharingSystem {
         if (received === 'missing') this.httpMissed.add(identifier);
         const image = ImageStorage.instance.get(identifier);
         if (!image || ImageState.COMPLETE <= image.state) return;
-        if (catalogPeer === null) {
+        const namedBy = this.httpFetching.get(identifier) ?? null;
+        if (namedBy === null) {
           if (received === 'failed') this.httpRetries.schedule(identifier, () => this.fetchListedAgain(identifier));
           return;
         }
         if (this.receiveTaskMap.has(identifier) || this.isLimitReceiveTask()) return;
-        this.request([{ identifier, state: image.state }], catalogPeer);
+        this.request([{ identifier, state: image.state }], namedBy);
       })
       .finally(() => this.httpFetching.delete(identifier));
     return true;

@@ -159,6 +159,20 @@ describe('ImageSharingSystem', () => {
       await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(2));
     });
 
+    it('asks a peer whose catalogue named a listed picture while the server was failing to send it', async () => {
+      let fail: () => void = () => undefined;
+      download.mockReturnValue(new Promise((resolve) => (fail = () => resolve('failed'))));
+      ImageSharingSystem.instance.fetchListed([{ id: pictureId, name: '' }]);
+      receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }], 'peer-a');
+      expect(requestsSent()).toEqual([]);
+
+      fail();
+
+      await vi.waitFor(() => expect(requestsSent()).toHaveLength(1));
+      expect(requestsSent()[0]).toMatchObject({ sendTo: 'peer-a' });
+      expect(download).toHaveBeenCalledTimes(1);
+    });
+
     it('fetches an image once although two catalogues name it', async () => {
       receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }], 'peer-a');
       receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }], 'peer-b');
