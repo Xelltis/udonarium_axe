@@ -3241,7 +3241,9 @@
         "roleDecidedByServer": "역할은 방 서버가 정합니다. 방의 GM만 바꿀 수 있습니다.",
         "inviteWithoutRole": "이 링크로 들어오는 사람의 역할은 로그인했으면 PL, 하지 않았으면 관전입니다. 역할이 정해진 초대는 GM이 만들 수 있습니다.",
         "inviteFailed": "방 서버에서 초대를 받지 못했습니다. 잠시 후 다시 열어 주세요.",
-        "inviteExpires": "이 초대는 {{date}}까지 쓸 수 있습니다. 로그인한 사람이 처음 들어올 때의 역할을 정합니다."
+        "inviteExpires": "이 초대는 {{date}}까지 쓸 수 있습니다. 로그인한 사람이 처음 들어올 때의 역할을 정합니다.",
+        "deleteRoom": "방 삭제",
+        "deleteRoomHint": "방에 있는 모든 사람이 퇴장하고, 방은 서버에서 사라집니다. 방의 GM만 삭제할 수 있습니다."
       },
       "lobby": {
         "title": "로비",
@@ -3260,7 +3262,8 @@
         "hintNoRooms": "접속할 수 있는 룸을 찾지 못했습니다. \"새 룸 만들기\"로 새 룸을 만들 수 있습니다.",
         "hintListFailed": "룸 목록을 가져오지 못했습니다. \"목록 새로고침\"으로 다시 검색할 수 있습니다.",
         "hintNoBackend": "접속처(config.json의 backend.url)가 설정되어 있지 않습니다",
-        "createRoomAfterLogin": "로그인하고 방 만들기"
+        "createRoomAfterLogin": "로그인하고 방 만들기",
+        "deleteRoom": "방 삭제"
       },
       "roomSetting": {
         "title": " 룸 만들기",
@@ -3313,7 +3316,17 @@
         "roomServerUnreachable": "방 서버에 연결할 수 없습니다",
         "roomServerNoBackend": "접속처(config.json의 backend.url)가 설정되어 있지 않습니다",
         "roomServerRefused": "방 서버가 연결을 거부했습니다({{code}})",
-        "roomServerUnauthorized": "로그인이 만료되었거나 다른 계정으로 다시 로그인했습니다. 방에 다시 들어가 주세요."
+        "roomServerUnauthorized": "로그인이 만료되었거나 다른 계정으로 다시 로그인했습니다. 방에 다시 들어가 주세요.",
+        "roomServerDeleted": "방의 GM이 방을 삭제했습니다"
+      },
+      "deleteRoom": {
+        "confirmTitle": "방 삭제",
+        "confirmMessage": "「{{name}}」을(를) 삭제하시겠습니까? 방에 있는 사람은 모두 퇴장하고, 서버에 남아 있는 탁자 상태는 사라집니다. 되돌릴 수 없습니다. (각자의 화면에 보이는 탁자는 그대로 남습니다.)",
+        "confirmOk": "삭제",
+        "deleted": "방을 삭제했습니다",
+        "gone": "방은 이미 삭제되어 있었습니다",
+        "notGameMaster": "이 방의 GM이 아니므로 삭제할 수 없습니다",
+        "failed": "방을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요."
       },
       "waitingForPreviousConnection": "이전 연결이 끊기기를 기다리고 있습니다 (최대 1분 정도)",
       "peerCursor": {

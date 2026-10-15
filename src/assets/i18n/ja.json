@@ -3241,7 +3241,9 @@
         "roleDecidedByServer": "役割は部屋のサーバーが決めます。変えられるのは部屋のGMだけです",
         "inviteWithoutRole": "このリンクで入る人の役割は、ログインしていればPL、していなければ見学です。役割つきの招待はGMが作れます",
         "inviteFailed": "部屋のサーバーから招待をもらえませんでした。しばらくしてから開き直してください",
-        "inviteExpires": "この招待は{{date}}まで使えます。決まるのは、ログインした人が初めて入るときの役割です"
+        "inviteExpires": "この招待は{{date}}まで使えます。決まるのは、ログインした人が初めて入るときの役割です",
+        "deleteRoom": "部屋を削除",
+        "deleteRoomHint": "部屋にいる全員が退室し、部屋はサーバーから消えます。削除できるのは部屋のGMだけです"
       },
       "lobby": {
         "title": "ロビー",
@@ -3260,7 +3262,8 @@
         "hintNoRooms": "接続可能なルームが見つかりませんでした。「新しいルームを作成する」で新規ルームを作成できます。",
         "hintListFailed": "ルーム一覧の取得に失敗しました。「一覧を更新」で再検索できます。",
         "hintNoBackend": "接続先（config.json の backend.url）が設定されていません",
-        "createRoomAfterLogin": "ログインして部屋を作る"
+        "createRoomAfterLogin": "ログインして部屋を作る",
+        "deleteRoom": "部屋を削除"
       },
       "roomSetting": {
         "title": " ルーム作成",
@@ -3313,7 +3316,17 @@
         "roomServerUnreachable": "部屋のサーバーにつながりません",
         "roomServerNoBackend": "接続先（config.json の backend.url）が設定されていません",
         "roomServerRefused": "部屋のサーバーに接続を断られました（{{code}}）",
-        "roomServerUnauthorized": "ログインの期限が切れたか、別のアカウントでログインし直しました。部屋に入り直してください"
+        "roomServerUnauthorized": "ログインの期限が切れたか、別のアカウントでログインし直しました。部屋に入り直してください",
+        "roomServerDeleted": "部屋のGMが部屋を削除しました"
+      },
+      "deleteRoom": {
+        "confirmTitle": "部屋を削除",
+        "confirmMessage": "「{{name}}」を削除しますか？部屋にいる人は全員退室し、サーバーに残している卓の状態は消えます。元には戻せません（それぞれの画面に映っている卓は、そのまま残ります）",
+        "confirmOk": "削除する",
+        "deleted": "部屋を削除しました",
+        "gone": "部屋はもう削除されていました",
+        "notGameMaster": "この部屋のGMではないため、削除できません",
+        "failed": "部屋を削除できませんでした。しばらくしてから、もう一度試してください"
       },
       "waitingForPreviousConnection": "前の接続が切れるのを待っています（最長1分ほど）",
       "peerCursor": {

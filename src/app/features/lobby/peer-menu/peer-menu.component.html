@@ -200,6 +200,27 @@
           }
         }
       </div>
+      @if (isServerTransport() && isMyselfGameMaster) {
+        <div class="space-y-1 pt-1">
+          <button
+            class="danger flex items-center gap-1 text-xs"
+            data-testid="peer-menu-delete-room"
+            [disabled]="isDeletingRoom()"
+            (click)="deleteRoom()"
+          >
+            <span class="material-icons text-[1.1em]!">delete_outline</span
+            >{{ 'feature.lobby.peerMenu.deleteRoom' | transloco }}
+          </button>
+          <p class="m-0 text-[0.7rem] text-(--ui-text-dim)">
+            {{ 'feature.lobby.peerMenu.deleteRoomHint' | transloco }}
+          </p>
+          @if (roomDeletionFailure()) {
+            <p class="text-ui-danger m-0 text-[0.7rem]" role="alert" data-testid="peer-menu-delete-room-failed">
+              {{ roomDeletionFailure() }}
+            </p>
+          }
+        </div>
+      }
       @if (canRequestFullSync) {
         <button (click)="requestFullSync()">{{ 'feature.lobby.peerMenu.fullSync' | transloco }}</button>
         <p class="px-1 text-xs text-(--ui-text-muted)">{{ 'feature.lobby.peerMenu.fullSyncHint' | transloco }}</p>

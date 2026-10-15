@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { roomDeletionMessageKey, RoomDeletionService } from '@axe/application/lobby/room-deletion.service';
 import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -43,6 +44,7 @@ export class LobbyComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly auth = inject(ServerAuthService);
+  private readonly roomDeletion = inject(RoomDeletionService);
 
   /** Whether rooms are on a room server, where creating one takes a login. */
   protected readonly isServerTransport = Network.transport === 'server';
@@ -57,6 +59,12 @@ export class LobbyComponent {
 
   /** Whether a join from the list is under way, which holds the other join buttons back. */
   readonly isJoining = signal(false);
+
+  /** Whether a room is being deleted from the list, which holds the other delete buttons back. */
+  readonly isDeleting = signal(false);
+
+  /** What became of the last room deleted from the list; empty until one is. */
+  protected readonly deletionNotice = signal('');
 
   /** Whether the join under way is waiting for this seat's previous connection to drop. */
   protected readonly waitingForPreviousConnection = this.roomJoin.waitingForPreviousConnection;
@@ -223,6 +231,25 @@ export class LobbyComponent {
         .finally(() => this.isJoining.set(false));
     } finally {
       if (!isJoinStarted) this.isJoining.set(false);
+    }
+  }
+
+  /**
+   * Deletes a room the reader is a GM of, once they have confirmed, and lists the rooms again
+   * when it is gone. What became of it is said above the list.
+   */
+  async deleteRoom(row: LobbyRoom): Promise<void> {
+    const roomKey = row.info.roomKey;
+    if (!roomKey || this.isDeleting()) return;
+    this.isDeleting.set(true);
+    this.deletionNotice.set('');
+    try {
+      const outcome = await this.roomDeletion.delete({ roomKey, name: row.roomName, id: row.info.id });
+      if (outcome === 'deleted' || outcome === 'gone') await this.reload();
+      const key = roomDeletionMessageKey(outcome);
+      if (key) this.deletionNotice.set(this.t(key));
+    } finally {
+      this.isDeleting.set(false);
     }
   }
 

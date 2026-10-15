@@ -339,6 +339,7 @@ describe('NetworkEventHandlerService', () => {
         ['server-unreachable', 'roomServerUnreachable'],
         ['no-backend', 'roomServerNoBackend'],
         ['unauthorized', 'roomServerUnauthorized'],
+        ['room-deleted', 'roomServerDeleted'],
         ['bad-message', 'roomServerRefused'],
       ];
 

@@ -31,6 +31,11 @@
       >{{ 'feature.lobby.waitingForPreviousConnection' | transloco }}
     </p>
   }
+  @if (deletionNotice()) {
+    <p class="text-ui-muted m-0 mb-2 text-[0.8rem] leading-[1.6]" role="status" data-testid="lobby-deletion-notice">
+      {{ deletionNotice() }}
+    </p>
+  }
   @if (rooms().length) {
     <table class="w-full border-collapse text-[0.8rem]">
       <thead>
@@ -97,6 +102,19 @@
                   (click)="connectRoom(room)"
                 >
                   {{ 'feature.lobby.lobby.connect' | transloco }}
+                </button>
+              }
+              @if (room.info.deletable) {
+                <button
+                  class="rounded-ui-sm border-ui-danger text-ui-danger hover:bg-ui-danger-bg ml-1.5 cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 align-middle"
+                  data-testid="lobby-delete-room"
+                  type="button"
+                  [disabled]="isDeleting()"
+                  [title]="'feature.lobby.lobby.deleteRoom' | transloco"
+                  [attr.aria-label]="'feature.lobby.lobby.deleteRoom' | transloco"
+                  (click)="deleteRoom(room)"
+                >
+                  <i class="material-icons align-middle text-[14px]!">delete_outline</i>
                 </button>
               }
             </td>

@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RoomDeletionService } from '@axe/application/lobby/room-deletion.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { LOCAL_MODE_STORAGE_KEY, LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
@@ -251,6 +253,69 @@ describe('PeerMenuComponent', () => {
       fixture.detectChanges();
 
       expect(picker()).not.toBe(before);
+    });
+
+    describe('deleting the room', () => {
+      const ROOM_KEY = '0123456789abcdef0123456789abcdef';
+      const deleteButton = () =>
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+          '[data-testid="peer-menu-delete-room"]'
+        );
+      const failure = () =>
+        (fixture.nativeElement as HTMLElement)
+          .querySelector('[data-testid="peer-menu-delete-room-failed"]')
+          ?.textContent?.trim();
+
+      beforeEach(() => {
+        vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+          isRoom: true,
+          roomId: 'Ab3',
+          roomName: '月夜の卓',
+          password: '',
+          hasPassword: false,
+        } as never);
+        vi.spyOn(Network.instance, 'roomKey', 'get').mockReturnValue(ROOM_KEY);
+        vi.spyOn(Network.instance, 'requestInvite').mockImplementation(async (role) => ({
+          type: 'invite',
+          role,
+          invite: `signed-${role}`,
+          expiresAt: Date.now() + 1e9,
+        }));
+      });
+
+      it('lets a GM delete the room it is in, by its key', async () => {
+        const remove = vi.spyOn(TestBed.inject(RoomDeletionService), 'delete').mockResolvedValue('deleted');
+        fixture = TestBed.createComponent(PeerMenuComponent);
+        fixture.detectChanges();
+
+        deleteButton()!.click();
+        await vi.waitFor(() => expect(remove).toHaveBeenCalled());
+        fixture.detectChanges();
+
+        expect(remove).toHaveBeenCalledWith({ roomKey: ROOM_KEY, name: '月夜の卓', id: 'Ab3' });
+        expect(failure()).toBeUndefined();
+      });
+
+      it('says why the room could not be deleted', async () => {
+        const t = TestBed.inject(TRANSLATE_FN);
+        vi.spyOn(TestBed.inject(RoomDeletionService), 'delete').mockResolvedValue('failed');
+        fixture = TestBed.createComponent(PeerMenuComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+
+        await component.deleteRoom();
+        fixture.detectChanges();
+
+        expect(failure()).toBe(t('feature.lobby.deleteRoom.failed'));
+      });
+
+      it('offers nobody but a GM to delete the room', () => {
+        PeerCursor.myCursor.role = PeerRole.Player;
+        fixture = TestBed.createComponent(PeerMenuComponent);
+        fixture.detectChanges();
+
+        expect(deleteButton()).toBeNull();
+      });
     });
 
     it('asks the server to change somebody’s role, leaving their cursor for the server to change', () => {

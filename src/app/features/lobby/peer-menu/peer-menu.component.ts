@@ -13,6 +13,7 @@ import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { roomDeletionMessageKey, RoomDeletionService } from '@axe/application/lobby/room-deletion.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -68,6 +69,12 @@ export class PeerMenuComponent {
   private readonly localModePreference = inject(LocalModePreferenceService);
 
   private readonly confirm = inject(ConfirmService);
+  private readonly roomDeletion = inject(RoomDeletionService);
+
+  /** Whether the room is being deleted from here, which holds the button back. */
+  protected readonly isDeletingRoom = signal(false);
+  /** Why the room could not be deleted from here; empty while nothing went wrong. */
+  protected readonly roomDeletionFailure = signal('');
 
   /**
    * Whether this browser plays on its own, with nobody else to reach, or over the network.
@@ -174,6 +181,25 @@ export class PeerMenuComponent {
   /** This browser's own cursor, which carries the reader's name, icon, role and timeout. */
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
+  }
+
+  /**
+   * Deletes the room on the room server, once the reader has confirmed. The server then closes it
+   * for everybody, which takes the reader back to waiting; only a refusal or a failure is said here.
+   */
+  async deleteRoom(): Promise<void> {
+    const roomKey = Network.roomKey;
+    if (!roomKey || this.isDeletingRoom()) return;
+    this.isDeletingRoom.set(true);
+    this.roomDeletionFailure.set('');
+    try {
+      const { roomName, roomId } = Network.peerContext;
+      const outcome = await this.roomDeletion.delete({ roomKey, name: roomName, id: roomId });
+      const key = outcome === 'deleted' ? null : roomDeletionMessageKey(outcome);
+      if (key) this.roomDeletionFailure.set(this.t(key));
+    } finally {
+      this.isDeletingRoom.set(false);
+    }
   }
 
   /** Whether the reader is the game master, who may give the other peers their roles. */

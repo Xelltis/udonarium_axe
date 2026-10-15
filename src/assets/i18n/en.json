@@ -3241,7 +3241,9 @@
         "roleDecidedByServer": "The room server decides the roles. Only the room's GM can change them.",
         "inviteWithoutRole": "Those who join with this link play as PL when logged in, and watch as guests otherwise. The GM can make invitations with a role.",
         "inviteFailed": "The room server gave no invitation. Please open this again later.",
-        "inviteExpires": "This invitation works until {{date}}. It sets the role of someone logged in on their first visit."
+        "inviteExpires": "This invitation works until {{date}}. It sets the role of someone logged in on their first visit.",
+        "deleteRoom": "Delete room",
+        "deleteRoomHint": "Everyone in the room leaves, and the room is removed from the server. Only a GM of the room can delete it."
       },
       "lobby": {
         "title": "Lobby",
@@ -3260,7 +3262,8 @@
         "hintNoRooms": "No available rooms found. Use \"Create new room\" to make one.",
         "hintListFailed": "Failed to fetch room list. Press \"Refresh list\" to retry.",
         "hintNoBackend": "No server is configured (backend.url in config.json)",
-        "createRoomAfterLogin": "Log in to create a room"
+        "createRoomAfterLogin": "Log in to create a room",
+        "deleteRoom": "Delete room"
       },
       "roomSetting": {
         "title": " Create room",
@@ -3313,7 +3316,17 @@
         "roomServerUnreachable": "Cannot reach the room server",
         "roomServerNoBackend": "No server is configured (backend.url in config.json)",
         "roomServerRefused": "The room server refused the connection ({{code}})",
-        "roomServerUnauthorized": "Your login expired, or you logged in as someone else. Please join the room again."
+        "roomServerUnauthorized": "Your login expired, or you logged in as someone else. Please join the room again.",
+        "roomServerDeleted": "The room's GM deleted the room"
+      },
+      "deleteRoom": {
+        "confirmTitle": "Delete room",
+        "confirmMessage": "Delete “{{name}}”? Everyone in it will leave, and the table kept on the server will be gone. This cannot be undone. (The table on each screen stays as it is.)",
+        "confirmOk": "Delete",
+        "deleted": "Deleted the room",
+        "gone": "The room had already been deleted",
+        "notGameMaster": "You are not a GM of this room, so you cannot delete it",
+        "failed": "Could not delete the room. Please try again in a while."
       },
       "waitingForPreviousConnection": "Waiting for your previous connection to drop (up to about a minute)",
       "peerCursor": {

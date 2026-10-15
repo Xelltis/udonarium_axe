@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RoomDeletionService } from '@axe/application/lobby/room-deletion.service';
 import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -206,6 +208,77 @@ describe('LobbyComponent', () => {
       await component.reload();
 
       expect(component.help()).toContain('backend.url');
+    });
+  });
+
+  describe('deleting a room from the list', () => {
+    const roomOf = (id: string, deletable: boolean): IRoomInfo => ({
+      id,
+      name: `卓${id}`,
+      hasPassword: false,
+      peers: [],
+      memberCount: 0,
+      roomKey: id.padEnd(32, '0'),
+      deletable,
+      filterByPassword: () => [],
+    });
+    const deleteButtons = () =>
+      Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('[data-testid="lobby-delete-room"]')
+      );
+    const notice = () =>
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('[data-testid="lobby-deletion-notice"]')
+        ?.textContent?.trim();
+    let listAllRooms: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(async () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      listAllRooms = vi.spyOn(Network, 'listAllRooms').mockResolvedValue([roomOf('aaa', true), roomOf('bbb', false)]);
+      await component.reload();
+      fixture.detectChanges();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('offers to delete only the rooms the reader is a GM of', () => {
+      expect(deleteButtons()).toHaveLength(1);
+    });
+
+    it('deletes the room, lists the rooms again and says so', async () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      const remove = vi.spyOn(TestBed.inject(RoomDeletionService), 'delete').mockResolvedValue('deleted');
+
+      deleteButtons()[0].click();
+      await vi.waitFor(() => expect(component.isDeleting()).toBe(false));
+      fixture.detectChanges();
+
+      expect(remove).toHaveBeenCalledWith({ roomKey: 'aaa'.padEnd(32, '0'), name: '卓aaa', id: 'aaa' });
+      expect(listAllRooms).toHaveBeenCalledTimes(2);
+      expect(notice()).toBe(t('feature.lobby.deleteRoom.deleted'));
+    });
+
+    it('says why a room could not be deleted, and leaves the list as it was', async () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      vi.spyOn(TestBed.inject(RoomDeletionService), 'delete').mockResolvedValue('not-game-master');
+
+      await component.deleteRoom(component.rooms()[0]);
+      fixture.detectChanges();
+
+      expect(listAllRooms).toHaveBeenCalledTimes(1);
+      expect(notice()).toBe(t('feature.lobby.deleteRoom.notGameMaster'));
+    });
+
+    it('says nothing when the reader thinks better of it', async () => {
+      vi.spyOn(TestBed.inject(RoomDeletionService), 'delete').mockResolvedValue('cancelled');
+
+      await component.deleteRoom(component.rooms()[0]);
+      fixture.detectChanges();
+
+      expect(notice()).toBeUndefined();
+      expect(listAllRooms).toHaveBeenCalledTimes(1);
     });
   });
 
