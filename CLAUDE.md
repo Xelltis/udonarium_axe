@@ -67,18 +67,19 @@ composition → features → ui → application → infrastructure → domain �
 
 ## 開発コマンド
 
-| コマンド                               | 用途                                                                              |
-| -------------------------------------- | --------------------------------------------------------------------------------- |
-| `npm start`                            | 開発サーバー（`ng serve`）                                                        |
-| `npm run build`                        | プロダクションビルド（`ng build` + 既定設定コピー + zip生成）                     |
-| `npm test`                             | ユニットテスト（Angular builder + Vitest）                                        |
-| `npx vitest run`                       | ユニットテスト（直接Vitest、上記とは別経路）                                      |
-| `npm run e2e`                          | Playwright E2E                                                                    |
-| `npm run e2e:ui`                       | Playwright UIモード                                                               |
-| `npx playwright test --project=visual` | 演出のスクリーンショット比較（手元のみ・基準画像は`e2e/visual/__screenshots__/`） |
-| `npm run lint`                         | ESLint                                                                            |
-| `npm run format`                       | Prettier整形                                                                      |
-| `npm run format:check`                 | Prettierチェックのみ                                                              |
+| コマンド                               | 用途                                                                                    |
+| -------------------------------------- | --------------------------------------------------------------------------------------- |
+| `npm start`                            | 開発サーバー（`ng serve`）                                                              |
+| `npm run build`                        | プロダクションビルド（`ng build` + 既定設定コピー + zip生成）                           |
+| `npm test`                             | ユニットテスト（Angular builder + Vitest）                                              |
+| `npx vitest run`                       | ユニットテスト（直接Vitest、上記とは別経路）                                            |
+| `npm run e2e`                          | Playwright E2E                                                                          |
+| `npm run e2e:ui`                       | Playwright UIモード                                                                     |
+| `npx playwright test --project=visual` | 演出のスクリーンショット比較（手元のみ・基準画像は`e2e/visual/__screenshots__/`）       |
+| `npx playwright test --project=server` | 部屋のサーバーの結合（手元のみ・隣に`udonarium_axe_backend`とビルド済みの`dist`が要る） |
+| `npm run lint`                         | ESLint                                                                                  |
+| `npm run format`                       | Prettier整形                                                                            |
+| `npm run format:check`                 | Prettierチェックのみ                                                                    |
 
 ## コミット・フック規約（要点）
 
