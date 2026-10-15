@@ -4,6 +4,7 @@ import { EnvironmentProviders, NO_ERRORS_SCHEMA, Provider } from '@angular/core'
 import { ɵresolveComponentResources as resolveComponentResources } from '@angular/core';
 import { TestBed, TestModuleMetadata } from '@angular/core/testing';
 import { BrowserDynamicTestingModule, platformBrowserDynamicTesting } from '@angular/platform-browser-dynamic/testing';
+import { loadConfig$ } from '@axe/core/event/domain-events';
 import { Logger, LogLevel } from '@axe/core/logging/logger';
 import { resetPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -418,6 +419,8 @@ beforeEach(async () => {
   forgetMyCursor();
   forgetSeatPreferences();
   resetPeerContextProvider();
+  // The configuration a test announced is replayed to whoever subscribes later, in other files too.
+  loadConfig$.forget();
   await resolveComponentResources(resourceResolver as Parameters<typeof resolveComponentResources>[0]);
   applyConfigureTestingModuleWrapper();
 });

@@ -1,3 +1,4 @@
+import { emitLoadConfig, loadConfig$ } from '@axe/core/event/domain-events';
 import { SyncObject } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -42,5 +43,20 @@ describe('the shared test setup', () => {
     second.initialize();
 
     expect(ObjectStore.instance.get('test-setup-fixed-identifier')).toBe(second);
+  });
+
+  it('takes a configuration announced, which the channel replays to later listeners', () => {
+    emitLoadConfig({ config: { announcedBy: 'an earlier test' } });
+
+    const heard: unknown[] = [];
+    loadConfig$.subscribe((event) => heard.push(event.config))();
+    expect(heard).toEqual([{ announcedBy: 'an earlier test' }]);
+  });
+
+  it('replays to the next test none of the configuration the one before it announced', () => {
+    const heard: unknown[] = [];
+    loadConfig$.subscribe((event) => heard.push(event.config))();
+
+    expect(heard).toEqual([]);
   });
 });

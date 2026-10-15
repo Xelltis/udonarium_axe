@@ -133,6 +133,19 @@ describe('StickyEventChannel', () => {
     expect(received).toEqual(['b']);
   });
 
+  it('hands over nothing once it has forgotten, until the next value', () => {
+    const ch = new StickyEventChannel<number>();
+    const received: number[] = [];
+
+    ch.emit(1);
+    ch.forget();
+    ch.subscribe((v) => received.push(v));
+    expect(received).toEqual([]);
+
+    ch.emit(2);
+    expect(received).toEqual([2]);
+  });
+
   it('hands over nothing before the first emit', () => {
     const ch = new StickyEventChannel<number>();
     const received: number[] = [];

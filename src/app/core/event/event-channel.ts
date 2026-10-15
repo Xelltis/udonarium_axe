@@ -71,4 +71,13 @@ export class StickyEventChannel<T = void> extends EventChannel<T> {
     if (this.hasLastEvent) listener(this.lastEvent);
     return remove;
   }
+
+  /**
+   * Forgets the last event, so that a later listener hears nothing until the next one. For tests,
+   * which share the channel with every test run before them in the same worker.
+   */
+  forget(): void {
+    this.hasLastEvent = false;
+    this.lastEvent = undefined as T;
+  }
 }
