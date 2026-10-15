@@ -27,6 +27,16 @@
       }
     ]
   },
+  "room": {
+    "room": {
+      "roomKey": "0123456789abcdef0123456789abcdef",
+      "roomId": "a1B",
+      "name": "Friday table",
+      "hasPassword": true,
+      "members": 3,
+      "deletable": true
+    }
+  },
   "authConfig": {
     "providers": ["discord"]
   },

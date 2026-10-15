@@ -1,5 +1,11 @@
 import http from '@axe/core/network/server/contract/http.json';
-import { createRoom, deleteRoom, listRooms, ServerRoomApiError } from '@axe/core/network/server/server-room-api';
+import {
+  createRoom,
+  deleteRoom,
+  findRoom,
+  listRooms,
+  ServerRoomApiError,
+} from '@axe/core/network/server/server-room-api';
 
 describe('the room server’s HTTP API, held to the server’s contract', () => {
   let sent: { url: string; method: string; body: unknown; authorization: string | null }[];
@@ -44,6 +50,21 @@ describe('the room server’s HTTP API, held to the server’s contract', () => 
     answer = json(200, http.roomList);
 
     expect(await listRooms('https://rooms.example', 'access-1')).toEqual(http.roomList.rooms);
+  });
+
+  it('finds one room by its key as the server answers it, and nothing for a key it has no room for', async () => {
+    answer = json(200, http.room);
+    expect(await findRoom('https://rooms.example', 'k'.repeat(32), 'access-1')).toEqual(http.room.room);
+    expect(sent.at(-1)).toMatchObject({
+      url: `https://rooms.example/v1/rooms/${'k'.repeat(32)}`,
+      authorization: 'Bearer access-1',
+    });
+
+    answer = json(404, { error: 'room-not-found' });
+    expect(await findRoom('https://rooms.example', 'k'.repeat(32))).toBeNull();
+
+    answer = json(429, { error: 'rate-limited' });
+    await expect(findRoom('https://rooms.example', 'k'.repeat(32))).rejects.toBeInstanceOf(ServerRoomApiError);
   });
 
   it('reads an error the way the server answers one', async () => {

@@ -8,7 +8,6 @@ import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { PeerContext } from '@axe/core/network/peer-context';
-import { IRoomInfo } from '@axe/core/network/room-info';
 import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { loadIdentity } from '@axe/core/storage/identity-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -71,8 +70,6 @@ export class ReConnectComponent {
   private readonly roomJoin = inject(RoomJoinService);
 
   rooms: { alias: string; roomName: string; peerContexts: PeerContext[] }[] = [];
-  /** The rooms as the transport reports them, which a room server finds the room again in. */
-  private roomInfos: IRoomInfo[] = [];
 
   readonly forceCleanup = signal(false);
 
@@ -139,9 +136,7 @@ export class ReConnectComponent {
    */
   private async reConnectThroughServer(cleanUp: boolean): Promise<void> {
     const roomKey = Network.roomKey ?? loadIdentity()?.roomKey ?? '';
-    const room =
-      (roomKey.length > 0 ? this.roomInfos.find((info) => info.roomKey === roomKey) : undefined) ??
-      this.roomInfos.find((info) => info.id === this.roomId && info.name === this.roomName);
+    const room = await this.roomJoin.findServerRoom(roomKey, this.roomId, this.roomName).catch(() => null);
     if (!room) {
       Logger.warn(`[Network] reconnect target not found (room: ${this.roomName}/${this.roomId})`);
       return;
@@ -156,10 +151,8 @@ export class ReConnectComponent {
   /** Fetches the open rooms a reconnect looks its room up in; a failed fetch leaves the list empty. */
   async reload() {
     this.rooms = [];
-    this.roomInfos = [];
     try {
       const roomInfos = await Network.listAllRooms();
-      this.roomInfos = roomInfos;
       for (const room of roomInfos) {
         this.rooms.push({
           alias: room.id + room.name,

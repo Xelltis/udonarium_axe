@@ -358,6 +358,15 @@ export class Network {
     return this.connection ? this.connection.listAllRooms() : Promise.resolve([]);
   }
 
+  /**
+   * One room found by its key, null when the room server has none. It rejects where rooms are not
+   * found by key, as on SkyWay, and when the server cannot say.
+   */
+  findRoom(roomKey: string): Promise<IRoomInfo | null> {
+    if (!this.connection?.findRoom) return Promise.reject(new Error('rooms are not found by key here'));
+    return this.connection.findRoom(roomKey);
+  }
+
   /** The room's pictures and sounds as this seat may reach them, while in a room server's room. */
   get assetAccess(): AssetAccess | null {
     return this.connection?.assetAccess ?? null;

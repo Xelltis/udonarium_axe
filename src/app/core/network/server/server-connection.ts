@@ -32,7 +32,14 @@ import {
   ServerRole,
   WelcomeMessage,
 } from '@axe/core/network/server/server-protocol';
-import { createRoom, deleteRoom, listRooms, roomInfoOf, roomSocketUrl } from '@axe/core/network/server/server-room-api';
+import {
+  createRoom,
+  deleteRoom,
+  findRoom,
+  listRooms,
+  roomInfoOf,
+  roomSocketUrl,
+} from '@axe/core/network/server/server-room-api';
 
 /** How long a connection waits between asking whether the server is still there. */
 export const PING_INTERVAL_MS = 25_000;
@@ -325,6 +332,13 @@ export class ServerConnection implements Connection {
   async listAllRooms(): Promise<IRoomInfo[]> {
     const accessToken = await (this.credentialSource?.accessToken() ?? Promise.resolve(null)).catch(() => null);
     return (await listRooms(this.baseUrl, accessToken)).map(roomInfoOf);
+  }
+
+  /** One room on the server found by its key, null when there is none; it rejects when the server cannot say. */
+  async findRoom(roomKey: string): Promise<IRoomInfo | null> {
+    const accessToken = await (this.credentialSource?.accessToken() ?? Promise.resolve(null)).catch(() => null);
+    const room = await findRoom(this.baseUrl, roomKey, accessToken);
+    return room && roomInfoOf(room);
   }
 
   /** Creates a room on the server as whoever is logged in, sending the password only when there is one. */

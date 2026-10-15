@@ -89,8 +89,20 @@ describe('RoomJoinService', () => {
       ...overrides,
     });
 
-    it('finds a room by its key, or by its id and name for a link from before keys', async () => {
+    it('finds a room by its key however old, and says so of a key the server has no room for', async () => {
+      const found = serverRoom();
+      const byKey = vi.spyOn(Network, 'findRoom').mockResolvedValueOnce(found).mockResolvedValueOnce(null);
+      const list = vi.spyOn(Network, 'listAllRooms').mockResolvedValue([]);
+
+      expect(await service.findServerRoom(KEY, 'abc', 'roomname')).toBe(found);
+      expect(await service.findServerRoom(KEY, 'abc', 'roomname')).toBeNull();
+      expect(byKey).toHaveBeenCalledWith(KEY);
+      expect(list).not.toHaveBeenCalled();
+    });
+
+    it('finds a room in the list by its key when the key cannot be asked about, or by its id and name for a link from before keys', async () => {
       const rooms = [serverRoom({ id: 'xyz', name: 'other', roomKey: 'f'.repeat(32) }), serverRoom()];
+      vi.spyOn(Network, 'findRoom').mockRejectedValue(new Error('out of reach'));
       vi.spyOn(Network, 'listAllRooms').mockResolvedValue(rooms);
 
       expect(await service.findServerRoom(KEY, '', '')).toBe(rooms[1]);

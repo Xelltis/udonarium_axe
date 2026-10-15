@@ -19,6 +19,7 @@ import {
   inviteRequest,
   isRollRejectReason,
   PROTOCOL_VERSION,
+  readRoom,
   readRoomAssetList,
   readRoomList,
   readServerMessage,
@@ -62,6 +63,9 @@ describe('the room server protocol, held to the server’s fixtures', () => {
 
   it('reads the room list and the asset list as the server answers them', () => {
     expect(readRoomList(http.roomList)).toEqual(http.roomList.rooms);
+    expect(readRoom(http.room)).toEqual(http.room.room);
+    expect(readRoom({ room: { ...http.room.room, members: '2' } })).toBeNull();
+    expect(readRoom(http.roomList)).toBeNull();
     expect(readRoomAssetList(http.roomAssetList)).toEqual(http.roomAssetList.assets);
     expect(readRoomAssetList({ assets: [{ ...http.roomAssetList.assets[0], size: '1' }] })).toBeNull();
     expect(readRoomAssetList({ rooms: [] })).toBeNull();

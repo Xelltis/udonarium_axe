@@ -529,19 +529,27 @@ export function readRoomAssetList(value: unknown): RoomAsset[] | null {
   return valid ? (assets as RoomAsset[]) : null;
 }
 
+/** Whether a value is a room as the server sums one up. */
+function isRoomSummary(room: unknown): room is RoomSummary {
+  return (
+    isRecord(room) &&
+    typeof room['roomKey'] === 'string' &&
+    typeof room['roomId'] === 'string' &&
+    typeof room['name'] === 'string' &&
+    typeof room['hasPassword'] === 'boolean' &&
+    typeof room['members'] === 'number' &&
+    (room['deletable'] === undefined || typeof room['deletable'] === 'boolean')
+  );
+}
+
 /** The room list the server answered with, or null when it is not one. */
 export function readRoomList(value: unknown): RoomSummary[] | null {
   if (!isRecord(value) || !Array.isArray(value['rooms'])) return null;
   const rooms = value['rooms'];
-  const valid = rooms.every(
-    (room) =>
-      isRecord(room) &&
-      typeof room['roomKey'] === 'string' &&
-      typeof room['roomId'] === 'string' &&
-      typeof room['name'] === 'string' &&
-      typeof room['hasPassword'] === 'boolean' &&
-      typeof room['members'] === 'number' &&
-      (room['deletable'] === undefined || typeof room['deletable'] === 'boolean')
-  );
-  return valid ? (rooms as RoomSummary[]) : null;
+  return rooms.every(isRoomSummary) ? rooms : null;
+}
+
+/** The one room the server answered GET /v1/rooms/:roomKey with, or null when it is not one. */
+export function readRoom(value: unknown): RoomSummary | null {
+  return isRecord(value) && isRoomSummary(value['room']) ? value['room'] : null;
 }

@@ -70,6 +70,8 @@ export interface Connection {
   send(data: unknown, sendTo?: string): void;
   listAllPeers(): Promise<string[]>;
   listAllRooms(): Promise<IRoomInfo[]>;
+  /** One room found by its key on a room server, null when there is none; SkyWay rooms have no key. */
+  findRoom?(roomKey: string): Promise<IRoomInfo | null>;
   /** Creates a room on a room server; SkyWay rooms come into being as somebody opens them. */
   createRoom?(name: string, password: string): Promise<CreateRoomResponse>;
   /** The room's pictures and sounds as this seat may reach them, while it is in a room server's room. */

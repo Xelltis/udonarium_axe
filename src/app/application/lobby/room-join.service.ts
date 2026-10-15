@@ -49,10 +49,18 @@ export class RoomJoinService {
   }
 
   /**
-   * Looks a room up on a room server by its key, or by its id and name for a link or a saved seat
-   * from before rooms had keys; null when the server lists no such room.
+   * Looks a room up on a room server by its key, which finds it however old, or by its id and name
+   * in the list for a link or a saved seat from before rooms had keys; null when there is no such
+   * room. A key the server cannot be asked about just then is looked for in the list too.
    */
   async findServerRoom(roomKey: string, roomId: string, roomName: string): Promise<IRoomInfo | null> {
+    if (roomKey.length > 0) {
+      try {
+        return await Network.findRoom(roomKey);
+      } catch {
+        // asked again below, in the list
+      }
+    }
     const rooms = await Network.listAllRooms();
     return (
       (roomKey.length > 0 ? rooms.find((room) => room.roomKey === roomKey) : undefined) ??

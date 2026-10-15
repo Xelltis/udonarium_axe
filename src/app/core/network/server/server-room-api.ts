@@ -3,6 +3,7 @@ import { IRoomInfo } from '@axe/core/network/room-info';
 import {
   CreateRoomRequest,
   CreateRoomResponse,
+  readRoom,
   readRoomList,
   RoomSummary,
 } from '@axe/core/network/server/server-protocol';
@@ -69,6 +70,25 @@ export async function listRooms(baseUrl: string, accessToken: string | null = nu
   const rooms = readRoomList(await response.json().catch(() => null));
   if (!rooms) throw new ServerRoomApiError(response.status, 'bad-response');
   return rooms;
+}
+
+/**
+ * One room on the server, found by its key, though the list shows only the newest: null when the
+ * server has no such room. With an access token, the server marks it if its holder may delete it.
+ */
+export async function findRoom(
+  baseUrl: string,
+  roomKey: string,
+  accessToken: string | null = null
+): Promise<RoomSummary | null> {
+  const headers: Record<string, string> = {};
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  const response = await fetch(apiUrl(baseUrl, `/v1/rooms/${encodeURIComponent(roomKey)}`), { headers });
+  if (response.status === 404) return null;
+  if (!response.ok) return refusal(response);
+  const room = readRoom(await response.json().catch(() => null));
+  if (!room) throw new ServerRoomApiError(response.status, 'bad-response');
+  return room;
 }
 
 /**

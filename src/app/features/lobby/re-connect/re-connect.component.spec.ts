@@ -3,6 +3,7 @@ import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
+import { IRoomInfo } from '@axe/core/network/room-info';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -141,18 +142,23 @@ describe('ReConnectComponent', () => {
       vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
       vi.spyOn(component, 'myPeer', 'get').mockReturnValue({ reConnectPass: '' } as PeerCursor);
       const clean = vi.spyOn(component, 'deleteObject').mockImplementation(() => undefined);
-      const join = vi.spyOn(TestBed.inject(RoomJoinService), 'joinServerRoom').mockResolvedValue(false);
+      const roomJoin = TestBed.inject(RoomJoinService);
+      const join = vi.spyOn(roomJoin, 'joinServerRoom').mockResolvedValue(false);
+      const find = vi
+        .spyOn(roomJoin, 'findServerRoom')
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'Ab3', name: '月夜の卓', roomKey: 'k' } as IRoomInfo);
       component.roomId = 'Ab3';
       component.roomName = '月夜の卓';
       component.forceCleanup.set(true);
       vi.spyOn(component, 'disConnect').mockImplementation(() => undefined);
 
       component.reConnect();
+      await vi.waitFor(() => expect(find).toHaveBeenCalledOnce());
       await Promise.resolve();
       expect(clean).not.toHaveBeenCalled();
       expect(join).not.toHaveBeenCalled();
 
-      (component as unknown as { roomInfos: unknown[] }).roomInfos = [{ id: 'Ab3', name: '月夜の卓', roomKey: 'k' }];
       component.reConnect();
       await vi.waitFor(() => expect(join).toHaveBeenCalled());
       expect(clean).toHaveBeenCalledOnce();
