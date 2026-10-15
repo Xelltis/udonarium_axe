@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { DiceTableSettingComponent } from '@axe/features/dice/dice-table-setting/dice-table-setting.component';
 import { MapEditorPanelComponent } from '@axe/features/map-editor/editor/map-editor-panel.component';
+import { RoomPanelName } from '@axe/domain/ui/room-panel';
 import { PanelWindowRequest, PanelWindowService } from '@axe/features/panels/panel-window.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { DungeonGeneratorComponent } from '@axe/features/tabletop/dungeon-generator/dungeon-generator.component';
@@ -104,5 +105,53 @@ describe('RoomPanelService', () => {
 
     expect(option()).toEqual(expect.objectContaining({ width: 650, height: 400 }));
     await expect(openLazy.mock.calls[0][0]()).resolves.toBe(DiceTableSettingComponent);
+  });
+
+  describe('several panels opened together', () => {
+    let opened: string[];
+    let arrive: Map<RoomPanelName, { resolve: (component: unknown) => void; reject: (reason: unknown) => void }>;
+
+    beforeEach(() => {
+      opened = [];
+      arrive = new Map();
+      openLazy.mockImplementation((load: () => Promise<unknown>, given: PanelOption) => {
+        void load().then(
+          () => opened.push(given.title!),
+          () => undefined
+        );
+      });
+      vi.spyOn(service as unknown as { panelOf(name: RoomPanelName): unknown }, 'panelOf').mockImplementation(
+        (name: RoomPanelName) => ({
+          load: () => new Promise((resolve, reject) => arrive.set(name, { resolve, reject })),
+          option: {},
+        })
+      );
+    });
+
+    it('stands each over those before it, whichever code comes back first', async () => {
+      service.openInTurn([
+        ['peerMenu', { title: 'first' }],
+        ['chatWindow', { title: 'second' }],
+      ]);
+
+      arrive.get('chatWindow')!.resolve({});
+      await new Promise((resolve) => setTimeout(resolve));
+      expect(opened).toEqual([]);
+      arrive.get('peerMenu')!.resolve({});
+
+      await vi.waitFor(() => expect(opened).toEqual(['first', 'second']));
+    });
+
+    it('still opens the rest when the code of one ahead of them cannot be fetched', async () => {
+      service.openInTurn([
+        ['peerMenu', { title: 'first' }],
+        ['chatWindow', { title: 'second' }],
+      ]);
+
+      arrive.get('chatWindow')!.resolve({});
+      arrive.get('peerMenu')!.reject(new Error('no chunk'));
+
+      await vi.waitFor(() => expect(opened).toEqual(['second']));
+    });
   });
 });

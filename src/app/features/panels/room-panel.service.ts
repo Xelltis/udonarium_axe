@@ -31,6 +31,38 @@ export class RoomPanelService {
     setup?: (instance: T) => void,
     host?: ViewContainerRef
   ): void {
+    this.openFrom(name, this.panelOf(name).load, extra, setup, host);
+  }
+
+  /**
+   * Opens several of the room's panels together, each standing over those before it in the list.
+   *
+   * A panel stands over every panel opened before it, and the code of each arrives when it will.
+   * All of it is fetched at once, but no panel opens before those ahead of it have opened or failed
+   * to arrive.
+   */
+  openInTurn(requests: readonly (readonly [RoomPanelName, PanelOption?])[]): void {
+    let ahead: Promise<unknown> = Promise.resolve();
+    for (const [name, extra] of requests) {
+      const fetched = this.panelOf(name).load();
+      fetched.catch(() => undefined);
+      const inTurn = ahead.then(() => fetched);
+      this.openFrom(name, () => inTurn, extra);
+      // Settles after `openLazy` has opened this one, as it took hold of `inTurn` first.
+      ahead = inTurn.then(
+        () => undefined,
+        () => undefined
+      );
+    }
+  }
+
+  private openFrom<T>(
+    name: RoomPanelName,
+    load: () => Promise<Type<unknown>>,
+    extra: PanelOption = {},
+    setup?: (instance: T) => void,
+    host?: ViewContainerRef
+  ): void {
     const panel = this.panelOf(name);
     const option: PanelOption = {
       title: this.t(panelLabelKey(name)),
@@ -44,9 +76,9 @@ export class RoomPanelService {
     this.opened += 1;
     // Passed on exactly as far as there is something to pass: a trailing `undefined` is a
     // different call to anything watching, and nothing here needs to make one.
-    if (host) this.panelService.openLazy(panel.load, option, setup as (instance: unknown) => void, host);
-    else if (setup) this.panelService.openLazy(panel.load, option, setup as (instance: unknown) => void);
-    else this.panelService.openLazy(panel.load, option);
+    if (host) this.panelService.openLazy(load, option, setup as (instance: unknown) => void, host);
+    else if (setup) this.panelService.openLazy(load, option, setup as (instance: unknown) => void);
+    else this.panelService.openLazy(load, option);
   }
 
   /**

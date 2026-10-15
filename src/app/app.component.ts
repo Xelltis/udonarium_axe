@@ -38,7 +38,7 @@ import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
-import { PanelService } from '@axe/application/ui/panel.service';
+import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SkinService } from '@axe/application/ui/skin.service';
@@ -509,16 +509,14 @@ export class AppComponent {
         ModalService.defaultParentViewContainerRef =
         ContextMenuService.defaultParentViewContainerRef =
           this.modalLayerViewContainerRef();
-      this.roomPanels.open('peerMenu', { left: 80, top: 10 });
-      if (this.viewport.isCompact()) return;
-
-      const chatHeight = 460;
-      this.roomPanels.open('chatWindow', {
-        width: 660,
-        height: chatHeight,
-        left: 80,
-        top: Math.max(10, window.innerHeight - chatHeight - 20),
-      });
+      const startPanels: [RoomPanelName, PanelOption][] = [['peerMenu', { left: 80, top: 10 }]];
+      if (!this.viewport.isCompact()) {
+        const chatHeight = 460;
+        const top = Math.max(10, window.innerHeight - chatHeight - 20);
+        startPanels.push(['chatWindow', { width: 660, height: chatHeight, left: 80, top }]);
+      }
+      // The chat window overlaps the connection panel, and stands over it.
+      this.roomPanels.openInTurn(startPanels);
     });
   }
 
