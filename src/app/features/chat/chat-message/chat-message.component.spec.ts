@@ -1497,6 +1497,15 @@ describe('ChatMessageComponent', () => {
       expect(mark()).toBeNull();
     });
 
+    it('wears none on a line that is not the dice bot’s, whatever it carries', () => {
+      const answer = tab.addMessage({ from: 'someone', name: 'ノア', text: '6 だった', timestamp: 1000 });
+      answer.serverRoll = true;
+      fixture.componentRef.setInput('chatMessage', answer);
+      fixture.detectChanges();
+
+      expect(mark()).toBeNull();
+    });
+
     it('wears none on a roll made by a player’s own device', () => {
       const answer = tab.addMessage({
         from: 'System-BCDice',
