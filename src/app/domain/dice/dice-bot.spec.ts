@@ -16,6 +16,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { beMyself } from '@axe/testing/peer-context-stub';
 
 describe('DiceBot', () => {
   beforeEach(() => {
@@ -56,6 +57,9 @@ describe('DiceBot', () => {
   });
 
   describe('in a room on a room server', () => {
+    // Whose lines these are is said outright, not read off whatever the network was left doing.
+    beforeEach(() => beMyself('acct_me'));
+
     it('asks the server to roll, with the answer made ready but not placed', async () => {
       PeerCursor.createMyCursor();
       PeerCursor.myCursor.userId = 'acct_me';
@@ -226,12 +230,11 @@ describe('DiceBot', () => {
     it('asks again for a roll unanswered when the seat gets back into the room', async () => {
       const bot = new DiceBot();
       bot.initialize();
-      vi.spyOn(Network, 'peerId', 'get').mockReturnValue('me');
       const { tab, requests } = await askedRoll(bot);
 
       localDispatch('PEER_RECONNECT', { peerId: 'somebody', state: 'recovered' }, 'somebody');
       expect(requests()).toHaveLength(1);
-      localDispatch('PEER_RECONNECT', { peerId: 'me', state: 'recovered' });
+      localDispatch('PEER_RECONNECT', { peerId: 'acct_me-peer', state: 'recovered' });
 
       expect(requests()).toHaveLength(2);
       expect(requests()[1]).toEqual(requests()[0]);
@@ -261,12 +264,11 @@ describe('DiceBot', () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
       const bot = new DiceBot();
       bot.initialize();
-      vi.spyOn(Network, 'peerId', 'get').mockReturnValue('me');
       const told = vi.fn();
       const off = serverRollUnanswered$.subscribe(told);
       const { tab } = await askedRoll(bot);
 
-      localDispatch('PEER_RECONNECT', { peerId: 'me', state: 'retrying' });
+      localDispatch('PEER_RECONNECT', { peerId: 'acct_me-peer', state: 'retrying' });
       vi.advanceTimersByTime(120_000);
 
       expect(told).not.toHaveBeenCalled();
@@ -291,6 +293,8 @@ describe('DiceBot', () => {
   });
 
   describe('with SkyWay, or outside a room', () => {
+    beforeEach(() => beMyself());
+
     it('rolls here and asks no server', async () => {
       PeerCursor.createMyCursor();
       vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
