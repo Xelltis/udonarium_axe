@@ -94,20 +94,22 @@ export class DiceChatEventHandlerService {
   private pointOutUnanswered(event: ServerRollUnansweredEvent): void {
     const key = `${event.messageIdentifier}\n${event.reason}`;
     if (key === this.lastUnanswered) return;
+    const reason = UNANSWERED_REASONS.has(event.reason) ? event.reason : 'failed';
+    const key18n = `feature.chat.diceBot.serverRollUnanswered.${reason}`;
+    // A seat that may not speak in the tab could not put a line there either: the server would take
+    // it back, and has taken back the line that asked for the roll by the time this arrives. It is
+    // told at the bottom of the screen instead.
+    if (reason === 'not-allowed') {
+      this.lastUnanswered = key;
+      this.snackbar.show(this.t(key18n));
+      return;
+    }
     const line = this.objectStore.get<ChatMessage>(event.messageIdentifier);
     const tab = line instanceof ChatMessage ? this.objectStore.get<ChatTab>(line.tabIdentifier) : null;
     const me = PeerCursor.myCursor;
     if (!(tab instanceof ChatTab) || !me) return;
 
     this.lastUnanswered = key;
-    const reason = UNANSWERED_REASONS.has(event.reason) ? event.reason : 'failed';
-    const key18n = `feature.chat.diceBot.serverRollUnanswered.${reason}`;
-    // A seat that may not speak in the tab could not put a line there either: the server would take
-    // it back. It is told at the bottom of the screen instead.
-    if (reason === 'not-allowed') {
-      this.snackbar.show(this.t(key18n));
-      return;
-    }
     this.chatMessageService.sendSystemMessageOnePlayer(tab, encodeI18nMessage(key18n), me.identifier, undefined, true);
   }
 

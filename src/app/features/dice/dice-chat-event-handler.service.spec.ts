@@ -246,5 +246,18 @@ describe('DiceChatEventHandlerService', () => {
       tell.mockRestore();
       show.mockRestore();
     });
+
+    it('still tells a seat refused for its tab once the server has taken the asking line back', () => {
+      const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+      const line = tab.addMessage({ from: SELF_USER_ID, text: '2d6', timestamp: 1, tag: 'DiceBot', name: 'わたし' });
+      const identifier = line.identifier;
+      line.destroy();
+
+      serverRollUnanswered$.emit({ messageIdentifier: identifier, reason: 'not-allowed' });
+      serverRollUnanswered$.emit({ messageIdentifier: identifier, reason: 'not-allowed' });
+
+      expect(show).toHaveBeenCalledOnce();
+      show.mockRestore();
+    });
   });
 });
