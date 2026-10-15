@@ -1,0 +1,241 @@
+import {
+  fetchLoginProviders,
+  LOGIN_STORAGE_KEY,
+  LOGIN_VERIFIER_STORAGE_KEY,
+  LoginEnvironment,
+  readStoredLogin,
+  ServerLogin,
+  ServerLoginError,
+  StoredLogin,
+} from '@axe/core/network/server/server-login';
+import { Account } from '@axe/core/network/server/server-protocol';
+import { sha256Base64Url } from '@axe/core/util/crypto-util';
+
+class MemoryStorage implements Storage {
+  private readonly items = new Map<string, string>();
+  get length(): number {
+    return this.items.size;
+  }
+  clear(): void {
+    this.items.clear();
+  }
+  getItem(key: string): string | null {
+    return this.items.get(key) ?? null;
+  }
+  key(index: number): string | null {
+    return [...this.items.keys()][index] ?? null;
+  }
+  removeItem(key: string): void {
+    this.items.delete(key);
+  }
+  setItem(key: string, value: string): void {
+    this.items.set(key, value);
+  }
+}
+
+/** A lock manager that runs one task at a time, as the browser's does for one name. */
+function serialLocks(): LockManager {
+  let tail: Promise<unknown> = Promise.resolve();
+  return {
+    request: (_name: string, task: () => Promise<unknown>) => {
+      const run = tail.then(() => task());
+      tail = run.catch(() => undefined);
+      return run;
+    },
+  } as unknown as LockManager;
+}
+
+const BASE_URL = 'https://rooms.example/';
+const ACCOUNT: Account = { userId: 'acct_1234', name: 'Kai', avatarUrl: 'https://cdn.example/kai.png' };
+const NOW = 1_800_000_000_000;
+
+function json(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+function tokens(serial: number) {
+  return { accessToken: `access-${serial}`, expiresIn: 900, refreshToken: `refresh-${serial}`, account: ACCOUNT };
+}
+
+describe('ServerLogin', () => {
+  let storage: MemoryStorage;
+  let env: LoginEnvironment;
+  let now: number;
+  let requests: { url: string; method: string; body: unknown; authorization: string | null }[];
+  let answer: (url: string, body: Record<string, unknown> | null) => Response | Promise<Response>;
+
+  const login = () => new ServerLogin(BASE_URL, env);
+  const store = (stored: StoredLogin) => storage.setItem(LOGIN_STORAGE_KEY, JSON.stringify(stored));
+  const kept = (serial: number, expiresAt: number): StoredLogin => ({
+    accessToken: `access-${serial}`,
+    expiresAt,
+    refreshToken: `refresh-${serial}`,
+    account: ACCOUNT,
+  });
+
+  beforeEach(() => {
+    storage = new MemoryStorage();
+    now = NOW;
+    env = { storage, session: new MemoryStorage(), locks: serialLocks(), now: () => now };
+    requests = [];
+    answer = () => json(500, { error: 'unexpected' });
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const body = typeof init?.body === 'string' ? JSON.parse(init.body) : null;
+      const headers = new Headers(init?.headers);
+      requests.push({ url, method: init?.method ?? 'GET', body, authorization: headers.get('Authorization') });
+      return answer(url, body);
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('opens the login with a challenge made from a verifier it keeps in this tab', async () => {
+    const url = new URL(await login().loginUrl('https://axe.example/assets/login-callback.html'));
+    const verifier = env.session.getItem(LOGIN_VERIFIER_STORAGE_KEY)!;
+
+    expect(url.origin + url.pathname).toBe('https://rooms.example/v1/login/discord');
+    expect(url.searchParams.get('redirect_uri')).toBe('https://axe.example/assets/login-callback.html');
+    expect(verifier).toMatch(/^[\w-]{43}$/);
+    expect(url.searchParams.get('code_challenge')).toBe(await sha256Base64Url(verifier));
+  });
+
+  it('trades the code it came back with, and the verifier, for a login every tab shares', async () => {
+    env.session.setItem(LOGIN_VERIFIER_STORAGE_KEY, 'v'.repeat(43));
+    answer = () => json(200, tokens(1));
+    const changes = vi.fn();
+    const subject = login();
+    subject.onChange(changes);
+
+    const account = await subject.finishLogin('#login_code=the-code');
+
+    expect(account).toEqual(ACCOUNT);
+    expect(requests).toEqual([
+      {
+        url: 'https://rooms.example/v1/auth/token',
+        method: 'POST',
+        body: { grant_type: 'login_code', code: 'the-code', code_verifier: 'v'.repeat(43) },
+        authorization: null,
+      },
+    ]);
+    expect(readStoredLogin(storage)).toEqual(kept(1, NOW + 900_000));
+    expect(env.session.getItem(LOGIN_VERIFIER_STORAGE_KEY)).toBeNull();
+    expect(changes).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives the reason a login came back without a code, and asks nothing of the server', async () => {
+    env.session.setItem(LOGIN_VERIFIER_STORAGE_KEY, 'v'.repeat(43));
+
+    await expect(login().finishLogin('login_error=denied')).rejects.toEqual(new ServerLoginError('denied'));
+    expect(requests).toEqual([]);
+  });
+
+  it('cannot finish a login this tab did not start', async () => {
+    await expect(login().finishLogin('login_code=the-code')).rejects.toEqual(new ServerLoginError('no-verifier'));
+  });
+
+  it('hands out the kept access token while it has a while to run', async () => {
+    store(kept(1, NOW + 120_000));
+
+    expect(await login().accessToken()).toBe('access-1');
+    expect(requests).toEqual([]);
+  });
+
+  it('refreshes an access token about to run out, keeping the new pair', async () => {
+    store(kept(1, NOW + 30_000));
+    answer = () => json(200, tokens(2));
+
+    expect(await login().accessToken()).toBe('access-2');
+    expect(requests.map((request) => request.body)).toEqual([
+      { grant_type: 'refresh_token', refresh_token: 'refresh-1' },
+    ]);
+    expect(readStoredLogin(storage)).toEqual(kept(2, NOW + 900_000));
+  });
+
+  it('refreshes once when two tabs need a token at the same moment', async () => {
+    store(kept(1, NOW - 1));
+    let serial = 1;
+    answer = () => json(200, tokens(++serial));
+
+    const [first, second] = await Promise.all([login().accessToken(), login().accessToken()]);
+
+    expect(requests).toHaveLength(1);
+    expect(first).toBe('access-2');
+    expect(second).toBe('access-2');
+  });
+
+  it('logs out when the server no longer takes the refresh token', async () => {
+    store(kept(1, NOW - 1));
+    answer = () => json(400, { error: 'invalid-grant' });
+
+    expect(await login().accessToken()).toBeNull();
+    expect(storage.getItem(LOGIN_STORAGE_KEY)).toBeNull();
+  });
+
+  it('keeps the login when the server cannot be reached to refresh it', async () => {
+    store(kept(1, NOW - 1));
+    answer = () => Promise.reject(new TypeError('Failed to fetch'));
+
+    await expect(login().accessToken()).rejects.toThrow('Failed to fetch');
+    expect(readStoredLogin(storage)).toEqual(kept(1, NOW - 1));
+  });
+
+  it('refreshes a token the server turned down, unless another tab has already', async () => {
+    store(kept(1, NOW + 600_000));
+    answer = () => json(200, tokens(2));
+
+    expect(await login().replaceRejected('access-1')).toBe('access-2');
+    expect(await login().replaceRejected('access-1')).toBe('access-2');
+    expect(requests).toHaveLength(1);
+  });
+
+  it('logs out here at once and asks the server to revoke the refresh token', async () => {
+    store(kept(1, NOW + 600_000));
+    answer = () => new Response(null, { status: 204 });
+
+    await login().logout();
+
+    expect(storage.getItem(LOGIN_STORAGE_KEY)).toBeNull();
+    expect(requests).toEqual([
+      {
+        url: 'https://rooms.example/v1/auth/logout',
+        method: 'POST',
+        body: { refresh_token: 'refresh-1' },
+        authorization: null,
+      },
+    ]);
+  });
+
+  it('deletes the account with its access token and logs out', async () => {
+    store(kept(1, NOW + 600_000));
+    answer = () => new Response(null, { status: 204 });
+
+    await login().deleteAccount();
+
+    expect(requests.map(({ url, method, authorization }) => ({ url, method, authorization }))).toEqual([
+      { url: 'https://rooms.example/v1/account', method: 'DELETE', authorization: 'Bearer access-1' },
+    ]);
+    expect(storage.getItem(LOGIN_STORAGE_KEY)).toBeNull();
+  });
+
+  it('reads no login from a missing, broken or incomplete value', () => {
+    expect(readStoredLogin(storage)).toBeNull();
+    storage.setItem(LOGIN_STORAGE_KEY, '{not json');
+    expect(readStoredLogin(storage)).toBeNull();
+    storage.setItem(LOGIN_STORAGE_KEY, JSON.stringify({ ...kept(1, NOW), refreshToken: 3 }));
+    expect(readStoredLogin(storage)).toBeNull();
+    storage.setItem(LOGIN_STORAGE_KEY, JSON.stringify({ ...kept(1, NOW), account: { name: 'Kai' } }));
+    expect(readStoredLogin(storage)).toBeNull();
+  });
+
+  it('asks the backend which providers it logs in with', async () => {
+    answer = () => json(200, { providers: ['discord'] });
+    expect(await fetchLoginProviders(BASE_URL)).toEqual(['discord']);
+
+    answer = () => json(200, { providers: [] });
+    expect(await fetchLoginProviders(BASE_URL)).toEqual([]);
+    expect(requests[0].url).toBe('https://rooms.example/v1/auth/config');
+  });
+});

@@ -23,13 +23,15 @@ export function trimBaseUrl(url: string): string {
   return url.trim().replace(/\/+$/, '');
 }
 
-function apiUrl(baseUrl: string, path: string): string {
+/** A path on the backend; throws `no-backend` when no url is configured. */
+export function apiUrl(baseUrl: string, path: string): string {
   const base = trimBaseUrl(baseUrl);
   if (base.length === 0) throw new ServerRoomApiError(0, 'no-backend');
   return `${base}${path}`;
 }
 
-async function refusal(response: Response): Promise<never> {
+/** Throws the refusal a response that is not ok carries. */
+export async function refusal(response: Response): Promise<never> {
   const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
   throw new ServerRoomApiError(response.status, typeof body?.error === 'string' ? body.error : 'unknown');
 }
