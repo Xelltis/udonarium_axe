@@ -6,8 +6,10 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { localDispatch } from '@axe/core/network/network-messaging';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
+import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { loadIdentity } from '@axe/core/storage/identity-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { withdraw } from '@axe/core/sync/object-synchronizer';
@@ -111,14 +113,13 @@ export class ReConnectComponent {
   reConnect() {
     this.reconnectUserId = resolveReconnectUserId(this.reconnectUserId, this.networkService.peerContext.userId);
     this.disConnect();
+    if (Network.transport === 'server') {
+      void this.reConnectThroughServer(this.forceCleanup());
+      return;
+    }
     if (this.forceCleanup()) {
       Logger.warn('[Network] reconnecting with force-cleanup enabled');
       this.deleteObject();
-    }
-
-    if (Network.transport === 'server') {
-      void this.reConnectThroughServer();
-      return;
     }
 
     for (const room of this.rooms) {
@@ -134,8 +135,9 @@ export class ReConnectComponent {
   /**
    * Joins the room again on a room server, found by the key this seat kept or by its id and name,
    * with the password kept from joining. The dialog closes once the server lets the seat back in.
+   * Pieces are cleaned up only once the room is found, for the room to hand them back.
    */
-  private async reConnectThroughServer(): Promise<void> {
+  private async reConnectThroughServer(cleanUp: boolean): Promise<void> {
     const roomKey = Network.roomKey ?? loadIdentity()?.roomKey ?? '';
     const room =
       (roomKey.length > 0 ? this.roomInfos.find((info) => info.roomKey === roomKey) : undefined) ??
@@ -143,6 +145,10 @@ export class ReConnectComponent {
     if (!room) {
       Logger.warn(`[Network] reconnect target not found (room: ${this.roomName}/${this.roomId})`);
       return;
+    }
+    if (cleanUp) {
+      Logger.warn('[Network] reconnecting with force-cleanup enabled');
+      this.deleteObject();
     }
     if (await this.roomJoin.joinServerRoom(room, this.myPeer.reConnectPass ?? '')) this.modalService.resolve();
   }
@@ -259,9 +265,10 @@ export class ReConnectComponent {
    * takes the room's copies from the other peers, and forgets what was deleted so those copies are
    * not refused.
    *
-   * In a room server's room they are only taken off this screen: the server keeps the room's
-   * copies, which the seat takes again on getting back in, and destroying or moving them would
-   * destroy or move them for everybody.
+   * In a room server's room they are only taken off this screen, the way the server takes things
+   * away, so the panels showing them close too: the server keeps the room's copies, which the seat
+   * takes again on getting back in, and destroying or moving them would destroy or move them for
+   * everybody.
    */
   deleteObject() {
     Logger.info('[Network] dropping objects that may diverge from the new peers');
@@ -301,7 +308,10 @@ export class ReConnectComponent {
 
   private deleteGameObject(gameObject: TabletopObject) {
     if (Network.transport === 'server') {
-      withdraw(gameObject);
+      const authority = Network.authorityPeerId;
+      const { identifier, aliasName } = gameObject;
+      if (authority) localDispatch(AuthorityEvent.WITHDRAW, { identifier, aliasName }, authority);
+      else withdraw(gameObject);
       return;
     }
     gameObject.setLocation('graveyard');

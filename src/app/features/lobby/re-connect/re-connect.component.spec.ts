@@ -1,8 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RoomJoinService } from '@axe/application/lobby/room-join.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   createExpectedPeerIdSet,
   isReconnectCompleted,
@@ -110,6 +114,48 @@ describe('ReConnectComponent', () => {
       expect(ObjectStore.instance.isDeleted(character.identifier)).toBe(false);
       expect(character.location.name).toBe(location);
       expect(send).not.toHaveBeenCalled();
+    });
+
+    it('takes them away as the room server would, so the panels showing them close too', () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      ObjectSynchronizer.instance.initialize();
+      const character = GameCharacter.create('勇者', 1, '');
+      const closed: string[] = [];
+      const off = TestBed.inject(ObjectChangeService).objectDeleted$.subscribe((event) =>
+        closed.push(event.identifier)
+      );
+      const send = vi.spyOn(Network, 'send');
+
+      component.deleteObject();
+      off();
+      ObjectSynchronizer.instance.destroy();
+
+      expect(ObjectStore.instance.get(character.identifier)).toBeNull();
+      expect(ObjectStore.instance.isDeleted(character.identifier)).toBe(false);
+      expect(closed).toContain(character.identifier);
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('takes nothing away until it has found the room to get back into', async () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(component, 'myPeer', 'get').mockReturnValue({ reConnectPass: '' } as PeerCursor);
+      const clean = vi.spyOn(component, 'deleteObject').mockImplementation(() => undefined);
+      const join = vi.spyOn(TestBed.inject(RoomJoinService), 'joinServerRoom').mockResolvedValue(false);
+      component.roomId = 'Ab3';
+      component.roomName = '月夜の卓';
+      component.forceCleanup.set(true);
+      vi.spyOn(component, 'disConnect').mockImplementation(() => undefined);
+
+      component.reConnect();
+      await Promise.resolve();
+      expect(clean).not.toHaveBeenCalled();
+      expect(join).not.toHaveBeenCalled();
+
+      (component as unknown as { roomInfos: unknown[] }).roomInfos = [{ id: 'Ab3', name: '月夜の卓', roomKey: 'k' }];
+      component.reConnect();
+      await vi.waitFor(() => expect(join).toHaveBeenCalled());
+      expect(clean).toHaveBeenCalledOnce();
     });
 
     it('sends the pieces to the graveyard and deletes them among peers, as before', () => {
