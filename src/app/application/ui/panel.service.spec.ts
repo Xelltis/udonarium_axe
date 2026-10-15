@@ -462,6 +462,33 @@ describe('PanelService', () => {
 
       expect(opened).not.toHaveBeenCalled();
     });
+
+    it('lets the name go of what is no longer wanted once it arrives, so the next ask can open', async () => {
+      const service = new PanelService();
+      const opened = vi.spyOn(service, 'open').mockReturnValue({} as never);
+      let wanted = true;
+
+      service.openLazy(() => Promise.resolve(DummyPanelBodyComponent), {
+        single: 'gone-piece',
+        stillWanted: () => wanted,
+      });
+      wanted = false;
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(opened).not.toHaveBeenCalled();
+      expect(service.hasSingle('gone-piece')).toBe(false);
+
+      wanted = true;
+      service.openLazy(() => Promise.resolve(DummyPanelBodyComponent), {
+        single: 'gone-piece',
+        stillWanted: () => wanted,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(opened).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('a panel whose code cannot be fetched', () => {

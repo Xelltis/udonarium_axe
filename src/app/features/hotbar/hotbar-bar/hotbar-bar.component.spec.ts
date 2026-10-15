@@ -430,6 +430,19 @@ describe('HotbarBarComponent', () => {
     expect(run).toHaveBeenCalled();
   });
 
+  it('opens the editor on the slot pressed and the page showing, with what the slot holds', async () => {
+    ownedCharacter('術者');
+    preference.gotoPage(1);
+    fixture.detectChanges();
+    const editor = { setFrom: vi.fn() };
+    vi.spyOn(TestBed.inject(PanelService), 'open').mockReturnValue(editor as never);
+
+    slots()[4].click();
+
+    await vi.waitFor(() => expect(editor.setFrom).toHaveBeenCalled());
+    expect(editor.setFrom).toHaveBeenCalledWith({ page: 1, slotIndex: 4 }, emptyHotbarSlotDraft());
+  });
+
   it('opens the editor beside the slot it was opened for', async () => {
     ownedCharacter('術者');
     fixture.detectChanges();
