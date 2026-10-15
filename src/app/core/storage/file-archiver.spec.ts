@@ -19,6 +19,7 @@ import {
 import { calcSHA256Async } from '@axe/core/storage/file-reader-util';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { useFflateLoader } from '@axe/core/storage/zip-archive';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { zipSync } from 'fflate';
 import { strToU8, zip } from 'fflate';
@@ -175,6 +176,28 @@ describe('FileArchiver', () => {
         [Symbol.iterator]: function* () {},
       } as unknown as FileList;
       await FileArchiver.instance.load(fileList);
+    });
+  });
+
+  describe('a zip whose code could not be fetched', () => {
+    afterEach(() => useFflateLoader(null));
+
+    it('asks for a reload, saving or loading, and not for an archive that is merely broken', async () => {
+      const told = vi.fn();
+      FileArchiver.instance.onCodeUnavailable = told;
+      const zipFile = new File([zipSync({ 'data.xml': new Uint8Array([60]) }).slice()], 'room.zip', {
+        type: 'application/zip',
+      });
+      await FileArchiver.instance.load([
+        new File([new Uint8Array([0, 1, 2, 3])], 'broken.zip', { type: 'application/zip' }),
+      ]);
+      expect(told).not.toHaveBeenCalled();
+
+      useFflateLoader(() => Promise.reject(new TypeError('Failed to fetch dynamically imported module')));
+      await FileArchiver.instance.load([zipFile]);
+      await expect(FileArchiver.instance.saveAsync([zipFile], 'room')).rejects.toBeDefined();
+
+      expect(told).toHaveBeenCalledTimes(2);
     });
   });
 

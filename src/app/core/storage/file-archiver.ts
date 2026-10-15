@@ -15,7 +15,7 @@ import { imageTypeOf } from '@axe/core/storage/image-sniff';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
 import { isCcfoliaRoomArchive } from '@axe/core/storage/room-archive';
-import { createZipBlob, readZipEntries } from '@axe/core/storage/zip-archive';
+import { createZipBlob, readZipEntries, ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import type { ZipEntry } from '@axe/core/storage/zip-archive-message';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -81,6 +81,11 @@ export class FileArchiver {
    * app puts in its own answer, every drop is taken.
    */
   mayLoadDrops: () => boolean = () => true;
+  /**
+   * Told when a zip could not be packed or unpacked because the code for it could not be fetched,
+   * which a reload mends. The app puts in its notice; until then nothing is said.
+   */
+  onCodeUnavailable: () => void = () => {};
   /**
    * The guard that asks, during online play, before dropped data overwrites the room settings; null
    * until the domain has put one in the object store.
@@ -303,6 +308,7 @@ export class FileArchiver {
       entries = await readZipEntries(file);
     } catch (reason) {
       Logger.warn('[FileArchiver] ZIP読み込みエラー', reason);
+      this.noticeCodeUnavailable(reason);
       return;
     }
     if (isCcfoliaRoomArchive(entries.map((entry) => entry.name))) {
@@ -357,7 +363,12 @@ export class FileArchiver {
 
   /** Unpacks a zip into its entries, in a worker where one can be used. */
   async readZipEntriesAsync(file: File | Blob): Promise<ZipEntry[]> {
-    return readZipEntries(file);
+    try {
+      return await readZipEntries(file);
+    } catch (reason) {
+      this.noticeCodeUnavailable(reason);
+      throw reason;
+    }
   }
 
   /**
@@ -369,7 +380,13 @@ export class FileArchiver {
 
     updateCallback?.({ percent: 0, currentFile: '' });
 
-    const blob = await createZipBlob(saveFiles);
+    let blob: Blob;
+    try {
+      blob = await createZipBlob(saveFiles);
+    } catch (reason) {
+      this.noticeCodeUnavailable(reason);
+      throw reason;
+    }
 
     updateCallback?.({ percent: 100, currentFile: '' });
     return blob;
@@ -380,6 +397,10 @@ export class FileArchiver {
     if (!files) return;
     const blob = await this.createZipBlobAsync(files, updateCallback);
     downloadBlob(blob, `${zipName}.zip`);
+  }
+
+  private noticeCodeUnavailable(reason: unknown): void {
+    if (reason instanceof ZipCodeUnavailableError) this.onCodeUnavailable();
   }
 }
 

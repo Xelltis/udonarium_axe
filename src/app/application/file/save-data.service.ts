@@ -6,6 +6,7 @@ import { stampLabel } from '@axe/application/chat/stamp-words';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { Network } from '@axe/core/index';
+import { Logger } from '@axe/core/logging/logger';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
@@ -208,14 +209,23 @@ export class SaveDataService {
     return this.saveAsync(files, this.appendTimestamp(fileName), updateCallback);
   }
 
-  private saveAsync(files: File[], zipName: string, updateCallback?: UpdateCallback): Promise<void> {
+  /**
+   * Packs and downloads the files. A save that fails is logged and settles all the same, so that
+   * whoever waits on it is not left saving for ever; one whose code could not be fetched has the
+   * archiver ask for a reload.
+   */
+  private async saveAsync(files: File[], zipName: string, updateCallback?: UpdateCallback): Promise<void> {
     let progressPercent = -1;
-    return this.fileArchiver.saveAsync(files, zipName, (meta) => {
-      const percent = meta.percent | 0;
-      if (percent <= progressPercent) return;
-      progressPercent = percent;
-      updateCallback?.(progressPercent);
-    });
+    try {
+      await this.fileArchiver.saveAsync(files, zipName, (meta) => {
+        const percent = meta.percent | 0;
+        if (percent <= progressPercent) return;
+        progressPercent = percent;
+        updateCallback?.(progressPercent);
+      });
+    } catch (reason) {
+      Logger.error('[SaveDataService] 保存に失敗しました', zipName, reason);
+    }
   }
 
   private createImageArchiveFile(image: ImageFile): File | null {

@@ -1,6 +1,7 @@
 import { inject, TestBed } from '@angular/core/testing';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { Logger } from '@axe/core/logging/logger';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
@@ -293,6 +294,15 @@ describe('SaveDataService', () => {
 
       expect(callback).toHaveBeenCalledWith(0);
       expect(callback).toHaveBeenCalledWith(100);
+    });
+
+    it('settles a save that fails, so that nothing waits on it for ever', async () => {
+      const service = TestBed.inject(SaveDataService);
+      vi.spyOn(TestBed.inject(FileArchiver), 'saveAsync').mockRejectedValue(new Error('no code'));
+      vi.spyOn(Logger, 'error').mockImplementation(() => {});
+
+      await expect(service.saveRoomAsync('room')).resolves.toBeUndefined();
+      expect(Logger.error).toHaveBeenCalled();
     });
 
     it('reports the same percentage only once', async () => {

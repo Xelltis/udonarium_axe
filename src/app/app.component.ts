@@ -499,6 +499,7 @@ export class AppComponent {
 
     const reloadNotice = inject(ReloadNoticeService);
     PanelService.loadFailureNotice = () => reloadNotice.tellReloadNeeded();
+    this.fileArchiver.onCodeUnavailable = () => reloadNotice.tellReloadNeeded();
     TooltipDirective.loadTooltipPanelComponent = reloadNotice.noticingFailure(() =>
       import('@axe/features/inventory/overview-panel/overview-panel.component').then((m) => m.OverviewPanelComponent)
     );
