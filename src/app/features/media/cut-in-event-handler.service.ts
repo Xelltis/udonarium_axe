@@ -54,7 +54,13 @@ export class CutInEventHandlerService {
       this.cancelWaiting((waiting) => waiting.identifier == cutIn.identifier || waiting.tagName == cutIn.tagName);
     }, this.destroyRef);
     this.objectChange.startCutIn$.subscribe((event) => {
-      this.openCutInPanel(event.cutIn as CutIn, false, (event.speaker as CutInSpeaker | null | undefined) ?? null);
+      const cutIn = event.cutIn as CutIn;
+      // An open window closes for a cut-in with its name or its tag, and so does one still waiting,
+      // before this one waits in turn.
+      if (cutIn) {
+        this.cancelWaiting((waiting) => waiting.identifier == cutIn.identifier || waiting.tagName == cutIn.tagName);
+      }
+      this.openCutInPanel(cutIn, false, (event.speaker as CutInSpeaker | null | undefined) ?? null);
     }, this.destroyRef);
     this.objectChange.soundOnlyCutIn$.subscribe((event) => {
       const cutIn = event.cutIn as CutIn;

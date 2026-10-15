@@ -307,6 +307,18 @@ describe('CutInEventHandlerService before its window arrives', () => {
     expect(panelStub.open.mock.calls[0][1].cutInIdentifier).toBe('cut-2');
   });
 
+  it('opens only the last of the cut-ins sharing a tag, or the same one, asked for meanwhile', async () => {
+    const cutIn = makeCutIn({ identifier: 'cut-1', tagName: '' });
+    emitStartCutIn({ cutIn });
+    emitStartCutIn({ cutIn });
+    emitStartCutIn({ cutIn: makeCutIn({ identifier: 'cut-2', tagName: '' }) });
+    emitStartCutIn({ cutIn: makeCutIn({ identifier: 'cut-3', tagName: 'face' }) });
+
+    await service.prepareWindow();
+    await vi.waitFor(() => expect(panelStub.open).toHaveBeenCalledTimes(2));
+    expect(panelStub.open.mock.calls.map(([, option]) => option.cutInIdentifier)).toEqual(['cut-2', 'cut-3']);
+  });
+
   it('opens only the sound-only window when the same video is asked for sound only meanwhile', async () => {
     const cutIn = makeCutIn({ videoId: 'youtube123' });
     emitStartCutIn({ cutIn });
