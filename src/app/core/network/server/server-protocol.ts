@@ -27,7 +27,9 @@ export const MAX_MEMBERS = 32;
 export const MAX_ROLL_COMMAND_LENGTH = 4000;
 /** The longest target name a roll may carry after its result, as ` [name]`. */
 export const MAX_ROLL_TARGET_NAME_LENGTH = 128;
-/** How many rolls one connection may ask for in ten seconds; more are refused as rate-limited. */
+/** The window, in seconds, that a connection's sends and rolls are counted in, starting afresh each time. */
+export const RATE_WINDOW_SECONDS = 10;
+/** How many rolls one connection may ask for in RATE_WINDOW_SECONDS; more are refused as rate-limited. */
 export const MAX_ROLLS_PER_WINDOW = 20;
 /** The longest name an uploaded picture or sound keeps on the server. */
 export const MAX_ASSET_NAME_LENGTH = 255;
