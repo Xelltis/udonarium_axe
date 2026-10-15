@@ -42,7 +42,6 @@ import { findSlotActorAmong } from '@axe/features/hotbar/hotbar-actor';
 import { bindsCharacter, HotbarCellView, hotbarCellView } from '@axe/features/hotbar/hotbar-cell-view';
 import { buildHotbarBarContextMenu, buildHotbarSlotContextMenu } from '@axe/features/hotbar/hotbar-context-menu';
 import { HotbarSlotDrag } from '@axe/features/hotbar/hotbar-drag';
-import { HotbarSlotEditorComponent } from '@axe/features/hotbar/hotbar-editor/hotbar-slot-editor.component';
 import { HotbarFailure, HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
 import { hotbarKeyDown, isApplePlatform, isTypingTarget, pressEmptiesSlot } from '@axe/features/hotbar/hotbar-shortcut';
 import { MenuCommandService } from '@axe/features/menu/menu-command.service';
@@ -317,18 +316,23 @@ export class HotbarBarComponent {
 
   private edit(cell: HotbarCellView): void {
     const spot = this.editorSpot(cell.slotIndex);
-    const editor = this.panelService.open<HotbarSlotEditorComponent>(HotbarSlotEditorComponent, {
-      width: EDITOR_WIDTH,
-      height: EDITOR_HEIGHT,
-      left: spot.left,
-      top: spot.top,
-      layer: hotbarPanelLayer(this.preference.pinned()),
-      title: this.t('feature.hotbar.editor.title'),
-      single: 'hotbar-slot-editor',
-    });
-    editor.setFrom(
-      { page: this.preference.page(), slotIndex: cell.slotIndex },
-      cell.slot ? draftOfSlot(cell.slot) : emptyHotbarSlotDraft()
+    const at = { page: this.preference.page(), slotIndex: cell.slotIndex };
+    const draft = cell.slot ? draftOfSlot(cell.slot) : emptyHotbarSlotDraft();
+    this.panelService.openLazy(
+      () =>
+        import('@axe/features/hotbar/hotbar-editor/hotbar-slot-editor.component').then(
+          (m) => m.HotbarSlotEditorComponent
+        ),
+      {
+        width: EDITOR_WIDTH,
+        height: EDITOR_HEIGHT,
+        left: spot.left,
+        top: spot.top,
+        layer: hotbarPanelLayer(this.preference.pinned()),
+        title: this.t('feature.hotbar.editor.title'),
+        single: 'hotbar-slot-editor',
+      },
+      (editor) => editor.setFrom(at, draft)
     );
   }
 

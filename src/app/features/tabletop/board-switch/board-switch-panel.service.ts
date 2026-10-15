@@ -6,7 +6,6 @@ import { SwitchPressOutcome, SwitchPressService } from '@axe/application/tableto
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { switchOf } from '@axe/domain/tabletop/board-switch/board-switch';
-import { BoardSwitchEditorComponent } from '@axe/features/tabletop/board-switch/board-switch-editor.component';
 
 /** Something on the table a switch can hang under, with the name it speaks under. */
 export interface SwitchHostNode extends ObjectNode {
@@ -32,15 +31,21 @@ export class BoardSwitchPanelService {
     const target = this.switches.ensure(host);
     if (!target) return;
     const at = this.pointers.pointers[0];
-    const editor = this.panels.open(BoardSwitchEditorComponent, {
-      title: this.t('feature.boardSwitch.panelTitle', { name: host.name }),
-      left: at.x - 230,
-      top: at.y - 150,
-      width: 460,
-      height: 520,
-      single: `board-switch:${target.identifier}`,
-    });
-    editor.target.set(target);
+    this.panels.openLazy(
+      () =>
+        import('@axe/features/tabletop/board-switch/board-switch-editor.component').then(
+          (m) => m.BoardSwitchEditorComponent
+        ),
+      {
+        title: this.t('feature.boardSwitch.panelTitle', { name: host.name }),
+        left: at.x - 230,
+        top: at.y - 150,
+        width: 460,
+        height: 520,
+        single: `board-switch:${target.identifier}`,
+      },
+      (editor) => editor.target.set(target)
+    );
   }
 
   /** Tries the switch on something out, where it has one, without counting it as a press. */

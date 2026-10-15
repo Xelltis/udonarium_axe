@@ -133,7 +133,6 @@ import { GameCharacterBuffViewComponent } from '@axe/features/character/game-cha
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { buildConcealMenu } from '@axe/features/tabletop/board-switch/concealment-context-menu';
-import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
 import { BillboardDirective } from '@axe/ui/directives/billboard.directive';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
@@ -2189,9 +2188,15 @@ export class GameCharacterComponent {
       title: this.translateFn('feature.character.contextMenu.lightSettings'),
       ...sheetPanelBox(coordinate, 360, 460),
     };
-    const component = this.panelService.open<LightSettingsComponent>(LightSettingsComponent, option);
-    component.target = gameObject;
-    component.showVision = true;
+    this.panelService.openLazy(
+      () =>
+        import('@axe/features/tabletop/light-settings/light-settings.component').then((m) => m.LightSettingsComponent),
+      option,
+      (component) => {
+        component.target = gameObject;
+        component.showVision = true;
+      }
+    );
   }
 
   protected readonly buffChildren = computed<DataElement[]>(() => {

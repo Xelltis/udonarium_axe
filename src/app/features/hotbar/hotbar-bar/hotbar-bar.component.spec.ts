@@ -360,14 +360,14 @@ describe('HotbarBarComponent', () => {
     expect(slots()[9].className).toContain('animate-hit-flash');
   });
 
-  it('opens the editor when an empty slot is pressed', () => {
+  it('opens the editor when an empty slot is pressed', async () => {
     ownedCharacter('術者');
     fixture.detectChanges();
     const open = vi.spyOn(TestBed.inject(PanelService), 'open').mockReturnValue({ setFrom: vi.fn() } as never);
 
     slots()[4].click();
 
-    expect(open).toHaveBeenCalled();
+    await vi.waitFor(() => expect(open).toHaveBeenCalled());
   });
 
   it('trades two slots when one is dragged onto the other', () => {
@@ -397,7 +397,7 @@ describe('HotbarBarComponent', () => {
     expect(ownHotbar().slotAt(preference.page(), 0)?.argument).toBe('dice-roll');
   });
 
-  it('opens the editor on an empty slot even after a drag was let go of outside the bar', () => {
+  it('opens the editor on an empty slot even after a drag was let go of outside the bar', async () => {
     const character = ownedCharacter('術者');
     fillSlot(character, 0, 'dice-roll');
     fixture.detectChanges();
@@ -410,7 +410,7 @@ describe('HotbarBarComponent', () => {
     slots()[4].dispatchEvent(new PointerEvent('pointerdown', { button: 0, clientX: 0, clientY: 0 }));
     slots()[4].click();
 
-    expect(open).toHaveBeenCalled();
+    await vi.waitFor(() => expect(open).toHaveBeenCalled());
   });
 
   it('lets a slot go when the browser takes the gesture away', () => {
@@ -430,7 +430,7 @@ describe('HotbarBarComponent', () => {
     expect(run).toHaveBeenCalled();
   });
 
-  it('opens the editor beside the slot it was opened for', () => {
+  it('opens the editor beside the slot it was opened for', async () => {
     ownedCharacter('術者');
     fixture.detectChanges();
     const slot = slots()[4];
@@ -444,6 +444,7 @@ describe('HotbarBarComponent', () => {
 
     slot.click();
 
+    await vi.waitFor(() => expect(open).toHaveBeenCalled());
     expect(open.mock.calls[0][1]).toMatchObject({ left: 432, top: 172 });
   });
 
@@ -624,18 +625,20 @@ describe('HotbarBarComponent', () => {
     expect(Number(bar()!.style.zIndex)).toBeGreaterThan(1899999);
   });
 
-  it('opens the editor on the shelf just above wherever the bar is sitting', () => {
+  it('opens the editor on the shelf just above wherever the bar is sitting', async () => {
     ownedCharacter('術者');
     fixture.detectChanges();
     const open = vi.spyOn(TestBed.inject(PanelService), 'open').mockReturnValue({ setFrom: vi.fn() } as never);
 
     slots()[4].click();
+    await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(1));
     expect((open.mock.calls[0][1] as { layer: number }).layer).toBe(Z_HOTBAR + 1);
 
     preference.setPinned(true);
     fixture.detectChanges();
     slots()[5].click();
 
+    await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(2));
     expect((open.mock.calls[1][1] as { layer: number }).layer).toBeGreaterThan(1899999);
   });
 
