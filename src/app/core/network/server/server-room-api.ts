@@ -60,13 +60,29 @@ export async function createRoom(
   return { roomKey: body.roomKey, roomId: body.roomId };
 }
 
-/** The rooms on the server. */
-export async function listRooms(baseUrl: string): Promise<RoomSummary[]> {
-  const response = await fetch(apiUrl(baseUrl, '/v1/rooms'));
+/** The rooms on the server. With an access token, the server marks the ones its holder may delete. */
+export async function listRooms(baseUrl: string, accessToken: string | null = null): Promise<RoomSummary[]> {
+  const headers: Record<string, string> = {};
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  const response = await fetch(apiUrl(baseUrl, '/v1/rooms'), { headers });
   if (!response.ok) return refusal(response);
   const rooms = readRoomList(await response.json().catch(() => null));
   if (!rooms) throw new ServerRoomApiError(response.status, 'bad-response');
   return rooms;
+}
+
+/**
+ * Deletes a room on the server, closing it for everybody in it. Only a GM of the room may, with
+ * their access token; anybody else is refused with not-game-master.
+ */
+export async function deleteRoom(baseUrl: string, roomKey: string, accessToken: string | null): Promise<void> {
+  const headers: Record<string, string> = {};
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  const response = await fetch(apiUrl(baseUrl, `/v1/rooms/${encodeURIComponent(roomKey)}`), {
+    method: 'DELETE',
+    headers,
+  });
+  if (!response.ok) return refusal(response);
 }
 
 /** The address of a room's WebSocket, on the host of the API. */
@@ -85,6 +101,7 @@ export function roomInfoOf(summary: RoomSummary): IRoomInfo {
     peers: [] as IPeerContext[],
     memberCount: summary.members,
     roomKey: summary.roomKey,
+    deletable: summary.deletable === true,
     filterByPassword: () => [],
   };
 }

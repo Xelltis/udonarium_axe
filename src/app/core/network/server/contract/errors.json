@@ -90,6 +90,16 @@
         "code": "unauthorized",
         "protocolVersion": 2
       }
+    },
+    {
+      "code": "room-deleted",
+      "when": "GM が部屋を削除した。部屋にいた全員が受け取る。部屋はもう無いので、つなぎ直しても room-not-found になる",
+      "retry": false,
+      "message": {
+        "type": "error",
+        "code": "room-deleted",
+        "protocolVersion": 2
+      }
     }
   ]
 }

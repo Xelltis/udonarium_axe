@@ -118,6 +118,13 @@ describe('the room server protocol, held to the server’s fixtures', () => {
     expect(readRoomList(null)).toBeNull();
   });
 
+  it('reads the mark on a room its reader may delete, and turns away a mark that is not true or false', () => {
+    const room = { roomKey: 'k'.repeat(32), roomId: 'Ab3', name: '卓', hasPassword: false, members: 2 };
+
+    expect(readRoomList({ rooms: [{ ...room, deletable: true }] })).toEqual([{ ...room, deletable: true }]);
+    expect(readRoomList({ rooms: [{ ...room, deletable: 'yes' }] })).toBeNull();
+  });
+
   it('decides which copy of an object wins as the server does', () => {
     for (const testCase of lww.cases) {
       if (testCase.deleted) continue;

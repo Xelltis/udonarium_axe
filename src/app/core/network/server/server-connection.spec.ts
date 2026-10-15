@@ -392,7 +392,7 @@ describe('ServerConnection', () => {
   });
 
   it('lists the server’s rooms for the lobby', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
           rooms: [{ roomKey: ROOM_KEY, roomId: 'Ab3', name: '月夜の卓', hasPassword: true, members: 2 }],
@@ -409,7 +409,19 @@ describe('ServerConnection', () => {
       hasPassword: true,
       memberCount: 2,
       roomKey: ROOM_KEY,
+      deletable: false,
     });
+    expect(new Headers(fetch.mock.calls[0][1]?.headers).has('Authorization')).toBe(false);
+  });
+
+  it('leaves a deleted room at once, without trying again', async () => {
+    const socket = await enterRoom();
+    socket.deliver({ type: 'error', code: 'room-deleted', protocolVersion: PROTOCOL_VERSION });
+    await settle();
+    socket.close(4000, 'room-deleted');
+    await vi.waitFor(() => expect(errors).toEqual([{ code: 'room-deleted' }]));
+
+    expect(FakeWebSocket.instances.length).toBe(1);
   });
 
   describe('logged in', () => {
@@ -596,6 +608,54 @@ describe('ServerConnection', () => {
       await connection.createRoom('月夜の卓', '');
 
       expect(new Headers(fetch.mock.calls[0][1]?.headers).get('Authorization')).toBe('Bearer token-1');
+    });
+
+    it('lists the rooms with the access token, so that the server marks those the reader may delete', async () => {
+      const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            rooms: [
+              { roomKey: ROOM_KEY, roomId: 'Ab3', name: '月夜の卓', hasPassword: false, members: 0, deletable: true },
+            ],
+          })
+        )
+      );
+
+      const rooms = await connection.listAllRooms();
+
+      expect(new Headers(fetch.mock.calls[0][1]?.headers).get('Authorization')).toBe('Bearer token-1');
+      expect(rooms[0].deletable).toBe(true);
+    });
+
+    it('lists the rooms unmarked when the login cannot be refreshed just now', async () => {
+      connection.useCredentials({
+        credentials: async () => null,
+        accessToken: () => Promise.reject(new Error('offline')),
+        replaceRejected,
+      });
+      const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ rooms: [] })));
+
+      expect(await connection.listAllRooms()).toEqual([]);
+      expect(new Headers(fetch.mock.calls[0][1]?.headers).has('Authorization')).toBe(false);
+    });
+
+    it('deletes a room with the access token', async () => {
+      const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
+
+      await connection.deleteRoom(ROOM_KEY);
+
+      const [url, init] = fetch.mock.calls[0];
+      expect(url).toBe(`${BASE_URL}/v1/rooms/${ROOM_KEY}`);
+      expect(init?.method).toBe('DELETE');
+      expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer token-1');
+    });
+
+    it('passes on the server’s refusal to delete a room', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(JSON.stringify({ error: 'not-game-master' }), { status: 403 })
+      );
+
+      await expect(connection.deleteRoom(ROOM_KEY)).rejects.toMatchObject({ status: 403, code: 'not-game-master' });
     });
   });
 

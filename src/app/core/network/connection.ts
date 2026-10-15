@@ -62,6 +62,7 @@ export interface Connection {
   listAllRooms(): Promise<IRoomInfo[]>;
   /** Creates a room on a room server; SkyWay rooms come into being as somebody opens them. */
   createRoom?(name: string, password: string): Promise<CreateRoomResponse>;
+  deleteRoom?(roomKey: string): Promise<void>;
   /** Gives a room server connection the login to say hello with. */
   useCredentials?(source: ServerCredentialSource | null): void;
   /** An invitation for the next room opened, from a link, sent with its hello. */

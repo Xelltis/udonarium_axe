@@ -29,7 +29,7 @@ import {
   ServerRole,
   WelcomeMessage,
 } from '@axe/core/network/server/server-protocol';
-import { createRoom, listRooms, roomInfoOf, roomSocketUrl } from '@axe/core/network/server/server-room-api';
+import { createRoom, deleteRoom, listRooms, roomInfoOf, roomSocketUrl } from '@axe/core/network/server/server-room-api';
 
 /** How long a connection waits between asking whether the server is still there. */
 export const PING_INTERVAL_MS = 25_000;
@@ -289,15 +289,25 @@ export class ServerConnection implements Connection {
     return this.peerIds;
   }
 
-  /** The rooms on the server. It rejects when the server cannot be reached or refuses. */
+  /**
+   * The rooms on the server, those the reader may delete marked when logged in. A login that cannot
+   * be refreshed just now lists them unmarked. It rejects when the server cannot be reached or refuses.
+   */
   async listAllRooms(): Promise<IRoomInfo[]> {
-    return (await listRooms(this.baseUrl)).map(roomInfoOf);
+    const accessToken = await (this.credentialSource?.accessToken() ?? Promise.resolve(null)).catch(() => null);
+    return (await listRooms(this.baseUrl, accessToken)).map(roomInfoOf);
   }
 
   /** Creates a room on the server as whoever is logged in, sending the password only when there is one. */
   async createRoom(name: string, password: string): Promise<CreateRoomResponse> {
     const accessToken = (await this.credentialSource?.accessToken()) ?? null;
     return createRoom(this.baseUrl, password.length > 0 ? { name, password } : { name }, accessToken);
+  }
+
+  /** Deletes a room on the server as whoever is logged in, which only a GM of the room may. */
+  async deleteRoom(roomKey: string): Promise<void> {
+    const accessToken = (await this.credentialSource?.accessToken()) ?? null;
+    return deleteRoom(this.baseUrl, roomKey, accessToken);
   }
 
   /**

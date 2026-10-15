@@ -9,6 +9,8 @@ export interface IRoomInfo {
   readonly memberCount: number;
   /** The key a room server finds the room by; SkyWay rooms have none. */
   readonly roomKey?: string;
+  /** Whether the reader may delete the room: a room server's GM of it. SkyWay rooms are never deleted. */
+  readonly deletable?: boolean;
 
   filterByPassword(password: string): IPeerContext[] | Promise<IPeerContext[]>;
 }

@@ -357,6 +357,15 @@ export class Network {
     return this.connection.createRoom(name, password);
   }
 
+  /**
+   * Deletes a room on the room server, closing it for everybody in it. It rejects without a
+   * connection, and with SkyWay, where a room is gone once everybody has left.
+   */
+  deleteRoom(roomKey: string): Promise<void> {
+    if (!this.connection?.deleteRoom) return Promise.reject(new Error('rooms are not deleted on this transport'));
+    return this.connection.deleteRoom(roomKey);
+  }
+
   private initializeConnection(): Connection {
     const connection = new this.connectionClass();
     connection.configure(this.config);

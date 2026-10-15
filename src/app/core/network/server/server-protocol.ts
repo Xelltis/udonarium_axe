@@ -171,6 +171,7 @@ export const ERROR_CODES = [
   'too-many-messages',
   'replaced',
   'unauthorized',
+  'room-deleted',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
@@ -276,6 +277,8 @@ export interface RoomSummary {
   hasPassword: boolean;
   /** How many are in it now. */
   members: number;
+  /** Whether whoever listed the rooms, with their access token, is a GM of this one and may delete it. */
+  deletable?: boolean;
 }
 
 export interface RoomListResponse {
@@ -400,7 +403,8 @@ export function readRoomList(value: unknown): RoomSummary[] | null {
       typeof room['roomId'] === 'string' &&
       typeof room['name'] === 'string' &&
       typeof room['hasPassword'] === 'boolean' &&
-      typeof room['members'] === 'number'
+      typeof room['members'] === 'number' &&
+      (room['deletable'] === undefined || typeof room['deletable'] === 'boolean')
   );
   return valid ? (rooms as RoomSummary[]) : null;
 }
