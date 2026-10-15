@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -37,9 +37,19 @@ export class ServerAccountComponent {
     return error ? (LOGIN_ERROR_KEYS[error] ?? 'feature.lobby.account.errors.retry') : '';
   });
 
+  constructor() {
+    // A login, however it came, from this button, the lobby's or another tab, starts afresh: the
+    // deleting asked about, or failed, was the account before it.
+    effect(() => {
+      if (!this.account()) return;
+      untracked(() => {
+        this.isConfirmingDelete.set(false);
+        this.deleteFailed.set(false);
+      });
+    });
+  }
+
   protected login(): void {
-    this.isConfirmingDelete.set(false);
-    this.deleteFailed.set(false);
     void this.auth.startLogin();
   }
 

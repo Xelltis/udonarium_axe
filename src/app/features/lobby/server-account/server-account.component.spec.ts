@@ -68,7 +68,7 @@ describe('ServerAccountComponent', () => {
     expect(auth.deleteAccount).toHaveBeenCalled();
   });
 
-  it('still says the account was not deleted once the attempt has logged it out, until the next login', async () => {
+  it('still says the account was not deleted once the attempt has logged it out, until a login comes back', async () => {
     account.set({ userId: 'acct_1', name: 'Kai', avatarUrl: null });
     auth.deleteAccount.mockImplementationOnce(async () => {
       account.set(null);
@@ -86,7 +86,14 @@ describe('ServerAccountComponent', () => {
     expect(find(element, 'server-account-delete-failed')!.textContent).toContain('ログインし直して');
     find(element, 'server-account-login')!.click();
     fixture.detectChanges();
+    expect(find(element, 'server-account-delete-failed')).not.toBeNull();
+
+    // logged in again, however: here, from the lobby's button or from another tab
+    account.set({ userId: 'acct_1', name: 'Kai', avatarUrl: null });
+    TestBed.tick();
+    fixture.detectChanges();
     expect(find(element, 'server-account-delete-failed')).toBeNull();
+    expect(find(element, 'server-account-delete-confirm')).toBeNull();
   });
 
   it('says why a login failed', () => {
