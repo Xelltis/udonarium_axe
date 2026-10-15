@@ -3,7 +3,10 @@ import { readFileSync } from 'node:fs';
 import { TestBed } from '@angular/core/testing';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
+import { Logger } from '@axe/core/logging/logger';
+import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { SkinImageStore } from '@axe/core/storage/skin-image-store';
+import { ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { chatBubbleBaseTone, resetChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 import { CUSTOM_SKIN, STANDARD_SKIN } from '@axe/domain/ui/skin';
@@ -46,7 +49,9 @@ describe('SkinService', () => {
           removeEventListener: () => undefined,
         }) as unknown as MediaQueryList
     );
-    TestBed.configureTestingModule({ providers: [ThemeService, SkinService] });
+    TestBed.configureTestingModule({
+      providers: [ThemeService, SkinService, { provide: FileArchiver, useFactory: () => FileArchiver.instance }],
+    });
     const theme = TestBed.inject(ThemeService);
     const skins = TestBed.inject(SkinService);
     TestBed.tick();
@@ -325,6 +330,28 @@ describe('SkinService', () => {
     expect(read?.recipe.hue).toBe(210);
   });
 
+  it('says a skin could not be written, and that the page wants reloading when the zip code is missing', async () => {
+    vi.spyOn(SkinImageStore.instance, 'get').mockResolvedValue(null);
+    vi.spyOn(Logger, 'warn').mockImplementation(() => {});
+    const { skins } = setup();
+    vi.spyOn(TestBed.inject(FileArchiver), 'createZipBlobAsync')
+      .mockRejectedValueOnce(new ZipCodeUnavailableError(new TypeError('Failed to fetch')))
+      .mockRejectedValueOnce(new RangeError('Array buffer allocation failed'));
+
+    expect(await skins.exportSkin('卓')).toBe('reload');
+    expect(await skins.exportSkin('卓')).toBe('refused');
+  });
+
+  it('tells a file that is no skin from one the zip code could not be fetched to read', async () => {
+    const { skins } = setup();
+    vi.spyOn(TestBed.inject(FileArchiver), 'readZipEntriesAsync')
+      .mockRejectedValueOnce(new ZipCodeUnavailableError(new TypeError('Failed to fetch')))
+      .mockRejectedValueOnce(new Error('not a zip'));
+
+    expect(await skins.importSkin(new Blob(['PK']))).toBe('reload');
+    expect(await skins.importSkin(new Blob(['nope']))).toBe('refused');
+  });
+
   it('wears a skin read out of a zip, pictures and all', async () => {
     vi.spyOn(SkinImageStore.instance, 'get').mockResolvedValue(null);
     vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
@@ -347,7 +374,7 @@ describe('SkinService', () => {
       new File([PNG_HEAD], '1-a.webp', { type: 'image/webp' }),
     ]);
 
-    expect(await skins.importSkin(zipped)).toBe(true);
+    expect(await skins.importSkin(zipped)).toBe('done');
     expect(skins.skinOf('light')).toBe(CUSTOM_SKIN);
     expect(skins.recipeOf('light').hue).toBe(111);
     expect(skins.stack().length).toBe(1);
@@ -375,7 +402,7 @@ describe('SkinService', () => {
     await skins.addLayer(picture(), 'already here.png');
     const standing = skins.stack();
 
-    expect(await skins.importSkin(zipped)).toBe(false);
+    expect(await skins.importSkin(zipped)).toBe('refused');
     expect(skins.stack()).toEqual(standing);
     expect(put).toHaveBeenCalledTimes(1);
   });
@@ -473,7 +500,7 @@ describe('SkinService', () => {
       skins.setMatColor('#5c1f1f');
       skins.removeMatPicture();
 
-      expect(await skins.importSkin(zipped)).toBe(true);
+      expect(await skins.importSkin(zipped)).toBe('done');
       expect(skins.mat().color).toBe('#1f4d3a');
       expect(skins.mat().layer).toMatchObject({ name: 'mat.png', fit: 'tile' });
       expect(skins.diceMat().picture?.backgroundImage).toBe('url("blob:skin")');
@@ -493,7 +520,7 @@ describe('SkinService', () => {
       });
       const zipped = await createZipBlob([new File([text], SKIN_FILE_NAME, { type: 'application/json' })]);
 
-      expect(await skins.importSkin(zipped)).toBe(true);
+      expect(await skins.importSkin(zipped)).toBe('done');
       expect(skins.mat().color).toBe(DEFAULT_MAT_COLOR);
       expect(skins.mat().layer).toBeNull();
     });
@@ -504,7 +531,7 @@ describe('SkinService', () => {
     const { skins } = setup();
     const zipped = await createZipBlob([new File(['nope'], 'readme.txt', { type: 'text/plain' })]);
 
-    expect(await skins.importSkin(zipped)).toBe(false);
+    expect(await skins.importSkin(zipped)).toBe('refused');
     expect(skins.skinOf('light')).toBe(STANDARD_SKIN);
   });
 

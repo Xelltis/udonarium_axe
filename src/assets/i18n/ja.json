@@ -3167,6 +3167,8 @@
       "import": "zip から読み込む",
       "trouble_picture": "この画像は読み込めませんでした。",
       "trouble_skin": "このファイルはスキンではないようです。",
+      "trouble_export": "スキンを書き出せませんでした。",
+      "trouble_reload": "ページを再読み込みしてから、もう一度お試しください。",
       "opacity": "透過率",
       "fit": "合わせ方",
       "anchor": "位置",

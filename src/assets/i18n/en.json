@@ -3167,6 +3167,8 @@
       "import": "Load a zip",
       "trouble_picture": "That picture could not be read.",
       "trouble_skin": "That file does not look like a skin.",
+      "trouble_export": "Could not export the skin.",
+      "trouble_reload": "Reload the page, then try again.",
       "opacity": "Opacity",
       "fit": "Fit",
       "anchor": "Placement",

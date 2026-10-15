@@ -85,7 +85,7 @@ export class SkinPickerComponent {
   protected readonly skinName = signal('');
 
   /** What went wrong with the last file that was handed over, for the line under the button. */
-  protected readonly trouble = signal<'' | 'picture' | 'skin'>('');
+  protected readonly trouble = signal<'' | 'picture' | 'skin' | 'export' | 'reload'>('');
 
   /** Which ladder is being dressed. The service holds it, so the preview follows along. */
   protected readonly editing = this.skins.editing;
@@ -206,7 +206,8 @@ export class SkinPickerComponent {
   }
 
   protected async exportSkin(): Promise<void> {
-    await this.skins.exportSkin(this.skinName());
+    const outcome = await this.skins.exportSkin(this.skinName());
+    this.trouble.set(outcome === 'done' ? '' : outcome === 'reload' ? 'reload' : 'export');
   }
 
   protected async importSkin(event: Event): Promise<void> {
@@ -214,7 +215,8 @@ export class SkinPickerComponent {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
-    this.trouble.set((await this.skins.importSkin(file)) ? '' : 'skin');
+    const outcome = await this.skins.importSkin(file);
+    this.trouble.set(outcome === 'done' ? '' : outcome === 'reload' ? 'reload' : 'skin');
   }
 
   protected rename(value: string): void {

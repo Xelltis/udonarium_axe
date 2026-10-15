@@ -1,10 +1,13 @@
 import { DOCUMENT } from '@angular/common';
 import { computed, DestroyRef, effect, inject, Injectable, linkedSignal, signal } from '@angular/core';
 import { ThemeService } from '@axe/application/ui/theme.service';
+import { Logger } from '@axe/core/logging/logger';
+import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
 import { looksLikeImage } from '@axe/core/storage/image-sniff';
 import { SKIN_IMAGE_MAX_BYTES, SKIN_IMAGE_MAX_SIDE, SkinImageStore } from '@axe/core/storage/skin-image-store';
-import { createZipBlob, readZipEntries } from '@axe/core/storage/zip-archive';
+import { ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
+import type { ZipEntry } from '@axe/core/storage/zip-archive-message';
 import { downloadBlob } from '@axe/core/util/download-blob';
 import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { resetChatBubbleBaseTone, setChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
@@ -66,6 +69,13 @@ function write(key: string, value: string): void {
 }
 
 /**
+ * What became of writing out or reading in a skin: done; refused, as a file that is no skin or a
+ * zip that could not be made; or not tried, since the code for zips could not be fetched and the
+ * page wants reloading.
+ */
+export type SkinFileOutcome = 'done' | 'refused' | 'reload';
+
+/**
  * Which colours the seat is dressed in.
  *
  * A skin belongs to this screen, not to the room: the people at a table may be sitting in
@@ -79,6 +89,7 @@ export class SkinService {
   private readonly document = inject(DOCUMENT);
   private readonly theme = inject(ThemeService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly archiver = inject(FileArchiver);
 
   private readonly chosen: Record<SkinMode, ReturnType<typeof signal<string>>> = {
     light: signal(asSkinId(read(SKIN_KEY.light), 'light')),
@@ -505,8 +516,11 @@ export class SkinService {
     return skin.pinned ? { ...skinTokens(skin.recipe, mode), ...skin.pinned } : skinTokens(skin.recipe, mode);
   }
 
-  /** Writes the skin being dressed out as a zip: its numbers, every picture it stacks, and its mat. */
-  async exportSkin(name: string, mode: SkinMode = this.editing()): Promise<void> {
+  /**
+   * Writes the skin being dressed out as a zip: its numbers, every picture it stacks, and its mat.
+   * Says whether it was written, could not be, or waits on a reload for the code that packs zips.
+   */
+  async exportSkin(name: string, mode: SkinMode = this.editing()): Promise<SkinFileOutcome> {
     const layers = this.stacks[mode]();
     const files: File[] = [];
     const packed: { layer: SkinLayer; entry: string }[] = [];
@@ -530,7 +544,15 @@ export class SkinService {
 
     const text = writeSkinFile(this.recipes[mode](), mode, name, packed, { color: mat.color, packed: matPacked });
     files.unshift(new File([text], SKIN_FILE_NAME, { type: 'application/json' }));
-    downloadBlob(await createZipBlob(files), skinFileName(name));
+    let zipped: Blob;
+    try {
+      zipped = await this.archiver.createZipBlobAsync(files);
+    } catch (reason) {
+      Logger.warn('[SkinService] スキンを書き出せませんでした', reason);
+      return reason instanceof ZipCodeUnavailableError ? 'reload' : 'refused';
+    }
+    downloadBlob(zipped, skinFileName(name));
+    return 'done';
   }
 
   /**
@@ -538,15 +560,21 @@ export class SkinService {
    * before mats were offered lays the plain one, as the rest of what it wears replaces the seat's.
    *
    * The whole skin is read before any of it is worn: a file whose pictures will not open is
-   * refused outright rather than taking the stack already on the seat down with it.
+   * refused outright rather than taking the stack already on the seat down with it. Says whether it
+   * was worn, refused, or waits on a reload for the code that unpacks zips.
    */
-  async importSkin(blob: Blob): Promise<boolean> {
-    const entries = await readZipEntries(blob).catch(() => []);
+  async importSkin(blob: Blob): Promise<SkinFileOutcome> {
+    let entries: ZipEntry[];
+    try {
+      entries = await this.archiver.readZipEntriesAsync(blob);
+    } catch (reason) {
+      return reason instanceof ZipCodeUnavailableError ? 'reload' : 'refused';
+    }
     const description = entries.find((entry) => entry.name === SKIN_FILE_NAME);
-    if (!description) return false;
+    if (!description) return 'refused';
 
     const skin = readSkinFile(await description.blob.text());
-    if (!skin) return false;
+    if (!skin) return 'refused';
 
     const mode = skin.mode;
     const brought: SkinLayer[] = [];
@@ -560,7 +588,7 @@ export class SkinService {
     }
     if (skin.layers.length > 0 && brought.length === 0) {
       this.releaseUnused();
-      return false;
+      return 'refused';
     }
 
     let mat: DiceMat = PLAIN_MAT;
@@ -584,7 +612,7 @@ export class SkinService {
     this.releaseUnused();
     this.build(skin.recipe, mode);
     this.editLadder(mode);
-    return true;
+    return 'done';
   }
 
   private paint(tokens: SkinTokens | null, mode: SkinMode): void {

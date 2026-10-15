@@ -3167,6 +3167,8 @@
       "import": "zip에서 불러오기",
       "trouble_picture": "이 그림을 읽을 수 없었습니다.",
       "trouble_skin": "이 파일은 스킨이 아닌 것 같습니다.",
+      "trouble_export": "스킨을 내보내지 못했습니다.",
+      "trouble_reload": "페이지를 새로고침한 뒤 다시 시도해 주세요.",
       "opacity": "투명도",
       "fit": "맞춤",
       "anchor": "위치",
