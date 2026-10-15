@@ -1,7 +1,7 @@
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import visibility from '@axe/core/network/server/contract/visibility.json';
-import { AUTHORITY_PEER_ID } from '@axe/core/network/server/server-protocol';
+import { AUTHORITY_PEER_ID, AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
@@ -87,16 +87,52 @@ describe('objects a room server hands over with parts kept back', () => {
     vi.restoreAllMocks();
   });
 
-  for (const room of Object.keys(visibility.rooms) as Room[]) {
-    it(`takes the ${room} as a player is handed it, and writes nothing back`, async () => {
-      for (const context of handedTo(room, 'player')) {
-        localDispatch('UPDATE_GAME_OBJECT', context, AUTHORITY_PEER_ID);
-      }
-      await settle();
-
-      expect(written()).toEqual([]);
-    });
+  /** Takes the seat of a viewer in the fixture. */
+  function beViewer(viewer: Viewer, role: PeerRole): void {
+    beMyself(visibility.viewers[viewer].userId);
+    PeerCursor.myCursor.userId = visibility.viewers[viewer].userId;
+    PeerCursor.myCursor.role = role;
   }
+
+  // The server hands things over as updates, and as its own word for those that come into view
+  // later or for a change it puts back.
+  const handings = ['UPDATE_GAME_OBJECT', AuthorityEvent.AUTHORITATIVE];
+  const seats = [
+    ['player', PeerRole.Player],
+    ['guest', PeerRole.Guest],
+  ] as const;
+  for (const room of Object.keys(visibility.rooms) as Room[]) {
+    for (const [viewer, role] of seats) {
+      for (const eventName of handings) {
+        it(`takes the ${room} as a ${viewer} is handed it in ${eventName}, and writes nothing back`, async () => {
+          beViewer(viewer, role);
+          await settle();
+          send.mockClear();
+          for (const context of handedTo(room, viewer)) {
+            localDispatch(eventName, context, AUTHORITY_PEER_ID);
+          }
+          await settle();
+
+          expect(written()).toEqual([]);
+        });
+      }
+    }
+  }
+
+  it('shows a guest a die the server kept the face of as kept, and a memo as masked', () => {
+    beViewer('guest', PeerRole.Guest);
+    for (const room of ['dice', 'note'] as const) {
+      for (const context of handedTo(room, 'guest')) {
+        localDispatch(AuthorityEvent.AUTHORITATIVE, context, AUTHORITY_PEER_ID);
+      }
+    }
+    const kept = visibility.cases.filter(
+      (entry) => (entry.room === 'dice' || entry.room === 'note') && entry.expect.guest === 'masked'
+    );
+
+    expect(kept.length).toBeGreaterThan(0);
+    for (const entry of kept) expect(ObjectStore.instance.get(entry.identifier)).not.toBeNull();
+  });
 
   it('shows a player the back of a card whose face it was not handed', () => {
     for (const context of handedTo('faceDownCard', 'player')) {
