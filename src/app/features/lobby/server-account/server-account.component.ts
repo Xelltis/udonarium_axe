@@ -38,6 +38,8 @@ export class ServerAccountComponent {
   });
 
   protected login(): void {
+    this.isConfirmingDelete.set(false);
+    this.deleteFailed.set(false);
     void this.auth.startLogin();
   }
 

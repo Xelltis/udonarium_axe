@@ -45,11 +45,6 @@
           {{ 'feature.lobby.account.delete' | transloco }}
         </button>
       }
-      @if (deleteFailed()) {
-        <span class="text-ui-danger basis-full text-[0.75rem]">{{
-          'feature.lobby.account.deleteFailed' | transloco
-        }}</span>
-      }
     } @else {
       <button
         class="rounded-ui-sm border-ui-accent text-ui-accent hover:bg-ui-accent-bg cursor-pointer border border-solid bg-transparent px-2.5 py-0.5 text-[0.8rem] whitespace-nowrap"
@@ -63,6 +58,11 @@
       </button>
       <span class="text-ui-muted min-w-0 flex-1 text-xs/normal">{{
         'feature.lobby.account.guestHint' | transloco
+      }}</span>
+    }
+    @if (deleteFailed()) {
+      <span class="text-ui-danger basis-full text-[0.75rem]" data-testid="server-account-delete-failed">{{
+        (account() ? 'feature.lobby.account.deleteFailed' : 'feature.lobby.account.deleteFailedLoggedOut') | transloco
       }}</span>
     }
     @if (errorKey()) {

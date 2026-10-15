@@ -68,6 +68,27 @@ describe('ServerAccountComponent', () => {
     expect(auth.deleteAccount).toHaveBeenCalled();
   });
 
+  it('still says the account was not deleted once the attempt has logged it out, until the next login', async () => {
+    account.set({ userId: 'acct_1', name: 'Kai', avatarUrl: null });
+    auth.deleteAccount.mockImplementationOnce(async () => {
+      account.set(null);
+      throw new Error('login-required');
+    });
+    const fixture = render();
+    const element = fixture.nativeElement as HTMLElement;
+    find(element, 'server-account-delete')!.click();
+    fixture.detectChanges();
+
+    find(element, 'server-account-delete-confirm')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(find(element, 'server-account-delete-failed')!.textContent).toContain('ログインし直して');
+    find(element, 'server-account-login')!.click();
+    fixture.detectChanges();
+    expect(find(element, 'server-account-delete-failed')).toBeNull();
+  });
+
   it('says why a login failed', () => {
     error.set('denied');
     const element = render().nativeElement as HTMLElement;

@@ -3375,6 +3375,7 @@
         "deleteConfirmButton": "삭제",
         "deleteCancel": "취소",
         "deleteFailed": "계정을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        "deleteFailedLoggedOut": "계정을 삭제하지 못했습니다. 다시 로그인한 뒤 한 번 더 삭제해 주세요.",
         "guestHint": "로그인하지 않으면 관전 상태로 들어갑니다. 방을 만들거나 테이블을 움직이려면 로그인해 주세요.",
         "unavailable": "이 서버에는 로그인이 준비되어 있지 않아 방을 쓸 수 없습니다.",
         "errors": {
