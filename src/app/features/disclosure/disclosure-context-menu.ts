@@ -70,7 +70,10 @@ export function buildDisclosureContextMenu(object: DisclosableObject, t: Transla
   const isGameMaster = PeerCursor.isMyselfGameMaster;
   const viewer = { userId: myUserId, isGameMaster, ownerUserId };
   const canEdit = canEditDisclosure(viewer);
-  const canClaim = myUserId.length > 0 && canClaimOwnership(object, viewer) && canRoleEdit(PeerCursor.myRole);
+  const canClaim =
+    myUserId.length > 0 &&
+    canClaimOwnership(object, viewer, Network.authorityPeerId !== null) &&
+    canRoleEdit(PeerCursor.myRole);
   const showOwnerMenu = isGameMaster || canClaim;
   if (!canEdit && !showOwnerMenu) return [];
 

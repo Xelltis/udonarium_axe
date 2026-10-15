@@ -1,3 +1,4 @@
+import { Network } from '@axe/core/network/network';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { buildDisclosureContextMenu } from '@axe/features/disclosure/disclosure-context-menu';
@@ -23,6 +24,7 @@ describe('buildDisclosureContextMenu', () => {
 
   afterEach(() => {
     PeerCursor.myCursor = original;
+    vi.restoreAllMocks();
   });
 
   it('offers a player ownership of an unowned character, but not who may see it', () => {
@@ -32,9 +34,18 @@ describe('buildDisclosureContextMenu', () => {
     expect(find(menu, 'feature.disclosure.label')).toBeFalsy();
   });
 
-  it('offers a player no ownership of an unowned memo kept for the game master', () => {
+  it('offers a player no ownership of an unowned memo a room server keeps for the game master', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
     setMe('p1', PeerRole.Player);
     expect(buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'gm' }, t)).toEqual([]);
+  });
+
+  it('offers a player among peers ownership of an unowned memo kept for the game master, as before', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+    setMe('p1', PeerRole.Player);
+    expect(
+      find(buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'gm' }, t), 'feature.disclosure.owner')
+    ).toBeTruthy();
   });
 
   it('offers a player nothing on somebody elses character', () => {

@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { Network } from '@axe/core/network/network';
 import {
   canClaimOwnership,
   canEditDisclosure,
@@ -28,12 +29,17 @@ export class DisclosureService {
    * Whether this reader may change who owns an object.
    *
    * The game master and the owner always may. An object nobody owns may be claimed by any connected
-   * reader whose role lets them edit the table, and who may see what it keeps back.
+   * reader whose role lets them edit the table, and, in a room server's room, who may see what it
+   * keeps back.
    */
   canSetOwner(object: Disclosable & { owner?: string }): boolean {
     const viewer = this.viewer(object.owner);
     if (canEditDisclosure(viewer)) return true;
-    return viewer.userId.length > 0 && canClaimOwnership(object, viewer) && canRoleEdit(PeerCursor.myRole);
+    return (
+      viewer.userId.length > 0 &&
+      canClaimOwnership(object, viewer, Network.authorityPeerId !== null) &&
+      canRoleEdit(PeerCursor.myRole)
+    );
   }
 
   private viewer(ownerUserId?: string): DisclosureViewer {

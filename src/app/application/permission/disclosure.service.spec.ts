@@ -1,4 +1,5 @@
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
+import { Network } from '@axe/core/network/network';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 
@@ -12,6 +13,7 @@ describe('DisclosureService', () => {
 
   afterEach(() => {
     PeerCursor.myCursor = original;
+    vi.restoreAllMocks();
   });
 
   it('lets the GM view and edit anything', () => {
@@ -46,9 +48,16 @@ describe('DisclosureService', () => {
     expect(service.canSetOwner({ ...shown, owner: 'p2' })).toBe(false);
   });
 
-  it('does not let a player take an unowned object kept for the game master', () => {
+  it('does not let a player take an unowned object a room server keeps for the game master', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
     setMe('p1', PeerRole.Player);
     expect(service.canSetOwner({ disclosureMode: 'gm', disclosureUserIds: [], owner: '' })).toBe(false);
+  });
+
+  it('lets a player among peers take an unowned object kept for the game master, as before', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+    setMe('p1', PeerRole.Player);
+    expect(service.canSetOwner({ disclosureMode: 'gm', disclosureUserIds: [], owner: '' })).toBe(true);
   });
 
   it('does not let a guest set the owner of an unowned object', () => {
