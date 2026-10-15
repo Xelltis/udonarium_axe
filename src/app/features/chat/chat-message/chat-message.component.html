@@ -239,7 +239,8 @@
                 >verified_user</i
               >
             }
-            ：
+            <!-- The colon is an element of its own, so no whitespace slips in between the name and it. -->
+            <span>：</span>
             @if (simpleDispFlagUserId()) {
               <font class="tip msg-from" [title]="chatMessage.from">{{ shortFrom(chatMessage.from) }}</font>
             }

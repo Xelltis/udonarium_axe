@@ -1464,6 +1464,15 @@ describe('ChatMessageComponent', () => {
       expect(mark()).not.toBeNull();
     });
 
+    it('keeps the name and the colon together in the simple layout', () => {
+      const answer = tab.addMessage({ from: 'someone', name: 'ノア', text: 'こんにちは', timestamp: 1000 });
+      fixture.componentRef.setInput('chatMessage', answer);
+      fixture.componentRef.setInput('chatSimpleDispFlag', true);
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('ノア：');
+    });
+
     it('wears none on a roll made by a player’s own device', () => {
       const answer = tab.addMessage({
         from: 'System-BCDice',
