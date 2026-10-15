@@ -776,6 +776,21 @@ describe('ServerConnection', () => {
       expect(errors).toEqual([]);
     });
 
+    it('gets back in, rather than giving up, when the login cannot be refreshed just now', async () => {
+      const socket = await enterRoom();
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+      replaceRejected.mockRejectedValueOnce(new Error('offline'));
+
+      socket.deliver({ type: 'error', code: 'unauthorized', protocolVersion: PROTOCOL_VERSION });
+      socket.close(4000, 'unauthorized');
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(errors).toEqual([]);
+      expect(calls).toContain('reconnect retrying');
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(FakeWebSocket.instances.length).toBe(2);
+    });
+
     it('gives up when the server turns the login down again', async () => {
       tokens = ['token-1', 'token-2'];
       const socket = await openRoom();

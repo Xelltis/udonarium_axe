@@ -685,7 +685,18 @@ export class ServerConnection implements Connection {
     try {
       replaced = await this.credentialSource.replaceRejected(rejected);
     } catch {
-      replaced = null;
+      // The login could not be refreshed just now, with the server out of reach: that says nothing
+      // of the login, so the seat gets back in as after a dropped link, which asks again.
+      if (this.stopped) return;
+      this.retriedUnauthorized = false;
+      if (!this.everWelcomed) {
+        this.fail(SERVER_UNREACHABLE, 'the login could not be refreshed');
+      } else if (this.reconnectScheduler.schedule(SOCKET_KEY, () => this.connectSocket()) == null) {
+        this.fail(SERVER_UNREACHABLE, 'the room server stayed out of reach');
+      } else {
+        this.callback.onReconnect?.(this.me, 'retrying');
+      }
+      return;
     }
     if (this.stopped) return;
     if (!replaced) {
