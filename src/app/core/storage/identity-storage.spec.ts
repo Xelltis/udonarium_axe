@@ -68,6 +68,13 @@ describe('identity-storage', () => {
     expect(guestUserIdOf(loadIdentity())).toBe('');
   });
 
+  it('keeps the guest id saved before when an account’s identity is saved without one', () => {
+    saveIdentity({ ...sample, userId: 'tab-own' });
+    saveIdentity({ userId: 'acct_1234', roomId: 'r', roomName: 'n', role: 'gm', reConnectPass: '' });
+
+    expect(guestUserIdOf(loadIdentity())).toBe('tab-own');
+  });
+
   it('returns null for corrupt JSON', () => {
     sessionStorage.setItem('udonarium-axe.identity', '{not json');
     expect(loadIdentity()).toBeNull();

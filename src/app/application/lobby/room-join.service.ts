@@ -13,6 +13,9 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 export const ROOM_OPEN_TIMEOUT_MS = SAME_NAME_MEMBER_WAIT_MS + 10_000;
 /** How long the others in the room may take to answer once it is open. */
 export const ROOM_CONNECT_TIMEOUT_MS = 15_000;
+/** The peer id a session reports before it has one of its own. */
+const UNOPENED_PEER_ID = '???';
+
 /** How long a room server may take to let this seat in. */
 export const ROOM_SERVER_OPEN_TIMEOUT_MS = 30_000;
 
@@ -89,8 +92,10 @@ export class RoomJoinService {
         this.objectStore.clearDeleteHistory();
         settle(true);
       }, this.destroyRef);
+      // A room server's session fails before it has a peer id when the login cannot be refreshed;
+      // its error carries the placeholder id, and is this join's as much as one under its own id.
       const offError = this.objectChange.networkError$.subscribe((event) => {
-        if (event.peerId && !isOwnConnectionTo(room.id, event.peerId)) return;
+        if (event.peerId && event.peerId !== UNOPENED_PEER_ID && !isOwnConnectionTo(room.id, event.peerId)) return;
         settle(false);
       }, this.destroyRef);
       const timer = setTimeout(() => settle(false), ROOM_SERVER_OPEN_TIMEOUT_MS);

@@ -40,8 +40,10 @@ export function guestUserIdOf(identity: PersistedIdentity | null): string {
  * storage is unavailable nothing is kept and nothing is thrown.
  */
 export function saveIdentity(identity: PersistedIdentity): void {
+  // Whoever saves without naming the guest id keeps the one saved before, so a login never loses it.
+  const kept = { ...identity, guestUserId: identity.guestUserId ?? guestUserIdAfter(identity.userId, loadIdentity()) };
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(identity));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(kept));
   } catch {
     /* sessionStorage unavailable (private mode, SSR etc) — identity continuity is best-effort */
   }
@@ -71,6 +73,14 @@ export function loadIdentity(): PersistedIdentity | null {
     /* corrupt or unavailable storage — fall back to a fresh identity */
     return null;
   }
+}
+
+/**
+ * The guest id to keep beside a user id about to be saved: the user id itself when it is the tab's
+ * own, or the one kept before when it is an account's.
+ */
+export function guestUserIdAfter(userId: string, saved: PersistedIdentity | null): string {
+  return isAccountUserId(userId) ? guestUserIdOf(saved) : userId;
 }
 
 /** Forgets the identity saved for this tab, so the next load starts as a new user. */

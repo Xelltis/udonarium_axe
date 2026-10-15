@@ -122,6 +122,18 @@ describe('RoomJoinService', () => {
       expect(Network.openStandby).toHaveBeenCalled();
     });
 
+    it('gives up at once when the session fails before it has a peer id of its own', async () => {
+      const joined = service.joinServerRoom(serverRoom(), '');
+      stubChange.networkError$.emit({
+        peerId: '???',
+        errorType: 'server-unreachable',
+        errorMessage: '',
+        errorObject: null,
+      } as NetworkErrorEvent);
+
+      expect(await joined).toBe(false);
+    });
+
     it('gives up when the server never lets it in', async () => {
       vi.useFakeTimers();
       const joined = service.joinServerRoom(serverRoom(), '');

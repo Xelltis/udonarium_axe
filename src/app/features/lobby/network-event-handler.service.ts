@@ -10,16 +10,11 @@ import { PeerContext } from '@axe/core/network/peer-context';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { MAX_MEMBERS } from '@axe/core/network/server/server-protocol';
 import { SAME_NAME_MEMBER_ERROR } from '@axe/core/network/skyway/same-name-member';
-import {
-  guestUserIdOf,
-  isAccountUserId,
-  loadIdentity,
-  PersistedIdentity,
-  saveIdentity,
-} from '@axe/core/storage/identity-storage';
+import { guestUserIdAfter, guestUserIdOf, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { handOverOwnership } from '@axe/domain/peer/ownership';
 import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { DEFAULT_PEER_ROLE } from '@axe/domain/peer/peer-role';
 
 /** What to say for each reason the room server gives for keeping a role as it was. */
 const ROLE_REJECTED_KEYS: Readonly<Record<string, string>> = {
@@ -77,6 +72,9 @@ export class NetworkEventHandlerService {
       PeerCursor.myCursor.peerId = peer.peerId;
       PeerCursor.myCursor.userId = peer.userId;
       this.takeServerRole();
+      // Outside a room nobody hands out roles, and a role a room gave must not keep the solo table
+      // read-only; on a room server, waiting outside a room is playing as a player.
+      if (Network.transport === 'server' && !peer.isRoom) PeerCursor.myCursor.role = DEFAULT_PEER_ROLE;
       this.rememberIdentity(peer);
       const account = Network.transport === 'server' ? this.auth.account() : null;
       if (account) this.lendAccountLook(account.name, account.avatarUrl);
@@ -223,7 +221,7 @@ export class NetworkEventHandlerService {
     const peer = Network.peerContext;
     const next = this.standbyUserId() ?? PeerContext.generateUserId();
     if (peer.isRoom) {
-      Network.open(next, peer.roomId, peer.roomName, PeerCursor.myCursor.reConnectPass, Network.roomKey ?? undefined);
+      Network.open(next, peer.roomId, peer.roomName, peer.password, Network.roomKey ?? undefined);
       return;
     }
     handOverOwnership(peer.userId, next);
@@ -313,12 +311,4 @@ export class NetworkEventHandlerService {
         return encodeI18nMessage('feature.lobby.errors.generic', { errorType });
     }
   }
-}
-
-/**
- * The guest id to keep beside a user id about to be saved: the user id itself when it is the tab's
- * own, or the one kept before when it is an account's.
- */
-function guestUserIdAfter(userId: string, saved: PersistedIdentity | null): string {
-  return isAccountUserId(userId) ? guestUserIdOf(saved) : userId;
 }

@@ -388,10 +388,12 @@ describe('NetworkEventHandlerService', () => {
         userId: 'tab-1',
         roomId: 'Ab3',
         roomName: '月夜の卓',
+        password: 'secret',
       } as never);
       vi.spyOn(Network, 'roomKey', 'get').mockReturnValue('0123456789abcdef0123456789abcdef');
       const open = vi.spyOn(Network, 'open').mockImplementation(() => {});
-      PeerCursor.myCursor.reConnectPass = 'secret';
+      // the password the room was opened with, not what a dialog left on the cursor
+      PeerCursor.myCursor.reConnectPass = '';
 
       account.set(ACCOUNT);
       TestBed.tick();
@@ -447,6 +449,16 @@ describe('NetworkEventHandlerService', () => {
       stubChange.networkOpen$.emit({ peerId: 'p' });
 
       expect(PeerCursor.myCursor.role).toBe('guest');
+    });
+
+    it('plays as a player outside a room, whatever role a room gave', () => {
+      PeerCursor.myCursor.role = 'guest';
+      vi.spyOn(Network, 'serverRole', 'get').mockReturnValue(null);
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ peerId: 'p', userId: 'u', isRoom: false } as never);
+
+      stubChange.networkOpen$.emit({ peerId: 'p' });
+
+      expect(PeerCursor.myCursor.role).toBe('pl');
     });
 
     it('says why the server kept a role as it was', () => {
