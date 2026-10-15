@@ -190,10 +190,11 @@ describe('Network', () => {
       instance['connection'] = null;
     });
 
-    it('comes back into the room when a page left for the cache is shown again', () => {
+    it('comes back into a room server’s room when a page left for the cache is shown again', () => {
       const instance = Network.instance as unknown as Record<string, unknown>;
       const rejoinAfterLeave = vi.fn(async () => {});
       instance['connection'] = { rejoinAfterLeave } as unknown;
+      const transport = vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
       const show = instance['callbackPageShow'] as (e: PageTransitionEvent) => void;
 
       show({ persisted: false } as PageTransitionEvent);
@@ -201,6 +202,21 @@ describe('Network', () => {
       show({ persisted: true } as PageTransitionEvent);
 
       expect(rejoinAfterLeave).toHaveBeenCalled();
+      transport.mockRestore();
+      instance['connection'] = null;
+    });
+
+    it('leaves SkyWay as it was when a page left for the cache is shown again', () => {
+      const instance = Network.instance as unknown as Record<string, unknown>;
+      const rejoinAfterLeave = vi.fn(async () => {});
+      instance['connection'] = { rejoinAfterLeave } as unknown;
+      const transport = vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('skyway');
+      const show = instance['callbackPageShow'] as (e: PageTransitionEvent) => void;
+
+      show({ persisted: true } as PageTransitionEvent);
+
+      expect(rejoinAfterLeave).not.toHaveBeenCalled();
+      transport.mockRestore();
       instance['connection'] = null;
     });
 

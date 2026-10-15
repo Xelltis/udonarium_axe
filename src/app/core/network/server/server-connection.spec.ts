@@ -395,6 +395,26 @@ describe('ServerConnection', () => {
     expect(await socket.frames()).not.toContainEqual(expect.objectContaining({ type: 'send' }));
   });
 
+  it('lets go of the server for a page left for the cache, and comes back into the room when it is shown again', async () => {
+    const socket = await enterRoom();
+    calls = [];
+
+    connection.leaveImmediately();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(socket.readyState).toBe(3);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    expect(calls).toEqual([]);
+
+    await connection.rejoinAfterLeave();
+    const again = latest();
+    welcomeBack(again);
+
+    await vi.waitFor(() => expect(calls).toContain('reconnect recovered'));
+    expect(FakeWebSocket.instances).toHaveLength(2);
+    expect((await again.frames())[0]).toMatchObject({ type: 'hello', peerId: connection.peerId });
+  });
+
   it('keeps the connection while the server answers', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
     const socket = await enterRoom();

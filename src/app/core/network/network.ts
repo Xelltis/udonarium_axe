@@ -175,11 +175,12 @@ export class Network {
   };
 
   /**
-   * Comes back into the room when a page left for the back-forward cache is shown again; without
-   * this, the restored page looked open while it sent and heard nothing.
+   * Comes back into a room server's room when a page left for the back-forward cache is shown
+   * again; without this, the restored page looked open while it sent and heard nothing. SkyWay is
+   * left as it was.
    */
   private callbackPageShow: (e: PageTransitionEvent) => void = (e: PageTransitionEvent) => {
-    if (e.persisted) void this.connection?.rejoinAfterLeave?.();
+    if (e.persisted && this.transport === 'server') void this.connection?.rejoinAfterLeave?.();
   };
 
   private callbackBeforeUnload: (e: BeforeUnloadEvent) => void = (e: BeforeUnloadEvent) => {
