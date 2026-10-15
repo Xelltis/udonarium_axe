@@ -147,6 +147,24 @@ describe('AssetHttpStore', () => {
       expect(new Headers((fetchSpy.mock.calls[0][1] as RequestInit).headers).has('X-Asset-Name')).toBe(false);
     });
 
+    it('sends a name with half a character in it, writing that half as the replacement character', async () => {
+      respond(new Response(null, { status: 404 }), new Response('{}', { status: 201 }));
+
+      expect(await store.upload(id, new Blob([bytes]), 'map\uD83D.png')).toBe('stored');
+
+      const put = new Headers((fetchSpy.mock.calls[1][1] as RequestInit).headers);
+      expect(decodeURIComponent(put.get('X-Asset-Name')!)).toBe('map\uFFFD.png');
+    });
+
+    it('cuts a long name before a character the cut would halve, not through it', async () => {
+      respond(new Response(null, { status: 404 }), new Response('{}', { status: 201 }));
+
+      await store.upload(id, new Blob([bytes]), `${'x'.repeat(254)}🐉🐉`);
+
+      const put = new Headers((fetchSpy.mock.calls[1][1] as RequestInit).headers);
+      expect(decodeURIComponent(put.get('X-Asset-Name')!)).toBe(`${'x'.repeat(254)}`);
+    });
+
     it('fails for now outside a room, without asking the server anything', async () => {
       access = null;
 

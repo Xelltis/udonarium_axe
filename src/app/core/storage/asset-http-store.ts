@@ -25,6 +25,20 @@ const RATE_LIMIT_BACKOFF_MS = [10_000, 20_000, 40_000];
  */
 const REFUSED_STATUSES = new Set([400, 403, 413, 415, 451]);
 
+/**
+ * A picture's or sound's name as the upload's header carries it: well formed, no longer than the
+ * server keeps, and percent-encoded. A half of a character, which encodeURIComponent cannot take, is
+ * written as the replacement character. Empty for no name.
+ */
+function assetNameHeader(name: string): string {
+  let kept = name.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '\uFFFD');
+  if (kept.length > MAX_ASSET_NAME_LENGTH) {
+    kept = kept.slice(0, MAX_ASSET_NAME_LENGTH);
+    if (/[\uD800-\uDBFF]$/.test(kept)) kept = kept.slice(0, -1);
+  }
+  return kept ? encodeURIComponent(kept) : '';
+}
+
 /** Runs at most `limit` tasks at a time, the rest in the order they were queued. */
 class TaskQueue {
   private running = 0;
@@ -107,9 +121,8 @@ export class AssetHttpStore {
   upload(identifier: string, blob: Blob, name = ''): Promise<AssetUploadResult> {
     if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return Promise.resolve('refused');
     // The name goes along so that the room's list can name a picture or sound nobody else describes.
-    const named: Record<string, string> = name
-      ? { [ASSET_NAME_HEADER]: encodeURIComponent(name.slice(0, MAX_ASSET_NAME_LENGTH)) }
-      : {};
+    const header = assetNameHeader(name);
+    const named: Record<string, string> = header ? { [ASSET_NAME_HEADER]: header } : {};
     return this.uploads.run(async () => {
       try {
         // Asked when its turn comes, so that a queued upload goes to the room the seat is in by then.
