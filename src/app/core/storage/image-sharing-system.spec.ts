@@ -92,7 +92,7 @@ describe('ImageSharingSystem', () => {
       send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
       store.configure('https://rooms.example');
       store.useAccess(() => ({ roomKey: '0123456789abcdef0123456789abcdef', token: 'asset-1' }));
-      download = vi.spyOn(store, 'download').mockResolvedValue(fetchedBlob);
+      download = vi.spyOn(store, 'download').mockResolvedValue({ blob: fetchedBlob, name: '' });
       vi.spyOn(ImageFile, 'contextFromBytesAsync').mockImplementation(async (identifier, blob) => ({
         identifier,
         name: '',
@@ -124,6 +124,15 @@ describe('ImageSharingSystem', () => {
       await vi.waitFor(() => expect(ImageStorage.instance.get(pictureId)?.state).toBe(ImageState.COMPLETE));
       expect(download).toHaveBeenCalledWith(pictureId);
       expect(requestsSent()).toEqual([]);
+    });
+
+    it('names a picture it took from the server by the name it was put up under', async () => {
+      download.mockResolvedValue({ blob: fetchedBlob, name: 'map.png' });
+
+      receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }]);
+
+      await vi.waitFor(() => expect(ImageStorage.instance.get(pictureId)?.state).toBe(ImageState.COMPLETE));
+      expect(ImageStorage.instance.get(pictureId)?.name).toBe('map.png');
     });
 
     it('asks the peer that named the image when the server does not have it', async () => {

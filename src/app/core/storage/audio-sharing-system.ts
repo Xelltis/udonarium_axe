@@ -203,21 +203,22 @@ export class AudioSharingSystem {
     this.httpFetching.set(identifier, catalogPeer);
     void store
       .download(identifier)
-      .then((blob) => {
-        if (typeof blob !== 'string') {
+      .then((fetched) => {
+        if (typeof fetched !== 'string') {
           this.httpRetries.forget(identifier);
-          // The name stays the one the catalogue or the room's list gave.
-          const name = AudioStorage.instance.get(identifier)?.name ?? '';
+          // The name stays the one the catalogue or the room's list gave, or else the one it was put up under.
+          const name = AudioStorage.instance.get(identifier)?.name || fetched.name;
+          const { blob } = fetched;
           localDispatch('UPDATE_AUDIO_RESOURE', [{ identifier, name, type: blob.type, blob, url: '' }]);
           AudioStorage.instance.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
           return;
         }
-        if (blob === 'missing') this.httpMissed.add(identifier);
+        if (fetched === 'missing') this.httpMissed.add(identifier);
         const audio = AudioStorage.instance.get(identifier);
         if (!audio || AudioState.COMPLETE <= audio.state) return;
         const namedBy = this.httpFetching.get(identifier) ?? null;
         if (namedBy === null) {
-          if (blob === 'failed') this.httpRetries.schedule(identifier, () => this.fetchListedAgain(identifier));
+          if (fetched === 'failed') this.httpRetries.schedule(identifier, () => this.fetchListedAgain(identifier));
           return;
         }
         if (this.receiveTaskMap.has(identifier) || this.isLimitReceiveTask()) return;

@@ -243,11 +243,12 @@ export class ImageSharingSystem {
   }
 
   private async receiveOverHttp(identifier: string): Promise<true | AssetDownloadMiss> {
-    const blob = await AssetHttpStore.instance.download(identifier);
-    if (typeof blob === 'string') return blob;
+    const fetched = await AssetHttpStore.instance.download(identifier);
+    if (typeof fetched === 'string') return fetched;
     let context: ImageContext;
     try {
-      context = await ImageFile.contextFromBytesAsync(identifier, blob);
+      // The name it was put up under fills in an entry with none; one the entry has stays.
+      context = { ...(await ImageFile.contextFromBytesAsync(identifier, fetched.blob)), name: fetched.name };
     } catch (reason) {
       Logger.warn('[ImageSync] サーバーから受け取った画像を読めませんでした', identifier, reason);
       return 'missing';

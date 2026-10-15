@@ -18,6 +18,12 @@ export type AssetUploadResult = 'stored' | 'exists' | 'refused' | 'failed';
  */
 export type AssetDownloadMiss = 'missing' | 'failed';
 
+/** Bytes fetched from the store, with the name they were put up under, or empty for none. */
+export interface AssetDownload {
+  blob: Blob;
+  name: string;
+}
+
 const ASSET_ID = /^[0-9a-f]{64}$/;
 
 const UPLOAD_CONCURRENCY = 2;
@@ -44,6 +50,16 @@ function assetNameHeader(name: string): string {
     if (/[\uD800-\uDBFF]$/.test(kept)) kept = kept.slice(0, -1);
   }
   return kept ? encodeURIComponent(kept) : '';
+}
+
+/** The name a download's header carries, read back from its percent-encoding; empty for none or one unreadable. */
+function assetNameOf(header: string | null): string {
+  if (!header) return '';
+  try {
+    return decodeURIComponent(header);
+  } catch {
+    return '';
+  }
 }
 
 /** Runs at most `limit` tasks at a time, the rest in the order they were queued. */
@@ -162,14 +178,15 @@ export class AssetHttpStore {
   }
 
   /**
-   * Fetches the bytes stored under an identifier. Without them it says why: `missing` when the
-   * server lacks them or sends bytes whose hash is not the identifier, `failed` when the request
-   * failed, as when the server asks for fewer requests or cannot be reached, or there is no room.
+   * Fetches the bytes stored under an identifier, with the name they were put up under. Without them
+   * it says why: `missing` when the server lacks them or sends bytes whose hash is not the
+   * identifier, `failed` when the request failed, as when the server asks for fewer requests or
+   * cannot be reached, or there is no room.
    */
-  download(identifier: string): Promise<Blob | AssetDownloadMiss> {
+  download(identifier: string): Promise<AssetDownload | AssetDownloadMiss> {
     if (!AssetHttpStore.isAssetId(identifier)) return Promise.resolve('missing');
     if (!this.baseUrl) return Promise.resolve('failed');
-    return this.downloads.run(async (): Promise<Blob | AssetDownloadMiss> => {
+    return this.downloads.run(async (): Promise<AssetDownload | AssetDownloadMiss> => {
       try {
         const res = await this.authorized((access) =>
           this.request(this.urlOf(access, identifier), { method: 'GET', headers: this.headersOf(access) })
@@ -181,7 +198,8 @@ export class AssetHttpStore {
           Logger.warn('[AssetHttpStore] 受け取ったデータのハッシュが名前と一致しません', identifier);
           return 'missing';
         }
-        return new Blob([bytes], { type: res.headers.get('Content-Type') ?? '' });
+        const blob = new Blob([bytes], { type: res.headers.get('Content-Type') ?? '' });
+        return { blob, name: assetNameOf(res.headers.get(ASSET_NAME_HEADER)) };
       } catch (reason) {
         Logger.warn('[AssetHttpStore] ダウンロードに失敗しました', identifier, reason);
         return 'failed';

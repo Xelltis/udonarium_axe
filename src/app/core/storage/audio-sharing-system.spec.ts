@@ -261,7 +261,7 @@ describe('AudioSharingSystem', () => {
     beforeEach(() => {
       store.configure('https://rooms.example');
       store.useAccess(() => ({ roomKey: '0123456789abcdef0123456789abcdef', token: 'asset-1' }));
-      download = vi.spyOn(store, 'download').mockResolvedValue(fetchedBlob);
+      download = vi.spyOn(store, 'download').mockResolvedValue({ blob: fetchedBlob, name: '' });
       AudioStorageMock.get.mockImplementation((id: string) => makeAudioFile({ identifier: id }));
       AudioSharingSystem.instance.initialize();
     });
@@ -283,6 +283,27 @@ describe('AudioSharingSystem', () => {
       );
       expect(download).toHaveBeenCalledWith(trackId);
       expect(requestsSent()).toEqual([]);
+    });
+
+    it('names a sound with no name by the one it was put up under, and keeps one it has', async () => {
+      download.mockResolvedValue({ blob: fetchedBlob, name: 'theme.ogg' });
+      AudioStorageMock.get.mockImplementation((id: string) =>
+        id === trackId ? AudioFile.createEmpty(id) : AudioFile.createEmpty(id, 'kept.ogg')
+      );
+      const otherId = 'e'.repeat(64);
+
+      emit('SYNCHRONIZE_AUDIO_LIST', [
+        { identifier: trackId, state: AudioState.COMPLETE },
+        { identifier: otherId, state: AudioState.COMPLETE },
+      ]);
+
+      await vi.waitFor(() => expect(AudioStorageMock.add).toHaveBeenCalledTimes(2));
+      expect(AudioStorageMock.add).toHaveBeenCalledWith(
+        expect.objectContaining({ identifier: trackId, name: 'theme.ogg' })
+      );
+      expect(AudioStorageMock.add).toHaveBeenCalledWith(
+        expect.objectContaining({ identifier: otherId, name: 'kept.ogg' })
+      );
     });
 
     it('asks the peer that named the audio when the server does not have it', async () => {

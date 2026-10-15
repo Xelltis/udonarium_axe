@@ -1,5 +1,5 @@
 import type { AssetAccess } from '@axe/core/network/connection';
-import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
+import { AssetDownload, AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { sha256Hex } from '@axe/core/util/crypto-util';
 import type { MockInstance } from 'vitest';
 
@@ -251,13 +251,24 @@ describe('AssetHttpStore', () => {
   });
 
   describe('download', () => {
+    it('hands back the name the bytes were put up under, and none it cannot read', async () => {
+      respond(
+        new Response(bytes, { status: 200, headers: { 'X-Asset-Name': encodeURIComponent('ドラゴン.png') } }),
+        new Response(bytes, { status: 200, headers: { 'X-Asset-Name': '%E3%81' } })
+      );
+
+      expect(((await store.download(id)) as AssetDownload).name).toBe('ドラゴン.png');
+      expect(((await store.download(id)) as AssetDownload).name).toBe('');
+    });
+
     it('hands back the bytes with the type the server gave', async () => {
       respond(new Response(bytes, { status: 200, headers: { 'Content-Type': 'image/png' } }));
 
-      const blob = (await store.download(id)) as Blob;
+      const { blob, name } = (await store.download(id)) as AssetDownload;
 
       expect(blob.type).toBe('image/png');
       expect(new Uint8Array(await blob.arrayBuffer())).toEqual(bytes);
+      expect(name).toBe('');
       expect(callsOf()).toEqual([['GET', urlOf(id)]]);
       expect(authorizationOf(0)).toBe('Bearer asset-1');
     });
@@ -296,7 +307,7 @@ describe('AssetHttpStore', () => {
         new Response(bytes, { status: 200, headers: { 'Content-Type': 'image/png' } })
       );
 
-      expect(await store.download(id)).toBeInstanceOf(Blob);
+      expect((await store.download(id)) as AssetDownload).toMatchObject({ blob: expect.any(Blob) });
       expect(authorizationOf(1)).toBe('Bearer asset-2');
     });
   });
