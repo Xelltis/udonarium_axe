@@ -44,10 +44,13 @@ function masked(context: ObjectContext): ObjectContext {
   return { ...context, syncData };
 }
 
-/** A room as the server hands it to a viewer: what they may not see left out, and the rest masked where it says. */
+/**
+ * A room as the server hands it to a viewer: what they may not see, or what waits for a parent or a
+ * line not there yet, left out, and the rest masked where it says.
+ */
 function handedTo(room: Room, viewer: Viewer): ObjectContext[] {
   return (visibility.rooms[room] as ObjectContext[])
-    .filter((context) => kindFor(room, context.identifier, viewer) !== 'hidden')
+    .filter((context) => ['full', 'masked'].includes(kindFor(room, context.identifier, viewer)))
     .map((context) => (kindFor(room, context.identifier, viewer) === 'masked' ? masked(context) : context));
 }
 

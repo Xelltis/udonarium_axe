@@ -4,13 +4,13 @@
     "hello": {
       "type": "hello",
       "protocolVersion": 2,
-      "peerId": "a1B2c3XyZq9W8e7r6-",
+      "peerId": "v35gKhXyZq9W8e7r6-",
       "userId": "8c5b7f0e-2c1d-4e3f-9a8b-7c6d5e4f3a2b"
     },
     "helloWithPassword": {
       "type": "hello",
       "protocolVersion": 2,
-      "peerId": "a1B2c3Xy7q9W8e7r6-Pa55w0r",
+      "peerId": "v35gKhXy7q9W8e7r6-Pa55w0r",
       "userId": "8c5b7f0e-2c1d-4e3f-9a8b-7c6d5e4f3a2b",
       "password": "secret"
     },
@@ -74,7 +74,7 @@
     "helloLoggedIn": {
       "type": "hello",
       "protocolVersion": 2,
-      "peerId": "a1B2c3XyZq9W8e7r6-",
+      "peerId": "QkSSnrXyZq9W8e7r6-",
       "userId": "acct_8c5b7f0e-2c1d-4e3f-9a8b-7c6d5e4f3a2b",
       "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…",
       "invite": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…"
@@ -150,12 +150,12 @@
     "welcome": {
       "type": "welcome",
       "protocolVersion": 2,
-      "peerId": "a1B2c3XyZq9W8e7r6-",
+      "peerId": "v35gKhXyZq9W8e7r6-",
       "authorityPeerId": "@authority",
       "role": "pl",
       "members": [
         {
-          "peerId": "Zz9Yy8XyZq9W8e7r6-",
+          "peerId": "wB0fSVXyZq9W8e7r6-",
           "userId": "acct_0f9e8d7c-6b5a-4938-2716-0504f3e2d1c0",
           "role": "gm"
         }

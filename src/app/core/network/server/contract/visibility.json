@@ -1,5 +1,5 @@
 {
-  "description": "見え方の期待値。objects を部屋に置いたとき、viewer から identifier がどう見えるか（full：そのまま、masked：一部を伏せる、hidden：届けない）。ObjectNode の SyncVar は syncData.attributes に入る",
+  "description": "見え方の期待値。objects を部屋に置いたとき、viewer から identifier がどう見えるか（full：そのまま、masked：一部を伏せる、hidden：届けない、pending：親や発言がまだ無く、だれにも届けない）。ObjectNode の SyncVar は syncData.attributes に入る",
   "viewers": {
     "gm": {
       "userId": "u-gm",
@@ -384,6 +384,68 @@
           }
         }
       }
+    ],
+    "pending": [
+      {
+        "aliasName": "data",
+        "identifier": "stray",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "notYetHere",
+          "value": "",
+          "attributes": {
+            "name": "card"
+          }
+        }
+      },
+      {
+        "aliasName": "chat-reaction",
+        "identifier": "nod",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "messageIdentifier": "notYetSaid"
+        }
+      }
+    ],
+    "gmOnlyTab": [
+      {
+        "aliasName": "chat-tab-list",
+        "identifier": "ChatTabList",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {}
+      },
+      {
+        "aliasName": "chat-tab",
+        "identifier": "gmTab",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "ChatTabList",
+          "attributes": {
+            "name": "GM",
+            "plCanView": false,
+            "guestCanView": false
+          }
+        }
+      },
+      {
+        "aliasName": "chat",
+        "identifier": "gmLine",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "gmTab",
+          "value": "The vault opens",
+          "attributes": {
+            "from": "u-gm",
+            "to": "",
+            "tag": ""
+          }
+        }
+      }
     ]
   },
   "cases": [
@@ -515,6 +577,36 @@
         "owner": "masked",
         "player": "masked",
         "guest": "masked"
+      }
+    },
+    {
+      "room": "pending",
+      "identifier": "stray",
+      "expect": {
+        "gm": "pending",
+        "owner": "pending",
+        "player": "pending",
+        "guest": "pending"
+      }
+    },
+    {
+      "room": "pending",
+      "identifier": "nod",
+      "expect": {
+        "gm": "pending",
+        "owner": "pending",
+        "player": "pending",
+        "guest": "pending"
+      }
+    },
+    {
+      "room": "gmOnlyTab",
+      "identifier": "gmLine",
+      "expect": {
+        "gm": "full",
+        "owner": "hidden",
+        "player": "hidden",
+        "guest": "hidden"
       }
     }
   ]

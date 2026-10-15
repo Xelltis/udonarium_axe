@@ -1,3 +1,4 @@
+import { PeerContext } from '@axe/core/network/peer-context';
 import errors from '@axe/core/network/server/contract/errors.json';
 import events from '@axe/core/network/server/contract/events.json';
 import http from '@axe/core/network/server/contract/http.json';
@@ -29,6 +30,17 @@ import { isNewerVersion } from '@axe/core/sync/object-version';
 import * as MessagePack from '@axe/core/util/message-pack';
 
 describe('the room server protocol, held to the server’s fixtures', () => {
+  it.each(['hello', 'helloWithPassword', 'helloLoggedIn'] as const)(
+    'makes the peer id of %s from its user id as the server checks it',
+    async (name) => {
+      const { peerId, userId } = messages.client[name];
+
+      const made = await PeerContext.createRoom(userId, 'XyZ', 'any room', '');
+
+      expect(made.peerId.slice(0, 6)).toBe(peerId.slice(0, 6));
+    }
+  );
+
   it('speaks the version of the contract it was copied from', () => {
     expect(PROTOCOL_VERSION).toBe(source.protocolVersion);
   });
