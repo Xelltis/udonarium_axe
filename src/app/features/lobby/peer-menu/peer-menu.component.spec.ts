@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { LOCAL_MODE_STORAGE_KEY, LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
+import { Network } from '@axe/core/network/network';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { PeerMenuComponent } from '@axe/features/lobby/peer-menu/peer-menu.component';
@@ -96,6 +97,47 @@ describe('PeerMenuComponent', () => {
       PeerCursor.myCursor.role = PeerRole.Player;
       component.setMyRole(PeerRole.GameMaster);
       expect(PeerCursor.myCursor.role).toBe(PeerRole.Player);
+    });
+  });
+
+  describe('roles on a room server', () => {
+    let other: PeerCursor;
+
+    beforeEach(() => {
+      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      other = new PeerCursor();
+      other.peerId = 'other-peer';
+      other.role = PeerRole.Player;
+      other.initialize();
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      component = fixture.componentInstance;
+    });
+
+    afterEach(() => {
+      other.destroy();
+      vi.restoreAllMocks();
+    });
+
+    it('shows your own role as the server gave it, with nothing to press', () => {
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+
+      expect(root.querySelector('[data-testid="peer-menu-server-role"]')?.textContent).toContain('GM');
+    });
+
+    it('asks the server to change somebody’s role, leaving their cursor for the server to change', () => {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+
+      component.reassignRole('other-peer', PeerRole.Guest);
+
+      expect(send).toHaveBeenCalledWith(
+        expect.objectContaining({ eventName: 'ROLE_REQUEST', data: { peerId: 'other-peer', role: PeerRole.Guest } }),
+        '@authority'
+      );
+      expect(other.role).toBe(PeerRole.Player);
     });
   });
 

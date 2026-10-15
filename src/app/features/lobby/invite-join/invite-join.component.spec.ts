@@ -189,6 +189,25 @@ describe('InviteJoinComponent', () => {
       expect(modalOpen.mock.calls[0][1]).toMatchObject({ checkedByServer: true });
     });
 
+    it('takes no role from the link, which is the server’s to give', async () => {
+      findServerRoom.mockResolvedValue(serverRoom(false));
+      joinServerRoom.mockResolvedValue(true);
+      await setup(
+        buildInviteLink('', {
+          roomId: 'a1b',
+          roomName: 'room',
+          roomKey: KEY,
+          password: '',
+          role: PeerRole.GameMaster,
+          overlay: false,
+        })
+      );
+
+      await eventually(() => expect(joinServerRoom).toHaveBeenCalled());
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.Player);
+    });
+
     it('says the room is gone when the server does not list it', async () => {
       await setup(link(''));
 

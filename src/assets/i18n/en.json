@@ -3237,7 +3237,8 @@
         "modeHint_offline": "This browser is on its own: no SkyWay, no backend, nobody else. Switching reloads the page.",
         "confirmOffline": "Go offline? The page reloads and you leave this room.",
         "confirmOnline": "Go online? The page reloads and connects.",
-        "offlineNote": "Saving and loading a room still works. Switch to Online to play with others."
+        "offlineNote": "Saving and loading a room still works. Switch to Online to play with others.",
+        "roleDecidedByServer": "The room server decides the roles. Only the room's GM can change them."
       },
       "lobby": {
         "title": "Lobby",
@@ -3361,6 +3362,13 @@
           "network": "The login server cannot be reached.",
           "retry": "Please log in again."
         }
+      },
+      "roleRejected": {
+        "notGameMaster": "Only the GM can change roles.",
+        "unknownPeer": "{{name}} is not in the room, so their role was not changed.",
+        "notLoggedIn": "{{name}} is not logged in and stays a guest.",
+        "lastGameMaster": "The room would have no GM left, so {{name}}'s role was not changed.",
+        "other": "The role could not be changed ({{reason}})."
       }
     },
     "chat": {

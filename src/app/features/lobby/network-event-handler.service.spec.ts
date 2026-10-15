@@ -10,6 +10,7 @@ import {
 } from '@axe/application/sync/object-change-network-helpers';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { Network } from '@axe/core/network/network';
+import { localDispatch } from '@axe/core/network/network-messaging';
 import { Account } from '@axe/core/network/server/server-protocol';
 import { clearIdentity, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -426,6 +427,34 @@ describe('NetworkEventHandlerService', () => {
       account.set({ ...ACCOUNT, name: 'Another' });
       TestBed.tick();
       expect(PeerCursor.myCursor.name).toBe('ゴブリン使い');
+    });
+  });
+
+  describe('roles on a room server', () => {
+    const sent = () => chatStub.sendSystemMessage.mock.calls.map(([text]) => text as string);
+
+    beforeEach(() => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      PeerCursor.myCursor = new PeerCursor();
+    });
+
+    it('takes on the role the server gave as the room opens, over the one saved before', () => {
+      PeerCursor.myCursor.role = 'gm';
+      vi.spyOn(Network, 'serverRole', 'get').mockReturnValue('guest');
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ peerId: 'p', userId: 'u', isRoom: true } as never);
+
+      stubChange.networkOpen$.emit({ peerId: 'p' });
+
+      expect(PeerCursor.myCursor.role).toBe('guest');
+    });
+
+    it('says why the server kept a role as it was', () => {
+      localDispatch('ROLE_REJECTED', { peerId: 'x', role: 'pl', reason: 'not-logged-in' }, '@authority');
+      localDispatch('ROLE_REJECTED', { peerId: 'x', role: 'pl', reason: 'not-logged-in' }, 'someone-else');
+
+      expect(sent()).toHaveLength(1);
+      expect(sent()[0]).toContain('feature.lobby.roleRejected.notLoggedIn');
     });
   });
 });

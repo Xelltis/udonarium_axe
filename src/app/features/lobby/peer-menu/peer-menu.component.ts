@@ -13,6 +13,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { networkSend } from '@axe/core/network/network-messaging';
 import { saveIdentity } from '@axe/core/storage/identity-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
@@ -96,6 +97,8 @@ export class PeerMenuComponent {
   readonly dispDetailFlag = signal(false);
 
   readonly assignableRoles = ASSIGNABLE_PEER_ROLES;
+  /** Whether a room server decides the roles, which nobody then takes for themselves. */
+  protected readonly isServerTransport = Network.transport === 'server';
   protected readonly roleShortLabelKey = roleShortLabelKey;
   protected readonly roleBadgeClass = roleBadgeClass;
 
@@ -191,13 +194,20 @@ export class PeerMenuComponent {
   }
 
   /**
-   * Gives another peer a role, as the game master. Does nothing for anybody else, for the reader's
-   * own cursor, or for a peer that has gone.
+   * Gives another peer a role, as the game master; on a room server, asks the server to. Does
+   * nothing for anybody else, for the reader's own cursor, or for a peer that has gone.
    */
   reassignRole(peerId: string, role: PeerRole) {
     if (!this.isMyselfGameMaster) return;
     const cursor = PeerCursor.findByPeerId(peerId);
     if (!cursor || cursor.isMine) return;
+    // A room server keeps the roles, so the game master asks it, and it changes the cursor
+    // for everybody or says why not.
+    const authority = Network.authorityPeerId;
+    if (authority) {
+      networkSend('ROLE_REQUEST', { peerId, role }, authority);
+      return;
+    }
     cursor.role = role;
     cursor.update();
   }

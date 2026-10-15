@@ -81,9 +81,9 @@ export class RoomSettingComponent {
   }
 
   /**
-   * Creates the room on the room server, which gives it its key and id, then opens it as the
-   * SkyWay one is opened. A refusal, such as too many rooms created at once, leaves the dialog open
-   * and says why.
+   * Creates the room on the room server, which gives it its key and id and makes its creator the
+   * game master, then opens it as the SkyWay one is opened. A refusal, such as too many rooms
+   * created at once, leaves the dialog open and says why.
    */
   private async createServerRoom(): Promise<void> {
     if (this.isCreating()) return;
@@ -94,7 +94,6 @@ export class RoomSettingComponent {
       const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
       Network.open(userId, roomId, this.roomName(), this.password(), roomKey);
       PeerCursor.myCursor.peerId = Network.peerId;
-      if (PeerCursor.myCursor.role === PeerRole.Player) PeerCursor.myCursor.role = PeerRole.GameMaster;
       this.myPeer.reConnectPass = this.password();
       saveIdentity({
         userId,

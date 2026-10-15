@@ -5,6 +5,7 @@ import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PeerReconnectState } from '@axe/core/network/connection';
 import { Network } from '@axe/core/network/network';
+import { networkMessage$ } from '@axe/core/network/network-messaging';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { MAX_MEMBERS } from '@axe/core/network/server/server-protocol';
@@ -19,6 +20,14 @@ import {
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { handOverOwnership } from '@axe/domain/peer/ownership';
 import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
+
+/** What to say for each reason the room server gives for keeping a role as it was. */
+const ROLE_REJECTED_KEYS: Readonly<Record<string, string>> = {
+  'not-game-master': 'feature.lobby.roleRejected.notGameMaster',
+  'unknown-peer': 'feature.lobby.roleRejected.unknownPeer',
+  'not-logged-in': 'feature.lobby.roleRejected.notLoggedIn',
+  'last-game-master': 'feature.lobby.roleRejected.lastGameMaster',
+};
 
 @Injectable({ providedIn: 'root' })
 export class NetworkEventHandlerService {
@@ -47,6 +56,10 @@ export class NetworkEventHandlerService {
   private followedAccountUserId: string | null | undefined = undefined;
 
   constructor() {
+    networkMessage$.subscribe((message) => {
+      if (message.eventName !== 'ROLE_REJECTED' || message.sendFrom !== Network.authorityPeerId) return;
+      this.tellRoleRejected(message.data as { peerId?: unknown; reason?: unknown } | null);
+    }, this.destroyRef);
     effect(() => {
       const account = this.auth.account();
       untracked(() => this.followAccount(account?.userId ?? null));
@@ -63,6 +76,7 @@ export class NetworkEventHandlerService {
       const peer = Network.peerContext;
       PeerCursor.myCursor.peerId = peer.peerId;
       PeerCursor.myCursor.userId = peer.userId;
+      this.takeServerRole();
       this.rememberIdentity(peer);
       const account = Network.transport === 'server' ? this.auth.account() : null;
       if (account) this.lendAccountLook(account.name, account.avatarUrl);
@@ -120,6 +134,7 @@ export class NetworkEventHandlerService {
     }, this.destroyRef);
     this.objectChange.peerReconnect$.subscribe((event) => {
       if (this.localMode) return;
+      if (event.state === 'recovered' && event.peerId === Network.peerId) this.takeServerRole();
       const key = NetworkEventHandlerService.RECONNECT_MESSAGE_KEYS[event.state];
       if (!key) return;
       this.chatMessageService.sendSystemMessage(encodeI18nMessage(key, { name: this.resolvePeerName(event.peerId) }));
@@ -165,6 +180,21 @@ export class NetworkEventHandlerService {
       roomKey: last ? (last.roomKey ?? '') : (Network.roomKey ?? ''),
       guestUserId: guestUserIdAfter(peer.userId, saved),
     });
+  }
+
+  /** Takes on the role the room server gave this seat on letting it in; SkyWay gives none. */
+  private takeServerRole(): void {
+    const role = Network.serverRole;
+    const cursor = PeerCursor.myCursor;
+    if (role && cursor && cursor.role !== role) cursor.role = role;
+  }
+
+  /** Says why the room server would not change somebody's role. */
+  private tellRoleRejected(data: { peerId?: unknown; reason?: unknown } | null): void {
+    const reason = typeof data?.reason === 'string' ? data.reason : '';
+    const key = ROLE_REJECTED_KEYS[reason] ?? 'feature.lobby.roleRejected.other';
+    const name = typeof data?.peerId === 'string' ? this.resolvePeerName(data.peerId) : '';
+    this.chatMessageService.sendSystemMessage(encodeI18nMessage(key, { name, reason }));
   }
 
   /**

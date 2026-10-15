@@ -145,7 +145,6 @@ export class InviteJoinComponent {
       return;
     }
 
-    this.applyRole(params.role);
     this.state.set('done');
   }
 

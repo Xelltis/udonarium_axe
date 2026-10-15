@@ -59,8 +59,8 @@ export class RoomJoinService {
   }
 
   /**
-   * Joins a room on a room server, which checks the password and lets the seat in. A game master
-   * comes in as a player unless this tab was last in this room, as with SkyWay.
+   * Joins a room on a room server, which checks the password, lets the seat in and gives it its
+   * role.
    *
    * There is nobody to connect to one by one: the room is joined once it opens, and an error
    * opening it, a wrong password or a full room among them, ends the join.
@@ -69,9 +69,6 @@ export class RoomJoinService {
     const roomKey = room.roomKey;
     if (!roomKey) return Promise.resolve(false);
 
-    if (PeerCursor.myCursor.role === PeerRole.GameMaster && !wasLastIn(room.id)) {
-      PeerCursor.myCursor.role = PeerRole.Player;
-    }
     const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
     Network.open(userId, room.id, room.name, password, roomKey);
     PeerCursor.myCursor.peerId = Network.peerId;

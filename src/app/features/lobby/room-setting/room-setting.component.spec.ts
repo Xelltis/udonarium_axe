@@ -53,7 +53,7 @@ describe('RoomSettingComponent', () => {
       vi.restoreAllMocks();
     });
 
-    it('creates the room on the server and opens it by its key, as its game master', async () => {
+    it('creates the room on the server and opens it by its key, leaving the role for the server to give', async () => {
       const create = vi.spyOn(Network, 'createRoom').mockResolvedValue({ roomKey: KEY, roomId: 'Ab3' });
       const open = vi.spyOn(Network, 'open').mockImplementation(() => {});
       const resolve = vi.spyOn(TestBed.inject(ModalService), 'resolve').mockImplementation(() => {});
@@ -65,7 +65,7 @@ describe('RoomSettingComponent', () => {
       await vi.waitFor(() => expect(open).toHaveBeenCalled());
       expect(create).toHaveBeenCalledWith('月夜の卓', 'pw');
       expect(open).toHaveBeenCalledWith('user', 'Ab3', '月夜の卓', 'pw', KEY);
-      expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.Player);
       expect(loadIdentity()?.roomKey).toBe(KEY);
       expect(resolve).toHaveBeenCalled();
     });
