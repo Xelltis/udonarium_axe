@@ -12,6 +12,7 @@ import { EventChannel } from '@axe/core/event/event-channel';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { Account } from '@axe/core/network/server/server-protocol';
+import { ASSET_RETRY_DELAY_MS } from '@axe/core/storage/asset-download-retries';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -66,6 +67,7 @@ describe('NetworkEventHandlerService', () => {
   afterEach(() => {
     clearIdentity();
     vi.restoreAllMocks();
+    vi.useRealTimers();
     // The tests hand the static cursor a new one, which leaves whoever held the post
     // before it in the store for the next spec to count as a peer at the table.
     for (const cursor of ObjectStore.instance.getObjects<PeerCursor>(PeerCursor)) {
@@ -552,6 +554,29 @@ describe('NetworkEventHandlerService', () => {
       stubChange.peerReconnect$.emit({ peerId: 'p', state: 'recovered' });
       await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(1));
       expect(pictures).not.toHaveBeenCalled();
+    });
+
+    it('asks the room for its list again a little later when the server could not give it', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      vi.spyOn(Network, 'serverRole', 'get').mockReturnValue('guest');
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ peerId: 'p', userId: 'u', isRoom: true } as never);
+      const picture = { id: 'a'.repeat(64), type: 'image/png', size: 1, name: 'map.png' };
+      const list = vi
+        .spyOn(AssetHttpStore.instance, 'listRoomAssets')
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce([picture]);
+      const pictures = vi.spyOn(ImageSharingSystem.instance, 'fetchListed').mockImplementation(() => {});
+      vi.spyOn(AudioSharingSystem.instance, 'fetchListed').mockImplementation(() => {});
+
+      stubChange.networkOpen$.emit({ peerId: 'p' });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(list).toHaveBeenCalledTimes(1);
+      expect(pictures).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS);
+
+      expect(list).toHaveBeenCalledTimes(2);
+      expect(pictures).toHaveBeenCalledWith([picture]);
     });
 
     it('brings its pictures in, and takes the role on, once the server makes it a player', () => {

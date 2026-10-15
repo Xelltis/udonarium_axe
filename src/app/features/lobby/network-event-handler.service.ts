@@ -10,6 +10,7 @@ import { PeerContext } from '@axe/core/network/peer-context';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { AuthorityEvent, MAX_MEMBERS } from '@axe/core/network/server/server-protocol';
 import { SAME_NAME_MEMBER_ERROR } from '@axe/core/network/skyway/same-name-member';
+import { AssetDownloadRetries } from '@axe/core/storage/asset-download-retries';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -50,6 +51,8 @@ export class NetworkEventHandlerService {
   private serverErrorReconnectAttempts = 0;
   private otherErrorReconnectAttempts = 0;
   private serverErrorReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The room's list of pictures and sounds, when the server could not give it just then. */
+  private readonly roomAssetListRetries = new AssetDownloadRetries();
   private localMode = false;
   /** The account last followed; undefined until the first look, which changes nothing. */
   private followedAccountUserId: string | null | undefined = undefined;
@@ -57,6 +60,7 @@ export class NetworkEventHandlerService {
   private lastAccountUserId = '';
 
   constructor() {
+    this.destroyRef.onDestroy(() => this.roomAssetListRetries.clear());
     networkMessage$.subscribe((message) => {
       if (message.eventName !== AuthorityEvent.ROLE_REJECTED || message.sendFrom !== Network.authorityPeerId) return;
       this.tellRoleRejected(message.data as { peerId?: unknown; reason?: unknown } | null);
@@ -230,14 +234,25 @@ export class NetworkEventHandlerService {
   /**
    * Fetches what the room server's room holds that this seat lacks: the pictures and sounds left in
    * a room everybody had gone from, which no member's catalog names any more. Each room starts with
-   * a clean slate of what the store was found to lack.
+   * a clean slate of what the store was found to lack. A list the server could not give just then is
+   * asked for again a few times, while the seat is still in the room.
    */
   private fetchRoomAssets(): void {
+    this.roomAssetListRetries.clear();
     if (Network.transport !== 'server' || !Network.peerContext.isRoom) return;
     ImageSharingSystem.instance.forgetMisses();
     AudioSharingSystem.instance.forgetMisses();
+    this.fetchRoomAssetList(Network.peerId);
+  }
+
+  private fetchRoomAssetList(peerId: string): void {
     void AssetHttpStore.instance.listRoomAssets().then((assets) => {
-      if (!assets) return;
+      if (Network.peerId !== peerId || !Network.peerContext.isRoom) return;
+      if (!assets) {
+        this.roomAssetListRetries.schedule('list', () => this.fetchRoomAssetList(peerId));
+        return;
+      }
+      this.roomAssetListRetries.forget('list');
       ImageSharingSystem.instance.fetchListed(assets.filter((asset) => asset.type.startsWith('image/')));
       AudioSharingSystem.instance.fetchListed(assets.filter((asset) => asset.type.startsWith('audio/')));
     });
