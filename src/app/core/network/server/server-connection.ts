@@ -443,6 +443,7 @@ export class ServerConnection implements Connection {
         return;
       case 'asset-token':
         this.takeAssetToken(message.assetToken, message.expiresAt);
+        this.takeRole(message.role);
         return;
       case 'error':
         this.refusal = message.code;
@@ -482,6 +483,13 @@ export class ServerConnection implements Connection {
     this.held = [];
     for (const batch of held) this.send(batch.events, batch.to);
     if (this.accountSeat) this.startTokenChecks();
+  }
+
+  /** Takes on a role the server says the seat has now, and tells of it when it changed. */
+  private takeRole(role: ServerRole | undefined): void {
+    if (!role || role === this.role || !this.welcomed) return;
+    this.role = role;
+    this.callback.onRoleChange?.(role);
   }
 
   /** The room's pictures and sounds as this seat may reach them: the room and the token, while in it. */

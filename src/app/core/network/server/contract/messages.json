@@ -211,7 +211,8 @@
     "assetToken": {
       "type": "asset-token",
       "assetToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…",
-      "expiresAt": 1792000900000
+      "expiresAt": 1792000900000,
+      "role": "pl"
     },
     "authoritative": {
       "type": "data",

@@ -493,6 +493,21 @@ describe('NetworkEventHandlerService', () => {
       expect(images).toHaveBeenCalledTimes(1);
     });
 
+    it('brings its pictures in, and takes the role on, once the server makes it a player', () => {
+      const images = vi.spyOn(ImageStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
+      vi.spyOn(AudioStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
+      vi.spyOn(Network, 'serverRole', 'get').mockReturnValue('pl');
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ peerId: 'p', userId: 'u', isRoom: true } as never);
+      PeerCursor.myCursor.role = 'guest';
+
+      localDispatch('SERVER_ROLE_CHANGED', { role: 'pl' }, 'someone-else');
+      expect(images).not.toHaveBeenCalled();
+      localDispatch('SERVER_ROLE_CHANGED', { role: 'pl' });
+
+      expect(images).toHaveBeenCalledTimes(1);
+      expect(PeerCursor.myCursor.role).toBe('pl');
+    });
+
     it('says why the server kept a role as it was', () => {
       localDispatch('ROLE_REJECTED', { peerId: 'x', role: 'pl', reason: 'not-logged-in' }, '@authority');
       localDispatch('ROLE_REJECTED', { peerId: 'x', role: 'pl', reason: 'not-logged-in' }, 'someone-else');

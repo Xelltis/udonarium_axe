@@ -191,6 +191,8 @@ export interface AssetTokenMessage {
   assetToken: string;
   /** Unix milliseconds. */
   expiresAt: number;
+  /** The seat's role now, which a role change makes a new one; missing from an older server. */
+  role?: ServerRole;
 }
 
 /**
@@ -488,7 +490,9 @@ export function readServerMessage(value: unknown): ServerMessage | null {
         ? (value as unknown as InviteMessage)
         : null;
     case 'asset-token':
-      return typeof value['assetToken'] === 'string' && typeof value['expiresAt'] === 'number'
+      return typeof value['assetToken'] === 'string' &&
+        typeof value['expiresAt'] === 'number' &&
+        (value['role'] === undefined || value['role'] === null || isServerRole(value['role']))
         ? (value as unknown as AssetTokenMessage)
         : null;
     case 'error':

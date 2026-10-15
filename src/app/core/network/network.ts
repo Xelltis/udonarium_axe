@@ -405,6 +405,7 @@ export class Network {
     connection.callback.onError = (peer, errorType, errorMessage, errorObject) => {
       if (this.callback.onError) this.callback.onError(peer, errorType, errorMessage, errorObject);
     };
+    connection.callback.onRoleChange = (role) => this.callback.onRoleChange?.(role);
 
     if (this.queue.size > 0 && this.sendInterval === null) this.sendInterval = setZeroTimeout(this.sendCallback);
 

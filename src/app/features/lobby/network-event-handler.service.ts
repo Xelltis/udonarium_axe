@@ -8,7 +8,7 @@ import { Network } from '@axe/core/network/network';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
-import { MAX_MEMBERS } from '@axe/core/network/server/server-protocol';
+import { AuthorityEvent, MAX_MEMBERS } from '@axe/core/network/server/server-protocol';
 import { SAME_NAME_MEMBER_ERROR } from '@axe/core/network/skyway/same-name-member';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { guestUserIdAfter, guestUserIdOf, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
@@ -53,8 +53,14 @@ export class NetworkEventHandlerService {
 
   constructor() {
     networkMessage$.subscribe((message) => {
-      if (message.eventName !== 'ROLE_REJECTED' || message.sendFrom !== Network.authorityPeerId) return;
+      if (message.eventName !== AuthorityEvent.ROLE_REJECTED || message.sendFrom !== Network.authorityPeerId) return;
       this.tellRoleRejected(message.data as { peerId?: unknown; reason?: unknown } | null);
+    }, this.destroyRef);
+    // The room server gave this seat another role: a guest made a player brings its pictures up.
+    networkMessage$.subscribe((message) => {
+      if (message.eventName !== 'SERVER_ROLE_CHANGED' || !message.isSendFromSelf) return;
+      this.takeServerRole();
+      this.bringAssetsIntoRoom();
     }, this.destroyRef);
     effect(() => {
       const account = this.auth.account();

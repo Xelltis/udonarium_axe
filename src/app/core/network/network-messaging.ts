@@ -121,6 +121,10 @@ export function initializeNetworkMessaging(): void {
     localDispatch('DISCONNECT_PEER', { peerId: peer.peerId });
   };
 
+  callback.onRoleChange = (role) => {
+    localDispatch('SERVER_ROLE_CHANGED', { role });
+  };
+
   callback.onReconnect = (peer, state) => {
     Logger.debug('[NetworkMessaging]', `<${peer.peerId}> reconnect <${state}>`);
     localDispatch('PEER_RECONNECT', { peerId: peer.peerId, state });

@@ -475,6 +475,25 @@ describe('ServerConnection', () => {
     expect(asked).toEqual([{ type: 'asset-token' }]);
   });
 
+  it('takes on the role a fresh asset token comes with, and tells of a change only', async () => {
+    const roles: string[] = [];
+    connection.callback.onRoleChange = (role) => roles.push(role);
+    const socket = await enterRoom();
+    const token = (role?: string) => ({
+      type: 'asset-token',
+      assetToken: `asset-${role}`,
+      expiresAt: Date.now() + 15 * 60_000,
+      ...(role ? { role } : {}),
+    });
+
+    socket.deliver(token('pl'));
+    socket.deliver(token());
+    socket.deliver(token('gm'));
+
+    await vi.waitFor(() => expect(connection.serverRole).toBe('gm'));
+    expect(roles).toEqual(['gm']);
+  });
+
   it('lists the server’s rooms for the lobby', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(

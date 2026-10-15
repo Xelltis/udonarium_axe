@@ -12,6 +12,8 @@ export class ConnectionCallback {
   onReconnect!: (peer: IPeerContext, state: PeerReconnectState) => void;
   onData!: (peer: IPeerContext | null, data: unknown[]) => void;
   onError!: (peer: IPeerContext, errorType: string, errorMessage: string, errorObject: unknown) => void;
+  /** The room server gave this seat another role while it is in the room. */
+  onRoleChange?: (role: ServerRole) => void;
 }
 
 /** How a seat reaches its room's pictures and sounds on the room server: the room and its token. */
