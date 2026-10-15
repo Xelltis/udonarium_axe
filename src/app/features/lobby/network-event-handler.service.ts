@@ -238,9 +238,7 @@ export class NetworkEventHandlerService {
     AudioSharingSystem.instance.forgetMisses();
     void AssetHttpStore.instance.listRoomAssets().then((assets) => {
       if (!assets) return;
-      ImageSharingSystem.instance.fetchListed(
-        assets.filter((asset) => asset.type.startsWith('image/')).map((asset) => asset.id)
-      );
+      ImageSharingSystem.instance.fetchListed(assets.filter((asset) => asset.type.startsWith('image/')));
       AudioSharingSystem.instance.fetchListed(assets.filter((asset) => asset.type.startsWith('audio/')));
     });
   }

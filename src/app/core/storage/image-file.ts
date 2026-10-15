@@ -99,11 +99,12 @@ export class ImageFile {
 
   /**
    * A placeholder for an image known only by its identifier, as from a peer's
-   * catalogue, until its data arrives.
+   * catalogue, or by its identifier and name, as from the room's list, until its data arrives.
    */
-  static createEmpty(identifier: string): ImageFile {
+  static createEmpty(identifier: string, name?: string): ImageFile {
     const imageFile = new ImageFile();
     imageFile.context.identifier = identifier;
+    if (name) imageFile.context.name = name;
 
     return imageFile;
   }

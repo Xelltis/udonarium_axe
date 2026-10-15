@@ -159,24 +159,34 @@ describe('ImageSharingSystem', () => {
       expect(requestsSent()).toHaveLength(1);
     });
 
-    it('takes a picture the room lists, though no catalogue names it', async () => {
-      ImageSharingSystem.instance.fetchListed([pictureId]);
+    it('takes a picture the room lists, though no catalogue names it, keeping the name it was listed under', async () => {
+      ImageSharingSystem.instance.fetchListed([{ id: pictureId, name: 'map.png' }]);
 
       await vi.waitFor(() => expect(ImageStorage.instance.get(pictureId)?.state).toBe(ImageState.COMPLETE));
       expect(download).toHaveBeenCalledWith(pictureId);
+      expect(ImageStorage.instance.get(pictureId)?.name).toBe('map.png');
+    });
+
+    it('names a picture a catalogue made a place for by the name the room lists it under', async () => {
+      download.mockReturnValue(new Promise(() => {}));
+      receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }]);
+
+      ImageSharingSystem.instance.fetchListed([{ id: pictureId, name: 'map.png' }]);
+
+      expect(ImageStorage.instance.get(pictureId)?.name).toBe('map.png');
     });
 
     it('asks no peer for a listed picture the server cannot give, and tries the server again in another room', async () => {
       download.mockResolvedValue(null);
-      ImageSharingSystem.instance.fetchListed([pictureId]);
+      ImageSharingSystem.instance.fetchListed([{ id: pictureId, name: '' }]);
       await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(1));
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(requestsSent()).toEqual([]);
 
-      ImageSharingSystem.instance.fetchListed([pictureId]);
+      ImageSharingSystem.instance.fetchListed([{ id: pictureId, name: '' }]);
       expect(download).toHaveBeenCalledTimes(1);
       ImageSharingSystem.instance.forgetMisses();
-      ImageSharingSystem.instance.fetchListed([pictureId]);
+      ImageSharingSystem.instance.fetchListed([{ id: pictureId, name: '' }]);
       expect(download).toHaveBeenCalledTimes(2);
     });
 

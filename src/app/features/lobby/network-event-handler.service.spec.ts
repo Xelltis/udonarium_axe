@@ -533,7 +533,7 @@ describe('NetworkEventHandlerService', () => {
 
       stubChange.networkOpen$.emit({ peerId: 'p' });
 
-      await vi.waitFor(() => expect(pictures).toHaveBeenCalledWith([picture.id]));
+      await vi.waitFor(() => expect(pictures).toHaveBeenCalledWith([picture]));
       expect(sounds).toHaveBeenCalledWith([sound]);
       expect(forgotPictures).toHaveBeenCalled();
     });

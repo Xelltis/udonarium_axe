@@ -167,17 +167,19 @@ export class ImageSharingSystem {
   /**
    * Fetches from the room's asset store the pictures it holds that this seat lacks, named by the
    * room's list rather than by a peer's catalogue: those left in a room that everybody had gone
-   * from, say. One the store cannot give waits for a catalogue to name it.
+   * from, say. Each keeps the name it was put there with. One the store cannot give waits for a
+   * catalogue to name it.
    */
-  fetchListed(identifiers: readonly string[]): void {
-    for (const identifier of identifiers) {
-      let image = ImageStorage.instance.get(identifier);
+  fetchListed(assets: readonly { id: string; name: string }[]): void {
+    for (const { id, name } of assets) {
+      let image = ImageStorage.instance.get(id);
       if (image === null) {
-        image = ImageFile.createEmpty(identifier);
+        image = ImageFile.createEmpty(id, name);
         ImageStorage.instance.add(image);
+      } else if (!image.name && name && image.state < ImageState.COMPLETE) {
+        image.context.name = name;
       }
-      if (image.state < ImageState.COMPLETE && !this.receiveTaskMap.has(identifier))
-        this.fetchOverHttp(identifier, null);
+      if (image.state < ImageState.COMPLETE && !this.receiveTaskMap.has(id)) this.fetchOverHttp(id, null);
     }
   }
 
