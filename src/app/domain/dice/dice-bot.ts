@@ -109,6 +109,11 @@ export class DiceBot extends GameObject {
     DiceBot.isUnreachable.bind(DiceBot)
   );
   private cleanups: (() => void)[] = [];
+  /**
+   * The line last asked about and how many answers it has asked for, one per target in turn: the
+   * answers share the line's time, and their fractions keep them in the targets' order.
+   */
+  private answersAsked = { source: '', count: 0 };
   /** The rolls this seat asked of the room server and has no answer to yet. */
   private readonly serverRolls = new ServerRollRequests({
     send: (request) => {
@@ -720,8 +725,15 @@ export class DiceBot extends GameObject {
     if (!getAuthorityPeerId() || !(chatTab instanceof ChatTab)) return;
 
     const answer = chatTab.createMessage(resultMessageContextOf(originalMessage, '', false, ''));
+    const asked = this.answersAsked;
+    this.answersAsked = {
+      source: originalMessage.identifier,
+      count: asked.source === originalMessage.identifier ? asked.count + 1 : 0,
+    };
+    const message = answer.contextAsLastChildOf(chatTab);
+    message.syncData = { ...message.syncData, minorIndex: Math.min(this.answersAsked.count / 1000, 0.999) };
     const request: Record<string, unknown> = {
-      message: answer.contextAsLastChildOf(chatTab),
+      message,
       command,
       gameSystem,
       speaker: originalMessage.name,

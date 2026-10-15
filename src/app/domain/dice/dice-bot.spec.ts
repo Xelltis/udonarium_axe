@@ -177,6 +177,24 @@ describe('DiceBot', () => {
       tab.destroy();
     });
 
+    it('asks for the answers to a line aimed at several targets in their order', async () => {
+      const bot = new DiceBot();
+      bot.initialize();
+      const { tab, asked, requests } = await askedRoll(bot, 'ゴブリンA');
+
+      await bot['handleSendMessage']({
+        messageIdentifier: asked.identifier,
+        messageTarget: { text: '2d6', object: { name: 'ゴブリンB' } },
+      });
+
+      const fractions = requests().map(
+        (request) => (request['message'] as { syncData: { minorIndex: number } }).syncData.minorIndex
+      );
+      expect(fractions).toEqual([0, 0.001]);
+      bot.destroy();
+      tab.destroy();
+    });
+
     it('tells of a roll the server would not make, and keeps quiet about a line that is no command', async () => {
       const bot = new DiceBot();
       bot.initialize();
