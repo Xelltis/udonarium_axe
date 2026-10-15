@@ -212,3 +212,8 @@ export class ObjectStore {
     }
   }
 }
+
+/** Whether an object is in the store, as one deleted, or taken away, is not. */
+export function isInStore(object: GameObject): boolean {
+  return ObjectStore.instance.get(object.identifier) === object;
+}

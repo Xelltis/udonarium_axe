@@ -87,6 +87,12 @@ export interface PanelOption {
    * pressing it twice puts the panel away rather than burying the screen in copies of it.
    */
   single?: string;
+
+  /**
+   * Asked when a panel fetched with `openLazy` arrives: it opens only while this says so, as for
+   * the thing it is about, deleted while the panel was on its way.
+   */
+  stillWanted?: () => boolean;
 }
 
 /**
@@ -156,7 +162,8 @@ export class PanelService {
   private actionRotationDegrees: PanelRotationDegrees = 0;
   private static readonly singles = new Map<string, PanelService>();
   /** Names spoken for by a panel whose code is still being fetched. */
-  private static readonly opening = new Set<string>();
+  /** The single names asked for and not arrived yet, each with the latest request for it. */
+  private static readonly opening = new Map<string, object>();
   /**
    * Bumped whenever a name is spoken for or let go of, so that `hasSingle` can be followed.
    *
@@ -403,8 +410,10 @@ export class PanelService {
    * Fetches a panel component and opens it once it arrives, running `setup` on the instance.
    *
    * A `single` name counts as open while the code is on its way, so `closeSingle` in the meantime
-   * stops it opening at all. A failed fetch is logged, opens nothing and goes to
-   * `loadFailureNotice`; a panel that arrives but fails to open is only logged.
+   * stops it opening at all, and asking for it again meanwhile has the latest request open in place
+   * of the earlier. A panel no longer `stillWanted` once it arrives opens nothing. A failed fetch is
+   * logged, opens nothing and goes to `loadFailureNotice`; a panel that arrives but fails to open
+   * is only logged.
    */
   openLazy<T>(
     factory: () => Promise<Type<T>>,
@@ -416,23 +425,30 @@ export class PanelService {
     // A panel that fails to arrive says nothing for itself: the promise rejects into nowhere
     // and the reader is left looking at a menu item that appears to do nothing.
     const single = option?.single;
+    const request = {};
     if (single) {
-      PanelService.opening.add(single);
+      PanelService.opening.set(single, request);
       PanelService.noteSingles();
     }
+    const isLatest = () => !!single && PanelService.opening.get(single) === request;
 
     factory()
       .then(
         (childComponent) => {
-          // Asked to close while it was being fetched, it never opens at all.
-          if (single && !PanelService.opening.delete(single)) return;
+          // Asked to close while it was being fetched, or asked for again since, this request never
+          // opens at all.
+          if (single) {
+            if (!isLatest()) return;
+            PanelService.opening.delete(single);
+          }
+          if (option?.stillWanted && !option.stillWanted()) return;
 
           const instance = this.open(childComponent, inheritedOption, parentViewContainerRef);
           setup?.(instance);
         },
         (reason) => {
           // The name is let go of as well, or nothing under it could ever be opened again.
-          if (single) PanelService.opening.delete(single);
+          if (single && isLatest()) PanelService.opening.delete(single);
           Logger.error('[PanelService] パネルを読み込めませんでした', reason);
           PanelService.loadFailureNotice?.();
         }

@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { Network } from '@axe/core/network/network';
 import { GameObject } from '@axe/core/sync/game-object';
 import { objectAdded$, objectRemoved$ } from '@axe/core/sync/object-event-extension';
-import { ObjectStore } from '@axe/core/sync/object-store';
+import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { DataElement } from '@axe/domain/data/data-element';
 
 type ObjectStorePrivate = {
@@ -144,6 +144,20 @@ describe('ObjectStore', () => {
       const retrieved = store.get('non-existent');
 
       expect(retrieved).toBeNull();
+    });
+  });
+
+  describe('isInStore()', () => {
+    it('holds while the object is in the store, and not once it is taken out', () => {
+      const obj = new GameObject('test-id-in-store');
+      expect(isInStore(obj)).toBe(false);
+      store.add(obj, false);
+      expect(isInStore(obj)).toBe(true);
+      expect(isInStore(new GameObject('test-id-in-store'))).toBe(false);
+
+      store.remove(obj);
+
+      expect(isInStore(obj)).toBe(false);
     });
   });
 

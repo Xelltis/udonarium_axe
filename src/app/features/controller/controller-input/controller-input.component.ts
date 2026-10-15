@@ -18,7 +18,7 @@ import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { Network } from '@axe/core/index';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { ObjectStore } from '@axe/core/sync/object-store';
+import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { chatColorOf, DEFAULT_CHAT_COLOR } from '@axe/domain/chat/chat-color';
@@ -202,7 +202,7 @@ export class ControllerInputComponent {
           import('@axe/features/chat/chat-color-setting/chat-color-setting.component').then(
             (m) => m.ChatColorSettingComponent
           ),
-        option,
+        { ...option, stillWanted: () => isInStore(object) },
         (component) => (component.tabletopObject = object)
       );
     }

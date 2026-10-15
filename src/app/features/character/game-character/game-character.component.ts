@@ -60,7 +60,7 @@ import { callResourceChange, resourceChange$ } from '@axe/core/event/domain-even
 import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { VolumeType } from '@axe/core/storage/audio-player';
 import { imageFileEqual } from '@axe/core/storage/image-file';
-import { ObjectStore } from '@axe/core/sync/object-store';
+import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -2157,7 +2157,7 @@ export class GameCharacterComponent {
         import('@axe/features/character/battle-placement-panel/battle-placement-panel.component').then(
           (m) => m.BattlePlacementPanelComponent
         ),
-      option,
+      { ...option, stillWanted: () => isInStore(gameObject) },
       (component) => component.leaderIdentifier.set(gameObject.identifier)
     );
   }
@@ -2177,7 +2177,7 @@ export class GameCharacterComponent {
         import('@axe/features/character/line-of-fire-panel/line-of-fire-panel.component').then(
           (m) => m.LineOfFirePanelComponent
         ),
-      option,
+      { ...option, stillWanted: () => isInStore(gameObject) },
       (component) => component.shooterIdentifier.set(gameObject.identifier)
     );
   }
@@ -2191,7 +2191,7 @@ export class GameCharacterComponent {
     this.panelService.openLazy(
       () =>
         import('@axe/features/tabletop/light-settings/light-settings.component').then((m) => m.LightSettingsComponent),
-      option,
+      { ...option, stillWanted: () => isInStore(gameObject) },
       (component) => {
         component.target = gameObject;
         component.showVision = true;

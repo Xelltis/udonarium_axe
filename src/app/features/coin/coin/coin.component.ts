@@ -26,6 +26,7 @@ import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { imageFileEqual } from '@axe/core/storage/image-file';
+import { isInStore } from '@axe/core/sync/object-store';
 import { Coin, CoinFace } from '@axe/domain/coin/coin';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { buildCoinContextMenu } from '@axe/features/coin/coin/coin-context-menu';
@@ -297,6 +298,7 @@ export class CoinComponent {
     const option: PanelOption = {
       title,
       ...sheetPanelBox(coordinate, 400, 380),
+      stillWanted: () => isInStore(coin),
     };
     this.panelService.openLazy(
       () => import('@axe/features/coin/coin-sheet/coin-sheet.component').then((m) => m.CoinSheetComponent),

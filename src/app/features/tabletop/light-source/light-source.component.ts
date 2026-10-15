@@ -10,7 +10,7 @@ import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { ObjectStore } from '@axe/core/sync/object-store';
+import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ImageTag } from '@axe/domain/media/image-tag';
 import { LIGHT_IMAGE_TAG, LIGHT_SKIN_ASSET_URLS, LightSkinId } from '@axe/domain/media/light-skins';
@@ -233,7 +233,7 @@ export class LightSourceComponent {
     this.panelService.openLazy(
       () =>
         import('@axe/features/tabletop/light-settings/light-settings.component').then((m) => m.LightSettingsComponent),
-      option,
+      { ...option, stillWanted: () => isInStore(light) },
       (component) => {
         component.target = light;
         component.advanced = true;

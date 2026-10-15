@@ -422,6 +422,46 @@ describe('PanelService', () => {
 
       expect(opened).toHaveBeenCalled();
     });
+
+    it('opens the latest ask for a name asked for again meanwhile, and only that', async () => {
+      const service = new PanelService();
+      const opened = vi.spyOn(service, 'open').mockReturnValue({} as never);
+      const setUp: string[] = [];
+      let arrive: () => void = () => undefined;
+      const waiting = new Promise<typeof DummyPanelBodyComponent>((resolve) => {
+        arrive = () => resolve(DummyPanelBodyComponent);
+      });
+
+      service.openLazy(
+        () => waiting,
+        { single: 'slot-editor' },
+        () => setUp.push('slot A')
+      );
+      service.openLazy(
+        () => waiting,
+        { single: 'slot-editor' },
+        () => setUp.push('slot B')
+      );
+      arrive();
+      await vi.waitFor(() => expect(opened).toHaveBeenCalledTimes(1));
+      await Promise.resolve();
+
+      expect(setUp).toEqual(['slot B']);
+      expect(service.hasSingle('slot-editor')).toBe(false);
+    });
+
+    it('opens nothing for what is no longer wanted once it arrives', async () => {
+      const service = new PanelService();
+      const opened = vi.spyOn(service, 'open').mockReturnValue({} as never);
+      let wanted = true;
+
+      service.openLazy(() => Promise.resolve(DummyPanelBodyComponent), { stillWanted: () => wanted });
+      wanted = false;
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(opened).not.toHaveBeenCalled();
+    });
   });
 
   describe('a panel whose code cannot be fetched', () => {

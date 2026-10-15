@@ -25,7 +25,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { getMyPeerId } from '@axe/core/network/peer-context-source';
-import { ObjectStore } from '@axe/core/sync/object-store';
+import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { BUFF_COLORS, resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import { ControllerResourcePick, controllerShowsResource } from '@axe/domain/character/controller-resource-pick';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -712,7 +712,7 @@ export class RemoteControllerComponent {
         import('@axe/features/character/game-character-buff-view/game-character-buff-view.component').then(
           (m) => m.GameCharacterBuffViewComponent
         ),
-      option,
+      { ...option, stillWanted: () => isInStore(gameCharacter) },
       (component) => component.character.set(gameCharacter)
     );
   }

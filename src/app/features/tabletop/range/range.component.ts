@@ -27,7 +27,7 @@ import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
-import { ObjectStore } from '@axe/core/sync/object-store';
+import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_RANGE_RENDER, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -336,7 +336,7 @@ export class RangeComponent {
         import('@axe/features/tabletop/range-docking-character/range-docking-character.component').then(
           (m) => m.RangeDockingCharacterComponent
         ),
-      option,
+      { ...option, stillWanted: () => isInStore(range) },
       (component) => (component.tabletopObject = range)
     );
   }

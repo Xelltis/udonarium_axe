@@ -25,6 +25,7 @@ import { sheetPanelBox, sheetPanelTitle } from '@axe/application/ui/sheet-panel'
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ImageFile, imageFileEqual } from '@axe/core/storage/image-file';
+import { isInStore } from '@axe/core/sync/object-store';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
@@ -841,6 +842,7 @@ export class GameTableMaskComponent {
     const option: PanelOption = {
       title: sheetPanelTitle(this.translateFn('feature.tabletop.panel.mask'), gameObject.name),
       ...sheetPanelBox(this.pointerDeviceService.pointers[0], 500, 600),
+      stillWanted: () => isInStore(gameObject),
     };
     this.panelService.openLazy(
       () =>

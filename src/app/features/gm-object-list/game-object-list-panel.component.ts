@@ -9,7 +9,7 @@ import { ContextMenuAction, ContextMenuSeparator, ContextMenuService } from '@ax
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { buildCopyAction, buildLockToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
-import { ObjectStore } from '@axe/core/sync/object-store';
+import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CharacterSheetTarget } from '@axe/domain/tabletop/character-sheet-target';
@@ -276,7 +276,7 @@ export class GameObjectListPanelComponent {
   }
 
   private openDetail(object: TabletopObject): void {
-    const option: PanelOption = { width: 700, height: 600, left: 100 };
+    const option: PanelOption = { width: 700, height: 600, left: 100, stillWanted: () => isInStore(object) };
     this.panelService.openLazy(
       () =>
         import('@axe/features/character/game-character-sheet/game-character-sheet.component').then(
