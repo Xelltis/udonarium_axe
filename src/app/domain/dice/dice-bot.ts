@@ -37,6 +37,8 @@ const FETCH_TIMEOUT_MS = 10_000;
 
 /** How long a roll asked of a room server waits for the answer before it stops listening. */
 const SERVER_ROLL_WAIT_MS = 60_000;
+/** The longest command a room server rolls; it takes no longer one. */
+const MAX_SERVER_ROLL_COMMAND_LENGTH = 4000;
 
 /**
  * The answer to a roll as a line: said by the dice bot, after the line it answers, to whoever that
@@ -511,8 +513,9 @@ export class DiceBot extends GameObject {
         return;
       }
 
-      // A room server rolls the dice itself, so that nobody can change what they showed.
-      if (getAuthorityPeerId()) {
+      // A room server rolls the dice itself, so that nobody can change what they showed; a line too
+      // long for it to take is rolled here, as without one.
+      if (getAuthorityPeerId() && text.length <= MAX_SERVER_ROLL_COMMAND_LENGTH) {
         const target = data.messageTarget?.object;
         this.askServerToRoll(text, gameSystem.ID, chatMessage, target ? ` [${target.name}]` : undefined);
         return;

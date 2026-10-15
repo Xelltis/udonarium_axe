@@ -95,6 +95,32 @@ describe('DiceBot', () => {
       tab.destroy();
     });
 
+    it('rolls a line too long for the server here, as without one', async () => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'acct_me';
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const asked = tab.addMessage({
+        from: PeerCursor.myUserId,
+        name: 'わたし',
+        text: `2d6 ${'x'.repeat(4000)}`,
+        tag: 'DiceBot',
+        timestamp: 1000,
+      });
+      const bot = new DiceBot();
+      bot.initialize();
+
+      await bot['handleSendMessage']({ messageIdentifier: asked.identifier, messageTarget: null });
+
+      expect(send.mock.calls.some(([sent]) => (sent as { eventName: string }).eventName === 'ROLL_REQUEST')).toBe(
+        false
+      );
+      expect(tab.chatMessages).toHaveLength(2);
+      bot.destroy();
+      tab.destroy();
+    });
+
     it('takes the server’s answer, once it arrives, as a roll made here', () => {
       const bot = new DiceBot();
       bot.initialize();
