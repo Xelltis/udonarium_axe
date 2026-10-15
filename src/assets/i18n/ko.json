@@ -18,7 +18,8 @@
       "reload": "새로고침",
       "later": "나중에",
       "saveFailed": "저장하지 못했습니다",
-      "saveFailedReload": "저장하지 못했습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요"
+      "saveFailedReload": "저장하지 못했습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요",
+      "reloadNeeded": "화면 일부를 불러오지 못했습니다. 페이지를 새로고침해 주세요."
     },
     "language": {
       "ja": "日本語",

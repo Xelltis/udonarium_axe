@@ -18,7 +18,8 @@
       "reload": "Reload",
       "later": "Later",
       "saveFailed": "Could not save",
-      "saveFailedReload": "Could not save. Reload the page, then try again"
+      "saveFailedReload": "Could not save. Reload the page, then try again",
+      "reloadNeeded": "Part of the page could not be loaded. Reload the page."
     },
     "language": {
       "ja": "日本語",
