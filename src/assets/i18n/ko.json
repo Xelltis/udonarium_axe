@@ -1107,6 +1107,7 @@
         "drawFromStack": "테이블로 내기",
         "edit": "자세히",
         "namePlaceholder": "카드 이름",
+        "faceWithheld": "앞면은 가려져 있습니다",
         "stackName": "덱 이름"
       },
       "contextMenu": {

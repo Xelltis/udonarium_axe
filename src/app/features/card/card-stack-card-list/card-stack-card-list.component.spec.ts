@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { Network } from '@axe/core/network/network';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { CardStackCardListComponent } from '@axe/features/card/card-stack-card-list/card-stack-card-list.component';
@@ -65,6 +67,41 @@ describe('CardStackCardListComponent', () => {
   it('does not fall over without a front image', () => {
     const naked = Card.create('c', '', '');
     expect(() => component.cardImageHint(naked)).not.toThrow();
+  });
+
+  describe('a card whose front the room server keeps from the reader', () => {
+    /** Takes the front picture away as the server withholds it, as if it had never come. */
+    const withhold = (card: Card) => {
+      const front = card.imageDataElement!.getFirstElementByName('front')!;
+      ObjectStore.instance.remove(front);
+      card.imageDataElement!.removeChild(front);
+    };
+    const row = (card: Card) =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(`[data-card-id="${card.identifier}"]`)!;
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('shows its back and says its front is kept, with its front and name left alone', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const [hidden, shown] = stack.cards;
+      withhold(hidden);
+
+      fixture.detectChanges();
+
+      expect(row(hidden).querySelector('[data-testid="card-list-face-withheld"]')).not.toBeNull();
+      expect(row(hidden).querySelector('card-face-preview')).toBeNull();
+      expect(row(hidden).textContent).toContain('表は伏せられています');
+      expect(row(hidden).querySelector<HTMLInputElement>('input[type="text"]')!.disabled).toBe(true);
+      expect(row(shown).querySelector('[data-testid="card-list-face-withheld"]')).toBeNull();
+      expect(row(shown).querySelector<HTMLInputElement>('input[type="text"]')!.disabled).toBe(false);
+    });
+
+    it('is never one with SkyWay, where every card comes whole', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
+      withhold(stack.cards[0]);
+
+      expect(component.isFaceWithheld(stack.cards[0])).toBe(false);
+    });
   });
 
   it('takes the card out of the deck', () => {

@@ -1,4 +1,4 @@
-import { getPeerContext } from '@axe/core/network/peer-context-source';
+import { getAuthorityPeerId, getPeerContext } from '@axe/core/network/peer-context-source';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { Attributes } from '@axe/core/sync/attributes';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
@@ -119,6 +119,15 @@ export class Card extends OwnedTabletopObject {
   /** Whether this user can see the card's front: it is face up, they are peeking, or it is in their hand. */
   get isVisible(): boolean {
     return this.isPeeking || this.isFront || this.isInMyHand;
+  }
+
+  /**
+   * Whether a room server keeps the front from this user: the card is face down to them, and its
+   * front picture, name and text never came. Never with SkyWay, which hands every card over whole.
+   */
+  get isFaceWithheld(): boolean {
+    if (!getAuthorityPeerId() || !this.imageDataElement) return false;
+    return !this.getElement('front', this.imageDataElement);
   }
 
   /** Turns the card face up for everyone and ends any peek at it. */

@@ -1107,6 +1107,7 @@
         "drawFromStack": "Send to table",
         "edit": "Details",
         "namePlaceholder": "Card name",
+        "faceWithheld": "Its front is kept from you",
         "stackName": "Deck name"
       },
       "contextMenu": {

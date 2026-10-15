@@ -1107,6 +1107,7 @@
         "drawFromStack": "場に出す",
         "edit": "詳細",
         "namePlaceholder": "カード名",
+        "faceWithheld": "表は伏せられています",
         "stackName": "山札名"
       },
       "contextMenu": {

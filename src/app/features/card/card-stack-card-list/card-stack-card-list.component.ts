@@ -285,6 +285,15 @@ export class CardStackCardListComponent {
   }
 
   /**
+   * Whether the room server keeps this card's front from the reader. The row then shows its back,
+   * and leaves its front and name alone, which the server would put back anyway.
+   */
+  isFaceWithheld(card: Card): boolean {
+    this.objectChange.versionOf(card.identifier)();
+    return card.isFaceWithheld;
+  }
+
+  /**
    * A short label for a card that has no name of its own, taken from its front image's file name.
    *
    * A playing-card file name such as `h12` reads as the suit and rank; any other name is shown as
