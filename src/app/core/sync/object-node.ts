@@ -91,6 +91,13 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
   override onStoreRemoved() {
     super.onStoreRemoved();
     if (this.parent) this.parent.removeChild(this);
+    // A node that left before its parent arrived must not be adopted by that parent later.
+    const waiting = ObjectNode.pendingChildrenByParentId[this.parentIdentifier];
+    if (waiting) {
+      const kept = waiting.filter((node) => node !== this);
+      if (kept.length > 0) ObjectNode.pendingChildrenByParentId[this.parentIdentifier] = kept;
+      else delete ObjectNode.pendingChildrenByParentId[this.parentIdentifier];
+    }
   }
 
   // ObjectNode Lifecycle

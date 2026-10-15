@@ -151,8 +151,14 @@ export class ObjectSynchronizer {
           // being marked deleted, so it can come back.
           case 'WITHDRAW_GAME_OBJECT': {
             if (!isFromAuthority(msg.sendFrom)) break;
-            const object = ObjectStore.instance.get((msg.data as { identifier: string }).identifier);
-            if (object) withdraw(object);
+            const data = msg.data as { identifier: string; aliasName?: string };
+            // Something asked for that went out of view before it came is no longer waited on.
+            this.requestMap.delete(data.identifier);
+            const object = ObjectStore.instance.get(data.identifier);
+            if (!object) break;
+            // Those who hear of it after this, such as the replay recorder, are told what it was.
+            data.aliasName = object.aliasName;
+            withdraw(object);
             break;
           }
         }

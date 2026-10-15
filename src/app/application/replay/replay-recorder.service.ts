@@ -290,9 +290,10 @@ export class ReplayRecorderService {
     if (eventName === 'AUTHORITATIVE_OBJECT') {
       eventName = 'UPDATE_GAME_OBJECT';
     } else if (eventName === 'WITHDRAW_GAME_OBJECT') {
-      const identifier = (data as { identifier: string }).identifier;
+      // The synchronizer, which hears it first, names what it took away.
+      const withdrawn = data as { identifier: string; aliasName?: string };
       eventName = 'DELETE_GAME_OBJECT';
-      data = { identifier, aliasName: ObjectStore.instance.get(identifier)?.aliasName ?? '' };
+      data = { identifier: withdrawn.identifier, aliasName: withdrawn.aliasName ?? '' };
     }
     if (isIgnoredReplayEvent(eventName)) return;
     const at = Date.now();

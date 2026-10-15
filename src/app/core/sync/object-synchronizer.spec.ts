@@ -166,6 +166,22 @@ describe('ObjectSynchronizer', () => {
         expect(ObjectStore.instance.get<DataElement>('gone')?.value).toBe('back');
       });
 
+      it('stops waiting for something asked for that went out of view, and names what it takes away', () => {
+        const requests = (ObjectSynchronizer.instance as unknown as { requestMap: Map<string, SynchronizeRequest> })
+          .requestMap;
+        // still waiting its turn, behind the most tasks that run at once
+        requests.set('never-coming', { identifier: 'never-coming', version: 1, holderIds: [AUTHORITY], ttl: 2 });
+        const held = DataElement.create('held', 'mine', {}, 'held');
+        held.initialize();
+        const withdrawn = { identifier: 'held' } as { identifier: string; aliasName?: string };
+
+        localDispatch(AuthorityEvent.WITHDRAW, { identifier: 'never-coming' }, AUTHORITY);
+        localDispatch(AuthorityEvent.WITHDRAW, withdrawn, AUTHORITY);
+
+        expect(requests.has('never-coming')).toBe(false);
+        expect(withdrawn.aliasName).toBe('data');
+      });
+
       it('takes nobody else’s word over its versions', () => {
         const held = DataElement.create('held', 'mine', {}, 'held');
         held.initialize();

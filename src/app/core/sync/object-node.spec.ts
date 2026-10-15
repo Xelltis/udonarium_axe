@@ -226,6 +226,24 @@ describe('ObjectNode', () => {
     });
   });
 
+  describe('a node waiting for its parent', () => {
+    it('is not adopted by the parent once it has left the store', () => {
+      const child = new ObjectNode('waiting-child');
+      child.apply({
+        ...child.toContext(),
+        syncData: { ...child.toContext().syncData, parentIdentifier: 'late-parent' },
+      });
+      store.add(child, false);
+      store.remove(child);
+
+      const parent = new ObjectNode('late-parent');
+      parent.initialize();
+
+      expect(parent.children).toEqual([]);
+      parent.destroy();
+    });
+  });
+
   describe('contextAsLastChildOf()', () => {
     it('gives the node as it would travel at the end of the parent, touching neither', () => {
       const parent = new ObjectNode();
