@@ -59,6 +59,7 @@ SkyWay版では、されません。テーブル上のオブジェクトはWebRT
 
 [Releases](https://github.com/Xelltis/udonarium_axe/releases)の`axe_x.y.z.zip`を展開して置き換えます。
 zipに入っている`assets/config.json`で上書きされるので、`backend.url`を入れ直してください。
+部屋のサーバーで配信しているときは、`transport`の`"server"`も入れ直します。zipに入っているものは`"skyway"`です。
 
 バックエンドはAPIが変わらないかぎり、そのままで動きます。
 
