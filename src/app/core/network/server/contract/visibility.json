@@ -293,6 +293,45 @@
             "owner": "u-owner"
           }
         }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "dieRoot",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "die",
+          "value": "",
+          "attributes": {
+            "name": "dice-symbol"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "dieCommon",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "dieRoot",
+          "value": "",
+          "attributes": {
+            "name": "common"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "dieName",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "dieCommon",
+          "value": "Hidden die",
+          "attributes": {
+            "name": "name"
+          }
+        }
       }
     ],
     "note": [
@@ -446,6 +485,26 @@
         "owner": "full",
         "player": "masked",
         "guest": "masked"
+      }
+    },
+    {
+      "room": "dice",
+      "identifier": "dieName",
+      "expect": {
+        "gm": "full",
+        "owner": "full",
+        "player": "hidden",
+        "guest": "hidden"
+      }
+    },
+    {
+      "room": "dice",
+      "identifier": "dieCommon",
+      "expect": {
+        "gm": "full",
+        "owner": "full",
+        "player": "full",
+        "guest": "full"
       }
     },
     {

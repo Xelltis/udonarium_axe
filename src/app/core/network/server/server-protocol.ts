@@ -23,6 +23,22 @@ export const MAX_ROOM_NAME_LENGTH = 255;
 export const MAX_PASSWORD_LENGTH = 64;
 /** How many can be in one room at once. */
 export const MAX_MEMBERS = 32;
+/** The longest command the server rolls; a longer line is rolled here. */
+export const MAX_ROLL_COMMAND_LENGTH = 4000;
+/** The longest target name a roll may carry after its result, as ` [name]`. */
+export const MAX_ROLL_TARGET_NAME_LENGTH = 128;
+/** How many rolls one connection may ask for in ten seconds; more are refused as rate-limited. */
+export const MAX_ROLLS_PER_WINDOW = 20;
+/** The longest name an uploaded picture or sound keeps on the server. */
+export const MAX_ASSET_NAME_LENGTH = 255;
+/** The most catalog items one SYNCHRONIZE_GAME_OBJECT carries. */
+export const CATALOG_BATCH = 2048;
+/** How long an access token lasts, in seconds. */
+export const ACCESS_TOKEN_SECONDS = 15 * 60;
+/** How long an asset token lasts, in seconds. */
+export const ASSET_TOKEN_SECONDS = 15 * 60;
+/** How long an invitation lasts, in seconds. */
+export const INVITE_SECONDS = 30 * 24 * 60 * 60;
 
 /** The WebSocket close code the server closes with after an error message. */
 export const CLOSE_CODE = 4000;
@@ -240,6 +256,10 @@ export type ServerMessage =
  * - ROLE_REQUEST (to the server): `{ peerId, role }`, a GM changing somebody's role
  * - ROLE_REJECTED (from the server): `{ peerId, role, reason }`, a ROLE_REQUEST turned down
  * - ROLL_REQUEST (to the server): a RollRequest, rolled with BCDice and said to everybody
+ * - ROLL_REJECTED (from the server): `{ identifier, reason }`, a ROLL_REQUEST not rolled, named by
+ *   the identifier of the result line asked for
+ *
+ * The server never passes on one of those it sends itself when a client sends it.
  */
 export const AuthorityEvent = {
   AUTHORITATIVE: 'AUTHORITATIVE_OBJECT',
@@ -247,10 +267,40 @@ export const AuthorityEvent = {
   ROLE_REQUEST: 'ROLE_REQUEST',
   ROLE_REJECTED: 'ROLE_REJECTED',
   ROLL_REQUEST: 'ROLL_REQUEST',
+  ROLL_REJECTED: 'ROLL_REJECTED',
 } as const;
 
+/** The events only the server sends. */
+export const AUTHORITY_ONLY_EVENTS: readonly string[] = [
+  AuthorityEvent.AUTHORITATIVE,
+  AuthorityEvent.WITHDRAW,
+  AuthorityEvent.ROLE_REJECTED,
+  AuthorityEvent.ROLL_REJECTED,
+];
+
 /** Why a ROLE_REQUEST was turned down. */
-export type RoleRejectReason = 'not-game-master' | 'unknown-peer' | 'not-logged-in' | 'last-game-master';
+export const ROLE_REJECT_REASONS = ['not-game-master', 'unknown-peer', 'not-logged-in', 'last-game-master'] as const;
+export type RoleRejectReason = (typeof ROLE_REJECT_REASONS)[number];
+
+/**
+ * Why a ROLL_REQUEST was not rolled: a request of the wrong shape, a guest in a tab guests may not
+ * speak in, too many asked for at once, too many waiting in the room, a line BCDice could not
+ * roll (which rolled here would show nothing either), or a failure on the server.
+ */
+export const ROLL_REJECT_REASONS = [
+  'invalid',
+  'not-allowed',
+  'rate-limited',
+  'busy',
+  'not-a-command',
+  'failed',
+] as const;
+export type RollRejectReason = (typeof ROLL_REJECT_REASONS)[number];
+
+/** Whether a value is one of the reasons a roll is refused for. */
+export function isRollRejectReason(value: unknown): value is RollRejectReason {
+  return (ROLL_REJECT_REASONS as readonly unknown[]).includes(value);
+}
 
 /** A thing as it travels between peers; ObjectNode SyncVars sit under `syncData.attributes`. */
 export interface ServerObjectContext {
@@ -274,7 +324,7 @@ export interface RollRequest {
   gameSystem: string;
   /** The speaker's name, which the result line is named after. */
   speaker: string;
-  /** What follows the result text, such as the name of the targeted character. */
+  /** The targeted character's name after the result, as ` [name]` on one line; anything else is refused. */
   suffix?: string;
 }
 
@@ -310,6 +360,25 @@ export interface RoomSummary {
 
 export interface RoomListResponse {
   rooms: RoomSummary[];
+}
+
+/** The header an upload names its picture or sound in, URI-encoded; the room's asset list gives it back. */
+export const ASSET_NAME_HEADER = 'X-Asset-Name';
+
+/** A picture or sound the room holds. */
+export interface RoomAsset {
+  /** The SHA-256 of its bytes, in lowercase hex. */
+  id: string;
+  /** Its media type, such as image/png or audio/ogg. */
+  type: string;
+  size: number;
+  /** The name it was put up under; empty when none was given. */
+  name: string;
+}
+
+/** GET /v1/rooms/:roomKey/assets: everything the room holds, asked for with its asset token. */
+export interface RoomAssetListResponse {
+  assets: RoomAsset[];
 }
 
 /** GET /v1/auth/config: the login providers; none means the Worker has neither login nor rooms. */
@@ -427,6 +496,21 @@ export function readServerMessage(value: unknown): ServerMessage | null {
     default:
       return null;
   }
+}
+
+/** The room's asset list the server answered with, or null when it is not one. */
+export function readRoomAssetList(value: unknown): RoomAsset[] | null {
+  if (!isRecord(value) || !Array.isArray(value['assets'])) return null;
+  const assets = value['assets'];
+  const valid = assets.every(
+    (asset) =>
+      isRecord(asset) &&
+      typeof asset['id'] === 'string' &&
+      typeof asset['type'] === 'string' &&
+      typeof asset['size'] === 'number' &&
+      typeof asset['name'] === 'string'
+  );
+  return valid ? (assets as RoomAsset[]) : null;
 }
 
 /** The room list the server answered with, or null when it is not one. */

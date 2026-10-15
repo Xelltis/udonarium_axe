@@ -1,20 +1,29 @@
 import errors from '@axe/core/network/server/contract/errors.json';
+import events from '@axe/core/network/server/contract/events.json';
+import http from '@axe/core/network/server/contract/http.json';
+import limits from '@axe/core/network/server/contract/limits.json';
 import lww from '@axe/core/network/server/contract/lww.json';
 import messages from '@axe/core/network/server/contract/messages.json';
 import source from '@axe/core/network/server/contract/source.json';
+import * as protocol from '@axe/core/network/server/server-protocol';
 import {
   ACCOUNT_USER_ID_PREFIX,
   assetTokenRequest,
   authMessage,
+  AUTHORITY_ONLY_EVENTS,
   AUTHORITY_PEER_ID,
   AuthorityEvent,
   ERROR_CODES,
   helloMessage,
   inviteRequest,
   PROTOCOL_VERSION,
+  isRollRejectReason,
+  readRoomAssetList,
   readRoomList,
   readServerMessage,
   RETRYABLE_ERROR_CODES,
+  ROLE_REJECT_REASONS,
+  ROLL_REJECT_REASONS,
 } from '@axe/core/network/server/server-protocol';
 import { isNewerVersion } from '@axe/core/sync/object-version';
 import * as MessagePack from '@axe/core/util/message-pack';
@@ -22,6 +31,29 @@ import * as MessagePack from '@axe/core/util/message-pack';
 describe('the room server protocol, held to the server’s fixtures', () => {
   it('speaks the version of the contract it was copied from', () => {
     expect(PROTOCOL_VERSION).toBe(source.protocolVersion);
+  });
+
+  it('knows the events only the server sends, and every reason it refuses with', () => {
+    expect([...AUTHORITY_ONLY_EVENTS]).toEqual(events.authorityOnly);
+    expect([...ROLE_REJECT_REASONS]).toEqual(events.roleRejectReasons);
+    expect([...ROLL_REJECT_REASONS]).toEqual(events.rollRejectReasons);
+    expect(isRollRejectReason(events.rollRejected.reason)).toBe(true);
+    expect(isRollRejectReason('lost')).toBe(false);
+  });
+
+  it('keeps the limits the server keeps', () => {
+    const kept = protocol as unknown as Record<string, unknown>;
+    for (const [name, value] of Object.entries(limits).filter(([key]) => key !== 'description')) {
+      expect([name, kept[name]]).toEqual([name, value]);
+    }
+  });
+
+  it('reads the room list and the asset list as the server answers them', () => {
+    expect(readRoomList(http.roomList)).toEqual(http.roomList.rooms);
+    expect(readRoomAssetList(http.roomAssetList)).toEqual(http.roomAssetList.assets);
+    expect(readRoomAssetList({ assets: [{ ...http.roomAssetList.assets[0], size: '1' }] })).toBeNull();
+    expect(readRoomAssetList({ rooms: [] })).toBeNull();
+    expect(readRoomAssetList(null)).toBeNull();
   });
 
   it('knows every reason the server closes for, and which of them are worth retrying', () => {

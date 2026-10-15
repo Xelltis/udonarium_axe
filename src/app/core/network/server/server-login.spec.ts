@@ -1,3 +1,4 @@
+import http from '@axe/core/network/server/contract/http.json';
 import {
   fetchLoginProviders,
   LOGIN_ATTEMPT_STORAGE_KEY,
@@ -124,6 +125,16 @@ describe('ServerLogin', () => {
     expect(readStoredLogin(storage)).toEqual(kept(1, NOW + 900_000));
     expect(env.session.getItem(LOGIN_VERIFIER_STORAGE_KEY)).toBeNull();
     expect(changes).toHaveBeenCalledTimes(1);
+  });
+
+  it('trades a code the way the server’s contract shows, and reads its answer', async () => {
+    env.session.setItem(LOGIN_VERIFIER_STORAGE_KEY, 'v'.repeat(43));
+    answer = () => json(200, http.tokenResponse);
+
+    const account = await login().finishLogin('#login_code=the-code');
+
+    expect(account).toEqual(http.tokenResponse.account);
+    expect(Object.keys(requests[0].body as object).sort()).toEqual(Object.keys(http.tokenRequestLoginCode).sort());
   });
 
   it('gives the reason a login came back without a code, and asks nothing of the server', async () => {
@@ -274,6 +285,11 @@ describe('ServerLogin', () => {
     expect(readStoredLogin(storage)).toBeNull();
     storage.setItem(LOGIN_STORAGE_KEY, JSON.stringify({ ...kept(1, NOW), account: { name: 'Kai' } }));
     expect(readStoredLogin(storage)).toBeNull();
+  });
+
+  it('reads the providers the way the server’s contract shows them', async () => {
+    answer = () => json(200, http.authConfig);
+    expect(await fetchLoginProviders(BASE_URL)).toEqual(http.authConfig.providers);
   });
 
   it('asks the backend which providers it logs in with', async () => {
