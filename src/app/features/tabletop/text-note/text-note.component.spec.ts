@@ -5,6 +5,9 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -79,6 +82,19 @@ describe('TextNoteComponent', () => {
     it('goes into edit mode on request', () => {
       component.enterEdit();
       expect(component.isEditing()).toBe(true);
+    });
+
+    it('stays out of it for a player the note is kept from, whose field would show what it hides', () => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'a-player';
+      PeerCursor.myCursor.role = PeerRole.Player;
+      note.disclosureMode = DisclosureMode.GameMaster;
+      fixture.detectChanges();
+
+      component.enterEdit();
+
+      expect(component.isEditing()).toBe(false);
+      PeerCursor.myCursor.destroy();
     });
 
     it('stays out of it while the note is locked', () => {

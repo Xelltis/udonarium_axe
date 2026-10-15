@@ -159,11 +159,13 @@ export class TextNoteComponent {
   /**
    * Switches the note into editing and puts the caret at the end of its text.
    *
-   * Does nothing for a user who cannot edit the tabletop, on a locked note, or when the note is
-   * already being edited.
+   * Does nothing for a user who cannot edit the tabletop, on a locked note, when the note is
+   * already being edited, or for a reader the note is kept from, whose field would show the text
+   * it hides and write back whatever was typed over it.
    */
   enterEdit() {
     if (!this.rolePermission.canEditTabletop) return;
+    if (!this.canView()) return;
     if (this.textNote().isLock) return;
     if (this.isEditing()) return;
     this.isEditing.set(true);
