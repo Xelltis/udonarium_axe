@@ -409,14 +409,21 @@ function forgetSeatPreferences(): void {
 /**
  * The page's address as the setup found it. A spec that clicks a link, as saving a file does, has
  * happy-dom set the page's address to the link's, since it cannot load another page; a blob's
- * address left there is no base for the relative addresses later specs in the worker resolve.
+ * address left there is no base for the relative addresses later specs in the worker resolve. It
+ * can land a moment after the click, in the next spec, so the setting is turned off outright, and
+ * the address put back before each test should anything else move it.
  */
 const PAGE_URL = location.href;
+const happyDOM = (
+  window as unknown as {
+    happyDOM?: { setURL(url: string): void; settings: { navigation: { disableFallbackToSetURL: boolean } } };
+  }
+).happyDOM;
+if (happyDOM) happyDOM.settings.navigation.disableFallbackToSetURL = true;
 
 /** Puts the page back at the address the setup found it at, if a spec moved it. */
 function returnToPageUrl(): void {
-  if (location.href === PAGE_URL) return;
-  (window as unknown as { happyDOM?: { setURL(url: string): void } }).happyDOM?.setURL(PAGE_URL);
+  if (location.href !== PAGE_URL) happyDOM?.setURL(PAGE_URL);
 }
 
 beforeAll(async () => {
