@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
-import { NgSelectComponent, NgSelectConfig } from '@ng-select/ng-select';
+import { NgSelectComponent } from '@ng-select/ng-select';
 
 @Component({
   selector: 'select-host',
@@ -17,10 +17,8 @@ class SelectHostComponent {
 
 describe('NgSelectWindowDirective', () => {
   let paper: Document;
-  let appendedTo: string;
 
   function render() {
-    TestBed.inject(NgSelectConfig).appendTo = 'body';
     const fixture = TestBed.createComponent(SelectHostComponent);
     document.body.appendChild(fixture.nativeElement);
     fixture.detectChanges();
@@ -30,12 +28,10 @@ describe('NgSelectWindowDirective', () => {
 
   beforeEach(() => {
     paper = document.implementation.createHTMLDocument('window');
-    appendedTo = TestBed.inject(NgSelectConfig).appendTo;
   });
 
   afterEach(() => {
     for (const panel of document.querySelectorAll('.ng-dropdown-panel')) panel.remove();
-    TestBed.inject(NgSelectConfig).appendTo = appendedTo;
   });
 
   it('opens the list in the window the select was put into', async () => {
@@ -46,19 +42,23 @@ describe('NgSelectWindowDirective', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(paper.querySelector('.ng-dropdown-panel')).not.toBeNull();
+    const panel = paper.querySelector('.ng-dropdown-panel');
+    expect(panel?.closest('ng-select')).toBeNull();
+    expect(paper.body.contains(panel)).toBe(true);
     expect(document.querySelector('.ng-dropdown-panel')).toBeNull();
     fixture.destroy();
   });
 
-  it('opens the list in the main window while the select stands there', async () => {
+  it('opens the list on the body of the main window while the select stands there, outside any panel', async () => {
     const { fixture, select } = render();
 
     select.open();
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(document.querySelector('.ng-dropdown-panel')).not.toBeNull();
+    const panel = document.querySelector('.ng-dropdown-panel');
+    expect(panel?.closest('ng-select')).toBeNull();
+    expect(document.body.contains(panel)).toBe(true);
     fixture.destroy();
   });
 

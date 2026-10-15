@@ -40,7 +40,6 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { VnStage } from '@axe/domain/visual-novel/vn-stage';
 import { Vote } from '@axe/domain/vote/vote';
-import { NgSelectConfig } from '@ng-select/ng-select';
 
 const PREFETCH_IDLE_TIMEOUT_MS = 5000;
 const PREFETCH_FALLBACK_DELAY_MS = 1500;
@@ -59,7 +58,6 @@ export class AppInitializationService {
   private readonly config = inject(Config);
   private readonly dataSummarySetting = inject(DataSummarySetting);
   private readonly statusAilmentCatalog = inject(StatusAilmentCatalog);
-  private readonly ngSelectConfig = inject(NgSelectConfig);
   private readonly keyboardInset = inject(KeyboardInsetService);
   private readonly personalVolumes = inject(PersonalVolumeService);
 
@@ -81,7 +79,6 @@ export class AppInitializationService {
     this.pointerDeviceService.initialize();
     this.keyboardInset.initialize();
     keepFocusFromZoomingOnAppleTouch(document, navigator);
-    this.ngSelectConfig.appendTo = 'body';
 
     this.tableSelecter.initialize();
     this.turnState.initialize();

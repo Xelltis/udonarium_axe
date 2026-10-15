@@ -47,7 +47,6 @@ import {
   rangeClipPathCss,
   rangeQuadrantCells,
 } from '@axe/features/tabletop/range/range-paint';
-import { RangeDockingCharacterComponent } from '@axe/features/tabletop/range-docking-character/range-docking-character.component';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
@@ -331,8 +330,15 @@ export class RangeComponent {
       height: 200,
     };
     option.title = this.translateFn('feature.tabletop.panel.rangeFollow');
-    const component = this.panelService.open<RangeDockingCharacterComponent>(RangeDockingCharacterComponent, option);
-    component.tabletopObject = this.range();
+    const range = this.range();
+    this.panelService.openLazy(
+      () =>
+        import('@axe/features/tabletop/range-docking-character/range-docking-character.component').then(
+          (m) => m.RangeDockingCharacterComponent
+        ),
+      option,
+      (component) => (component.tabletopObject = range)
+    );
   }
 
   /** Plays the pick-up sound when a drag or a turn of the range begins. */

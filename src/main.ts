@@ -25,7 +25,6 @@ import { setNetworkTick } from '@axe/core/network/network-messaging';
 import { wipeBrowserDataIfRequested } from '@axe/core/storage/browser-data-wipe';
 import { environment } from '@env/environment';
 import { provideTransloco } from '@jsverse/transloco';
-import { NgSelectModule } from '@ng-select/ng-select';
 
 if (environment.production) {
   enableProdMode();
@@ -35,7 +34,7 @@ if (environment.production) {
 function bootstrap(): Promise<void> {
   return bootstrapApplication(AppComponent, {
     providers: [
-      importProvidersFrom(BrowserModule, CommonModule, FormsModule, YouTubePlayerModule, NgSelectModule),
+      importProvidersFrom(BrowserModule, CommonModule, FormsModule, YouTubePlayerModule),
       provideZonelessChangeDetection(),
       provideHttpClient(withXhr()),
       provideTransloco({ config: transLocoConfig, loader: TranslocoHttpLoader }),
