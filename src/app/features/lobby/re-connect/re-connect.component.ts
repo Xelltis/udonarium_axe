@@ -9,13 +9,14 @@ import { Logger } from '@axe/core/logging/logger';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { loadIdentity } from '@axe/core/storage/identity-storage';
-import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { withdraw } from '@axe/core/sync/object-synchronizer';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -257,50 +258,53 @@ export class ReConnectComponent {
    * Destroys the local characters, ranges, notes, dice, masks and terrain so a forced reconnect
    * takes the room's copies from the other peers, and forgets what was deleted so those copies are
    * not refused.
+   *
+   * In a room server's room they are only taken off this screen: the server keeps the room's
+   * copies, which the seat takes again on getting back in, and destroying or moving them would
+   * destroy or move them for everybody.
    */
   deleteObject() {
     Logger.info('[Network] dropping objects that may diverge from the new peers');
 
     const gameCharacters = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     for (const obj of gameCharacters) {
-      obj.setLocation('graveyard');
       this.deleteGameObject(obj);
     }
 
     const rangeAreas = this.objectStore.getObjects<RangeArea>(RangeArea);
     for (const obj of rangeAreas) {
-      obj.setLocation('graveyard');
       this.deleteGameObject(obj);
     }
 
     const textNote = this.objectStore.getObjects<TextNote>(TextNote);
     for (const obj of textNote) {
-      obj.setLocation('graveyard');
       this.deleteGameObject(obj);
     }
 
     const diceSymbol = this.objectStore.getObjects<DiceSymbol>(DiceSymbol);
     for (const obj of diceSymbol) {
-      obj.setLocation('graveyard');
       this.deleteGameObject(obj);
     }
 
     const gameTableMask = this.objectStore.getObjects<GameTableMask>(GameTableMask);
     for (const obj of gameTableMask) {
-      obj.setLocation('graveyard');
       this.deleteGameObject(obj);
     }
 
     const terrain = this.objectStore.getObjects<Terrain>(Terrain);
     for (const obj of terrain) {
-      obj.setLocation('graveyard');
       this.deleteGameObject(obj);
     }
 
     this.objectStore.clearDeleteHistory();
   }
 
-  private deleteGameObject(gameObject: GameObject) {
+  private deleteGameObject(gameObject: TabletopObject) {
+    if (Network.transport === 'server') {
+      withdraw(gameObject);
+      return;
+    }
+    gameObject.setLocation('graveyard');
     gameObject.destroy();
   }
 }

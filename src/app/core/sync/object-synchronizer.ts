@@ -360,8 +360,11 @@ function isFromAuthority(sendFrom: PeerId): boolean {
   return authority != null && sendFrom === authority;
 }
 
-/** Takes an object and everything beneath it out of the store, deepest first, marking nothing deleted. */
-function withdraw(object: GameObject): void {
+/**
+ * Takes an object and everything beneath it out of this device's store, deepest first, marking
+ * nothing deleted and telling no peer: the room server's copy stays, to be taken again.
+ */
+export function withdraw(object: GameObject): void {
   if (object instanceof ObjectNode) {
     for (const child of [...object.children]) withdraw(child);
   }

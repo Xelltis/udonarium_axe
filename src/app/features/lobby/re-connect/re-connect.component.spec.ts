@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import {
   createExpectedPeerIdSet,
   isReconnectCompleted,
@@ -91,5 +93,33 @@ describe('ReConnectComponent', () => {
     component.reConnect();
 
     expect(deleteSpy).toHaveBeenCalledOnce();
+  });
+
+  describe('cleaning up', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('takes the pieces off this screen alone in a room server’s room, deleting and moving nothing', () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      const character = GameCharacter.create('勇者', 1, '');
+      const location = character.location.name;
+      const send = vi.spyOn(Network, 'send');
+
+      component.deleteObject();
+
+      expect(ObjectStore.instance.get(character.identifier)).toBeNull();
+      expect(ObjectStore.instance.isDeleted(character.identifier)).toBe(false);
+      expect(character.location.name).toBe(location);
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('sends the pieces to the graveyard and deletes them among peers, as before', () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('skyway');
+      const character = GameCharacter.create('勇者', 1, '');
+
+      component.deleteObject();
+
+      expect(ObjectStore.instance.get(character.identifier)).toBeNull();
+      expect(character.location.name).toBe('graveyard');
+    });
   });
 });
