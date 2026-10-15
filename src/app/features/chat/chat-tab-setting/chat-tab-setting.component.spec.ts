@@ -355,6 +355,11 @@ describe('ChatTabSettingComponent', () => {
       PeerCursor.createMyCursor();
       PeerCursor.myCursor.role = role;
     };
+    const rolledBy = (tab: ChatTab, text: string) => {
+      const message = tab.addMessage({ from: 'System-BCDice', name: 'ダイス', text, timestamp: 1000 });
+      message.serverRoll = true;
+      return message;
+    };
 
     beforeEach(() => {
       vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
@@ -406,6 +411,54 @@ describe('ChatTabSettingComponent', () => {
       component.setPerm('plCanView', true);
 
       expect(tab.plCanView).toBe(true);
+    });
+
+    it('lets a player delete no tab holding dice the server rolled, and says why', () => {
+      beSeat(PeerRole.Player);
+      const tab = ChatTabList.instance.addChatTab('test');
+      rolledBy(tab, '2D6 → 7');
+      component.selectedTab.set(tab);
+      component.allowDeleteTab = true;
+      fixture.detectChanges();
+
+      component.delete();
+
+      expect(component.isDeletable).toBe(false);
+      expect(ObjectStore.instance.get(tab.identifier)).toBe(tab);
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('GM だけが削除できます');
+    });
+
+    it('lets a player delete a tab with no dice the server rolled, and the game master any', () => {
+      beSeat(PeerRole.Player);
+      const plain = ChatTabList.instance.addChatTab('plain');
+      plain.addMessage({ from: 'someone', name: '誰か', text: 'こんにちは', timestamp: 1000 });
+      component.selectedTab.set(plain);
+      expect(component.isDeletable).toBe(true);
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      const rolled = ChatTabList.instance.addChatTab('rolled');
+      rolledBy(rolled, '2D6 → 7');
+      component.selectedTab.set(rolled);
+      expect(component.isDeletable).toBe(true);
+    });
+
+    it('leaves the dice the server rolled when a player clears a log, and the game master clears them too', () => {
+      beSeat(PeerRole.Player);
+      const tab = ChatTabList.instance.addChatTab('test');
+      tab.addMessage({ from: 'someone', name: '誰か', text: '消える発言', timestamp: 1000 });
+      const rolled = rolledBy(tab, '2D6 → 7');
+      component.selectedTab.set(tab);
+      component.allowDeleteLog = true;
+
+      component.deleteLog();
+      expect(tab.chatMessages.filter((message) => !message.isSystemMessage || message.isDicebot)).toEqual([rolled]);
+
+      component.deleteLogALL();
+      expect(tab.chatMessages).toContain(rolled);
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      component.deleteLog();
+      expect(tab.chatMessages).not.toContain(rolled);
     });
   });
 

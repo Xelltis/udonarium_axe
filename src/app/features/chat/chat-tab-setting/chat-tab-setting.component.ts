@@ -14,6 +14,7 @@ import { Network } from '@axe/core/network/network';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CHAT_LOG_STYLES, ChatLogStyle } from '@axe/domain/chat/chat-log-style';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -130,9 +131,40 @@ export class ChatTabSettingComponent {
     return !!this.selectedTab()?.isSystemTab;
   }
 
-  /** It cannot be deleted; with nowhere for the arrivals and departures to go, they come back into the conversation. */
+  /**
+   * Whether the selected tab may be deleted from this seat. The system tab cannot be: with nowhere
+   * for the arrivals and departures to go, they would come back into the conversation. Nor, in a room
+   * server's room, can anyone but the game master delete one that holds dice the server rolled.
+   */
   get isDeletable(): boolean {
-    return !this.isEmpty && !!this.selectedTab() && !this.isSystemTabSelected && this.canEditTabs;
+    return (
+      !this.isEmpty &&
+      !!this.selectedTab() &&
+      !this.isSystemTabSelected &&
+      this.canEditTabs &&
+      !this.isDeleteKeptForGameMaster
+    );
+  }
+
+  /**
+   * Whether the selected tab is one that, in a room server's room, only the game master may delete,
+   * for holding dice the server rolled, which the server keeps from anyone else's deleting.
+   */
+  get isDeleteKeptForGameMaster(): boolean {
+    const tab = this.selectedTab();
+    if (!tab || !this.isKeptToGameMasterByServer) return false;
+    this.objectChange.collectionOf(ChatMessage.aliasName)();
+    this.objectChange.versionOf(tab.identifier)();
+    return tab.chatMessages.some((message) => message.isServerRoll);
+  }
+
+  /**
+   * Whether a room server holds this seat to what only the game master may change in the tabs: who
+   * may read a tab, and deleting the dice the server rolled. Among peers nothing is held back.
+   */
+  get isKeptToGameMasterByServer(): boolean {
+    this.objectChange.trackMyCursor();
+    return Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
   }
 
   /** Whether the selected tab's name may be changed, which the system tab's may not. */
@@ -181,15 +213,6 @@ export class ChatTabSettingComponent {
   /** Whether the read and speak permissions of the selected tab can be changed from this seat. */
   get canEditPermission(): boolean {
     return this.isEditable && this.canEditTabs;
-  }
-
-  /**
-   * Whether a room server holds this seat to what only the game master may change in the tabs: who
-   * may read a tab. Among peers nothing is held back.
-   */
-  get isKeptToGameMasterByServer(): boolean {
-    this.objectChange.trackMyCursor();
-    return Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
   }
 
   /**
@@ -356,15 +379,14 @@ export class ChatTabSettingComponent {
    * Clears every message from the selected tab for every peer and posts who cleared it.
    *
    * Needs the confirmation box ticked and a seat that may change the tabs; the tab's portraits are
-   * reset along with the log.
+   * reset along with the log. In a room server's room, anyone but the game master leaves the dice
+   * the server rolled where they are, since the server keeps them.
    */
   deleteLog() {
     if (!this.allowDeleteLog || !this.canEditTabs) return;
 
     if (!this.isEmpty && this.selectedTab()) {
-      while (this.selectedTab()!.children.length > 0) {
-        this.selectedTab()!.children[0].destroy();
-      }
+      this.clearLogOf(this.selectedTab()!);
       this.selectedTab()!.portraitReset();
       const mess = encodeI18nMessage('common.chat.logClearedBy', { user: this.resolveRequesterName() });
       this.chatMessageService.sendSystemMessageToTab(this.selectedTab()!, mess, undefined, this.requesterUserId());
@@ -373,7 +395,8 @@ export class ChatTabSettingComponent {
 
   /**
    * Clears the logs of every tab for every peer, posting who cleared them in each; needs the
-   * confirmation box ticked and a seat that may change the tabs.
+   * confirmation box ticked and a seat that may change the tabs. In a room server's room, anyone but
+   * the game master leaves the dice the server rolled where they are.
    */
   deleteLogALL() {
     if (!this.allowDeleteLog || !this.canEditTabs) return;
@@ -382,11 +405,17 @@ export class ChatTabSettingComponent {
 
     const requester = this.requesterUserId();
     for (const child of this.chatTabList.chatTabs) {
-      while (child.children.length > 0) {
-        child.children[0].destroy();
-      }
+      this.clearLogOf(child);
       child.portraitReset();
       this.chatMessageService.sendSystemMessageToTab(child, mess, undefined, requester);
+    }
+  }
+
+  private clearLogOf(tab: ChatTab): void {
+    const keepServerRolls = this.isKeptToGameMasterByServer;
+    for (const child of [...tab.children]) {
+      if (keepServerRolls && child instanceof ChatMessage && child.isServerRoll) continue;
+      child.destroy();
     }
   }
 

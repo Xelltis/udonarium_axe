@@ -216,6 +216,10 @@
                 >
                   <i class="material-icons">delete</i>{{ 'feature.chat.tabSetting.deleteTab' | transloco }}
                 </button>
+              } @else if (canEditTabs && isDeleteKeptForGameMaster) {
+                <span class="text-ui-dim text-[11px]">{{
+                  'feature.chat.tabSetting.deleteKeptForGmOnServer' | transloco
+                }}</span>
               }
             </div>
           </div>
@@ -322,6 +326,11 @@
                 <i class="material-icons">delete_forever</i>{{ 'feature.chat.tabSetting.deleteLogAllTabs' | transloco }}
               </button>
             </div>
+            @if (isKeptToGameMasterByServer) {
+              <span class="text-ui-dim text-[11px]">{{
+                'feature.chat.tabSetting.logKeepsServerRollsOnServer' | transloco
+              }}</span>
+            }
           </div>
         }
       }
