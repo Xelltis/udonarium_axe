@@ -232,6 +232,49 @@ describe('ChatMessageService', () => {
     });
   });
 
+  describe('a guest’s own lines on a room server', () => {
+    let service: ChatMessageService;
+    let tab: ChatTab;
+    const original = PeerCursor.myCursor;
+
+    beforeEach(() => {
+      beMyself('me');
+      service = TestBed.inject(ChatMessageService);
+      tab = ChatTabList.instance.addChatTab('テストタブ');
+      PeerCursor.myCursor = { role: PeerRole.Guest, isGameMaster: false } as PeerCursor;
+    });
+
+    afterEach(() => {
+      tab.destroy();
+      PeerCursor.myCursor = original;
+    });
+
+    const mineIn = (guestCanSpeak: boolean) => {
+      tab.guestCanSpeak = guestCanSpeak;
+      return tab.addMessage({ from: 'me', name: 'ゲスト', text: 'こんにちは', tag: 'secret', timestamp: 1000 });
+    };
+    const offered = (line: ChatMessage) => [
+      service.canEditMessage(line),
+      service.canPseudoDelete(line),
+      service.canMakeAfterWhisper(line),
+      service.canDiscloseMessage(line),
+    ];
+
+    it('offers no change to one in a tab guests may not speak in, which the server would put back', () => {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+
+      expect(offered(mineIn(false))).toEqual([false, false, false, false]);
+    });
+
+    it('offers the changes where guests may speak, and everywhere among peers', () => {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      expect(offered(mineIn(true))).toEqual([true, true, true, true]);
+
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+      expect(offered(mineIn(false))).toEqual([true, true, true, true]);
+    });
+  });
+
   describe('opening what a die was thrown on', () => {
     let service: ChatMessageService;
     let tab: ChatTab;

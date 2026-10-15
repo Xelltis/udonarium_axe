@@ -140,7 +140,12 @@ export class ChatMessageComponent {
 
   /** Whether the pencil is offered on this line. */
   get canChange(): boolean {
-    return !this.readOnly() && (this.chatMessage?.changeable ?? false) && !this.chatMessage.sentStamp;
+    return (
+      !this.readOnly() &&
+      !!this.chatMessage &&
+      this.chatMessageService.canEditMessage(this.chatMessage) &&
+      !this.chatMessage.sentStamp
+    );
   }
 
   /**
@@ -634,7 +639,7 @@ export class ChatMessageComponent {
    * focused with the caret at the end once it is drawn. Does nothing for a line that may not change.
    */
   startEdit() {
-    if (!this.chatMessage.changeable) return;
+    if (!this.chatMessageService.canEditMessage(this.chatMessage)) return;
     this.editDraft.set(vnBodyOf(this.chatMessage.vnEmote, this.chatMessage.text ?? ''));
     setTimeout(() => {
       const el = this.editingTextArea()?.nativeElement;

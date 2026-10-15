@@ -38,6 +38,7 @@ import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element
 import { encodeDiceLook } from '@axe/domain/dice/dice-3d/dice-look';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import GameSystemClass from 'bcdice/lib/game_system';
 
 const HOURS = 60 * 60 * 1000;
@@ -637,8 +638,24 @@ export class ChatMessageService {
    * back is the one thing a seat holds against the rest of the table.
    */
   canDiscloseMessage(message: ChatMessage): boolean {
-    if (!message.isSecret) return false;
+    if (!message.isSecret || this.keptFromWriting(message)) return false;
     return message.isSendFromSelf || this.rolePermission.canSeeHidden;
+  }
+
+  /** Whether this reader may edit a line: one they said, where they may still write to it. */
+  canEditMessage(message: ChatMessage): boolean {
+    return message.changeable && !this.keptFromWriting(message);
+  }
+
+  /**
+   * Whether this reader may not write to a line where it stands, whatever else allows it: on a room
+   * server a guest writes only in a tab guests may speak in, and the server puts back any change
+   * elsewhere. Among peers nothing is held back.
+   */
+  private keptFromWriting(message: ChatMessage): boolean {
+    if (Network.authorityPeerId === null || PeerCursor.myRole !== PeerRole.Guest) return false;
+    const tab = message.parent;
+    return !(tab instanceof ChatTab) || !tab.guestCanSpeak;
   }
 
   /**
@@ -665,12 +682,12 @@ export class ChatMessageService {
    */
   canMakeAfterWhisper(message: ChatMessage): boolean {
     if (message.isDirect && !message.isAfterWhisper) return false;
-    return message.changeable;
+    return this.canEditMessage(message);
   }
 
   /** Whether this reader may put a line they made an after-the-fact whisper back where it was. */
   canUndoAfterWhisper(message: ChatMessage): boolean {
-    return message.isAfterWhisper && message.changeable;
+    return message.isAfterWhisper && this.canEditMessage(message);
   }
 
   /**
@@ -708,7 +725,7 @@ export class ChatMessageService {
    * dice result is the dice bot's line, so a roll stays where the table saw it.
    */
   canPseudoDelete(message: ChatMessage): boolean {
-    return !message.isPseudoDeleted && message.changeable;
+    return !message.isPseudoDeleted && this.canEditMessage(message);
   }
 
   /**

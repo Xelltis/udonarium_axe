@@ -239,7 +239,7 @@ export class VisualNovelBacklogComponent {
     if (!this.viewport.isTouch() && this.wordsPickedOutReach(event.currentTarget)) return;
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
     const actions = buildBacklogEntryContextMenu(
-      entry.message.changeable,
+      this.canEdit(entry.message),
       { edit: () => this.startEditEntry(entry) },
       this.translate
     );
@@ -259,12 +259,17 @@ export class VisualNovelBacklogComponent {
     );
   }
 
+  /** Whether this reader may edit the line: one they said, where they may still write to it. */
+  protected canEdit(message: ChatMessage): boolean {
+    return this.chatMessageService.canEditMessage(message);
+  }
+
   /**
    * Opens the edit form on a line, filled in with its text, its emote and where its portrait
    * stands. Does nothing for a line that may not be changed.
    */
   startEditEntry(entry: { message: ChatMessage; index: number }): void {
-    if (!entry.message.changeable) return;
+    if (!this.canEdit(entry.message)) return;
     const raw = entry.message.text ?? '';
     const parsed = vnEmoteOf(entry.message.vnEmote, raw);
     this.editText.set(vnBodyOf(entry.message.vnEmote, raw));
@@ -294,7 +299,7 @@ export class VisualNovelBacklogComponent {
    */
   saveEditEntry(): void {
     const message = this.playback.logMessages().find((candidate) => candidate.identifier === this.editingIdentifier());
-    if (!message?.changeable) {
+    if (!message || !this.canEdit(message)) {
       this.editingIdentifier.set('');
       return;
     }
