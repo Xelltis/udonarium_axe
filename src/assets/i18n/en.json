@@ -3322,7 +3322,7 @@
       },
       "deleteRoom": {
         "confirmTitle": "Delete room",
-        "confirmMessage": "Delete “{{name}}”? Everyone in it will leave, and the table kept on the server will be gone. This cannot be undone. (The table on each screen stays as it is.)",
+        "confirmMessage": "Delete “{{name}}”? Everyone in it will leave, and the table kept on the server will be gone, along with the pictures and sounds put up to the room. This cannot be undone. (The table on each screen stays as it is.)",
         "confirmOk": "Delete",
         "deleted": "Deleted the room",
         "gone": "The room had already been deleted",
