@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { diceBotUnreachable$, emitDiceRolled, serverRollUnanswered$ } from '@axe/core/event/domain-events';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
@@ -214,14 +215,14 @@ describe('DiceChatEventHandlerService', () => {
         .mockReturnValue(null as unknown as ChatMessage);
       const line = tab.addMessage({ from: SELF_USER_ID, text: '2d6', timestamp: 1, tag: 'DiceBot', name: 'わたし' });
 
-      serverRollUnanswered$.emit({ messageIdentifier: line.identifier, reason: 'not-allowed' });
-      serverRollUnanswered$.emit({ messageIdentifier: line.identifier, reason: 'not-allowed' });
+      serverRollUnanswered$.emit({ messageIdentifier: line.identifier, reason: 'busy' });
+      serverRollUnanswered$.emit({ messageIdentifier: line.identifier, reason: 'busy' });
       serverRollUnanswered$.emit({ messageIdentifier: line.identifier, reason: 'something-new' });
 
       expect(tell.mock.calls.map(([where, text, to]) => [where, text, to])).toEqual([
         [
           tab,
-          expect.stringContaining('feature.chat.diceBot.serverRollUnanswered.not-allowed'),
+          expect.stringContaining('feature.chat.diceBot.serverRollUnanswered.busy'),
           PeerCursor.myCursor.identifier,
         ],
         [
@@ -231,6 +232,19 @@ describe('DiceChatEventHandlerService', () => {
         ],
       ]);
       tell.mockRestore();
+    });
+
+    it('tells a seat that may not speak in the tab at the bottom of the screen, where nothing is taken back', () => {
+      const tell = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageOnePlayer');
+      const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+      const line = tab.addMessage({ from: SELF_USER_ID, text: '2d6', timestamp: 1, tag: 'DiceBot', name: 'わたし' });
+
+      serverRollUnanswered$.emit({ messageIdentifier: line.identifier, reason: 'not-allowed' });
+
+      expect(tell).not.toHaveBeenCalled();
+      expect(show).toHaveBeenCalledOnce();
+      tell.mockRestore();
+      show.mockRestore();
     });
   });
 });

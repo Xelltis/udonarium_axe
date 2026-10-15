@@ -1,6 +1,8 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import {
   diceBotUnreachable$,
   DiceBotUnreachableEvent,
@@ -44,6 +46,8 @@ export class DiceChatEventHandlerService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectStore = inject(ObjectStore);
   private readonly chatMessageService = inject(ChatMessageService);
+  private readonly snackbar = inject(SnackbarService);
+  private readonly t = inject(TRANSLATE_FN);
   /**
    * The line last pointed out as unrolled. One line can go unrolled for each target it was sent to
    * and for its dice table, one after another, and the sender needs telling once.
@@ -97,8 +101,14 @@ export class DiceChatEventHandlerService {
 
     this.lastUnanswered = key;
     const reason = UNANSWERED_REASONS.has(event.reason) ? event.reason : 'failed';
-    const text = encodeI18nMessage(`feature.chat.diceBot.serverRollUnanswered.${reason}`);
-    this.chatMessageService.sendSystemMessageOnePlayer(tab, text, me.identifier, undefined, true);
+    const key18n = `feature.chat.diceBot.serverRollUnanswered.${reason}`;
+    // A seat that may not speak in the tab could not put a line there either: the server would take
+    // it back. It is told at the bottom of the screen instead.
+    if (reason === 'not-allowed') {
+      this.snackbar.show(this.t(key18n));
+      return;
+    }
+    this.chatMessageService.sendSystemMessageOnePlayer(tab, encodeI18nMessage(key18n), me.identifier, undefined, true);
   }
 
   /** The piece named in the token, or the one that spoke the line when it names none. */
