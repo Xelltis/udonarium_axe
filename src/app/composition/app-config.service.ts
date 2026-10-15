@@ -4,6 +4,7 @@ import { LoggerService } from '@axe/application/logging/logger.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { emitLoadConfig } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
+import { trimBaseUrl } from '@axe/core/network/server/server-room-api';
 import { Transport, transportOf } from '@axe/core/network/transport';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 
@@ -86,12 +87,17 @@ export class AppConfigService {
 
   /**
    * Points the login at the room server, and has every connection to it say hello with the login,
-   * before anything connects; a reload may go straight back into a room.
+   * before anything connects; a reload may go straight back into a room. Uploads to the same server
+   * carry the login too, as it takes them only from somebody logged in.
    */
   private configureServerLogin(config: AppConfig): void {
     if (config.transport !== 'server' || config.backend.url.trim().length === 0) return;
     this.serverAuth.configure(config.backend.url);
     Network.setServerCredentials(this.serverAuth);
+    // The login's token goes only to the server it came from, never to an asset server elsewhere.
+    if (trimBaseUrl(assetServerUrl(config)) === trimBaseUrl(config.backend.url)) {
+      AssetHttpStore.instance.setAuthorization(() => this.serverAuth.accessToken());
+    }
   }
 }
 

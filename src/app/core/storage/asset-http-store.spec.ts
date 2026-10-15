@@ -20,6 +20,7 @@ describe('AssetHttpStore', () => {
 
   afterEach(() => {
     store.configure(null);
+    store.setAuthorization(null);
     store.delay = originalDelay;
     vi.restoreAllMocks();
   });
@@ -78,9 +79,27 @@ describe('AssetHttpStore', () => {
       expect(callsOf()).toEqual([['HEAD', `${BASE}/v1/assets/${id}`]]);
     });
 
-    it.each([400, 413, 415])('gives up for good on %i', async (status) => {
+    it.each([400, 413, 415, 451])('gives up for good on %i', async (status) => {
       respond(new Response(null, { status: 404 }), new Response('{}', { status }));
       expect(await store.upload(id, new Blob([bytes]))).toBe('refused');
+    });
+
+    it('sends the access token with the bytes, and none with asking whether the server has them', async () => {
+      store.setAuthorization(async () => 'access-1');
+      respond(new Response(null, { status: 404 }), new Response('{}', { status: 201 }));
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('stored');
+      const headersOf = (call: number) => new Headers((fetchSpy.mock.calls[call][1] as RequestInit).headers);
+      expect(headersOf(0).get('Authorization')).toBeNull();
+      expect(headersOf(1).get('Authorization')).toBe('Bearer access-1');
+    });
+
+    it('uploads without a token when none can be had, and fails for now when the server wants one', async () => {
+      store.setAuthorization(() => Promise.reject(new Error('offline')));
+      respond(new Response(null, { status: 404 }), new Response('{}', { status: 401 }));
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('failed');
+      expect(new Headers((fetchSpy.mock.calls[1][1] as RequestInit).headers).get('Authorization')).toBeNull();
     });
 
     it('waits and tries again when the server asks for fewer uploads', async () => {

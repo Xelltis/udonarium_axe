@@ -13,7 +13,7 @@ const REQUEST_TIMEOUT_MS = 60_000;
 const RATE_LIMIT_BACKOFF_MS = [10_000, 20_000, 40_000];
 
 /** Statuses meaning the server will never take these bytes: a bad name, a hash mismatch, too big, not a picture or a sound. */
-const REFUSED_STATUSES = new Set([400, 413, 415]);
+const REFUSED_STATUSES = new Set([400, 413, 415, 451]);
 
 /** Runs at most `limit` tasks at a time, the rest in the order they were queued. */
 class TaskQueue {
@@ -55,6 +55,7 @@ export class AssetHttpStore {
   }
 
   private baseUrl: string | null = null;
+  private authorization: (() => Promise<string | null>) | null = null;
   private readonly uploads = new TaskQueue(UPLOAD_CONCURRENCY);
   private readonly downloads = new TaskQueue(DOWNLOAD_CONCURRENCY);
   /** Waits between retries; replaced in tests so they need not sit through the backoff. */
@@ -74,6 +75,14 @@ export class AssetHttpStore {
   }
 
   /**
+   * Gives the uploads an access token to send, for a server that takes them only from somebody
+   * logged in; null sends none. Downloads never carry one.
+   */
+  setAuthorization(token: (() => Promise<string | null>) | null): void {
+    this.authorization = token;
+  }
+
+  /**
    * Puts bytes on the server under their identifier, unless they are there already.
    *
    * A refusal means the server will never take them, so they keep travelling between peers. A
@@ -86,7 +95,11 @@ export class AssetHttpStore {
       try {
         if ((await this.request(url, { method: 'HEAD' })).ok) return 'exists';
         for (let attempt = 0; ; attempt++) {
-          const res = await this.request(url, { method: 'PUT', body: blob });
+          const res = await this.request(url, {
+            method: 'PUT',
+            body: blob,
+            headers: await this.authorizationHeaders(),
+          });
           if (res.status === 201) return 'stored';
           if (res.ok) return 'exists';
           if (REFUSED_STATUSES.has(res.status)) return 'refused';
@@ -122,6 +135,12 @@ export class AssetHttpStore {
         return null;
       }
     });
+  }
+
+  /** The header carrying the access token, when there is one to be had. */
+  private async authorizationHeaders(): Promise<Record<string, string>> {
+    const token = await this.authorization?.().catch(() => null);
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
   private async request(url: string, init: RequestInit): Promise<Response> {

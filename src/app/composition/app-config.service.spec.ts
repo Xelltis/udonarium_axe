@@ -1,7 +1,9 @@
 import { inject, TestBed } from '@angular/core/testing';
+import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { AppConfigService, assetServerUrl } from '@axe/composition/app-config.service';
+import { Network } from '@axe/core/network/network';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -19,6 +21,8 @@ describe('AppConfigService', () => {
     AppConfigService.appConfig.backend.url = '';
     AppConfigService.appConfig.assets.url = '';
     AssetHttpStore.instance.configure(null);
+    AssetHttpStore.instance.setAuthorization(null);
+    Network.setServerCredentials(null);
     vi.restoreAllMocks();
   });
 
@@ -103,6 +107,33 @@ describe('AppConfigService', () => {
     await loadConfig();
 
     expect(AssetHttpStore.instance.isEnabled).toBe(true);
+  });
+
+  it('has the room server log in for rooms and uploads, sending its token nowhere else', async () => {
+    const setAuthorization = vi.spyOn(AssetHttpStore.instance, 'setAuthorization');
+    const setCredentials = vi.spyOn(Network, 'setServerCredentials');
+    const fetch = vi.spyOn(globalThis, 'fetch');
+    fetch.mockResolvedValue(
+      new Response(JSON.stringify({ transport: 'server', backend: { url: 'https://rooms.example/' } }))
+    );
+    await loadConfig();
+
+    expect(setCredentials).toHaveBeenCalledWith(TestBed.inject(ServerAuthService));
+    expect(setAuthorization).toHaveBeenCalledTimes(1);
+
+    setAuthorization.mockClear();
+    fetch.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          transport: 'server',
+          backend: { url: 'https://rooms.example' },
+          assets: { url: 'https://assets.elsewhere.example' },
+        })
+      )
+    );
+    await loadConfig();
+
+    expect(setAuthorization).not.toHaveBeenCalled();
   });
 
   it('keeps them where the asset url says, over the room server', () => {
