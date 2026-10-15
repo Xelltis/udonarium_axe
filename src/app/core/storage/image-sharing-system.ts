@@ -2,7 +2,8 @@ import { xmlLoaded$ } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { localDispatch, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
-import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
+import { AssetDownloadRetries } from '@axe/core/storage/asset-download-retries';
+import { AssetDownloadMiss, AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { BufferSharingTask } from '@axe/core/storage/buffer-sharing-task';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
 import { ImageContext, ImageFile, ImageState } from '@axe/core/storage/image-file';
@@ -33,6 +34,8 @@ export class ImageSharingSystem {
   private httpFetching: Set<string> = new Set();
   /** Images the asset server did not have, which are asked of peers from then on. */
   private httpMissed: Set<string> = new Set();
+  /** Images the room's list named that the asset server could not send just then. */
+  private httpRetries = new AssetDownloadRetries();
 
   private constructor() {}
 
@@ -167,8 +170,8 @@ export class ImageSharingSystem {
   /**
    * Fetches from the room's asset store the pictures it holds that this seat lacks, named by the
    * room's list rather than by a peer's catalogue: those left in a room that everybody had gone
-   * from, say. Each keeps the name it was put there with. One the store cannot give waits for a
-   * catalogue to name it.
+   * from, say. Each keeps the name it was put there with. One the store lacks waits for a catalogue
+   * to name it; one it could not send just then is tried again a few times.
    */
   fetchListed(assets: readonly { id: string; name: string }[]): void {
     for (const { id, name } of assets) {
@@ -183,17 +186,29 @@ export class ImageSharingSystem {
     }
   }
 
-  /** Forgets which pictures the asset store lacked, for another room, which may hold them. */
+  /**
+   * Forgets which pictures the asset store lacked, for another room, which may hold them, and drops
+   * the tries still to come of those it could not send.
+   */
   forgetMisses(): void {
     this.httpMissed.clear();
+    this.httpRetries.clear();
+  }
+
+  private fetchListedAgain(identifier: string): void {
+    const image = ImageStorage.instance.get(identifier);
+    if (image && image.state < ImageState.COMPLETE && !this.receiveTaskMap.has(identifier))
+      this.fetchOverHttp(identifier, null);
   }
 
   /**
    * Starts fetching an image from the asset server, and says whether it is on its way from there,
    * so it need not be asked of a peer.
    *
-   * An image the server lacks, or sends bytes for that do not match, is asked of the peer whose
-   * catalogue named it, the way it would have been without the server; with no such peer it is left.
+   * An image the server could not send is asked of the peer whose catalogue named it, the way it
+   * would have been without the server. With no such peer, one the server lacks, or sends bytes for
+   * that do not match, is left, and one it could not send just then is tried again later. Only the
+   * server's lacking it keeps it from being fetched from there again.
    */
   private fetchOverHttp(identifier: string, catalogPeer: string | null): boolean {
     const store = AssetHttpStore.instance;
@@ -202,10 +217,17 @@ export class ImageSharingSystem {
     this.httpFetching.add(identifier);
     void this.receiveOverHttp(identifier)
       .then((received) => {
-        if (received) return;
-        this.httpMissed.add(identifier);
+        if (received === true) {
+          this.httpRetries.forget(identifier);
+          return;
+        }
+        if (received === 'missing') this.httpMissed.add(identifier);
         const image = ImageStorage.instance.get(identifier);
-        if (!image || ImageState.COMPLETE <= image.state || catalogPeer === null) return;
+        if (!image || ImageState.COMPLETE <= image.state) return;
+        if (catalogPeer === null) {
+          if (received === 'failed') this.httpRetries.schedule(identifier, () => this.fetchListedAgain(identifier));
+          return;
+        }
         if (this.receiveTaskMap.has(identifier) || this.isLimitReceiveTask()) return;
         this.request([{ identifier, state: image.state }], catalogPeer);
       })
@@ -213,15 +235,15 @@ export class ImageSharingSystem {
     return true;
   }
 
-  private async receiveOverHttp(identifier: string): Promise<boolean> {
+  private async receiveOverHttp(identifier: string): Promise<true | AssetDownloadMiss> {
     const blob = await AssetHttpStore.instance.download(identifier);
-    if (!blob) return false;
+    if (typeof blob === 'string') return blob;
     let context: ImageContext;
     try {
       context = await ImageFile.contextFromBytesAsync(identifier, blob);
     } catch (reason) {
       Logger.warn('[ImageSync] サーバーから受け取った画像を読めませんでした', identifier, reason);
-      return false;
+      return 'missing';
     }
     localDispatch('UPDATE_FILE_RESOURE', { identifier, updateImages: [context] });
     ImageStorage.instance.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);

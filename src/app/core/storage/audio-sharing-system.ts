@@ -1,6 +1,7 @@
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { localDispatch, NetworkMessage, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
+import { AssetDownloadRetries } from '@axe/core/storage/asset-download-retries';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AudioFile, AudioFileContext, AudioState } from '@axe/core/storage/audio-file';
 import { AudioStorage, CatalogItem } from '@axe/core/storage/audio-storage';
@@ -30,6 +31,8 @@ export class AudioSharingSystem {
   private httpFetching: Set<string> = new Set();
   /** Audio the asset server did not have, which is asked of peers from then on. */
   private httpMissed: Set<string> = new Set();
+  /** Sounds the room's list named that the asset server could not send just then. */
+  private httpRetries = new AssetDownloadRetries();
 
   /**
    * The audio to fetch before any other, such as what the room is playing.
@@ -149,7 +152,8 @@ export class AudioSharingSystem {
   /**
    * Fetches from the room's asset store the sounds it holds that this seat lacks, named by the room's
    * list rather than by a peer's catalogue: those left in a room that everybody had gone from, say.
-   * One the store cannot give waits for a catalogue to name it.
+   * One the store lacks waits for a catalogue to name it; one it could not send just then is tried
+   * again a few times.
    */
   fetchListed(assets: readonly { id: string; name: string }[]): void {
     for (const { id, name } of assets) {
@@ -162,17 +166,29 @@ export class AudioSharingSystem {
     }
   }
 
-  /** Forgets which sounds the asset store lacked, for another room, which may hold them. */
+  /**
+   * Forgets which sounds the asset store lacked, for another room, which may hold them, and drops
+   * the tries still to come of those it could not send.
+   */
   forgetMisses(): void {
     this.httpMissed.clear();
+    this.httpRetries.clear();
+  }
+
+  private fetchListedAgain(identifier: string): void {
+    const audio = AudioStorage.instance.get(identifier);
+    if (audio && audio.state < AudioState.COMPLETE && !this.receiveTaskMap.has(identifier))
+      this.fetchOverHttp(identifier, null);
   }
 
   /**
    * Starts fetching audio from the asset server, and says whether it is on its way from there, so it
    * need not be asked of a peer.
    *
-   * Audio the server lacks, or sends bytes for that do not match, is asked of the peer whose
-   * catalogue named it, the way it would have been without the server; with no such peer it is left.
+   * Audio the server could not send is asked of the peer whose catalogue named it, the way it would
+   * have been without the server. With no such peer, audio the server lacks, or sends bytes for that
+   * do not match, is left, and audio it could not send just then is tried again later. Only the
+   * server's lacking it keeps it from being fetched from there again.
    */
   private fetchOverHttp(identifier: string, catalogPeer: string | null): boolean {
     const store = AssetHttpStore.instance;
@@ -182,16 +198,21 @@ export class AudioSharingSystem {
     void store
       .download(identifier)
       .then((blob) => {
-        if (blob) {
+        if (typeof blob !== 'string') {
+          this.httpRetries.forget(identifier);
           // The name stays the one the catalogue or the room's list gave.
           const name = AudioStorage.instance.get(identifier)?.name ?? '';
           localDispatch('UPDATE_AUDIO_RESOURE', [{ identifier, name, type: blob.type, blob, url: '' }]);
           AudioStorage.instance.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
           return;
         }
-        this.httpMissed.add(identifier);
+        if (blob === 'missing') this.httpMissed.add(identifier);
         const audio = AudioStorage.instance.get(identifier);
-        if (!audio || AudioState.COMPLETE <= audio.state || catalogPeer === null) return;
+        if (!audio || AudioState.COMPLETE <= audio.state) return;
+        if (catalogPeer === null) {
+          if (blob === 'failed') this.httpRetries.schedule(identifier, () => this.fetchListedAgain(identifier));
+          return;
+        }
         if (this.receiveTaskMap.has(identifier) || this.isLimitReceiveTask()) return;
         this.request([{ identifier, state: audio.state }], catalogPeer);
       })

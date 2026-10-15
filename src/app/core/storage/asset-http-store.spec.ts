@@ -254,30 +254,35 @@ describe('AssetHttpStore', () => {
     it('hands back the bytes with the type the server gave', async () => {
       respond(new Response(bytes, { status: 200, headers: { 'Content-Type': 'image/png' } }));
 
-      const blob = await store.download(id);
+      const blob = (await store.download(id)) as Blob;
 
-      expect(blob?.type).toBe('image/png');
-      expect(new Uint8Array(await blob!.arrayBuffer())).toEqual(bytes);
+      expect(blob.type).toBe('image/png');
+      expect(new Uint8Array(await blob.arrayBuffer())).toEqual(bytes);
       expect(callsOf()).toEqual([['GET', urlOf(id)]]);
       expect(authorizationOf(0)).toBe('Bearer asset-1');
     });
 
-    it('throws away bytes whose hash is not the name', async () => {
+    it('throws away bytes whose hash is not the name, as bytes the server lacks', async () => {
       respond(new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
-      expect(await store.download(id)).toBeNull();
+      expect(await store.download(id)).toBe('missing');
     });
 
-    it('gives nothing for an asset the server lacks or cannot send', async () => {
+    it('tells an asset the server lacks from one it could not send just then', async () => {
       respond(new Response(null, { status: 404 }));
-      expect(await store.download(id)).toBeNull();
+      expect(await store.download(id)).toBe('missing');
+      respond(new Response(null, { status: 429 }), new Response(null, { status: 503 }));
+      expect(await store.download(id)).toBe('failed');
+      expect(await store.download(id)).toBe('failed');
       fetchSpy.mockRejectedValueOnce(new TypeError('Failed to fetch'));
-      expect(await store.download(id)).toBeNull();
+      expect(await store.download(id)).toBe('failed');
     });
 
     it('does not ask for names that are not hashes, or outside a room', async () => {
-      expect(await store.download('none_icon')).toBeNull();
+      expect(await store.download('none_icon')).toBe('missing');
       access = null;
-      expect(await store.download(id)).toBeNull();
+      expect(await store.download(id)).toBe('failed');
+      store.configure(null);
+      expect(await store.download(id)).toBe('failed');
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
@@ -291,7 +296,7 @@ describe('AssetHttpStore', () => {
         new Response(bytes, { status: 200, headers: { 'Content-Type': 'image/png' } })
       );
 
-      expect(await store.download(id)).not.toBeNull();
+      expect(await store.download(id)).toBeInstanceOf(Blob);
       expect(authorizationOf(1)).toBe('Bearer asset-2');
     });
   });

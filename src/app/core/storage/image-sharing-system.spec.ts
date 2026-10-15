@@ -1,5 +1,6 @@
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
+import { ASSET_RETRY_DELAY_MS, ASSET_RETRY_LIMIT } from '@axe/core/storage/asset-download-retries';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { ImageContext, ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
@@ -65,7 +66,9 @@ describe('ImageSharingSystem', () => {
 
   describe('fetching from the asset server', () => {
     const store = AssetHttpStore.instance;
-    const sharingStatic = ImageSharingSystem as unknown as { _instance?: { cleanups: (() => void)[] } };
+    const sharingStatic = ImageSharingSystem as unknown as {
+      _instance?: { cleanups: (() => void)[]; forgetMisses: () => void };
+    };
     const ORIGINAL_PEER_ID = Object.getOwnPropertyDescriptor(Network, 'peerId')!;
     const ORIGINAL_PEER_IDS = Object.getOwnPropertyDescriptor(Network, 'peerIds')!;
     const pictureId = 'c'.repeat(64);
@@ -104,8 +107,10 @@ describe('ImageSharingSystem', () => {
     });
 
     afterEach(() => {
+      sharingStatic._instance?.forgetMisses();
       sharingStatic._instance?.cleanups.forEach((cleanup) => cleanup());
       sharingStatic._instance = undefined;
+      vi.useRealTimers();
       store.configure(null);
       store.useAccess(null);
       for (const image of ImageStorage.instance.images) ImageStorage.instance.delete(image.identifier);
@@ -122,7 +127,7 @@ describe('ImageSharingSystem', () => {
     });
 
     it('asks the peer that named the image when the server does not have it', async () => {
-      download.mockResolvedValue(null);
+      download.mockResolvedValue('missing');
 
       receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }], 'peer-a');
 
@@ -134,7 +139,7 @@ describe('ImageSharingSystem', () => {
     });
 
     it('goes straight to peers for an image the server once lacked', async () => {
-      download.mockResolvedValue(null);
+      download.mockResolvedValue('missing');
       receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }]);
       await vi.waitFor(() => expect(requestsSent()).toHaveLength(1));
 
@@ -142,6 +147,16 @@ describe('ImageSharingSystem', () => {
 
       expect(download).toHaveBeenCalledTimes(1);
       expect(requestsSent()).toHaveLength(2);
+    });
+
+    it('asks the peer for an image the server could not send just then, and the server again for the next catalogue', async () => {
+      download.mockResolvedValue('failed');
+      receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }]);
+      await vi.waitFor(() => expect(requestsSent()).toHaveLength(1));
+
+      receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }]);
+
+      await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(2));
     });
 
     it('fetches an image once although two catalogues name it', async () => {
@@ -176,8 +191,8 @@ describe('ImageSharingSystem', () => {
       expect(ImageStorage.instance.get(pictureId)?.name).toBe('map.png');
     });
 
-    it('asks no peer for a listed picture the server cannot give, and tries the server again in another room', async () => {
-      download.mockResolvedValue(null);
+    it('asks no peer for a listed picture the server lacks, and tries the server again in another room', async () => {
+      download.mockResolvedValue('missing');
       ImageSharingSystem.instance.fetchListed([{ id: pictureId, name: '' }]);
       await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(1));
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -188,6 +203,37 @@ describe('ImageSharingSystem', () => {
       ImageSharingSystem.instance.forgetMisses();
       ImageSharingSystem.instance.fetchListed([{ id: pictureId, name: '' }]);
       expect(download).toHaveBeenCalledTimes(2);
+    });
+
+    it('tries a listed picture the server could not send again, waiting longer each time, a few times', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      download.mockResolvedValue('failed');
+      ImageSharingSystem.instance.fetchListed([{ id: pictureId, name: '' }]);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(download).toHaveBeenCalledTimes(1);
+
+      for (let attempt = 0; attempt < ASSET_RETRY_LIMIT; attempt++) {
+        const wait = ASSET_RETRY_DELAY_MS * 2 ** attempt;
+        await vi.advanceTimersByTimeAsync(wait - 1);
+        expect(download).toHaveBeenCalledTimes(attempt + 1);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(download).toHaveBeenCalledTimes(attempt + 2);
+      }
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 2 ** ASSET_RETRY_LIMIT);
+      expect(download).toHaveBeenCalledTimes(ASSET_RETRY_LIMIT + 1);
+      expect(requestsSent()).toEqual([]);
+    });
+
+    it('stops trying a listed picture again on leaving the room', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      download.mockResolvedValue('failed');
+      ImageSharingSystem.instance.fetchListed([{ id: pictureId, name: '' }]);
+      await vi.advanceTimersByTimeAsync(0);
+
+      ImageSharingSystem.instance.forgetMisses();
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 2 ** ASSET_RETRY_LIMIT);
+
+      expect(download).toHaveBeenCalledTimes(1);
     });
 
     it('asks peers for everything while no server is configured', () => {

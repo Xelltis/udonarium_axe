@@ -1,5 +1,6 @@
 import { Network } from '@axe/core/network/network';
 import * as NetworkMessaging from '@axe/core/network/network-messaging';
+import { ASSET_RETRY_DELAY_MS, ASSET_RETRY_LIMIT } from '@axe/core/storage/asset-download-retries';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AudioFile, AudioFileContext, AudioState } from '@axe/core/storage/audio-file';
 import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
@@ -266,8 +267,10 @@ describe('AudioSharingSystem', () => {
     });
 
     afterEach(() => {
+      AudioSharingSystem.instance.forgetMisses();
       store.configure(null);
       store.useAccess(null);
+      vi.useRealTimers();
     });
 
     it('takes audio it lacks from the server, without asking a peer', async () => {
@@ -283,7 +286,7 @@ describe('AudioSharingSystem', () => {
     });
 
     it('asks the peer that named the audio when the server does not have it', async () => {
-      download.mockResolvedValue(null);
+      download.mockResolvedValue('missing');
 
       emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-b' });
 
@@ -317,8 +320,31 @@ describe('AudioSharingSystem', () => {
       expect(download).toHaveBeenCalledWith(trackId);
     });
 
-    it('asks no peer for a listed sound the server cannot give, and tries the server again in another room', async () => {
-      download.mockResolvedValue(null);
+    it('asks the peer for audio the server could not send just then, and the server again for the next catalogue', async () => {
+      download.mockResolvedValue('failed');
+      emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-b' });
+      await vi.waitFor(() => expect(requestsSent()).toHaveLength(1));
+
+      emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-b' });
+
+      await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(2));
+    });
+
+    it('tries a listed sound the server could not send again a few times, and asks no peer for it', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      download.mockResolvedValue('failed');
+      AudioSharingSystem.instance.fetchListed([{ id: trackId, name: '' }]);
+      await vi.advanceTimersByTimeAsync(0);
+
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * (2 ** ASSET_RETRY_LIMIT - 1));
+      expect(download).toHaveBeenCalledTimes(ASSET_RETRY_LIMIT + 1);
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 2 ** ASSET_RETRY_LIMIT);
+      expect(download).toHaveBeenCalledTimes(ASSET_RETRY_LIMIT + 1);
+      expect(requestsSent()).toEqual([]);
+    });
+
+    it('asks no peer for a listed sound the server lacks, and tries the server again in another room', async () => {
+      download.mockResolvedValue('missing');
       AudioSharingSystem.instance.fetchListed([{ id: trackId, name: '' }]);
       await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(1));
       await new Promise((resolve) => setTimeout(resolve, 0));

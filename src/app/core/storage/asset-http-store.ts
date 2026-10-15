@@ -11,6 +11,13 @@ import { sha256Hex } from '@axe/core/util/crypto-util';
 /** What became of an upload. */
 export type AssetUploadResult = 'stored' | 'exists' | 'refused' | 'failed';
 
+/**
+ * Why a download brought no bytes: the store lacks them, or sent bytes that are not them, which
+ * asking again will not mend; or the request failed, too often or while the server was out of
+ * reach, which a later try may.
+ */
+export type AssetDownloadMiss = 'missing' | 'failed';
+
 const ASSET_ID = /^[0-9a-f]{64}$/;
 
 const UPLOAD_CONCURRENCY = 2;
@@ -155,26 +162,29 @@ export class AssetHttpStore {
   }
 
   /**
-   * Fetches the bytes stored under an identifier, or null when the server lacks them, cannot be
-   * reached, or sends bytes whose hash is not the identifier.
+   * Fetches the bytes stored under an identifier. Without them it says why: `missing` when the
+   * server lacks them or sends bytes whose hash is not the identifier, `failed` when the request
+   * failed, as when the server asks for fewer requests or cannot be reached, or there is no room.
    */
-  download(identifier: string): Promise<Blob | null> {
-    if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return Promise.resolve(null);
-    return this.downloads.run(async () => {
+  download(identifier: string): Promise<Blob | AssetDownloadMiss> {
+    if (!AssetHttpStore.isAssetId(identifier)) return Promise.resolve('missing');
+    if (!this.baseUrl) return Promise.resolve('failed');
+    return this.downloads.run(async (): Promise<Blob | AssetDownloadMiss> => {
       try {
         const res = await this.authorized((access) =>
           this.request(this.urlOf(access, identifier), { method: 'GET', headers: this.headersOf(access) })
         );
-        if (!res?.ok) return null;
+        if (!res) return 'failed';
+        if (!res.ok) return res.status === 404 ? 'missing' : 'failed';
         const bytes = await res.arrayBuffer();
         if ((await sha256Hex(bytes)) !== identifier) {
           Logger.warn('[AssetHttpStore] 受け取ったデータのハッシュが名前と一致しません', identifier);
-          return null;
+          return 'missing';
         }
         return new Blob([bytes], { type: res.headers.get('Content-Type') ?? '' });
       } catch (reason) {
         Logger.warn('[AssetHttpStore] ダウンロードに失敗しました', identifier, reason);
-        return null;
+        return 'failed';
       }
     });
   }
