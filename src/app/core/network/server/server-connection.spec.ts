@@ -452,6 +452,28 @@ describe('ServerConnection', () => {
       expect(connection.peer.userId).toBe('acct_me');
     });
 
+    it('says hello with the token of an account whose user id lacks the account prefix', async () => {
+      account = 'e0100553-8866-4924-8a4a-d4900ac59de5';
+      const socket = await openRoom();
+      socket.accept();
+
+      expect(await hello(socket)).toMatchObject({ userId: account, accessToken: 'token-1' });
+    });
+
+    it('hands the server fresh tokens for an account whose user id lacks the account prefix', async () => {
+      account = 'e0100553-8866-4924-8a4a-d4900ac59de5';
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+      const socket = await enterRoom();
+      tokens = ['token-2'];
+
+      await vi.advanceTimersByTimeAsync(TOKEN_CHECK_MS);
+      vi.useRealTimers();
+
+      await vi.waitFor(async () =>
+        expect((await socket.frames()).at(-1)).toEqual({ type: 'auth', accessToken: 'token-2' })
+      );
+    });
+
     it('keeps the role the server gave, and leaves the invitation out once in', async () => {
       connection.useInvite('the-invite');
       const socket = await openRoom();

@@ -1,5 +1,10 @@
 import { Logger } from '@axe/core/logging/logger';
-import { Connection, ConnectionCallback, ServerCredentialSource } from '@axe/core/network/connection';
+import {
+  Connection,
+  ConnectionCallback,
+  ServerCredentials,
+  ServerCredentialSource,
+} from '@axe/core/network/connection';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { PeerReconnectScheduler } from '@axe/core/network/peer-reconnect-scheduler';
 import { IRoomInfo } from '@axe/core/network/room-info';
@@ -122,6 +127,11 @@ export class ServerConnection implements Connection {
   private room: { roomKey: string; password: string } | null = null;
   private role: ServerRole | null = null;
   private credentialSource: ServerCredentialSource | null = null;
+  /**
+   * Whether the seat was opened for the login's account, and so says hello with the login's token.
+   * The login decides it, not whether the user id looks like an account's.
+   */
+  private accountSeat = false;
   private invite = '';
   /** The access token the last hello carried, which the server may turn down. */
   private helloToken: string | null = null;
@@ -157,6 +167,7 @@ export class ServerConnection implements Connection {
     void PeerContext.create(userId ?? PeerContext.generateUserId()).then((peer) => {
       if (this.stopped) return;
       this.me = peer;
+      this.accountSeat = false;
       peer.isOpen = true;
       this.callback.onOpen?.(peer);
     });
@@ -183,17 +194,18 @@ export class ServerConnection implements Connection {
   }
 
   private async openAs(userId: string, roomId: string, roomName: string, password: string, roomKey?: string) {
-    let seatUserId: string;
+    let credentials: ServerCredentials | null | undefined;
     try {
-      seatUserId = (await this.credentialSource?.credentials())?.userId ?? guestUserId(userId);
+      credentials = await this.credentialSource?.credentials();
     } catch {
       if (!this.stopped) this.fail(SERVER_UNREACHABLE, 'the login could not be refreshed');
       return;
     }
-    const peer = await PeerContext.createRoom(seatUserId, roomId, roomName, '');
+    const peer = await PeerContext.createRoom(credentials?.userId ?? guestUserId(userId), roomId, roomName, '');
     if (this.stopped) return;
     peer.password = password;
     this.me = peer;
+    this.accountSeat = credentials != null;
     if (!roomKey) {
       this.fail('room-not-found', 'no key to find the room by');
       return;
@@ -345,9 +357,8 @@ export class ServerConnection implements Connection {
    */
   private async sayHello(socket: WebSocket): Promise<void> {
     const userId = this.me.userId;
-    const isAccount = userId.startsWith(ACCOUNT_USER_ID_PREFIX);
     let accessToken = '';
-    if (isAccount) {
+    if (this.accountSeat) {
       let credentials;
       try {
         credentials = await this.credentialSource?.credentials();
@@ -437,7 +448,7 @@ export class ServerConnection implements Connection {
     const held = this.held;
     this.held = [];
     for (const batch of held) this.send(batch.events, batch.to);
-    if (this.me.userId.startsWith(ACCOUNT_USER_ID_PREFIX)) this.startTokenChecks();
+    if (this.accountSeat) this.startTokenChecks();
   }
 
   /**
