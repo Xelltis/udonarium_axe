@@ -91,13 +91,35 @@ function scheduleAngularTick(): void {
 }
 
 /**
+ * The events this device tells itself about its own network, which no peer may send it: a peer's
+ * OPEN_NETWORK or PEER_RECONNECT would pass for this device's own.
+ */
+const LOCAL_NETWORK_EVENTS: ReadonlySet<string> = new Set([
+  'OPEN_NETWORK',
+  'CLOSE_NETWORK',
+  'CONNECT_PEER',
+  'DISCONNECT_PEER',
+  'PEER_RECONNECT',
+  'NETWORK_ERROR',
+  'SERVER_ROLE_CHANGED',
+]);
+
+/**
  * Delivers events received from the network on networkMessage$, each as a message from its sender.
  *
  * An event only the room server may send, whose word outranks any version, is dropped unless the
  * room server itself sent it: another seat, or any seat with SkyWay, could send one by that name.
+ * An event this device only tells itself is dropped from anybody.
  */
 export function receiveEvents(events: EventContext[]): void {
   for (const ctx of events) {
+    if (LOCAL_NETWORK_EVENTS.has(ctx.eventName)) {
+      Logger.warn(
+        '[NetworkMessaging]',
+        `${ctx.eventName} from <${ctx.sendFrom}>, which only this device sends, dropped`
+      );
+      continue;
+    }
     if (AUTHORITY_ONLY_EVENTS.includes(ctx.eventName) && !isFromAuthority(ctx.sendFrom)) {
       Logger.warn('[NetworkMessaging]', `${ctx.eventName} from <${ctx.sendFrom}>, not the room server, dropped`);
       continue;

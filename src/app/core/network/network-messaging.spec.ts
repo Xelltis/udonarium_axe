@@ -48,6 +48,17 @@ describe('receiveEvents', () => {
     expect(received.map((message) => message.eventName)).toEqual(['UPDATE_GAME_OBJECT']);
   });
 
+  it.each(['OPEN_NETWORK', 'PEER_RECONNECT', 'SERVER_ROLE_CHANGED'])(
+    'drops %s, which only this device tells itself, from anybody',
+    (eventName) => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(AUTHORITY);
+
+      receiveEvents([event(eventName, 'peer-a'), event(eventName, AUTHORITY)]);
+
+      expect(received).toEqual([]);
+    }
+  );
+
   it('drops the room server’s events altogether where there is no room server', () => {
     vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
 
