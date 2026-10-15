@@ -5,6 +5,7 @@ import {
   PONG_TIMEOUT_MS,
   SEND_GATHER_MS,
   ServerConnection,
+  TOKEN_CHECK_MS,
 } from '@axe/core/network/server/server-connection';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { decodeFrame, MAX_FRAME_BYTES } from '@axe/core/network/server/server-frames';
@@ -434,6 +435,21 @@ describe('ServerConnection', () => {
       again.accept();
 
       expect(await hello(again)).not.toHaveProperty('invite');
+    });
+
+    it('hands the server each fresh access token while in the room', async () => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+      const socket = await enterRoom();
+      tokens = ['token-2'];
+
+      await vi.advanceTimersByTimeAsync(TOKEN_CHECK_MS);
+      await vi.advanceTimersByTimeAsync(TOKEN_CHECK_MS);
+      vi.useRealTimers();
+
+      await vi.waitFor(async () =>
+        expect((await socket.frames()).at(-1)).toEqual({ type: 'auth', accessToken: 'token-2' })
+      );
+      expect((await socket.frames()).filter((frame) => frame['type'] === 'auth')).toHaveLength(1);
     });
 
     it('refreshes a token the server turned down and says hello once more with the new one', async () => {

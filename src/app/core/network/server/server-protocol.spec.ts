@@ -4,6 +4,7 @@ import messages from '@axe/core/network/server/contract/messages.json';
 import source from '@axe/core/network/server/contract/source.json';
 import {
   ACCOUNT_USER_ID_PREFIX,
+  authMessage,
   AUTHORITY_PEER_ID,
   AuthorityEvent,
   ERROR_CODES,
@@ -64,6 +65,10 @@ describe('the room server protocol, held to the server’s fixtures', () => {
 
   it('asks for an invitation as the server expects', () => {
     expect(inviteRequest(messages.client.inviteRequest.role as 'pl')).toEqual(messages.client.inviteRequest);
+  });
+
+  it('hands over a fresh access token as the server expects', () => {
+    expect(authMessage(messages.client.auth.accessToken)).toEqual(messages.client.auth);
   });
 
   it('knows how the user id of somebody logged in begins', () => {

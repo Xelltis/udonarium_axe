@@ -7,6 +7,7 @@ import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-
 import { decodeFrame, encodeFrame, encodeSendFrames } from '@axe/core/network/server/server-frames';
 import {
   ACCOUNT_USER_ID_PREFIX,
+  authMessage,
   ClientMessage,
   CLOSE_CODE,
   CreateRoomResponse,
@@ -36,6 +37,12 @@ export const PONG_TIMEOUT_MS = 10_000;
 export const SEND_GATHER_MS = 16;
 /** How long an invite request waits for the server's answer. */
 export const INVITE_TIMEOUT_MS = 10_000;
+/**
+ * How often a seat that logged in checks for a fresh access token to hand the server. The server
+ * closes the seat a minute after its token runs out, and the login refreshes a token a minute
+ * before it does, so a check every half minute hands the new one over in time.
+ */
+export const TOKEN_CHECK_MS = 30_000;
 /** The refusal for a hello whose login is gone or belongs to somebody else. */
 const UNAUTHORIZED = 'unauthorized';
 
@@ -127,6 +134,7 @@ export class ServerConnection implements Connection {
   private inbound: Promise<void> = Promise.resolve();
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private pongTimer: ReturnType<typeof setTimeout> | null = null;
+  private tokenTimer: ReturnType<typeof setInterval> | null = null;
 
   /** Takes the room server's address from the app config's backend url. */
   configure(config: Record<string, unknown>): void {
@@ -401,6 +409,35 @@ export class ServerConnection implements Connection {
       if (!present.has(peerId)) this.removeMember(peerId);
     }
     for (const member of message.members) this.addMember(member);
+    if (this.me.userId.startsWith(ACCOUNT_USER_ID_PREFIX)) this.startTokenChecks();
+  }
+
+  /**
+   * Hands the server each fresh access token while in the room, so that the seat stays; a seat whose
+   * token runs out without a new one is closed by the server.
+   */
+  private startTokenChecks(): void {
+    this.stopTokenChecks();
+    this.tokenTimer = setInterval(() => void this.renewToken(), TOKEN_CHECK_MS);
+  }
+
+  private async renewToken(): Promise<void> {
+    const userId = this.me.userId;
+    let credentials;
+    try {
+      credentials = await this.credentialSource?.credentials();
+    } catch {
+      return;
+    }
+    if (!this.welcomed || credentials?.userId !== userId) return;
+    if (credentials.accessToken === this.helloToken) return;
+    this.helloToken = credentials.accessToken;
+    this.post(authMessage(credentials.accessToken));
+  }
+
+  private stopTokenChecks(): void {
+    if (this.tokenTimer != null) clearInterval(this.tokenTimer);
+    this.tokenTimer = null;
   }
 
   private addMember(member: Member): void {
@@ -455,6 +492,7 @@ export class ServerConnection implements Connection {
     this.socket = null;
     this.welcomed = false;
     this.stopPing();
+    this.stopTokenChecks();
     this.dropQueued();
     if (wasWelcomed && this.authority) {
       this.authority.isOpen = false;
@@ -523,6 +561,7 @@ export class ServerConnection implements Connection {
   private teardown(): void {
     this.reconnectScheduler.cancelAll();
     this.stopPing();
+    this.stopTokenChecks();
     this.dropQueued();
     const socket = this.socket;
     this.socket = null;

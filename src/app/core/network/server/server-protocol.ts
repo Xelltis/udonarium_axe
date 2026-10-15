@@ -96,7 +96,16 @@ export interface InviteRequest {
   role: ServerRole;
 }
 
-export type ClientMessage = HelloMessage | SendMessage | TimeRequest | InviteRequest;
+/**
+ * Hands the server a fresh access token without reconnecting. A seat that logged in is closed as
+ * unauthorized a minute after its token runs out unless a new one arrives.
+ */
+export interface AuthMessage {
+  type: 'auth';
+  accessToken: string;
+}
+
+export type ClientMessage = HelloMessage | SendMessage | TimeRequest | InviteRequest | AuthMessage;
 
 // ---- server to client ----
 
@@ -320,6 +329,11 @@ export function helloMessage(peerId: string, userId: string, options: HelloOptio
 /** Asks for an invitation in a role. */
 export function inviteRequest(role: ServerRole): InviteRequest {
   return { type: 'invite', role };
+}
+
+/** Hands over a fresh access token. */
+export function authMessage(accessToken: string): AuthMessage {
+  return { type: 'auth', accessToken };
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

@@ -96,6 +96,10 @@
           "sendFrom": "a1B2c3XyZq9W8e7r6-"
         }
       ]
+    },
+    "auth": {
+      "type": "auth",
+      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…"
     }
   },
   "invalid": [
@@ -134,6 +138,9 @@
       "peerId": "a",
       "userId": "u",
       "accessToken": 1
+    },
+    {
+      "type": "auth"
     }
   ],
   "server": {
