@@ -92,8 +92,11 @@ export class ServerAuthService implements ServerCredentialSource {
     const popup = window.open('', 'udonarium-axe-login', POPUP_FEATURES);
     if (popup) {
       this._pending.set(true);
-      popup.location.href = await login.loginUrl(new URL(LOGIN_CALLBACK_PATH, document.baseURI).href);
-      this.watchPopup(popup);
+      const attempt = crypto.randomUUID();
+      const landing = new URL(LOGIN_CALLBACK_PATH, document.baseURI);
+      landing.searchParams.set('attempt', attempt);
+      popup.location.href = await login.loginUrl(landing.href);
+      this.watchPopup(popup, attempt);
       return;
     }
     location.href = await login.loginUrl(location.origin + location.pathname);
@@ -152,18 +155,23 @@ export class ServerAuthService implements ServerCredentialSource {
     if (typeof BroadcastChannel === 'undefined') return;
     this.channel = new BroadcastChannel(LOGIN_CHANNEL);
     this.channel.onmessage = (event: MessageEvent) => {
-      const data = event.data as { type?: unknown; fragment?: unknown } | null;
+      const data = event.data as { type?: unknown; fragment?: unknown; attempt?: unknown } | null;
       if (data?.type !== 'login-callback' || typeof data.fragment !== 'string') return;
-      if (this.login?.isAwaitingCode) void this.finish(data.fragment);
+      if (this.login?.isOwnAttempt(data.attempt)) void this.finish(data.fragment);
     };
   }
 
-  /** Stops waiting once the popup is closed; the code, when it came, is taken all the same. */
-  private watchPopup(popup: Window): void {
+  /**
+   * Stops waiting once the popup is closed. A code it handed back as it closed is taken in the
+   * moment that follows; past that, the attempt is given up so its verifier answers no later login.
+   */
+  private watchPopup(popup: Window, attempt: string): void {
     const watch = setInterval(() => {
       if (!popup.closed && this._pending()) return;
       clearInterval(watch);
+      if (!this._pending()) return;
       this._pending.set(false);
+      setTimeout(() => this.login?.abandonLogin(attempt), POPUP_WATCH_MS);
     }, POPUP_WATCH_MS);
     this.destroyRef.onDestroy(() => clearInterval(watch));
   }

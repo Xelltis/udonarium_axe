@@ -10,6 +10,11 @@ class FakeLogin {
   readonly baseUrl = 'https://rooms.example';
   account: Account | null = null;
   isAwaitingCode = false;
+  attempt: string | null = null;
+  readonly abandonLogin = vi.fn();
+  isOwnAttempt(attempt: unknown): boolean {
+    return this.isAwaitingCode && attempt === this.attempt;
+  }
   token: string | null = 'access-1';
   private listener: (() => void) | null = null;
   readonly finishLogin = vi.fn(async (_fragment: string) => {
@@ -95,7 +100,9 @@ describe('ServerAuthService', () => {
     await service.startLogin();
 
     expect(service.isLoggingIn()).toBe(true);
-    expect(login.loginUrl).toHaveBeenCalledWith(new URL(LOGIN_CALLBACK_PATH, document.baseURI).href);
+    const landing = new URL(login.loginUrl.mock.calls[0][0]);
+    expect(landing.origin + landing.pathname).toBe(new URL(LOGIN_CALLBACK_PATH, document.baseURI).href);
+    expect(landing.searchParams.get('attempt')).toMatch(/^[0-9a-f-]{36}$/);
     expect(popup.location.href).toContain('https://rooms.example/v1/login/discord');
   });
 
@@ -103,12 +110,13 @@ describe('ServerAuthService', () => {
     configure();
     const landing = new BroadcastChannel(LOGIN_CHANNEL);
 
-    landing.postMessage({ type: 'login-callback', fragment: 'login_code=elsewhere' });
+    login.isAwaitingCode = true;
+    login.attempt = 'mine';
+    landing.postMessage({ type: 'login-callback', fragment: 'login_code=elsewhere', attempt: 'another-tab' });
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(login.finishLogin).not.toHaveBeenCalled();
 
-    login.isAwaitingCode = true;
-    landing.postMessage({ type: 'login-callback', fragment: 'login_code=mine' });
+    landing.postMessage({ type: 'login-callback', fragment: 'login_code=mine', attempt: 'mine' });
     await vi.waitFor(() => expect(login.finishLogin).toHaveBeenCalledWith('login_code=mine'));
     landing.close();
   });

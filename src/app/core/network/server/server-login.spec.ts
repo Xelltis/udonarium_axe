@@ -1,5 +1,6 @@
 import {
   fetchLoginProviders,
+  LOGIN_ATTEMPT_STORAGE_KEY,
   LOGIN_STORAGE_KEY,
   LOGIN_VERIFIER_STORAGE_KEY,
   LoginEnvironment,
@@ -132,6 +133,34 @@ describe('ServerLogin', () => {
     expect(requests).toEqual([]);
   });
 
+  it('ends an attempt that came back without a code, so its verifier answers no later login', async () => {
+    env.session.setItem(LOGIN_VERIFIER_STORAGE_KEY, 'v'.repeat(43));
+
+    await expect(login().finishLogin('login_error=denied')).rejects.toBeInstanceOf(ServerLoginError);
+
+    expect(login().isAwaitingCode).toBe(false);
+  });
+
+  it('takes a code handed back over the channel only for the attempt this tab opened', async () => {
+    const subject = login();
+    await subject.loginUrl('https://axe.example/assets/login-callback.html?attempt=mine');
+
+    expect(subject.isOwnAttempt('mine')).toBe(true);
+    expect(subject.isOwnAttempt('another-tab')).toBe(false);
+    expect(subject.isOwnAttempt(undefined)).toBe(false);
+  });
+
+  it('gives up an abandoned attempt, but not one opened since', async () => {
+    const subject = login();
+    await subject.loginUrl('https://axe.example/assets/login-callback.html?attempt=first');
+    await subject.loginUrl('https://axe.example/assets/login-callback.html?attempt=second');
+
+    subject.abandonLogin('first');
+    expect(env.session.getItem(LOGIN_ATTEMPT_STORAGE_KEY)).toBe('second');
+    subject.abandonLogin('second');
+    expect(subject.isAwaitingCode).toBe(false);
+  });
+
   it('cannot finish a login this tab did not start', async () => {
     await expect(login().finishLogin('login_code=the-code')).rejects.toEqual(new ServerLoginError('no-verifier'));
   });
@@ -189,6 +218,23 @@ describe('ServerLogin', () => {
     expect(await login().replaceRejected('access-1')).toBe('access-2');
     expect(await login().replaceRejected('access-1')).toBe('access-2');
     expect(requests).toHaveLength(1);
+  });
+
+  it('waits for a refresh under way before logging out, so the refresh cannot bring the login back', async () => {
+    store(kept(1, NOW - 1));
+    let release!: () => void;
+    answer = () => new Promise<Response>((resolve) => (release = () => resolve(json(200, tokens(2)))));
+
+    const refreshing = login().accessToken();
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+    const loggingOut = login().logout();
+    release();
+    await refreshing;
+    answer = () => new Response(null, { status: 204 });
+    await loggingOut;
+
+    expect(storage.getItem(LOGIN_STORAGE_KEY)).toBeNull();
+    expect(requests.at(-1)?.body).toEqual({ refresh_token: 'refresh-2' });
   });
 
   it('logs out here at once and asks the server to revoke the refresh token', async () => {

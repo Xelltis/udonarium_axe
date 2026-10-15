@@ -25,14 +25,16 @@
   <body>
     <p id="message">ログインしています… / Signing in…</p>
     <script>
-      // Hands the fragment the login came back with to the tab that opened it, which holds the
-      // verifier, and closes. Opened in a tab of its own, it asks to be closed instead.
+      // Hands the fragment the login came back with, and the attempt it was opened for, to the tab
+      // that opened it, which holds the verifier, and closes. Opened in a tab of its own, it asks
+      // to be closed instead.
       (function () {
         var fragment = location.hash.replace(/^#/, '');
+        var attempt = new URLSearchParams(location.search).get('attempt');
         history.replaceState(null, '', location.pathname);
         try {
           var channel = new BroadcastChannel('udonarium-axe.server-login');
-          channel.postMessage({ type: 'login-callback', fragment: fragment });
+          channel.postMessage({ type: 'login-callback', fragment: fragment, attempt: attempt });
           channel.close();
         } catch (e) {}
         window.close();

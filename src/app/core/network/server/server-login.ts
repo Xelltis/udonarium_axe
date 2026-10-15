@@ -6,6 +6,8 @@ import { sha256Base64Url } from '@axe/core/util/crypto-util';
 export const LOGIN_STORAGE_KEY = 'udonarium-axe.server-login';
 /** Where the PKCE verifier waits while the login page is open, in the tab that opened it. */
 export const LOGIN_VERIFIER_STORAGE_KEY = 'udonarium-axe.server-login-verifier';
+/** The id of the login this tab opened, which the landing page hands back with the code. */
+export const LOGIN_ATTEMPT_STORAGE_KEY = 'udonarium-axe.server-login-attempt';
 /** The channel the login's landing page hands its fragment back on. */
 export const LOGIN_CHANNEL = 'udonarium-axe.server-login';
 /** The lock every tab takes to refresh, so that no two trade in the same refresh token. */
@@ -138,6 +140,16 @@ export class ServerLogin {
     return this.env.session.getItem(LOGIN_VERIFIER_STORAGE_KEY) !== null;
   }
 
+  /**
+   * Whether a code handed back over the channel is for the login this tab opened. Every tab of the
+   * page hears the landing page, and a code works once, so only the tab that opened that login may
+   * trade it in.
+   */
+  isOwnAttempt(attempt: unknown): boolean {
+    const own = this.env.session.getItem(LOGIN_ATTEMPT_STORAGE_KEY);
+    return own !== null && attempt === own && this.isAwaitingCode;
+  }
+
   /** Calls the listener whenever this tab changes the login; returns how to stop. */
   onChange(listener: () => void): () => void {
     this.listeners.add(listener);
@@ -151,6 +163,9 @@ export class ServerLogin {
   async loginUrl(redirectUri: string): Promise<string> {
     const verifier = randomVerifier();
     this.env.session.setItem(LOGIN_VERIFIER_STORAGE_KEY, verifier);
+    const attempt = new URL(redirectUri).searchParams.get('attempt');
+    if (attempt) this.env.session.setItem(LOGIN_ATTEMPT_STORAGE_KEY, attempt);
+    else this.env.session.removeItem(LOGIN_ATTEMPT_STORAGE_KEY);
     const challenge = await sha256Base64Url(verifier);
     const query = new URLSearchParams({ redirect_uri: redirectUri, code_challenge: challenge });
     return `${apiUrl(this.baseUrl, '/v1/login/discord')}?${query.toString()}`;
@@ -162,16 +177,28 @@ export class ServerLogin {
    */
   async finishLogin(fragment: string): Promise<Account> {
     const params = new URLSearchParams(fragment.replace(/^#/, ''));
+    const verifier = this.env.session.getItem(LOGIN_VERIFIER_STORAGE_KEY);
+    // The attempt ends here however it goes, so that a stale verifier never answers a later login.
+    this.env.session.removeItem(LOGIN_VERIFIER_STORAGE_KEY);
+    this.env.session.removeItem(LOGIN_ATTEMPT_STORAGE_KEY);
     const error = params.get('login_error');
     if (error) throw new ServerLoginError(error);
     const code = params.get('login_code');
     if (!code) throw new ServerLoginError('no-code');
-    const verifier = this.env.session.getItem(LOGIN_VERIFIER_STORAGE_KEY);
     if (!verifier) throw new ServerLoginError('no-verifier');
     const tokens = await this.requestTokens({ grant_type: 'login_code', code, code_verifier: verifier });
-    this.env.session.removeItem(LOGIN_VERIFIER_STORAGE_KEY);
     this.store(tokens);
     return tokens.account;
+  }
+
+  /**
+   * Gives up a login whose page was closed without coming back, so its verifier answers nothing
+   * later; a login opened since is left alone.
+   */
+  abandonLogin(attempt: string): void {
+    if (this.env.session.getItem(LOGIN_ATTEMPT_STORAGE_KEY) !== attempt) return;
+    this.env.session.removeItem(LOGIN_VERIFIER_STORAGE_KEY);
+    this.env.session.removeItem(LOGIN_ATTEMPT_STORAGE_KEY);
   }
 
   /**
@@ -204,10 +231,16 @@ export class ServerLogin {
     });
   }
 
-  /** Logs out here and tells the server to revoke the refresh token's line. */
+  /**
+   * Logs out here and tells the server to revoke the refresh token's line. It waits for any refresh
+   * under way in another tab, which would otherwise put the login back once it finished.
+   */
   async logout(): Promise<void> {
-    const login = this.current;
-    this.clear();
+    const login = await this.underLock(async () => {
+      const current = this.current;
+      this.clear();
+      return current;
+    });
     if (!login) return;
     await fetch(apiUrl(this.baseUrl, '/v1/auth/logout'), {
       method: 'POST',
