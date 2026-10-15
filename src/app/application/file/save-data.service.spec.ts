@@ -7,6 +7,7 @@ import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
+import { exportChatLog } from '@axe/domain/chat/chat-log-export';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { CutIn } from '@axe/domain/media/cut-in';
@@ -263,7 +264,10 @@ describe('SaveDataService', () => {
       const reaction = ChatReaction.create(message.identifier, 'noa', 'ノア');
       reaction.stamps = 'sfx:creepy';
       try {
-        const log = service.renderChatLog('text', 'tab', [tab], { resolver: () => '', registryScript: '' });
+        const log = service.renderChatLog(exportChatLog, 'text', 'tab', [tab], {
+          resolver: () => '',
+          registryScript: '',
+        });
 
         expect(log).toContain(`${t('feature.chat.log.labels.reactions')}: ${t('ui.stamp.items.sfx.creepy.label')}×1`);
       } finally {
