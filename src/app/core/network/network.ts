@@ -1,8 +1,8 @@
 import { Logger } from '@axe/core/logging/logger';
-import { Connection, ConnectionCallback } from '@axe/core/network/connection';
+import { Connection, ConnectionCallback, ServerCredentialSource } from '@axe/core/network/connection';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
-import { CreateRoomResponse } from '@axe/core/network/server/server-protocol';
+import { CreateRoomResponse, InviteMessage, ServerRole } from '@axe/core/network/server/server-protocol';
 import { Transport, transportOf } from '@axe/core/network/transport';
 import { setZeroTimeout } from '@axe/core/util/zero-timeout';
 
@@ -63,9 +63,25 @@ export class Network {
   static get roomKey(): string | null {
     return Network.instance.roomKey;
   }
+  /** The role a room server gave this seat; null with SkyWay or outside a room. */
+  static get serverRole(): ServerRole | null {
+    return Network.instance.serverRole;
+  }
   /** Keeps the app config, such as the backend URL, for the connection made on the next open. */
   static configure(config: Record<string, unknown>) {
     Network.instance.configure(config);
+  }
+  /** Keeps the login a room server connection says hello with, for this connection and every later one. */
+  static setServerCredentials(source: ServerCredentialSource | null) {
+    Network.instance.setServerCredentials(source);
+  }
+  /** Keeps an invitation from a link for the next room opened on a room server. */
+  static setServerInvite(invite: string) {
+    Network.instance.setServerInvite(invite);
+  }
+  /** Asks the room server for an invitation in a role; rejects with SkyWay or outside a room. */
+  static requestInvite(role: ServerRole): Promise<InviteMessage> {
+    return Network.instance.requestInvite(role);
   }
   /**
    * Opens a network session in no room, closing any session first.
@@ -124,8 +140,13 @@ export class Network {
   get roomKey(): string | null {
     return this.connection?.roomKey ?? null;
   }
+  get serverRole(): ServerRole | null {
+    return this.connection?.serverRole ?? null;
+  }
 
   private config: Record<string, unknown> = {};
+  private credentialSource: ServerCredentialSource | null = null;
+  private pendingInvite = '';
   private connectionClassPromise: Promise<ConnectionClass> | null = null;
   private connectionClass!: ConnectionClass;
   private connection: Connection | null = null;
@@ -156,12 +177,31 @@ export class Network {
     this.config = config;
   }
 
+  setServerCredentials(source: ServerCredentialSource | null) {
+    this.credentialSource = source;
+    this.connection?.useCredentials?.(source);
+  }
+
+  setServerInvite(invite: string) {
+    this.pendingInvite = invite;
+  }
+
+  requestInvite(role: ServerRole): Promise<InviteMessage> {
+    if (!this.connection?.requestInvite) return Promise.reject(new Error('invitations come from a room server'));
+    return this.connection.requestInvite(role);
+  }
+
   open(userId: string, roomId: string, roomName: string, password: string, roomKey?: string): void {
     if (this.connectionClassPromise != null) {
       Logger.warn('[Network] 既に接続済みです');
       this.close();
     }
-    this.openAsync(() => this.connection!.open(userId, roomId, roomName, password, roomKey));
+    const invite = this.pendingInvite;
+    this.pendingInvite = '';
+    this.openAsync(() => {
+      if (invite) this.connection!.useInvite?.(invite);
+      this.connection!.open(userId, roomId, roomName, password, roomKey);
+    });
   }
 
   openStandby(userId?: string): void {
@@ -307,6 +347,7 @@ export class Network {
   private initializeConnection(): Connection {
     const connection = new this.connectionClass();
     connection.configure(this.config);
+    connection.useCredentials?.(this.credentialSource);
 
     connection.callback.onOpen = (peer) => {
       if (this.callback.onOpen) this.callback.onOpen(peer);

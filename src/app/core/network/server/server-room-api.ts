@@ -36,11 +36,20 @@ export async function refusal(response: Response): Promise<never> {
   throw new ServerRoomApiError(response.status, typeof body?.error === 'string' ? body.error : 'unknown');
 }
 
-/** Creates a room on the server, which answers with the key to find it by and the id to show. */
-export async function createRoom(baseUrl: string, request: CreateRoomRequest): Promise<CreateRoomResponse> {
+/**
+ * Creates a room on the server, which answers with the key to find it by and the id to show. Only
+ * somebody logged in may, with their access token; without one the server answers login-required.
+ */
+export async function createRoom(
+  baseUrl: string,
+  request: CreateRoomRequest,
+  accessToken: string | null = null
+): Promise<CreateRoomResponse> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
   const response = await fetch(apiUrl(baseUrl, '/v1/rooms'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(request),
   });
   if (!response.ok) return refusal(response);

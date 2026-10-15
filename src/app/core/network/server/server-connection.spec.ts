@@ -1,5 +1,6 @@
 import { IPeerContext } from '@axe/core/network/peer-context';
 import {
+  INVITE_TIMEOUT_MS,
   PING_INTERVAL_MS,
   PONG_TIMEOUT_MS,
   SEND_GATHER_MS,
@@ -168,18 +169,22 @@ describe('ServerConnection', () => {
     expect(calls.slice(-2)).toEqual([`connect ${OTHER.peerId}`, `disconnect ${OTHER.peerId}`]);
   });
 
-  it('hands on events as sent by whoever the server says sent them', async () => {
+  it('hands on each event as sent by whoever the server says sent it, even inside another’s batch', async () => {
     const socket = await enterRoom([OTHER]);
 
     socket.deliver({
       type: 'data',
       from: OTHER.peerId,
-      events: [{ eventName: 'CHAT', data: 'hi', sendFrom: 'forged' }],
+      events: [
+        { eventName: 'CHAT', data: 'hi', sendFrom: OTHER.peerId },
+        { eventName: 'WITHDRAW_GAME_OBJECT', data: { identifier: 'x' }, sendFrom: AUTHORITY_PEER_ID },
+        { eventName: 'CHAT', data: 'unsigned' },
+      ],
     });
     await vi.waitFor(() => expect(received.length).toBe(1));
 
     expect(received[0].from).toBe(OTHER.peerId);
-    expect(received[0].events).toEqual([{ eventName: 'CHAT', data: 'hi', sendFrom: OTHER.peerId }]);
+    expect(received[0].events.map((event) => event.sendFrom)).toEqual([OTHER.peerId, AUTHORITY_PEER_ID, OTHER.peerId]);
   });
 
   it('sends nothing before it is in the room', async () => {
@@ -363,6 +368,163 @@ describe('ServerConnection', () => {
       memberCount: 2,
       roomKey: ROOM_KEY,
     });
+  });
+
+  describe('logged in', () => {
+    let tokens: string[];
+    let account: string;
+    let replaceRejected: ReturnType<typeof vi.fn<(rejected: string) => Promise<string | null>>>;
+
+    beforeEach(() => {
+      tokens = ['token-1'];
+      account = 'acct_me';
+      replaceRejected = vi.fn(async (rejected: string) => {
+        tokens = tokens.filter((token) => token !== rejected);
+        return tokens[0] ?? null;
+      });
+      connection.useCredentials({
+        credentials: async () => (tokens[0] ? { userId: account, accessToken: tokens[0] } : null),
+        accessToken: async () => tokens[0] ?? null,
+        replaceRejected,
+      });
+    });
+
+    async function hello(socket: FakeWebSocket): Promise<Record<string, unknown>> {
+      await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(0));
+      return (await socket.frames())[0] as Record<string, unknown>;
+    }
+
+    it('takes the account’s seat and says hello with its token and the invitation', async () => {
+      connection.useInvite('the-invite');
+      const socket = await openRoom();
+      socket.accept();
+
+      expect(await hello(socket)).toEqual({
+        type: 'hello',
+        protocolVersion: PROTOCOL_VERSION,
+        peerId: connection.peerId,
+        userId: 'acct_me',
+        accessToken: 'token-1',
+        invite: 'the-invite',
+      });
+      expect(connection.peer.userId).toBe('acct_me');
+    });
+
+    it('keeps the role the server gave, and leaves the invitation out once in', async () => {
+      connection.useInvite('the-invite');
+      const socket = await openRoom();
+      socket.accept();
+      socket.deliver({
+        type: 'welcome',
+        protocolVersion: PROTOCOL_VERSION,
+        peerId: connection.peerId,
+        authorityPeerId: AUTHORITY_PEER_ID,
+        role: 'gm',
+        members: [],
+        serverTime: Date.now(),
+      });
+      await vi.waitFor(() => expect(calls).toContain('open'));
+      expect(connection.serverRole).toBe('gm');
+
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+      socket.close(1006);
+      vi.advanceTimersByTime(1000);
+      vi.useRealTimers();
+      const again = latest();
+      again.accept();
+
+      expect(await hello(again)).not.toHaveProperty('invite');
+    });
+
+    it('refreshes a token the server turned down and says hello once more with the new one', async () => {
+      tokens = ['token-1', 'token-2'];
+      const socket = await openRoom();
+      socket.accept();
+      await hello(socket);
+      socket.deliver({ type: 'error', code: 'unauthorized', protocolVersion: PROTOCOL_VERSION });
+      socket.close(4000, 'unauthorized');
+
+      await vi.waitFor(() => expect(FakeWebSocket.instances.length).toBe(2));
+      const again = latest();
+      again.accept();
+
+      expect(replaceRejected).toHaveBeenCalledWith('token-1');
+      expect((await hello(again))['accessToken']).toBe('token-2');
+      expect(errors).toEqual([]);
+    });
+
+    it('gives up when the server turns the login down again', async () => {
+      tokens = ['token-1', 'token-2'];
+      const socket = await openRoom();
+      socket.accept();
+      await hello(socket);
+      socket.deliver({ type: 'error', code: 'unauthorized', protocolVersion: PROTOCOL_VERSION });
+      socket.close(4000, 'unauthorized');
+      await vi.waitFor(() => expect(FakeWebSocket.instances.length).toBe(2));
+      const again = latest();
+      again.accept();
+      await hello(again);
+      again.deliver({ type: 'error', code: 'unauthorized', protocolVersion: PROTOCOL_VERSION });
+      again.close(4000, 'unauthorized');
+
+      await vi.waitFor(() => expect(errors).toEqual([{ code: 'unauthorized' }]));
+      expect(FakeWebSocket.instances.length).toBe(2);
+    });
+
+    it('ends the session rather than come back as somebody else after another login', async () => {
+      const socket = await enterRoom();
+      account = 'acct_someone-else';
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+      socket.close(1006);
+      vi.advanceTimersByTime(1000);
+      vi.useRealTimers();
+      latest().accept();
+
+      await vi.waitFor(() => expect(errors).toEqual([{ code: 'unauthorized' }]));
+      expect(latest().sent).toEqual([]);
+    });
+
+    it('creates a room with the access token', async () => {
+      const fetch = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response(JSON.stringify({ roomKey: ROOM_KEY, roomId: 'Ab3' }), { status: 201 }));
+
+      await connection.createRoom('月夜の卓', '');
+
+      expect(new Headers(fetch.mock.calls[0][1]?.headers).get('Authorization')).toBe('Bearer token-1');
+    });
+  });
+
+  it('never claims an account’s user id without its token', async () => {
+    connection.open('acct_logged-out', 'Ab3', '月夜の卓', '', ROOM_KEY);
+    await vi.waitFor(() => expect(FakeWebSocket.instances.length).toBe(1));
+    const socket = latest();
+    socket.accept();
+    await vi.waitFor(async () => expect((await socket.frames()).length).toBe(1));
+
+    const hello = (await socket.frames())[0] as Record<string, unknown>;
+    expect(hello['userId']).not.toMatch(/^acct_/);
+    expect(hello).not.toHaveProperty('accessToken');
+  });
+
+  it('asks for an invitation and hands back the server’s answer', async () => {
+    const socket = await enterRoom();
+
+    const answer = connection.requestInvite('pl');
+    await vi.waitFor(async () => expect((await socket.frames()).at(-1)).toEqual({ type: 'invite', role: 'pl' }));
+    socket.deliver({ type: 'invite', role: 'pl', invite: 'signed', expiresAt: 1794592000000 });
+
+    expect(await answer).toEqual({ type: 'invite', role: 'pl', invite: 'signed', expiresAt: 1794592000000 });
+  });
+
+  it('gives up on an invitation the server does not answer', async () => {
+    await enterRoom();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+
+    const answer = connection.requestInvite('gm');
+    vi.advanceTimersByTime(INVITE_TIMEOUT_MS);
+
+    await expect(answer).rejects.toThrow('did not answer');
   });
 
   it('opens on standby without connecting to anything', async () => {

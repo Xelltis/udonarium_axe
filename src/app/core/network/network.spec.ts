@@ -200,6 +200,42 @@ describe('Network', () => {
       instance['connection'] = null;
     });
   });
+
+  describe('a room server’s login and invitations', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+
+    it('hands the login to every connection it makes, and an invitation to the next room opened only', async () => {
+      class SilentSocket {
+        binaryType = '';
+        readyState = 0;
+        close(): void {}
+      }
+      vi.stubGlobal('WebSocket', SilentSocket);
+      const { ServerConnection } = await import('@axe/core/network/server/server-connection');
+      const useCredentials = vi.spyOn(ServerConnection.prototype, 'useCredentials');
+      const useInvite = vi.spyOn(ServerConnection.prototype, 'useInvite');
+      const source = {
+        credentials: async () => null,
+        accessToken: async () => null,
+        replaceRejected: async () => null,
+      };
+      Network.configure({ transport: 'server', backend: { url: 'https://rooms.example' } });
+      Network.setServerCredentials(source);
+      Network.setServerInvite('the-invite');
+
+      Network.open('my-user', 'Ab3', '月夜の卓', '', '0123456789abcdef0123456789abcdef');
+      await vi.waitFor(() => expect(useInvite).toHaveBeenCalledWith('the-invite'));
+      Network.open('my-user', 'Ab3', '月夜の卓', '', '0123456789abcdef0123456789abcdef');
+      await vi.waitFor(() => expect(useCredentials).toHaveBeenCalledTimes(2));
+
+      expect(useCredentials.mock.calls.every(([given]) => given === source)).toBe(true);
+      expect(useInvite).toHaveBeenCalledTimes(1);
+      (Network.instance as unknown as { close(): void }).close();
+    });
+  });
 });
 
 describe('Network, once its own tests are done', () => {

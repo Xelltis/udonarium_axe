@@ -1,21 +1,26 @@
 import { Logger } from '@axe/core/logging/logger';
-import { Connection, ConnectionCallback } from '@axe/core/network/connection';
+import { Connection, ConnectionCallback, ServerCredentialSource } from '@axe/core/network/connection';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { PeerReconnectScheduler } from '@axe/core/network/peer-reconnect-scheduler';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { decodeFrame, encodeFrame, encodeSendFrames } from '@axe/core/network/server/server-frames';
 import {
+  ACCOUNT_USER_ID_PREFIX,
   ClientMessage,
+  CLOSE_CODE,
   CreateRoomResponse,
   DataMessage,
   EventContext,
   helloMessage,
+  InviteMessage,
+  inviteRequest,
   isRetryableError,
   Member,
   PING,
   readServerMessage,
   ServerMessage,
+  ServerRole,
   WelcomeMessage,
 } from '@axe/core/network/server/server-protocol';
 import { createRoom, listRooms, roomInfoOf, roomSocketUrl } from '@axe/core/network/server/server-room-api';
@@ -29,6 +34,10 @@ export const PONG_TIMEOUT_MS = 10_000;
  * second at most, well inside the server's limit of 2000 frames in ten seconds.
  */
 export const SEND_GATHER_MS = 16;
+/** How long an invite request waits for the server's answer. */
+export const INVITE_TIMEOUT_MS = 10_000;
+/** The refusal for a hello whose login is gone or belongs to somebody else. */
+const UNAUTHORIZED = 'unauthorized';
 
 const SOCKET_OPEN = 1;
 const SOCKET_KEY = 'room-server';
@@ -36,6 +45,13 @@ const SOCKET_KEY = 'room-server';
 interface Outbound {
   to: string | undefined;
   events: EventContext[];
+}
+
+interface InviteWaiter {
+  role: ServerRole;
+  resolve: (message: InviteMessage) => void;
+  reject: (reason: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
 }
 
 /**
@@ -50,6 +66,11 @@ interface Outbound {
  * 15 seconds; the server lets the new one in and closes nothing, since the old one is gone. A
  * refusal ends the session with an error, except for a full room or too many messages once in the
  * room, which are tried again in the same way. Joining a full room is refused at once.
+ *
+ * Logged in, the seat is the account's: its user id replaces the one the session was opened with,
+ * and every hello carries a fresh access token. A token the server turns down is refreshed and
+ * tried once more. Not logged in, the seat is a guest's, whose user id may not look like an
+ * account's.
  */
 export class ServerConnection implements Connection {
   readonly callback: ConnectionCallback = new ConnectionCallback();
@@ -76,12 +97,22 @@ export class ServerConnection implements Connection {
   get roomKey(): string | undefined {
     return this.room?.roomKey;
   }
+  get serverRole(): ServerRole | undefined {
+    return this.role ?? undefined;
+  }
 
   private baseUrl = '';
   private me: PeerContext = PeerContext.parse('???');
   private authority: PeerContext | null = null;
   private readonly members: Map<string, PeerContext> = new Map();
   private room: { roomKey: string; password: string } | null = null;
+  private role: ServerRole | null = null;
+  private credentialSource: ServerCredentialSource | null = null;
+  private invite = '';
+  /** The access token the last hello carried, which the server may turn down. */
+  private helloToken: string | null = null;
+  private retriedUnauthorized = false;
+  private inviteWaiters: InviteWaiter[] = [];
 
   private socket: WebSocket | null = null;
   private welcomed = false;
@@ -114,23 +145,44 @@ export class ServerConnection implements Connection {
     });
   }
 
+  /** Gives the connection the login to say hello with; without one every seat is a guest's. */
+  useCredentials(source: ServerCredentialSource | null): void {
+    this.credentialSource = source;
+  }
+
+  /** An invitation for the room opened next, carried by its hello until the server lets it in. */
+  useInvite(invite: string): void {
+    this.invite = invite;
+  }
+
   /**
    * Opens a session in the room the key finds. The peer id carries the room but no password:
-   * the server checks the password, which travels in the hello.
+   * the server checks the password, which travels in the hello. Logged in, the seat takes the
+   * account's user id in place of the one given.
    */
   open(userId: string, roomId: string, roomName: string, password: string, roomKey?: string): void {
     this.stopped = false;
-    void PeerContext.createRoom(userId, roomId, roomName, '').then((peer) => {
-      if (this.stopped) return;
-      peer.password = password;
-      this.me = peer;
-      if (!roomKey) {
-        this.fail('room-not-found', 'no key to find the room by');
-        return;
-      }
-      this.room = { roomKey, password };
-      this.connectSocket();
-    });
+    void this.openAs(userId, roomId, roomName, password, roomKey);
+  }
+
+  private async openAs(userId: string, roomId: string, roomName: string, password: string, roomKey?: string) {
+    let seatUserId: string;
+    try {
+      seatUserId = (await this.credentialSource?.credentials())?.userId ?? guestUserId(userId);
+    } catch {
+      if (!this.stopped) this.fail(SERVER_UNREACHABLE, 'the login could not be refreshed');
+      return;
+    }
+    const peer = await PeerContext.createRoom(seatUserId, roomId, roomName, '');
+    if (this.stopped) return;
+    peer.password = password;
+    this.me = peer;
+    if (!roomKey) {
+      this.fail('room-not-found', 'no key to find the room by');
+      return;
+    }
+    this.room = { roomKey, password };
+    this.connectSocket();
   }
 
   /** Leaves the room for good, without reporting anything. */
@@ -140,6 +192,7 @@ export class ServerConnection implements Connection {
     this.me.isOpen = false;
     this.members.clear();
     this.authority = null;
+    this.rejectInviteWaiters('the connection closed');
   }
 
   /** Lets go of the server at once, for a page being hidden or unloaded. */
@@ -197,9 +250,26 @@ export class ServerConnection implements Connection {
     return (await listRooms(this.baseUrl)).map(roomInfoOf);
   }
 
-  /** Creates a room on the server, sending the password only when there is one. */
-  createRoom(name: string, password: string): Promise<CreateRoomResponse> {
-    return createRoom(this.baseUrl, password.length > 0 ? { name, password } : { name });
+  /** Creates a room on the server as whoever is logged in, sending the password only when there is one. */
+  async createRoom(name: string, password: string): Promise<CreateRoomResponse> {
+    const accessToken = (await this.credentialSource?.accessToken()) ?? null;
+    return createRoom(this.baseUrl, password.length > 0 ? { name, password } : { name }, accessToken);
+  }
+
+  /**
+   * Asks the server for an invitation in a role. A GM gets one; anybody else gets a null
+   * invitation. It rejects outside the room or when the server does not answer in time.
+   */
+  requestInvite(role: ServerRole): Promise<InviteMessage> {
+    if (!this.welcomed) return Promise.reject(new Error('not in a room'));
+    return new Promise<InviteMessage>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.inviteWaiters = this.inviteWaiters.filter((waiter) => waiter.timer !== timer);
+        reject(new Error('the room server did not answer the invite request'));
+      }, INVITE_TIMEOUT_MS);
+      this.inviteWaiters.push({ role, resolve, reject, timer });
+      this.post(inviteRequest(role));
+    });
   }
 
   private connectSocket(): void {
@@ -216,10 +286,9 @@ export class ServerConnection implements Connection {
     this.socket = socket;
     this.welcomed = false;
     this.refusal = null;
-    const { password } = this.room;
     socket.onopen = () => {
       if (socket !== this.socket) return;
-      this.post(helloMessage(this.me.peerId, this.me.userId, { password }));
+      void this.sayHello(socket);
       this.startPing(socket);
     };
     socket.onmessage = (event: MessageEvent) => {
@@ -227,13 +296,44 @@ export class ServerConnection implements Connection {
       this.heardFrom();
       if (typeof event.data !== 'string') this.receive(new Uint8Array(event.data as ArrayBuffer));
     };
-    socket.onclose = () => {
+    socket.onclose = (event: CloseEvent) => {
       if (socket !== this.socket) return;
+      // The reason repeats the error message's code, should the close overtake the message.
+      if (this.refusal == null && event.code === CLOSE_CODE && event.reason) this.refusal = event.reason;
       this.socketClosed();
     };
     socket.onerror = () => {
       // a close always follows, and decides what comes next
     };
+  }
+
+  /**
+   * Says hello with a fresh access token for the seat's account. A login that is gone, or that is
+   * now somebody else's, cannot speak for the seat, so the session ends as unauthorized.
+   */
+  private async sayHello(socket: WebSocket): Promise<void> {
+    const userId = this.me.userId;
+    const isAccount = userId.startsWith(ACCOUNT_USER_ID_PREFIX);
+    let accessToken = '';
+    if (isAccount) {
+      let credentials;
+      try {
+        credentials = await this.credentialSource?.credentials();
+      } catch {
+        if (socket === this.socket) socket.close(4001, 'the login could not be refreshed');
+        return;
+      }
+      if (socket !== this.socket) return;
+      if (credentials?.userId !== userId) {
+        this.fail(UNAUTHORIZED, 'the login for this seat is gone');
+        return;
+      }
+      accessToken = credentials.accessToken;
+    }
+    this.helloToken = accessToken || null;
+    this.post(
+      helloMessage(this.me.peerId, userId, { password: this.room?.password, accessToken, invite: this.invite })
+    );
   }
 
   private receive(bytes: Uint8Array): void {
@@ -270,6 +370,9 @@ export class ServerConnection implements Connection {
         return;
       case 'time':
         return;
+      case 'invite':
+        this.answerInvite(message);
+        return;
       case 'error':
         this.refusal = message.code;
         return;
@@ -278,6 +381,9 @@ export class ServerConnection implements Connection {
 
   private welcome(message: WelcomeMessage): void {
     this.welcomed = true;
+    this.role = message.role;
+    this.invite = '';
+    this.retriedUnauthorized = false;
     this.reconnectScheduler.reset(SOCKET_KEY);
     const authority = PeerContext.parse(message.authorityPeerId);
     authority.isOpen = true;
@@ -314,12 +420,34 @@ export class ServerConnection implements Connection {
     this.callback.onDisconnect?.(peer);
   }
 
+  /**
+   * Hands on a batch. The server sets each event's sender, and slips its own events into other
+   * batches, so an event keeps its own `sendFrom`; only one without it takes the batch's.
+   */
   private deliver(message: DataMessage): void {
     const from =
       this.members.get(message.from) ??
       (message.from === this.authority?.peerId ? this.authority : PeerContext.parse(message.from));
-    for (const event of message.events) event.sendFrom = message.from;
+    for (const event of message.events) {
+      if (typeof event.sendFrom !== 'string' || event.sendFrom.length === 0) event.sendFrom = message.from;
+    }
     this.callback.onData?.(from, message.events);
+  }
+
+  private answerInvite(message: InviteMessage): void {
+    const waiter = this.inviteWaiters.find((candidate) => candidate.role === message.role);
+    if (!waiter) return;
+    this.inviteWaiters = this.inviteWaiters.filter((candidate) => candidate !== waiter);
+    clearTimeout(waiter.timer);
+    waiter.resolve(message);
+  }
+
+  private rejectInviteWaiters(reason: string): void {
+    for (const waiter of this.inviteWaiters) {
+      clearTimeout(waiter.timer);
+      waiter.reject(new Error(reason));
+    }
+    this.inviteWaiters = [];
   }
 
   private socketClosed(): void {
@@ -337,6 +465,10 @@ export class ServerConnection implements Connection {
 
     const refusal = this.refusal;
     this.refusal = null;
+    if (refusal === UNAUTHORIZED) {
+      void this.retryUnauthorized();
+      return;
+    }
     if (refusal != null && (!isRetryableError(refusal) || !this.everWelcomed)) {
       this.fail(refusal, `the room server refused: ${refusal}`);
       return;
@@ -352,6 +484,31 @@ export class ServerConnection implements Connection {
     this.callback.onReconnect?.(this.me, 'retrying');
   }
 
+  /**
+   * Tries once more with a refreshed access token after the server turned one down, as it does
+   * a token that ran out. A second refusal, or a login that is gone, ends the session.
+   */
+  private async retryUnauthorized(): Promise<void> {
+    const rejected = this.helloToken;
+    if (this.retriedUnauthorized || !rejected || !this.credentialSource) {
+      this.fail(UNAUTHORIZED, 'the room server refused the login');
+      return;
+    }
+    this.retriedUnauthorized = true;
+    let replaced: string | null;
+    try {
+      replaced = await this.credentialSource.replaceRejected(rejected);
+    } catch {
+      replaced = null;
+    }
+    if (this.stopped) return;
+    if (!replaced) {
+      this.fail(UNAUTHORIZED, 'the login could not be refreshed');
+      return;
+    }
+    this.connectSocket();
+  }
+
   /** Ends the session and says why. A session that was in the room is reported closed first. */
   private fail(code: string, message: string): void {
     const wasOpen = this.me.isOpen;
@@ -359,6 +516,7 @@ export class ServerConnection implements Connection {
     this.teardown();
     this.me.isOpen = false;
     if (wasOpen) this.callback.onClose?.(this.me);
+    this.rejectInviteWaiters(message);
     this.callback.onError?.(this.me, code, message, null);
   }
 
@@ -430,4 +588,9 @@ export class ServerConnection implements Connection {
     this.pingTimer = null;
     this.heardFrom();
   }
+}
+
+/** A guest's user id, never one that looks like an account's, which a hello without a token may not claim. */
+function guestUserId(userId: string): string {
+  return userId.startsWith(ACCOUNT_USER_ID_PREFIX) ? PeerContext.generateUserId() : userId;
 }

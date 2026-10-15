@@ -1,6 +1,6 @@
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
-import { CreateRoomResponse } from '@axe/core/network/server/server-protocol';
+import { CreateRoomResponse, InviteMessage, ServerRole } from '@axe/core/network/server/server-protocol';
 
 export type PeerReconnectState = 'retrying' | 'recovered' | 'failed';
 
@@ -12,6 +12,22 @@ export class ConnectionCallback {
   onReconnect!: (peer: IPeerContext, state: PeerReconnectState) => void;
   onData!: (peer: IPeerContext | null, data: unknown[]) => void;
   onError!: (peer: IPeerContext, errorType: string, errorMessage: string, errorObject: unknown) => void;
+}
+
+/** Who a hello to a room server says is connecting, when somebody is logged in. */
+export interface ServerCredentials {
+  userId: string;
+  accessToken: string;
+}
+
+/**
+ * The login a room server connection draws on, which lives above core: credentials for each hello,
+ * a token for requests, and a new token after the server turned one down.
+ */
+export interface ServerCredentialSource {
+  credentials(): Promise<ServerCredentials | null>;
+  accessToken(): Promise<string | null>;
+  replaceRejected(rejected: string): Promise<string | null>;
 }
 
 export interface Connection {
@@ -28,6 +44,8 @@ export interface Connection {
   readonly authorityPeerId?: string;
   /** The key a room server finds the open room by; SkyWay rooms have none. */
   readonly roomKey?: string;
+  /** The role a room server gave this seat on letting it in; SkyWay leaves roles to the peers. */
+  readonly serverRole?: ServerRole;
 
   configure(config: Record<string, unknown>): void;
   openStandby(userId?: string): void;
@@ -44,4 +62,10 @@ export interface Connection {
   listAllRooms(): Promise<IRoomInfo[]>;
   /** Creates a room on a room server; SkyWay rooms come into being as somebody opens them. */
   createRoom?(name: string, password: string): Promise<CreateRoomResponse>;
+  /** Gives a room server connection the login to say hello with. */
+  useCredentials?(source: ServerCredentialSource | null): void;
+  /** An invitation for the next room opened, from a link, sent with its hello. */
+  useInvite?(invite: string): void;
+  /** Asks the room server for an invitation in a role. */
+  requestInvite?(role: ServerRole): Promise<InviteMessage>;
 }

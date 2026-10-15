@@ -1,12 +1,7 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
+import { ServerCredentials, ServerCredentialSource } from '@axe/core/network/connection';
 import { LOGIN_CHANNEL, LOGIN_STORAGE_KEY, ServerLogin } from '@axe/core/network/server/server-login';
 import { Account } from '@axe/core/network/server/server-protocol';
-
-/** Who a hello says is connecting, when somebody is logged in. */
-export interface ServerCredentials {
-  userId: string;
-  accessToken: string;
-}
 
 /** The landing page the login popup comes back to, next to the app. */
 export const LOGIN_CALLBACK_PATH = 'assets/login-callback.html';
@@ -29,7 +24,7 @@ function isLoginFragment(hash: string): boolean {
  * logins and logouts in other tabs, which share it.
  */
 @Injectable({ providedIn: 'root' })
-export class ServerAuthService {
+export class ServerAuthService implements ServerCredentialSource {
   private readonly destroyRef = inject(DestroyRef);
   private login: ServerLogin | null = null;
   private channel: BroadcastChannel | null = null;

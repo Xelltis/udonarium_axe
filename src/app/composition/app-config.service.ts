@@ -1,7 +1,9 @@
 import { inject, Injectable } from '@angular/core';
+import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { LoggerService } from '@axe/application/logging/logger.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { emitLoadConfig } from '@axe/core/event/domain-events';
+import { Network } from '@axe/core/network/network';
 import { Transport, transportOf } from '@axe/core/network/transport';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 
@@ -22,6 +24,7 @@ export interface AppConfig {
 export class AppConfigService {
   private readonly logger = inject(LoggerService);
   private readonly localMode = inject(LocalModePreferenceService);
+  private readonly serverAuth = inject(ServerAuthService);
 
   constructor() {}
 
@@ -77,7 +80,18 @@ export class AppConfigService {
       this.logger.warn('config.json の読み込みに失敗しました', e);
     }
     AssetHttpStore.instance.configure(assetServerUrl(AppConfigService.appConfig));
+    this.configureServerLogin(AppConfigService.appConfig);
     emitLoadConfig({ config: AppConfigService.appConfig });
+  }
+
+  /**
+   * Points the login at the room server, and has every connection to it say hello with the login,
+   * before anything connects; a reload may go straight back into a room.
+   */
+  private configureServerLogin(config: AppConfig): void {
+    if (config.transport !== 'server' || config.backend.url.trim().length === 0) return;
+    this.serverAuth.configure(config.backend.url);
+    Network.setServerCredentials(this.serverAuth);
   }
 }
 
