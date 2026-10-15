@@ -438,6 +438,43 @@ describe('ServerConnection', () => {
     expect(await asked()).toHaveLength(1);
   });
 
+  it('holds the asset token already when it tells that the seat is in', async () => {
+    let seen: unknown = 'not told';
+    connection.callback.onOpen = () => {
+      seen = connection.assetAccess;
+      calls.push('open');
+    };
+
+    await enterRoom();
+
+    expect(seen).toEqual({ roomKey: ROOM_KEY, token: 'asset-1' });
+  });
+
+  it('renews the asset token by the server’s clock, which this one may run behind', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    const socket = await openRoom();
+    socket.accept();
+    // The server's clock is five minutes ahead: its token runs out sooner than this clock thinks.
+    const ahead = 5 * 60_000;
+    socket.deliver({
+      type: 'welcome',
+      protocolVersion: PROTOCOL_VERSION,
+      peerId: connection.peerId,
+      authorityPeerId: AUTHORITY_PEER_ID,
+      role: 'pl',
+      members: [],
+      serverTime: Date.now() + ahead,
+      assetToken: 'asset-1',
+      assetTokenExpiresAt: Date.now() + ahead + ASSET_TOKEN_MARGIN_MS + TOKEN_CHECK_MS / 2,
+    });
+    await vi.waitFor(() => expect(calls).toContain('open'));
+
+    await vi.advanceTimersByTimeAsync(TOKEN_CHECK_MS);
+
+    const asked = (await socket.frames()).filter((frame) => frame['type'] === 'asset-token');
+    expect(asked).toEqual([{ type: 'asset-token' }]);
+  });
+
   it('lists the server’s rooms for the lobby', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(

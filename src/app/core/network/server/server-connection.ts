@@ -143,6 +143,11 @@ export class ServerConnection implements Connection {
   /** Whether a fresh asset token has been asked for and has not come yet. */
   private assetTokenAsked = false;
   private assetTokenTimer: ReturnType<typeof setInterval> | null = null;
+  /**
+   * How far the server's clock is ahead of this one, in milliseconds, from the welcome. The asset
+   * token runs out by the server's clock, so a clock running behind would renew it too late.
+   */
+  private serverClockOffset = 0;
   /** The access token the last hello carried, which the server may turn down. */
   private helloToken: string | null = null;
   private retriedUnauthorized = false;
@@ -448,6 +453,11 @@ export class ServerConnection implements Connection {
   private welcome(message: WelcomeMessage): void {
     this.welcomed = true;
     this.role = message.role;
+    this.serverClockOffset = message.serverTime - Date.now();
+    // Taken before anybody hears the seat is in, so that what they do then may reach the room's
+    // pictures and sounds already.
+    this.takeAssetToken(message.assetToken, message.assetTokenExpiresAt);
+    this.startAssetTokenChecks();
     // A guest's invitation waits for a login; only an account's first visit takes it.
     if (message.role !== 'guest') this.invite = '';
     this.retriedUnauthorized = false;
@@ -472,8 +482,6 @@ export class ServerConnection implements Connection {
     this.held = [];
     for (const batch of held) this.send(batch.events, batch.to);
     if (this.accountSeat) this.startTokenChecks();
-    this.takeAssetToken(message.assetToken, message.assetTokenExpiresAt);
-    this.startAssetTokenChecks();
   }
 
   /** The room's pictures and sounds as this seat may reach them: the room and the token, while in it. */
@@ -495,7 +503,7 @@ export class ServerConnection implements Connection {
 
   private renewAssetToken(): void {
     if (!this.welcomed || !this.assetToken || this.assetTokenAsked) return;
-    if (this.assetToken.expiresAt - Date.now() > ASSET_TOKEN_MARGIN_MS) return;
+    if (this.assetToken.expiresAt - (Date.now() + this.serverClockOffset) > ASSET_TOKEN_MARGIN_MS) return;
     this.assetTokenAsked = true;
     this.post(assetTokenRequest());
   }
