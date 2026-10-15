@@ -579,6 +579,29 @@ describe('NetworkEventHandlerService', () => {
       expect(pictures).toHaveBeenCalledWith([picture]);
     });
 
+    it('stops asking for the room’s list once the seat has left the room', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      vi.spyOn(Network, 'serverRole', 'get').mockReturnValue('guest');
+      const inRoom = vi
+        .spyOn(Network, 'peerContext', 'get')
+        .mockReturnValue({ peerId: 'p', userId: 'u', isRoom: true } as never);
+      const picture = { id: 'a'.repeat(64), type: 'image/png', size: 1, name: 'map.png' };
+      const list = vi
+        .spyOn(AssetHttpStore.instance, 'listRoomAssets')
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue([picture]);
+      const pictures = vi.spyOn(ImageSharingSystem.instance, 'fetchListed').mockImplementation(() => {});
+      vi.spyOn(AudioSharingSystem.instance, 'fetchListed').mockImplementation(() => {});
+
+      stubChange.networkOpen$.emit({ peerId: 'p' });
+      await vi.advanceTimersByTimeAsync(0);
+      inRoom.mockReturnValue({ peerId: 'p', userId: 'u', isRoom: false } as never);
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 7);
+
+      expect(list).toHaveBeenCalledTimes(2);
+      expect(pictures).not.toHaveBeenCalled();
+    });
+
     it('brings its pictures in, and takes the role on, once the server makes it a player', () => {
       const images = vi.spyOn(ImageStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
       vi.spyOn(AudioStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
