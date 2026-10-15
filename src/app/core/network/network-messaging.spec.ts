@@ -1,5 +1,11 @@
 import { Network } from '@axe/core/network/network';
-import { EventContext, NetworkMessage, networkMessage$, receiveEvents } from '@axe/core/network/network-messaging';
+import {
+  EventContext,
+  LOCAL_ONLY_EVENTS,
+  NetworkMessage,
+  networkMessage$,
+  receiveEvents,
+} from '@axe/core/network/network-messaging';
 import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 
 const AUTHORITY = '@authority';
@@ -48,16 +54,31 @@ describe('receiveEvents', () => {
     expect(received.map((message) => message.eventName)).toEqual(['UPDATE_GAME_OBJECT']);
   });
 
-  it.each(['OPEN_NETWORK', 'PEER_RECONNECT', 'SERVER_ROLE_CHANGED'])(
-    'drops %s, which only this device tells itself, from anybody',
-    (eventName) => {
-      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(AUTHORITY);
+  it.each([...LOCAL_ONLY_EVENTS])('drops %s, which only this device tells itself, from anybody', (eventName) => {
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(AUTHORITY);
 
-      receiveEvents([event(eventName, 'peer-a'), event(eventName, AUTHORITY)]);
+    receiveEvents([event(eventName, 'peer-a'), event(eventName, AUTHORITY)]);
 
-      expect(received).toEqual([]);
-    }
-  );
+    expect(received).toEqual([]);
+  });
+
+  it('counts as told only to this device every event it is told nowhere else', () => {
+    expect([...LOCAL_ONLY_EVENTS].sort()).toEqual(
+      [
+        'CLOSE_NETWORK',
+        'CONNECT_PEER',
+        'DISCONNECT_PEER',
+        'LOCAL_OBJECT_UPDATED',
+        'NETWORK_ERROR',
+        'OPEN_NETWORK',
+        'PEER_RECONNECT',
+        'SERVER_ROLE_CHANGED',
+        'UPDATE_AUDIO_RESOURE',
+        'UPDATE_FILE_RESOURE',
+        'VN_MODE',
+      ].sort()
+    );
+  });
 
   it('drops the room server’s events altogether where there is no room server', () => {
     vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);

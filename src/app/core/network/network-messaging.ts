@@ -91,10 +91,12 @@ function scheduleAngularTick(): void {
 }
 
 /**
- * The events this device tells itself about its own network, which no peer may send it: a peer's
- * OPEN_NETWORK or PEER_RECONNECT would pass for this device's own.
+ * The events this device tells only itself, which no peer may send it. A peer's OPEN_NETWORK or
+ * PEER_RECONNECT would pass for this device's own network; its UPDATE_FILE_RESOURE or
+ * UPDATE_AUDIO_RESOURE would hand in bytes under a picture's or sound's name that no transfer
+ * brought; its VN_MODE would turn this screen to novel mode.
  */
-const LOCAL_NETWORK_EVENTS: ReadonlySet<string> = new Set([
+export const LOCAL_ONLY_EVENTS: ReadonlySet<string> = new Set([
   'OPEN_NETWORK',
   'CLOSE_NETWORK',
   'CONNECT_PEER',
@@ -102,6 +104,10 @@ const LOCAL_NETWORK_EVENTS: ReadonlySet<string> = new Set([
   'PEER_RECONNECT',
   'NETWORK_ERROR',
   'SERVER_ROLE_CHANGED',
+  'UPDATE_FILE_RESOURE',
+  'UPDATE_AUDIO_RESOURE',
+  'LOCAL_OBJECT_UPDATED',
+  'VN_MODE',
 ]);
 
 /**
@@ -113,7 +119,7 @@ const LOCAL_NETWORK_EVENTS: ReadonlySet<string> = new Set([
  */
 export function receiveEvents(events: EventContext[]): void {
   for (const ctx of events) {
-    if (LOCAL_NETWORK_EVENTS.has(ctx.eventName)) {
+    if (LOCAL_ONLY_EVENTS.has(ctx.eventName)) {
       Logger.warn(
         '[NetworkMessaging]',
         `${ctx.eventName} from <${ctx.sendFrom}>, which only this device sends, dropped`

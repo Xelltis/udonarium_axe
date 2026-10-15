@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { localDispatch, networkMessage$ } from '@axe/core/network/network-messaging';
+import { localDispatch, networkMessage$, receiveEvents } from '@axe/core/network/network-messaging';
 import { VisualNovelModeService, VN_MODE_EVENT } from '@axe/features/visual-novel/visual-novel-mode.service';
 
 describe('VisualNovelModeService', () => {
@@ -56,6 +56,12 @@ describe('VisualNovelModeService', () => {
     expect(service.active()).toBe(true);
 
     localDispatch(VN_MODE_EVENT, { active: false });
+    expect(service.active()).toBe(false);
+  });
+
+  it('takes no word of it from another seat, the mode being this screen’s own', () => {
+    receiveEvents([{ eventName: VN_MODE_EVENT, data: { active: true }, sendFrom: 'peer-a' }]);
+
     expect(service.active()).toBe(false);
   });
 
