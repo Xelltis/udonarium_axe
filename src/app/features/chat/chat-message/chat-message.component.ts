@@ -36,6 +36,7 @@ import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { Network } from '@axe/core/network/network';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -178,6 +179,15 @@ export class ChatMessageComponent {
   /** The message this row draws, as passed in through the `chatMessage` input. */
   get chatMessage(): ChatMessage {
     return this.chatMessageInput();
+  }
+
+  /**
+   * Whether the line wears the mark of a roll the room server made. Only on a room server, which
+   * takes the mark off whatever a device sends; with SkyWay any device could put it on.
+   */
+  get showsServerRoll(): boolean {
+    const message = this.chatMessage;
+    return !!message?.isServerRoll && message.isDicebot && Network.transport === 'server';
   }
 
   /** Whether the line was posted by the app itself, whose name and text are translation keys to decode. */
