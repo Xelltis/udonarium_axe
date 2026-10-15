@@ -219,7 +219,7 @@ export class ServerConnection implements Connection {
     const { password } = this.room;
     socket.onopen = () => {
       if (socket !== this.socket) return;
-      this.post(helloMessage(this.me.peerId, this.me.userId, password));
+      this.post(helloMessage(this.me.peerId, this.me.userId, { password }));
       this.startPing(socket);
     };
     socket.onmessage = (event: MessageEvent) => {

@@ -19,7 +19,7 @@ if (!ref) {
 
 const CONTRACT_DIR = 'apps/cloudflare/contracts';
 const OUTPUT_DIR = 'src/app/core/network/server/contract';
-const FIXTURES = ['lww', 'messages', 'errors'];
+const FIXTURES = ['lww', 'messages', 'errors', 'visibility'];
 
 const git = (...args) => execFileSync('git', ['-C', repository, ...args], { encoding: 'utf-8' });
 const commit = git('rev-parse', `${ref}^{commit}`).trim();

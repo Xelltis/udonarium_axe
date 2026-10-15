@@ -7,7 +7,13 @@ import {
 } from '@axe/core/network/server/server-connection';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { decodeFrame, MAX_FRAME_BYTES } from '@axe/core/network/server/server-frames';
-import { AUTHORITY_PEER_ID, EventContext, ServerMessage } from '@axe/core/network/server/server-protocol';
+import {
+  AUTHORITY_PEER_ID,
+  EventContext,
+  Member,
+  PROTOCOL_VERSION,
+  ServerMessage,
+} from '@axe/core/network/server/server-protocol';
 import { isCompressed } from '@axe/core/util/compress';
 import * as MessagePack from '@axe/core/util/message-pack';
 
@@ -56,7 +62,7 @@ class FakeWebSocket {
 
 const BASE_URL = 'https://rooms.example';
 const ROOM_KEY = '0123456789abcdef0123456789abcdef';
-const OTHER = { peerId: 'Zz9Yy8Ab3e7r6q5W-', userId: 'other-user' };
+const OTHER: Member = { peerId: 'Zz9Yy8Ab3e7r6q5W-', userId: 'other-user', role: 'pl' };
 
 function event(eventName: string, data: unknown = null): EventContext {
   return { eventName, data, sendFrom: 'me' };
@@ -77,14 +83,15 @@ describe('ServerConnection', () => {
     return latest();
   }
 
-  async function enterRoom(members: { peerId: string; userId: string }[] = []): Promise<FakeWebSocket> {
+  async function enterRoom(members: Member[] = []): Promise<FakeWebSocket> {
     const socket = await openRoom();
     socket.accept();
     socket.deliver({
       type: 'welcome',
-      protocolVersion: 1,
+      protocolVersion: PROTOCOL_VERSION,
       peerId: connection.peerId,
       authorityPeerId: AUTHORITY_PEER_ID,
+      role: 'pl',
       members,
       serverTime: Date.now(),
     });
@@ -126,7 +133,7 @@ describe('ServerConnection', () => {
     expect(socket.url).toBe(`wss://rooms.example/v1/rooms/${ROOM_KEY}/ws`);
     expect((await socket.frames())[0]).toEqual({
       type: 'hello',
-      protocolVersion: 1,
+      protocolVersion: PROTOCOL_VERSION,
       peerId: connection.peerId,
       userId: 'my-user',
       password: 'secret',
@@ -224,7 +231,7 @@ describe('ServerConnection', () => {
   it('ends the session on a refusal, without trying again', async () => {
     const socket = await openRoom('wrong');
     socket.accept();
-    socket.deliver({ type: 'error', code: 'wrong-password', protocolVersion: 1 });
+    socket.deliver({ type: 'error', code: 'wrong-password', protocolVersion: PROTOCOL_VERSION });
     await settle();
     socket.close(4000, 'wrong-password');
     await vi.waitFor(() => expect(errors).toEqual([{ code: 'wrong-password' }]));
@@ -236,7 +243,7 @@ describe('ServerConnection', () => {
   it('says at once that a room is full when joining it, rather than waiting in line', async () => {
     const socket = await openRoom();
     socket.accept();
-    socket.deliver({ type: 'error', code: 'room-full', protocolVersion: 1 });
+    socket.deliver({ type: 'error', code: 'room-full', protocolVersion: PROTOCOL_VERSION });
     await settle();
     socket.close(4000, 'room-full');
     await vi.waitFor(() => expect(errors).toEqual([{ code: 'room-full' }]));
@@ -247,7 +254,7 @@ describe('ServerConnection', () => {
   it('stops quietly when the same seat connects again elsewhere, and reports that it was closed', async () => {
     const socket = await enterRoom();
 
-    socket.deliver({ type: 'error', code: 'replaced', protocolVersion: 1 });
+    socket.deliver({ type: 'error', code: 'replaced', protocolVersion: PROTOCOL_VERSION });
     await settle();
     socket.close(4000, 'replaced');
     await vi.waitFor(() => expect(errors).toEqual([{ code: 'replaced' }]));
@@ -289,9 +296,10 @@ describe('ServerConnection', () => {
     again.accept();
     again.deliver({
       type: 'welcome',
-      protocolVersion: 1,
+      protocolVersion: PROTOCOL_VERSION,
       peerId: connection.peerId,
       authorityPeerId: AUTHORITY_PEER_ID,
+      role: 'pl',
       members: [OTHER],
       serverTime: Date.now(),
     });

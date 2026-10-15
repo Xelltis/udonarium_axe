@@ -8,7 +8,7 @@
       "message": {
         "type": "error",
         "code": "protocol-mismatch",
-        "protocolVersion": 1
+        "protocolVersion": 2
       }
     },
     {
@@ -18,7 +18,7 @@
       "message": {
         "type": "error",
         "code": "room-not-found",
-        "protocolVersion": 1
+        "protocolVersion": 2
       }
     },
     {
@@ -28,7 +28,7 @@
       "message": {
         "type": "error",
         "code": "room-full",
-        "protocolVersion": 1
+        "protocolVersion": 2
       }
     },
     {
@@ -38,7 +38,7 @@
       "message": {
         "type": "error",
         "code": "wrong-password",
-        "protocolVersion": 1
+        "protocolVersion": 2
       }
     },
     {
@@ -48,7 +48,7 @@
       "message": {
         "type": "error",
         "code": "hello-required",
-        "protocolVersion": 1
+        "protocolVersion": 2
       }
     },
     {
@@ -58,7 +58,7 @@
       "message": {
         "type": "error",
         "code": "bad-message",
-        "protocolVersion": 1
+        "protocolVersion": 2
       }
     },
     {
@@ -68,7 +68,7 @@
       "message": {
         "type": "error",
         "code": "too-many-messages",
-        "protocolVersion": 1
+        "protocolVersion": 2
       }
     },
     {
@@ -78,7 +78,17 @@
       "message": {
         "type": "error",
         "code": "replaced",
-        "protocolVersion": 1
+        "protocolVersion": 2
+      }
+    },
+    {
+      "code": "unauthorized",
+      "when": "hello の accessToken が無効か期限切れ、または userId がトークンの userId と違う。リフレッシュトークンで組を替えてから、つなぎ直す。accessToken を付けずに acct_ で始まる userId（ログインした人のユーザー ID）を名乗ったときも",
+      "retry": true,
+      "message": {
+        "type": "error",
+        "code": "unauthorized",
+        "protocolVersion": 2
       }
     }
   ]

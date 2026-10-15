@@ -11,7 +11,7 @@
  */
 
 /** Raised whenever an envelope changes; a hello at another version is refused with protocol-mismatch. */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 /** The room server's own peer id, a shape no client id can take. */
 export const AUTHORITY_PEER_ID = '@authority';
@@ -35,10 +35,31 @@ export interface EventContext {
   sendFrom: string;
 }
 
+/**
+ * A part in the room, which the server decides and keeps; it overwrites the role on PeerCursors.
+ *
+ * The same values as the client's own roles: the room's creator and those the GM makes one are
+ * `gm`, those logged in are `pl`, and those not logged in watch as `guest`.
+ */
+export const SERVER_ROLES = ['gm', 'pl', 'guest'] as const;
+export type ServerRole = (typeof SERVER_ROLES)[number];
+
+/** Whether a value is one of the server's roles. */
+export function isServerRole(value: unknown): value is ServerRole {
+  return (SERVER_ROLES as readonly unknown[]).includes(value);
+}
+
+/**
+ * How the user id of somebody logged in begins. A hello without an access token may not claim
+ * one, since what a member may see follows their user id.
+ */
+export const ACCOUNT_USER_ID_PREFIX = 'acct_';
+
 /** Somebody in the room. */
 export interface Member {
   peerId: string;
   userId: string;
+  role: ServerRole;
 }
 
 // ---- client to server ----
@@ -51,6 +72,10 @@ export interface HelloMessage {
   userId: string;
   /** For a room with a password, which the server checks. */
   password?: string;
+  /** Logged in, the access token; without one the server seats a guest. The userId must be its account's. */
+  accessToken?: string;
+  /** An invitation from a link, deciding the role of somebody logged in on their first visit. */
+  invite?: string;
 }
 
 /** A batch of events, for one peer when `to` is given and for everybody else otherwise. */
@@ -65,7 +90,13 @@ export interface TimeRequest {
   type: 'time';
 }
 
-export type ClientMessage = HelloMessage | SendMessage | TimeRequest;
+/** Asks for an invitation to the room in a role; only a GM gets one. */
+export interface InviteRequest {
+  type: 'invite';
+  role: ServerRole;
+}
+
+export type ClientMessage = HelloMessage | SendMessage | TimeRequest | InviteRequest;
 
 // ---- server to client ----
 
@@ -75,6 +106,8 @@ export interface WelcomeMessage {
   protocolVersion: number;
   peerId: string;
   authorityPeerId: string;
+  /** The role the server gives this client, which its own PeerCursor takes on. */
+  role: ServerRole;
   /** Who else is in the room: never this client, never the server. */
   members: Member[];
   /** The server's clock, in Unix milliseconds. */
@@ -91,7 +124,10 @@ export interface LeaveMessage {
   peerId: string;
 }
 
-/** A batch of events from one sender, the server itself when `from` is the authority. */
+/**
+ * A batch of events. The server may slip its own events into somebody else's batch, so each
+ * event's `sendFrom`, not the batch's `from`, says who sent it.
+ */
 export interface DataMessage {
   type: 'data';
   from: string;
@@ -101,6 +137,15 @@ export interface DataMessage {
 export interface TimeMessage {
   type: 'time';
   serverTime: number;
+}
+
+/** The answer to an invite request: the invitation and when it runs out, both null for a non-GM. */
+export interface InviteMessage {
+  type: 'invite';
+  role: ServerRole;
+  invite: string | null;
+  /** Unix milliseconds. */
+  expiresAt: number | null;
 }
 
 /**
@@ -116,12 +161,20 @@ export const ERROR_CODES = [
   'bad-message',
   'too-many-messages',
   'replaced',
+  'unauthorized',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
-/** The refusals that may go away on their own, so that connecting again later is worth trying. */
-export const RETRYABLE_ERROR_CODES: ReadonlySet<ErrorCode> = new Set<ErrorCode>(['room-full', 'too-many-messages']);
+/**
+ * The refusals that may go away, so that connecting again is worth trying: a full room or a busy
+ * sender later, and an expired access token once it is refreshed.
+ */
+export const RETRYABLE_ERROR_CODES: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
+  'room-full',
+  'too-many-messages',
+  'unauthorized',
+]);
 
 /** Whether a code the server closed with is one worth connecting again for. */
 export function isRetryableError(code: string): boolean {
@@ -134,7 +187,65 @@ export interface ErrorMessage {
   protocolVersion?: number;
 }
 
-export type ServerMessage = WelcomeMessage | JoinMessage | LeaveMessage | DataMessage | TimeMessage | ErrorMessage;
+export type ServerMessage =
+  WelcomeMessage | JoinMessage | LeaveMessage | DataMessage | TimeMessage | InviteMessage | ErrorMessage;
+
+// ---- events with the server ----
+
+/**
+ * Events only the server and its members trade.
+ *
+ * - AUTHORITATIVE (from the server): an ObjectContext to take on whatever its version, clearing any
+ *   deletion mark; it undoes a change the sender may not make, or hands over a thing that came
+ *   into view
+ * - WITHDRAW (from the server): `{ identifier }` to take away without marking it deleted, for a
+ *   thing that went out of view or that the sender may not make
+ * - ROLE_REQUEST (to the server): `{ peerId, role }`, a GM changing somebody's role
+ * - ROLE_REJECTED (from the server): `{ peerId, role, reason }`, a ROLE_REQUEST turned down
+ * - ROLL_REQUEST (to the server): a RollRequest, rolled with BCDice and said to everybody
+ */
+export const AuthorityEvent = {
+  AUTHORITATIVE: 'AUTHORITATIVE_OBJECT',
+  WITHDRAW: 'WITHDRAW_GAME_OBJECT',
+  ROLE_REQUEST: 'ROLE_REQUEST',
+  ROLE_REJECTED: 'ROLE_REJECTED',
+  ROLL_REQUEST: 'ROLL_REQUEST',
+} as const;
+
+/** Why a ROLE_REQUEST was turned down. */
+export type RoleRejectReason = 'not-game-master' | 'unknown-peer' | 'not-logged-in' | 'last-game-master';
+
+/** A thing as it travels between peers; ObjectNode SyncVars sit under `syncData.attributes`. */
+export interface ServerObjectContext {
+  aliasName: string;
+  identifier: string;
+  majorVersion: number;
+  minorVersion: number;
+  syncData: Record<string, unknown>;
+}
+
+/**
+ * Asks the server to roll a chat line's dice. The message is the result line the client would
+ * have said itself, not yet placed; the server fills in its text, roll detail, tag, name, sender
+ * and SERVER_ROLL_FIELD and says it to everybody, the asker included.
+ */
+export interface RollRequest {
+  message: ServerObjectContext;
+  /** The command in half-width characters, perhaps with a repeat count in front (`3 2d6`). */
+  command: string;
+  /** The game system's id; an unknown one rolls with the plain DiceBot. */
+  gameSystem: string;
+  /** The speaker's name, which the result line is named after. */
+  speaker: string;
+  /** What follows the result text, such as the name of the targeted character. */
+  suffix?: string;
+}
+
+/** The sender of a line the server rolled. */
+export const DICE_BOT_SENDER = 'System-BCDice';
+
+/** The attribute the server sets true on a line it rolled, and strips from any a client sends. */
+export const SERVER_ROLL_FIELD = 'serverRoll';
 
 // ---- HTTP ----
 
@@ -162,18 +273,66 @@ export interface RoomListResponse {
   rooms: RoomSummary[];
 }
 
-/** The hello for a peer, carrying the password only when there is one. */
-export function helloMessage(peerId: string, userId: string, password = ''): HelloMessage {
+/** GET /v1/auth/config: the login providers; none means the Worker has neither login nor rooms. */
+export interface AuthConfigResponse {
+  providers: string[];
+}
+
+/** POST /v1/auth/token: a login code with its PKCE verifier, or a refresh token to trade in. */
+export type TokenRequest =
+  | { grant_type: 'login_code'; code: string; code_verifier: string }
+  | { grant_type: 'refresh_token'; refresh_token: string };
+
+/** Somebody logged in. */
+export interface Account {
+  /** Their lasting user id, beginning with ACCOUNT_USER_ID_PREFIX, which a hello carries. */
+  userId: string;
+  name: string;
+  avatarUrl: string | null;
+}
+
+/** The answer to POST /v1/auth/token. */
+export interface TokenResponse {
+  accessToken: string;
+  /** Seconds the access token lasts. */
+  expiresIn: number;
+  /** Trades in once for the next pair; a second use revokes the whole line. */
+  refreshToken: string;
+  account: Account;
+}
+
+/** What a hello may carry beyond who is saying it. */
+export interface HelloOptions {
+  password?: string;
+  accessToken?: string;
+  invite?: string;
+}
+
+/** The hello for a peer, carrying the password, access token and invitation only when there are some. */
+export function helloMessage(peerId: string, userId: string, options: HelloOptions = {}): HelloMessage {
   const hello: HelloMessage = { type: 'hello', protocolVersion: PROTOCOL_VERSION, peerId, userId };
-  if (password.length > 0) hello.password = password;
+  if (options.password) hello.password = options.password;
+  if (options.accessToken) hello.accessToken = options.accessToken;
+  if (options.invite) hello.invite = options.invite;
   return hello;
+}
+
+/** Asks for an invitation in a role. */
+export function inviteRequest(role: ServerRole): InviteRequest {
+  return { type: 'invite', role };
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const isMember = (value: unknown): value is Member =>
-  isRecord(value) && typeof value['peerId'] === 'string' && typeof value['userId'] === 'string';
+  isRecord(value) &&
+  typeof value['peerId'] === 'string' &&
+  typeof value['userId'] === 'string' &&
+  isServerRole(value['role']);
+
+const isStringOrNull = (value: unknown): boolean => value === null || typeof value === 'string';
+const isNumberOrNull = (value: unknown): boolean => value === null || typeof value === 'number';
 
 const isEvent = (value: unknown): value is EventContext => isRecord(value) && typeof value['eventName'] === 'string';
 
@@ -189,6 +348,7 @@ export function readServerMessage(value: unknown): ServerMessage | null {
       return typeof value['protocolVersion'] === 'number' &&
         typeof value['peerId'] === 'string' &&
         typeof value['authorityPeerId'] === 'string' &&
+        isServerRole(value['role']) &&
         Array.isArray(value['members']) &&
         value['members'].every(isMember) &&
         typeof value['serverTime'] === 'number'
@@ -204,6 +364,10 @@ export function readServerMessage(value: unknown): ServerMessage | null {
         : null;
     case 'time':
       return typeof value['serverTime'] === 'number' ? (value as unknown as TimeMessage) : null;
+    case 'invite':
+      return isServerRole(value['role']) && isStringOrNull(value['invite']) && isNumberOrNull(value['expiresAt'])
+        ? (value as unknown as InviteMessage)
+        : null;
     case 'error':
       return typeof value['code'] === 'string' ? (value as unknown as ErrorMessage) : null;
     default:
