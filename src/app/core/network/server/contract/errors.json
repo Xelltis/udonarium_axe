@@ -53,7 +53,7 @@
     },
     {
       "code": "bad-message",
-      "when": "MessagePack として読めない、展開すると 32MiB を超える、または封筒の形が違う",
+      "when": "MessagePack として読めない、展開すると 32MiB を超える、封筒の形が違う、または Axe の部屋の形のピア ID の頭が userId のダイジェストと合わない（ほかの人のピア ID を名乗った）",
       "retry": false,
       "message": {
         "type": "error",
@@ -63,7 +63,7 @@
     },
     {
       "code": "too-many-messages",
-      "when": "10秒のあいだに 2000 を超えるフレームを送った",
+      "when": "10秒のあいだに 2000 を超えるフレームか、20000 を超えるイベントを送った",
       "retry": true,
       "message": {
         "type": "error",
@@ -83,7 +83,7 @@
     },
     {
       "code": "unauthorized",
-      "when": "hello の accessToken が無効か期限切れ、または userId がトークンの userId と違う。リフレッシュトークンで組を替えてから、つなぎ直す。accessToken を付けずに acct_ で始まる userId（ログインした人のユーザー ID）を名乗ったときも",
+      "when": "hello の accessToken が無効か期限切れ、または userId がトークンの userId と違う。リフレッシュトークンで組を替えてから、つなぎ直す。accessToken を付けずに acct_ で始まる userId（ログインした人のユーザー ID）や、この部屋にログインして入ったことのあるユーザー ID を名乗ったときも。同じ userId の人がログインして入ってきたら、その userId を名乗っていた見学の席もこれで閉じる",
       "retry": true,
       "message": {
         "type": "error",
