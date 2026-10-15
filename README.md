@@ -13,6 +13,7 @@
 Udonarium Axeは、ブラウザ上で動作するTRPGオンラインセッション支援ツールです。
 テーブル上のオブジェクト（コマ・カード・ダイスなど）はWebRTC（SkyWay SDK v2）のP2P通信で
 ブラウザ間に直接同期され、ゲームデータが中央サーバーに保存されることはありません。
+SkyWayを使わずに部屋ごとのサーバーで同期する方法も、ベータとして選べます（この場合、卓はしばらくサーバーに残ります）。
 
 [Udonarium](https://github.com/TK11235/udonarium)（TK11235）を源流とし、その派生である
 [Udonarium Lily](https://github.com/entyu/udonarium_lily)（entyu）の機能・コードを受け継いでいます。
