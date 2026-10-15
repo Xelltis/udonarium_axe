@@ -376,7 +376,10 @@ export interface RoomListResponse {
   rooms: RoomSummary[];
 }
 
-/** The header an upload names its picture or sound in, URI-encoded; the room's asset list gives it back. */
+/**
+ * The header an upload names its picture or sound in, URI-encoded. The room's asset list gives the
+ * name back, and so does a HEAD or GET of the asset, in this header the page may read.
+ */
 export const ASSET_NAME_HEADER = 'X-Asset-Name';
 
 /** A picture or sound the room holds. */
