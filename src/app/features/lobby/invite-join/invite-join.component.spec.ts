@@ -189,6 +189,26 @@ describe('InviteJoinComponent', () => {
       expect(modalOpen.mock.calls[0][1]).toMatchObject({ checkedByServer: true });
     });
 
+    it('hands the server the invitation the link carries before joining', async () => {
+      findServerRoom.mockResolvedValue(serverRoom(false));
+      const setServerInvite = vi.spyOn(Network, 'setServerInvite').mockImplementation(() => {});
+      await setup(
+        buildInviteLink('', {
+          roomId: 'a1b',
+          roomName: 'room',
+          roomKey: KEY,
+          password: '',
+          role: null,
+          overlay: false,
+          invite: 'signed-invite',
+        })
+      );
+
+      await eventually(() => expect(joinServerRoom).toHaveBeenCalled());
+      expect(setServerInvite).toHaveBeenCalledWith('signed-invite');
+      expect(setServerInvite.mock.invocationCallOrder[0]).toBeLessThan(joinServerRoom.mock.invocationCallOrder[0]);
+    });
+
     it('takes no role from the link, which is the server’s to give', async () => {
       findServerRoom.mockResolvedValue(serverRoom(false));
       joinServerRoom.mockResolvedValue(true);

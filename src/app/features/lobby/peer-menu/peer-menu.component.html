@@ -130,18 +130,21 @@
       <div class="space-y-1.5 pt-1">
         <div class="flex flex-wrap items-center gap-1.5">
           <span>{{ 'feature.lobby.peerMenu.inviteLabel' | transloco }}</span>
-          @for (role of inviteRoles; track role) {
-            <button
-              class="rounded-sm px-1.5 py-0.5 text-[0.7rem]"
-              [class]="
-                inviteRole() === role
-                  ? roleBadgeClass(role)
-                  : 'border border-(--ui-panel-border) text-(--ui-text-muted)'
-              "
-              (click)="inviteRole.set(role)"
-            >
-              {{ roleShortLabelKey(role) | transloco }}
-            </button>
+          @if (!isServerTransport || isMyselfGameMaster) {
+            @for (role of inviteRoles; track role) {
+              <button
+                class="rounded-sm px-1.5 py-0.5 text-[0.7rem]"
+                [class]="
+                  inviteRole() === role
+                    ? roleBadgeClass(role)
+                    : 'border border-(--ui-panel-border) text-(--ui-text-muted)'
+                "
+                [attr.data-testid]="'peer-menu-invite-role-' + role"
+                (click)="inviteRole.set(role)"
+              >
+                {{ roleShortLabelKey(role) | transloco }}
+              </button>
+            }
           }
           @if (networkService.peerContext.hasPassword) {
             <label class="flex cursor-pointer items-center gap-1.5 text-xs">
@@ -181,6 +184,21 @@
             }}
           </button>
         </div>
+        @if (isServerTransport) {
+          @if (!isMyselfGameMaster) {
+            <p class="m-0 text-[0.7rem] text-(--ui-text-dim)">
+              {{ 'feature.lobby.peerMenu.inviteWithoutRole' | transloco }}
+            </p>
+          } @else if (serverInviteFailed()) {
+            <p class="text-ui-danger m-0 text-[0.7rem]" data-testid="peer-menu-invite-failed">
+              {{ 'feature.lobby.peerMenu.inviteFailed' | transloco }}
+            </p>
+          } @else if (serverInviteExpiresAt(); as expiresAt) {
+            <p class="m-0 text-[0.7rem] text-(--ui-text-dim)" data-testid="peer-menu-invite-expires">
+              {{ 'feature.lobby.peerMenu.inviteExpires' | transloco: { date: (expiresAt | date: 'yyyy/MM/dd') } }}
+            </p>
+          }
+        }
       </div>
       @if (canRequestFullSync) {
         <button (click)="requestFullSync()">{{ 'feature.lobby.peerMenu.fullSync' | transloco }}</button>

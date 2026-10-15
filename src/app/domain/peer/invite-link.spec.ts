@@ -69,8 +69,25 @@ describe('parseInviteLink', () => {
       password: 'p a s s',
       role: PeerRole.Player,
       overlay: false,
+      invite: '',
     };
     const link = buildInviteLink(BASE_URL, params);
+    expect(parseInviteLink(link.slice(link.indexOf('#')))).toEqual(params);
+  });
+
+  it('carries an invitation the room server signed', () => {
+    const params = {
+      roomId: 'a1b',
+      roomName: 'room',
+      roomKey: '0123456789abcdef0123456789abcdef',
+      password: '',
+      role: null,
+      overlay: false,
+      invite: 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiZ20ifQ.c2lnbmVk',
+    };
+    const link = buildInviteLink(BASE_URL, params);
+
+    expect(link).toContain('i=');
     expect(parseInviteLink(link.slice(link.indexOf('#')))).toEqual(params);
   });
 
@@ -95,6 +112,7 @@ describe('parseInviteLink', () => {
       password: '',
       role: null,
       overlay: false,
+      invite: '',
     });
   });
 

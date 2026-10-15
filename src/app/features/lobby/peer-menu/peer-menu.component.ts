@@ -1,5 +1,14 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
@@ -32,6 +41,9 @@ import { ReConnectComponent } from '@axe/features/lobby/re-connect/re-connect.co
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
+
+/** How long before it runs out an invitation from the room server is asked for afresh. */
+const INVITE_RENEW_MARGIN_MS = 24 * 60 * 60 * 1000;
 
 /** How this browser takes part: with the others over the network, or alone. */
 export const CONNECTION_MODES = ['online', 'offline'] as const;
@@ -102,8 +114,22 @@ export class PeerMenuComponent {
   protected readonly roleShortLabelKey = roleShortLabelKey;
   protected readonly roleBadgeClass = roleBadgeClass;
 
-  protected readonly inviteRoles: readonly PeerRole[] = [PeerRole.Player, PeerRole.Guest];
+  /**
+   * The roles a link may invite in. A room server signs an invitation, so its game master may
+   * invite in any role, a fellow game master among them.
+   */
+  protected readonly inviteRoles: readonly PeerRole[] = this.isServerTransport
+    ? [PeerRole.GameMaster, PeerRole.Player, PeerRole.Guest]
+    : [PeerRole.Player, PeerRole.Guest];
   protected readonly inviteRole = signal<PeerRole>(PeerRole.Player);
+  /** The invitations the room server has signed this session, by role, while they last. */
+  private readonly serverInvites = signal<ReadonlyMap<PeerRole, { invite: string; expiresAt: number }>>(new Map());
+  /** Whether the room server turned down or did not answer the last request for an invitation. */
+  protected readonly serverInviteFailed = signal(false);
+  /** When the invitation in the link runs out, on a room server; null without one. */
+  protected readonly serverInviteExpiresAt = computed(
+    () => this.serverInvites().get(this.inviteRole())?.expiresAt ?? null
+  );
   protected readonly includePasswordInInvite = signal(true);
   protected readonly inviteOverlay = signal(false);
   protected readonly isInviteCopied = transientSignal(false, 2000);
@@ -118,8 +144,9 @@ export class PeerMenuComponent {
       roomName: peer.roomName,
       roomKey: Network.roomKey ?? '',
       password: this.includePasswordInInvite() ? peer.password : '',
-      role: this.inviteRole(),
+      role: this.isServerTransport ? null : this.inviteRole(),
       overlay: this.inviteOverlay(),
+      invite: this.isServerTransport ? (this.serverInvites().get(this.inviteRole())?.invite ?? '') : '',
     });
   });
 
@@ -177,6 +204,29 @@ export class PeerMenuComponent {
     });
   }
 
+  /**
+   * Asks the room server for an invitation in a role, for the game master's link, unless one for
+   * that role is in hand with a day still to run. Anybody else's link carries none.
+   */
+  private async requestServerInvite(role: PeerRole): Promise<void> {
+    if (!this.isServerTransport || !Network.peerContext.isRoom || !this.isMyselfGameMaster) return;
+    const held = this.serverInvites().get(role);
+    if (held && held.expiresAt - Date.now() > INVITE_RENEW_MARGIN_MS) return;
+    try {
+      const answer = await Network.requestInvite(role);
+      if (!answer.invite || answer.expiresAt == null) {
+        this.serverInviteFailed.set(true);
+        return;
+      }
+      const invites = new Map(this.serverInvites());
+      invites.set(role, { invite: answer.invite, expiresAt: answer.expiresAt });
+      this.serverInvites.set(invites);
+      this.serverInviteFailed.set(false);
+    } catch {
+      this.serverInviteFailed.set(true);
+    }
+  }
+
   protected async copyInviteLink(): Promise<void> {
     const link = this.inviteLink();
     if (link.length < 1) return;
@@ -213,6 +263,11 @@ export class PeerMenuComponent {
   }
 
   constructor() {
+    effect(() => {
+      const role = this.inviteRole();
+      this.objectChange.networkVersion();
+      untracked(() => void this.requestServerInvite(role));
+    });
     queueMicrotask(() => (this.panelService.title = this.t('common.panel.peerMenu')));
     const timer = setInterval(() => this.dispInfo(), 1000);
     this.destroyRef.onDestroy(() => clearInterval(timer));

@@ -127,6 +127,59 @@ describe('PeerMenuComponent', () => {
       expect(root.querySelector('[data-testid="peer-menu-server-role"]')?.textContent).toContain('GM');
     });
 
+    it('asks the server for an invitation in the role chosen, and puts it in the link', async () => {
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        isRoom: true,
+        roomId: 'Ab3',
+        roomName: '月夜の卓',
+        password: '',
+        hasPassword: false,
+      } as never);
+      const requestInvite = vi.spyOn(Network.instance, 'requestInvite').mockImplementation(async (role) => ({
+        type: 'invite',
+        role,
+        invite: `signed-${role}`,
+        expiresAt: Date.now() + 1e9,
+      }));
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      await vi.waitFor(() => expect(requestInvite).toHaveBeenCalledWith(PeerRole.Player));
+      (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLButtonElement>(`[data-testid="peer-menu-invite-role-${PeerRole.GameMaster}"]`)!
+        .click();
+      fixture.detectChanges();
+
+      await vi.waitFor(() => expect(requestInvite).toHaveBeenCalledWith(PeerRole.GameMaster));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await vi.waitFor(() => expect((component as any).inviteLink()).toContain('i=signed-gm'));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((component as any).inviteLink()).not.toContain('role=');
+    });
+
+    it('says so when the server gives no invitation', async () => {
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        isRoom: true,
+        roomId: 'Ab3',
+        roomName: '月夜の卓',
+        password: '',
+        hasPassword: false,
+      } as never);
+      vi.spyOn(Network.instance, 'requestInvite').mockResolvedValue({
+        type: 'invite',
+        role: 'pl',
+        invite: null,
+        expiresAt: null,
+      });
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await vi.waitFor(() => expect((component as any).serverInviteFailed()).toBe(true));
+    });
+
     it('asks the server to change somebody’s role, leaving their cursor for the server to change', () => {
       vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
       const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});

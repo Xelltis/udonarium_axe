@@ -11,6 +11,11 @@ export interface InviteLinkParams {
   role: PeerRole | null;
   /** Whether it opens as an overlay for a stream. It touches nothing at the table and is how this screen alone looks. */
   overlay: boolean;
+  /**
+   * An invitation a room server signed, which sets the role of somebody logged in on their first
+   * visit; empty for SkyWay and for a link without one.
+   */
+  invite?: string;
 }
 
 /**
@@ -28,6 +33,7 @@ export function buildInviteLink(baseUrl: string, params: InviteLinkParams): stri
     query.set('p', encodeInvitePassword(params.password, params.roomId + params.roomName));
   }
   if (params.role) query.set('role', params.role);
+  if (params.invite) query.set('i', params.invite);
   if (params.overlay) query.set('overlay', '1');
 
   return `${baseUrl}${INVITE_HASH_PREFIX}${query.toString()}`;
@@ -56,6 +62,7 @@ export function parseInviteLink(hash: string): InviteLinkParams | null {
     password: encodedPassword.length > 0 ? decodeInvitePassword(encodedPassword, roomId + roomName) : '',
     role: isPeerRole(role) ? role : null,
     overlay: query.get('overlay') === '1',
+    invite: query.get('i') ?? '',
   };
 }
 

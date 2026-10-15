@@ -140,6 +140,7 @@ export class InviteJoinComponent {
     }
 
     PeerCursor.myCursor.reConnectPass = password;
+    if (params.invite) Network.setServerInvite(params.invite);
     if (!(await this.roomJoin.joinServerRoom(room, password))) {
       this.state.set('failed');
       return;

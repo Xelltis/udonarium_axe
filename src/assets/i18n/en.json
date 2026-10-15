@@ -3238,7 +3238,10 @@
         "confirmOffline": "Go offline? The page reloads and you leave this room.",
         "confirmOnline": "Go online? The page reloads and connects.",
         "offlineNote": "Saving and loading a room still works. Switch to Online to play with others.",
-        "roleDecidedByServer": "The room server decides the roles. Only the room's GM can change them."
+        "roleDecidedByServer": "The room server decides the roles. Only the room's GM can change them.",
+        "inviteWithoutRole": "Those who join with this link play as PL when logged in, and watch as guests otherwise. The GM can make invitations with a role.",
+        "inviteFailed": "The room server gave no invitation. Please open this again later.",
+        "inviteExpires": "This invitation works until {{date}}. It sets the role of someone logged in on their first visit."
       },
       "lobby": {
         "title": "Lobby",
