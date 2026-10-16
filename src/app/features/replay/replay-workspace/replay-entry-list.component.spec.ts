@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
+import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -561,5 +562,122 @@ describe('writing entries one after another', () => {
     write('B');
 
     expect(edited().map((entry) => entry.detail['text'])).toEqual(['ひとつめ', 'A', 'B', 'ふたつめ', 'みっつめ']);
+  });
+});
+
+describe('acting out a scene to go in at a row', () => {
+  let fixture: ComponentFixture<ReplayEntryListComponent>;
+  let playback: {
+    events: ReturnType<typeof signal<readonly ReplayEvent[]>>;
+    isSeeking: ReturnType<typeof signal<boolean>>;
+    isBoardMode: ReturnType<typeof signal<boolean>>;
+    seekTo: ReturnType<typeof vi.fn>;
+    showBoardAfresh: ReturnType<typeof vi.fn>;
+    enterBoardMode: ReturnType<typeof vi.fn>;
+    stopAutoPlay: ReturnType<typeof vi.fn>;
+  };
+  let begin: ReturnType<typeof vi.fn>;
+  const written = { ...event(100, '書き足した'), seq: 100 };
+
+  function stageAt(index: number): Promise<void> {
+    return (fixture.componentInstance as unknown as { stageAt(index: number): Promise<void> }).stageAt(index);
+  }
+
+  beforeEach(async () => {
+    PeerCursor.myCursor = Object.assign(new PeerCursor(), { peerId: 'p', userId: 'gm', role: PeerRole.GameMaster });
+    begin = vi.fn();
+    playback = {
+      events: signal<readonly ReplayEvent[]>(events),
+      isSeeking: signal(false),
+      isBoardMode: signal(false),
+      seekTo: vi.fn().mockResolvedValue(undefined),
+      showBoardAfresh: vi.fn().mockResolvedValue(undefined),
+      enterBoardMode: vi.fn().mockImplementation(async () => {
+        playback.isBoardMode.set(true);
+        return true;
+      }),
+      stopAutoPlay: vi.fn(),
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [ReplayEntryListComponent],
+      providers: [
+        ...TEST_PROVIDERS,
+        {
+          provide: ReplayPlaybackService,
+          useValue: {
+            ...playback,
+            events: playback.events.asReadonly(),
+            isSeeking: playback.isSeeking.asReadonly(),
+            isBoardMode: playback.isBoardMode.asReadonly(),
+            recordingId: recordingId.asReadonly(),
+            cursor: signal(0).asReadonly(),
+            manifest: signal(null).asReadonly(),
+            cast: signal([]).asReadonly(),
+          },
+        },
+        {
+          provide: ReplayEditorService,
+          useValue: {
+            edited: signal([events[0], written, events[1], events[2]]).asReadonly(),
+            isEditing: signal(true).asReadonly(),
+            isInserted: (seq: number) => seq === 100,
+            insert: vi.fn(),
+            move: vi.fn(),
+            remove: vi.fn(),
+            retext: vi.fn(),
+          },
+        },
+        { provide: ReplayStagingService, useValue: { isStaging: signal(false).asReadonly(), begin } },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(ReplayEntryListComponent);
+    fixture.componentRef.setInput('editing', true);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    PeerCursor.myCursor = null as unknown as PeerCursor;
+  });
+
+  it('shows the board as it stood at the recorded row before the one it goes after', async () => {
+    await stageAt(3);
+
+    expect(playback.seekTo).toHaveBeenCalledWith(1);
+    expect(playback.enterBoardMode).toHaveBeenCalled();
+    expect(begin).toHaveBeenCalledWith(3, expect.any(String));
+    expect(playback.seekTo.mock.invocationCallOrder[0]).toBeLessThan(begin.mock.invocationCallOrder[0]);
+  });
+
+  it('passes over a row written in while editing for the recorded one before it', async () => {
+    await stageAt(2);
+
+    expect(playback.seekTo).toHaveBeenCalledWith(0);
+  });
+
+  it('works the board out afresh there when it is showing already', async () => {
+    playback.isBoardMode.set(true);
+
+    await stageAt(3);
+
+    expect(playback.seekTo).toHaveBeenCalledWith(1);
+    expect(playback.showBoardAfresh).toHaveBeenCalled();
+    expect(playback.enterBoardMode).not.toHaveBeenCalled();
+    expect(begin).toHaveBeenCalled();
+  });
+
+  it('stops stepping on its own, the recording standing still while a scene is acted out', async () => {
+    await stageAt(3);
+
+    expect(playback.stopAutoPlay).toHaveBeenCalled();
+  });
+
+  it('starts nothing while the board is still being worked out', async () => {
+    playback.isSeeking.set(true);
+
+    await stageAt(3);
+
+    expect(begin).not.toHaveBeenCalled();
   });
 });

@@ -486,10 +486,35 @@ export class ReplayEntryListComponent {
     }
   }
 
+  /**
+   * Starts acting out a scene to go in at a row, on the board as it stood at the last row before it
+   * that was recorded, or at the first event when none was. Stepping on its own stops, as the
+   * recording stands still while a scene is acted out, and nothing starts while the board is still
+   * being worked out, which the scene would be measured against as it stood before.
+   */
   protected async stageAt(index = this.insertIndex()): Promise<void> {
-    if (!this.canEdit || this.isStaging()) return;
-    if (!this.playback.isBoardMode() && !(await this.playback.enterBoardMode())) return;
+    if (!this.canEdit || this.isStaging() || this.playback.isSeeking()) return;
+    this.playback.stopAutoPlay();
+    const wasBoardMode = this.playback.isBoardMode();
+    await this.playback.seekTo(this.recordedIndexBefore(index));
+    if (wasBoardMode) await this.playback.showBoardAfresh();
+    else if (!(await this.playback.enterBoardMode())) return;
+    if (this.isStaging() || !this.playback.isBoardMode()) return;
     this.staging.begin(index, this.insertActorId() || this.actors()[0]?.userId || '');
+  }
+
+  /**
+   * Where the recording as played has the last row before an index that it recorded, a row written
+   * in while editing having no board of its own; the first event when no row before it was recorded.
+   */
+  private recordedIndexBefore(index: number): number {
+    const played = new Map(this.playback.events().map((event, at) => [event.seq, at]));
+    const rows = this.source();
+    for (let i = Math.min(index, rows.length) - 1; i >= 0; i--) {
+      const at = played.get(rows[i].seq);
+      if (at !== undefined) return at;
+    }
+    return 0;
   }
 
   private selectedCast(): ReplayCastMember | null {
