@@ -52,6 +52,24 @@ describe('VisualNovelDirectorService', () => {
     tab?.destroy();
   });
 
+  it('counts a screening as over once its director is made a player, freeing whoever followed it', () => {
+    const other = new PeerCursor();
+    other.peerId = 'other-peer';
+    other.role = PeerRole.GameMaster;
+    other.initialize();
+    stage.startDirecting('other-peer');
+    notifyStage();
+    expect(director.isFollowing()).toBe(true);
+
+    other.role = PeerRole.Player;
+    objectChange.notifyChanged(other.identifier);
+    TestBed.tick();
+
+    expect(director.isDirected()).toBe(false);
+    expect(director.isFollowing()).toBe(false);
+    other.destroy();
+  });
+
   it('starts with the screening off', () => {
     expect(director.isDirected()).toBe(false);
     expect(director.isDirector()).toBe(false);

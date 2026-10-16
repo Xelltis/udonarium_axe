@@ -18,9 +18,19 @@ export class VisualNovelDirectorService {
 
   readonly following = this._following.asReadonly();
 
+  /**
+   * Whether a screening is running. One whose director was made a player or a guest meanwhile has
+   * nobody left to run it, so it counts as over, and every screen goes back to reading alone.
+   */
   readonly isDirected = computed(() => {
     this.objectChange.versionOf(STAGE_IDENTIFIER)();
-    return this.stage?.isDirected === true;
+    const stage = this.stage;
+    if (stage?.isDirected !== true) return false;
+    this.objectChange.collectionOf(PeerCursor.aliasName)();
+    const director = PeerCursor.findByPeerId(stage.directorPeerId);
+    if (!director) return true;
+    this.objectChange.versionOf(director.identifier)();
+    return director.isGameMaster;
   });
 
   readonly directorPeerId = computed(() => {
