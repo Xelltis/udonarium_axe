@@ -1,6 +1,11 @@
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
-import { CreateRoomResponse, InviteMessage, ServerRole } from '@axe/core/network/server/server-protocol';
+import {
+  AssetUploadPolicy,
+  CreateRoomResponse,
+  InviteMessage,
+  ServerRole,
+} from '@axe/core/network/server/server-protocol';
 
 export type PeerReconnectState = 'retrying' | 'recovered' | 'failed';
 
@@ -20,6 +25,8 @@ export class ConnectionCallback {
 export interface AssetAccess {
   roomKey: string;
   token: string;
+  /** How the room server takes bytes, when its requests carry only so much; none for a single PUT. */
+  upload?: AssetUploadPolicy;
 }
 
 /** Who a hello to a room server says is connecting, when somebody is logged in. */

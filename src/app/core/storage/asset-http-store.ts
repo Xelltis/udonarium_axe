@@ -4,6 +4,7 @@ import {
   ASSET_NAME_HEADER,
   MAX_ASSET_NAME_LENGTH,
   readRoomAssetList,
+  readUploadTicket,
   RoomAsset,
 } from '@axe/core/network/server/server-protocol';
 import { sha256Hex } from '@axe/core/util/crypto-util';
@@ -49,16 +50,21 @@ const RATE_LIMIT_BACKOFF_MS = [10_000, 20_000, 40_000];
 const REFUSED_STATUSES = new Set([400, 403, 413, 415, 451]);
 
 /**
- * A picture's or sound's name as the upload's header carries it: well formed, no longer than the
- * server keeps, and percent-encoded. A half of a character, which encodeURIComponent cannot take, is
- * written as the replacement character. Empty for no name.
+ * A picture's or sound's name as the server keeps it: well formed and no longer than it keeps. A half
+ * of a character, which encodeURIComponent cannot take, is written as the replacement character.
  */
-function assetNameHeader(name: string): string {
+function keptAssetName(name: string): string {
   let kept = name.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '\uFFFD');
   if (kept.length > MAX_ASSET_NAME_LENGTH) {
     kept = kept.slice(0, MAX_ASSET_NAME_LENGTH);
     if (/[\uD800-\uDBFF]$/.test(kept)) kept = kept.slice(0, -1);
   }
+  return kept;
+}
+
+/** A picture's or sound's name as the upload's header carries it, percent-encoded. Empty for no name. */
+function assetNameHeader(name: string): string {
+  const kept = keptAssetName(name);
   return kept ? encodeURIComponent(kept) : '';
 }
 
@@ -167,11 +173,8 @@ export class AssetHttpStore {
    */
   upload(identifier: string, blob: Blob, name = ''): Promise<AssetUploadResult> {
     if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return Promise.resolve('refused');
-    // The name goes along so that the room's list can name a picture or sound nobody else describes.
-    const header = assetNameHeader(name);
-    const named: Record<string, string> = header ? { [ASSET_NAME_HEADER]: header } : {};
     return this.uploads.run(async () => {
-      let sending = false;
+      const sending = { started: false };
       try {
         // Asked when its turn comes, so that a queued upload goes to the room the seat is in by then.
         const head = await this.authorized((access) =>
@@ -183,30 +186,95 @@ export class AssetHttpStore {
         // Only a store that lacks the bytes is sent them; one that asked for fewer requests, or failed,
         // is asked again later rather than sent the whole of them now.
         if (head.status !== 404) return 'failed';
-        sending = true;
-        for (let attempt = 0; ; attempt++) {
-          const res = await this.authorized((access) =>
-            this.request(
-              this.urlOf(access, identifier),
-              { method: 'PUT', body: blob, headers: { ...this.headersOf(access), ...named } },
-              Math.min(
-                MAX_UPLOAD_TIMEOUT_MS,
-                REQUEST_TIMEOUT_MS + (blob.size * UPLOAD_CONCURRENCY) / UPLOAD_FLOOR_BYTES_PER_MS
+        // A room server whose requests carry only so much takes bigger bytes straight to its store.
+        const policy = this.access?.()?.upload;
+        if (policy && policy.maxPutBytes < blob.size) {
+          return policy.directUpload ? await this.uploadDirect(identifier, blob, name, sending) : 'refused';
+        }
+        sending.started = true;
+        // The name goes along so that the room's list can name a picture or sound nobody else describes.
+        const header = assetNameHeader(name);
+        const named: Record<string, string> = header ? { [ASSET_NAME_HEADER]: header } : {};
+        return this.answerOf(
+          await this.withBackoff(() =>
+            this.authorized((access) =>
+              this.request(
+                this.urlOf(access, identifier),
+                { method: 'PUT', body: blob, headers: { ...this.headersOf(access), ...named } },
+                uploadTimeoutOf(blob)
               )
             )
-          );
-          if (!res) return 'failed';
-          if (res.status === 201) return 'stored';
-          if (res.ok) return 'exists';
-          if (REFUSED_STATUSES.has(res.status)) return 'refused';
-          if (res.status !== 429 || RATE_LIMIT_BACKOFF_MS.length <= attempt) return 'failed';
-          await this.delay(RATE_LIMIT_BACKOFF_MS[attempt]);
-        }
+          )
+        );
       } catch (reason) {
         Logger.warn('[AssetHttpStore] アップロードに失敗しました', identifier, reason);
         // Only bytes cut off on their way ran out of the time their size was given.
-        return sending && reason instanceof DOMException && reason.name === 'AbortError' ? 'timedOut' : 'failed';
+        return sending.started && reason instanceof DOMException && reason.name === 'AbortError'
+          ? 'timedOut'
+          : 'failed';
       }
+    });
+  }
+
+  /**
+   * Puts bytes too big for one request straight to the room server's store: asks where with a ticket,
+   * sends them there without the asset token, then hands the ticket back for the server to check what
+   * came and keep it.
+   */
+  private async uploadDirect(
+    identifier: string,
+    blob: Blob,
+    name: string,
+    sending: { started: boolean }
+  ): Promise<AssetUploadResult> {
+    const asked = await this.withBackoff(() =>
+      this.authorized((access) =>
+        this.post(`${this.urlOf(access, identifier)}/uploads`, access, { size: blob.size, name: keptAssetName(name) })
+      )
+    );
+    // Anything but a ticket says what became of the upload already: kept before, or never to be.
+    if (asked?.status !== 201) return this.answerOf(asked);
+    const ticket = readUploadTicket(await asked.json());
+    if (!ticket) return 'failed';
+    sending.started = true;
+    const put = await this.request(
+      ticket.upload.url,
+      { method: ticket.upload.method, headers: ticket.upload.headers, body: blob },
+      uploadTimeoutOf(blob)
+    );
+    if (!put.ok) return 'failed';
+    return this.answerOf(
+      await this.authorized((access) =>
+        this.post(`${this.urlOf(access, identifier)}/uploads/complete`, access, { ticket: ticket.ticket })
+      )
+    );
+  }
+
+  /**
+   * Sends a request that may be turned away as too frequent, again after each wait in the backoff,
+   * and gives the last answer.
+   */
+  private async withBackoff(send: () => Promise<Response | null>): Promise<Response | null> {
+    for (let attempt = 0; ; attempt++) {
+      const res = await send();
+      if (res?.status !== 429 || RATE_LIMIT_BACKOFF_MS.length <= attempt) return res;
+      await this.delay(RATE_LIMIT_BACKOFF_MS[attempt]);
+    }
+  }
+
+  /** What became of an upload by the server's answer to it: kept now, kept already, never, or not yet. */
+  private answerOf(res: Response | null): AssetUploadResult {
+    if (!res) return 'failed';
+    if (res.status === 201) return 'stored';
+    if (res.ok) return 'exists';
+    return REFUSED_STATUSES.has(res.status) ? 'refused' : 'failed';
+  }
+
+  private post(url: string, access: AssetAccess, body: unknown): Promise<Response> {
+    return this.request(url, {
+      method: 'POST',
+      headers: { ...this.headersOf(access), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     });
   }
 
@@ -320,6 +388,14 @@ export class AssetHttpStore {
       clearTimeout(timer);
     }
   }
+}
+
+/** The time an upload is given: a minute, and more for its size, but never more than the longest any is. */
+function uploadTimeoutOf(blob: Blob): number {
+  return Math.min(
+    MAX_UPLOAD_TIMEOUT_MS,
+    REQUEST_TIMEOUT_MS + (blob.size * UPLOAD_CONCURRENCY) / UPLOAD_FLOOR_BYTES_PER_MS
+  );
 }
 
 /** Reads a response's body whole, telling `onPart` as each part of it comes. */

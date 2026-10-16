@@ -164,6 +164,27 @@
       "assetToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…",
       "assetTokenExpiresAt": 1792000900000
     },
+    "welcomeWithUpload": {
+      "type": "welcome",
+      "protocolVersion": 2,
+      "peerId": "v35gKhXyZq9W8e7r6-",
+      "authorityPeerId": "@authority",
+      "role": "pl",
+      "members": [
+        {
+          "peerId": "wB0fSVXyZq9W8e7r6-",
+          "userId": "acct_0f9e8d7c-6b5a-4938-2716-0504f3e2d1c0",
+          "role": "gm"
+        }
+      ],
+      "serverTime": 1792000000000,
+      "assetToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…",
+      "assetTokenExpiresAt": 1792000900000,
+      "assetUpload": {
+        "maxPutBytes": 4000000,
+        "directUpload": true
+      }
+    },
     "join": {
       "type": "join",
       "member": {

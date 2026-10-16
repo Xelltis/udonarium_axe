@@ -309,6 +309,113 @@ describe('AssetHttpStore', () => {
     });
   });
 
+  describe('upload straight to the store', () => {
+    const TARGET = 'https://blob.example/uploads/put?signed';
+    const ticketOf = (overrides: Record<string, unknown> = {}) =>
+      new Response(
+        JSON.stringify({
+          ticket: 'ticket-1',
+          upload: { url: TARGET, method: 'PUT', headers: { 'x-blob': 'private' }, expiresAt: 1 },
+          ...overrides,
+        }),
+        { status: 201 }
+      );
+    const bodyOf = (call: number) => JSON.parse(String((fetchSpy.mock.calls[call][1] as RequestInit).body));
+
+    beforeEach(() => {
+      // Bigger than one request carries: the test bytes are eight.
+      access = { roomKey: ROOM, token: 'asset-1', upload: { maxPutBytes: 4, directUpload: true } };
+    });
+
+    it('asks where, sends the bytes there without the room’s token, then hands the ticket back', async () => {
+      respond(
+        new Response(null, { status: 404 }),
+        ticketOf(),
+        new Response(null, { status: 200 }),
+        new Response('{}', { status: 201 })
+      );
+      const blob = new Blob([bytes]);
+
+      expect(await store.upload(id, blob, 'big.png')).toBe('stored');
+
+      expect(callsOf()).toEqual([
+        ['HEAD', urlOf(id)],
+        ['POST', `${urlOf(id)}/uploads`],
+        ['PUT', TARGET],
+        ['POST', `${urlOf(id)}/uploads/complete`],
+      ]);
+      expect(bodyOf(1)).toEqual({ size: bytes.byteLength, name: 'big.png' });
+      expect((fetchSpy.mock.calls[2][1] as RequestInit).body).toBe(blob);
+      expect(new Headers((fetchSpy.mock.calls[2][1] as RequestInit).headers).get('x-blob')).toBe('private');
+      expect(bodyOf(3)).toEqual({ ticket: 'ticket-1' });
+      expect([authorizationOf(1), authorizationOf(2), authorizationOf(3)]).toEqual([
+        'Bearer asset-1',
+        null,
+        'Bearer asset-1',
+      ]);
+    });
+
+    it('takes what the server says of the bytes: there already, never, or not yet', async () => {
+      const uploadWith = async (...responses: Response[]) => {
+        fetchSpy.mockReset();
+        respond(new Response(null, { status: 404 }), ...responses);
+        return store.upload(id, new Blob([bytes]));
+      };
+
+      expect(await uploadWith(new Response('{}', { status: 200 }))).toBe('exists');
+      expect(await uploadWith(new Response('{}', { status: 413 }))).toBe('refused');
+      expect(await uploadWith(new Response('{}', { status: 500 }))).toBe('failed');
+      expect(await uploadWith(ticketOf({ upload: { url: TARGET, method: 'POST' } }))).toBe('failed');
+      expect(await uploadWith(ticketOf(), new Response(null, { status: 403 }))).toBe('failed');
+      expect(
+        await uploadWith(ticketOf(), new Response(null, { status: 200 }), new Response('{}', { status: 400 }))
+      ).toBe('refused');
+    });
+
+    it('asks again after a wait when the server wants fewer uploads', async () => {
+      respond(
+        new Response(null, { status: 404 }),
+        new Response('{}', { status: 429 }),
+        ticketOf(),
+        new Response(null, { status: 200 }),
+        new Response('{}', { status: 201 })
+      );
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('stored');
+      expect(store.delay).toHaveBeenCalledWith(10_000);
+    });
+
+    it('refuses bytes too big for one request on a server that takes nothing straight to its store', async () => {
+      access = { roomKey: ROOM, token: 'asset-1', upload: { maxPutBytes: 4, directUpload: false } };
+      respond(new Response(null, { status: 404 }));
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('refused');
+      expect(callsOf()).toEqual([['HEAD', urlOf(id)]]);
+    });
+
+    it('puts bytes small enough with one PUT', async () => {
+      access = { roomKey: ROOM, token: 'asset-1', upload: { maxPutBytes: 8, directUpload: true } };
+      respond(new Response(null, { status: 404 }), new Response('{}', { status: 201 }));
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('stored');
+      expect(callsOf()).toEqual([
+        ['HEAD', urlOf(id)],
+        ['PUT', urlOf(id)],
+      ]);
+    });
+
+    it('runs out of time only once the bytes are on their way to the store', async () => {
+      const cut = () => Promise.reject(new DOMException('aborted', 'AbortError'));
+      respond(new Response(null, { status: 404 }));
+      fetchSpy.mockImplementationOnce(cut);
+      expect(await store.upload(id, new Blob([bytes]))).toBe('failed');
+
+      respond(new Response(null, { status: 404 }), ticketOf());
+      fetchSpy.mockImplementationOnce(cut);
+      expect(await store.upload(id, new Blob([bytes]))).toBe('timedOut');
+    });
+  });
+
   describe('download', () => {
     it('hands back the name the bytes were put up under, and none it cannot read', async () => {
       respond(

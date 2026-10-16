@@ -19,10 +19,12 @@ import {
   inviteRequest,
   isRollRejectReason,
   PROTOCOL_VERSION,
+  readAssetUploadPolicy,
   readRoom,
   readRoomAssetList,
   readRoomList,
   readServerMessage,
+  readUploadTicket,
   RETRYABLE_ERROR_CODES,
   ROLE_REJECT_REASONS,
   ROLL_REJECT_REASONS,
@@ -70,6 +72,24 @@ describe('the room server protocol, held to the server’s fixtures', () => {
     expect(readRoomAssetList({ assets: [{ ...http.roomAssetList.assets[0], size: '1' }] })).toBeNull();
     expect(readRoomAssetList({ rooms: [] })).toBeNull();
     expect(readRoomAssetList(null)).toBeNull();
+  });
+
+  it('reads how a server with a limit on its requests takes big pictures and sounds, and the ticket for one', () => {
+    const { upload } = http.uploadTicket;
+
+    expect(readServerMessage(messages.server.welcomeWithUpload)).toEqual(messages.server.welcomeWithUpload);
+    expect(readAssetUploadPolicy(messages.server.welcomeWithUpload.assetUpload)).toEqual({
+      maxPutBytes: 4_000_000,
+      directUpload: true,
+    });
+    expect(readAssetUploadPolicy(undefined)).toBeNull();
+    expect(readAssetUploadPolicy({ maxPutBytes: '4', directUpload: true })).toBeNull();
+    expect(readUploadTicket(http.uploadTicket)).toEqual(http.uploadTicket);
+    expect(readUploadTicket({ ...http.uploadTicket, upload: { ...upload, method: 'POST' } })).toBeNull();
+    expect(readUploadTicket({ ...http.uploadTicket, upload: { ...upload, headers: { a: 1 } } })).toBeNull();
+    expect(readUploadTicket({ ...http.uploadTicket, upload: { ...upload, expiresAt: '1' } })).toBeNull();
+    expect(readUploadTicket({ ticket: 'x' })).toBeNull();
+    expect(readUploadTicket(null)).toBeNull();
   });
 
   it('knows every reason the server closes for, and which of them are worth retrying', () => {

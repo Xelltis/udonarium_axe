@@ -274,6 +274,73 @@ describe('ServerConnection', () => {
     expect(connection.peer.isOpen).toBe(false);
   });
 
+  describe('asked back by the server', () => {
+    const welcomeOn = (socket: FakeWebSocket, extra: Record<string, unknown> = {}) => {
+      socket.accept();
+      socket.deliver({
+        type: 'welcome',
+        protocolVersion: PROTOCOL_VERSION,
+        peerId: connection.peerId,
+        authorityPeerId: AUTHORITY_PEER_ID,
+        role: 'pl',
+        members: [OTHER],
+        serverTime: Date.now(),
+        assetToken: 'asset-1',
+        assetTokenExpiresAt: Date.now() + 15 * 60_000,
+        ...extra,
+      });
+    };
+
+    it.each(['rotate', 'moved'])('comes straight back on a new link for %s, telling nobody it went', async (reason) => {
+      const socket = await enterRoom([OTHER]);
+      const before = calls.length;
+
+      socket.close(1012, reason);
+
+      expect(FakeWebSocket.instances.length).toBe(2);
+      expect(calls.slice(before)).toEqual([]);
+      expect(connection.peerIds).toEqual([OTHER.peerId]);
+      welcomeOn(latest());
+      await vi.waitFor(() => expect(calls.slice(before)).toEqual(['connect authority']));
+      expect(connection.peerIds).toEqual([OTHER.peerId]);
+    });
+
+    it('tells of the drop after all when the new link fails, and gets back in as after any', async () => {
+      const socket = await enterRoom([OTHER]);
+      const before = calls.length;
+      socket.close(1012, 'moved');
+
+      latest().close(1006);
+
+      expect(calls.slice(before)).toEqual(['disconnect authority', `disconnect ${OTHER.peerId}`, 'reconnect retrying']);
+      expect(connection.peerIds).toEqual([]);
+    });
+
+    it('takes a restart for any other reason as a dropped link', async () => {
+      const socket = await enterRoom([OTHER]);
+      const before = calls.length;
+
+      socket.close(1012, 'going away');
+
+      expect(calls.slice(before)).toEqual(['disconnect authority', `disconnect ${OTHER.peerId}`, 'reconnect retrying']);
+    });
+
+    it('hands on how the server takes big pictures and sounds with the access to them', async () => {
+      const socket = await openRoom();
+      welcomeOn(socket, { assetUpload: { maxPutBytes: 4_000_000, directUpload: true } });
+      await vi.waitFor(() => expect(calls).toContain('open'));
+
+      expect(connection.assetAccess).toEqual({
+        roomKey: ROOM_KEY,
+        token: 'asset-1',
+        upload: { maxPutBytes: 4_000_000, directUpload: true },
+      });
+      socket.close(1012, 'rotate');
+      welcomeOn(latest());
+      await vi.waitFor(() => expect(connection.assetAccess).toEqual({ roomKey: ROOM_KEY, token: 'asset-1' }));
+    });
+  });
+
   it('gives up at once when it never got into the room', async () => {
     const socket = await openRoom();
     socket.close(1006);
