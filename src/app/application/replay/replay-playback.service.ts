@@ -255,10 +255,12 @@ export class ReplayPlaybackService {
    *
    * The live table is kept aside and this reader is cut off from the room while it runs, so nothing
    * shown reaches the other peers. What is due of the table's automatic save is taken first. Answers
-   * false when already replaying or on the way to, or when nothing is open.
+   * false when already replaying or on the way to, when nothing is open, or when another recording
+   * was opened while the save was taken, whose board was not asked for.
    */
   async enterBoardMode(): Promise<boolean> {
     if (this._isBoardMode() || this._isEnteringBoardMode() || !this.isOpen()) return false;
+    const recordingId = this._recordingId();
     this._isEnteringBoardMode.set(true);
     try {
       await this.beforeBoardMode?.();
@@ -267,7 +269,7 @@ export class ReplayPlaybackService {
     } finally {
       this._isEnteringBoardMode.set(false);
     }
-    if (this._isBoardMode() || !this.isOpen()) return false;
+    if (this._isBoardMode() || !this.isOpen() || this._recordingId() !== recordingId) return false;
     this.savedBoard = this.snapshotBoard();
     this.savedVersions = new Map(
       this.objectStore

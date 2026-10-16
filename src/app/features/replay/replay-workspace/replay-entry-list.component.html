@@ -1,4 +1,4 @@
-<div class="flex h-full min-h-0 min-w-0 flex-col gap-1.5">
+<div class="flex h-full min-h-0 min-w-0 flex-col gap-1.5" [inert]="isSaving()" [class.opacity-60]="isSaving()">
   <div class="flex flex-wrap items-center gap-1">
     @for (scope of scopes; track scope) {
       <button

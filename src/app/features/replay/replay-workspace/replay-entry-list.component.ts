@@ -96,6 +96,8 @@ export class ReplayEntryListComponent {
 
   protected readonly cursor = this.playback.cursor;
   protected readonly isStaging = this.staging.isStaging;
+  /** Whether the edits are being saved, while the rows hold still and the list takes no input. */
+  protected readonly isSaving = this.editor.isSaving;
   /** Whether a scene to act out is on its way, while the board is moved to the row it goes after. */
   private readonly isStartingStage = signal(false);
   /**
@@ -524,6 +526,7 @@ export class ReplayEntryListComponent {
       else if (!(await this.playback.enterBoardMode())) return;
       const unchanged =
         this.editor.isEditing() === editing &&
+        !this.editor.isSaving() &&
         this.playback.recordingId() === recordingId &&
         this.playback.cursor() === at;
       if (this.isStaging() || !this.playback.isBoardMode()) return;

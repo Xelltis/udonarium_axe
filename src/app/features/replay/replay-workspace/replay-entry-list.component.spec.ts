@@ -742,6 +742,18 @@ describe('acting out a scene to go in at a row', () => {
     expect(playback.seekTo).not.toHaveBeenCalled();
   });
 
+  it('starts nothing once the board is up if saving began meanwhile', async () => {
+    playback.enterBoardMode.mockImplementation(async () => {
+      saving.set(true);
+      playback.isBoardMode.set(true);
+      return true;
+    });
+
+    await stageAt(3);
+
+    expect(begin).not.toHaveBeenCalled();
+  });
+
   it('starts nothing while the edits are being saved, as the saved recording opening would throw it away', async () => {
     saving.set(true);
 

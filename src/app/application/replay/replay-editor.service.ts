@@ -55,6 +55,7 @@ export class ReplayEditorService {
 
   /** Puts the events back as they were before the last change. Only the last 100 changes can be undone. */
   undo(): void {
+    if (this._isSaving()) return;
     const history = this._history();
     const previous = history[history.length - 1];
     if (!previous) return;
@@ -63,6 +64,7 @@ export class ReplayEditorService {
   }
 
   private change(mutate: (events: readonly ReplayEvent[]) => readonly ReplayEvent[]): void {
+    if (this._isSaving()) return;
     const current = this._edited();
     const next = mutate(current);
     this._history.update((history) => [...history, current].slice(-REPLAY_HISTORY_LIMIT));
@@ -154,13 +156,20 @@ export class ReplayEditorService {
    * Saves the edited events as a new recording in this browser, leaving the original as it was.
    *
    * The events are renumbered, and boards are rebuilt from `base` along the way so the new
-   * recording can be played from any point. Answers the new recording's id and ends editing, or
-   * null when a save is already running, nothing is left to save, or the storage refuses.
+   * recording can be played from any point; given as a way to read it, it is read once the save is
+   * under way, so that the save counts as begun from the moment it is asked for. The rows hold still
+   * meanwhile, as the saved recording opening would drop what changed in them. Answers the new
+   * recording's id and ends editing, or null when a save is already running, nothing is left to
+   * save, or the storage refuses.
    */
-  async saveAsDerived(source: ReplayManifest, base: readonly ReplayObjectSnapshot[]): Promise<number | null> {
+  async saveAsDerived(
+    source: ReplayManifest,
+    base: readonly ReplayObjectSnapshot[] | (() => Promise<readonly ReplayObjectSnapshot[]>)
+  ): Promise<number | null> {
     if (this._isSaving()) return null;
     this._isSaving.set(true);
     try {
+      const board = typeof base === 'function' ? await base() : base;
       const edited = this._edited();
       const events = resequenceReplayEvents(edited);
       if (events.length < 1) return null;
@@ -172,7 +181,7 @@ export class ReplayEditorService {
         return null;
       }
 
-      const keyframes = await this.writeKeyframes(id, base, events);
+      const keyframes = await this.writeKeyframes(id, board, events);
       const chunks = await this.writeChunks(id, events);
 
       const manifest: ReplayManifest = {

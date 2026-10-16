@@ -227,6 +227,20 @@ describe('ReplayEditorService', () => {
     expect(service.isInserted(service.edited()[1].seq)).toBe(false);
   });
 
+  it('counts as saving from the moment it is asked, the board still being read, and holds the rows still meanwhile', async () => {
+    let read!: (board: typeof base) => void;
+    const saving = service.saveAsDerived(manifest, () => new Promise((resolve) => (read = resolve)));
+
+    expect(service.isSaving()).toBe(true);
+    service.remove(2);
+    service.undo();
+    expect(service.edited().map((e) => e.seq)).toEqual([1, 2, 3, 4]);
+
+    read(base);
+    expect(await saving).not.toBeNull();
+    expect(service.isSaving()).toBe(false);
+  });
+
   it('keeps an inserted line when saving', async () => {
     service.insert(0, {
       kind: ReplayEventKind.Marker,

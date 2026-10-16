@@ -157,8 +157,10 @@ export class ReplayWorkspaceComponent {
     const edited = this.editor.edited();
     if (id == null || !manifest || edited.length < 1) return;
 
-    const base = await this.library.boardBefore(id, earliestReplaySeq(edited), this.playback.events());
-    const derived = await this.editor.saveAsDerived(manifest, base);
+    const events = this.playback.events();
+    const derived = await this.editor.saveAsDerived(manifest, () =>
+      this.library.boardBefore(id, earliestReplaySeq(this.editor.edited()), events)
+    );
     if (derived == null) return;
     await this.recorder.refresh();
     await this.playback.open(derived);

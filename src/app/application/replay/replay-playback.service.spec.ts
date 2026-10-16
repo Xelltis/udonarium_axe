@@ -587,6 +587,26 @@ describe('ReplayPlaybackService', () => {
     expect(service.isEnteringBoardMode()).toBe(false);
   });
 
+  it('shows no board when another recording was opened while the save was taken, whose board nobody asked for', async () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        ...TEST_PROVIDERS,
+        { provide: ReplayLibraryService, useValue: library },
+        { provide: BEFORE_BOARD_MODE, useValue: async () => void (await service.open(2)) },
+      ],
+    });
+    objectStore = TestBed.inject(ObjectStore);
+    vi.spyOn(TestBed.inject(ObjectSynchronizer), 'requestFullSync').mockReturnValue(0);
+    service = TestBed.inject(ReplayPlaybackService);
+
+    await service.open(1);
+    expect(await service.enterBoardMode()).toBe(false);
+
+    expect(service.isBoardMode()).toBe(false);
+    expect(isNetworkIsolated()).toBe(false);
+  });
+
   it('tells of what putting the table back changed while still cut off, as no change made to the table', async () => {
     const character = new GameCharacter('live-1');
     character.location.x = 555;
