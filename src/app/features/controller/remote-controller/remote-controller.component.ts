@@ -34,6 +34,7 @@ import { isChangeableElementType } from '@axe/domain/character/status-accessor';
 import { ChatPalette } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PaletteRow, paletteRowsOf } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
@@ -162,6 +163,17 @@ export class RemoteControllerComponent {
     for (const tab of tabs) this.objectChange.versionOf(tab.identifier)();
     return [...tabs];
   });
+
+  /**
+   * The tabs the panel may send its word to: those this seat's role may read and speak in, which
+   * leaves out the system tab, where nobody speaks.
+   */
+  readonly sendableChatTabs = computed(() => {
+    const tabs = this.chatTabsVersion();
+    this.objectChange.trackMyCursor();
+    const role = PeerCursor.myRole;
+    return tabs.filter((tab) => canRoleViewTab(tab, role) && canRoleSpeakTab(tab, role));
+  });
   /** This user's own cursor. */
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
@@ -173,7 +185,15 @@ export class RemoteControllerComponent {
 
   constructor() {
     queueMicrotask(() => this.updatePanelTitle());
-    this.chatTabidentifier.set(this.chatMessageService.chatTabs[0]?.identifier ?? '');
+    this.chatTabidentifier.set(this.sendableChatTabs()[0]?.identifier ?? '');
+    // A tab gone, or one this seat may no longer speak in, gives way to the first it may.
+    effect(() => {
+      const sendable = this.sendableChatTabs();
+      const current = this.chatTabidentifier();
+      if (!sendable.some((tab) => tab.identifier === current)) {
+        untracked(() => this.chatTabidentifier.set(sendable[0]?.identifier ?? ''));
+      }
+    });
     effect(() => {
       const dicebot = this.character()?.remoteController?.dicebot ?? '';
       if (0 < dicebot.length) {
@@ -187,9 +207,6 @@ export class RemoteControllerComponent {
     this.objectChange.objectDeleted$.subscribe((e) => {
       if (this.character() && this.character()!.identifier === e.identifier) {
         this.panelService.close();
-      }
-      if (this.chatTabidentifier() === e.identifier) {
-        this.chatTabidentifier.set(this.chatMessageService.chatTabs[0]?.identifier ?? '');
       }
     }, this.destroyRef);
     this.objectChange.networkOpen$.subscribe(() => {
@@ -579,8 +596,11 @@ export class RemoteControllerComponent {
 
   /** Everything this panel says is already worked out, so none of it is evaluated again. */
   private announce(text: string, options: { portraitIndex: number; color?: string }): void {
+    // Without a tab it may speak in, the panel says nothing rather than fall back on another.
+    const tab = this.sendableChatTabs().find((candidate) => candidate.identifier === this.chatTabidentifier());
+    if (!tab) return;
     this.characterMacro.announce(this.character(), text, {
-      tab: this.chatTab(),
+      tab,
       gameSystem: this._gameSystem,
       sendFrom: this.sendFrom,
       portraitIndex: options.portraitIndex,

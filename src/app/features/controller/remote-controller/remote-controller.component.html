@@ -20,7 +20,7 @@
           'feature.controller.remote.sendTarget' | transloco
         }}</span>
         <form name="remote-controller-chat-tab" class="flex flex-wrap gap-0.5">
-          @for (chatTab of chatTabsVersion(); track chatTab) {
+          @for (chatTab of sendableChatTabs(); track chatTab) {
             <label
               class="text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex cursor-pointer items-center border border-solid border-transparent px-2 py-0.75 text-[12px] whitespace-nowrap transition-[background,color] select-none"
               [class.bg-ui-accent-bg!]="chatTabidentifier() === chatTab.identifier"
