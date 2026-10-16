@@ -593,6 +593,61 @@ describe('chat moments that follow a new place', () => {
     expect(momentOf(bySeq(moved, 3))).toBeLessThan(9000);
   });
 
+  it('says a line moved past a line with answers after those answers, which stay tied to that line', () => {
+    const notice = line(4, 1030, 10002, 'HP -3');
+    notice.patch!.after['attributes.from'] = 'System';
+    const events = [line(1, 1000, 10000, ':HP-3 2d6'), line(2, 1010, 10050), result(3, 1020, 10001), notice];
+    const later = line(5, 1040, 90000);
+
+    const moved = moveReplayEvent([...events, later], 5, -3);
+    const again = stepReplayEvents(moved, new Set([5]), 1);
+
+    expect(moved.map((event) => event.seq)).toEqual([1, 5, 2, 3, 4]);
+    expect(momentOf(bySeq(moved, 5))).toBeGreaterThan(10002);
+    expect(momentOf(bySeq(moved, 5))).toBeLessThan(10050);
+    expect(momentOf(bySeq(again, 4))).toBe(10002);
+  });
+
+  describe('by the key the chat sorts on, the moment with its fraction', () => {
+    const minor = (event: ReplayEvent, value: number): ReplayEvent => ({
+      ...event,
+      patch: { ...event.patch!, after: { ...event.patch!.after, minorIndex: value } },
+    });
+    const keyOf = (event: ReplayEvent) => momentOf(event) + Number(event.patch?.after['minorIndex'] ?? 0);
+    const writtenAt = (events: ReplayEvent[], index: number) =>
+      insertReplayEvent(
+        events,
+        index,
+        createReplayEntry(draft(ReplayEventKind.ChatMessage, '書き足し'), 9, insertTimeAt(events, index))
+      );
+
+    it('says a line written between two said at the same moment between them, never by chance', () => {
+      const placed = writtenAt([minor(line(1, 1000, 10000), 0.3), minor(line(2, 1010, 10000), 0.8)], 1);
+
+      expect(keyOf(placed[1])).toBeGreaterThan(keyOf(placed[0]));
+      expect(keyOf(placed[1])).toBeLessThan(keyOf(placed[2]));
+    });
+
+    it('says a line written between a roll and its result after both, as the result stays just after its roll', () => {
+      const placed = writtenAt([minor(line(1, 1000, 10000, '2d6'), 0.73), minor(result(2, 1010, 10001), 0.21)], 1);
+
+      expect(keyOf(placed[1])).toBeGreaterThan(keyOf(placed[2]));
+      expect(momentOf(placed[2])).toBe(momentOf(placed[0]) + 1);
+    });
+  });
+
+  it('says a line made again under the same message at the moment its first making moved to', () => {
+    const first = line(1, 1000, 9000, '2d6');
+    const remade = { ...line(4, 1030, 9000, '2d6'), patch: { ...first.patch! } };
+    const events = [line(5, 900, 8000), first, result(2, 1010, 9001), line(3, 1020, 9500), remade];
+
+    const moved = moveReplayEvent(events, 1, -1);
+
+    expect(moved.map((event) => event.seq)).toEqual([1, 5, 2, 3, 4]);
+    expect(momentOf(bySeq(moved, 4))).toBe(momentOf(bySeq(moved, 1)));
+    expect(momentOf(bySeq(moved, 2))).toBe(momentOf(bySeq(moved, 1)) + 1);
+  });
+
   it('leaves the moments of the lines that did not move alone', () => {
     const events = [line(1, 1000, 103000), line(2, 1100, 103100), line(3, 1200, 103200)];
 
