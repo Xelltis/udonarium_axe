@@ -61,11 +61,15 @@ export class CardGameService {
     return PeerCursor.myUserId;
   }
 
-  /** Who can hold cards, judged the same way the hand rail judges it. */
+  /**
+   * Who can hold cards, judged the same way the hand rail judges it: each seat linked now that may
+   * play, once, though a seat that loaded the page again may still have the cursor it left behind.
+   */
   participants(): CardSeat[] {
-    const seats = this.objectStore
-      .getObjects<PeerCursor>(PeerCursor)
+    const seen = new Set<string>();
+    const seats = PeerCursor.linkedCursors()
       .filter((cursor) => cursor.userId.length > 0 && canRoleEdit(cursor.role))
+      .filter((cursor) => !seen.has(cursor.userId) && Boolean(seen.add(cursor.userId)))
       .map((cursor) => ({ userId: cursor.userId, name: cursor.name }));
 
     const myUserId = this.myUserId();

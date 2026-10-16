@@ -287,7 +287,8 @@ export class PeerCursor extends GameObject {
    * For another peer's cursor, starts watching for that peer to drop out.
    *
    * When they disconnect and have not come back within 30 seconds, the cursor is removed from this peer's
-   * object store.
+   * object store. So is it when they came back with a new cursor under the same peer id, as a seat
+   * loading the page again does.
    */
   override onStoreAdded() {
     super.onStoreAdded();
@@ -296,9 +297,7 @@ export class PeerCursor extends GameObject {
         domainPeerDisconnect$.subscribe((data) => {
           if (data.peerId !== this.peerId) return;
           setTimeout(() => {
-            if (getPeerIds().includes(this.peerId)) return;
-            PeerCursor.userIdMap.delete(this.userId);
-            PeerCursor.peerIdMap.delete(this.peerId);
+            if (getPeerIds().includes(this.peerId) && PeerCursor.findByPeerId(this.peerId) === this) return;
             ObjectStore.instance.remove(this);
           }, PEER_DISCONNECT_TIMEOUT_MS);
         })
@@ -307,13 +306,32 @@ export class PeerCursor extends GameObject {
   }
 
   // GameObject Lifecycle
-  /** Stops watching for disconnects and forgets this cursor in the user and peer id lookups. */
+  /**
+   * Stops watching for disconnects and forgets this cursor in the user and peer id lookups, unless a
+   * newer cursor has taken its ids there.
+   */
   override onStoreRemoved() {
     super.onStoreRemoved();
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
-    PeerCursor.userIdMap.delete(this.userId);
-    PeerCursor.peerIdMap.delete(this.peerId);
+    if (PeerCursor.userIdMap.get(this.userId) === this.identifier) PeerCursor.userIdMap.delete(this.userId);
+    if (PeerCursor.peerIdMap.get(this.peerId) === this.identifier) PeerCursor.peerIdMap.delete(this.peerId);
+  }
+
+  /**
+   * The cursors of the seats linked now, this one's included, one for each: a seat that loads the page
+   * again comes back under the same peer id with a new cursor, and the one it left behind is not
+   * counted while it waits to be cleared away.
+   */
+  static linkedCursors(): PeerCursor[] {
+    const linked = new Set(getPeerIds());
+    return ObjectStore.instance
+      .getObjects<PeerCursor>(PeerCursor)
+      .filter(
+        (cursor) =>
+          cursor === PeerCursor.myCursor ||
+          (linked.has(cursor.peerId) && PeerCursor.findByPeerId(cursor.peerId) === cursor)
+      );
   }
 
   /**

@@ -3,6 +3,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { handLocationOf } from '@axe/domain/card/hand-location';
@@ -41,6 +42,12 @@ describe('HandDrawPanelComponent', () => {
     PeerCursor.myCursor.name = 'わたし';
     PeerCursor.myCursor.role = PeerRole.Player;
     TestBed.configureTestingModule({ imports: [HandDrawPanelComponent], providers: [...TEST_PROVIDERS] });
+    vi.spyOn(Network, 'peerIds', 'get').mockImplementation(() =>
+      ObjectStore.instance
+        .getObjects<PeerCursor>(PeerCursor)
+        .filter((cursor) => cursor !== PeerCursor.myCursor)
+        .map((cursor) => cursor.peerId)
+    );
     vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockReturnValue(null as unknown as ChatMessage);
     fixture = TestBed.createComponent(HandDrawPanelComponent);
     component = fixture.componentInstance;

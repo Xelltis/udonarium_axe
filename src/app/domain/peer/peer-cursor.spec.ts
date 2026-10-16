@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { domainPeerDisconnect$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/index';
 import { resetPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -232,6 +233,67 @@ describe('PeerCursor', () => {
       expect(cursor.userId).toBe('');
       expect(PeerCursor.findByUserId('')).toBeNull();
       expect(PeerCursor.findByPeerId('')).toBeNull();
+    });
+  });
+
+  describe('a peer dropping out', () => {
+    const made: PeerCursor[] = [];
+
+    function arrive(peerId: string, userId: string): PeerCursor {
+      const cursor = new PeerCursor();
+      cursor.initialize();
+      const context = cursor.toContext();
+      cursor.apply({ ...context, syncData: { ...context.syncData, peerId, userId } });
+      made.push(cursor);
+      return cursor;
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    });
+
+    afterEach(() => {
+      for (const cursor of made.splice(0)) if (store.get(cursor.identifier)) cursor.destroy();
+      vi.useRealTimers();
+    });
+
+    it.each([
+      ['is cleared away half a minute after it drops', [], false],
+      ['stays when its peer is back within that time', ['peer-x'], true],
+    ] as const)('%s', (_case, linkedThen, stays) => {
+      const peerIds = vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['peer-x']);
+      const cursor = arrive('peer-x', 'user-x');
+
+      domainPeerDisconnect$.emit({ peerId: 'peer-x' });
+      peerIds.mockReturnValue([...linkedThen]);
+      vi.advanceTimersByTime(30_000);
+
+      expect(Boolean(store.get(cursor.identifier))).toBe(stays);
+    });
+
+    it('is cleared away when its peer came back with a new cursor under the same peer id', () => {
+      vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['peer-x']);
+      const before = arrive('peer-x', 'user-x');
+      const after = arrive('peer-x', 'user-x');
+
+      domainPeerDisconnect$.emit({ peerId: 'peer-x' });
+      vi.advanceTimersByTime(30_000);
+
+      expect(store.get(before.identifier)).toBeFalsy();
+      expect(store.get(after.identifier)).toBe(after);
+      expect(PeerCursor.findByPeerId('peer-x')).toBe(after);
+      expect(PeerCursor.findByUserId('user-x')).toBe(after);
+    });
+
+    it('counts each seat linked now once, this one included', () => {
+      vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['peer-x']);
+      PeerCursor.createMyCursor();
+      arrive('peer-x', 'user-x');
+      const after = arrive('peer-x', 'user-x');
+      arrive('peer-gone', 'user-gone');
+
+      expect(PeerCursor.linkedCursors()).toEqual(expect.arrayContaining([PeerCursor.myCursor, after]));
+      expect(PeerCursor.linkedCursors()).toHaveLength(2);
     });
   });
 

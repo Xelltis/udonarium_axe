@@ -2,8 +2,6 @@ import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
 import { buildLockToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { callShuffleCardStack } from '@axe/core/event/domain-events';
-import { Network } from '@axe/core/network/network';
-import { ObjectStore } from '@axe/core/sync/object-store';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -12,17 +10,12 @@ import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 
 /**
  * How many seats play at the table, this one included: those dealt cards, which leaves out a guest,
- * as a screen made for streaming is let in, and anybody gone. A seat counts while its link is open, so the
- * cursor a seat leaves behind when it goes or loads the page again is not counted. Never fewer
+ * as a screen made for streaming is let in, and anybody gone. Each seat linked now counts once, so
+ * the cursor a seat leaves behind when it goes or loads the page again is not counted. Never fewer
  * than one.
  */
 function playingSeatCount(): number {
-  const linked = new Set(Network.peerIds);
-  const playing = ObjectStore.instance
-    .getObjects(PeerCursor)
-    .filter(
-      (cursor) => cursor.role !== PeerRole.Guest && (cursor === PeerCursor.myCursor || linked.has(cursor.peerId))
-    );
+  const playing = PeerCursor.linkedCursors().filter((cursor) => cursor.role !== PeerRole.Guest);
   return Math.max(1, playing.length);
 }
 

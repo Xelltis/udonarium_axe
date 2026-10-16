@@ -25,9 +25,9 @@ describe('buildCardStackContextMenu', () => {
       seat('guest', PeerRole.Guest),
       seat('gone', PeerRole.Player),
       seat('reloaded', PeerRole.Player),
-      seat('reloaded-again', PeerRole.Player),
+      seat('reloaded', PeerRole.Player),
     ];
-    vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['gm', 'guest', 'reloaded-again']);
+    vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['gm', 'guest', 'reloaded']);
 
     try {
       const actions = buildCardStackContextMenu(
