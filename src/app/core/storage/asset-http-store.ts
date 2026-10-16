@@ -8,8 +8,11 @@ import {
 } from '@axe/core/network/server/server-protocol';
 import { sha256Hex } from '@axe/core/util/crypto-util';
 
-/** What became of an upload. */
-export type AssetUploadResult = 'stored' | 'exists' | 'refused' | 'failed';
+/**
+ * What became of an upload. `failed` may pass on a later try; `timedOut` ran out of the time its
+ * size was given, which the same line would only do again, so it waits for the next room.
+ */
+export type AssetUploadResult = 'stored' | 'exists' | 'refused' | 'failed' | 'timedOut';
 
 /**
  * Why a download brought no bytes: the store lacks them, or sent bytes that are not them, which
@@ -29,6 +32,8 @@ const ASSET_ID = /^[0-9a-f]{64}$/;
 const UPLOAD_CONCURRENCY = 2;
 const DOWNLOAD_CONCURRENCY = 4;
 const REQUEST_TIMEOUT_MS = 60_000;
+/** The least an upload is reckoned to send each millisecond, 64 KB a second, for the time it is given. */
+const UPLOAD_FLOOR_BYTES_PER_MS = 64;
 /** How long to wait before each retry of an upload the server turned away as too frequent. */
 const RATE_LIMIT_BACKOFF_MS = [10_000, 20_000, 40_000];
 
@@ -174,11 +179,11 @@ export class AssetHttpStore {
         if (head.status !== 404) return 'failed';
         for (let attempt = 0; ; attempt++) {
           const res = await this.authorized((access) =>
-            this.request(this.urlOf(access, identifier), {
-              method: 'PUT',
-              body: blob,
-              headers: { ...this.headersOf(access), ...named },
-            })
+            this.request(
+              this.urlOf(access, identifier),
+              { method: 'PUT', body: blob, headers: { ...this.headersOf(access), ...named } },
+              REQUEST_TIMEOUT_MS + blob.size / UPLOAD_FLOOR_BYTES_PER_MS
+            )
           );
           if (!res) return 'failed';
           if (res.status === 201) return 'stored';
@@ -189,7 +194,7 @@ export class AssetHttpStore {
         }
       } catch (reason) {
         Logger.warn('[AssetHttpStore] アップロードに失敗しました', identifier, reason);
-        return 'failed';
+        return reason instanceof DOMException && reason.name === 'AbortError' ? 'timedOut' : 'failed';
       }
     });
   }
@@ -279,14 +284,14 @@ export class AssetHttpStore {
   }
 
   /**
-   * Sends a request, given up on once a minute passes with nothing coming back. The body of a GET is
-   * read here too, the minute starting afresh with each part of it that comes, so a download whose
-   * bytes stop coming is given up on rather than holding its turn for good, while one that comes
-   * slowly is still waited for.
+   * Sends a request, given up on once `timeoutMs` passes with nothing coming back, a minute unless
+   * an upload's size asks for longer. The body of a GET is read here too, the minute starting afresh
+   * with each part of it that comes, so a download whose bytes stop coming is given up on rather
+   * than holding its turn for good, while one that comes slowly is still waited for.
    */
-  private async request(url: string, init: RequestInit): Promise<Response> {
+  private async request(url: string, init: RequestInit, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
     const controller = new AbortController();
-    let timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let timer = setTimeout(() => controller.abort(), timeoutMs);
     const stillComing = () => {
       clearTimeout(timer);
       timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);

@@ -106,6 +106,27 @@ describe('AssetHttpStore', () => {
       }
     );
 
+    it('gives a big upload longer than a minute, and says when it ran out of the time it was given', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      fetchSpy.mockImplementation((_url, init) => {
+        if (init?.method === 'HEAD') return Promise.resolve(new Response(null, { status: 404 }));
+        return new Promise<Response>((_resolve, reject) =>
+          init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+        );
+      });
+      try {
+        let result: string | null = null;
+        void store.upload(id, new Blob([new Uint8Array(64 * 30_000)])).then((r) => (result = r));
+
+        await vi.advanceTimersByTimeAsync(61_000);
+        expect(result).toBeNull();
+        await vi.advanceTimersByTimeAsync(30_000);
+        expect(result).toBe('timedOut');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it.each([400, 403, 413, 415, 451])('gives up for good on %i', async (status) => {
       respond(new Response(null, { status: 404 }), new Response('{}', { status }));
       expect(await store.upload(id, new Blob([bytes]))).toBe('refused');

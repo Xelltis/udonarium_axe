@@ -194,6 +194,17 @@ describe('ImageStorage', () => {
       await vi.waitFor(() => expect(catalogued(pictureId)).toBe(true));
     });
 
+    it('tries no upload again that ran out of the time its size was given', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      finishUpload('timedOut');
+      await vi.advanceTimersByTimeAsync(0);
+      upload.mockClear();
+
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 8);
+      expect(upload).not.toHaveBeenCalled();
+    });
+
     it('tries an upload that failed again a few times, further apart each time', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       storage.add(ImageFile.create(contextOf(pictureId)));
