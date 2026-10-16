@@ -483,6 +483,55 @@ describe('ReplayPlaybackService', () => {
     }
   });
 
+  it('sets a sliding piece down where it was going when the next step comes before it gets there', async () => {
+    vi.useFakeTimers();
+    try {
+      library.load.mockResolvedValue({
+        manifest: null,
+        events: [moveEvent(1, 10, 0), moveEvent(2, 20, 10), { ...soundEvent, seq: 3 }],
+      });
+      await service.open(1);
+      await service.enterBoardMode();
+      await service.next();
+      await service.next();
+
+      expect(characterX()).toBe(20);
+      await service.toStart();
+      await service.toEnd();
+      expect(characterX()).toBe(20);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('works the board out where a step lands, when the step comes while the board is being worked out', async () => {
+    vi.useFakeTimers();
+    try {
+      library.load.mockResolvedValue({
+        manifest: null,
+        events: [moveEvent(1, 10, 0), moveEvent(2, 20, 10), { ...soundEvent, seq: 3 }],
+      });
+      await service.open(1);
+      await service.enterBoardMode();
+      let release!: () => void;
+      const keyframe = { seq: 0, blob: new Blob([encodeReplayKeyframe(keyframeObjects) as BlobPart]) };
+      library.keyframeBefore.mockImplementationOnce(
+        () => new Promise((resolve) => (release = () => resolve(keyframe)))
+      );
+
+      const afresh = service.showBoardAfresh();
+      await service.next();
+      release();
+      await afresh;
+      await vi.advanceTimersByTimeAsync(REPLAY_SLIDE_MAX_MS);
+
+      expect(service.cursor()).toBe(1);
+      expect(characterX()).toBe(20);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('clears the route once the slide is over', async () => {
     vi.useFakeTimers();
     try {

@@ -109,6 +109,8 @@ export class ReplayPlaybackService {
   private seekToken = 0;
   private slideFrame: number | null = null;
   private slideEndsAt = 0;
+  /** Sets the piece sliding now down where it is going, for a slide stopped before it gets there. */
+  private slideFinish: (() => void) | null = null;
 
   /**
    * Opens a stored recording at its first event, closing whatever was open first.
@@ -159,8 +161,9 @@ export class ReplayPlaybackService {
    * Moves to an event, clamped to the recording, and shows the board as it stood there.
    *
    * Stepping forward by one plays that event on the board as it stands, sliding a moved piece along
-   * its route where motion is on; any other jump works the board out again. The board is only
-   * touched while it is being replayed.
+   * its route where motion is on; any other jump works the board out again, and so does a step taken
+   * while the board is still being worked out, which would otherwise be laid over the board that is
+   * on its way. The board is only touched while it is being replayed.
    */
   async seekTo(index: number): Promise<void> {
     const events = this._events();
@@ -170,7 +173,7 @@ export class ReplayPlaybackService {
     this._cursor.set(clamped);
     if (!this._isBoardMode()) return;
 
-    if (isStepForward) {
+    if (isStepForward && !this._isSeeking()) {
       this.stepBoardForward(events[clamped]);
       // Advance what is shown as well; left behind, the next step back would compare against the wrong thing.
       if (this.appliedBoard) {
@@ -473,6 +476,7 @@ export class ReplayPlaybackService {
 
       if (progress >= 1) {
         this.slideFrame = null;
+        this.slideFinish = null;
         this.reviveObject(object, syncData);
         this.fadeTrail();
         return;
@@ -481,16 +485,27 @@ export class ReplayPlaybackService {
     };
 
     this._routeTrail.set({ identifier: object.identifier, points, progress: 0 });
+    this.slideFinish = () => {
+      if (this.objectStore.get(object.identifier) === object) this.reviveObject(object, syncData);
+    };
     this.slideFrame = requestAnimationFrame(tick);
     return true;
   }
 
+  /**
+   * Stops a slide under way and sets the piece down where it was going, as the board shown already
+   * has it there; left partway, nothing would ever move it on, as what is shown next is told only
+   * what changed since.
+   */
   private stopSlide(): void {
     this.slideEndsAt = 0;
     if (this.slideFrame === null) return;
     cancelAnimationFrame(this.slideFrame);
     this.slideFrame = null;
     this._routeTrail.set(null);
+    const finish = this.slideFinish;
+    this.slideFinish = null;
+    finish?.();
   }
 
   private fadeTrail(): void {
