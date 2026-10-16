@@ -102,9 +102,12 @@ export class RoomJoinService {
       }, this.destroyRef);
       // A room server's session fails before it has a peer id when the login cannot be refreshed;
       // its error carries the placeholder id, and is this join's as much as one under its own id.
+      // An error under an id of this room is this join's even once the network has moved on, as the
+      // handling of a network error goes back to waiting before this hears of it.
       const offError = this.objectChange.networkError$.subscribe((event) => {
-        if (event.peerId && event.peerId !== UNOPENED_PEER_ID && !isOwnConnectionTo(room.id, event.peerId)) return;
-        settle(false);
+        const ours =
+          !event.peerId || event.peerId === UNOPENED_PEER_ID || PeerContext.parse(event.peerId).roomId === room.id;
+        if (ours) settle(false);
       }, this.destroyRef);
       const timer = setTimeout(() => settle(false), ROOM_SERVER_OPEN_TIMEOUT_MS);
       this.destroyRef.onDestroy(() => clearTimeout(timer));
