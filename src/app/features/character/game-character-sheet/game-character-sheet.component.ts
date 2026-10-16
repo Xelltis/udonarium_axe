@@ -78,7 +78,7 @@ const NARROW_SHEET_REM = 36;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'game-character-sheet',
   templateUrl: './game-character-sheet.component.html',
-  host: { class: 'block', '[attr.inert]': "isWholeSheetReadOnly() ? '' : null" },
+  host: { class: 'block' },
   providers: [{ provide: IN_DATA_ELEMENT_SHEET, useValue: true }],
   imports: [
     CardStackCardListComponent,
@@ -144,11 +144,11 @@ export class GameCharacterSheetComponent {
   });
 
   /**
-   * Whether the whole sheet is kept from a reader who may not change the table. A character's sheet
-   * keeps its tabs to look through and holds back the rest itself; every other piece's is held back
-   * whole, its fields, its settings and its buttons alike.
+   * Whether the sheet is closed to a reader who may not change the table, as the panels that write
+   * to it are. A character's sheet stays open, with its tabs to look through, and holds back the
+   * rest itself; every other piece's sheet is a place to change it, and closes.
    */
-  readonly isWholeSheetReadOnly = computed(
+  private readonly isClosedToReader = computed(
     () => this.isReadOnly() && !(this._tabletopObject() instanceof GameCharacter)
   );
 
@@ -750,6 +750,9 @@ export class GameCharacterSheetComponent {
   readonly progressPercent = signal(0);
 
   constructor() {
+    effect(() => {
+      if (this.isClosedToReader()) untracked(() => this.panelService.close());
+    });
     this.objectChange.objectDeleted$.subscribe((e) => {
       if (this.tabletopObject && this.tabletopObject.identifier === e.identifier) {
         this.panelService.close();
