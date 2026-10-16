@@ -26,13 +26,15 @@
   <nav
     class="border-ui-border-panel flex shrink-0 items-stretch gap-1 border-t border-solid pt-1.5 pr-[max(0.5rem,env(safe-area-inset-right))] pb-[max(0.375rem,env(safe-area-inset-bottom))] pl-[max(0.5rem,env(safe-area-inset-left))]"
   >
-    <button
-      class="text-ui-muted active:bg-ui-accent-bg active:text-ui-accent rounded-ui flex flex-1 flex-col items-center gap-0.5 border-none bg-transparent px-1 py-1.5 text-[0.65rem] leading-none shadow-none transition-colors"
-      (click)="openCharacterList()"
-    >
-      <i class="material-icons text-[22px]!">groups</i>
-      {{ 'feature.mobile.characters' | transloco }}
-    </button>
+    @if (offersCharacters()) {
+      <button
+        class="text-ui-muted active:bg-ui-accent-bg active:text-ui-accent rounded-ui flex flex-1 flex-col items-center gap-0.5 border-none bg-transparent px-1 py-1.5 text-[0.65rem] leading-none shadow-none transition-colors"
+        (click)="openCharacterList()"
+      >
+        <i class="material-icons text-[22px]!">groups</i>
+        {{ 'feature.mobile.characters' | transloco }}
+      </button>
+    }
     <button
       class="text-ui-muted active:bg-ui-accent-bg rounded-ui flex flex-1 flex-col items-center gap-0.5 border-none bg-transparent px-1 py-1.5 text-[0.65rem] leading-none shadow-none transition-colors"
       [class.text-ui-accent]="isMenuOpen()"
@@ -71,7 +73,7 @@
       class="min-h-0 flex-1 overflow-y-auto overscroll-contain py-2 pr-[max(0.5rem,env(safe-area-inset-right))] pl-[max(0.5rem,env(safe-area-inset-left))]"
     >
       <ul class="m-0 grid list-none grid-cols-3 gap-1 p-0 min-[520px]:grid-cols-5">
-        @for (item of sharedItems; track item.action) {
+        @for (item of sharedItems(); track item.action) {
           <li>
             @if (item.action === 'zipLoad') {
               <label

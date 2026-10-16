@@ -20,6 +20,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
+import { isAudienceOffered } from '@axe/domain/ui/menu-command';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
 import { nextViewMode, viewModeIcon, viewModeLabelKey } from '@axe/domain/ui/view-mode';
 import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
@@ -112,7 +113,20 @@ export class MobileShellComponent {
     return this.t('common.motion.auto');
   });
 
-  protected readonly sharedItems: MobileMenuItem[] = sharedMobileMenuItems();
+  /**
+   * The entries everyone's section offers this seat: those for the players and the game master
+   * alone, as the effects or loading a room, are left out for a guest, as in the desktop menu.
+   */
+  protected readonly sharedItems = computed<MobileMenuItem[]>(() => {
+    this.objectChange.trackMyCursor();
+    const role = PeerCursor.myRole;
+    return sharedMobileMenuItems().filter((item) => isAudienceOffered(item.audience ?? 'anyone', role));
+  });
+  /** Whether this seat is offered its characters, which a guest, owning none it may play, is not. */
+  protected readonly offersCharacters = computed(() => {
+    this.objectChange.trackMyCursor();
+    return this.rolePermission.canEditTabletop;
+  });
   protected readonly gameMasterItems: MobileMenuItem[] = gameMasterMobileMenuItems();
   protected readonly showGameMasterItems = computed(() => this.isGameMaster());
 

@@ -8,6 +8,7 @@ import { EffectLibraryService } from '@axe/application/effect/effect-library.ser
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -54,6 +55,7 @@ export class EffectLibraryPanelComponent {
   private readonly targeting = inject(EffectTargetingService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly saveDataService = inject(SaveDataService);
   private readonly autoPlay = inject(EffectAutoPlayService);
@@ -222,10 +224,12 @@ export class EffectLibraryPanelComponent {
 
   /**
    * Choosing from the list. Something cast on yourself fires at once; anything else goes to choosing targets.
-   * Choosing the same one again while aiming calls it off.
+   * Choosing the same one again while aiming calls it off. A guest, who shows nothing on anybody's
+   * table, casts nothing.
    */
   protected fire(preset: EffectPreset): void {
     this.notice.set('');
+    if (!this.rolePermission.canEditTabletop) return;
     if (this.targeting.preset()?.identifier === preset.identifier) {
       this.targeting.cancel();
       return;
@@ -252,6 +256,7 @@ export class EffectLibraryPanelComponent {
   }
 
   protected confirmTargets(): void {
+    if (!this.rolePermission.canEditTabletop) return;
     const preset = this.targeting.preset();
     const names = this.pickedNames();
     if (!preset || !this.targeting.confirm()) return;
