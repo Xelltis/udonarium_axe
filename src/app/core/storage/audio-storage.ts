@@ -213,10 +213,13 @@ export class AudioStorage {
 
   /**
    * Whether any sound this seat is to put up has yet to reach the room's asset store: going up,
-   * waiting to be tried again, or waiting for the room to be in reach.
+   * waiting to be tried again, or waiting for the room to be in reach. A guest puts nothing up, so
+   * only one going up counts for it.
    */
   get hasUploadsPending(): boolean {
-    return this.uploading.size > 0 || this.uploadRetries.hasWaiting || this.missedUploads.size > 0;
+    if (this.uploading.size > 0) return true;
+    if (Network.serverRole === 'guest') return false;
+    return this.uploadRetries.hasWaiting || this.missedUploads.size > 0;
   }
 
   /**

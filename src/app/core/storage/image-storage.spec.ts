@@ -268,6 +268,17 @@ describe('ImageStorage', () => {
       expect(storage.hasUploadsPending).toBe(true);
     });
 
+    it('has nothing yet to go up for a guest, who puts nothing up, but for one going up', () => {
+      const role = vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('guest');
+      store.useAccess(() => null);
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      expect(storage.hasUploadsPending).toBe(false);
+
+      role.mockReturnValue('pl');
+
+      expect(storage.hasUploadsPending).toBe(true);
+    });
+
     it('has something yet to go up while a failed one waits to be tried again', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
