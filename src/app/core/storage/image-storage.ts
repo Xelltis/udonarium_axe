@@ -121,7 +121,8 @@ export class ImageStorage {
     void store
       .upload(identifier, blob, image.name)
       .then((result) => {
-        if (result === 'failed') this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier));
+        const roomKey = Network.roomKey;
+        if (result === 'failed') this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey));
         else this.uploadRetries.forget(identifier);
       })
       .finally(() => {
@@ -130,7 +131,10 @@ export class ImageStorage {
       });
   }
 
-  private retryUpload(identifier: string): void {
+  /** Tries a failed upload again, while the seat is still a GM or a PL in the room it failed for. */
+  private retryUpload(identifier: string, roomKey: string | null): void {
+    const role = Network.serverRole;
+    if (Network.roomKey !== roomKey || (role !== 'gm' && role !== 'pl')) return;
     const image = this.imageHash[identifier];
     if (image) this.uploadToAssetStore(image);
   }

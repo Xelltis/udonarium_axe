@@ -205,8 +205,28 @@ describe('ImageStorage', () => {
       expect(upload).not.toHaveBeenCalled();
     });
 
+    it.each([
+      ['made a guest', 'guest', 'room-a'],
+      ['gone to another room', 'pl', 'room-b'],
+    ] as const)('tries no failed upload again for a seat %s since', async (_case, roleThen, roomThen) => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      const role = vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      const room = vi.spyOn(Network.instance, 'roomKey', 'get').mockReturnValue('room-a');
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      finishUpload('failed');
+      await vi.advanceTimersByTimeAsync(0);
+      upload.mockClear().mockResolvedValue('failed');
+
+      role.mockReturnValue(roleThen);
+      room.mockReturnValue(roomThen);
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 8);
+
+      expect(upload).not.toHaveBeenCalled();
+    });
+
     it('tries an upload that failed again a few times, further apart each time', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
       storage.add(ImageFile.create(contextOf(pictureId)));
       finishUpload('failed');
       await vi.advanceTimersByTimeAsync(0);
