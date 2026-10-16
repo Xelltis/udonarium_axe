@@ -744,6 +744,37 @@ describe('chat moments that follow a new place', () => {
       expect(momentOf(bySeq(moved, 4))).toBe(momentOf(bySeq(apart, 4)));
     });
 
+    it('leaves a result whose roll was deleted at its moment, where that ties it to no other line', () => {
+      const events = [
+        minor(by('bob', 1, 1000000), 0.4),
+        minor(by('alice', 2, 1060000, '2d6'), 0.5),
+        minor(result(3, 30, 1060001), 0.3),
+        minor(by('dave', 4, 1120000), 0.6),
+      ];
+
+      const left = removeReplayEvent(events, 2);
+
+      expect(momentOf(bySeq(left, 3))).toBe(1060001);
+    });
+
+    it('leaves a result tied to its roll made again later, when only the first making is deleted', () => {
+      const roll = minor(by('alice', 2, 1060000, '2d6'), 0.5);
+      const answer = minor(result(3, 30, 1060001), 0.3);
+      const events = [
+        minor(by('bob', 1, 1000000), 0.4),
+        roll,
+        answer,
+        minor(by('dave', 4, 1120000), 0.6),
+        { ...minor(by('alice', 5, 1060000, '2d6'), 0.5), patch: { ...roll.patch! } },
+        { ...minor(result(6, 60, 1060001), 0.3), patch: { ...answer.patch! } },
+      ];
+
+      const left = removeReplayEvent(events, 2);
+
+      expect(momentOf(bySeq(left, 3))).toBe(1060001);
+      expect(momentOf(bySeq(left, 6))).toBe(1060001);
+    });
+
     it('ties a result whose roll was deleted to no other line of the speaker', () => {
       const events = [
         minor(by('dave', 9, 900000), 0.5),

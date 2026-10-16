@@ -219,7 +219,8 @@ interface Said {
  * notice stays the moment or two after the line it answers, as that moment is what ties the two,
  * while it follows that line in the list and either of them moved; one moved above its line goes
  * its own way, as does one whose line moved away below it, or one in `untied` whose line is gone,
- * said where it ties to no other line. A message made again later in the list, as one taken back
+ * staying at its moment where that ties it to no other line and still falls in its place, and
+ * otherwise said afresh where it ties to none. A message made again later in the list, as one taken back
  * and given back, is said when its first making now is. Every other line keeps its moment.
  */
 function withChatMoments(
@@ -330,7 +331,16 @@ function withChatMoments(
     } else if (isFollower) {
       when = { moment: said.get(line.answers!.seq)!.moment + line.answers!.gap, minor: line.minor };
     } else if (retold.has(event.seq)) {
-      when = saidBetween(passed.get(line.tab), nextKept.get(event.seq), answerTop, when, clashes(line, answerTop));
+      const after = passed.get(line.tab);
+      const before = nextKept.get(event.seq);
+      const key = line.moment + line.minor;
+      const staysPut =
+        leftBehind.has(event.seq) &&
+        !moved.has(event.seq) &&
+        (after === undefined || after < key) &&
+        (before === undefined || key < before) &&
+        !clashes(line, answerTop)(line.moment);
+      if (!staysPut) when = saidBetween(after, before, answerTop, when, clashes(line, answerTop));
     }
     linesBehind.add(keyOf(line.tab, line.speaker, when.moment));
     if (retold.has(event.seq) && !isFollower && line.asker !== '')
@@ -470,17 +480,25 @@ export function removeReplayEvent(events: readonly ReplayEvent[], seq: number): 
 
 /**
  * Takes every event with one of these sequence numbers out of the list and restamps the offsets
- * once. A dice result or a notice whose line is taken out is said afresh where it ties to no other
- * line of the speaker, as its moment would otherwise tie it to one said a moment or two before.
+ * once. A dice result or a notice whose line is taken out, and not made again further on, is said
+ * afresh where it ties to no other line of the speaker, as its moment could otherwise tie it to
+ * one said a moment or two before; one whose moment ties it to none stays where it is.
  */
 export function removeReplayEvents(events: readonly ReplayEvent[], seqs: ReadonlySet<number>): ReplayEvent[] {
   if (seqs.size < 1) return [...events];
+  const lines = chatLinesOf(events);
+  const madeStill = new Set<string>();
+  for (const [seq, line] of lines) {
+    if (!seqs.has(seq) && line.message !== '') madeStill.add(line.message);
+  }
   const orphans = new Set<number>();
-  for (const [seq, line] of chatLinesOf(events)) {
-    if (line.answers && seqs.has(line.answers.seq) && !seqs.has(seq)) orphans.add(seq);
+  for (const [seq, line] of lines) {
+    const answered = line.answers ? lines.get(line.answers.seq) : undefined;
+    if (!answered || seqs.has(seq) || !seqs.has(line.answers!.seq) || madeStill.has(answered.message)) continue;
+    orphans.add(seq);
   }
   const kept = events.filter((event) => !seqs.has(event.seq));
-  return restampReplayTimes(orphans.size > 0 ? withChatMoments(kept, orphans, orphans) : kept);
+  return restampReplayTimes(orphans.size > 0 ? withChatMoments(kept, new Set(), orphans) : kept);
 }
 
 /**
