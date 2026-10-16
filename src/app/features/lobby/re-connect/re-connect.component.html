@@ -9,7 +9,7 @@
 <span class="text-[16px]">
   {{ 'feature.lobby.reConnect.notice' | transloco }}<br />
   <span class="text-[red]">
-    {{ 'feature.lobby.reConnect.warning' | transloco }}<br />
+    {{ (onRoomServer ? 'feature.lobby.reConnect.warningServer' : 'feature.lobby.reConnect.warning') | transloco }}<br />
     {{ 'feature.lobby.reConnect.warning2' | transloco }}
   </span>
   <br />

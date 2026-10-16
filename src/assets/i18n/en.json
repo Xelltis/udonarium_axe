@@ -3305,6 +3305,7 @@
         "forceCleanup": "Drop inconsistent data (only when sync is broken)",
         "notice": "Reconnection may fail. If it does not recover, reload the page.",
         "warning": "Warning: if no one else owns the room data, the data will be lost on failure.",
+        "warningServer": "Note: on a room server the table stays on the server. \"Drop inconsistent data\" removes things from this screen only.",
         "warning2": "Save the room data first if needed.",
         "cleanupDesc1": "Enabling \"Drop inconsistent data\" removes objects that may cause sync inconsistencies before reconnecting.",
         "cleanupDesc2": "Use only as a last resort."

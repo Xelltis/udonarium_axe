@@ -68,6 +68,8 @@ export class ReConnectComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly roomJoin = inject(RoomJoinService);
+  /** Whether the table is kept by a room server, which a reconnect leaves as it is. */
+  protected readonly onRoomServer = Network.transport === 'server';
 
   rooms: { alias: string; roomName: string; peerContexts: PeerContext[] }[] = [];
 

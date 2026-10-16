@@ -36,6 +36,21 @@ describe('ReConnectComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('warns of lost data among peers, and says on a room server that the table stays there', () => {
+    const textOf = () => {
+      const made = TestBed.createComponent(ReConnectComponent);
+      made.detectChanges();
+      return (made.nativeElement as HTMLElement).textContent ?? '';
+    };
+    expect(textOf()).toContain('データが破棄された上に失敗します');
+
+    vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+    const onServer = textOf();
+    expect(onServer).toContain('卓はサーバーに残ります');
+    expect(onServer).not.toContain('データが破棄された上に失敗します');
+    vi.restoreAllMocks();
+  });
+
   it('keeps the user identifier it held through a reconnection', () => {
     expect(resolveReconnectUserId('persisted-user', 'current-user')).toBe('persisted-user');
   });
