@@ -192,13 +192,24 @@ export class ServerAuthService implements ServerCredentialSource {
     }
   }
 
+  /**
+   * Follows a login or logout in another tab as it is stored, and once more as this page comes back
+   * from the back-forward cache, where no word of a change made meanwhile reached it.
+   */
   private listenToOtherTabs(): void {
     if (this.channel) return;
     const onStorage = (event: StorageEvent) => {
       if (event.key === LOGIN_STORAGE_KEY || event.key === null) this.takeAccount(this.login?.account ?? null);
     };
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) this.takeAccount(this.login?.account ?? null);
+    };
     window.addEventListener('storage', onStorage);
-    this.destroyRef.onDestroy(() => window.removeEventListener('storage', onStorage));
+    window.addEventListener('pageshow', onPageShow);
+    this.destroyRef.onDestroy(() => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('pageshow', onPageShow);
+    });
     if (typeof BroadcastChannel === 'undefined') return;
     this.channel = new BroadcastChannel(LOGIN_CHANNEL);
     this.channel.onmessage = (event: MessageEvent) => {

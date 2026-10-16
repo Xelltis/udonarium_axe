@@ -162,6 +162,16 @@ describe('ServerAuthService', () => {
     expect(service.account()).toEqual(ACCOUNT);
   });
 
+  it('reads the login again as the page comes back from the back-forward cache', () => {
+    configure();
+    login.account = ACCOUNT;
+
+    window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: false }));
+    expect(service.account()).toBeNull();
+    window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
+    expect(service.account()).toEqual(ACCOUNT);
+  });
+
   it('knows an account logged in here as one after it has logged out, whatever its user id looks like', () => {
     const unprefixed: Account = { ...ACCOUNT, userId: 'e0100553-8866-4924-8a4a-d4900ac59de5' };
     login.account = unprefixed;
