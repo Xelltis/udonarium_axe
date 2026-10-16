@@ -151,7 +151,9 @@ export function insertReplayEvents(
   const index = Math.max(0, Math.min(events.length, atIndex));
   const seqBase = nextInsertSeq(events);
   const times = spreadInsertTimes(events, index, entries.length);
-  const placed = entries.map((entry, offset) => ({ ...entry, seq: seqBase + offset, at: times[offset] }));
+  const placed = withChatMoments(
+    entries.map((entry, offset) => ({ ...entry, seq: seqBase + offset, at: times[offset] }))
+  );
 
   const next = [...events];
   next.splice(index, 0, ...placed);
@@ -172,6 +174,35 @@ export function spreadInsertTimes(events: readonly ReplayEvent[], atIndex: numbe
   const span = Math.max(0, end - start);
   const step = span > 0 ? span / (count + 1) : 1;
   return Array.from({ length: count }, (_, offset) => Math.round(start + step * (offset + 1)));
+}
+
+const MOMENT_KEY = 'attributes.timestamp';
+
+/**
+ * Events that took new times, in their new order, with the moment of each chat line moved to
+ * match, so that the chat on a replayed board, which orders lines by their moments, orders them as
+ * the list does. A line is said at its new time; a dice result is said the moment after the line it
+ * answers, when that line moved with it, as that moment is what ties the two.
+ */
+function withChatMoments(events: readonly ReplayEvent[]): ReplayEvent[] {
+  const lines = new Map<string, number>();
+  return events.map((event) => {
+    const after = event.patch?.after;
+    const moment = after?.[MOMENT_KEY];
+    if (!after || typeof moment !== 'number') return event;
+    let next = event.at;
+    if (event.kind === ReplayEventKind.ChatDice) {
+      const answered = lines.get(`${String(after['attributes.originFrom'] ?? '')}\0${moment - 1}`);
+      if (answered !== undefined) next = answered + 1;
+    } else {
+      lines.set(`${String(after['attributes.from'] ?? '')}\0${moment}`, next);
+    }
+    return {
+      ...event,
+      detail: 'timestamp' in event.detail ? { ...event.detail, timestamp: next } : event.detail,
+      patch: { ...event.patch!, after: { ...after, [MOMENT_KEY]: next } },
+    };
+  });
 }
 
 /** The sequence number for a new event: one above the highest in the list, or 1 for an empty list. */
@@ -229,14 +260,17 @@ export function stepReplayEvents(
   const order = next.map((_, index) => index).filter((index) => seqs.has(next[index].seq));
   if (direction === 1) order.reverse();
   const passes = (at: number): boolean => at >= 0 && at < next.length && !seqs.has(next[at].seq) && !isStop(next[at]);
+  const moved = new Set<number>();
   for (const index of order) {
     let target = index + direction;
     while (passes(target)) target += direction;
     if (target < 0 || target >= next.length || seqs.has(next[target].seq)) continue;
-    const [moved] = next.splice(index, 1);
-    next.splice(target, 0, { ...moved, at: insertTimeAt(next, target) });
+    const [event] = next.splice(index, 1);
+    next.splice(target, 0, { ...event, at: insertTimeAt(next, target) });
+    moved.add(event.seq);
   }
-  return restampReplayTimes(next);
+  const stamped = new Map(withChatMoments(next.filter((event) => moved.has(event.seq))).map((e) => [e.seq, e]));
+  return restampReplayTimes(next.map((event) => stamped.get(event.seq) ?? event));
 }
 
 /**
@@ -255,7 +289,7 @@ export function moveReplayEvent(events: readonly ReplayEvent[], seq: number, off
 
   const next = [...events];
   const [moved] = next.splice(index, 1);
-  next.splice(target, 0, { ...moved, at: insertTimeAt(next, target) });
+  next.splice(target, 0, withChatMoments([{ ...moved, at: insertTimeAt(next, target) }])[0]);
   return restampReplayTimes(next);
 }
 

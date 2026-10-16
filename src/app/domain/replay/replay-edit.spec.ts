@@ -462,3 +462,48 @@ describe('hasReplayEdits()', () => {
     expect(hasReplayEdits(events, retextReplayEvent(events, 2, '別の台詞'))).toBe(true);
   });
 });
+
+describe('chat moments that follow a new time', () => {
+  const draft = (kind: ReplayEventKind, text: string) => ({
+    kind,
+    actorId: 'alice',
+    speaker: 'アリス',
+    text,
+    tabIdentifier: 'main',
+  });
+  const momentOf = (event: ReplayEvent) => event.patch?.after['attributes.timestamp'];
+  const around = [
+    createReplayEntry(draft(ReplayEventKind.ChatMessage, '前'), 1, 5000),
+    createReplayEntry(draft(ReplayEventKind.ChatMessage, '後'), 2, 6000),
+  ];
+
+  it('says an inserted line at its new time, and its dice result the moment after it, which ties the two', () => {
+    const line = createReplayEntry(draft(ReplayEventKind.ChatMessage, '2d6'), 10, 100);
+    const result = { ...createReplayEntry(draft(ReplayEventKind.ChatDice, '(2D6) → 7'), 11, 101) };
+    result.patch = { ...result.patch!, after: { ...result.patch!.after, 'attributes.timestamp': 101 } };
+
+    const [, placedLine, placedResult] = insertReplayEvents(around, 1, [line, result]);
+
+    expect(momentOf(placedLine)).toBe(placedLine.at);
+    expect(placedLine.detail['timestamp']).toBe(placedLine.at);
+    expect(momentOf(placedResult)).toBe(placedLine.at + 1);
+  });
+
+  it('says a moved line at the time it moved to', () => {
+    const third = createReplayEntry(draft(ReplayEventKind.ChatMessage, '三'), 3, 7000);
+
+    const moved = moveReplayEvent([...around, third], 3, -1);
+
+    const line = moved.find((event) => event.seq === 3)!;
+    expect(moved.map((event) => event.seq)).toEqual([1, 3, 2]);
+    expect(momentOf(line)).toBe(line.at);
+  });
+
+  it('says a line stepped past another at the time it stepped to', () => {
+    const stepped = stepReplayEvents(around, new Set([2]), -1);
+
+    const line = stepped.find((event) => event.seq === 2)!;
+    expect(stepped.map((event) => event.seq)).toEqual([2, 1]);
+    expect(momentOf(line)).toBe(line.at);
+  });
+});
