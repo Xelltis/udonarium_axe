@@ -6,6 +6,9 @@ import { MotionService } from '@axe/application/ui/motion.service';
 import { Logger } from '@axe/core/logging/logger';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { localDispatch } from '@axe/core/network/network-messaging';
+import { getPeerIds } from '@axe/core/network/peer-context-source';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import type { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { markForChanged } from '@axe/core/sync/object-event-extension';
 import { ObjectFactory } from '@axe/core/sync/object-factory';
@@ -161,7 +164,7 @@ export class ReplayPlaybackService {
    */
   async seekTo(index: number): Promise<void> {
     const events = this._events();
-    if (events.length < 1) return;
+    if (events.length < 1 || this.staging.isStaging()) return;
     const clamped = Math.max(0, Math.min(events.length - 1, index));
     const isStepForward = clamped === this._cursor() + 1;
     this._cursor.set(clamped);
@@ -179,6 +182,15 @@ export class ReplayPlaybackService {
       return;
     }
     await this.applyBoard(clamped);
+  }
+
+  /**
+   * Works the board out afresh where the recording stands, as once a scene acted out on it has been
+   * taken in or thrown away, which left the board changed where the recording did not move.
+   */
+  async showBoardAfresh(): Promise<void> {
+    this.appliedBoard = null;
+    if (this._isBoardMode()) await this.applyBoard(this._cursor());
   }
 
   /** Steps forward one event. */
@@ -212,7 +224,7 @@ export class ReplayPlaybackService {
       this.stopAutoPlay();
       return;
     }
-    if (this.isAtEnd()) return;
+    if (this.isAtEnd() || this.staging.isStaging()) return;
     this._autoPlay.set(true);
     this.scheduleAutoPlay();
   }
@@ -243,7 +255,7 @@ export class ReplayPlaybackService {
     setNetworkIsolated(true);
     this._isBoardMode.set(true);
     await this.applyBoard(this._cursor());
-    return true;
+    return this._isBoardMode();
   }
 
   /**
@@ -260,7 +272,7 @@ export class ReplayPlaybackService {
     this.stopSlide();
     this._isBoardMode.set(false);
     try {
-      if (this.savedBoard) this.restoreBoard(this.savedBoard, this.savedVersions);
+      if (this.savedBoard) this.restoreBoard(this.stillHere(this.savedBoard), this.savedVersions);
     } catch (reason) {
       Logger.warn('[ReplayPlayback] 卓を戻しきれませんでした', reason);
     } finally {
@@ -272,7 +284,24 @@ export class ReplayPlaybackService {
       this.savedDeleteHistory = null;
       setNetworkIsolated(false);
       this.objectSynchronizer.requestFullSync();
+      ImageStorage.instance.synchronize();
+      AudioStorage.instance.synchronize();
     }
+  }
+
+  /**
+   * The live table as it was kept, without the cursors of those gone from the room since: put back,
+   * they would never be cleared away, as what clears a cursor away was let go with it.
+   */
+  private stillHere(snapshots: readonly ReplayObjectSnapshot[]): ReplayObjectSnapshot[] {
+    const linked = new Set(getPeerIds());
+    const mine = PeerCursor.myCursor?.identifier;
+    return snapshots.filter(
+      (snapshot) =>
+        snapshot.aliasName !== PeerCursor.aliasName ||
+        snapshot.identifier === mine ||
+        linked.has(String(snapshot.syncData['peerId'] ?? ''))
+    );
   }
 
   private scheduleAutoPlay(): void {

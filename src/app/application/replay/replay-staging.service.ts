@@ -55,6 +55,7 @@ export class ReplayStagingService {
    * can be acted out on the board and added to a recording as though `actorId` had done it.
    */
   begin(insertIndex: number, actorId: string): void {
+    if (!isNetworkIsolated()) return;
     this.shadows.clear();
     for (const object of this.objectStore.getObjects()) {
       this.shadows.set(object.identifier, cloneSyncData(object.toContext().syncData as SyncData));

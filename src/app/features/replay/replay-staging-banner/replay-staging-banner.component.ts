@@ -59,11 +59,11 @@ export class ReplayStagingBannerComponent {
   protected async accept(): Promise<void> {
     const captured = this.staging.take();
     this.editor.insertMany(this.staging.insertIndex(), captured);
-    await this.playback.seekTo(this.playback.cursor());
+    await this.playback.showBoardAfresh();
   }
 
   protected async discard(): Promise<void> {
     this.staging.discard();
-    await this.playback.seekTo(this.playback.cursor());
+    await this.playback.showBoardAfresh();
   }
 }

@@ -38,6 +38,14 @@ describe('ReplayStagingService', () => {
     objectStore.clearDeleteHistory();
   });
 
+  it('begins nothing while the board is not cut off from the room', () => {
+    setNetworkIsolated(false);
+
+    service.begin(1, 'alice');
+
+    expect(service.isStaging()).toBe(false);
+  });
+
   it('collects nothing before staging begins', () => {
     sendUpdate('c1', { location: { name: 'table', x: 50, y: 0 } });
     expect(service.captured()).toHaveLength(0);
