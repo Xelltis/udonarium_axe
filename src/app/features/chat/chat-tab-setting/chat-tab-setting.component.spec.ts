@@ -58,6 +58,31 @@ describe('ChatTabSettingComponent', () => {
     await expectPanelDragRecovery(ChatTabSettingComponent);
   });
 
+  it('picks a tab it deleted as it comes back under its name, rather than holding on to the one taken away', async () => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    const keep = ChatTabList.instance.addChatTab('残す');
+    const gone = ChatTabList.instance.addChatTab('作戦');
+    try {
+      component.selectedTab.set(gone);
+      fixture.detectChanges();
+      component.delete();
+      await fixture.whenStable();
+
+      const back = ChatTabList.instance.addChatTab('作戦', gone.identifier);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(component.selectedTab()).toBe(back);
+      expect(component.selectedTabXml).toBe('');
+      expect(component.isDeleted).toBe(false);
+    } finally {
+      keep.destroy();
+      for (const tab of ChatTabList.instance.chatTabs.filter((tab) => tab.name === '作戦')) tab.destroy();
+      PeerCursor.myCursor = null!;
+    }
+  });
+
   it('keeps no copy of a tab another seat deleted, so that no later offer brings that one back', async () => {
     PeerCursor.createMyCursor();
     PeerCursor.myCursor.role = PeerRole.GameMaster;

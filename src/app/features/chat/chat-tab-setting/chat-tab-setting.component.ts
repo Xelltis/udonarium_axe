@@ -132,7 +132,7 @@ export class ChatTabSettingComponent {
    * restore it.
    */
   get isDeleted(): boolean {
-    return this.selectedTab() ? this.objectStore.get(this.selectedTab()!.identifier) == null : false;
+    return this.selectedTab() ? this.objectStore.get(this.selectedTab()!.identifier) !== this.selectedTab() : false;
   }
   /** The system tab belongs to the tool rather than the room, so its name, its place and whether it travels are all handled apart. */
   get isSystemTabSelected(): boolean {
@@ -255,10 +255,17 @@ export class ChatTabSettingComponent {
     }, this.destroyRef);
     // A tab gone from the list, or one this seat may no longer read, is let go of, as on the seat
     // being made a player while it had a tab only the game master reads picked. One this seat has
-    // just deleted stays picked while its copy is kept, for the offer to bring it back.
+    // just deleted stays picked while its copy is kept, for the offer to bring it back, until it
+    // comes back under its name, as from a file, when the tab that came back is picked instead.
     this.objectChange.onObjectChangedForAlias(
       [ChatTab.aliasName, ChatTabList.aliasName, PeerCursor.aliasName],
       () => {
+        const picked = this.selectedTab();
+        const cameBack = picked ? this.objectStore.get<ChatTab>(picked.identifier) : null;
+        if (picked && cameBack && cameBack !== picked && this.chatTabs.includes(cameBack)) {
+          this.selectedTab.set(cameBack);
+          this.selectedTabXml = '';
+        }
         if (this.selectedTab() && !this.chatTabs.includes(this.selectedTab()!) && !this.selectedTabXml) {
           this.selectedTab.set(null);
         }
