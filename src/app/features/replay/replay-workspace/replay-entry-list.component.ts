@@ -98,10 +98,17 @@ export class ReplayEntryListComponent {
   protected readonly isStaging = this.staging.isStaging;
   /** Whether a scene to act out is on its way, while the board is moved to the row it goes after. */
   private readonly isStartingStage = signal(false);
-  /** Whether a scene may be started now: none is being acted out or on its way, and the board is still. */
+  /**
+   * Whether a scene may be started now: none is being acted out or on its way, the board is still,
+   * and the edits are not being saved, which opens the recording saved and throws a scene away.
+   */
   protected readonly canStage = computed(
     () =>
-      !this.isStaging() && !this.isStartingStage() && !this.playback.isSeeking() && !this.playback.isEnteringBoardMode()
+      !this.isStaging() &&
+      !this.isStartingStage() &&
+      !this.playback.isSeeking() &&
+      !this.playback.isEnteringBoardMode() &&
+      !this.editor.isSaving()
   );
   protected readonly scopes = [ReplayLogScope.All, ReplayLogScope.Chat, ReplayLogScope.Board];
   protected readonly insertKinds = INSERTABLE_KINDS;
@@ -466,7 +473,7 @@ export class ReplayEntryListComponent {
   }
 
   protected canInsert(): boolean {
-    return this.insertText().trim().length > 0 && this.editor.canChange();
+    return this.insertText().trim().length > 0;
   }
 
   /**
@@ -494,12 +501,13 @@ export class ReplayEntryListComponent {
   }
 
   /**
-   * Starts acting out a scene to go in at a row, on the board as it stood at the last row before it
-   * that was recorded, or at the first event when none was. Stepping on its own stops, as the
-   * recording stands still while a scene is acted out, and nothing starts while the board is still
-   * being worked out, which the scene would be measured against as it stood before. Nor does it
-   * start once the board is up if the editing, the recording or the row shown changed meanwhile, as
-   * the save taken before the board comes up gives time for.
+   * Starts acting out a scene to go in after a row, on the board as it stood at the last row before
+   * it that was recorded, or at the first event when none was. The scene follows that row wherever
+   * the rows are moved meanwhile. Stepping on its own stops, as the recording stands still while a
+   * scene is acted out, and nothing starts while the board is still being worked out, which the
+   * scene would be measured against as it stood before. Nor does it start once the board is up if
+   * the editing, the recording or the row shown changed meanwhile, as the save taken before the
+   * board comes up gives time for; a board brought up for it alone is put away again.
    */
   protected async stageAt(index = this.insertIndex()): Promise<void> {
     if (!this.canEdit || !this.canStage()) return;
@@ -508,6 +516,7 @@ export class ReplayEntryListComponent {
       this.playback.stopAutoPlay();
       const editing = this.editor.isEditing();
       const recordingId = this.playback.recordingId();
+      const afterSeq = index > 0 ? (this.source()[index - 1]?.seq ?? null) : null;
       const at = this.recordedIndexBefore(index);
       const wasBoardMode = this.playback.isBoardMode();
       await this.playback.seekTo(at);
@@ -517,8 +526,12 @@ export class ReplayEntryListComponent {
         this.editor.isEditing() === editing &&
         this.playback.recordingId() === recordingId &&
         this.playback.cursor() === at;
-      if (!unchanged || this.isStaging() || !this.playback.isBoardMode()) return;
-      this.staging.begin(index, this.insertActorId() || this.actors()[0]?.userId || '');
+      if (this.isStaging() || !this.playback.isBoardMode()) return;
+      if (!unchanged) {
+        if (!wasBoardMode && this.playback.recordingId() === recordingId) await this.playback.exitBoardMode();
+        return;
+      }
+      this.staging.begin(index, this.insertActorId() || this.actors()[0]?.userId || '', afterSeq);
     } finally {
       this.isStartingStage.set(false);
     }

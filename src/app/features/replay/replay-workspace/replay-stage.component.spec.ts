@@ -1,6 +1,8 @@
 import { signal, type WritableSignal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
+import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
@@ -83,6 +85,27 @@ describe('ReplayStageComponent', () => {
 
   afterEach(() => {
     PeerCursor.myCursor = null as unknown as PeerCursor;
+  });
+
+  it('leaves stepping and putting the board away unpressable while a scene is acted out', () => {
+    const buttons = () => [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
+    const board = () => buttons().find((each) => each.textContent?.includes('盤面を映す'));
+    const next = () =>
+      buttons().find((each) => each.querySelector('.material-icons')?.textContent?.trim() === 'navigate_next');
+    expect(board()?.disabled).toBe(false);
+    expect(next()?.disabled).toBe(false);
+
+    setNetworkIsolated(true);
+    try {
+      TestBed.inject(ReplayStagingService).begin(0, 'alice');
+      fixture.detectChanges();
+
+      expect(board()?.disabled).toBe(true);
+      expect(next()?.disabled).toBe(true);
+    } finally {
+      TestBed.inject(ReplayStagingService).discard();
+      setNetworkIsolated(false);
+    }
   });
 
   it('leaves the button that shows the board unpressable while the board is on its way up', () => {

@@ -3,6 +3,7 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
+import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import {
   formatReplayElapsed,
@@ -36,6 +37,11 @@ export class ReplayStageComponent {
   protected readonly isBoardMode = this.playback.isBoardMode;
   protected readonly isSeeking = this.playback.isSeeking;
   protected readonly isEnteringBoardMode = this.playback.isEnteringBoardMode;
+  /**
+   * Whether a scene is being acted out, while the recording stands still and the board is left only
+   * by taking the scene in or throwing it away.
+   */
+  protected readonly isStaging = inject(ReplayStagingService).isStaging;
   protected readonly autoPlay = this.playback.autoPlay;
   protected readonly isAtStart = this.playback.isAtStart;
   protected readonly isAtEnd = this.playback.isAtEnd;

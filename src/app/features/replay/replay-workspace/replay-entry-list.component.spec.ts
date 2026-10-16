@@ -91,7 +91,7 @@ describe('rearranging the entries', () => {
           useValue: {
             edited: signal(events).asReadonly(),
             isEditing: signal(true).asReadonly(),
-            canChange: signal(true).asReadonly(),
+            isSaving: signal(false).asReadonly(),
             isInserted: () => false,
             insert: vi.fn(),
             move,
@@ -247,7 +247,7 @@ describe('a long recording in the list', () => {
           useValue: {
             edited: signal(many).asReadonly(),
             isEditing: signal(false).asReadonly(),
-            canChange: signal(true).asReadonly(),
+            isSaving: signal(false).asReadonly(),
             isInserted: () => false,
           },
         },
@@ -335,7 +335,7 @@ describe('editing the list by choosing rows', () => {
           useValue: {
             edited: signal(story).asReadonly(),
             isEditing: signal(true).asReadonly(),
-            canChange: signal(true).asReadonly(),
+            isSaving: signal(false).asReadonly(),
             isInserted: () => false,
             removeMany,
             stepMany,
@@ -534,7 +534,7 @@ describe('writing entries one after another', () => {
           useValue: {
             edited: edited.asReadonly(),
             isEditing: signal(true).asReadonly(),
-            canChange: signal(true).asReadonly(),
+            isSaving: signal(false).asReadonly(),
             isInserted: (seq: number) => inserted.has(seq),
             insert: (index: number, draft: { text: string }) => {
               const entry = event(nextSeq++, draft.text);
@@ -587,11 +587,13 @@ describe('acting out a scene to go in at a row', () => {
     seekTo: ReturnType<typeof vi.fn>;
     showBoardAfresh: ReturnType<typeof vi.fn>;
     enterBoardMode: ReturnType<typeof vi.fn>;
+    exitBoardMode: ReturnType<typeof vi.fn>;
     stopAutoPlay: ReturnType<typeof vi.fn>;
   };
   let begin: ReturnType<typeof vi.fn>;
   let cursor: ReturnType<typeof signal<number>>;
   let editing: ReturnType<typeof signal<boolean>>;
+  let saving: ReturnType<typeof signal<boolean>>;
   const written = { ...event(100, '書き足した'), seq: 100 };
 
   function stageAt(index: number): Promise<void> {
@@ -603,6 +605,7 @@ describe('acting out a scene to go in at a row', () => {
     begin = vi.fn();
     cursor = signal(0);
     editing = signal(true);
+    saving = signal(false);
     playback = {
       events: signal<readonly ReplayEvent[]>(events),
       isSeeking: signal(false),
@@ -614,6 +617,7 @@ describe('acting out a scene to go in at a row', () => {
         playback.isBoardMode.set(true);
         return true;
       }),
+      exitBoardMode: vi.fn().mockImplementation(async () => playback.isBoardMode.set(false)),
       stopAutoPlay: vi.fn(),
     };
 
@@ -640,7 +644,7 @@ describe('acting out a scene to go in at a row', () => {
           useValue: {
             edited: signal([events[0], written, events[1], events[2]]).asReadonly(),
             isEditing: editing.asReadonly(),
-            canChange: signal(true).asReadonly(),
+            isSaving: saving.asReadonly(),
             isInserted: (seq: number) => seq === 100,
             insert: vi.fn(),
             move: vi.fn(),
@@ -666,7 +670,7 @@ describe('acting out a scene to go in at a row', () => {
 
     expect(playback.seekTo).toHaveBeenCalledWith(1);
     expect(playback.enterBoardMode).toHaveBeenCalled();
-    expect(begin).toHaveBeenCalledWith(3, expect.any(String));
+    expect(begin).toHaveBeenCalledWith(3, expect.any(String), 2);
     expect(playback.seekTo.mock.invocationCallOrder[0]).toBeLessThan(begin.mock.invocationCallOrder[0]);
   });
 
@@ -703,6 +707,7 @@ describe('acting out a scene to go in at a row', () => {
     await stageAt(3);
 
     expect(begin).not.toHaveBeenCalled();
+    expect(playback.exitBoardMode).toHaveBeenCalled();
   });
 
   it('starts nothing once the board is up if the editing ended meanwhile', async () => {
@@ -715,10 +720,30 @@ describe('acting out a scene to go in at a row', () => {
     await stageAt(3);
 
     expect(begin).not.toHaveBeenCalled();
+    expect(playback.exitBoardMode).toHaveBeenCalled();
+  });
+
+  it('leaves a board that was up already where it is, starting nothing once the row shown moved', async () => {
+    playback.isBoardMode.set(true);
+    playback.showBoardAfresh.mockImplementation(async () => cursor.set(2));
+
+    await stageAt(3);
+
+    expect(begin).not.toHaveBeenCalled();
+    expect(playback.exitBoardMode).not.toHaveBeenCalled();
   });
 
   it('starts nothing while the board is on its way up', async () => {
     playback.isEnteringBoardMode.set(true);
+
+    await stageAt(3);
+
+    expect(begin).not.toHaveBeenCalled();
+    expect(playback.seekTo).not.toHaveBeenCalled();
+  });
+
+  it('starts nothing while the edits are being saved, as the saved recording opening would throw it away', async () => {
+    saving.set(true);
 
     await stageAt(3);
 

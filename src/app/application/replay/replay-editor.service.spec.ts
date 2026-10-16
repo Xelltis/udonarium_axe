@@ -1,8 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { readKeyframeBytes } from '@axe/application/replay/replay-keyframe-bytes';
-import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
-import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import {
   type ReplayChunkInput,
   type ReplayChunkRecord,
@@ -126,6 +124,11 @@ const base: ReplayObjectSnapshot[] = [
   { identifier: 'c1', aliasName: 'character', syncData: { attributes: { location: { x: 0, y: 0 } } } },
 ];
 
+/** The rows by sequence number, and those put in by what they say, as putting them in numbers them afresh. */
+function rowsOf(events: readonly ReplayEvent[]): (number | string)[] {
+  return events.map((event) => (event.seq >= 5 ? String(event.detail['text']) : event.seq));
+}
+
 describe('ReplayEditorService', () => {
   const events = [chat(1, '一'), move(2, 10, 0), chat(3, '三'), move(4, 20, 10)];
 
@@ -147,25 +150,24 @@ describe('ReplayEditorService', () => {
     expect(service.edited().map((e) => e.seq)).toEqual([1, 2, 3, 4]);
   });
 
-  it('keeps the rows as they are while a scene is acted out to go in after one of them', () => {
-    service.remove(1);
-    setNetworkIsolated(true);
-    try {
-      TestBed.inject(ReplayStagingService).begin(1, 'alice');
+  it('puts events made already after the row named, wherever it has moved', () => {
+    const scene = { ...chat(90, '場面'), seq: 90 };
+    service.move(3, -1);
 
-      service.remove(2);
-      service.move(3, -1);
-      service.revert();
-      service.undo();
+    service.insertManyAfter(3, 3, [scene]);
 
-      expect(service.edited().map((e) => e.seq)).toEqual([2, 3, 4]);
-      expect(service.canUndo()).toBe(false);
+    expect(rowsOf(service.edited())).toEqual([1, 3, '場面', 2, 4]);
+  });
 
-      TestBed.inject(ReplayStagingService).take();
-      expect(service.canUndo()).toBe(true);
-    } finally {
-      setNetworkIsolated(false);
-    }
+  it('puts them at the place given once the row named is gone, and at the start for none', () => {
+    const scene = { ...chat(90, '場面'), seq: 90 };
+    const opening = { ...chat(91, '幕開け'), seq: 91 };
+    service.remove(3);
+
+    service.insertManyAfter(3, 2, [scene]);
+    service.insertManyAfter(null, 4, [opening]);
+
+    expect(rowsOf(service.edited())).toEqual(['幕開け', 1, 2, '場面', 4]);
   });
 
   it('remembers what was deleted', () => {

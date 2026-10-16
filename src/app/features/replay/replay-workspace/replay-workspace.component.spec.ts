@@ -72,7 +72,6 @@ describe('ReplayWorkspaceComponent', () => {
   let insert: ReturnType<typeof vi.fn>;
   let isEditing: ReturnType<typeof signal<boolean>>;
   let canUndo: ReturnType<typeof signal<boolean>>;
-  let canChange: ReturnType<typeof signal<boolean>>;
   let isDirty: ReturnType<typeof signal<boolean>>;
   let undo: ReturnType<typeof vi.fn>;
   let edited: ReturnType<typeof signal<readonly ReplayEvent[]>>;
@@ -127,7 +126,6 @@ describe('ReplayWorkspaceComponent', () => {
           provide: ReplayEditorService,
           useValue: {
             isEditing: isEditing.asReadonly(),
-            canChange: canChange.asReadonly(),
             isDirty: isDirty.asReadonly(),
             isSaving: signal(false).asReadonly(),
             canUndo: canUndo.asReadonly(),
@@ -203,7 +201,6 @@ describe('ReplayWorkspaceComponent', () => {
     open = vi.fn().mockResolvedValue(true);
     begin = vi.fn();
     insert = vi.fn();
-    canChange = signal(true);
     isDirty = signal(false);
     stopAutoPlay = vi.fn();
     showBoardAfresh = vi.fn().mockResolvedValue(undefined);
@@ -312,18 +309,23 @@ describe('ReplayWorkspaceComponent', () => {
     expect(undo).not.toHaveBeenCalled();
   });
 
-  it('leaves saving and putting everything back unpressable while a scene is acted out', async () => {
+  it('leaves saving unpressable while a scene is acted out, which the saved recording opening would throw away', async () => {
     isEditing = signal(true);
     isDirty.set(true);
     await setup();
     expect(buttonByText('別の記録として保存')?.disabled).toBe(false);
-    expect(buttonByText('全部戻す')?.disabled).toBe(false);
 
-    canChange.set(false);
-    fixture.detectChanges();
+    setNetworkIsolated(true);
+    try {
+      TestBed.inject(ReplayStagingService).begin(1, 'alice');
+      fixture.detectChanges();
 
-    expect(buttonByText('別の記録として保存')?.disabled).toBe(true);
-    expect(buttonByText('全部戻す')?.disabled).toBe(true);
+      expect(buttonByText('別の記録として保存')?.disabled).toBe(true);
+      expect(buttonByText('全部戻す')?.disabled).toBe(false);
+    } finally {
+      TestBed.inject(ReplayStagingService).discard();
+      setNetworkIsolated(false);
+    }
   });
 
   it('leaves the button unpressable with nothing to undo', async () => {

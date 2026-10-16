@@ -30,11 +30,14 @@ export class ReplayStagingService {
   private readonly _captured = signal<readonly ReplayEvent[]>([]);
   private readonly _actorId = signal('');
   private readonly _insertIndex = signal(0);
+  private readonly _afterSeq = signal<number | null>(null);
 
   readonly isStaging = this._isStaging.asReadonly();
   readonly captured = this._captured.asReadonly();
   readonly actorId = this._actorId.asReadonly();
   readonly insertIndex = this._insertIndex.asReadonly();
+  /** The sequence number of the row the scene goes after, wherever it stands by then; null for the start. */
+  readonly afterSeq = this._afterSeq.asReadonly();
 
   private readonly shadows = new Map<string, SyncData>();
   private pending: ReplayEvent | null = null;
@@ -52,9 +55,10 @@ export class ReplayStagingService {
    * Starts capturing what this reader does on the replayed board, as events to insert at a row.
    *
    * Only this reader's own changes are captured, and only while cut off from the room, so a scene
-   * can be acted out on the board and added to a recording as though `actorId` had done it.
+   * can be acted out on the board and added to a recording as though `actorId` had done it. It goes
+   * after the row `afterSeq` names, or at `insertIndex` should that row be gone by then.
    */
-  begin(insertIndex: number, actorId: string): void {
+  begin(insertIndex: number, actorId: string, afterSeq: number | null = null): void {
     if (!isNetworkIsolated()) return;
     this.shadows.clear();
     for (const object of this.objectStore.getObjects()) {
@@ -64,6 +68,7 @@ export class ReplayStagingService {
     this.seq = 0;
     this.originAt = Date.now();
     this._insertIndex.set(insertIndex);
+    this._afterSeq.set(afterSeq);
     this._actorId.set(actorId);
     this._captured.set([]);
     this._isStaging.set(true);

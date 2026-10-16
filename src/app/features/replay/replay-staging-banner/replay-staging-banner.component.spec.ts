@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
-import type { ReplayEvent } from '@axe/domain/replay/replay-event';
+import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
 import { ReplayStagingBannerComponent } from '@axe/features/replay/replay-staging-banner/replay-staging-banner.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -84,5 +84,53 @@ describe('ReplayStagingBannerComponent', () => {
     select.dispatchEvent(new Event('change'));
 
     expect(setActorId).toHaveBeenCalledWith('bob');
+  });
+
+  it('puts what was acted out after the row it was started on, wherever that row has moved', async () => {
+    const insertManyAfter = vi.fn();
+    const captured: ReplayEvent[] = [
+      {
+        seq: 1,
+        at: 0,
+        t: 0,
+        kind: ReplayEventKind.ChatMessage,
+        actorId: 'alice',
+        detail: { name: '盗賊', text: 'やあ' },
+        visibility: PUBLIC_VISIBILITY,
+      },
+    ];
+    await TestBed.configureTestingModule({
+      imports: [ReplayStagingBannerComponent],
+      providers: [
+        ...TEST_PROVIDERS,
+        {
+          provide: ReplayStagingService,
+          useValue: {
+            isStaging: signal(true).asReadonly(),
+            captured: signal<readonly ReplayEvent[]>(captured).asReadonly(),
+            actorId: signal('alice').asReadonly(),
+            insertIndex: signal(4).asReadonly(),
+            afterSeq: signal(12).asReadonly(),
+            setActorId: vi.fn(),
+            take: () => captured,
+          },
+        },
+        { provide: ReplayEditorService, useValue: { insertManyAfter } },
+        {
+          provide: ReplayPlaybackService,
+          useValue: {
+            manifest: signal(manifest).asReadonly(),
+            events: signal<readonly ReplayEvent[]>([]).asReadonly(),
+            showBoardAfresh: vi.fn().mockResolvedValue(undefined),
+          },
+        },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(ReplayStagingBannerComponent);
+    fixture.detectChanges();
+
+    await (fixture.componentInstance as unknown as { accept(): Promise<void> }).accept();
+
+    expect(insertManyAfter).toHaveBeenCalledWith(12, 4, captured);
   });
 });
