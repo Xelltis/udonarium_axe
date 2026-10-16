@@ -123,24 +123,27 @@
         <i class="material-icons">badge</i
         ><span class="@max-[520px]:hidden">{{ 'feature.chat.palette.characterDataLabel' | transloco }}</span>
       </button>
-      <button
-        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex h-6.5 shrink-0 cursor-pointer items-center gap-0.75 rounded-sm border border-solid bg-transparent px-1.75 text-[0.78em] leading-normal whitespace-nowrap select-none @max-[520px]:px-1 [&_.material-icons]:text-base!"
-        type="button"
-        [class.bg-ui-accent-bg!]="isEdit()"
-        [class.border-ui-accent!]="isEdit()"
-        [class.text-ui-accent!]="isEdit()"
-        [attr.aria-pressed]="isEdit()"
-        [attr.aria-label]="(isEdit() ? 'feature.chat.palette.confirm' : 'feature.chat.palette.edit') | transloco"
-        (click)="toggleEditMode()"
-      >
-        @if (!isEdit()) {
-          <i class="material-icons">edit</i
-          ><span class="@max-[520px]:hidden">{{ 'feature.chat.palette.edit' | transloco }}</span>
-        } @else {
-          <i class="material-icons">check</i
-          ><span class="@max-[520px]:hidden">{{ 'feature.chat.palette.confirm' | transloco }}</span>
-        }
-      </button>
+      @if (mayEdit()) {
+        <button
+          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex h-6.5 shrink-0 cursor-pointer items-center gap-0.75 rounded-sm border border-solid bg-transparent px-1.75 text-[0.78em] leading-normal whitespace-nowrap select-none @max-[520px]:px-1 [&_.material-icons]:text-base!"
+          type="button"
+          data-action="edit-palette"
+          [class.bg-ui-accent-bg!]="isEdit()"
+          [class.border-ui-accent!]="isEdit()"
+          [class.text-ui-accent!]="isEdit()"
+          [attr.aria-pressed]="isEdit()"
+          [attr.aria-label]="(isEdit() ? 'feature.chat.palette.confirm' : 'feature.chat.palette.edit') | transloco"
+          (click)="toggleEditMode()"
+        >
+          @if (!isEdit()) {
+            <i class="material-icons">edit</i
+            ><span class="@max-[520px]:hidden">{{ 'feature.chat.palette.edit' | transloco }}</span>
+          } @else {
+            <i class="material-icons">check</i
+            ><span class="@max-[520px]:hidden">{{ 'feature.chat.palette.confirm' | transloco }}</span>
+          }
+        </button>
+      }
     } @else {
       <button
         class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex h-6.5 shrink-0 cursor-pointer items-center gap-0.75 rounded-sm border border-solid bg-transparent px-1.75 text-[0.78em] leading-normal whitespace-nowrap select-none @max-[520px]:px-1 [&_.material-icons]:text-base!"

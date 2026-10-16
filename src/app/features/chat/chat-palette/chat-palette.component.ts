@@ -8,6 +8,7 @@ import {
   inject,
   linkedSignal,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -127,6 +128,12 @@ export class ChatPaletteComponent {
     return this.character()?.chatPalette ?? null;
   }
 
+  /** Whether this seat may rewrite the palette and its dice bot, which every role but a guest may. */
+  readonly mayEdit = computed(() => {
+    this.objectChange.trackMyCursor();
+    return this.rolePermission.canEditTabletop;
+  });
+
   private readonly _gameType = linkedSignal(() => this.character()?.chatPalette?.dicebot ?? '');
   private _paletteIndex: PaletteIndex[] = [];
   private _timeId: string = '';
@@ -136,7 +143,7 @@ export class ChatPaletteComponent {
    * The dice bot lines from this palette are rolled with.
    *
    * Setting it also writes the choice to the selected character's palette, so it stays with the
-   * character.
+   * character, unless this seat may not rewrite the palette.
    */
   get gameType(): string {
     return this._gameType();
@@ -144,7 +151,7 @@ export class ChatPaletteComponent {
   set gameType(gameType: string) {
     this._gameType.set(gameType);
     const char = this.character();
-    if (char?.chatPalette) char.chatPalette.dicebot = gameType;
+    if (char?.chatPalette && this.mayEdit()) char.chatPalette.dicebot = gameType;
   }
 
   /**
@@ -241,6 +248,10 @@ export class ChatPaletteComponent {
       const visible = this.visibleChatTabs();
       const current = this.chatTabidentifier();
       if (!visible.some((tab) => tab.identifier === current)) this.chatTabidentifier.set(visible[0]?.identifier ?? '');
+    });
+    // A seat that may no longer rewrite the palette leaves an edit it had open, writing nothing.
+    effect(() => {
+      if (!this.mayEdit() && untracked(this.isEdit)) untracked(() => this.toggleEditMode());
     });
     effect(() => {
       const req = this.uiSignalService.jumpIndexRequest();
@@ -554,9 +565,11 @@ export class ChatPaletteComponent {
    * ends.
    *
    * On opening, the text area is scrolled to about where the list was. It also runs when the panel
-   * closes mid-edit, so an edit is never lost by closing.
+   * closes mid-edit, so an edit is never lost by closing. A seat that may not rewrite the palette
+   * opens nothing, and writes nothing back.
    */
   toggleEditMode() {
+    if (!this.isEdit() && !this.mayEdit()) return;
     this.isEdit.update((v) => !v);
     if (!this.palette) return;
     if (this.isEdit()) {
@@ -570,7 +583,7 @@ export class ChatPaletteComponent {
           textEl.scrollTop = (listTop * textEl.scrollHeight) / listHeight;
         }
       }, 10);
-    } else {
+    } else if (this.mayEdit()) {
       this.palette.setPalette(this.editPalette());
     }
   }
