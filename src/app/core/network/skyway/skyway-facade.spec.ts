@@ -182,12 +182,15 @@ describe('a token that comes back empty', () => {
     return { facade, answer: (token) => answer(token), done };
   }
 
-  it('is said to be a server error while the connection still opens', async () => {
+  it('is said to be a server error while the connection still opens, which then does not open', async () => {
     const { facade, answer, done } = opening();
     await vi.waitFor(() => expect(SkyWayBackend.prototype.createSkyWayAuthToken).toHaveBeenCalled());
 
     answer('');
     await done;
+
+    expect(facade.onOpen).not.toHaveBeenCalled();
+    expect(facade.isOpen).toBe(false);
 
     expect(facade.onFatalError).toHaveBeenCalledWith(
       expect.anything(),
@@ -212,6 +215,34 @@ describe('a token that comes back empty', () => {
 
     expect(context.dispose).toHaveBeenCalled();
     expect(facade.context).toBeNull();
+  });
+
+  it('says nothing of a token it was renewing when the connection was closed meanwhile', async () => {
+    const renewals: (() => Promise<void>)[] = [];
+    const context = {
+      disposed: false,
+      dispose: vi.fn(() => (context.disposed = true)),
+      updateAuthToken: vi.fn(),
+      onTokenUpdateReminder: { add: (renew: () => Promise<void>) => renewals.push(renew) },
+      onTokenExpired: { add: vi.fn() },
+      onFatalError: { add: vi.fn() },
+    };
+    vi.spyOn(SkyWayContext, 'Create').mockResolvedValue(context as unknown as SkyWayContext);
+    let renewed: (token: string) => void = () => undefined;
+    vi.spyOn(SkyWayBackend.prototype, 'createSkyWayAuthToken')
+      .mockResolvedValueOnce('token')
+      .mockReturnValueOnce(new Promise((resolve) => (renewed = resolve)));
+    const facade = new SkyWayFacade();
+    facade.onFatalError = vi.fn();
+    await facade.open(PeerContext.parse('standby'));
+
+    const renewing = renewals[0]();
+    await facade.close();
+    renewed('');
+    await renewing;
+
+    expect(facade.onFatalError).not.toHaveBeenCalled();
+    expect(context.updateAuthToken).not.toHaveBeenCalled();
   });
 
   it('says nothing once the connection was closed meanwhile, neither an error nor that it opened', async () => {
