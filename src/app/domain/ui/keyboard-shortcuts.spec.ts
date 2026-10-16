@@ -129,6 +129,17 @@ describe('the sections of the cheat sheet', () => {
     expect(idsIn({ ...onTheTable, role: PeerRole.Guest }, 'tabletop')).not.toContain('disclosure');
   });
 
+  it('lists a guest none of the hotbar, nor rotating or settling what an effect falls on', () => {
+    const guest = { ...onTheTable, role: PeerRole.Guest };
+
+    expect(scopesOf(guest)).not.toContain('hotbar');
+    expect(idsIn(guest, 'selection')).not.toContain('snap');
+    expect(idsIn(guest, 'tabletop')).not.toContain('enter');
+    expect(scopesOf(onTheTable)).toContain('hotbar');
+    expect(idsIn(onTheTable, 'selection')).toContain('snap');
+    expect(idsIn(onTheTable, 'tabletop')).toContain('enter');
+  });
+
   it('lists the moves of the grid being looked at', () => {
     const square = { ...onTheTable, firstPerson: true };
     expect(idsIn(square, 'firstPerson')).toContain('move');

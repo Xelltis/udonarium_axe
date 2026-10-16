@@ -104,7 +104,7 @@ export const KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
   line('tabletop', 'target', [['T']], { probe: { key: 't', command: 'target' } }),
   line('tabletop', 'clearTargets', [['Shift', 'T']], { probe: { key: 'T', shift: true, command: 'clearTargets' } }),
   line('tabletop', 'disclosure', [['G']], { audience: 'playing', probe: { key: 'g', command: 'toggleDisclosure' } }),
-  line('tabletop', 'enter', [['Enter']]),
+  line('tabletop', 'enter', [['Enter']], { audience: 'playing' }),
   line('tabletop', 'escape', [['Esc']]),
 
   line('selection', 'add', [['Ctrl']], { pointer: 'click' }),
@@ -113,14 +113,21 @@ export const KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
   line('selection', 'boxToggle', [['Ctrl']], { pointer: 'drag' }),
   line('selection', 'aim', [['Alt']], { pointer: 'click' }),
   line('selection', 'clearAims', [['Shift', 'Alt']], { pointer: 'click' }),
-  line('selection', 'snap', [['Alt']], { pointer: 'drag' }),
+  line('selection', 'snap', [['Alt']], { audience: 'playing', pointer: 'drag' }),
 
-  line('hotbar', 'fire', [['1〜0']], { probe: { code: 'Digit1', key: '1', command: 'fireSlot' } }),
+  line('hotbar', 'fire', [['1〜0']], {
+    audience: 'playing',
+    probe: { code: 'Digit1', key: '1', command: 'fireSlot' },
+  }),
   line('hotbar', 'page', [['Shift', '1〜5']], {
+    audience: 'playing',
     probe: { code: 'Digit2', key: '2', shift: true, command: 'gotoPage' },
   }),
-  line('hotbar', 'turnPage', [['['], [']']], { probe: { code: 'BracketLeft', key: '[', command: 'turnPage' } }),
-  line('hotbar', 'empty', [['Ctrl']], { pointer: 'click' }),
+  line('hotbar', 'turnPage', [['['], [']']], {
+    audience: 'playing',
+    probe: { code: 'BracketLeft', key: '[', command: 'turnPage' },
+  }),
+  line('hotbar', 'empty', [['Ctrl']], { audience: 'playing', pointer: 'click' }),
 
   line('chat', 'send', [['Enter']]),
   line('chat', 'newline', [['Shift', 'Enter']]),
