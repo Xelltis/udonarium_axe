@@ -212,6 +212,14 @@ export class ImageStorage {
   }
 
   /**
+   * Whether any picture this seat is to put up has yet to reach the room's asset store: going up,
+   * waiting to be tried again, or waiting for the room to be in reach.
+   */
+  get hasUploadsPending(): boolean {
+    return this.uploading.size > 0 || this.uploadRetries.hasWaiting || this.missedUploads.size > 0;
+  }
+
+  /**
    * Whether this seat is still to put something up to the asset store: queued or going up, waiting
    * to be tried again, or waiting for the room to be in reach. Until it is there, peers are not
    * told of it, so that they fetch it from the store once it is rather than each from this seat.

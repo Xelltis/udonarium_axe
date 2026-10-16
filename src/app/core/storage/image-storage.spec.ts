@@ -256,6 +256,28 @@ describe('ImageStorage', () => {
       expect(upload).not.toHaveBeenCalled();
     });
 
+    it('has something yet to go up while it is going up or kept for later, and nothing once it is there', async () => {
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      expect(storage.hasUploadsPending).toBe(true);
+      finishUpload('stored');
+      await vi.waitFor(() => expect(storage.hasUploadsPending).toBe(false));
+
+      store.useAccess(() => null);
+      storage.add(ImageFile.create(contextOf('b'.repeat(64))));
+
+      expect(storage.hasUploadsPending).toBe(true);
+    });
+
+    it('has something yet to go up while a failed one waits to be tried again', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      finishUpload('failed');
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(storage.hasUploadsPending).toBe(true);
+    });
+
     it.each([
       ['waiting to be tried again', true],
       ['waiting for the room to be in reach', false],

@@ -10,7 +10,7 @@ import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { saveIdentity } from '@axe/core/storage/identity-storage';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { leaveRoomByReloading } from '@axe/features/lobby/leave-room';
+import { LeaveRoomService } from '@axe/features/lobby/leave-room';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -23,6 +23,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 export class RoomSettingComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly leaveRoomService = inject(LeaveRoomService);
   private readonly panelService = inject(PanelService);
   private readonly modalService = inject(ModalService);
 
@@ -129,8 +130,11 @@ export class RoomSettingComponent {
     }
   }
 
-  /** Leaves this room for the room server's lobby, by loading the page afresh without its invitation. */
+  /**
+   * Leaves this room for the lobby, by loading the page afresh without its invitation, once the
+   * reader has said they are sure when leaving would lose something.
+   */
   protected leaveRoom(): void {
-    leaveRoomByReloading();
+    void this.leaveRoomService.leave();
   }
 }

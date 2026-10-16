@@ -64,7 +64,7 @@ const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
   inventory: ['gm-tools', 'tabletop'],
   keyboard: ['visual-novel'],
   'language-selector': [],
-  lobby: [],
+  lobby: ['room-archive'],
   'map-editor': ['tabletop'],
   menu: ['card', 'visual-novel'],
   media: [],

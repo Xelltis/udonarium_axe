@@ -12,7 +12,7 @@ import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { leaveRoomByReloading } from '@axe/features/lobby/leave-room';
+import { LeaveRoomService } from '@axe/features/lobby/leave-room';
 import {
   PasswordCheckComponent,
   type PasswordCheckOptions,
@@ -39,6 +39,7 @@ interface LobbyRoom {
 })
 export class LobbyComponent {
   private readonly t = inject(TRANSLATE_FN);
+  private readonly leaveRoomService = inject(LeaveRoomService);
   private readonly panelService = inject(PanelService);
   private readonly modalService = inject(ModalService);
   private readonly roomJoin = inject(RoomJoinService);
@@ -294,8 +295,11 @@ export class LobbyComponent {
     }
   }
 
-  /** Leaves this room for the room server's lobby, by loading the page afresh without its invitation. */
+  /**
+   * Leaves this room for the lobby, by loading the page afresh without its invitation, once the
+   * reader has said they are sure when leaving would lose something.
+   */
   protected leaveRoom(): void {
-    leaveRoomByReloading();
+    void this.leaveRoomService.leave();
   }
 }
