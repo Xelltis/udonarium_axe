@@ -48,6 +48,12 @@ export class NetworkEventHandlerService {
     recovered: 'feature.lobby.peerReconnect.recovered',
     failed: 'feature.lobby.peerReconnect.failed',
   };
+  /** The same for the link to a room server, which reports it under this seat's own peer id. */
+  private static readonly SERVER_RECONNECT_MESSAGE_KEYS: Record<PeerReconnectState, string> = {
+    retrying: 'feature.lobby.peerReconnect.serverRetrying',
+    recovered: 'feature.lobby.peerReconnect.serverRecovered',
+    failed: 'feature.lobby.peerReconnect.serverFailed',
+  };
   private serverErrorReconnectAttempts = 0;
   private otherErrorReconnectAttempts = 0;
   private serverErrorReconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -155,7 +161,11 @@ export class NetworkEventHandlerService {
         this.bringAssetsIntoRoom();
         this.fetchRoomAssets();
       }
-      const key = NetworkEventHandlerService.RECONNECT_MESSAGE_KEYS[event.state];
+      const ofServer = event.peerId === Network.peerId && Network.authorityPeerId !== null;
+      const keys = ofServer
+        ? NetworkEventHandlerService.SERVER_RECONNECT_MESSAGE_KEYS
+        : NetworkEventHandlerService.RECONNECT_MESSAGE_KEYS;
+      const key = keys[event.state];
       if (!key) return;
       this.chatMessageService.sendSystemMessage(encodeI18nMessage(key, { name: this.resolvePeerName(event.peerId) }));
     }, this.destroyRef);

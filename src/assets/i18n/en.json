@@ -3358,7 +3358,10 @@
       "peerReconnect": {
         "retrying": "Lost the connection to {{name}}. Reconnecting…",
         "recovered": "Restored the connection to {{name}}.",
-        "failed": "Could not reconnect to {{name}}. Reconnect from the connection panel if it does not recover."
+        "failed": "Could not reconnect to {{name}}. Reconnect from the connection panel if it does not recover.",
+        "serverRetrying": "Lost the connection to the room server. Reconnecting…",
+        "serverRecovered": "Restored the connection to the room server.",
+        "serverFailed": "Could not reconnect to the room server. Reconnect from the connection panel if it does not recover."
       },
       "invite": {
         "joining": "Joining \"{{roomName}}\"…",

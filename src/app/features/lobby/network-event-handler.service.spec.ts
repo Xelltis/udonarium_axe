@@ -305,6 +305,19 @@ describe('NetworkEventHandlerService', () => {
     expect(chatStub.sendSystemMessage.mock.calls[0][0]).toContain('feature.lobby.peerReconnect.failed');
   });
 
+  it('names the room server, not the reader, when the link to it drops and comes back', () => {
+    vi.spyOn(Network, 'peerId', 'get').mockReturnValue('my-seat');
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+
+    stubChange.peerReconnect$.emit({ peerId: 'my-seat', state: 'retrying' });
+    stubChange.peerReconnect$.emit({ peerId: 'my-seat', state: 'recovered' });
+
+    expect(chatStub.sendSystemMessage.mock.calls.map(([line]) => line)).toEqual([
+      expect.stringContaining('feature.lobby.peerReconnect.serverRetrying'),
+      expect.stringContaining('feature.lobby.peerReconnect.serverRecovered'),
+    ]);
+  });
+
   it('falls back to the head of the identifier for a peer whose name it does not know', () => {
     stubChange.peerReconnect$.emit({ peerId: 'abcdef123', state: 'retrying' });
 
