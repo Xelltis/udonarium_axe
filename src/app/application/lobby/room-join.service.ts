@@ -92,7 +92,7 @@ export class RoomJoinService {
         clearTimeout(timer);
         offOpen();
         offError();
-        if (!isJoined) this.resetNetwork(room.id);
+        if (!isJoined) this.resetNetwork(room.id, userId, true);
         resolve(isJoined);
       };
       const offOpen = this.objectChange.networkOpen$.subscribe((event) => {
@@ -171,7 +171,7 @@ export class RoomJoinService {
         offConnect();
         offDisconnect();
         const joined = isJoined || Network.peerContexts.length > 0;
-        if (!joined) this.resetNetwork(context.roomId);
+        if (!joined) this.resetNetwork(context.roomId, userId);
         resolve(joined);
       };
 
@@ -212,12 +212,16 @@ export class RoomJoinService {
   }
 
   /**
-   * Goes back to waiting outside any room after a join that came to nothing, unless something else
-   * has already, as the handling of a network error does.
+   * Goes back to waiting outside any room after a join that came to nothing, as the user it tried
+   * to join as, unless something else has already, as the handling of a network error does. A join
+   * to a room server still `unopened`, waiting on the login, is stopped too, so that it does not
+   * walk into the room once the login comes.
    */
-  private resetNetwork(roomId: string): void {
-    if (Network.peerContexts.length > 0 || PeerContext.parse(Network.peerId).roomId !== roomId) return;
-    Network.openStandby();
+  private resetNetwork(roomId: string, userId: string, stopUnopened = false): void {
+    const unopened = stopUnopened && Network.peerId === UNOPENED_PEER_ID;
+    if (Network.peerContexts.length > 0) return;
+    if (!unopened && PeerContext.parse(Network.peerId).roomId !== roomId) return;
+    Network.openStandby(userId);
     PeerCursor.myCursor.peerId = Network.peerId;
   }
 }

@@ -157,6 +157,17 @@ describe('RoomJoinService', () => {
       vi.useRealTimers();
     });
 
+    it('waits again as the user it tried to join as, stopping a join still waiting on the login', async () => {
+      vi.useFakeTimers();
+      const joined = service.joinServerRoom(serverRoom(), '');
+
+      vi.advanceTimersByTime(ROOM_SERVER_OPEN_TIMEOUT_MS);
+
+      expect(await joined).toBe(false);
+      expect(Network.openStandby).toHaveBeenCalledExactlyOnceWith('user');
+      vi.useRealTimers();
+    });
+
     it('joins nothing for a room without a key', async () => {
       expect(await service.joinServerRoom(serverRoom({ roomKey: undefined }), '')).toBe(false);
       expect(Network.open).not.toHaveBeenCalled();
