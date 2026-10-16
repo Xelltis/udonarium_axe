@@ -127,7 +127,7 @@ describe('PeerMenuComponent', () => {
       vi.restoreAllMocks();
     });
 
-    it('offers the lobby, where the reader logs in, however many are in the room', () => {
+    it('offers the lobby, where the reader logs in or leaves, however many are in the room', () => {
       vi.spyOn(Network.instance, 'peerIds', 'get').mockReturnValue(['peer-a', 'peer-b', 'peer-c']);
       const lobby = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="peer-menu-show-lobby"]');
       fixture.detectChanges();
@@ -136,7 +136,7 @@ describe('PeerMenuComponent', () => {
       vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('skyway');
       fixture = TestBed.createComponent(PeerMenuComponent);
       fixture.detectChanges();
-      expect(lobby()).toBeNull();
+      expect(lobby()).not.toBeNull();
     });
 
     it('offers a fresh sync from the server, and a reconnect, to a seat alone in the room', () => {

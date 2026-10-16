@@ -302,16 +302,9 @@
   }
 
   <div class="px-3 py-2">
-    @if (networkService.peerIds.length <= 1 || isServerTransport()) {
-      <button
-        class="w-full"
-        data-testid="peer-menu-show-lobby"
-        (click)="showLobby()"
-        [disabled]="!networkService.isOpen"
-      >
-        {{ 'feature.lobby.peerMenu.showLobby' | transloco }}
-      </button>
-    }
+    <button class="w-full" data-testid="peer-menu-show-lobby" (click)="showLobby()" [disabled]="!networkService.isOpen">
+      {{ 'feature.lobby.peerMenu.showLobby' | transloco }}
+    </button>
   </div>
 } @else {
   <div

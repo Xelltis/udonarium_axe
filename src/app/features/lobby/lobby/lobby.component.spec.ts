@@ -162,7 +162,7 @@ describe('LobbyComponent', () => {
   });
 
   it('offers a way out of the room among peers too, where reloading an invitation goes back in', () => {
-    vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['a', 'b']);
+    vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['a']);
     TestBed.inject(ObjectChangeService).networkVersion.update((v) => v + 1);
     fixture.detectChanges();
 

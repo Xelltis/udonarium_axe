@@ -42,6 +42,17 @@ describe('RoomSettingComponent', () => {
     PeerCursor.myCursor = null!;
   });
 
+  it('makes no room among peers while joined with even one other, the peers listed being the others', () => {
+    const peers = vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['other']);
+    fixture = TestBed.createComponent(RoomSettingComponent);
+
+    expect(fixture.componentInstance.isConnected()).toBe(true);
+    peers.mockReturnValue([]);
+    fixture = TestBed.createComponent(RoomSettingComponent);
+    expect(fixture.componentInstance.isConnected()).toBe(false);
+    vi.restoreAllMocks();
+  });
+
   it('lets the panel take the pointer again once the drag ends', async () => {
     await expectPanelDragRecovery(RoomSettingComponent, {
       beforeOpen: () => {

@@ -85,13 +85,14 @@ export class LobbyComponent {
   }
   /**
    * Whether this seat is in a room it would have to leave before going to another: among peers,
-   * joined with others; on a room server, in any room, since going straight into another would
-   * carry this table into it. A reload leaves the room, which the server keeps.
+   * joined with anyone else, the peers listed being the others; on a room server, in any room,
+   * since going straight into another would carry this table into it. A reload leaves the room,
+   * which the server keeps.
    */
   readonly isConnected = computed(() => {
     this.objectChange.networkVersion();
     if (Network.transport === 'server') return Network.peerContext.isRoom;
-    return Network.peerIds.length > 1;
+    return Network.peerIds.length > 0;
   });
 
   /** The reader's own cursor, which keeps the password of a joined room for reconnecting. */
