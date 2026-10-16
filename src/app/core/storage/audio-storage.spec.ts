@@ -142,9 +142,11 @@ describe('AudioStorage', () => {
       store.configure('https://rooms.example');
       store.useAccess(() => ({ roomKey: '0123456789abcdef0123456789abcdef', token: 'asset-1' }));
       vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
-      upload = vi
-        .spyOn(store, 'upload')
-        .mockReturnValue(new Promise<AssetUploadResult>((resolve) => (finishUpload = resolve)));
+      const pending = new Promise<AssetUploadResult>((resolve) => (finishUpload = resolve));
+      upload = vi.spyOn(store, 'upload').mockImplementation((...[, , , options]) => {
+        options?.onStart?.();
+        return pending;
+      });
     });
 
     afterEach(() => {
@@ -201,7 +203,28 @@ describe('AudioStorage', () => {
 
       role.mockReturnValue('gm');
       storage.uploadReceived(trackId);
-      expect(upload).toHaveBeenCalledWith(trackId, expect.any(Blob), 'theme.ogg', { first: false });
+      expect(upload).toHaveBeenCalledWith(
+        trackId,
+        expect.any(Blob),
+        'theme.ogg',
+        expect.objectContaining({ first: false })
+      );
+      finishUpload('stored');
+      await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
+    });
+
+    it('names a sound still waiting its turn to go up, leaving it out only while it goes', async () => {
+      let start = () => {};
+      upload.mockImplementation((...[, , , options]) => {
+        start = () => options?.onStart?.();
+        return new Promise<AssetUploadResult>((resolve) => (finishUpload = resolve));
+      });
+
+      storage.add(AudioFile.create(contextOf(trackId)));
+      expect(catalogued(trackId)).toBe(true);
+
+      start();
+      expect(catalogued(trackId)).toBe(false);
       finishUpload('stored');
       await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
     });
@@ -211,7 +234,7 @@ describe('AudioStorage', () => {
 
       storage.add(audio);
 
-      expect(upload).toHaveBeenCalledWith(trackId, audio.blob, 'theme.ogg', { first: true });
+      expect(upload).toHaveBeenCalledWith(trackId, audio.blob, 'theme.ogg', expect.objectContaining({ first: true }));
       expect(catalogued(trackId)).toBe(false);
       finishUpload('exists');
       await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
@@ -224,7 +247,12 @@ describe('AudioStorage', () => {
       storage.uploadAllToAssetStore();
 
       expect(upload).toHaveBeenCalledTimes(1);
-      expect(upload).toHaveBeenCalledWith(trackId, expect.any(Blob), 'theme.ogg', { first: false });
+      expect(upload).toHaveBeenCalledWith(
+        trackId,
+        expect.any(Blob),
+        'theme.ogg',
+        expect.objectContaining({ first: false })
+      );
       finishUpload('exists');
       await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
     });

@@ -156,9 +156,11 @@ describe('ImageStorage', () => {
       store.useAccess(() => ({ roomKey: '0123456789abcdef0123456789abcdef', token: 'asset-1' }));
       cancelWaiting();
       vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
-      upload = vi
-        .spyOn(store, 'upload')
-        .mockReturnValue(new Promise<AssetUploadResult>((resolve) => (finishUpload = resolve)));
+      const pending = new Promise<AssetUploadResult>((resolve) => (finishUpload = resolve));
+      upload = vi.spyOn(store, 'upload').mockImplementation((...[, , , options]) => {
+        options?.onStart?.();
+        return pending;
+      });
     });
 
     afterEach(() => {
@@ -169,6 +171,22 @@ describe('ImageStorage', () => {
       vi.useRealTimers();
     });
 
+    it('names an image still waiting its turn to go up, leaving it out only while it goes', async () => {
+      let start = () => {};
+      upload.mockImplementation((...[, , , options]) => {
+        start = () => options?.onStart?.();
+        return new Promise<AssetUploadResult>((resolve) => (finishUpload = resolve));
+      });
+
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      expect(catalogued(pictureId)).toBe(true);
+
+      start();
+      expect(catalogued(pictureId)).toBe(false);
+      finishUpload('stored');
+      await vi.waitFor(() => expect(catalogued(pictureId)).toBe(true));
+    });
+
     it('sends an image made on this seat to the server, and names it to peers only once it is there', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       const image = ImageFile.create(contextOf(pictureId));
@@ -176,7 +194,7 @@ describe('ImageStorage', () => {
       storage.add(image);
       await vi.advanceTimersByTimeAsync(100);
 
-      expect(upload).toHaveBeenCalledWith(pictureId, image.blob, '', { first: true });
+      expect(upload).toHaveBeenCalledWith(pictureId, image.blob, '', expect.objectContaining({ first: true }));
       expect(catalogued(pictureId)).toBe(false);
       expect(sentCatalogues().flat()).not.toContain(pictureId);
 
@@ -240,7 +258,7 @@ describe('ImageStorage', () => {
 
       role.mockReturnValue('pl');
       storage.uploadReceived(pictureId);
-      expect(upload).toHaveBeenCalledWith(pictureId, expect.any(Blob), '', { first: false });
+      expect(upload).toHaveBeenCalledWith(pictureId, expect.any(Blob), '', expect.objectContaining({ first: false }));
       finishUpload('stored');
       await vi.waitFor(() => expect(catalogued(pictureId)).toBe(true));
     });
@@ -260,7 +278,7 @@ describe('ImageStorage', () => {
       storage.uploadAllToAssetStore();
 
       expect(upload).toHaveBeenCalledTimes(1);
-      expect(upload).toHaveBeenCalledWith(pictureId, expect.any(Blob), '', { first: false });
+      expect(upload).toHaveBeenCalledWith(pictureId, expect.any(Blob), '', expect.objectContaining({ first: false }));
       finishUpload('exists');
       await vi.waitFor(() => expect(catalogued(pictureId)).toBe(true));
     });

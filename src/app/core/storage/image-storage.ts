@@ -19,11 +19,14 @@ export class ImageStorage {
   }
 
   private imageHash: { [identifier: string]: ImageFile } = {};
-  /**
-   * Images added on this seat that are still going up to the asset server. They are left out of
-   * the catalogue until then, so peers fetch them from the server rather than asking this seat.
-   */
+  /** Images added on this seat that are queued for the asset server or going up to it. */
   private readonly uploading = new Set<string>();
+  /**
+   * Those of them on their way up now. They are left out of the catalogue until they are there, so
+   * peers fetch them from the server rather than asking this seat; one still waiting its turn
+   * behind others stays in it, so a peer is not kept waiting for it all that while.
+   */
+  private readonly sending = new Set<string>();
   /** Uploads that failed for now, tried again a few times while the seat stays in the room. */
   private readonly uploadRetries = new AssetRetries();
 
@@ -119,7 +122,13 @@ export class ImageStorage {
     const { identifier } = image;
     this.uploading.add(identifier);
     void store
-      .upload(identifier, blob, image.name, { first })
+      .upload(identifier, blob, image.name, {
+        first,
+        onStart: () => {
+          this.sending.add(identifier);
+          this.catalogSchedule.whenQuiet(100);
+        },
+      })
       .then((result) => {
         const roomKey = Network.roomKey;
         if (result === 'failed') this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey));
@@ -127,6 +136,7 @@ export class ImageStorage {
       })
       .finally(() => {
         this.uploading.delete(identifier);
+        this.sending.delete(identifier);
         this.catalogSchedule.whenQuiet(100);
       });
   }
@@ -185,7 +195,7 @@ export class ImageStorage {
   getCatalog(): CatalogItem[] {
     const catalog: CatalogItem[] = [];
     for (const image of this.images) {
-      if (ImageState.COMPLETE <= image.state && !this.uploading.has(image.identifier)) {
+      if (ImageState.COMPLETE <= image.state && !this.sending.has(image.identifier)) {
         catalog.push({ identifier: image.identifier, state: image.state });
       }
     }

@@ -23,11 +23,14 @@ export class AudioStorage {
     networkSend('SYNCHRONIZE_AUDIO_LIST', this.getCatalog(), peer)
   );
   private hash: { [identifier: string]: AudioFile } = {};
-  /**
-   * Audio added on this seat that is still going up to the asset server. It is left out of the
-   * catalogue until then, so peers fetch it from the server rather than asking this seat.
-   */
+  /** Audio added on this seat that is queued for the asset server or going up to it. */
   private readonly uploading = new Set<string>();
+  /**
+   * That of it on its way up now. It is left out of the catalogue until it is there, so peers
+   * fetch it from the server rather than asking this seat; audio still waiting its turn behind
+   * others stays in it, so a peer is not kept waiting for it all that while.
+   */
+  private readonly sending = new Set<string>();
   /** Uploads that failed for now, tried again a few times while the seat stays in the room. */
   private readonly uploadRetries = new AssetRetries();
 
@@ -119,7 +122,13 @@ export class AudioStorage {
     const { identifier } = audio;
     this.uploading.add(identifier);
     void store
-      .upload(identifier, blob, audio.name, { first })
+      .upload(identifier, blob, audio.name, {
+        first,
+        onStart: () => {
+          this.sending.add(identifier);
+          this.catalogSchedule.whenQuiet(100);
+        },
+      })
       .then((result) => {
         const roomKey = Network.roomKey;
         if (result === 'failed') this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey));
@@ -127,6 +136,7 @@ export class AudioStorage {
       })
       .finally(() => {
         this.uploading.delete(identifier);
+        this.sending.delete(identifier);
         this.catalogSchedule.whenQuiet(100);
       });
   }
@@ -184,7 +194,7 @@ export class AudioStorage {
   getCatalog(): CatalogItem[] {
     const catalog: CatalogItem[] = [];
     for (const audio of AudioStorage.instance.audios) {
-      if (AudioState.COMPLETE <= audio.state && !this.uploading.has(audio.identifier)) {
+      if (AudioState.COMPLETE <= audio.state && !this.sending.has(audio.identifier)) {
         catalog.push({ identifier: audio.identifier, state: audio.state, name: audio.name });
       }
     }
