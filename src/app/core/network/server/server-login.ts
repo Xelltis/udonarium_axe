@@ -252,17 +252,26 @@ export class ServerLogin {
   /**
    * Deletes the account on the server, its name, avatar and tokens, and logs out here. Rejects,
    * keeping the login, when the server could not be told: with no token to tell it by, or one it
-   * turns away. An account deleted already, from another device, counts as deleted.
+   * turns away even once refreshed. An account deleted already, from another device, counts as
+   * deleted.
    */
   async deleteAccount(): Promise<void> {
     const token = await this.accessToken();
     if (!token) throw new ServerRoomApiError(401, 'login-required');
-    const response = await fetch(apiUrl(this.baseUrl, '/v1/account'), {
+    let response = await this.deleteAccountWith(token);
+    if (response.status === 401) {
+      const fresh = await this.replaceRejected(token);
+      if (fresh && fresh !== token) response = await this.deleteAccountWith(fresh);
+    }
+    if (!response.ok && response.status !== 404) return refusal(response);
+    this.clear();
+  }
+
+  private deleteAccountWith(token: string): Promise<Response> {
+    return fetch(apiUrl(this.baseUrl, '/v1/account'), {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!response.ok && response.status !== 404) return refusal(response);
-    this.clear();
   }
 
   private isFresh(login: StoredLogin): boolean {

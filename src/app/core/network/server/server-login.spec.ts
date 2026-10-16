@@ -286,6 +286,25 @@ describe('ServerLogin', () => {
     expect(storage.getItem(LOGIN_STORAGE_KEY)).not.toBeNull();
   });
 
+  it('deletes the account with a fresh token when the server turns down one that still looked good', async () => {
+    store(kept(1, NOW + 600_000));
+    const answers = [
+      json(401, { error: 'login-required' }),
+      json(200, http.tokenResponse),
+      new Response(null, { status: 204 }),
+    ];
+    answer = () => answers.shift()!;
+
+    await login().deleteAccount();
+
+    expect(requests.map(({ url, authorization }) => [url, authorization])).toEqual([
+      ['https://rooms.example/v1/account', 'Bearer access-1'],
+      ['https://rooms.example/v1/auth/token', null],
+      ['https://rooms.example/v1/account', `Bearer ${http.tokenResponse.accessToken}`],
+    ]);
+    expect(storage.getItem(LOGIN_STORAGE_KEY)).toBeNull();
+  });
+
   it('fails without a word to the server when it holds no login to tell it by', async () => {
     await expect(login().deleteAccount()).rejects.toMatchObject({ status: 401 });
 

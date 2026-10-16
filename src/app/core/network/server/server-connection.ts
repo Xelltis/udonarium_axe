@@ -39,6 +39,7 @@ import {
   listRooms,
   roomInfoOf,
   roomSocketUrl,
+  ServerRoomApiError,
 } from '@axe/core/network/server/server-room-api';
 
 /** How long a connection waits between asking whether the server is still there. */
@@ -345,15 +346,31 @@ export class ServerConnection implements Connection {
   }
 
   /** Creates a room on the server as whoever is logged in, sending the password only when there is one. */
-  async createRoom(name: string, password: string): Promise<CreateRoomResponse> {
-    const accessToken = (await this.credentialSource?.accessToken()) ?? null;
-    return createRoom(this.baseUrl, password.length > 0 ? { name, password } : { name }, accessToken);
+  createRoom(name: string, password: string): Promise<CreateRoomResponse> {
+    return this.asLoggedIn((accessToken) =>
+      createRoom(this.baseUrl, password.length > 0 ? { name, password } : { name }, accessToken)
+    );
   }
 
   /** Deletes a room on the server as whoever is logged in, which only a GM of the room may. */
-  async deleteRoom(roomKey: string): Promise<void> {
+  deleteRoom(roomKey: string): Promise<void> {
+    return this.asLoggedIn((accessToken) => deleteRoom(this.baseUrl, roomKey, accessToken));
+  }
+
+  /**
+   * Makes a request as whoever is logged in, and once more with a fresh access token should the
+   * server turn the one held down while it still looked good here, as after its signing key changed.
+   */
+  private async asLoggedIn<T>(request: (accessToken: string | null) => Promise<T>): Promise<T> {
     const accessToken = (await this.credentialSource?.accessToken()) ?? null;
-    return deleteRoom(this.baseUrl, roomKey, accessToken);
+    try {
+      return await request(accessToken);
+    } catch (error) {
+      if (!(error instanceof ServerRoomApiError) || error.status !== 401 || !accessToken) throw error;
+      const fresh = await this.credentialSource?.replaceRejected(accessToken);
+      if (!fresh || fresh === accessToken) throw error;
+      return request(fresh);
+    }
   }
 
   /**
