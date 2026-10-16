@@ -155,6 +155,21 @@ describe('AudioStorage', () => {
       vi.useRealTimers();
     });
 
+    it('tries again one that ran out of time after it was asked for again while going, as on coming back', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      storage.add(AudioFile.create(contextOf(trackId)));
+      storage.uploadAllToAssetStore();
+      expect(upload).toHaveBeenCalledTimes(1);
+
+      finishUpload('timedOut');
+      await vi.advanceTimersByTimeAsync(0);
+      upload.mockClear().mockResolvedValue('stored');
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS);
+
+      expect(upload).toHaveBeenCalledTimes(1);
+    });
+
     it('tries no upload again that ran out of the time its size was given', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       storage.add(AudioFile.create(contextOf(trackId)));

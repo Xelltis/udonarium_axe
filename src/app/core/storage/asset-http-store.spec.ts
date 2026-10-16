@@ -96,6 +96,12 @@ describe('AssetHttpStore', () => {
       expect(callsOf()).toEqual([['HEAD', urlOf(id)]]);
     });
 
+    it('fails for now, rather than running out of time, when asking whether the room has the bytes is cut off', async () => {
+      fetchSpy.mockRejectedValueOnce(new DOMException('aborted', 'AbortError'));
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('failed');
+    });
+
     it.each([429, 503])(
       'sends no bytes, and fails for now, when asking whether the room has them answers %i',
       async (status) => {
@@ -118,9 +124,10 @@ describe('AssetHttpStore', () => {
         let result: string | null = null;
         void store.upload(id, new Blob([new Uint8Array(64 * 30_000)])).then((r) => (result = r));
 
-        await vi.advanceTimersByTimeAsync(61_000);
+        // A minute, and as long again for the bytes, sent at half the floor while two uploads share it.
+        await vi.advanceTimersByTimeAsync(119_000);
         expect(result).toBeNull();
-        await vi.advanceTimersByTimeAsync(30_000);
+        await vi.advanceTimersByTimeAsync(2_000);
         expect(result).toBe('timedOut');
       } finally {
         vi.useRealTimers();

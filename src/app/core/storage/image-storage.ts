@@ -26,6 +26,8 @@ export class ImageStorage {
   private readonly uploading = new Set<string>();
   /** Uploads that failed for now, tried again a few times while the seat stays in the room. */
   private readonly uploadRetries = new AssetRetries();
+  /** Uploads asked for again while they were still going, to try once more should they run out of time. */
+  private readonly askedAgain = new Set<string>();
 
   /** Every image this seat knows of, including placeholders whose data has not arrived. */
   get images(): ImageFile[] {
@@ -97,7 +99,10 @@ export class ImageStorage {
    */
   uploadAllToAssetStore(): void {
     this.uploadRetries.clear();
-    for (const image of this.images) this.uploadToAssetStore(image);
+    for (const image of this.images) {
+      if (this.uploading.has(image.identifier)) this.askedAgain.add(image.identifier);
+      else this.uploadToAssetStore(image);
+    }
   }
 
   /**
@@ -122,8 +127,14 @@ export class ImageStorage {
       .upload(identifier, blob, image.name)
       .then((result) => {
         const roomKey = Network.roomKey;
-        if (result === 'failed') this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey));
-        else this.uploadRetries.forget(identifier);
+        // One asked for again while it was going, as on coming back into the room, may have been cut
+        // off by the line that dropped rather than by its size.
+        const askedAgain = this.askedAgain.delete(identifier);
+        if (result === 'failed' || (askedAgain && result === 'timedOut')) {
+          this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey));
+        } else {
+          this.uploadRetries.forget(identifier);
+        }
       })
       .finally(() => {
         this.uploading.delete(identifier);

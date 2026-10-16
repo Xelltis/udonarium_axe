@@ -32,7 +32,10 @@ const ASSET_ID = /^[0-9a-f]{64}$/;
 const UPLOAD_CONCURRENCY = 2;
 const DOWNLOAD_CONCURRENCY = 4;
 const REQUEST_TIMEOUT_MS = 60_000;
-/** The least an upload is reckoned to send each millisecond, 64 KB a second, for the time it is given. */
+/**
+ * The least the uploads are reckoned to send between them each millisecond, 64 KB a second, for
+ * the time each is given; the ones going at once share it.
+ */
 const UPLOAD_FLOOR_BYTES_PER_MS = 64;
 /** How long to wait before each retry of an upload the server turned away as too frequent. */
 const RATE_LIMIT_BACKOFF_MS = [10_000, 20_000, 40_000];
@@ -166,6 +169,7 @@ export class AssetHttpStore {
     const header = assetNameHeader(name);
     const named: Record<string, string> = header ? { [ASSET_NAME_HEADER]: header } : {};
     return this.uploads.run(async () => {
+      let sending = false;
       try {
         // Asked when its turn comes, so that a queued upload goes to the room the seat is in by then.
         const head = await this.authorized((access) =>
@@ -177,12 +181,13 @@ export class AssetHttpStore {
         // Only a store that lacks the bytes is sent them; one that asked for fewer requests, or failed,
         // is asked again later rather than sent the whole of them now.
         if (head.status !== 404) return 'failed';
+        sending = true;
         for (let attempt = 0; ; attempt++) {
           const res = await this.authorized((access) =>
             this.request(
               this.urlOf(access, identifier),
               { method: 'PUT', body: blob, headers: { ...this.headersOf(access), ...named } },
-              REQUEST_TIMEOUT_MS + blob.size / UPLOAD_FLOOR_BYTES_PER_MS
+              REQUEST_TIMEOUT_MS + (blob.size * UPLOAD_CONCURRENCY) / UPLOAD_FLOOR_BYTES_PER_MS
             )
           );
           if (!res) return 'failed';
@@ -194,7 +199,8 @@ export class AssetHttpStore {
         }
       } catch (reason) {
         Logger.warn('[AssetHttpStore] アップロードに失敗しました', identifier, reason);
-        return reason instanceof DOMException && reason.name === 'AbortError' ? 'timedOut' : 'failed';
+        // Only bytes cut off on their way ran out of the time their size was given.
+        return sending && reason instanceof DOMException && reason.name === 'AbortError' ? 'timedOut' : 'failed';
       }
     });
   }
