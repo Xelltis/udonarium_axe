@@ -61,7 +61,11 @@ describe('buildDisclosureContextMenu', () => {
   it('offers a player on a room server only themselves for a note nobody owns, and everyone for a character', () => {
     vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
     vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([{ peerId: 'peer-2' }] as never);
-    vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({ userId: 'p2', name: 'p2', isMine: false } as PeerCursor);
+    vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({
+      userId: 'acct_p2',
+      name: 'p2',
+      isMine: false,
+    } as PeerCursor);
     setMe('p1', PeerRole.Player);
     const note = TextNote.create('メモ', '本文');
     const choices = (object: Parameters<typeof buildDisclosureContextMenu>[0]) =>
@@ -72,6 +76,38 @@ describe('buildDisclosureContextMenu', () => {
     } finally {
       note.destroy();
     }
+  });
+
+  it('offers on a room server neither to show nor to hand a thing to a seat not logged in, whose id anybody may take', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([{ peerId: 'peer-2' }] as never);
+    vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({
+      userId: 'guest-tab',
+      name: 'g',
+      isMine: false,
+      isGameMaster: false,
+    } as PeerCursor);
+    setMe('acct_gm', PeerRole.GameMaster);
+    const menu = buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'selected' }, t);
+    const names = (fragment: string) => find(menu, fragment)?.subActions?.map((s) => s.name) ?? [];
+
+    expect(names('feature.disclosure.owner').some((name) => name.includes(' g'))).toBe(false);
+    expect(names('feature.disclosure.label').some((name) => name.includes(' g'))).toBe(false);
+  });
+
+  it('offers among peers a seat by whatever id it has', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([{ peerId: 'peer-2' }] as never);
+    vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({
+      userId: 'guest-tab',
+      name: 'g',
+      isMine: false,
+      isGameMaster: false,
+    } as PeerCursor);
+    setMe('gm', PeerRole.GameMaster);
+    const menu = buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'selected' }, t);
+
+    expect(find(menu, 'feature.disclosure.owner')?.subActions?.some((s) => s.name.includes(' g'))).toBe(true);
   });
 
   it('offers a player nothing on somebody elses character', () => {

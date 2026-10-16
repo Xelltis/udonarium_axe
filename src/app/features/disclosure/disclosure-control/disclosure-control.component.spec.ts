@@ -24,7 +24,11 @@ describe('DisclosureControlComponent', () => {
     PeerCursor.myCursor = { userId: 'p1', name: 'p1', role: PeerRole.Player, isGameMaster: false } as PeerCursor;
     vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
     vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([{ peerId: 'peer-2' }] as never);
-    vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({ userId: 'p2', name: 'p2', isMine: false } as PeerCursor);
+    vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({
+      userId: 'acct_p2',
+      name: 'p2',
+      isMine: false,
+    } as PeerCursor);
   });
 
   afterEach(() => {
@@ -47,7 +51,7 @@ describe('DisclosureControlComponent', () => {
     const character = GameCharacter.create('ヒロ', 1, '');
     made.push(character);
 
-    expect(choicesFor(character)).toEqual(['p1', 'p2']);
+    expect(choicesFor(character)).toEqual(['p1', 'acct_p2']);
   });
 
   it('offers the owner of a note everyone, whom the server lets it hand the note to', () => {
@@ -55,7 +59,7 @@ describe('DisclosureControlComponent', () => {
     note.owner = 'p1';
     made.push(note);
 
-    expect(choicesFor(note)).toEqual(['p1', 'p2']);
+    expect(choicesFor(note)).toEqual(['p1', 'acct_p2']);
   });
 
   it('stops letting a player say who sees a card once it has passed to someone else', () => {
@@ -66,7 +70,7 @@ describe('DisclosureControlComponent', () => {
     fixture.componentRef.setInput('object', card);
     expect(fixture.componentInstance.canEdit()).toBe(true);
 
-    card.owner = 'p2';
+    card.owner = 'acct_p2';
     TestBed.inject(ObjectChangeService).notifyChanged(card.identifier);
 
     expect(fixture.componentInstance.canEdit()).toBe(false);
@@ -77,6 +81,22 @@ describe('DisclosureControlComponent', () => {
     const card = Card.create('剣の2', 'front.png', 'back.png');
     made.push(card);
 
-    expect(choicesFor(card)).toEqual(['p1', 'p2']);
+    expect(choicesFor(card)).toEqual(['p1', 'acct_p2']);
+  });
+
+  it('leaves a seat not logged in out of the owners and the audience on a room server, whose id anybody may take', () => {
+    vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({
+      userId: 'guest-tab',
+      name: 'g',
+      isMine: false,
+      isGameMaster: false,
+    } as PeerCursor);
+    const character = GameCharacter.create('ヒロ', 1, '');
+    made.push(character);
+    const fixture = TestBed.createComponent(DisclosureControlComponent);
+    fixture.componentRef.setInput('object', character);
+
+    expect(fixture.componentInstance.ownerCandidates().map((candidate) => candidate.userId)).toEqual(['p1']);
+    expect(fixture.componentInstance.audienceCandidates()).toEqual([]);
   });
 });
