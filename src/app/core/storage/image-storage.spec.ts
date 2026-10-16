@@ -165,6 +165,7 @@ describe('ImageStorage', () => {
       store.useAccess(null);
       cancelWaiting();
       (storage as unknown as { uploadRetries: AssetRetries }).uploadRetries.clear();
+      (storage as unknown as { missedUploads: Set<string> }).missedUploads.clear();
       vi.useRealTimers();
     });
 
@@ -253,6 +254,23 @@ describe('ImageStorage', () => {
       await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 8);
 
       expect(upload).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['waiting to be tried again', true],
+      ['waiting for the room to be in reach', false],
+    ] as const)('names to peers one %s once the seat is a guest, who puts nothing up', async (_case, inReach) => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      const role = vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      if (!inReach) store.useAccess(() => null);
+      finishUpload('failed');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(catalogued(pictureId)).toBe(false);
+
+      role.mockReturnValue('guest');
+
+      expect(catalogued(pictureId)).toBe(true);
     });
 
     it('tries an upload that failed again a few times, further apart each time', async () => {

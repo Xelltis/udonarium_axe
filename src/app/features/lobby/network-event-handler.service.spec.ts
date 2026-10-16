@@ -583,6 +583,23 @@ describe('NetworkEventHandlerService', () => {
       expect(audios).toHaveBeenCalledTimes(times);
     });
 
+    it('names what it holds to the others instead as a guest in a room, who puts nothing up', () => {
+      const images = vi.spyOn(ImageStorage.instance, 'synchronize').mockImplementation(() => {});
+      const audios = vi.spyOn(AudioStorage.instance, 'synchronize').mockImplementation(() => {});
+      vi.spyOn(Network, 'serverRole', 'get').mockReturnValue('guest');
+      const inRoom = vi
+        .spyOn(Network, 'peerContext', 'get')
+        .mockReturnValue({ peerId: 'p', userId: 'u', isRoom: true } as never);
+
+      stubChange.networkOpen$.emit({ peerId: 'p' });
+      expect(images).toHaveBeenCalledTimes(1);
+      expect(audios).toHaveBeenCalledTimes(1);
+
+      inRoom.mockReturnValue({ peerId: 'p', userId: 'u', isRoom: false } as never);
+      stubChange.networkOpen$.emit({ peerId: 'p' });
+      expect(images).toHaveBeenCalledTimes(1);
+    });
+
     it('brings them in again once back in the room after the line dropped', () => {
       const images = vi.spyOn(ImageStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
       vi.spyOn(AudioStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});

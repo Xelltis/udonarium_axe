@@ -255,11 +255,19 @@ export class NetworkEventHandlerService {
 
   /**
    * Puts the pictures and sounds this seat holds up to the room server's room it is in, as a GM or a
-   * PL may: those added outside the room, brought from another, or added while the line was down.
+   * PL may: those added outside the room, brought from another, or added while the line was down. A
+   * guest, who may put nothing up, names them to the others instead, for them to take from it.
    */
   private bringAssetsIntoRoom(): void {
     const role = Network.serverRole;
-    if (!Network.peerContext.isRoom || (role !== 'gm' && role !== 'pl')) return;
+    if (!Network.peerContext.isRoom) return;
+    if (role !== 'gm' && role !== 'pl') {
+      if (role === 'guest') {
+        ImageStorage.instance.synchronize();
+        AudioStorage.instance.synchronize();
+      }
+      return;
+    }
     ImageStorage.instance.uploadAllToAssetStore();
     AudioStorage.instance.uploadAllToAssetStore();
     // What the room is playing goes up ahead of the rest, for everyone to hear it soonest.

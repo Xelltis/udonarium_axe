@@ -207,11 +207,12 @@ export class ImageStorage {
    * Whether this seat is still to put something up to the asset store: queued or going up, waiting
    * to be tried again, or waiting for the room to be in reach. Until it is there, peers are not
    * told of it, so that they fetch it from the store once it is rather than each from this seat.
+   * A guest puts nothing up, so what it was to try again or put up once back is named to peers.
    */
   private isOnItsWayUp(identifier: string): boolean {
-    return (
-      this.uploading.has(identifier) || this.uploadRetries.isWaiting(identifier) || this.missedUploads.has(identifier)
-    );
+    if (this.uploading.has(identifier)) return true;
+    if (Network.serverRole === 'guest') return false;
+    return this.uploadRetries.isWaiting(identifier) || this.missedUploads.has(identifier);
   }
 
   /**
