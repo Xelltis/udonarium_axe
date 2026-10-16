@@ -60,10 +60,10 @@ SkyWay版とは、次の点が変わります。
 | 画像と音声   | ブラウザ同士で送る                | 部屋ごとにサーバーに置き、その部屋の参加者だけが受け取る。部屋と一緒に消える |
 
 ::: warning 部屋のサーバーでも全員に届くもの
-画像と音声のファイル、公開範囲を絞ったキャラクター・カード・ダイスの詳細、名前を隠したキャラクターと持ち主のいないダイスの名前、GMにだけ見せるスイッチ・地形・エフェクト、スイッチで伏せた物、暗闇や霧で隠したコマは、部屋のサーバーでも全員のブラウザに届きます。どれも各自の画面で隠したり動かしたりしているためです。画面には出ませんが、改造したブラウザなら読めます。くわしくは[わざと隠さないもの](https://xelltis.github.io/udonarium_axe_backend/cloudflare/rooms#わざと隠さないもの)にあります。
+画像と音声のファイル、公開範囲を絞ったキャラクター・カード・ダイスの詳細、名前を隠したキャラクターと持ち主のいないダイスの名前、GMにだけ見せるスイッチ・地形・エフェクト、スイッチで伏せた物、暗闇や霧で隠したコマは、部屋のサーバーでも全員のブラウザに届きます。どれも各自の画面で隠したり動かしたりしているためです。画面には出ませんが、改造したブラウザなら読めます。くわしくは[わざと隠さないもの](https://xelltis.github.io/udonarium_axe_backend/server/#わざと隠さないもの)にあります。
 :::
 
-Workerの置きかたと、Discordのアプリの用意は、バックエンドの[ドキュメント](https://xelltis.github.io/udonarium_axe_backend/cloudflare/)にあります。
+Workerの置きかたは[Cloudflareに置く](https://xelltis.github.io/udonarium_axe_backend/server/cloudflare)に、Discordのアプリの用意は[Discordのアプリを作る](https://xelltis.github.io/udonarium_axe_backend/server/discord)にあります。
 Axeの側は、`assets/config.json`で`transport`を`"server"`にし、`backend.url`をWorkerのURLにするだけです。
 
 ```json
@@ -79,7 +79,7 @@ Axeの側は、`assets/config.json`で`transport`を`"server"`にし、`backend.
 1つの配置先で使えるのはどちらか片方です。部屋ごとには選べません。
 
 部屋のサーバーは、ログインした人の情報と卓を預かります。
-身内の外にも開いて運営するなら、預かるものと消えるときを[運営する人へ](https://xelltis.github.io/udonarium_axe_backend/cloudflare/policies)で確かめてください。
+身内の外にも開いて運営するなら、預かるものと消えるときを[運営の方針](https://xelltis.github.io/udonarium_axe_backend/operate/policies)で確かめてください。
 プライバシーポリシーと利用規約のひな形も、そこから開けます。
 
 ::: warning ベータです
