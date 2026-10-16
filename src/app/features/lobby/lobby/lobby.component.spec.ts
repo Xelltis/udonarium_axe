@@ -209,6 +209,8 @@ describe('LobbyComponent', () => {
       const where = vi
         .spyOn(Network, 'peerContext', 'get')
         .mockReturnValue({ isRoom: true, roomId: 'Ab3', roomName: '' } as PeerContext);
+      vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(true);
+      vi.spyOn(Network, 'listAllRooms').mockResolvedValue([]);
       TestBed.inject(ObjectChangeService);
       const resolve = vi.spyOn(TestBed.inject(ModalService), 'resolve').mockImplementation(() => {});
       fixture.destroy();
@@ -221,6 +223,25 @@ describe('LobbyComponent', () => {
       where.mockReturnValue({ isRoom: true, roomId: 'Xy9', roomName: '' } as PeerContext);
       localDispatch('OPEN_NETWORK', { peerId: 'p' });
       await Promise.resolve();
+      expect(resolve).toHaveBeenCalled();
+    });
+
+    it('closes once the join it was opened during goes through', async () => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({
+        isRoom: true,
+        roomId: 'Ab3',
+        roomName: '',
+      } as PeerContext);
+      const open = vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
+      TestBed.inject(ObjectChangeService);
+      const resolve = vi.spyOn(TestBed.inject(ModalService), 'resolve').mockImplementation(() => {});
+      fixture.destroy();
+      fixture = TestBed.createComponent(LobbyComponent);
+
+      open.mockReturnValue(true);
+      localDispatch('OPEN_NETWORK', { peerId: 'p' });
+      await Promise.resolve();
+
       expect(resolve).toHaveBeenCalled();
     });
 

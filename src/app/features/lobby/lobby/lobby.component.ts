@@ -103,7 +103,8 @@ export class LobbyComponent {
     queueMicrotask(() => this.changeTitle());
     // Coming into a room closes the lobby, but not going into the same room again, as on a login or
     // a logout made here, which would take away what the account section has to say about it.
-    let roomIn = Network.peerContext?.isRoom ? Network.peerContext.roomId : '';
+    // Only a room the seat is in already counts, not one it is still getting into.
+    let roomIn = Network.isOpen && Network.peerContext?.isRoom ? Network.peerContext.roomId : '';
     this.objectChange.networkOpen$.subscribe(() => {
       this.changeTitle();
       const peer = Network.peerContext;
