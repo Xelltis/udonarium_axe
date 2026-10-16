@@ -1,8 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { CardTargetService } from '@axe/application/card/card-target.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CardTargetService', () => {
@@ -41,6 +44,34 @@ describe('CardTargetService', () => {
 
     expect(source.targetIdentifier).toBe(target.identifier);
     expect(service.isPicking()).toBe(false);
+  });
+
+  it('points nothing for a seat made a guest, even at a piece chosen before it is told', () => {
+    PeerCursor.createMyCursor().role = PeerRole.Player;
+    const source = makeCard(0, 0);
+    const target = makeCard(300, 0);
+    service.beginPicking(source);
+    TestBed.tick();
+
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    selection.selectObject(target.identifier, 'Card');
+    TestBed.tick();
+
+    expect(source.targetIdentifier).toBe('');
+    PeerCursor.myCursor = null!;
+  });
+
+  it('stops waiting once its seat is made a guest', () => {
+    PeerCursor.createMyCursor().role = PeerRole.Player;
+    service.beginPicking(makeCard(0, 0));
+    TestBed.tick();
+
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+    TestBed.tick();
+
+    expect(service.isPicking()).toBe(false);
+    PeerCursor.myCursor = null!;
   });
 
   it('keeps waiting when the chooser picks itself', () => {

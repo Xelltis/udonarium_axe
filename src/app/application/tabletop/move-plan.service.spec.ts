@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
@@ -8,6 +9,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { stepsFor } from '@axe/domain/tabletop/move/move-steps';
@@ -110,6 +112,38 @@ describe('MovePlanService', () => {
 
       expect(PeerCursor.myCursor.movingCharacterIdentifier).toBe('');
       expect(PeerCursor.myCursor.movingWay).toBe('');
+    });
+  });
+
+  describe('a seat made a guest', () => {
+    afterEach(() => {
+      PeerCursor.myCursor = null!;
+    });
+
+    it('drops the move it was working out, moving nothing', () => {
+      PeerCursor.createMyCursor().role = PeerRole.Player;
+      const piece = pieceAt(5, 5, 4);
+      service.begin(piece);
+      TestBed.tick();
+
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      TestBed.tick();
+
+      expect(service.isPlanning()).toBe(false);
+      expect(piece.location.x).toBe(5 * GRID);
+    });
+
+    it('walks nothing, though it is not yet told', async () => {
+      PeerCursor.createMyCursor().role = PeerRole.Player;
+      const piece = pieceAt(5, 5, 4);
+      service.begin(piece);
+      service.lookAt(7 * GRID + 10, 5 * GRID + 10);
+
+      PeerCursor.myCursor.role = PeerRole.Guest;
+
+      expect(await service.run()).toBe(false);
+      expect(piece.location.x).toBe(5 * GRID);
     });
   });
 
