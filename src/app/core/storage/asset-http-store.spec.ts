@@ -96,6 +96,16 @@ describe('AssetHttpStore', () => {
       expect(callsOf()).toEqual([['HEAD', urlOf(id)]]);
     });
 
+    it.each([429, 503])(
+      'sends no bytes, and fails for now, when asking whether the room has them answers %i',
+      async (status) => {
+        respond(new Response(null, { status }));
+
+        expect(await store.upload(id, new Blob([bytes]))).toBe('failed');
+        expect(callsOf()).toEqual([['HEAD', urlOf(id)]]);
+      }
+    );
+
     it.each([400, 403, 413, 415, 451])('gives up for good on %i', async (status) => {
       respond(new Response(null, { status: 404 }), new Response('{}', { status }));
       expect(await store.upload(id, new Blob([bytes]))).toBe('refused');

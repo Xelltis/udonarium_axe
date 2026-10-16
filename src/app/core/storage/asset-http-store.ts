@@ -169,6 +169,9 @@ export class AssetHttpStore {
         // A token turned down even after a fresh one was asked for will be turned down for the PUT too.
         if (!head || head.status === 401) return 'failed';
         if (head.ok) return 'exists';
+        // Only a store that lacks the bytes is sent them; one that asked for fewer requests, or failed,
+        // is asked again later rather than sent the whole of them now.
+        if (head.status !== 404) return 'failed';
         for (let attempt = 0; ; attempt++) {
           const res = await this.authorized((access) =>
             this.request(this.urlOf(access, identifier), {
