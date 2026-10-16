@@ -2,6 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { Network } from '@axe/core/network/network';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -41,6 +43,38 @@ describe('CardStackComponent', () => {
     component.onInputStart(new MouseEvent('mousedown'));
     expect(topmost).toHaveBeenCalledTimes(1);
     cardStack.destroy();
+  });
+
+  it('splits a deck, putting its cards in the new piles before taking away the deck, which takes all it still holds', () => {
+    const internals = Network.instance as unknown as { connection: unknown; sendQueue(): void };
+    const send = vi.fn();
+    const deck = CardStack.create('山札');
+    const cards = [0, 1, 2, 3].map((i) => Card.create(`札${i}`, 'front.png', 'back.png'));
+    for (const card of cards) deck.putOnBottom(card);
+    const before = new Set(ObjectStore.instance.getObjects(CardStack));
+    fixture.componentRef.setInput('cardStack', deck);
+    internals.connection = { send };
+    try {
+      internals.sendQueue();
+      send.mockClear();
+
+      (component as unknown as { splitStack(split: number): void }).splitStack(2);
+      for (let i = 0; i < 5; i++) internals.sendQueue();
+
+      const events = send.mock.calls.flatMap(
+        (call) => call[0] as { eventName: string; data: { identifier?: string } }[]
+      );
+      const firstDelete = events.findIndex((event) => event.eventName === 'DELETE_GAME_OBJECT');
+      const cardMoves = events.flatMap((event, index) =>
+        cards.some((card) => card.identifier === event.data.identifier) ? [index] : []
+      );
+      const lastCardMove = Math.max(...cardMoves);
+      expect(firstDelete).toBeGreaterThan(-1);
+      expect(firstDelete).toBeGreaterThan(lastCardMove);
+    } finally {
+      internals.connection = null;
+      for (const pile of ObjectStore.instance.getObjects(CardStack)) if (!before.has(pile)) pile.destroy();
+    }
   });
 
   describe('signal-driven CD', () => {

@@ -507,6 +507,10 @@ export class CardStackComponent {
     this.cardStack().destroy();
   }
 
+  /**
+   * Deals the deck's cards in turn into `split` new piles beside it. The cards go into the piles
+   * before the deck is taken away, as a room server takes away with a deck all it still holds.
+   */
   private splitStack(split: number) {
     if (split < 2) return;
     const cardStacks: CardStack[] = [];
@@ -522,9 +526,6 @@ export class CardStackComponent {
     }
 
     const cards = this.cardStack().drawCardAll();
-    this.cardStack().setLocation('graveyard');
-    this.cardStack().destroy();
-
     let num = 0;
     let splitIndex = (cards.length / split) * (num + 1);
     for (let i = 0; i < cards.length; i++) {
@@ -534,6 +535,9 @@ export class CardStackComponent {
         splitIndex = (cards.length / split) * (num + 1);
       }
     }
+
+    this.cardStack().setLocation('graveyard');
+    this.cardStack().destroy();
   }
 
   private concatStack(topStack: CardStack, bottomStack: CardStack = this.cardStack()) {
