@@ -478,6 +478,28 @@ describe('ServerConnection', () => {
     expect(await asked()).toHaveLength(1);
   });
 
+  it('reaches nothing over HTTP, and asks for no token, with the empty one a Worker without login hands out', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    const socket = await openRoom();
+    socket.accept();
+    socket.deliver({
+      type: 'welcome',
+      protocolVersion: PROTOCOL_VERSION,
+      peerId: connection.peerId,
+      authorityPeerId: AUTHORITY_PEER_ID,
+      role: 'guest',
+      members: [],
+      serverTime: Date.now(),
+      assetToken: '',
+      assetTokenExpiresAt: 0,
+    });
+    await vi.waitFor(() => expect(calls).toContain('open'));
+
+    expect(connection.assetAccess).toBeNull();
+    await vi.advanceTimersByTimeAsync(3 * TOKEN_CHECK_MS);
+    expect((await socket.frames()).filter((frame) => frame['type'] === 'asset-token')).toEqual([]);
+  });
+
   it('holds the asset token already when it tells that the seat is in', async () => {
     let seen: unknown = 'not told';
     connection.callback.onOpen = () => {

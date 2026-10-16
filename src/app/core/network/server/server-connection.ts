@@ -526,8 +526,12 @@ export class ServerConnection implements Connection {
     return { roomKey: this.room.roomKey, token: this.assetToken.token };
   }
 
+  /**
+   * Holds the asset token the server handed over. A Worker with its login taken away hands an empty
+   * one, and takes no token at all, so the room's pictures and sounds then travel between peers.
+   */
   private takeAssetToken(token: string, expiresAt: number): void {
-    this.assetToken = { token, expiresAt };
+    this.assetToken = token ? { token, expiresAt } : null;
     this.assetTokenAsked = false;
     const waiters = this.assetTokenWaiters;
     this.assetTokenWaiters = [];
