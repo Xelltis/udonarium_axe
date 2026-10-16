@@ -56,16 +56,22 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Inject the backend URL
+      - name: Inject the backend URL and transport
         env:
           BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          TRANSPORT: ${{ vars.TRANSPORT }}
         run: |
           if [ -z "$BACKEND_URL" ]; then
             echo "::error::BACKEND_URL secret is not configured for environment '${{ inputs.environment }}'"
             exit 1
           fi
+          TRANSPORT="${TRANSPORT:-skyway}"
+          if [ "$TRANSPORT" != "skyway" ] && [ "$TRANSPORT" != "server" ]; then
+            echo "::error::TRANSPORT variable must be 'skyway' or 'server', not '$TRANSPORT'"
+            exit 1
+          fi
           mkdir -p dist/assets
-          jq --arg url "$BACKEND_URL" '.backend.url = $url' \
+          jq --arg url "$BACKEND_URL" --arg transport "$TRANSPORT" '.backend.url = $url | .transport = $transport' \
             src/assets/config.json.example > dist/assets/config.json
           test -s dist/assets/config.json
 
