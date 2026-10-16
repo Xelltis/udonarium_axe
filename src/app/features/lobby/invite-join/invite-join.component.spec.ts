@@ -127,6 +127,36 @@ describe('InviteJoinComponent', () => {
     expect(join).not.toHaveBeenCalled();
   });
 
+  it('leaves a seat in the room it made while the invitation waited, rather than taking it to the invited one', async () => {
+    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
+    await setup('#join?r=a1b&n=room');
+    vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('made-room');
+
+    const change = TestBed.inject(ObjectChangeService) as unknown as {
+      _networkOpen$: { emit(event: { peerId: string }): void };
+    };
+    change._networkOpen$.emit({ peerId: 'made-room-peer' });
+    await flush();
+
+    expect(findRoom).not.toHaveBeenCalled();
+    expect(join).not.toHaveBeenCalled();
+    expect(bannerText().trim()).toBe('');
+  });
+
+  it('leaves a seat in the room it made while the invited room was looked up', async () => {
+    let found: (room: unknown) => void = () => undefined;
+    findRoom.mockReturnValue(new Promise((resolve) => (found = resolve)));
+    await setup('#join?r=a1b&n=room');
+    await eventually(() => expect(findRoom).toHaveBeenCalled());
+
+    vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('made-room');
+    found(createRoom());
+    await flush();
+
+    expect(join).not.toHaveBeenCalled();
+    expect(bannerText().trim()).toBe('');
+  });
+
   it('joins nothing when a connection opens after it said it could not get in', async () => {
     vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
     await setup('#join?r=a1b&n=room');

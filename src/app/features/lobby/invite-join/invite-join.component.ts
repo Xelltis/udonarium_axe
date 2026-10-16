@@ -106,7 +106,7 @@ export class InviteJoinComponent {
     }
     const offOpen = this.objectChange.networkOpen$.subscribe(() => {
       offOpen();
-      if (this.state() === 'joining') void this.joinOrSayFailed(params);
+      if (this.state() === 'joining' && !this.movedOn(params)) void this.joinOrSayFailed(params);
     }, this.destroyRef);
   }
 
@@ -138,6 +138,16 @@ export class InviteJoinComponent {
   }
 
   /**
+   * Whether the seat has been sent into another room while the invitation waited, as one it made
+   * from the lobby, which the invitation then leaves it in: the banner goes, and nothing is joined.
+   */
+  private movedOn(params: InviteLinkParams): boolean {
+    if (!isInAnotherRoom(params.roomId)) return false;
+    this.state.set('done');
+    return true;
+  }
+
+  /**
    * Joins the room the link names, in the role the link names, taken before the room is opened, so
    * that the room never sees the seat in another and a reload while it waits comes back in it. A seat
    * coming back to the room this tab was last in, as a reload brings it back, takes up the role it
@@ -151,6 +161,7 @@ export class InviteJoinComponent {
       return;
     }
     const room = await this.roomJoin.findRoom(params.roomId);
+    if (this.movedOn(params)) return;
     const peerContexts = (room?.peers ?? []) as PeerContext[];
     if (!room || peerContexts.length < 1) {
       this.state.set('notFound');
@@ -158,6 +169,7 @@ export class InviteJoinComponent {
     }
 
     const password = await this.resolvePassword(room.hasPassword, params.password, peerContexts[0]);
+    if (this.movedOn(params)) return;
     if (password === null || !(await peerContexts[0].verifyPassword(password))) {
       this.state.set('failed');
       return;
@@ -182,6 +194,7 @@ export class InviteJoinComponent {
    */
   private async joinThroughServer(params: InviteLinkParams): Promise<void> {
     const room = await this.roomJoin.findServerRoom(params.roomKey, params.roomId, params.roomName);
+    if (this.movedOn(params)) return;
     if (!room) {
       this.state.set('notFound');
       return;
@@ -197,6 +210,7 @@ export class InviteJoinComponent {
       }
       password = typed;
     }
+    if (this.movedOn(params)) return;
 
     PeerCursor.myCursor.reConnectPass = password;
     if (params.invite) Network.setServerInvite(params.invite, room.roomKey ?? '');
