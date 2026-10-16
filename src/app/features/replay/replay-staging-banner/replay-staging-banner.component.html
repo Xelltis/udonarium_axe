@@ -9,11 +9,12 @@
       </span>
       <select
         class="border-ui-border bg-ui-panel rounded-ui-sm ml-auto border border-solid px-1.5 py-0.5 text-[0.72rem]"
-        [value]="actorId()"
-        (change)="setActorId($any($event.target).value)"
+        name="stagingActor"
+        [ngModel]="actorId()"
+        (ngModelChange)="setActorId($event)"
       >
         @for (actor of actors(); track actor.userId) {
-          <option [value]="actor.userId">{{ actor.name }}</option>
+          <option [ngValue]="actor.userId">{{ actor.name }}</option>
         }
       </select>
     </div>

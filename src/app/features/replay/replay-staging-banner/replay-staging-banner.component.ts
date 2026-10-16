@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
@@ -14,7 +15,7 @@ const EMPTY_DICTIONARY: Pick<ReplayManifest, 'actors' | 'targets'> = { actors: [
   selector: 'replay-staging-banner',
   templateUrl: './replay-staging-banner.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoModule],
+  imports: [FormsModule, TranslocoModule],
 })
 export class ReplayStagingBannerComponent {
   private readonly staging = inject(ReplayStagingService);
