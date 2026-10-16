@@ -445,6 +445,28 @@ describe('NetworkEventHandlerService', () => {
       expect(open).toHaveBeenCalledWith('acct_1', 'Ab3', '月夜の卓', 'secret', '0123456789abcdef0123456789abcdef');
     });
 
+    it('goes into the room again as whoever is logged in when that changed while it was getting in', () => {
+      const room = { isRoom: true, roomId: 'Ab3', roomName: '月夜の卓', password: 'secret' };
+      const seat = vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ ...room, userId: 'acct_1' } as never);
+      vi.spyOn(Network, 'roomKey', 'get').mockReturnValue('0123456789abcdef0123456789abcdef');
+      const open = vi.spyOn(Network, 'open').mockImplementation(() => {});
+      saveIdentity({ userId: 'acct_1', roomId: '', roomName: '', role: '', reConnectPass: '', guestUserId: 'tab-1' });
+
+      stubChange.networkOpen$.emit({ peerId: 'p' });
+      expect(open).toHaveBeenCalledExactlyOnceWith(
+        'tab-1',
+        'Ab3',
+        '月夜の卓',
+        'secret',
+        '0123456789abcdef0123456789abcdef'
+      );
+
+      open.mockClear();
+      seat.mockReturnValue({ ...room, userId: 'tab-1' } as never);
+      stubChange.networkOpen$.emit({ peerId: 'p' });
+      expect(open).not.toHaveBeenCalled();
+    });
+
     it('takes the hand along when logging in outside a room', () => {
       vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: false, userId: 'tab-1' } as never);
       const openStandby = vi.spyOn(Network, 'openStandby').mockImplementation(() => {});

@@ -6,9 +6,10 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { PeerReconnectState } from '@axe/core/network/connection';
 import { Network } from '@axe/core/network/network';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
-import { PeerContext } from '@axe/core/network/peer-context';
+import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { AuthorityEvent, MAX_MEMBERS } from '@axe/core/network/server/server-protocol';
+import { ACCOUNT_USER_ID_PREFIX } from '@axe/core/network/server/server-protocol';
 import { SAME_NAME_MEMBER_ERROR } from '@axe/core/network/skyway/same-name-member';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AssetRetries } from '@axe/core/storage/asset-retries';
@@ -91,6 +92,11 @@ export class NetworkEventHandlerService {
     this.objectChange.networkOpen$.subscribe(() => {
       this.resetServerErrorReconnect();
       const peer = Network.peerContext;
+      if (this.seatMissesLogin(peer)) {
+        const next = this.standbyUserId() ?? PeerContext.generateUserId();
+        Network.open(next, peer.roomId, peer.roomName, peer.password, Network.roomKey ?? undefined);
+        return;
+      }
       PeerCursor.myCursor.peerId = peer.peerId;
       PeerCursor.myCursor.userId = peer.userId;
       this.takeServerRole();
@@ -308,6 +314,17 @@ export class NetworkEventHandlerService {
     }
     handOverOwnership(peer.userId, next);
     Network.openStandby(next);
+  }
+
+  /**
+   * Whether the seat a room server just let in is not the one the login asks for now: a login or a
+   * logout came while the join was under way, before there was a room to go into again.
+   */
+  private seatMissesLogin(peer: IPeerContext): boolean {
+    if (this.localMode || Network.transport !== 'server' || !peer.isRoom) return false;
+    const account = this.auth.account();
+    if (account) return peer.userId !== account.userId;
+    return peer.userId.startsWith(ACCOUNT_USER_ID_PREFIX) || peer.userId === this.lastAccountUserId;
   }
 
   /** Puts the account's name and avatar on the cursor where it still has the defaults. */
