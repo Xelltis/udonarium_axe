@@ -267,6 +267,31 @@ describe('AssetHttpStore', () => {
       expect(asked).toEqual([ids[0], ids[1], ids[3], ids[4], ids[2]]);
     });
 
+    it('starts a small upload at once while two big ones hold their lane, as a picture behind long sounds', async () => {
+      const asked: string[] = [];
+      const releases: (() => void)[] = [];
+      fetchSpy.mockImplementation((url) => {
+        asked.push(String(url).slice(-64));
+        return new Promise<Response>((resolve) => releases.push(() => resolve(new Response(null, { status: 200 }))));
+      });
+      const [big1, big2, big3, small] = await Promise.all(
+        ['big-1', 'big-2', 'big-3', 'small'].map((n) => sha256Hex(n))
+      );
+      const big = new Blob([new Uint8Array(2 * 1024 * 1024 + 1)]);
+
+      const done = [big1, big2, big3].map((assetId) => store.upload(assetId, big));
+      done.push(store.upload(small, new Blob([bytes])));
+
+      await vi.waitFor(() => expect(asked).toEqual([big1, big2, small]));
+      let finished = false;
+      void Promise.all(done).then(() => (finished = true));
+      while (!finished) {
+        releases.shift()?.();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      expect(asked).toEqual([big1, big2, small, big3]);
+    });
+
     it('runs at most two uploads at a time', async () => {
       let inFlight = 0;
       let mostInFlight = 0;

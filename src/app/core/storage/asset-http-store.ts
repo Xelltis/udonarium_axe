@@ -29,6 +29,11 @@ export interface AssetDownload {
 const ASSET_ID = /^[0-9a-f]{64}$/;
 
 const UPLOAD_CONCURRENCY = 2;
+/**
+ * The most bytes an upload may have to go in the lane kept for small ones, which a picture the
+ * image editor lets through without asking (2 MB) fits in.
+ */
+const SMALL_UPLOAD_BYTES = 2 * 1024 * 1024;
 const DOWNLOAD_CONCURRENCY = 4;
 const REQUEST_TIMEOUT_MS = 60_000;
 /** How long to wait before each retry of an upload the server turned away as too frequent. */
@@ -127,6 +132,8 @@ export class AssetHttpStore {
   private access: (() => AssetAccess | null) | null = null;
   private refresh: (() => Promise<AssetAccess | null>) | null = null;
   private readonly uploads = new TaskQueue(UPLOAD_CONCURRENCY);
+  /** A lane of its own for small uploads, so a picture never waits behind big sounds on a slow line. */
+  private readonly smallUploads = new TaskQueue(UPLOAD_CONCURRENCY);
   private readonly downloads = new TaskQueue(DOWNLOAD_CONCURRENCY);
   /** Waits between retries; replaced in tests so they need not sit through the backoff. */
   delay: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -179,11 +186,12 @@ export class AssetHttpStore {
    * failure, after retries for a server that asked for fewer uploads, may pass on a later try.
    *
    * Uploads wait their turn; one asked for `first`, such as a picture just added here, goes ahead
-   * of those already waiting.
+   * of those already waiting. Small ones wait in a lane of their own, apart from the big ones.
    */
   upload(identifier: string, blob: Blob, name = '', options: { first?: boolean } = {}): Promise<AssetUploadResult> {
     if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return Promise.resolve('refused');
-    return this.uploads.run(
+    const lane = blob.size <= SMALL_UPLOAD_BYTES ? this.smallUploads : this.uploads;
+    return lane.run(
       async () => {
         try {
           // Asked when its turn comes, so that a queued upload goes to the room the seat is in by then.
@@ -224,6 +232,7 @@ export class AssetHttpStore {
   /** Moves an upload still waiting its turn to the front, to go next. */
   uploadFirst(identifier: string): void {
     this.uploads.putFirst(identifier);
+    this.smallUploads.putFirst(identifier);
   }
 
   /**
