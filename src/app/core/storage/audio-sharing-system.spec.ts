@@ -438,6 +438,21 @@ describe('AudioSharingSystem', () => {
       expect(download).toHaveBeenLastCalledWith(listedLater, { first: true });
     });
 
+    it('moves music started since to the front of the downloads still waiting, and nothing else', () => {
+      const otherId = 'e'.repeat(64);
+      const putFirst = vi.spyOn(store, 'downloadFirst');
+      download.mockReturnValue(new Promise(() => {}));
+      AudioSharingSystem.instance.fetchListed([
+        { id: otherId, name: '' },
+        { id: trackId, name: '' },
+      ]);
+
+      AudioSharingSystem.instance.preferredIdentifiers = () => [trackId, 'f'.repeat(64)];
+      AudioSharingSystem.instance.preferWaiting();
+
+      expect(putFirst.mock.calls).toEqual([[trackId]]);
+    });
+
     it('asks peers for audio not named by its hash', () => {
       emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: 'assets/sounds/bell.mp3', state: AudioState.COMPLETE }]);
 

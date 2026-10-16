@@ -1,7 +1,8 @@
-import { inject, Injectable } from '@angular/core';
+import { DestroyRef, inject, Injectable } from '@angular/core';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
 import { AppConfigService } from '@axe/composition/app-config.service';
 import { initializeNetworkMessaging } from '@axe/core/network/network-messaging';
@@ -60,6 +61,8 @@ export class AppInitializationService {
   private readonly statusAilmentCatalog = inject(StatusAilmentCatalog);
   private readonly keyboardInset = inject(KeyboardInsetService);
   private readonly personalVolumes = inject(PersonalVolumeService);
+  private readonly objectChange = inject(ObjectChangeService);
+  private readonly destroyRef = inject(DestroyRef);
 
   /**
    * Starts the app once at launch, before any room is used.
@@ -126,6 +129,12 @@ export class AppInitializationService {
       ...(jukebox.audioIdentifier.length > 0 ? [jukebox.audioIdentifier] : []),
       ...BackgroundSound.playing().map((sound) => sound.audioIdentifier),
     ];
+    // Music started after the room's sounds were lined up goes ahead of them too.
+    this.objectChange.onObjectChangedForAlias(
+      ['jukebox', 'background-sound'],
+      () => AudioSharingSystem.instance.preferWaiting(),
+      this.destroyRef
+    );
 
     const playlist = new Playlist('Playlist');
     playlist.initialize();

@@ -176,6 +176,16 @@ export class AudioSharingSystem {
   }
 
   /**
+   * Moves what the room is playing now to the front of the downloads still waiting their turn, for
+   * music started after the room's sounds were lined up.
+   */
+  preferWaiting(): void {
+    for (const identifier of this.preferredIdentifiers()) {
+      if (this.httpFetching.has(identifier)) AssetHttpStore.instance.downloadFirst(identifier);
+    }
+  }
+
+  /**
    * Forgets which sounds the asset store lacked, for another room, which may hold them, and drops
    * the tries still to come of those it could not send.
    */
