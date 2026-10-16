@@ -1,8 +1,10 @@
 import { DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { PeerReconnectState } from '@axe/core/network/connection';
 import { Network } from '@axe/core/network/network';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
@@ -36,6 +38,8 @@ export class NetworkEventHandlerService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly auth = inject(ServerAuthService);
+  private readonly snackbar = inject(SnackbarService);
+  private readonly t = inject(TRANSLATE_FN);
 
   /**
    * How often and how slowly it reconnects after a server error, meaning the token backend is out of reach.
@@ -171,11 +175,14 @@ export class NetworkEventHandlerService {
         this.bringAssetsIntoRoom();
         this.fetchRoomAssets();
       }
-      const ofServer = event.peerId === Network.peerId && Network.authorityPeerId !== null;
-      const keys = ofServer
-        ? NetworkEventHandlerService.SERVER_RECONNECT_MESSAGE_KEYS
-        : NetworkEventHandlerService.RECONNECT_MESSAGE_KEYS;
-      const key = keys[event.state];
+      // The link to a room server is this reader's own, so the word of it is shown here alone,
+      // rather than written for the whole room, which a guest may not write to anyway.
+      if (event.peerId === Network.peerId && Network.authorityPeerId !== null) {
+        const serverKey = NetworkEventHandlerService.SERVER_RECONNECT_MESSAGE_KEYS[event.state];
+        if (serverKey) this.snackbar.show(this.t(serverKey));
+        return;
+      }
+      const key = NetworkEventHandlerService.RECONNECT_MESSAGE_KEYS[event.state];
       if (!key) return;
       this.chatMessageService.sendSystemMessage(encodeI18nMessage(key, { name: this.resolvePeerName(event.peerId) }));
     }, this.destroyRef);

@@ -8,6 +8,7 @@ import {
   type NetworkPeerEvent,
   type PeerReconnectEvent,
 } from '@axe/application/sync/object-change-network-helpers';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
@@ -305,17 +306,19 @@ describe('NetworkEventHandlerService', () => {
     expect(chatStub.sendSystemMessage.mock.calls[0][0]).toContain('feature.lobby.peerReconnect.failed');
   });
 
-  it('names the room server, not the reader, when the link to it drops and comes back', () => {
+  it('tells the reader alone, naming the room server, when the link to it drops and comes back', () => {
     vi.spyOn(Network, 'peerId', 'get').mockReturnValue('my-seat');
     vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
 
     stubChange.peerReconnect$.emit({ peerId: 'my-seat', state: 'retrying' });
     stubChange.peerReconnect$.emit({ peerId: 'my-seat', state: 'recovered' });
 
-    expect(chatStub.sendSystemMessage.mock.calls.map(([line]) => line)).toEqual([
-      expect.stringContaining('feature.lobby.peerReconnect.serverRetrying'),
-      expect.stringContaining('feature.lobby.peerReconnect.serverRecovered'),
+    expect(shown.mock.calls.map(([text]) => text)).toEqual([
+      '部屋のサーバーとの接続が切れました。再接続しています…',
+      '部屋のサーバーとの接続を復旧しました。',
     ]);
+    expect(chatStub.sendSystemMessage).not.toHaveBeenCalled();
   });
 
   it('falls back to the head of the identifier for a peer whose name it does not know', () => {
