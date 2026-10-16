@@ -277,7 +277,12 @@ function withChatMoments(events: readonly ReplayEvent[], moved: ReadonlySet<numb
       count(linesAhead, keyOf(line.tab, line.speaker, line.moment), 1);
       if (line.asker !== '') count(answersAt, keyOf(line.tab, line.asker, line.moment), 1);
     } else if (followed(seq) && !remade.has(seq)) {
-      followers.set(line.answers!.seq, [...(followers.get(line.answers!.seq) ?? []), line]);
+      const answered = lines.get(line.answers!.seq)!;
+      if (retold.has(line.answers!.seq)) {
+        followers.set(line.answers!.seq, [...(followers.get(line.answers!.seq) ?? []), line]);
+      } else {
+        count(answersAt, keyOf(line.tab, line.asker, answered.moment + line.answers!.gap), 1);
+      }
     }
   }
   const clashes = (line: ChatLine, answerTop: number) => (moment: number) => {
@@ -286,8 +291,12 @@ function withChatMoments(events: readonly ReplayEvent[], moved: ReadonlySet<numb
     const answered = (at: number) => (answersAt.get(keyOf(line.tab, line.speaker, at)) ?? 0) > 0;
     if (line.asker !== '' && (says(line.asker, moment - 1) || says(line.asker, moment - 2))) return true;
     if (answerTop > 0) {
+      const noticed = answerTop >= ANSWER_GAPS[1];
       return (
-        says(line.speaker, moment) || says(line.speaker, moment + 1) || answered(moment + 1) || answered(moment + 2)
+        says(line.speaker, moment) ||
+        (noticed && says(line.speaker, moment + 1)) ||
+        answered(moment + 1) ||
+        answered(moment + 2)
       );
     }
     if (linesBehind.has(keyOf(line.tab, line.speaker, moment))) return false;
@@ -323,7 +332,10 @@ function withChatMoments(events: readonly ReplayEvent[], moved: ReadonlySet<numb
   });
 }
 
-/** The chat lines of the list that carry a moment, by sequence number, with the line each answer answers. */
+/**
+ * The chat lines of the list that carry a moment, by sequence number, with the line each answer
+ * answers. A moment that is no number, or too large to count on one more than it, counts as none.
+ */
 function chatLinesOf(events: readonly ReplayEvent[]): Map<number, ChatLine> {
   const lines = new Map<number, ChatLine>();
   const bySpeaker = new Map<string, number>();
@@ -331,7 +343,7 @@ function chatLinesOf(events: readonly ReplayEvent[]): Map<number, ChatLine> {
   events.forEach((event, index) => {
     const after = event.patch?.after;
     const moment = after?.[MOMENT_KEY];
-    if (!after || typeof moment !== 'number') return;
+    if (!after || typeof moment !== 'number' || !(Math.abs(moment) < Number.MAX_SAFE_INTEGER)) return;
     const tab = String(after['parentIdentifier'] ?? event.detail['tabIdentifier'] ?? '');
     const minor = typeof after['minorIndex'] === 'number' ? after['minorIndex'] : 0;
     const speaker = String(after['attributes.from'] ?? '');

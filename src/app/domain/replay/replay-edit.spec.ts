@@ -726,6 +726,51 @@ describe('chat moments that follow a new place', () => {
       expect(momentOf(bySeq(back, 4))).toBe(100002);
     });
 
+    it('keeps a result moved on its own with its roll, never handing it to a line moved beside the roll', () => {
+      const events = [
+        minor(by('alice', 1, 95000), 0.3),
+        minor(by('bob', 2, 100000), 0.6),
+        minor(by('alice', 3, 100001, '2d6'), 0.5),
+        minor(result(4, 40, 100002), 0.4),
+        minor(by('carol', 5, 105000), 0.7),
+      ];
+
+      const stepped = stepReplayEvents(events, new Set([1, 4]), 1);
+
+      expect(stepped.map((event) => event.seq)).toEqual([2, 1, 3, 5, 4]);
+      expect(momentOf(bySeq(stepped, 1))).not.toBe(100001);
+      expect(momentOf(bySeq(stepped, 4))).toBe(100002);
+    });
+
+    it('puts a roll with a result alone just after the line before it, though its speaker says the moment after', () => {
+      const events = [
+        minor(by('bob', 1, 100000), 0.9),
+        minor(by('carol', 2, 100001), 0.4),
+        minor(by('alice', 3, 100002), 0.8),
+        minor(by('alice', 4, 105000, '2d6'), 0.5),
+        minor(result(5, 50, 105001), 0.1),
+      ];
+      const keyOf = (event: ReplayEvent) => momentOf(event) + Number(event.patch?.after['minorIndex'] ?? 0);
+
+      const moved = moveReplayEvent(removeReplayEvent(events, 2), 4, -1);
+
+      expect(moved.map((event) => event.seq)).toEqual([1, 4, 3, 5]);
+      expect(keyOf(bySeq(moved, 4))).toBeLessThan(keyOf(bySeq(moved, 3)));
+      expect(momentOf(bySeq(moved, 5))).toBe(momentOf(bySeq(moved, 4)) + 1);
+    });
+
+    it.each([
+      ['no number', Number.NaN],
+      ['one too large to count on', 2 ** 53],
+    ])('takes a line said at %s for no line, rather than never finishing', (_what, moment) => {
+      const events = [by('alice', 2, 500), result(1, 10, moment)];
+
+      const moved = stepReplayEvents(events, new Set([2]), 1);
+
+      expect(moved.map((event) => event.seq)).toEqual([1, 2]);
+      expect(momentOf(bySeq(moved, 2))).toBe(500);
+    });
+
     it('never says a line moved before a roll at the moment of that roll, which would take its result', () => {
       const events = [by('bob', 1, 10000), minor(by('alice', 2, 10001, '2d6'), 0.7), result(3, 30, 10002)];
 
