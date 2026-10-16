@@ -9,6 +9,7 @@ import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { saveIdentity } from '@axe/core/storage/identity-storage';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { leaveRoomByReloading } from '@axe/features/lobby/leave-room';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -120,5 +121,10 @@ export class RoomSettingComponent {
     } finally {
       this.isCreating.set(false);
     }
+  }
+
+  /** Leaves this room for the room server's lobby, by loading the page afresh without its invitation. */
+  protected leaveRoom(): void {
+    leaveRoomByReloading();
   }
 }

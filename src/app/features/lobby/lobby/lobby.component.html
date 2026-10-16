@@ -130,7 +130,10 @@
     @if (isServerTransport) {
       {{ 'feature.lobby.lobby.alreadyInRoomServer' | transloco }}<br />{{
         'feature.lobby.lobby.alreadyInRoomServerHint' | transloco
-      }}
+      }}<br />
+      <button class="mt-2" data-testid="lobby-leave-room" (click)="leaveRoom()">
+        {{ 'feature.lobby.lobby.leaveRoom' | transloco }}
+      </button>
     } @else {
       {{ 'feature.lobby.lobby.alreadyConnected' | transloco }}<br />{{
         'feature.lobby.lobby.alreadyConnectedHint' | transloco

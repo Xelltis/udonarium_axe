@@ -12,6 +12,7 @@ import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { leaveRoomByReloading } from '@axe/features/lobby/leave-room';
 import {
   PasswordCheckComponent,
   type PasswordCheckOptions,
@@ -277,5 +278,10 @@ export class LobbyComponent {
     if (!created) {
       this.reload();
     }
+  }
+
+  /** Leaves this room for the room server's lobby, by loading the page afresh without its invitation. */
+  protected leaveRoom(): void {
+    leaveRoomByReloading();
   }
 }

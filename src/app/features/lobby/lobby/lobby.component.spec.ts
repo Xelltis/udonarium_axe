@@ -195,8 +195,9 @@ describe('LobbyComponent', () => {
 
       expect(component.isConnected()).toBe(true);
       expect(fixture.nativeElement.querySelector('[data-testid="lobby-already-in-room"]')?.textContent).toContain(
-        'ページを再読み込みしてから'
+        '「部屋を出る」でいったん部屋を出てから'
       );
+      expect(fixture.nativeElement.querySelector('[data-testid="lobby-leave-room"]')).not.toBeNull();
 
       where.mockReturnValue({ isRoom: false, roomName: '' } as PeerContext);
       bump();

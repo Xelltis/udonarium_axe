@@ -76,7 +76,10 @@
     @if (onRoomServer) {
       {{ 'feature.lobby.roomSetting.alreadyInRoomServer' | transloco }}<br />{{
         'feature.lobby.lobby.alreadyInRoomServerHint' | transloco
-      }}
+      }}<br />
+      <button class="mt-2" data-testid="room-setting-leave-room" (click)="leaveRoom()">
+        {{ 'feature.lobby.lobby.leaveRoom' | transloco }}
+      </button>
     } @else {
       {{ 'feature.lobby.roomSetting.alreadyConnected' | transloco }}<br />{{
         'feature.lobby.roomSetting.alreadyConnectedHint' | transloco
