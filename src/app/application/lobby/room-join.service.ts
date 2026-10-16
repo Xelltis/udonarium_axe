@@ -4,7 +4,7 @@ import { Network } from '@axe/core/index';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { SAME_NAME_MEMBER_WAIT_MS, sameNameMemberWait$ } from '@axe/core/network/skyway/same-name-member';
-import { loadIdentity } from '@axe/core/storage/identity-storage';
+import { clearIdentity, loadIdentity, PersistedIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -22,6 +22,11 @@ export const ROOM_SERVER_OPEN_TIMEOUT_MS = 30_000;
 /** Whether this tab was last in this room, which is where a reload leaves whoever was in it. */
 export function wasLastIn(roomId: string): boolean {
   return roomId.length > 0 && loadIdentity()?.roomId === roomId;
+}
+
+/** Whether this tab was last in this room as its game master. */
+function wasGameMasterIn(roomId: string): boolean {
+  return wasLastIn(roomId) && loadIdentity()?.roomRole === PeerRole.GameMaster;
 }
 
 /**
@@ -132,8 +137,12 @@ export class RoomJoinService {
    * as one. A role an invite hands out is given after the join and still stands; a guest stays
    * a guest.
    *
-   * A game master coming back to the room this tab was last in stays one. A reload takes them
-   * out of their own table, and coming back through the lobby is how they return to it.
+   * A game master coming back to the room this tab was last in, and its game master there, stays
+   * one. A reload takes them out of their own table, and coming back through the lobby is how they
+   * return to it.
+   *
+   * A join that comes to nothing takes back what it wrote down, the room and the role put down to
+   * come in, so that a reload does not take the room it was tried on for the one the seat was in.
    *
    * It goes in two steps. Opening the room can wait up to a minute, while what a reload left of
    * this seat is still in it; an error opening it ends the join at once. Once it is open, the
@@ -148,7 +157,9 @@ export class RoomJoinService {
     const context = peerContexts[0];
     if (!context) return Promise.resolve(false);
 
-    if (PeerCursor.myCursor.role === PeerRole.GameMaster && !wasLastIn(context.roomId)) {
+    const identityBefore = loadIdentity();
+    const roleBefore = PeerCursor.myCursor.role;
+    if (roleBefore === PeerRole.GameMaster && !wasGameMasterIn(context.roomId)) {
       PeerCursor.myCursor.role = PeerRole.Player;
     }
     const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
@@ -176,7 +187,7 @@ export class RoomJoinService {
         offConnect();
         offDisconnect();
         const joined = isJoined || Network.peerContexts.length > 0;
-        if (!joined) this.resetNetwork(context.roomId, userId);
+        if (!joined && this.resetNetwork(context.roomId, userId)) this.takeBackTry(identityBefore, roleBefore);
         resolve(joined);
       };
 
@@ -220,13 +231,21 @@ export class RoomJoinService {
    * Goes back to waiting outside any room after a join that came to nothing, as the user it tried
    * to join as, unless something else has already, as the handling of a network error does. A join
    * to a room server still `unopened`, waiting on the login, is stopped too, so that it does not
-   * walk into the room once the login comes.
+   * walk into the room once the login comes. Answers whether it went back.
    */
-  private resetNetwork(roomId: string, userId: string, stopUnopened = false): void {
+  private resetNetwork(roomId: string, userId: string, stopUnopened = false): boolean {
     const unopened = stopUnopened && Network.peerId === UNOPENED_PEER_ID;
-    if (Network.peerContexts.length > 0) return;
-    if (!unopened && PeerContext.parse(Network.peerId).roomId !== roomId) return;
+    if (Network.peerContexts.length > 0) return false;
+    if (!unopened && PeerContext.parse(Network.peerId).roomId !== roomId) return false;
     Network.openStandby(userId);
     PeerCursor.myCursor.peerId = Network.peerId;
+    return true;
+  }
+
+  /** Puts back who this tab was and the role it held before a join that came to nothing. */
+  private takeBackTry(identity: PersistedIdentity | null, role: PeerRole): void {
+    if (identity) saveIdentity(identity);
+    else clearIdentity();
+    PeerCursor.myCursor.role = role;
   }
 }

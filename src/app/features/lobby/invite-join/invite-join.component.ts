@@ -124,9 +124,11 @@ export class InviteJoinComponent {
   }
 
   /**
-   * Joins the room the link names, in the role the link names. A seat coming back to the room this
-   * tab was last in, as a reload brings it back, takes up the role it held there instead, which may
-   * have been given since the link was.
+   * Joins the room the link names, in the role the link names, taken before the room is opened, so
+   * that the room never sees the seat in another and a reload while it waits comes back in it. A seat
+   * coming back to the room this tab was last in, as a reload brings it back, takes up the role it
+   * held there instead, which may have been given since the link was. A join that comes to nothing
+   * leaves the seat in the role it had.
    */
   private async join(params: InviteLinkParams): Promise<void> {
     if (Network.transport === 'server') {
@@ -147,14 +149,15 @@ export class InviteJoinComponent {
     }
 
     PeerCursor.myCursor.reConnectPass = password;
-    const isComingBack = wasLastIn(params.roomId);
+    const roleBefore = PeerCursor.myCursor.role;
+    if (!wasLastIn(params.roomId)) this.applyRole(params.role);
     const isJoined = await this.roomJoin.join(peerContexts, password);
     if (!isJoined) {
+      this.applyRole(roleBefore);
       this.state.set('failed');
       return;
     }
 
-    if (!isComingBack) this.applyRole(params.role);
     this.state.set('done');
   }
 

@@ -15,7 +15,7 @@ import { Network } from '@axe/core/index';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo, RoomInfo } from '@axe/core/network/room-info';
 import { sameNameMemberWait$ } from '@axe/core/network/skyway/same-name-member';
-import { clearIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
+import { clearIdentity, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -298,6 +298,49 @@ describe('RoomJoinService', () => {
 
       await expect(joined).resolves.toBe(false);
       expect(Network.openStandby).toHaveBeenCalledOnce();
+    });
+
+    it('takes back the room and the role it wrote down for a join that came to nothing', async () => {
+      saveIdentity({ userId: 'user', roomId: 'xyz', roomName: 'mine', role: PeerRole.GameMaster, reConnectPass: '' });
+      PeerCursor.myCursor = { peerId: '', role: PeerRole.GameMaster } as PeerCursor;
+      const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
+      roomOpens();
+      saveIdentity({ userId: 'user', roomId: 'abc', roomName: 'room', role: PeerRole.Player, reConnectPass: '' });
+
+      stubChange.peerDisconnect$.emit({ peerId: 'peer-1' });
+
+      await expect(joined).resolves.toBe(false);
+      expect(loadIdentity()).toEqual(
+        expect.objectContaining({ roomId: 'xyz', role: PeerRole.GameMaster, roomRole: PeerRole.GameMaster })
+      );
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
+    });
+
+    it('forgets the room it was tried on for a tab that was in none, as a reload would take it for its own', async () => {
+      const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
+      roomOpens();
+      saveIdentity({ userId: 'user', roomId: 'abc', roomName: 'room', role: PeerRole.Player, reConnectPass: '' });
+
+      stubChange.peerDisconnect$.emit({ peerId: 'peer-1' });
+
+      await expect(joined).resolves.toBe(false);
+      expect(loadIdentity()).toBeNull();
+    });
+
+    it('puts a game master down in the room this tab was last in where it was not the game master there', () => {
+      saveIdentity({
+        userId: 'user',
+        roomId: 'abc',
+        roomName: 'room',
+        role: PeerRole.GameMaster,
+        roomRole: PeerRole.Player,
+        reConnectPass: '',
+      });
+      PeerCursor.myCursor = { peerId: '', role: PeerRole.GameMaster } as PeerCursor;
+
+      void service.join([peerContext('peer-1', 'abc', 'room')], '');
+
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.Player);
     });
 
     it('settles on the timeout when no one ever answers', async () => {

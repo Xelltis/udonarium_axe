@@ -129,6 +129,26 @@ describe('InviteJoinComponent', () => {
     await eventually(() => expect(PeerCursor.myCursor.role).toBe(PeerRole.Guest));
   });
 
+  it('takes the role the link names before the room is opened, so a reload while it waits comes back in it', async () => {
+    let roleWhenJoined: PeerRole | null = null;
+    join.mockImplementation(async () => {
+      roleWhenJoined = PeerCursor.myCursor.role;
+      return true;
+    });
+    await setup('#join?r=a1b&n=room&role=guest');
+
+    await eventually(() => expect(join).toHaveBeenCalledOnce());
+    expect(roleWhenJoined).toBe(PeerRole.Guest);
+  });
+
+  it('leaves the seat in the role it had when it cannot get in', async () => {
+    join.mockResolvedValue(false);
+    await setup('#join?r=a1b&n=room&role=guest');
+
+    await eventually(() => expect(bannerText()).toContain('参加できませんでした'));
+    expect(PeerCursor.myCursor.role).toBe(PeerRole.Player);
+  });
+
   it('keeps the role held in the room this tab was last in, coming back to it, over the one the link names', async () => {
     saveIdentity({ userId: 'u', roomId: 'a1b', roomName: 'room', role: PeerRole.GameMaster, reConnectPass: '' });
     PeerCursor.myCursor.role = PeerRole.GameMaster;
