@@ -1,6 +1,7 @@
 import { Network } from '@axe/core/network/network';
 import { AssetHttpStore, AssetUploadResult } from '@axe/core/storage/asset-http-store';
 import {
+  ASSET_LAST_TRY_DELAY_MS,
   ASSET_RETRY_DELAY_MS,
   AssetRetries,
   RECEIVED_UPLOAD_TURN_MS,
@@ -173,6 +174,7 @@ describe('ImageStorage', () => {
       (storage as unknown as { missedUploads: Set<string> }).missedUploads.clear();
       (storage as unknown as { uploading: Set<string> }).uploading.clear();
       (storage as unknown as { gaveUp: Set<string> }).gaveUp.clear();
+      (storage as unknown as { clearLastTries(): void }).clearLastTries();
       vi.useRealTimers();
     });
 
@@ -300,12 +302,31 @@ describe('ImageStorage', () => {
       }
     });
 
+    it('waits for the whole picture to have come before taking its turn, not its thumbnail', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      storage.receivedUploadTurn = () => 1;
+      try {
+        storage.add({ ...contextOf(pictureId), blob: undefined, url: '' } as unknown as ImageContext);
+        storage.uploadReceived(pictureId);
+        storage.add(contextOf(pictureId));
+        await vi.advanceTimersByTimeAsync(receivedUploadTurnMs(1));
+        expect(upload).not.toHaveBeenCalled();
+
+        storage.uploadReceived(pictureId);
+        await vi.advanceTimersByTimeAsync(receivedUploadTurnMs(storage.get(pictureId)!.blob!.size));
+        expect(upload).toHaveBeenCalledTimes(1);
+      } finally {
+        storage.receivedUploadTurn = () => 0;
+      }
+    });
+
     it('waits a turn long enough for the bytes to go up over a slow line', () => {
       expect(receivedUploadTurnMs(0)).toBe(RECEIVED_UPLOAD_TURN_MS);
       expect(receivedUploadTurnMs(10 * 1024 * 1024)).toBeGreaterThan(40_000);
     });
 
-    it('still has one to go up once its tries have run out, and tries it afresh once the seat is back', async () => {
+    it('gives one whose tries ran out a last try a while later, once in the room, and counts it till then', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
       storage.add(ImageFile.create(contextOf(pictureId)));
@@ -315,11 +336,35 @@ describe('ImageStorage', () => {
       expect(upload).toHaveBeenCalledTimes(4);
       expect(storage.hasUploadsPending).toBe(true);
 
-      upload.mockResolvedValue('stored');
       storage.uploadMissedToAssetStore();
       await vi.advanceTimersByTimeAsync(0);
+      expect(upload).toHaveBeenCalledTimes(4);
 
-      expect(upload).toHaveBeenCalledTimes(5);
+      await vi.advanceTimersByTimeAsync(ASSET_LAST_TRY_DELAY_MS + ASSET_RETRY_DELAY_MS * 8);
+      expect(upload).toHaveBeenCalledTimes(8);
+      await vi.advanceTimersByTimeAsync((ASSET_LAST_TRY_DELAY_MS + ASSET_RETRY_DELAY_MS * 8) * 3);
+      expect(upload).toHaveBeenCalledTimes(8);
+      expect(storage.hasUploadsPending).toBe(true);
+    });
+
+    it('stops counting one still to go up once the room is found to hold it, or it is deleted', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      upload.mockResolvedValue('failed');
+      finishUpload('failed');
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 8);
+      expect(storage.hasUploadsPending).toBe(true);
+
+      storage.forgetUploaded([pictureId]);
+      expect(storage.hasUploadsPending).toBe(false);
+      await vi.advanceTimersByTimeAsync(ASSET_LAST_TRY_DELAY_MS);
+      expect(upload).toHaveBeenCalledTimes(4);
+
+      store.useAccess(() => null);
+      storage.add(ImageFile.create(contextOf('d'.repeat(64))));
+      expect(storage.hasUploadsPending).toBe(true);
+      storage.delete('d'.repeat(64));
       expect(storage.hasUploadsPending).toBe(false);
     });
 

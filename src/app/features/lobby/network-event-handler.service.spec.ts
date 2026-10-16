@@ -649,12 +649,16 @@ describe('NetworkEventHandlerService', () => {
       const forgotPictures = vi.spyOn(ImageSharingSystem.instance, 'forgetMisses');
       const pictures = vi.spyOn(ImageSharingSystem.instance, 'fetchListed').mockImplementation(() => {});
       const sounds = vi.spyOn(AudioSharingSystem.instance, 'fetchListed').mockImplementation(() => {});
+      const upPictures = vi.spyOn(ImageStorage.instance, 'forgetUploaded');
+      const upSounds = vi.spyOn(AudioStorage.instance, 'forgetUploaded');
 
       stubChange.networkOpen$.emit({ peerId: 'p' });
 
       await vi.waitFor(() => expect(pictures).toHaveBeenCalledWith([picture]));
       expect(sounds).toHaveBeenCalledWith([sound]);
       expect(forgotPictures).toHaveBeenCalled();
+      expect(upPictures).toHaveBeenCalledWith([picture.id]);
+      expect(upSounds).toHaveBeenCalledWith([sound.id]);
     });
 
     it('fetches nothing from the room while waiting outside one, or when the server cannot say', async () => {

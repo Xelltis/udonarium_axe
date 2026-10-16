@@ -2,6 +2,8 @@
 export const ASSET_RETRY_DELAY_MS = 10_000;
 /** How many times a transfer that failed is tried again before it is left for the next chance. */
 export const ASSET_RETRY_LIMIT = 3;
+/** How long after its tries ran out an upload is given one last try, once in each room. */
+export const ASSET_LAST_TRY_DELAY_MS = 120_000;
 
 /** The least a GM or PL waits for each that comes before it to put up what a guest named. */
 export const RECEIVED_UPLOAD_TURN_MS = 5_000;

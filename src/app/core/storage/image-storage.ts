@@ -1,7 +1,7 @@
 import { Network } from '@axe/core/network/network';
 import { networkSend } from '@axe/core/network/network-messaging';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
-import { AssetRetries, receivedUploadTurnMs } from '@axe/core/storage/asset-retries';
+import { ASSET_LAST_TRY_DELAY_MS, AssetRetries, receivedUploadTurnMs } from '@axe/core/storage/asset-retries';
 import { CatalogSendSchedule } from '@axe/core/storage/catalog-send-schedule';
 import { ImageContext, ImageFile, ImageState } from '@axe/core/storage/image-file';
 
@@ -28,6 +28,8 @@ export class ImageStorage {
   private readonly missedUploads = new Set<string>();
   /** What failed to go up as often as it may be tried, left for the seat's next chance. */
   private readonly gaveUp = new Set<string>();
+  /** What has been given its one last try in the room the seat is in, and the timers for those to come. */
+  private readonly lastTries = new Map<string, ReturnType<typeof setTimeout> | null>();
   /** Uploads that failed for now, tried again a few times while the seat stays in the room. */
   private readonly uploadRetries = new AssetRetries();
 
@@ -103,20 +105,15 @@ export class ImageStorage {
     this.uploadRetries.clear();
     this.missedUploads.clear();
     this.gaveUp.clear();
+    this.clearLastTries();
     for (const image of this.images) this.uploadToAssetStore(image);
   }
 
   /**
    * Puts up what was added here while the room could not be reached, as on coming back on a new
-   * link the server asked for, and what failed as often as it may be tried, without asking again
-   * about all the rest.
+   * link the server asked for, without asking again about all the rest.
    */
   uploadMissedToAssetStore(): void {
-    for (const identifier of [...this.gaveUp]) {
-      this.gaveUp.delete(identifier);
-      this.uploadRetries.forget(identifier);
-      this.missedUploads.add(identifier);
-    }
     for (const identifier of [...this.missedUploads]) {
       this.missedUploads.delete(identifier);
       const image = this.imageHash[identifier];
@@ -135,10 +132,13 @@ export class ImageStorage {
    * Puts an image a peer sent up to the room's asset store, for one the store was found to
    * lack: the seat that added it could not put it there, and once that seat leaves nobody else
    * might. Only a GM or a PL may put anything there, and each waits its turn among them; one that
-   * finds it there by then puts nothing up.
+   * finds it there by then puts nothing up. Nothing is put up for one only part of which has come,
+   * such as a picture's thumbnail; the rest coming asks again.
    */
   uploadReceived(identifier: string): void {
-    const delay = this.receivedUploadTurn() * receivedUploadTurnMs(this.imageHash[identifier]?.blob?.size ?? 0);
+    const held = this.imageHash[identifier];
+    if (!held || held.state < ImageState.COMPLETE) return;
+    const delay = this.receivedUploadTurn() * receivedUploadTurnMs(held.blob?.size ?? 0);
     if (delay <= 0) {
       this.putUpHeld(identifier);
       return;
@@ -186,7 +186,7 @@ export class ImageStorage {
         const roomKey = Network.roomKey;
         if (result === 'failed') {
           if (!this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey))) {
-            this.gaveUp.add(identifier);
+            this.giveUp(identifier, roomKey);
           }
         } else {
           this.uploadRetries.forget(identifier);
@@ -222,7 +222,50 @@ export class ImageStorage {
    * Removes the image and revokes its object URLs, returning false when it was not held. Peers are
    * not told.
    */
+  /**
+   * Counts as up what the room's store was found to hold, though this seat could not put it there,
+   * as when another seat has since.
+   */
+  forgetUploaded(identifiers: readonly string[]): void {
+    for (const identifier of identifiers) this.forgetUpload(identifier);
+  }
+
+  /** Stops counting one as still to go up. */
+  private forgetUpload(identifier: string): void {
+    this.gaveUp.delete(identifier);
+    this.missedUploads.delete(identifier);
+    const lastTry = this.lastTries.get(identifier);
+    if (lastTry) {
+      clearTimeout(lastTry);
+      this.lastTries.set(identifier, null);
+    }
+  }
+
+  /**
+   * Leaves one that failed as often as it may be tried for the seat's next chance, and gives it one
+   * last try a while later, once in the room it failed for, so that a store that could not take it
+   * for a time may take it yet.
+   */
+  private giveUp(identifier: string, roomKey: string | null): void {
+    this.gaveUp.add(identifier);
+    if (this.lastTries.has(identifier)) return;
+    const timer = setTimeout(() => {
+      this.lastTries.set(identifier, null);
+      if (!this.gaveUp.has(identifier)) return;
+      this.gaveUp.delete(identifier);
+      this.uploadRetries.forget(identifier);
+      this.retryUpload(identifier, roomKey);
+    }, ASSET_LAST_TRY_DELAY_MS);
+    this.lastTries.set(identifier, timer);
+  }
+
+  private clearLastTries(): void {
+    for (const timer of this.lastTries.values()) if (timer) clearTimeout(timer);
+    this.lastTries.clear();
+  }
+
   delete(identifier: string): boolean {
+    this.forgetUpload(identifier);
     const deleteImage: ImageFile = this.imageHash[identifier];
     if (deleteImage) {
       deleteImage.destroy();

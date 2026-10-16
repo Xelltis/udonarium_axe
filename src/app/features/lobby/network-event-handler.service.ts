@@ -347,8 +347,12 @@ export class NetworkEventHandlerService {
         return;
       }
       this.roomAssetListRetries.forget('list');
-      ImageSharingSystem.instance.fetchListed(assets.filter((asset) => asset.type.startsWith('image/')));
-      AudioSharingSystem.instance.fetchListed(assets.filter((asset) => asset.type.startsWith('audio/')));
+      const pictures = assets.filter((asset) => asset.type.startsWith('image/'));
+      const sounds = assets.filter((asset) => asset.type.startsWith('audio/'));
+      ImageStorage.instance.forgetUploaded(pictures.map((asset) => asset.id));
+      AudioStorage.instance.forgetUploaded(sounds.map((asset) => asset.id));
+      ImageSharingSystem.instance.fetchListed(pictures);
+      AudioSharingSystem.instance.fetchListed(sounds);
     });
   }
 
