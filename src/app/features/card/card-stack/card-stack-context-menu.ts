@@ -136,7 +136,8 @@ export function buildCardStackContextMenu(
     {
       name: t('feature.cardStack.contextMenu.splitByPeers'),
       action: () => {
-        onSplitStack(Network.peerIds.length);
+        // One pile for each seat at the table, this one included; the peers listed are the others.
+        onSplitStack(Network.peerIds.length + 1);
         SoundEffect.play(PresetSound.cardDraw);
       },
     },

@@ -1,3 +1,4 @@
+import { Network } from '@axe/core/index';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { buildCardStackContextMenu } from '@axe/features/card/card-stack/card-stack-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
@@ -5,6 +6,34 @@ import { createSyncTranslate } from '@axe/testing/transloco-testing';
 const t = createSyncTranslate('ja');
 
 describe('buildCardStackContextMenu', () => {
+  it('splits the deck into a pile for each seat at the table, this one included', () => {
+    const cardStack = CardStack.create('test stack');
+    const onSplitStack = vi.fn();
+    vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['other']);
+
+    try {
+      const actions = buildCardStackContextMenu(
+        cardStack,
+        50,
+        vi.fn(),
+        vi.fn(),
+        vi.fn(),
+        onSplitStack,
+        vi.fn(),
+        vi.fn(),
+        vi.fn(),
+        vi.fn(),
+        t
+      );
+      actions.find((action) => action.name === t('feature.cardStack.contextMenu.splitByPeers'))?.action?.();
+
+      expect(onSplitStack).toHaveBeenCalledWith(2);
+    } finally {
+      vi.restoreAllMocks();
+      cardStack.destroy();
+    }
+  });
+
   it('offers drawing to the hand and drawing several right below drawing one, and does each', () => {
     const cardStack = CardStack.create('test stack');
     const onDrawCard = vi.fn();

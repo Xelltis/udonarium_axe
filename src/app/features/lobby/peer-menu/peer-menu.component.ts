@@ -387,11 +387,11 @@ export class PeerMenuComponent {
   }
 
   /**
-   * Whether there is a room to connect to again: anybody else is connected, or, on a room server,
-   * the server is, which holds the room whoever else is in it.
+   * Whether there is a room to connect to again: anybody else is connected, the peers listed being
+   * the others, or, on a room server, the server is, which holds the room whoever else is in it.
    */
   get shouldShowReconnectButton(): boolean {
-    return this.networkService.peerIds.length > 1 || this.networkService.authorityPeerId !== null;
+    return this.networkService.peerIds.length > 0 || this.networkService.authorityPeerId !== null;
   }
 
   /** Whether there is a connection to ask for the whole room over: a peer, or the room server. */

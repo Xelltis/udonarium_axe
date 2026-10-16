@@ -58,6 +58,16 @@ describe('PeerMenuComponent', () => {
     });
   });
 
+  it('offers a reconnect among peers once anybody else is connected, the peers listed being the others', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+    const peers = vi.spyOn(Network.instance, 'peerIds', 'get').mockReturnValue(['peer-a']);
+    expect(component.shouldShowReconnectButton).toBe(true);
+
+    peers.mockReturnValue([]);
+    expect(component.shouldShowReconnectButton).toBe(false);
+    vi.restoreAllMocks();
+  });
+
   it('leaves the private connection controls out', () => {
     PeerCursor.createMyCursor();
     fixture.detectChanges();
