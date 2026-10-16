@@ -28,8 +28,8 @@ async function drag(page: Page, from: Point, to: Point) {
   await page.mouse.up();
 }
 
-test.describe('移動の割り込み', () => {
-  test('経路に届く敵の側が割り込むと、その地点で止まり、交戦エリアができること', async ({ page }) => {
+test.describe('interrupting a move', () => {
+  test('stops where an enemy in reach of the path interrupts, and makes an engagement zone there', async ({ page }) => {
     await waitAppReady(page);
     await becomeGm(page);
     await openPanel(page, '部屋設定');
@@ -76,7 +76,7 @@ test.describe('移動の割り込み', () => {
     await expect(page.getByTestId('zone-mark')).toHaveCount(1, { timeout: 10000 });
   });
 
-  test('敵を味方の上に置くと交戦を持ちかけられ、交戦エリアに入る移動はエリアの側が止めて引き込めること', async ({
+  test('offers an engagement when an enemy is put on an ally, and lets the zone’s side stop a move into the zone and pull it in', async ({
     page,
   }) => {
     await waitAppReady(page);

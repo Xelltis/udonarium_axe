@@ -2,17 +2,17 @@ import { expect, test } from '@playwright/test';
 
 import { openPanel, waitAppReady } from './helpers';
 
-test.describe('カットインエディタ (cut-in-editor)', () => {
+test.describe('the cut-in editor (cut-in-editor)', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await openPanel(page, 'カットイン');
     await expect(page.locator('app-cut-in-list')).toBeVisible({ timeout: 10000 });
-    // 新規作成して右ペインのエディタを開く。
+    // Makes a new cut-in to open the editor in the right pane.
     await page.locator('app-cut-in-list button[title="新しいカットインを作る"]').click();
     await expect(page.locator('app-cut-in-list cut-in-editor')).toBeVisible({ timeout: 5000 });
   });
 
-  test('カットイン名 / タグ名 / 表示秒数を入力できること', async ({ page }) => {
+  test('takes a cut-in name, a tag name and the seconds to show', async ({ page }) => {
     const name = page.locator('cut-in-editor input[name="cut-in-name"]');
     const tag = page.locator('cut-in-editor input[name="cut-in-tag-name"]');
     const outTime = page.locator('cut-in-editor input[name="cut-in-out-time"]');
@@ -26,14 +26,14 @@ test.describe('カットインエディタ (cut-in-editor)', () => {
     await expect(outTime).toHaveValue('5');
   });
 
-  test('幅・高さ・X/Y 位置の数値入力が存在すること', async ({ page }) => {
+  test('has number inputs for the width, the height and the X/Y position', async ({ page }) => {
     await expect(page.locator('cut-in-editor input[name="cut-in-width"]')).toBeAttached();
     await expect(page.locator('cut-in-editor input[name="cut-in-height"]')).toBeAttached();
     await expect(page.locator('cut-in-editor input[name="cut-in-x-pos-num"]')).toBeAttached();
     await expect(page.locator('cut-in-editor input[name="cut-in-y-pos-num"]')).toBeAttached();
   });
 
-  test('「アスペクト比を保持」「ループ再生」「動画として扱う」「チャットで起動」チェックボックスがあること', async ({
+  test('has the checkboxes for keeping the aspect ratio, looping, treating it as a video and starting it from the chat', async ({
     page,
   }) => {
     await expect(page.locator('cut-in-editor input[name="keepImageAspect"]')).toBeAttached();
@@ -42,7 +42,7 @@ test.describe('カットインエディタ (cut-in-editor)', () => {
     await expect(page.locator('cut-in-editor input[name="chatActivate"]')).toBeAttached();
   });
 
-  test('「動画として扱う」を ON/OFF でフラグがトグルできること', async ({ page }) => {
+  test('toggles the flag by turning "treat as a video" on and off', async ({ page }) => {
     const cb = page.locator('cut-in-editor input[name="cutInIsVideo"]');
     const initialChecked = await cb.isChecked();
     await cb.click({ force: true });

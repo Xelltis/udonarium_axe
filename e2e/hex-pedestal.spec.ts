@@ -32,8 +32,8 @@ async function useHexGrid(page: Page) {
   await expect(page.locator('modal')).toHaveCount(0);
 }
 
-test.describe('ヘクスの台座', () => {
-  test('台座の内側を押して引くと、コマが回らずに動くこと', async ({ page }) => {
+test.describe('hex pedestals', () => {
+  test('moves a piece without turning it when the inside of its pedestal is pressed and dragged', async ({ page }) => {
     await waitAppReady(page);
     await becomeGm(page);
     await closePanels(page);

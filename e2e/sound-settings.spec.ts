@@ -10,8 +10,8 @@ async function openSoundSettings(page: Page) {
   return panel;
 }
 
-test.describe('音の設定', () => {
-  test('種類ごとの音量と消音が、開き直しても残ること', async ({ page }) => {
+test.describe('sound settings', () => {
+  test('keeps the volume and mute of each kind after the settings are opened again', async ({ page }) => {
     await waitAppReady(page);
     let panel = await openSoundSettings(page);
 
@@ -30,7 +30,7 @@ test.describe('音の設定', () => {
     );
   });
 
-  test('ジュークボックスの自分の音量から開けて、同じ値を動かすこと', async ({ page }) => {
+  test('opens from one’s own volumes in the jukebox, and moves the same values', async ({ page }) => {
     await waitAppReady(page);
     await openPanel(page, 'ジュークボックス');
     const jukebox = page.locator('app-jukebox');
@@ -44,7 +44,7 @@ test.describe('音の設定', () => {
     await expect(panel.locator('input[name="bgm-volume"]')).toHaveValue('0.3');
   });
 
-  test('部屋の音量は、全体も種類ごとも PL には動かせない表示で出ること', async ({ page }) => {
+  test('shows the room volumes, overall and for each kind, out of a PL’s reach', async ({ page }) => {
     await waitAppReady(page);
     const panel = await openSoundSettings(page);
 
@@ -53,7 +53,7 @@ test.describe('音の設定', () => {
     await expect(panel.locator('input[name="room-handling-volume"]')).toHaveValue('1');
   });
 
-  test('GM がジュークボックスで動かした部屋の BGM の音量が、音の設定にも出ること', async ({ page }) => {
+  test('shows the room BGM volume the GM moved in the jukebox in the sound settings too', async ({ page }) => {
     await waitAppReady(page);
     const connection = page.locator('ui-panel').filter({ hasText: '接続情報' });
     await connection.getByRole('button', { name: /^\s*GM\s*$/ }).click();

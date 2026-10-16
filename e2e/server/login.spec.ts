@@ -46,10 +46,13 @@ async function answerRefreshes(context: BrowserContext, server: RoomServer, logi
   return () => answered;
 }
 
-test.describe('部屋にいるあいだにログインの期限が切れたとき', () => {
+test.describe('when the login runs out while in a room', () => {
   test.setTimeout(300_000);
 
-  test('更新したアクセストークンを部屋のサーバーに渡し、席はそのまま残る', async ({ browser, roomServer }) => {
+  test('hands the refreshed access token to the room server, and the seat stays as it is', async ({
+    browser,
+    roomServer,
+  }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const login = loginFor(roomServer, 'PLさん', TOKEN_SECONDS);
     const pl = await openSeat(browser, roomServer, 'PLさん', login);
@@ -68,7 +71,10 @@ test.describe('部屋にいるあいだにログインの期限が切れたと�
     await leaveAll(gm, pl);
   });
 
-  test('更新できなければ、サーバーが席を閉じて理由が出る', async ({ browser, roomServer }) => {
+  test('the server closes the seat and the reason shows when the token cannot be refreshed', async ({
+    browser,
+    roomServer,
+  }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const pl = await openSeat(browser, roomServer, 'PLさん', loginFor(roomServer, 'PLさん', TOKEN_SECONDS));
     // The server cannot be reached for a refresh, so the login stands but the token is not renewed.

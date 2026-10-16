@@ -13,8 +13,10 @@ async function chooseRuby(page: Page, part: string, value: string) {
   await page.locator(`chat-message-setting select[name="ruby-${part}"]`).selectOption(value);
 }
 
-test.describe('ルビ', () => {
-  test('グループルビとモノルビを振り分け、読み手の設定で割り付け・位置・振り方が変わること', async ({ page }) => {
+test.describe('ruby', () => {
+  test("sorts out group and mono ruby, and changes their spacing, alignment and display by the reader's settings", async ({
+    page,
+  }) => {
     await waitAppReady(page);
     await say(page, '|一二三四五《あい》と|漢字《かん|じ》');
     const message = page.locator('chat-tab chat-message').filter({ hasText: '一二三四五' });

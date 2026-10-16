@@ -2,20 +2,20 @@ import { expect, Page, test } from '@playwright/test';
 
 import { openSeatDisplay, waitAppReady } from './helpers';
 
-test.describe('テーマ切り替え', () => {
+test.describe('switching the theme', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('FAB の「表示」の小窓に、今のテーマのアイコンが出ること', async ({ page }) => {
+  test('shows the icon of the current theme in the FAB’s display small menu', async ({ page }) => {
     const panel = await openSeatDisplay(page);
-    // 起動時はtheme='auto'。
+    // The theme is 'auto' at start-up.
     const theme = panel.getByTestId('seat-theme');
     await expect(theme).toHaveAttribute('data-label', 'テーマ: 自動');
     await expect(theme.locator('i.material-icons')).toHaveText('brightness_auto');
   });
 
-  test('押すごとに自動 → ダーク → ライト → 自動 と巡り、画面のテーマが変わること', async ({ page }) => {
+  test('goes round auto → dark → light → auto with each press, changing the theme of the screen', async ({ page }) => {
     const panel = await openSeatDisplay(page);
     const theme = panel.getByTestId('seat-theme');
 
@@ -32,7 +32,7 @@ test.describe('テーマ切り替え', () => {
     await expect(theme).toHaveAttribute('data-label', 'テーマ: 自動');
   });
 
-  test('アイコンに乗せると、名前が Fav の項目と同じ吹き出しですぐ出ること', async ({ page }) => {
+  test('shows the name at once on hovering the icon, in the same tooltip as the Fav items', async ({ page }) => {
     const panel = await openSeatDisplay(page);
     const theme = panel.getByTestId('seat-theme');
     const bubble = () =>
@@ -47,7 +47,7 @@ test.describe('テーマ切り替え', () => {
     await expect.poll(async () => (await bubble()).content).toBe('"テーマ: 自動"');
   });
 
-  test('表示の小窓からスキンのパネルを開けること', async ({ page }) => {
+  test('opens the skin panel from the display small menu', async ({ page }) => {
     const panel = await openSeatDisplay(page);
     await expect(page.locator('[data-testid="fab-entry-skin"]')).toHaveCount(0);
 
@@ -57,7 +57,7 @@ test.describe('テーマ切り替え', () => {
     await expect(panel).toBeHidden();
   });
 
-  test('選んだテーマはリロードしても残ること', async ({ page }) => {
+  test('keeps the chosen theme after a reload', async ({ page }) => {
     const panel = await openSeatDisplay(page);
     await panel.getByTestId('seat-theme').click();
     await expect.poll(() => page.evaluate(() => localStorage.getItem('ui-theme'))).toBe('dark');
@@ -69,7 +69,7 @@ test.describe('テーマ切り替え', () => {
     await expect(reopened.getByTestId('seat-theme')).toHaveAttribute('data-label', 'テーマ: ダーク');
   });
 
-  test('小窓は Escape と外側のクリックで閉じること', async ({ page }) => {
+  test('closes the small menu on Escape and on a click outside it', async ({ page }) => {
     const panel = await openSeatDisplay(page);
     await page.keyboard.press('Escape');
     await expect(panel).toBeHidden();
@@ -80,11 +80,11 @@ test.describe('テーマ切り替え', () => {
   });
 });
 
-test.describe('FAB メニュー開閉', () => {
-  // ラベルは開閉で入れ替わるので、どちらでも掴める形で参照する。
+test.describe('opening and closing the FAB menu', () => {
+  // The label changes as the menu opens and closes, so the button is found by either.
   const fabButton = (page: Page) => page.getByRole('button', { name: /メニューを(開く|閉じる)/ });
 
-  test('FAB 閉時はメニュー項目が pointer-events: none で配置されていること', async ({ page }) => {
+  test('leaves the menu items in place with pointer-events: none while the FAB is closed', async ({ page }) => {
     await waitAppReady(page);
     const fab = fabButton(page);
     await fab.click();
@@ -92,11 +92,11 @@ test.describe('FAB メニュー開閉', () => {
     await expect(page.locator('[data-testid="fab-menu"] nav')).toHaveCSS('pointer-events', 'none');
   });
 
-  test('FAB を開閉すると aria-expanded / aria-label が同期すること', async ({ page }) => {
+  test('keeps aria-expanded and aria-label in step as the FAB opens and closes', async ({ page }) => {
     await waitAppReady(page);
     const fab = fabButton(page);
 
-    // 既定は開いた状態（feat(app): default FAB to open）。
+    // It starts open (feat(app): default FAB to open).
     await expect(fab).toHaveAttribute('aria-expanded', 'true');
     await expect(fab).toHaveAccessibleName(/メニューを閉じる/);
 

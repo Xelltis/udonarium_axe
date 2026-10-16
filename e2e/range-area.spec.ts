@@ -26,13 +26,13 @@ async function openRangeMenu(page: Page) {
   return menu;
 }
 
-test.describe('射程範囲 (range-area) のコンテキストメニュー', () => {
+test.describe('the range (range-area) context menu', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await createCircleRange(page);
   });
 
-  test('「形状変更」サブメニューに 7 種類の形状が含まれること', async ({ page }) => {
+  test('lists seven shapes in the "change shape" submenu', async ({ page }) => {
     const menu = await openRangeMenu(page);
     await menu.getByText('形状変更').hover();
     for (const shape of ['直線', 'コーン', '三角形', '四角形・ダイヤ', '五角形', '六角形', '円形']) {
@@ -40,21 +40,21 @@ test.describe('射程範囲 (range-area) のコンテキストメニュー', () 
     }
   });
 
-  test('「射程範囲を編集」で詳細パネルが開けること', async ({ page }) => {
+  test('opens the detail panel from "edit range"', async ({ page }) => {
     const menu = await openRangeMenu(page);
     await menu.getByText('射程範囲を編集').click();
-    // 範囲シートもgame-character-sheet上にホストされる（rangeArea === trueの経路）。
+    // The range sheet is hosted on game-character-sheet too (the rangeArea === true path).
     await expect(page.locator('game-character-sheet')).toBeVisible({ timeout: 10000 });
   });
 
-  test('「削除する」で range が DOM から消えること', async ({ page }) => {
+  test('takes the range out of the DOM on "delete"', async ({ page }) => {
     const before = await page.locator('range').count();
     const menu = await openRangeMenu(page);
     await menu.getByText('削除する').click();
     await expect.poll(() => page.locator('range').count(), { timeout: 5000 }).toBeLessThan(before);
   });
 
-  test('「コピーを作る」で range が増えること', async ({ page }) => {
+  test('adds a range on "make a copy"', async ({ page }) => {
     const before = await page.locator('range').count();
     const menu = await openRangeMenu(page);
     await menu.getByText('コピーを作る').click();
@@ -62,12 +62,12 @@ test.describe('射程範囲 (range-area) のコンテキストメニュー', () 
   });
 });
 
-test.describe('射程範囲の四角形とダイヤ', () => {
+test.describe('square and diamond ranges', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('作成メニューの「四角形・ダイヤ」から「ダイヤとして出力」で作り、形状変更でダイヤに印が付くこと', async ({
+  test('makes a diamond from "output as diamond" under "square/diamond" in the create menu, and marks the diamond in "change shape"', async ({
     page,
   }) => {
     await createSquareRange(page, 'ダイヤとして出力');
@@ -79,7 +79,9 @@ test.describe('射程範囲の四角形とダイヤ', () => {
     await expect(menu.getByText('四角形として出力', { exact: true })).toBeVisible();
   });
 
-  test('Alt を押しながら回すと 45° ごとにそろい、回しているあいだ角度とヘルプが出ること', async ({ page }) => {
+  test('snaps to every 45° while Alt is held during a turn, and shows the angle and help while turning', async ({
+    page,
+  }) => {
     await createSquareRange(page, '四角形として出力');
     const range = page.locator('range').first();
     await range.locator('canvas').first().hover({ force: true });

@@ -20,8 +20,11 @@ import {
 const rolePickerFor = (page: Page, name: string) =>
   page.locator('peer-menu div.border-t', { hasText: name }).locator('select');
 
-test.describe('部屋のサーバーの部屋と役割', () => {
-  test('ログインした人が作った部屋ではGMになり、PLと見学の役割もサーバーが決める', async ({ browser, roomServer }) => {
+test.describe('rooms and roles on the room server', () => {
+  test('a logged-in user becomes GM of the room they make, and the server decides the PL and guest roles too', async ({
+    browser,
+    roomServer,
+  }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const pl = await openSeat(browser, roomServer, 'PLさん');
     const guest = await openSeat(browser, roomServer, '見学さん', null);
@@ -41,7 +44,10 @@ test.describe('部屋のサーバーの部屋と役割', () => {
     await leaveAll(gm, pl, guest);
   });
 
-  test('GMは参加者のロールを変えられ、ログインしていない人はPLにできない', async ({ browser, roomServer }) => {
+  test('the GM can change a participant’s role, but cannot make someone who is not logged in a PL', async ({
+    browser,
+    roomServer,
+  }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const pl = await openSeat(browser, roomServer, 'PLさん');
     const guest = await openSeat(browser, roomServer, '見学さん', null);
@@ -61,7 +67,7 @@ test.describe('部屋のサーバーの部屋と役割', () => {
     await leaveAll(gm, pl, guest);
   });
 
-  test('GMの招待リンク（GM）で入った人はGMになる', async ({ browser, roomServer }) => {
+  test('someone who joins by the GM’s invite link for a GM becomes a GM', async ({ browser, roomServer }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const room = uniqueName('招待の卓');
     await createRoom(gm.page, room);
@@ -80,7 +86,7 @@ test.describe('部屋のサーバーの部屋と役割', () => {
     await leaveAll(gm, coGm);
   });
 
-  test('サーバーで期限が切れたログインは、理由つきで断られる', async ({ browser, roomServer }) => {
+  test('a login run out on the server is turned away with a reason', async ({ browser, roomServer }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const room = uniqueName('遅刻の卓');
     await createRoom(gm.page, room);
@@ -99,8 +105,11 @@ test.describe('部屋のサーバーの部屋と役割', () => {
   });
 });
 
-test.describe('部屋の削除', () => {
-  test('GMが部屋の中から削除すると、全員が待機に戻って理由が出る', async ({ browser, roomServer }) => {
+test.describe('deleting a room', () => {
+  test('when the GM deletes the room from inside it, everyone goes back to waiting and the reason shows', async ({
+    browser,
+    roomServer,
+  }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const pl = await openSeat(browser, roomServer, 'PLさん');
     const room = uniqueName('中から削除');
@@ -121,7 +130,7 @@ test.describe('部屋の削除', () => {
     await leaveAll(gm, pl);
   });
 
-  test('ロビーの一覧では自分がGMの部屋にだけ削除のボタンが出て、押すと一覧から消える', async ({
+  test('the lobby list shows a delete button only on rooms one is GM of, and pressing it takes the room off the list', async ({
     browser,
     roomServer,
   }) => {

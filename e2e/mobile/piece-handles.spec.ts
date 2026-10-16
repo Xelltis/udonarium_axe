@@ -19,8 +19,10 @@ async function boxRound(locator: Locator): Promise<Box | null> {
   return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
-test.describe('スマートフォンで見るキャラクターコマ', () => {
-  test('傾けるつまみが画像の左右に出て、画像にも名前・HP バー・バフにも重ならないこと', async ({ page }) => {
+test.describe('character pieces seen on a phone', () => {
+  test('puts the tilt handles left and right of the picture, clear of the picture, the name, the HP bar and the buffs', async ({
+    page,
+  }) => {
     await page.goto('/');
     await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
 

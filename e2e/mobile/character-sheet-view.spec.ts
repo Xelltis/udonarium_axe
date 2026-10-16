@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test';
 
 import { openCharacterSheet, row, sectionCard } from './sheet-helpers';
 
-test.describe('スマートフォンで読むキャラクターシート', () => {
-  test('横にはみ出さず、立ち絵の列の代わりに見出しが出ること', async ({ page }) => {
+test.describe('reading a character sheet on a phone', () => {
+  test('does not overflow sideways, and shows a heading in place of the portrait column', async ({ page }) => {
     const sheet = await openCharacterSheet(page);
 
     await expect(sheet.getByTestId('sheet-compact-header')).toBeVisible();
@@ -16,7 +16,7 @@ test.describe('スマートフォンで読むキャラクターシート', () =>
     expect(overflow).toBe(0);
   });
 
-  test('セクションの並びから押したセクションへ飛べること', async ({ page }) => {
+  test('jumps to the section pressed in the row of sections', async ({ page }) => {
     const sheet = await openCharacterSheet(page);
     const chips = sheet.getByTestId('sheet-section-chips');
 
@@ -30,7 +30,7 @@ test.describe('スマートフォンで読むキャラクターシート', () =>
     await expect(chips.getByRole('button', { name: 'パーツ', exact: true })).toHaveAttribute('aria-current', 'true');
   });
 
-  test('畳んだセクションが開き直しても畳まれたままであること', async ({ page }) => {
+  test('keeps a folded section folded after the sheet is opened again', async ({ page }) => {
     const sheet = await openCharacterSheet(page);
     const title = sectionCard(sheet, '能力').getByTestId('sheet-card-title');
 
@@ -52,7 +52,7 @@ test.describe('スマートフォンで読むキャラクターシート', () =>
     );
   });
 
-  test('± で HP を増減できること', async ({ page }) => {
+  test('raises and lowers HP with ±', async ({ page }) => {
     const sheet = await openCharacterSheet(page);
     const hp = row(sheet, 'HP');
     const current = hp.locator('input[name="data-current-value"]');
@@ -65,7 +65,7 @@ test.describe('スマートフォンで読むキャラクターシート', () =>
     await expect(hp.getByTestId('step-up')).toBeEnabled();
   });
 
-  test('表を横に送っても行の見出しが左に残ること', async ({ page }) => {
+  test('keeps the row headings at the left as the table scrolls sideways', async ({ page }) => {
     const sheet = await openCharacterSheet(page);
     const table = sectionCard(sheet, '技能表').locator('.elm-view-table');
     await table.scrollIntoViewIfNeeded();

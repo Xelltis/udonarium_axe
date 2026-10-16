@@ -13,12 +13,12 @@ async function openCardStackSheet(page: Page) {
   await expect(page.locator('game-character-sheet')).toBeVisible({ timeout: 10000 });
 }
 
-test.describe('card-stack の詳細シート', () => {
+test.describe('the detail sheet of a card-stack', () => {
   test.beforeEach(async ({ page }) => {
     await openCardStackSheet(page);
   });
 
-  test('card-stack シートに「コピーを作る」「保存」ボタンとタブがあること', async ({ page }) => {
+  test('gives the card-stack sheet its copy and save buttons and its tabs', async ({ page }) => {
     const sheet = page.locator('game-character-sheet');
     await expect(sheet.getByRole('button', { name: 'コピーを作る' })).toBeVisible();
     await expect(sheet.getByRole('button', { name: '保存' })).toBeVisible();
@@ -26,7 +26,7 @@ test.describe('card-stack の詳細シート', () => {
     await expect(sheet.getByRole('button', { name: /設定/ })).toBeVisible();
   });
 
-  test('タブを往復してもシートが壊れないこと', async ({ page }) => {
+  test('keeps the sheet whole when the tabs are switched back and forth', async ({ page }) => {
     const sheet = page.locator('game-character-sheet');
     const settings = sheet.getByRole('button', { name: /設定/ });
     const cards = sheet.getByRole('button', { name: /カード一覧/ });
@@ -37,7 +37,7 @@ test.describe('card-stack の詳細シート', () => {
     await expect(cards).toBeVisible();
   });
 
-  test('保存ボタンで .xml データを含む zip がダウンロードされること', async ({ page }) => {
+  test('downloads a zip holding the .xml data from the save button', async ({ page }) => {
     const sheet = page.locator('game-character-sheet');
     const downloadPromise = page.waitForEvent('download', { timeout: 30000 });
     await sheet.getByRole('button', { name: '保存' }).click();

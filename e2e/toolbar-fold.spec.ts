@@ -3,7 +3,7 @@ import { expect, Page, test } from '@playwright/test';
 import { waitAppReady } from './helpers';
 
 /** A seat can fold each toolbar down to its title, and finds it folded when it comes back. */
-test.describe('ツールバーの折りたたみ', () => {
+test.describe('folding the toolbars', () => {
   async function becomeGm(page: Page) {
     await page
       .locator('ui-panel')
@@ -13,7 +13,7 @@ test.describe('ツールバーの折りたたみ', () => {
     await expect(page.locator('app-gm-toolbar [data-testid="gm-toolbar-fold"]')).toBeVisible({ timeout: 10000 });
   }
 
-  test('PL ツールバーを畳むと道具が隠れ、リロードしても畳んだままであること', async ({ page }) => {
+  test('hides the tools when the player toolbar is folded, and keeps it folded after a reload', async ({ page }) => {
     await waitAppReady(page);
     const toolbar = page.locator('app-pl-toolbar');
     await expect(toolbar.locator('[title="所有キャラクター一覧"]')).toBeVisible({ timeout: 10000 });
@@ -31,7 +31,7 @@ test.describe('ツールバーの折りたたみ', () => {
     await expect(toolbar.locator('[title="所有キャラクター一覧"]')).toBeVisible();
   });
 
-  test('GM ツールバーを畳んでも PL ツールバーは開いたままであること', async ({ page }) => {
+  test('keeps the player toolbar open when the GM toolbar is folded', async ({ page }) => {
     await waitAppReady(page);
     await becomeGm(page);
     const gm = page.locator('app-gm-toolbar');

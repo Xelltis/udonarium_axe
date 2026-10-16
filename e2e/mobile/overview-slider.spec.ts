@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-test.describe('スマートフォンで開くコマの簡易表示', () => {
-  test('コマをタップして出た簡易表示で、リソースをスライダーで動かせること', async ({ page }) => {
+test.describe('a piece’s overview opened on a phone', () => {
+  test('moves a resource with the slider in the overview a tap on the piece brings up', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
     const closeStartupPanel = page.locator('ui-panel .bg-ui-titlebar button').last();

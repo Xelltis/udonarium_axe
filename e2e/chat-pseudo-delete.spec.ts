@@ -9,12 +9,14 @@ async function say(page: Page, text: string) {
   await expect(textarea).toHaveValue('');
 }
 
-test.describe('発言の削除', () => {
+test.describe('deleting a line', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('ツールバーの削除ボタンから、確かめてから削除すると、自分の画面からも消えること', async ({ page }) => {
+  test("removes a line from one's own screen too when deleted from the toolbar's delete button and confirmed", async ({
+    page,
+  }) => {
     await say(page, 'うっかり書いた発言');
     const line = page.locator('chat-tab chat-message').filter({ hasText: 'うっかり書いた発言' });
 
@@ -27,7 +29,7 @@ test.describe('発言の削除', () => {
     await expect(line).toHaveCount(0);
   });
 
-  test('メニューの削除から、確認でやめると、発言はそのまま残ること', async ({ page }) => {
+  test('keeps the line when deleting from the menu is cancelled at the confirmation', async ({ page }) => {
     await say(page, '残しておく発言');
     const line = page.locator('chat-tab chat-message').filter({ hasText: '残しておく発言' });
 
@@ -43,7 +45,9 @@ test.describe('発言の削除', () => {
     await expect(line).toHaveCount(1);
   });
 
-  test('削除した発言はログに印付きで残り、出力しない設定にすると外れること', async ({ page }) => {
+  test('keeps a deleted line in the log with a mark, and leaves it out once the log is set not to include it', async ({
+    page,
+  }) => {
     await say(page, '残る発言');
     await say(page, '消す発言');
     const line = page.locator('chat-tab chat-message').filter({ hasText: '消す発言' });

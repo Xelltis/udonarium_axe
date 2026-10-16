@@ -8,7 +8,7 @@ import { waitAppReady } from './helpers';
  * now runs against the production bundle, so this drives the GM toolbar the way
  * a game master would.
  */
-test.describe('暗闇（ステージ効果）', () => {
+test.describe('darkness (a stage effect)', () => {
   /** How much of the overlay canvas has been painted. */
   const paintedPixels = (page: import('@playwright/test').Page) =>
     page.evaluate(() => {
@@ -21,10 +21,10 @@ test.describe('暗闇（ステージ効果）', () => {
       return painted;
     });
 
-  test('GM ツールバーの暗闇ボタンでオーバーレイが描画されること', async ({ page }) => {
+  test('draws the overlay from the darkness button of the GM toolbar', async ({ page }) => {
     await waitAppReady(page);
 
-    // 暗闇の切り替えはGMだけができる。
+    // Only the GM can switch the darkness.
     const connection = page.locator('ui-panel').filter({ hasText: '接続情報' });
     await connection.getByRole('button', { name: /^\s*GM\s*$/ }).click();
     const darkness = page.locator('app-gm-toolbar [title^="暗闇"]');
@@ -36,7 +36,7 @@ test.describe('暗闇（ステージ効果）', () => {
     await darkness.click();
     await expect.poll(() => paintedPixels(page), { timeout: 10000 }).toBeGreaterThan(0);
 
-    // もう一度押すと元に戻る。
+    // Pressing it again turns it back.
     await darkness.click();
     await expect.poll(() => paintedPixels(page), { timeout: 10000 }).toBe(0);
   });

@@ -44,8 +44,8 @@ async function expectStageSays(page: Page, words: string) {
   await expect(stage.locator('[data-letter-rank]')).toHaveText([...words]);
 }
 
-test.describe('カットインの「誰として再生」', () => {
-  test('キャラを選んで自分だけ再生すると、{character} がそのキャラの名前になり一文字ずつ描かれること', async ({
+test.describe('playing a cut-in as a character', () => {
+  test("puts the chosen character's name in {character} and draws it one letter at a time when played for oneself alone", async ({
     page,
   }) => {
     const list = await makeSpeakerCutIn(page);
@@ -54,7 +54,7 @@ test.describe('カットインの「誰として再生」', () => {
     await expectStageSays(page, `${SPEAKER}、参戦！`);
   });
 
-  test('誰も選ばずに自分だけ再生すると、名前は ？？？ になること', async ({ page }) => {
+  test('shows the name as ??? when played for oneself alone with nobody chosen', async ({ page }) => {
     const list = await makeSpeakerCutIn(page);
     await expect(list.getByTestId('cut-in-try-speaker').locator('select option:checked')).toHaveText('指定しない');
     await list.locator('cut-in-editor button[title="自分だけ再生"]').click();
@@ -62,7 +62,7 @@ test.describe('カットインの「誰として再生」', () => {
   });
 });
 
-test.describe('立ち絵のカットイン位置', () => {
+test.describe('the cut-in position of a portrait', () => {
   async function openFitDialog(page: Page): Promise<{ stage: Locator; state: Locator }> {
     await page.getByTestId('portrait-cut-in-fit').click();
     const stage = page.getByTestId('cut-in-fit-stage');
@@ -88,7 +88,9 @@ test.describe('立ち絵のカットイン位置', () => {
     await expect(page.locator('game-character-sheet')).toBeVisible({ timeout: 10000 });
   });
 
-  test('ドラッグで設定済みになり、OK で書き込まれ、元に戻して OK で未設定に戻ること', async ({ page }) => {
+  test('marks it set on a drag, writes it on OK, and goes back to unset when put back and confirmed with OK', async ({
+    page,
+  }) => {
     const first = await openFitDialog(page);
     await expect(first.state).toHaveAttribute('data-state', 'unset');
     await drag(page, first.stage);
@@ -107,7 +109,7 @@ test.describe('立ち絵のカットイン位置', () => {
     await expect(third.state).toHaveAttribute('data-state', 'unset');
   });
 
-  test('ドラッグしてもキャンセルすれば何も書き込まれないこと', async ({ page }) => {
+  test('writes nothing when cancelled after a drag', async ({ page }) => {
     const first = await openFitDialog(page);
     await drag(page, first.stage);
     await expect(first.state).toHaveAttribute('data-state', 'set');
@@ -119,8 +121,8 @@ test.describe('立ち絵のカットイン位置', () => {
   });
 });
 
-test.describe('ホワイトボードの拡大表示', () => {
-  test('ポップアップの拡大ボタンで全画面に広がり、クリックで閉じること', async ({ page }) => {
+test.describe('enlarging a whiteboard', () => {
+  test('spreads over the whole screen from the zoom button of the pop-up, and closes on a click', async ({ page }) => {
     await waitAppReady(page);
     const menu = await openTableContextMenu(page);
     await (await revealMenuEntry(page, menu, 'ホワイトボードを作成')).click();

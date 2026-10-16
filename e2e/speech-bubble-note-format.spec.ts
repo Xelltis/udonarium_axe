@@ -28,13 +28,15 @@ async function speakAs(page: Page, name: string, line: string) {
 }
 
 /** A character's line comes up in a bubble over its piece on the table. */
-test.describe('キャラクターの発言の吹き出し', () => {
+test.describe('speech bubbles over a character’s lines', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await expect(pieceOf(page, 'キャラクターA')).toBeAttached({ timeout: 10000 });
   });
 
-  test('「」のある発言は、かぎかっこの中の言葉だけが発言したキャラクターのコマの上に出ること', async ({ page }) => {
+  test('shows only the words inside 「」 over the speaking character’s piece, for a line that has them', async ({
+    page,
+  }) => {
     await speakAs(page, 'キャラクターA', '「この先の吊り橋はもう長くはもたないだろう」と彼は肩をすくめた');
 
     const bubble = bubbleOver(page, 'キャラクターA');
@@ -43,7 +45,7 @@ test.describe('キャラクターの発言の吹き出し', () => {
     await expect(page.getByTestId('speech-bubble')).toHaveCount(1);
   });
 
-  test('ダイスボットが答えたロールの発言には吹き出しが出ないこと', async ({ page }) => {
+  test('shows no bubble for a roll the dice bot answered', async ({ page }) => {
     const answers = page.locator('chat-tab .dicebot-message');
     const before = await answers.count();
     await speakAs(page, 'キャラクターA', '2d6');
@@ -56,7 +58,7 @@ test.describe('キャラクターの発言の吹き出し', () => {
     expect(await bubbleOver(page, 'キャラクターA').count()).toBe(0);
   });
 
-  test('ツールバーの切り替えで、この画面の吹き出しを隠して戻せること', async ({ page }) => {
+  test('hides the bubbles on this screen and brings them back with the toolbar switch', async ({ page }) => {
     await speakAs(page, 'キャラクターA', '「足もとに気をつけて、ここから先は床がひどく傷んでいるぞ」');
     const bubble = bubbleOver(page, 'キャラクターA');
     await expect(bubble).toBeVisible();
@@ -69,7 +71,7 @@ test.describe('キャラクターの発言の吹き出し', () => {
     await expect(bubble).toHaveText('足もとに気をつけて、ここから先は床がひどく傷んでいるぞ');
   });
 
-  test('GM が部屋設定で吹き出しを切ると、その間の発言には吹き出しが出ないこと', async ({ page }) => {
+  test('shows no bubbles for lines spoken while the GM has bubbles off in the room settings', async ({ page }) => {
     await page
       .locator('ui-panel')
       .filter({ hasText: '接続情報' })
@@ -95,8 +97,8 @@ test.describe('キャラクターの発言の吹き出し', () => {
 });
 
 /** A shared note can be drawn with headings and lists read from the marks at the start of its lines. */
-test.describe('共有メモの整形表示', () => {
-  test('整形にすると見出しとリストとして描かれ、通常に戻すと書いたままの文字で出ること', async ({ page }) => {
+test.describe('formatted shared notes', () => {
+  test('draws headings and lists when formatted, and the text as written once back to plain', async ({ page }) => {
     await waitAppReady(page);
     const menu = await openTableContextMenu(page);
     await (await revealMenuEntry(page, menu, '共有メモを作成')).click();

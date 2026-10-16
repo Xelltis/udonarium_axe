@@ -2,25 +2,25 @@ import { expect, test } from '@playwright/test';
 
 import { chatTabPill, openChatSettingsMenuItem, waitAppReady } from './helpers';
 
-test.describe('チャットウィンドウ', () => {
+test.describe('the chat window', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('チャットタブピル (メインタブ・サブタブ) が表示されること', async ({ page }) => {
+  test('shows the chat tab pills (main tab and sub tab)', async ({ page }) => {
     await expect(chatTabPill(page, 'メインタブ')).toBeVisible();
     await expect(chatTabPill(page, 'サブタブ')).toBeVisible();
   });
 
-  test('チャットタブを切り替えられること', async ({ page }) => {
-    // ラジオ自体はclass="peer hidden"でdisplay:none。ラベル内のピルdivを
-    // クリックすると関連するラジオがcheckedになる。
+  test('switches chat tabs', async ({ page }) => {
+    // The radio itself is display:none through class="peer hidden". A click on the pill div in the
+    // label checks the radio it belongs to.
     await chatTabPill(page, 'サブタブ').click();
     const subTabRadio = page.locator('chat-window input[name^="chat-tab"]').nth(1);
     await expect(subTabRadio).toBeChecked();
   });
 
-  test('タブを右クリックして発言だけの別窓を開けること', async ({ page }) => {
+  test('opens a separate window of the lines alone from a right click on a tab', async ({ page }) => {
     const input = page.locator('chat-input textarea').first();
     await input.fill('流れを見たい発言');
     await input.press('Enter');
@@ -32,11 +32,11 @@ test.describe('チャットウィンドウ', () => {
     const stream = page.locator('chat-stream');
     await expect(stream).toBeVisible();
     await expect(stream).toContainText('流れを見たい発言');
-    // 読むための窓なので、発言の操作ボタンは出ない。
+    // The window is for reading, so the buttons for acting on a line do not show.
     await expect(stream.locator('chat-message .material-icons')).toHaveCount(0);
   });
 
-  test('別窓は同じ右クリックから閉じられること', async ({ page }) => {
+  test('closes the separate window from the same right click', async ({ page }) => {
     await chatTabPill(page, 'サブタブ').click({ button: 'right' });
     await page.locator('context-menu').getByText('「サブタブ」を別窓で流す').click();
     await expect(page.locator('chat-stream')).toBeVisible();
@@ -47,17 +47,17 @@ test.describe('チャットウィンドウ', () => {
     await expect(page.locator('chat-stream')).toHaveCount(0);
   });
 
-  test('送信ボタンが表示されること', async ({ page }) => {
+  test('shows the send button', async ({ page }) => {
     await expect(page.locator('chat-input').getByRole('button', { name: '送信' })).toBeVisible();
   });
 
-  test('チャットメッセージを入力できること', async ({ page }) => {
+  test('takes a chat message in the input', async ({ page }) => {
     const textarea = page.locator('textarea.chat-input');
     await textarea.fill('テストメッセージ');
     await expect(textarea).toHaveValue('テストメッセージ');
   });
 
-  test('チャットメッセージを送信するとログに表示されること', async ({ page }) => {
+  test('shows a sent chat message in the log', async ({ page }) => {
     const textarea = page.locator('textarea.chat-input');
     await textarea.fill('E2Eテスト送信');
     await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
@@ -65,19 +65,19 @@ test.describe('チャットウィンドウ', () => {
     await expect(page.locator('chat-tab').getByText('E2Eテスト送信')).toBeVisible({ timeout: 10000 });
   });
 
-  test('送信先が「全員」であること (デフォルト)', async ({ page }) => {
+  test('sends to "everyone" by default', async ({ page }) => {
     await expect(page.locator('chat-input').getByText('全員')).toBeVisible();
   });
 
-  test('点呼・投票ボタンが存在すること', async ({ page }) => {
+  test('has the roll call and vote button', async ({ page }) => {
     await expect(page.locator('chat-window button[title="点呼・投票"]')).toBeVisible();
   });
 
-  test('アラームボタンが存在すること', async ({ page }) => {
+  test('has the alarm button', async ({ page }) => {
     await expect(page.locator('chat-window button[title="アラーム"]')).toBeVisible();
   });
 
-  test('チャット設定ドロップダウンが開けること', async ({ page }) => {
+  test('opens the chat settings dropdown', async ({ page }) => {
     const summary = page.locator('chat-window summary[title="チャット設定"]');
     await summary.click();
     const dropdown = page.locator('chat-window details[open]');
@@ -86,57 +86,58 @@ test.describe('チャットウィンドウ', () => {
     await expect(dropdown.getByRole('button', { name: /チャット設定/ })).toBeVisible();
   });
 
-  test('ダイスボットヘルプボタン (?) が存在すること', async ({ page }) => {
+  test('has the dice bot help button (?)', async ({ page }) => {
     await expect(page.locator('chat-input').getByRole('button', { name: '?' })).toBeVisible();
   });
 
-  test('色設定ボタンが存在すること', async ({ page }) => {
+  test('has the colour settings button', async ({ page }) => {
     await expect(page.locator('chat-input').getByRole('button', { name: /色設定/ })).toBeVisible();
   });
 });
 
-test.describe('チャットでダイスロール', () => {
+test.describe('rolling dice in the chat', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('ダイスコマンド (2d6) を送信するとダイス結果がログに表示されること', async ({ page }) => {
+  test('shows the dice result in the log when a dice command (2d6) is sent', async ({ page }) => {
     const textarea = page.locator('textarea.chat-input');
     await textarea.fill('2d6');
     await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
     await expect(textarea).toHaveValue('');
-    // 送信ログには「2d6」のエコーも残るため、DiceBotの結果メッセージで一意化する
+    // The log also keeps the echo of the "2d6" sent, so the DiceBot result message is what picks
+    // out one line.
     await expect(page.locator('chat-tab').getByText(/DiceBot.*\(2D6\)/)).toBeVisible({ timeout: 10000 });
   });
 });
 
-test.describe('チャットタブ設定パネル', () => {
+test.describe('the chat tab settings panel', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('歯車メニューからタブ設定パネルが開けること', async ({ page }) => {
+  test('opens the tab settings panel from the gear menu', async ({ page }) => {
     await openChatSettingsMenuItem(page, 'タブ設定');
     await expect(page.locator('app-chat-tab-setting')).toBeVisible({ timeout: 5000 });
   });
 
-  test('タブ設定パネルにタブ名入力欄があること', async ({ page }) => {
+  test('has a tab name field in the tab settings panel', async ({ page }) => {
     await openChatSettingsMenuItem(page, 'タブ設定');
     await expect(page.locator('app-chat-tab-setting')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('app-chat-tab-setting input[name="tab-name"]')).toBeVisible();
   });
 
-  test('タブ名を変更できること', async ({ page }) => {
+  test('renames a tab', async ({ page }) => {
     await openChatSettingsMenuItem(page, 'タブ設定');
     await expect(page.locator('app-chat-tab-setting')).toBeVisible({ timeout: 5000 });
     const tabNameInput = page.locator('app-chat-tab-setting input[name="tab-name"]');
     await tabNameInput.fill('カスタムタブ名');
     await expect(tabNameInput).toHaveValue('カスタムタブ名');
-    // チャットウィンドウのタブピルが新しい名前に切り替わる
+    // The chat window's tab pill takes the new name.
     await expect(chatTabPill(page, 'カスタムタブ名')).toBeVisible({ timeout: 5000 });
   });
 
-  test('新しいタブを追加できること', async ({ page }) => {
+  test('adds a new tab', async ({ page }) => {
     await openChatSettingsMenuItem(page, 'タブ設定');
     await expect(page.locator('app-chat-tab-setting')).toBeVisible({ timeout: 5000 });
     const initialTabCount = await page.locator('chat-window input[name^="chat-tab"]').count();
@@ -147,57 +148,57 @@ test.describe('チャットタブ設定パネル', () => {
   });
 });
 
-test.describe('点呼・投票ウィンドウ', () => {
+test.describe('the roll call and vote window', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('点呼・投票ボタンをクリックするとウィンドウが開くこと', async ({ page }) => {
+  test('opens the window from the roll call and vote button', async ({ page }) => {
     await page.locator('chat-window button[title="点呼・投票"]').click();
     await expect(page.locator('app-vote-menu')).toBeVisible({ timeout: 5000 });
   });
 
-  test('「自分を含める」チェックボックスがあること', async ({ page }) => {
+  test('has the "include myself" checkbox', async ({ page }) => {
     await page.locator('chat-window button[title="点呼・投票"]').click();
     await expect(page.locator('app-vote-menu')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('app-vote-menu input[name="includSelf"]')).toBeVisible();
     await expect(page.locator('app-vote-menu').getByText('自分を含める')).toBeVisible();
   });
 
-  test('自分しか部屋にいない場合のメッセージが表示されること', async ({ page }) => {
+  test('shows the message for when nobody but oneself is in the room', async ({ page }) => {
     await page.locator('chat-window button[title="点呼・投票"]').click();
     await expect(page.locator('app-vote-menu')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('app-vote-menu').getByText('自分しか部屋にいません')).toBeVisible();
   });
 });
 
-test.describe('チャットのキャラクター送信元', () => {
+test.describe('the character a chat line is sent as', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('送信元/宛先/ダイスボットの 3 つの ng-select が存在すること', async ({ page }) => {
+  test('has three ng-selects, for the sender, the recipient and the dice bot', async ({ page }) => {
     await expect(page.locator('chat-input ng-select')).toHaveCount(3);
   });
 });
 
-test.describe('ダイス表設定パネル', () => {
+test.describe('the dice table settings panel', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('歯車メニューからダイス表設定パネルが開けること', async ({ page }) => {
+  test('opens the dice table settings panel from the gear menu', async ({ page }) => {
     await openChatSettingsMenuItem(page, 'ダイス表設定');
     await expect(page.locator('dice-table-setting')).toBeVisible({ timeout: 5000 });
   });
 
-  test('「新しい表を作る」ボタンがあること', async ({ page }) => {
+  test('has the "make a new table" button', async ({ page }) => {
     await openChatSettingsMenuItem(page, 'ダイス表設定');
     await expect(page.locator('dice-table-setting')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('dice-table-setting button[title="新しい表を作る"]')).toBeVisible();
   });
 
-  test('ダイス表を新規作成できること', async ({ page }) => {
+  test('makes a new dice table', async ({ page }) => {
     await openChatSettingsMenuItem(page, 'ダイス表設定');
     await expect(page.locator('dice-table-setting')).toBeVisible({ timeout: 5000 });
     const items = page.locator('dice-table-setting li[role="option"]');
@@ -207,12 +208,12 @@ test.describe('ダイス表設定パネル', () => {
   });
 });
 
-test.describe('チャットログのスクロール枠', () => {
+test.describe('the scroll frame of the chat log', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('ログが自前のスクロール枠を持ち、パネル本体は伸びないこと', async ({ page }) => {
+  test('gives the log a scroll frame of its own, so the panel itself does not grow', async ({ page }) => {
     const textarea = page.locator('textarea.chat-input');
     const send = page.locator('chat-input').getByRole('button', { name: '送信' });
     for (let i = 0; i < 30; i++) {
@@ -240,7 +241,7 @@ test.describe('チャットログのスクロール枠', () => {
       .toBeLessThanOrEqual(8);
   });
 
-  test('ログを遡ると最新メッセージへ移動するボタンが出ること', async ({ page }) => {
+  test('shows a button that jumps to the latest message once the log is scrolled back', async ({ page }) => {
     // Sixty lines are sent one at a time, about a third of a second each in WebKit, which with
     // the page's own start can run past the default thirty seconds.
     test.setTimeout(90_000);

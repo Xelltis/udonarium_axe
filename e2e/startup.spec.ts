@@ -2,22 +2,22 @@ import { expect, test } from '@playwright/test';
 
 import { openFabMenu, waitAppReady } from './helpers';
 
-test.describe('アプリケーション起動', () => {
-  test('アプリが起動すること', async ({ page }) => {
+test.describe('starting the application', () => {
+  test('starts the app', async ({ page }) => {
     await page.goto('/');
     await expect(page).toHaveTitle(/Udonarium/i);
   });
 
-  test('ローディング後にメインUIが表示されること', async ({ page }) => {
+  test('shows the main UI after loading', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('#app-table-layer')).toBeVisible({ timeout: 20000 });
     await expect(page.locator('game-table')).toBeAttached({ timeout: 20000 });
   });
 
-  test('左 FAB メニューを開くと nav 項目が表示されること', async ({ page }) => {
+  test('shows the nav items when the left FAB menu is opened', async ({ page }) => {
     await waitAppReady(page);
     await openFabMenu(page);
-    // ラベルはdata-label属性に入っており、テキストノードではない
+    // The labels are in data-label attributes, not in text nodes.
     for (const label of [
       '接続',
       'チャット',
@@ -33,57 +33,57 @@ test.describe('アプリケーション起動', () => {
   });
 });
 
-test.describe('初期パネル表示', () => {
-  test('起動時に接続パネルとチャットパネルが自動で開くこと', async ({ page }) => {
+test.describe('panels shown at start', () => {
+  test('opens the connection and chat panels by itself at start-up', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('input[placeholder="ニックネーム"]')).toBeVisible({ timeout: 20000 });
     await expect(page.locator('textarea.chat-input')).toBeVisible({ timeout: 20000 });
   });
 });
 
-test.describe('接続パネル(PeerMenu)', () => {
+test.describe('the connection panel (PeerMenu)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('input[placeholder="ニックネーム"]')).toBeVisible({ timeout: 20000 });
   });
 
-  test('ニックネームを変更できること', async ({ page }) => {
+  test('changes the nickname', async ({ page }) => {
     const input = page.locator('input[placeholder="ニックネーム"]');
     await input.fill('テストプレイヤー');
     await expect(input).toHaveValue('テストプレイヤー');
   });
 
-  test('ユーザーID欄が表示されること', async ({ page }) => {
+  test('shows the user ID field', async ({ page }) => {
     await expect(page.locator('peer-menu').getByText(/^ID[:：]/)).toBeVisible();
   });
 
-  test('アイコン変更ボタン/画像のいずれかが表示されること', async ({ page }) => {
-    // アイコン未設定ならbutton、設定済みなら同じタイトルのimgが表示される
+  test('shows either the change-icon button or the image', async ({ page }) => {
+    // With no icon set a button shows; with one set, an img with the same title.
     await expect(
       page.locator('peer-menu').locator('[title="アイコンを変更する"], [aria-label="アイコンを変更する"]')
     ).toBeVisible();
   });
 
-  test('通信タイムアウト設定を変更できること', async ({ page }) => {
+  test('changes the connection timeout setting', async ({ page }) => {
     const timeoutInput = page.locator('input[name="peer-timeout"]');
     await expect(timeoutInput).toBeVisible();
     await timeoutInput.fill('30');
     await expect(timeoutInput).toHaveValue('30');
   });
 
-  test('詳細表示チェックボックスが存在すること', async ({ page }) => {
+  test('has a show-details checkbox', async ({ page }) => {
     await expect(page.locator('input[name="disp-detail-flag"]')).toBeVisible();
   });
 
-  test('ロビー表示ボタンが存在すること', async ({ page }) => {
+  test('has a show-lobby button', async ({ page }) => {
     await expect(page.getByRole('button', { name: /ロビー/ })).toBeVisible();
   });
 });
 
-test.describe('ネットワークインジケーター', () => {
-  test('ネットワークインジケーターが DOM に存在すること', async ({ page }) => {
+test.describe('the network indicator', () => {
+  test('puts the network indicator in the DOM', async ({ page }) => {
     await page.goto('/');
-    // 既定では非表示クラス（hidden）が付与されるので、isAttachedで確認する
+    // It carries the hidden class by default, so it is checked with isAttached.
     await expect(page.locator('network-indicator')).toBeAttached({ timeout: 20000 });
   });
 });

@@ -130,8 +130,8 @@ async function addAudio(page: Page, name: string, bytes: Buffer): Promise<void> 
     .setInputFiles({ name, mimeType: 'audio/mpeg', buffer: bytes });
 }
 
-test.describe('部屋のサーバーのアセット', () => {
-  test('ログインした人が足した画像は、トークン付きでサーバーに上がり、ほかの人はサーバーから受け取る', async ({
+test.describe('assets on the room server', () => {
+  test('an image a logged-in user adds goes up to the server with a token, and the others take it from the server', async ({
     browser,
     roomServer,
   }) => {
@@ -156,7 +156,7 @@ test.describe('部屋のサーバーのアセット', () => {
     await leaveAll(gm, pl);
   });
 
-  test('部屋の画像は、その部屋のトークンを持たない人には渡らない', async ({ browser, roomServer }) => {
+  test('a room’s images do not reach anyone without that room’s token', async ({ browser, roomServer }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const room = uniqueName('閉じた画像の卓');
     await createRoom(gm.page, room);
@@ -179,7 +179,7 @@ test.describe('部屋のサーバーのアセット', () => {
     await leaveAll(gm);
   });
 
-  test('部屋を削除すると、その部屋の画像もサーバーから消える', async ({ browser, roomServer }) => {
+  test('deleting a room takes its images off the server too', async ({ browser, roomServer }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const room = uniqueName('消える画像の卓');
     await createRoom(gm.page, room);
@@ -197,7 +197,10 @@ test.describe('部屋のサーバーのアセット', () => {
     await leaveAll(gm);
   });
 
-  test('あとから入った人も、それまでに足された画像をサーバーから受け取る', async ({ browser, roomServer }) => {
+  test('someone who joins later also takes the images added so far from the server', async ({
+    browser,
+    roomServer,
+  }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const room = uniqueName('あとから入る卓');
     await createRoom(gm.page, room);
@@ -218,7 +221,7 @@ test.describe('部屋のサーバーのアセット', () => {
     await leaveAll(gm, pl);
   });
 
-  test('見学には画像を足す入り口が無い', async ({ browser, roomServer }) => {
+  test('a guest has no way in to add images', async ({ browser, roomServer }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const guest = await openSeat(browser, roomServer, '見学さん', null);
     const room = uniqueName('見学の画像の卓');
@@ -232,7 +235,10 @@ test.describe('部屋のサーバーのアセット', () => {
     await leaveAll(gm, guest);
   });
 
-  test('サーバーに上げられなかった画像も、部屋のサーバーの中継でほかの人に届く', async ({ browser, roomServer }) => {
+  test('an image that could not go up to the server still reaches the others, relayed by the room server', async ({
+    browser,
+    roomServer,
+  }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const pl = await openSeat(browser, roomServer, 'PLさん');
     const room = uniqueName('中継の画像の卓');
@@ -264,7 +270,7 @@ test.describe('部屋のサーバーのアセット', () => {
     await leaveAll(gm, pl);
   });
 
-  test('ログインした人が足した音声も、サーバーに上がり、ほかの人はサーバーから受け取る', async ({
+  test('a sound a logged-in user adds also goes up to the server, and the others take it from the server', async ({
     browser,
     roomServer,
   }) => {

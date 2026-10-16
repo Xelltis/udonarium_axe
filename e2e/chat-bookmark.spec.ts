@@ -26,12 +26,14 @@ function lineSaying(page: Page, text: string) {
   return page.locator('chat-tab chat-message').filter({ hasText: text });
 }
 
-test.describe('チャットのしおり', () => {
+test.describe('chat bookmarks', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('挟んだしおりに題名を付け、別のタブから描かれていない古い発言へ戻れること', async ({ page }) => {
+  test('titles a bookmark, and goes back to its old line from another tab while that line is not drawn', async ({
+    page,
+  }) => {
     await say(page, ['犯人は左利きだったと思う']);
     const witness = lineSaying(page, '犯人は左利きだったと思う');
     await bookmark(page, witness, '共有');
@@ -66,7 +68,7 @@ test.describe('チャットのしおり', () => {
     await expect(found.getByTestId('chat-message-bookmark-mark')).toHaveAttribute('title', /事件の証言A/);
   });
 
-  test('しおりを外すと一覧から消えること', async ({ page }) => {
+  test('drops a bookmark from the list once it is removed', async ({ page }) => {
     await say(page, ['あとで見返す発言']);
     const line = lineSaying(page, 'あとで見返す発言');
     await bookmark(page, line, '共有');
@@ -81,7 +83,9 @@ test.describe('チャットのしおり', () => {
     await expect(line.getByTestId('chat-message-bookmark-mark')).toHaveCount(0);
   });
 
-  test('個人しおりは共有しおりと分かれて一覧に並び、個人だけに絞れること', async ({ page }) => {
+  test('lists personal bookmarks apart from shared ones, and narrows the list to the personal ones', async ({
+    page,
+  }) => {
     await say(page, ['みんなで覚えておく発言', '自分だけ覚えておく発言']);
     const shared = lineSaying(page, 'みんなで覚えておく発言');
     await bookmark(page, shared, '共有');

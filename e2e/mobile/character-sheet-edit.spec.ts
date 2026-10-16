@@ -16,8 +16,10 @@ async function closeSheet(page: Page): Promise<void> {
   await expect(page.getByTestId('bottom-sheet')).toHaveCount(0);
 }
 
-test.describe('スマートフォンで組み替えるキャラクターシート', () => {
-  test('編集中の行は名前と値と「⋯」だけで、横のボタンが画面の外へはみ出さないこと', async ({ page }) => {
+test.describe('rearranging a character sheet on a phone', () => {
+  test('shows only the name, the value and "⋯" on a row being edited, so no buttons beside them run off the screen', async ({
+    page,
+  }) => {
     const { card } = await editSection(page, 'リソース');
     const hp = row(card, 'HP');
 
@@ -27,7 +29,7 @@ test.describe('スマートフォンで組み替えるキャラクターシー�
     expect((await hp.getByTestId('row-more').boundingBox())!.x).toBeLessThan(panelRight);
   });
 
-  test('「＋ 項目を追加」から種別を選び、名前を付けた項目が並ぶこと', async ({ page }) => {
+  test('adds an item from "+ add item" by choosing its type and giving it a name', async ({ page }) => {
     const { card } = await editSection(page, 'リソース');
 
     await card.getByTestId('group-add-field').first().tap();
@@ -42,7 +44,7 @@ test.describe('スマートフォンで組み替えるキャラクターシー�
     await expect(row(card, '防御').locator('input[type="number"][name="data-value"]')).toHaveCount(1);
   });
 
-  test('「⋯」から種別をチェックに変えると、行がチェックボックスになること', async ({ page }) => {
+  test('turns the row into a checkbox when its type is changed to check from "⋯"', async ({ page }) => {
     const { card } = await editSection(page, 'プロフィール');
     const memo = row(card, '名前メモ');
 
@@ -53,7 +55,7 @@ test.describe('スマートフォンで組み替えるキャラクターシー�
     await expect(memo.locator('.elm-value-content input[type="checkbox"]')).toHaveCount(1);
   });
 
-  test('消した項目を通知から元に戻せること', async ({ page }) => {
+  test('brings a deleted item back from the notice', async ({ page }) => {
     const { card } = await editSection(page, 'リソース');
 
     await row(card, 'MP').getByTestId('row-more').tap();
@@ -67,7 +69,7 @@ test.describe('スマートフォンで組み替えるキャラクターシー�
     await expect(row(card, 'MP').locator('input[name="data-value"]')).toHaveValue('80');
   });
 
-  test('編集シートの ▲ で項目を一つ上へ動かせること', async ({ page }) => {
+  test('moves an item up one place with ▲ on the edit sheet', async ({ page }) => {
     const { card } = await editSection(page, 'リソース');
 
     await row(card, 'MP').getByTestId('row-more').tap();
@@ -78,7 +80,7 @@ test.describe('スマートフォンで組み替えるキャラクターシー�
     expect(names.map((name) => name.trim()).slice(0, 2)).toEqual(['MP', 'HP']);
   });
 
-  test('取っ手を指で動かして項目を並べ替えられること', async ({ page }) => {
+  test('reorders items as the handle is moved with a finger', async ({ page }) => {
     const { card } = await editSection(page, '能力');
     const handle = row(card, '器用度').locator('.elm-drag-handle');
     const box = (await handle.boundingBox())!;

@@ -30,8 +30,8 @@ async function putFirstInFolder(page: Page, folderName: string) {
   await nameEditedFolder(page, folderName);
 }
 
-test.describe('インベントリの検索とフォルダ', () => {
-  // フォルダはテーブルタブでは使えないので、共有タブに1体だけ置いた状態から始める。
+test.describe('searching the inventory, and its folders', () => {
+  // Folders cannot be used on the table tab, so the tests start with a single piece on the shared tab.
   const listed = 1;
 
   test.beforeEach(async ({ page }) => {
@@ -54,14 +54,14 @@ test.describe('インベントリの検索とフォルダ', () => {
     ['テーブル', 0],
     ['墓場', 3],
   ] as const) {
-    test(`${label}タブではフォルダを使わせないこと`, async ({ page }) => {
+    test(`does not offer folders on the ${label} tab`, async ({ page }) => {
       await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(index).click();
 
       await expect(page.locator('game-object-inventory button[title="新しいフォルダ"]')).toHaveCount(0);
     });
   }
 
-  test('テーブルタブではコマのメニューにフォルダが出ないこと', async ({ page }) => {
+  test("leaves folders out of a piece's menu on the table tab", async ({ page }) => {
     await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(0).click();
 
     await items(page).first().click({ button: 'right' });
@@ -70,7 +70,7 @@ test.describe('インベントリの検索とフォルダ', () => {
     await expect(menu.getByText('フォルダ', { exact: true })).toHaveCount(0);
   });
 
-  test('共有と個人でフォルダが混ざらないこと', async ({ page }) => {
+  test('keeps the shared and personal folders apart', async ({ page }) => {
     await makeEmptyFolder(page, '共有だけの棚');
 
     await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(2).click();
@@ -82,13 +82,13 @@ test.describe('インベントリの検索とフォルダ', () => {
     ).toBeVisible();
   });
 
-  test('検索ボックスで一覧を絞り込み、クリアで戻せること', async ({ page }) => {
-    // 検索と絞り込みは自前のパネルに移っており、インベントリの絞り込みボタンから開く。
+  test('narrows the list with the search box, and brings it back on clear', async ({ page }) => {
+    // Search and filtering have moved to a panel of their own, opened from the inventory's filter button.
     await page.locator('game-object-inventory button[title="絞り込みと表示設定"]').click();
     const search = page.locator('inventory-filter-panel input[name="inventory-search"]');
     await expect(search).toBeVisible({ timeout: 5000 });
 
-    // 一括で流し込むとngModelが拾わないので、人と同じように打ち込む。
+    // Text poured in at once is not picked up by ngModel, so it is typed in as a person would.
     await search.click();
     await search.pressSequentially('該当しないはずの名前zzz');
     await expect(items(page)).toHaveCount(0);
@@ -99,7 +99,9 @@ test.describe('インベントリの検索とフォルダ', () => {
     await expect(items(page)).toHaveCount(listed);
   });
 
-  test('コンテキストメニューからフォルダに入れると見出しが現れ、折りたたみで中身が隠れること', async ({ page }) => {
+  test('shows a heading once a piece is put in a folder from the context menu, and hides what it holds when folded', async ({
+    page,
+  }) => {
     await putFirstInFolder(page, '第1話');
 
     const heading = page.locator('game-object-inventory [data-folder-dropzone][data-folder-path="第1話"]');
@@ -113,7 +115,7 @@ test.describe('インベントリの検索とフォルダ', () => {
     await expect(items(page)).toHaveCount(listed);
   });
 
-  test('フォルダがひとつも無い間は見出しが出ないこと', async ({ page }) => {
+  test('shows no heading while there are no folders', async ({ page }) => {
     await expect(page.locator('game-object-inventory [data-folder-dropzone]')).toHaveCount(0);
 
     await putFirstInFolder(page, '第1話');
@@ -121,7 +123,7 @@ test.describe('インベントリの検索とフォルダ', () => {
     await expect(page.locator('game-object-inventory [data-folder-dropzone]')).not.toHaveCount(0);
   });
 
-  test('コマを入れなくてもフォルダだけ先に作れること', async ({ page }) => {
+  test('makes a folder before any piece is put in it', async ({ page }) => {
     await makeEmptyFolder(page, '第2話');
 
     const heading = page.locator('game-object-inventory [data-folder-dropzone][data-folder-path="第2話"]');
@@ -130,7 +132,7 @@ test.describe('インベントリの検索とフォルダ', () => {
     await expect(items(page)).toHaveCount(listed);
   });
 
-  test('見出しのゴミ箱ボタンからフォルダを削除できること', async ({ page }) => {
+  test('deletes a folder from the bin button of its heading', async ({ page }) => {
     await makeEmptyFolder(page, '第2話');
     const heading = page.locator('game-object-inventory [data-folder-dropzone][data-folder-path="第2話"]');
 
@@ -139,7 +141,7 @@ test.describe('インベントリの検索とフォルダ', () => {
     await expect(heading).toHaveCount(0);
   });
 
-  test('右クリックからもフォルダを削除できること', async ({ page }) => {
+  test('deletes a folder from the right-click menu too', async ({ page }) => {
     await makeEmptyFolder(page, '第2話');
     const heading = page.locator('game-object-inventory [data-folder-dropzone][data-folder-path="第2話"]');
 

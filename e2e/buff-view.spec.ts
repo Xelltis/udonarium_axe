@@ -11,13 +11,13 @@ async function openBuffView(page: Page) {
   await expect(page.locator('game-character-buff-view')).toBeVisible({ timeout: 5000 });
 }
 
-test.describe('バフ編集ビュー (game-character-buff-view)', () => {
+test.describe('the buff editing view (game-character-buff-view)', () => {
   test.beforeEach(async ({ page }) => {
     await openBuffView(page);
   });
 
-  test('バフが 0 件のキャラには「バフ・デバフは登録されていません」が出ること', async ({ page }) => {
-    // createCharacterで作った新規キャラはバフ0件。表示行がある場合は何もしない。
+  test('shows "no buffs or debuffs registered" for a character with no buffs', async ({ page }) => {
+    // A new character made by createCharacter has no buffs. If rows show anyway, nothing is checked.
     const items = page.locator('game-character-buff-view [game-data-element-buff]');
     if ((await items.count()) === 0) {
       await expect(
@@ -28,7 +28,7 @@ test.describe('バフ編集ビュー (game-character-buff-view)', () => {
     }
   });
 
-  test('「バフを追加」を 3 回押すとバフアイテムが 3 つ以上増えること', async ({ page }) => {
+  test('adds at least three buff items when "add buff" is pressed three times', async ({ page }) => {
     const before = await page.locator('game-character-buff-view [game-data-element-buff]').count();
     for (let i = 0; i < 3; i++) {
       await page
@@ -43,8 +43,8 @@ test.describe('バフ編集ビュー (game-character-buff-view)', () => {
       .toBeGreaterThanOrEqual(before + 3);
   });
 
-  test('バフ名入力欄に値を入力できること', async ({ page }) => {
-    // 最初のバフ（data-elm-name）を編集。
+  test('takes a value in the buff name field', async ({ page }) => {
+    // Edits the first buff (data-elm-name).
     const nameInputs = page.locator('game-character-buff-view input[name="data-elm-name"]');
     await expect(nameInputs.first()).toBeVisible({ timeout: 5000 });
     const first = nameInputs.first();
@@ -54,7 +54,7 @@ test.describe('バフ編集ビュー (game-character-buff-view)', () => {
     await expect(first).toHaveValue('猛攻撃');
   });
 
-  test('バッジの色を選ぶとコマの丸いバッジがその色になること', async ({ page }) => {
+  test('turns the round badge on the piece to the colour picked for it', async ({ page }) => {
     await page
       .locator('game-character-buff-view')
       .getByRole('button', { name: /バフを追加/ })
@@ -79,9 +79,9 @@ test.describe('バフ編集ビュー (game-character-buff-view)', () => {
     expect(shape.radius, 'バッジが丸くない').toBeGreaterThanOrEqual(shape.width / 2 - 1);
   });
 
-  test('「バフを削除」ボタンで該当行が消えること', async ({ page }) => {
+  test('removes the row with the "delete buff" button', async ({ page }) => {
     const before = await page.locator('game-character-buff-view [game-data-element-buff]').count();
-    // 最初のバフのゴミ箱アイコン（title="バフを削除"）
+    // The bin icon of the first buff, found by its title.
     await page.locator('game-character-buff-view button[title="バフを削除"]').first().click();
     await expect
       .poll(() => page.locator('game-character-buff-view [game-data-element-buff]').count(), {

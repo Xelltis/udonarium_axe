@@ -58,7 +58,7 @@ async function dragBarOnto(page: Page, from: Locator, to: Locator) {
   await page.mouse.up();
 }
 
-test.describe('パネルをタブにまとめる', () => {
+test.describe('gathering panels into tabs', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     // The connection panel opens over the left of the screen, where the chat window's bar is.
@@ -69,7 +69,7 @@ test.describe('パネルをタブにまとめる', () => {
     await closeFabMenu(page);
   });
 
-  test('タイトルバーを重ねると 1 枚のパネルにまとまること', async ({ page }) => {
+  test('gathers two panels into one when a title bar is laid on another', async ({ page }) => {
     await openPanel(page, 'テーブル設定');
     await expect(page.locator('game-table-setting')).toHaveCount(1);
     await openPanel(page, '画像');
@@ -85,7 +85,7 @@ test.describe('パネルをタブにまとめる', () => {
     await expect(page.locator('game-table-setting')).toHaveCount(1);
   });
 
-  test('まとめても書きかけのチャットが残ること', async ({ page }) => {
+  test('keeps a half-written chat message when panels are gathered', async ({ page }) => {
     const input = page.locator('textarea.chat-input');
     await input.fill('書きかけの一行');
     await openPanel(page, 'テーブル設定');
@@ -98,7 +98,7 @@ test.describe('パネルをタブにまとめる', () => {
     await expect(input).toHaveValue('書きかけの一行');
   });
 
-  test('タブを外へドラッグすると単独のパネルに戻ること', async ({ page }) => {
+  test('turns a tab back into a panel of its own when it is dragged out', async ({ page }) => {
     await openPanel(page, 'テーブル設定');
     await openPanel(page, '画像');
     const carried = page.locator('ui-panel', { has: page.locator('file-storage') });

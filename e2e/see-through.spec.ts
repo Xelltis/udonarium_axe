@@ -25,7 +25,7 @@ async function hoverOnto(page: Page, at: Point) {
   await page.mouse.move(at.x, at.y, { steps: 10 });
 }
 
-test.describe('コマの絵の透明なところ', () => {
+test.describe('the see-through parts of a piece’s picture', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await expect(piece(page, 'モンスターC').locator('img.image')).toBeVisible({ timeout: 10000 });
@@ -33,7 +33,7 @@ test.describe('コマの絵の透明なところ', () => {
     await settle(piece(page, 'モンスターC'));
   });
 
-  test('前のコマの絵の透明なところ越しに、後ろのコマを掴んで動かせること', async ({ page }) => {
+  test('grabs and moves the piece behind through a see-through part of the front piece’s picture', async ({ page }) => {
     const front = piece(page, 'モンスターC');
     const back = piece(page, 'モンスターB');
     const behind = await centreOf(pedestal(back));
@@ -63,7 +63,7 @@ test.describe('コマの絵の透明なところ', () => {
     expect(await placeOf(front)).toBe(frontBefore);
   });
 
-  test('絵の描かれているところを掴めば、そのコマが動くこと', async ({ page }) => {
+  test('moves the piece whose picture is grabbed where something is drawn', async ({ page }) => {
     const front = piece(page, 'モンスターC');
     const points = await pointsOnPicture(page, 'モンスターC', { frontAlpha: 'solid', beneath: 'table' });
     expect(points.length).toBeGreaterThan(0);
@@ -76,7 +76,7 @@ test.describe('コマの絵の透明なところ', () => {
     await expect.poll(() => placeOf(front)).not.toBe(before);
   });
 
-  test('透明なところの下が卓だけなら、そのコマは動かないこと', async ({ page }) => {
+  test('leaves the piece still when only the table is under its see-through part', async ({ page }) => {
     const front = piece(page, 'モンスターC');
     const points = await pointsOnPicture(page, 'モンスターC', { frontAlpha: 'clear', beneath: 'table' });
     expect(points.length).toBeGreaterThan(0);
@@ -91,7 +91,7 @@ test.describe('コマの絵の透明なところ', () => {
   });
 });
 
-test.describe('指で触るコマの絵の透明なところ', () => {
+test.describe('the see-through parts of a piece’s picture under a finger', () => {
   test.use({ hasTouch: true });
 
   /** Drags one finger from a point to another, as a touch screen sends it. */
@@ -107,7 +107,10 @@ test.describe('指で触るコマの絵の透明なところ', () => {
     await session.detach();
   }
 
-  test('前のコマの絵の透明なところに指を置くと、後ろのコマを動かせること', async ({ page, browserName }) => {
+  test('moves the piece behind when a finger is put on a see-through part of the front piece’s picture', async ({
+    page,
+    browserName,
+  }) => {
     test.skip(browserName !== 'chromium', 'The finger is sent through the Chrome DevTools Protocol.');
     await waitAppReady(page);
     const front = piece(page, 'モンスターC');

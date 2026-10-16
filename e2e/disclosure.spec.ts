@@ -3,18 +3,18 @@ import { expect, Page, test } from '@playwright/test';
 import { openPanel, revealMenuEntry, waitAppReady } from './helpers';
 
 /**
- * 公開範囲は「見えてはいけないものが見えない」ことの機能なので、おかしくなっても
- * 画面上は何も起きず気づけない。GMが隠した対象がPLの手元でどうなるかを、
- * 公開のままのコマと見比べて確かめる。
+ * Disclosure works by keeping what must not be seen out of sight, so when it breaks nothing happens
+ * on screen and nobody notices. What becomes of what the GM hid is checked on a player's side,
+ * against a piece left public.
  */
-test.describe('情報の公開範囲', () => {
+test.describe('how far information is disclosed', () => {
   const HIDDEN = 0;
   const PUBLIC = 1;
 
   async function setRole(page: Page, role: 'GM' | 'PL' | '見学') {
     const panel = page.locator('ui-panel').filter({ hasText: '接続情報' });
     await panel.getByRole('button', { name: new RegExp(`^\\s*${role}\\s*$`) }).click();
-    // ロールが行き渡るとツールバーが差し替わる。
+    // The toolbar is swapped once the role has gone round.
     const toolbar = role === 'GM' ? 'app-gm-toolbar [title^="暗闇"]' : 'app-pl-toolbar [title="所有キャラクター一覧"]';
     if (role !== '見学') await expect(page.locator(toolbar)).toBeVisible({ timeout: 10000 });
   }
@@ -22,7 +22,7 @@ test.describe('情報の公開範囲', () => {
   const pieceName = (page: Page, index: number) =>
     page.locator('game-character').nth(index).locator('[data-testid="piece-name"]').innerText();
 
-  /** パネルの閉じるボタンは浮いているツールバーの下に入るので、イベントを直接送る。 */
+  /** A panel's close button sits under the floating toolbar, so the click is sent to it directly. */
   async function closePanel(page: Page, title: string) {
     await page
       .locator('ui-panel')
@@ -34,7 +34,7 @@ test.describe('情報の公開範囲', () => {
     await expect(page.locator('ui-panel').filter({ hasText: title })).toHaveCount(0, { timeout: 5000 });
   }
 
-  /** メニューは外側のmousedownで閉じる。Escapeでは閉じない。 */
+  /** The menu closes on a mousedown outside it, not on Escape. */
   async function dismissMenu(page: Page) {
     await page.locator('#app-table-layer').click({ position: { x: 40, y: 640 } });
     await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
@@ -46,7 +46,7 @@ test.describe('情報の公開範囲', () => {
     await expect(page.locator('game-character-sheet')).toBeVisible({ timeout: 10000 });
   }
 
-  /** GMとして1体を「GMのみ」にし、その名前を返す。 */
+  /** As the GM, makes one piece GM-only and returns its name. */
   async function hidePiece(page: Page, index: number) {
     const name = await pieceName(page, index);
     await openSheet(page, index);
@@ -60,28 +60,28 @@ test.describe('情報の公開範囲', () => {
     await setRole(page, 'GM');
   });
 
-  test('「GMのみ」にしたコマは PL からは触れなくなること', async ({ page }) => {
+  test('keeps a player from touching a piece made GM-only', async ({ page }) => {
     const total = await page.locator('game-character').count();
     await hidePiece(page, HIDDEN);
     await setRole(page, 'PL');
 
-    // 公開のままのコマはこれまでどおり開ける。ここが通ることで、次の
-    // 「メニューが出ない」が描画待ちではなく本当に出ないことだと言える。
+    // A piece left public opens as before. With this passing, the missing menu below can be said to
+    // be one that truly does not open, rather than one not drawn yet.
     await page.locator('game-character').nth(PUBLIC).dispatchEvent('contextmenu');
     await expect(page.locator('context-menu li').filter({ hasText: '詳細を表示' })).toBeVisible({ timeout: 5000 });
     await dismissMenu(page);
 
-    // 隠したコマはメニューそのものが開かない。
+    // The hidden piece does not even open its menu.
     await page.locator('game-character').nth(HIDDEN).dispatchEvent('contextmenu');
     await expect(page.locator('context-menu')).toHaveCount(0);
     await page.waitForTimeout(500);
     await expect(page.locator('context-menu')).toHaveCount(0);
 
-    // 消えるわけではなく、卓上には残る。
+    // It does not vanish, though; it stays on the table.
     await expect(page.locator('game-character')).toHaveCount(total);
   });
 
-  test('インベントリでは非公開のコマに錠前が付くこと', async ({ page }) => {
+  test('puts a lock on a piece that is not public in the inventory', async ({ page }) => {
     const hidden = await hidePiece(page, HIDDEN);
     const shown = await pieceName(page, PUBLIC);
     await setRole(page, 'PL');
@@ -90,19 +90,19 @@ test.describe('情報の公開範囲', () => {
     const inventory = page.locator('game-object-inventory');
     await expect(inventory).toBeVisible({ timeout: 10000 });
 
-    // 名前は残る（存在は分かる）が、錠前が付いて中身は開けない。
+    // The name stays, so its being there is known, but it has a lock and its contents cannot be opened.
     await expect(inventory).toContainText(hidden);
     await expect(inventory).toContainText(shown);
     await expect(inventory.locator('i.material-icons', { hasText: 'lock' })).toHaveCount(1);
   });
 
-  test('GM は自分が隠したコマを引き続き開けること', async ({ page }) => {
+  test('still lets the GM open a piece they hid', async ({ page }) => {
     const hidden = await hidePiece(page, HIDDEN);
     await openSheet(page, HIDDEN);
     await expect(page.locator('ui-panel').filter({ hasText: 'キャラクターシート' })).toContainText(hidden);
   });
 
-  test('公開範囲の切り替えは GM にだけ出ること', async ({ page }) => {
+  test('shows the disclosure switch to the GM alone', async ({ page }) => {
     await page.locator('game-character').nth(PUBLIC).dispatchEvent('contextmenu');
     await expect(await revealMenuEntry(page, page.locator('context-menu'), '公開範囲')).toBeVisible({ timeout: 5000 });
     await dismissMenu(page);

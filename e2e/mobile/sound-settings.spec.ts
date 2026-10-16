@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-test.describe('スマートフォンの音の設定', () => {
-  test('メニューから音の設定を開けること', async ({ page }) => {
+test.describe('sound settings on a phone', () => {
+  test('opens the sound settings from the menu', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
     const closeStartupPanel = page.locator('ui-panel .bg-ui-titlebar button').last();

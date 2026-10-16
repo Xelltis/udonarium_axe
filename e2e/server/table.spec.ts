@@ -23,8 +23,11 @@ async function openCardMenu(page: Page) {
 const BACK = /^z0\d\.webp$/;
 const FRONT = /^([cdhs]\d\d|x0\d)\.webp$/;
 
-test.describe('部屋のサーバーの卓', () => {
-  test('チャットのダイスはサーバーが振り、全員に印つきで届く', async ({ browser, roomServer }) => {
+test.describe('the table on the room server', () => {
+  test('the server rolls dice from the chat, and the result reaches everyone marked as such', async ({
+    browser,
+    roomServer,
+  }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const pl = await openSeat(browser, roomServer, 'PLさん');
     const room = uniqueName('ダイスの卓');
@@ -40,7 +43,7 @@ test.describe('部屋のサーバーの卓', () => {
     await leaveAll(gm, pl);
   });
 
-  test('シークレットダイスの結果は、GMには見え、見学には見えない', async ({ browser, roomServer }) => {
+  test('a secret dice result shows to the GM but not to a guest', async ({ browser, roomServer }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const pl = await openSeat(browser, roomServer, 'PLさん');
     const guest = await openSeat(browser, roomServer, '見学さん', null);
@@ -56,7 +59,10 @@ test.describe('部屋のサーバーの卓', () => {
     await leaveAll(gm, pl, guest);
   });
 
-  test('裏向きのカードはほかの人には裏の絵で見え、GMが表にすると表の絵が届く', async ({ browser, roomServer }) => {
+  test('a face-down card shows its back to the others, and its face reaches them once the GM turns it up', async ({
+    browser,
+    roomServer,
+  }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const pl = await openSeat(browser, roomServer, 'PLさん');
     const room = uniqueName('カードの卓');

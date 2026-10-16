@@ -9,7 +9,7 @@ import { openSeatDisplay, openSeatWidgets, waitAppReady } from './helpers';
  * Their host elements stay in the DOM with no box of their own, so whether a
  * widget is showing is a question about its content, not about the host.
  */
-test.describe('ウィジェットと言語切替', () => {
+test.describe('widgets and switching the language', () => {
   /** Shows or hides a widget from the widget menu, and closes it again so it covers nothing. */
   async function toggleWidget(page: Page, key: string) {
     const widgets = await openSeatWidgets(page);
@@ -23,31 +23,31 @@ test.describe('ウィジェットと言語切替', () => {
     await expect(page.locator('app-pl-toolbar [title="所有キャラクター一覧"]')).toBeVisible({ timeout: 10000 });
   });
 
-  test('時計はウィジェットの小窓から出し入れできること', async ({ page }) => {
+  test('shows and hides the clock from the widgets small menu', async ({ page }) => {
     const clock = page.locator('app-digital-clock > *');
     await expect(clock).toHaveCount(0);
 
     await toggleWidget(page, 'clock');
     await expect(clock).toBeVisible({ timeout: 5000 });
-    // 飾りではなく時刻が入っている。
+    // It holds the time, not mere decoration.
     await expect(clock).toContainText(/\d{1,2}:\d{2}/);
 
     await toggleWidget(page, 'clock');
     await expect(clock).toHaveCount(0, { timeout: 5000 });
   });
 
-  test('通信品質ウィジェットは参加者がいないことを伝えること', async ({ page }) => {
+  test('says in the connection quality widget that no one else is there', async ({ page }) => {
     const quality = page.locator('app-connection-quality > *');
     await expect(quality).toHaveCount(0);
 
     await toggleWidget(page, 'connectionQuality');
     await expect(quality).toBeVisible({ timeout: 5000 });
-    // 単独で開いているので、相手がいないと出るのが正しい。
+    // The page is open alone, so saying no one is there is right.
     await expect(quality).toContainText('接続中の参加者はいません');
   });
 
-  test('ミニプレイヤーはウィジェットの小窓から出し入れできること', async ({ page }) => {
-    // 時計と違い、こちらは要素を残したままhiddenで隠す。
+  test('shows and hides the mini player from the widgets small menu', async ({ page }) => {
+    // Unlike the clock, this one keeps its element and hides it with hidden.
     const player = page.locator('app-mini-jukebox > *');
     await expect(player).toBeVisible();
 
@@ -58,7 +58,9 @@ test.describe('ウィジェットと言語切替', () => {
     await expect(player).toBeVisible({ timeout: 5000 });
   });
 
-  test('PL ツールはウィジェットの小窓から出し入れでき、隠したことはリロードしても残ること', async ({ page }) => {
+  test('shows and hides the player tools from the widgets small menu, and keeps them hidden after a reload', async ({
+    page,
+  }) => {
     const toolbar = page.locator('app-pl-toolbar .pl-toolbar');
     await expect(toolbar).toBeVisible();
 
@@ -75,7 +77,7 @@ test.describe('ウィジェットと言語切替', () => {
     await expect(toolbar).toBeVisible();
   });
 
-  test('表示の小窓を開いたままウィジェットを押すと、ウィジェットの小窓に替わること', async ({ page }) => {
+  test('swaps the display small menu for the widgets one when widgets is pressed with it open', async ({ page }) => {
     const display = await openSeatDisplay(page);
     await page.locator('[data-testid="fab-widgets"]').click();
 
@@ -88,8 +90,8 @@ test.describe('ウィジェットと言語切替', () => {
     await expect(page.locator('[data-testid="seat-widgets"]')).toBeHidden();
   });
 
-  test('言語を切り替えると画面の文言が入れ替わること', async ({ page }) => {
-    // タブ名は部屋のデータなので訳されない。訳される文言で確かめる。
+  test('changes the words on the screen when the language is switched', async ({ page }) => {
+    // Tab names are room data and are not translated, so a translated string is checked instead.
     const panel = page.locator('peer-menu');
     await expect(panel).toContainText('ニックネーム');
 
@@ -98,7 +100,7 @@ test.describe('ウィジェットと言語切替', () => {
     await language.click();
     await expect(panel).toContainText('Nickname', { timeout: 10000 });
 
-    // 三つを巡って戻ること。切り替えっぱなしで終わらないのを確かめる。
+    // It goes round all three and back, which checks that it does not stop on one.
     await language.click();
     await expect(panel).toContainText('닉네임', { timeout: 10000 });
 

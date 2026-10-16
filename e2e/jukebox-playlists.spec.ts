@@ -92,8 +92,8 @@ async function addFromLibrary(jukebox: Locator, ...names: string[]) {
   await jukebox.getByTestId('jukebox-tab-playlist').click();
 }
 
-test.describe('ジュークボックスの再生リスト', () => {
-  test('再生リストを作って名前を付け、ライブラリの曲をその再生リストに入れられること', async ({ page }) => {
+test.describe('playlists in the jukebox', () => {
+  test('makes and names a playlist, and puts tracks from the library on it', async ({ page }) => {
     const jukebox = await openJukeboxWithTracks(page);
 
     await makePlaylist(jukebox, '戦闘');
@@ -104,7 +104,7 @@ test.describe('ジュークボックスの再生リスト', () => {
     await expect(jukebox.getByText('Boss.wav', { exact: true })).toBeVisible();
   });
 
-  test('右クリックで曲を別の再生リストへ移せること', async ({ page }) => {
+  test('moves a track to another playlist from a right-click', async ({ page }) => {
     const jukebox = await openJukeboxWithTracks(page);
     await makePlaylist(jukebox, '戦闘');
     await addFromLibrary(jukebox, 'Battle.wav');
@@ -118,7 +118,7 @@ test.describe('ジュークボックスの再生リスト', () => {
     await expect(chip(jukebox, 'メイン')).toContainText('1');
   });
 
-  test('ミニプレイヤーで次の再生リストへ移ると、その再生リストの最初の曲が流れること', async ({ page }) => {
+  test('plays the first track of the next playlist when the mini player moves on to it', async ({ page }) => {
     const jukebox = await openJukeboxWithTracks(page);
     await jukebox.getByTestId('jukebox-tab-playlist').click();
     await addFromLibrary(jukebox, 'Town.wav');
@@ -136,7 +136,7 @@ test.describe('ジュークボックスの再生リスト', () => {
     await expect(chip(jukebox, '戦闘').locator('.material-icons', { hasText: 'volume_up' })).toBeVisible();
   });
 
-  test('一時停止すると位置を残して止まり、もう一度押すとそこから続くこと', async ({ page }) => {
+  test('pauses where it is, and goes on from there when pressed again', async ({ page }) => {
     const jukebox = await openJukeboxWithTracks(page);
     await jukebox.getByTestId('jukebox-tab-playlist').click();
     await addFromLibrary(jukebox, 'Town.wav', 'Battle.wav');
@@ -156,7 +156,9 @@ test.describe('ジュークボックスの再生リスト', () => {
     await expect(jukebox.getByText('一時停止中')).toHaveCount(0);
   });
 
-  test('シャッフルとリピートが部屋全体の設定として、パネルとミニプレイヤーの両方に出ること', async ({ page }) => {
+  test('shows shuffle and repeat as settings for the whole room, in both the panel and the mini player', async ({
+    page,
+  }) => {
     const jukebox = await openJukeboxWithTracks(page, 'GM');
     const mini = page.locator('app-mini-jukebox');
 
@@ -175,7 +177,7 @@ test.describe('ジュークボックスの再生リスト', () => {
     await expect(repeat).toHaveAttribute('title', '再生リストをリピート');
   });
 
-  test('シャッフルとリピートを変えたGMの名前がシステムログに残ること', async ({ page }) => {
+  test('writes the name of the GM who changed shuffle and repeat to the system log', async ({ page }) => {
     const jukebox = await openJukeboxWithTracks(page, 'GM');
 
     await jukebox.getByTestId('jukebox-shuffle').click();
@@ -193,7 +195,7 @@ test.describe('ジュークボックスの再生リスト', () => {
     await expect(chat).toContainText('さんがジュークボックスのリピートを解除しました。');
   });
 
-  test('プレイヤーはシャッフルとリピートを変えられず、見学は再生も止められないこと', async ({ page }) => {
+  test('keeps a player from changing shuffle and repeat, and a guest from even pausing', async ({ page }) => {
     const jukebox = await openJukeboxWithTracks(page, 'PL');
     const mini = page.locator('app-mini-jukebox');
     await jukebox.getByTestId('jukebox-tab-playlist').click();

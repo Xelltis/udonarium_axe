@@ -31,14 +31,14 @@ async function openMove(page: Page) {
   await menu.getByText('移動', { exact: true }).click();
 }
 
-test.describe('厳密な移動', () => {
+test.describe('strict movement', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await createCharacter(page);
     await askForStrictMoves(page);
   });
 
-  test('移動を開くと操作ガイドと移動範囲が出ること', async ({ page }) => {
+  test('shows the guide and the reach of the move once a move is started', async ({ page }) => {
     await openMove(page);
 
     await expect(page.locator('[data-testid="move-plan-hint"]')).toBeVisible({ timeout: 5000 });
@@ -47,7 +47,7 @@ test.describe('厳密な移動', () => {
     await page.keyboard.press('Escape');
   });
 
-  test('操作ガイドが上端に固定された道具立てに隠れないこと', async ({ page }) => {
+  test('keeps the guide clear of the toolbars pinned to the top', async ({ page }) => {
     await openMove(page);
 
     const hint = page.locator('[data-testid="move-plan-hint"]');
@@ -74,7 +74,9 @@ test.describe('厳密な移動', () => {
     await page.keyboard.press('Escape');
   });
 
-  test('部屋が移動の種類を決めていれば、帯で選び替えられ、残りの距離が出ること', async ({ page }) => {
+  test('lets the kind of move be switched in the band, and shows the distance left, where the room sets kinds of move', async ({
+    page,
+  }) => {
     await page.locator('room-settings-panel input[name="moveKinds"]').fill('全力:3:,通常:1:');
     await closePanels(page);
     await openMove(page);
@@ -95,7 +97,7 @@ test.describe('厳密な移動', () => {
     await page.keyboard.press('Escape');
   });
 
-  test('移動をやめると操作ガイドも移動範囲も消えること', async ({ page }) => {
+  test('clears both the guide and the reach once the move is given up', async ({ page }) => {
     await openMove(page);
     await expect(page.locator('[data-testid="move-plan-hint"]')).toBeVisible({ timeout: 5000 });
 

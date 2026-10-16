@@ -3,8 +3,10 @@ import { expect, test } from '@playwright/test';
 import { waitAppReady } from './helpers';
 
 /** The toolbar switches the resource bars and the buffs over the pieces off and on, for this screen alone. */
-test.describe('リソースバーとバフの表示切り替え', () => {
-  test('PL ツールバーから一瞬で隠せて、リロードしても隠したままで、もう一度押すと戻ること', async ({ page }) => {
+test.describe('showing and hiding resource bars and buffs', () => {
+  test('hides them at once from the player toolbar, keeps them hidden after a reload, and brings them back on a second press', async ({
+    page,
+  }) => {
     await waitAppReady(page);
     const toolbar = page.locator('app-pl-toolbar');
     const gauges = page.locator('game-character [data-testid="piece-gauge"]');
@@ -34,8 +36,8 @@ test.describe('リソースバーとバフの表示切り替え', () => {
 });
 
 /** The toolbar switches the names over the pieces off and on in the same way. */
-test.describe('名前の表示切り替え', () => {
-  test('PL ツールバーから全員の名前をまとめて隠せて、リロードしても隠したままで、もう一度押すと戻ること', async ({
+test.describe('showing and hiding names', () => {
+  test('hides everyone’s names together from the player toolbar, keeps them hidden after a reload, and brings them back on a second press', async ({
     page,
   }) => {
     await waitAppReady(page);

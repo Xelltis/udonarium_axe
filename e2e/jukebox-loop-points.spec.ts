@@ -74,8 +74,8 @@ async function shownSeconds(jukebox: Locator, enough: (seen: number[]) => boolea
 /** Whether the shown time went back from the end of the loop to its start. */
 const wrapped = (seen: number[]) => seen.some((second, i) => i > 0 && seen[i - 1] >= 2 && second <= 1);
 
-test.describe('ジュークボックスのループ位置', () => {
-  test('ループ位置のある曲は、1曲ループで指定の区間をくり返すこと', async ({ page }) => {
+test.describe('loop points in the jukebox', () => {
+  test('repeats the marked part of a track with loop points on repeat one', async ({ page }) => {
     const jukebox = await playOnRepeatOne(page, 'Looped.wav', true);
 
     const seen = await shownSeconds(jukebox, (sofar) => wrapped(sofar) || sofar.some((second) => second > 3));
@@ -84,7 +84,7 @@ test.describe('ジュークボックスのループ位置', () => {
     expect(wrapped(seen)).toBe(true);
   });
 
-  test('ループ位置のない曲は、これまでどおり曲の最後まで流れること', async ({ page }) => {
+  test('plays a track without loop points to its end, as before', async ({ page }) => {
     const jukebox = await playOnRepeatOne(page, 'Plain.wav', false);
 
     const seen = await shownSeconds(jukebox, (sofar) => sofar.some((second) => second >= 4));

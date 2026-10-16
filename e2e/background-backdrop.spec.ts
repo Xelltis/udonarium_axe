@@ -64,8 +64,8 @@ async function standBehind(settings: Locator, index: number, picture: string) {
   await expect(picker).toHaveCount(0);
 }
 
-test.describe('背景レイヤーの「奥」', () => {
-  test('奥のレイヤーは、カメラへの反応が大きいほど視点の移動について大きく動くこと', async ({ page }) => {
+test.describe('background layers placed at the back', () => {
+  test('moves a back layer further as the view moves the more it follows the camera', async ({ page }) => {
     await waitAppReady(page);
     await becomeGameMaster(page);
     await openPanel(page, 'テーブル設定');

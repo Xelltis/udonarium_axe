@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-/** ウィジェットの表示状態はlocalStorage由来なので、読み込み前に仕込んでバーを出しておく。 */
+/** Which widgets show comes from localStorage, so it is set before the page loads to have the bar out. */
 async function showHotbar(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem('ui-widgets', JSON.stringify({ hotbar: true }));
@@ -13,12 +13,12 @@ async function showHotbar(page: Page) {
   await expect(page.locator('[data-testid="hotbar"]')).toBeVisible({ timeout: 10000 });
 }
 
-test.describe('スマートフォンのホットバー', () => {
+test.describe('the hotbar on a phone', () => {
   test.beforeEach(async ({ page }) => {
     await showHotbar(page);
   });
 
-  test('画面幅いっぱいに出て、枠が 10 個並ぶこと', async ({ page }) => {
+  test('spans the full width of the screen with ten slots', async ({ page }) => {
     await expect(page.locator('[data-testid="hotbar-slot"]')).toHaveCount(10);
 
     const bar = await page.locator('[data-testid="hotbar"]').boundingBox();
@@ -26,19 +26,19 @@ test.describe('スマートフォンのホットバー', () => {
     expect(Math.round(bar!.width)).toBe(viewport!.width);
   });
 
-  test('狭い画面ではショートカットの説明を出さないこと', async ({ page }) => {
+  test('shows no shortcut hints on a narrow screen', async ({ page }) => {
     await expect(page.locator('[data-testid="hotbar-hint"]')).toHaveCount(0);
     await expect(page.locator('[data-testid="hotbar-page"]')).toHaveCount(5);
   });
 
-  test('横スクロールを起こさないこと', async ({ page }) => {
+  test('causes no sideways scrolling', async ({ page }) => {
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth
     );
     expect(overflow).toBe(0);
   });
 
-  test('空き枠をタップすると設定パネルが開くこと', async ({ page }) => {
+  test('opens the settings panel on a tap on an empty slot', async ({ page }) => {
     await page.locator('[data-testid="hotbar-slot"]').first().tap();
 
     await expect(page.locator('hotbar-slot-editor')).toBeVisible({ timeout: 10000 });

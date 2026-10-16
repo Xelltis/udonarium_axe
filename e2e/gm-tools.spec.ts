@@ -8,7 +8,7 @@ import { openFabMenu, openPanel, waitAppReady } from './helpers';
  * the role, and that the panels a GM leans on during play are populated rather
  * than merely present.
  */
-test.describe('GM ツールバー', () => {
+test.describe('the GM toolbar', () => {
   async function becomeGm(page: Page) {
     await page
       .locator('ui-panel')
@@ -24,7 +24,7 @@ test.describe('GM ツールバー', () => {
     await waitAppReady(page);
   });
 
-  test('プレイヤーには GM ツールバーが出ず、GM になると現れること', async ({ page }) => {
+  test('shows no GM toolbar to a player, and brings it up on becoming the GM', async ({ page }) => {
     await expect(page.locator('app-pl-toolbar [title="所有キャラクター一覧"]')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('app-gm-toolbar [title^="暗闇"]')).toHaveCount(0);
 
@@ -32,19 +32,21 @@ test.describe('GM ツールバー', () => {
     await expect(page.locator('app-pl-toolbar [title="所有キャラクター一覧"]')).toHaveCount(0);
   });
 
-  test('オブジェクト一覧に卓上のコマが並ぶこと', async ({ page }) => {
+  test('lists the pieces on the table in the object list', async ({ page }) => {
     await becomeGm(page);
     await tool(page, 'オブジェクト一覧（GM）').dispatchEvent('click');
 
     const list = page.locator('game-object-list-panel');
     await expect(list).toBeVisible({ timeout: 10000 });
-    // 既定の卓にはキャラクターが置かれている。空の枠だけ出ても通らないようにする。
+    // The default table has characters on it, so that an empty frame alone does not pass.
     const names = await page.locator('game-character [data-testid="piece-name"]').allInnerTexts();
     expect(names.length).toBeGreaterThan(0);
     await expect(list).toContainText(names[0].trim());
   });
 
-  test('テーブル関連の小窓のマップエディターとマップ生成は、GM にだけ出ること', async ({ page }) => {
+  test("shows the map editor and the map generator in the Table group's small window to the GM alone", async ({
+    page,
+  }) => {
     await openFabMenu(page);
     await page.locator('[data-testid="fab-entry-table"]').click();
     const table = page.locator('[data-testid="fab-submenu-table"]');
@@ -59,7 +61,7 @@ test.describe('GM ツールバー', () => {
     await expect(page.locator('app-gm-toolbar [title="マップエディター"]')).toHaveCount(0);
   });
 
-  test('マップエディターがキャンバスごと開くこと', async ({ page }) => {
+  test('opens the map editor along with its canvas', async ({ page }) => {
     await becomeGm(page);
     await openPanel(page, 'マップエディター');
 
@@ -68,7 +70,7 @@ test.describe('GM ツールバー', () => {
     await expect(editor.locator('canvas').first()).toBeVisible();
   });
 
-  test('同行パネルに未所属のキャラクターが並ぶこと', async ({ page }) => {
+  test('lists the characters that belong to no party in the party panel', async ({ page }) => {
     await becomeGm(page);
     await tool(page, '同行').dispatchEvent('click');
 
@@ -78,13 +80,13 @@ test.describe('GM ツールバー', () => {
     await expect(party).toContainText(names[0].trim());
   });
 
-  test('バフマネージャーが開くこと', async ({ page }) => {
+  test('opens the buff manager', async ({ page }) => {
     await becomeGm(page);
     await openPanel(page, 'バフマネージャー');
     await expect(page.locator('app-buff-manager-panel')).toBeVisible({ timeout: 10000 });
   });
 
-  test('暗闇ボタンは押すたびに表示が入れ替わること', async ({ page }) => {
+  test('swaps what the darkness button shows each time it is pressed', async ({ page }) => {
     await becomeGm(page);
     const darkness = tool(page, '暗闇: オフ（クリックでオン）');
     await expect(darkness).toBeVisible();

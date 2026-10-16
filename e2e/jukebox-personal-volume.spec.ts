@@ -9,8 +9,8 @@ async function openJukebox(page: Page) {
   return jukebox;
 }
 
-test.describe('ジュークボックスの個人音量', () => {
-  test('試聴・BGM・SE・環境音の音量が、開き直しても残ること', async ({ page }) => {
+test.describe('personal volumes in the jukebox', () => {
+  test('keeps the preview, BGM, SE and ambience volumes after the jukebox is opened again', async ({ page }) => {
     await waitAppReady(page);
     let jukebox = await openJukebox(page);
     await jukebox.locator('input[name="audition-volume"]').fill('0.1');

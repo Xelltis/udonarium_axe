@@ -49,8 +49,8 @@ async function menuOffers(page: Page, name: string, entry: string): Promise<bool
   return offered;
 }
 
-test.describe('交戦エリア', () => {
-  test('部屋設定でオンにし、同じ点の敵と交戦を宣言すると円が出て、予告するまで動けず、敵が外れると消えること', async ({
+test.describe('engagement zones', () => {
+  test('once turned on in the room settings, draws a circle when engagement is declared with a foe on the same point, holds the piece until it announces leaving, and removes the circle when the foe leaves', async ({
     page,
   }) => {
     await waitAppReady(page);
