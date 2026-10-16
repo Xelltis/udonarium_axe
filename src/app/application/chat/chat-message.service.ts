@@ -763,10 +763,13 @@ export class ChatMessageService {
    * Says a line again in another tab, as though it had been said there.
    *
    * It goes to the end of that tab rather than back into the middle of it under its old time:
-   * a line copied over is being brought into that conversation now.
+   * a line copied over is being brought into that conversation now. A guest on a room server's copy
+   * stands no portrait in the tab's slots, which the server would put back.
    */
   copyMessageToTab(message: ChatMessage, chatTab: ChatTab): ChatMessage {
-    return chatTab.addMessage(copiedMessageContext(message, this.calcTimeStamp(chatTab)));
+    const context = copiedMessageContext(message, this.calcTimeStamp(chatTab));
+    if (this.keptOffTable) context.imagePos = undefined;
+    return chatTab.addMessage(context);
   }
 
   private calcTimeStamp(chatTab: ChatTab): number {

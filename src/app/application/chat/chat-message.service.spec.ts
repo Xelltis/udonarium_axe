@@ -818,6 +818,26 @@ describe('ChatMessageService', () => {
         expect(chatTab.imageIdentifier).toEqual(slots);
       });
 
+      it('stands no portrait in a tab’s slots for a line copied there either', () => {
+        const other = new ChatTab();
+        other.initialize();
+        ObjectStore.instance.add(other);
+        const said = chatTab.addMessage({
+          from: 'me',
+          name: 'ヒロ',
+          text: 'こんにちは',
+          timestamp: 1000,
+          imageIdentifier: 'img-1',
+          imagePos: 1,
+        });
+        const slots = [...other.imageIdentifier];
+
+        service.copyMessageToTab(said, other);
+
+        expect(other.imageIdentifier).toEqual(slots);
+        other.destroy();
+      });
+
       it('reads no resource edit out of the line, but does among peers', () => {
         speak(':HP-3');
         expect(resourceEdits).toEqual([]);
