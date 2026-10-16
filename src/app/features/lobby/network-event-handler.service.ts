@@ -4,6 +4,7 @@ import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { PeerReconnectState } from '@axe/core/network/connection';
 import { Network } from '@axe/core/network/network';
@@ -39,6 +40,7 @@ export class NetworkEventHandlerService {
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly auth = inject(ServerAuthService);
   private readonly snackbar = inject(SnackbarService);
+  private readonly overlayMode = inject(OverlayModeService);
   private readonly t = inject(TRANSLATE_FN);
 
   /**
@@ -178,10 +180,11 @@ export class NetworkEventHandlerService {
         this.fetchRoomAssets();
       }
       // The link to a room server is this reader's own, so the word of it is shown here alone,
-      // rather than written for the whole room, which a guest may not write to anyway.
+      // rather than written for the whole room, which a guest may not write to anyway. A screen
+      // made for streaming shows none of it.
       if (event.peerId === Network.peerId && Network.authorityPeerId !== null) {
         const serverKey = NetworkEventHandlerService.SERVER_RECONNECT_MESSAGE_KEYS[event.state];
-        if (serverKey) this.snackbar.show(this.t(serverKey));
+        if (serverKey && !this.overlayMode.active()) this.snackbar.show(this.t(serverKey));
         return;
       }
       const key = NetworkEventHandlerService.RECONNECT_MESSAGE_KEYS[event.state];

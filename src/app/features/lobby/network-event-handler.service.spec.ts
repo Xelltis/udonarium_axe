@@ -8,6 +8,7 @@ import {
   type NetworkPeerEvent,
   type PeerReconnectEvent,
 } from '@axe/application/sync/object-change-network-helpers';
+import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { Network } from '@axe/core/network/network';
@@ -318,6 +319,19 @@ describe('NetworkEventHandlerService', () => {
       '部屋のサーバーとの接続が切れました。再接続しています…',
       '部屋のサーバーとの接続を復旧しました。',
     ]);
+    expect(chatStub.sendSystemMessage).not.toHaveBeenCalled();
+  });
+
+  it('shows nothing of the link to the room server on a screen made for streaming', () => {
+    vi.spyOn(Network, 'peerId', 'get').mockReturnValue('my-seat');
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(TestBed.inject(OverlayModeService), 'active').mockReturnValue(true);
+    const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+
+    stubChange.peerReconnect$.emit({ peerId: 'my-seat', state: 'retrying' });
+    stubChange.peerReconnect$.emit({ peerId: 'my-seat', state: 'recovered' });
+
+    expect(shown).not.toHaveBeenCalled();
     expect(chatStub.sendSystemMessage).not.toHaveBeenCalled();
   });
 
