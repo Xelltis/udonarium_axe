@@ -210,10 +210,13 @@ export class CoinComponent {
     e.preventDefault();
   }
 
-  /** On a press on the coin, brings it to the top and starts watching for a double tap. */
+  /**
+   * On a press on the coin, brings it to the top for a seat that may change the table, and starts
+   * watching for a double tap.
+   */
   onInputStart(e: MouseEvent | TouchEvent) {
     this.startDoubleClickTimer(e);
-    this.coin().toTopmost();
+    if (this.rolePermission.canEditTabletop) this.coin().toTopmost();
   }
 
   /** Counts a press towards a double tap, which flips the coin when the second one lands. */

@@ -365,12 +365,12 @@ export class CardStackComponent {
   }
 
   /**
-   * Starts a press on the stack: arms the double tap, brings the stack to the top, briefly hides
-   * its handle icons and selects it.
+   * Starts a press on the stack: arms the double tap, brings the stack to the top for a seat that
+   * may change the table, briefly hides its handle icons and selects it.
    */
   onInputStart(e: MouseEvent | TouchEvent) {
     this.startDoubleClickTimer(e);
-    this.cardStack().toTopmost();
+    if (this.rolePermission.canEditTabletop) this.cardStack().toTopmost();
     this.iconHiding.touch();
 
     this.selectionSignalService.selectObject(this.cardStack().identifier, 'GameCharacter');

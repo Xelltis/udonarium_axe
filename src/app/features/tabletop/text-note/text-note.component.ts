@@ -398,14 +398,15 @@ export class TextNoteComponent {
   }
 
   /**
-   * Brings the note to the top when it is pressed, and waits for the release to start editing.
+   * Brings the note to the top when it is pressed, for a seat that may change the table, and waits
+   * for the release to start editing.
    *
    * Ignored while the note is being edited. A right press only brings the note to the top.
    */
   onMouseDown(e: MouseEvent) {
     if (this.isSelected) return;
     e.preventDefault();
-    this.textNote().toTopmost();
+    if (this.rolePermission.canEditTabletop) this.textNote().toTopmost();
 
     if (e.button === 2) return;
     this.addMouseEventListeners();

@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
@@ -41,6 +42,21 @@ describe('TextNoteComponent', () => {
   it('registers its effect in the constructor, so nothing is set up outside an injection context', () => {
     // the effect is registered in the constructor rather than from a lifecycle hook
     expect(component).toBeTruthy();
+  });
+
+  it('brings the note to the top on a press, for a seat that may change the table alone', () => {
+    const note = TextNote.create('メモ', '本文');
+    fixture.componentRef.setInput('textNote', note);
+    const canEdit = vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+    const topmost = vi.spyOn(note, 'toTopmost');
+
+    component.onMouseDown(new MouseEvent('mousedown', { button: 2 }));
+    expect(topmost).not.toHaveBeenCalled();
+
+    canEdit.mockReturnValue(true);
+    component.onMouseDown(new MouseEvent('mousedown', { button: 2 }));
+    expect(topmost).toHaveBeenCalledTimes(1);
+    note.destroy();
   });
 
   describe('viewRotateZ computed signal', () => {

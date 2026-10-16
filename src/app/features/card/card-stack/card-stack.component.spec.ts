@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { Card } from '@axe/domain/card/card';
@@ -25,6 +26,21 @@ describe('CardStackComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('brings the stack to the top on a press, for a seat that may change the table alone', () => {
+    const cardStack = CardStack.create('山札');
+    fixture.componentRef.setInput('cardStack', cardStack);
+    const canEdit = vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+    const topmost = vi.spyOn(cardStack, 'toTopmost');
+
+    component.onInputStart(new MouseEvent('mousedown'));
+    expect(topmost).not.toHaveBeenCalled();
+
+    canEdit.mockReturnValue(true);
+    component.onInputStart(new MouseEvent('mousedown'));
+    expect(topmost).toHaveBeenCalledTimes(1);
+    cardStack.destroy();
   });
 
   describe('signal-driven CD', () => {

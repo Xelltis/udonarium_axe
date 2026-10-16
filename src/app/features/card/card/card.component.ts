@@ -427,10 +427,13 @@ export class CardComponent {
     e.preventDefault();
   }
 
-  /** Brings the card to the top when it is pressed, and starts watching for a double tap. */
+  /**
+   * Brings the card to the top when it is pressed, for a seat that may change the table, and starts
+   * watching for a double tap.
+   */
   onInputStart(e: MouseEvent | TouchEvent) {
     this.startDoubleClickTimer(e);
-    this.card().toTopmost();
+    if (this.rolePermission.canEditTabletop) this.card().toTopmost();
     this.iconHiding.touch();
   }
 

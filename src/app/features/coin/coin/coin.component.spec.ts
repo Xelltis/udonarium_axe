@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -29,6 +30,18 @@ describe('CoinComponent', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     coin.destroy();
+  });
+
+  it('brings the coin to the top on a press, for a seat that may change the table alone', () => {
+    const canEdit = vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+    const topmost = vi.spyOn(coin, 'toTopmost');
+
+    component.onInputStart(new MouseEvent('mousedown'));
+    expect(topmost).not.toHaveBeenCalled();
+
+    canEdit.mockReturnValue(true);
+    component.onInputStart(new MouseEvent('mousedown'));
+    expect(topmost).toHaveBeenCalledTimes(1);
   });
 
   it('strikes both faces and turns each the way it lies', () => {
