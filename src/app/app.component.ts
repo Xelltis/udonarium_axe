@@ -57,6 +57,7 @@ import { RoomPanelName } from '@axe/domain/ui/room-panel';
 import type { Vote } from '@axe/domain/vote/vote';
 import { AlarmEventHandlerService } from '@axe/features/alarm/alarm-event-handler.service';
 import { ButtonGuideEventHandlerService } from '@axe/features/button-guide/button-guide-event-handler.service';
+import { CardEventHandlerService } from '@axe/features/card/card-event-handler.service';
 import { CardStackListImageComponent } from '@axe/features/card/card-stack-list-img/card-stack-list-img.component';
 import { HandDragGhostComponent } from '@axe/features/card/hand-rail/hand-drag-ghost.component';
 import { HandRailComponent } from '@axe/features/card/hand-rail/hand-rail.component';
@@ -480,6 +481,7 @@ export class AppComponent {
     inject(ChatSoundEventHandlerService);
     inject(EffectChatEventHandlerService);
     inject(VoteEventHandlerService);
+    inject(CardEventHandlerService);
     inject(VisualNovelEventHandlerService);
     inject(CutInEventHandlerService);
     inject(MixEventHandlerService);
