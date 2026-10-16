@@ -301,8 +301,21 @@ describe('ServerConnection', () => {
       expect(calls.slice(before)).toEqual([]);
       expect(connection.peerIds).toEqual([OTHER.peerId]);
       welcomeOn(latest());
-      await vi.waitFor(() => expect(calls.slice(before)).toEqual(['connect authority']));
+      await vi.waitFor(() => expect(calls.slice(before)).toEqual(['reconnect resumed', 'connect authority']));
       expect(connection.peerIds).toEqual([OTHER.peerId]);
+    });
+
+    it('comes back from the cache as after any return, once a return the server asked for was cut short', async () => {
+      const socket = await enterRoom([OTHER]);
+      socket.close(1012, 'rotate');
+      connection.leaveImmediately();
+      calls = [];
+
+      await connection.rejoinAfterLeave();
+      welcomeOn(latest());
+
+      await vi.waitFor(() => expect(calls).toContain('reconnect recovered'));
+      expect(calls).not.toContain('reconnect resumed');
     });
 
     it('tells of the drop after all when the new link fails, and gets back in as after any', async () => {

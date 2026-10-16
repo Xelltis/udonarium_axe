@@ -242,6 +242,18 @@ describe('DiceBot', () => {
       tab.destroy();
     });
 
+    it('asks again too when the seat came back on a new link the server asked for, unseen', async () => {
+      const bot = new DiceBot();
+      bot.initialize();
+      const { tab, requests } = await askedRoll(bot);
+
+      localDispatch('PEER_RECONNECT', { peerId: 'acct_me-peer', state: 'resumed' });
+
+      expect(requests()).toHaveLength(2);
+      bot.destroy();
+      tab.destroy();
+    });
+
     it('tells of no roll that times out once the room is left', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
       const bot = new DiceBot();

@@ -536,7 +536,7 @@ export class ServerConnection implements Connection {
     this.authority = authority;
     this.me.isOpen = true;
     if (this.everWelcomed) {
-      if (!cameBack) this.callback.onReconnect?.(this.me, 'recovered');
+      this.callback.onReconnect?.(this.me, cameBack ? 'resumed' : 'recovered');
     } else {
       this.everWelcomed = true;
       this.callback.onOpen?.(this.me);
@@ -790,6 +790,8 @@ export class ServerConnection implements Connection {
 
   private teardown(): void {
     this.reconnectScheduler.cancelAll();
+    this.askedBack = false;
+    this.comingBack = false;
     this.stopPing();
     this.stopTokenChecks();
     this.stopAssetTokenChecks();

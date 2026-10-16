@@ -52,12 +52,14 @@ export class NetworkEventHandlerService {
     retrying: 'feature.lobby.peerReconnect.retrying',
     recovered: 'feature.lobby.peerReconnect.recovered',
     failed: 'feature.lobby.peerReconnect.failed',
+    resumed: '',
   };
   /** The same for the link to a room server, which reports it under this seat's own peer id. */
   private static readonly SERVER_RECONNECT_MESSAGE_KEYS: Record<PeerReconnectState, string> = {
     retrying: 'feature.lobby.peerReconnect.serverRetrying',
     recovered: 'feature.lobby.peerReconnect.serverRecovered',
     failed: 'feature.lobby.peerReconnect.serverFailed',
+    resumed: '',
   };
   private serverErrorReconnectAttempts = 0;
   private otherErrorReconnectAttempts = 0;
@@ -170,7 +172,7 @@ export class NetworkEventHandlerService {
     }, this.destroyRef);
     this.objectChange.peerReconnect$.subscribe((event) => {
       if (this.localMode) return;
-      if (event.state === 'recovered' && event.peerId === Network.peerId) {
+      if ((event.state === 'recovered' || event.state === 'resumed') && event.peerId === Network.peerId) {
         this.takeServerRole();
         this.bringAssetsIntoRoom();
         this.fetchRoomAssets();

@@ -7,7 +7,11 @@ import {
   ServerRole,
 } from '@axe/core/network/server/server-protocol';
 
-export type PeerReconnectState = 'retrying' | 'recovered' | 'failed';
+/**
+ * Where a dropped link stands: being tried again, back, given up on, or back on a new link the room
+ * server asked for, which nobody is told of but everything that follows a return still runs for.
+ */
+export type PeerReconnectState = 'retrying' | 'recovered' | 'failed' | 'resumed';
 
 export class ConnectionCallback {
   onOpen!: (peer: IPeerContext) => void;

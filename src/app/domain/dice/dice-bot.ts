@@ -538,7 +538,7 @@ export class DiceBot extends GameObject {
         const data = message.data as { peerId?: unknown; state?: unknown } | null;
         if (data?.peerId !== getMyPeerId()) return;
         if (data.state === 'retrying') this.serverRolls.pause();
-        if (data.state === 'recovered') this.serverRolls.askAgain();
+        if (data.state === 'recovered' || data.state === 'resumed') this.serverRolls.askAgain();
         return;
       }
       case 'OPEN_NETWORK':
