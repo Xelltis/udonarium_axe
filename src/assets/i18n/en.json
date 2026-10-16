@@ -3222,6 +3222,7 @@
         "fullSync": "Re-sync room data",
         "fullSyncHint": "Use this when objects or chat differ from what others see. The connection stays up.",
         "fullSyncRequested": "Requested a room data re-sync from {{count}} peer(s).",
+        "fullSyncRequestedFromServer": "Requested a room data re-sync from the room server.",
         "timeoutLabel": "seconds — silent peers are reported in chat",
         "showDetail": "Show details",
         "connecting": "[Connecting] ",

@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RoomDeletionService } from '@axe/application/lobby/room-deletion.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -6,6 +8,7 @@ import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { LOCAL_MODE_STORAGE_KEY, LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
+import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { PeerMenuComponent } from '@axe/features/lobby/peer-menu/peer-menu.component';
@@ -134,6 +137,19 @@ describe('PeerMenuComponent', () => {
       fixture = TestBed.createComponent(PeerMenuComponent);
       fixture.detectChanges();
       expect(lobby()).toBeNull();
+    });
+
+    it('offers a fresh sync from the server, and a reconnect, to a seat alone in the room', () => {
+      vi.spyOn(Network.instance, 'peerIds', 'get').mockReturnValue([]);
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      vi.spyOn(ObjectSynchronizer.instance, 'requestFullSync').mockReturnValue(1);
+      const said = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockReturnValue(null!);
+
+      expect(component.canRequestFullSync).toBe(true);
+      expect(component.shouldShowReconnectButton).toBe(true);
+      component.requestFullSync();
+
+      expect(said).toHaveBeenCalledWith(encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequestedFromServer'));
     });
 
     it('shows your own role as the server gave it, with nothing to press', () => {

@@ -3222,6 +3222,7 @@
         "fullSync": "방 데이터 다시 동기화",
         "fullSyncHint": "말이나 채팅이 다른 사람과 어긋날 때 눌러 주세요. 접속은 유지됩니다.",
         "fullSyncRequested": "{{count}}명에게 방 데이터 재동기화를 요청했습니다.",
+        "fullSyncRequestedFromServer": "방 서버에 방 데이터 재동기화를 요청했습니다.",
         "timeoutLabel": "초 이상 통신이 없는 참가자 정보를 채팅에 표시",
         "showDetail": "자세히 보기",
         "connecting": "[접속 중] ",

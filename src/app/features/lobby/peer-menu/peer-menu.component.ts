@@ -386,25 +386,30 @@ export class PeerMenuComponent {
     });
   }
 
-  /** Whether anybody else is connected, which is when there is a room to connect to again. */
+  /**
+   * Whether there is a room to connect to again: anybody else is connected, or, on a room server,
+   * the server is, which holds the room whoever else is in it.
+   */
   get shouldShowReconnectButton(): boolean {
-    return this.networkService.peerIds.length > 1;
+    return this.networkService.peerIds.length > 1 || this.networkService.authorityPeerId !== null;
   }
 
-  /** Whether there is a connection to ask for the whole room over. */
+  /** Whether there is a connection to ask for the whole room over: a peer, or the room server. */
   get canRequestFullSync(): boolean {
-    return 0 < this.networkService.peerIds.length;
+    return 0 < this.networkService.peerIds.length || this.networkService.authorityPeerId !== null;
   }
 
   /**
    * Asks the connected peers to send the whole room again, and says in the chat how many were
-   * asked.
+   * asked; on a room server, which alone holds the room, that it was asked.
    */
   requestFullSync() {
     const peerCount = ObjectSynchronizer.instance.requestFullSync();
-    this.chatMessageService.sendSystemMessage(
-      encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequested', { count: peerCount })
-    );
+    const notice =
+      this.networkService.authorityPeerId !== null
+        ? encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequestedFromServer')
+        : encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequested', { count: peerCount });
+    this.chatMessageService.sendSystemMessage(notice);
   }
 
   /** Shows the room's password as plain text, or hides it again. */

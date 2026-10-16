@@ -3222,6 +3222,7 @@
         "fullSync": "部屋のデータを同期し直す",
         "fullSyncHint": "コマやチャットが他の人と食い違っているときに押してください。接続はつないだままです。",
         "fullSyncRequested": "{{count}}人に部屋のデータの再同期を要求しました。",
+        "fullSyncRequestedFromServer": "部屋のサーバーに部屋のデータの再同期を要求しました。",
         "timeoutLabel": "秒以上通信できない参加者情報をチャットに表示",
         "showDetail": "詳細を表示",
         "connecting": "[接続中] ",
