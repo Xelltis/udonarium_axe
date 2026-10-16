@@ -1,8 +1,8 @@
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { localDispatch, NetworkMessage, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
-import { AssetDownloadRetries } from '@axe/core/storage/asset-download-retries';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
+import { AssetRetries } from '@axe/core/storage/asset-retries';
 import { AudioFile, AudioFileContext, AudioState } from '@axe/core/storage/audio-file';
 import { AudioStorage, CatalogItem } from '@axe/core/storage/audio-storage';
 import { BufferSharingTask } from '@axe/core/storage/buffer-sharing-task';
@@ -35,7 +35,7 @@ export class AudioSharingSystem {
   /** Audio the asset server did not have, which is asked of peers from then on. */
   private httpMissed: Set<string> = new Set();
   /** Sounds the room's list named that the asset server could not send just then. */
-  private httpRetries = new AssetDownloadRetries();
+  private httpRetries = new AssetRetries();
 
   /**
    * The audio to fetch before any other, such as what the room is playing.

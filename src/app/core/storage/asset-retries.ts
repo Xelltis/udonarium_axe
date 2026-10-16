@@ -1,18 +1,18 @@
-/** How long the first try again waits after a download failed; each later one waits twice as long. */
+/** How long the first try again waits after a transfer failed; each later one waits twice as long. */
 export const ASSET_RETRY_DELAY_MS = 10_000;
-/** How many times a download that failed is tried again before it waits for a catalogue to name it. */
+/** How many times a transfer that failed is tried again before it is left for the next chance. */
 export const ASSET_RETRY_LIMIT = 3;
 
 /**
- * Tries again, a few times and further apart each time, the downloads from the asset store that
- * failed for now, as when it asked for fewer requests or could not be reached. A download that came
+ * Tries again, a few times and further apart each time, the transfers to or from the asset store
+ * that failed for now, as when it asked for fewer requests or could not be reached. One that came
  * through starts afresh; leaving the room drops every try still to come.
  */
-export class AssetDownloadRetries {
+export class AssetRetries {
   private readonly tries = new Map<string, number>();
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
 
-  /** Arranges one more try of a download that failed, unless it has been tried as often as it may. */
+  /** Arranges one more try of a transfer that failed, unless it has been tried as often as it may. */
   schedule(identifier: string, retry: () => void): void {
     if (this.timers.has(identifier)) return;
     const tries = this.tries.get(identifier) ?? 0;
@@ -28,7 +28,7 @@ export class AssetDownloadRetries {
     this.timers.set(identifier, timer);
   }
 
-  /** Forgets how often a download that has now come through was tried. */
+  /** Forgets how often a transfer that has now come through was tried. */
   forget(identifier: string): void {
     this.tries.delete(identifier);
   }

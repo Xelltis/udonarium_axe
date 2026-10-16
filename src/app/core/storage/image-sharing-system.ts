@@ -2,8 +2,8 @@ import { xmlLoaded$ } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { localDispatch, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
-import { AssetDownloadRetries } from '@axe/core/storage/asset-download-retries';
 import { AssetDownloadMiss, AssetHttpStore } from '@axe/core/storage/asset-http-store';
+import { AssetRetries } from '@axe/core/storage/asset-retries';
 import { BufferSharingTask } from '@axe/core/storage/buffer-sharing-task';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
 import { ImageContext, ImageFile, ImageState } from '@axe/core/storage/image-file';
@@ -38,7 +38,7 @@ export class ImageSharingSystem {
   /** Images the asset server did not have, which are asked of peers from then on. */
   private httpMissed: Set<string> = new Set();
   /** Images the room's list named that the asset server could not send just then. */
-  private httpRetries = new AssetDownloadRetries();
+  private httpRetries = new AssetRetries();
 
   private constructor() {}
 

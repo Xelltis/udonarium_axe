@@ -10,8 +10,8 @@ import { PeerContext } from '@axe/core/network/peer-context';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { AuthorityEvent, MAX_MEMBERS } from '@axe/core/network/server/server-protocol';
 import { SAME_NAME_MEMBER_ERROR } from '@axe/core/network/skyway/same-name-member';
-import { AssetDownloadRetries } from '@axe/core/storage/asset-download-retries';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
+import { AssetRetries } from '@axe/core/storage/asset-retries';
 import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { guestUserIdAfter, guestUserIdOf, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
@@ -52,7 +52,7 @@ export class NetworkEventHandlerService {
   private otherErrorReconnectAttempts = 0;
   private serverErrorReconnectTimer: ReturnType<typeof setTimeout> | null = null;
   /** The room's list of pictures and sounds, when the server could not give it just then. */
-  private readonly roomAssetListRetries = new AssetDownloadRetries();
+  private readonly roomAssetListRetries = new AssetRetries();
   private localMode = false;
   /** The account last followed; undefined until the first look, which changes nothing. */
   private followedAccountUserId: string | null | undefined = undefined;
