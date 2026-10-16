@@ -24,6 +24,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
 import { transportOf } from '@axe/core/network/transport';
 import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
@@ -264,14 +265,16 @@ export class PeerMenuComponent {
    * The role is written down in this browser along with the room, so reconnecting keeps it. Outside
    * a room only the role is written, beside the tab's user id and the room it was last in, which
    * waiting or playing offline knows nothing of; but a game master's role taken there forgets that
-   * room where the seat was not one, as it would come back as one beside the room's own. Does
-   * nothing for a role the reader may not take.
+   * room where the seat was not one, as it would come back as one beside the room's own. Nothing is
+   * written while a replay's board is on the table, cut off from the room, where the role is taken on
+   * the recording's cursor and goes with it. Does nothing for a role the reader may not take.
    */
   setMyRole(role: PeerRole) {
     if (!this.isRoleSelfAssignable(role)) return;
     this.myPeer.role = role;
     this.myPeer.update();
     const peer = Network.peerContext;
+    if (isNetworkIsolated()) return;
     if (!peer.isRoom) {
       const saved = loadIdentity();
       if (!saved) return;

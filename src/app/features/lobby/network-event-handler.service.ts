@@ -254,16 +254,19 @@ export class NetworkEventHandlerService {
    * room. Written down as it stands, it would wipe out the room the tab had just been in, and a
    * game master coming back to their own table could no longer be told from one walking into
    * somebody else's. Outside a room, the room last written down is kept, with the role held in it.
+   * While a replay's board is on the table, cut off from the room, the roles written down are kept,
+   * as the seat's cursor there wears what it had in the recording.
    */
   private rememberIdentity(peer: { userId: string; roomId: string; roomName: string; isRoom: boolean }): void {
     const saved = loadIdentity();
     const last = peer.isRoom ? null : saved;
+    const kept = isNetworkIsolated() ? saved : null;
     saveIdentity({
       userId: peer.userId,
       roomId: last?.roomId ?? peer.roomId,
       roomName: last?.roomName ?? peer.roomName,
-      role: PeerCursor.myCursor.role,
-      roomRole: last ? last.roomRole : PeerCursor.myCursor.role,
+      role: kept ? kept.role : PeerCursor.myCursor.role,
+      roomRole: kept ? kept.roomRole : last ? last.roomRole : PeerCursor.myCursor.role,
       reConnectPass: PeerCursor.myCursor.reConnectPass,
       roomKey: last ? (last.roomKey ?? '') : (Network.roomKey ?? ''),
       guestUserId: guestUserIdAfter(peer.userId, saved, this.accountUserId()),

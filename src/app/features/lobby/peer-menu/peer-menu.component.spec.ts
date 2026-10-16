@@ -7,6 +7,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { LOCAL_MODE_STORAGE_KEY, LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { Network } from '@axe/core/network/network';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -176,6 +177,33 @@ describe('PeerMenuComponent', () => {
       expect(loadIdentity()).toEqual(
         expect.objectContaining({ userId: 'tab-user', roomId: '', roomKey: '', role: PeerRole.GameMaster })
       );
+    });
+
+    it('writes no role down while a replay’s board is on the table, cut off from the room', () => {
+      saveIdentity({
+        userId: 'tab-user',
+        roomId: 'room-1',
+        roomName: '卓',
+        role: PeerRole.Player,
+        reConnectPass: '',
+        roomKey: '',
+      });
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        userId: 'tab-user',
+        roomId: 'room-1',
+        roomName: '卓',
+        isRoom: true,
+      } as never);
+      PeerCursor.myCursor.role = PeerRole.Player;
+
+      setNetworkIsolated(true);
+      try {
+        component.setMyRole(PeerRole.Guest);
+      } finally {
+        setNetworkIsolated(false);
+      }
+
+      expect(loadIdentity()).toEqual(expect.objectContaining({ role: PeerRole.Player, roomRole: PeerRole.Player }));
     });
 
     it('keeps the room it was last in when a game master’s role is taken back by the seat that held it there', () => {

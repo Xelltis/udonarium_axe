@@ -156,6 +156,30 @@ describe('NetworkEventHandlerService', () => {
     expect(loadIdentity()?.role).toBe(PeerRole.GameMaster);
   });
 
+  it('keeps the roles written down when the connection opens while a replay’s board is on the table', () => {
+    PeerCursor.myCursor = new PeerCursor();
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    saveIdentity({ userId: 'u', roomId: 'abc', roomName: 'room', role: PeerRole.Player, reConnectPass: '' });
+    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({
+      peerId: 'p',
+      userId: 'u',
+      roomId: '',
+      roomName: '',
+      isRoom: false,
+    } as never);
+
+    setNetworkIsolated(true);
+    try {
+      stubChange.networkOpen$.emit({ peerId: 'p' });
+    } finally {
+      setNetworkIsolated(false);
+    }
+
+    expect(loadIdentity()).toEqual(
+      expect.objectContaining({ roomId: 'abc', role: PeerRole.Player, roomRole: PeerRole.Player })
+    );
+  });
+
   it('writes down the room a connection opens into', () => {
     PeerCursor.myCursor = new PeerCursor();
     saveIdentity({ userId: 'u', roomId: 'abc', roomName: 'room', role: 'gm', reConnectPass: '' });
