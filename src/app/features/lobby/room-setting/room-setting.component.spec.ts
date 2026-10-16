@@ -95,6 +95,24 @@ describe('RoomSettingComponent', () => {
       expect(create).not.toHaveBeenCalled();
     });
 
+    it('opens no new room once the seat has come into another while it was being made', async () => {
+      const where = vi
+        .spyOn(Network, 'peerContext', 'get')
+        .mockReturnValue({ userId: 'user', isRoom: false } as PeerContext);
+      vi.spyOn(Network, 'createRoom').mockImplementation(async () => {
+        where.mockReturnValue({ userId: 'user', isRoom: true } as PeerContext);
+        return { roomKey: KEY, roomId: 'Ab3' };
+      });
+      const open = vi.spyOn(Network, 'open').mockImplementation(() => {});
+      component.roomName.set('月夜の卓');
+
+      component.createRoom();
+      await vi.waitFor(() => expect(Network.createRoom).toHaveBeenCalled());
+      await Promise.resolve();
+
+      expect(open).not.toHaveBeenCalled();
+    });
+
     it('creates the room on the server and opens it by its key, leaving the role for the server to give', async () => {
       const create = vi.spyOn(Network, 'createRoom').mockResolvedValue({ roomKey: KEY, roomId: 'Ab3' });
       const open = vi.spyOn(Network, 'open').mockImplementation(() => {});

@@ -102,6 +102,8 @@ export class RoomSettingComponent {
     this.createError.set('');
     try {
       const { roomKey, roomId } = await Network.createRoom(this.roomName(), this.password());
+      // Come into a room meanwhile, the seat stays there, the new room keeping for another time.
+      if (Network.peerContext.isRoom) return;
       const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
       Network.open(userId, roomId, this.roomName(), this.password(), roomKey);
       PeerCursor.myCursor.peerId = Network.peerId;
