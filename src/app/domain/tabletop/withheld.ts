@@ -26,3 +26,12 @@ export function isWithheldHere(object: unknown): boolean {
   }
   return false;
 }
+
+/**
+ * Whether a room server holds anyone but the game master to rules on who may own this object: a
+ * note, a die or a card. Nobody owning one may take it for themselves alone, and a card goes only
+ * to whoever takes it or to nobody; who owns anything else is left free.
+ */
+export function ownerRuledByServer(object: unknown): boolean {
+  return object instanceof TextNote || object instanceof DiceSymbol || object instanceof Card;
+}

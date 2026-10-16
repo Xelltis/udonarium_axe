@@ -1,6 +1,7 @@
 import { Network } from '@axe/core/network/network';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { TextNote } from '@axe/domain/tabletop/text-note';
 import { buildDisclosureContextMenu } from '@axe/features/disclosure/disclosure-context-menu';
 
 const t = (key: string) => key;
@@ -48,17 +49,20 @@ describe('buildDisclosureContextMenu', () => {
     ).toBeTruthy();
   });
 
-  it('offers a player on a room server only themselves as the owner of an unowned piece, which is all it takes', () => {
+  it('offers a player on a room server only themselves for a note nobody owns, and everyone for a character', () => {
     vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
     vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([{ peerId: 'peer-2' }] as never);
     vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({ userId: 'p2', name: 'p2', isMine: false } as PeerCursor);
     setMe('p1', PeerRole.Player);
-    const choices = () =>
-      find(buildDisclosureContextMenu(obj(''), t), 'feature.disclosure.owner')?.subActions?.map((s) => s.name);
-
-    expect(choices()).toEqual(['☑ feature.disclosure.ownerNone', '☐ p1']);
-    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
-    expect(choices()).toEqual(['☑ feature.disclosure.ownerNone', '☐ p1', '☐ p2']);
+    const note = TextNote.create('メモ', '本文');
+    const choices = (object: Parameters<typeof buildDisclosureContextMenu>[0]) =>
+      find(buildDisclosureContextMenu(object, t), 'feature.disclosure.owner')?.subActions?.map((s) => s.name);
+    try {
+      expect(choices(note)).toEqual(['☑ feature.disclosure.ownerNone', '☐ p1']);
+      expect(choices(obj(''))).toEqual(['☑ feature.disclosure.ownerNone', '☐ p1', '☐ p2']);
+    } finally {
+      note.destroy();
+    }
   });
 
   it('offers a player nothing on somebody elses character', () => {

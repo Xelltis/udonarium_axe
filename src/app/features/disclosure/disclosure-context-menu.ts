@@ -11,6 +11,7 @@ import {
 } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { ownerRuledByServer } from '@axe/domain/tabletop/withheld';
 
 interface DisclosableObject extends Disclosable {
   owner?: string;
@@ -45,14 +46,15 @@ function audienceCandidates(): DisclosureCandidate[] {
 
 /**
  * Who the owner submenu offers: this user first, then every other connected user. A room server
- * lets anyone but the game master give a piece nobody owns to themselves alone, so there it offers
- * only this user.
+ * lets anyone but the game master give a note, a die or a card nobody owns to themselves alone, so
+ * there it offers only this user for those.
  */
-function ownerCandidates(): DisclosureCandidate[] {
+function ownerCandidates(object: DisclosableObject): DisclosureCandidate[] {
   const result: DisclosureCandidate[] = [];
   const myCursor = PeerCursor.myCursor;
   if (myCursor) result.push({ userId: myCursor.userId, name: candidateName(myCursor) });
-  if (Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster) return result;
+  const narrowed = Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
+  if (narrowed && ownerRuledByServer(object)) return result;
   for (const context of Network.peerContexts) {
     const cursor = PeerCursor.findByPeerId(context.peerId);
     if (!cursor || cursor.isMine) continue;
@@ -135,7 +137,7 @@ export function buildDisclosureContextMenu(object: DisclosableObject, t: Transla
             object.update();
           },
         },
-        ...ownerCandidates().map((peer) => ({
+        ...ownerCandidates(object).map((peer) => ({
           name: mark(ownerUserId === peer.userId) + peer.name,
           action: () => {
             object.owner = peer.userId;

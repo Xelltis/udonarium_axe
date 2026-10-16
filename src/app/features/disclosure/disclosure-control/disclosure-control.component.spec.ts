@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Network } from '@axe/core/network/network';
 import { Card } from '@axe/domain/card/card';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TextNote } from '@axe/domain/tabletop/text-note';
@@ -11,7 +12,7 @@ describe('DisclosureControlComponent', () => {
   const made: { destroy(): void }[] = [];
   const original = PeerCursor.myCursor;
 
-  function choicesFor(object: Card | TextNote): string[] {
+  function choicesFor(object: Card | TextNote | GameCharacter): string[] {
     const fixture = TestBed.createComponent(DisclosureControlComponent);
     fixture.componentRef.setInput('object', object);
     return fixture.componentInstance.ownerCandidates().map((candidate) => candidate.userId);
@@ -39,6 +40,13 @@ describe('DisclosureControlComponent', () => {
 
     expect(choicesFor(card)).toEqual(['p1']);
     expect(choicesFor(note)).toEqual(['p1']);
+  });
+
+  it('offers a player everyone for a character, whose owner the server leaves free', () => {
+    const character = GameCharacter.create('ヒロ', 1, '');
+    made.push(character);
+
+    expect(choicesFor(character)).toEqual(['p1', 'p2']);
   });
 
   it('offers the owner of a note everyone, whom the server lets it hand the note to', () => {

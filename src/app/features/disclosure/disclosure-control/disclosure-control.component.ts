@@ -12,6 +12,7 @@ import {
 } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole, roleBadgeClass, roleShortLabelKey } from '@axe/domain/peer/peer-role';
+import { ownerRuledByServer } from '@axe/domain/tabletop/withheld';
 import { TranslocoModule } from '@jsverse/transloco';
 
 interface DisclosableObject extends Disclosable {
@@ -88,9 +89,9 @@ export class DisclosureControlComponent {
    * The users the owner menu offers: this user first, then every other connected user, each named
    * by their cursor or a short id.
    *
-   * A room server lets anyone but the game master take a piece nobody owns for themselves alone, and
-   * a card only for themselves or nobody, so there it offers only this user, besides the owner the
-   * piece has now.
+   * A room server lets anyone but the game master take a note or a die nobody owns for themselves
+   * alone, and a card only for themselves or nobody, so there it offers only this user for those,
+   * besides the owner the piece has now. Who owns anything else is left free.
    */
   ownerCandidates(): OwnerCandidate[] {
     const candidates: OwnerCandidate[] = [];
@@ -98,7 +99,8 @@ export class DisclosureControlComponent {
     if (myCursor) candidates.push({ userId: myCursor.userId, name: myCursor.name || myCursor.userId.slice(0, 6) });
     const owner = this.owner();
     const narrowed = Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
-    if (narrowed && (!owner || this.object() instanceof Card)) {
+    const object = this.object();
+    if (narrowed && ownerRuledByServer(object) && (!owner || object instanceof Card)) {
       const holder = owner && owner !== myCursor?.userId ? PeerCursor.findByUserId(owner) : null;
       if (holder) candidates.push({ userId: holder.userId, name: holder.name || holder.userId.slice(0, 6) });
       return candidates;
