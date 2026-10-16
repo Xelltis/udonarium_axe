@@ -26,7 +26,7 @@ import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
 import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
 import { transportOf } from '@axe/core/network/transport';
-import { saveIdentity } from '@axe/core/storage/identity-storage';
+import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { buildInviteLink } from '@axe/domain/peer/invite-link';
@@ -261,14 +261,20 @@ export class PeerMenuComponent {
   /**
    * Takes a role for the reader, which the room sees.
    *
-   * The role is written down in this browser along with the room, so reconnecting keeps it. Does
-   * nothing for a role the reader may not take.
+   * The role is written down in this browser along with the room, so reconnecting keeps it. Outside
+   * a room only the role is written, beside the tab's user id and the room it was last in, which
+   * waiting or playing offline knows nothing of. Does nothing for a role the reader may not take.
    */
   setMyRole(role: PeerRole) {
     if (!this.isRoleSelfAssignable(role)) return;
     this.myPeer.role = role;
     this.myPeer.update();
     const peer = Network.peerContext;
+    if (!peer.isRoom) {
+      const saved = loadIdentity();
+      if (saved) saveIdentity({ ...saved, role });
+      return;
+    }
     saveIdentity({
       userId: peer.userId,
       roomId: peer.roomId,

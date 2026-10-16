@@ -8,6 +8,7 @@ import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { LOCAL_MODE_STORAGE_KEY, LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
+import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -116,6 +117,41 @@ describe('PeerMenuComponent', () => {
       PeerCursor.myCursor.role = PeerRole.Player;
       component.setMyRole(PeerRole.GameMaster);
       expect(PeerCursor.myCursor.role).toBe(PeerRole.Player);
+    });
+  });
+
+  describe('a role taken outside a room', () => {
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+    });
+
+    afterEach(() => {
+      sessionStorage.clear();
+      PeerCursor.myCursor = null!;
+    });
+
+    it('writes down only the role, keeping the tab’s user id and the room it was last in', () => {
+      saveIdentity({
+        userId: 'tab-user',
+        roomId: 'room-1',
+        roomName: '卓',
+        role: PeerRole.GameMaster,
+        reConnectPass: '',
+        roomKey: '',
+      });
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        userId: '',
+        roomId: '',
+        roomName: '',
+        isRoom: false,
+      } as never);
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+
+      component.setMyRole(PeerRole.Player);
+
+      expect(loadIdentity()).toEqual(
+        expect.objectContaining({ userId: 'tab-user', roomId: 'room-1', role: PeerRole.Player })
+      );
     });
   });
 
