@@ -463,7 +463,7 @@ describe('hasReplayEdits()', () => {
   });
 });
 
-describe('chat moments that follow a new time', () => {
+describe('chat moments that follow a new place', () => {
   const draft = (kind: ReplayEventKind, text: string) => ({
     kind,
     actorId: 'alice',
@@ -471,39 +471,134 @@ describe('chat moments that follow a new time', () => {
     text,
     tabIdentifier: 'main',
   });
-  const momentOf = (event: ReplayEvent) => event.patch?.after['attributes.timestamp'];
-  const around = [
-    createReplayEntry(draft(ReplayEventKind.ChatMessage, '前'), 1, 5000),
-    createReplayEntry(draft(ReplayEventKind.ChatMessage, '後'), 2, 6000),
-  ];
+  const momentOf = (event: ReplayEvent) => Number(event.patch?.after['attributes.timestamp']);
+  const said = (event: ReplayEvent, moment: number): ReplayEvent => ({
+    ...event,
+    detail: { ...event.detail, timestamp: moment },
+    patch: { ...event.patch!, after: { ...event.patch!.after, 'attributes.timestamp': moment } },
+  });
+  const line = (seq: number, at: number, moment: number, text = `発言 ${seq}`) =>
+    said(createReplayEntry(draft(ReplayEventKind.ChatMessage, text), seq, at), moment);
+  const result = (seq: number, at: number, moment: number) =>
+    said(createReplayEntry(draft(ReplayEventKind.ChatDice, '(2D6) → 7'), seq, at), moment);
+  const bySeq = (events: readonly ReplayEvent[], seq: number) => events.find((event) => event.seq === seq)!;
 
-  it('says an inserted line at its new time, and its dice result the moment after it, which ties the two', () => {
-    const line = createReplayEntry(draft(ReplayEventKind.ChatMessage, '2d6'), 10, 100);
-    const result = { ...createReplayEntry(draft(ReplayEventKind.ChatDice, '(2D6) → 7'), 11, 101) };
-    result.patch = { ...result.patch!, after: { ...result.patch!.after, 'attributes.timestamp': 101 } };
+  it('says an inserted line between the lines either side, and its dice result the moment after it', () => {
+    const around = [line(1, 5000, 5000), line(2, 6000, 6000)];
 
-    const [, placedLine, placedResult] = insertReplayEvents(around, 1, [line, result]);
+    const placed = insertReplayEvents(around, 1, [line(10, 100, 100, '2d6'), result(11, 101, 101)]);
 
-    expect(momentOf(placedLine)).toBe(placedLine.at);
-    expect(placedLine.detail['timestamp']).toBe(placedLine.at);
-    expect(momentOf(placedResult)).toBe(placedLine.at + 1);
+    const [said, rolled] = [placed[1], placed[2]];
+    expect(momentOf(said)).toBeGreaterThan(5000);
+    expect(said.detail['timestamp']).toBe(momentOf(said));
+    expect(momentOf(rolled)).toBe(momentOf(said) + 1);
+    expect(momentOf(rolled)).toBeLessThan(6000);
   });
 
-  it('says a moved line at the time it moved to', () => {
-    const third = createReplayEntry(draft(ReplayEventKind.ChatMessage, '三'), 3, 7000);
+  it('says a written line between the lines either side, though the list keeps its times by another clock', () => {
+    const events = [line(1, 1000, 103000), line(2, 1100, 103100)];
+    const written = createReplayEntry(draft(ReplayEventKind.ChatMessage, '書き足し'), 9, insertTimeAt(events, 1));
 
-    const moved = moveReplayEvent([...around, third], 3, -1);
+    const placed = insertReplayEvent(events, 1, written);
 
-    const line = moved.find((event) => event.seq === 3)!;
+    expect(momentOf(placed[1])).toBeGreaterThan(103000);
+    expect(momentOf(placed[1])).toBeLessThan(103100);
+  });
+
+  it('says a moved line between the lines either side, though the list keeps its times by another clock', () => {
+    const events = [line(1, 1000, 103000), line(2, 1100, 103100), line(3, 1200, 103200)];
+
+    const moved = moveReplayEvent(events, 3, -1);
+
     expect(moved.map((event) => event.seq)).toEqual([1, 3, 2]);
-    expect(momentOf(line)).toBe(line.at);
+    expect(momentOf(bySeq(moved, 3))).toBeGreaterThan(103000);
+    expect(momentOf(bySeq(moved, 3))).toBeLessThan(103100);
   });
 
-  it('says a line stepped past another at the time it stepped to', () => {
-    const stepped = stepReplayEvents(around, new Set([2]), -1);
+  it('says a line moved to the end after the last line, never at its moment', () => {
+    const events = [line(1, 1000, 1000), line(2, 2000, 2000), line(3, 3000, 3000)];
 
-    const line = stepped.find((event) => event.seq === 2)!;
-    expect(stepped.map((event) => event.seq)).toEqual([2, 1]);
-    expect(momentOf(line)).toBe(line.at);
+    const moved = moveReplayEvent(events, 1, 2);
+
+    expect(moved.map((event) => event.seq)).toEqual([2, 3, 1]);
+    expect(momentOf(bySeq(moved, 1))).toBeGreaterThan(3000);
+  });
+
+  it('says a line moved to the start before the first line, never at its moment', () => {
+    const events = [line(1, 1000, 1000), line(2, 2000, 2000), line(3, 3000, 3000)];
+
+    const stepped = stepReplayEvents(events, new Set([3]), -1);
+    const moved = stepReplayEvents(stepped, new Set([3]), -1);
+
+    expect(moved.map((event) => event.seq)).toEqual([3, 1, 2]);
+    expect(momentOf(bySeq(moved, 3))).toBeLessThan(1000);
+  });
+
+  it('keeps a dice result moved on its own the moment after its line, while it still follows the line', () => {
+    const events = [line(1, 1000, 4000, '2d6'), line(2, 1010, 4010), result(3, 1020, 4001)];
+
+    const stepped = stepReplayEvents(events, new Set([3]), -1);
+
+    expect(stepped.map((event) => event.seq)).toEqual([1, 3, 2]);
+    expect(momentOf(bySeq(stepped, 3))).toBe(4001);
+  });
+
+  it('takes the dice result along with a line moved on its own, while the result still follows it', () => {
+    const events = [
+      line(1, 1000, 3000),
+      line(2, 1010, 4000, '2d6'),
+      line(3, 1020, 4010),
+      result(4, 1030, 4001),
+      line(5, 1040, 5000),
+    ];
+
+    const moved = moveReplayEvent(events, 2, 1);
+
+    expect(moved.map((event) => event.seq)).toEqual([1, 3, 2, 4, 5]);
+    const [rolled, answer] = [momentOf(bySeq(moved, 2)), momentOf(bySeq(moved, 4))];
+    expect(rolled).toBeGreaterThan(4010);
+    expect(answer).toBe(rolled + 1);
+    expect(answer).toBeLessThan(5000);
+  });
+
+  it('takes a resource notice along two moments after its line, as the line moves', () => {
+    const notice = line(3, 1020, 4002, 'HP -3');
+    notice.patch!.after['attributes.from'] = 'System';
+    const events = [line(1, 1000, 3000), line(2, 1010, 4000, ':HP-3'), notice, line(4, 1030, 5000)];
+
+    const moved = moveReplayEvent(events, 2, -1);
+
+    expect(moved.map((event) => event.seq)).toEqual([2, 1, 3, 4]);
+    expect(momentOf(bySeq(moved, 2))).toBeLessThan(3000);
+    expect(momentOf(bySeq(moved, 3))).toBe(momentOf(bySeq(moved, 2)) + 2);
+  });
+
+  it('lets a dice result go its own way once it is moved above its line', () => {
+    const events = [line(1, 1000, 4000, '2d6'), result(2, 1010, 4001), line(3, 1020, 4010)];
+
+    const stepped = stepReplayEvents(events, new Set([2]), -1);
+
+    expect(stepped.map((event) => event.seq)).toEqual([2, 1, 3]);
+    expect(momentOf(bySeq(stepped, 2))).toBeLessThan(4000);
+  });
+
+  it('orders lines by the lines of their own tab only', () => {
+    const other = said({ ...line(2, 1100, 9000) }, 9000);
+    other.patch!.after['parentIdentifier'] = 'other';
+    const events = [line(1, 1000, 1000), other, line(3, 1200, 1200)];
+
+    const moved = moveReplayEvent(events, 3, -1);
+
+    expect(momentOf(bySeq(moved, 3))).toBeGreaterThan(1000);
+    expect(momentOf(bySeq(moved, 3))).toBeLessThan(9000);
+  });
+
+  it('leaves the moments of the lines that did not move alone', () => {
+    const events = [line(1, 1000, 103000), line(2, 1100, 103100), line(3, 1200, 103200)];
+
+    const moved = moveReplayEvent(events, 3, -1);
+
+    expect(momentOf(bySeq(moved, 1))).toBe(103000);
+    expect(momentOf(bySeq(moved, 2))).toBe(103100);
   });
 });

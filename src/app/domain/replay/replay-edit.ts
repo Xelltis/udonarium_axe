@@ -128,11 +128,14 @@ export function restampReplayTimes(events: readonly ReplayEvent[]): ReplayEvent[
   });
 }
 
-/** Inserts one event at a position, keeping its own sequence number and time, and restamps the offsets. */
+/**
+ * Inserts one event at a position, keeping its own sequence number and time, and restamps the
+ * offsets. A chat line is said just after the line before it in its tab.
+ */
 export function insertReplayEvent(events: readonly ReplayEvent[], atIndex: number, event: ReplayEvent): ReplayEvent[] {
   const next = [...events];
   next.splice(Math.max(0, Math.min(next.length, atIndex)), 0, event);
-  return restampReplayTimes(next);
+  return restampReplayTimes(withChatMoments(next, new Set([event.seq])));
 }
 
 /**
@@ -152,13 +155,11 @@ export function insertReplayEvents(
   const index = Math.max(0, Math.min(events.length, atIndex));
   const seqBase = nextInsertSeq(events, seqFloor);
   const times = spreadInsertTimes(events, index, entries.length);
-  const placed = withChatMoments(
-    entries.map((entry, offset) => ({ ...entry, seq: seqBase + offset, at: times[offset] }))
-  );
+  const placed = entries.map((entry, offset) => ({ ...entry, seq: seqBase + offset, at: times[offset] }));
 
   const next = [...events];
   next.splice(index, 0, ...placed);
-  return restampReplayTimes(next);
+  return restampReplayTimes(withChatMoments(next, new Set(placed.map((event) => event.seq))));
 }
 
 /**
@@ -179,31 +180,129 @@ export function spreadInsertTimes(events: readonly ReplayEvent[], atIndex: numbe
 
 const MOMENT_KEY = 'attributes.timestamp';
 
+/** Who says a dice result or a resource notice, which follows the line that asked for it a moment or two after it. */
+const ANSWER_SENDERS: ReadonlySet<string> = new Set([DICEBOT_SENDER, 'System']);
+
+/** How many moments after the line it answers a dice result, and then a resource notice, is said. */
+const ANSWER_GAPS = [1, 2];
+
+interface ChatLine {
+  index: number;
+  tab: string;
+  moment: number;
+  /** The line this one answers, and how many moments after it, when it is an answer whose line is in the list. */
+  answers: { seq: number; gap: number } | null;
+}
+
 /**
- * Events that took new times, in their new order, with the moment of each chat line moved to
- * match, so that the chat on a replayed board, which orders lines by their moments, orders them as
- * the list does. A line is said at its new time; a dice result is said the moment after the line it
- * answers, when that line moved with it, as that moment is what ties the two.
+ * The list with the moment of each chat line in `moved` said afresh, so that the chat on a replayed
+ * board, which orders a tab's lines by their moments, orders them as the list does.
+ *
+ * A moved line is said just after the line before it in its tab, before the next line there that
+ * keeps its moment. Moments are taken from the lines, not from the list's times, which may run on
+ * another clock. A dice result or a resource notice stays the moment or two after the line it
+ * answers, as that moment is what ties the two, while it follows that line in the list and either
+ * of them moved; one moved above its line goes its own way. Every other line keeps its moment.
  */
-function withChatMoments(events: readonly ReplayEvent[]): ReplayEvent[] {
-  const lines = new Map<string, number>();
+function withChatMoments(events: readonly ReplayEvent[], moved: ReadonlySet<number>): ReplayEvent[] {
+  const lines = chatLinesOf(events);
+  const followed = (seq: number): boolean => {
+    const line = lines.get(seq);
+    const answered = line?.answers ? lines.get(line.answers.seq) : undefined;
+    return !!answered && answered.index < line!.index;
+  };
+  const retold = new Set<number>();
+  for (const [seq, line] of lines) {
+    if (moved.has(seq) || (followed(seq) && moved.has(line.answers!.seq))) retold.add(seq);
+  }
+  if (retold.size < 1) return [...events];
+
+  const nextKept = new Map<number, number>();
+  const ahead = new Map<string, number>();
+  for (let index = events.length - 1; index >= 0; index--) {
+    const line = lines.get(events[index].seq);
+    if (!line) continue;
+    if (retold.has(events[index].seq)) {
+      const kept = ahead.get(line.tab);
+      if (kept !== undefined) nextKept.set(events[index].seq, kept);
+    } else {
+      ahead.set(line.tab, line.moment);
+    }
+  }
+
+  const spans = new Map<number, number>();
+  for (const [seq, line] of lines) {
+    if (retold.has(seq) && followed(seq)) {
+      spans.set(line.answers!.seq, Math.max(spans.get(line.answers!.seq) ?? 0, line.answers!.gap));
+    }
+  }
+
+  const said = new Map<number, number>();
+  const latest = new Map<string, number>();
   return events.map((event) => {
+    const line = lines.get(event.seq);
+    if (!line) return event;
+    let moment = line.moment;
+    if (retold.has(event.seq)) {
+      moment = followed(event.seq)
+        ? said.get(line.answers!.seq)! + line.answers!.gap
+        : momentBetween(latest.get(line.tab), nextKept.get(event.seq), spans.get(event.seq) ?? 0, line.moment);
+    }
+    said.set(event.seq, moment);
+    latest.set(line.tab, Math.max(latest.get(line.tab) ?? moment, moment));
+    return moment === line.moment ? event : withMoment(event, moment);
+  });
+}
+
+/** The chat lines of the list that carry a moment, by sequence number, with the line each answer answers. */
+function chatLinesOf(events: readonly ReplayEvent[]): Map<number, ChatLine> {
+  const lines = new Map<number, ChatLine>();
+  const bySpeaker = new Map<string, number>();
+  const keyOf = (tab: string, speaker: string, moment: number) => `${tab}\0${speaker}\0${moment}`;
+  events.forEach((event, index) => {
     const after = event.patch?.after;
     const moment = after?.[MOMENT_KEY];
-    if (!after || typeof moment !== 'number') return event;
-    let next = event.at;
-    if (event.kind === ReplayEventKind.ChatDice) {
-      const answered = lines.get(`${String(after['attributes.originFrom'] ?? '')}\0${moment - 1}`);
-      if (answered !== undefined) next = answered + 1;
-    } else {
-      lines.set(`${String(after['attributes.from'] ?? '')}\0${moment}`, next);
-    }
-    return {
-      ...event,
-      detail: 'timestamp' in event.detail ? { ...event.detail, timestamp: next } : event.detail,
-      patch: { ...event.patch!, after: { ...after, [MOMENT_KEY]: next } },
-    };
+    if (!after || typeof moment !== 'number') return;
+    const tab = String(after['parentIdentifier'] ?? event.detail['tabIdentifier'] ?? '');
+    lines.set(event.seq, { index, tab, moment, answers: null });
+    const key = keyOf(tab, String(after['attributes.from'] ?? ''), moment);
+    if (!bySpeaker.has(key)) bySpeaker.set(key, event.seq);
   });
+  for (const event of events) {
+    const line = lines.get(event.seq);
+    const after = event.patch?.after ?? {};
+    const asker = String(after['attributes.originFrom'] ?? '');
+    if (!line || asker === '' || !ANSWER_SENDERS.has(String(after['attributes.from'] ?? ''))) continue;
+    for (const gap of ANSWER_GAPS) {
+      const seq = bySpeaker.get(keyOf(line.tab, asker, line.moment - gap));
+      if (seq !== undefined && seq !== event.seq) {
+        line.answers = { seq, gap };
+        break;
+      }
+    }
+  }
+  return lines;
+}
+
+/**
+ * A moment after `after` and before `before`, either of which may be missing, leaving `span` more
+ * moments free after it for the answers that follow it. A line with nothing either side keeps
+ * `own`. Where the two leave no room, as lines said by clocks that disagree can, it goes after
+ * `after`, so that it is never said before a line that comes before it in the list.
+ */
+function momentBetween(after: number | undefined, before: number | undefined, span: number, own: number): number {
+  if (after === undefined) return before === undefined ? own : before - span - 1;
+  if (before === undefined || before - after > span + 1) return after + 1;
+  return before > after ? after + (before - after) / (span + 2) : after + 1;
+}
+
+/** The event with its chat line said at a moment, both in what is shown and in the message its patch creates. */
+function withMoment(event: ReplayEvent, moment: number): ReplayEvent {
+  return {
+    ...event,
+    detail: 'timestamp' in event.detail ? { ...event.detail, timestamp: moment } : event.detail,
+    patch: { ...event.patch!, after: { ...event.patch!.after, [MOMENT_KEY]: moment } },
+  };
 }
 
 /**
@@ -273,8 +372,7 @@ export function stepReplayEvents(
     next.splice(target, 0, { ...event, at: insertTimeAt(next, target) });
     moved.add(event.seq);
   }
-  const stamped = new Map(withChatMoments(next.filter((event) => moved.has(event.seq))).map((e) => [e.seq, e]));
-  return restampReplayTimes(next.map((event) => stamped.get(event.seq) ?? event));
+  return restampReplayTimes(withChatMoments(next, moved));
 }
 
 /**
@@ -293,8 +391,8 @@ export function moveReplayEvent(events: readonly ReplayEvent[], seq: number, off
 
   const next = [...events];
   const [moved] = next.splice(index, 1);
-  next.splice(target, 0, withChatMoments([{ ...moved, at: insertTimeAt(next, target) }])[0]);
-  return restampReplayTimes(next);
+  next.splice(target, 0, { ...moved, at: insertTimeAt(next, target) });
+  return restampReplayTimes(withChatMoments(next, new Set([seq])));
 }
 
 /**
