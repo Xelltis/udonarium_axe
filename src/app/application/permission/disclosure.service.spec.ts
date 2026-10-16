@@ -1,5 +1,7 @@
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { Network } from '@axe/core/network/network';
+import { Card } from '@axe/domain/card/card';
+import { CardStack } from '@axe/domain/card/card-stack';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TextNote } from '@axe/domain/tabletop/text-note';
@@ -59,6 +61,26 @@ describe('DisclosureService', () => {
       expect(service.canSetOwner({ disclosureMode: 'gm', disclosureUserIds: [], owner: '' })).toBe(true);
     } finally {
       note.destroy();
+    }
+  });
+
+  it('keeps a card in a deck from a player on a room server, its owner seeing the face, and leaves it to the game master', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    const stack = CardStack.create('デッキ');
+    const card = Card.create('剣の2', 'front.png', 'back.png');
+    stack.putOnBottom(card);
+    try {
+      setMe('p1', PeerRole.Player);
+      expect(service.canSetOwner(card)).toBe(false);
+
+      setMe('gm', PeerRole.GameMaster);
+      expect(service.canSetOwner(card)).toBe(true);
+
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+      setMe('p1', PeerRole.Player);
+      expect(service.canSetOwner(card)).toBe(true);
+    } finally {
+      stack.destroy();
     }
   });
 
