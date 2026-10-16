@@ -6,7 +6,6 @@ import { CardStack } from '@axe/domain/card/card-stack';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { clearOwnershipTree } from '@axe/domain/tabletop/ownership';
 import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 
 /**
@@ -174,7 +173,6 @@ export function buildCardStackContextMenu(
         const cloneObject = cardStack.clone();
         cloneObject.location.x += gridSize;
         cloneObject.location.y += gridSize;
-        clearOwnershipTree(cloneObject);
         cloneObject.toTopmost();
         SoundEffect.play(PresetSound.cardPut);
       },

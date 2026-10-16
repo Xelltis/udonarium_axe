@@ -1,4 +1,5 @@
 import { Network } from '@axe/core/network/network';
+import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -60,7 +61,7 @@ describe('buildCardStackContextMenu', () => {
     const card = Card.create('剣の2', 'front.png', 'back.png');
     copy.putOnTop(card);
     card.owner = 'acct_bob';
-    vi.spyOn(cardStack, 'clone').mockReturnValue(copy);
+    vi.spyOn(ObjectSerializer.instance, 'parseXml').mockReturnValue(copy);
     PeerCursor.createMyCursor().role = PeerRole.Player;
 
     try {
