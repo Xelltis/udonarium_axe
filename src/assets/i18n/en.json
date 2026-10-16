@@ -3272,6 +3272,7 @@
         "hintSearching": "Searching...",
         "hintNoRooms": "No available rooms found. Use \"Create new room\" to make one.",
         "hintUnreachable": "Not connected to the server. Wait a little, then reload the page.",
+        "hintConnecting": "Not connected to the server yet. Wait a little, then press \"Refresh list\".",
         "hintListFailed": "Failed to fetch room list. Press \"Refresh list\" to retry.",
         "hintNoBackend": "No server is configured (backend.url in config.json)",
         "createRoomAfterLogin": "Log in to create a room",

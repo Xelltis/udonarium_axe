@@ -106,7 +106,7 @@ export class InviteJoinComponent {
     }
     const offOpen = this.objectChange.networkOpen$.subscribe(() => {
       offOpen();
-      void this.joinOrSayFailed(params);
+      if (this.state() === 'joining') void this.joinOrSayFailed(params);
     }, this.destroyRef);
   }
 

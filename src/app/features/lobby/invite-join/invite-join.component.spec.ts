@@ -1,6 +1,7 @@
 import { signal, type WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RoomJoinService } from '@axe/application/lobby/room-join.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { LOCAL_MODE_STORAGE_KEY } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -123,6 +124,22 @@ describe('InviteJoinComponent', () => {
     fixture.detectChanges();
 
     expect(bannerText()).toContain('参加できませんでした');
+    expect(join).not.toHaveBeenCalled();
+  });
+
+  it('joins nothing when a connection opens after it said it could not get in', async () => {
+    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
+    await setup('#join?r=a1b&n=room');
+    TestBed.inject(NetworkReachService).giveUp();
+    fixture.detectChanges();
+
+    const change = TestBed.inject(ObjectChangeService) as unknown as {
+      _networkOpen$: { emit(event: { peerId: string }): void };
+    };
+    change._networkOpen$.emit({ peerId: 'made-room' });
+    await flush();
+
+    expect(findRoom).not.toHaveBeenCalled();
     expect(join).not.toHaveBeenCalled();
   });
 

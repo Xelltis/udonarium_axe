@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { roomDeletionMessageKey, RoomDeletionService } from '@axe/application/lobby/room-deletion.service';
 import { RoomJoinService } from '@axe/application/lobby/room-join.service';
@@ -126,6 +135,15 @@ export class LobbyComponent {
     if (Network.isOpen) {
       this.reload();
     }
+    effect(() => {
+      if (this.reach.unreachable()) untracked(() => this.sayUnreachable());
+    });
+  }
+
+  /** Empties the list and says the server cannot be reached, and to reload the page, which is the way back. */
+  private sayUnreachable(): void {
+    this.rooms.set([]);
+    this.help.set(this.t('feature.lobby.lobby.hintUnreachable'));
   }
 
   private changeTitle() {
@@ -145,12 +163,18 @@ export class LobbyComponent {
    *
    * The list is emptied while it loads. The fetch gives up after 15 seconds, and a failure is shown
    * as the hint. Once reaching the network has been given up on, nothing is fetched, and the hint says
-   * so and to reload the page, which is the way back.
+   * so and to reload the page, which is the way back. Nor is anything fetched while the SkyWay
+   * connection the list comes through is still opening, which the hint says rather than that there
+   * are no rooms; the list is fetched again as it opens.
    */
   async reload() {
     if (this.reach.unreachable()) {
+      this.sayUnreachable();
+      return;
+    }
+    if (Network.transport !== 'server' && !Network.isOpen) {
       this.rooms.set([]);
-      this.help.set(this.t('feature.lobby.lobby.hintUnreachable'));
+      this.help.set(this.t('feature.lobby.lobby.hintConnecting'));
       return;
     }
     this.isReloading.set(true);

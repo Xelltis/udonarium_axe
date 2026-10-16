@@ -137,6 +137,7 @@ describe('LobbyComponent', () => {
     afterEach(() => vi.restoreAllMocks());
 
     it('shows a room a server reports by its count, with no peers to count', async () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
       const serverRoom: IRoomInfo = {
         id: 'Ab3',
         name: '月夜の卓',
@@ -165,6 +166,37 @@ describe('LobbyComponent', () => {
     await component.reload();
 
     expect(component.help()).toContain('再読み込み');
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  it('says the server cannot be reached as soon as reaching it is given up while the lobby is open', () => {
+    fixture.detectChanges();
+
+    TestBed.inject(NetworkReachService).giveUp();
+    fixture.detectChanges();
+
+    expect(component.help()).toContain('再読み込み');
+    expect(component.rooms()).toEqual([]);
+  });
+
+  it('says the server cannot be reached when it opens after reaching it was given up', () => {
+    TestBed.inject(NetworkReachService).giveUp();
+
+    const opened = TestBed.createComponent(LobbyComponent);
+    opened.detectChanges();
+
+    expect(opened.componentInstance.help()).toContain('再読み込み');
+  });
+
+  it('says the server is not reached yet, rather than that there are no rooms, while the connection is still coming', async () => {
+    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
+    const list = vi.spyOn(Network, 'listAllRooms').mockResolvedValue([]);
+
+    await component.reload();
+
+    expect(component.help()).toBe(
+      'まだサーバーにつながっていません。しばらく待ってから「一覧を更新」を押してください。'
+    );
     expect(list).not.toHaveBeenCalled();
   });
 
