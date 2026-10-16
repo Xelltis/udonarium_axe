@@ -276,16 +276,22 @@ export class AssetHttpStore {
   }
 
   /**
-   * Sends a request, given up on after a minute. The body of a GET is read within that same minute,
-   * so a download whose bytes stop coming is given up on too, rather than holding its turn for good.
+   * Sends a request, given up on once a minute passes with nothing coming back. The body of a GET is
+   * read here too, the minute starting afresh with each part of it that comes, so a download whose
+   * bytes stop coming is given up on rather than holding its turn for good, while one that comes
+   * slowly is still waited for.
    */
   private async request(url: string, init: RequestInit): Promise<Response> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const stillComing = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    };
     try {
       const res = await fetch(url, { ...init, signal: controller.signal });
       if (init.method !== 'GET') return res;
-      const body = await res.arrayBuffer();
+      const body = await readBody(res, stillComing);
       return new Response(0 < body.byteLength ? body : null, {
         status: res.status,
         statusText: res.statusText,
@@ -295,4 +301,26 @@ export class AssetHttpStore {
       clearTimeout(timer);
     }
   }
+}
+
+/** Reads a response's body whole, telling `onPart` as each part of it comes. */
+async function readBody(res: Response, onPart: () => void): Promise<Uint8Array<ArrayBuffer>> {
+  if (!res.body) return new Uint8Array(await res.arrayBuffer());
+  const reader = res.body.getReader();
+  const parts: Uint8Array[] = [];
+  let length = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    parts.push(value);
+    length += value.byteLength;
+    onPart();
+  }
+  const body = new Uint8Array(length);
+  let at = 0;
+  for (const part of parts) {
+    body.set(part, at);
+    at += part.byteLength;
+  }
+  return body;
 }

@@ -343,6 +343,35 @@ describe('AssetHttpStore', () => {
       }
     });
 
+    it('waits for bytes that keep coming, however long they take in all', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      let push: (part: Uint8Array) => void = () => {};
+      let end: () => void = () => {};
+      fetchSpy.mockImplementation((_url, init) => {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            push = (part) => controller.enqueue(part);
+            end = () => controller.close();
+            init?.signal?.addEventListener('abort', () => controller.error(new DOMException('aborted', 'AbortError')));
+          },
+        });
+        return Promise.resolve(new Response(body, { status: 200 }));
+      });
+      try {
+        const result = store.download(id);
+        for (const byte of bytes) {
+          await vi.advanceTimersByTimeAsync(50_000);
+          push(new Uint8Array([byte]));
+        }
+        await vi.advanceTimersByTimeAsync(50_000);
+        end();
+
+        expect(new Uint8Array(await ((await result) as AssetDownload).blob.arrayBuffer())).toEqual(bytes);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('fetches again with a fresh token when the one held is turned away', async () => {
       store.useAccess(
         () => access,
