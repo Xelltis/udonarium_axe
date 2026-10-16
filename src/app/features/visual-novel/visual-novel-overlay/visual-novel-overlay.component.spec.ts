@@ -1272,6 +1272,22 @@ describe('VisualNovelOverlayComponent', () => {
     character.destroy();
   });
 
+  it('makes the flip row again under a name of its own once it was deleted, as a room server keeps that one deleted', () => {
+    const character = GameCharacter.create('反転の作り直し', 1, addImage());
+    createComponent();
+    component.sendFrom = character.identifier;
+
+    component.toggleSpeakerFlip();
+    character.detailDataElement!.getFirstElementByName('FLIP')!.destroy();
+    component.toggleSpeakerFlip();
+
+    const again = character.detailDataElement!.getFirstElementByName('FLIP');
+    expect(again).toBeTruthy();
+    expect(again!.identifier).not.toBe(`FLIP_${character.identifier}`);
+    expect(Number(again!.value)).toBe(1);
+    character.destroy();
+  });
+
   it('reads the palette of the chosen character and puts a clicked row into the box', () => {
     const character = GameCharacter.create('パレットテスト', 1, addImage());
     createComponent();

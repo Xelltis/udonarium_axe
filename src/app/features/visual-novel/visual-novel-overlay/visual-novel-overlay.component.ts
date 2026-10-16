@@ -789,7 +789,8 @@ export class VisualNovelOverlayComponent {
    * Mirrors the speaker's portrait for the lines they send, or turns it back.
    *
    * The setting lives on the character's sheet, where a flip field is added next to the portrait
-   * position when it has none.
+   * position when it has none, under a name of its own: it is found by its field name, and a row
+   * deleted from the sheet stays deleted under its name on a room server.
    */
   toggleSpeakerFlip(): void {
     if (!this.mayEditTable()) return;
@@ -800,7 +801,7 @@ export class VisualNovelOverlayComponent {
       const posElement = object.detailDataElement?.getFirstElementByName('POS');
       const parent = posElement?.parent instanceof DataElement ? posElement.parent : object.detailDataElement;
       if (!parent) return;
-      element = DataElement.create('FLIP', 0, {}, `FLIP_${object.identifier}`);
+      element = DataElement.create('FLIP', 0, {});
       parent.appendChild(element);
     }
     element.value = Number(element.value) === 1 ? 0 : 1;
