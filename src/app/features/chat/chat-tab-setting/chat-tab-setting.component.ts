@@ -248,12 +248,9 @@ export class ChatTabSettingComponent {
     queueMicrotask(
       () => (this.modalService.title = this.panelService.title = this.t('feature.chat.tabSetting.panelTitle'))
     );
+    // A tab another seat deleted is let go of; only one this seat deleted is offered back.
     this.objectChange.objectDeleted$.subscribe((e) => {
       if (!this.selectedTab() || e.identifier !== this.selectedTab()!.identifier || this.selectedTabXml) return;
-      const object = this.objectStore.get(e.identifier);
-      if (object !== null) {
-        this.selectedTabXml = object.toXml();
-      }
       this.selectedTab.set(null);
     }, this.destroyRef);
     // A tab gone from the list, or one this seat may no longer read, is let go of, as on the seat
@@ -267,6 +264,7 @@ export class ChatTabSettingComponent {
         }
         if (!this.selectedTab() && this.chatTabs.length > 0) {
           this.selectedTab.set(this.chatTabs[0]);
+          this.selectedTabXml = '';
         }
       },
       this.destroyRef

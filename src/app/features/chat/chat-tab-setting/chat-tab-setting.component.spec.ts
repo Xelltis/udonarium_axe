@@ -5,6 +5,7 @@ import {
   CHAT_LOG_STYLE_STORAGE_KEY,
 } from '@axe/application/chat/chat-log-style-preference.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Network } from '@axe/core/network/network';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -55,6 +56,32 @@ describe('ChatTabSettingComponent', () => {
 
   it('lets the panel take the pointer again once the drag ends', async () => {
     await expectPanelDragRecovery(ChatTabSettingComponent);
+  });
+
+  it('keeps no copy of a tab another seat deleted, so that no later offer brings that one back', async () => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    const gone = ChatTabList.instance.addChatTab('消される');
+    const next = ChatTabList.instance.addChatTab('次');
+    const change = TestBed.inject(ObjectChangeService) as unknown as {
+      _objectDeleted$: { emit(event: { aliasName: string; identifier: string }): void };
+    };
+    try {
+      component.selectedTab.set(gone);
+      fixture.detectChanges();
+
+      change._objectDeleted$.emit({ aliasName: gone.aliasName, identifier: gone.identifier });
+      gone.destroy();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(component.selectedTabXml).toBe('');
+      expect(component.isDeleted).toBe(false);
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('元に戻す');
+    } finally {
+      next.destroy();
+      PeerCursor.myCursor = null!;
+    }
   });
 
   it('offers to bring a tab it deleted back, keeping it picked rather than moving on to another', async () => {
