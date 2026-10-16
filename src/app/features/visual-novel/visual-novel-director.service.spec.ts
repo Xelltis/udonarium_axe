@@ -137,6 +137,19 @@ describe('VisualNovelDirectorService', () => {
     }
   });
 
+  it('stops running the screening for a game master made a player or a guest meanwhile', () => {
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    stage.startDirecting(getMyPeerId());
+    notifyStage();
+    expect(director.isDirector()).toBe(true);
+
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    objectChange.notifyChanged(PeerCursor.myCursor.identifier);
+    TestBed.tick();
+
+    expect(director.isDirector()).toBe(false);
+  });
+
   it('puts everybody back to following once it ends', () => {
     stage.startDirecting('other-peer');
     notifyStage();

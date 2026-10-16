@@ -43,7 +43,10 @@ export class VisualNovelDirectorService {
     return PeerCursor.isMyselfGameMaster;
   });
 
-  readonly isDirector = computed(() => this.isDirected() && this.directorPeerId() === getMyPeerId());
+  /** Whether this seat runs the screening: it started it, and is a game master still. */
+  readonly isDirector = computed(
+    () => this.isDirected() && this.directorPeerId() === getMyPeerId() && this.canDirect()
+  );
 
   readonly isFollowing = computed(() => this.isDirected() && !this.isDirector() && this._following());
 
