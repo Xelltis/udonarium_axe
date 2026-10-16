@@ -18,6 +18,8 @@ export class RoomArchiveEventHandlerService {
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private maxTimer: ReturnType<typeof setTimeout> | null = null;
   private isDirty = false;
+  /** The snapshot being taken now, which a later flush waits for rather than leave it half done. */
+  private capturing: Promise<unknown> | null = null;
 
   constructor() {
     this.objectChange.objectChanged$.subscribe(() => this.markDirty(), this.destroyRef);
@@ -31,10 +33,12 @@ export class RoomArchiveEventHandlerService {
    *
    * Nothing is taken while keeping is turned off or for a role that may not edit the table. While a
    * restore is under way or a piece is being dragged it tries again a few seconds later; otherwise
-   * it waits for the browser to have a quiet moment first.
+   * it waits for the browser to have a quiet moment first. A snapshot already being taken is waited
+   * for first, so that one asked for before the page reloads is whole.
    */
   async flush(): Promise<void> {
     this.clearTimers();
+    if (this.capturing) await this.capturing;
     if (!this.isDirty) return;
     if (!this.roomSnapshot.isKeeping()) return;
     if (!this.rolePermission.canEditTabletop) return;
@@ -48,7 +52,13 @@ export class RoomArchiveEventHandlerService {
       return;
     }
     this.isDirty = false;
-    await this.roomSnapshot.capture({ background: true });
+    const capturing = this.roomSnapshot.capture({ background: true });
+    this.capturing = capturing;
+    try {
+      await capturing;
+    } finally {
+      if (this.capturing === capturing) this.capturing = null;
+    }
   }
 
   private isBusy(): boolean {

@@ -198,6 +198,25 @@ describe('RoomArchiveEventHandlerService', () => {
     expect(capture).not.toHaveBeenCalled();
   });
 
+  it('waits for a save already under way, and saves again only for a change since', async () => {
+    const service = setup();
+    let finishSaving!: () => void;
+    capture.mockReturnValueOnce(new Promise<null>((resolve) => (finishSaving = () => resolve(null))));
+    emitChange();
+    await vi.advanceTimersByTimeAsync(21_000);
+    expect(capture).toHaveBeenCalledOnce();
+
+    let flushed = false;
+    void service.flush().then(() => (flushed = true));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(flushed).toBe(false);
+
+    finishSaving();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(flushed).toBe(true);
+    expect(capture).toHaveBeenCalledOnce();
+  });
+
   it('saves for an object added or deleted as well', async () => {
     setup();
     objectAdded$.emit({ identifier: 'obj', aliasName: 'character' });
