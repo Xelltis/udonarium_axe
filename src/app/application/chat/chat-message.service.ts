@@ -66,13 +66,20 @@ export class ChatMessageService {
   }
 
   /**
-   * Sets the chat clock by a public time server, then again every six hours.
+   * Sets the chat clock by a public time server, then again every six hours; on a room server, by
+   * the server's clock, which it told the seat on letting it in, asking nobody else.
    *
    * Lines are ordered by the time they are stamped with, so peers whose own clocks disagree would
    * otherwise interleave wrongly. A failed request keeps the clock as it was and tries again on the
    * same schedule. Calling it while a check is already scheduled does nothing.
    */
   calibrateTimeOffset() {
+    const serverOffset = Network.serverClockOffset;
+    if (serverOffset !== null) {
+      this.timeOffset = Date.now() + serverOffset;
+      this.performanceOffset = performance.now();
+      return;
+    }
     if (this.calibrationTimer != null) {
       return;
     }

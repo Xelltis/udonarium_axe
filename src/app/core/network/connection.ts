@@ -54,6 +54,8 @@ export interface Connection {
   readonly authorityPeerId?: string;
   /** Whether the link to the room server is up just now; false while it is down and being tried again. */
   readonly authorityOpen?: boolean;
+  /** How far the room server's clock runs ahead of this one, once it has let the seat in. */
+  readonly serverClockOffset?: number;
   /** The key a room server finds the open room by; SkyWay rooms have none. */
   readonly roomKey?: string;
   /** The role a room server gave this seat on letting it in; SkyWay leaves roles to the peers. */

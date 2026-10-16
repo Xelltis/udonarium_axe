@@ -35,6 +35,17 @@ describe('ChatMessageService', () => {
     expect(service).toBeTruthy();
   }));
 
+  it('sets the chat clock by a room server’s, asking no time server', () => {
+    const service = TestBed.inject(ChatMessageService);
+    vi.spyOn(Network.instance, 'serverClockOffset', 'get').mockReturnValue(60_000);
+    const fetch = vi.spyOn(globalThis, 'fetch');
+
+    service.calibrateTimeOffset();
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(Math.abs(service.getTime() - (Date.now() + 60_000))).toBeLessThan(1_000);
+  });
+
   describe('showing a kept-back roll', () => {
     const secretFrom = (mine: boolean) =>
       ({ isSecret: true, isSendFromSelf: mine, tags: ['secret'], tag: 'secret' }) as unknown as ChatMessage;

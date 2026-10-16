@@ -438,6 +438,14 @@ describe('ServerConnection', () => {
     expect(errors).toEqual([]);
   });
 
+  it('knows how far the server’s clock runs ahead only once it has let the seat in', async () => {
+    expect(connection.serverClockOffset).toBeUndefined();
+
+    await enterRoom();
+
+    expect(connection.serverClockOffset).toEqual(expect.any(Number));
+  });
+
   it('says the link to the server is up once let in, and down once it drops', async () => {
     expect(connection.authorityOpen).toBe(false);
 

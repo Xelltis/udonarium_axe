@@ -132,6 +132,9 @@ export class ServerConnection implements Connection {
   get authorityOpen(): boolean {
     return this.authority?.isOpen ?? false;
   }
+  get serverClockOffset(): number | undefined {
+    return this.everWelcomed ? this.clockOffset : undefined;
+  }
   get roomKey(): string | undefined {
     return this.room?.roomKey;
   }
@@ -163,7 +166,7 @@ export class ServerConnection implements Connection {
    * How far the server's clock is ahead of this one, in milliseconds, from the welcome. The asset
    * token runs out by the server's clock, so a clock running behind would renew it too late.
    */
-  private serverClockOffset = 0;
+  private clockOffset = 0;
   /** The access token the last hello carried, which the server may turn down. */
   private helloToken: string | null = null;
   private retriedUnauthorized = false;
@@ -502,7 +505,7 @@ export class ServerConnection implements Connection {
   private welcome(message: WelcomeMessage): void {
     this.welcomed = true;
     this.role = message.role;
-    this.serverClockOffset = message.serverTime - Date.now();
+    this.clockOffset = message.serverTime - Date.now();
     // Taken before anybody hears the seat is in, so that what they do then may reach the room's
     // pictures and sounds already.
     this.takeAssetToken(message.assetToken, message.assetTokenExpiresAt);
@@ -585,7 +588,7 @@ export class ServerConnection implements Connection {
 
   private renewAssetToken(): void {
     if (!this.welcomed || !this.assetToken || this.assetTokenAsked) return;
-    if (this.assetToken.expiresAt - (Date.now() + this.serverClockOffset) > ASSET_TOKEN_MARGIN_MS) return;
+    if (this.assetToken.expiresAt - (Date.now() + this.clockOffset) > ASSET_TOKEN_MARGIN_MS) return;
     this.assetTokenAsked = true;
     this.post(assetTokenRequest());
   }

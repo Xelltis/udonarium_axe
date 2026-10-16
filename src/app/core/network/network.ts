@@ -59,6 +59,10 @@ export class Network {
   static get isAuthorityOpen(): boolean {
     return Network.instance.isAuthorityOpen;
   }
+  /** How far the room server's clock runs ahead of this one; null with SkyWay or before it let the seat in. */
+  static get serverClockOffset(): number | null {
+    return Network.instance.serverClockOffset;
+  }
   /** How this deployment connects players, as config.json names it. */
   static get transport(): Transport {
     return Network.instance.transport;
@@ -147,6 +151,9 @@ export class Network {
   }
   get isAuthorityOpen(): boolean {
     return this.connection?.authorityOpen ?? false;
+  }
+  get serverClockOffset(): number | null {
+    return this.connection?.serverClockOffset ?? null;
   }
   get transport(): Transport {
     return transportOf(this.config);

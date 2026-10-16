@@ -106,6 +106,8 @@ export class NetworkEventHandlerService {
       // read-only; on a room server, waiting outside a room is playing as a player.
       if (Network.transport === 'server' && !peer.isRoom) PeerCursor.myCursor.role = DEFAULT_PEER_ROLE;
       this.rememberIdentity(peer);
+      // A room server's clock sets the chat's as the seat comes in, though nobody else may be there.
+      if (peer.isRoom && Network.serverClockOffset !== null) this.chatMessageService.calibrateTimeOffset();
       const account = Network.transport === 'server' ? this.auth.account() : null;
       if (account) this.lendAccountLook(account.name, account.avatarUrl);
     }, this.destroyRef);
