@@ -337,6 +337,7 @@
       "gmOnly": "GM only",
       "selectPlayers": "Disclose to",
       "noPlayers": "No other players",
+      "noLoggedInPlayers": "No logged-in players",
       "owner": "Owner",
       "ownerNone": "None",
       "locked": "Not disclosed"
@@ -4508,7 +4509,7 @@
       },
       "staging": {
         "title": "Staging — {{count}} entries",
-        "hint": "Use the table as you normally would. What you move, roll and cast is captured and inserted at the point you are editing. Nothing reaches the other players.",
+        "hint": "Use the table as you normally would. What you move, roll and cast is captured and inserted after the row you started recording at. Nothing reaches the other players.",
         "accept": "Insert {{count}}",
         "discard": "Discard"
       },

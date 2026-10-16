@@ -14,6 +14,7 @@ import { mayBeChosen } from '@axe/domain/peer/chosen-seat';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole, roleBadgeClass, roleShortLabelKey } from '@axe/domain/peer/peer-role';
 import { ownerRuledByServer } from '@axe/domain/tabletop/withheld';
+import { noCandidatesKey } from '@axe/features/disclosure/disclosure-context-menu';
 import { TranslocoModule } from '@jsverse/transloco';
 
 interface DisclosableObject extends Disclosable {
@@ -156,6 +157,11 @@ export class DisclosureControlComponent {
     if (!this.disclosureService.canEdit(object)) return;
     object.disclosureUserIds = toggleDisclosureUserId(object.disclosureUserIds, userId);
     object.update();
+  }
+
+  /** What to say when nobody is there to choose for the audience. */
+  protected noCandidatesKey(): string {
+    return noCandidatesKey();
   }
 
   /**

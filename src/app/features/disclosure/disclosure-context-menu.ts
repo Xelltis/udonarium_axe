@@ -36,6 +36,14 @@ function candidateName(cursor: PeerCursor): string {
   return cursor.name || cursor.userId.slice(0, 6);
 }
 
+/**
+ * What to say when nobody is there to choose: on a room server, that nobody logged in is, as those
+ * not logged in are left out of the choice.
+ */
+export function noCandidatesKey(): string {
+  return Network.authorityPeerId !== null ? 'feature.disclosure.noLoggedInPlayers' : 'feature.disclosure.noPlayers';
+}
+
 function audienceCandidates(): DisclosureCandidate[] {
   const result: DisclosureCandidate[] = [];
   for (const context of Network.peerContexts) {
@@ -100,7 +108,7 @@ export function buildDisclosureContextMenu(object: DisclosableObject, t: Transla
       },
     }));
     if (!selectedSubActions.length) {
-      selectedSubActions.push({ name: t('feature.disclosure.noPlayers'), enabled: false });
+      selectedSubActions.push({ name: t(noCandidatesKey()), enabled: false });
     }
 
     entries.push({
