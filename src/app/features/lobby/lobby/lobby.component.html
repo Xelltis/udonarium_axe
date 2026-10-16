@@ -126,9 +126,15 @@
     <p class="text-ui-muted text-[0.8rem] leading-[1.6]">{{ help() }}</p>
   }
 } @else {
-  <p class="text-ui-muted text-[0.8rem] leading-[1.7]">
-    {{ 'feature.lobby.lobby.alreadyConnected' | transloco }}<br />{{
-      'feature.lobby.lobby.alreadyConnectedHint' | transloco
-    }}
+  <p class="text-ui-muted text-[0.8rem] leading-[1.7]" data-testid="lobby-already-in-room">
+    @if (isServerTransport) {
+      {{ 'feature.lobby.lobby.alreadyInRoomServer' | transloco }}<br />{{
+        'feature.lobby.lobby.alreadyInRoomServerHint' | transloco
+      }}
+    } @else {
+      {{ 'feature.lobby.lobby.alreadyConnected' | transloco }}<br />{{
+        'feature.lobby.lobby.alreadyConnectedHint' | transloco
+      }}
+    }
   </p>
 }

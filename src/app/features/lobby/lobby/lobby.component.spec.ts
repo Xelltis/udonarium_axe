@@ -183,13 +183,24 @@ describe('LobbyComponent', () => {
       vi.restoreAllMocks();
     });
 
-    it('lists the rooms whoever else is in the room, there being no line to anyone to let go of', () => {
-      vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['a', 'b', 'c']);
-      expect(component.isConnected()).toBe(false);
+    it('lets a seat in a room go to no other, which would carry this table there, however few are in', () => {
+      const where = vi
+        .spyOn(Network, 'peerContext', 'get')
+        .mockReturnValue({ isRoom: true, roomName: '' } as PeerContext);
+      vi.spyOn(Network, 'peerIds', 'get').mockReturnValue([]);
+      const bump = () => TestBed.inject(ObjectChangeService).networkVersion.update((v) => v + 1);
+      fixture = TestBed.createComponent(LobbyComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
 
-      vi.spyOn(Network, 'transport', 'get').mockReturnValue('skyway');
-      TestBed.inject(ObjectChangeService).networkVersion.update((v) => v + 1);
       expect(component.isConnected()).toBe(true);
+      expect(fixture.nativeElement.querySelector('[data-testid="lobby-already-in-room"]')?.textContent).toContain(
+        'ページを再読み込みしてから'
+      );
+
+      where.mockReturnValue({ isRoom: false, roomName: '' } as PeerContext);
+      bump();
+      expect(component.isConnected()).toBe(false);
     });
 
     it('asks for the password for the server to check, and joins through the server', async () => {

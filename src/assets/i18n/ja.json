@@ -3264,6 +3264,8 @@
         "peopleSuffix": "人",
         "alreadyConnected": "別のルームに接続したい場合は、他の参加者との接続を切ってください。",
         "alreadyConnectedHint": "（※ページリロードで切断できます。）",
+        "alreadyInRoomServer": "部屋に入っているあいだは、ほかの部屋に入れません。",
+        "alreadyInRoomServerHint": "ほかの部屋に入るときは、ページを再読み込みしてからにしてください。いまの部屋の卓は部屋のサーバーに残ります。",
         "hintInitial": "「一覧を更新」ボタンを押すと接続可能なルーム一覧を表示します。",
         "hintSearching": "検索中...",
         "hintNoRooms": "接続可能なルームが見つかりませんでした。「新しいルームを作成する」で新規ルームを作成できます。",
@@ -3288,6 +3290,7 @@
         "alreadyConnected": "他の参加者とつないだままではルームを作成できません。",
         "alreadyConnectedHint": "別のルームに接続したい場合は、他の参加者との接続を切ってください。",
         "alreadyConnectedHint2": "（※ページリロードで切断できます。）",
+        "alreadyInRoomServer": "部屋に入っているあいだは、新しい部屋を作れません。",
         "defaultRoomName": "ふつうの部屋",
         "createFailed": "部屋を作れませんでした（{{reason}}）",
         "loginRequired": "部屋を作るにはログインが要ります"

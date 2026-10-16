@@ -35,10 +35,13 @@ export class RoomSettingComponent {
     return Network.peerId;
   }
   /**
-   * Whether this seat is joined with others it would have to let go of before making a room. On a
-   * room server it holds no line to anyone but the server, so it may make one whoever is in.
+   * Whether this seat is in a room it would have to leave before making one: among peers, joined
+   * with others; on a room server, in any room, since going straight into the new one would carry
+   * this table into it.
    */
-  readonly isConnected = computed(() => Network.transport !== 'server' && Network.peerIds.length > 1);
+  readonly isConnected = computed(() =>
+    Network.transport === 'server' ? Network.peerContext.isRoom : Network.peerIds.length > 1
+  );
   /** Whether rooms are kept by a room server, which outlasts the last one to leave for a while. */
   protected readonly onRoomServer = Network.transport === 'server';
 

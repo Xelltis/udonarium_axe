@@ -3264,6 +3264,8 @@
         "peopleSuffix": "",
         "alreadyConnected": "Disconnect from other peers before joining another room.",
         "alreadyConnectedHint": "(Reload the page to disconnect.)",
+        "alreadyInRoomServer": "You cannot enter another room while you are in one.",
+        "alreadyInRoomServerHint": "To enter another room, reload the page first. The table of this room stays on the room server.",
         "hintInitial": "Press \"Refresh list\" to show available rooms.",
         "hintSearching": "Searching...",
         "hintNoRooms": "No available rooms found. Use \"Create new room\" to make one.",
@@ -3288,6 +3290,7 @@
         "alreadyConnected": "You cannot create a room while connected to other peers.",
         "alreadyConnectedHint": "Disconnect from other peers before joining another room.",
         "alreadyConnectedHint2": "(Reload the page to disconnect.)",
+        "alreadyInRoomServer": "You cannot create a room while you are in one.",
         "defaultRoomName": "My room",
         "createFailed": "The room could not be created ({{reason}})",
         "loginRequired": "Creating a room needs a login."

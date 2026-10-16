@@ -72,9 +72,15 @@
     {{ (onRoomServer ? 'feature.lobby.roomSetting.noticeServer' : 'feature.lobby.roomSetting.notice') | transloco }}
   </p>
 } @else {
-  <p class="text-ui-muted text-[0.8rem] leading-[1.7]">
-    {{ 'feature.lobby.roomSetting.alreadyConnected' | transloco }}<br />{{
-      'feature.lobby.roomSetting.alreadyConnectedHint' | transloco
-    }}<br />{{ 'feature.lobby.roomSetting.alreadyConnectedHint2' | transloco }}
+  <p class="text-ui-muted text-[0.8rem] leading-[1.7]" data-testid="room-setting-already-in-room">
+    @if (onRoomServer) {
+      {{ 'feature.lobby.roomSetting.alreadyInRoomServer' | transloco }}<br />{{
+        'feature.lobby.lobby.alreadyInRoomServerHint' | transloco
+      }}
+    } @else {
+      {{ 'feature.lobby.roomSetting.alreadyConnected' | transloco }}<br />{{
+        'feature.lobby.roomSetting.alreadyConnectedHint' | transloco
+      }}<br />{{ 'feature.lobby.roomSetting.alreadyConnectedHint2' | transloco }}
+    }
   </p>
 }

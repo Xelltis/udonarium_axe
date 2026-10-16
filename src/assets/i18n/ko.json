@@ -3264,6 +3264,8 @@
         "peopleSuffix": "명",
         "alreadyConnected": "다른 룸에 접속하려면 다른 참가자와의 연결을 끊어 주세요.",
         "alreadyConnectedHint": "(※ 페이지를 새로고침하면 끊을 수 있습니다.)",
+        "alreadyInRoomServer": "방에 들어가 있는 동안에는 다른 방에 들어갈 수 없습니다.",
+        "alreadyInRoomServerHint": "다른 방에 들어가려면 먼저 페이지를 새로고침해 주세요. 지금 방의 탁은 방 서버에 남습니다.",
         "hintInitial": "\"목록 새로고침\" 버튼을 누르면 접속할 수 있는 룸 목록이 표시됩니다.",
         "hintSearching": "검색 중...",
         "hintNoRooms": "접속할 수 있는 룸을 찾지 못했습니다. \"새 룸 만들기\"로 새 룸을 만들 수 있습니다.",
@@ -3288,6 +3290,7 @@
         "alreadyConnected": "다른 참가자와 연결된 상태에서는 룸을 만들 수 없습니다.",
         "alreadyConnectedHint": "다른 룸에 접속하려면 다른 참가자와의 연결을 끊어 주세요.",
         "alreadyConnectedHint2": "(※ 페이지를 새로고침하면 끊을 수 있습니다.)",
+        "alreadyInRoomServer": "방에 들어가 있는 동안에는 새 방을 만들 수 없습니다.",
         "defaultRoomName": "평범한 방",
         "createFailed": "방을 만들 수 없었습니다({{reason}})",
         "loginRequired": "방을 만들려면 로그인이 필요합니다."
