@@ -799,6 +799,25 @@ describe('ChatMessageService', () => {
         expect(character.selectedPortraitIndex).toBe(0);
       });
 
+      it('stands the portrait in none of the tab’s slots, which the server would put back', () => {
+        vi.spyOn(service as unknown as { findImagePos(id: string): number }, 'findImagePos').mockReturnValue(1);
+        const slots = [...chatTab.imageIdentifier];
+
+        speak('こんにちは @笑顔');
+
+        expect(chatTab.imageIdentifier).toEqual(slots);
+      });
+
+      it('stands no portrait in the tab’s slots for a stamp either', () => {
+        vi.spyOn(service as unknown as { findImagePos(id: string): number }, 'findImagePos').mockReturnValue(1);
+        chatTab.guestCanSpeak = true;
+        const slots = [...chatTab.imageIdentifier];
+
+        service.sendStamp(chatTab, 'seal:ok', '［了解］', character.identifier);
+
+        expect(chatTab.imageIdentifier).toEqual(slots);
+      });
+
       it('reads no resource edit out of the line, but does among peers', () => {
         speak(':HP-3');
         expect(resourceEdits).toEqual([]);

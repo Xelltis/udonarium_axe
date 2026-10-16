@@ -278,7 +278,8 @@ export class ChatMessageService {
    * `words` stand in for the stamp wherever it cannot be drawn: in a version that does not know it,
    * in a log, in a video. A stamp that is a picture in the room carries the picture as well, for
    * those to show. A stamp this version does not know, one the room does not let be sent, or one
-   * from a reader whose role may not speak in the tab, is not sent, and null comes back.
+   * from a reader whose role may not speak in the tab, is not sent, and null comes back. A guest on a
+   * room server stands no portrait in the tab's slots, which the server would put back.
    */
   sendStamp(
     chatTab: ChatTab,
@@ -302,7 +303,7 @@ export class ChatMessageService {
       imageIdentifier: this.findImageIdentifier(sendFrom, imgIndex),
       timestamp: this.calcTimeStamp(chatTab),
       text: words,
-      imagePos: this.findImagePos(sendFrom),
+      imagePos: this.keptOffTable ? undefined : this.findImagePos(sendFrom),
       messColor: resolveMessageColor(color, '#000000'),
       sendFrom,
       senderRole: PeerCursor.myRole,
@@ -328,7 +329,8 @@ export class ChatMessageService {
    * `sendSystemMessageAsLastSpeaker` follows. A stamp sent with the line goes under it, with the
    * words standing in for it on a last line of their own, after everything else has been read out of
    * the line. A guest on a room server changes no piece by speaking: resource edits are not read out
-   * of the line, and a portrait command picks the line's portrait but leaves the piece's alone.
+   * of the line, a portrait command picks the line's portrait but leaves the piece's alone, and the
+   * portrait stands in none of the tab's slots.
    */
   sendMessage(
     chatTab: ChatTab,
@@ -363,7 +365,8 @@ export class ChatMessageService {
       timestamp: this.calcTimeStamp(chatTab),
       tag: chatMessageTag,
       text,
-      imagePos: this.findImagePos(sendFrom),
+      // A guest on a room server stands no portrait in the tab's slots, which the server would put back.
+      imagePos: this.keptOffTable ? undefined : this.findImagePos(sendFrom),
       messColor: messageColor,
       sendFrom: sendFrom,
       senderRole: PeerCursor.myRole,
