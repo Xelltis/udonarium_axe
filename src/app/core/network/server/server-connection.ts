@@ -30,6 +30,7 @@ import {
   isRetryableError,
   Member,
   PING,
+  PONG,
   readAssetUploadPolicy,
   readServerMessage,
   ServerMessage,
@@ -211,6 +212,15 @@ export class ServerConnection implements Connection {
   private tokenTimer: ReturnType<typeof setInterval> | null = null;
   /** Requests to the server sent while getting back into the room, to send once back in. */
   private held: Outbound[] = [];
+  /**
+   * What would be held, written to the link since the last ping the server answered. A link that
+   * dies without a word swallows what was written into it, so these go again once back in.
+   */
+  private unconfirmed: { written: number; batch: Outbound }[] = [];
+  /** How many batches have been written to a link, which the pings and the unconfirmed count by. */
+  private written = 0;
+  /** For each ping not answered yet, how many batches had been written when it went. */
+  private pingsAt: number[] = [];
 
   /** Takes the room server's address from the app config's backend url. */
   configure(config: Record<string, unknown>): void {
@@ -293,7 +303,10 @@ export class ServerConnection implements Connection {
   /** Lets go of the server at once, for a page being hidden or unloaded. */
   leaveImmediately(): void {
     this.stopped = true;
+    const kept = [...this.unconfirmed.map(({ batch }) => batch), ...this.held, ...this.keptBatchesOf(this.outbound)];
     this.teardown();
+    // A page left for the cache may be shown again, and then sends what it would have held.
+    this.held = kept;
   }
 
   /** Comes back after leaveImmediately, when the page stayed after all. */
@@ -352,6 +365,14 @@ export class ServerConnection implements Connection {
     const held = this.held.filter((batch) => batch.to === sendTo);
     const room = limit - held.reduce((count, batch) => count + batch.events.length, 0);
     if (kept.length > 0 && room > 0) this.held.push({ to: sendTo, events: kept.slice(0, room) });
+  }
+
+  /** The batches with only what is kept while getting back into the room, those left with nothing dropped. */
+  private keptBatchesOf(batches: Outbound[]): Outbound[] {
+    return batches.flatMap((batch) => {
+      const events = this.keptOf(batch.events, batch.to);
+      return events.length > 0 ? [{ to: batch.to, events }] : [];
+    });
   }
 
   /** What among events for one peer, or for everybody, is kept while getting back into the room. */
@@ -447,6 +468,7 @@ export class ServerConnection implements Connection {
     socket.onmessage = (event: MessageEvent) => {
       if (socket !== this.socket) return;
       this.heardFrom();
+      if (event.data === PONG) this.answered();
       if (typeof event.data !== 'string') this.receive(new Uint8Array(event.data as ArrayBuffer));
     };
     socket.onclose = (event: CloseEvent) => {
@@ -726,6 +748,7 @@ export class ServerConnection implements Connection {
     this.stopTokenChecks();
     this.stopAssetTokenChecks();
     // What was still gathering to go out goes with the link, but for the requests kept for later.
+    this.keepUnconfirmed();
     this.keepRequests(this.outbound);
     this.dropQueued();
     // The server asked the seat back on another link. It comes straight back, and nobody is told it
@@ -828,6 +851,8 @@ export class ServerConnection implements Connection {
     this.stopTokenChecks();
     this.stopAssetTokenChecks();
     this.held = [];
+    this.unconfirmed = [];
+    this.pingsAt = [];
     this.dropQueued();
     const socket = this.socket;
     this.socket = null;
@@ -845,10 +870,26 @@ export class ServerConnection implements Connection {
    * the catalogs traded on getting back in.
    */
   private keepRequests(batches: Outbound[]): void {
-    for (const batch of batches) {
-      const requests = this.keptOf(batch.events, batch.to);
-      if (requests.length > 0) this.send(requests, batch.to);
-    }
+    for (const batch of this.keptBatchesOf(batches)) this.send(batch.events, batch.to);
+  }
+
+  /**
+   * Sends again, over the next link, what was kept among batches written to a link that went before
+   * the server answered a ping sent after them. Those it did have are deleted, or said to come
+   * back, once more, which changes nothing there.
+   */
+  private keepUnconfirmed(): void {
+    const unconfirmed = this.unconfirmed;
+    this.unconfirmed = [];
+    this.pingsAt = [];
+    for (const { batch } of unconfirmed) this.send(batch.events, batch.to);
+  }
+
+  /** The server answered the oldest ping waiting, and so has everything written before it. */
+  private answered(): void {
+    const writtenBefore = this.pingsAt.shift();
+    if (writtenBefore === undefined) return;
+    this.unconfirmed = this.unconfirmed.filter((entry) => entry.written > writtenBefore);
   }
 
   private dropQueued(): void {
@@ -871,6 +912,9 @@ export class ServerConnection implements Connection {
             return;
           }
           for (const frame of frames) socket.send(frame);
+          this.written += 1;
+          const kept = this.keptOf(batch.events, batch.to);
+          if (kept.length > 0) this.unconfirmed.push({ written: this.written, batch: { to: batch.to, events: kept } });
         }
       })
       .catch((e) => Logger.warn('[ServerConnection] a send failed', e));
@@ -892,6 +936,7 @@ export class ServerConnection implements Connection {
     this.pingTimer = setInterval(() => {
       if (socket !== this.socket || socket.readyState !== SOCKET_OPEN) return;
       socket.send(PING);
+      this.pingsAt.push(this.written);
       if (this.pongTimer == null) {
         this.pongTimer = setTimeout(() => {
           this.pongTimer = null;

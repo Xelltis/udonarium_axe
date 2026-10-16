@@ -564,6 +564,88 @@ describe('ServerConnection', () => {
     expect(await socket.frames()).not.toContainEqual(expect.objectContaining({ type: 'send' }));
   });
 
+  /** Sends a deletion and an update to everybody, and waits until they are written to the link. */
+  async function writeDeletion(socket: FakeWebSocket, identifier: string): Promise<EventContext> {
+    const deletion = event('DELETE_GAME_OBJECT', { aliasName: 'card', identifier });
+    const before = (await socket.frames()).length;
+    connection.send([deletion, event('UPDATE_GAME_OBJECT')]);
+    await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
+    await vi.waitFor(async () => expect((await socket.frames()).length).toBe(before + 1));
+    return deletion;
+  }
+
+  /** What the seat sends to everybody over the newest link once let back in. */
+  async function sentOnceBack(): Promise<unknown[]> {
+    vi.advanceTimersByTime(1000);
+    vi.useRealTimers();
+    const again = latest();
+    welcomeBack(again);
+    await vi.waitFor(async () => expect((await again.frames()).length).toBeGreaterThan(0));
+    await new Promise((resolve) => setTimeout(resolve, SEND_GATHER_MS + 50));
+    return ((await again.frames()) as { type: string; to?: string; events?: unknown[] }[]).flatMap((frame) =>
+      frame.type === 'send' && frame.to === undefined ? (frame.events ?? []) : []
+    );
+  }
+
+  it('sends a deletion again once back in when the link went before the server showed it had it', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    const socket = await enterRoom();
+    const deletion = await writeDeletion(socket, 'card-1');
+
+    socket.close(1006);
+
+    expect(await sentOnceBack()).toEqual([deletion]);
+  });
+
+  it('sends a deletion again when the only ping answered went before it was written', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    const socket = await enterRoom();
+    vi.advanceTimersByTime(PING_INTERVAL_MS);
+    const deletion = await writeDeletion(socket, 'card-1');
+    socket.onmessage?.({ data: 'pong' });
+
+    socket.close(1006);
+
+    expect(await sentOnceBack()).toEqual([deletion]);
+  });
+
+  it('sends no deletion again that the server answered a ping sent after, only those written since', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    const socket = await enterRoom();
+    await writeDeletion(socket, 'card-1');
+    vi.advanceTimersByTime(PING_INTERVAL_MS);
+    const later = await writeDeletion(socket, 'card-2');
+    socket.onmessage?.({ data: 'pong' });
+
+    socket.close(1006);
+
+    expect(await sentOnceBack()).toEqual([later]);
+  });
+
+  it('sends a deletion the server may not have had again when a page left for the cache is shown again', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    const socket = await enterRoom();
+    const deletion = await writeDeletion(socket, 'card-1');
+
+    connection.leaveImmediately();
+    await connection.rejoinAfterLeave();
+
+    expect(await sentOnceBack()).toEqual([deletion]);
+  });
+
+  it('keeps a deletion held while getting back in through a page left for the cache', async () => {
+    const socket = await enterRoom();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    socket.close(1006);
+    const deletion = event('DELETE_GAME_OBJECT', { aliasName: 'card', identifier: 'card-1' });
+    connection.send([deletion]);
+
+    connection.leaveImmediately();
+    await connection.rejoinAfterLeave();
+
+    expect(await sentOnceBack()).toEqual([deletion]);
+  });
+
   it('lets go of the server for a page left for the cache, and comes back into the room when it is shown again', async () => {
     const socket = await enterRoom();
     calls = [];
