@@ -53,8 +53,9 @@ export class SkyWayFacade {
    *
    * An open session is closed first, and an open still under way is called off. Failures are
    * reported through onFatalError, not thrown, and onOpen fires at the end. An open called off, as
-   * closing calls it off, reports neither. A peer that is not in a room gets a context but joins no
-   * channel.
+   * closing calls it off, reports neither and lets go of a context it made meanwhile, whose token
+   * running out later would otherwise be reported. A peer that is not in a room gets a context but
+   * joins no channel.
    *
    * A member left in a channel under this peer's name, as a reload leaves one, is waited out
    * before joining, for as long as the SDK can take to drop it.
@@ -159,6 +160,10 @@ export class SkyWayFacade {
     }
 
     const context = await SkyWayContext.Create(authToken);
+    if (signal.aborted) {
+      context.dispose();
+      return;
+    }
     context.onTokenUpdateReminder.add(async () => {
       AppLogger.debug('[SkyWay] トークン更新リマインダー');
       const authToken = await backend.createSkyWayAuthToken(channelName, this.peer.peerId);

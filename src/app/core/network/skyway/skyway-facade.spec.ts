@@ -2,6 +2,7 @@ import { PeerContext } from '@axe/core/network/peer-context';
 import { SAME_NAME_MEMBER_WAIT_MS, SameNameWaitCancelledError } from '@axe/core/network/skyway/same-name-member';
 import { SkyWayBackend } from '@axe/core/network/skyway/skyway-backend';
 import { SkyWayFacade } from '@axe/core/network/skyway/skyway-facade';
+import { SkyWayContext } from '@skyway-sdk/core';
 
 describe('SkyWayFacade', () => {
   it('is exported', () => {
@@ -194,6 +195,23 @@ describe('a token that comes back empty', () => {
       expect.any(String),
       expect.any(Error)
     );
+  });
+
+  it('lets go of a context made after the connection was closed meanwhile', async () => {
+    vi.spyOn(SkyWayBackend.prototype, 'createSkyWayAuthToken').mockResolvedValue('token');
+    let made: (context: SkyWayContext) => void = () => undefined;
+    vi.spyOn(SkyWayContext, 'Create').mockReturnValue(new Promise((resolve) => (made = resolve)));
+    const facade = new SkyWayFacade();
+    const done = facade.open(PeerContext.parse('standby'));
+    await vi.waitFor(() => expect(SkyWayContext.Create).toHaveBeenCalled());
+
+    await facade.close();
+    const context = { dispose: vi.fn(), onTokenUpdateReminder: { add: vi.fn() } };
+    made(context as unknown as SkyWayContext);
+    await done;
+
+    expect(context.dispose).toHaveBeenCalled();
+    expect(facade.context).toBeNull();
   });
 
   it('says nothing once the connection was closed meanwhile, neither an error nor that it opened', async () => {
