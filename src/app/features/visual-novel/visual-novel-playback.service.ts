@@ -186,12 +186,23 @@ export class VisualNovelPlaybackService {
 
   readonly currentIsDiceCommand = computed(() => this.isDiceCommandAt(this.currentIndex()));
 
-  readonly availableChatTabs = computed(() => {
-    this.objectChange.collectionOf(ChatTab.aliasName)();
-    this.objectChange.trackMyCursor();
-    const role = PeerCursor.myRole;
-    return this.chatMessageService.chatTabs.filter((tab) => canRoleViewTab(tab, role));
-  });
+  /**
+   * The tabs this reader's role may read, in the order the chat window lists them. It follows each
+   * tab's own settings as well as the reader's role, since either can take a tab away.
+   */
+  readonly availableChatTabs = computed(
+    () => {
+      this.objectChange.collectionOf(ChatTab.aliasName)();
+      this.objectChange.versionOf(ChatTabList.instance.identifier)();
+      this.objectChange.trackMyCursor();
+      const role = PeerCursor.myRole;
+      return this.chatMessageService.chatTabs.filter((tab) => {
+        this.objectChange.versionOf(tab.identifier)();
+        return canRoleViewTab(tab, role);
+      });
+    },
+    { equal: (a, b) => a.length === b.length && a.every((tab, index) => tab === b[index]) }
+  );
 
   constructor() {
     this._chatTabIdentifier.set(this.initialChatTabIdentifier());
@@ -204,15 +215,13 @@ export class VisualNovelPlaybackService {
       () => this.renderVersion.update((version) => version + 1),
       this.destroyRef
     );
-    this.objectChange.onObjectChangedForAlias(
-      [ChatTab.aliasName, ChatTabList.aliasName],
-      () => {
-        if (this.objectStore.get<ChatTab>(this._chatTabIdentifier())) return;
-        const chatTabs = this.chatMessageService.chatTabs;
-        this._chatTabIdentifier.set(chatTabs.length > 0 ? chatTabs[0].identifier : '');
-      },
-      this.destroyRef
-    );
+    // A tab gone, or no longer one this reader may read, gives way to the first that is left.
+    effect(() => {
+      const tabs = this.availableChatTabs();
+      const current = this._chatTabIdentifier();
+      if (tabs.some((tab) => tab.identifier === current)) return;
+      untracked(() => this._chatTabIdentifier.set(tabs[0]?.identifier ?? ''));
+    });
 
     effect(() => {
       const message = this.currentMessage();
@@ -282,7 +291,7 @@ export class VisualNovelPlaybackService {
   }
 
   private initialChatTabIdentifier(): string {
-    const tabs = this.chatMessageService.chatTabs;
+    const tabs = this.availableChatTabs();
     const saved = this.settings.chatTabIdentifier();
     if (saved.length > 0 && tabs.some((tab) => tab.identifier === saved)) return saved;
     return tabs.length > 0 ? tabs[0].identifier : '';
