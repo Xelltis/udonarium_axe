@@ -13,6 +13,7 @@ import { generateUuid } from '@axe/core/util/uuid';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { cellCenterOf, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import type { MovePoint } from '@axe/domain/tabletop/move/blocked-path';
@@ -595,12 +596,13 @@ export class MoveInterruptService {
 
   /**
    * The cursor of the peer that answers for a piece: its owner's, where its owner is here with a
-   * version that knows of this, and otherwise the game master lowest in order that does.
+   * version that knows of this and may change the table, and otherwise the game master lowest in
+   * order that does. An owner made a guest answers for nothing, as with a piece nobody owns.
    */
   private responderOf(piece: GameCharacter): string | null {
     if (piece.owner) {
       const owner = PeerCursor.findByUserId(piece.owner);
-      if (owner && owner.zoneProtocol === '1') return owner.identifier;
+      if (owner && owner.zoneProtocol === '1' && canRoleEdit(owner.role)) return owner.identifier;
     }
     const masters = this.objectStore
       .getObjects<PeerCursor>(PeerCursor)
