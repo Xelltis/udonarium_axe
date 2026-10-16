@@ -129,6 +129,19 @@ describe('ObjectSynchronizer', () => {
       expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
     });
 
+    it('asks the server for what its catalog offers, though this seat saw it deleted, never deleting it', () => {
+      const gone = new GameObject('brought-back');
+      ObjectStore.instance.add(gone, false);
+      ObjectStore.instance.delete(gone, false);
+
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'brought-back', version: 1 }], AUTHORITY);
+
+      expect(sentTo('DELETE_GAME_OBJECT')).toEqual([]);
+      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
+      expect(ObjectStore.instance.isDeleted('brought-back')).toBe(false);
+      ObjectStore.instance.clearDeleteHistory();
+    });
+
     describe('the server’s own word on objects', () => {
       const elementContext = (identifier: string, value: string, majorVersion = 1) => ({
         aliasName: 'data',

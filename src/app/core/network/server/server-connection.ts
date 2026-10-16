@@ -75,6 +75,11 @@ export const MAX_HELD_EVENTS = 64;
  * the dice bot asks again for every roll unanswered, those lost on the way included.
  */
 const HELD_EVENT_NAMES: ReadonlySet<string> = new Set([AuthorityEvent.ROLE_REQUEST]);
+/**
+ * What goes to everybody that the catalogs do not mend either, the server keeping deletions
+ * itself: a deletion, and the word that what was deleted is coming back.
+ */
+const HELD_BROADCAST_EVENT_NAMES: ReadonlySet<string> = new Set(['DELETE_GAME_OBJECT', 'FORGET_DELETED_OBJECTS']);
 /** The refusal for a hello whose login is gone or belongs to somebody else. */
 const UNAUTHORIZED = 'unauthorized';
 
@@ -331,12 +336,16 @@ export class ServerConnection implements Connection {
   }
 
   /**
-   * Keeps the requests to the server among events sent while getting back into the room, to send
-   * once back in; the rest go, as SkyWay drops what it sends with nobody connected.
+   * Keeps the requests to the server, and the deletions and words on what comes back sent to
+   * everybody, among events sent while getting back into the room, to send once back in; the rest
+   * go, as SkyWay drops what it sends with nobody connected.
    */
   private hold(events: EventContext[], sendTo: string | undefined): void {
-    if (!this.everWelcomed || this.stopped || sendTo !== this.authority?.peerId) return;
-    const kept = events.filter((event) => HELD_EVENT_NAMES.has(event.eventName));
+    if (!this.everWelcomed || this.stopped) return;
+    const names =
+      sendTo === undefined ? HELD_BROADCAST_EVENT_NAMES : sendTo === this.authority?.peerId ? HELD_EVENT_NAMES : null;
+    if (!names) return;
+    const kept = events.filter((event) => names.has(event.eventName));
     const room = MAX_HELD_EVENTS - this.held.reduce((count, batch) => count + batch.events.length, 0);
     if (kept.length > 0 && room > 0) this.held.push({ to: sendTo, events: kept.slice(0, room) });
   }

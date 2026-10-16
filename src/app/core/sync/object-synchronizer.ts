@@ -67,9 +67,14 @@ export class ObjectSynchronizer {
             if (msg.isSendFromSelf) break;
             this.sendCatalog(msg.sendFrom);
             break;
+          // A room server keeps what was deleted itself, so what its catalog lists it holds now,
+          // brought back since as it may have been while this seat was away; a peer's listing of
+          // something deleted here is answered with the deletion.
           case 'SYNCHRONIZE_GAME_OBJECT': {
             if (msg.isSendFromSelf) break;
             const catalog: CatalogItem[] = msg.data as CatalogItem[];
+            const fromServer = msg.sendFrom === Network.authorityPeerId;
+            if (fromServer) ObjectStore.instance.forgetDeleted(catalog.map((item) => item.identifier));
             for (const item of catalog) {
               if (ObjectStore.instance.isDeleted(item.identifier)) {
                 networkSend('DELETE_GAME_OBJECT', { aliasName: '', identifier: item.identifier }, msg.sendFrom);

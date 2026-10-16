@@ -500,6 +500,26 @@ describe('ServerConnection', () => {
     expect((await again.frames())[1]).toEqual({ type: 'send', to: AUTHORITY_PEER_ID, events: [roleRequest] });
   });
 
+  it('keeps a deletion and a word on what comes back while getting back in, for everybody once back', async () => {
+    const socket = await enterRoom();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    socket.close(1006);
+    const deletion = event('DELETE_GAME_OBJECT', { aliasName: 'chat-tab', identifier: 'tab-1' });
+    const comingBack = event('FORGET_DELETED_OBJECTS', { identifiers: ['tab-2'] });
+    connection.send([deletion, event('UPDATE_GAME_OBJECT'), comingBack]);
+    vi.advanceTimersByTime(1000);
+    vi.useRealTimers();
+
+    const again = latest();
+    welcomeBack(again);
+
+    await vi.waitFor(async () => expect((await again.frames()).length).toBe(2));
+    const [, sent] = (await again.frames()) as { type: string; to?: string; events: unknown[] }[];
+    expect(sent.type).toBe('send');
+    expect(sent.to).toBeUndefined();
+    expect(sent.events).toEqual([deletion, comingBack]);
+  });
+
   it('keeps a role change still gathering to go out when the link drops', async () => {
     const socket = await enterRoom();
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
