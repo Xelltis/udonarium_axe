@@ -28,7 +28,8 @@
         link.rel = 'preload';
         link.as = 'fetch';
         link.crossOrigin = 'anonymous';
-        link.href = 'assets/i18n/' + lang + '.json';
+        // The build writes the app's version in, as the app asks for the file under it.
+        link.href = 'assets/i18n/' + lang + '.json?v=__APP_VERSION__';
         document.head.appendChild(link);
       })();
     </script>
