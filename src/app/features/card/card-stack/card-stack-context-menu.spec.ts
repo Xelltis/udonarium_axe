@@ -1,15 +1,24 @@
-import { Network } from '@axe/core/index';
 import { CardStack } from '@axe/domain/card/card-stack';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { buildCardStackContextMenu } from '@axe/features/card/card-stack/card-stack-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
 const t = createSyncTranslate('ja');
 
 describe('buildCardStackContextMenu', () => {
-  it('splits the deck into a pile for each seat at the table, this one included', () => {
+  it('splits the deck into a pile for each seat that plays, this one included, but no guest or seat gone', () => {
     const cardStack = CardStack.create('test stack');
     const onSplitStack = vi.fn();
-    vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['other']);
+    PeerCursor.createMyCursor().role = PeerRole.Player;
+    const seat = (role: PeerRole, connected: boolean) => {
+      const cursor = new PeerCursor();
+      cursor.role = role;
+      cursor.isDisConnect = !connected;
+      cursor.initialize();
+      return cursor;
+    };
+    const others = [seat(PeerRole.GameMaster, true), seat(PeerRole.Guest, true), seat(PeerRole.Player, false)];
 
     try {
       const actions = buildCardStackContextMenu(
@@ -29,7 +38,7 @@ describe('buildCardStackContextMenu', () => {
 
       expect(onSplitStack).toHaveBeenCalledWith(2);
     } finally {
-      vi.restoreAllMocks();
+      for (const cursor of others) cursor.destroy();
       cardStack.destroy();
     }
   });
