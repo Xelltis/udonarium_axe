@@ -91,6 +91,8 @@ export class ReplayPlaybackService {
   readonly isAtEnd = computed(() => this._cursor() >= this._events().length - 1);
 
   private savedBoard: ReplayObjectSnapshot[] | null = null;
+  /** The versions the live table's objects had as the board was first shown, to be put back as they were. */
+  private savedVersions: Map<string, ObjectVersion> | null = null;
   private savedDeleteHistory: Map<string, number> | null = null;
   private baseKeyframe: { seq: number; snapshots: readonly ReplayObjectSnapshot[] } | null = null;
   /**
@@ -232,6 +234,11 @@ export class ReplayPlaybackService {
   async enterBoardMode(): Promise<boolean> {
     if (this._isBoardMode() || !this.isOpen()) return false;
     this.savedBoard = this.snapshotBoard();
+    this.savedVersions = new Map(
+      this.objectStore
+        .getObjects()
+        .map((object) => [object.identifier, { major: object.majorVersion, minor: object.minorVersion }])
+    );
     this.savedDeleteHistory = this.objectStore.snapshotDeleteHistory();
     setNetworkIsolated(true);
     this._isBoardMode.set(true);
@@ -239,19 +246,26 @@ export class ReplayPlaybackService {
     return true;
   }
 
-  /** Puts the live table back, rejoins the room and asks the peers for everything that changed meanwhile. */
+  /**
+   * Puts the live table back, rejoins the room and asks the peers for everything that changed meanwhile.
+   * A board still being worked out is dropped, and the table comes back at the versions it had, so
+   * what a peer changed meanwhile is what the room keeps.
+   */
   async exitBoardMode(): Promise<void> {
     if (!this._isBoardMode()) return;
+    this.seekToken++;
+    this._isSeeking.set(false);
     this.staging.discard();
     this.stopAutoPlay();
     this.stopSlide();
     this._isBoardMode.set(false);
     try {
-      if (this.savedBoard) this.restoreBoard(this.savedBoard);
+      if (this.savedBoard) this.restoreBoard(this.savedBoard, this.savedVersions);
     } catch (reason) {
       Logger.warn('[ReplayPlayback] 卓を戻しきれませんでした', reason);
     } finally {
       this.savedBoard = null;
+      this.savedVersions = null;
       this.baseKeyframe = null;
       this.appliedBoard = null;
       this.objectStore.replaceDeleteHistory(this.savedDeleteHistory ?? new Map());
@@ -345,10 +359,10 @@ export class ReplayPlaybackService {
 
       const targetSeq = events[index].seq;
       const keyframe = await this.library.keyframeBefore(id, targetSeq);
-      if (token !== this.seekToken) return;
+      if (token !== this.seekToken || !this._isBoardMode()) return;
 
       const base = await this.baseSnapshotsOf(keyframe);
-      if (token !== this.seekToken) return;
+      if (token !== this.seekToken || !this._isBoardMode()) return;
 
       const from = keyframe ? indexOfSeq(events, keyframe.seq) : -1;
       this.stopSlide();
@@ -457,13 +471,16 @@ export class ReplayPlaybackService {
     }, REPLAY_TRAIL_LINGER_MS);
   }
 
-  private reviveObject(object: GameObject, syncData: Record<string, unknown>): void {
-    // Only the generation is needed, so toContext() is avoided; it would copy the whole thing and throw the copy away.
+  /**
+   * Gives an object a board's state, under a newer version than it has, or under the version it is
+   * given, as the live table's own when it comes back.
+   */
+  private reviveObject(object: GameObject, syncData: Record<string, unknown>, version?: ObjectVersion): void {
     object.apply({
       aliasName: object.aliasName,
       identifier: object.identifier,
-      majorVersion: object.majorVersion + 1,
-      minorVersion: 0,
+      majorVersion: version ? version.major : object.majorVersion + 1,
+      minorVersion: version ? version.minor : 0,
       syncData,
     });
     markForChanged(object);
@@ -473,7 +490,7 @@ export class ReplayPlaybackService {
    * Puts an object of a board back. This seat's own cursor is put back as the very cursor the seat
    * holds, which a copy under its identifier would leave the seat without.
    */
-  private createObject(snapshot: ReplayObjectSnapshot): void {
+  private createObject(snapshot: ReplayObjectSnapshot, version?: ObjectVersion): void {
     const mine = PeerCursor.myCursor;
     const object =
       mine && snapshot.identifier === mine.identifier
@@ -483,8 +500,8 @@ export class ReplayPlaybackService {
     const context: ObjectContext = {
       identifier: snapshot.identifier,
       aliasName: snapshot.aliasName,
-      majorVersion: 1,
-      minorVersion: 0,
+      majorVersion: version?.major ?? 1,
+      minorVersion: version?.minor ?? 0,
       // A snapshot also feeds the next scene, so handing a live object the reference would let a later edit corrupt it.
       syncData: cloneSyncValue(mergeSyncData(object.toContext().syncData as SyncData, snapshot.syncData)) as SyncData,
     };
@@ -524,7 +541,10 @@ export class ReplayPlaybackService {
    * It compares against what is showing and touches only what changed. Rebuilding the whole
    * room for one step back sends the screen off to redraw all of it.
    */
-  private restoreBoard(snapshots: readonly ReplayObjectSnapshot[]): void {
+  private restoreBoard(
+    snapshots: readonly ReplayObjectSnapshot[],
+    versions: ReadonlyMap<string, ObjectVersion> | null = null
+  ): void {
     const wanted = new Map(snapshots.map((snapshot) => [snapshot.identifier, snapshot]));
     for (const object of this.objectStore.getObjects()) {
       if (!wanted.has(object.identifier)) this.objectStore.remove(object);
@@ -536,15 +556,22 @@ export class ReplayPlaybackService {
 
     for (const snapshot of snapshots) {
       const existing = this.objectStore.get(snapshot.identifier);
+      const version = versions?.get(snapshot.identifier);
       if (!existing) {
-        this.createObject(snapshot);
+        this.createObject(snapshot, version);
         continue;
       }
       const previous = before?.get(snapshot.identifier);
-      if (previous && isSameSyncValue(previous.syncData, snapshot.syncData)) continue;
-      this.reviveObject(existing, cloneSyncValue(snapshot.syncData) as Record<string, unknown>);
+      if (!version && previous && isSameSyncValue(previous.syncData, snapshot.syncData)) continue;
+      this.reviveObject(existing, cloneSyncValue(snapshot.syncData) as Record<string, unknown>, version);
     }
   }
+}
+
+/** An object's version, as it is kept to be put back. */
+interface ObjectVersion {
+  major: number;
+  minor: number;
 }
 
 function placeAt(syncData: Record<string, unknown>, at: ReplayRoutePoint): Record<string, unknown> {

@@ -182,6 +182,11 @@ export class GameObject {
     return this.context.majorVersion;
   }
 
+  /** The random fraction that version adds to the count of changes. */
+  get minorVersion(): number {
+    return this.context.minorVersion;
+  }
+
   /**
    * A snapshot of the object as it travels to peers: alias, identifier, version and sync data.
    *

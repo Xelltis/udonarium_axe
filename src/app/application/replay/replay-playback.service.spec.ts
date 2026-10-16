@@ -182,6 +182,44 @@ describe('ReplayPlaybackService', () => {
     }
   });
 
+  it('drops a board still being worked out when the table is taken back, leaving the live table as it was', async () => {
+    const live = new GameCharacter('live-1');
+    live.initialize();
+    await service.open(1);
+    let keyframeArrives!: (keyframe: unknown) => void;
+    library.keyframeBefore.mockReturnValue(new Promise((resolve) => (keyframeArrives = resolve)));
+
+    const entering = service.enterBoardMode();
+    await Promise.resolve();
+    await service.exitBoardMode();
+    keyframeArrives({ seq: 0, blob: new Blob([encodeReplayKeyframe(keyframeObjects) as BlobPart]) });
+    await entering;
+
+    expect(isNetworkIsolated()).toBe(false);
+    expect(objectStore.get('live-1')).toBe(live);
+    expect(objectStore.get('c2')).toBeFalsy();
+  });
+
+  it('puts the live table back at the versions it had, so what a peer changed meanwhile wins', async () => {
+    const shared = new GameCharacter('c1');
+    shared.initialize();
+    const own = new GameCharacter('live-1');
+    own.initialize();
+    const versionOf = (identifier: string) => {
+      const object = objectStore.get(identifier)!;
+      return [object.majorVersion, object.minorVersion];
+    };
+    const before = { shared: versionOf('c1'), own: versionOf('live-1') };
+    await service.open(1);
+
+    await service.enterBoardMode();
+    await service.toEnd();
+    await service.exitBoardMode();
+
+    expect(versionOf('c1')).toEqual(before.shared);
+    expect(versionOf('live-1')).toEqual(before.own);
+  });
+
   it('builds the board up from a keyframe', async () => {
     await service.open(1);
     await service.enterBoardMode();
