@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { Network } from '@axe/core/network/network';
 import { wipeBrowserDataIfRequested } from '@axe/core/storage/browser-data-wipe';
 import { BrowserDataWipeService } from '@axe/features/room-settings/browser-data-wipe.service';
@@ -70,10 +71,14 @@ describe('BrowserDataWipeService', () => {
     expect(localStorage.getItem('ui-theme')).toBeNull();
   });
 
-  it('takes an invitation off the address before loading the page afresh', async () => {
+  it('takes an invitation off the address offline, and leaves it online to go back into the room', async () => {
     ask.mockResolvedValue(true);
     history.replaceState(null, '', '/axe/?lang=ja#join?r=a1b&n=room');
     try {
+      await service.wipe();
+      expect(location.hash).toBe('#join?r=a1b&n=room');
+
+      vi.spyOn(TestBed.inject(LocalModePreferenceService), 'enabled').mockReturnValue(true);
       await service.wipe();
 
       expect(location.hash).toBe('');

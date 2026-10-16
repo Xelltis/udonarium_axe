@@ -2,6 +2,7 @@ import { DOCUMENT, inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { leavingLoss } from '@axe/application/lobby/leaving-loss';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { Network } from '@axe/core/network/network';
 import { requestBrowserDataWipe, wipeBrowserData } from '@axe/core/storage/browser-data-wipe';
 
@@ -18,6 +19,7 @@ export class BrowserDataWipeService {
   private readonly confirm = inject(ConfirmService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly document = inject(DOCUMENT);
+  private readonly localModePreference = inject(LocalModePreferenceService);
 
   /**
    * Asks first, saying too what leaving a room server's room now would lose, then wipes and loads the
@@ -41,14 +43,15 @@ export class BrowserDataWipeService {
     if (!sure) return false;
     if (!requestBrowserDataWipe()) await wipeBrowserData();
     Network.letPageGo();
-    this.dropInvitation();
+    if (this.localModePreference.enabled()) this.dropInvitation();
     this.reload();
     return true;
   }
 
   /**
-   * Takes an invitation off the page's address, which would take the page, starting afresh, into
-   * a room the reader had not gone into.
+   * Takes an invitation off the page's address while playing offline, where the wipe forgets that,
+   * and the page, starting afresh online, would go into a room the reader had not gone into. Online
+   * it is left, to take the reader back into the room it was in.
    */
   private dropInvitation(): void {
     const win = this.document.defaultView;
