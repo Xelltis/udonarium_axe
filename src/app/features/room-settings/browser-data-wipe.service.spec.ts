@@ -70,6 +70,19 @@ describe('BrowserDataWipeService', () => {
     expect(localStorage.getItem('ui-theme')).toBeNull();
   });
 
+  it('takes an invitation off the address before loading the page afresh', async () => {
+    ask.mockResolvedValue(true);
+    history.replaceState(null, '', '/axe/?lang=ja#join?r=a1b&n=room');
+    try {
+      await service.wipe();
+
+      expect(location.hash).toBe('');
+      expect(location.search).toBe('?lang=ja');
+    } finally {
+      history.replaceState(null, '', '/');
+    }
+  });
+
   it('wipes here and now where the next load cannot be asked', async () => {
     ask.mockResolvedValue(true);
     vi.stubGlobal('sessionStorage', {

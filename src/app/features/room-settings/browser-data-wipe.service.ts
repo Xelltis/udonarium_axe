@@ -41,8 +41,18 @@ export class BrowserDataWipeService {
     if (!sure) return false;
     if (!requestBrowserDataWipe()) await wipeBrowserData();
     Network.letPageGo();
+    this.dropInvitation();
     this.reload();
     return true;
+  }
+
+  /**
+   * Takes an invitation off the page's address, which would take the page, starting afresh, into
+   * a room the reader had not gone into.
+   */
+  private dropInvitation(): void {
+    const win = this.document.defaultView;
+    if (win) win.history.replaceState(null, '', win.location.pathname + win.location.search);
   }
 
   /** Loads the page again, which is where a wipe asked for happens. */
