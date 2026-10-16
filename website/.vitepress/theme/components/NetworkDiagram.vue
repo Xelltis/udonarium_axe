@@ -59,7 +59,7 @@
         </g>
       </svg>
     </div>
-    <figcaption>ゲームデータは参加者のブラウザ間だけを流れ、中央サーバーには保存されません。</figcaption>
+    <figcaption>SkyWay版では、ゲームデータは参加者のブラウザ間だけを流れ、中央サーバーには保存されません。</figcaption>
   </figure>
 </template>
 
