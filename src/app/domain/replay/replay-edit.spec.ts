@@ -648,6 +648,37 @@ describe('chat moments that follow a new place', () => {
     expect(momentOf(bySeq(moved, 2))).toBe(momentOf(bySeq(moved, 1)) + 1);
   });
 
+  describe('among lines of one speaker said a moment apart', () => {
+    const by = (speaker: string, seq: number, moment: number, text = `発言 ${seq}`) =>
+      said(createReplayEntry({ ...draft(ReplayEventKind.ChatMessage, text), actorId: speaker }, seq, seq * 10), moment);
+    const minor = (event: ReplayEvent, value: number): ReplayEvent => ({
+      ...event,
+      patch: { ...event.patch!, after: { ...event.patch!.after, minorIndex: value } },
+    });
+
+    it('never says a roll moved up at the moment of a line of its speaker, which would take its result', () => {
+      const events = [by('bob', 1, 1000), by('alice', 2, 1001), by('alice', 3, 5000, '2d6'), result(4, 40, 5001)];
+
+      const stepped = stepReplayEvents(events, new Set([3]), -1);
+      const back = stepReplayEvents(stepped, new Set([3, 4]), 1);
+
+      expect(stepped.map((event) => event.seq)).toEqual([1, 3, 2, 4]);
+      expect(momentOf(bySeq(stepped, 3))).not.toBe(1001);
+      expect(momentOf(bySeq(stepped, 4))).toBe(momentOf(bySeq(stepped, 3)) + 1);
+      expect(momentOf(bySeq(back, 4))).toBe(momentOf(bySeq(back, 3)) + 1);
+    });
+
+    it('never says a line moved before a roll at the moment of that roll, which would take its result', () => {
+      const events = [by('bob', 1, 10000), minor(by('alice', 2, 10001, '2d6'), 0.7), result(3, 30, 10002)];
+
+      const moved = moveReplayEvent([...events, by('alice', 4, 30000)], 4, -2);
+
+      expect(moved.map((event) => event.seq)).toEqual([1, 4, 2, 3]);
+      expect(momentOf(bySeq(moved, 4))).not.toBe(10001);
+      expect(momentOf(bySeq(moved, 4))).toBeLessThan(10001.7);
+    });
+  });
+
   it('leaves the moments of the lines that did not move alone', () => {
     const events = [line(1, 1000, 103000), line(2, 1100, 103100), line(3, 1200, 103200)];
 

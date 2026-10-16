@@ -191,6 +191,8 @@ interface ChatLine {
   tab: string;
   /** The message the line makes, which a line made again later makes too. */
   message: string;
+  /** Who says the line, which with its tab and its moment is what ties an answer to it. */
+  speaker: string;
   moment: number;
   /** The fraction the chat adds to the moment to sort lines said at the same one. */
   minor: number;
@@ -261,6 +263,22 @@ function withChatMoments(events: readonly ReplayEvent[], moved: ReadonlySet<numb
     }
   }
 
+  const heldAhead = new Map<string, number>();
+  const behind = new Set<string>();
+  const momentKey = (line: ChatLine, moment: number) => `${line.tab}\0${line.speaker}\0${moment}`;
+  const holdAhead = (line: ChatLine, count: number) => {
+    const key = momentKey(line, line.moment);
+    heldAhead.set(key, (heldAhead.get(key) ?? 0) + count);
+  };
+  for (const [seq, line] of lines) {
+    if (!retold.has(seq)) holdAhead(line, 1);
+  }
+  const shadows = (line: ChatLine, answerTop: number) => (moment: number) => {
+    const key = momentKey(line, moment);
+    const held = (heldAhead.get(key) ?? 0) > 0;
+    return answerTop > 0 ? held || behind.has(key) : held && !behind.has(key);
+  };
+
   const said = new Map<number, Said>();
   const passed = new Map<string, number>();
   return events.map((event) => {
@@ -268,13 +286,15 @@ function withChatMoments(events: readonly ReplayEvent[], moved: ReadonlySet<numb
     if (!line) return event;
     const answerTop = answerTops.get(event.seq) ?? 0;
     let when: Said = { moment: line.moment, minor: line.minor };
+    if (!retold.has(event.seq)) holdAhead(line, -1);
     if (remade.has(event.seq)) {
       when = said.get(remade.get(event.seq)!)!;
     } else if (retold.has(event.seq) && followed(event.seq)) {
       when = { moment: said.get(line.answers!.seq)!.moment + line.answers!.gap, minor: line.minor };
     } else if (retold.has(event.seq)) {
-      when = saidBetween(passed.get(line.tab), nextKept.get(event.seq), answerTop, when);
+      when = saidBetween(passed.get(line.tab), nextKept.get(event.seq), answerTop, when, shadows(line, answerTop));
     }
+    behind.add(momentKey(line, when.moment));
     said.set(event.seq, when);
     const reach = Math.max(when.moment + when.minor, answerTop > 0 ? when.moment + answerTop : -Infinity);
     passed.set(line.tab, Math.max(passed.get(line.tab) ?? reach, reach));
@@ -293,8 +313,9 @@ function chatLinesOf(events: readonly ReplayEvent[]): Map<number, ChatLine> {
     if (!after || typeof moment !== 'number') return;
     const tab = String(after['parentIdentifier'] ?? event.detail['tabIdentifier'] ?? '');
     const minor = typeof after['minorIndex'] === 'number' ? after['minorIndex'] : 0;
-    lines.set(event.seq, { index, tab, message: event.patch?.identifier ?? '', moment, minor, answers: null });
-    const key = keyOf(tab, String(after['attributes.from'] ?? ''), moment);
+    const speaker = String(after['attributes.from'] ?? '');
+    lines.set(event.seq, { index, tab, message: event.patch?.identifier ?? '', speaker, moment, minor, answers: null });
+    const key = keyOf(tab, speaker, moment);
     if (!bySpeaker.has(key)) bySpeaker.set(key, event.seq);
   });
   for (const event of events) {
@@ -316,21 +337,29 @@ function chatLinesOf(events: readonly ReplayEvent[]): Map<number, ChatLine> {
 /**
  * When to say a line placed after lines that reach as far as `after` in the chat's order and before
  * one sorting at `before`, either of which may be missing, its own answers reaching `answerTop`
- * past its moment. A line with nothing either side keeps `own`. A whole moment is taken where
- * there is room for the line and its answers; a line with no answers takes the fraction halfway
- * between where there is no whole one. Where there is no room at all, as lines said by clocks that
- * disagree can leave, it goes after `after`, so that it is never said before a line that comes
- * before it in the list.
+ * past its moment. A line with nothing either side keeps `own`. It never takes a moment `clashes`
+ * says another line of its speaker in the tab would lose its answers to, or would take this line's
+ * from, as an answer goes to whichever of them comes first. A whole moment is taken where there is room for the line and its answers; a line
+ * with no answers takes the fraction halfway between where there is no whole one. Where there is
+ * no room at all, as lines said by clocks that disagree can leave, it goes after `after`, so that
+ * it is never said before a line that comes before it in the list.
  */
-function saidBetween(after: number | undefined, before: number | undefined, answerTop: number, own: Said): Said {
+function saidBetween(
+  after: number | undefined,
+  before: number | undefined,
+  answerTop: number,
+  own: Said,
+  clashes: (moment: number) => boolean
+): Said {
+  const free = (moment: number, step: number): number => (clashes(moment) ? free(moment + step, step) : moment);
   if (after === undefined) {
-    return before === undefined ? own : { moment: Math.floor(before - answerTop) - 1, minor: 0 };
+    return before === undefined ? own : { moment: free(Math.floor(before - answerTop) - 1, -1), minor: 0 };
   }
-  const moment = Math.floor(after) + 1;
+  const moment = free(Math.floor(after) + 1, 1);
   if (before === undefined || (moment < before && moment + answerTop < before)) return { moment, minor: 0 };
-  if (answerTop === 0 && before > after) {
-    const key = (after + before) / 2;
-    return { moment: Math.floor(key), minor: key - Math.floor(key) };
+  const halfway = (after + before) / 2;
+  if (answerTop === 0 && before > after && !clashes(Math.floor(halfway))) {
+    return { moment: Math.floor(halfway), minor: halfway - Math.floor(halfway) };
   }
   return { moment, minor: 0 };
 }
