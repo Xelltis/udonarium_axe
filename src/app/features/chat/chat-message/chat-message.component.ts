@@ -656,13 +656,14 @@ export class ChatMessageComponent {
    *
    * Trailing space is dropped, and a draft left empty is treated as a cancel. A change marks the line
    * as edited, keeps what it said before in its history, and reaches the room through the synced
-   * message; an unchanged draft writes nothing.
+   * message; an unchanged draft writes nothing. A seat that may no longer edit the line, made a
+   * guest or shut out of the tab while it typed, has the draft thrown away instead.
    */
   saveEdit() {
     const draft = this.editDraft();
     if (draft === null) return;
     const next = draft.trimEnd();
-    if (next.length === 0) {
+    if (next.length === 0 || !this.chatMessageService.canEditMessage(this.chatMessage)) {
       this.cancelEdit();
       return;
     }

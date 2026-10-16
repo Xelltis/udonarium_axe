@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatReactionService } from '@axe/application/chat/chat-reaction.service';
 import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
@@ -2085,6 +2086,19 @@ describe('ChatMessageComponent', () => {
 
       expect(message.text).toBe('こんにちは');
       expect(message.vnEmote).toBe('');
+    });
+
+    it('throws the draft away when the seat may no longer edit the line by the time it is saved', () => {
+      const message = spoken('こんばんは');
+      fixture.componentRef.setInput('chatMessage', message);
+      component.startEdit();
+      component.editDraft.set('こんにちは');
+      vi.spyOn(TestBed.inject(ChatMessageService), 'canEditMessage').mockReturnValue(false);
+
+      component.saveEdit();
+
+      expect(message.text).toBe('こんばんは');
+      expect(component.editDraft()).toBeNull();
     });
   });
 
