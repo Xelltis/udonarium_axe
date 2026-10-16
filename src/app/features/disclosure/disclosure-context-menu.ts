@@ -37,11 +37,15 @@ function candidateName(cursor: PeerCursor): string {
 }
 
 /**
- * What to say when nobody is there to choose: on a room server, that nobody logged in is, as those
- * not logged in are left out of the choice.
+ * What to say when nobody is there to choose: that those not logged in can't be chosen, when a connected seat
+ * was left out for that, and otherwise that no other player is there.
  */
 export function noCandidatesKey(): string {
-  return Network.authorityPeerId !== null ? 'feature.disclosure.noLoggedInPlayers' : 'feature.disclosure.noPlayers';
+  const leftOut = Network.peerContexts.some((context) => {
+    const cursor = PeerCursor.findByPeerId(context.peerId);
+    return cursor !== null && !cursor.isMine && !mayBeChosen(cursor);
+  });
+  return leftOut ? 'feature.disclosure.noLoggedInPlayers' : 'feature.disclosure.noPlayers';
 }
 
 function audienceCandidates(): DisclosureCandidate[] {

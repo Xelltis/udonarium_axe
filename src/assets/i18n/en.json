@@ -337,7 +337,7 @@
       "gmOnly": "GM only",
       "selectPlayers": "Disclose to",
       "noPlayers": "No other players",
-      "noLoggedInPlayers": "No logged-in players",
+      "noLoggedInPlayers": "People not logged in can't be chosen",
       "owner": "Owner",
       "ownerNone": "None",
       "locked": "Not disclosed"
@@ -3523,7 +3523,7 @@
         "selectText": "Select text",
         "afterWhisper": "Whisper it afterwards",
         "afterWhisperTo": "Whisper to",
-        "afterWhisperNobody": "Whisper it afterwards (nobody else is here)",
+        "afterWhisperNobody": "Whisper it afterwards (nobody to choose)",
         "undoAfterWhisper": "Undo the whisper and show it to everyone",
         "deleteLine": "Delete",
         "deleteLineHint": "Delete (it leaves everyone’s screen but stays in the log)",

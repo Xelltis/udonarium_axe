@@ -113,6 +113,23 @@ describe('buildDisclosureContextMenu', () => {
     expect(names).not.toContain('feature.disclosure.noPlayers');
   });
 
+  it('says on a room server that no other player is there, when the only one left out is the game master', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([{ peerId: 'peer-2' }] as never);
+    vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({
+      userId: 'acct_gm',
+      name: 'gm',
+      role: PeerRole.GameMaster,
+      isMine: false,
+      isGameMaster: true,
+    } as PeerCursor);
+    setMe('acct_pl', PeerRole.Player);
+    const names = JSON.stringify(buildDisclosureContextMenu({ ...obj('acct_pl'), disclosureMode: 'selected' }, t));
+
+    expect(names).toContain('feature.disclosure.noPlayers');
+    expect(names).not.toContain('feature.disclosure.noLoggedInPlayers');
+  });
+
   it('offers among peers a seat by whatever id it has', () => {
     vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
     vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([{ peerId: 'peer-2' }] as never);

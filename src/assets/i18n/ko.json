@@ -337,7 +337,7 @@
       "gmOnly": "GM만",
       "selectPlayers": "공개할 대상",
       "noPlayers": "다른 참가자가 없습니다",
-      "noLoggedInPlayers": "로그인한 참가자가 없습니다",
+      "noLoggedInPlayers": "로그인하지 않은 사람은 선택할 수 없습니다",
       "owner": "소유자",
       "ownerNone": "없음",
       "locked": "비공개"
