@@ -558,6 +558,33 @@ describe('PeerMenuComponent', () => {
       expect(calls).toEqual(['save', 'reload']);
     });
 
+    it('takes the invitation off the address on going offline, and takes one choice at a time', async () => {
+      const reload = vi.spyOn(component as unknown as { reload(): void }, 'reload').mockImplementation(() => undefined);
+      vi.spyOn(Network.instance, 'letPageGo').mockImplementation(() => {});
+      let finishSaving!: () => void;
+      vi.spyOn(TestBed.inject(RoomArchiveEventHandlerService), 'flush').mockReturnValue(
+        new Promise<void>((resolve) => (finishSaving = resolve))
+      );
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+      history.replaceState(null, '', '/axe/?lang=ja#join?room=abc');
+      try {
+        const first = component.chooseConnectionMode('offline');
+        await Promise.resolve();
+        await component.chooseConnectionMode('offline');
+        expect(ask).toHaveBeenCalledTimes(1);
+        expect(TestBed.inject(LocalModePreferenceService).enabled()).toBe(false);
+
+        finishSaving();
+        await first;
+
+        expect(location.hash).toBe('');
+        expect(location.search).toBe('?lang=ja');
+        expect(reload).toHaveBeenCalledTimes(1);
+      } finally {
+        history.replaceState(null, '', '/');
+      }
+    });
+
     it('does nothing when the mode it is already in is chosen again', async () => {
       const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask');
 

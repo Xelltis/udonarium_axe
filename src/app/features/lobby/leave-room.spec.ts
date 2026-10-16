@@ -95,6 +95,23 @@ describe('leaving the room', () => {
     expect(leavingLoss()).toBeNull();
   });
 
+  it('takes one press at a time while it is on its way out', async () => {
+    inRoom('server');
+    let finishSaving!: () => void;
+    vi.mocked(TestBed.inject(RoomArchiveEventHandlerService).flush).mockReturnValue(
+      new Promise<void>((resolve) => (finishSaving = resolve))
+    );
+    const service = TestBed.inject(LeaveRoomService);
+
+    const first = service.leave(win);
+    await Promise.resolve();
+    expect(await service.leave(win)).toBe(false);
+    finishSaving();
+
+    expect(await first).toBe(true);
+    expect(calls).toEqual(['reload']);
+  });
+
   it('leaves a room server’s room unasked when everything has reached the server', async () => {
     inRoom('server');
 

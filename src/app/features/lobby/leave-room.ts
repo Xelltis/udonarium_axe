@@ -31,9 +31,14 @@ export function leavingLoss(): LeavingLoss | null {
  */
 export function leaveRoomByReloading(win: Window = window): void {
   Network.letPageGo();
+  dropInvitationFromAddress(win);
+  win.location.reload();
+}
+
+/** Takes the invitation off the page's address, which would take the page reloaded back into its room. */
+export function dropInvitationFromAddress(win: Window = window): void {
   const { pathname, search } = win.location;
   win.history.replaceState(null, '', pathname + search);
-  win.location.reload();
 }
 
 /** Leaves the room the reader is in, once they have said they are sure when leaving would lose something. */
@@ -42,12 +47,15 @@ export class LeaveRoomService {
   private readonly confirm = inject(ConfirmService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly roomArchive = inject(RoomArchiveEventHandlerService);
+  private leaving = false;
 
   /**
    * Asks first when leaving would lose something, then keeps the room in this browser's automatic
-   * save and leaves. Resolves false when the reader thought better of it.
+   * save and leaves. Resolves false when the reader thought better of it, or for a press while
+   * already leaving.
    */
   async leave(win: Window = window): Promise<boolean> {
+    if (this.leaving) return false;
     const loss = leavingLoss();
     if (loss) {
       const sure = await this.confirm.ask({
@@ -58,6 +66,7 @@ export class LeaveRoomService {
       });
       if (!sure) return false;
     }
+    this.leaving = true;
     await this.roomArchive.flush();
     leaveRoomByReloading(win);
     return true;
