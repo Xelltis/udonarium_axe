@@ -275,11 +275,22 @@ export class AssetHttpStore {
     return { Authorization: `Bearer ${access.token}` };
   }
 
+  /**
+   * Sends a request, given up on after a minute. The body of a GET is read within that same minute,
+   * so a download whose bytes stop coming is given up on too, rather than holding its turn for good.
+   */
   private async request(url: string, init: RequestInit): Promise<Response> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
-      return await fetch(url, { ...init, signal: controller.signal });
+      const res = await fetch(url, { ...init, signal: controller.signal });
+      if (init.method !== 'GET') return res;
+      const body = await res.arrayBuffer();
+      return new Response(0 < body.byteLength ? body : null, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: res.headers,
+      });
     } finally {
       clearTimeout(timer);
     }

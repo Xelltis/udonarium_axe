@@ -322,6 +322,27 @@ describe('AssetHttpStore', () => {
       expect(asked).toEqual([...ids.slice(0, 4), ids[5], ids[6], ids[4]]);
     });
 
+    it('gives up on bytes that stop coming, as a download it could not make just then', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      fetchSpy.mockImplementation((_url, init) => {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(bytes.slice(0, 1));
+            init?.signal?.addEventListener('abort', () => controller.error(new DOMException('aborted', 'AbortError')));
+          },
+        });
+        return Promise.resolve(new Response(body, { status: 200 }));
+      });
+      try {
+        const result = store.download(id);
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        expect(await result).toBe('failed');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('fetches again with a fresh token when the one held is turned away', async () => {
       store.useAccess(
         () => access,
