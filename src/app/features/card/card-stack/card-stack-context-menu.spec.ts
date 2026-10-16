@@ -1,3 +1,4 @@
+import { Network } from '@axe/core/network/network';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -11,14 +12,22 @@ describe('buildCardStackContextMenu', () => {
     const cardStack = CardStack.create('test stack');
     const onSplitStack = vi.fn();
     PeerCursor.createMyCursor().role = PeerRole.Player;
-    const seat = (role: PeerRole, connected: boolean) => {
+    const seat = (peerId: string, role: PeerRole) => {
       const cursor = new PeerCursor();
+      cursor.peerId = peerId;
       cursor.role = role;
-      cursor.isDisConnect = !connected;
+      cursor.isDisConnect = false;
       cursor.initialize();
       return cursor;
     };
-    const others = [seat(PeerRole.GameMaster, true), seat(PeerRole.Guest, true), seat(PeerRole.Player, false)];
+    const others = [
+      seat('gm', PeerRole.GameMaster),
+      seat('guest', PeerRole.Guest),
+      seat('gone', PeerRole.Player),
+      seat('reloaded', PeerRole.Player),
+      seat('reloaded-again', PeerRole.Player),
+    ];
+    vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['gm', 'guest', 'reloaded-again']);
 
     try {
       const actions = buildCardStackContextMenu(
@@ -36,8 +45,9 @@ describe('buildCardStackContextMenu', () => {
       );
       actions.find((action) => action.name === t('feature.cardStack.contextMenu.splitByPeers'))?.action?.();
 
-      expect(onSplitStack).toHaveBeenCalledWith(2);
+      expect(onSplitStack).toHaveBeenCalledWith(3);
     } finally {
+      vi.restoreAllMocks();
       for (const cursor of others) cursor.destroy();
       cardStack.destroy();
     }
