@@ -213,6 +213,23 @@ describe('AudioStorage', () => {
       await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
     });
 
+    it('puts up a sound added while the room was out of reach once back, and asks about nothing else', async () => {
+      storage.add(AudioFile.create(contextOf('c'.repeat(64))));
+      upload.mockClear();
+      store.useAccess(() => null);
+      storage.add(AudioFile.create(contextOf(trackId)));
+      expect(upload).not.toHaveBeenCalled();
+
+      store.useAccess(() => ({ roomKey: '0123456789abcdef0123456789abcdef', token: 'asset-1' }));
+      storage.uploadMissedToAssetStore();
+      storage.uploadMissedToAssetStore();
+
+      expect(upload.mock.calls.map(([identifier]) => identifier)).toEqual([trackId]);
+      finishUpload('stored');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      storage.delete('c'.repeat(64));
+    });
+
     it('names a sound still waiting its turn to go up, leaving it out only while it goes', async () => {
       let start = () => {};
       upload.mockImplementation((...[, , , options]) => {

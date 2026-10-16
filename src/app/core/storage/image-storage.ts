@@ -27,6 +27,11 @@ export class ImageStorage {
    * behind others stays in it, so a peer is not kept waiting for it all that while.
    */
   private readonly sending = new Set<string>();
+  /**
+   * Those added here while a room server's room could not be reached, as while the link was down,
+   * which go up once the seat is back.
+   */
+  private readonly missedUploads = new Set<string>();
   /** Uploads that failed for now, tried again a few times while the seat stays in the room. */
   private readonly uploadRetries = new AssetRetries();
 
@@ -100,7 +105,20 @@ export class ImageStorage {
    */
   uploadAllToAssetStore(): void {
     this.uploadRetries.clear();
+    this.missedUploads.clear();
     for (const image of this.images) this.uploadToAssetStore(image);
+  }
+
+  /**
+   * Puts up what was added here while the room could not be reached, as on coming back on a new
+   * link the server asked for, without asking again about all the rest.
+   */
+  uploadMissedToAssetStore(): void {
+    for (const identifier of [...this.missedUploads]) {
+      this.missedUploads.delete(identifier);
+      const image = this.imageHash[identifier];
+      if (image) this.uploadToAssetStore(image);
+    }
   }
 
   /**
@@ -117,7 +135,11 @@ export class ImageStorage {
   private uploadToAssetStore(image: ImageFile, first = false): void {
     const store = AssetHttpStore.instance;
     const blob = image.blob;
-    if (!store.isEnabled || image.state !== ImageState.COMPLETE || !blob) return;
+    if (image.state !== ImageState.COMPLETE || !blob) return;
+    if (!store.isEnabled) {
+      if (store.isConfigured && AssetHttpStore.isAssetId(image.identifier)) this.missedUploads.add(image.identifier);
+      return;
+    }
     if (!AssetHttpStore.isAssetId(image.identifier) || this.uploading.has(image.identifier)) return;
     const { identifier } = image;
     this.uploading.add(identifier);

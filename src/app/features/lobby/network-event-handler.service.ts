@@ -174,11 +174,12 @@ export class NetworkEventHandlerService {
     }, this.destroyRef);
     this.objectChange.peerReconnect$.subscribe((event) => {
       if (this.localMode) return;
-      if ((event.state === 'recovered' || event.state === 'resumed') && event.peerId === Network.peerId) {
+      if (event.state === 'recovered' && event.peerId === Network.peerId) {
         this.takeServerRole();
         this.bringAssetsIntoRoom();
         this.fetchRoomAssets();
       }
+      if (event.state === 'resumed' && event.peerId === Network.peerId) this.catchUpAfterResume();
       // The link to a room server is this reader's own, so the word of it is shown here alone,
       // rather than written for the whole room, which a guest may not write to anyway. A screen
       // made for streaming shows none of it.
@@ -263,6 +264,23 @@ export class NetworkEventHandlerService {
     AudioStorage.instance.uploadAllToAssetStore();
     // What the room is playing goes up ahead of the rest, for everyone to hear it soonest.
     AudioSharingSystem.instance.preferWaiting();
+  }
+
+  /**
+   * Catches up after coming back on a new link the room server asked for, which some servers do
+   * every few minutes: what was added here while the link was down goes up, and the room's list is
+   * read again for what it gained meanwhile. The rest is the same room as before, so neither every
+   * picture and sound held nor what the store was found to lack is asked about again.
+   */
+  private catchUpAfterResume(): void {
+    this.takeServerRole();
+    if (Network.transport !== 'server' || !Network.peerContext.isRoom) return;
+    const role = Network.serverRole;
+    if (role === 'gm' || role === 'pl') {
+      ImageStorage.instance.uploadMissedToAssetStore();
+      AudioStorage.instance.uploadMissedToAssetStore();
+    }
+    this.fetchRoomAssetList(Network.peerId);
   }
 
   /**

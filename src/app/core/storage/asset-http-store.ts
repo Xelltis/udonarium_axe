@@ -144,6 +144,11 @@ export class AssetHttpStore {
 
   private constructor() {}
 
+  /** Whether an address is configured, in a room or not. */
+  get isConfigured(): boolean {
+    return this.baseUrl !== null;
+  }
+
   /** Whether an address is configured and this seat is in a room, so uploads and downloads go to the server at all. */
   get isEnabled(): boolean {
     return this.baseUrl !== null && this.access?.() != null;

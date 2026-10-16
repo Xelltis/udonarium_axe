@@ -595,20 +595,26 @@ describe('NetworkEventHandlerService', () => {
       expect(images).toHaveBeenCalledTimes(1);
     });
 
-    it('brings them in and fetches what the room holds, telling nobody, once back on a link the server asked for', async () => {
-      const images = vi.spyOn(ImageStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
-      vi.spyOn(AudioStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
+    it('puts up only what was missed, and reads the room again, telling nobody, once back on a link the server asked for', async () => {
+      const all = vi.spyOn(ImageStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
+      const missed = vi.spyOn(ImageStorage.instance, 'uploadMissedToAssetStore').mockImplementation(() => {});
+      const missedSounds = vi.spyOn(AudioStorage.instance, 'uploadMissedToAssetStore').mockImplementation(() => {});
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
       vi.spyOn(Network, 'serverRole', 'get').mockReturnValue('pl');
       vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ peerId: 'p', userId: 'u', isRoom: true } as never);
       vi.spyOn(Network, 'peerId', 'get').mockReturnValue('p');
       vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
       const list = vi.spyOn(AssetHttpStore.instance, 'listRoomAssets').mockResolvedValue([]);
+      const forgot = vi.spyOn(ImageSharingSystem.instance, 'forgetMisses');
       const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
 
       stubChange.peerReconnect$.emit({ peerId: 'p', state: 'resumed' });
 
-      expect(images).toHaveBeenCalledTimes(1);
+      expect(missed).toHaveBeenCalledTimes(1);
+      expect(missedSounds).toHaveBeenCalledTimes(1);
+      expect(all).not.toHaveBeenCalled();
       await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+      expect(forgot).not.toHaveBeenCalled();
       expect(shown).not.toHaveBeenCalled();
       expect(chatStub.sendSystemMessage).not.toHaveBeenCalled();
     });

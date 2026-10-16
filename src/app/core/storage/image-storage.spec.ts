@@ -171,6 +171,23 @@ describe('ImageStorage', () => {
       vi.useRealTimers();
     });
 
+    it('puts up a picture added while the room was out of reach once back, and asks about nothing else', async () => {
+      storage.add(ImageFile.create(contextOf('b'.repeat(64))));
+      upload.mockClear();
+      store.useAccess(() => null);
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      expect(upload).not.toHaveBeenCalled();
+
+      store.useAccess(() => ({ roomKey: '0123456789abcdef0123456789abcdef', token: 'asset-1' }));
+      storage.uploadMissedToAssetStore();
+      storage.uploadMissedToAssetStore();
+
+      expect(upload.mock.calls.map(([identifier]) => identifier)).toEqual([pictureId]);
+      finishUpload('stored');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      storage.delete('b'.repeat(64));
+    });
+
     it('names an image still waiting its turn to go up, leaving it out only while it goes', async () => {
       let start = () => {};
       upload.mockImplementation((...[, , , options]) => {

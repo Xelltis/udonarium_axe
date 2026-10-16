@@ -31,6 +31,11 @@ export class AudioStorage {
    * others stays in it, so a peer is not kept waiting for it all that while.
    */
   private readonly sending = new Set<string>();
+  /**
+   * Those added here while a room server's room could not be reached, as while the link was down,
+   * which go up once the seat is back.
+   */
+  private readonly missedUploads = new Set<string>();
   /** Uploads that failed for now, tried again a few times while the seat stays in the room. */
   private readonly uploadRetries = new AssetRetries();
 
@@ -100,7 +105,20 @@ export class AudioStorage {
    */
   uploadAllToAssetStore(): void {
     this.uploadRetries.clear();
+    this.missedUploads.clear();
     for (const audio of this.audios) this.uploadToAssetStore(audio);
+  }
+
+  /**
+   * Puts up what was added here while the room could not be reached, as on coming back on a new
+   * link the server asked for, without asking again about all the rest.
+   */
+  uploadMissedToAssetStore(): void {
+    for (const identifier of [...this.missedUploads]) {
+      this.missedUploads.delete(identifier);
+      const audio = this.hash[identifier];
+      if (audio) this.uploadToAssetStore(audio);
+    }
   }
 
   /**
@@ -117,7 +135,11 @@ export class AudioStorage {
   private uploadToAssetStore(audio: AudioFile, first = false): void {
     const store = AssetHttpStore.instance;
     const blob = audio.blob;
-    if (!store.isEnabled || audio.state !== AudioState.COMPLETE || !blob) return;
+    if (audio.state !== AudioState.COMPLETE || !blob) return;
+    if (!store.isEnabled) {
+      if (store.isConfigured && AssetHttpStore.isAssetId(audio.identifier)) this.missedUploads.add(audio.identifier);
+      return;
+    }
     if (!AssetHttpStore.isAssetId(audio.identifier) || this.uploading.has(audio.identifier)) return;
     const { identifier } = audio;
     this.uploading.add(identifier);
