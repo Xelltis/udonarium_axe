@@ -784,9 +784,12 @@ export class ChatMessageComponent {
     return this.canInteract && this.chatMessage.isShownInChat;
   }
 
-  /** Whether a stamp may be put on the line, which the room may have turned off. */
+  /**
+   * Whether a stamp may be put on the line, which the room may have turned off, and which a guest on
+   * a room server may not.
+   */
   get canReact(): boolean {
-    return this.canAnswerWithStamps && this.stampRules.isOn('reaction');
+    return this.canAnswerWithStamps && this.reactions.mayReact && this.stampRules.isOn('reaction');
   }
 
   /**
@@ -794,7 +797,8 @@ export class ChatMessageComponent {
    * theirs, where the room lets that stamp be put on.
    */
   protected canPressReaction(tally: ReactionTally): boolean {
-    return this.canAnswerWithStamps && (tally.mine || this.stampRules.allows('reaction', tally.stampId));
+    if (!this.canAnswerWithStamps || !this.reactions.mayReact) return false;
+    return tally.mine || this.stampRules.allows('reaction', tally.stampId);
   }
 
   private readonly reactionTallies = computed<readonly ReactionTally[]>(

@@ -1,11 +1,13 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { stampOf, stampOrder } from '@axe/domain/chat/stamp-catalog';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 
 /** One stamp on a line: how many put it on, who they are, and whether the reader is among them. */
 export interface ReactionTally {
@@ -67,12 +69,22 @@ export class ChatReactionService {
   }
 
   /**
+   * Whether this reader may put stamps on lines at all. On a room server a guest writes nothing but
+   * lines in tabs guests may speak in, and the server takes a guest's stamps back; among peers
+   * anyone may.
+   */
+  get mayReact(): boolean {
+    return Network.authorityPeerId === null || PeerCursor.myRole !== PeerRole.Guest;
+  }
+
+  /**
    * Puts a stamp on a line for the reader, or takes it off where they put it on already. Whether it
    * is now on; false too, with nothing changed, for a stamp this version does not know, a line the
    * reader is not shown, or before a room has been joined. A stamp the room does not let be put on
    * is not put on, though one put on before can still be taken off.
    */
   toggle(message: ChatMessage, stampId: string): boolean {
+    if (!this.mayReact) return false;
     const userId = PeerCursor.myUserId;
     if (userId.length < 1 || !stampOf(stampId) || !message.isShownInChat) return false;
 
