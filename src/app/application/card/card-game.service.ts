@@ -2,6 +2,7 @@ import { computed, inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { planDeal } from '@axe/domain/card/card-deal';
@@ -163,10 +164,18 @@ export class CardGameService {
    * The hands of users who are no longer in the room, found from the cards still held in them, the
    * longest first.
    *
-   * Somebody connected is not absent whatever their role, and nor are you.
+   * Somebody connected is not absent whatever their role, and nor are you, except on a room server
+   * for a guest, who holds no cards there: a hand held for a guest's user id, as one left in a
+   * SkyWay table loaded into the room and claimed by a guest, may be handed over.
    */
   absentHands(): AbsentHand[] {
-    const present = new Set(this.objectStore.getObjects<PeerCursor>(PeerCursor).map((cursor) => cursor.userId));
+    const mayHold = Network.transport === 'server' ? (cursor: PeerCursor) => canRoleEdit(cursor.role) : () => true;
+    const present = new Set(
+      this.objectStore
+        .getObjects<PeerCursor>(PeerCursor)
+        .filter(mayHold)
+        .map((cursor) => cursor.userId)
+    );
     present.add(this.myUserId());
     const counts = new Map<string, number>();
     for (const card of this.objectStore.getObjects<Card>(Card)) {

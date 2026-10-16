@@ -222,6 +222,14 @@ describe('CardGameService', () => {
       expect(service.absentHands()).toEqual([{ userId: 'gone', name: 'さいごの名前', count: 2 }]);
     });
 
+    it('counts as absent on a room server a hand held for one there only as a guest, who holds no cards', () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      peer('claimed', 'なりすまし', PeerRole.Guest);
+      heldBy('claimed', 's01');
+
+      expect(service.absentHands().map((hand) => hand.userId)).toEqual(['claimed']);
+    });
+
     it('looks for the names again as lines are said, and not each time a card moves', () => {
       heldBy('gone', 's03');
       spoke('gone', 'まえの名前', 1000);
