@@ -48,6 +48,19 @@ describe('buildDisclosureContextMenu', () => {
     ).toBeTruthy();
   });
 
+  it('offers a player on a room server only themselves as the owner of an unowned piece, which is all it takes', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([{ peerId: 'peer-2' }] as never);
+    vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({ userId: 'p2', name: 'p2', isMine: false } as PeerCursor);
+    setMe('p1', PeerRole.Player);
+    const choices = () =>
+      find(buildDisclosureContextMenu(obj(''), t), 'feature.disclosure.owner')?.subActions?.map((s) => s.name);
+
+    expect(choices()).toEqual(['☑ feature.disclosure.ownerNone', '☐ p1']);
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+    expect(choices()).toEqual(['☑ feature.disclosure.ownerNone', '☐ p1', '☐ p2']);
+  });
+
   it('offers a player nothing on somebody elses character', () => {
     setMe('p1', PeerRole.Player);
     expect(buildDisclosureContextMenu(obj('p2'), t)).toEqual([]);

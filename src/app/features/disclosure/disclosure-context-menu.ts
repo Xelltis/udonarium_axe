@@ -43,10 +43,16 @@ function audienceCandidates(): DisclosureCandidate[] {
   return result;
 }
 
+/**
+ * Who the owner submenu offers: this user first, then every other connected user. A room server
+ * lets anyone but the game master give a piece nobody owns to themselves alone, so there it offers
+ * only this user.
+ */
 function ownerCandidates(): DisclosureCandidate[] {
   const result: DisclosureCandidate[] = [];
   const myCursor = PeerCursor.myCursor;
   if (myCursor) result.push({ userId: myCursor.userId, name: candidateName(myCursor) });
+  if (Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster) return result;
   for (const context of Network.peerContexts) {
     const cursor = PeerCursor.findByPeerId(context.peerId);
     if (!cursor || cursor.isMine) continue;

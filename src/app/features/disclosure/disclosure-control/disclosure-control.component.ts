@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Network } from '@axe/core/index';
+import { Card } from '@axe/domain/card/card';
 import {
   Disclosable,
   DisclosureMode,
@@ -86,11 +87,22 @@ export class DisclosureControlComponent {
   /**
    * The users the owner menu offers: this user first, then every other connected user, each named
    * by their cursor or a short id.
+   *
+   * A room server lets anyone but the game master take a piece nobody owns for themselves alone, and
+   * a card only for themselves or nobody, so there it offers only this user, besides the owner the
+   * piece has now.
    */
   ownerCandidates(): OwnerCandidate[] {
     const candidates: OwnerCandidate[] = [];
     const myCursor = PeerCursor.myCursor;
     if (myCursor) candidates.push({ userId: myCursor.userId, name: myCursor.name || myCursor.userId.slice(0, 6) });
+    const owner = this.owner();
+    const narrowed = Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
+    if (narrowed && (!owner || this.object() instanceof Card)) {
+      const holder = owner && owner !== myCursor?.userId ? PeerCursor.findByUserId(owner) : null;
+      if (holder) candidates.push({ userId: holder.userId, name: holder.name || holder.userId.slice(0, 6) });
+      return candidates;
+    }
     for (const context of Network.peerContexts) {
       const cursor = PeerCursor.findByPeerId(context.peerId);
       if (!cursor || cursor.isMine) continue;
