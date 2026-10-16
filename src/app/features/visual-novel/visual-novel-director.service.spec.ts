@@ -119,6 +119,24 @@ describe('VisualNovelDirectorService', () => {
     expect(playback.currentIndex()).toBe(1);
   });
 
+  it('follows no player into a tab they may not read, leaving them on their own', () => {
+    addMessage('一幕');
+    const closed = ChatTabList.instance.addChatTab('GM用');
+    closed.plCanView = false;
+    closed.addMessage({ from: 'gm', name: 'GM', text: '伏せた話', timestamp: nextTimestamp++ });
+    try {
+      stage.startDirecting('other-peer');
+      notifyStage();
+
+      stage.setPlayhead(closed.identifier, closed.chatMessages[0].identifier);
+      notifyStage();
+
+      expect(playback.chatTabIdentifier()).toBe(tab.identifier);
+    } finally {
+      closed.destroy();
+    }
+  });
+
   it('puts everybody back to following once it ends', () => {
     stage.startDirecting('other-peer');
     notifyStage();

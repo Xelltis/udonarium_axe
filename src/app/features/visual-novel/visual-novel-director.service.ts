@@ -67,6 +67,8 @@ export class VisualNovelDirectorService {
       if (!this.isFollowing()) return;
       untracked(() => {
         if (tabIdentifier.length > 0 && tabIdentifier !== this.playback.chatTabIdentifier()) {
+          // A tab this reader may not read is not followed into; they stay on the one they are on.
+          if (!this.playback.availableChatTabs().some((tab) => tab.identifier === tabIdentifier)) return;
           this.playback.setChatTab(tabIdentifier);
         }
         this.playback.jumpToIdentifier(identifier);
