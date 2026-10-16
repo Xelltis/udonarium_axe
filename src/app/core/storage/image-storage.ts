@@ -8,6 +8,8 @@ import { ImageContext, ImageFile, ImageState } from '@axe/core/storage/image-fil
 export type CatalogItem = {
   readonly identifier: string;
   readonly state: number;
+  /** Set while the seat naming it waits to put it up to the room's asset store itself. */
+  readonly queued?: boolean;
 };
 
 export class ImageStorage {
@@ -218,7 +220,8 @@ export class ImageStorage {
     const catalog: CatalogItem[] = [];
     for (const image of this.images) {
       if (ImageState.COMPLETE <= image.state && !this.sending.has(image.identifier)) {
-        catalog.push({ identifier: image.identifier, state: image.state });
+        const queued = this.uploading.has(image.identifier) ? { queued: true } : {};
+        catalog.push({ identifier: image.identifier, state: image.state, ...queued });
       }
     }
     return catalog;

@@ -197,11 +197,13 @@ describe('ImageStorage', () => {
 
       storage.add(ImageFile.create(contextOf(pictureId)));
       expect(catalogued(pictureId)).toBe(true);
+      expect(storage.getCatalog().find((item) => item.identifier === pictureId)?.queued).toBe(true);
 
       start();
       expect(catalogued(pictureId)).toBe(false);
       finishUpload('stored');
       await vi.waitFor(() => expect(catalogued(pictureId)).toBe(true));
+      expect(storage.getCatalog().find((item) => item.identifier === pictureId)?.queued).toBeUndefined();
     });
 
     it('sends an image made on this seat to the server, and names it to peers only once it is there', async () => {

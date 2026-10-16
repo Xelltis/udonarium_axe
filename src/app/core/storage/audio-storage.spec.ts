@@ -239,11 +239,13 @@ describe('AudioStorage', () => {
 
       storage.add(AudioFile.create(contextOf(trackId)));
       expect(catalogued(trackId)).toBe(true);
+      expect(storage.getCatalog().find((item) => item.identifier === trackId)?.queued).toBe(true);
 
       start();
       expect(catalogued(trackId)).toBe(false);
       finishUpload('stored');
       await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
+      expect(storage.getCatalog().find((item) => item.identifier === trackId)?.queued).toBeUndefined();
     });
 
     it('sends audio made on this seat to the server, and names it to peers only once it is there', async () => {

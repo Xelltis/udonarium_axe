@@ -330,6 +330,39 @@ describe('AudioSharingSystem', () => {
       expect(upload.mock.calls).toEqual([[trackId]]);
     });
 
+    describe('a sound a peer still waits to put up itself', () => {
+      async function receivedFromQueue(): Promise<ReturnType<typeof vi.spyOn>> {
+        const upload = vi.spyOn(AudioStorage.instance, 'uploadReceived').mockImplementation(() => {});
+        download.mockResolvedValue('missing');
+        emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE, queued: true }], {
+          sendFrom: 'peer-b',
+        });
+        await vi.waitFor(() => expect(requestsSent()).toHaveLength(1));
+        emit('UPDATE_AUDIO_RESOURE', [{ identifier: trackId, name: '', type: 'audio/ogg', blob: null, url: '' }], {
+          sendFrom: 'peer-b',
+        });
+        AudioStorageMock.get.mockReturnValue({ identifier: trackId, state: AudioState.COMPLETE });
+        return upload;
+      }
+
+      it('is left to that peer to put up, and put up from here once it names the sound plainly', async () => {
+        const upload = await receivedFromQueue();
+        expect(upload).not.toHaveBeenCalled();
+
+        emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-b' });
+
+        expect(upload.mock.calls).toEqual([[trackId]]);
+      });
+
+      it('is put up from here once that peer leaves without having put it up', async () => {
+        const upload = await receivedFromQueue();
+
+        emit('DISCONNECT_PEER', { peerId: 'peer-b' });
+
+        expect(upload.mock.calls).toEqual([[trackId]]);
+      });
+    });
+
     it('takes a sound the room lists, keeping the name it was listed under', async () => {
       AudioStorageMock.get.mockImplementation((id: string) => AudioFile.createEmpty(id, 'theme.ogg'));
 

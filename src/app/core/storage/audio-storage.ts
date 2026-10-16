@@ -9,6 +9,8 @@ export type CatalogItem = {
   readonly identifier: string;
   readonly state: number;
   readonly name?: string;
+  /** Set while the seat naming it waits to put it up to the room's asset store itself. */
+  readonly queued?: boolean;
 };
 
 export class AudioStorage {
@@ -217,7 +219,8 @@ export class AudioStorage {
     const catalog: CatalogItem[] = [];
     for (const audio of AudioStorage.instance.audios) {
       if (AudioState.COMPLETE <= audio.state && !this.sending.has(audio.identifier)) {
-        catalog.push({ identifier: audio.identifier, state: audio.state, name: audio.name });
+        const queued = this.uploading.has(audio.identifier) ? { queued: true } : {};
+        catalog.push({ identifier: audio.identifier, state: audio.state, name: audio.name, ...queued });
       }
     }
     return catalog;
