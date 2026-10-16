@@ -533,8 +533,14 @@ export class TerrainComponent {
     }, SWITCH_NOTICE_MS);
   }
 
+  /** Whether this seat may open and shut a door, which a guest may not. */
+  protected readonly mayOpenDoor = computed(() => {
+    this.objectChange.trackMyCursor();
+    return this.rolePermission.canEditTabletop;
+  });
+
   protected onDoorClick(): void {
-    if (!this.isDoor() || this.pointerDeviceService.isDragging) return;
+    if (!this.isDoor() || !this.mayOpenDoor() || this.pointerDeviceService.isDragging) return;
     const terrain = this.terrain();
     terrain.isDoorOpen = !terrain.isDoorOpen;
     SoundEffect.play(terrain.isDoorOpen ? PresetSound.unlock : PresetSound.lock);
