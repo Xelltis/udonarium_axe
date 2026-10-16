@@ -3,6 +3,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ReplayRecorderService } from '@axe/application/replay/replay-recorder.service';
+import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import type { ReplayRecordingMeta } from '@axe/core/storage/replay-log-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -73,6 +75,7 @@ describe('ReplayWorkspaceComponent', () => {
   let undo: ReturnType<typeof vi.fn>;
   let edited: ReturnType<typeof signal<readonly ReplayEvent[]>>;
   let stopAutoPlay: ReturnType<typeof vi.fn>;
+  let showBoardAfresh: ReturnType<typeof vi.fn>;
 
   async function setup(): Promise<void> {
     await TestBed.configureTestingModule({
@@ -105,6 +108,7 @@ describe('ReplayWorkspaceComponent', () => {
             stopAutoPlay,
             enterBoardMode: vi.fn().mockResolvedValue(true),
             exitBoardMode: vi.fn().mockResolvedValue(undefined),
+            showBoardAfresh,
           },
         },
         {
@@ -196,6 +200,7 @@ describe('ReplayWorkspaceComponent', () => {
     begin = vi.fn();
     insert = vi.fn();
     stopAutoPlay = vi.fn();
+    showBoardAfresh = vi.fn().mockResolvedValue(undefined);
     PeerCursor.myCursor = { userId: 'alice', role: PeerRole.GameMaster } as PeerCursor;
   });
 
@@ -275,6 +280,23 @@ describe('ReplayWorkspaceComponent', () => {
 
     fixture.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
     expect(undo).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws away a scene being acted out along with the edits, and shows the board afresh', async () => {
+    isEditing = signal(true);
+    await setup();
+    const staging = TestBed.inject(ReplayStagingService);
+    setNetworkIsolated(true);
+    try {
+      staging.begin(1, 'alice');
+
+      buttonByText('取りやめ')?.click();
+
+      expect(staging.isStaging()).toBe(false);
+      expect(showBoardAfresh).toHaveBeenCalled();
+    } finally {
+      setNetworkIsolated(false);
+    }
   });
 
   it('leaves that key alone while nothing is being edited', async () => {

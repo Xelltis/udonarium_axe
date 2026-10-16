@@ -14,6 +14,7 @@ import { ReplayEditorService } from '@axe/application/replay/replay-editor.servi
 import { ReplayLibraryService } from '@axe/application/replay/replay-library.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ReplayRecorderService } from '@axe/application/replay/replay-recorder.service';
+import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
 import { earliestReplaySeq } from '@axe/domain/replay/replay-edit';
 import { ReplayDigestPanelComponent } from '@axe/features/replay/replay-digest-panel/replay-digest-panel.component';
 import { ReplayScriptPanelComponent } from '@axe/features/replay/replay-script-panel/replay-script-panel.component';
@@ -45,6 +46,7 @@ export class ReplayWorkspaceComponent {
   private readonly playback = inject(ReplayPlaybackService);
   private readonly editor = inject(ReplayEditorService);
   private readonly recorder = inject(ReplayRecorderService);
+  private readonly staging = inject(ReplayStagingService);
   private readonly library = inject(ReplayLibraryService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly destroyRef = inject(DestroyRef);
@@ -116,7 +118,15 @@ export class ReplayWorkspaceComponent {
     this.editor.begin(this.playback.events());
   }
 
+  /**
+   * Throws every edit away and stops editing, and with it a scene being acted out to go in, which
+   * would have no edit left to go into.
+   */
   protected cancelEditing(): void {
+    if (this.staging.isStaging()) {
+      this.staging.discard();
+      void this.playback.showBoardAfresh();
+    }
     this.editor.cancel();
   }
 
