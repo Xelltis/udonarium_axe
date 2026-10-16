@@ -430,10 +430,19 @@ export class ChatInputComponent {
     return this.chatColor(this.colorSelectNo());
   }
 
+  /**
+   * Whether the colours of the lines come from the character spoken as: they do but for a guest,
+   * whose colour panel sets the colours of their own lines instead.
+   */
+  private colorsFromCharacter(object: unknown): object is GameCharacter {
+    this.objectChange.trackMyCursor();
+    return object instanceof GameCharacter && canRoleEdit(PeerCursor.myRole);
+  }
+
   /** The bubble the sender asked for on each theme, which travels with the message. */
   private chatBubbles(num: number): ChatBubbleColors {
     const object = this.objectStore.get(this.sendFrom);
-    const source = object instanceof GameCharacter ? object : this.myPeer;
+    const source = this.colorsFromCharacter(object) ? object : this.myPeer;
     this.objectChange.versionOf(source.identifier)();
     return chatBubbleOf(source, num);
   }
@@ -444,7 +453,7 @@ export class ChatInputComponent {
    */
   chatColor(num: number): string {
     const object = this.objectStore.get(this.sendFrom);
-    if (object instanceof GameCharacter) return this.characterChatColor(num);
+    if (this.colorsFromCharacter(object)) return this.characterChatColor(num);
     return this.playerChatColor(num);
   }
 

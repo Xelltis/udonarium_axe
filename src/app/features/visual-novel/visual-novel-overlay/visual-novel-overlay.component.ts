@@ -1266,8 +1266,10 @@ export class VisualNovelOverlayComponent {
     return object instanceof GameCharacter ? object.selectedPortraitIndex : 0;
   }
 
+  /** The colour a line goes in: the character's, but a guest's own, as the chat input has it. */
   private colorOf(sendFrom: string): string {
     const object = this.objectStore.get(sendFrom);
-    return chatColorOf(object instanceof GameCharacter ? object : PeerCursor.myCursor, 0);
+    const fromCharacter = object instanceof GameCharacter && canRoleEdit(PeerCursor.myRole);
+    return chatColorOf(fromCharacter ? object : PeerCursor.myCursor, 0);
   }
 }

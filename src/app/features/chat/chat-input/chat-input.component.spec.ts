@@ -67,6 +67,24 @@ describe('ChatInputComponent', () => {
     return character;
   }
 
+  it('sends a guest’s lines in the guest’s own colours, which their colour panel sets, not the piece’s', () => {
+    const character = speaker('ヒロ');
+    const role = PeerCursor.myCursor.role;
+    const colors = PeerCursor.myCursor.chatColorCode;
+    PeerCursor.myCursor.chatColorCode = ['#abcdef', '#abcdef', '#abcdef'];
+    try {
+      component.sendFrom = character.identifier;
+      expect(component.chatColor(0)).toBe('#111111');
+
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      expect(component.chatColor(0)).toBe('#abcdef');
+    } finally {
+      PeerCursor.myCursor.role = role;
+      PeerCursor.myCursor.chatColorCode = colors;
+      character.destroy();
+    }
+  });
+
   it('sets a guest speaking as a piece the colours of their own lines, not the piece’s', () => {
     const character = speaker('ヒロ');
     const opened: { tabletopObject?: unknown }[] = [];
