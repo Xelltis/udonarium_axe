@@ -134,6 +134,8 @@ export class LobbyComponent {
     }, this.destroyRef);
     if (Network.isOpen) {
       this.reload();
+    } else if (Network.transport !== 'server') {
+      this.help.set(this.t('feature.lobby.lobby.hintConnecting'));
     }
     effect(() => {
       if (this.reach.unreachable()) untracked(() => this.sayUnreachable());

@@ -264,6 +264,16 @@ describe('PeerMenuComponent', () => {
       expect(lobby()).not.toBeNull();
     });
 
+    it('lets the lobby be opened before the connection is, as the lobby says it is not reached yet', () => {
+      vi.spyOn(Network.instance, 'isOpen', 'get').mockReturnValue(false);
+      fixture.detectChanges();
+
+      const lobby = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+        '[data-testid="peer-menu-show-lobby"]'
+      );
+      expect(lobby?.disabled).toBe(false);
+    });
+
     it('offers a fresh sync from the server, and a reconnect, to a seat alone in the room', () => {
       vi.spyOn(Network.instance, 'peerIds', 'get').mockReturnValue([]);
       vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');

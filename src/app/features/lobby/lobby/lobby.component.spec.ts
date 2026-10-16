@@ -200,6 +200,17 @@ describe('LobbyComponent', () => {
     expect(list).not.toHaveBeenCalled();
   });
 
+  it('says the server is not reached yet as it opens before the connection is', () => {
+    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
+
+    const opened = TestBed.createComponent(LobbyComponent);
+    opened.detectChanges();
+
+    expect(opened.componentInstance.help()).toBe(
+      'まだサーバーにつながっていません。しばらく待ってから「一覧を更新」を押してください。'
+    );
+  });
+
   describe('signal-driven CD', () => {
     it('holds the rooms in a signal', () => {
       expect(typeof component.rooms).toBe('function');

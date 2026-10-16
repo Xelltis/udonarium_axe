@@ -3322,7 +3322,7 @@
         "tokenExpired": "The SkyWay auth token has expired. Reconnecting...",
         "generic": "A network error occurred. ({{errorType}})",
         "reconnecting": "Attempting to reconnect...",
-        "lastReconnect": "This is the last attempt. If it does not connect, leave it a while and come back in.",
+        "lastReconnect": "This is the last attempt. If it does not connect, wait a little, then reload the page.",
         "sameNameMember": "You are in this room in another tab, or your previous connection has not dropped yet. Close the other tab, or wait a little and join again",
         "roomServerProtocolMismatch": "A newer version of Axe is out. Reload the page",
         "roomServerWrongPassword": "The password is wrong",
