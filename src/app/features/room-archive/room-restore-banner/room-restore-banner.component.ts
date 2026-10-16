@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { RoomSnapshotService } from '@axe/application/file/room-snapshot.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { WIDGET_ROOM_RESTORE } from '@axe/application/ui/widget-place';
 import { Network } from '@axe/core/network/network';
@@ -24,6 +25,7 @@ export class RoomRestoreBannerComponent {
   private readonly roomSnapshot = inject(RoomSnapshotService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly localModePreference = inject(LocalModePreferenceService);
   protected readonly widgetName = WIDGET_ROOM_RESTORE;
   protected readonly fallback = (el: HTMLElement) => ({
     left: Math.max(8, (window.innerWidth - el.offsetWidth) / 2),
@@ -45,7 +47,7 @@ export class RoomRestoreBannerComponent {
     if (this.dismissed()) return false;
     if (!this.roomSnapshot.isSupported) return false;
     if (this.latest() === null) return false;
-    if (parseInviteLink(location.hash) !== null) return false;
+    if (!this.localModePreference.enabled() && parseInviteLink(location.hash) !== null) return false;
     if (Network.peerContext?.roomName) return false;
     return this.rolePermission.canEditTabletop;
   });
