@@ -48,6 +48,11 @@
     />
     <span>{{ 'feature.boardSwitch.guests' | transloco }}</span>
   </label>
+  @if (guestsKeptOutByServer) {
+    <span class="text-ui-dim text-[11px]" data-testid="board-switch-guests-on-server">{{
+      'feature.boardSwitch.guestsOnServer' | transloco
+    }}</span>
+  }
 
   <label class="flex items-center gap-2">
     <span class="text-ui-muted w-20 shrink-0">{{ 'feature.boardSwitch.range' | transloco }}</span>

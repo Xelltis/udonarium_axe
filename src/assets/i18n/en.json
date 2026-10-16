@@ -5011,6 +5011,7 @@
       "tab": "Tab",
       "tabOpen": "The tab the presser has open",
       "guests": "Spectators can press it too (where the tab lets them speak)",
+      "guestsOnServer": "On a room server, spectators cannot press switches",
       "actionsHint": "Pressing it runs these from the top. From the second one on, you can add a wait after the previous one (up to 10 seconds).",
       "kind": {
         "say": "Say",

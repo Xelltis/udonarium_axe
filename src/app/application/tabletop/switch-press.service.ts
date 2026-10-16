@@ -132,6 +132,7 @@ export class SwitchPressService {
       reach: definition.range > 0 ? this.reachOf(character, host, definition.range) : undefined,
       inSight: definition.needsSight ? this.sees(host) : undefined,
       trial: options.trial,
+      guestsKeptOut: Network.authorityPeerId !== null,
     });
   }
 

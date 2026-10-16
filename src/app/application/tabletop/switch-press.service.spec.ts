@@ -177,6 +177,15 @@ describe('SwitchPressService', () => {
     expect(said).toEqual([]);
   });
 
+  it('turns a watcher away from a switch left open to watchers on a room server, which would take it back', async () => {
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    const open = switchWith({ guests: true, actions: [say('hi')] });
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+
+    expect(await presses.press(open)).toBe('watching');
+    expect(said).toEqual([]);
+  });
+
   it('plays an effect on the piece the presser speaks as, and on nobody where they speak as themselves', async () => {
     const effect = vi.spyOn(TestBed.inject(NamedCueService), 'playEffect').mockReturnValue(true);
     const sparkle = { kind: 'effect' as const, name: 'sparkle', delayMs: 0, extra: {} };
