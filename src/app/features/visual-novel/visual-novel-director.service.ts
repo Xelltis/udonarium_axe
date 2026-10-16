@@ -1,10 +1,10 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
-import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { getMyPeerId } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { VnStage } from '@axe/domain/visual-novel/vn-stage';
+import { VisualNovelEventHandlerService } from '@axe/features/visual-novel/visual-novel-event-handler.service';
 import { VisualNovelPlaybackService } from '@axe/features/visual-novel/visual-novel-playback.service';
 
 const STAGE_IDENTIFIER = 'VnStage';
@@ -14,23 +14,13 @@ export class VisualNovelDirectorService {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly playback = inject(VisualNovelPlaybackService);
-  private readonly rolePermission = inject(RolePermissionService);
 
   private readonly _following = signal(true);
 
   readonly following = this._following.asReadonly();
 
   /** Whether the screening on the stage was started by a seat no longer a game master. */
-  private readonly directorDemoted = computed(() => {
-    this.objectChange.versionOf(STAGE_IDENTIFIER)();
-    const stage = this.stage;
-    if (stage?.isDirected !== true) return false;
-    this.objectChange.collectionOf(PeerCursor.aliasName)();
-    const director = PeerCursor.findByPeerId(stage.directorPeerId);
-    if (!director) return false;
-    this.objectChange.versionOf(director.identifier)();
-    return !director.isGameMaster;
-  });
+  private readonly directorDemoted = inject(VisualNovelEventHandlerService).directorDemoted;
 
   /**
    * Whether a screening is running. One whose director was made a player or a guest meanwhile has
@@ -99,17 +89,6 @@ export class VisualNovelDirectorService {
     effect(() => {
       if (this.isDirected()) return;
       untracked(() => this._following.set(true));
-    });
-
-    // A screening whose director is no longer a game master is ended on the stage too, by a game
-    // master who sees it or by the director where it may still write, so that it does not start
-    // again by itself should the director be made one again.
-    effect(() => {
-      if (!this.directorDemoted()) return;
-      untracked(() => {
-        const mine = this.directorPeerId() === getMyPeerId();
-        if (this.canDirect() || (mine && this.rolePermission.canEditTabletop)) this.stage?.stopDirecting();
-      });
     });
   }
 

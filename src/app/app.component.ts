@@ -109,6 +109,7 @@ import { ImageDropEventHandlerService } from '@axe/features/tabletop/image-drop/
 import { InterruptPromptComponent } from '@axe/features/tabletop/interrupt-prompt/interrupt-prompt.component';
 import { MovePlanBandComponent } from '@axe/features/tabletop/move-plan-band/move-plan-band.component';
 import { MovePlanEventHandlerService } from '@axe/features/tabletop/table-move-range-overlay/move-plan-event-handler.service';
+import { VisualNovelEventHandlerService } from '@axe/features/visual-novel/visual-novel-event-handler.service';
 import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { VisualNovelOverlayComponent } from '@axe/features/visual-novel/visual-novel-overlay/visual-novel-overlay.component';
 import { VoteEventHandlerService } from '@axe/features/vote/vote-event-handler.service';
@@ -479,6 +480,7 @@ export class AppComponent {
     inject(ChatSoundEventHandlerService);
     inject(EffectChatEventHandlerService);
     inject(VoteEventHandlerService);
+    inject(VisualNovelEventHandlerService);
     inject(CutInEventHandlerService);
     inject(MixEventHandlerService);
     inject(NetworkEventHandlerService);
