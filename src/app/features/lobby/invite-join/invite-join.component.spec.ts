@@ -130,6 +130,9 @@ describe('InviteJoinComponent', () => {
       expect(findRoom).not.toHaveBeenCalled();
       const buttons = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
       expect(buttons.map((button) => button.textContent?.trim())).toEqual(['閉じる']);
+      const notice = (fixture.nativeElement as HTMLElement).querySelector('div')!;
+      expect(notice.classList).toContain('top-24');
+      expect(notice.classList.contains('top-3')).toBe(false);
     } finally {
       localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
     }
