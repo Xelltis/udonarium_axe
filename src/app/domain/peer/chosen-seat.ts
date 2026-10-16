@@ -13,3 +13,11 @@ import { canRoleEdit } from '@axe/domain/peer/peer-role';
 export function mayBeChosen(cursor: PeerCursor): boolean {
   return getAuthorityPeerId() === null || isAccountUserId(cursor.userId) || canRoleEdit(cursor.role);
 }
+
+/**
+ * Whether a seat is offered for a choice: one that may be chosen, or one among `chosen`, the user ids
+ * already chosen, so that it can be taken off again, as when its role was lowered after it was chosen.
+ */
+export function mayBeOffered(cursor: PeerCursor, chosen: readonly string[]): boolean {
+  return mayBeChosen(cursor) || chosen.includes(cursor.userId);
+}

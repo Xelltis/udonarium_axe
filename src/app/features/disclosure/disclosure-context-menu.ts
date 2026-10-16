@@ -9,7 +9,7 @@ import {
   normalizeDisclosureMode,
   toggleDisclosureUserId,
 } from '@axe/domain/disclosure/disclosure';
-import { mayBeChosen } from '@axe/domain/peer/chosen-seat';
+import { mayBeChosen, mayBeOffered } from '@axe/domain/peer/chosen-seat';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { TextNote } from '@axe/domain/tabletop/text-note';
@@ -48,20 +48,20 @@ export function noCandidatesKey(): string {
   return leftOut ? 'feature.disclosure.noLoggedInPlayers' : 'feature.disclosure.noPlayers';
 }
 
-function audienceCandidates(): DisclosureCandidate[] {
+function audienceCandidates(object: DisclosableObject): DisclosureCandidate[] {
   const result: DisclosureCandidate[] = [];
   for (const context of Network.peerContexts) {
     const cursor = PeerCursor.findByPeerId(context.peerId);
-    if (!cursor || cursor.isMine || cursor.isGameMaster || !mayBeChosen(cursor)) continue;
+    if (!cursor || cursor.isMine || cursor.isGameMaster || !mayBeOffered(cursor, object.disclosureUserIds)) continue;
     result.push({ userId: cursor.userId, name: candidateName(cursor) });
   }
   return result;
 }
 
 /**
- * Who the owner submenu offers: this user first, then every other connected user who may be chosen. A room server
- * lets anyone but the game master give a note, a die or a card nobody owns to themselves alone, so
- * there it offers only this user for those.
+ * Who the owner submenu offers: this user first, then every other connected user who may be chosen
+ * or owns the piece now. A room server lets anyone but the game master give a note, a die or a card
+ * nobody owns to themselves alone, so there it offers only this user for those.
  */
 function ownerCandidates(object: DisclosableObject): DisclosureCandidate[] {
   const result: DisclosureCandidate[] = [];
@@ -71,7 +71,7 @@ function ownerCandidates(object: DisclosableObject): DisclosureCandidate[] {
   if (narrowed && ownerRuledByServer(object)) return result;
   for (const context of Network.peerContexts) {
     const cursor = PeerCursor.findByPeerId(context.peerId);
-    if (!cursor || cursor.isMine || !mayBeChosen(cursor)) continue;
+    if (!cursor || cursor.isMine || !mayBeOffered(cursor, [object.owner ?? ''])) continue;
     result.push({ userId: cursor.userId, name: candidateName(cursor) });
   }
   return result;
@@ -103,7 +103,7 @@ export function buildDisclosureContextMenu(object: DisclosableObject, t: Transla
 
   if (canEdit) {
     const mode = normalizeDisclosureMode(object.disclosureMode);
-    const selectedSubActions: ContextMenuAction[] = audienceCandidates().map((peer) => ({
+    const selectedSubActions: ContextMenuAction[] = audienceCandidates(object).map((peer) => ({
       name: mark(object.disclosureUserIds.includes(peer.userId)) + peer.name,
       action: () => {
         object.disclosureUserIds = toggleDisclosureUserId(object.disclosureUserIds, peer.userId);

@@ -10,7 +10,7 @@ import {
   normalizeDisclosureMode,
   toggleDisclosureUserId,
 } from '@axe/domain/disclosure/disclosure';
-import { mayBeChosen } from '@axe/domain/peer/chosen-seat';
+import { mayBeOffered } from '@axe/domain/peer/chosen-seat';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole, roleBadgeClass, roleShortLabelKey } from '@axe/domain/peer/peer-role';
 import { ownerRuledByServer } from '@axe/domain/tabletop/withheld';
@@ -90,7 +90,7 @@ export class DisclosureControlComponent {
 
   /**
    * The users the owner menu offers: this user first, then every other connected user who may be
-   * chosen, each named by their cursor or a short id.
+   * chosen or owns the object now, each named by their cursor or a short id.
    *
    * A room server lets anyone but the game master take a note or a die nobody owns for themselves
    * alone, and a card only for themselves or nobody, so there it offers only this user for those,
@@ -110,7 +110,7 @@ export class DisclosureControlComponent {
     }
     for (const context of Network.peerContexts) {
       const cursor = PeerCursor.findByPeerId(context.peerId);
-      if (!cursor || cursor.isMine || !mayBeChosen(cursor)) continue;
+      if (!cursor || cursor.isMine || !mayBeOffered(cursor, [owner])) continue;
       candidates.push({ userId: cursor.userId, name: cursor.name || cursor.userId.slice(0, 6) });
     }
     return candidates;
@@ -166,13 +166,14 @@ export class DisclosureControlComponent {
 
   /**
    * The connected players who can be picked for the selected audience, leaving out this user, game
-   * masters, who see everything anyway, and those who may not be chosen.
+   * masters, who see everything anyway, and those who may not be chosen unless already chosen.
    */
   audienceCandidates(): AudienceCandidate[] {
     const candidates: AudienceCandidate[] = [];
+    const chosen = this.object().disclosureUserIds;
     for (const context of Network.peerContexts) {
       const cursor = PeerCursor.findByPeerId(context.peerId);
-      if (!cursor || cursor.isMine || cursor.isGameMaster || !mayBeChosen(cursor)) continue;
+      if (!cursor || cursor.isMine || cursor.isGameMaster || !mayBeOffered(cursor, chosen)) continue;
       candidates.push({ userId: cursor.userId, name: cursor.name || cursor.userId.slice(0, 6), role: cursor.role });
     }
     return candidates;

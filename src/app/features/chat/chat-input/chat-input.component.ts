@@ -544,12 +544,14 @@ export class ChatInputComponent {
     return PeerCursor.myCursor;
   }
   /**
-   * Every peer cursor in the room offered as whisper targets: this seat's own, and every other that
-   * may be chosen, which on a room server leaves out a seat not logged in, as whoever names itself
-   * the same would be handed the whisper.
+   * Every peer cursor in the room offered as whisper targets: this seat's own, the one whispered to
+   * now, so that it can be put back, and every other that may be chosen, which on a room server
+   * leaves out a seat not logged in, as whoever names itself the same would be handed the whisper.
    */
   get otherPeers(): PeerCursor[] {
-    return this.objectStore.getObjects(PeerCursor).filter((peer) => peer === this.myPeer || mayBeChosen(peer));
+    return this.objectStore
+      .getObjects(PeerCursor)
+      .filter((peer) => peer === this.myPeer || peer.identifier === this.sendTo || mayBeChosen(peer));
   }
 
   private calcFitHeightInterval: ReturnType<typeof setTimeout> | null = null;

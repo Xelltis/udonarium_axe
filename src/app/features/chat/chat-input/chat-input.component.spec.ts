@@ -184,6 +184,20 @@ describe('ChatInputComponent', () => {
       }
     });
 
+    it('keeps offering on a room server the seat already whispered to, so that it can be put back to everyone', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const guest = new PeerCursor();
+      guest.initialize();
+      guest.userId = 'old-account';
+      guest.role = PeerRole.Guest;
+      try {
+        component.sendTo = guest.identifier;
+        expect(component.otherPeers).toContain(guest);
+      } finally {
+        guest.destroy();
+      }
+    });
+
     it('offers among peers every seat', () => {
       vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
       const guest = new PeerCursor();

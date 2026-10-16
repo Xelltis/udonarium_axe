@@ -101,6 +101,30 @@ describe('DisclosureControlComponent', () => {
     expect(fixture.componentInstance.audienceCandidates()).toEqual([]);
   });
 
+  it('keeps offering a seat not logged in that is already chosen, so that it can be taken off', () => {
+    vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({
+      userId: 'old-account',
+      name: 'o',
+      role: PeerRole.Guest,
+      isMine: false,
+      isGameMaster: false,
+    } as PeerCursor);
+    const character = GameCharacter.create('ヒロ', 1, '');
+    character.owner = 'old-account';
+    character.disclosureUserIds = ['old-account'];
+    made.push(character);
+    const fixture = TestBed.createComponent(DisclosureControlComponent);
+    fixture.componentRef.setInput('object', character);
+
+    expect(fixture.componentInstance.ownerCandidates().map((candidate) => candidate.userId)).toEqual([
+      'p1',
+      'old-account',
+    ]);
+    expect(fixture.componentInstance.audienceCandidates().map((candidate) => candidate.userId)).toEqual([
+      'old-account',
+    ]);
+  });
+
   it('offers on a room server a player whose account is from before ids had their prefix, as only a login gives that role', () => {
     vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({
       userId: 'old-account',
