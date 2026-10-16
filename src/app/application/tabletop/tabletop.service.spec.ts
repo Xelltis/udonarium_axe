@@ -6,6 +6,8 @@ import { emitXmlLoaded } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { xml2element } from '@axe/core/util/xml-util';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -49,6 +51,38 @@ describe('TabletopService', () => {
 
       const [character] = ObjectStore.instance.getObjects(GameCharacter);
       expect(character.partyIdentifier).toBe('');
+    });
+  });
+
+  describe('a chat tab brought in from a file', () => {
+    afterEach(() => {
+      for (const tab of ObjectStore.instance.getObjects(ChatTab)) tab.destroy();
+      ObjectStore.instance.clearDeleteHistory();
+      vi.restoreAllMocks();
+    });
+
+    const saved = '<chat-tab identifier="tab-saved" name="冒険"><chat identifier="line-saved">x</chat></chat-tab>';
+
+    it('comes in as a copy under names of its own beside a tab here under the names it was saved with', () => {
+      TestBed.inject(TabletopService);
+      const here = ChatTabList.instance.addChatTab('冒険', 'tab-saved');
+
+      emitXmlLoaded({ xmlElement: xml2element(saved)! });
+
+      const tabs = ObjectStore.instance.getObjects(ChatTab).filter((tab) => tab.name === '冒険');
+      expect(tabs).toHaveLength(2);
+      expect(tabs.find((tab) => tab !== here)?.identifier).not.toBe('tab-saved');
+      expect(ObjectStore.instance.get('tab-saved')).toBe(here);
+    });
+
+    it('says the tab and its lines are coming back under their names when none is here', () => {
+      TestBed.inject(TabletopService);
+      const announce = vi.spyOn(ObjectStore.instance, 'announceComingBack');
+
+      emitXmlLoaded({ xmlElement: xml2element(saved)! });
+
+      expect(announce).toHaveBeenCalledWith(['tab-saved', 'line-saved']);
+      expect(ObjectStore.instance.get('tab-saved')).toBeInstanceOf(ChatTab);
     });
   });
 

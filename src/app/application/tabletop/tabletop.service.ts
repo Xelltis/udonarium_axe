@@ -237,6 +237,7 @@ export class TabletopService {
     }, this.destroyRef);
     this.objectChange.xmlLoaded$.subscribe((event) => {
       const xmlElement: Element = event.xmlElement;
+      if (xmlElement.tagName === 'chat-tab') this.takeUpSavedNames(xmlElement);
 
       const gameObject = this.objectSerializer.parseXml(xmlElement);
 
@@ -270,6 +271,22 @@ export class TabletopService {
         }
       }
     }, this.destroyRef);
+  }
+
+  /**
+   * Lets a chat tab read from a file keep the names it and its lines were saved under, when nothing
+   * here goes by them, saying first that they are coming back, as a room server, or a seat that saw
+   * them deleted, would delete them again. Beside a tab or a line here under any of those names, it
+   * comes in as a copy under names of its own, as two under one name would be one to the room.
+   */
+  private takeUpSavedNames(element: Element): void {
+    const named = [element, ...Array.from(element.querySelectorAll('[identifier]'))];
+    const names = named.map((node) => node.getAttribute('identifier') ?? '').filter((name) => name.length > 0);
+    if (names.some((name) => this.objectStore.get(name))) {
+      for (const node of named) node.removeAttribute('identifier');
+      return;
+    }
+    this.objectStore.announceComingBack(names);
   }
 
   private findCache(aliasName: string): TabletopCache<TabletopObject> | null {
