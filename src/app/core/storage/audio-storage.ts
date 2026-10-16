@@ -30,13 +30,6 @@ export class AudioStorage {
   private readonly uploading = new Set<string>();
   /** Uploads that failed for now, tried again a few times while the seat stays in the room. */
   private readonly uploadRetries = new AssetRetries();
-  /** Uploads asked for again while they were still going, to try once more should they run out of time. */
-  private readonly askedAgain = new Set<string>();
-  /**
-   * Uploads, by room and identifier, already tried once more after running out of time, so that a
-   * line dropping again and again does not send the same bytes without end.
-   */
-  private readonly retriedAfterTimeOut = new Set<string>();
 
   /** Every audio this seat knows of, including placeholders whose bytes have not arrived. */
   get audios(): AudioFile[] {
@@ -104,10 +97,7 @@ export class AudioStorage {
    */
   uploadAllToAssetStore(): void {
     this.uploadRetries.clear();
-    for (const audio of this.audios) {
-      if (this.uploading.has(audio.identifier)) this.askedAgain.add(audio.identifier);
-      else this.uploadToAssetStore(audio);
-    }
+    for (const audio of this.audios) this.uploadToAssetStore(audio);
   }
 
   /**
@@ -132,17 +122,8 @@ export class AudioStorage {
       .upload(identifier, blob, audio.name)
       .then((result) => {
         const roomKey = Network.roomKey;
-        // One asked for again while it was going, as on coming back into the room, may have been cut
-        // off by the line that dropped rather than by its size, and is tried once more in the room.
-        const askedAgain = this.askedAgain.delete(identifier);
-        const retryKey = `${roomKey}:${identifier}`;
-        const retryTimedOut = askedAgain && result === 'timedOut' && !this.retriedAfterTimeOut.has(retryKey);
-        if (retryTimedOut) this.retriedAfterTimeOut.add(retryKey);
-        if (result === 'failed' || retryTimedOut) {
-          this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey));
-        } else {
-          this.uploadRetries.forget(identifier);
-        }
+        if (result === 'failed') this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey));
+        else this.uploadRetries.forget(identifier);
       })
       .finally(() => {
         this.uploading.delete(identifier);

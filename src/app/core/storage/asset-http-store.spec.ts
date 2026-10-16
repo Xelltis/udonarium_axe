@@ -12,6 +12,7 @@ const urlOf = (assetId: string, room = ROOM) => `${BASE}/v1/rooms/${room}/assets
 describe('AssetHttpStore', () => {
   const store = AssetHttpStore.instance;
   const originalDelay = store.delay;
+  const originalSendBytes = store.sendBytes;
   let id: string;
   let fetchSpy: MockInstance<typeof fetch>;
   let access: AssetAccess | null;
@@ -22,6 +23,8 @@ describe('AssetHttpStore', () => {
     store.configure(BASE);
     store.useAccess(() => access);
     store.delay = vi.fn(() => Promise.resolve());
+    // The bytes go up through XMLHttpRequest, which the specs of its own cover; here they go by fetch.
+    store.sendBytes = (url, body, headers) => fetch(url, { method: 'PUT', body, headers });
     fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 
@@ -29,6 +32,7 @@ describe('AssetHttpStore', () => {
     store.configure(null);
     store.useAccess(null);
     store.delay = originalDelay;
+    store.sendBytes = originalSendBytes;
     vi.restoreAllMocks();
   });
 
@@ -96,27 +100,6 @@ describe('AssetHttpStore', () => {
       expect(callsOf()).toEqual([['HEAD', urlOf(id)]]);
     });
 
-    it('gives no upload longer than three minutes, so one stuck on a quiet line lets the others go', async () => {
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-      fetchSpy.mockImplementation((_url, init) => {
-        if (init?.method === 'HEAD') return Promise.resolve(new Response(null, { status: 404 }));
-        return new Promise<Response>((_resolve, reject) =>
-          init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
-        );
-      });
-      try {
-        let result: string | null = null;
-        void store.upload(id, new Blob([new Uint8Array(64 * 200_000)])).then((r) => (result = r));
-
-        await vi.advanceTimersByTimeAsync(179_000);
-        expect(result).toBeNull();
-        await vi.advanceTimersByTimeAsync(2_000);
-        expect(result).toBe('timedOut');
-      } finally {
-        vi.useRealTimers();
-      }
-    });
-
     it('fails for now, rather than running out of time, when asking whether the room has the bytes is cut off', async () => {
       fetchSpy.mockRejectedValueOnce(new DOMException('aborted', 'AbortError'));
 
@@ -132,28 +115,6 @@ describe('AssetHttpStore', () => {
         expect(callsOf()).toEqual([['HEAD', urlOf(id)]]);
       }
     );
-
-    it('gives a big upload longer than a minute, and says when it ran out of the time it was given', async () => {
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-      fetchSpy.mockImplementation((_url, init) => {
-        if (init?.method === 'HEAD') return Promise.resolve(new Response(null, { status: 404 }));
-        return new Promise<Response>((_resolve, reject) =>
-          init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
-        );
-      });
-      try {
-        let result: string | null = null;
-        void store.upload(id, new Blob([new Uint8Array(64 * 30_000)])).then((r) => (result = r));
-
-        // A minute, and as long again for the bytes, sent at half the floor while two uploads share it.
-        await vi.advanceTimersByTimeAsync(119_000);
-        expect(result).toBeNull();
-        await vi.advanceTimersByTimeAsync(2_000);
-        expect(result).toBe('timedOut');
-      } finally {
-        vi.useRealTimers();
-      }
-    });
 
     it.each([400, 403, 413, 415, 451])('gives up for good on %i', async (status) => {
       respond(new Response(null, { status: 404 }), new Response('{}', { status }));
