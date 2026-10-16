@@ -82,6 +82,24 @@
     "id": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
     "status": "exists"
   },
+  "uploadTicketRequest": {
+    "size": 6291456,
+    "name": "theme.ogg"
+  },
+  "uploadTicket": {
+    "ticket": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.sig",
+    "upload": {
+      "url": "https://vercel.com/api/blob/?pathname=uploads%2F0123456789abcdef0123456789abcdef%2F9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08%2Fn&vercel-blob-signature=sig",
+      "method": "PUT",
+      "headers": {
+        "x-vercel-blob-access": "private"
+      },
+      "expiresAt": 1792000600000
+    }
+  },
+  "uploadComplete": {
+    "ticket": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.sig"
+  },
   "error": {
     "error": "room-not-found"
   }

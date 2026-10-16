@@ -44,6 +44,13 @@ export const INVITE_SECONDS = 30 * 24 * 60 * 60;
 
 /** The WebSocket close code the server closes with after an error message. */
 export const CLOSE_CODE = 4000;
+/**
+ * The close code a room server asks a seat to come back on another link with (Service Restart): every
+ * few minutes on a host that keeps a link only so long (`rotate`), and when the room moves to another
+ * of its instances (`moved`). No error message comes before it.
+ */
+export const COME_BACK_CODE = 1012;
+export const COME_BACK_REASONS: readonly string[] = ['rotate', 'moved'];
 
 /** An event between clients. The server reads only the sync events and passes the rest on untouched. */
 export interface EventContext {
@@ -151,6 +158,19 @@ export interface WelcomeMessage {
   assetToken: string;
   /** When the asset token runs out, in Unix milliseconds; ask for another before then. */
   assetTokenExpiresAt: number;
+  /**
+   * How the room server takes pictures and sounds, from one whose requests carry only so much. Without
+   * it, a single PUT takes each kind up to its limit.
+   */
+  assetUpload?: AssetUploadPolicy;
+}
+
+/** How a room server whose requests carry only so much takes the room's pictures and sounds. */
+export interface AssetUploadPolicy {
+  /** The most bytes a single PUT takes; anything bigger is turned away as a PUT. */
+  maxPutBytes: number;
+  /** Whether anything bigger may be put up straight to the store, through a ticket. */
+  directUpload: boolean;
 }
 
 export interface JoinMessage {
@@ -398,6 +418,26 @@ export interface RoomAssetListResponse {
   assets: RoomAsset[];
 }
 
+/**
+ * Where to send bytes straight to the store: the bytes alone, with this method and these headers and
+ * never the asset token, before `expiresAt` in Unix milliseconds.
+ */
+export interface DirectUploadTarget {
+  url: string;
+  method: 'PUT';
+  headers: Record<string, string>;
+  expiresAt: number;
+}
+
+/**
+ * The answer to POST /v1/rooms/:roomKey/assets/:sha256/uploads: where to put the bytes, and the ticket
+ * to hand POST …/uploads/complete once they are up.
+ */
+export interface UploadTicketResponse {
+  ticket: string;
+  upload: DirectUploadTarget;
+}
+
 /** GET /v1/auth/config: the login providers; none means the Worker has neither login nor rooms. */
 export interface AuthConfigResponse {
   providers: string[];
@@ -515,6 +555,27 @@ export function readServerMessage(value: unknown): ServerMessage | null {
     default:
       return null;
   }
+}
+
+/** The way the welcome says pictures and sounds go up, or null for a single PUT or a shape it has not. */
+export function readAssetUploadPolicy(value: unknown): AssetUploadPolicy | null {
+  return isRecord(value) && typeof value['maxPutBytes'] === 'number' && typeof value['directUpload'] === 'boolean'
+    ? { maxPutBytes: value['maxPutBytes'], directUpload: value['directUpload'] }
+    : null;
+}
+
+/** The upload ticket the server answered with, or null when it is not one. */
+export function readUploadTicket(value: unknown): UploadTicketResponse | null {
+  if (!isRecord(value) || typeof value['ticket'] !== 'string' || !isRecord(value['upload'])) return null;
+  const upload = value['upload'];
+  const headers = upload['headers'];
+  return typeof upload['url'] === 'string' &&
+    upload['method'] === 'PUT' &&
+    isRecord(headers) &&
+    Object.values(headers).every((header) => typeof header === 'string') &&
+    typeof upload['expiresAt'] === 'number'
+    ? (value as unknown as UploadTicketResponse)
+    : null;
 }
 
 /** The room's asset list the server answered with, or null when it is not one. */

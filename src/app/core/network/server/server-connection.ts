@@ -14,10 +14,13 @@ import { decodeFrame, encodeFrame, encodeSendFrames } from '@axe/core/network/se
 import {
   ACCOUNT_USER_ID_PREFIX,
   assetTokenRequest,
+  AssetUploadPolicy,
   authMessage,
   AuthorityEvent,
   ClientMessage,
   CLOSE_CODE,
+  COME_BACK_CODE,
+  COME_BACK_REASONS,
   CreateRoomResponse,
   DataMessage,
   EventContext,
@@ -27,6 +30,7 @@ import {
   isRetryableError,
   Member,
   PING,
+  readAssetUploadPolicy,
   readServerMessage,
   ServerMessage,
   ServerRole,
@@ -157,6 +161,8 @@ export class ServerConnection implements Connection {
   private invite = '';
   /** The token for the room's pictures and sounds, and when it runs out. */
   private assetToken: { token: string; expiresAt: number } | null = null;
+  /** How the room server takes pictures and sounds, from the welcome; none for a single PUT. */
+  private assetUpload: AssetUploadPolicy | null = null;
   /** Whether a fresh asset token has been asked for and has not come yet. */
   private assetTokenAsked = false;
   private assetTokenTimer: ReturnType<typeof setInterval> | null = null;
@@ -175,6 +181,13 @@ export class ServerConnection implements Connection {
   private socket: WebSocket | null = null;
   private welcomed = false;
   private everWelcomed = false;
+  /** Whether the server closed the link asking the seat to come back on another. */
+  private askedBack = false;
+  /**
+   * Whether the seat is coming back on a new link the server asked for, with nobody told it went.
+   * Should that link fail, they are told then, and the seat gets back in as after any dropped link.
+   */
+  private comingBack = false;
   private stopped = false;
   private refusal: string | null = null;
   private readonly reconnectScheduler = new PeerReconnectScheduler();
@@ -420,6 +433,7 @@ export class ServerConnection implements Connection {
       if (socket !== this.socket) return;
       // The reason repeats the error message's code, should the close overtake the message.
       if (this.refusal == null && event.code === CLOSE_CODE && event.reason) this.refusal = event.reason;
+      this.askedBack = event.code === COME_BACK_CODE && COME_BACK_REASONS.includes(event.reason);
       this.socketClosed();
     };
     socket.onerror = () => {
@@ -504,8 +518,11 @@ export class ServerConnection implements Connection {
 
   private welcome(message: WelcomeMessage): void {
     this.welcomed = true;
+    const cameBack = this.comingBack;
+    this.comingBack = false;
     this.role = message.role;
     this.clockOffset = message.serverTime - Date.now();
+    this.assetUpload = readAssetUploadPolicy(message.assetUpload);
     // Taken before anybody hears the seat is in, so that what they do then may reach the room's
     // pictures and sounds already.
     this.takeAssetToken(message.assetToken, message.assetTokenExpiresAt);
@@ -519,7 +536,7 @@ export class ServerConnection implements Connection {
     this.authority = authority;
     this.me.isOpen = true;
     if (this.everWelcomed) {
-      this.callback.onReconnect?.(this.me, 'recovered');
+      if (!cameBack) this.callback.onReconnect?.(this.me, 'recovered');
     } else {
       this.everWelcomed = true;
       this.callback.onOpen?.(this.me);
@@ -546,7 +563,9 @@ export class ServerConnection implements Connection {
   /** The room's pictures and sounds as this seat may reach them: the room and the token, while in it. */
   get assetAccess(): AssetAccess | null {
     if (!this.welcomed || !this.room || !this.assetToken) return null;
-    return { roomKey: this.room.roomKey, token: this.assetToken.token };
+    const access: AssetAccess = { roomKey: this.room.roomKey, token: this.assetToken.token };
+    if (this.assetUpload) access.upload = this.assetUpload;
+    return access;
   }
 
   /**
@@ -675,6 +694,8 @@ export class ServerConnection implements Connection {
 
   private socketClosed(): void {
     const wasWelcomed = this.welcomed;
+    const askedBack = this.askedBack;
+    this.askedBack = false;
     this.socket = null;
     this.welcomed = false;
     this.stopPing();
@@ -683,7 +704,16 @@ export class ServerConnection implements Connection {
     // What was still gathering to go out goes with the link, but for the requests kept for later.
     this.keepRequests(this.outbound);
     this.dropQueued();
-    if (wasWelcomed && this.authority) {
+    // The server asked the seat back on another link. It comes straight back, and nobody is told it
+    // went: the welcome sets the members right.
+    if (askedBack && wasWelcomed && !this.stopped && this.refusal == null) {
+      this.comingBack = true;
+      this.connectSocket();
+      return;
+    }
+    const wasComingBack = this.comingBack;
+    this.comingBack = false;
+    if ((wasWelcomed || wasComingBack) && this.authority) {
       this.authority.isOpen = false;
       this.callback.onDisconnect?.(this.authority);
     }
