@@ -23,6 +23,10 @@ export class Network {
   static get isOpen(): boolean {
     return Network.instance.isOpen;
   }
+  /** The room the network was last asked to open, at once as it is asked; empty once asked to wait outside any. */
+  static get requestedRoomId(): string {
+    return Network.instance.requestedRoomId;
+  }
   /** This device's peer id, or the placeholder '???' before a session exists. */
   static get peerId(): string {
     return Network.instance.peerId;
@@ -175,6 +179,16 @@ export class Network {
   private config: Record<string, unknown> = {};
   private credentialSource: ServerCredentialSource | null = null;
   private pendingInvite: { invite: string; roomKey: string } | null = null;
+  private _requestedRoomId = '';
+
+  /**
+   * The room the network was last asked to open, set as it is asked, before the session going is
+   * closed or the new one has a peer id; empty once asked to wait outside any. A join still waiting
+   * on another room tells by it that the seat has moved on, which the peer id says only later.
+   */
+  get requestedRoomId(): string {
+    return this._requestedRoomId;
+  }
   private connectionClassPromise: Promise<ConnectionClass> | null = null;
   private connectionClass!: ConnectionClass;
   private connection: Connection | null = null;
@@ -238,6 +252,7 @@ export class Network {
   }
 
   open(userId: string, roomId: string, roomName: string, password: string, roomKey?: string): void {
+    this._requestedRoomId = roomId;
     if (this.connectionClassPromise != null) {
       Logger.warn('[Network] 既に接続済みです');
       this.close();
@@ -251,6 +266,7 @@ export class Network {
   }
 
   openStandby(userId?: string): void {
+    this._requestedRoomId = '';
     if (this.connectionClassPromise != null) {
       Logger.warn('[Network] 既に接続済みです');
       this.close();

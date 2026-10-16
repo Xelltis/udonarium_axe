@@ -337,6 +337,7 @@ describe('RoomJoinService', () => {
       roomOpens();
       livePeerId = 'myseatzzzroomname-';
       vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'user', isRoom: true } as PeerContext);
+      vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('zzz');
       PeerCursor.myCursor.role = PeerRole.GameMaster;
       saveIdentity({ userId: 'user', roomId: 'zzz', roomName: 'made', role: PeerRole.GameMaster, reConnectPass: '' });
 
@@ -344,6 +345,21 @@ describe('RoomJoinService', () => {
 
       await expect(joined).resolves.toBe(false);
       expect(loadIdentity()).toEqual(expect.objectContaining({ roomId: 'zzz', role: PeerRole.GameMaster }));
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
+    });
+
+    it('leaves a room asked for meanwhile alone, its peer id still to come, and takes nothing back', async () => {
+      saveIdentity({ userId: 'user', roomId: 'xyz', roomName: 'mine', role: PeerRole.Player, reConnectPass: '' });
+      PeerCursor.myCursor = { peerId: '', role: PeerRole.Player } as PeerCursor;
+      const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
+      roomOpens();
+      vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('zzz');
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+
+      stubChange.peerDisconnect$.emit({ peerId: 'peer-1' });
+
+      await expect(joined).resolves.toBe(false);
+      expect(Network.openStandby).not.toHaveBeenCalled();
       expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
     });
 
@@ -416,6 +432,15 @@ describe('RoomJoinService', () => {
       vi.useRealTimers();
     });
 
+    it('ends at once on an error opening the room heard after the handling of it went back to waiting', async () => {
+      const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
+      livePeerId = 'standbypeer';
+
+      stubChange.networkError$.emit({ peerId: MY_PEER, errorType: 'disconnect', errorMessage: '' });
+
+      await expect(joined).resolves.toBe(false);
+    });
+
     it('ends at once on an error opening the room, but not on one from another connection', async () => {
       const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
       let settled = false;
@@ -424,7 +449,7 @@ describe('RoomJoinService', () => {
       livePeerId = MY_PEER;
 
       stubChange.networkError$.emit({ peerId: 'standbypeer', errorType: 'disconnect', errorMessage: '' });
-      stubChange.networkError$.emit({ peerId: 'otherpabcroomname-', errorType: 'disconnect', errorMessage: '' });
+      stubChange.networkError$.emit({ peerId: 'otherpxyzroomname-', errorType: 'disconnect', errorMessage: '' });
       await Promise.resolve();
       expect(settled).toBe(false);
 

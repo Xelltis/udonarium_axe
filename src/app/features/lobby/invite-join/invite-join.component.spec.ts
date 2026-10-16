@@ -143,8 +143,7 @@ describe('InviteJoinComponent', () => {
 
   it('leaves the role of a room the seat went into meanwhile when it cannot get in', async () => {
     join.mockImplementation(async () => {
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'u', isRoom: true } as never);
-      vi.spyOn(Network, 'peerId', 'get').mockReturnValue('myseatzzzroomname-');
+      vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('zzz');
       PeerCursor.myCursor.role = PeerRole.GameMaster;
       return false;
     });

@@ -140,6 +140,24 @@ describe('Network', () => {
     });
   });
 
+  describe('the room asked for', () => {
+    it('names the room asked for at once, before the session going is closed, and none once asked to wait', () => {
+      const instance = Network.instance as unknown as Record<string, unknown>;
+      instance['openAsync'] = vi.fn();
+      instance['connectionClassPromise'] = Promise.resolve();
+      const askedWhenClosing: string[] = [];
+      instance['close'] = vi.fn(() => askedWhenClosing.push(Network.requestedRoomId));
+
+      expect(Network.requestedRoomId).toBe('');
+      Network.open('user', 'abc', 'room', '');
+      expect(Network.requestedRoomId).toBe('abc');
+      expect(askedWhenClosing).toEqual(['abc']);
+
+      Network.openStandby('user');
+      expect(Network.requestedRoomId).toBe('');
+    });
+  });
+
   describe('the unload handlers', () => {
     it('carries an unload handler', () => {
       const instance = Network.instance as unknown as Record<string, unknown>;

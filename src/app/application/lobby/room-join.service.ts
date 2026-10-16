@@ -25,11 +25,13 @@ export function wasLastIn(roomId: string): boolean {
 }
 
 /**
- * Whether the network has moved into a room other than this one, as one made or joined while a
- * join to this one waited: anything but waiting outside, or this room itself.
+ * Whether the network has been asked into a room other than this one, as one made or joined while
+ * a join to this one waited: anything but waiting outside, or this room itself. It goes by the room
+ * asked for, as the room's own peer id comes only once it is opening.
  */
 export function isInAnotherRoom(roomId: string): boolean {
-  return !!Network.peerContext?.isRoom && PeerContext.parse(Network.peerId).roomId !== roomId;
+  const requested = Network.requestedRoomId;
+  return requested !== '' && requested !== roomId;
 }
 
 /** Whether this tab was last in this room as its game master. */
@@ -219,9 +221,15 @@ export class RoomJoinService {
         }
       }, this.destroyRef);
 
+      // Before the room opens, an error under this room's id, or under none, is this join's even once
+      // the handling of network errors has gone back to waiting, as there is nobody else in it yet.
       const offError = this.objectChange.networkError$.subscribe((event) => {
-        if (isOpened || (event.peerId && !isOwnConnectionTo(context.roomId, event.peerId))) return;
-        settle(false);
+        if (isOpened || isInAnotherRoom(context.roomId)) return;
+        const ours =
+          !event.peerId ||
+          event.peerId === UNOPENED_PEER_ID ||
+          PeerContext.parse(event.peerId).roomId === context.roomId;
+        if (ours) settle(false);
       }, this.destroyRef);
 
       const onTried = (event: { peerId: string }): void => {
@@ -248,7 +256,7 @@ export class RoomJoinService {
    */
   private resetNetwork(roomId: string, userId: string, stopUnopened = false): void {
     const unopened = stopUnopened && Network.peerId === UNOPENED_PEER_ID;
-    if (Network.peerContexts.length > 0) return;
+    if (Network.peerContexts.length > 0 || isInAnotherRoom(roomId)) return;
     if (!unopened && PeerContext.parse(Network.peerId).roomId !== roomId) return;
     Network.openStandby(userId);
     PeerCursor.myCursor.peerId = Network.peerId;
