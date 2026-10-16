@@ -253,7 +253,6 @@ export class ImageStorage {
       this.lastTries.set(identifier, null);
       if (!this.gaveUp.has(identifier)) return;
       this.gaveUp.delete(identifier);
-      this.uploadRetries.forget(identifier);
       this.retryUpload(identifier, roomKey);
     }, ASSET_LAST_TRY_DELAY_MS);
     this.lastTries.set(identifier, timer);

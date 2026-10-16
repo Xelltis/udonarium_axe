@@ -240,9 +240,9 @@ describe('AudioStorage', () => {
       expect(upload).toHaveBeenCalledTimes(4);
 
       await vi.advanceTimersByTimeAsync(ASSET_LAST_TRY_DELAY_MS + ASSET_RETRY_DELAY_MS * 8);
-      expect(upload).toHaveBeenCalledTimes(8);
+      expect(upload).toHaveBeenCalledTimes(5);
       await vi.advanceTimersByTimeAsync((ASSET_LAST_TRY_DELAY_MS + ASSET_RETRY_DELAY_MS * 8) * 3);
-      expect(upload).toHaveBeenCalledTimes(8);
+      expect(upload).toHaveBeenCalledTimes(5);
       expect(storage.hasUploadsPending).toBe(true);
     });
 
