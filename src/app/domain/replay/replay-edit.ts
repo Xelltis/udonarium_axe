@@ -218,19 +218,32 @@ interface Said {
  * there is none does the line take the fraction between its neighbours. A dice result or a resource
  * notice stays the moment or two after the line it answers, as that moment is what ties the two,
  * while it follows that line in the list and either of them moved; one moved above its line goes
- * its own way. A message made again later in the list, as one taken back and given back, is said
- * when its first making now is. Every other line keeps its moment.
+ * its own way, as does one whose line moved away below it, or one in `untied` whose line is gone,
+ * said where it ties to no other line. A message made again later in the list, as one taken back
+ * and given back, is said when its first making now is. Every other line keeps its moment.
  */
-function withChatMoments(events: readonly ReplayEvent[], moved: ReadonlySet<number>): ReplayEvent[] {
+function withChatMoments(
+  events: readonly ReplayEvent[],
+  moved: ReadonlySet<number>,
+  untied: ReadonlySet<number> = new Set()
+): ReplayEvent[] {
   const lines = chatLinesOf(events);
   const followed = (seq: number): boolean => {
     const line = lines.get(seq);
     const answered = line?.answers ? lines.get(line.answers.seq) : undefined;
     return !!answered && answered.index < line!.index;
   };
+  const leftBehind = new Set(untied);
+  for (const [seq, line] of lines) {
+    if (line.answers && moved.has(line.answers.seq) && !followed(seq)) leftBehind.add(seq);
+  }
+  for (const seq of leftBehind) {
+    const line = lines.get(seq);
+    if (line) line.answers = null;
+  }
   const retold = new Set<number>();
   for (const [seq, line] of lines) {
-    if (moved.has(seq) || (followed(seq) && moved.has(line.answers!.seq))) retold.add(seq);
+    if (moved.has(seq) || leftBehind.has(seq) || (followed(seq) && moved.has(line.answers!.seq))) retold.add(seq);
   }
   if (retold.size < 1) return [...events];
 
@@ -450,15 +463,24 @@ export function textOf(event: ReplayEvent): string {
   return String(event.detail[key] ?? '');
 }
 
-/** Takes the event with the given sequence number out of the list and restamps the offsets. */
+/** Takes the event with the given sequence number out of the list and restamps the offsets, as removeReplayEvents does. */
 export function removeReplayEvent(events: readonly ReplayEvent[], seq: number): ReplayEvent[] {
-  return restampReplayTimes(events.filter((event) => event.seq !== seq));
+  return removeReplayEvents(events, new Set([seq]));
 }
 
-/** Takes every event with one of these sequence numbers out of the list and restamps the offsets once. */
+/**
+ * Takes every event with one of these sequence numbers out of the list and restamps the offsets
+ * once. A dice result or a notice whose line is taken out is said afresh where it ties to no other
+ * line of the speaker, as its moment would otherwise tie it to one said a moment or two before.
+ */
 export function removeReplayEvents(events: readonly ReplayEvent[], seqs: ReadonlySet<number>): ReplayEvent[] {
   if (seqs.size < 1) return [...events];
-  return restampReplayTimes(events.filter((event) => !seqs.has(event.seq)));
+  const orphans = new Set<number>();
+  for (const [seq, line] of chatLinesOf(events)) {
+    if (line.answers && seqs.has(line.answers.seq) && !seqs.has(seq)) orphans.add(seq);
+  }
+  const kept = events.filter((event) => !seqs.has(event.seq));
+  return restampReplayTimes(orphans.size > 0 ? withChatMoments(kept, orphans, orphans) : kept);
 }
 
 /**

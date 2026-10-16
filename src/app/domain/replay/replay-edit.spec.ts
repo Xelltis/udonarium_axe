@@ -726,6 +726,40 @@ describe('chat moments that follow a new place', () => {
       expect(momentOf(bySeq(back, 4))).toBe(100002);
     });
 
+    it('ties a result left behind by its roll to no other line of the speaker', () => {
+      const events = [
+        minor(by('dave', 9, 900000), 0.5),
+        minor(by('alice', 1, 1000000), 0.4),
+        minor(by('bob', 2, 1030000), 0.6),
+        minor(by('alice', 3, 1060000, '2d6'), 0.5),
+        minor(result(4, 40, 1060001), 0.3),
+        minor(by('carol', 5, 1090000), 0.7),
+      ];
+
+      const together = stepReplayEvents(events, new Set([3, 4]), -1);
+      const apart = moveReplayEvent(together, 3, 1);
+      const moved = moveReplayEvent(apart, 1, -1);
+
+      expect(apart.map((event) => event.seq)).toEqual([9, 1, 4, 3, 2, 5]);
+      expect(momentOf(bySeq(moved, 4))).toBe(momentOf(bySeq(apart, 4)));
+    });
+
+    it('ties a result whose roll was deleted to no other line of the speaker', () => {
+      const events = [
+        minor(by('dave', 9, 900000), 0.5),
+        minor(by('alice', 1, 1000000), 0.4),
+        minor(by('alice', 3, 1000001, '2d6'), 0.5),
+        minor(result(4, 40, 1000002), 0.3),
+        minor(by('carol', 5, 1090000), 0.7),
+      ];
+
+      const left = removeReplayEvent(events, 3);
+      const moved = moveReplayEvent(left, 1, -1);
+
+      expect(moved.map((event) => event.seq)).toEqual([1, 9, 4, 5]);
+      expect(momentOf(bySeq(moved, 4))).toBe(momentOf(bySeq(left, 4)));
+    });
+
     it('keeps a result moved on its own with its roll, never handing it to a line moved beside the roll', () => {
       const events = [
         minor(by('alice', 1, 95000), 0.3),
