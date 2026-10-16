@@ -8,6 +8,7 @@ import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { PeerReconnectState } from '@axe/core/network/connection';
 import { Network } from '@axe/core/network/network';
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
@@ -220,22 +221,30 @@ export class NetworkEventHandlerService {
       ['PeerCursor'],
       (event) => {
         const myCursor = PeerCursor.myCursor;
-        if (!myCursor || event.identifier !== myCursor.identifier) return;
-        const peer = Network.peerContext;
-        if (!peer?.isRoom) return;
-        saveIdentity({
-          userId: peer.userId,
-          roomId: peer.roomId,
-          roomName: peer.roomName,
-          role: myCursor.role,
-          reConnectPass: myCursor.reConnectPass,
-          roomKey: Network.roomKey ?? '',
-          guestUserId: guestUserIdAfter(peer.userId, loadIdentity(), this.accountUserId()),
-          accountUserId: this.accountUserId(),
-        });
+        if (myCursor && event.identifier === myCursor.identifier) this.rememberSeat(myCursor);
       },
       this.destroyRef
     );
+  }
+
+  /**
+   * Writes down this seat as it stands in the room, its role with it, so a reload comes back as it.
+   * Nothing is written outside a room, nor while a replay's board is on the table, cut off from the
+   * room, where the seat's cursor wears what it had in the recording.
+   */
+  private rememberSeat(myCursor: PeerCursor): void {
+    const peer = Network.peerContext;
+    if (!peer?.isRoom || isNetworkIsolated()) return;
+    saveIdentity({
+      userId: peer.userId,
+      roomId: peer.roomId,
+      roomName: peer.roomName,
+      role: myCursor.role,
+      reConnectPass: myCursor.reConnectPass,
+      roomKey: Network.roomKey ?? '',
+      guestUserId: guestUserIdAfter(peer.userId, loadIdentity(), this.accountUserId()),
+      accountUserId: this.accountUserId(),
+    });
   }
 
   /**

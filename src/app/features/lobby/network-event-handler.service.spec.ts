@@ -12,6 +12,7 @@ import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { Network } from '@axe/core/network/network';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { Account } from '@axe/core/network/server/server-protocol';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
@@ -128,6 +129,31 @@ describe('NetworkEventHandlerService', () => {
     expect(loadIdentity()).toEqual(
       expect.objectContaining({ roomId: 'abc', role: PeerRole.Player, roomRole: PeerRole.GameMaster })
     );
+  });
+
+  it('writes down nothing of the seat while a replay’s board is on the table, cut off from the room', () => {
+    PeerCursor.myCursor = new PeerCursor();
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    saveIdentity({ userId: 'u', roomId: 'abc', roomName: 'room', role: PeerRole.Player, reConnectPass: '' });
+    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({
+      peerId: 'p',
+      userId: 'u',
+      roomId: 'abc',
+      roomName: 'room',
+      isRoom: true,
+    } as never);
+    const handler = TestBed.inject(NetworkEventHandlerService) as unknown as { rememberSeat(cursor: PeerCursor): void };
+
+    setNetworkIsolated(true);
+    try {
+      handler.rememberSeat(PeerCursor.myCursor);
+    } finally {
+      setNetworkIsolated(false);
+    }
+    expect(loadIdentity()?.role).toBe(PeerRole.Player);
+
+    handler.rememberSeat(PeerCursor.myCursor);
+    expect(loadIdentity()?.role).toBe(PeerRole.GameMaster);
   });
 
   it('writes down the room a connection opens into', () => {
