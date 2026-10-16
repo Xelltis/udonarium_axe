@@ -240,7 +240,8 @@ export class LobbyComponent {
       }
       // A room this seat came into while the password was asked for would go along into this one.
       if (Network.peerContext.isRoom) return;
-      if (room.hasPassword) this.myPeer.reConnectPass = password;
+      // Kept for reconnecting, a room without a key keeping none, so another room's is not carried in.
+      this.myPeer.reConnectPass = password;
 
       isJoinStarted = true;
       void this.roomJoin

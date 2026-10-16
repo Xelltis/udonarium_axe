@@ -153,6 +153,27 @@ describe('ReConnectComponent', () => {
       expect(send).not.toHaveBeenCalled();
     });
 
+    it('hands a room without a key no password, one kept from another room included', async () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(component, 'myPeer', 'get').mockReturnValue({ reConnectPass: 'other-room' } as PeerCursor);
+      const roomJoin = TestBed.inject(RoomJoinService);
+      const join = vi.spyOn(roomJoin, 'joinServerRoom').mockResolvedValue(false);
+      const open = { id: 'Ab3', name: '月夜の卓', roomKey: 'k', hasPassword: false } as IRoomInfo;
+      const locked = { ...open, hasPassword: true } as IRoomInfo;
+      const find = vi.spyOn(roomJoin, 'findServerRoom').mockResolvedValueOnce(open).mockResolvedValueOnce(locked);
+      component.roomId = 'Ab3';
+      component.roomName = '月夜の卓';
+      vi.spyOn(component, 'disConnect').mockImplementation(() => undefined);
+
+      component.reConnect();
+      await vi.waitFor(() => expect(join).toHaveBeenCalledTimes(1));
+      component.reConnect();
+      await vi.waitFor(() => expect(join).toHaveBeenCalledTimes(2));
+
+      expect(find).toHaveBeenCalledTimes(2);
+      expect(join.mock.calls.map(([, password]) => password)).toEqual(['', 'other-room']);
+    });
+
     it('takes nothing away until it has found the room to get back into', async () => {
       vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
       vi.spyOn(component, 'myPeer', 'get').mockReturnValue({ reConnectPass: '' } as PeerCursor);

@@ -296,6 +296,16 @@ describe('LobbyComponent', () => {
       expect(openModal.mock.calls[0][1]).toMatchObject({ checkedByServer: true });
     });
 
+    it('keeps no password for reconnecting to a room without a key, one kept from another dropped', async () => {
+      PeerCursor.myCursor.reConnectPass = 'other-room';
+      vi.spyOn(TestBed.inject(RoomJoinService), 'joinServerRoom').mockResolvedValue(false);
+      const open = { ...room, hasPassword: false } as IRoomInfo;
+
+      await component.connectRoom({ alias: '', roomName: open.name, info: open, peerContexts: [] });
+
+      expect(PeerCursor.myCursor.reConnectPass).toBe('');
+    });
+
     it('joins nothing when the password dialogue is dismissed', async () => {
       vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue(null);
       const joinServerRoom = vi.spyOn(TestBed.inject(RoomJoinService), 'joinServerRoom');

@@ -147,7 +147,9 @@ export class ReConnectComponent {
       Logger.warn('[Network] reconnecting with force-cleanup enabled');
       this.deleteObject();
     }
-    if (await this.roomJoin.joinServerRoom(room, this.myPeer.reConnectPass ?? '')) this.modalService.resolve();
+    // A room without a key takes none; one kept from another room would become this one's own.
+    const password = room.hasPassword ? (this.myPeer.reConnectPass ?? '') : '';
+    if (await this.roomJoin.joinServerRoom(room, password)) this.modalService.resolve();
   }
 
   /** Fetches the open rooms a reconnect looks its room up in; a failed fetch leaves the list empty. */
