@@ -84,6 +84,7 @@ describe('buildDisclosureContextMenu', () => {
     vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({
       userId: 'guest-tab',
       name: 'g',
+      role: PeerRole.Guest,
       isMine: false,
       isGameMaster: false,
     } as PeerCursor);

@@ -88,6 +88,7 @@ describe('DisclosureControlComponent', () => {
     vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({
       userId: 'guest-tab',
       name: 'g',
+      role: PeerRole.Guest,
       isMine: false,
       isGameMaster: false,
     } as PeerCursor);
@@ -98,5 +99,27 @@ describe('DisclosureControlComponent', () => {
 
     expect(fixture.componentInstance.ownerCandidates().map((candidate) => candidate.userId)).toEqual(['p1']);
     expect(fixture.componentInstance.audienceCandidates()).toEqual([]);
+  });
+
+  it('offers on a room server a player whose account is from before ids had their prefix, as only a login gives that role', () => {
+    vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({
+      userId: 'old-account',
+      name: 'o',
+      role: PeerRole.Player,
+      isMine: false,
+      isGameMaster: false,
+    } as PeerCursor);
+    const character = GameCharacter.create('ヒロ', 1, '');
+    made.push(character);
+    const fixture = TestBed.createComponent(DisclosureControlComponent);
+    fixture.componentRef.setInput('object', character);
+
+    expect(fixture.componentInstance.ownerCandidates().map((candidate) => candidate.userId)).toEqual([
+      'p1',
+      'old-account',
+    ]);
+    expect(fixture.componentInstance.audienceCandidates().map((candidate) => candidate.userId)).toEqual([
+      'old-account',
+    ]);
   });
 });
