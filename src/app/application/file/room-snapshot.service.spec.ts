@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { RoomSnapshotService } from '@axe/application/file/room-snapshot.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import {
   RoomSnapshotInput,
@@ -83,6 +84,18 @@ describe('RoomSnapshotService', () => {
     expect(meta).not.toBeNull();
     expect(service.snapshots()).toHaveLength(1);
     expect(service.latest?.byteSize).toBe(3);
+  });
+
+  it('takes nothing while a replay’s board is on the table, cut off from the room, however it is asked for', async () => {
+    setNetworkIsolated(true);
+    try {
+      expect(await service.capture()).toBeNull();
+      expect(await service.capture({ background: true })).toBeNull();
+    } finally {
+      setNetworkIsolated(false);
+    }
+
+    expect(store.records).toHaveLength(0);
   });
 
   it('tells the save whether it is taken in the background, which asks for no reload', async () => {

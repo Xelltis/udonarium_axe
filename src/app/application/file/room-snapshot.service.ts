@@ -2,6 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { RoomSnapshotMeta, RoomSnapshotStore, selectExpiredSnapshots } from '@axe/core/storage/room-snapshot-store';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -70,13 +71,14 @@ export class RoomSnapshotService {
   /**
    * Saves the room as it stands into this browser as a new snapshot, then removes the expired ones.
    *
-   * Answers null where snapshots are unsupported, while a capture is already running, or when the
-   * save fails, which is logged. How long it took lands in `lastCaptureMs` either way. One taken in
+   * Answers null where snapshots are unsupported, while a capture is already running, while a replay's
+   * board is on the table, cut off from the room, which is not the table, or when the save fails,
+   * which is logged. How long it took lands in `lastCaptureMs` either way. One taken in
    * the `background` asks for no reload should the code for zips be missing; one the reader asked
    * for does.
    */
   async capture(options: { background?: boolean } = {}): Promise<RoomSnapshotMeta | null> {
-    if (!this.isSupported || this._isCapturing()) return null;
+    if (!this.isSupported || this._isCapturing() || isNetworkIsolated()) return null;
     const running = this.takeSnapshot(options);
     this.running = running;
     try {

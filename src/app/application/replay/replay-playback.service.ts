@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, InjectionToken, signal } from '@angular/core';
 import { readKeyframeBytes } from '@axe/application/replay/replay-keyframe-bytes';
 import { ReplayLibraryService } from '@axe/application/replay/replay-library.service';
 import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
@@ -52,6 +52,12 @@ export interface ReplayRouteTrail {
   progress: number;
 }
 
+/**
+ * Takes what is still due of the table's automatic save, before a replay's board is shown in its
+ * place: nothing is saved while the board is, and a reload or a leave meanwhile would lose it.
+ */
+export const BEFORE_BOARD_MODE = new InjectionToken<() => Promise<void>>('BEFORE_BOARD_MODE');
+
 export const REPLAY_AUTO_PLAY_BASE_MS = 1_200;
 export const REPLAY_AUTO_PLAY_MAX_MS = 4_000;
 export const REPLAY_AUTO_PLAY_CUT_IN_MS = 5_000;
@@ -67,6 +73,7 @@ export class ReplayPlaybackService {
   private readonly objectSynchronizer = inject(ObjectSynchronizer);
   private readonly staging = inject(ReplayStagingService);
   private readonly motion = inject(MotionService);
+  private readonly beforeBoardMode = inject(BEFORE_BOARD_MODE, { optional: true });
 
   private readonly _recordingId = signal<number | null>(null);
   private readonly _manifest = signal<ReplayManifest | null>(null);
@@ -107,6 +114,7 @@ export class ReplayPlaybackService {
   private appliedBoard: { index: number; snapshots: readonly ReplayObjectSnapshot[] } | null = null;
   private autoPlayTimer: ReturnType<typeof setTimeout> | null = null;
   private seekToken = 0;
+  private isEnteringBoardMode = false;
   private slideFrame: number | null = null;
   private slideEndsAt = 0;
   /** Sets the piece sliding now down where it is going, for a slide stopped before it gets there. */
@@ -244,9 +252,19 @@ export class ReplayPlaybackService {
    * Replays the recording on the table itself, from the current event.
    *
    * The live table is kept aside and this reader is cut off from the room while it runs, so nothing
-   * shown reaches the other peers. Answers false when already replaying or nothing is open.
+   * shown reaches the other peers. What is due of the table's automatic save is taken first. Answers
+   * false when already replaying or on the way to, or when nothing is open.
    */
   async enterBoardMode(): Promise<boolean> {
+    if (this._isBoardMode() || this.isEnteringBoardMode || !this.isOpen()) return false;
+    this.isEnteringBoardMode = true;
+    try {
+      await this.beforeBoardMode?.();
+    } catch (reason) {
+      Logger.warn('[ReplayPlayback] 盤面を映す前の保存に失敗しました', reason);
+    } finally {
+      this.isEnteringBoardMode = false;
+    }
     if (this._isBoardMode() || !this.isOpen()) return false;
     this.savedBoard = this.snapshotBoard();
     this.savedVersions = new Map(
@@ -264,7 +282,9 @@ export class ReplayPlaybackService {
   /**
    * Puts the live table back, rejoins the room and asks the peers for everything that changed meanwhile.
    * A board still being worked out is dropped, and the table comes back at the versions it had, so
-   * what a peer changed meanwhile is what the room keeps.
+   * what a peer changed meanwhile is what the room keeps. The notices of what putting the table back
+   * changed go out before it rejoins the room, as part of the replay, which nothing saves or records,
+   * rather than as changes made to the table.
    */
   async exitBoardMode(): Promise<void> {
     if (!this._isBoardMode()) return;
@@ -285,11 +305,12 @@ export class ReplayPlaybackService {
       this.appliedBoard = null;
       this.objectStore.replaceDeleteHistory(this.savedDeleteHistory ?? new Map());
       this.savedDeleteHistory = null;
-      setNetworkIsolated(false);
-      this.objectSynchronizer.requestFullSync();
-      ImageStorage.instance.synchronize();
-      AudioStorage.instance.synchronize();
     }
+    await Promise.resolve();
+    setNetworkIsolated(false);
+    this.objectSynchronizer.requestFullSync();
+    ImageStorage.instance.synchronize();
+    AudioStorage.instance.synchronize();
   }
 
   /**

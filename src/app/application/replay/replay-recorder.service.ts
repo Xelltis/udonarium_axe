@@ -553,7 +553,7 @@ export class ReplayRecorderService {
 
     if (!force) {
       await this.whenIdle();
-      if (this.recordingId !== id) return;
+      if (this.recordingId !== id || isNetworkIsolated()) return;
       if (this.pointerDevice.isDragging) {
         this.retryKeyframeLater();
         return;

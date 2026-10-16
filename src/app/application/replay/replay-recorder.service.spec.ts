@@ -667,6 +667,26 @@ describe('ReplayRecorderService', () => {
     expect(store.keyframes).toHaveLength(2);
   });
 
+  it('writes no board down when playback takes the table while it waits for a quiet moment', async () => {
+    await service.start();
+    vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+    sendUpdate('c1', 'character', { posZ: 10 });
+    let quiet: () => void = () => {};
+    vi.stubGlobal('requestIdleCallback', (callback: () => void) => (quiet = callback));
+
+    try {
+      const taking = (service as unknown as { captureKeyframe(force: boolean): Promise<void> }).captureKeyframe(false);
+      setNetworkIsolated(true);
+      quiet();
+      await taking;
+    } finally {
+      vi.unstubAllGlobals();
+      setNetworkIsolated(false);
+    }
+
+    expect(store.keyframes).toHaveLength(1);
+  });
+
   it('records outside a room', async () => {
     expect(await service.start()).toBe(true);
     expect(service.roomName()).toBe('');

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ReplayLibraryService } from '@axe/application/replay/replay-library.service';
 import {
+  BEFORE_BOARD_MODE,
   REPLAY_AUTO_PLAY_BASE_MS,
   REPLAY_AUTO_PLAY_MAX_MS,
   REPLAY_SLIDE_MAX_MS,
@@ -15,6 +16,7 @@ import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { LoopPlayer } from '@axe/core/storage/loop-player';
+import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -554,6 +556,46 @@ describe('ReplayPlaybackService', () => {
 
     expect(service.routeTrail()).toBeNull();
     expect(characterX()).toBe(30);
+  });
+
+  it('takes what is due of the table’s automatic save before cutting the table off for the board', async () => {
+    const isolatedWhenSaved: boolean[] = [];
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        ...TEST_PROVIDERS,
+        { provide: ReplayLibraryService, useValue: library },
+        { provide: BEFORE_BOARD_MODE, useValue: async () => void isolatedWhenSaved.push(isNetworkIsolated()) },
+      ],
+    });
+    objectStore = TestBed.inject(ObjectStore);
+    vi.spyOn(TestBed.inject(ObjectSynchronizer), 'requestFullSync').mockReturnValue(0);
+    service = TestBed.inject(ReplayPlaybackService);
+
+    await service.open(1);
+    expect(await service.enterBoardMode()).toBe(true);
+
+    expect(isolatedWhenSaved).toEqual([false]);
+  });
+
+  it('tells of what putting the table back changed while still cut off, as no change made to the table', async () => {
+    const character = new GameCharacter('live-1');
+    character.location.x = 555;
+    objectStore.add(character, false);
+    await service.open(1);
+    await service.enterBoardMode();
+    const isolatedWhenTold: boolean[] = [];
+    const off = objectChanged$.subscribe(() => isolatedWhenTold.push(isNetworkIsolated()));
+
+    try {
+      await service.exitBoardMode();
+    } finally {
+      off();
+    }
+
+    expect(isolatedWhenTold.length).toBeGreaterThan(0);
+    expect(isolatedWhenTold.every((isolated) => isolated)).toBe(true);
+    expect(isNetworkIsolated()).toBe(false);
   });
 
   it('puts the table back on leaving board playback', async () => {
