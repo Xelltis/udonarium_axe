@@ -24,7 +24,7 @@ import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
-import { clearOwnership } from '@axe/domain/tabletop/ownership';
+import { clearOwnership, forgetChosenViewers } from '@axe/domain/tabletop/ownership';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -143,6 +143,7 @@ export class Room extends GameObject implements InnerXml {
       if (ObjectStore.instance.getObjects(EffectPreset).length < 1) createDefaultEffectPresets();
       if (ObjectStore.instance.getObjects(CutIn).length < 1) createDefaultCutIns(ImageStorage.instance);
       clearOwnership(ObjectStore.instance.getObjects());
+      forgetChosenViewers(ObjectStore.instance.getObjects());
     }
   }
 
