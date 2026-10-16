@@ -152,6 +152,15 @@ export class GameObject {
   }
 
   /**
+   * Puts the change count past the given one, for an object made again under a name whose last
+   * holder had been through more changes, so a copy of that one held elsewhere loses to this.
+   * Nothing is sent.
+   */
+  outrank(majorVersion: number) {
+    if (this.context.majorVersion <= majorVersion) this.context.majorVersion = majorVersion + 1;
+  }
+
+  /**
    * Takes on a received context, replacing the version and all of the sync data.
    *
    * A null context or one for another identifier is ignored. Versions are not compared here, that is

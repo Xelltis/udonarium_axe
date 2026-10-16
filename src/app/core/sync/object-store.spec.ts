@@ -98,6 +98,46 @@ describe('ObjectStore', () => {
       expect(store.add(new GameObject('fixed-id-2'), false)).toBeNull();
     });
 
+    it('makes what is made again here under a deleted name go past the one deleted, so a copy held elsewhere loses', () => {
+      const old = new GameObject('remade-id');
+      store.add(old, false);
+      for (let i = 0; i < 3; i++) old.update();
+      store.delete(old);
+
+      const remade = new GameObject('remade-id');
+      const update = vi.spyOn(store, 'update');
+      store.add(remade);
+
+      expect(remade.version).toBeGreaterThan(old.version);
+      expect(update).toHaveBeenCalledWith(expect.objectContaining({ identifier: 'remade-id', majorVersion: 4 }));
+    });
+
+    it('makes what a load brings back under a name just taken away go past the one taken away', () => {
+      const old = new GameObject('loaded-id');
+      store.add(old, false);
+      for (let i = 0; i < 5; i++) old.update();
+      store.delete(old);
+      store.announceComingBack(['loaded-id']);
+
+      const loaded = new GameObject('loaded-id');
+      store.add(loaded);
+
+      expect(loaded.version).toBeGreaterThan(old.version);
+    });
+
+    it('takes what arrives from elsewhere under a name deleted here at the version it came with', () => {
+      const old = new GameObject('arrived-id');
+      store.add(old, false);
+      for (let i = 0; i < 5; i++) old.update();
+      store.delete(old, false);
+      store.forgetDeleted(['arrived-id']);
+
+      const arrived = new GameObject('arrived-id');
+      store.add(arrived, false);
+
+      expect(arrived.majorVersion).toBe(0);
+    });
+
     it('should broadcast update when shouldBroadcast is true', () => {
       vi.spyOn(store, 'update');
       const obj = new GameObject('test-id-5');

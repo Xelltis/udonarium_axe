@@ -276,6 +276,33 @@ describe('ChatTabList', () => {
       }
     });
 
+    it('gives the tabs and lines a load brings back under the names just taken away a version past theirs', () => {
+      const reloadCheck = new ReloadCheck('ReloadCheck');
+      reloadCheck.initialize();
+      reloadCheck.reloadCheckStart(false);
+      const main = ChatTabList.instance.addChatTab('メインタブ', 'MainTab');
+      ChatTabList.instance.ensureSystemTab();
+      const line = ObjectSerializer.instance.parseXml(
+        '<chat identifier="line-1" from="u" name="n" timestamp="5">hello</chat>'
+      )!;
+      main.appendChild(line as ChatTab['children'][number]);
+      for (let i = 0; i < 5; i++) {
+        main.name = `メインタブ${i}`;
+        line.update();
+      }
+      const tabBefore = main.version;
+      const lineBefore = line.version;
+
+      ObjectSerializer.instance.parseXml(
+        '<chat-tab-list _systemMessageTabIndex="0"><chat-tab identifier="MainTab" name="Main">' +
+          '<chat identifier="line-1" from="u" name="n" timestamp="5">hello</chat></chat-tab></chat-tab-list>'
+      );
+
+      expect(store.get('MainTab')).not.toBe(main);
+      expect(store.get('MainTab')!.version).toBeGreaterThan(tabBefore);
+      expect(store.get('line-1')!.version).toBeGreaterThan(lineBefore);
+    });
+
     it('leaves a tab of the room named like the system tab alone, as only old room data carried that one', () => {
       const reloadCheck = new ReloadCheck('ReloadCheck');
       reloadCheck.initialize();

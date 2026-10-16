@@ -24,6 +24,8 @@ export class ObjectStore {
   private identifierMap: Map<ObjectIdentifier, GameObject> = new Map();
   private aliasNameMap: Map<ObjectAliasName, Map<ObjectIdentifier, GameObject>> = new Map();
   private garbageMap: Map<ObjectIdentifier, TimeStamp> = new Map();
+  /** The change count of each object when it was deleted, for what is made again under its name to go past. */
+  private deletedVersions: Map<ObjectIdentifier, number> = new Map();
   private garbageSweepCooldown: ReturnType<typeof setTimeout> | null = null;
 
   private readonly localChanges: Map<string, number> = new Map();
@@ -38,6 +40,8 @@ export class ObjectStore {
    * beforeLifecycle runs once the object can be looked up and before onStoreAdded; received sync
    * data is applied there. An object that takes itself out again in onStoreAdded, as a holder of
    * loaded data does, is not sent, as nobody else, a room server included, has a use for it.
+   * Made here under the name of one deleted, it goes past that one's version, as a seat that was
+   * away may still hold it and would otherwise win with it.
    */
   add(object: GameObject, shouldBroadcast: boolean = true, beforeLifecycle?: () => void): GameObject | null {
     if (this.get(object.identifier) != null) return null;
@@ -45,6 +49,11 @@ export class ObjectStore {
       // Something deleted is not resurrected from elsewhere; rebuilding it here is the rebuilder's call.
       if (!shouldBroadcast) return null;
       this.garbageMap.delete(object.identifier);
+    }
+    const deletedVersion = this.deletedVersions.get(object.identifier);
+    if (deletedVersion !== undefined) {
+      this.deletedVersions.delete(object.identifier);
+      if (shouldBroadcast) object.outrank(deletedVersion);
     }
     this.identifierMap.set(object.identifier, object);
     let objectsMap = this.aliasNameMap.get(object.aliasName);
@@ -89,6 +98,7 @@ export class ObjectStore {
     const identifier = typeof arg === 'string' ? arg : arg.identifier;
     const object = typeof arg === 'string' ? this.get(arg) : arg;
     this.markForDelete(identifier);
+    if (object != null) this.rememberVersion(identifier, object.majorVersion);
     if (object == null || this.remove(object) === null) return null;
     if (shouldBroadcast)
       networkSend('DELETE_GAME_OBJECT', { aliasName: object.aliasName, identifier: object.identifier });
@@ -98,6 +108,15 @@ export class ObjectStore {
   private markForDelete(identifier: string) {
     this.garbageMap.set(identifier, performance.now());
     this.sweepGarbage();
+  }
+
+  private rememberVersion(identifier: string, majorVersion: number) {
+    const known = this.deletedVersions.get(identifier) ?? -1;
+    this.deletedVersions.delete(identifier);
+    this.deletedVersions.set(identifier, Math.max(known, majorVersion));
+    if (this.deletedVersions.size > GARBAGE_MAP_LIMIT) {
+      this.deletedVersions.delete(this.deletedVersions.keys().next().value!);
+    }
   }
 
   /**
@@ -188,6 +207,7 @@ export class ObjectStore {
   /** Forgets all deletions so those identifiers may be added again, as on joining or reconnecting. */
   clearDeleteHistory() {
     this.garbageMap.clear();
+    this.deletedVersions.clear();
   }
 
   /**
