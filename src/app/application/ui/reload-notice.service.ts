@@ -21,7 +21,8 @@ export class ReloadNoticeService {
 
   /**
    * Asks the reader to reload the page, the first time. While that question is open nothing more is
-   * said; once it was put off, the bottom of the screen says it again.
+   * said; once it was answered, the bottom of the screen says it again, as for a reload the browser
+   * was then told to hold back.
    */
   tellReloadNeeded(): void {
     if (this.asked === 'asking') return;
@@ -40,8 +41,8 @@ export class ReloadNoticeService {
         cancelLabel: this.t('common.dialog.later'),
       })
       .then((reload) => {
+        this.asked = 'put-off';
         if (reload) this.reload();
-        else this.asked = 'put-off';
       });
   }
 

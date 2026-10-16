@@ -92,6 +92,18 @@ describe('ReloadNoticeService', () => {
     await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
   });
 
+  it('says it again at the bottom of the screen when a reload the reader asked for did not happen', async () => {
+    ask.mockResolvedValue(true);
+    const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+    service.tellReloadNeeded();
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+
+    service.tellReloadNeeded();
+
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(show).toHaveBeenCalledTimes(1);
+  });
+
   it('asks when a loader it watches cannot fetch, and still rejects', async () => {
     const failure = new TypeError('Failed to fetch dynamically imported module');
     const load = service.noticingFailure(() => Promise.reject(failure));
