@@ -99,6 +99,7 @@ export class VoteMenuComponent {
    * answers are hidden until it closes.
    */
   send() {
+    if (PeerCursor.isMyselfKeptOffTable) return;
     const vote = this.vote;
     let voteTitle: string;
     let choicesInput: string = this.voteContentsText.replace(/\s*$/i, '').replace(/^\s*/i, '');

@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { Network } from '@axe/core/network/network';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { Vote } from '@axe/domain/vote/vote';
 import { VoteMenuComponent } from '@axe/features/vote/vote-menu/vote-menu.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
@@ -73,6 +75,19 @@ describe('VoteMenuComponent', () => {
       component.onChangeType('vote');
       expect(component.isRollCall).toBe(false);
     });
+  });
+
+  it('calls no vote for a guest on a room server, which would take it back and leave its announcement', () => {
+    const vote = { makeVote: vi.fn(), startVote: vi.fn() };
+    vi.spyOn(component, 'vote', 'get').mockReturnValue(vote as unknown as Vote);
+    const said = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageAsLastSpeaker');
+    PeerCursor.myCursor = { peerId: 'my-peer-id', role: PeerRole.Guest } as unknown as PeerCursor;
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+
+    component.send();
+
+    expect(vote.makeVote).not.toHaveBeenCalled();
+    expect(said).not.toHaveBeenCalled();
   });
 
   describe('hiding the answers until the vote closes', () => {

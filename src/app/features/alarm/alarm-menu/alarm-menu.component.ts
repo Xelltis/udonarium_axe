@@ -109,6 +109,7 @@ export class AlarmMenuComponent {
    * everyone when every peer and the local one are included.
    */
   send() {
+    if (PeerCursor.isMyselfKeptOffTable) return;
     this.changeAlarmTime();
 
     const alarm = this.alarm;

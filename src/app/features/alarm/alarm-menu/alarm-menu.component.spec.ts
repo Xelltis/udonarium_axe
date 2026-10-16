@@ -1,5 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { Network } from '@axe/core/network/network';
+import { Alarm } from '@axe/domain/alarm/alarm';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { AlarmMenuComponent } from '@axe/features/alarm/alarm-menu/alarm-menu.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -30,6 +34,24 @@ describe('AlarmMenuComponent', () => {
         PeerCursor.createMyCursor();
       },
     });
+  });
+
+  it('sets no alarm for a guest on a room server, which would take it back and leave its announcement', () => {
+    const alarm = { makeAlarm: vi.fn(), startAlarm: vi.fn() };
+    vi.spyOn(component, 'alarm', 'get').mockReturnValue(alarm as unknown as Alarm);
+    const said = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageAsLastSpeaker');
+    const original = PeerCursor.myCursor;
+    PeerCursor.myCursor = { peerId: 'my-peer-id', role: PeerRole.Guest } as unknown as PeerCursor;
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    try {
+      component.send();
+
+      expect(alarm.makeAlarm).not.toHaveBeenCalled();
+      expect(said).not.toHaveBeenCalled();
+    } finally {
+      PeerCursor.myCursor = original;
+      vi.restoreAllMocks();
+    }
   });
 
   describe('keeping track of who is picked', () => {

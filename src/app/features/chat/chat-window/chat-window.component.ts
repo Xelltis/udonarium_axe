@@ -321,6 +321,15 @@ export class ChatWindowComponent {
     return tabs.filter((tab) => canRoleViewTab(tab, role));
   });
 
+  /**
+   * Whether this reader may call a vote or set an alarm: not as a guest on a room server, which
+   * would take the vote or the alarm back and leave only its announcement standing.
+   */
+  readonly mayCallVoteOrAlarm = computed(() => {
+    this.objectChange.trackMyCursor();
+    return !PeerCursor.isMyselfKeptOffTable;
+  });
+
   readonly canSpeakCurrentTab = computed(() => {
     const tab = this.chatTab();
     if (!tab) return false;
