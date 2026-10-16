@@ -3289,6 +3289,7 @@
         "passwordPlaceholder": "No password",
         "passwordTooLong": "Password must be 12 characters or less.",
         "create": "Create room",
+        "notConnected": "Not connected to the server yet. You can create a room once it connects.",
         "notice": "Rooms are dismissed once all members leave. Save the room data if you want to continue later.",
         "noticeServer": "Rooms stay on the room server for a while after the last member leaves, then are removed. Save the room data if you want to keep it yourself.",
         "alreadyConnected": "You cannot create a room while connected to other peers.",

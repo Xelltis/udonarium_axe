@@ -33,6 +33,14 @@ export class RoomSettingComponent {
   /** Why the room server would not create the room, shown in the dialog; empty until it refuses. */
   readonly createError = signal('');
   readonly isCreating = signal(false);
+  /**
+   * Whether a SkyWay room cannot be made yet, the connection it would be opened through not being
+   * open: a room opened then fails on its token and is gone with nothing said.
+   */
+  protected readonly waitingForConnection = computed(() => {
+    this.objectChange.networkVersion();
+    return Network.transport !== 'server' && !Network.isOpen;
+  });
 
   /** This browser's peer ID on the network. */
   get peerId(): string {
@@ -71,6 +79,7 @@ export class RoomSettingComponent {
    * this browser so it can find its way back after a reload.
    */
   createRoom() {
+    if (this.waitingForConnection()) return;
     if (Network.transport === 'server') {
       void this.createServerRoom();
       return;

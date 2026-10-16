@@ -65,6 +65,7 @@ describe('RoomSettingComponent', () => {
     PeerCursor.createMyCursor();
     PeerCursor.myCursor.role = PeerRole.Guest;
     vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'user', isRoom: false } as PeerContext);
+    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(true);
     vi.spyOn(Network, 'open').mockImplementation(() => {});
     component.roomName.set('月夜の卓');
 
@@ -74,6 +75,23 @@ describe('RoomSettingComponent', () => {
     expect(loadIdentity()?.roomRole).toBe(PeerRole.GameMaster);
     clearIdentity();
     PeerCursor.myCursor = null!;
+    vi.restoreAllMocks();
+  });
+
+  it('makes no SkyWay room before the connection it is opened through is, and says so', () => {
+    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
+    const open = vi.spyOn(Network, 'open').mockImplementation(() => {});
+    component.roomName.set('月夜の卓');
+    fixture.detectChanges();
+
+    component.createRoom();
+
+    const create = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '[data-testid="room-setting-create"]'
+    );
+    expect(open).not.toHaveBeenCalled();
+    expect(create?.disabled).toBe(true);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('まだサーバーにつながっていません');
     vi.restoreAllMocks();
   });
 
