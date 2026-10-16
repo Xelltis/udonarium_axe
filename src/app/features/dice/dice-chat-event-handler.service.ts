@@ -63,7 +63,8 @@ export class DiceChatEventHandlerService {
       const source = this.objectStore.get<ChatMessage>(event.sourceMessageIdentifier);
       const result = this.objectStore.get<ChatMessage>(event.resultMessageIdentifier);
       if (!(source instanceof ChatMessage) || !(result instanceof ChatMessage)) return;
-      if (!source.isSendFromSelf) return;
+      // A guest on a room server writes no die; the server would put each face back.
+      if (!source.isSendFromSelf || PeerCursor.isMyselfKeptOffTable) return;
 
       const token = parseDiceChatToken(source.text);
       const rolls = result.rollDetail?.faces ?? [];

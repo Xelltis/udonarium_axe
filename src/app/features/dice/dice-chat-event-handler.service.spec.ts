@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { diceBotUnreachable$, emitDiceRolled, serverRollUnanswered$ } from '@axe/core/event/domain-events';
+import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { PeerSessionGrade } from '@axe/core/network/peer-session-state';
@@ -12,6 +13,7 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { DiceChatEventHandlerService } from '@axe/features/dice/dice-chat-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -159,6 +161,21 @@ describe('DiceChatEventHandlerService', () => {
     roll('2d6 dice:だれか', [{ sides: 6, value: 4 }]);
 
     expect(dice.face).toBe(before);
+  });
+
+  it('turns nothing for a guest on a room server, which would take each face back', () => {
+    const goblin = makeCharacter('ゴブリンA');
+    const dice = makeDice(goblin);
+    const before = dice.face;
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    try {
+      roll('2d6 dice:ゴブリンA', [{ sides: 6, value: 4 }]);
+
+      expect(dice.face).toBe(before);
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 
   it('turns nothing on a roll from somebody else', () => {
