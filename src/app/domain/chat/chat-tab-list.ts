@@ -207,17 +207,22 @@ export class ChatTabList extends ObjectNode implements InnerXml {
       ChatTabList.instance.apply(context);
       ChatTabList.instance.update();
 
+      const travelledSystemTab = Array.from(element.children).every((tab) => !tab.hasAttribute('identifier'));
       super.parseInnerXml.apply(ChatTabList.instance, [element]);
-      ChatTabList.instance.restoreSystemTab();
+      ChatTabList.instance.restoreSystemTab(travelledSystemTab);
       this.destroy();
     }
   }
 
-  /** The tidying after a load: room data written while the system tab still travelled has its notices gathered back into one. */
-  private restoreSystemTab(): void {
+  /**
+   * The tidying after a load: room data written while the system tab still travelled, `travelled`,
+   * has its notices gathered back into one. Its tabs carry no identifiers, which every tab has been
+   * saved with since, so a tab of the room that only shares the name is left alone.
+   */
+  private restoreSystemTab(travelled: boolean): void {
     const system = this.ensureSystemTab();
     for (const tab of [...this.chatTabs]) {
-      if (tab === system || tab.name !== SYSTEM_CHAT_TAB_NAME) continue;
+      if (!travelled || tab === system || tab.name !== SYSTEM_CHAT_TAB_NAME) continue;
       for (const message of [...tab.children]) system.appendChild(message);
       tab.destroy();
     }

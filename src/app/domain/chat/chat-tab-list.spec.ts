@@ -276,6 +276,24 @@ describe('ChatTabList', () => {
       }
     });
 
+    it('leaves a tab of the room named like the system tab alone, as only old room data carried that one', () => {
+      const reloadCheck = new ReloadCheck('ReloadCheck');
+      reloadCheck.initialize();
+      reloadCheck.reloadCheckStart(false);
+      ChatTabList.instance.ensureSystemTab();
+
+      ObjectSerializer.instance.parseXml(
+        '<chat-tab-list _systemMessageTabIndex="0">' +
+          `<chat-tab identifier="user-tab" name="${SYSTEM_CHAT_TAB_NAME}"><chat identifier="u-1" from="u">x</chat></chat-tab>` +
+          '</chat-tab-list>'
+      );
+
+      const kept = store.get<ChatTab>('user-tab');
+      expect(kept).toBeInstanceOf(ChatTab);
+      expect(kept!.chatMessages.map((message) => message.identifier)).toEqual(['u-1']);
+      expect(ChatTabList.instance.chatTabs.filter((tab) => tab.isSystemTab)).toHaveLength(1);
+    });
+
     it('survives the same room data being loaded twice over', () => {
       const reloadCheck = new ReloadCheck('ReloadCheck');
       reloadCheck.initialize();
