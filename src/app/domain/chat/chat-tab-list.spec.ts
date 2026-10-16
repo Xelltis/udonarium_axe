@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { Network } from '@axe/core/network/network';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -238,6 +239,41 @@ describe('ChatTabList', () => {
 
       expect(ChatTabList.instance.chatTabs.filter((tab) => tab.name === SYSTEM_CHAT_TAB_NAME)).toHaveLength(1);
       expect(ChatTabList.instance.systemMessageTab!.isSystemTab).toBe(true);
+    });
+
+    it('says the tabs and lines coming back under the names just taken away are coming back, before they come', () => {
+      const reloadCheck = new ReloadCheck('ReloadCheck');
+      reloadCheck.initialize();
+      reloadCheck.reloadCheckStart(false);
+      ChatTabList.instance.addChatTab('メインタブ', 'MainTab');
+      ChatTabList.instance.ensureSystemTab();
+      const internals = Network.instance as unknown as { connection: unknown; sendQueue(): void };
+      const send = vi.fn();
+      internals.connection = { send };
+      try {
+        internals.sendQueue();
+        send.mockClear();
+
+        ObjectSerializer.instance.parseXml(
+          '<chat-tab-list _systemMessageTabIndex="0"><chat-tab identifier="MainTab" name="Main">' +
+            '<chat identifier="line-1" from="u" name="n" timestamp="5">hello</chat></chat-tab></chat-tab-list>'
+        );
+        for (let i = 0; i < 5; i++) internals.sendQueue();
+
+        const events = send.mock.calls.flatMap(
+          (call) => call[0] as { eventName: string; data: { identifier?: string; identifiers?: string[] } }[]
+        );
+        const deleted = events.findIndex(
+          (e) => e.eventName === 'DELETE_GAME_OBJECT' && e.data.identifier === 'MainTab'
+        );
+        const told = events.findIndex((e) => e.eventName === 'FORGET_DELETED_OBJECTS');
+        const made = events.findIndex((e) => e.eventName === 'UPDATE_GAME_OBJECT' && e.data.identifier === 'MainTab');
+        expect(events[told]?.data.identifiers).toEqual(expect.arrayContaining(['MainTab', 'line-1']));
+        expect(deleted).toBeLessThan(told);
+        expect(told).toBeLessThan(made);
+      } finally {
+        internals.connection = null;
+      }
     });
 
     it('survives the same room data being loaded twice over', () => {

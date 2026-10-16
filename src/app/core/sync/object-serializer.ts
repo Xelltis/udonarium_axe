@@ -16,6 +16,18 @@ export interface InnerXml extends GameObject {
 
 const objectPropertyKeySet = new Set(Object.getOwnPropertyNames(Object.prototype));
 
+/** The identifiers that saved data names on everything in it. */
+export function identifiersIn(element: Element): string[] {
+  return Array.from(element.querySelectorAll('[identifier]'))
+    .map((child) => child.getAttribute('identifier') ?? '')
+    .filter((identifier) => identifier.length > 0);
+}
+
+/** The identifiers that saved data, as written out, names on itself and on everything in it. */
+export function identifiersInXml(xml: string): string[] {
+  return Array.from(xml.matchAll(/\sidentifier="([^"]+)"/g), (match) => match[1]);
+}
+
 export class ObjectSerializer {
   private static _instance: ObjectSerializer;
   /** The serializer shared by the whole app, created on first use. */

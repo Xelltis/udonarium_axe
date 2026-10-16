@@ -6,6 +6,7 @@ import {
 } from '@axe/application/chat/chat-log-style-preference.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { Network } from '@axe/core/network/network';
+import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -54,6 +55,28 @@ describe('ChatTabSettingComponent', () => {
 
   it('lets the panel take the pointer again once the drag ends', async () => {
     await expectPanelDragRecovery(ChatTabSettingComponent);
+  });
+
+  it('says a deleted tab coming back under its name is coming back, before it is made again', () => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    const tab = ChatTabList.instance.addChatTab('残す');
+    const announce = vi.spyOn(ObjectStore.instance, 'announceComingBack');
+    const parse = vi.spyOn(ObjectSerializer.instance, 'parseXml').mockReturnValue(null);
+    try {
+      component.selectedTab.set(tab);
+      component.selectedTabXml =
+        '<chat-tab identifier="gone-tab" name="消した"><chat identifier="gone-line">x</chat></chat-tab>';
+
+      component.restore();
+
+      expect(announce).toHaveBeenCalledWith(['gone-tab', 'gone-line']);
+      expect(announce.mock.invocationCallOrder[0]).toBeLessThan(parse.mock.invocationCallOrder[0]);
+    } finally {
+      vi.restoreAllMocks();
+      tab.destroy();
+      PeerCursor.myCursor = null!;
+    }
   });
 
   describe('clearing the log', () => {

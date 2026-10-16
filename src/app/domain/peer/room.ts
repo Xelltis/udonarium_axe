@@ -1,8 +1,7 @@
-import { networkSend } from '@axe/core/network/network-messaging';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { SyncObject } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
-import { InnerXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
+import { identifiersIn, InnerXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -156,12 +155,6 @@ export class Room extends GameObject implements InnerXml {
    * word of it by having the loader delete it again. Naming them first is what stops that.
    */
   private announceWhatIsComingBack(element: Element): void {
-    const returning = Array.from(element.querySelectorAll('[identifier]'))
-      .map((child) => child.getAttribute('identifier') ?? '')
-      .filter((identifier) => identifier.length > 0);
-    if (returning.length < 1) return;
-
-    ObjectStore.instance.forgetDeleted(returning);
-    networkSend('FORGET_DELETED_OBJECTS', { identifiers: returning });
+    ObjectStore.instance.announceComingBack(identifiersIn(element));
   }
 }

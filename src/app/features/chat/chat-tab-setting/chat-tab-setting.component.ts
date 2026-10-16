@@ -11,7 +11,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { Network } from '@axe/core/network/network';
-import { ObjectSerializer } from '@axe/core/sync/object-serializer';
+import { identifiersInXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CHAT_LOG_STYLES, ChatLogStyle } from '@axe/domain/chat/chat-log-style';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -447,11 +447,13 @@ export class ChatTabSettingComponent {
 
   /**
    * Puts the last deleted tab back into the room from the copy kept when it was removed, then
-   * forgets the copy.
+   * forgets the copy. The tab and its lines come back under their names, which are said to be coming
+   * back first, as every other seat and a room server would delete them again.
    */
   restore() {
     if (!this.canEditTabs) return;
     if (this.selectedTab() && this.selectedTabXml) {
+      ObjectStore.instance.announceComingBack(identifiersInXml(this.selectedTabXml));
       const restoreTable = this.objectSerializer.parseXml(this.selectedTabXml)! as ChatTab;
       this.chatTabList.addChatTab(restoreTable);
       this.selectedTabXml = '';

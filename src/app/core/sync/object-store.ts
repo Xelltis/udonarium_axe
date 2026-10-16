@@ -200,6 +200,17 @@ export class ObjectStore {
     for (const identifier of identifiers) this.garbageMap.delete(identifier);
   }
 
+  /**
+   * Takes the named objects out of the graveyard here and on every other seat, and on a room server,
+   * which would otherwise answer what is made again under them by deleting it. For data loaded back
+   * under the names of what it has just taken away, said before the data is read.
+   */
+  announceComingBack(identifiers: readonly ObjectIdentifier[]) {
+    if (identifiers.length < 1) return;
+    this.forgetDeleted(identifiers);
+    networkSend('FORGET_DELETED_OBJECTS', { identifiers });
+  }
+
   private runGarbageCollection(ms: number): void {
     const nowDate = performance.now();
     let checkLength = this.garbageMap.size - GARBAGE_MAP_LIMIT;
