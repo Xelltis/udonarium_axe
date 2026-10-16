@@ -90,6 +90,23 @@ describe('cut-in scene snapshots', () => {
       expect(scene.layers[0].name).toBe('立ち絵');
     });
 
+    it('says a deleted layer is coming back before it is made again, as a room server would delete it again', () => {
+      const scene = makeScene();
+      const layer = addLayer(scene, 'gone');
+      const kept = addLayer(scene, 'kept');
+      const before = snapshotScene(scene);
+      const identifier = layer.identifier;
+      layer.destroy();
+      const announce = vi.spyOn(store, 'announceComingBack');
+
+      restoreScene(scene, before);
+
+      expect(announce).toHaveBeenCalledWith([identifier]);
+      expect(store.get(identifier)).not.toBeNull();
+      expect(kept.parent).toBe(scene);
+      announce.mockRestore();
+    });
+
     it('takes an added layer away again', () => {
       const scene = makeScene();
       addLayer(scene, '立ち絵');

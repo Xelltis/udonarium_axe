@@ -1,3 +1,4 @@
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 
@@ -98,7 +99,11 @@ export function cloneSceneSnapshot(snapshot: CutInSceneSnapshot): CutInSceneSnap
   return { ...snapshot, layers: snapshot.layers.map((layer) => ({ ...layer })) };
 }
 
-/** Puts the scene back the way the snapshot found it. */
+/**
+ * Puts the scene back the way the snapshot found it. A layer deleted since comes back under the
+ * name it had, which is said to be coming back first, as every other seat and a room server would
+ * delete it again.
+ */
 export function restoreScene(scene: CutInScene | null, snapshot: CutInSceneSnapshot): void {
   if (!scene) return;
 
@@ -113,6 +118,9 @@ export function restoreScene(scene: CutInScene | null, snapshot: CutInSceneSnaps
   for (const layer of scene.layers) {
     if (!wanted.has(layer.identifier)) layer.destroy();
   }
+  ObjectStore.instance.announceComingBack(
+    snapshot.layers.map((layer) => layer.identifier).filter((identifier) => !standing.has(identifier))
+  );
 
   for (const wantedLayer of snapshot.layers) {
     const layer = standing.get(wantedLayer.identifier) ?? new CutInLayer(wantedLayer.identifier);
