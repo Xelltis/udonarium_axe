@@ -6,6 +6,7 @@ import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { Network } from '@axe/core/index';
+import { localDispatch } from '@axe/core/network/network-messaging';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
@@ -202,6 +203,25 @@ describe('LobbyComponent', () => {
       where.mockReturnValue({ isRoom: false, roomName: '' } as PeerContext);
       bump();
       expect(component.isConnected()).toBe(false);
+    });
+
+    it('stays open as the seat goes into the same room again, as on a logout here, and closes for another', async () => {
+      const where = vi
+        .spyOn(Network, 'peerContext', 'get')
+        .mockReturnValue({ isRoom: true, roomId: 'Ab3', roomName: '' } as PeerContext);
+      TestBed.inject(ObjectChangeService);
+      const resolve = vi.spyOn(TestBed.inject(ModalService), 'resolve').mockImplementation(() => {});
+      fixture.destroy();
+      fixture = TestBed.createComponent(LobbyComponent);
+
+      localDispatch('OPEN_NETWORK', { peerId: 'p' });
+      await Promise.resolve();
+      expect(resolve).not.toHaveBeenCalled();
+
+      where.mockReturnValue({ isRoom: true, roomId: 'Xy9', roomName: '' } as PeerContext);
+      localDispatch('OPEN_NETWORK', { peerId: 'p' });
+      await Promise.resolve();
+      expect(resolve).toHaveBeenCalled();
     });
 
     it('joins nothing when the seat came into a room while the password was asked for', async () => {
