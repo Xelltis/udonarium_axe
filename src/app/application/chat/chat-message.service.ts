@@ -237,11 +237,13 @@ export class ChatMessageService {
    * Speaks a notice as whoever this reader last spoke as, with that speaker's portrait where it
    * still matches.
    *
-   * It goes to the named tab, or the system tab when none is named or the name is not a tab.
+   * It goes to the named tab, or the system tab when none is named or the name is not a tab. A guest
+   * on a room server says nothing in a tab guests may not speak in, which the server would take back.
    */
   sendSystemMessageAsLastSpeaker(text: string, chatTabIdentifier?: string) {
     const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
     const sysTab = this.resolveChatTab(chatTabIdentifier) ?? chatTabList!.systemMessageTab!;
+    if (this.keptOffTable && !sysTab?.guestCanSpeak) return;
     const sendFrom = PeerCursor.myCursor.lastControlSendFrom
       ? PeerCursor.myCursor.lastControlSendFrom
       : PeerCursor.myCursor.identifier;

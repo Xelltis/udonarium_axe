@@ -272,6 +272,19 @@ describe('ChatMessageService', () => {
       service.canDiscloseMessage(line),
     ];
 
+    it('says no notice in a tab guests may not speak in, which the server would take back, but does where they may', () => {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      PeerCursor.myCursor = { role: PeerRole.Guest, isGameMaster: false, identifier: 'me-cursor' } as PeerCursor;
+      const lines = () => tab.chatMessages.length;
+      tab.guestCanSpeak = false;
+      service.sendSystemMessageAsLastSpeaker('点呼：1/3', tab.identifier);
+      expect(lines()).toBe(0);
+
+      tab.guestCanSpeak = true;
+      service.sendSystemMessageAsLastSpeaker('点呼：2/3', tab.identifier);
+      expect(lines()).toBe(1);
+    });
+
     it('offers no change to one in a tab guests may not speak in, which the server would put back', () => {
       vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
 
