@@ -249,7 +249,7 @@ export class ChatTabSettingComponent {
       () => (this.modalService.title = this.panelService.title = this.t('feature.chat.tabSetting.panelTitle'))
     );
     this.objectChange.objectDeleted$.subscribe((e) => {
-      if (!this.selectedTab() || e.identifier !== this.selectedTab()!.identifier) return;
+      if (!this.selectedTab() || e.identifier !== this.selectedTab()!.identifier || this.selectedTabXml) return;
       const object = this.objectStore.get(e.identifier);
       if (object !== null) {
         this.selectedTabXml = object.toXml();
@@ -257,11 +257,12 @@ export class ChatTabSettingComponent {
       this.selectedTab.set(null);
     }, this.destroyRef);
     // A tab gone from the list, or one this seat may no longer read, is let go of, as on the seat
-    // being made a player while it had a tab only the game master reads picked.
+    // being made a player while it had a tab only the game master reads picked. One this seat has
+    // just deleted stays picked while its copy is kept, for the offer to bring it back.
     this.objectChange.onObjectChangedForAlias(
       [ChatTab.aliasName, ChatTabList.aliasName, PeerCursor.aliasName],
       () => {
-        if (this.selectedTab() && !this.chatTabs.includes(this.selectedTab()!)) {
+        if (this.selectedTab() && !this.chatTabs.includes(this.selectedTab()!) && !this.selectedTabXml) {
           this.selectedTab.set(null);
         }
         if (!this.selectedTab() && this.chatTabs.length > 0) {
@@ -457,6 +458,7 @@ export class ChatTabSettingComponent {
       const restoreTable = this.objectSerializer.parseXml(this.selectedTabXml)! as ChatTab;
       this.chatTabList.addChatTab(restoreTable);
       this.selectedTabXml = '';
+      this.selectedTab.set(restoreTable);
     }
   }
 
