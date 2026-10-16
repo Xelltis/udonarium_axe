@@ -43,6 +43,7 @@ import { composeChatOutgoing, composeStampOutgoing, OutgoingStamp } from '@axe/d
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
+import { mayBeChosen } from '@axe/domain/peer/chosen-seat';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -542,9 +543,13 @@ export class ChatInputComponent {
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
   }
-  /** Every peer cursor in the room, including this seat's own, offered as whisper targets. */
+  /**
+   * Every peer cursor in the room offered as whisper targets: this seat's own, and every other that
+   * may be chosen, which on a room server leaves out a seat not logged in, as whoever names itself
+   * the same would be handed the whisper.
+   */
   get otherPeers(): PeerCursor[] {
-    return this.objectStore.getObjects(PeerCursor);
+    return this.objectStore.getObjects(PeerCursor).filter((peer) => peer === this.myPeer || mayBeChosen(peer));
   }
 
   private calcFitHeightInterval: ReturnType<typeof setTimeout> | null = null;

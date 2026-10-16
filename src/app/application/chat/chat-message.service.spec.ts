@@ -131,6 +131,20 @@ describe('ChatMessageService', () => {
       expect(service.afterWhisperCandidates(mine)).toEqual([other]);
     });
 
+    it('offers on a room server no seat not logged in, whose id anybody may take', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      other.role = PeerRole.Guest;
+      const mine = lineFrom('me');
+
+      expect(service.afterWhisperCandidates(mine)).toEqual([]);
+      service.makeAfterWhisper(mine, other);
+      expect(mine.isAfterWhisper).toBe(false);
+
+      other.userId = 'acct_someone';
+      expect(service.afterWhisperCandidates(mine)).toEqual([other]);
+      vi.restoreAllMocks();
+    });
+
     it('whispers the reader’s own line to the one chosen, and puts it back', () => {
       const mine = lineFrom('me');
 

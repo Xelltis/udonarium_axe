@@ -10,10 +10,10 @@ import {
   normalizeDisclosureMode,
   toggleDisclosureUserId,
 } from '@axe/domain/disclosure/disclosure';
+import { mayBeChosen } from '@axe/domain/peer/chosen-seat';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole, roleBadgeClass, roleShortLabelKey } from '@axe/domain/peer/peer-role';
 import { ownerRuledByServer } from '@axe/domain/tabletop/withheld';
-import { mayBeChosen } from '@axe/features/disclosure/disclosure-candidates';
 import { TranslocoModule } from '@jsverse/transloco';
 
 interface DisclosableObject extends Disclosable {

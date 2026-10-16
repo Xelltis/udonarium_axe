@@ -37,6 +37,7 @@ import { joinStampLine } from '@axe/domain/chat/stamp-line';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { encodeDiceLook } from '@axe/domain/dice/dice-3d/dice-look';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
+import { mayBeChosen } from '@axe/domain/peer/chosen-seat';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import GameSystemClass from 'bcdice/lib/game_system';
@@ -715,15 +716,15 @@ export class ChatMessageService {
 
   /**
    * The seats a line can be whispered to afterwards: everyone in the room but this reader, who said
-   * it and keeps it either way, and but those whose role may not read the tab it is in, who could
-   * never see it.
+   * it and keeps it either way, but those whose role may not read the tab it is in, who could never
+   * see it, and but those who may not be chosen.
    */
   afterWhisperCandidates(message: ChatMessage): PeerCursor[] {
     const me = PeerCursor.myCursor;
     const tab = message.parent;
     return this.objectStore
       .getObjects(PeerCursor)
-      .filter((peer) => peer !== me && !!peer.userId)
+      .filter((peer) => peer !== me && !!peer.userId && mayBeChosen(peer))
       .filter((peer) => !(tab instanceof ChatTab) || canRoleViewTab(tab, peer.role));
   }
 

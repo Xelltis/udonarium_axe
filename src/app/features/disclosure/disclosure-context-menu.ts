@@ -9,11 +9,11 @@ import {
   normalizeDisclosureMode,
   toggleDisclosureUserId,
 } from '@axe/domain/disclosure/disclosure';
+import { mayBeChosen } from '@axe/domain/peer/chosen-seat';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { ownerRuledByServer } from '@axe/domain/tabletop/withheld';
-import { mayBeChosen } from '@axe/features/disclosure/disclosure-candidates';
 
 interface DisclosableObject extends Disclosable {
   owner?: string;

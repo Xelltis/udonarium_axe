@@ -6,6 +6,7 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
+import { Network } from '@axe/core/network/network';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
@@ -159,6 +160,41 @@ describe('ChatInputComponent', () => {
       await speakAs(withPortraits(1));
 
       expect(slider()).toBeNull();
+    });
+  });
+
+  describe('the seats to whisper to', () => {
+    it('offers on a room server this seat and the seats logged in, and no seat whose id anybody may take', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const guest = new PeerCursor();
+      guest.initialize();
+      guest.userId = 'guest-tab';
+      guest.role = PeerRole.Guest;
+      const player = new PeerCursor();
+      player.initialize();
+      player.userId = 'acct_player';
+      player.role = PeerRole.Player;
+      try {
+        expect(component.otherPeers).toContain(PeerCursor.myCursor);
+        expect(component.otherPeers).toContain(player);
+        expect(component.otherPeers).not.toContain(guest);
+      } finally {
+        guest.destroy();
+        player.destroy();
+      }
+    });
+
+    it('offers among peers every seat', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
+      const guest = new PeerCursor();
+      guest.initialize();
+      guest.userId = 'guest-tab';
+      guest.role = PeerRole.Guest;
+      try {
+        expect(component.otherPeers).toContain(guest);
+      } finally {
+        guest.destroy();
+      }
     });
   });
 
