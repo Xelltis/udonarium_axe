@@ -75,6 +75,13 @@ export class Network {
   static get serverRole(): ServerRole | null {
     return Network.instance.serverRole;
   }
+  /**
+   * Lets the page be left without the browser asking whether to, for a reload or a leave the reader
+   * has already chosen and been told of.
+   */
+  static letPageGo(): void {
+    window.removeEventListener('beforeunload', Network.instance.callbackBeforeUnload);
+  }
   /** Keeps the app config, such as the backend URL, for the connection made on the next open. */
   static configure(config: Record<string, unknown>) {
     Network.instance.configure(config);

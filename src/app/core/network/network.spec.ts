@@ -220,6 +220,20 @@ describe('Network', () => {
       instance['connection'] = null;
     });
 
+    it('lets the page go without asking, once the reader has chosen to leave it', () => {
+      const instance = Network.instance as unknown as Record<string, unknown>;
+      window.addEventListener('beforeunload', instance['callbackBeforeUnload'] as EventListener);
+      const asking = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(asking);
+      expect(asking.defaultPrevented).toBe(true);
+
+      Network.letPageGo();
+      const leaving = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(leaving);
+
+      expect(leaving.defaultPrevented).toBe(false);
+    });
+
     it('closes the connection when the page is simply hidden', () => {
       const instance = Network.instance as unknown as Record<string, unknown>;
       const leaveImmediately = vi.fn();
