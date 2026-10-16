@@ -516,6 +516,7 @@ describe('PeerMenuComponent', () => {
 
     it('asks before it starts again, and writes the choice down only once it is confirmed', async () => {
       const reload = vi.spyOn(component as unknown as { reload(): void }, 'reload').mockImplementation(() => undefined);
+      const letGo = vi.spyOn(Network.instance, 'letPageGo').mockImplementation(() => {});
       const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
 
       await component.chooseConnectionMode('offline');
@@ -529,6 +530,7 @@ describe('PeerMenuComponent', () => {
 
       expect(TestBed.inject(LocalModePreferenceService).enabled()).toBe(true);
       expect(localStorage.getItem(LOCAL_MODE_STORAGE_KEY)).toBe('1');
+      expect(letGo).toHaveBeenCalledTimes(1);
       expect(reload).toHaveBeenCalledTimes(1);
     });
 

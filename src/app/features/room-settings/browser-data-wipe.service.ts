@@ -1,6 +1,7 @@
 import { DOCUMENT, inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { Network } from '@axe/core/network/network';
 import { requestBrowserDataWipe, wipeBrowserData } from '@axe/core/storage/browser-data-wipe';
 
 /**
@@ -22,7 +23,8 @@ export class BrowserDataWipeService {
    * of it.
    *
    * The wipe is left to the next load, before the app starts, so nothing this page still holds is
-   * written back. Where that cannot be asked for, it is wiped here instead, as far as it goes.
+   * written back. Where that cannot be asked for, it is wiped here instead, as far as it goes. The
+   * browser is not let ask again whether to leave the page, which would keep a page wiped under it.
    */
   async wipe(): Promise<boolean> {
     const sure = await this.confirm.ask({
@@ -33,6 +35,7 @@ export class BrowserDataWipeService {
     });
     if (!sure) return false;
     if (!requestBrowserDataWipe()) await wipeBrowserData();
+    Network.letPageGo();
     this.reload();
     return true;
   }

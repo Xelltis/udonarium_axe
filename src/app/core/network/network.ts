@@ -80,7 +80,7 @@ export class Network {
    * has already chosen and been told of.
    */
   static letPageGo(): void {
-    window.removeEventListener('beforeunload', Network.instance.callbackBeforeUnload);
+    Network.instance.letPageGo();
   }
   /** Keeps the app config, such as the backend URL, for the connection made on the next open. */
   static configure(config: Record<string, unknown>) {
@@ -212,6 +212,10 @@ export class Network {
 
   configure(config: Record<string, unknown>) {
     this.config = config;
+  }
+
+  letPageGo(): void {
+    window.removeEventListener('beforeunload', this.callbackBeforeUnload);
   }
 
   setServerCredentials(source: ServerCredentialSource | null) {

@@ -93,7 +93,8 @@ export class PeerMenuComponent {
   /**
    * Switches between playing online and playing alone, once the reader has confirmed.
    *
-   * The choice is written down in this browser and the page reloads into it. Choosing the mode
+   * The choice is written down in this browser and the page reloads into it, without the browser
+   * asking again whether to leave, which would keep the page in the mode left. Choosing the mode
    * already in use does nothing.
    */
   async chooseConnectionMode(mode: ConnectionMode): Promise<void> {
@@ -103,6 +104,7 @@ export class PeerMenuComponent {
     );
     if (!asked) return;
     this.localModePreference.set(mode === 'offline');
+    Network.letPageGo();
     this.reload();
   }
 

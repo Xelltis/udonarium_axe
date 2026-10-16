@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { Network } from '@axe/core/network/network';
 import { wipeBrowserDataIfRequested } from '@axe/core/storage/browser-data-wipe';
 import { BrowserDataWipeService } from '@axe/features/room-settings/browser-data-wipe.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -40,11 +41,13 @@ describe('BrowserDataWipeService', () => {
     expect(localStorage.getItem('ui-theme')).toBe('dark');
   });
 
-  it('asks the next load to wipe, and loads the page again', async () => {
+  it('asks the next load to wipe, and loads the page again without the browser asking once more', async () => {
     ask.mockResolvedValue(true);
+    const letGo = vi.spyOn(Network, 'letPageGo').mockImplementation(() => {});
 
     expect(await service.wipe()).toBe(true);
 
+    expect(letGo).toHaveBeenCalledOnce();
     expect(reload).toHaveBeenCalledOnce();
     expect(localStorage.getItem('ui-theme')).toBe('dark');
     expect(await wipeBrowserDataIfRequested()).toBe(true);
