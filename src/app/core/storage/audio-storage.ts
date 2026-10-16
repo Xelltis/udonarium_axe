@@ -9,8 +9,6 @@ export type CatalogItem = {
   readonly identifier: string;
   readonly state: number;
   readonly name?: string;
-  /** Set while the seat naming it waits to put it up to the room's asset store itself. */
-  readonly queued?: boolean;
 };
 
 export class AudioStorage {
@@ -27,12 +25,6 @@ export class AudioStorage {
   private hash: { [identifier: string]: AudioFile } = {};
   /** Audio added on this seat that is queued for the asset server or going up to it. */
   private readonly uploading = new Set<string>();
-  /**
-   * That of it on its way up now. It is left out of the catalogue until it is there, so peers
-   * fetch it from the server rather than asking this seat; audio still waiting its turn behind
-   * others stays in it, so a peer is not kept waiting for it all that while.
-   */
-  private readonly sending = new Set<string>();
   /**
    * Those added here while a room server's room could not be reached, as while the link was down,
    * which go up once the seat is back.
@@ -146,21 +138,21 @@ export class AudioStorage {
     const { identifier } = audio;
     this.uploading.add(identifier);
     void store
-      .upload(identifier, blob, audio.name, {
-        first,
-        onStart: () => {
-          this.sending.add(identifier);
-          this.catalogSchedule.whenQuiet(100);
-        },
-      })
+      .upload(identifier, blob, audio.name, { first })
       .then((result) => {
+        // Turned away for the room being out of reach, as while the link is down, it goes up once
+        // the seat is back rather than spend its tries meanwhile.
+        if (result === 'failed' && !store.isEnabled && store.isConfigured) {
+          this.uploadRetries.forget(identifier);
+          this.missedUploads.add(identifier);
+          return;
+        }
         const roomKey = Network.roomKey;
         if (result === 'failed') this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey));
         else this.uploadRetries.forget(identifier);
       })
       .finally(() => {
         this.uploading.delete(identifier);
-        this.sending.delete(identifier);
         this.catalogSchedule.whenQuiet(100);
       });
   }
@@ -212,15 +204,25 @@ export class AudioStorage {
   }
 
   /**
+   * Whether this seat is still to put something up to the asset store: queued or going up, waiting
+   * to be tried again, or waiting for the room to be in reach. Until it is there, peers are not
+   * told of it, so that they fetch it from the store once it is rather than each from this seat.
+   */
+  private isOnItsWayUp(identifier: string): boolean {
+    return (
+      this.uploading.has(identifier) || this.uploadRetries.isWaiting(identifier) || this.missedUploads.has(identifier)
+    );
+  }
+
+  /**
    * The audio this seat holds in full or as a link, which is what it advertises so that
    * peers can request what they lack. Audio still going up to the asset server is left out.
    */
   getCatalog(): CatalogItem[] {
     const catalog: CatalogItem[] = [];
     for (const audio of AudioStorage.instance.audios) {
-      if (AudioState.COMPLETE <= audio.state && !this.sending.has(audio.identifier)) {
-        const queued = this.uploading.has(audio.identifier) ? { queued: true } : {};
-        catalog.push({ identifier: audio.identifier, state: audio.state, name: audio.name, ...queued });
+      if (AudioState.COMPLETE <= audio.state && !this.isOnItsWayUp(audio.identifier)) {
+        catalog.push({ identifier: audio.identifier, state: audio.state, name: audio.name });
       }
     }
     return catalog;

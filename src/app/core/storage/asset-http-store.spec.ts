@@ -267,29 +267,6 @@ describe('AssetHttpStore', () => {
       expect(asked).toEqual([ids[0], ids[1], ids[3], ids[4], ids[2]]);
     });
 
-    it('says when an upload starts, which for one waiting its turn is only once a turn is free', async () => {
-      const releases: (() => void)[] = [];
-      fetchSpy.mockImplementation(
-        () => new Promise<Response>((resolve) => releases.push(() => resolve(new Response(null, { status: 200 }))))
-      );
-      const ids = await Promise.all([0, 1, 2].map((n) => sha256Hex(`start-${n}`)));
-      const started: string[] = [];
-
-      const done = ids.map((assetId) =>
-        store.upload(assetId, new Blob([bytes]), '', { onStart: () => started.push(assetId) })
-      );
-      expect(started).toEqual([ids[0], ids[1]]);
-
-      releases.shift()?.();
-      await vi.waitFor(() => expect(started).toEqual(ids));
-      let finished = false;
-      void Promise.all(done).then(() => (finished = true));
-      while (!finished) {
-        releases.shift()?.();
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      }
-    });
-
     it('runs at most two uploads at a time', async () => {
       let inFlight = 0;
       let mostInFlight = 0;

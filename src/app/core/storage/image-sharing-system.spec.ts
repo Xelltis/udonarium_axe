@@ -166,43 +166,6 @@ describe('ImageSharingSystem', () => {
       expect(upload.mock.calls).toEqual([[pictureId]]);
     });
 
-    describe('an image a peer still waits to put up itself', () => {
-      const sent = (identifier: string) => ({
-        identifier,
-        name: '',
-        type: 'image/png',
-        blob: new Uint8Array([1, 2, 3]) as unknown as Blob,
-        url: '',
-        thumbnail: { type: 'image/png', blob: null, url: '' },
-      });
-
-      async function receivedFromQueue(): Promise<ReturnType<typeof vi.spyOn>> {
-        const upload = vi.spyOn(ImageStorage.instance, 'uploadReceived').mockImplementation(() => {});
-        download.mockResolvedValue('missing');
-        receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE, queued: true }], 'peer-a');
-        await vi.waitFor(() => expect(requestsSent()).toHaveLength(1));
-        localDispatch('UPDATE_FILE_RESOURE', { updateImages: [sent(pictureId)] }, 'peer-a');
-        return upload;
-      }
-
-      it('is left to that peer to put up, and put up from here once it names the image plainly', async () => {
-        const upload = await receivedFromQueue();
-        expect(upload).not.toHaveBeenCalled();
-
-        receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }], 'peer-a');
-
-        expect(upload.mock.calls).toEqual([[pictureId]]);
-      });
-
-      it('is put up from here once that peer leaves without having put it up', async () => {
-        const upload = await receivedFromQueue();
-
-        localDispatch('DISCONNECT_PEER', { peerId: 'peer-a' });
-
-        expect(upload.mock.calls).toEqual([[pictureId]]);
-      });
-    });
-
     it('goes straight to peers for an image the server once lacked', async () => {
       download.mockResolvedValue('missing');
       receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }]);

@@ -179,18 +179,12 @@ export class AssetHttpStore {
    * failure, after retries for a server that asked for fewer uploads, may pass on a later try.
    *
    * Uploads wait their turn; one asked for `first`, such as a picture just added here, goes ahead
-   * of those already waiting. `onStart` is told when its turn comes and it starts.
+   * of those already waiting.
    */
-  upload(
-    identifier: string,
-    blob: Blob,
-    name = '',
-    options: { first?: boolean; onStart?: () => void } = {}
-  ): Promise<AssetUploadResult> {
+  upload(identifier: string, blob: Blob, name = '', options: { first?: boolean } = {}): Promise<AssetUploadResult> {
     if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return Promise.resolve('refused');
     return this.uploads.run(
       async () => {
-        options.onStart?.();
         try {
           // Asked when its turn comes, so that a queued upload goes to the room the seat is in by then.
           const head = await this.authorized((access) =>

@@ -8,8 +8,6 @@ import { ImageContext, ImageFile, ImageState } from '@axe/core/storage/image-fil
 export type CatalogItem = {
   readonly identifier: string;
   readonly state: number;
-  /** Set while the seat naming it waits to put it up to the room's asset store itself. */
-  readonly queued?: boolean;
 };
 
 export class ImageStorage {
@@ -23,12 +21,6 @@ export class ImageStorage {
   private imageHash: { [identifier: string]: ImageFile } = {};
   /** Images added on this seat that are queued for the asset server or going up to it. */
   private readonly uploading = new Set<string>();
-  /**
-   * Those of them on their way up now. They are left out of the catalogue until they are there, so
-   * peers fetch them from the server rather than asking this seat; one still waiting its turn
-   * behind others stays in it, so a peer is not kept waiting for it all that while.
-   */
-  private readonly sending = new Set<string>();
   /**
    * Those added here while a room server's room could not be reached, as while the link was down,
    * which go up once the seat is back.
@@ -146,21 +138,21 @@ export class ImageStorage {
     const { identifier } = image;
     this.uploading.add(identifier);
     void store
-      .upload(identifier, blob, image.name, {
-        first,
-        onStart: () => {
-          this.sending.add(identifier);
-          this.catalogSchedule.whenQuiet(100);
-        },
-      })
+      .upload(identifier, blob, image.name, { first })
       .then((result) => {
+        // Turned away for the room being out of reach, as while the link is down, it goes up once
+        // the seat is back rather than spend its tries meanwhile.
+        if (result === 'failed' && !store.isEnabled && store.isConfigured) {
+          this.uploadRetries.forget(identifier);
+          this.missedUploads.add(identifier);
+          return;
+        }
         const roomKey = Network.roomKey;
         if (result === 'failed') this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey));
         else this.uploadRetries.forget(identifier);
       })
       .finally(() => {
         this.uploading.delete(identifier);
-        this.sending.delete(identifier);
         this.catalogSchedule.whenQuiet(100);
       });
   }
@@ -212,6 +204,17 @@ export class ImageStorage {
   }
 
   /**
+   * Whether this seat is still to put something up to the asset store: queued or going up, waiting
+   * to be tried again, or waiting for the room to be in reach. Until it is there, peers are not
+   * told of it, so that they fetch it from the store once it is rather than each from this seat.
+   */
+  private isOnItsWayUp(identifier: string): boolean {
+    return (
+      this.uploading.has(identifier) || this.uploadRetries.isWaiting(identifier) || this.missedUploads.has(identifier)
+    );
+  }
+
+  /**
    * The images this seat holds in full or as a link, which is what it advertises so that peers can
    * request what they lack. Thumbnail-only images are left out, and so are images still going up to
    * the asset server.
@@ -219,9 +222,8 @@ export class ImageStorage {
   getCatalog(): CatalogItem[] {
     const catalog: CatalogItem[] = [];
     for (const image of this.images) {
-      if (ImageState.COMPLETE <= image.state && !this.sending.has(image.identifier)) {
-        const queued = this.uploading.has(image.identifier) ? { queued: true } : {};
-        catalog.push({ identifier: image.identifier, state: image.state, ...queued });
+      if (ImageState.COMPLETE <= image.state && !this.isOnItsWayUp(image.identifier)) {
+        catalog.push({ identifier: image.identifier, state: image.state });
       }
     }
     return catalog;

@@ -28,6 +28,11 @@ export class AssetRetries {
     this.timers.set(identifier, timer);
   }
 
+  /** Whether a transfer is waiting to be tried again. */
+  isWaiting(identifier: string): boolean {
+    return this.timers.has(identifier);
+  }
+
   /** Forgets how often a transfer that has now come through was tried. */
   forget(identifier: string): void {
     this.tries.delete(identifier);

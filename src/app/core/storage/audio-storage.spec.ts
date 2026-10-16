@@ -143,10 +143,7 @@ describe('AudioStorage', () => {
       store.useAccess(() => ({ roomKey: '0123456789abcdef0123456789abcdef', token: 'asset-1' }));
       vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
       const pending = new Promise<AssetUploadResult>((resolve) => (finishUpload = resolve));
-      upload = vi.spyOn(store, 'upload').mockImplementation((...[, , , options]) => {
-        options?.onStart?.();
-        return pending;
-      });
+      upload = vi.spyOn(store, 'upload').mockReturnValue(pending);
     });
 
     afterEach(() => {
@@ -230,22 +227,23 @@ describe('AudioStorage', () => {
       storage.delete('c'.repeat(64));
     });
 
-    it('names a sound still waiting its turn to go up, leaving it out only while it goes', async () => {
-      let start = () => {};
-      upload.mockImplementation((...[, , , options]) => {
-        start = () => options?.onStart?.();
-        return new Promise<AssetUploadResult>((resolve) => (finishUpload = resolve));
-      });
-
+    it('keeps a sound turned away while the room was out of reach for when the seat is back, its tries unspent', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
       storage.add(AudioFile.create(contextOf(trackId)));
-      expect(catalogued(trackId)).toBe(true);
-      expect(storage.getCatalog().find((item) => item.identifier === trackId)?.queued).toBe(true);
-
-      start();
+      store.useAccess(() => null);
+      finishUpload('failed');
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 8);
+      expect(upload).toHaveBeenCalledTimes(1);
       expect(catalogued(trackId)).toBe(false);
-      finishUpload('stored');
-      await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
-      expect(storage.getCatalog().find((item) => item.identifier === trackId)?.queued).toBeUndefined();
+
+      store.useAccess(() => ({ roomKey: '0123456789abcdef0123456789abcdef', token: 'asset-1' }));
+      upload.mockResolvedValue('failed');
+      storage.uploadMissedToAssetStore();
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 8);
+
+      // Back in reach, it has every try still to spend: the one just made and three more.
+      expect(upload).toHaveBeenCalledTimes(5);
     });
 
     it('sends audio made on this seat to the server, and names it to peers only once it is there', async () => {

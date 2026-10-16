@@ -37,11 +37,6 @@ export class ImageSharingSystem {
   private httpFetching: Map<string, string | null> = new Map();
   /** Images the asset server did not have, which are asked of peers from then on. */
   private httpMissed: Set<string> = new Set();
-  /**
-   * Pictures a peer's catalogue names as waiting to go up from that peer, with the peer. Received from
-   * it or from another, they are left for it to put up, rather than sent up again from here too.
-   */
-  private queuedBy: Map<string, string> = new Map();
   /** Images the room's list named that the asset server could not send just then. */
   private httpRetries = new AssetRetries();
 
@@ -63,15 +58,11 @@ export class ImageSharingSystem {
           case 'CONNECT_PEER':
             if (msg.isSendFromSelf) ImageStorage.instance.synchronize((msg.data as { peerId: string }).peerId);
             break;
-          case 'DISCONNECT_PEER':
-            this.peerLeft((msg.data as { peerId: string }).peerId);
-            break;
           case 'SYNCHRONIZE_FILE_LIST': {
             if (msg.isSendFromSelf) break;
             const otherCatalog: CatalogItem[] = msg.data as CatalogItem[];
             const request: CatalogItem[] = [];
             for (const item of otherCatalog) {
-              this.noteQueued(item, msg.sendFrom);
               let image = ImageStorage.instance.get(item.identifier);
               if (image === null) {
                 image = ImageFile.createEmpty(item.identifier);
@@ -123,8 +114,7 @@ export class ImageSharingSystem {
               if (context.thumbnail.blob)
                 context.thumbnail.blob = new Blob([context.thumbnail.blob], { type: context.thumbnail.type });
               ImageStorage.instance.add(context);
-              if (this.httpMissed.has(context.identifier) && !this.queuedBy.has(context.identifier))
-                ImageStorage.instance.uploadReceived(context.identifier);
+              if (this.httpMissed.has(context.identifier)) ImageStorage.instance.uploadReceived(context.identifier);
             }
             break;
           }
@@ -201,43 +191,11 @@ export class ImageSharingSystem {
   }
 
   /**
-   * Notes whether a peer's catalogue names something as waiting to go up from it. Named plainly
-   * again, it was put up, or given up on, by that peer, which leaves it to whoever received it and
-   * found the store lacking it.
-   */
-  private noteQueued(item: CatalogItem, peerId: string): void {
-    if (item.queued) {
-      this.queuedBy.set(item.identifier, peerId);
-      return;
-    }
-    if (this.queuedBy.get(item.identifier) !== peerId) return;
-    this.queuedBy.delete(item.identifier);
-    this.uploadIfStillMissed(item.identifier);
-  }
-
-  /** Puts up what a peer that left was still waiting to put up itself, where this seat holds it. */
-  private peerLeft(peerId: string): void {
-    for (const [identifier, queuedFrom] of [...this.queuedBy]) {
-      if (queuedFrom !== peerId) continue;
-      this.queuedBy.delete(identifier);
-      this.uploadIfStillMissed(identifier);
-    }
-  }
-
-  private uploadIfStillMissed(identifier: string): void {
-    const image = ImageStorage.instance.get(identifier);
-    if (this.httpMissed.has(identifier) && image && ImageState.COMPLETE <= image.state) {
-      ImageStorage.instance.uploadReceived(identifier);
-    }
-  }
-
-  /**
    * Forgets which pictures the asset store lacked, for another room, which may hold them, and drops
    * the tries still to come of those it could not send.
    */
   forgetMisses(): void {
     this.httpMissed.clear();
-    this.queuedBy.clear();
     this.httpRetries.clear();
   }
 
