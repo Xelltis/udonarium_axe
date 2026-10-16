@@ -378,12 +378,23 @@ describe('AppComponent', () => {
       imports: [AppComponent],
       providers: [...TEST_PROVIDERS],
     }).compileComponents();
+    // Saving and choosing files are left undone: they would go on loading parts of the screen
+    // after this file is done, in whatever file the worker runs next.
+    const screen = AppComponent.prototype as unknown as Record<'saveFromMenu' | 'chooseFilesToLoad', () => void>;
+    const save = vi.spyOn(screen, 'saveFromMenu').mockImplementation(() => undefined);
+    const choose = vi.spyOn(screen, 'chooseFilesToLoad').mockImplementation(() => undefined);
     TestBed.createComponent(AppComponent);
     const commands = TestBed.inject(MenuCommandService);
 
-    // `noHost` is what these two answer when nothing has handed the menus the screen, which is
-    // a wiring that nothing else notices: every spec of the menus registers one of its own.
-    expect(commands.run(menuCommandOf('zipLoad')!)).toBe('done');
-    expect(commands.run(menuCommandOf('save')!)).toBe('done');
+    try {
+      // `noHost` is what these two answer when nothing has handed the menus the screen, which is
+      // a wiring that nothing else notices: every spec of the menus registers one of its own.
+      expect(commands.run(menuCommandOf('zipLoad')!)).toBe('done');
+      expect(commands.run(menuCommandOf('save')!)).toBe('done');
+      expect(choose).toHaveBeenCalledOnce();
+      expect(save).toHaveBeenCalledOnce();
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 });
