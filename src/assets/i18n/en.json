@@ -3271,6 +3271,7 @@
         "hintInitial": "Press \"Refresh list\" to show available rooms.",
         "hintSearching": "Searching...",
         "hintNoRooms": "No available rooms found. Use \"Create new room\" to make one.",
+        "hintUnreachable": "Not connected to the server. Wait a little, then reload the page.",
         "hintListFailed": "Failed to fetch room list. Press \"Refresh list\" to retry.",
         "hintNoBackend": "No server is configured (backend.url in config.json)",
         "createRoomAfterLogin": "Log in to create a room",
@@ -3316,7 +3317,7 @@
         "cleanupDesc2": "Use only as a last resort."
       },
       "errors": {
-        "skywayServer": "Cannot reach the SkyWay backend server. Check your network settings.",
+        "skywayServer": "Cannot reach the SkyWay backend server. Check your network settings, then reload the page.",
         "tokenExpired": "The SkyWay auth token has expired. Reconnecting...",
         "generic": "A network error occurred. ({{errorType}})",
         "reconnecting": "Attempting to reconnect...",

@@ -25,6 +25,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { handOverOwnership } from '@axe/domain/peer/ownership';
 import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit, DEFAULT_PEER_ROLE } from '@axe/domain/peer/peer-role';
+import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 
 /** What to say for each reason the room server gives for keeping a role as it was. */
 const ROLE_REJECTED_KEYS: Readonly<Record<string, string>> = {
@@ -42,6 +43,7 @@ export class NetworkEventHandlerService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatMessageService = inject(ChatMessageService);
+  private readonly reach = inject(NetworkReachService);
   private readonly auth = inject(ServerAuthService);
   private readonly snackbar = inject(SnackbarService);
   private readonly overlayMode = inject(OverlayModeService);
@@ -172,7 +174,10 @@ export class NetworkEventHandlerService {
       // the server's: sharing the one count would make a server error take its wait from wherever
       // the other errors left off, turning three tries of three, eight and fifteen seconds into a
       // single wait of fifteen.
-      if (this.otherErrorReconnectAttempts >= NetworkEventHandlerService.MAX_SERVER_ERROR_RECONNECTS) return;
+      if (this.otherErrorReconnectAttempts >= NetworkEventHandlerService.MAX_SERVER_ERROR_RECONNECTS) {
+        this.reach.giveUp();
+        return;
+      }
       this.otherErrorReconnectAttempts++;
 
       this.chatMessageService.sendSystemMessage(this.resolveNetworkErrorMessage(errorType, errorMessage));
@@ -469,6 +474,7 @@ export class NetworkEventHandlerService {
   private handleServerErrorReconnect(): void {
     if (this.serverErrorReconnectAttempts >= NetworkEventHandlerService.MAX_SERVER_ERROR_RECONNECTS) {
       this.chatMessageService.sendSystemMessage(encodeI18nMessage('feature.lobby.errors.skywayServer'));
+      this.reach.giveUp();
       return;
     }
 
@@ -488,6 +494,7 @@ export class NetworkEventHandlerService {
   }
 
   private resetServerErrorReconnect(): void {
+    this.reach.reached();
     this.serverErrorReconnectAttempts = 0;
     this.otherErrorReconnectAttempts = 0;
     if (this.serverErrorReconnectTimer != null) {

@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { isInAnotherRoom, RoomJoinService, wasLastIn } from '@axe/application/lobby/room-join.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -12,6 +21,7 @@ import { InviteLinkParams, parseInviteLink } from '@axe/domain/peer/invite-link'
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
+import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import {
   PasswordCheckComponent,
   type PasswordCheckOptions,
@@ -37,6 +47,7 @@ export class InviteJoinComponent {
   private readonly localModePreference = inject(LocalModePreferenceService);
   private readonly isCompact = inject(ViewportService).isCompact;
   private readonly restoreOffer = inject(RoomRestoreOfferService);
+  private readonly reach = inject(NetworkReachService);
 
   private readonly state = signal<InviteJoinState>('idle');
   private readonly roomName = signal('');
@@ -85,6 +96,9 @@ export class InviteJoinComponent {
       return;
     }
     this.state.set('joining');
+    effect(() => {
+      if (this.reach.unreachable() && untracked(this.state) === 'joining') this.state.set('failed');
+    });
 
     if (Network.isOpen) {
       void this.joinOrSayFailed(params);

@@ -3271,6 +3271,7 @@
         "hintInitial": "「一覧を更新」ボタンを押すと接続可能なルーム一覧を表示します。",
         "hintSearching": "検索中...",
         "hintNoRooms": "接続可能なルームが見つかりませんでした。「新しいルームを作成する」で新規ルームを作成できます。",
+        "hintUnreachable": "サーバーにつながっていません。少し置いてから、ページを再読み込みしてください。",
         "hintListFailed": "ルーム一覧の取得に失敗しました。「一覧を更新」で再検索できます。",
         "hintNoBackend": "接続先（config.json の backend.url）が設定されていません",
         "createRoomAfterLogin": "ログインして部屋を作る",
@@ -3316,7 +3317,7 @@
         "cleanupDesc2": "最終手段としてのみ使用してください。"
       },
       "errors": {
-        "skywayServer": "SkyWayのバックエンドサーバに接続できません。ネットワーク設定を確認してください。",
+        "skywayServer": "SkyWayのバックエンドサーバに接続できません。ネットワーク設定を確認して、ページを再読み込みしてください。",
         "tokenExpired": "SkyWayの認証トークンが期限切れになりました。再接続します。",
         "generic": "ネットワークエラーが発生しました。({{errorType}})",
         "reconnecting": "再接続を試みます...",

@@ -13,6 +13,7 @@ import { IRoomInfo } from '@axe/core/network/room-info';
 import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { LeaveRoomService } from '@axe/features/lobby/leave-room';
+import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import {
   PasswordCheckComponent,
   type PasswordCheckOptions,
@@ -47,6 +48,7 @@ export class LobbyComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly auth = inject(ServerAuthService);
   private readonly roomDeletion = inject(RoomDeletionService);
+  private readonly reach = inject(NetworkReachService);
 
   /** Whether rooms are on a room server, where creating one takes a login. */
   protected readonly isServerTransport = Network.transport === 'server';
@@ -142,9 +144,15 @@ export class LobbyComponent {
    * Fetches the open rooms and lists them sorted, with a hint underneath.
    *
    * The list is emptied while it loads. The fetch gives up after 15 seconds, and a failure is shown
-   * as the hint.
+   * as the hint. Once reaching the network has been given up on, nothing is fetched, and the hint says
+   * so and to reload the page, which is the way back.
    */
   async reload() {
+    if (this.reach.unreachable()) {
+      this.rooms.set([]);
+      this.help.set(this.t('feature.lobby.lobby.hintUnreachable'));
+      return;
+    }
     this.isReloading.set(true);
     if (this.isServerTransport) void this.auth.refreshProviders();
     this.help.set(this.t('feature.lobby.lobby.hintSearching'));

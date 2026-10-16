@@ -12,6 +12,7 @@ import { IRoomInfo } from '@axe/core/network/room-info';
 import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
+import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('LobbyComponent', () => {
@@ -155,6 +156,16 @@ describe('LobbyComponent', () => {
       expect(text).toContain('月夜の卓');
       expect(text).toContain('3人');
     });
+  });
+
+  it('says the server cannot be reached, and to reload the page, once reaching it is given up', async () => {
+    const list = vi.spyOn(Network, 'listAllRooms').mockResolvedValue([]);
+    TestBed.inject(NetworkReachService).giveUp();
+
+    await component.reload();
+
+    expect(component.help()).toContain('再読み込み');
+    expect(list).not.toHaveBeenCalled();
   });
 
   describe('signal-driven CD', () => {

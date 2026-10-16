@@ -12,6 +12,7 @@ import { buildInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
+import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { RoomRestoreOfferService } from '@axe/features/room-archive/room-restore-banner/room-restore-offer.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -111,6 +112,18 @@ describe('InviteJoinComponent', () => {
     await setup('#join?r=a1b&n=room');
 
     await eventually(() => expect(bannerText().trim()).toBe(''));
+  });
+
+  it('says it could not get in once reaching the network is given up, rather than saying it is joining', async () => {
+    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
+    await setup('#join?r=a1b&n=room');
+    expect(bannerText()).toContain('参加しています');
+
+    TestBed.inject(NetworkReachService).giveUp();
+    fixture.detectChanges();
+
+    expect(bannerText()).toContain('参加できませんでした');
+    expect(join).not.toHaveBeenCalled();
   });
 
   it('says it is waiting for this seat’s previous connection to drop while the join does', async () => {

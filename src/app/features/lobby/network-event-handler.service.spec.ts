@@ -28,6 +28,7 @@ import { handLocationOf } from '@axe/domain/card/hand-location';
 import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
+import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 /**
@@ -310,6 +311,7 @@ describe('NetworkEventHandlerService', () => {
       expect(openStandbySpy).toHaveBeenCalledTimes(3);
       const lastMessage = chatStub.sendSystemMessage.mock.calls.at(-1)?.[0] as string;
       expect(lastMessage).toContain('feature.lobby.errors.skywayServer');
+      expect(TestBed.inject(NetworkReachService).unreachable()).toBe(true);
     } finally {
       vi.useRealTimers();
     }
