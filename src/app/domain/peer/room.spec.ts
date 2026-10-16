@@ -9,9 +9,9 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { StampPack } from '@axe/domain/chat/stamp-pack';
-import { createDefaultEffectPresets } from '@axe/domain/effect/builtin-effect-presets';
+import { createDefaultEffectPresets, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
-import { createDefaultCutIns } from '@axe/domain/media/builtin-cut-ins';
+import { createDefaultCutIns, DEFAULT_CUT_IN_SEEDS } from '@axe/domain/media/builtin-cut-ins';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { Party, PARTY_COLORS } from '@axe/domain/party/party';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
@@ -210,6 +210,16 @@ describe('Room', () => {
       loadRoom('<card></card>');
 
       expect(store.getObjects<EffectPreset>(EffectPreset).length).toBeGreaterThan(0);
+    });
+
+    it('says the usual set is coming back before making it, as a room server keeps what was deleted', () => {
+      const announce = vi.spyOn(store, 'announceComingBack');
+
+      loadRoom('<card></card>');
+
+      expect(announce).toHaveBeenCalledWith(DEFAULT_EFFECT_PRESET_SEEDS.map((seed) => seed.identifier));
+      expect(announce).toHaveBeenCalledWith(DEFAULT_CUT_IN_SEEDS.map((seed) => seed.identifier));
+      announce.mockRestore();
     });
   });
 

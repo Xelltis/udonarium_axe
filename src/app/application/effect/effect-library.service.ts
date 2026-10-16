@@ -78,11 +78,15 @@ export class EffectLibraryService {
    * Brings the defaults up to date.
    * It builds what is missing and refreshes what is already there.
    * A preset with a fixed identifier cannot be rebuilt on joining, so without this an
-   * existing room keeps the old timings and colours.
+   * existing room keeps the old timings and colours. What is missing is said to be coming back
+   * first, as a room server, or a seat that saw it deleted, would delete it again.
    */
   restoreDefaults(): { added: number; updated: number } {
     let added = 0;
     let updated = 0;
+    ObjectStore.instance.announceComingBack(
+      DEFAULT_EFFECT_PRESET_SEEDS.map((seed) => seed.identifier).filter((identifier) => !this.get(identifier))
+    );
 
     for (const seed of DEFAULT_EFFECT_PRESET_SEEDS) {
       const existing = this.get(seed.identifier);
