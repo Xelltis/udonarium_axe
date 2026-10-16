@@ -13,6 +13,7 @@ import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { leavingLoss } from '@axe/application/lobby/leaving-loss';
 import { roomDeletionMessageKey, RoomDeletionService } from '@axe/application/lobby/room-deletion.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
@@ -38,7 +39,7 @@ import {
   roleShortLabelKey,
 } from '@axe/domain/peer/peer-role';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { dropInvitationFromAddress, leavingLoss } from '@axe/features/lobby/leave-room';
+import { dropInvitationFromAddress } from '@axe/features/lobby/leave-room';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { ReConnectComponent } from '@axe/features/lobby/re-connect/re-connect.component';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';

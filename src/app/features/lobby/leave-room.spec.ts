@@ -1,10 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { leavingLoss } from '@axe/application/lobby/leaving-loss';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { Network } from '@axe/core/network/network';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { leaveRoomByReloading, LeaveRoomService, leavingLoss } from '@axe/features/lobby/leave-room';
+import { leaveRoomByReloading, LeaveRoomService } from '@axe/features/lobby/leave-room';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
