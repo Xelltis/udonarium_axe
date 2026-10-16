@@ -716,9 +716,12 @@ export class ServerConnection implements Connection {
         this.connectSocket();
         return;
       }
-      // Asked back before a welcome, as while the room changes hands: the seat tries again after the
-      // usual wait, still coming in, or still coming back unseen, as it was.
-      if (this.reconnectScheduler.schedule(SOCKET_KEY, () => this.connectSocket()) != null) return;
+      // Asked back before its first welcome, as while the room changes hands, a seat coming in tries
+      // again after the usual wait. One that was coming back unseen is told of the drop below, as
+      // after any link that failed.
+      if (!this.everWelcomed && this.reconnectScheduler.schedule(SOCKET_KEY, () => this.connectSocket()) != null) {
+        return;
+      }
     }
     const wasComingBack = this.comingBack;
     this.comingBack = false;

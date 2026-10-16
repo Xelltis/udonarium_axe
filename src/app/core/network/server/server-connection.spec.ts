@@ -305,6 +305,16 @@ describe('ServerConnection', () => {
       expect(connection.peerIds).toEqual([OTHER.peerId]);
     });
 
+    it('tells of the drop after all when the new link is asked back too before letting the seat in', async () => {
+      const socket = await enterRoom([OTHER]);
+      const before = calls.length;
+      socket.close(1012, 'rotate');
+
+      latest().close(1012, 'moved');
+
+      expect(calls.slice(before)).toEqual(['disconnect authority', `disconnect ${OTHER.peerId}`, 'reconnect retrying']);
+    });
+
     it('tells of a role changed while the link was down, once back on the new one', async () => {
       connection.callback.onRoleChange = (role) => calls.push(`role ${role}`);
       const socket = await enterRoom([OTHER]);
