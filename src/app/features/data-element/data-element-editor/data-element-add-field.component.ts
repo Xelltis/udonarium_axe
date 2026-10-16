@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, ElementRef, inject, input } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { BottomSheetRef, BottomSheetService } from '@axe/application/ui/bottom-sheet.service';
+import { closeSheetWhenOffTheTable } from '@axe/application/ui/close-sheet-when-off-the-table';
 import { DataElement, type DataElementFieldTypeValue } from '@axe/domain/data/data-element';
 import { DataElementFieldEditorComponent } from '@axe/features/data-element/data-element-editor/data-element-field-editor.component';
 import { DataElementTypeGridComponent } from '@axe/features/data-element/data-element-editor/data-element-type-grid.component';
@@ -25,6 +26,10 @@ export class DataElementAddFieldComponent {
   private readonly edit = inject(DataElementEditService);
   private readonly sheet = inject(BottomSheetRef);
   private readonly bottomSheet = inject(BottomSheetService);
+
+  constructor() {
+    closeSheetWhenOffTheTable();
+  }
   private readonly t = inject(TRANSLATE_FN);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 

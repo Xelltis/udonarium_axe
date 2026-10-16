@@ -5,6 +5,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
@@ -100,6 +101,7 @@ export class GameTableMaskSheetComponent {
   readonly progressPercent = signal(0);
 
   constructor() {
+    closeWhenOffTheTable();
     this.objectChange.objectDeleted$.subscribe((e) => {
       const mask = this._gameTableMask();
       if (mask && mask.identifier === e.identifier) this.panelService.close();

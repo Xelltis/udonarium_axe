@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { closeSheetWhenOffTheTable } from '@axe/application/ui/close-sheet-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -42,6 +43,10 @@ export class CharacterPortraitPanelComponent {
   private readonly modalService = inject(ModalService);
   private readonly panelService = inject(PanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
+
+  constructor() {
+    closeSheetWhenOffTheTable();
+  }
   private readonly translateFn = inject(TRANSLATE_FN);
   protected readonly isCompact = inject(ViewportService).isCompact;
 

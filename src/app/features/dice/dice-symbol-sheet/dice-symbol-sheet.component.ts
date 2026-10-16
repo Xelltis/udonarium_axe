@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -88,6 +89,7 @@ export class DiceSymbolSheetComponent {
   readonly progressPercent = signal(0);
 
   constructor() {
+    closeWhenOffTheTable();
     this.objectChange.objectDeleted$.subscribe((e) => {
       const dice = this._diceSymbol();
       if (dice && dice.identifier === e.identifier) {
