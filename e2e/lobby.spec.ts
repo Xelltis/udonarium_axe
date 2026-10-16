@@ -6,7 +6,7 @@ import { waitAppReady } from './helpers';
  * The connection panel is where every session starts, and it had no coverage.
  * The suite runs against a backend that answers nothing on purpose, so this
  * stops at what the browser owns: the panel's own controls, and the lobby
- * reporting honestly that it found no rooms rather than hanging or blanking.
+ * reporting honestly that it is not connected rather than hanging or blanking.
  */
 test.describe('the connection panel and the lobby', () => {
   test.beforeEach(async ({ page }) => {
@@ -23,22 +23,19 @@ test.describe('the connection panel and the lobby', () => {
     await expect(page.locator('chat-input')).toContainText('語り部', { timeout: 10000 });
   });
 
-  test('opens the connection breakdown from "show details"', async ({ page }) => {
+  test('turns "show details" on and off', async ({ page }) => {
     const detail = page.locator('peer-menu input[name="disp-detail-flag"]');
     await expect(detail).not.toBeChecked();
 
-    const before = (await page.locator('peer-menu').innerText()).length;
     // The chat window opened at start-up covers the lower part of the panel, so the event is sent directly.
+    // What it shows is each other peer's latency, and with a backend that answers nothing there is none.
     await detail.dispatchEvent('click');
     await expect(detail).toBeChecked();
-
-    // The folded breakdown opens, so the panel holds more.
-    await expect
-      .poll(async () => (await page.locator('peer-menu').innerText()).length, { timeout: 5000 })
-      .toBeGreaterThan(before);
+    await detail.dispatchEvent('click');
+    await expect(detail).not.toBeChecked();
   });
 
-  test('says plainly that the lobby is empty when it cannot connect', async ({ page }) => {
+  test('says plainly that it is not connected when the backend answers nothing', async ({ page }) => {
     await page
       .locator('peer-menu')
       .getByRole('button', { name: /ロビー/ })
@@ -46,8 +43,8 @@ test.describe('the connection panel and the lobby', () => {
 
     const lobby = page.locator('lobby');
     await expect(lobby).toBeVisible({ timeout: 15000 });
-    // Rather than going blank without a word, it says nothing was found and what to do next.
-    await expect(lobby).toContainText('接続可能なルームが見つかりませんでした');
+    // Rather than going blank, or saying there are no rooms, it says it is not connected yet.
+    await expect(lobby).toContainText('まだサーバーにつながっていません');
     await expect(lobby.getByRole('button', { name: /新しいルームを作成する/ })).toBeVisible();
     await expect(lobby.getByRole('button', { name: /一覧を更新/ })).toBeVisible();
   });
