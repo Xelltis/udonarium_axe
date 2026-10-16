@@ -58,9 +58,10 @@ export class ReplayRecordingListComponent {
    *
    * While editing, the recording being edited stays as it is, and before another is opened the
    * edits are thrown away, once confirmed when there are any; the list would otherwise go on
-   * showing the old recording's edited rows.
+   * showing the old recording's edited rows. Nothing is opened while the edits are being saved.
    */
   protected async open(meta: ReplayRecordingMeta): Promise<void> {
+    if (this.editor.isSaving()) return;
     if (this.editor.isEditing()) {
       if (meta.id === this.openedId()) return;
       if (this.editor.isDirty() && !(await this.confirm.ask(this.t('feature.replay.editor.discardConfirm')))) return;

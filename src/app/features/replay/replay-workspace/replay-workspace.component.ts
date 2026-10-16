@@ -121,9 +121,10 @@ export class ReplayWorkspaceComponent {
 
   /**
    * Throws every edit away and stops editing, and with it a scene being acted out to go in, which
-   * would have no edit left to go into.
+   * would have no edit left to go into. Nothing is thrown away while the edits are being saved.
    */
   protected cancelEditing(): void {
+    if (this.isSaving()) return;
     if (this.staging.isStaging()) {
       this.staging.discard();
       void this.playback.showBoardAfresh();
@@ -147,8 +148,9 @@ export class ReplayWorkspaceComponent {
   }
 
   /**
-   * Saves the edits as a recording of their own and opens it. Nothing is saved while a scene is being
-   * acted out, which would be left out and thrown away as the saved one opens.
+   * Saves the edits as a recording of their own and opens it, unless another recording was opened
+   * meanwhile. Nothing is saved while a scene is being acted out, which would be left out and thrown
+   * away as the saved one opens.
    */
   protected async saveEdits(): Promise<void> {
     if (this.isStaging()) return;
@@ -163,6 +165,7 @@ export class ReplayWorkspaceComponent {
     );
     if (derived == null) return;
     await this.recorder.refresh();
+    if (this.playback.recordingId() !== id) return;
     await this.playback.open(derived);
   }
 }
