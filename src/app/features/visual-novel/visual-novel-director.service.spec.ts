@@ -70,6 +70,28 @@ describe('VisualNovelDirectorService', () => {
     other.destroy();
   });
 
+  it('is ended on the stage by a game master who sees its director made a player, not to start again', () => {
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    objectChange.notifyChanged(PeerCursor.myCursor.identifier);
+    const other = new PeerCursor();
+    other.peerId = 'other-peer';
+    other.role = PeerRole.GameMaster;
+    other.initialize();
+    stage.startDirecting('other-peer');
+    notifyStage();
+
+    other.role = PeerRole.Player;
+    objectChange.notifyChanged(other.identifier);
+    TestBed.tick();
+    expect(stage.isDirected).toBe(false);
+
+    other.role = PeerRole.GameMaster;
+    objectChange.notifyChanged(other.identifier);
+    notifyStage();
+    expect(director.isDirected()).toBe(false);
+    other.destroy();
+  });
+
   it('starts with the screening off', () => {
     expect(director.isDirected()).toBe(false);
     expect(director.isDirector()).toBe(false);
