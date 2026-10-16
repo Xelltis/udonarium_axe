@@ -56,6 +56,23 @@ describe('VisualNovelEmoteSelectionService', () => {
     expect(service.exited()).toBe(false);
   });
 
+  it('drops a scene change chosen by a game master made a player, and keeps a kind still allowed', () => {
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+    service.kind.set('scene');
+    expect(service.emote().kind).toBe('scene');
+
+    PeerCursor.myCursor.role = PeerRole.Player;
+    TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+
+    expect(service.kind()).toBe('normal');
+    expect(service.emote().kind).toBe('normal');
+    service.kind.set('narration');
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+    expect(service.kind()).toBe('narration');
+  });
+
   it('offers a scene change only to the game master', () => {
     expect(service.messageKindOptions()).not.toContain('scene');
 

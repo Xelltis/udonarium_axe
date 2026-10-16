@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, linkedSignal, signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
@@ -24,7 +24,15 @@ import {
 export class VisualNovelEmoteSelectionService {
   private readonly objectChange = inject(ObjectChangeService);
 
-  readonly kind = signal<VnMessageKind>('normal');
+  /**
+   * The kind of the next line. A kind this seat may no longer choose, as a scene change once it is
+   * no longer the game master, falls back to a plain line.
+   */
+  readonly kind = linkedSignal<readonly VnMessageKind[], VnMessageKind>({
+    source: () => this.messageKindOptions(),
+    computation: (options, previous) =>
+      previous && options.includes(previous.value) ? previous.value : VN_EMOTE_DEFAULT.kind,
+  });
   readonly shape = signal<VnBubbleShape>('normal');
   readonly bubbleAnimation = signal<VnBubbleAnimation>('none');
   readonly portraitEmote = signal<VnPortraitEmote>('none');
