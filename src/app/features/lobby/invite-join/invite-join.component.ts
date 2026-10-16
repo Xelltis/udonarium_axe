@@ -5,6 +5,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { InviteLinkParams, parseInviteLink } from '@axe/domain/peer/invite-link';
@@ -15,6 +16,7 @@ import {
   PasswordCheckComponent,
   type PasswordCheckOptions,
 } from '@axe/features/lobby/password-check/password-check.component';
+import { RoomRestoreOfferService } from '@axe/features/room-archive/room-restore-banner/room-restore-offer.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
 type InviteJoinState = 'idle' | 'joining' | 'offline' | 'notFound' | 'failed' | 'done';
@@ -33,6 +35,8 @@ export class InviteJoinComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly localModePreference = inject(LocalModePreferenceService);
+  private readonly isCompact = inject(ViewportService).isCompact;
+  private readonly restoreOffer = inject(RoomRestoreOfferService);
 
   private readonly state = signal<InviteJoinState>('idle');
   private readonly roomName = signal('');
@@ -40,9 +44,18 @@ export class InviteJoinComponent {
   protected readonly isJoining = computed(() => this.state() === 'joining');
   /** Whether this browser is set to play offline, where no room can be joined until it goes online. */
   protected readonly isOffline = computed(() => this.state() === 'offline');
-  // It is left off a screen meant for streaming, where an unpressable panel would sit in the broadcast.
+  /**
+   * Whether the notice is up. It is left off a screen meant for streaming, where an unpressable
+   * panel would sit in the broadcast. On a narrow screen, the notice that a browser set to play
+   * offline joins nothing waits for the offer to restore the last table to be answered, which takes
+   * the top of the screen there.
+   */
   protected readonly visible = computed(
-    () => !this.overlayMode.active() && this.state() !== 'idle' && this.state() !== 'done'
+    () =>
+      !this.overlayMode.active() &&
+      this.state() !== 'idle' &&
+      this.state() !== 'done' &&
+      !(this.isOffline() && this.isCompact() && this.restoreOffer.visible())
   );
 
   protected readonly message = computed(() => {

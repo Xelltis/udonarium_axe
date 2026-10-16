@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { LOCAL_MODE_STORAGE_KEY } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo, RoomInfo } from '@axe/core/network/room-info';
@@ -11,6 +12,7 @@ import { buildInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
+import { RoomRestoreOfferService } from '@axe/features/room-archive/room-restore-banner/room-restore-offer.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function createRoom(withPassword = false): IRoomInfo {
@@ -30,6 +32,8 @@ describe('InviteJoinComponent', () => {
   let joinServerRoom: ReturnType<typeof vi.fn>;
   let modalOpen: ReturnType<typeof vi.fn>;
   let waitingForPreviousConnection: WritableSignal<boolean>;
+  let isCompact: WritableSignal<boolean>;
+  let restoreOffered: WritableSignal<boolean>;
   let originalMyCursor: PeerCursor;
 
   async function setup(hash: string): Promise<void> {
@@ -42,6 +46,8 @@ describe('InviteJoinComponent', () => {
           provide: RoomJoinService,
           useValue: { findRoom, join, findServerRoom, joinServerRoom, waitingForPreviousConnection },
         },
+        { provide: ViewportService, useValue: { isCompact } },
+        { provide: RoomRestoreOfferService, useValue: { visible: restoreOffered } },
       ],
     }).compileComponents();
     TestBed.overrideProvider(ModalService, { useValue: { open: modalOpen } });
@@ -72,6 +78,8 @@ describe('InviteJoinComponent', () => {
     joinServerRoom = vi.fn().mockResolvedValue(true);
     modalOpen = vi.fn().mockResolvedValue('');
     waitingForPreviousConnection = signal(false);
+    isCompact = signal(false);
+    restoreOffered = signal(false);
     originalMyCursor = PeerCursor.myCursor;
     PeerCursor.myCursor = { reConnectPass: '', role: PeerRole.Player, update: vi.fn() } as unknown as PeerCursor;
     vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(true);
@@ -145,6 +153,36 @@ describe('InviteJoinComponent', () => {
       const notice = (fixture.nativeElement as HTMLElement).querySelector('div')!;
       expect(notice.classList).toContain('top-24');
       expect(notice.classList.contains('top-3')).toBe(false);
+    } finally {
+      localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
+    }
+  });
+
+  it('holds the offline notice back on a narrow screen until the offer to restore is answered', async () => {
+    localStorage.setItem(LOCAL_MODE_STORAGE_KEY, '1');
+    isCompact.set(true);
+    restoreOffered.set(true);
+    try {
+      await setup('#join?r=a1b&n=room');
+      await flush();
+      expect(bannerText().trim()).toBe('');
+
+      restoreOffered.set(false);
+      fixture.detectChanges();
+      expect(bannerText()).toContain('オフラインのため');
+    } finally {
+      localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
+    }
+  });
+
+  it('shows the offline notice beside the offer to restore on a wide screen, below it', async () => {
+    localStorage.setItem(LOCAL_MODE_STORAGE_KEY, '1');
+    restoreOffered.set(true);
+    try {
+      await setup('#join?r=a1b&n=room');
+      await flush();
+
+      expect(bannerText()).toContain('オフラインのため');
     } finally {
       localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
     }
