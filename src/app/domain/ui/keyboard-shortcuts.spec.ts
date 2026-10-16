@@ -140,6 +140,13 @@ describe('the sections of the cheat sheet', () => {
     expect(idsIn(onTheTable, 'tabletop')).toContain('enter');
   });
 
+  it('lists a guest in the first person view only looking around and aiming, which is all it may do there', () => {
+    const guest = { ...onTheTable, role: PeerRole.Guest, firstPerson: true };
+
+    expect(idsIn(guest, 'firstPerson')).toEqual(['target', 'clearTargets', 'escape', 'look']);
+    expect(idsIn({ ...guest, role: PeerRole.Player }, 'firstPerson')).toContain('door');
+  });
+
   it('lists the moves of the grid being looked at', () => {
     const square = { ...onTheTable, firstPerson: true };
     expect(idsIn(square, 'firstPerson')).toContain('move');

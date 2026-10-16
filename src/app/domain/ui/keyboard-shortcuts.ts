@@ -138,23 +138,39 @@ export const KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
   line('chat', 'search', [['Ctrl', 'F']], { probe: { key: 'f', ctrl: true, command: 'search' } }),
 
   line('firstPerson', 'move', [['W'], ['A'], ['S'], ['D'], ['↑'], ['↓']], {
+    audience: 'playing',
     grid: 'square',
     probe: { code: 'KeyW', command: 'move' },
   }),
   line('firstPerson', 'frontBack', [['W'], ['S'], ['↑'], ['↓']], {
+    audience: 'playing',
     grid: 'hex',
     probe: { code: 'KeyS', command: 'move' },
   }),
-  line('firstPerson', 'slantFront', [['A'], ['D']], { grid: 'hex', probe: { code: 'KeyA', command: 'move' } }),
-  line('firstPerson', 'slantBack', [['Z'], ['C']], { grid: 'hex', probe: { code: 'KeyZ', command: 'move' } }),
-  line('firstPerson', 'turn', [['Q'], ['E'], ['←'], ['→']], { probe: { code: 'KeyQ', command: 'turn' } }),
-  line('firstPerson', 'door', [['Space']], { probe: { code: 'Space', command: 'door' } }),
-  line('firstPerson', 'torch', [['F']], { probe: { code: 'KeyF', command: 'torch' } }),
+  line('firstPerson', 'slantFront', [['A'], ['D']], {
+    audience: 'playing',
+    grid: 'hex',
+    probe: { code: 'KeyA', command: 'move' },
+  }),
+  line('firstPerson', 'slantBack', [['Z'], ['C']], {
+    audience: 'playing',
+    grid: 'hex',
+    probe: { code: 'KeyZ', command: 'move' },
+  }),
+  line('firstPerson', 'turn', [['Q'], ['E'], ['←'], ['→']], {
+    audience: 'playing',
+    probe: { code: 'KeyQ', command: 'turn' },
+  }),
+  line('firstPerson', 'door', [['Space']], { audience: 'playing', probe: { code: 'Space', command: 'door' } }),
+  line('firstPerson', 'torch', [['F']], { audience: 'playing', probe: { code: 'KeyF', command: 'torch' } }),
   line('firstPerson', 'target', [['T']], { probe: { code: 'KeyT', command: 'target' } }),
   line('firstPerson', 'clearTargets', [['Shift', 'T']], {
     probe: { code: 'KeyT', shift: true, command: 'clearTargets' },
   }),
-  line('firstPerson', 'cast', [['Enter']], { probe: { code: 'Enter', when: { picking: true }, command: 'castPicks' } }),
+  line('firstPerson', 'cast', [['Enter']], {
+    audience: 'playing',
+    probe: { code: 'Enter', when: { picking: true }, command: 'castPicks' },
+  }),
   line('firstPerson', 'escape', [['Esc']], { probe: { code: 'Escape', command: 'exit' } }),
   line('firstPerson', 'look', [], { pointer: 'drag' }),
 
