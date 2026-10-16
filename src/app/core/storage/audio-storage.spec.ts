@@ -153,6 +153,7 @@ describe('AudioStorage', () => {
       (storage as unknown as { uploadRetries: AssetRetries }).uploadRetries.clear();
       (storage as unknown as { missedUploads: Set<string> }).missedUploads.clear();
       (storage as unknown as { uploading: Set<string> }).uploading.clear();
+      (storage as unknown as { gaveUp: Set<string> }).gaveUp.clear();
       vi.useRealTimers();
     });
 
@@ -209,6 +210,24 @@ describe('AudioStorage', () => {
       } finally {
         storage.receivedUploadDelay = () => 0;
       }
+    });
+
+    it('still has one to go up once its tries have run out, and tries it afresh once the seat is back', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      storage.add(AudioFile.create(contextOf(trackId)));
+      upload.mockResolvedValue('failed');
+      finishUpload('failed');
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 8);
+      expect(upload).toHaveBeenCalledTimes(4);
+      expect(storage.hasUploadsPending).toBe(true);
+
+      upload.mockResolvedValue('stored');
+      storage.uploadMissedToAssetStore();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(upload).toHaveBeenCalledTimes(5);
+      expect(storage.hasUploadsPending).toBe(false);
     });
 
     it('has nothing yet to go up for a guest, who puts nothing up, but for one going up', () => {

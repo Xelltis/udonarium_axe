@@ -12,11 +12,14 @@ export class AssetRetries {
   private readonly tries = new Map<string, number>();
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
 
-  /** Arranges one more try of a transfer that failed, unless it has been tried as often as it may. */
-  schedule(identifier: string, retry: () => void): void {
-    if (this.timers.has(identifier)) return;
+  /**
+   * Arranges one more try of a transfer that failed, unless it has been tried as often as it may.
+   * Says whether one is to come.
+   */
+  schedule(identifier: string, retry: () => void): boolean {
+    if (this.timers.has(identifier)) return true;
     const tries = this.tries.get(identifier) ?? 0;
-    if (ASSET_RETRY_LIMIT <= tries) return;
+    if (ASSET_RETRY_LIMIT <= tries) return false;
     this.tries.set(identifier, tries + 1);
     const timer = setTimeout(
       () => {
@@ -26,6 +29,7 @@ export class AssetRetries {
       ASSET_RETRY_DELAY_MS * 2 ** tries
     );
     this.timers.set(identifier, timer);
+    return true;
   }
 
   /** Whether a transfer is waiting to be tried again. */

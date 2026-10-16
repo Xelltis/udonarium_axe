@@ -30,6 +30,8 @@ export class AudioStorage {
    * which go up once the seat is back.
    */
   private readonly missedUploads = new Set<string>();
+  /** What failed to go up as often as it may be tried, left for the seat's next chance. */
+  private readonly gaveUp = new Set<string>();
   /** Uploads that failed for now, tried again a few times while the seat stays in the room. */
   private readonly uploadRetries = new AssetRetries();
 
@@ -100,14 +102,21 @@ export class AudioStorage {
   uploadAllToAssetStore(): void {
     this.uploadRetries.clear();
     this.missedUploads.clear();
+    this.gaveUp.clear();
     for (const audio of this.audios) this.uploadToAssetStore(audio);
   }
 
   /**
    * Puts up what was added here while the room could not be reached, as on coming back on a new
-   * link the server asked for, without asking again about all the rest.
+   * link the server asked for, and what failed as often as it may be tried, without asking again
+   * about all the rest.
    */
   uploadMissedToAssetStore(): void {
+    for (const identifier of [...this.gaveUp]) {
+      this.gaveUp.delete(identifier);
+      this.uploadRetries.forget(identifier);
+      this.missedUploads.add(identifier);
+    }
     for (const identifier of [...this.missedUploads]) {
       this.missedUploads.delete(identifier);
       const audio = this.hash[identifier];
@@ -174,8 +183,14 @@ export class AudioStorage {
           return;
         }
         const roomKey = Network.roomKey;
-        if (result === 'failed') this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey));
-        else this.uploadRetries.forget(identifier);
+        if (result === 'failed') {
+          if (!this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey))) {
+            this.gaveUp.add(identifier);
+          }
+        } else {
+          this.uploadRetries.forget(identifier);
+          this.gaveUp.delete(identifier);
+        }
         wentUpElsewhere = (result === 'stored' || result === 'exists') && roomKey !== requestedIn;
       })
       .finally(() => {
@@ -233,13 +248,14 @@ export class AudioStorage {
 
   /**
    * Whether any sound this seat is to put up has yet to reach the room's asset store: going up,
-   * waiting to be tried again, or waiting for the room to be in reach. A guest puts nothing up, so
+   * waiting to be tried again or for the room to be in reach, or left after failing as often as it
+   * may be tried. A guest puts nothing up, so
    * only one going up counts for it.
    */
   get hasUploadsPending(): boolean {
     if (this.uploading.size > 0) return true;
     if (Network.serverRole === 'guest') return false;
-    return this.uploadRetries.hasWaiting || this.missedUploads.size > 0;
+    return this.uploadRetries.hasWaiting || this.missedUploads.size > 0 || this.gaveUp.size > 0;
   }
 
   /**
