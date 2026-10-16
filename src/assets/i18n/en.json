@@ -3373,6 +3373,7 @@
         "joining": "Joining \"{{roomName}}\"…",
         "notFound": "\"{{roomName}}\" was not found",
         "failed": "Could not join \"{{roomName}}\"",
+        "offline": "You are offline, so you cannot join \"{{roomName}}\". To join, switch to online in the connection panel",
         "openLobby": "Open lobby",
         "dismiss": "Dismiss"
       },

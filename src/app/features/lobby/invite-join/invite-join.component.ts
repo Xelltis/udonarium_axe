@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signa
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { Network } from '@axe/core/index';
@@ -16,7 +17,7 @@ import {
 } from '@axe/features/lobby/password-check/password-check.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
-type InviteJoinState = 'idle' | 'joining' | 'notFound' | 'failed' | 'done';
+type InviteJoinState = 'idle' | 'joining' | 'offline' | 'notFound' | 'failed' | 'done';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,11 +32,14 @@ export class InviteJoinComponent {
   private readonly overlayMode = inject(OverlayModeService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly localModePreference = inject(LocalModePreferenceService);
 
   private readonly state = signal<InviteJoinState>('idle');
   private readonly roomName = signal('');
 
   protected readonly isJoining = computed(() => this.state() === 'joining');
+  /** Whether this browser is set to play offline, where no room can be joined until it goes online. */
+  protected readonly isOffline = computed(() => this.state() === 'offline');
   // It is left off a screen meant for streaming, where an unpressable panel would sit in the broadcast.
   protected readonly visible = computed(
     () => !this.overlayMode.active() && this.state() !== 'idle' && this.state() !== 'done'
@@ -47,6 +51,8 @@ export class InviteJoinComponent {
         return this.roomJoin.waitingForPreviousConnection()
           ? this.t('feature.lobby.waitingForPreviousConnection')
           : this.t('feature.lobby.invite.joining', { roomName: this.roomName() });
+      case 'offline':
+        return this.t('feature.lobby.invite.offline', { roomName: this.roomName() });
       case 'notFound':
         return this.t('feature.lobby.invite.notFound', { roomName: this.roomName() });
       case 'failed':
@@ -61,6 +67,10 @@ export class InviteJoinComponent {
     if (!params) return;
 
     this.roomName.set(params.roomName);
+    if (this.localModePreference.enabled()) {
+      this.state.set('offline');
+      return;
+    }
     this.state.set('joining');
 
     if (Network.isOpen) {

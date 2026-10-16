@@ -1,6 +1,7 @@
 import { signal, type WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RoomJoinService } from '@axe/application/lobby/room-join.service';
+import { LOCAL_MODE_STORAGE_KEY } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
@@ -117,6 +118,21 @@ describe('InviteJoinComponent', () => {
     await setup('#join?r=a1b&n=room&role=guest');
 
     await eventually(() => expect(PeerCursor.myCursor.role).toBe(PeerRole.Guest));
+  });
+
+  it('says a browser set to play offline cannot join, and lets the banner be closed', async () => {
+    localStorage.setItem(LOCAL_MODE_STORAGE_KEY, '1');
+    try {
+      await setup('#join?r=a1b&n=room');
+      await flush();
+
+      expect(bannerText()).toContain('オフラインのため');
+      expect(findRoom).not.toHaveBeenCalled();
+      const buttons = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
+      expect(buttons.map((button) => button.textContent?.trim())).toEqual(['閉じる']);
+    } finally {
+      localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
+    }
   });
 
   it('says so when the room is not there', async () => {

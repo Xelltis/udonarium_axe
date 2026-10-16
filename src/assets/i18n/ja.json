@@ -3373,6 +3373,7 @@
         "joining": "「{{roomName}}」に参加しています…",
         "notFound": "「{{roomName}}」が見つかりませんでした",
         "failed": "「{{roomName}}」に参加できませんでした",
+        "offline": "オフラインのため「{{roomName}}」に入れません。入るときは、接続パネルでオンラインに切り替えてください",
         "openLobby": "ロビーを開く",
         "dismiss": "閉じる"
       },
