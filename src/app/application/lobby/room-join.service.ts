@@ -86,13 +86,15 @@ export class RoomJoinService {
 
     return new Promise<boolean>((resolve) => {
       let isSettled = false;
-      const settle = (isJoined: boolean): void => {
+      // An error is left to the handling of network errors, which goes back to waiting as whoever
+      // the login says; only a join that came to nothing by itself waits again here.
+      const settle = (isJoined: boolean, byError = false): void => {
         if (isSettled) return;
         isSettled = true;
         clearTimeout(timer);
         offOpen();
         offError();
-        if (!isJoined) this.resetNetwork(room.id, userId, true);
+        if (!isJoined && !byError) this.resetNetwork(room.id, userId, true);
         resolve(isJoined);
       };
       const offOpen = this.objectChange.networkOpen$.subscribe((event) => {
@@ -107,7 +109,7 @@ export class RoomJoinService {
       const offError = this.objectChange.networkError$.subscribe((event) => {
         const ours =
           !event.peerId || event.peerId === UNOPENED_PEER_ID || PeerContext.parse(event.peerId).roomId === room.id;
-        if (ours) settle(false);
+        if (ours) settle(false, true);
       }, this.destroyRef);
       const timer = setTimeout(() => settle(false), ROOM_SERVER_OPEN_TIMEOUT_MS);
       this.destroyRef.onDestroy(() => clearTimeout(timer));

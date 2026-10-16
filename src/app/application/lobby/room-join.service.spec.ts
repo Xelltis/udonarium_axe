@@ -120,7 +120,7 @@ describe('RoomJoinService', () => {
       expect(Network.connect).not.toHaveBeenCalled();
     });
 
-    it('gives up and goes back to waiting when the server refuses', async () => {
+    it('gives up when the server refuses, leaving the wait to the handling of the error', async () => {
       const joined = service.joinServerRoom(serverRoom(), 'wrong');
       livePeerId = MY_PEER;
       stubChange.networkError$.emit({
@@ -131,7 +131,9 @@ describe('RoomJoinService', () => {
       } as NetworkErrorEvent);
 
       expect(await joined).toBe(false);
-      expect(Network.openStandby).toHaveBeenCalled();
+      // The handling of network errors waits again as whoever the login says, which a join started
+      // before a logout would get wrong.
+      expect(Network.openStandby).not.toHaveBeenCalled();
     });
 
     it('gives up at once on a refusal heard after the network went back to waiting', async () => {
