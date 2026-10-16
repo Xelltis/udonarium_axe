@@ -1,4 +1,5 @@
 import { Network } from '@axe/core/network/network';
+import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -49,6 +50,39 @@ describe('buildCardStackContextMenu', () => {
     } finally {
       vi.restoreAllMocks();
       for (const cursor of others) cursor.destroy();
+      cardStack.destroy();
+    }
+  });
+
+  it('copies a deck with nobody holding its cards, as a card in a deck is given a holder by the game master alone', () => {
+    const cardStack = CardStack.create('test stack');
+    const copy = CardStack.create('test stack');
+    const card = Card.create('剣の2', 'front.png', 'back.png');
+    copy.putOnTop(card);
+    card.owner = 'acct_bob';
+    vi.spyOn(cardStack, 'clone').mockReturnValue(copy);
+    PeerCursor.createMyCursor().role = PeerRole.Player;
+
+    try {
+      const actions = buildCardStackContextMenu(
+        cardStack,
+        50,
+        vi.fn(),
+        vi.fn(),
+        vi.fn(),
+        vi.fn(),
+        vi.fn(),
+        vi.fn(),
+        vi.fn(),
+        vi.fn(),
+        t
+      );
+      actions.find((action) => action.name === t('feature.tabletop.contextMenu.copy'))?.action?.();
+
+      expect(copy.cards.map((copied) => copied.owner)).toEqual(['']);
+    } finally {
+      vi.restoreAllMocks();
+      copy.destroy();
       cardStack.destroy();
     }
   });
