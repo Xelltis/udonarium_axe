@@ -660,21 +660,23 @@
             <i class="material-icons">movie_filter</i>
           </button>
         }
-        <div class="relative">
-          <button
-            type="button"
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui flex size-8 cursor-pointer items-center justify-center border-0 bg-transparent transition-[color,background] [&_i]:text-[18px]"
-            [class.text-ui-accent]="isPopover('soundBoard')"
-            [title]="'feature.visualNovel.soundBoard' | transloco"
-            [attr.aria-label]="'feature.visualNovel.soundBoard' | transloco"
-            (click)="toggleSoundBoard()"
-          >
-            <i class="material-icons">volume_up</i>
-          </button>
-          @if (isPopover('soundBoard')) {
-            <visual-novel-sound-board (attach)="attachSe($event)" (played)="closePopovers()" />
-          }
-        </div>
+        @if (canUseSoundBoard()) {
+          <div class="relative">
+            <button
+              type="button"
+              class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui flex size-8 cursor-pointer items-center justify-center border-0 bg-transparent transition-[color,background] [&_i]:text-[18px]"
+              [class.text-ui-accent]="isPopover('soundBoard')"
+              [title]="'feature.visualNovel.soundBoard' | transloco"
+              [attr.aria-label]="'feature.visualNovel.soundBoard' | transloco"
+              (click)="toggleSoundBoard()"
+            >
+              <i class="material-icons">volume_up</i>
+            </button>
+            @if (isPopover('soundBoard')) {
+              <visual-novel-sound-board (attach)="attachSe($event)" (played)="closePopovers()" />
+            }
+          </div>
+        }
         @if (attachedSe(); as se) {
           <span
             class="bg-ui-accent-bg text-ui-accent rounded-ui flex max-w-32 items-center gap-0.5 px-1.5 py-1 text-[10px] [&_i]:text-[12px]"

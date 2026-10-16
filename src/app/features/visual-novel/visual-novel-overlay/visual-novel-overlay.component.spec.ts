@@ -508,6 +508,20 @@ describe('VisualNovelOverlayComponent', () => {
     expect(component.isBacklogOpen()).toBe(true);
   });
 
+  it('offers a guest no sound board, the jukebox and the cut-ins being for the players', () => {
+    const original = PeerCursor.myCursor;
+    PeerCursor.myCursor = { role: PeerRole.Guest } as PeerCursor;
+    try {
+      createComponent();
+      fixture.detectChanges();
+
+      expect(component.canUseSoundBoard()).toBe(false);
+      expect(fixture.nativeElement.querySelector('button[title="SE再生"]')).toBeNull();
+    } finally {
+      PeerCursor.myCursor = original;
+    }
+  });
+
   it('opens and closes the log from the same button', () => {
     addMessage('m1');
     createComponent();

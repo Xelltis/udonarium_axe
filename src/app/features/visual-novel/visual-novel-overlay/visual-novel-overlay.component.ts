@@ -33,6 +33,7 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { keyboardShortcutsOf, shortcutKeysText } from '@axe/domain/ui/keyboard-shortcuts';
 import { encodeVnEmote, VN_EMOTION_MARK_CHARS, vnEmoteOf, VnEmotionMark } from '@axe/domain/visual-novel/vn-emote';
 import {
@@ -747,6 +748,11 @@ export class VisualNovelOverlayComponent {
   }
 
   readonly attachedSe = signal<AttachedSound | null>(null);
+  /** Whether this reader may play sounds and cut-ins for the room from the board, as on the jukebox. */
+  readonly canUseSoundBoard = computed(() => {
+    this.objectChange.trackMyCursor();
+    return canRoleEdit(PeerCursor.myRole);
+  });
 
   /**
    * Attaches a sound from the sound board to the next line, played when the line is sent, and
@@ -1243,7 +1249,7 @@ export class VisualNovelOverlayComponent {
         undefined,
         emote
       );
-      if (attachedSe) this.jukebox?.play(attachedSe.identifier);
+      if (attachedSe && this.canUseSoundBoard()) this.jukebox?.play(attachedSe.identifier);
     });
     if (this.selectedKind() === 'scene') this.scene.playTransition();
     this.attachedSe.set(null);

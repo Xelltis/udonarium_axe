@@ -10,6 +10,8 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { presetSoundLabelKey } from '@axe/domain/media/preset-sound-labels';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { TranslocoModule } from '@jsverse/transloco';
 
 export interface AttachedSound {
@@ -95,6 +97,7 @@ export class VisualNovelSoundBoardComponent {
    * if it or the launcher is missing.
    */
   playCutIn(identifier: string): void {
+    if (!this.mayPlay) return;
     const cutIn = this.objectStore.get<CutIn>(identifier);
     const launcher = this.objectStore.get<CutInLauncher>('CutInLauncher');
     if (cutIn instanceof CutIn && launcher) launcher.startCutIn(cutIn);
@@ -117,12 +120,14 @@ export class VisualNovelSoundBoardComponent {
 
   /** Plays a track on the room's jukebox and refreshes which track shows as playing. */
   playBgm(identifier: string): void {
+    if (!this.mayPlay) return;
     this.jukebox?.play(identifier);
     this.seTick.update((tick) => tick + 1);
   }
 
   /** Stops the room's jukebox and refreshes which track shows as playing. */
   stopBgm(): void {
+    if (!this.mayPlay) return;
     this.jukebox?.stop();
     this.seTick.update((tick) => tick + 1);
   }
@@ -132,12 +137,20 @@ export class VisualNovelSoundBoardComponent {
    * music, and anything else replaces the track.
    */
   playSoundEffect(identifier: string): void {
-    this.jukebox?.play(identifier);
+    if (this.mayPlay) this.jukebox?.play(identifier);
   }
 
   /** Stops a sound effect playing through the room's jukebox. */
   stopSoundEffect(identifier: string): void {
-    this.jukebox?.stopSE(identifier);
+    if (this.mayPlay) this.jukebox?.stopSE(identifier);
+  }
+
+  /**
+   * Whether this reader may play anything for the room: a game master or a player, as on the
+   * jukebox; a guest's would be the room's for nobody but the guest, a room server taking it back.
+   */
+  private get mayPlay(): boolean {
+    return canRoleEdit(PeerCursor.myRole);
   }
 
   /**
