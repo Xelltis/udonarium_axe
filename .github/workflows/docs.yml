@@ -1,8 +1,7 @@
 name: Docs
 
-# website/のVitePressサイトをビルドしてGitHub Pagesへ配信する。
-# アプリ本体のS3デプロイ（deploy.yml）とは独立。
-# 事前にリポジトリのSettings → Pages → Sourceを"GitHub Actions"にしておくこと。
+# Builds the VitePress site in website/ and serves it on GitHub Pages, apart from the app's own
+# S3 deploy (deploy.yml). The repository's Settings → Pages → Source has to be "GitHub Actions".
 
 on:
   push:

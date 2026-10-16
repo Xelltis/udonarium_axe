@@ -1,10 +1,10 @@
 name: Deploy
 
-# 環境ごと（production / public）にS3同期とCloudFront invalidationを行う
-# reusable workflow。release.ymlからworkflow_callで呼び出される。
+# A reusable workflow that syncs to S3 and invalidates CloudFront for one environment
+# (production / public), called from release.yml through workflow_call.
 #
-# `environment` inputがGitHub Environmentsの名前と対応していて、
-# Secretsはその環境からのみ解決される。各環境に次の5つのSecretを登録する。
+# The `environment` input names a GitHub Environment, and the secrets are resolved from that
+# environment alone. Each environment holds these five secrets.
 #   - AWS_REGION
 #   - AWS_S3_BUCKET
 #   - AWS_DEPLOY_ROLE_ARN
@@ -86,20 +86,20 @@ jobs:
         env:
           BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         run: |
-          # axe_*.zipはGitHub Release用なのでS3には載せない
+          # axe_*.zip is for the GitHub release, so it is kept off S3
           aws s3 sync dist/ "s3://$BUCKET/" \
             --delete \
             --exclude "axe_*.zip" \
             --cache-control "public, max-age=31536000, immutable"
 
-          # ハッシュが付かないファイルは即時反映させたいのでrevalidate
+          # Files without a hash in their names are revalidated, to take effect at once
           aws s3 cp dist/index.html "s3://$BUCKET/index.html" \
             --cache-control "public, max-age=0, must-revalidate" \
             --content-type "text/html; charset=utf-8"
           aws s3 cp dist/assets/config.json "s3://$BUCKET/assets/config.json" \
             --cache-control "public, max-age=0, must-revalidate" \
             --content-type "application/json"
-          # 翻訳ファイルもハッシュが付かず同名で差し替わるためrevalidate
+          # The translation files have no hash either and are replaced under the same names, so revalidate
           aws s3 cp dist/assets/i18n/ "s3://$BUCKET/assets/i18n/" \
             --recursive \
             --cache-control "public, max-age=0, must-revalidate" \

@@ -11,24 +11,24 @@ updates:
       prefix: chore
       include: scope
     ignore:
-      # ワークフローとこの環境はNode 24で動いているので、型のメジャーは最新を追わずに手で決める。
+      # The workflows and this environment run on Node 24, so the types' major is chosen by hand, not followed.
       - dependency-name: '@types/node'
         update-types:
           - version-update:semver-major
-      # 10は@semantic-release/release-notes-generator 14が使うconventional-changelog-writerより新しい
-      # 版を前提にしていて、組み合わせるとリリースノートとCHANGELOGが見出しだけの空になる。
-      # release-notes-generatorが追いつくまで止める。
+      # 10 expects a conventional-changelog-writer newer than the one @semantic-release/release-notes-generator
+      # 14 uses, and together they make release notes and a CHANGELOG of headings alone. Held until
+      # release-notes-generator catches up.
       - dependency-name: conventional-changelog-conventionalcommits
         update-types:
           - version-update:semver-major
-      # AngularはTypeScriptの対応範囲をマイナー単位で決めている（22は>=6.0 <6.1）。Angularが受けるまで止める。
+      # Angular names the TypeScript it takes by minor (22 takes >=6.0 <6.1). Held until Angular takes it.
       - dependency-name: typescript
         update-types:
           - version-update:semver-major
     groups:
-      # Angularのフレームワーク・コンパイラ・ビルドツールは互いを同じ版で求めるので、本番依存と開発依存に
-      # またがっていても1つのPRで上げる。種類別のグループに割ると、どちらのPRも単独ではnpm ciが解決しない
-      # （#139と#144がそうだった）。下の2つのグループからは外しておく。
+      # Angular's framework, compiler and build tools ask for one another at the same version, so they go up
+      # in one PR across dependencies and dev dependencies. Split into the groups by kind, neither PR resolves
+      # npm ci on its own (as #139 and #144 did not). They are kept out of the two groups below.
       angular:
         patterns:
           - '@angular/*'
