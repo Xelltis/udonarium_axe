@@ -86,6 +86,11 @@ describe('buildDisclosureContextMenu', () => {
     expect(find(menu, 'feature.disclosure.owner')).toBeFalsy();
   });
 
+  it('offers a guest left owning a piece nothing of it, a guest writing no piece', () => {
+    setMe('g1', PeerRole.Guest);
+    expect(buildDisclosureContextMenu(obj('g1'), t)).toEqual([]);
+  });
+
   it('offers a guest no ownership even of an unowned character', () => {
     setMe('g1', PeerRole.Guest);
     expect(buildDisclosureContextMenu(obj(''), t)).toEqual([]);

@@ -748,8 +748,11 @@ export class VisualNovelOverlayComponent {
   }
 
   readonly attachedSe = signal<AttachedSound | null>(null);
-  /** Whether this reader may play sounds and cut-ins for the room from the board, as on the jukebox. */
-  readonly canUseSoundBoard = computed(() => {
+  /**
+   * Whether this reader may change the table: play sounds and cut-ins for the room from the board,
+   * as on the jukebox, and move or turn the portrait of the piece they speak as. A guest may not.
+   */
+  readonly mayEditTable = computed(() => {
     this.objectChange.trackMyCursor();
     return canRoleEdit(PeerCursor.myRole);
   });
@@ -784,6 +787,7 @@ export class VisualNovelOverlayComponent {
    * position when it has none.
    */
   toggleSpeakerFlip(): void {
+    if (!this.mayEditTable()) return;
     const object = this.objectStore.get(this._sendFrom());
     if (!(object instanceof GameCharacter)) return;
     let element = object.detailDataElement?.getFirstElementByName('FLIP') ?? null;
@@ -1054,7 +1058,7 @@ export class VisualNovelOverlayComponent {
    * the speaker is not a character.
    */
   toggleSlotGuide(): void {
-    if (this.speakerSlot() < 0) return;
+    if (this.speakerSlot() < 0 || !this.mayEditTable()) return;
     this.togglePopover('slotGuide');
   }
 
@@ -1115,7 +1119,7 @@ export class VisualNovelOverlayComponent {
    * closes the guide.
    */
   pickSlot(slot: number): void {
-    const character = this.speakerCharacter();
+    const character = this.mayEditTable() ? this.speakerCharacter() : null;
     if (character) character.vnPortraitPos = Math.min(VN_STAGE_SLOT_COUNT - 1, Math.max(0, slot));
     this.closePopovers();
   }
@@ -1125,7 +1129,7 @@ export class VisualNovelOverlayComponent {
    * guide.
    */
   followChatSlot(): void {
-    const character = this.speakerCharacter();
+    const character = this.mayEditTable() ? this.speakerCharacter() : null;
     if (character) character.vnPortraitPos = VN_PORTRAIT_POS_UNSET;
     this.closePopovers();
   }
@@ -1249,7 +1253,7 @@ export class VisualNovelOverlayComponent {
         undefined,
         emote
       );
-      if (attachedSe && this.canUseSoundBoard()) this.jukebox?.play(attachedSe.identifier);
+      if (attachedSe && this.mayEditTable()) this.jukebox?.play(attachedSe.identifier);
     });
     if (this.selectedKind() === 'scene') this.scene.playTransition();
     this.attachedSe.set(null);

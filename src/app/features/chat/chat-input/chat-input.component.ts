@@ -46,6 +46,7 @@ import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { ChatColorSettingComponent } from '@axe/features/chat/chat-color-setting/chat-color-setting.component';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { ChatInputDiceBotHelper } from '@axe/features/chat/chat-input/chat-input-dicebot';
@@ -744,8 +745,9 @@ export class ChatInputComponent {
   showColorSetting() {
     // Pressing it again puts the panel away, rather than laying another one over it.
     if (this.panelService.closeSingle(COLOR_SETTING_PANEL)) return;
+    // A guest, who may not write a piece, sets the colours of their own lines instead.
     const object = this.objectStore.get(this.sendFrom);
-    if (object instanceof GameCharacter) {
+    if (object instanceof GameCharacter && canRoleEdit(PeerCursor.myRole)) {
       const coordinate = this.pointerDeviceService.pointers[0];
       const title = object.name.length
         ? this.t('feature.chat.input.colorSettingWithChar', { name: object.name })

@@ -515,8 +515,10 @@ describe('VisualNovelOverlayComponent', () => {
       createComponent();
       fixture.detectChanges();
 
-      expect(component.canUseSoundBoard()).toBe(false);
+      expect(component.mayEditTable()).toBe(false);
       expect(fixture.nativeElement.querySelector('button[title="SE再生"]')).toBeNull();
+      component.toggleSlotGuide();
+      expect(component.isPopover('slotGuide')).toBe(false);
     } finally {
       PeerCursor.myCursor = original;
     }
@@ -650,6 +652,20 @@ describe('VisualNovelOverlayComponent', () => {
     expect(component.isPopover('slotGuide')).toBe(false);
     // Anything outside is pulled to the end frame.
     expect(speaker.vnPortraitPos).toBe(VN_STAGE_SLOT_COUNT - 1);
+  });
+
+  it('lets a guest neither place nor turn the speaking character', () => {
+    addMessage('こんにちは', 'アリス', addImage());
+    const speaker = charactersByName.get('アリス')!;
+    const before = speaker.vnPortraitPos;
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    createComponent();
+
+    component.toggleSlotGuide();
+    component.pickSlot(3);
+
+    expect(component.isPopover('slotGuide')).toBe(false);
+    expect(speaker.vnPortraitPos).toBe(before);
   });
 
   it('reads what the room says of itself in words, not as the key it is kept under', () => {

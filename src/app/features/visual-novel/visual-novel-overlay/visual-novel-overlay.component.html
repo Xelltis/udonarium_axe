@@ -567,7 +567,7 @@
             }
           </div>
         }
-        @if (speakerSlot() >= 0) {
+        @if (speakerSlot() >= 0 && mayEditTable()) {
           <button
             type="button"
             class="border-ui-border-panel bg-ui-input text-ui-text hover:border-ui-accent rounded-ui flex h-8 cursor-pointer items-center gap-0.5 border border-solid px-1.5 text-[11px] transition-colors [&_i]:text-[15px]"
@@ -592,7 +592,7 @@
             </button>
           }
         }
-        @if (speakerFlip() !== null) {
+        @if (speakerFlip() !== null && mayEditTable()) {
           <button
             type="button"
             class="rounded-ui flex h-8 cursor-pointer items-center gap-1 border border-solid px-1.5 text-[11px] transition-colors [&_i]:text-[15px]"
@@ -660,7 +660,7 @@
             <i class="material-icons">movie_filter</i>
           </button>
         }
-        @if (canUseSoundBoard()) {
+        @if (mayEditTable()) {
           <div class="relative">
             <button
               type="button"

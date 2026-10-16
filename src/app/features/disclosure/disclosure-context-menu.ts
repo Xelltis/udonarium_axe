@@ -78,7 +78,7 @@ export function buildDisclosureContextMenu(object: DisclosableObject, t: Transla
   const myUserId = PeerCursor.myCursor?.userId ?? '';
   const isGameMaster = PeerCursor.isMyselfGameMaster;
   const viewer = { userId: myUserId, isGameMaster, ownerUserId };
-  const canEdit = canEditDisclosure(viewer);
+  const canEdit = canEditDisclosure(viewer) && canRoleEdit(PeerCursor.myRole);
   const canClaim =
     myUserId.length > 0 &&
     canClaimOwnership(object, viewer, Network.authorityPeerId !== null && object instanceof TextNote) &&

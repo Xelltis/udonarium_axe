@@ -68,6 +68,13 @@ describe('DisclosureService', () => {
     expect(service.canSetOwner({ disclosureMode: 'gm', disclosureUserIds: [], owner: '' })).toBe(true);
   });
 
+  it('lets a guest left owning an object change neither who sees it nor who owns it', () => {
+    setMe('g1', PeerRole.Guest);
+    const owned = { disclosureMode: 'all', disclosureUserIds: [], owner: 'g1' };
+    expect(service.canEdit(owned)).toBe(false);
+    expect(service.canSetOwner(owned)).toBe(false);
+  });
+
   it('does not let a guest set the owner of an unowned object', () => {
     setMe('g1', PeerRole.Guest);
     expect(service.canSetOwner(shown)).toBe(false);

@@ -23,7 +23,7 @@ export class DisclosureService {
 
   /** Whether this reader may change who an object is disclosed to, which is the game master's or its owner's to do. */
   canEdit(object: { owner?: string }): boolean {
-    return canEditDisclosure(this.viewer(object.owner));
+    return canRoleEdit(PeerCursor.myRole) && canEditDisclosure(this.viewer(object.owner));
   }
 
   /**
@@ -35,6 +35,7 @@ export class DisclosureService {
    */
   canSetOwner(object: Disclosable & { owner?: string }): boolean {
     const viewer = this.viewer(object.owner);
+    if (!canRoleEdit(PeerCursor.myRole)) return false;
     if (canEditDisclosure(viewer)) return true;
     return (
       viewer.userId.length > 0 &&

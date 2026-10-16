@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -65,6 +66,31 @@ describe('ChatInputComponent', () => {
     character.chatBubbleDark = ['#444444', '#555555', '#666666'];
     return character;
   }
+
+  it('sets a guest speaking as a piece the colours of their own lines, not the piece’s', () => {
+    const character = speaker('ヒロ');
+    const opened: { tabletopObject?: unknown }[] = [];
+    vi.spyOn(TestBed.inject(PanelService), 'open').mockImplementation(() => {
+      const panel = {};
+      opened.push(panel);
+      return panel as never;
+    });
+    const role = PeerCursor.myCursor.role;
+    try {
+      component.sendFrom = character.identifier;
+      component.showColorSetting();
+      expect(opened[0].tabletopObject).toBe(character);
+
+      vi.spyOn(TestBed.inject(PanelService), 'closeSingle').mockReturnValue(false);
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      component.showColorSetting();
+      expect(opened[1].tabletopObject).toBeNull();
+    } finally {
+      PeerCursor.myCursor.role = role;
+      character.destroy();
+      vi.restoreAllMocks();
+    }
+  });
 
   it('should create', () => {
     expect(component).toBeTruthy();
