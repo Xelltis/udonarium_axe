@@ -3,13 +3,14 @@ import { ChatMessageContext } from '@axe/domain/chat/chat-message';
 
 /**
  * The tutorial lines a chat tab shows before it has any messages, so a newcomer sees what a
- * conversation looks like.
+ * conversation looks like. The opening two say where the table is kept, which differs `onRoomServer`.
  *
  * Names and texts are encoded i18n messages, translated when they are shown, and every line is
  * stamped with the current time.
  */
-export function buildSampleChatMessages(): ChatMessageContext[] {
+export function buildSampleChatMessages(onRoomServer = false): ChatMessageContext[] {
   const NOW = Date.now();
+  const intro = onRoomServer ? ['intro1Server', 'intro2Server'] : ['intro1', 'intro2'];
   return [
     {
       from: 'System',
@@ -17,7 +18,7 @@ export function buildSampleChatMessages(): ChatMessageContext[] {
       imageIdentifier: '',
       tag: '',
       name: encodeI18nMessage('feature.chat.sample.tutorialName'),
-      text: encodeI18nMessage('feature.chat.sample.intro1'),
+      text: encodeI18nMessage(`feature.chat.sample.${intro[0]}`),
     },
     {
       from: 'System',
@@ -25,7 +26,7 @@ export function buildSampleChatMessages(): ChatMessageContext[] {
       imageIdentifier: '',
       tag: '',
       name: encodeI18nMessage('feature.chat.sample.tutorialName'),
-      text: encodeI18nMessage('feature.chat.sample.intro2'),
+      text: encodeI18nMessage(`feature.chat.sample.${intro[1]}`),
     },
     {
       from: 'System',

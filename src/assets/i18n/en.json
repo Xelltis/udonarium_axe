@@ -3484,6 +3484,8 @@
         "tutorialToPlayer": "Tutorial > Player",
         "intro1": "A serverless TRPG online session tool. Participants connect to each other and synchronize pieces, image files, and so on.",
         "intro2": "All data lives in each participant's browser, so you must run \"Save\" to generate a save file (zip) if you want to keep the room state for later. Drop the zip into the browser window to load it.",
+        "intro1Server": "A TRPG online session tool that uses a room server. The server keeps the table and synchronizes pieces, image files, and so on between participants.",
+        "intro2Server": "A while after the last person leaves, the table is removed from the room server. To keep the room state yourself, run \"Save\" to generate a save file (zip). Drop the zip into the browser window to load it.",
         "dm1": "Direct messages (private chat) are not recorded in save files.",
         "dm2": "Past direct messages also become invisible once your ID is renewed, even in the same room. Take care.",
         "env": "On a phone the app switches to a layout of its own: press and hold a piece for its menu, tap it for a summary.",
