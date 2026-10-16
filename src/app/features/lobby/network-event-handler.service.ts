@@ -33,6 +33,9 @@ const ROLE_REJECTED_KEYS: Readonly<Record<string, string>> = {
   'last-game-master': 'feature.lobby.roleRejected.lastGameMaster',
 };
 
+/** How long after somebody leaves the room's list of pictures and sounds is read again. */
+const ROOM_ASSET_RELIST_MS = 30_000;
+
 @Injectable({ providedIn: 'root' })
 export class NetworkEventHandlerService {
   private readonly destroyRef = inject(DestroyRef);
@@ -68,6 +71,7 @@ export class NetworkEventHandlerService {
   private serverErrorReconnectTimer: ReturnType<typeof setTimeout> | null = null;
   /** The room's list of pictures and sounds, when the server could not give it just then. */
   private readonly roomAssetListRetries = new AssetRetries();
+  private roomAssetRelistTimer: ReturnType<typeof setTimeout> | null = null;
   private localMode = false;
   /** The account last followed; undefined until the first look, which changes nothing. */
   private followedAccountUserId: string | null | undefined = undefined;
@@ -77,7 +81,10 @@ export class NetworkEventHandlerService {
   private lentLook = { name: '', imageIdentifier: '' };
 
   constructor() {
-    this.destroyRef.onDestroy(() => this.roomAssetListRetries.clear());
+    this.destroyRef.onDestroy(() => {
+      this.roomAssetListRetries.clear();
+      if (this.roomAssetRelistTimer) clearTimeout(this.roomAssetRelistTimer);
+    });
     networkMessage$.subscribe((message) => {
       if (message.eventName !== AuthorityEvent.ROLE_REJECTED || message.sendFrom !== Network.authorityPeerId) return;
       this.tellRoleRejected(message.data as { peerId?: unknown; reason?: unknown } | null);
@@ -171,6 +178,16 @@ export class NetworkEventHandlerService {
     }, this.destroyRef);
     this.objectChange.peerConnect$.subscribe(() => {
       this.chatMessageService.calibrateTimeOffset();
+    }, this.destroyRef);
+    // Somebody who left may still be putting up what it added, and can name it to nobody once it is
+    // there; the room's list is read again a little later for it.
+    this.objectChange.peerDisconnect$.subscribe(() => {
+      if (Network.transport !== 'server' || !Network.peerContext.isRoom || this.roomAssetRelistTimer) return;
+      const peerId = Network.peerId;
+      this.roomAssetRelistTimer = setTimeout(() => {
+        this.roomAssetRelistTimer = null;
+        if (Network.peerId === peerId && Network.peerContext.isRoom) this.fetchRoomAssetList(peerId);
+      }, ROOM_ASSET_RELIST_MS);
     }, this.destroyRef);
     this.objectChange.peerReconnect$.subscribe((event) => {
       if (this.localMode) return;

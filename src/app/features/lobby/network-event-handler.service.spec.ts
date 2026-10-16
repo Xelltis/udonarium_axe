@@ -38,6 +38,7 @@ class StubObjectChange {
   readonly networkOpen$ = new EventChannel<NetworkPeerEvent>();
   readonly networkError$ = new EventChannel<NetworkErrorEvent>();
   readonly peerConnect$ = new EventChannel<NetworkPeerEvent>();
+  readonly peerDisconnect$ = new EventChannel<NetworkPeerEvent>();
   readonly peerReconnect$ = new EventChannel<PeerReconnectEvent>();
   onObjectChangedForAlias(): () => void {
     return () => {};
@@ -692,6 +693,44 @@ describe('NetworkEventHandlerService', () => {
 
       expect(list).toHaveBeenCalledTimes(2);
       expect(pictures).toHaveBeenCalledWith([picture]);
+    });
+
+    it('reads the room’s list again a little after somebody leaves, for what they put up on the way out', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      vi.spyOn(Network, 'serverRole', 'get').mockReturnValue('pl');
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ peerId: 'p', userId: 'u', isRoom: true } as never);
+      vi.spyOn(Network, 'peerId', 'get').mockReturnValue('p');
+      const picture = { id: 'a'.repeat(64), type: 'image/png', size: 1, name: 'map.png' };
+      const list = vi.spyOn(AssetHttpStore.instance, 'listRoomAssets').mockResolvedValue([picture]);
+      const pictures = vi.spyOn(ImageSharingSystem.instance, 'fetchListed').mockImplementation(() => {});
+      vi.spyOn(AudioSharingSystem.instance, 'fetchListed').mockImplementation(() => {});
+
+      stubChange.peerDisconnect$.emit({ peerId: 'q' });
+      stubChange.peerDisconnect$.emit({ peerId: 'r' });
+      await vi.advanceTimersByTimeAsync(29_999);
+      expect(list).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(list).toHaveBeenCalledTimes(1);
+      expect(pictures).toHaveBeenCalledWith([picture]);
+    });
+
+    it.each([
+      ['through SkyWay', 'skyway', true, 'p'],
+      ['waiting outside a room', 'server', false, 'p'],
+      ['gone into another room since', 'server', true, 'p2'],
+    ] as const)('reads no list after somebody leaves %s', async (_case, transport, isRoom, peerIdThen) => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue(transport);
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ peerId: 'p', userId: 'u', isRoom } as never);
+      const peerId = vi.spyOn(Network, 'peerId', 'get').mockReturnValue('p');
+      const list = vi.spyOn(AssetHttpStore.instance, 'listRoomAssets').mockResolvedValue([]);
+
+      stubChange.peerDisconnect$.emit({ peerId: 'q' });
+      peerId.mockReturnValue(peerIdThen);
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(list).not.toHaveBeenCalled();
     });
 
     it('stops asking for the room’s list once the seat has left the room', async () => {
