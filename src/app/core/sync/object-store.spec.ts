@@ -311,6 +311,23 @@ describe('ObjectStore', () => {
     });
   });
 
+  it('sends nothing of an object that takes itself out of the store as it is added, as a holder of loaded data does', () => {
+    class Holder extends GameObject {
+      override onStoreAdded(): void {
+        ObjectStore.instance.remove(this);
+      }
+    }
+    const holder = new Holder('holder-1');
+
+    store.add(holder);
+
+    expect(sendSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({ eventName: 'UPDATE_GAME_OBJECT' }),
+      undefined,
+      'holder-1'
+    );
+  });
+
   describe('update()', () => {
     it('should queue update by identifier', () => {
       const obj = new GameObject('test-id-22');
