@@ -3382,7 +3382,7 @@
         "loggedInAs": "Logged in as {{name}}",
         "logout": "Log out",
         "delete": "Delete account",
-        "deleteConfirm": "This deletes your account on this server: your Discord name and avatar, and your logins. Logging in again afterwards makes a new account, which cannot take back your seats and hands in rooms, or GM in the rooms you ran. Your lines left in rooms keep the name and avatar they were written with until each room is removed. GM invitations you gave keep working for 30 days from when they were made.",
+        "deleteConfirm": "This deletes your account on this server: your Discord name and avatar, and your logins. Logging in again afterwards makes a new account, which cannot take back your seats and hands in rooms. It comes back as GM to a room you ran only through a GM invitation you gave there. Those keep working for 30 days from when they were made, and make whoever opens them GM. Your lines left in rooms keep the name and avatar they were written with until each room is removed.",
         "deleteConfirmButton": "Delete",
         "deleteCancel": "Cancel",
         "deleteFailed": "The account could not be deleted. Please try again later.",
