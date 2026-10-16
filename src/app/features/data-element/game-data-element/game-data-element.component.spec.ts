@@ -13,6 +13,8 @@ import {
   DataElementType,
   DataElementViewMode,
 } from '@axe/domain/data/data-element';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { IN_DATA_ELEMENT_SHEET } from '@axe/features/data-element/game-data-element/data-element-sheet-host';
 import {
   GameDataElementComponent,
@@ -86,6 +88,25 @@ describe('GameDataElementComponent', () => {
 
       expect(content.classList.contains('gde-editing')).toBe(true);
       expect(content.classList.contains('row-start-2')).toBe(false);
+    });
+
+    it('shows a guest the whole of it, in a block that grows with it rather than a box to scroll', () => {
+      PeerCursor.createMyCursor().role = PeerRole.Guest;
+      try {
+        const text = ['一', '二', '三', '四', '五', '六', '七', '八'].map((n) => `${n}行目`).join('\n');
+        const field = DataElement.create('効果', text, {
+          [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+          [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.LONG_TEXT,
+        });
+        fixture.componentRef.setInput('gameDataElement', field);
+        fixture.detectChanges();
+        const host = fixture.nativeElement as HTMLElement;
+
+        expect(host.querySelector('textarea[name="data-value"]')).toBeNull();
+        expect(host.querySelector('[data-testid="long-text-read-only"]')!.textContent).toContain('八行目');
+      } finally {
+        PeerCursor.myCursor = null!;
+      }
     });
 
     it('is drawn as before outside editing', () => {

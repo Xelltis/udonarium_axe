@@ -191,38 +191,46 @@
             </div>
           }
           @case ('longText') {
-            <span [hidden]="!isUrlText(value)" class="text-[0.8em]">
-              &nbsp;&nbsp;{{ 'feature.dataElement.urlEditLabel' | transloco
-              }}<input
-                type="checkbox"
-                [checked]="editCheckedIds.has(gameDataElement().myIdentifer + '_elm')"
-                (change)="changeChk(gameDataElement().myIdentifer + '_elm')"
-              />
-            </span>
-            <textarea
-              class="textarea-url w-full min-w-12.5"
-              [class]="
-                isLongTextEditing
-                  ? 'elm-long-text-input bg-ui-input! focus:border-ui-accent! field-sizing-content max-h-[calc(30lh+0.5rem+2px)] min-h-[calc(10lh+0.5rem+2px)] resize-y border! border-(--gde-row-border)! px-1.5! py-1! leading-normal whitespace-pre-wrap focus:shadow-[0_0_0_2px_var(--ui-accent-glow)]'
-                  : 'h-[5em] resize-none text-[0.8em]'
-              "
-              name="data-value"
-              [(ngModel)]="value"
-              [readonly]="isValueLocked()"
-              placeholder="Note"
-              [hidden]="!isEditUrl(gameDataElement().myIdentifer + '_elm') && isUrlText(gameDataElement().value)"
-              (focus)="textFocus(gameDataElement().myIdentifer + '_elm')"
-            >
-            </textarea>
-            <div
-              [hidden]="isEditUrl(gameDataElement().myIdentifer + '_elm') || !isUrlText(gameDataElement().value)"
-              class="w-full max-w-50 min-w-12.5"
-            >
-              <span
-                class="textarea-url w-full min-w-12.5 text-[0.8em]"
+            @if (isReadOnly()) {
+              <div
+                class="textarea-url w-full min-w-12.5 text-[0.8em] wrap-break-word whitespace-pre-wrap"
+                data-testid="long-text-read-only"
                 [innerHTML]="escapeHtml(value) | linkify"
-              ></span>
-            </div>
+              ></div>
+            } @else {
+              <span [hidden]="!isUrlText(value)" class="text-[0.8em]">
+                &nbsp;&nbsp;{{ 'feature.dataElement.urlEditLabel' | transloco
+                }}<input
+                  type="checkbox"
+                  [checked]="editCheckedIds.has(gameDataElement().myIdentifer + '_elm')"
+                  (change)="changeChk(gameDataElement().myIdentifer + '_elm')"
+                />
+              </span>
+              <textarea
+                class="textarea-url w-full min-w-12.5"
+                [class]="
+                  isLongTextEditing
+                    ? 'elm-long-text-input bg-ui-input! focus:border-ui-accent! field-sizing-content max-h-[calc(30lh+0.5rem+2px)] min-h-[calc(10lh+0.5rem+2px)] resize-y border! border-(--gde-row-border)! px-1.5! py-1! leading-normal whitespace-pre-wrap focus:shadow-[0_0_0_2px_var(--ui-accent-glow)]'
+                    : 'h-[5em] resize-none text-[0.8em]'
+                "
+                name="data-value"
+                [(ngModel)]="value"
+                [readonly]="isValueLocked()"
+                placeholder="Note"
+                [hidden]="!isEditUrl(gameDataElement().myIdentifer + '_elm') && isUrlText(gameDataElement().value)"
+                (focus)="textFocus(gameDataElement().myIdentifer + '_elm')"
+              >
+              </textarea>
+              <div
+                [hidden]="isEditUrl(gameDataElement().myIdentifer + '_elm') || !isUrlText(gameDataElement().value)"
+                class="w-full max-w-50 min-w-12.5"
+              >
+                <span
+                  class="textarea-url w-full min-w-12.5 text-[0.8em]"
+                  [innerHTML]="escapeHtml(value) | linkify"
+                ></span>
+              </div>
+            }
           }
           @case ('check') {
             @if (gameDataElement().isChecked) {

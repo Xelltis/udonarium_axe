@@ -148,6 +148,32 @@ describe('GameCharacterSheetComponent', () => {
     }
   });
 
+  it('lets a guest jump between sections and fold them, but neither edit nor add one', () => {
+    const character = GameCharacter.create('ヒロ', 1, '');
+    character.addExtendData();
+    const sections = ['能力', '技能'].map((name) => {
+      const section = DataElement.create(name, '', {});
+      character.detailDataElement!.appendChild(section);
+      return section;
+    });
+    try {
+      PeerCursor.createMyCursor().role = PeerRole.Guest;
+      component.tabletopObject = character;
+      component.editingIds.set(new Set([sections[0].identifier]));
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(host.querySelector('[data-testid="sheet-section-chips"]')!.closest('[inert]')).toBeNull();
+      expect(host.querySelector('[data-testid="sheet-card-title"]')!.closest('[inert]')).toBeNull();
+      expect(host.querySelector('[data-testid="sheet-card-edit"]')).toBeNull();
+      expect(host.querySelector('[data-testid="sheet-add-section"]')).toBeNull();
+      expect(component.isElementEditing(sections[0].identifier)).toBe(false);
+    } finally {
+      PeerCursor.myCursor = null!;
+      character.destroy();
+    }
+  });
+
   it('switches a note between as typed and formatted, and shows the formatted body under its text', () => {
     const note = TextNote.create('メモ', '# 洞窟');
     component.tabletopObject = note;

@@ -103,10 +103,12 @@
       @if (activeTab() === 'sheet') {
         <div
           class="grid grid-cols-[180px_1fr] items-start gap-3 px-2.5 pt-2.5 group-data-narrow/sheet:grid-cols-1 group-data-narrow/sheet:px-2"
-          [attr.inert]="isReadOnly() ? '' : null"
           data-own-mobile-layout
         >
-          <div class="flex w-45 min-w-0 shrink-0 flex-col gap-1.5 overflow-hidden group-data-narrow/sheet:hidden">
+          <div
+            class="flex w-45 min-w-0 shrink-0 flex-col gap-1.5 overflow-hidden group-data-narrow/sheet:hidden"
+            [attr.inert]="isReadOnly() ? '' : null"
+          >
             <character-portrait-panel [character]="character" />
           </div>
 
@@ -272,16 +274,19 @@
                           <i class="material-icons">more_horiz</i>
                         </button>
                       }
-                      <button
-                        class="bg-ui-hover text-ui-muted hover:bg-ui-selected hover:text-ui-text inline-flex size-5.5 cursor-pointer items-center justify-center rounded-[3px] border-none p-0 transition-[background,color] group-data-compact/sheet:size-10 group-data-compact/sheet:rounded-full [&_.material-icons]:text-[13px]! group-data-compact/sheet:[&_.material-icons]:text-[20px]!"
-                        type="button"
-                        [title]="'feature.inventory.sheet.edit' | transloco"
-                        (click)="toggleElementEdit(childElement.identifier)"
-                      >
-                        <i class="material-icons">{{
-                          isElementEditing(childElement.identifier) ? 'edit_off' : 'edit'
-                        }}</i>
-                      </button>
+                      @if (!isReadOnly()) {
+                        <button
+                          class="bg-ui-hover text-ui-muted hover:bg-ui-selected hover:text-ui-text inline-flex size-5.5 cursor-pointer items-center justify-center rounded-[3px] border-none p-0 transition-[background,color] group-data-compact/sheet:size-10 group-data-compact/sheet:rounded-full [&_.material-icons]:text-[13px]! group-data-compact/sheet:[&_.material-icons]:text-[20px]!"
+                          type="button"
+                          [title]="'feature.inventory.sheet.edit' | transloco"
+                          data-testid="sheet-card-edit"
+                          (click)="toggleElementEdit(childElement.identifier)"
+                        >
+                          <i class="material-icons">{{
+                            isElementEditing(childElement.identifier) ? 'edit_off' : 'edit'
+                          }}</i>
+                        </button>
+                      }
                     </div>
                     @if (!isCardFolded(childElement)) {
                       <div class="box-border table w-full">
@@ -298,14 +303,17 @@
                 }
               </div>
             }
-            <div class="px-2.5 pt-1 pb-2">
-              <button
-                class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex w-full cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
-                (click)="addDataElement()"
-              >
-                {{ 'feature.inventory.sheet.addNewItem' | transloco }}
-              </button>
-            </div>
+            @if (!isReadOnly()) {
+              <div class="px-2.5 pt-1 pb-2">
+                <button
+                  class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex w-full cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
+                  data-testid="sheet-add-section"
+                  (click)="addDataElement()"
+                >
+                  {{ 'feature.inventory.sheet.addNewItem' | transloco }}
+                </button>
+              </div>
+            }
           </div>
         </div>
       }

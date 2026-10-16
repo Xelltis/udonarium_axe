@@ -174,9 +174,12 @@ export class GameCharacterSheetComponent {
 
   readonly editingIds = signal(new Set<string>());
 
-  /** Whether the card of the sheet with this identifier is open for editing. */
+  /**
+   * Whether the card of the sheet with this identifier is open for editing; none is for a reader who
+   * may not change the table.
+   */
   isElementEditing(id: string): boolean {
-    return this.editingIds().has(id);
+    return !this.isReadOnly() && this.editingIds().has(id);
   }
 
   /** Opens a card of the sheet for editing or closes it, from its edit button. */
