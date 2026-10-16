@@ -3,6 +3,19 @@ export const ASSET_RETRY_DELAY_MS = 10_000;
 /** How many times a transfer that failed is tried again before it is left for the next chance. */
 export const ASSET_RETRY_LIMIT = 3;
 
+/** The least a GM or PL waits for each that comes before it to put up what a guest named. */
+export const RECEIVED_UPLOAD_TURN_MS = 5_000;
+/** How fast bytes are taken to go up, in bytes a millisecond, for how long a turn waits on top. */
+const RECEIVED_UPLOAD_BYTES_PER_MS = 250;
+
+/**
+ * How long one turn waits to put up what a guest named: long enough for the seat before it to have
+ * put up as many bytes over a slow line.
+ */
+export function receivedUploadTurnMs(bytes: number): number {
+  return RECEIVED_UPLOAD_TURN_MS + Math.ceil(bytes / RECEIVED_UPLOAD_BYTES_PER_MS);
+}
+
 /**
  * Tries again, a few times and further apart each time, the transfers to or from the asset store
  * that failed for now, as when it asked for fewer requests or could not be reached. One that came

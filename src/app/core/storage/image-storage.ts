@@ -1,7 +1,7 @@
 import { Network } from '@axe/core/network/network';
 import { networkSend } from '@axe/core/network/network-messaging';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
-import { AssetRetries } from '@axe/core/storage/asset-retries';
+import { AssetRetries, receivedUploadTurnMs } from '@axe/core/storage/asset-retries';
 import { CatalogSendSchedule } from '@axe/core/storage/catalog-send-schedule';
 import { ImageContext, ImageFile, ImageState } from '@axe/core/storage/image-file';
 
@@ -125,10 +125,11 @@ export class ImageStorage {
   }
 
   /**
-   * How long this seat waits before putting up one a peer sent, set by the app: the later among the
-   * room's GMs and PLs it comes, the longer, so that the first has put it up before the next looks.
+   * How many of the room's GMs and PLs come before this seat in putting up one a peer sent, set by
+   * the app. It waits a turn for each, long enough for the bytes to go up, so that the first has put
+   * it up before the next looks.
    */
-  receivedUploadDelay: () => number = () => 0;
+  receivedUploadTurn: () => number = () => 0;
 
   /**
    * Puts an image a peer sent up to the room's asset store, for one the store was found to
@@ -137,7 +138,7 @@ export class ImageStorage {
    * finds it there by then puts nothing up.
    */
   uploadReceived(identifier: string): void {
-    const delay = this.receivedUploadDelay();
+    const delay = this.receivedUploadTurn() * receivedUploadTurnMs(this.imageHash[identifier]?.blob?.size ?? 0);
     if (delay <= 0) {
       this.putUpHeld(identifier);
       return;

@@ -1,6 +1,11 @@
 import { Network } from '@axe/core/network/network';
 import { AssetHttpStore, AssetUploadResult } from '@axe/core/storage/asset-http-store';
-import { ASSET_RETRY_DELAY_MS, AssetRetries } from '@axe/core/storage/asset-retries';
+import {
+  ASSET_RETRY_DELAY_MS,
+  AssetRetries,
+  RECEIVED_UPLOAD_TURN_MS,
+  receivedUploadTurnMs,
+} from '@axe/core/storage/asset-retries';
 import { AudioFile, AudioFileContext } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import type { MockInstance } from 'vitest';
@@ -193,10 +198,11 @@ describe('AudioStorage', () => {
       vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
       const room = vi.spyOn(Network.instance, 'roomKey', 'get').mockReturnValue('room-a');
       storage.add(contextOf(trackId));
-      storage.receivedUploadDelay = () => 5_000;
+      storage.receivedUploadTurn = () => 2;
+      const turns = 2 * receivedUploadTurnMs(storage.get(trackId)!.blob!.size);
       try {
         storage.uploadReceived(trackId);
-        await vi.advanceTimersByTimeAsync(4_999);
+        await vi.advanceTimersByTimeAsync(turns - 1);
         expect(upload).not.toHaveBeenCalled();
         await vi.advanceTimersByTimeAsync(1);
         expect(upload).toHaveBeenCalledTimes(1);
@@ -205,11 +211,16 @@ describe('AudioStorage', () => {
         await vi.advanceTimersByTimeAsync(0);
         storage.uploadReceived(trackId);
         room.mockReturnValue('room-b');
-        await vi.advanceTimersByTimeAsync(5_000);
+        await vi.advanceTimersByTimeAsync(turns);
         expect(upload).toHaveBeenCalledTimes(1);
       } finally {
-        storage.receivedUploadDelay = () => 0;
+        storage.receivedUploadTurn = () => 0;
       }
+    });
+
+    it('waits a turn long enough for the bytes to go up over a slow line', () => {
+      expect(receivedUploadTurnMs(0)).toBe(RECEIVED_UPLOAD_TURN_MS);
+      expect(receivedUploadTurnMs(10 * 1024 * 1024)).toBeGreaterThan(40_000);
     });
 
     it('still has one to go up once its tries have run out, and tries it afresh once the seat is back', async () => {

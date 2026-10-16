@@ -712,8 +712,8 @@ describe('NetworkEventHandlerService', () => {
         return cursor;
       });
       try {
-        expect(ImageStorage.instance.receivedUploadDelay()).toBe(10_000);
-        expect(AudioStorage.instance.receivedUploadDelay()).toBe(10_000);
+        expect(ImageStorage.instance.receivedUploadTurn()).toBe(2);
+        expect(AudioStorage.instance.receivedUploadTurn()).toBe(2);
       } finally {
         for (const cursor of seats) cursor.destroy();
       }
