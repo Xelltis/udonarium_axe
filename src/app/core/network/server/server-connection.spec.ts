@@ -520,6 +520,33 @@ describe('ServerConnection', () => {
     expect(sent.events).toEqual([deletion, comingBack]);
   });
 
+  it('keeps every deletion of a long tab deleted while getting back in, and what comes after it', async () => {
+    const socket = await enterRoom();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    socket.close(1006);
+    const deletions = Array.from({ length: 100 }, (_, i) =>
+      event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
+    );
+    const comingBack = event('FORGET_DELETED_OBJECTS', { identifiers: ['tab-1'] });
+    const roleRequest = event('ROLE_REQUEST', { peerId: OTHER.peerId, role: 'gm' });
+    connection.send(deletions);
+    connection.send([comingBack]);
+    connection.send([roleRequest], AUTHORITY_PEER_ID);
+    vi.advanceTimersByTime(1000);
+    vi.useRealTimers();
+
+    const again = latest();
+    welcomeBack(again);
+
+    await vi.waitFor(async () => expect((await again.frames()).length).toBeGreaterThan(1));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const sent = ((await again.frames()) as { type: string; events?: unknown[] }[]).flatMap((frame) =>
+      frame.type === 'send' ? (frame.events ?? []) : []
+    );
+    expect(sent).toEqual(expect.arrayContaining([...deletions, comingBack, roleRequest]));
+    expect(sent).toHaveLength(102);
+  });
+
   it('keeps a role change still gathering to go out when the link drops', async () => {
     const socket = await enterRoom();
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });

@@ -70,6 +70,11 @@ export const ASSET_TOKEN_WAIT_MS = 10_000;
 /** How many requests to the server a seat keeps while it gets back into the room. */
 export const MAX_HELD_EVENTS = 64;
 /**
+ * How many deletions and words on what comes back a seat keeps while it gets back into the room,
+ * apart from the requests: a tab deleted goes as one deletion for each of its lines.
+ */
+export const MAX_HELD_BROADCASTS = 20_000;
+/**
  * Requests to the server that would be lost while reconnecting, and that the catalogs traded on
  * getting back in do not mend: a role change asked for in the meantime. A roll is not among them:
  * the dice bot asks again for every roll unanswered, those lost on the way included.
@@ -342,12 +347,18 @@ export class ServerConnection implements Connection {
    */
   private hold(events: EventContext[], sendTo: string | undefined): void {
     if (!this.everWelcomed || this.stopped) return;
+    const kept = this.keptOf(events, sendTo);
+    const limit = sendTo === undefined ? MAX_HELD_BROADCASTS : MAX_HELD_EVENTS;
+    const held = this.held.filter((batch) => batch.to === sendTo);
+    const room = limit - held.reduce((count, batch) => count + batch.events.length, 0);
+    if (kept.length > 0 && room > 0) this.held.push({ to: sendTo, events: kept.slice(0, room) });
+  }
+
+  /** What among events for one peer, or for everybody, is kept while getting back into the room. */
+  private keptOf(events: EventContext[], sendTo: string | undefined): EventContext[] {
     const names =
       sendTo === undefined ? HELD_BROADCAST_EVENT_NAMES : sendTo === this.authority?.peerId ? HELD_EVENT_NAMES : null;
-    if (!names) return;
-    const kept = events.filter((event) => names.has(event.eventName));
-    const room = MAX_HELD_EVENTS - this.held.reduce((count, batch) => count + batch.events.length, 0);
-    if (kept.length > 0 && room > 0) this.held.push({ to: sendTo, events: kept.slice(0, room) });
+    return names ? events.filter((event) => names.has(event.eventName)) : [];
   }
 
   async listAllPeers(): Promise<string[]> {
@@ -829,12 +840,13 @@ export class ServerConnection implements Connection {
   }
 
   /**
-   * Sends again, over the link there is now or the next, the requests to the server among batches
-   * that never went out; the rest are left to the catalogs traded on getting back in.
+   * Sends again, over the link there is now or the next, the requests to the server, and the
+   * deletions and words on what comes back, among batches that never went out; the rest are left to
+   * the catalogs traded on getting back in.
    */
   private keepRequests(batches: Outbound[]): void {
     for (const batch of batches) {
-      const requests = batch.events.filter((event) => HELD_EVENT_NAMES.has(event.eventName));
+      const requests = this.keptOf(batch.events, batch.to);
       if (requests.length > 0) this.send(requests, batch.to);
     }
   }
