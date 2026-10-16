@@ -67,6 +67,19 @@ describe('HandDrawPanelComponent', () => {
     expectClosesForAGuest(() => TestBed.createComponent(HandDrawPanelComponent));
   });
 
+  it('lists the hand of a seat made a guest on a room server as one to hand over, as soon as it is one', () => {
+    vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    const other = peer('other', 'あいて');
+    card('s01', 'other');
+    expect(component.absentHands()).toEqual([]);
+
+    other.role = PeerRole.Guest;
+    TestBed.inject(ObjectChangeService).notifyChanged(other.identifier);
+
+    expect(component.absentHands().map((hand) => hand.userId)).toEqual(['other']);
+  });
+
   it('offers only the other players who hold a hand', () => {
     peer('other', 'あいて');
     peer('empty', 'てふだなし');

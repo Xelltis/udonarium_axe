@@ -75,7 +75,8 @@ export class HandDrawPanelComponent {
 
   /**
    * The hands still held for people who have left the room, which only the game master is shown, to
-   * hand them over to somebody still here.
+   * hand them over to somebody still here; on a room server, those held for a guest too, as one is
+   * made one or comes back from being one.
    */
   readonly absentHands = computed<AbsentHand[]>(() => {
     this.objectChange.trackMyCursor();
@@ -83,6 +84,9 @@ export class HandDrawPanelComponent {
     this.objectChange.collectionOf(Card.aliasName)();
     this.objectChange.collectionOf(PeerCursor.aliasName)();
     for (const card of this.objectStore.getObjects<Card>(Card)) this.objectChange.versionOf(card.identifier)();
+    for (const cursor of this.objectStore.getObjects<PeerCursor>(PeerCursor)) {
+      this.objectChange.versionOf(cursor.identifier)();
+    }
     return this.cardGame.absentHands();
   });
 
