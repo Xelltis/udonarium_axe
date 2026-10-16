@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { LoggerService } from '@axe/application/logging/logger.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
+import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { emitLoadConfig } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { Transport, transportOf } from '@axe/core/network/transport';
@@ -21,6 +22,7 @@ export class AppConfigService {
   private readonly logger = inject(LoggerService);
   private readonly localMode = inject(LocalModePreferenceService);
   private readonly serverAuth = inject(ServerAuthService);
+  private readonly overlay = inject(OverlayModeService);
 
   constructor() {}
 
@@ -78,11 +80,14 @@ export class AppConfigService {
    * Points the login at the room server, and has every connection to it say hello with the login,
    * before anything connects; a reload may go straight back into a room. The room's pictures and
    * sounds are reached with the token the room hands the seat.
+   *
+   * A screen laid over a stream comes in as a guest of its own, even where the browser is logged
+   * in: as the account it would take the account's one seat and put the reader's own screen out.
    */
   private configureServerLogin(config: AppConfig): void {
     if (config.transport !== 'server' || config.backend.url.trim().length === 0) return;
     this.serverAuth.configure(config.backend.url);
-    Network.setServerCredentials(this.serverAuth);
+    if (!this.overlay.active()) Network.setServerCredentials(this.serverAuth);
     AssetHttpStore.instance.useAccess(
       () => Network.instance.assetAccess,
       () => Network.instance.refreshAssetAccess()
