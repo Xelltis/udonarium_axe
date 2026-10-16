@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -57,9 +57,6 @@ export class RoomSettingComponent {
     queueMicrotask(
       () => (this.modalService.title = this.panelService.title = this.t('feature.lobby.roomSetting.title'))
     );
-    effect(() => {
-      this.myPeer.reConnectPass = this.password();
-    });
   }
 
   /**

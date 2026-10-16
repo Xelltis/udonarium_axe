@@ -30,6 +30,18 @@ describe('RoomSettingComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('leaves the password kept for reconnecting alone until a room is made', () => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.reConnectPass = 'kept';
+    fixture = TestBed.createComponent(RoomSettingComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.password.set('typed');
+    fixture.detectChanges();
+
+    expect(PeerCursor.myCursor.reConnectPass).toBe('kept');
+    PeerCursor.myCursor = null!;
+  });
+
   it('lets the panel take the pointer again once the drag ends', async () => {
     await expectPanelDragRecovery(RoomSettingComponent, {
       beforeOpen: () => {
