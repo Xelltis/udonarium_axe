@@ -297,6 +297,31 @@ describe('AssetHttpStore', () => {
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
+    it('lets one asked for first, or moved to the front, go ahead of those waiting their turn', async () => {
+      const asked: string[] = [];
+      const releases: (() => void)[] = [];
+      fetchSpy.mockImplementation((url) => {
+        asked.push(String(url).slice(-64));
+        return new Promise<Response>((resolve) => releases.push(() => resolve(new Response(null, { status: 404 }))));
+      });
+      const ids = await Promise.all([0, 1, 2, 3, 4, 5, 6].map((n) => sha256Hex(`file-${n}`)));
+
+      const done = [
+        ...ids.slice(0, 6).map((assetId) => store.download(assetId)),
+        store.download(ids[6], { first: true }),
+      ];
+      store.downloadFirst(ids[5]);
+      await vi.waitFor(() => expect(asked).toHaveLength(4));
+      while (asked.length < ids.length) {
+        releases.shift()?.();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      releases.forEach((release) => release());
+      await Promise.all(done);
+
+      expect(asked).toEqual([...ids.slice(0, 4), ids[5], ids[6], ids[4]]);
+    });
+
     it('fetches again with a fresh token when the one held is turned away', async () => {
       store.useAccess(
         () => access,

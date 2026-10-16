@@ -281,7 +281,7 @@ describe('AudioSharingSystem', () => {
           expect.objectContaining({ identifier: trackId, type: 'audio/ogg', blob: expect.any(Blob) })
         )
       );
-      expect(download).toHaveBeenCalledWith(trackId);
+      expect(download).toHaveBeenCalledWith(trackId, { first: false });
       expect(requestsSent()).toEqual([]);
     });
 
@@ -350,7 +350,7 @@ describe('AudioSharingSystem', () => {
       expect(AudioStorageMock.add).toHaveBeenCalledWith(
         expect.objectContaining({ identifier: trackId, name: 'theme.ogg' })
       );
-      expect(download).toHaveBeenCalledWith(trackId);
+      expect(download).toHaveBeenCalledWith(trackId, { first: false });
     });
 
     it('asks the peer for audio the server could not send just then, and the server again for the next catalogue', async () => {
@@ -413,6 +413,29 @@ describe('AudioSharingSystem', () => {
       ]);
 
       expect(download.mock.calls.map(([id]) => id)).toEqual([trackId, otherId]);
+    });
+
+    it('puts what the room is playing ahead of the pictures and sounds waiting, from the room list too', () => {
+      const otherId = 'e'.repeat(64);
+      const putFirst = vi.spyOn(store, 'downloadFirst');
+      AudioSharingSystem.instance.fetchListed([
+        { id: otherId, name: '' },
+        { id: trackId, name: '' },
+      ]);
+      expect(download.mock.calls).toEqual([
+        [otherId, { first: false }],
+        [trackId, { first: false }],
+      ]);
+
+      AudioSharingSystem.instance.preferredIdentifiers = () => [trackId];
+      emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }]);
+      expect(putFirst).toHaveBeenCalledWith(trackId);
+
+      AudioSharingSystem.instance.forgetMisses();
+      const listedLater = 'f'.repeat(64);
+      AudioSharingSystem.instance.preferredIdentifiers = () => [listedLater];
+      AudioSharingSystem.instance.fetchListed([{ id: listedLater, name: '' }]);
+      expect(download).toHaveBeenLastCalledWith(listedLater, { first: true });
     });
 
     it('asks peers for audio not named by its hash', () => {

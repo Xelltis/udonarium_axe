@@ -157,10 +157,15 @@ export class AudioSharingSystem {
    * Fetches from the room's asset store the sounds it holds that this seat lacks, named by the room's
    * list rather than by a peer's catalogue: those left in a room that everybody had gone from, say.
    * One the store lacks waits for a catalogue to name it; one it could not send just then is tried
-   * again a few times.
+   * again a few times. What the room is playing goes first.
    */
   fetchListed(assets: readonly { id: string; name: string }[]): void {
-    for (const { id, name } of assets) {
+    const preferred = this.preferredIdentifiers();
+    const ordered = [
+      ...assets.filter((asset) => preferred.includes(asset.id)),
+      ...assets.filter((asset) => !preferred.includes(asset.id)),
+    ];
+    for (const { id, name } of ordered) {
       let audio = AudioStorage.instance.get(id);
       if (audio === null) {
         audio = AudioFile.createEmpty(id, name);
@@ -193,17 +198,22 @@ export class AudioSharingSystem {
    * have been without the server. With no such peer, audio the server lacks, or sends bytes for that
    * do not match, is left, and audio it could not send just then is tried again later. Only the
    * server's lacking it keeps it from being fetched from there again.
+   *
+   * What the room is playing goes ahead of the pictures and sounds waiting their turn, and moves to
+   * the front should it be waiting already.
    */
   private fetchOverHttp(identifier: string, catalogPeer: string | null): boolean {
     const store = AssetHttpStore.instance;
     if (!store.isEnabled || !AssetHttpStore.isAssetId(identifier) || this.httpMissed.has(identifier)) return false;
+    const first = this.preferredIdentifiers().includes(identifier);
     if (this.httpFetching.has(identifier)) {
       if (this.httpFetching.get(identifier) === null) this.httpFetching.set(identifier, catalogPeer);
+      if (first) store.downloadFirst(identifier);
       return true;
     }
     this.httpFetching.set(identifier, catalogPeer);
     void store
-      .download(identifier)
+      .download(identifier, { first })
       .then((fetched) => {
         if (typeof fetched !== 'string') {
           this.httpRetries.forget(identifier);

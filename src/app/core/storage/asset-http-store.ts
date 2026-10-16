@@ -62,22 +62,36 @@ function assetNameOf(header: string | null): string {
   }
 }
 
-/** Runs at most `limit` tasks at a time, the rest in the order they were queued. */
+/**
+ * Runs at most `limit` tasks at a time, the rest in the order they were queued, but for one queued
+ * to go first or moved to the front since.
+ */
 class TaskQueue {
   private running = 0;
-  private readonly waiting: (() => void)[] = [];
+  private readonly waiting: { key: string; start: () => void }[] = [];
 
   constructor(private readonly limit: number) {}
 
-  async run<T>(task: () => Promise<T>): Promise<T> {
-    if (this.limit <= this.running) await new Promise<void>((resolve) => this.waiting.push(resolve));
+  async run<T>(task: () => Promise<T>, key = '', first = false): Promise<T> {
+    if (this.limit <= this.running) {
+      await new Promise<void>((start) => {
+        if (first) this.waiting.unshift({ key, start });
+        else this.waiting.push({ key, start });
+      });
+    }
     this.running++;
     try {
       return await task();
     } finally {
       this.running--;
-      this.waiting.shift()?.();
+      this.waiting.shift()?.start();
     }
+  }
+
+  /** Moves a task still waiting to the front, to run next. */
+  putFirst(key: string): void {
+    const at = this.waiting.findIndex((entry) => entry.key === key);
+    if (0 < at) this.waiting.unshift(...this.waiting.splice(at, 1));
   }
 }
 
@@ -182,29 +196,41 @@ export class AssetHttpStore {
    * it says why: `missing` when the server lacks them or sends bytes whose hash is not the
    * identifier, `failed` when the request failed, as when the server asks for fewer requests or
    * cannot be reached, or there is no room.
+   *
+   * Pictures and sounds wait their turn together; one asked for `first`, such as the music the room
+   * is playing, goes ahead of those already waiting.
    */
-  download(identifier: string): Promise<AssetDownload | AssetDownloadMiss> {
+  download(identifier: string, options: { first?: boolean } = {}): Promise<AssetDownload | AssetDownloadMiss> {
     if (!AssetHttpStore.isAssetId(identifier)) return Promise.resolve('missing');
     if (!this.baseUrl) return Promise.resolve('failed');
-    return this.downloads.run(async (): Promise<AssetDownload | AssetDownloadMiss> => {
-      try {
-        const res = await this.authorized((access) =>
-          this.request(this.urlOf(access, identifier), { method: 'GET', headers: this.headersOf(access) })
-        );
-        if (!res) return 'failed';
-        if (!res.ok) return res.status === 404 ? 'missing' : 'failed';
-        const bytes = await res.arrayBuffer();
-        if ((await sha256Hex(bytes)) !== identifier) {
-          Logger.warn('[AssetHttpStore] 受け取ったデータのハッシュが名前と一致しません', identifier);
-          return 'missing';
+    return this.downloads.run(
+      async (): Promise<AssetDownload | AssetDownloadMiss> => {
+        try {
+          const res = await this.authorized((access) =>
+            this.request(this.urlOf(access, identifier), { method: 'GET', headers: this.headersOf(access) })
+          );
+          if (!res) return 'failed';
+          if (!res.ok) return res.status === 404 ? 'missing' : 'failed';
+          const bytes = await res.arrayBuffer();
+          if ((await sha256Hex(bytes)) !== identifier) {
+            Logger.warn('[AssetHttpStore] 受け取ったデータのハッシュが名前と一致しません', identifier);
+            return 'missing';
+          }
+          const blob = new Blob([bytes], { type: res.headers.get('Content-Type') ?? '' });
+          return { blob, name: assetNameOf(res.headers.get(ASSET_NAME_HEADER)) };
+        } catch (reason) {
+          Logger.warn('[AssetHttpStore] ダウンロードに失敗しました', identifier, reason);
+          return 'failed';
         }
-        const blob = new Blob([bytes], { type: res.headers.get('Content-Type') ?? '' });
-        return { blob, name: assetNameOf(res.headers.get(ASSET_NAME_HEADER)) };
-      } catch (reason) {
-        Logger.warn('[AssetHttpStore] ダウンロードに失敗しました', identifier, reason);
-        return 'failed';
-      }
-    });
+      },
+      identifier,
+      options.first
+    );
+  }
+
+  /** Moves a download still waiting its turn to the front, to go next. */
+  downloadFirst(identifier: string): void {
+    this.downloads.putFirst(identifier);
   }
 
   /**
