@@ -1,8 +1,14 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, InjectionToken } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Logger } from '@axe/core/logging/logger';
+
+/**
+ * What is done before the page reloads when the reader asks it to, such as keeping the room in this
+ * browser's automatic save; provided by the app, which knows of it.
+ */
+export const BEFORE_RELOAD = new InjectionToken<() => Promise<void>>('BEFORE_RELOAD');
 
 /**
  * Tells the reader that the page wants reloading because part of the app could not be fetched.
@@ -17,6 +23,7 @@ export class ReloadNoticeService {
   private readonly confirm = inject(ConfirmService);
   private readonly snackbar = inject(SnackbarService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly beforeReload = inject(BEFORE_RELOAD, { optional: true });
   private asked: 'not-yet' | 'asking' | 'put-off' = 'not-yet';
 
   /**
@@ -28,7 +35,7 @@ export class ReloadNoticeService {
     if (this.asked === 'asking') return;
     if (this.asked === 'put-off') {
       this.snackbar.show(this.t('common.dialog.reloadNeeded'), {
-        action: { label: this.t('common.dialog.reload'), run: () => this.reload() },
+        action: { label: this.t('common.dialog.reload'), run: () => void this.reloadOnceReady() },
       });
       return;
     }
@@ -42,7 +49,7 @@ export class ReloadNoticeService {
       })
       .then((reload) => {
         this.asked = 'put-off';
-        if (reload) this.reload();
+        if (reload) void this.reloadOnceReady();
       });
   }
 
@@ -57,6 +64,12 @@ export class ReloadNoticeService {
         this.tellReloadNeeded();
         throw reason;
       });
+  }
+
+  /** Reloads the page once what the app does first is done. */
+  private async reloadOnceReady(): Promise<void> {
+    await this.beforeReload?.();
+    this.reload();
   }
 
   /** Reloads the page, once the reader has asked for it. */

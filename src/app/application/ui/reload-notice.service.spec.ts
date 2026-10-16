@@ -1,7 +1,8 @@
+import { Injector, runInInjectionContext } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
-import { ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
+import { BEFORE_RELOAD, ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Logger } from '@axe/core/logging/logger';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -72,7 +73,7 @@ describe('ReloadNoticeService', () => {
       action: { label: 'common.dialog.reload', run: expect.any(Function) },
     });
     show.mock.calls[0][1]!.action!.run();
-    expect(reload).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
   });
 
   it('leaves the page as it is when the reader puts it off', async () => {
@@ -90,6 +91,22 @@ describe('ReloadNoticeService', () => {
     service.tellReloadNeeded();
 
     await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+  });
+
+  it('does what the app asks first before the page reloads', async () => {
+    const calls: string[] = [];
+    reload.mockImplementation(() => calls.push('reload'));
+    const injector = Injector.create({
+      providers: [{ provide: BEFORE_RELOAD, useValue: async () => void calls.push('save') }],
+      parent: TestBed.inject(Injector),
+    });
+    const made = runInInjectionContext(injector, () => new ReloadNoticeService());
+    (made as unknown as { reload: () => void }).reload = reload;
+    ask.mockResolvedValue(true);
+
+    made.tellReloadNeeded();
+
+    await vi.waitFor(() => expect(calls).toEqual(['save', 'reload']));
   });
 
   it('says it again at the bottom of the screen when a reload the reader asked for did not happen', async () => {

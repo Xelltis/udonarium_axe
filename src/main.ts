@@ -18,6 +18,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { AppConfigService } from '@axe/composition/app-config.service';
 import { AppInitializationService } from '@axe/composition/app-initialization.service';
+import { BEFORE_RELOAD_PROVIDER } from '@axe/composition/before-reload.provider';
 import { CLASS_SINGLETON_PROVIDERS } from '@axe/composition/class-provider';
 import { Logger } from '@axe/core/logging/logger';
 import { setNetworkTick } from '@axe/core/network/network-messaging';
@@ -38,6 +39,7 @@ function bootstrap(): Promise<void> {
       provideHttpClient(withXhr()),
       provideTransloco({ config: transLocoConfig, loader: TranslocoHttpLoader }),
       ...CLASS_SINGLETON_PROVIDERS,
+      BEFORE_RELOAD_PROVIDER,
       AppConfigService,
       ChatMessageService,
       ContextMenuService,
