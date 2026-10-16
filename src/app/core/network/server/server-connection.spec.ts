@@ -438,6 +438,16 @@ describe('ServerConnection', () => {
     expect(errors).toEqual([]);
   });
 
+  it('says the link to the server is up once let in, and down once it drops', async () => {
+    expect(connection.authorityOpen).toBe(false);
+
+    const socket = await enterRoom();
+    expect(connection.authorityOpen).toBe(true);
+
+    socket.close(1006);
+    await vi.waitFor(() => expect(connection.authorityOpen).toBe(false));
+  });
+
   it('reaches the room’s pictures and sounds with the welcome’s token while in the room, and not outside', async () => {
     expect(connection.assetAccess).toBeNull();
 

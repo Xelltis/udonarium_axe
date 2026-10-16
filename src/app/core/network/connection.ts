@@ -52,6 +52,8 @@ export interface Connection {
    * with. Only a connection through a room server has one; it is never among `peers`.
    */
   readonly authorityPeerId?: string;
+  /** Whether the link to the room server is up just now; false while it is down and being tried again. */
+  readonly authorityOpen?: boolean;
   /** The key a room server finds the open room by; SkyWay rooms have none. */
   readonly roomKey?: string;
   /** The role a room server gave this seat on letting it in; SkyWay leaves roles to the peers. */

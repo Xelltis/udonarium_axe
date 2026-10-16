@@ -128,6 +128,9 @@ export class ServerConnection implements Connection {
   get authorityPeerId(): string | undefined {
     return this.authority?.peerId;
   }
+  get authorityOpen(): boolean {
+    return this.authority?.isOpen ?? false;
+  }
   get roomKey(): string | undefined {
     return this.room?.roomKey;
   }

@@ -3351,6 +3351,7 @@
         "pingUnit": "ms",
         "widgetTitle": "통신 품질",
         "noPeers": "접속 중인 참가자가 없습니다.",
+        "roomServer": "방 서버",
         "relayed": "중계 서버 경유",
         "relayedHint": "중계 서버를 거치는 접속이 있습니다. 직접 연결되지 않는 회선이라 느려지기 쉬운 상태입니다."
       },

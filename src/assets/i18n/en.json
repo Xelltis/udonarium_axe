@@ -3351,6 +3351,7 @@
         "pingUnit": "ms",
         "widgetTitle": "Connection quality",
         "noPeers": "No one else is connected.",
+        "roomServer": "Room server",
         "relayed": "Via relay server",
         "relayedHint": "Some links go through a relay server. Those peers could not connect directly, so they tend to be slower."
       },

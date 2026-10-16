@@ -121,6 +121,22 @@ describe('ConnectionQualityComponent', () => {
     expect(internals.links()[0].isRelayed).toBe(true);
   });
 
+  it('shows the link to the room server alone on one, as down while it is being tried again', () => {
+    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    const open = vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
+    create();
+
+    expect(internals.links().map((link) => [link.peerId, link.quality])).toEqual([
+      ['@authority', PeerLinkQuality.Good],
+    ]);
+    expect(fixture.nativeElement.textContent).toContain('部屋のサーバー');
+
+    open.mockReturnValue(false);
+    objectChange.networkVersion.update((v) => v + 1);
+    expect(internals.worst()).toBe(PeerLinkQuality.Lost);
+  });
+
   it('falls back to the head of the peer id when the name is unknown', () => {
     vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('abcdef123456')] as never);
     create();

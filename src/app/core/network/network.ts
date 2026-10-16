@@ -55,6 +55,10 @@ export class Network {
   static get authorityPeerId(): string | null {
     return Network.instance.authorityPeerId;
   }
+  /** Whether the link to the room server is up just now; false with SkyWay, or while it is down. */
+  static get isAuthorityOpen(): boolean {
+    return Network.instance.isAuthorityOpen;
+  }
   /** How this deployment connects players, as config.json names it. */
   static get transport(): Transport {
     return Network.instance.transport;
@@ -140,6 +144,9 @@ export class Network {
   }
   get authorityPeerId(): string | null {
     return this.connection?.authorityPeerId ?? null;
+  }
+  get isAuthorityOpen(): boolean {
+    return this.connection?.authorityOpen ?? false;
   }
   get transport(): Transport {
     return transportOf(this.config);
