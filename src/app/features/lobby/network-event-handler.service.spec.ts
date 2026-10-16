@@ -22,7 +22,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { handLocationOf } from '@axe/domain/card/hand-location';
-import { DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -493,6 +493,28 @@ describe('NetworkEventHandlerService', () => {
       account.set(null);
       TestBed.tick();
       account.set({ ...ACCOUNT, name: 'Another' });
+      TestBed.tick();
+      expect(PeerCursor.myCursor.name).toBe('ゴブリン使い');
+    });
+
+    it('takes back on logout the name and avatar it lent, but not ones chosen since', () => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: false, userId: 'tab-1' } as never);
+      vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+      PeerCursor.myCursor.name = DEFAULT_CURSOR_NAME;
+      PeerCursor.myCursor.imageIdentifier = DEFAULT_CURSOR_IMAGE_IDENTIFIER;
+      account.set({ ...ACCOUNT, avatarUrl: 'https://cdn.example/a.png' });
+      TestBed.tick();
+      expect(PeerCursor.myCursor.imageIdentifier).not.toBe(DEFAULT_CURSOR_IMAGE_IDENTIFIER);
+
+      account.set(null);
+      TestBed.tick();
+      expect(PeerCursor.myCursor.name).toBe(DEFAULT_CURSOR_NAME);
+      expect(PeerCursor.myCursor.imageIdentifier).toBe(DEFAULT_CURSOR_IMAGE_IDENTIFIER);
+
+      account.set(ACCOUNT);
+      TestBed.tick();
+      PeerCursor.myCursor.name = 'ゴブリン使い';
+      account.set(null);
       TestBed.tick();
       expect(PeerCursor.myCursor.name).toBe('ゴブリン使い');
     });

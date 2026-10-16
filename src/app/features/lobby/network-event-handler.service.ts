@@ -65,6 +65,8 @@ export class NetworkEventHandlerService {
   private followedAccountUserId: string | null | undefined = undefined;
   /** The last account followed, kept after a logout so its user id is never taken for the tab's own. */
   private lastAccountUserId = '';
+  /** The account's name and avatar lent to the cursor, empty for what was not lent, to give back on logout. */
+  private lentLook = { name: '', imageIdentifier: '' };
 
   constructor() {
     this.destroyRef.onDestroy(() => this.roomAssetListRetries.clear());
@@ -297,7 +299,8 @@ export class NetworkEventHandlerService {
   /**
    * Follows a login or logout, in this tab or another, on a room server. In a room, the seat goes in
    * again as whoever is logged in now; outside one, it waits as them, taking what the old id held
-   * along. A login also lends the cursor the account's name and avatar while it has the defaults.
+   * along. A login also lends the cursor the account's name and avatar while it has the defaults,
+   * and a logout takes back what is still as lent, so the guest seat does not go on as the account.
    */
   private followAccount(userId: string | null): void {
     const previous = this.followedAccountUserId;
@@ -306,6 +309,7 @@ export class NetworkEventHandlerService {
     if (this.localMode || Network.transport !== 'server') return;
     const account = this.auth.account();
     if (account) this.lendAccountLook(account.name, account.avatarUrl);
+    else this.takeBackAccountLook();
     if (previous === undefined || previous === userId || !Network.isOpen) return;
 
     const peer = Network.peerContext;
@@ -333,9 +337,25 @@ export class NetworkEventHandlerService {
   private lendAccountLook(name: string, avatarUrl: string | null): void {
     const cursor = PeerCursor.myCursor;
     if (!cursor) return;
-    if (cursor.name === DEFAULT_CURSOR_NAME && name) cursor.name = name;
+    if (cursor.name === DEFAULT_CURSOR_NAME && name) {
+      cursor.name = name;
+      this.lentLook.name = name;
+    }
     if (cursor.imageIdentifier === DEFAULT_CURSOR_IMAGE_IDENTIFIER && avatarUrl) {
       cursor.imageIdentifier = ImageStorage.instance.add(avatarUrl).identifier;
+      this.lentLook.imageIdentifier = cursor.imageIdentifier;
+    }
+  }
+
+  /** Puts the defaults back on the cursor where it still has the account's name or avatar as lent. */
+  private takeBackAccountLook(): void {
+    const cursor = PeerCursor.myCursor;
+    const lent = this.lentLook;
+    this.lentLook = { name: '', imageIdentifier: '' };
+    if (!cursor) return;
+    if (lent.name && cursor.name === lent.name) cursor.name = DEFAULT_CURSOR_NAME;
+    if (lent.imageIdentifier && cursor.imageIdentifier === lent.imageIdentifier) {
+      cursor.imageIdentifier = DEFAULT_CURSOR_IMAGE_IDENTIFIER;
     }
   }
 
