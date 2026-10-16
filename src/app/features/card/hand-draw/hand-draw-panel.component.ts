@@ -43,7 +43,9 @@ export class HandDrawPanelComponent {
 
   readonly selectedUserId = signal('');
 
+  /** The other participants holding cards to draw from, as they come and go from the room. */
   readonly targets = computed<HandDrawTarget[]>(() => {
+    this.objectChange.networkVersion();
     this.objectChange.collectionOf(Card.aliasName)();
     this.objectChange.collectionOf(PeerCursor.aliasName)();
     const myUserId = this.cardGame.myUserId();

@@ -78,6 +78,20 @@ describe('HandDrawPanelComponent', () => {
     expect(component.targets()[0].count).toBe(1);
   });
 
+  it('follows a participant whose link drops and comes back, with nothing else changing', () => {
+    peer('other', 'あいて');
+    card('s01', 'other');
+    const linked = vi.spyOn(Network, 'peerIds', 'get').mockReturnValue([]);
+    const networkVersion = TestBed.inject(ObjectChangeService).networkVersion;
+    networkVersion.update((version) => version + 1);
+    expect(component.targets()).toEqual([]);
+
+    linked.mockReturnValue(['peer-other']);
+    networkVersion.update((version) => version + 1);
+
+    expect(component.targets().map((target) => target.userId)).toEqual(['other']);
+  });
+
   it('lays their hand out face down once one is chosen', () => {
     peer('other', 'あいて');
     card('s01', 'other');

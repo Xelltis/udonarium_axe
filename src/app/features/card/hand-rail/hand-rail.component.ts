@@ -221,8 +221,9 @@ export class HandRailComponent {
 
   protected readonly pairCount = computed(() => findTrumpPairs(this.cards()).length);
 
-  /** The other participants a card from this hand can be given to. */
+  /** The other participants a card from this hand can be given to, as they come and go from the room. */
   protected readonly giveTargets = computed<CardSeat[]>(() => {
+    this.objectChange.networkVersion();
     this.objectChange.collectionOf(PeerCursor.aliasName)();
     this.objectChange.trackMyCursor();
     for (const cursor of this.objectStore.getObjects<PeerCursor>(PeerCursor)) {
