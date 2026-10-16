@@ -94,6 +94,25 @@ describe('RoomSnapshotService', () => {
     expect(build.mock.calls).toEqual([[{ background: true }], [{}]]);
   });
 
+  it('lets whoever asks wait for the snapshot being taken, and answers at once when none is', async () => {
+    let finish!: (blob: Blob) => void;
+    vi.spyOn(TestBed.inject(SaveDataService), 'createRoomArchiveAsync').mockReturnValue(
+      new Promise<Blob>((resolve) => (finish = resolve))
+    );
+    await service.whenCaptured();
+    const taking = service.capture();
+    let waited = false;
+    void service.whenCaptured().then(() => (waited = true));
+    await Promise.resolve();
+    expect(waited).toBe(false);
+
+    finish(new Blob(['abc']));
+    await taking;
+    await Promise.resolve();
+
+    expect(waited).toBe(true);
+  });
+
   it('drops the oldest snapshots past the limit', async () => {
     for (let i = 0; i < 7; i++) {
       await service.capture();

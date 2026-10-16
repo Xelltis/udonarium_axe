@@ -20,6 +20,7 @@ describe('RoomArchiveEventHandlerService', () => {
   let isKeeping: boolean;
   let isDragging: boolean;
   let lastCaptureMs: number;
+  let snapshotRunning: Promise<unknown> | null;
 
   function setup(): RoomArchiveEventHandlerService {
     TestBed.configureTestingModule({
@@ -41,7 +42,17 @@ describe('RoomArchiveEventHandlerService', () => {
             isKeeping: () => isKeeping,
             isRestoring: () => isRestoring,
             lastCaptureMs: () => lastCaptureMs,
-            capture,
+            capture: (...args: unknown[]) => {
+              const running = Promise.resolve((capture as (...params: unknown[]) => unknown)(...args));
+              snapshotRunning = running;
+              void running.finally(() => {
+                if (snapshotRunning === running) snapshotRunning = null;
+              });
+              return running;
+            },
+            whenCaptured: async () => {
+              await snapshotRunning;
+            },
           },
         },
         {
@@ -68,6 +79,7 @@ describe('RoomArchiveEventHandlerService', () => {
     objectAdded$ = new EventChannel<StoreEvent>();
     objectRemoved$ = new EventChannel<StoreEvent>();
     capture = vi.fn().mockResolvedValue(null);
+    snapshotRunning = null;
     canEditTabletop = true;
     isRestoring = false;
     isKeeping = true;
@@ -215,6 +227,36 @@ describe('RoomArchiveEventHandlerService', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(flushed).toBe(true);
     expect(capture).toHaveBeenCalledOnce();
+  });
+
+  it('waits for a save begun while it waited for a quiet moment, and takes none of its own after', async () => {
+    const service = setup();
+    const quiet: (() => void)[] = [];
+    vi.stubGlobal('requestIdleCallback', (callback: () => void) => quiet.push(callback));
+    try {
+      let finishSaving!: () => void;
+      capture.mockReturnValueOnce(new Promise<null>((resolve) => (finishSaving = () => resolve(null))));
+      emitChange();
+      const byTimer = service.flush();
+      const leaving = service.flush();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(quiet).toHaveLength(2);
+
+      quiet[0]();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(capture).toHaveBeenCalledOnce();
+      quiet[1]();
+      let left = false;
+      void leaving.then(() => (left = true));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(left).toBe(false);
+
+      finishSaving();
+      await Promise.all([byTimer, leaving]);
+      expect(capture).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('saves for an object added or deleted as well', async () => {

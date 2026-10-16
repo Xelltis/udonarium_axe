@@ -64,6 +64,9 @@ export class RoomSnapshotService {
     return metas;
   }
 
+  /** The snapshot being taken now, which whoever asks for one meanwhile can wait for. */
+  private running: Promise<RoomSnapshotMeta | null> | null = null;
+
   /**
    * Saves the room as it stands into this browser as a new snapshot, then removes the expired ones.
    *
@@ -74,6 +77,24 @@ export class RoomSnapshotService {
    */
   async capture(options: { background?: boolean } = {}): Promise<RoomSnapshotMeta | null> {
     if (!this.isSupported || this._isCapturing()) return null;
+    const running = this.takeSnapshot(options);
+    this.running = running;
+    try {
+      return await running;
+    } finally {
+      if (this.running === running) this.running = null;
+    }
+  }
+
+  /**
+   * Resolves once the snapshot being taken, if one is, is done, however it was asked for: on a
+   * timer, by the reader, or before the page leaves the room.
+   */
+  async whenCaptured(): Promise<void> {
+    await this.running;
+  }
+
+  private async takeSnapshot(options: { background?: boolean }): Promise<RoomSnapshotMeta | null> {
     this._isCapturing.set(true);
     const startedAt = performance.now();
     try {
