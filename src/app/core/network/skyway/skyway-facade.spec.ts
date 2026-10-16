@@ -1,5 +1,6 @@
 import { PeerContext } from '@axe/core/network/peer-context';
 import { SAME_NAME_MEMBER_WAIT_MS, SameNameWaitCancelledError } from '@axe/core/network/skyway/same-name-member';
+import { SkyWayBackend } from '@axe/core/network/skyway/skyway-backend';
 import { SkyWayFacade } from '@axe/core/network/skyway/skyway-facade';
 
 describe('SkyWayFacade', () => {
@@ -162,5 +163,48 @@ describe('joining the room under its own name', () => {
 
     await expect(joined).rejects.toBeInstanceOf(SameNameWaitCancelledError);
     expect(room.join).not.toHaveBeenCalled();
+  });
+});
+
+describe('a token that comes back empty', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  function opening(): { facade: SkyWayFacade; answer: (token: string) => void; done: Promise<void> } {
+    let answer: (token: string) => void = () => undefined;
+    vi.spyOn(SkyWayBackend.prototype, 'createSkyWayAuthToken').mockReturnValue(
+      new Promise((resolve) => (answer = resolve))
+    );
+    const facade = new SkyWayFacade();
+    facade.onFatalError = vi.fn();
+    facade.onOpen = vi.fn();
+    const done = facade.open(PeerContext.parse('standby'));
+    return { facade, answer: (token) => answer(token), done };
+  }
+
+  it('is said to be a server error while the connection still opens', async () => {
+    const { facade, answer, done } = opening();
+    await vi.waitFor(() => expect(SkyWayBackend.prototype.createSkyWayAuthToken).toHaveBeenCalled());
+
+    answer('');
+    await done;
+
+    expect(facade.onFatalError).toHaveBeenCalledWith(
+      expect.anything(),
+      'server-error',
+      expect.any(String),
+      expect.any(Error)
+    );
+  });
+
+  it('says nothing once the connection was closed meanwhile, neither an error nor that it opened', async () => {
+    const { facade, answer, done } = opening();
+    await vi.waitFor(() => expect(SkyWayBackend.prototype.createSkyWayAuthToken).toHaveBeenCalled());
+
+    await facade.close();
+    answer('');
+    await done;
+
+    expect(facade.onFatalError).not.toHaveBeenCalled();
+    expect(facade.onOpen).not.toHaveBeenCalled();
   });
 });

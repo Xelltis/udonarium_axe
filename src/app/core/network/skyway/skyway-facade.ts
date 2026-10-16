@@ -52,8 +52,9 @@ export class SkyWayFacade {
    * Creates a SkyWay context with a backend token, then joins the room and a lobby as the peer.
    *
    * An open session is closed first, and an open still under way is called off. Failures are
-   * reported through onFatalError, not thrown, and onOpen fires at the end. A peer that is not in a
-   * room gets a context but joins no channel.
+   * reported through onFatalError, not thrown, and onOpen fires at the end. An open called off, as
+   * closing calls it off, reports neither. A peer that is not in a room gets a context but joins no
+   * channel.
    *
    * A member left in a channel under this peer's name, as a reload leaves one, is waited out
    * before joining, for as long as the SDK can take to drop it.
@@ -71,9 +72,10 @@ export class SkyWayFacade {
       this.peer.password = peer.password;
       this.isDestroyed = false;
 
-      await this.createContext();
+      await this.createContext(abort.signal);
       await this.joinRoom();
       await this.joinLobby();
+      if (abort.signal.aborted) return;
 
       this.peer.isOpen = true;
 
@@ -139,7 +141,7 @@ export class SkyWayFacade {
     }
   }
 
-  private async createContext() {
+  private async createContext(signal: AbortSignal) {
     await this.disposeContext();
     if (this.isDestroyed) return;
 
@@ -149,6 +151,7 @@ export class SkyWayFacade {
       : this.peer.peerId;
 
     const authToken = await backend.createSkyWayAuthToken(channelName, this.peer.peerId);
+    if (signal.aborted) return;
     if (authToken.length < 1) {
       const message = `APIバックエンド< ${backend.url} >にアクセスできませんでした。SkyWayの認証トークンを発行するサーバが必要です。`;
       this.onFatalError?.(this.peer, 'server-error', message, new Error(message));

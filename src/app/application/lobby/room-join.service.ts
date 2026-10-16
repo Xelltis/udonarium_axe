@@ -222,13 +222,11 @@ export class RoomJoinService {
       }, this.destroyRef);
 
       // Before the room opens, an error under this room's id, or under none, is this join's even once
-      // the handling of network errors has gone back to waiting, as there is nobody else in it yet.
+      // the handling of network errors has gone back to waiting, as there is nobody else in it yet. An
+      // opening connection carries the room's id from the start, so one that says `???` was closed.
       const offError = this.objectChange.networkError$.subscribe((event) => {
         if (isOpened || isInAnotherRoom(context.roomId)) return;
-        const ours =
-          !event.peerId ||
-          event.peerId === UNOPENED_PEER_ID ||
-          PeerContext.parse(event.peerId).roomId === context.roomId;
+        const ours = !event.peerId || PeerContext.parse(event.peerId).roomId === context.roomId;
         if (ours) settle(false);
       }, this.destroyRef);
 

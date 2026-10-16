@@ -457,6 +457,22 @@ describe('RoomJoinService', () => {
       await expect(joined).resolves.toBe(false);
     });
 
+    it('keeps on through an error under the id of no room, which only a connection already closed has', async () => {
+      const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
+      let settled = false;
+      void joined.then(() => (settled = true));
+
+      stubChange.networkError$.emit({ peerId: '???', errorType: 'server-error', errorMessage: '' });
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      expect(Network.openStandby).not.toHaveBeenCalled();
+
+      roomOpens();
+      connectedPeers = [peerContext('peer-1', 'abc', 'room')];
+      stubChange.peerConnect$.emit({ peerId: 'peer-1' });
+      await expect(joined).resolves.toBe(true);
+    });
+
     it('does not take the waiting connection opening for the room', async () => {
       const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
 
