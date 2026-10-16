@@ -25,6 +25,11 @@ import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/rep
 import { applyReplayEvents } from '@axe/domain/replay/replay-patch';
 
 export const REPLAY_HISTORY_LIMIT = 100;
+
+/** The highest sequence number among the events, or `floor` when none is higher. */
+function highestSeq(events: readonly ReplayEvent[], floor: number): number {
+  return events.reduce((highest, event) => Math.max(highest, event.seq), floor);
+}
 export const REPLAY_DERIVED_CHUNK_SIZE = 500;
 
 @Injectable({ providedIn: 'root' })
@@ -36,6 +41,12 @@ export class ReplayEditorService {
   private readonly _isEditing = signal(false);
   private readonly _isSaving = signal(false);
   private readonly _history = signal<readonly (readonly ReplayEvent[])[]>([]);
+  /**
+   * The highest sequence number handed out since editing began, so that one taken back with what it
+   * was on, as by removing a row or undoing, is never handed out again to something else, which a
+   * scene waiting to go in after that row would then follow.
+   */
+  private seqFloor = 0;
 
   readonly edited = this._edited.asReadonly();
   readonly isEditing = this._isEditing.asReadonly();
@@ -47,6 +58,7 @@ export class ReplayEditorService {
 
   /** Starts editing a recording's events, with an empty undo history. */
   begin(events: readonly ReplayEvent[]): void {
+    this.seqFloor = highestSeq(events, 0);
     this._original.set([...events]);
     this._edited.set([...events]);
     this._history.set([]);
@@ -67,6 +79,7 @@ export class ReplayEditorService {
     if (this._isSaving()) return;
     const current = this._edited();
     const next = mutate(current);
+    this.seqFloor = highestSeq(next, highestSeq(current, this.seqFloor));
     this._history.update((history) => [...history, current].slice(-REPLAY_HISTORY_LIMIT));
     this._edited.set(next);
   }
@@ -96,7 +109,7 @@ export class ReplayEditorService {
   insert(atIndex: number, draft: ReplayEntryDraft): void {
     this.change((events) => {
       const index = Math.max(0, Math.min(events.length, atIndex));
-      const entry = createReplayEntry(draft, nextInsertSeq(events), insertTimeAt(events, index));
+      const entry = createReplayEntry(draft, nextInsertSeq(events, this.seqFloor), insertTimeAt(events, index));
       return insertReplayEvent(events, index, entry);
     });
   }
@@ -104,7 +117,7 @@ export class ReplayEditorService {
   /** Adds events that were already made, such as a staged scene, at a row. Nothing given changes nothing. */
   insertMany(atIndex: number, entries: readonly ReplayEvent[]): void {
     if (entries.length < 1) return;
-    this.change((events) => insertReplayEvents(events, atIndex, entries));
+    this.change((events) => insertReplayEvents(events, atIndex, entries, this.seqFloor));
   }
 
   /**

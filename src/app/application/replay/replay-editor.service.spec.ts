@@ -241,6 +241,20 @@ describe('ReplayEditorService', () => {
     expect(service.isSaving()).toBe(false);
   });
 
+  it('never gives a number taken back with a row to the next row written in, which a scene waiting after it would follow', () => {
+    const draft = { kind: ReplayEventKind.Marker, actorId: 'gm', speaker: '', text: '', tabIdentifier: 'tab1' };
+    service.insert(2, { ...draft, text: '書き足し' });
+    const first = service.edited()[2].seq;
+    service.remove(first);
+    service.remove(4);
+
+    service.insert(4, { ...draft, text: 'もう一つ' });
+
+    const second = service.edited().find((e) => e.detail['label'] === 'もう一つ')!.seq;
+    expect(second).not.toBe(first);
+    expect(second).not.toBe(4);
+  });
+
   it('keeps an inserted line when saving', async () => {
     service.insert(0, {
       kind: ReplayEventKind.Marker,

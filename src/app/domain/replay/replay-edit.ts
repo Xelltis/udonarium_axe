@@ -144,12 +144,13 @@ export function insertReplayEvent(events: readonly ReplayEvent[], atIndex: numbe
 export function insertReplayEvents(
   events: readonly ReplayEvent[],
   atIndex: number,
-  entries: readonly ReplayEvent[]
+  entries: readonly ReplayEvent[],
+  seqFloor = 0
 ): ReplayEvent[] {
   if (entries.length < 1) return [...events];
 
   const index = Math.max(0, Math.min(events.length, atIndex));
-  const seqBase = nextInsertSeq(events);
+  const seqBase = nextInsertSeq(events, seqFloor);
   const times = spreadInsertTimes(events, index, entries.length);
   const placed = withChatMoments(
     entries.map((entry, offset) => ({ ...entry, seq: seqBase + offset, at: times[offset] }))
@@ -205,9 +206,12 @@ function withChatMoments(events: readonly ReplayEvent[]): ReplayEvent[] {
   });
 }
 
-/** The sequence number for a new event: one above the highest in the list, or 1 for an empty list. */
-export function nextInsertSeq(events: readonly ReplayEvent[]): number {
-  return events.reduce((highest, event) => Math.max(highest, event.seq), 0) + 1;
+/**
+ * The sequence number for a new event: one above the highest in the list, and above `floor`, the
+ * highest already handed out, so that a number taken back with what it was on is never given again.
+ */
+export function nextInsertSeq(events: readonly ReplayEvent[], floor = 0): number {
+  return events.reduce((highest, event) => Math.max(highest, event.seq), floor) + 1;
 }
 
 /** A time for an event placed at a position: halfway between its neighbours, or the one neighbour's time at an end. */
