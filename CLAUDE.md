@@ -96,8 +96,9 @@ composition → features → ui → application → infrastructure → domain �
 
 ## コメント・テスト名は英語
 
-`src/`配下のコードコメントと、`describe()` / `it()`のテスト名は英語で書く。
-i18nの翻訳文字列とドキュメント本文は対象外（詳細は
+コードのコメント（`src/`・`e2e/`・`scripts/`・設定ファイル）と、テスト名（`describe()` / `it()`、e2eの`test()` / `test.describe()`）は英語で書く。
+画面の文言や実際の出力を引くときは、元の日本語を引用として残してよい。
+i18nの翻訳文字列、セレクタや期待値の文字列、ドキュメント本文は対象外（詳細は
 [docs/coding-guidelines.md](docs/coding-guidelines.md)）。
 
 ## ドキュメントの日本語
