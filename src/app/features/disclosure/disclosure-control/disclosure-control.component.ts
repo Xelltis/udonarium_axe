@@ -51,6 +51,7 @@ export class DisclosureControlComponent {
 
   readonly canEdit = computed(() => {
     const object = this.object();
+    this.objectChange.versionOf(object.identifier)();
     this.objectChange.trackMyCursor();
     return this.disclosureService.canEdit(object);
   });

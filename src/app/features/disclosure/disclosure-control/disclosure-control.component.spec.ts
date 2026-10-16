@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Network } from '@axe/core/network/network';
 import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -55,6 +56,20 @@ describe('DisclosureControlComponent', () => {
     made.push(note);
 
     expect(choicesFor(note)).toEqual(['p1', 'p2']);
+  });
+
+  it('stops letting a player say who sees a card once it has passed to someone else', () => {
+    const card = Card.create('剣の2', 'front.png', 'back.png');
+    card.owner = 'p1';
+    made.push(card);
+    const fixture = TestBed.createComponent(DisclosureControlComponent);
+    fixture.componentRef.setInput('object', card);
+    expect(fixture.componentInstance.canEdit()).toBe(true);
+
+    card.owner = 'p2';
+    TestBed.inject(ObjectChangeService).notifyChanged(card.identifier);
+
+    expect(fixture.componentInstance.canEdit()).toBe(false);
   });
 
   it('offers everyone among peers, as before', () => {
