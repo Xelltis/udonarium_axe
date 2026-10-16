@@ -161,40 +161,52 @@ export class AssetHttpStore {
    *
    * A refusal means the server will never take them, so they keep travelling between peers. A
    * failure, after retries for a server that asked for fewer uploads, may pass on a later try.
+   *
+   * Uploads wait their turn; one asked for `first`, such as a picture just added here, goes ahead
+   * of those already waiting.
    */
-  upload(identifier: string, blob: Blob, name = ''): Promise<AssetUploadResult> {
+  upload(identifier: string, blob: Blob, name = '', options: { first?: boolean } = {}): Promise<AssetUploadResult> {
     if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return Promise.resolve('refused');
     // The name goes along so that the room's list can name a picture or sound nobody else describes.
     const header = assetNameHeader(name);
     const named: Record<string, string> = header ? { [ASSET_NAME_HEADER]: header } : {};
-    return this.uploads.run(async () => {
-      try {
-        // Asked when its turn comes, so that a queued upload goes to the room the seat is in by then.
-        const head = await this.authorized((access) =>
-          this.request(this.urlOf(access, identifier), { method: 'HEAD', headers: this.headersOf(access) })
-        );
-        // A token turned down even after a fresh one was asked for will be turned down for the PUT too.
-        if (!head || head.status === 401) return 'failed';
-        if (head.ok) return 'exists';
-        // Only a store that lacks the bytes is sent them; one that asked for fewer requests, or failed,
-        // is asked again later rather than sent the whole of them now.
-        if (head.status !== 404) return 'failed';
-        for (let attempt = 0; ; attempt++) {
-          const res = await this.authorized((access) =>
-            this.sendBytes(this.urlOf(access, identifier), blob, { ...this.headersOf(access), ...named })
+    return this.uploads.run(
+      async () => {
+        try {
+          // Asked when its turn comes, so that a queued upload goes to the room the seat is in by then.
+          const head = await this.authorized((access) =>
+            this.request(this.urlOf(access, identifier), { method: 'HEAD', headers: this.headersOf(access) })
           );
-          if (!res) return 'failed';
-          if (res.status === 201) return 'stored';
-          if (res.ok) return 'exists';
-          if (REFUSED_STATUSES.has(res.status)) return 'refused';
-          if (res.status !== 429 || RATE_LIMIT_BACKOFF_MS.length <= attempt) return 'failed';
-          await this.delay(RATE_LIMIT_BACKOFF_MS[attempt]);
+          // A token turned down even after a fresh one was asked for will be turned down for the PUT too.
+          if (!head || head.status === 401) return 'failed';
+          if (head.ok) return 'exists';
+          // Only a store that lacks the bytes is sent them; one that asked for fewer requests, or failed,
+          // is asked again later rather than sent the whole of them now.
+          if (head.status !== 404) return 'failed';
+          for (let attempt = 0; ; attempt++) {
+            const res = await this.authorized((access) =>
+              this.sendBytes(this.urlOf(access, identifier), blob, { ...this.headersOf(access), ...named })
+            );
+            if (!res) return 'failed';
+            if (res.status === 201) return 'stored';
+            if (res.ok) return 'exists';
+            if (REFUSED_STATUSES.has(res.status)) return 'refused';
+            if (res.status !== 429 || RATE_LIMIT_BACKOFF_MS.length <= attempt) return 'failed';
+            await this.delay(RATE_LIMIT_BACKOFF_MS[attempt]);
+          }
+        } catch (reason) {
+          Logger.warn('[AssetHttpStore] アップロードに失敗しました', identifier, reason);
+          return 'failed';
         }
-      } catch (reason) {
-        Logger.warn('[AssetHttpStore] アップロードに失敗しました', identifier, reason);
-        return 'failed';
-      }
-    });
+      },
+      identifier,
+      options.first
+    );
+  }
+
+  /** Moves an upload still waiting its turn to the front, to go next. */
+  uploadFirst(identifier: string): void {
+    this.uploads.putFirst(identifier);
   }
 
   /**

@@ -83,7 +83,7 @@ export class ImageStorage {
   }
 
   private _add(image: ImageFile, isLocal: boolean = false): ImageFile {
-    if (isLocal) this.uploadToAssetStore(image);
+    if (isLocal) this.uploadToAssetStore(image, true);
     if (ImageState.COMPLETE <= image.state) this.catalogSchedule.whenQuiet(100);
     if (this.update(image)) return this.imageHash[image.identifier];
     this.imageHash[image.identifier] = image;
@@ -111,7 +111,7 @@ export class ImageStorage {
     if (image && (role === 'gm' || role === 'pl')) this.uploadToAssetStore(image);
   }
 
-  private uploadToAssetStore(image: ImageFile): void {
+  private uploadToAssetStore(image: ImageFile, first = false): void {
     const store = AssetHttpStore.instance;
     const blob = image.blob;
     if (!store.isEnabled || image.state !== ImageState.COMPLETE || !blob) return;
@@ -119,7 +119,7 @@ export class ImageStorage {
     const { identifier } = image;
     this.uploading.add(identifier);
     void store
-      .upload(identifier, blob, image.name)
+      .upload(identifier, blob, image.name, { first })
       .then((result) => {
         const roomKey = Network.roomKey;
         if (result === 'failed') this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey));

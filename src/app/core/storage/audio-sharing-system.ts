@@ -176,12 +176,14 @@ export class AudioSharingSystem {
   }
 
   /**
-   * Moves what the room is playing now to the front of the downloads still waiting their turn, for
-   * music started after the room's sounds were lined up.
+   * Moves what the room is playing now to the front of the downloads and the uploads still waiting
+   * their turn, for music started after the room's sounds were lined up, so that it reaches the
+   * store and everyone ahead of the rest.
    */
   preferWaiting(): void {
     for (const identifier of this.preferredIdentifiers()) {
       if (this.httpFetching.has(identifier)) AssetHttpStore.instance.downloadFirst(identifier);
+      AssetHttpStore.instance.uploadFirst(identifier);
     }
   }
 

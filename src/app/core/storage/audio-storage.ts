@@ -83,7 +83,7 @@ export class AudioStorage {
   }
 
   private _add(audio: AudioFile, isLocal: boolean = false): AudioFile {
-    if (isLocal) this.uploadToAssetStore(audio);
+    if (isLocal) this.uploadToAssetStore(audio, true);
     if (AudioState.COMPLETE <= audio.state) this.catalogSchedule.whenQuiet(100);
     if (this.update(audio)) return this.hash[audio.identifier];
     this.hash[audio.identifier] = audio;
@@ -111,7 +111,7 @@ export class AudioStorage {
     if (audio && (role === 'gm' || role === 'pl')) this.uploadToAssetStore(audio);
   }
 
-  private uploadToAssetStore(audio: AudioFile): void {
+  private uploadToAssetStore(audio: AudioFile, first = false): void {
     const store = AssetHttpStore.instance;
     const blob = audio.blob;
     if (!store.isEnabled || audio.state !== AudioState.COMPLETE || !blob) return;
@@ -119,7 +119,7 @@ export class AudioStorage {
     const { identifier } = audio;
     this.uploading.add(identifier);
     void store
-      .upload(identifier, blob, audio.name)
+      .upload(identifier, blob, audio.name, { first })
       .then((result) => {
         const roomKey = Network.roomKey;
         if (result === 'failed') this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey));

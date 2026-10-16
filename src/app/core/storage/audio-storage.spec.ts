@@ -201,7 +201,7 @@ describe('AudioStorage', () => {
 
       role.mockReturnValue('gm');
       storage.uploadReceived(trackId);
-      expect(upload).toHaveBeenCalledWith(trackId, expect.any(Blob), 'theme.ogg');
+      expect(upload).toHaveBeenCalledWith(trackId, expect.any(Blob), 'theme.ogg', { first: false });
       finishUpload('stored');
       await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
     });
@@ -211,7 +211,7 @@ describe('AudioStorage', () => {
 
       storage.add(audio);
 
-      expect(upload).toHaveBeenCalledWith(trackId, audio.blob, 'theme.ogg');
+      expect(upload).toHaveBeenCalledWith(trackId, audio.blob, 'theme.ogg', { first: true });
       expect(catalogued(trackId)).toBe(false);
       finishUpload('exists');
       await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
@@ -224,7 +224,7 @@ describe('AudioStorage', () => {
       storage.uploadAllToAssetStore();
 
       expect(upload).toHaveBeenCalledTimes(1);
-      expect(upload).toHaveBeenCalledWith(trackId, expect.any(Blob), 'theme.ogg');
+      expect(upload).toHaveBeenCalledWith(trackId, expect.any(Blob), 'theme.ogg', { first: false });
       finishUpload('exists');
       await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
     });

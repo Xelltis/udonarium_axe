@@ -249,6 +249,8 @@ export class NetworkEventHandlerService {
     if (!Network.peerContext.isRoom || (role !== 'gm' && role !== 'pl')) return;
     ImageStorage.instance.uploadAllToAssetStore();
     AudioStorage.instance.uploadAllToAssetStore();
+    // What the room is playing goes up ahead of the rest, for everyone to hear it soonest.
+    AudioSharingSystem.instance.preferWaiting();
   }
 
   /**

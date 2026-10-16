@@ -242,6 +242,31 @@ describe('AssetHttpStore', () => {
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
+    it('lets an upload asked for first, or moved to the front, go ahead of those waiting their turn', async () => {
+      const asked: string[] = [];
+      const releases: (() => void)[] = [];
+      fetchSpy.mockImplementation((url) => {
+        asked.push(String(url).slice(-64));
+        return new Promise<Response>((resolve) => releases.push(() => resolve(new Response(null, { status: 200 }))));
+      });
+      const ids = await Promise.all([0, 1, 2, 3, 4].map((n) => sha256Hex(`up-${n}`)));
+
+      const done = [
+        ...ids.slice(0, 4).map((assetId) => store.upload(assetId, new Blob([bytes]))),
+        store.upload(ids[4], new Blob([bytes]), '', { first: true }),
+      ];
+      store.uploadFirst(ids[3]);
+      await vi.waitFor(() => expect(asked).toHaveLength(2));
+      while (asked.length < ids.length) {
+        releases.shift()?.();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      releases.forEach((release) => release());
+      await Promise.all(done);
+
+      expect(asked).toEqual([ids[0], ids[1], ids[3], ids[4], ids[2]]);
+    });
+
     it('runs at most two uploads at a time', async () => {
       let inFlight = 0;
       let mostInFlight = 0;

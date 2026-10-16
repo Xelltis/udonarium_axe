@@ -447,10 +447,13 @@ describe('AudioSharingSystem', () => {
         { id: trackId, name: '' },
       ]);
 
+      const upFirst = vi.spyOn(store, 'uploadFirst');
       AudioSharingSystem.instance.preferredIdentifiers = () => [trackId, 'f'.repeat(64)];
       AudioSharingSystem.instance.preferWaiting();
 
       expect(putFirst.mock.calls).toEqual([[trackId]]);
+      // Waiting to go up, the playing music is moved ahead too.
+      expect(upFirst.mock.calls).toEqual([[trackId], ['f'.repeat(64)]]);
     });
 
     it('asks peers for audio not named by its hash', () => {
