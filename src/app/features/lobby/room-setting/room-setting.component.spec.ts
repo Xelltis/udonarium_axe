@@ -84,6 +84,17 @@ describe('RoomSettingComponent', () => {
       expect(textOf()).toContain('部屋に入っているあいだは、新しい部屋を作れません');
     });
 
+    it('makes no room once the seat has come into one while the form was open', async () => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'user', isRoom: true } as PeerContext);
+      const create = vi.spyOn(Network, 'createRoom').mockResolvedValue({ roomKey: KEY, roomId: 'Ab3' });
+      component.roomName.set('月夜の卓');
+
+      component.createRoom();
+      await Promise.resolve();
+
+      expect(create).not.toHaveBeenCalled();
+    });
+
     it('creates the room on the server and opens it by its key, leaving the role for the server to give', async () => {
       const create = vi.spyOn(Network, 'createRoom').mockResolvedValue({ roomKey: KEY, roomId: 'Ab3' });
       const open = vi.spyOn(Network, 'open').mockImplementation(() => {});

@@ -226,8 +226,10 @@ export class LobbyComponent {
         const typed = await this.modalService.open<string>(PasswordCheckComponent, options);
         if (typed == null) return;
         password = typed;
-        this.myPeer.reConnectPass = password;
       }
+      // A room this seat came into while the password was asked for would go along into this one.
+      if (Network.peerContext.isRoom) return;
+      if (room.hasPassword) this.myPeer.reConnectPass = password;
 
       isJoinStarted = true;
       void this.roomJoin

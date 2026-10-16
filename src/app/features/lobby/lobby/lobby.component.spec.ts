@@ -204,6 +204,21 @@ describe('LobbyComponent', () => {
       expect(component.isConnected()).toBe(false);
     });
 
+    it('joins nothing when the seat came into a room while the password was asked for', async () => {
+      const where = vi
+        .spyOn(Network, 'peerContext', 'get')
+        .mockReturnValue({ isRoom: false, roomName: '' } as PeerContext);
+      vi.spyOn(TestBed.inject(ModalService), 'open').mockImplementation(async () => {
+        where.mockReturnValue({ isRoom: true, roomName: '' } as PeerContext);
+        return 'pw';
+      });
+      const joinServerRoom = vi.spyOn(TestBed.inject(RoomJoinService), 'joinServerRoom').mockResolvedValue(false);
+
+      await component.connectRoom({ alias: '', roomName: room.name, info: room, peerContexts: [] });
+
+      expect(joinServerRoom).not.toHaveBeenCalled();
+    });
+
     it('asks for the password for the server to check, and joins through the server', async () => {
       const openModal = vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue('pw');
       const joinServerRoom = vi.spyOn(TestBed.inject(RoomJoinService), 'joinServerRoom').mockResolvedValue(false);
