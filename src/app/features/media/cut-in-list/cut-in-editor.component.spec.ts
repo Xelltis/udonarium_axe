@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { startCutIn$ } from '@axe/core/event/domain-events';
+import { Network } from '@axe/core/network/network';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -7,6 +9,8 @@ import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { withPortraitFits } from '@axe/domain/media/cut-in-portrait-fit';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { CutInEditorComponent } from '@axe/features/media/cut-in-list/cut-in-editor.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -94,6 +98,35 @@ describe('CutInEditorComponent', () => {
         scene.destroy();
       }
     });
+  });
+
+  it('lets a guest on a room server try a cut-in out here alone, offering no play or stop for everyone', () => {
+    const launcher = new CutInLauncher('CutInLauncher');
+    launcher.initialize();
+    const original = PeerCursor.myCursor;
+    PeerCursor.myCursor = { role: PeerRole.Guest } as PeerCursor;
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    const shown: unknown[] = [];
+    const stop = startCutIn$.subscribe((event) => shown.push(event.cutIn));
+    const before = launcher.launchTimeStamp;
+    try {
+      fixture = TestBed.createComponent(CutInEditorComponent);
+      fixture.componentRef.setInput('cutIn', cutIn);
+      fixture.detectChanges();
+      const titles = [...fixture.nativeElement.querySelectorAll('button[title]')].map((b) => b.getAttribute('title'));
+
+      fixture.componentInstance.previewCutIn();
+      fixture.componentInstance.playCutIn();
+
+      expect(titles).not.toContain('全員に再生');
+      expect(shown).toEqual([cutIn]);
+      expect(launcher.launchTimeStamp).toBe(before);
+    } finally {
+      stop();
+      vi.restoreAllMocks();
+      PeerCursor.myCursor = original;
+      launcher.destroy();
+    }
   });
 
   describe('the picture it shows for a cut-in', () => {

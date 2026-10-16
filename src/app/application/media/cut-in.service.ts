@@ -84,7 +84,7 @@ export class CutInService {
     if (!target) return;
 
     if (isSoundOnly) {
-      launcher.startSoundOnlyCutIn(target, sendTo);
+      this.launchSoundOnly(target, sendTo);
     } else {
       this.launch(target, sendTo, speaker);
     }

@@ -67,7 +67,7 @@ describe('CutInService.activateFromChatText()', () => {
     vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
     try {
       service.activateFromChatText('演出 炎の剣', '');
-      service.activateFromChatText('演出 炎の剣@', '');
+      service.activateFromChatText('演出 @炎の剣', '');
 
       expect(service.launch(cutIn)).toBe(false);
       expect(start).not.toHaveBeenCalled();
