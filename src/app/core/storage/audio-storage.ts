@@ -126,6 +126,10 @@ export class AudioStorage {
     if (audio && (role === 'gm' || role === 'pl')) this.uploadToAssetStore(audio);
   }
 
+  /**
+   * Puts one up to the room's asset store, or keeps it for when the room is in reach. One that went
+   * up to a room the seat has left meanwhile goes up to the room it is in now as well.
+   */
   private uploadToAssetStore(audio: AudioFile, first = false): void {
     const store = AssetHttpStore.instance;
     const blob = audio.blob;
@@ -136,6 +140,8 @@ export class AudioStorage {
     }
     if (!AssetHttpStore.isAssetId(audio.identifier) || this.uploading.has(audio.identifier)) return;
     const { identifier } = audio;
+    const requestedIn = Network.roomKey;
+    let wentUpElsewhere = false;
     this.uploading.add(identifier);
     void store
       .upload(identifier, blob, audio.name, { first })
@@ -150,10 +156,12 @@ export class AudioStorage {
         const roomKey = Network.roomKey;
         if (result === 'failed') this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey));
         else this.uploadRetries.forget(identifier);
+        wentUpElsewhere = (result === 'stored' || result === 'exists') && roomKey !== requestedIn;
       })
       .finally(() => {
         this.uploading.delete(identifier);
         this.catalogSchedule.whenQuiet(100);
+        if (wentUpElsewhere) this.uploadReceived(identifier);
       });
   }
 

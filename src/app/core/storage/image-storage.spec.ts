@@ -273,6 +273,37 @@ describe('ImageStorage', () => {
       expect(catalogued(pictureId)).toBe(true);
     });
 
+    it('puts one that went up to a room left meanwhile up to the room it is in now as well', async () => {
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      const room = vi.spyOn(Network.instance, 'roomKey', 'get').mockReturnValue('room-a');
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      room.mockReturnValue('room-b');
+      upload.mockResolvedValue('stored');
+
+      finishUpload('stored');
+
+      await vi.waitFor(() => expect(upload).toHaveBeenCalledTimes(2));
+      expect(upload.mock.calls[1][0]).toBe(pictureId);
+    });
+
+    it.each([
+      ['still in the room it went up to', 'room-a', 'pl', 'stored'],
+      ['made a guest in the room it is in now', 'room-b', 'guest', 'exists'],
+      ['whose try failed, left to the tries to come', 'room-b', 'pl', 'failed'],
+    ] as const)('puts it up only once for a seat %s', async (_case, roomThen, roleThen, result) => {
+      const role = vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      const room = vi.spyOn(Network.instance, 'roomKey', 'get').mockReturnValue('room-a');
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      room.mockReturnValue(roomThen);
+      role.mockReturnValue(roleThen);
+      upload.mockResolvedValue('stored');
+
+      finishUpload(result);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(upload).toHaveBeenCalledTimes(1);
+    });
+
     it('tries an upload that failed again a few times, further apart each time', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
