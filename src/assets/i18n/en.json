@@ -3284,6 +3284,7 @@
         "passwordTooLong": "Password must be 12 characters or less.",
         "create": "Create room",
         "notice": "Rooms are dismissed once all members leave. Save the room data if you want to continue later.",
+        "noticeServer": "Rooms stay on the room server for a while after the last member leaves, then are removed. Save the room data if you want to keep it yourself.",
         "alreadyConnected": "You cannot create a room while connected to other peers.",
         "alreadyConnectedHint": "Disconnect from other peers before joining another room.",
         "alreadyConnectedHint2": "(Reload the page to disconnect.)",

@@ -69,7 +69,7 @@
     <p class="text-ui-danger mt-2 text-[0.75rem]" data-testid="room-setting-error">{{ createError() }}</p>
   }
   <p class="text-ui-muted mt-3 text-[0.75rem] leading-[1.6]">
-    {{ 'feature.lobby.roomSetting.notice' | transloco }}
+    {{ (onRoomServer ? 'feature.lobby.roomSetting.noticeServer' : 'feature.lobby.roomSetting.notice') | transloco }}
   </p>
 } @else {
   <p class="text-ui-muted text-[0.8rem] leading-[1.7]">

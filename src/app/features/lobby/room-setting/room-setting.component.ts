@@ -34,7 +34,13 @@ export class RoomSettingComponent {
   get peerId(): string {
     return Network.peerId;
   }
-  readonly isConnected = computed(() => Network.peerIds.length > 1);
+  /**
+   * Whether this seat is joined with others it would have to let go of before making a room. On a
+   * room server it holds no line to anyone but the server, so it may make one whoever is in.
+   */
+  readonly isConnected = computed(() => Network.transport !== 'server' && Network.peerIds.length > 1);
+  /** Whether rooms are kept by a room server, which outlasts the last one to leave for a while. */
+  protected readonly onRoomServer = Network.transport === 'server';
 
   /**
    * This browser's own cursor, which carries the reader's role and the password kept for

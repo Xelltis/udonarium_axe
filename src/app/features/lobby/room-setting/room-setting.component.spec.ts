@@ -53,6 +53,17 @@ describe('RoomSettingComponent', () => {
       vi.restoreAllMocks();
     });
 
+    it('offers a room to make whoever is in, and says how long the server keeps it', () => {
+      vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['a', 'b', 'c']);
+      fixture = TestBed.createComponent(RoomSettingComponent);
+      fixture.detectChanges();
+      const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+      expect(fixture.componentInstance.isConnected()).toBe(false);
+      expect(text).toContain('しばらく部屋のサーバーに残り');
+      expect(text).not.toContain('0人になった時点で解散');
+    });
+
     it('creates the room on the server and opens it by its key, leaving the role for the server to give', async () => {
       const create = vi.spyOn(Network, 'createRoom').mockResolvedValue({ roomKey: KEY, roomId: 'Ab3' });
       const open = vi.spyOn(Network, 'open').mockImplementation(() => {});
