@@ -82,9 +82,14 @@ export class LobbyComponent {
   get peerId(): string {
     return Network.peerId;
   }
+  /**
+   * Whether this seat is joined with others it would have to let go of before going to another
+   * room. On a room server it holds no line to anyone but the server, and going to another room
+   * leaves the one it is in, so the lobby lists the rooms whoever else is there.
+   */
   readonly isConnected = computed(() => {
     this.objectChange.networkVersion();
-    return Network.peerIds.length > 1;
+    return Network.transport !== 'server' && Network.peerIds.length > 1;
   });
 
   /** The reader's own cursor, which keeps the password of a joined room for reconnecting. */

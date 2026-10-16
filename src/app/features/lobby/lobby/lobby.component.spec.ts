@@ -183,6 +183,15 @@ describe('LobbyComponent', () => {
       vi.restoreAllMocks();
     });
 
+    it('lists the rooms whoever else is in the room, there being no line to anyone to let go of', () => {
+      vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['a', 'b', 'c']);
+      expect(component.isConnected()).toBe(false);
+
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('skyway');
+      TestBed.inject(ObjectChangeService).networkVersion.update((v) => v + 1);
+      expect(component.isConnected()).toBe(true);
+    });
+
     it('asks for the password for the server to check, and joins through the server', async () => {
       const openModal = vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue('pw');
       const joinServerRoom = vi.spyOn(TestBed.inject(RoomJoinService), 'joinServerRoom').mockResolvedValue(false);
