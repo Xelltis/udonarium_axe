@@ -80,11 +80,11 @@ Secretをブラウザに置くわけにはいきません。そのため、**ト
 いずれもAxeが呼び出すAPI（`GET /v1/status`・`POST /v1/skyway2023/token`）に対応しており、そのまま利用できます。
 必要な環境変数（`SKYWAY_APP_ID` / `SKYWAY_SECRET` / `ACCESS_CONTROL_ALLOW_ORIGIN`）も共通です。
 
-| バックエンド                                                                    | 実装 / 配置先                                               | こんな人に                                 | デプロイ方法                                         |
-| ------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------- |
-| [udonarium-backend-vercel](https://github.com/Xelltis/udonarium-backend-vercel) | TypeScript (Hono) / **Vercel Edge**                         | とにかく手軽に始めたい                     | ◎ READMEの**Deploy with Vercel**ボタンから           |
-| [udonarium_axe_backend](https://github.com/Xelltis/udonarium_axe_backend)       | **PHP 8.3 / Apache**                                        | レンタルサーバーを持っている               | ○ Releasesのzipを展開し`.env`を設定してdocrootに配置 |
-| [udonarium-backend（本家）](https://github.com/TK11235/udonarium-backend)       | TypeScript (Hono) / Cloudflare Workers・AWS Lambda・Node.js | CF Workers / Lambda / 自前Nodeで運用したい | ○ 各環境に自前でデプロイ（CLI）                      |
+| バックエンド                                                              | 実装 / 配置先                                               | こんな人に                                 | デプロイ方法                                         |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------- |
+| [Vercel版](https://xelltis.github.io/udonarium_axe_backend/skyway/vercel) | TypeScript (Hono) / **Vercel Functions**                    | とにかく手軽に始めたい                     | ◎ 手順のページの**Deploy with Vercel**ボタンから     |
+| [PHP版](https://xelltis.github.io/udonarium_axe_backend/skyway/php)       | **PHP 8.3 / Apache**                                        | レンタルサーバーを持っている               | ○ Releasesのzipを展開し`.env`を設定してdocrootに配置 |
+| [udonarium-backend（本家）](https://github.com/TK11235/udonarium-backend) | TypeScript (Hono) / Cloudflare Workers・AWS Lambda・Node.js | CF Workers / Lambda / 自前Nodeで運用したい | ○ 各環境に自前でデプロイ（CLI）                      |
 
 > 本家[TK11235/udonarium-backend](https://github.com/TK11235/udonarium-backend)も**そのまま利用できます**。
 > Axeが呼び出すAPI（`GET /v1/status`・`POST /v1/skyway2023/token`、レスポンス`{ "token": ... }`）と

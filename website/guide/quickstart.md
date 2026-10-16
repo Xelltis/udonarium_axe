@@ -55,7 +55,7 @@ npx wrangler pages deploy ./axe --project-name <プロジェクト名>
 }
 ```
 
-SkyWayを使わずに[部屋のサーバー（ベータ）](/guide/backend#room-server)で遊ぶときは、手順1と2のかわりにCloudflare版のWorkerを置き、ここで`"transport": "server"`も書きます。
+SkyWayを使わずに[部屋のサーバー（ベータ）](/guide/backend#room-server)で遊ぶときは、手順1と2のかわりに部屋のサーバー（Cloudflare版かVercel版）を置き、ここで`"transport": "server"`も書きます。
 
 ## 5. Chromeで開く
 

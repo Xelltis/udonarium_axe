@@ -13,8 +13,8 @@ SkyWay版では、SkyWayのSecretをブラウザに置けないので、署名�
 
 ## どのバックエンドを選べばよいですか {#which-backend}
 
-- とにかく手軽に始めたい → **Vercel Edge**（[udonarium-backend-vercel](https://github.com/Xelltis/udonarium-backend-vercel)）
-- レンタルサーバーを持っている → **PHP 8.3 / Apache**（[udonarium_axe_backend](https://github.com/Xelltis/udonarium_axe_backend)）
+- とにかく手軽に始めたい → **Vercel**（[Vercel版](https://xelltis.github.io/udonarium_axe_backend/skyway/vercel)）
+- レンタルサーバーを持っている → **PHP 8.3 / Apache**（[PHP版](https://xelltis.github.io/udonarium_axe_backend/skyway/php)）
 - Cloudflare Workers / AWS Lambda / 自前Nodeで運用したい → **本家バックエンド**
 
 3つとも同じAPIに対応しているので、あとから乗り換えられます。
@@ -40,7 +40,7 @@ SkyWay版では、SkyWayのSecretをブラウザに置けないので、署名�
 curl -H "Origin: https://axe.example.com" https://<バックエンドのURL>/v1/auth/config
 ```
 
-`{"providers":[]}`が返るなら、Workerにログインの設定が入っていないので、部屋を使えません。
+`{"providers":[]}`が返るなら、部屋のサーバーにログインの設定が入っていないので、部屋を使えません。
 3では、`backend.url`に加えて、`transport`が`"server"`になっているかも確かめてください。2はSkyWay版と同じですが、部屋のサーバーでは`*`にするとログインが通らず、部屋も作れません。ログインから戻れるのは、名前で書いたOriginのページだけだからです。AxeのURLを書いてください。
 
 3つとも通っているのにつながらないなら、[Issue](https://github.com/Xelltis/udonarium_axe/issues)で報告してください。
@@ -53,7 +53,7 @@ SkyWay版では、されません。テーブル上のオブジェクトはWebRT
 卓を残すのは各自の[保存](/manual/save-load)です。
 
 [部屋のサーバー（ベータ）](/guide/backend#room-server)を使う場合は、保存されます。
-卓と、部屋に置いた画像と音声は、最後の1人が抜けてから既定では24時間（`ROOM_RETENTION_HOURS`で変えられます）、Workerに残ります。GMが部屋を削除すれば消えます。ただし、一度配った画像と音声は、削除のあとも最長15分はキャッシュから読めます。
+卓と、部屋に置いた画像と音声は、最後の1人が抜けてから既定では24時間（`ROOM_RETENTION_HOURS`で変えられます）、部屋のサーバーに残ります。GMが部屋を削除すれば消えます。ただし、一度配った画像と音声は、削除のあとも最長15分はキャッシュから読めます。
 ログインした人のDiscordの名前とアバターも、アカウントを消すまで残ります。部屋に残る発言に載った名前とアバターは、アカウントを消したあとも、その部屋が消えるまで残ります。
 期間は設置する人の設定しだいです。
 
@@ -78,5 +78,5 @@ SkyWay版では、参加者のブラウザの中だけです。サーバーに�
 部屋そのものも、参加者が0人になった時点で解散します。
 運用側で卓を保管する仕組みはありません。参加者に保存を促してください（→ [部屋とロビー](/manual/rooms#gone)）。
 
-部屋のサーバーでは、卓はWorkerに残り、最後の1人が抜けてから保持期間（既定では24時間）がたつと部屋ごと消えます。
+部屋のサーバーでは、卓はサーバーに残り、最後の1人が抜けてから保持期間（既定では24時間）がたつと部屋ごと消えます。
 それより長く残したい卓は、SkyWay版と同じく各自で保存してください。

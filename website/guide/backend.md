@@ -6,18 +6,19 @@ Udonarium AxeはP2P接続のためにSkyWayの認証トークンを必要とし�
 
 <div class="choice">
 
-**[udonarium-backend-vercel](https://github.com/Xelltis/udonarium-backend-vercel)** <span class="choice__tag">いちばん手軽</span>
+**[Vercel版](https://xelltis.github.io/udonarium_axe_backend/skyway/vercel)** <span class="choice__tag">いちばん手軽</span>
 
-TypeScript (Hono)を**Vercel Edge**で動かします。READMEの**Deploy with Vercel**ボタンを押すだけで
-配置でき、サーバーを自分で用意する必要がありません。まず動かしてみたいならこれです。
+[udonarium_axe_backend](https://github.com/Xelltis/udonarium_axe_backend)の`apps/vercel`を、**Vercel Functions**で動かします。
+手順のページの**Deploy with Vercel**ボタンを押すだけで配置でき、サーバーを自分で用意する必要がありません。
+まず動かしてみたいならこれです。
 
 </div>
 
 <div class="choice">
 
-**[udonarium_axe_backend](https://github.com/Xelltis/udonarium_axe_backend)** <span class="choice__tag">レンタルサーバー向け</span>
+**[PHP版](https://xelltis.github.io/udonarium_axe_backend/skyway/php)** <span class="choice__tag">レンタルサーバー向け</span>
 
-**PHP 8.3 / Apache**で動きます。Releasesのzipを展開し、`.env`を設定してdocrootに置くだけです。
+同じリポジトリの`apps/php`で、**PHP 8.3 / Apache**で動きます。Releasesのzipを展開し、`.env`を設定してdocrootに置くだけです。
 すでに借りているサーバーがあるなら、契約を増やさずに済みます。
 
 </div>
@@ -45,7 +46,8 @@ Axeが呼び出すAPI（`GET /v1/status`・`POST /v1/skyway2023/token`、レス�
 ## 部屋のサーバー（ベータ） {#room-server}
 
 SkyWayを使わずに遊ぶ方法も用意しています。
-[udonarium_axe_backend](https://github.com/Xelltis/udonarium_axe_backend)のCloudflare版（`apps/cloudflare`）は、部屋ごとにサーバーを立てて、卓のやりとりをすべてそこで中継します。
+[udonarium_axe_backend](https://github.com/Xelltis/udonarium_axe_backend)のCloudflare版（`apps/cloudflare`）とVercel版（`apps/vercel`）は、部屋ごとにサーバーを立てて、卓のやりとりをすべてそこで中継します。
+Axeから見てどちらも同じように動くので、すでに使っているほうを選んでください。
 SkyWayのアプリもトークンも要りません。
 
 SkyWay版とは、次の点が変わります。
@@ -63,14 +65,14 @@ SkyWay版とは、次の点が変わります。
 画像と音声のファイル、公開範囲を絞ったキャラクター・カード・ダイスの詳細、名前を隠したキャラクターと持ち主のいないダイスの名前、GMにだけ見せるスイッチ・地形・エフェクト、スイッチで伏せた物、暗闇や霧で隠したコマは、部屋のサーバーでも全員のブラウザに届きます。どれも各自の画面で隠したり動かしたりしているためです。画面には出ませんが、改造したブラウザなら読めます。くわしくは[わざと隠さないもの](https://xelltis.github.io/udonarium_axe_backend/server/#わざと隠さないもの)にあります。
 :::
 
-Workerの置きかたは[Cloudflareに置く](https://xelltis.github.io/udonarium_axe_backend/server/cloudflare)に、Discordのアプリの用意は[Discordのアプリを作る](https://xelltis.github.io/udonarium_axe_backend/server/discord)にあります。
-Axeの側は、`assets/config.json`で`transport`を`"server"`にし、`backend.url`をWorkerのURLにするだけです。
+置きかたは[Cloudflareに置く](https://xelltis.github.io/udonarium_axe_backend/server/cloudflare)か[Vercelに置く](https://xelltis.github.io/udonarium_axe_backend/server/vercel)に、Discordのアプリの用意は[Discordのアプリを作る](https://xelltis.github.io/udonarium_axe_backend/server/discord)にあります。
+Axeの側は、`assets/config.json`で`transport`を`"server"`にし、`backend.url`を部屋のサーバーのURLにするだけです。
 
 ```json
 {
   "transport": "server",
   "backend": {
-    "url": "https://<WorkerのURL>"
+    "url": "https://<部屋のサーバーのURL>"
   }
 }
 ```
