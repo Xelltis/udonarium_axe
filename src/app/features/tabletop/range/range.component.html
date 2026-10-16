@@ -87,9 +87,9 @@
           'deg)',
       }"
     >
-      <!-- 上端(sign=1)・下端(sign=-1)の elevation 表示。altitude * sign > 0 のとき可視。
-           下端は追従キャラのチャットバブル分だけ Y 方向にずらす。中央の絶対値ラベルは
-           上端ブロックの直後に 1 度だけ描画する。 -->
+      <!-- The elevation display at the top (sign=1) and the bottom (sign=-1), visible while altitude * sign > 0.
+           The bottom one is shifted along Y by the chat bubble of the character followed. The label with the
+           absolute value in the middle is drawn only once, right after the top block. -->
       @for (sign of [1, -1]; track sign; let isFirst = $first) {
         <div
           class="transform-3d"

@@ -13,7 +13,7 @@ export class ImageTagList extends ObjectNode implements InnerXml {
   /** Takes the list straight back out of the store, so it is never shared with the room. */
   override onStoreAdded() {
     super.onStoreAdded();
-    ObjectStore.instance.remove(this); // ObjectStoreには登録しない
+    ObjectStore.instance.remove(this); // kept out of the ObjectStore
   }
 
   /** The tags of the listed pictures, each written once. A picture that has no tag is skipped. */

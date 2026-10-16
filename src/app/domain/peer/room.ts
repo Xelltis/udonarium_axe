@@ -36,7 +36,7 @@ export class Room extends GameObject implements InnerXml {
   /** A room only wraps a save file, so it takes itself back out of the object store and is never synced. */
   override onStoreAdded() {
     super.onStoreAdded();
-    ObjectStore.instance.remove(this); // ObjectStoreには登録しない
+    ObjectStore.instance.remove(this); // kept out of the ObjectStore
   }
 
   /** The shared check that asks before a loaded room overwrites the one in play. */

@@ -173,7 +173,7 @@ export class GameTableSettingComponent {
     if (!this.selectedTable) return;
     this.selectedTable.gridShow = tableGridShow;
     if (tableGridShow) this.selectedTable.gridClipRect = null;
-    triggerUpdateGameObject(this.selectedTable.toContext()); // 自分にだけイベントを発行してグリッド更新を誘発
+    triggerUpdateGameObject(this.selectedTable.toContext()); // an event for this peer alone, so the grid redraws
   }
 
   /** Whether pieces snap to the picked table's grid; true when no table is picked. */

@@ -566,8 +566,8 @@ describe('AudioPlayer', () => {
     it('stop before playing', () => {
       const player = new AudioPlayer();
       const af = makeAudioFile({ blob: new Blob(['data']), identifier: 'p2' });
-      player.play(af); // 1回目で要素生成
-      player.play(); // 2回目: stop → play
+      player.play(af); // the first call creates the element
+      player.play(); // the second: stop → play
       expect(audioElmMock.pause).toHaveBeenCalled();
     });
 
@@ -681,7 +681,7 @@ describe('AudioPlayer', () => {
     it('pauses, rewinds, empties the source, reloads and disconnects', () => {
       const player = new AudioPlayer();
       const af = makeAudioFile({ blob: new Blob(['x']), identifier: 'st1' });
-      player.play(af); // 要素生成
+      player.play(af); // creates the element
       player.stop();
       expect(audioElmMock.pause).toHaveBeenCalled();
       expect(audioElmMock.currentTime).toBe(0);

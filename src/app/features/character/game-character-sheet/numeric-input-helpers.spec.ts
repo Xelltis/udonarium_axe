@@ -19,7 +19,7 @@ describe('numeric-input-helpers', () => {
     it('rounds a finite value', () => {
       expect(roundOr(3.4, 0)).toBe(3);
       expect(roundOr(3.5, 0)).toBe(4);
-      expect(roundOr(-2.5, 0)).toBe(-2); // banker's rounding ではなく Math.round 仕様
+      expect(roundOr(-2.5, 0)).toBe(-2); // Math.round's rule, not banker's rounding
     });
 
     it('falls back for anything else', () => {

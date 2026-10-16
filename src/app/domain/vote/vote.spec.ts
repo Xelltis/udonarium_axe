@@ -271,11 +271,12 @@ describe('Vote', () => {
       vi.spyOn(PeerCursor, 'findByPeerId').mockImplementation((peerId: string) => {
         if (peerId === 'p1') return { voteId: 1, voteAnswer: 0 } as unknown as PeerCursor;
         if (peerId === 'p2') return { voteId: 1, voteAnswer: -2 } as unknown as PeerCursor;
-        if (peerId === 'p3') return { voteId: 0, voteAnswer: 0 } as unknown as PeerCursor; // voteId不一致→未投票(-1)
+        // voteId does not match, so not voted (-1)
+        if (peerId === 'p3') return { voteId: 0, voteAnswer: 0 } as unknown as PeerCursor;
         return null!;
       });
 
-      expect(vote.votedTotalNum()).toBe(2); // p1(投票) + p2(棄権)
+      expect(vote.votedTotalNum()).toBe(2); // p1 (voted) + p2 (abstained)
     });
 
     it('counts none while nobody has answered', () => {

@@ -418,7 +418,7 @@ function convertUrlImage(xmlElement: Element) {
         name: url,
         blob: byName.context.blob,
         type: byName.context.type,
-        url: '', // createURLsで新しいblob:URLを生成させる
+        url: '', // left empty, so createURLs makes a blob: URL of its own
         thumbnail: {
           blob: byName.context.thumbnail.blob,
           type: byName.context.thumbnail.type,

@@ -22,7 +22,7 @@ export class RangeArea extends TabletopObject {
   @SyncVar() rotate: number = 0;
   /** The saved name is out there misspelt. The name here is corrected and the saved one left alone. */
   @SyncVar('followingCharctorIdentifier') followingCharacterIdentifier: string = '';
-  @SyncVar() followingCounterDummy: number = 0; // 追従時再描画用ダミー
+  @SyncVar() followingCounterDummy: number = 0; // a dummy changed to redraw while following
 
   @SyncVar() offSetX: boolean = false;
   @SyncVar() offSetY: boolean = false;

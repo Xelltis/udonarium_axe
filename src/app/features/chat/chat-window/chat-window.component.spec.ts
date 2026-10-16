@@ -429,7 +429,7 @@ describe('ChatWindowComponent', () => {
       fixture.detectChanges();
       const objectChange = TestBed.inject(ObjectChangeService);
       const tabs = component.chatTabsVersion();
-      if (tabs.length === 0) return; // タブなしは検証スキップ
+      if (tabs.length === 0) return; // nothing to check without a tab
 
       const tabId = tabs[0].identifier;
       const before = objectChange.versionOf(tabId)();
@@ -513,7 +513,7 @@ describe('ChatWindowComponent', () => {
           isAutoScroll: boolean;
         };
         priv.panelService.scrollablePanel = panelEl;
-        priv.isAutoScroll = true; // 「ボトム付近」状態を強制
+        priv.isAutoScroll = true; // forces the "near the bottom" state
         const emitSpy = vi.spyOn(priv.panelService.scrollToBottom$, 'emit');
 
         component.scrollToBottom(false);
@@ -559,7 +559,7 @@ describe('ChatWindowComponent', () => {
         priv.panelService.scrollablePanel = panelEl;
         const emitSpy = vi.spyOn(priv.panelService.scrollToBottom$, 'emit');
 
-        component.scrollToBottom(true); // 「ボトムに戻る」ボタン相当
+        component.scrollToBottom(true); // as the "back to the bottom" button does
 
         expect(emitSpy).toHaveBeenCalled();
       } finally {

@@ -43,7 +43,7 @@ export class Vote extends GameObject {
       }
       return -1;
     } else {
-      return -2; // 棄権扱いにする
+      return -2; // counted as an abstention
     }
   }
 

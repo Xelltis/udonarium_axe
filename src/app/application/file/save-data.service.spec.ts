@@ -356,7 +356,7 @@ describe('SaveDataService', () => {
       const fileArchiver = TestBed.inject(FileArchiver);
       vi.spyOn(fileArchiver, 'saveAsync').mockImplementation(async (_files, _zipName, cb) => {
         cb?.({ percent: 50, currentFile: '' });
-        cb?.({ percent: 50, currentFile: '' }); // 重複
+        cb?.({ percent: 50, currentFile: '' }); // the same step again
         cb?.({ percent: 100, currentFile: '' });
       });
 

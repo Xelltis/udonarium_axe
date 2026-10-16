@@ -484,7 +484,7 @@ describe('ObjectChangeService', () => {
 
       objectChanged$.emit({ identifier: 'id-A', aliasName: 'a', isSendFromSelf: false });
       currentIds = ['id-B'];
-      objectChanged$.emit({ identifier: 'id-A', aliasName: 'a', isSendFromSelf: false }); // 旧 id にもう一致しない
+      objectChanged$.emit({ identifier: 'id-A', aliasName: 'a', isSendFromSelf: false }); // the old id matches no more
       objectChanged$.emit({ identifier: 'id-B', aliasName: 'a', isSendFromSelf: false });
 
       expect(listener).toHaveBeenCalledTimes(2);

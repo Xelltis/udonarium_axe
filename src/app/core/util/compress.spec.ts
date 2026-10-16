@@ -11,7 +11,7 @@ describe('compress', () => {
 
     it('compresses something large', async () => {
       const data = new Uint8Array(10000);
-      data.fill(65); // 'A' で埋める（圧縮しやすい）
+      data.fill(65); // filled with 'A', which compresses well
       const compressed = await compressAsync(data);
       expect(compressed).toBeInstanceOf(Uint8Array);
       // repetitive data should come out smaller

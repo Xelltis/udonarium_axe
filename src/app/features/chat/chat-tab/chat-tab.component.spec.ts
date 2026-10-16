@@ -152,7 +152,7 @@ describe('ChatTabComponent', () => {
       // settling it
       const _ignored = component.chatMessages;
       expect(internalFull().topPlacedAt).toBe(1000);
-      internalFull().needUpdate = false; // getter で false になっているはずだが明示的に確認
+      internalFull().needUpdate = false; // the getter should have left it false already; set here to be sure
 
       // an older message arrives
       const msg1 = new ChatMessage();

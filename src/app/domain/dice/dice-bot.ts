@@ -169,8 +169,8 @@ export class DiceBot extends GameObject {
           return {
             id: gameSystem.ID,
             result: `${gameSystem.ID} : ${result.text}`
-              .replace(/\n*(#\d+)\n/gi, '\n$1 ') // 繰り返しダイスロールを行ごとに表示
-              .replace(/: \n/, ': '), // ヘッダー直後の余分な改行を除去
+              .replace(/\n*(#\d+)\n/gi, '\n$1 ') // shows each repeated roll on a line of its own
+              .replace(/: \n/, ': '), // drops the extra line break right after the header
             isSecret: result.secret,
             // This is the only place they can be had; once the text is formatted they cannot be read back.
             detail: diceRollDetailOf(gameSystem.ID, result),

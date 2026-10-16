@@ -70,8 +70,8 @@ export class PeerCursor extends GameObject {
    */
   @SyncVar() zoneProtocol = '';
 
-  @SyncVar() voteAnswer = -1; // 投票選択肢のindex値、-2:棄権
-  @SyncVar() voteId = -1; // 回答した投票のID
+  @SyncVar() voteAnswer = -1; // the index of the option chosen in the vote; -2 for an abstention
+  @SyncVar() voteId = -1; // the ID of the vote answered
 
   private _reConnectPass = '';
 
@@ -86,7 +86,7 @@ export class PeerCursor extends GameObject {
   private _lastTimeSignNo = -1;
   private _totalTimeSignNum = 0;
 
-  private _timeout = 40; // 単位秒
+  private _timeout = 40; // in seconds
   private _isDisConnect = true;
 
   private _debugTimeShift = 0;

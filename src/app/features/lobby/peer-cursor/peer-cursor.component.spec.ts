@@ -319,8 +319,8 @@ describe('PeerCursorComponent', () => {
       const chatSpy = vi.spyOn(chatService, 'sendSystemMessageOnePlayer');
 
       const priv = component as unknown as { logoutMessage: () => void };
-      priv.logoutMessage(); // 1回目
-      priv.logoutMessage(); // 2回目（静的 Set で防がれる）
+      priv.logoutMessage(); // the first
+      priv.logoutMessage(); // the second, which the static Set stops
 
       expect(chatSpy).toHaveBeenCalledTimes(1);
     });

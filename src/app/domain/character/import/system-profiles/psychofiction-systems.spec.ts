@@ -39,7 +39,7 @@ describe('PF_APPSPOT_SYSTEMS (registry-driven psycho-fiction imports)', () => {
     expect(result.dicebot).toBe('HuntersMoon');
     const table = result.skillTables[0];
     expect(table.categories).toEqual(['社会', '頭部', '腕部', '胴部', '脚部', '環境']);
-    expect(table.skillsByCategory[1][0]).toBe('聴く'); // 頭部 row0
+    expect(table.skillsByCategory[1][0]).toBe('聴く'); // category 1 (頭部), row 0
     expect(table.checked![1][0]).toBe(true);
     expect(result.commands).toContain('2D6>=5 【噛みつき／噛む】');
   });
@@ -76,9 +76,9 @@ describe('PF_APPSPOT_SYSTEMS (registry-driven psycho-fiction imports)', () => {
 
     const table = result.skillTables[0];
     expect(table.categories).toEqual(['背景', '魅力', '性格', '趣味', '航海', '戦闘']);
-    expect(table.skillsByCategory[0][3]).toBe('古風'); // 背景 row3
+    expect(table.skillsByCategory[0][3]).toBe('古風'); // category 0 (背景), row 3
     expect(table.checked![0][3]).toBe(true);
-    expect(table.checked![1][1]).toBe(true); // 魅力 row1
+    expect(table.checked![1][1]).toBe(true); // category 1 (魅力), row 1
     expect(table.gaps).toEqual([false, false, false, false, true, false]);
 
     // both become sections, and the equipment survives
@@ -98,7 +98,7 @@ describe('PF_APPSPOT_SYSTEMS (registry-driven psycho-fiction imports)', () => {
     )!;
     expect(result.dicebot).toBe('StarryDolls');
     expect(result.sections.some((section) => section.label === '呪文')).toBe(true);
-    expect(result.skillTables[0].skillsByCategory[1][0]).toBe('光'); // 元素 row0
+    expect(result.skillTables[0].skillsByCategory[1][0]).toBe('光'); // category 1 (元素), row 0
     expect(result.commands).toContain('2D6>=5 【光の矢／光】');
   });
 });
