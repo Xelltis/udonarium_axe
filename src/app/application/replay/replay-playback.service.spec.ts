@@ -560,12 +560,19 @@ describe('ReplayPlaybackService', () => {
 
   it('takes what is due of the table’s automatic save before cutting the table off for the board', async () => {
     const isolatedWhenSaved: boolean[] = [];
+    const enteringWhenSaved: boolean[] = [];
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
         ...TEST_PROVIDERS,
         { provide: ReplayLibraryService, useValue: library },
-        { provide: BEFORE_BOARD_MODE, useValue: async () => void isolatedWhenSaved.push(isNetworkIsolated()) },
+        {
+          provide: BEFORE_BOARD_MODE,
+          useValue: async () => {
+            isolatedWhenSaved.push(isNetworkIsolated());
+            enteringWhenSaved.push(service.isEnteringBoardMode());
+          },
+        },
       ],
     });
     objectStore = TestBed.inject(ObjectStore);
@@ -576,6 +583,8 @@ describe('ReplayPlaybackService', () => {
     expect(await service.enterBoardMode()).toBe(true);
 
     expect(isolatedWhenSaved).toEqual([false]);
+    expect(enteringWhenSaved).toEqual([true]);
+    expect(service.isEnteringBoardMode()).toBe(false);
   });
 
   it('tells of what putting the table back changed while still cut off, as no change made to the table', async () => {

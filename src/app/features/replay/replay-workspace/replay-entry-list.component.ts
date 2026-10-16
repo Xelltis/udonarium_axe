@@ -96,6 +96,13 @@ export class ReplayEntryListComponent {
 
   protected readonly cursor = this.playback.cursor;
   protected readonly isStaging = this.staging.isStaging;
+  /** Whether a scene to act out is on its way, while the board is moved to the row it goes after. */
+  private readonly isStartingStage = signal(false);
+  /** Whether a scene may be started now: none is being acted out or on its way, and the board is still. */
+  protected readonly canStage = computed(
+    () =>
+      !this.isStaging() && !this.isStartingStage() && !this.playback.isSeeking() && !this.playback.isEnteringBoardMode()
+  );
   protected readonly scopes = [ReplayLogScope.All, ReplayLogScope.Chat, ReplayLogScope.Board];
   protected readonly insertKinds = INSERTABLE_KINDS;
 
@@ -355,7 +362,7 @@ export class ReplayEntryListComponent {
     }
     const only = this.onlyChosenRow();
     const actions = buildReplayEntryContextMenu(
-      { count: this.chosen().size, canRewrite: !!only?.editable, canStage: this.canEdit && !this.isStaging() },
+      { count: this.chosen().size, canRewrite: !!only?.editable, canStage: this.canEdit && this.canStage() },
       {
         rewrite: () => only && this.beginRowEdit(only),
         moveUp: () => this.stepChosen(-1),
@@ -459,7 +466,7 @@ export class ReplayEntryListComponent {
   }
 
   protected canInsert(): boolean {
-    return this.insertText().trim().length > 0;
+    return this.insertText().trim().length > 0 && this.editor.canChange();
   }
 
   /**
@@ -490,17 +497,31 @@ export class ReplayEntryListComponent {
    * Starts acting out a scene to go in at a row, on the board as it stood at the last row before it
    * that was recorded, or at the first event when none was. Stepping on its own stops, as the
    * recording stands still while a scene is acted out, and nothing starts while the board is still
-   * being worked out, which the scene would be measured against as it stood before.
+   * being worked out, which the scene would be measured against as it stood before. Nor does it
+   * start once the board is up if the editing, the recording or the row shown changed meanwhile, as
+   * the save taken before the board comes up gives time for.
    */
   protected async stageAt(index = this.insertIndex()): Promise<void> {
-    if (!this.canEdit || this.isStaging() || this.playback.isSeeking()) return;
-    this.playback.stopAutoPlay();
-    const wasBoardMode = this.playback.isBoardMode();
-    await this.playback.seekTo(this.recordedIndexBefore(index));
-    if (wasBoardMode) await this.playback.showBoardAfresh();
-    else if (!(await this.playback.enterBoardMode())) return;
-    if (this.isStaging() || !this.playback.isBoardMode()) return;
-    this.staging.begin(index, this.insertActorId() || this.actors()[0]?.userId || '');
+    if (!this.canEdit || !this.canStage()) return;
+    this.isStartingStage.set(true);
+    try {
+      this.playback.stopAutoPlay();
+      const editing = this.editor.isEditing();
+      const recordingId = this.playback.recordingId();
+      const at = this.recordedIndexBefore(index);
+      const wasBoardMode = this.playback.isBoardMode();
+      await this.playback.seekTo(at);
+      if (wasBoardMode) await this.playback.showBoardAfresh();
+      else if (!(await this.playback.enterBoardMode())) return;
+      const unchanged =
+        this.editor.isEditing() === editing &&
+        this.playback.recordingId() === recordingId &&
+        this.playback.cursor() === at;
+      if (!unchanged || this.isStaging() || !this.playback.isBoardMode()) return;
+      this.staging.begin(index, this.insertActorId() || this.actors()[0]?.userId || '');
+    } finally {
+      this.isStartingStage.set(false);
+    }
   }
 
   /**

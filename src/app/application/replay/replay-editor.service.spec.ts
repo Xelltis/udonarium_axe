@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { readKeyframeBytes } from '@axe/application/replay/replay-keyframe-bytes';
+import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import {
   type ReplayChunkInput,
   type ReplayChunkRecord,
@@ -143,6 +145,27 @@ describe('ReplayEditorService', () => {
     expect(service.isEditing()).toBe(true);
     expect(service.isDirty()).toBe(false);
     expect(service.edited().map((e) => e.seq)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('keeps the rows as they are while a scene is acted out to go in after one of them', () => {
+    service.remove(1);
+    setNetworkIsolated(true);
+    try {
+      TestBed.inject(ReplayStagingService).begin(1, 'alice');
+
+      service.remove(2);
+      service.move(3, -1);
+      service.revert();
+      service.undo();
+
+      expect(service.edited().map((e) => e.seq)).toEqual([2, 3, 4]);
+      expect(service.canUndo()).toBe(false);
+
+      TestBed.inject(ReplayStagingService).take();
+      expect(service.canUndo()).toBe(true);
+    } finally {
+      setNetworkIsolated(false);
+    }
   });
 
   it('remembers what was deleted', () => {

@@ -61,7 +61,7 @@
       } @else {
         <button
           class="rounded-ui-sm border-ui-accent bg-ui-accent hover:border-ui-accent-hover hover:bg-ui-accent-hover cursor-pointer border border-solid px-[0.8em] py-[0.3em] text-[0.74rem] text-white"
-          [disabled]="!isDirty() || isSaving()"
+          [disabled]="!isDirty() || isSaving() || !canChange()"
           (click)="saveEdits()"
         >
           {{ 'feature.replay.editor.save' | transloco }}
@@ -77,7 +77,7 @@
         </button>
         <button
           class="rounded-ui-sm cursor-pointer px-[0.8em] py-[0.3em] text-[0.74rem]"
-          [disabled]="!isDirty()"
+          [disabled]="!isDirty() || !canChange()"
           (click)="revertEditing()"
         >
           {{ 'feature.replay.editor.revert' | transloco }}

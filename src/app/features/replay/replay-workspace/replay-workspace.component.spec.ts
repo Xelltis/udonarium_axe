@@ -72,6 +72,8 @@ describe('ReplayWorkspaceComponent', () => {
   let insert: ReturnType<typeof vi.fn>;
   let isEditing: ReturnType<typeof signal<boolean>>;
   let canUndo: ReturnType<typeof signal<boolean>>;
+  let canChange: ReturnType<typeof signal<boolean>>;
+  let isDirty: ReturnType<typeof signal<boolean>>;
   let undo: ReturnType<typeof vi.fn>;
   let edited: ReturnType<typeof signal<readonly ReplayEvent[]>>;
   let stopAutoPlay: ReturnType<typeof vi.fn>;
@@ -91,6 +93,7 @@ describe('ReplayWorkspaceComponent', () => {
             events: signal<readonly ReplayEvent[]>(events).asReadonly(),
             cursor: signal(0).asReadonly(),
             isBoardMode: signal(false).asReadonly(),
+            isEnteringBoardMode: signal(false).asReadonly(),
             isSeeking: signal(false).asReadonly(),
             autoPlay: signal(false).asReadonly(),
             isAtStart: signal(true).asReadonly(),
@@ -124,7 +127,8 @@ describe('ReplayWorkspaceComponent', () => {
           provide: ReplayEditorService,
           useValue: {
             isEditing: isEditing.asReadonly(),
-            isDirty: signal(false).asReadonly(),
+            canChange: canChange.asReadonly(),
+            isDirty: isDirty.asReadonly(),
             isSaving: signal(false).asReadonly(),
             canUndo: canUndo.asReadonly(),
             undo,
@@ -199,6 +203,8 @@ describe('ReplayWorkspaceComponent', () => {
     open = vi.fn().mockResolvedValue(true);
     begin = vi.fn();
     insert = vi.fn();
+    canChange = signal(true);
+    isDirty = signal(false);
     stopAutoPlay = vi.fn();
     showBoardAfresh = vi.fn().mockResolvedValue(undefined);
     PeerCursor.myCursor = { userId: 'alice', role: PeerRole.GameMaster } as PeerCursor;
@@ -304,6 +310,20 @@ describe('ReplayWorkspaceComponent', () => {
 
     fixture.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
     expect(undo).not.toHaveBeenCalled();
+  });
+
+  it('leaves saving and putting everything back unpressable while a scene is acted out', async () => {
+    isEditing = signal(true);
+    isDirty.set(true);
+    await setup();
+    expect(buttonByText('別の記録として保存')?.disabled).toBe(false);
+    expect(buttonByText('全部戻す')?.disabled).toBe(false);
+
+    canChange.set(false);
+    fixture.detectChanges();
+
+    expect(buttonByText('別の記録として保存')?.disabled).toBe(true);
+    expect(buttonByText('全部戻す')?.disabled).toBe(true);
   });
 
   it('leaves the button unpressable with nothing to undo', async () => {

@@ -80,6 +80,7 @@ export class ReplayPlaybackService {
   private readonly _events = signal<readonly ReplayEvent[]>([]);
   private readonly _cursor = signal(-1);
   private readonly _isBoardMode = signal(false);
+  private readonly _isEnteringBoardMode = signal(false);
   private readonly _isSeeking = signal(false);
   private readonly _autoPlay = signal(false);
   private readonly _routeTrail = signal<ReplayRouteTrail | null>(null);
@@ -90,6 +91,8 @@ export class ReplayPlaybackService {
   readonly events = this._events.asReadonly();
   readonly cursor = this._cursor.asReadonly();
   readonly isBoardMode = this._isBoardMode.asReadonly();
+  /** Whether the board is on its way to being shown, while what is due of the table's save is taken. */
+  readonly isEnteringBoardMode = this._isEnteringBoardMode.asReadonly();
   readonly isSeeking = this._isSeeking.asReadonly();
   readonly autoPlay = this._autoPlay.asReadonly();
   readonly routeTrail = this._routeTrail.asReadonly();
@@ -114,7 +117,6 @@ export class ReplayPlaybackService {
   private appliedBoard: { index: number; snapshots: readonly ReplayObjectSnapshot[] } | null = null;
   private autoPlayTimer: ReturnType<typeof setTimeout> | null = null;
   private seekToken = 0;
-  private isEnteringBoardMode = false;
   private slideFrame: number | null = null;
   private slideEndsAt = 0;
   /** Sets the piece sliding now down where it is going, for a slide stopped before it gets there. */
@@ -256,14 +258,14 @@ export class ReplayPlaybackService {
    * false when already replaying or on the way to, or when nothing is open.
    */
   async enterBoardMode(): Promise<boolean> {
-    if (this._isBoardMode() || this.isEnteringBoardMode || !this.isOpen()) return false;
-    this.isEnteringBoardMode = true;
+    if (this._isBoardMode() || this._isEnteringBoardMode() || !this.isOpen()) return false;
+    this._isEnteringBoardMode.set(true);
     try {
       await this.beforeBoardMode?.();
     } catch (reason) {
       Logger.warn('[ReplayPlayback] 盤面を映す前の保存に失敗しました', reason);
     } finally {
-      this.isEnteringBoardMode = false;
+      this._isEnteringBoardMode.set(false);
     }
     if (this._isBoardMode() || !this.isOpen()) return false;
     this.savedBoard = this.snapshotBoard();

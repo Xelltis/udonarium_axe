@@ -35,6 +35,7 @@ export class ReplayStageComponent {
   protected readonly cursor = this.playback.cursor;
   protected readonly isBoardMode = this.playback.isBoardMode;
   protected readonly isSeeking = this.playback.isSeeking;
+  protected readonly isEnteringBoardMode = this.playback.isEnteringBoardMode;
   protected readonly autoPlay = this.playback.autoPlay;
   protected readonly isAtStart = this.playback.isAtStart;
   protected readonly isAtEnd = this.playback.isAtEnd;

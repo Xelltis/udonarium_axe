@@ -36,6 +36,7 @@ describe('ReplayStageComponent', () => {
   let fixture: ComponentFixture<ReplayStageComponent>;
   let cursor: WritableSignal<number>;
   let seekTo: ReturnType<typeof vi.fn>;
+  let isEnteringBoardMode: WritableSignal<boolean>;
 
   async function setup(): Promise<void> {
     await TestBed.configureTestingModule({
@@ -50,6 +51,7 @@ describe('ReplayStageComponent', () => {
             manifest: signal(null).asReadonly(),
             currentEvent: signal<ReplayEvent | null>(events[0]).asReadonly(),
             isBoardMode: signal(false).asReadonly(),
+            isEnteringBoardMode: isEnteringBoardMode.asReadonly(),
             isSeeking: signal(false).asReadonly(),
             autoPlay: signal(false).asReadonly(),
             isAtStart: signal(true).asReadonly(),
@@ -74,12 +76,26 @@ describe('ReplayStageComponent', () => {
   beforeEach(async () => {
     cursor = signal(0);
     seekTo = vi.fn().mockResolvedValue(undefined);
+    isEnteringBoardMode = signal(false);
     PeerCursor.myCursor = Object.assign(new PeerCursor(), { peerId: 'p', userId: 'gm', role: PeerRole.GameMaster });
     await setup();
   });
 
   afterEach(() => {
     PeerCursor.myCursor = null as unknown as PeerCursor;
+  });
+
+  it('leaves the button that shows the board unpressable while the board is on its way up', () => {
+    const button = () =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find((each) =>
+        each.textContent?.includes('盤面を映す')
+      );
+    expect(button()?.disabled).toBe(false);
+
+    isEnteringBoardMode.set(true);
+    fixture.detectChanges();
+
+    expect(button()?.disabled).toBe(true);
   });
 
   it('draws the busy stretches as peaks', () => {

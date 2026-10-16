@@ -108,7 +108,7 @@
   <button
     class="rounded-ui-sm flex cursor-pointer items-center justify-center gap-1.5 px-[0.8em] py-[0.35em] text-[0.76rem]"
     [class.danger]="isBoardMode()"
-    [disabled]="!canEdit || isSeeking()"
+    [disabled]="!canEdit || isSeeking() || isEnteringBoardMode()"
     (click)="toggleBoardMode()"
   >
     <i class="material-icons text-[16px]">{{ isBoardMode() ? 'undo' : 'cast' }}</i>

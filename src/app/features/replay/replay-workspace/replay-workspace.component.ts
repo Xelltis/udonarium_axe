@@ -58,6 +58,7 @@ export class ReplayWorkspaceComponent {
   protected readonly isDirty = this.editor.isDirty;
   protected readonly isSaving = this.editor.isSaving;
   protected readonly canUndo = this.editor.canUndo;
+  protected readonly canChange = this.editor.canChange;
   protected readonly isDigestOpen = signal(false);
   /** Whether the left column shows the video as it will be written, rather than the playback controls. */
   protected readonly isPreviewOpen = signal(false);
@@ -145,7 +146,12 @@ export class ReplayWorkspaceComponent {
     this.undo();
   }
 
+  /**
+   * Saves the edits as a recording of their own and opens it. Nothing is saved while a scene is being
+   * acted out, which would be left out and thrown away as the saved one opens.
+   */
   protected async saveEdits(): Promise<void> {
+    if (!this.canChange()) return;
     const id = this.playback.recordingId();
     const manifest = this.playback.manifest();
     const edited = this.editor.edited();

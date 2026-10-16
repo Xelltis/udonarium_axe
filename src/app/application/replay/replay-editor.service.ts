@@ -1,5 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { REPLAY_KEYFRAME_INTERVAL_MS } from '@axe/application/replay/replay-recorder.service';
+import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
 import { Logger } from '@axe/core/logging/logger';
 import { ReplayLogStore } from '@axe/core/storage/replay-log-store';
 import { compressAsync } from '@axe/core/util/compress';
@@ -30,6 +31,7 @@ export const REPLAY_DERIVED_CHUNK_SIZE = 500;
 @Injectable({ providedIn: 'root' })
 export class ReplayEditorService {
   private readonly store = inject(ReplayLogStore);
+  private readonly staging = inject(ReplayStagingService);
 
   private readonly _original = signal<readonly ReplayEvent[]>([]);
   private readonly _edited = signal<readonly ReplayEvent[]>([]);
@@ -43,7 +45,12 @@ export class ReplayEditorService {
   readonly isDirty = computed(() => hasReplayEdits(this._original(), this._edited()));
   /** The list asks about every row, and sweeping each time would cost the square of the row count. */
   private readonly originalSeqs = computed(() => new Set(this._original().map((event) => event.seq)));
-  readonly canUndo = computed(() => this._history().length > 0);
+  /**
+   * Whether the rows may change: not while a scene is being acted out to go in after one of them,
+   * where it would go in after another, or be left out of what is saved.
+   */
+  readonly canChange = computed(() => !this.staging.isStaging());
+  readonly canUndo = computed(() => this._history().length > 0 && this.canChange());
 
   /** Starts editing a recording's events, with an empty undo history. */
   begin(events: readonly ReplayEvent[]): void {
@@ -55,6 +62,7 @@ export class ReplayEditorService {
 
   /** Puts the events back as they were before the last change. Only the last 100 changes can be undone. */
   undo(): void {
+    if (!this.canChange()) return;
     const history = this._history();
     const previous = history[history.length - 1];
     if (!previous) return;
@@ -63,6 +71,7 @@ export class ReplayEditorService {
   }
 
   private change(mutate: (events: readonly ReplayEvent[]) => readonly ReplayEvent[]): void {
+    if (!this.canChange()) return;
     const current = this._edited();
     const next = mutate(current);
     this._history.update((history) => [...history, current].slice(-REPLAY_HISTORY_LIMIT));
