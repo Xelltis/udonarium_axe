@@ -1,5 +1,4 @@
-import { getPeerContexts, getTransport } from '@axe/core/network/peer-context-source';
-import { ACCOUNT_USER_ID_PREFIX } from '@axe/core/network/server/server-protocol';
+import { getPeerContexts } from '@axe/core/network/peer-context-source';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Disclosable } from '@axe/domain/disclosure/disclosure';
@@ -61,26 +60,18 @@ export function claimBroughtInPiece(root: ObjectNode, userId: string): void {
  * Forgets who objects were shown to by name, and returns how many were changed. The people picked
  * are those of the session the objects were saved in, gone from a table they are brought into, and
  * a name left behind would show the object to whoever took it up: what was shown to chosen people
- * is shown to the game master and its owner alone until people are chosen again. An account picked
- * on a room server is kept, as nobody takes its name up without logging in as it.
+ * is shown to the game master and its owner alone until people are chosen again.
  */
 export function forgetChosenViewers(objects: Iterable<unknown>): number {
   let count = 0;
   for (const object of objects) {
     const disclosable = object as Partial<Disclosable> | null;
-    if (!disclosable || !Array.isArray(disclosable.disclosureUserIds)) continue;
-    const kept = disclosable.disclosureUserIds.filter(isAccountOnServer);
-    if (kept.length < disclosable.disclosureUserIds.length) {
-      disclosable.disclosureUserIds = kept;
+    if (disclosable && Array.isArray(disclosable.disclosureUserIds) && disclosable.disclosureUserIds.length > 0) {
+      disclosable.disclosureUserIds = [];
       count++;
     }
   }
   return count;
-}
-
-/** Whether a user id is an account's on a room server, the one deployment where a seat must log in to take it. */
-function isAccountOnServer(userId: string): boolean {
-  return getTransport() === 'server' && userId.startsWith(ACCOUNT_USER_ID_PREFIX);
 }
 
 function treeOf(root: ObjectNode): ObjectNode[] {

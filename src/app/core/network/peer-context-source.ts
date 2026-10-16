@@ -1,6 +1,5 @@
 import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
-import type { Transport } from '@axe/core/network/transport';
 
 export interface PeerContextProvider {
   readonly peerContext: IPeerContext;
@@ -54,11 +53,6 @@ export function getPeerIds(): string[] {
 /** This device's peer id, from the current provider. */
 export function getMyPeerId(): string {
   return currentProvider.peerId;
-}
-
-/** How this deployment connects players, as config.json names it, in or out of a room. */
-export function getTransport(): Transport {
-  return Network.transport;
 }
 
 /** The room server's peer id while connected through one; null with SkyWay or outside a room. */

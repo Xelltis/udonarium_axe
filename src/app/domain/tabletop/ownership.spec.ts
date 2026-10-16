@@ -86,26 +86,8 @@ describe('ownership', () => {
   });
 
   describe('forgetChosenViewers on a room server', () => {
-    it('keeps the accounts picked, which no seat takes up without logging in as them, and forgets the rest', () => {
+    it('forgets an account picked as well, whom the game master could neither see nor take off while it is away', () => {
       vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
-      const note = TextNote.create('メモ', '本文');
-      note.disclosureUserIds = ['acct_alice', 'tab-user'];
-      const kept = TextNote.create('メモ', '本文');
-      kept.disclosureUserIds = ['acct_bob'];
-      try {
-        expect(forgetChosenViewers([note, kept])).toBe(1);
-
-        expect(note.disclosureUserIds).toEqual(['acct_alice']);
-        expect(kept.disclosureUserIds).toEqual(['acct_bob']);
-      } finally {
-        note.destroy();
-        kept.destroy();
-        vi.restoreAllMocks();
-      }
-    });
-
-    it('forgets an account picked when the table comes into SkyWay, where any seat may name it', () => {
-      vi.spyOn(Network, 'transport', 'get').mockReturnValue('skyway');
       const note = TextNote.create('メモ', '本文');
       note.disclosureUserIds = ['acct_alice'];
       try {
