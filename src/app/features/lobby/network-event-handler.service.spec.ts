@@ -146,6 +146,15 @@ describe('NetworkEventHandlerService', () => {
     expect(chatStub.sendSystemMessage).not.toHaveBeenCalled();
   });
 
+  it('plays as a player alone in local mode, though a room made the seat a guest before', () => {
+    vi.spyOn(Network, 'configure').mockImplementation(() => {});
+    PeerCursor.createMyCursor().role = PeerRole.Guest;
+
+    stubChange.loadConfig$.emit({ config: { backend: { url: '' }, localMode: true } });
+
+    expect(PeerCursor.myCursor.role).toBe(PeerRole.Player);
+  });
+
   it('opens the standby connection outside local mode', () => {
     const openStandbySpy = vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
 

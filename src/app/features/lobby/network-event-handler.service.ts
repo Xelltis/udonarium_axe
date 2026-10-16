@@ -107,7 +107,10 @@ export class NetworkEventHandlerService {
       const config = event.config as Record<string, unknown>;
       this.localMode = config.localMode === true;
       Network.configure(config);
-      if (this.localMode) return;
+      if (this.localMode) {
+        this.playAlone();
+        return;
+      }
       Network.openStandby(this.standbyUserId());
     }, this.destroyRef);
     this.objectChange.networkOpen$.subscribe(() => {
@@ -272,6 +275,15 @@ export class NetworkEventHandlerService {
     const role = Network.serverRole;
     const cursor = PeerCursor.myCursor;
     if (role && cursor && cursor.role !== role) cursor.role = role;
+  }
+
+  /**
+   * Plays alone in this browser, where nobody is kept from the table: a seat a room made a guest
+   * before going offline plays as a player, rather than find its own table read-only.
+   */
+  private playAlone(): void {
+    const cursor = PeerCursor.myCursor;
+    if (cursor && !canRoleEdit(cursor.role)) cursor.role = DEFAULT_PEER_ROLE;
   }
 
   /**
