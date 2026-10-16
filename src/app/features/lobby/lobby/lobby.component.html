@@ -137,7 +137,10 @@
     } @else {
       {{ 'feature.lobby.lobby.alreadyConnected' | transloco }}<br />{{
         'feature.lobby.lobby.alreadyConnectedHint' | transloco
-      }}
+      }}<br />
+      <button class="mt-2" data-testid="lobby-leave-room" (click)="leaveRoom()">
+        {{ 'feature.lobby.lobby.leaveRoom' | transloco }}
+      </button>
     }
   </p>
 }

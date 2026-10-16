@@ -161,6 +161,15 @@ describe('LobbyComponent', () => {
     });
   });
 
+  it('offers a way out of the room among peers too, where reloading an invitation goes back in', () => {
+    vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['a', 'b']);
+    TestBed.inject(ObjectChangeService).networkVersion.update((v) => v + 1);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="lobby-leave-room"]')).not.toBeNull();
+    vi.restoreAllMocks();
+  });
+
   describe('on a room server', () => {
     const room: IRoomInfo = {
       id: 'Ab3',
