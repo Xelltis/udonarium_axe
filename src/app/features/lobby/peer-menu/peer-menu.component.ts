@@ -362,7 +362,10 @@ export class PeerMenuComponent {
     });
   }
 
-  /** Opens the lobby, to find a room to join. */
+  /**
+   * Opens the lobby, to find a room to join; on a room server, at any time, since its top is where
+   * the reader logs in or out.
+   */
   showLobby() {
     this.modalService.open(LobbyComponent, {
       title: this.t('feature.lobby.lobby.title'),

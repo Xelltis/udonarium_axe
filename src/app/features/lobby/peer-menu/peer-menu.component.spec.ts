@@ -124,6 +124,18 @@ describe('PeerMenuComponent', () => {
       vi.restoreAllMocks();
     });
 
+    it('offers the lobby, where the reader logs in, however many are in the room', () => {
+      vi.spyOn(Network.instance, 'peerIds', 'get').mockReturnValue(['peer-a', 'peer-b', 'peer-c']);
+      const lobby = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="peer-menu-show-lobby"]');
+      fixture.detectChanges();
+      expect(lobby()).not.toBeNull();
+
+      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('skyway');
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      fixture.detectChanges();
+      expect(lobby()).toBeNull();
+    });
+
     it('shows your own role as the server gave it, with nothing to press', () => {
       fixture.detectChanges();
       const root = fixture.nativeElement as HTMLElement;
