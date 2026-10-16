@@ -2,6 +2,7 @@ import { DisclosureService } from '@axe/application/permission/disclosure.servic
 import { Network } from '@axe/core/network/network';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { TextNote } from '@axe/domain/tabletop/text-note';
 
 function setMe(userId: string, role: PeerRole) {
   PeerCursor.myCursor = { userId, role, isGameMaster: role === PeerRole.GameMaster } as PeerCursor;
@@ -48,10 +49,17 @@ describe('DisclosureService', () => {
     expect(service.canSetOwner({ ...shown, owner: 'p2' })).toBe(false);
   });
 
-  it('does not let a player take an unowned object a room server keeps for the game master', () => {
+  it('does not let a player take an unowned note a room server keeps for the game master, but anything else', () => {
     vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
     setMe('p1', PeerRole.Player);
-    expect(service.canSetOwner({ disclosureMode: 'gm', disclosureUserIds: [], owner: '' })).toBe(false);
+    const note = TextNote.create('メモ', '本文');
+    note.disclosureMode = 'gm';
+    try {
+      expect(service.canSetOwner(note)).toBe(false);
+      expect(service.canSetOwner({ disclosureMode: 'gm', disclosureUserIds: [], owner: '' })).toBe(true);
+    } finally {
+      note.destroy();
+    }
   });
 
   it('lets a player among peers take an unowned object kept for the game master, as before', () => {

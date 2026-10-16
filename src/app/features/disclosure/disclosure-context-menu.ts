@@ -11,6 +11,7 @@ import {
 } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { TextNote } from '@axe/domain/tabletop/text-note';
 import { ownerRuledByServer } from '@axe/domain/tabletop/withheld';
 
 interface DisclosableObject extends Disclosable {
@@ -80,7 +81,7 @@ export function buildDisclosureContextMenu(object: DisclosableObject, t: Transla
   const canEdit = canEditDisclosure(viewer);
   const canClaim =
     myUserId.length > 0 &&
-    canClaimOwnership(object, viewer, Network.authorityPeerId !== null) &&
+    canClaimOwnership(object, viewer, Network.authorityPeerId !== null && object instanceof TextNote) &&
     canRoleEdit(PeerCursor.myRole);
   const showOwnerMenu = isGameMaster || canClaim;
   if (!canEdit && !showOwnerMenu) return [];

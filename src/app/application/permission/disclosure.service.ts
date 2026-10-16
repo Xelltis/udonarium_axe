@@ -9,6 +9,7 @@ import {
 } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { TextNote } from '@axe/domain/tabletop/text-note';
 
 @Injectable({ providedIn: 'root' })
 export class DisclosureService {
@@ -37,7 +38,7 @@ export class DisclosureService {
     if (canEditDisclosure(viewer)) return true;
     return (
       viewer.userId.length > 0 &&
-      canClaimOwnership(object, viewer, Network.authorityPeerId !== null) &&
+      canClaimOwnership(object, viewer, Network.authorityPeerId !== null && object instanceof TextNote) &&
       canRoleEdit(PeerCursor.myRole)
     );
   }

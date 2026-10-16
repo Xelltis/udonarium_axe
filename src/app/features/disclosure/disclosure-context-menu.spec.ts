@@ -35,10 +35,19 @@ describe('buildDisclosureContextMenu', () => {
     expect(find(menu, 'feature.disclosure.label')).toBeFalsy();
   });
 
-  it('offers a player no ownership of an unowned memo a room server keeps for the game master', () => {
+  it('offers a player no ownership of an unowned note a room server keeps for the game master, but of a character', () => {
     vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
     setMe('p1', PeerRole.Player);
-    expect(buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'gm' }, t)).toEqual([]);
+    const note = TextNote.create('メモ', '本文');
+    note.disclosureMode = 'gm';
+    try {
+      expect(buildDisclosureContextMenu(note, t)).toEqual([]);
+      expect(
+        find(buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'gm' }, t), 'feature.disclosure.owner')
+      ).toBeTruthy();
+    } finally {
+      note.destroy();
+    }
   });
 
   it('offers a player among peers ownership of an unowned memo kept for the game master, as before', () => {

@@ -59,10 +59,10 @@ export function canEditDisclosure(viewer: DisclosureViewer): boolean {
 /**
  * Whether a viewer could take over an object nobody owns yet.
  *
- * Where a room server keeps back what objects hide, only one the viewer may see the contents of is
- * theirs to take: owning it would show them what it keeps back, such as the game master's alone,
- * and the server refuses that. Among peers, where hiding is a matter of what each screen shows, any
- * of them is.
+ * Where a room server keeps back what the object hides, as it does a note's, only one the viewer
+ * may see the contents of is theirs to take: owning it would show them what it keeps back, such as
+ * the game master's alone, and the server refuses that. Among peers, where hiding is a matter of
+ * what each screen shows, and for what the server does not hide, any of them is.
  *
  * Callers also check the viewer's role and that they have a user id.
  */
