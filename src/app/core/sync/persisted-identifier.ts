@@ -36,7 +36,9 @@ export interface KeepIdentifierOptions {
  * The written identifier is kept only when it has not been deleted in this room, nor, when asked
  * to copy, is gone by here already; otherwise the object stays under the fresh identifier it was
  * made with. Everyone else at the table has a deleted one down as gone and would answer its
- * return with the deletion again, taking it from the one who brought it back.
+ * return with the deletion again, taking it from the one who brought it back. A room server keeps
+ * what was deleted for longer than this browser does, as across a reload, so an identifier kept
+ * that nothing here goes by is said to be coming back first.
  */
 export function parseAttributesKeepingIdentifier(
   gameObject: GameObject,
@@ -58,5 +60,6 @@ export function parseAttributesKeepingIdentifier(
     !(options.whenTaken === 'copy' && ObjectStore.instance.get(persisted))
   ) {
     (gameObject as unknown as { context: { identifier: string } }).context.identifier = persisted;
+    if (!ObjectStore.instance.get(persisted)) ObjectStore.instance.announceComingBack([persisted]);
   }
 }

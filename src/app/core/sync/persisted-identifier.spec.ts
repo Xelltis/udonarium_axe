@@ -37,6 +37,18 @@ describe('keeping an identifier through a file', () => {
     );
   });
 
+  it('says it is coming back under the identifier written with it when nothing here goes by it', () => {
+    const announce = vi.spyOn(ObjectStore.instance, 'announceComingBack');
+
+    const probe = read(
+      '<persisted-identifier-probe label="見張り" identifier="probe-gone"></persisted-identifier-probe>'
+    );
+
+    expect(probe.identifier).toBe('probe-gone');
+    expect(announce).toHaveBeenCalledWith(['probe-gone']);
+    announce.mockRestore();
+  });
+
   it('comes back under the identifier it was written with', () => {
     const probe = read('<persisted-identifier-probe label="見張り" identifier="probe-1"></persisted-identifier-probe>');
 
