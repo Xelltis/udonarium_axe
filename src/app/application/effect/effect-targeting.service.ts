@@ -1,5 +1,6 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -42,6 +43,7 @@ export class EffectTargetingService {
   private readonly uiSignalService = inject(UiSignalService);
   private readonly castService = inject(EffectCastService);
   private readonly zones = inject(EngagementZoneService);
+  private readonly rolePermission = inject(RolePermissionService);
 
   private readonly _preset = signal<EffectPreset | null>(null);
   private readonly _picks = signal<readonly string[]>([]);
@@ -123,6 +125,11 @@ export class EffectTargetingService {
       }
       untracked(() => this.pick(selected.identifier));
     });
+    // A seat made a guest while it aimed casts nothing; the aiming is called off.
+    effect(() => {
+      this.objectChange.trackMyCursor();
+      if (!this.rolePermission.canEditTabletop && untracked(this.isPicking)) untracked(() => this.cancel());
+    });
   }
 
   /**
@@ -178,6 +185,10 @@ export class EffectTargetingService {
   confirm(): EffectCast | null {
     const preset = this._preset();
     if (!preset) return null;
+    if (!this.rolePermission.canEditTabletop) {
+      this.cancel();
+      return null;
+    }
 
     const targets = this._picks()
       .map((identifier) => this.characterOf(identifier))

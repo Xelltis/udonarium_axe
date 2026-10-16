@@ -1,10 +1,14 @@
 import { TestBed } from '@angular/core/testing';
+import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { Config } from '@axe/domain/peer/config';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { EngagementZone } from '@axe/domain/tabletop/zone/engagement-zone';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -109,6 +113,24 @@ describe('EffectTargetingService', () => {
 
     expect(cast?.casterIdentifier).toBe(characters[3].identifier);
     expect(cast?.origin).not.toBeNull();
+  });
+
+  it('casts nothing for a seat made a guest while it aimed, calling the aiming off', () => {
+    PeerCursor.createMyCursor();
+    const fired = vi.spyOn(TestBed.inject(EffectCastService), 'fire');
+    service.begin(preset);
+    service.pick(characters[0].identifier);
+
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+    TestBed.tick();
+    expect(service.isPicking()).toBe(false);
+
+    service.begin(preset);
+    service.pick(characters[0].identifier);
+    expect(service.confirm()).toBeNull();
+    expect(fired).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
   });
 
   it('casts nothing when confirmed with no target', () => {
