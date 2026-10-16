@@ -706,10 +706,15 @@ export class ServerConnection implements Connection {
     this.dropQueued();
     // The server asked the seat back on another link. It comes straight back, and nobody is told it
     // went: the welcome sets the members right.
-    if (askedBack && wasWelcomed && !this.stopped && this.refusal == null) {
-      this.comingBack = true;
-      this.connectSocket();
-      return;
+    if (askedBack && !this.stopped && this.refusal == null) {
+      if (wasWelcomed) {
+        this.comingBack = true;
+        this.connectSocket();
+        return;
+      }
+      // Asked back before a welcome, as while the room changes hands: the seat tries again after the
+      // usual wait, still coming in, or still coming back unseen, as it was.
+      if (this.reconnectScheduler.schedule(SOCKET_KEY, () => this.connectSocket()) != null) return;
     }
     const wasComingBack = this.comingBack;
     this.comingBack = false;

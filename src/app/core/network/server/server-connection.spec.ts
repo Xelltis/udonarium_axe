@@ -305,6 +305,21 @@ describe('ServerConnection', () => {
       expect(connection.peerIds).toEqual([OTHER.peerId]);
     });
 
+    it('tries again after the usual wait when asked back before its first welcome, rather than giving up', async () => {
+      const socket = await openRoom();
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+      socket.accept();
+
+      socket.close(1012, 'moved');
+
+      expect(errors).toEqual([]);
+      expect(FakeWebSocket.instances.length).toBe(1);
+      vi.advanceTimersByTime(1000);
+      expect(FakeWebSocket.instances.length).toBe(2);
+      welcomeOn(latest());
+      await vi.waitFor(() => expect(calls).toEqual(['open', 'connect authority', `connect ${OTHER.peerId}`]));
+    });
+
     it('comes back from the cache as after any return, once a return the server asked for was cut short', async () => {
       const socket = await enterRoom([OTHER]);
       socket.close(1012, 'rotate');
