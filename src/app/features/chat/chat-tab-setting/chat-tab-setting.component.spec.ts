@@ -460,6 +460,19 @@ describe('ChatTabSettingComponent', () => {
       component.deleteLog();
       expect(tab.chatMessages).not.toContain(rolled);
     });
+
+    it('says nothing of a clear-all in a tab a player may not read, whose lines never came to them', () => {
+      beSeat(PeerRole.Player);
+      const open = ChatTabList.instance.addChatTab('open');
+      const closed = ChatTabList.instance.addChatTab('closed');
+      closed.plCanView = false;
+      component.allowDeleteLog = true;
+
+      component.deleteLogALL();
+
+      expect(open.chatMessages.map((message) => message.isSystemMessage)).toEqual([true]);
+      expect(closed.chatMessages).toEqual([]);
+    });
   });
 
   describe('will not delete the system tab', () => {

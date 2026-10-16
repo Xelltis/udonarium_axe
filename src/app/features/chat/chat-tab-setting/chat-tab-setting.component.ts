@@ -17,6 +17,7 @@ import { CHAT_LOG_STYLES, ChatLogStyle } from '@axe/domain/chat/chat-log-style';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { ChatLogPreviewComponent } from '@axe/features/chat/chat-log-preview/chat-log-preview.component';
@@ -396,7 +397,8 @@ export class ChatTabSettingComponent {
   /**
    * Clears the logs of every tab for every peer, posting who cleared them in each; needs the
    * confirmation box ticked and a seat that may change the tabs. In a room server's room, anyone but
-   * the game master leaves the dice the server rolled where they are.
+   * the game master leaves the dice the server rolled where they are, and leaves alone the tabs
+   * they may not read, whose lines never came to them.
    */
   deleteLogALL() {
     if (!this.allowDeleteLog || !this.canEditTabs) return;
@@ -404,7 +406,9 @@ export class ChatTabSettingComponent {
     const mess = encodeI18nMessage('common.chat.logClearedBy', { user: this.resolveRequesterName() });
 
     const requester = this.requesterUserId();
-    for (const child of this.chatTabList.chatTabs) {
+    const readsAll = Network.authorityPeerId === null || PeerCursor.isMyselfGameMaster;
+    const tabs = this.chatTabList.chatTabs.filter((tab) => readsAll || canRoleViewTab(tab, PeerCursor.myRole));
+    for (const child of tabs) {
       this.clearLogOf(child);
       child.portraitReset();
       this.chatMessageService.sendSystemMessageToTab(child, mess, undefined, requester);
