@@ -425,6 +425,18 @@ export const DEFAULT_CUT_IN_SEEDS: readonly CutInSeed[] = [
 ] as const;
 
 /**
+ * Every identifier the samples are made under: the cut-ins, their scenes and the layers in them,
+ * all of which a sample deleted takes away with it.
+ */
+export function defaultCutInIdentifiers(): string[] {
+  return DEFAULT_CUT_IN_SEEDS.flatMap((seed) => [
+    seed.identifier,
+    seed.sceneIdentifier,
+    ...seed.layers.map((layer) => layer.identifier),
+  ]);
+}
+
+/**
  * Makes the samples, leaving alone any that are already there.
  *
  * Called on a fresh store, before a room's own objects arrive, so everyone builds the

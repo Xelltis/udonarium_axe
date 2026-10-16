@@ -218,7 +218,13 @@ describe('Room', () => {
       loadRoom('<card></card>');
 
       expect(announce).toHaveBeenCalledWith(DEFAULT_EFFECT_PRESET_SEEDS.map((seed) => seed.identifier));
-      expect(announce).toHaveBeenCalledWith(DEFAULT_CUT_IN_SEEDS.map((seed) => seed.identifier));
+      expect(announce).toHaveBeenCalledWith(
+        DEFAULT_CUT_IN_SEEDS.flatMap((seed) => [
+          seed.identifier,
+          seed.sceneIdentifier,
+          ...seed.layers.map((layer) => layer.identifier),
+        ])
+      );
       announce.mockRestore();
     });
   });

@@ -15,7 +15,7 @@ import { DiceTable } from '@axe/domain/dice/dice-table';
 import { createDefaultEffectPresets, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
 import { EffectField } from '@axe/domain/effect/effect-field';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
-import { createDefaultCutIns, DEFAULT_CUT_IN_SEEDS } from '@axe/domain/media/builtin-cut-ins';
+import { createDefaultCutIns, defaultCutInIdentifiers } from '@axe/domain/media/builtin-cut-ins';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { Party } from '@axe/domain/party/party';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
@@ -144,7 +144,7 @@ export class Room extends GameObject implements InnerXml {
         createDefaultEffectPresets();
       }
       if (ObjectStore.instance.getObjects(CutIn).length < 1) {
-        ObjectStore.instance.announceComingBack(DEFAULT_CUT_IN_SEEDS.map((seed) => seed.identifier));
+        ObjectStore.instance.announceComingBack(defaultCutInIdentifiers());
         createDefaultCutIns(ImageStorage.instance);
       }
       clearOwnership(ObjectStore.instance.getObjects());
