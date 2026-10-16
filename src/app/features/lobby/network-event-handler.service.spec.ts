@@ -274,6 +274,23 @@ describe('NetworkEventHandlerService', () => {
     }
   });
 
+  it('leaves alone, once its backoff is up, a room or a wait asked for since the server error', async () => {
+    vi.useFakeTimers();
+    try {
+      const openStandbySpy = vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+      let asked = 1;
+      vi.spyOn(Network, 'openRequests', 'get').mockImplementation(() => asked);
+
+      stubChange.networkError$.emit({ errorType: 'server-error', errorMessage: 'oops' });
+      asked = 2;
+      await vi.advanceTimersByTimeAsync(3000);
+
+      expect(openStandbySpy).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('gives up past that limit and reports the error', async () => {
     vi.useFakeTimers();
     try {

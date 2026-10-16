@@ -27,6 +27,10 @@ export class Network {
   static get requestedRoomId(): string {
     return Network.instance.requestedRoomId;
   }
+  /** How many times the network has been asked to open a room or to wait outside any. */
+  static get openRequests(): number {
+    return Network.instance.openRequests;
+  }
   /** This device's peer id, or the placeholder '???' before a session exists. */
   static get peerId(): string {
     return Network.instance.peerId;
@@ -189,6 +193,15 @@ export class Network {
   get requestedRoomId(): string {
     return this._requestedRoomId;
   }
+  private _openRequests = 0;
+
+  /**
+   * How many times the network has been asked to open a room or to wait outside any, counted as it
+   * is asked. A step put off for later tells by it whether the seat was sent somewhere meanwhile.
+   */
+  get openRequests(): number {
+    return this._openRequests;
+  }
   private connectionClassPromise: Promise<ConnectionClass> | null = null;
   private connectionClass!: ConnectionClass;
   private connection: Connection | null = null;
@@ -253,6 +266,7 @@ export class Network {
 
   open(userId: string, roomId: string, roomName: string, password: string, roomKey?: string): void {
     this._requestedRoomId = roomId;
+    this._openRequests++;
     if (this.connectionClassPromise != null) {
       Logger.warn('[Network] 既に接続済みです');
       this.close();
@@ -267,6 +281,7 @@ export class Network {
 
   openStandby(userId?: string): void {
     this._requestedRoomId = '';
+    this._openRequests++;
     if (this.connectionClassPromise != null) {
       Logger.warn('[Network] 既に接続済みです');
       this.close();

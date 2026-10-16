@@ -462,6 +462,10 @@ export class NetworkEventHandlerService {
     }
   }
 
+  /**
+   * Goes back to waiting after a server error once its backoff is up, unless the seat was sent
+   * somewhere meanwhile, as a join or a room made then, which waiting would cut off.
+   */
   private handleServerErrorReconnect(): void {
     if (this.serverErrorReconnectAttempts >= NetworkEventHandlerService.MAX_SERVER_ERROR_RECONNECTS) {
       this.chatMessageService.sendSystemMessage(encodeI18nMessage('feature.lobby.errors.skywayServer'));
@@ -475,8 +479,10 @@ export class NetworkEventHandlerService {
     this.chatMessageService.sendSystemMessage(encodeI18nMessage('feature.lobby.errors.reconnecting'));
 
     if (this.serverErrorReconnectTimer != null) clearTimeout(this.serverErrorReconnectTimer);
+    const asked = Network.openRequests;
     this.serverErrorReconnectTimer = setTimeout(() => {
       this.serverErrorReconnectTimer = null;
+      if (Network.openRequests !== asked) return;
       Network.openStandby(this.standbyUserId());
     }, delayMs);
   }
