@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import * as domainEvents from '@axe/core/event/domain-events';
+import { Network } from '@axe/core/network/network';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { Vote } from '@axe/domain/vote/vote';
 
 describe('Vote', () => {
@@ -545,6 +547,34 @@ describe('Vote', () => {
       vote.chkFinishVote();
       vi.advanceTimersByTime(10);
 
+      expect(finishEvents).toHaveLength(1);
+      sub();
+      vi.useRealTimers();
+    });
+  });
+
+  describe('a chair made a guest on a room server', () => {
+    it('leaves it open, since the server would take the finish back and the result be said again', () => {
+      vi.useFakeTimers();
+      vote.chairId = 'my-peer-id';
+      vote.targetPeerId = ['peer-1'];
+      vote.voteId = 1;
+      vote.choices = ['準備完了'];
+      (PeerCursor.myCursor as { role: PeerRole }).role = PeerRole.Guest;
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({ voteId: 1, voteAnswer: 0 } as unknown as PeerCursor);
+      const finishEvents: domainEvents.FinishVoteEvent[] = [];
+      const sub = domainEvents.finishVote$.subscribe((e) => finishEvents.push(e));
+
+      vote.chkFinishVote();
+      vote.finishByChair();
+      vi.advanceTimersByTime(10);
+      expect(vote.isFinish).toBe(false);
+      expect(finishEvents).toHaveLength(0);
+
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+      vote.chkFinishVote();
+      vi.advanceTimersByTime(10);
       expect(finishEvents).toHaveLength(1);
       sub();
       vi.useRealTimers();

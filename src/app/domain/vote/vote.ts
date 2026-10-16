@@ -123,18 +123,22 @@ export class Vote extends GameObject {
 
   /**
    * Finishes the vote and announces the result once everyone asked has answered, when this client
-   * is the chair and it has not finished already.
+   * is the chair and it has not finished already. A chair made a guest on a room server leaves it
+   * open, since the server would take the finish back and the result would be said again each time.
    */
   chkFinishVote() {
-    if (this.isFinish) return;
+    if (this.isFinish || PeerCursor.isMyselfKeptOffTable) return;
     if (this.chairId == PeerCursor.myCursor?.peerId && this.votedTotalNum() == this.targetPeerId.length) {
       this.finish();
     }
   }
 
-  /** Ends the vote early and announces the result. Only the chair can, and only once. */
+  /**
+   * Ends the vote early and announces the result. Only the chair can, and only once, and not as a
+   * guest on a room server.
+   */
   finishByChair() {
-    if (this.isFinish) return;
+    if (this.isFinish || PeerCursor.isMyselfKeptOffTable) return;
     if (this.chairId != PeerCursor.myCursor?.peerId) return;
     this.finish();
   }

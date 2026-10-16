@@ -1,5 +1,5 @@
 import { domainPeerDisconnect$ } from '@axe/core/event/domain-events';
-import { getMyPeerId, getPeerContext, getPeerIds } from '@axe/core/network/peer-context-source';
+import { getAuthorityPeerId, getMyPeerId, getPeerContext, getPeerIds } from '@axe/core/network/peer-context-source';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
@@ -265,6 +265,13 @@ export class PeerCursor extends GameObject {
   /** Whether the local user is a guest; false until their own cursor exists. */
   static get isMyselfGuest(): boolean {
     return PeerCursor.myCursor?.isGuest ?? false;
+  }
+  /**
+   * Whether the local user is a guest on a room server, which takes back whatever a guest writes to
+   * the table; among peers a guest's writes go through.
+   */
+  static get isMyselfKeptOffTable(): boolean {
+    return getAuthorityPeerId() !== null && PeerCursor.myRole === PeerRole.Guest;
   }
   /** The peer's own avatar image, or null when none is set or it has not arrived. */
   get image(): ImageFile | null {
