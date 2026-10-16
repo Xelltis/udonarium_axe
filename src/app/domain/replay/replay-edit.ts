@@ -333,8 +333,15 @@ function withChatMoments(events: readonly ReplayEvent[], moved: ReadonlySet<numb
 }
 
 /**
+ * How far from nothing a moment can be and still be counted on, with every moment a line could be
+ * moved to around it: well inside the numbers counted exactly.
+ */
+const COUNTABLE_MOMENT = 2 ** 52;
+
+/**
  * The chat lines of the list that carry a moment, by sequence number, with the line each answer
- * answers. A moment that is no number, or too large to count on one more than it, counts as none.
+ * answers. A moment that is no number, or too large to count on the moments around it, counts as
+ * none; a fraction that is no number, or not one, counts as nothing.
  */
 function chatLinesOf(events: readonly ReplayEvent[]): Map<number, ChatLine> {
   const lines = new Map<number, ChatLine>();
@@ -343,9 +350,10 @@ function chatLinesOf(events: readonly ReplayEvent[]): Map<number, ChatLine> {
   events.forEach((event, index) => {
     const after = event.patch?.after;
     const moment = after?.[MOMENT_KEY];
-    if (!after || typeof moment !== 'number' || !(Math.abs(moment) < Number.MAX_SAFE_INTEGER)) return;
+    if (!after || typeof moment !== 'number' || !(Math.abs(moment) < COUNTABLE_MOMENT)) return;
     const tab = String(after['parentIdentifier'] ?? event.detail['tabIdentifier'] ?? '');
-    const minor = typeof after['minorIndex'] === 'number' ? after['minorIndex'] : 0;
+    const fraction = after['minorIndex'];
+    const minor = typeof fraction === 'number' && fraction >= 0 && fraction < 1 ? fraction : 0;
     const speaker = String(after['attributes.from'] ?? '');
     const asker = ANSWER_SENDERS.has(speaker) ? String(after['attributes.originFrom'] ?? '') : '';
     const message = event.patch?.identifier ?? '';

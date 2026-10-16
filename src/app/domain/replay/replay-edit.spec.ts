@@ -760,6 +760,40 @@ describe('chat moments that follow a new place', () => {
     });
 
     it.each([
+      ['a fraction that is no number', Number.NaN],
+      ['a fraction past all bounds', Number.POSITIVE_INFINITY],
+      ['a fraction far too large', 1e300],
+    ])('takes %s for none, rather than never finishing', (_what, fraction) => {
+      const events = [
+        minor(by('bob', 1, 100000), fraction),
+        by('carol', 2, 100100),
+        by('alice', 3, 100200, '2d6'),
+        result(4, 40, 100201),
+        by('alice', 5, 100300, '2d6'),
+        result(6, 60, 100301),
+      ];
+
+      const stepped = stepReplayEvents(events, new Set([3, 4, 5, 6]), -1);
+      const moved = moveReplayEvent(events, 3, -1);
+
+      expect(stepped.every((event) => Number.isFinite(momentOf(event)))).toBe(true);
+      expect(Number.isFinite(momentOf(bySeq(moved, 3)))).toBe(true);
+    });
+
+    it('takes a moment too near the largest a number counts exactly for none, rather than never finishing', () => {
+      const near = 2 ** 53 - 10;
+      const lines = [0, 1, 2, 3].flatMap((n) => [
+        by('alice', 10 + n * 2, 100 + n, '2d6'),
+        result(11 + n * 2, 0, 101 + n),
+      ]);
+      const events = [by('alice', 1, near), ...lines];
+
+      const stepped = stepReplayEvents(events, new Set(lines.map((event) => event.seq)), -1);
+
+      expect(stepped).toHaveLength(events.length);
+    });
+
+    it.each([
       ['no number', Number.NaN],
       ['one too large to count on', 2 ** 53],
     ])('takes a line said at %s for no line, rather than never finishing', (_what, moment) => {
