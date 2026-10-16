@@ -4,6 +4,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EventChannel } from '@axe/core/event/event-channel';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -257,6 +258,24 @@ describe('RoomArchiveEventHandlerService', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it('takes nothing of a replay’s board on the table, and takes a save still due once the table is back', async () => {
+    const service = setup();
+    emitChange();
+    setNetworkIsolated(true);
+    try {
+      emitChange();
+      await vi.advanceTimersByTimeAsync(21_000);
+      await service.flush();
+      expect(capture).not.toHaveBeenCalled();
+    } finally {
+      setNetworkIsolated(false);
+    }
+
+    await vi.advanceTimersByTimeAsync(6_000);
+
+    expect(capture).toHaveBeenCalledOnce();
   });
 
   it('saves for an object added or deleted as well', async () => {
