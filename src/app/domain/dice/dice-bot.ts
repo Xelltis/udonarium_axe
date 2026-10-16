@@ -13,6 +13,7 @@ import {
 } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
 import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { getAuthorityPeerId, getMyPeerId } from '@axe/core/network/peer-context-source';
 import {
   AuthorityEvent,
@@ -583,8 +584,9 @@ export class DiceBot extends GameObject {
       }
 
       // A room server rolls the dice itself, so that nobody can change what they showed; a line too
-      // long for it to take is rolled here, as without one.
-      if (getAuthorityPeerId() && text.length <= MAX_ROLL_COMMAND_LENGTH) {
+      // long for it to take is rolled here, as without one, and so is a line said to a table cut off
+      // from the room, as while a replay's board is shown, where the server's answer would never come.
+      if (getAuthorityPeerId() && !isNetworkIsolated() && text.length <= MAX_ROLL_COMMAND_LENGTH) {
         const target = data.messageTarget?.object;
         this.askServerToRoll(text, gameSystem.ID, chatMessage, target ? rollTargetSuffix(target.name) : undefined);
         return;

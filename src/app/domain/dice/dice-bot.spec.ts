@@ -8,6 +8,7 @@ import {
 } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
@@ -118,6 +119,37 @@ describe('DiceBot', () => {
       bot.initialize();
 
       await bot['handleSendMessage']({ messageIdentifier: asked.identifier, messageTarget: null });
+
+      expect(send.mock.calls.some(([sent]) => (sent as { eventName: string }).eventName === 'ROLL_REQUEST')).toBe(
+        false
+      );
+      expect(tab.chatMessages).toHaveLength(2);
+      bot.destroy();
+      tab.destroy();
+    });
+
+    it('rolls here while the table is cut off from the room, asking the server nothing', async () => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'acct_me';
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const asked = tab.addMessage({
+        from: PeerCursor.myUserId,
+        name: 'わたし',
+        text: '2d6',
+        tag: 'DiceBot',
+        timestamp: 1000,
+      });
+      const bot = new DiceBot();
+      bot.initialize();
+
+      setNetworkIsolated(true);
+      try {
+        await bot['handleSendMessage']({ messageIdentifier: asked.identifier, messageTarget: null });
+      } finally {
+        setNetworkIsolated(false);
+      }
 
       expect(send.mock.calls.some(([sent]) => (sent as { eventName: string }).eventName === 'ROLL_REQUEST')).toBe(
         false
