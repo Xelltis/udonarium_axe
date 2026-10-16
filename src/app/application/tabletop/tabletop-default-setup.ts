@@ -1,5 +1,6 @@
 import { ImageContext, ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { GameObject } from '@axe/core/sync/game-object';
 import { DEFAULT_STATUS_AILMENT_NAMES } from '@axe/domain/character/builtin-status-ailments';
 import { CharacterTemplateFactory } from '@axe/domain/character/character-template-factory';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -117,13 +118,18 @@ const SAMPLE_VISION_RANGE = 2;
  *
  * The monsters are left out of it. A party shares its sight, so a monster in it would show
  * the players everything it can see.
+ *
+ * Made as one change, as every seat makes it under the same name as it starts, and a party a room
+ * brought back from its file under that name has to outweigh the one a newcomer makes.
  */
 function makeSampleParty(): Party {
-  const party = new Party('testParty_1');
-  party.name = 'パーティ1';
-  party.color = PARTY_COLORS[0];
-  party.initialize();
-  return party;
+  return GameObject.batch(() => {
+    const party = new Party('testParty_1');
+    party.name = 'パーティ1';
+    party.color = PARTY_COLORS[0];
+    party.initialize();
+    return party;
+  });
 }
 
 /**
@@ -131,14 +137,16 @@ function makeSampleParty(): Party {
  *
  * Fights told apart by party need every piece in one, or a monster in none is nobody's enemy:
  * it holds no ground and takes no part in an engagement zone. Its sight is shared with nobody
- * at the table, since nobody owns a monster.
+ * at the table, since nobody owns a monster. Made as one change, as the players' party is.
  */
 function makeSampleMonsterParty(): Party {
-  const party = new Party('testParty_2');
-  party.name = 'モンスター';
-  party.color = PARTY_COLORS[1];
-  party.initialize();
-  return party;
+  return GameObject.batch(() => {
+    const party = new Party('testParty_2');
+    party.name = 'モンスター';
+    party.color = PARTY_COLORS[1];
+    party.initialize();
+    return party;
+  });
 }
 
 /**

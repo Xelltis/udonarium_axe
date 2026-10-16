@@ -1,5 +1,6 @@
 import { makeDefaultTabletopObjects } from '@axe/application/tabletop/tabletop-default-setup';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DEFAULT_STATUS_AILMENT_NAMES } from '@axe/domain/character/builtin-status-ailments';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -44,6 +45,17 @@ describe('the pieces a first table is set out with', () => {
       const party = ObjectStore.instance.get<Party>(partyOf('キャラクターA'));
       expect(party).toBeInstanceOf(Party);
       expect(party!.name).toBe('パーティ1');
+    });
+
+    it('makes it as one change, so that a party read back from a room under its name outweighs it', () => {
+      const made = ObjectStore.instance.get<Party>(partyOf('キャラクターA'))!;
+      const read = ObjectSerializer.instance.parseXml('<party name="B隊" identifier="read-party"></party>') as Party;
+
+      try {
+        expect(made.majorVersion).toBeLessThan(read.majorVersion);
+      } finally {
+        read.destroy();
+      }
     });
 
     it('keeps the monsters out of it, since a party shares what it sees, in a party of their own', () => {
