@@ -239,11 +239,11 @@ describe('PeerCursor', () => {
   describe('a peer dropping out', () => {
     const made: PeerCursor[] = [];
 
+    /** A cursor as it arrives from a peer: its state taken in before the store's hook runs. */
     function arrive(peerId: string, userId: string): PeerCursor {
       const cursor = new PeerCursor();
-      cursor.initialize();
       const context = cursor.toContext();
-      cursor.apply({ ...context, syncData: { ...context.syncData, peerId, userId } });
+      store.add(cursor, false, () => cursor.apply({ ...context, syncData: { ...context.syncData, peerId, userId } }));
       made.push(cursor);
       return cursor;
     }
@@ -280,9 +280,26 @@ describe('PeerCursor', () => {
       vi.advanceTimersByTime(30_000);
 
       expect(store.get(before.identifier)).toBeFalsy();
+      expect(store.isDeleted(before.identifier)).toBe(true);
       expect(store.get(after.identifier)).toBe(after);
       expect(PeerCursor.findByPeerId('peer-x')).toBe(after);
       expect(PeerCursor.findByUserId('user-x')).toBe(after);
+    });
+
+    it('deletes for every peer a cursor under this seat’s own peer id that is not its own', async () => {
+      vi.spyOn(Network, 'peerId', 'get').mockReturnValue('peer-me');
+      const send = vi.spyOn(Network, 'send').mockImplementation(() => {});
+      PeerCursor.createMyCursor();
+      const leftBehind = arrive('peer-me', 'user-me');
+      const other = arrive('peer-x', 'user-x');
+
+      await Promise.resolve();
+
+      expect(store.get(leftBehind.identifier)).toBeFalsy();
+      expect(store.isDeleted(leftBehind.identifier)).toBe(true);
+      expect(send).toHaveBeenCalledWith(expect.objectContaining({ eventName: 'DELETE_GAME_OBJECT' }), undefined);
+      expect(store.get(PeerCursor.myCursor.identifier)).toBe(PeerCursor.myCursor);
+      expect(store.get(other.identifier)).toBe(other);
     });
 
     it('counts each seat linked now once, this one included', () => {

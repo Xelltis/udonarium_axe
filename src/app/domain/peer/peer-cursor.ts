@@ -287,22 +287,29 @@ export class PeerCursor extends GameObject {
    * For another peer's cursor, starts watching for that peer to drop out.
    *
    * When they disconnect and have not come back within 30 seconds, the cursor is removed from this peer's
-   * object store. So is it when they came back with a new cursor under the same peer id, as a seat
-   * loading the page again does.
+   * object store. When they came back with a new cursor under the same peer id, as a seat loading the
+   * page again does, the old one is deleted here for good, so that a peer offering it again is told
+   * to delete it too. A cursor under this seat's own peer id that is not its own is one it left behind
+   * before loading the page again, which it deletes for every peer as it arrives.
    */
   override onStoreAdded() {
     super.onStoreAdded();
-    if (!this.isMine) {
-      this.cleanups.push(
-        domainPeerDisconnect$.subscribe((data) => {
-          if (data.peerId !== this.peerId) return;
-          setTimeout(() => {
-            if (getPeerIds().includes(this.peerId) && PeerCursor.findByPeerId(this.peerId) === this) return;
-            ObjectStore.instance.remove(this);
-          }, PEER_DISCONNECT_TIMEOUT_MS);
-        })
-      );
+    if (this.isMine) return;
+    if (this.peerId.length > 0 && this.peerId === getMyPeerId()) {
+      queueMicrotask(() => {
+        if (ObjectStore.instance.get(this.identifier) === this) ObjectStore.instance.delete(this);
+      });
+      return;
     }
+    this.cleanups.push(
+      domainPeerDisconnect$.subscribe((data) => {
+        if (data.peerId !== this.peerId) return;
+        setTimeout(() => {
+          if (!getPeerIds().includes(this.peerId)) ObjectStore.instance.remove(this);
+          else if (PeerCursor.findByPeerId(this.peerId) !== this) ObjectStore.instance.delete(this, false);
+        }, PEER_DISCONNECT_TIMEOUT_MS);
+      })
+    );
   }
 
   // GameObject Lifecycle
