@@ -9,6 +9,7 @@ import {
 import { buildAltitudeAction, buildLockToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { TextNote } from '@axe/domain/tabletop/text-note';
+import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 import { buildDisclosureContextMenu } from '@axe/features/disclosure/disclosure-context-menu';
 
 export interface TextNoteContextMenuModel {
@@ -75,6 +76,7 @@ export function buildTextNoteContextMenuModel(
   const lockAction = buildLockToggleAction(textNote.isLock, (next) => (textNote.isLock = next), t);
   const copyAction: ContextMenuAction = {
     name: t('feature.tabletop.contextMenu.copy'),
+    enabled: !isWithheldHere(textNote),
     action: () => {
       const cloneObject = textNote.clone();
       cloneObject.location.x += gridSize;

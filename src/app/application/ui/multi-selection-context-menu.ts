@@ -6,6 +6,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { isLockedInPlace } from '@axe/domain/tabletop/lockable';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 
 export interface MultiSelectionContextDeps {
   readonly t: TranslateFn;
@@ -65,7 +66,7 @@ export function buildMultiSelectionContextMenu(
     {
       name: t('feature.tabletop.selection.copyAll'),
       action: () => {
-        const cloned = movable.map((obj) => copyBeside(obj, gridSize).identifier);
+        const cloned = movable.filter((obj) => !isWithheldHere(obj)).map((obj) => copyBeside(obj, gridSize).identifier);
         if (cloned.length > 0) selectionSignalService.replaceSelection(cloned);
       },
     },

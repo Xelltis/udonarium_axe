@@ -5,6 +5,7 @@ import { callShuffleCardStack } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/index';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 
 /**
  * Builds the context menu for a card stack on the table.
@@ -155,6 +156,7 @@ export function buildCardStackContextMenu(
     },
     {
       name: t('feature.tabletop.contextMenu.copy'),
+      enabled: !isWithheldHere(cardStack),
       action: () => {
         const cloneObject = cardStack.clone();
         cloneObject.location.x += gridSize;
