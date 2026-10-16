@@ -5,6 +5,7 @@ import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Party } from '@axe/domain/party/party';
 import { PartyListPanelComponent } from '@axe/features/gm-tools/party-list/party-list-panel.component';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -48,6 +49,10 @@ describe('PartyListPanelComponent', () => {
   function stubConfirm(answer: boolean): void {
     vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(answer);
   }
+
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() => TestBed.createComponent(PartyListPanelComponent));
+  });
 
   it('lists a new party and gives it a colour of its own', () => {
     panel().addParty();

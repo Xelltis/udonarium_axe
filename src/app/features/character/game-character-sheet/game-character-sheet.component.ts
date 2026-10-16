@@ -78,7 +78,7 @@ const NARROW_SHEET_REM = 36;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'game-character-sheet',
   templateUrl: './game-character-sheet.component.html',
-  host: { class: 'block' },
+  host: { class: 'block', '[attr.inert]': "isWholeSheetReadOnly() ? '' : null" },
   providers: [{ provide: IN_DATA_ELEMENT_SHEET, useValue: true }],
   imports: [
     CardStackCardListComponent,
@@ -142,6 +142,15 @@ export class GameCharacterSheetComponent {
     this.objectChange.trackMyCursor();
     return !this.rolePermission.canEditTabletop;
   });
+
+  /**
+   * Whether the whole sheet is kept from a reader who may not change the table. A character's sheet
+   * keeps its tabs to look through and holds back the rest itself; every other piece's is held back
+   * whole, its fields, its settings and its buttons alike.
+   */
+  readonly isWholeSheetReadOnly = computed(
+    () => this.isReadOnly() && !(this._tabletopObject() instanceof GameCharacter)
+  );
 
   private readonly _tabletopObject = signal<CharacterSheetTarget | null>(null);
   /**

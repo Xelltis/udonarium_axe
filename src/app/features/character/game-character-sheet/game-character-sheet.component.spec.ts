@@ -1,9 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Card, CardState } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute, DataElementRole } from '@axe/domain/data/data-element';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { GameCharacterSheetComponent } from '@axe/features/character/game-character-sheet/game-character-sheet.component';
@@ -113,6 +116,31 @@ describe('GameCharacterSheetComponent', () => {
       expect(dropped.preventDefault).not.toHaveBeenCalled();
       expect(dropped.stopPropagation).not.toHaveBeenCalled();
     } finally {
+      character.destroy();
+    }
+  });
+
+  it('holds a piece other than a character back whole from a guest, and a character only in part', () => {
+    PeerCursor.createMyCursor().role = PeerRole.Guest;
+    const host = () => fixture.nativeElement as HTMLElement;
+    const note = TextNote.create('メモ', '本文');
+    const character = GameCharacter.create('ヒロ', 1, '');
+    try {
+      component.tabletopObject = note;
+      fixture.detectChanges();
+      expect(host().hasAttribute('inert')).toBe(true);
+
+      component.tabletopObject = character;
+      fixture.detectChanges();
+      expect(host().hasAttribute('inert')).toBe(false);
+
+      PeerCursor.myCursor.role = PeerRole.Player;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      component.tabletopObject = note;
+      fixture.detectChanges();
+      expect(host().hasAttribute('inert')).toBe(false);
+    } finally {
+      note.destroy();
       character.destroy();
     }
   });
