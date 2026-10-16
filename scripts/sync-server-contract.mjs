@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// サーバー版の部屋の契約フィクスチャを、バックエンドのリポジトリから写す。
-// 使い方: node scripts/sync-server-contract.mjs <ref> [バックエンドのリポジトリ]
-//   ref は udonarium_axe_backend のコミットかブランチ（例 feat/server-transport）。
-//   リポジトリの既定は隣の ../udonarium_axe_backend。
-// 型（protocol.ts）は写さない。クライアントは src/app/core/network/server/server-protocol.ts に
-// 自分の型を持ち、同じフィクスチャを読む spec で食い違いを見つける。PROTOCOL_VERSION だけは
-// protocol.ts から読んで source.json に残し、spec がクライアントの版と比べる。
+// Copies the contract fixtures for server-hosted rooms over from the backend repository.
+// Usage: node scripts/sync-server-contract.mjs <ref> [backend repository]
+//   ref is a commit or branch of udonarium_axe_backend (e.g. feat/server-transport).
+//   The repository defaults to ../udonarium_axe_backend next door.
+// The types (protocol.ts) are not copied. The client keeps its own types in
+// src/app/core/network/server/server-protocol.ts, and a spec reading the same fixtures finds where they
+// disagree. Only PROTOCOL_VERSION is read from protocol.ts and kept in source.json, for a spec to compare
+// with the client's version.
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';

@@ -17,7 +17,7 @@ export default defineConfig({
   timeout: 30000,
   use: {
     baseURL: 'http://localhost:4300',
-    // UI文言を前提にしたアサーションが多いので言語を固定する
+    // Many assertions rely on the UI's wording, so the language is fixed
     locale: 'ja-JP',
     trace: 'on-first-retry',
     // Action/navigation timeouts to prevent indefinite hangs.

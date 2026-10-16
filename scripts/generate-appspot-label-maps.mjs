@@ -1,7 +1,8 @@
-// キャラクターシート倉庫の各システム編集フォーム（{slug}/edit.html）から、JSONパス→ラベルの対応表を
-// 抽出してsrc/app/domain/character/import/appspot-label-maps.generated.tsを生成する。
-// フォームHTMLはCORSを返さないため、実行時には取得できない。ここでビルド前に静的化する。
-// 専用プロファイルのある系統（PF系・dx3・stellar・bbt・kancolle）は各自でラベルを持つため対象外。
+// Extracts a table from JSON paths to labels out of the sheet warehouse's editing form for each system
+// ({slug}/edit.html), and generates src/app/domain/character/import/appspot-label-maps.generated.ts.
+// The form HTML comes without CORS headers, so it cannot be fetched at run time; it is made static here,
+// before the build. Systems with a dedicated profile (the PF family, dx3, stellar, bbt, kancolle) carry
+// their own labels and are left out.
 import { Window } from 'happy-dom';
 import { writeFileSync } from 'fs';
 

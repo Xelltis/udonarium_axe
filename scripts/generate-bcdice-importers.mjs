@@ -1,13 +1,16 @@
-// BCDiceのゲームシステムと翻訳を、いくつかずつまとめたチャンクから読み込むためのimport表を生成する。
-// bcdice同梱のDynamicLoaderは実行時に組み立てたパスをrequireに渡すため、バンドラが追えずブラウザで落ちる。
-// 全システムをまとめて読むと11MBを超え、1システムずつ分けると400を超えるファイルになる
-// （Cloudflare Pagesのダッシュボードから上げられるのは1,000ファイルまで）。
-// そこでシステムを継承の根でまとめた系統（Cthulhu・Cthulhu_Korean、SwordWorld・SwordWorld2_5など）に分け、
-// 系統を割らずに名前順で約300KBずつ詰めて、まとまりごとに1チャンクにする。系統ごとにするのは、
-// 派生したシステムが別のチャンクの親を読むと、その親が共有チャンクとしてもう1つのファイルになるため。
-// システムはクラスを定義するときに翻訳を読むので、まとまりの翻訳は別の小さなチャンクに分け、
-// システムのチャンクを読む前に必ずそちらを読んでBCDiceに渡す。同じチャンクに入れてimportの順で
-// 済ませると、バンドラがCommonJSのシステムを先に評価することがあり、順番を保証できない。
+// Generates the import table that loads BCDice's game systems and translations from chunks holding a few
+// of them each. The DynamicLoader bundled with bcdice hands require a path built at run time, which the
+// bundler cannot follow, so it fails in the browser. Reading every system together comes to over 11MB, and
+// splitting them one system apiece makes over 400 files (the Cloudflare Pages dashboard takes uploads of
+// up to 1,000 files).
+// So the systems are split into families gathered under the root of their inheritance (Cthulhu and
+// Cthulhu_Korean, SwordWorld and SwordWorld2_5, and so on), packed in name order about 300KB at a time
+// without splitting a family, and each group becomes one chunk. Families are kept whole because a derived
+// system that reads its parent from another chunk turns that parent into one more file, as a shared chunk.
+// A system reads its translations when it defines its class, so a group's translations go into a separate,
+// small chunk, which is always read and handed to BCDice before the system chunk is read. Putting them in
+// the same chunk and leaving it to the import order does not work: the bundler may evaluate the CommonJS
+// systems first, so the order cannot be guaranteed.
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'fs';
 import * as prettier from 'prettier';
 
@@ -20,7 +23,7 @@ const GROUP_DIR = 'src/app/domain/dice/bcdice/groups';
 const GROUP_ALIAS = '@axe/domain/dice/bcdice/groups';
 const TRANSLATION_LOADER = '@axe/domain/dice/bcdice/bcdice-translations';
 
-/** 1つのまとまりに詰める目安（元のJSとJSONのバイト数）。系統1つでこれを超えるものは単独になる */
+/** About how much to pack into one group, in bytes of the original JS and JSON. A family over this stands alone. */
 const GROUP_BYTES = 300_000;
 
 const collator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
@@ -35,7 +38,7 @@ const classNames = [...superClassOf.keys()]
   })
   .sort(collator.compare);
 
-/** 継承をたどった根のクラス名。システムでない名前はそのまま返す */
+/** The class name at the root of the inheritance chain. A name that is not a system comes back as it is. */
 const familyOf = (className) => {
   let current = className;
   const seen = new Set();

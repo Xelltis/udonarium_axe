@@ -108,7 +108,7 @@
 
 /*
  * Japanese breaks between any two characters, so a heading or a label cell can
- * be squeezed down to one character per line（倉/庫, 消しゴ/ム）. `keep-all`
+ * be squeezed down to one character per line (倉/庫, 消しゴ/ム). `keep-all`
  * keeps each word whole while still allowing a break at spaces and slashes.
  */
 .vp-doc .table-wrap > table th,
