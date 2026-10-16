@@ -166,6 +166,7 @@ describe('ImageStorage', () => {
       store.useAccess(null);
       cancelWaiting();
       (storage as unknown as { uploadRetries: AssetRetries }).uploadRetries.clear();
+      (storage as unknown as { retriedAfterTimeOut: Set<string> }).retriedAfterTimeOut.clear();
       vi.useRealTimers();
     });
 
@@ -203,10 +204,18 @@ describe('ImageStorage', () => {
 
       finishUpload('timedOut');
       await vi.advanceTimersByTimeAsync(0);
-      upload.mockClear().mockResolvedValue('stored');
+      let finishAgain: (result: AssetUploadResult) => void = () => {};
+      upload.mockClear().mockReturnValue(new Promise<AssetUploadResult>((resolve) => (finishAgain = resolve)));
       await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS);
-
       expect(upload).toHaveBeenCalledTimes(1);
+
+      // Asked for again and out of time once more, it is left: the room had its one more try.
+      storage.uploadAllToAssetStore();
+      finishAgain('timedOut');
+      await vi.advanceTimersByTimeAsync(0);
+      upload.mockClear();
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 8);
+      expect(upload).not.toHaveBeenCalled();
     });
 
     it('tries no upload again that ran out of the time its size was given', async () => {

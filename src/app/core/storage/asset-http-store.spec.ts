@@ -96,6 +96,27 @@ describe('AssetHttpStore', () => {
       expect(callsOf()).toEqual([['HEAD', urlOf(id)]]);
     });
 
+    it('gives no upload longer than three minutes, so one stuck on a quiet line lets the others go', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      fetchSpy.mockImplementation((_url, init) => {
+        if (init?.method === 'HEAD') return Promise.resolve(new Response(null, { status: 404 }));
+        return new Promise<Response>((_resolve, reject) =>
+          init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+        );
+      });
+      try {
+        let result: string | null = null;
+        void store.upload(id, new Blob([new Uint8Array(64 * 200_000)])).then((r) => (result = r));
+
+        await vi.advanceTimersByTimeAsync(179_000);
+        expect(result).toBeNull();
+        await vi.advanceTimersByTimeAsync(2_000);
+        expect(result).toBe('timedOut');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('fails for now, rather than running out of time, when asking whether the room has the bytes is cut off', async () => {
       fetchSpy.mockRejectedValueOnce(new DOMException('aborted', 'AbortError'));
 

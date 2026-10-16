@@ -37,6 +37,8 @@ const REQUEST_TIMEOUT_MS = 60_000;
  * the time each is given; the ones going at once share it.
  */
 const UPLOAD_FLOOR_BYTES_PER_MS = 64;
+/** The longest any upload is given, so that one stuck on a line gone quiet holds its turn no longer. */
+const MAX_UPLOAD_TIMEOUT_MS = 180_000;
 /** How long to wait before each retry of an upload the server turned away as too frequent. */
 const RATE_LIMIT_BACKOFF_MS = [10_000, 20_000, 40_000];
 
@@ -187,7 +189,10 @@ export class AssetHttpStore {
             this.request(
               this.urlOf(access, identifier),
               { method: 'PUT', body: blob, headers: { ...this.headersOf(access), ...named } },
-              REQUEST_TIMEOUT_MS + (blob.size * UPLOAD_CONCURRENCY) / UPLOAD_FLOOR_BYTES_PER_MS
+              Math.min(
+                MAX_UPLOAD_TIMEOUT_MS,
+                REQUEST_TIMEOUT_MS + (blob.size * UPLOAD_CONCURRENCY) / UPLOAD_FLOOR_BYTES_PER_MS
+              )
             )
           );
           if (!res) return 'failed';
