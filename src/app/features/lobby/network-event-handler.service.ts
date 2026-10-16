@@ -244,7 +244,7 @@ export class NetworkEventHandlerService {
    * A reload opens the waiting connection before any room, and that connection belongs to no
    * room. Written down as it stands, it would wipe out the room the tab had just been in, and a
    * game master coming back to their own table could no longer be told from one walking into
-   * somebody else's. Outside a room, the room last written down is kept.
+   * somebody else's. Outside a room, the room last written down is kept, with the role held in it.
    */
   private rememberIdentity(peer: { userId: string; roomId: string; roomName: string; isRoom: boolean }): void {
     const saved = loadIdentity();
@@ -254,6 +254,7 @@ export class NetworkEventHandlerService {
       roomId: last?.roomId ?? peer.roomId,
       roomName: last?.roomName ?? peer.roomName,
       role: PeerCursor.myCursor.role,
+      roomRole: last ? last.roomRole : PeerCursor.myCursor.role,
       reConnectPass: PeerCursor.myCursor.reConnectPass,
       roomKey: last ? (last.roomKey ?? '') : (Network.roomKey ?? ''),
       guestUserId: guestUserIdAfter(peer.userId, saved, this.accountUserId()),

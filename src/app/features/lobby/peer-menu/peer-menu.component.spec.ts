@@ -177,6 +177,31 @@ describe('PeerMenuComponent', () => {
         expect.objectContaining({ userId: 'tab-user', roomId: '', roomKey: '', role: PeerRole.GameMaster })
       );
     });
+
+    it('keeps the room it was last in when a game master’s role is taken back by the seat that held it there', () => {
+      saveIdentity({
+        userId: 'tab-user',
+        roomId: 'room-1',
+        roomName: '卓',
+        role: PeerRole.GameMaster,
+        reConnectPass: '',
+        roomKey: 'key',
+      });
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        userId: '',
+        roomId: '',
+        roomName: '',
+        isRoom: false,
+      } as never);
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+
+      component.setMyRole(PeerRole.Player);
+      component.setMyRole(PeerRole.GameMaster);
+
+      expect(loadIdentity()).toEqual(
+        expect.objectContaining({ roomId: 'room-1', roomKey: 'key', role: PeerRole.GameMaster })
+      );
+    });
   });
 
   describe('roles on a room server', () => {

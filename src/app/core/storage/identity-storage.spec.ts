@@ -12,6 +12,7 @@ const sample: PersistedIdentity = {
   roomId: 'ab1',
   roomName: 'Room',
   role: 'gm',
+  roomRole: 'gm',
   reConnectPass: 'secret',
   roomKey: '0123456789abcdef0123456789abcdef',
   guestUserId: '',
@@ -43,11 +44,32 @@ describe('identity-storage', () => {
       roomId: '',
       roomName: '',
       role: '',
+      roomRole: '',
       reConnectPass: '',
       roomKey: '',
       guestUserId: '',
       accountUserId: '',
     });
+  });
+
+  it('reads a seat saved before the role held in the room was kept as holding the role it saved', () => {
+    const { roomRole: _roomRole, ...saved } = sample;
+    sessionStorage.setItem('udonarium-axe.identity', JSON.stringify({ ...saved, role: 'pl' }));
+
+    expect(loadIdentity()?.roomRole).toBe('pl');
+  });
+
+  it('keeps the role held in the room apart from the one taken since', () => {
+    saveIdentity({ ...sample, role: 'pl', roomRole: 'gm' });
+
+    expect(loadIdentity()).toEqual(expect.objectContaining({ role: 'pl', roomRole: 'gm' }));
+  });
+
+  it('takes the role saved without the one held in the room as that, as it is saved from inside one', () => {
+    const { roomRole: _roomRole, ...saved } = sample;
+    saveIdentity({ ...saved, role: 'pl' });
+
+    expect(loadIdentity()?.roomRole).toBe('pl');
   });
 
   it('reads a seat saved before rooms had keys as having none', () => {

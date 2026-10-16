@@ -7,6 +7,11 @@ export interface PersistedIdentity {
   roomId: string;
   roomName: string;
   role: string;
+  /**
+   * The role the seat held in the room it was last in, written only from inside that room, where a
+   * role taken outside changes `role` alone. Anything saved before it is read as `role`.
+   */
+  roomRole?: string;
   reConnectPass: string;
   /** The key of the room on a room server; empty for SkyWay and for anything saved before keys. */
   roomKey?: string;
@@ -60,6 +65,7 @@ export function saveIdentity(identity: PersistedIdentity): void {
   const accountUserId = identity.accountUserId || saved?.accountUserId || '';
   const kept = {
     ...identity,
+    roomRole: identity.roomRole ?? identity.role,
     accountUserId,
     guestUserId: identity.guestUserId ?? guestUserIdAfter(identity.userId, saved, accountUserId),
   };
@@ -88,11 +94,13 @@ export function loadIdentity(): PersistedIdentity | null {
         : typeof parsed.guestUserId === 'string'
           ? parsed.userId
           : '';
+    const role = typeof parsed.role === 'string' ? parsed.role : '';
     return {
       userId: parsed.userId,
       roomId: typeof parsed.roomId === 'string' ? parsed.roomId : '',
       roomName: typeof parsed.roomName === 'string' ? parsed.roomName : '',
-      role: typeof parsed.role === 'string' ? parsed.role : '',
+      role,
+      roomRole: typeof parsed.roomRole === 'string' ? parsed.roomRole : role,
       reConnectPass: typeof parsed.reConnectPass === 'string' ? parsed.reConnectPass : '',
       roomKey: typeof parsed.roomKey === 'string' ? parsed.roomKey : '',
       guestUserId:
