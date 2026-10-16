@@ -39,7 +39,7 @@ curl -H "Origin: https://axe.example.com" https://<バックエンドのURL>/v1/
 ```
 
 `{"providers":[]}`が返るなら、Workerにログインの設定が入っていないので、部屋を使えません。
-3では、`backend.url`に加えて、`transport`が`"server"`になっているかも確かめてください。2はSkyWay版と同じですが、部屋のサーバーでは`*`にするとログインだけが通りません。ログインから戻れるのは、名前で書いたOriginのページだけだからです。AxeのURLを書いてください。
+3では、`backend.url`に加えて、`transport`が`"server"`になっているかも確かめてください。2はSkyWay版と同じですが、部屋のサーバーでは`*`にするとログインが通らず、部屋も作れません。ログインから戻れるのは、名前で書いたOriginのページだけだからです。AxeのURLを書いてください。
 
 3つとも通っているのにつながらないなら、[Issue](https://github.com/Xelltis/udonarium_axe/issues)で報告してください。
 
