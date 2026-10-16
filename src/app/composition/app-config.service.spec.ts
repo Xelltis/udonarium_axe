@@ -93,6 +93,7 @@ describe('AppConfigService', () => {
   it('lets a screen laid over a stream in as a guest of its own, not as the account logged in', async () => {
     TestBed.inject(OverlayModeService).activate();
     const setCredentials = vi.spyOn(Network, 'setServerCredentials');
+    const loginConfigured = vi.spyOn(TestBed.inject(ServerAuthService), 'configure');
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ transport: 'server', backend: { url: 'https://rooms.example/' } }))
     );
@@ -100,6 +101,7 @@ describe('AppConfigService', () => {
       await loadConfig();
 
       expect(setCredentials).not.toHaveBeenCalled();
+      expect(loginConfigured).not.toHaveBeenCalled();
     } finally {
       document.body.classList.remove(OVERLAY_BODY_CLASS);
     }

@@ -81,13 +81,17 @@ export class AppConfigService {
    * before anything connects; a reload may go straight back into a room. The room's pictures and
    * sounds are reached with the token the room hands the seat.
    *
-   * A screen laid over a stream comes in as a guest of its own, even where the browser is logged
-   * in: as the account it would take the account's one seat and put the reader's own screen out.
+   * A screen laid over a stream leaves the login aside altogether and comes in as a guest of its
+   * own, even where the browser is logged in: as the account it would take the account's one seat
+   * and put the reader's own screen out, and minding a login it does not use would have it go into
+   * the room again and again.
    */
   private configureServerLogin(config: AppConfig): void {
     if (config.transport !== 'server' || config.backend.url.trim().length === 0) return;
-    this.serverAuth.configure(config.backend.url);
-    if (!this.overlay.active()) Network.setServerCredentials(this.serverAuth);
+    if (!this.overlay.active()) {
+      this.serverAuth.configure(config.backend.url);
+      Network.setServerCredentials(this.serverAuth);
+    }
     AssetHttpStore.instance.useAccess(
       () => Network.instance.assetAccess,
       () => Network.instance.refreshAssetAccess()
