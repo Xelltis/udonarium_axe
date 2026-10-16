@@ -32,7 +32,9 @@
       <div
         class="border-ui-border-panel [&_button]:bg-ui-elevated [&_button]:border-ui-border-panel [&_button]:text-ui-muted [&_button]:hover:bg-ui-hover [&_button]:hover:text-ui-text [&_button]:rounded-ui-sm mb-1 flex flex-wrap items-center gap-1 border-b border-solid px-1.5 pt-1.5 pb-1 group-data-narrow/sheet:hidden [&_button]:inline-flex [&_button]:cursor-pointer [&_button]:items-center [&_button]:gap-0.75 [&_button]:border [&_button]:border-solid [&_button]:px-2 [&_button]:py-0.75 [&_button]:text-[0.8em] [&_button]:whitespace-nowrap [&_button]:transition-[background,color]"
       >
-        <button (click)="clone()">{{ 'feature.inventory.sheet.copy' | transloco }}</button>
+        @if (!isReadOnly()) {
+          <button (click)="clone()">{{ 'feature.inventory.sheet.copy' | transloco }}</button>
+        }
         <button (click)="saveToXML()">{{ 'feature.inventory.sheet.save' | transloco }}</button>
       </div>
       <div
@@ -44,6 +46,7 @@
           type="button"
           class="border-ui-border-panel bg-ui-elevated text-ui-dim active:border-ui-accent flex size-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-solid p-0"
           [attr.aria-label]="'feature.inventory.sheet.portraitsManage' | transloco"
+          [disabled]="isReadOnly()"
           (click)="openPortraitSheet($event)"
           data-testid="sheet-portrait-button"
         >

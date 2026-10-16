@@ -699,7 +699,7 @@ export class GameCharacterSheetComponent {
    */
   openPortraitSheet(event?: Event): void {
     const char = this.character;
-    if (!char) return;
+    if (!char || this.isReadOnly()) return;
     this.bottomSheet.open(CharacterPortraitPanelComponent, {
       title: this.translateFn('feature.inventory.sheet.portraitsManageTitle', { name: char.name }),
       inputs: { character: char },
@@ -710,16 +710,18 @@ export class GameCharacterSheetComponent {
 
   /**
    * Opens the menu under the "⋯" at the top of a narrow sheet, which holds what the toolbar and the
-   * portrait column hold on a wide one.
+   * portrait column hold on a wide one: for a reader who may not change the table, only saving and
+   * folding.
    */
   openSheetMenu(event: MouseEvent): void {
     const button = event.currentTarget instanceof Element ? event.currentTarget : null;
     const rect = button?.getBoundingClientRect();
     const position = rect ? { x: rect.right, y: rect.bottom } : this.pointerDeviceService.pointers[0];
+    const mayChange = !this.isReadOnly();
     const actions = buildCharacterSheetMenu(
       {
-        portraits: () => this.openPortraitSheet(event),
-        copy: () => this.clone(),
+        portraits: mayChange ? () => this.openPortraitSheet(event) : undefined,
+        copy: mayChange ? () => this.clone() : undefined,
         save: () => void this.saveToXML(),
         collapseAll: () => this.setAllCardsFolded(true),
         expandAll: () => this.setAllCardsFolded(false),

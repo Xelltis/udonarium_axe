@@ -1,5 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { BottomSheetService } from '@axe/application/ui/bottom-sheet.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { Card, CardState } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -168,6 +171,35 @@ describe('GameCharacterSheetComponent', () => {
       expect(host.querySelector('[data-testid="sheet-card-edit"]')).toBeNull();
       expect(host.querySelector('[data-testid="sheet-add-section"]')).toBeNull();
       expect(component.isElementEditing(sections[0].identifier)).toBe(false);
+    } finally {
+      PeerCursor.myCursor = null!;
+      character.destroy();
+    }
+  });
+
+  it('offers a guest neither the portraits to manage nor a copy, on a narrow sheet or a wide one', () => {
+    const character = GameCharacter.create('ヒロ', 1, '');
+    const opened = vi.spyOn(TestBed.inject(BottomSheetService), 'open');
+    const menu = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+    const t = TestBed.inject(TRANSLATE_FN);
+    try {
+      PeerCursor.createMyCursor().role = PeerRole.Guest;
+      component.tabletopObject = character;
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      component.openPortraitSheet();
+      component.openSheetMenu(new MouseEvent('click'));
+
+      expect(opened).not.toHaveBeenCalled();
+      const names = (menu.mock.calls[0][1] as { name?: string }[]).map((action) => action.name);
+      expect(names).not.toContain(t('feature.inventory.sheet.portraitsManage'));
+      expect(names).not.toContain(t('feature.inventory.sheet.copy'));
+      expect(names).toContain(t('feature.inventory.sheet.save'));
+      expect((host.querySelector('[data-testid="sheet-portrait-button"]') as HTMLButtonElement).disabled).toBe(true);
+      expect([...host.querySelectorAll('button')].map((button) => button.textContent?.trim())).not.toContain(
+        t('feature.inventory.sheet.copy')
+      );
     } finally {
       PeerCursor.myCursor = null!;
       character.destroy();
