@@ -263,7 +263,9 @@ export class PeerMenuComponent {
    *
    * The role is written down in this browser along with the room, so reconnecting keeps it. Outside
    * a room only the role is written, beside the tab's user id and the room it was last in, which
-   * waiting or playing offline knows nothing of. Does nothing for a role the reader may not take.
+   * waiting or playing offline knows nothing of; but a game master's role taken there forgets that
+   * room, where the seat was not one and would come back as one beside its own. Does nothing for a
+   * role the reader may not take.
    */
   setMyRole(role: PeerRole) {
     if (!this.isRoleSelfAssignable(role)) return;
@@ -272,7 +274,9 @@ export class PeerMenuComponent {
     const peer = Network.peerContext;
     if (!peer.isRoom) {
       const saved = loadIdentity();
-      if (saved) saveIdentity({ ...saved, role });
+      if (!saved) return;
+      const promoted = role === PeerRole.GameMaster && saved.role !== PeerRole.GameMaster;
+      saveIdentity(promoted ? { ...saved, role, roomId: '', roomName: '', roomKey: '' } : { ...saved, role });
       return;
     }
     saveIdentity({
