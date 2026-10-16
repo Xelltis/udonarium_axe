@@ -256,17 +256,16 @@ export class ChatTabSettingComponent {
       }
       this.selectedTab.set(null);
     }, this.destroyRef);
+    // A tab gone from the list, or one this seat may no longer read, is let go of, as on the seat
+    // being made a player while it had a tab only the game master reads picked.
     this.objectChange.onObjectChangedForAlias(
-      [ChatTab.aliasName, ChatTabList.aliasName],
-      (e) => {
-        const object = this.objectStore.get(e.identifier);
-        if (object instanceof ChatTab || object instanceof ChatTabList) {
-          if (this.selectedTab() && !this.objectStore.get(this.selectedTab()!.identifier)) {
-            this.selectedTab.set(null);
-          }
-          if (!this.selectedTab() && this.chatTabs.length > 0) {
-            this.selectedTab.set(this.chatTabs[0]);
-          }
+      [ChatTab.aliasName, ChatTabList.aliasName, PeerCursor.aliasName],
+      () => {
+        if (this.selectedTab() && !this.chatTabs.includes(this.selectedTab()!)) {
+          this.selectedTab.set(null);
+        }
+        if (!this.selectedTab() && this.chatTabs.length > 0) {
+          this.selectedTab.set(this.chatTabs[0]);
         }
       },
       this.destroyRef
@@ -364,7 +363,7 @@ export class ChatTabSettingComponent {
    * that follow it. Does nothing for a tab that may not be deleted.
    */
   delete() {
-    if (!this.isDeletable) return;
+    if (!this.isDeletable || !this.isSelectionInReach()) return;
     if (!this.isEmpty && this.selectedTab()) {
       const parentElement = this.selectedTab()!.parent!;
       const index: number = parentElement.children.indexOf(this.selectedTab()!);
@@ -391,7 +390,7 @@ export class ChatTabSettingComponent {
    * the server rolled where they are, since the server keeps them.
    */
   deleteLog() {
-    if (!this.allowDeleteLog || !this.canEditTabs) return;
+    if (!this.allowDeleteLog || !this.canEditTabs || !this.isSelectionInReach()) return;
 
     if (!this.isEmpty && this.selectedTab()) {
       this.clearLogOf(this.selectedTab()!);
@@ -428,6 +427,12 @@ export class ChatTabSettingComponent {
       if (keepServerRolls && child instanceof ChatMessage && child.isServerRoll) continue;
       child.destroy();
     }
+  }
+
+  /** Whether the picked tab is still one this seat is listed, and so may clear or delete. */
+  private isSelectionInReach(): boolean {
+    const tab = this.selectedTab();
+    return tab !== null && this.chatTabs.includes(tab);
   }
 
   private requesterUserId(): string {

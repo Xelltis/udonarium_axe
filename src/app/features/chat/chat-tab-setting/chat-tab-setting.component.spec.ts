@@ -461,6 +461,22 @@ describe('ChatTabSettingComponent', () => {
       expect(tab.chatMessages).not.toContain(rolled);
     });
 
+    it('clears and deletes no tab picked before the player could no longer read it', () => {
+      beSeat(PeerRole.Player);
+      const closed = ChatTabList.instance.addChatTab('closed');
+      closed.addMessage({ from: 'someone', name: '誰か', text: '読めた発言', timestamp: 1000 });
+      component.selectedTab.set(closed);
+      component.allowDeleteLog = true;
+      component.allowDeleteTab = true;
+      closed.plCanView = false;
+
+      component.deleteLog();
+      component.delete();
+
+      expect(ObjectStore.instance.get(closed.identifier)).toBe(closed);
+      expect(closed.chatMessages.map((message) => message.text)).toEqual(['読めた発言']);
+    });
+
     it('lists for a player only the tabs they may read, the others being out of their reach', () => {
       beSeat(PeerRole.Player);
       const open = ChatTabList.instance.addChatTab('open');
