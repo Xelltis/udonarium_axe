@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, EventEmitter, Output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import {
   CellCoord,
   cellPatternBoundingBox,
@@ -43,6 +44,10 @@ export class RangeShapeEditorComponent {
 
   @Output() readonly saved = new EventEmitter<RangeShapeEditorResult>();
   @Output() readonly cancelled = new EventEmitter<void>();
+
+  constructor() {
+    closeWhenOffTheTable();
+  }
 
   readonly geometry = computed(() => buildEditorBoardGeometry(this.gridType()));
 

@@ -3,6 +3,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 
 describe('GameCharacterBuffViewComponent', () => {
   let component: GameCharacterBuffViewComponent;
@@ -21,6 +22,10 @@ describe('GameCharacterBuffViewComponent', () => {
 
   afterEach(() => {
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
+  });
+
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() => TestBed.createComponent(GameCharacterBuffViewComponent));
   });
 
   it('should be created', () => {

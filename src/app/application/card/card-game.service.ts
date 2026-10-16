@@ -120,10 +120,13 @@ export class CardGameService {
     return { dealt: cards.length, participants: seats.length };
   }
 
-  /** Takes a card from someone else's hand into your own and says so in chat. False while you have no user id. */
+  /**
+   * Takes a card from someone else's hand into your own and says so in chat. False while you have no
+   * user id or may not hold cards.
+   */
   drawFromHand(card: Card, fromName: string): boolean {
     const myUserId = this.myUserId();
-    if (myUserId.length < 1) return false;
+    if (myUserId.length < 1 || !canRoleEdit(PeerCursor.myRole)) return false;
 
     card.toHand(myUserId);
     SoundEffect.play(PresetSound.cardDraw);

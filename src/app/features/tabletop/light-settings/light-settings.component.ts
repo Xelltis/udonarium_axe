@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import {
   applyVisionShape,
   asVisionShape,
@@ -28,6 +29,10 @@ type LightTarget = LightConfig & { update?: () => void };
 })
 export class LightSettingsComponent {
   private readonly t = inject(TRANSLATE_FN);
+
+  constructor() {
+    closeWhenOffTheTable();
+  }
 
   target: LightTarget | null = null;
   advanced = false;

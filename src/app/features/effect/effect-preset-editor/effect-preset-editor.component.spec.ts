@@ -6,6 +6,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { EffectPresetSet } from '@axe/domain/effect/effect-preset-set';
 import { EffectPresetEditorComponent } from '@axe/features/effect/effect-preset-editor/effect-preset-editor.component';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('EffectPresetEditorComponent', () => {
@@ -36,6 +37,10 @@ describe('EffectPresetEditorComponent', () => {
   function text(): string {
     return ((fixture.nativeElement as HTMLElement).textContent ?? '').replace(/\s+/g, ' ');
   }
+
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() => TestBed.createComponent(EffectPresetEditorComponent));
+  });
 
   it('says so when the preset is not there', () => {
     fixture.componentInstance.presetIdentifier.set('');

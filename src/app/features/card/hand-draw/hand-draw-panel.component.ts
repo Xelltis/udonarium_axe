@@ -4,6 +4,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -35,6 +36,10 @@ export class HandDrawPanelComponent {
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly confirm = inject(ConfirmService);
   private readonly t = inject(TRANSLATE_FN);
+
+  constructor() {
+    closeWhenOffTheTable();
+  }
 
   readonly selectedUserId = signal('');
 

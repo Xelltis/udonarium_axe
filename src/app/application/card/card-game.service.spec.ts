@@ -132,6 +132,17 @@ describe('CardGameService', () => {
       expect(service.handCardsOf('other')).toHaveLength(0);
       expect(sendSystemMessage).toHaveBeenCalledOnce();
     });
+
+    it('moves nothing for a guest, who holds no cards', () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      const card = trumpCard('s07');
+      card.toHand('other');
+
+      expect(service.drawFromHand(card, 'あいて')).toBe(false);
+
+      expect(card.location.name).toBe(handLocationOf('other'));
+      expect(sendSystemMessage).not.toHaveBeenCalled();
+    });
   });
 
   describe('giveFromHand()', () => {

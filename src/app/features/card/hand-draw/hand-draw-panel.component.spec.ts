@@ -11,6 +11,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { HandDrawPanelComponent } from '@axe/features/card/hand-draw/hand-draw-panel.component';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('HandDrawPanelComponent', () => {
@@ -60,6 +61,10 @@ describe('HandDrawPanelComponent', () => {
     for (const cursor of ObjectStore.instance.getObjects<PeerCursor>(PeerCursor)) {
       if (cursor !== PeerCursor.myCursor) ObjectStore.instance.delete(cursor, false);
     }
+  });
+
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() => TestBed.createComponent(HandDrawPanelComponent));
   });
 
   it('offers only the other players who hold a hand', () => {

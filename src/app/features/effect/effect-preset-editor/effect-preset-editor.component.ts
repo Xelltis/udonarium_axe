@@ -5,6 +5,7 @@ import { EffectLibraryService } from '@axe/application/effect/effect-library.ser
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -147,6 +148,7 @@ export class EffectPresetEditorComponent {
   });
 
   constructor() {
+    closeWhenOffTheTable();
     queueMicrotask(() => (this.modalService.title = this.panelService.title = this.t('feature.effect.editorTitle')));
   }
 
