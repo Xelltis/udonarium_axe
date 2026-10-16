@@ -437,6 +437,17 @@ describe('ChatInputComponent', () => {
       expect((await outgoing).toTicker).toBe(true);
     });
 
+    it('offers a guest no ticker, the band being on everybody else’s screen', () => {
+      TestBed.inject(TabletopDisplayService).set({ multiAngleTickerEnabled: true });
+      TestBed.inject(ViewModePreferenceService).choose('flat');
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeNull();
+      expect(component.showsTickerSwitch()).toBe(false);
+    });
+
     it('sends as the character that was picked with its own colours', async () => {
       fixture.detectChanges();
       const character = speaker('アリス');

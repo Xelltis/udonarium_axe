@@ -94,17 +94,22 @@ export class ChatInputComponent {
   private readonly tabletopDisplay = inject(TabletopDisplayService);
   private readonly tabletopService = inject(TabletopService);
 
-  /** The ticker is this screen's, so the switch is offered only where one is running. */
   /**
    * Whether this seat has a ticker to send a line to.
    *
    * The band only runs along the edge of a table being looked straight down on, so a seat in
    * perspective has none. Offered there all the same, the switch would send a line to everybody
-   * else's band and leave the sender's own screen with nothing to show for it.
+   * else's band and leave the sender's own screen with nothing to show for it. A guest, who puts
+   * nothing on anybody's screen, is not offered it, as the line's own menu offers it none.
    */
-  readonly showsTickerSwitch = computed(
-    () => this.tabletopService.mode2d() && this.tabletopDisplay.settings().multiAngleTickerEnabled
-  );
+  readonly showsTickerSwitch = computed(() => {
+    this.objectChange.trackMyCursor();
+    return (
+      canRoleEdit(PeerCursor.myRole) &&
+      this.tabletopService.mode2d() &&
+      this.tabletopDisplay.settings().multiAngleTickerEnabled
+    );
+  });
   readonly sendsToTicker = signal(false);
 
   private readonly roomPanels = inject(RoomPanelService);
