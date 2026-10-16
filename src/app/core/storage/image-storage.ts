@@ -116,11 +116,31 @@ export class ImageStorage {
   }
 
   /**
+   * How long this seat waits before putting up one a peer sent, set by the app: the later among the
+   * room's GMs and PLs it comes, the longer, so that the first has put it up before the next looks.
+   */
+  receivedUploadDelay: () => number = () => 0;
+
+  /**
    * Puts an image a peer sent up to the room's asset store, for one the store was found to
    * lack: the seat that added it could not put it there, and once that seat leaves nobody else
-   * might. Only a GM or a PL may put anything there.
+   * might. Only a GM or a PL may put anything there, and each waits its turn among them; one that
+   * finds it there by then puts nothing up.
    */
   uploadReceived(identifier: string): void {
+    const delay = this.receivedUploadDelay();
+    if (delay <= 0) {
+      this.putUpHeld(identifier);
+      return;
+    }
+    const roomKey = Network.roomKey;
+    setTimeout(() => {
+      if (Network.roomKey === roomKey) this.putUpHeld(identifier);
+    }, delay);
+  }
+
+  /** Puts one this seat holds up to the room's asset store, as a GM or a PL may. */
+  private putUpHeld(identifier: string): void {
     const role = Network.serverRole;
     const image = this.imageHash[identifier];
     if (image && (role === 'gm' || role === 'pl')) this.uploadToAssetStore(image);
@@ -161,7 +181,7 @@ export class ImageStorage {
       .finally(() => {
         this.uploading.delete(identifier);
         this.catalogSchedule.whenQuiet(100);
-        if (wentUpElsewhere) this.uploadReceived(identifier);
+        if (wentUpElsewhere) this.putUpHeld(identifier);
       });
   }
 

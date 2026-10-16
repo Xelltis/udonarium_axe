@@ -25,6 +25,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { handLocationOf } from '@axe/domain/card/hand-location';
 import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -693,6 +694,29 @@ describe('NetworkEventHandlerService', () => {
 
       expect(list).toHaveBeenCalledTimes(2);
       expect(pictures).toHaveBeenCalledWith([picture]);
+    });
+
+    it('gives each GM or PL linked before this seat a turn ahead of it to put up what a guest named', () => {
+      vi.spyOn(Network, 'peerId', 'get').mockReturnValue('peer-c');
+      vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['peer-a', 'peer-b', 'peer-d', 'peer-g']);
+      const seats = [
+        ['peer-a', PeerRole.GameMaster],
+        ['peer-b', PeerRole.Player],
+        ['peer-d', PeerRole.Player],
+        ['peer-g', PeerRole.Guest],
+      ].map(([peerId, role]) => {
+        const cursor = new PeerCursor();
+        cursor.peerId = peerId;
+        cursor.role = role as PeerRole;
+        cursor.initialize();
+        return cursor;
+      });
+      try {
+        expect(ImageStorage.instance.receivedUploadDelay()).toBe(10_000);
+        expect(AudioStorage.instance.receivedUploadDelay()).toBe(10_000);
+      } finally {
+        for (const cursor of seats) cursor.destroy();
+      }
     });
 
     it('reads the room’s list again a little after somebody leaves, for what they put up on the way out', async () => {

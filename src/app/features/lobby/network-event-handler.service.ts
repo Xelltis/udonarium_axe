@@ -23,7 +23,7 @@ import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { handOverOwnership } from '@axe/domain/peer/ownership';
 import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { DEFAULT_PEER_ROLE } from '@axe/domain/peer/peer-role';
+import { canRoleEdit, DEFAULT_PEER_ROLE } from '@axe/domain/peer/peer-role';
 
 /** What to say for each reason the room server gives for keeping a role as it was. */
 const ROLE_REJECTED_KEYS: Readonly<Record<string, string>> = {
@@ -35,6 +35,9 @@ const ROLE_REJECTED_KEYS: Readonly<Record<string, string>> = {
 
 /** How long after somebody leaves the room's list of pictures and sounds is read again. */
 const ROOM_ASSET_RELIST_MS = 30_000;
+
+/** How long each GM or PL waits after the one before it to put up what a guest named. */
+const RECEIVED_UPLOAD_TURN_MS = 5_000;
 
 @Injectable({ providedIn: 'root' })
 export class NetworkEventHandlerService {
@@ -84,7 +87,11 @@ export class NetworkEventHandlerService {
     this.destroyRef.onDestroy(() => {
       this.roomAssetListRetries.clear();
       if (this.roomAssetRelistTimer) clearTimeout(this.roomAssetRelistTimer);
+      ImageStorage.instance.receivedUploadDelay = () => 0;
+      AudioStorage.instance.receivedUploadDelay = () => 0;
     });
+    ImageStorage.instance.receivedUploadDelay = () => this.turnToPutUpReceived();
+    AudioStorage.instance.receivedUploadDelay = () => this.turnToPutUpReceived();
     networkMessage$.subscribe((message) => {
       if (message.eventName !== AuthorityEvent.ROLE_REJECTED || message.sendFrom !== Network.authorityPeerId) return;
       this.tellRoleRejected(message.data as { peerId?: unknown; reason?: unknown } | null);
@@ -268,6 +275,19 @@ export class NetworkEventHandlerService {
     const role = Network.serverRole;
     const cursor = PeerCursor.myCursor;
     if (role && cursor && cursor.role !== role) cursor.role = role;
+  }
+
+  /**
+   * How long this seat waits to put up a picture or sound a guest named, which every GM and PL in the
+   * room received at once: a turn for each linked GM or PL whose peer id comes before this seat's, so
+   * that the first has put it up before the next finds the store lacking it.
+   */
+  private turnToPutUpReceived(): number {
+    const mine = Network.peerId;
+    const ahead = PeerCursor.linkedCursors().filter(
+      (cursor) => cursor !== PeerCursor.myCursor && canRoleEdit(cursor.role) && cursor.peerId < mine
+    );
+    return ahead.length * RECEIVED_UPLOAD_TURN_MS;
   }
 
   /**

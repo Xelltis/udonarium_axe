@@ -166,6 +166,7 @@ describe('ImageStorage', () => {
       cancelWaiting();
       (storage as unknown as { uploadRetries: AssetRetries }).uploadRetries.clear();
       (storage as unknown as { missedUploads: Set<string> }).missedUploads.clear();
+      (storage as unknown as { uploading: Set<string> }).uploading.clear();
       vi.useRealTimers();
     });
 
@@ -266,6 +267,30 @@ describe('ImageStorage', () => {
       storage.add(ImageFile.create(contextOf('b'.repeat(64))));
 
       expect(storage.hasUploadsPending).toBe(true);
+    });
+
+    it('waits its turn to put up one a peer sent, and puts nothing up for a room left meanwhile', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      const room = vi.spyOn(Network.instance, 'roomKey', 'get').mockReturnValue('room-a');
+      storage.add(contextOf(pictureId));
+      storage.receivedUploadDelay = () => 5_000;
+      try {
+        storage.uploadReceived(pictureId);
+        await vi.advanceTimersByTimeAsync(4_999);
+        expect(upload).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(1);
+        expect(upload).toHaveBeenCalledTimes(1);
+
+        finishUpload('stored');
+        await vi.advanceTimersByTimeAsync(0);
+        storage.uploadReceived(pictureId);
+        room.mockReturnValue('room-b');
+        await vi.advanceTimersByTimeAsync(5_000);
+        expect(upload).toHaveBeenCalledTimes(1);
+      } finally {
+        storage.receivedUploadDelay = () => 0;
+      }
     });
 
     it('has nothing yet to go up for a guest, who puts nothing up, but for one going up', () => {
