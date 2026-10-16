@@ -41,6 +41,22 @@ describe('BrowserDataWipeService', () => {
     expect(localStorage.getItem('ui-theme')).toBe('dark');
   });
 
+  it('says too what leaving a room server’s room now would lose', async () => {
+    const t = TestBed.inject(TRANSLATE_FN);
+    ask.mockResolvedValue(false);
+    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true } as never);
+    vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+    vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(false);
+
+    await service.wipe();
+
+    expect(ask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: `${t('feature.roomSettings.wipeConfirmMessage')}\n\n${t('feature.lobby.leaveRoom.unsent')}`,
+      })
+    );
+  });
+
   it('asks the next load to wipe, and loads the page again without the browser asking once more', async () => {
     ask.mockResolvedValue(true);
     const letGo = vi.spyOn(Network, 'letPageGo').mockImplementation(() => {});

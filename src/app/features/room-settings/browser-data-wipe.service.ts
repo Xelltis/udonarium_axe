@@ -1,5 +1,6 @@
 import { DOCUMENT, inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { leavingLoss } from '@axe/application/lobby/leaving-loss';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { Network } from '@axe/core/network/network';
 import { requestBrowserDataWipe, wipeBrowserData } from '@axe/core/storage/browser-data-wipe';
@@ -19,17 +20,21 @@ export class BrowserDataWipeService {
   private readonly document = inject(DOCUMENT);
 
   /**
-   * Asks first, then wipes and loads the page again; resolves false when the reader thought better
-   * of it.
+   * Asks first, saying too what leaving a room server's room now would lose, then wipes and loads the
+   * page again; resolves false when the reader thought better of it.
    *
    * The wipe is left to the next load, before the app starts, so nothing this page still holds is
    * written back. Where that cannot be asked for, it is wiped here instead, as far as it goes. The
    * browser is not let ask again whether to leave the page, which would keep a page wiped under it.
    */
   async wipe(): Promise<boolean> {
+    const loss = leavingLoss();
     const sure = await this.confirm.ask({
       title: this.t('feature.roomSettings.wipeConfirmTitle'),
-      message: this.t('feature.roomSettings.wipeConfirmMessage'),
+      message:
+        loss === 'unsent' || loss === 'uploads'
+          ? `${this.t('feature.roomSettings.wipeConfirmMessage')}\n\n${this.t(`feature.lobby.leaveRoom.${loss}`)}`
+          : this.t('feature.roomSettings.wipeConfirmMessage'),
       okLabel: this.t('feature.roomSettings.wipeConfirmOk'),
       danger: true,
     });
