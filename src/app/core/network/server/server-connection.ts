@@ -565,6 +565,7 @@ export class ServerConnection implements Connection {
     if (!this.welcomed || !this.room || !this.assetToken) return null;
     const access: AssetAccess = { roomKey: this.room.roomKey, token: this.assetToken.token };
     if (this.assetUpload) access.upload = this.assetUpload;
+    access.clockOffset = this.clockOffset;
     return access;
   }
 

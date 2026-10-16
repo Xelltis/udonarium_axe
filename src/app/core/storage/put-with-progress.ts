@@ -1,26 +1,43 @@
+/** How long an upload is waited for: while bytes keep moving, and, if given, until a time. */
+export interface UploadLimits {
+  /** How long it may go with nothing sent or received. */
+  idleMs: number;
+  /** The time, in this page's milliseconds, by which it must be done however it is going. */
+  deadline?: number;
+}
+
 /**
  * Sends bytes with a PUT and answers with the response's status, given up on once `idleMs` passes
  * with nothing sent or received: an upload still going, however slowly, is waited for, while one on
- * a line gone quiet is not. Unlike fetch, XMLHttpRequest tells how far an upload has got.
+ * a line gone quiet is not. Unlike fetch, XMLHttpRequest tells how far an upload has got. One with a
+ * `deadline`, as a place to put the bytes is held only so long, is given up on then too.
  *
- * Rejects with a TypeError when the request fails, and with an AbortError when it goes quiet.
+ * Rejects with a TypeError when the request fails, and with an AbortError when it goes quiet or
+ * runs out of time.
  */
 export function putWithProgress(
   url: string,
   body: Blob,
   headers: Record<string, string>,
-  idleMs: number,
+  limits: UploadLimits,
   open: () => XMLHttpRequest = () => new XMLHttpRequest()
 ): Promise<Response> {
+  const { idleMs, deadline } = limits;
   return new Promise((resolve, reject) => {
     const xhr = open();
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const stop = () => {
+    let lastCall: ReturnType<typeof setTimeout> | null = null;
+    const stopWaiting = () => {
       if (timer !== null) clearTimeout(timer);
       timer = null;
     };
+    const stop = () => {
+      stopWaiting();
+      if (lastCall !== null) clearTimeout(lastCall);
+      lastCall = null;
+    };
     const stillGoing = () => {
-      stop();
+      stopWaiting();
       timer = setTimeout(() => {
         timer = null;
         xhr.abort();
@@ -41,6 +58,16 @@ export function putWithProgress(
       reject(new TypeError('the upload failed'));
     };
     stillGoing();
+    if (deadline !== undefined) {
+      lastCall = setTimeout(
+        () => {
+          stop();
+          xhr.abort();
+          reject(new DOMException('the upload ran out of time', 'AbortError'));
+        },
+        Math.max(0, deadline - Date.now())
+      );
+    }
     xhr.send(body);
   });
 }

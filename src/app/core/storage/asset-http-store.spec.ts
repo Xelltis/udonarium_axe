@@ -425,10 +425,11 @@ describe('AssetHttpStore', () => {
       ]);
     });
 
-    it('sends the bytes to the store as every upload is sent, given up on only once they go quiet', async () => {
-      const sent: string[] = [];
-      store.sendBytes = (url, body, headers) => {
-        sent.push(url);
+    it('sends the bytes to the store as every upload is sent, by the time on the ticket', async () => {
+      access = { ...access!, clockOffset: 5_000 };
+      const sent: [string, number | undefined][] = [];
+      store.sendBytes = (url, body, headers, deadline) => {
+        sent.push([url, deadline]);
         return fetch(url, { method: 'PUT', body, headers });
       };
       respond(
@@ -439,7 +440,8 @@ describe('AssetHttpStore', () => {
       );
 
       expect(await store.upload(id, new Blob([bytes]))).toBe('stored');
-      expect(sent).toEqual([TARGET]);
+      // The ticket's place is held until 1 by the server's clock, which runs 5 seconds ahead.
+      expect(sent).toEqual([[TARGET, 1 - 5_000]]);
     });
   });
 

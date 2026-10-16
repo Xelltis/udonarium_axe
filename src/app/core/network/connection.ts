@@ -31,6 +31,8 @@ export interface AssetAccess {
   token: string;
   /** How the room server takes bytes, when its requests carry only so much; none for a single PUT. */
   upload?: AssetUploadPolicy;
+  /** How far the room server's clock is ahead of this page's, for the times it hands out. */
+  clockOffset?: number;
 }
 
 /** Who a hello to a room server says is connecting, when somebody is logged in. */

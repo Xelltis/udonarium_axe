@@ -132,10 +132,15 @@ export class AssetHttpStore {
   delay: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   /**
    * Sends an upload's bytes, given up on once a minute passes with nothing getting through, however
-   * long it takes in all; replaced in tests with one through fetch.
+   * long it takes in all, or at the `deadline` given, in this page's milliseconds; replaced in tests
+   * with one through fetch.
    */
-  sendBytes: (url: string, body: Blob, headers: Record<string, string>) => Promise<Response> = (url, body, headers) =>
-    putWithProgress(url, body, headers, REQUEST_TIMEOUT_MS);
+  sendBytes: (url: string, body: Blob, headers: Record<string, string>, deadline?: number) => Promise<Response> = (
+    url,
+    body,
+    headers,
+    deadline
+  ) => putWithProgress(url, body, headers, { idleMs: REQUEST_TIMEOUT_MS, deadline });
 
   private constructor() {}
 
@@ -237,7 +242,10 @@ export class AssetHttpStore {
     if (asked?.status !== 201) return this.answerOf(asked);
     const ticket = readUploadTicket(await asked.json());
     if (!ticket) return 'failed';
-    const put = await this.sendBytes(ticket.upload.url, blob, ticket.upload.headers);
+    // The place to put them is held only until the time on the ticket, by the server's clock;
+    // bytes that would come later are given up on, to be tried again with a fresh ticket.
+    const deadline = ticket.upload.expiresAt - (this.access?.()?.clockOffset ?? 0);
+    const put = await this.sendBytes(ticket.upload.url, blob, ticket.upload.headers, deadline);
     if (!put.ok) return 'failed';
     return this.answerOf(
       await this.authorized((access) =>

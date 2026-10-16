@@ -36,13 +36,23 @@ class FakeXhr {
 describe('putWithProgress', () => {
   let xhr: FakeXhr;
   const body = new Blob([new Uint8Array([1, 2, 3])]);
+  let deadline: number | undefined;
   const put = () =>
-    putWithProgress('https://rooms.example/a', body, { Authorization: 'Bearer t' }, 60_000, () => {
-      xhr = new FakeXhr();
-      return xhr as unknown as XMLHttpRequest;
-    });
+    putWithProgress(
+      'https://rooms.example/a',
+      body,
+      { Authorization: 'Bearer t' },
+      { idleMs: 60_000, deadline },
+      () => {
+        xhr = new FakeXhr();
+        return xhr as unknown as XMLHttpRequest;
+      }
+    );
 
-  beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }));
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    deadline = undefined;
+  });
   afterEach(() => vi.useRealTimers());
 
   it('sends the bytes with their headers and answers with the status', async () => {
@@ -76,6 +86,21 @@ describe('putWithProgress', () => {
     await vi.advanceTimersByTimeAsync(30_000);
     xhr.upload.onprogress?.();
     await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(await outcome).toMatchObject({ name: 'AbortError' });
+    expect(xhr.aborted).toBe(true);
+  });
+
+  it('gives up on one still going once the time it was given runs out', async () => {
+    deadline = Date.now() + 100_000;
+    const result = put();
+    const outcome = result.catch((reason: unknown) => reason);
+    for (let step = 0; step < 3; step++) {
+      await vi.advanceTimersByTimeAsync(30_000);
+      xhr.upload.onprogress?.();
+    }
+    expect(xhr.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(10_000);
 
     expect(await outcome).toMatchObject({ name: 'AbortError' });
     expect(xhr.aborted).toBe(true);

@@ -362,10 +362,13 @@ describe('ServerConnection', () => {
         roomKey: ROOM_KEY,
         token: 'asset-1',
         upload: { maxPutBytes: 4_000_000, directUpload: true },
+        clockOffset: expect.any(Number),
       });
       socket.close(1012, 'rotate');
       welcomeOn(latest());
-      await vi.waitFor(() => expect(connection.assetAccess).toEqual({ roomKey: ROOM_KEY, token: 'asset-1' }));
+      await vi.waitFor(() =>
+        expect(connection.assetAccess).toEqual({ roomKey: ROOM_KEY, token: 'asset-1', clockOffset: expect.any(Number) })
+      );
     });
   });
 
@@ -556,7 +559,7 @@ describe('ServerConnection', () => {
 
     const socket = await enterRoom();
 
-    expect(connection.assetAccess).toEqual({ roomKey: ROOM_KEY, token: 'asset-1' });
+    expect(connection.assetAccess).toEqual({ roomKey: ROOM_KEY, token: 'asset-1', clockOffset: expect.any(Number) });
     socket.close(1006);
     await vi.waitFor(() => expect(connection.assetAccess).toBeNull());
   });
@@ -622,7 +625,7 @@ describe('ServerConnection', () => {
 
     await enterRoom();
 
-    expect(seen).toEqual({ roomKey: ROOM_KEY, token: 'asset-1' });
+    expect(seen).toEqual({ roomKey: ROOM_KEY, token: 'asset-1', clockOffset: expect.any(Number) });
   });
 
   it('renews the asset token by the server’s clock, which this one may run behind', async () => {
@@ -679,8 +682,8 @@ describe('ServerConnection', () => {
     );
     socket.deliver({ type: 'asset-token', assetToken: 'asset-2', expiresAt: Date.now() + 15 * 60_000 });
 
-    expect(await refreshed).toEqual({ roomKey: ROOM_KEY, token: 'asset-2' });
-    expect(await again).toEqual({ roomKey: ROOM_KEY, token: 'asset-2' });
+    expect(await refreshed).toEqual({ roomKey: ROOM_KEY, token: 'asset-2', clockOffset: expect.any(Number) });
+    expect(await again).toEqual({ roomKey: ROOM_KEY, token: 'asset-2', clockOffset: expect.any(Number) });
   });
 
   it('gives no fresh asset access outside a room, once it leaves, or when the server says nothing', async () => {
