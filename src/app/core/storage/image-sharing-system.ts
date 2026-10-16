@@ -114,6 +114,7 @@ export class ImageSharingSystem {
               if (context.thumbnail.blob)
                 context.thumbnail.blob = new Blob([context.thumbnail.blob], { type: context.thumbnail.type });
               ImageStorage.instance.add(context);
+              if (this.httpMissed.has(context.identifier)) ImageStorage.instance.uploadReceived(context.identifier);
             }
             break;
           }

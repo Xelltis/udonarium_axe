@@ -1,5 +1,7 @@
+import { Network } from '@axe/core/network/network';
 import { networkSend } from '@axe/core/network/network-messaging';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
+import { AssetRetries } from '@axe/core/storage/asset-retries';
 import { AudioFile, AudioFileContext, AudioState } from '@axe/core/storage/audio-file';
 import { CatalogSendSchedule } from '@axe/core/storage/catalog-send-schedule';
 
@@ -26,6 +28,8 @@ export class AudioStorage {
    * catalogue until then, so peers fetch it from the server rather than asking this seat.
    */
   private readonly uploading = new Set<string>();
+  /** Uploads that failed for now, tried again a few times while the seat stays in the room. */
+  private readonly uploadRetries = new AssetRetries();
 
   /** Every audio this seat knows of, including placeholders whose bytes have not arrived. */
   get audios(): AudioFile[] {
@@ -92,7 +96,19 @@ export class AudioStorage {
    * those that are only get asked about.
    */
   uploadAllToAssetStore(): void {
+    this.uploadRetries.clear();
     for (const audio of this.audios) this.uploadToAssetStore(audio);
+  }
+
+  /**
+   * Puts a sound a peer sent up to the room's asset store, for one the store was found to
+   * lack: the seat that added it could not put it there, and once that seat leaves nobody else
+   * might. Only a GM or a PL may put anything there.
+   */
+  uploadReceived(identifier: string): void {
+    const role = Network.serverRole;
+    const audio = this.hash[identifier];
+    if (audio && (role === 'gm' || role === 'pl')) this.uploadToAssetStore(audio);
   }
 
   private uploadToAssetStore(audio: AudioFile): void {
@@ -100,11 +116,23 @@ export class AudioStorage {
     const blob = audio.blob;
     if (!store.isEnabled || audio.state !== AudioState.COMPLETE || !blob) return;
     if (!AssetHttpStore.isAssetId(audio.identifier) || this.uploading.has(audio.identifier)) return;
-    this.uploading.add(audio.identifier);
-    void store.upload(audio.identifier, blob, audio.name).finally(() => {
-      this.uploading.delete(audio.identifier);
-      this.catalogSchedule.whenQuiet(100);
-    });
+    const { identifier } = audio;
+    this.uploading.add(identifier);
+    void store
+      .upload(identifier, blob, audio.name)
+      .then((result) => {
+        if (result === 'failed') this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier));
+        else this.uploadRetries.forget(identifier);
+      })
+      .finally(() => {
+        this.uploading.delete(identifier);
+        this.catalogSchedule.whenQuiet(100);
+      });
+  }
+
+  private retryUpload(identifier: string): void {
+    const audio = this.hash[identifier];
+    if (audio) this.uploadToAssetStore(audio);
   }
 
   private update(audio: AudioFile | AudioFileContext): boolean {

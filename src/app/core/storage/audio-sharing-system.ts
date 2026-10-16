@@ -118,6 +118,7 @@ export class AudioSharingSystem {
             for (const context of updateAudios) {
               if (context.blob) context.blob = new Blob([context.blob], { type: context.type });
               AudioStorage.instance.add(context);
+              if (this.httpMissed.has(context.identifier)) AudioStorage.instance.uploadReceived(context.identifier);
             }
             break;
           }

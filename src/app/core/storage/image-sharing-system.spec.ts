@@ -147,6 +147,25 @@ describe('ImageSharingSystem', () => {
       });
     });
 
+    it('puts an image the server lacked up once a peer has sent it, and no other', async () => {
+      const upload = vi.spyOn(ImageStorage.instance, 'uploadReceived').mockImplementation(() => {});
+      download.mockResolvedValue('missing');
+      receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }]);
+      await vi.waitFor(() => expect(requestsSent()).toHaveLength(1));
+      const sent = (identifier: string) => ({
+        identifier,
+        name: '',
+        type: 'image/png',
+        blob: new Uint8Array([1, 2, 3]) as unknown as Blob,
+        url: '',
+        thumbnail: { type: 'image/png', blob: null, url: '' },
+      });
+
+      localDispatch('UPDATE_FILE_RESOURE', { updateImages: [sent(pictureId), sent('d'.repeat(64))] }, 'peer-a');
+
+      expect(upload.mock.calls).toEqual([[pictureId]]);
+    });
+
     it('goes straight to peers for an image the server once lacked', async () => {
       download.mockResolvedValue('missing');
       receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }]);

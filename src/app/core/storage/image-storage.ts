@@ -1,5 +1,7 @@
+import { Network } from '@axe/core/network/network';
 import { networkSend } from '@axe/core/network/network-messaging';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
+import { AssetRetries } from '@axe/core/storage/asset-retries';
 import { CatalogSendSchedule } from '@axe/core/storage/catalog-send-schedule';
 import { ImageContext, ImageFile, ImageState } from '@axe/core/storage/image-file';
 
@@ -22,6 +24,8 @@ export class ImageStorage {
    * the catalogue until then, so peers fetch them from the server rather than asking this seat.
    */
   private readonly uploading = new Set<string>();
+  /** Uploads that failed for now, tried again a few times while the seat stays in the room. */
+  private readonly uploadRetries = new AssetRetries();
 
   /** Every image this seat knows of, including placeholders whose data has not arrived. */
   get images(): ImageFile[] {
@@ -92,7 +96,19 @@ export class ImageStorage {
    * those that are only get asked about.
    */
   uploadAllToAssetStore(): void {
+    this.uploadRetries.clear();
     for (const image of this.images) this.uploadToAssetStore(image);
+  }
+
+  /**
+   * Puts an image a peer sent up to the room's asset store, for one the store was found to
+   * lack: the seat that added it could not put it there, and once that seat leaves nobody else
+   * might. Only a GM or a PL may put anything there.
+   */
+  uploadReceived(identifier: string): void {
+    const role = Network.serverRole;
+    const image = this.imageHash[identifier];
+    if (image && (role === 'gm' || role === 'pl')) this.uploadToAssetStore(image);
   }
 
   private uploadToAssetStore(image: ImageFile): void {
@@ -100,11 +116,23 @@ export class ImageStorage {
     const blob = image.blob;
     if (!store.isEnabled || image.state !== ImageState.COMPLETE || !blob) return;
     if (!AssetHttpStore.isAssetId(image.identifier) || this.uploading.has(image.identifier)) return;
-    this.uploading.add(image.identifier);
-    void store.upload(image.identifier, blob, image.name).finally(() => {
-      this.uploading.delete(image.identifier);
-      this.catalogSchedule.whenQuiet(100);
-    });
+    const { identifier } = image;
+    this.uploading.add(identifier);
+    void store
+      .upload(identifier, blob, image.name)
+      .then((result) => {
+        if (result === 'failed') this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier));
+        else this.uploadRetries.forget(identifier);
+      })
+      .finally(() => {
+        this.uploading.delete(identifier);
+        this.catalogSchedule.whenQuiet(100);
+      });
+  }
+
+  private retryUpload(identifier: string): void {
+    const image = this.imageHash[identifier];
+    if (image) this.uploadToAssetStore(image);
   }
 
   private update(image: ImageFile | ImageContext): boolean {

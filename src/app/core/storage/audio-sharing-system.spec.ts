@@ -318,6 +318,18 @@ describe('AudioSharingSystem', () => {
       });
     });
 
+    it('puts a sound the server lacked up once a peer has sent it, and no other', async () => {
+      const upload = vi.spyOn(AudioStorage.instance, 'uploadReceived').mockImplementation(() => {});
+      download.mockResolvedValue('missing');
+      emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-b' });
+      await vi.waitFor(() => expect(requestsSent()).toHaveLength(1));
+      const sent = (identifier: string) => ({ identifier, name: '', type: 'audio/ogg', blob: null, url: '' });
+
+      emit('UPDATE_AUDIO_RESOURE', [sent(trackId), sent('e'.repeat(64))], { sendFrom: 'peer-b' });
+
+      expect(upload.mock.calls).toEqual([[trackId]]);
+    });
+
     it('takes a sound the room lists, keeping the name it was listed under', async () => {
       AudioStorageMock.get.mockImplementation((id: string) => AudioFile.createEmpty(id, 'theme.ogg'));
 

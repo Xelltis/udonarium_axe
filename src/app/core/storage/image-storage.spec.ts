@@ -1,5 +1,6 @@
 import { Network } from '@axe/core/network/network';
 import { AssetHttpStore, AssetUploadResult } from '@axe/core/storage/asset-http-store';
+import { ASSET_RETRY_DELAY_MS, AssetRetries } from '@axe/core/storage/asset-retries';
 import { ImageContext, ImageFile } from '@axe/core/storage/image-file';
 import { CatalogItem, ImageStorage } from '@axe/core/storage/image-storage';
 import type { MockInstance } from 'vitest';
@@ -164,6 +165,7 @@ describe('ImageStorage', () => {
       store.configure(null);
       store.useAccess(null);
       cancelWaiting();
+      (storage as unknown as { uploadRetries: AssetRetries }).uploadRetries.clear();
       vi.useRealTimers();
     });
 
@@ -189,6 +191,37 @@ describe('ImageStorage', () => {
       storage.add(ImageFile.create(contextOf(pictureId)));
       finishUpload('failed');
 
+      await vi.waitFor(() => expect(catalogued(pictureId)).toBe(true));
+    });
+
+    it('tries an upload that failed again a few times, further apart each time', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      finishUpload('failed');
+      await vi.advanceTimersByTimeAsync(0);
+      upload.mockClear().mockResolvedValue('failed');
+
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS);
+      expect(upload).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 2);
+      expect(upload).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 4);
+      expect(upload).toHaveBeenCalledTimes(3);
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 8);
+      expect(upload).toHaveBeenCalledTimes(3);
+    });
+
+    it('puts one a peer sent up for a GM or a PL, where the store was found to lack it, but not for a guest', async () => {
+      storage.add(contextOf(pictureId));
+      const role = vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('guest');
+
+      storage.uploadReceived(pictureId);
+      expect(upload).not.toHaveBeenCalled();
+
+      role.mockReturnValue('pl');
+      storage.uploadReceived(pictureId);
+      expect(upload).toHaveBeenCalledWith(pictureId, expect.any(Blob), '');
+      finishUpload('stored');
       await vi.waitFor(() => expect(catalogued(pictureId)).toBe(true));
     });
 
