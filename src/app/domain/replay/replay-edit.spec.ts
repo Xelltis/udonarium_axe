@@ -668,6 +668,64 @@ describe('chat moments that follow a new place', () => {
       expect(momentOf(bySeq(back, 4))).toBe(momentOf(bySeq(back, 3)) + 1);
     });
 
+    it('keeps two lines of one speaker in the order they were moved to, with no answer between them to keep', () => {
+      const events = [by('bob', 1, 10000, '2d6'), result(2, 20, 10001), by('carol', 3, 20000), by('carol', 4, 30000)];
+      events[1].patch!.after['attributes.originFrom'] = 'bob';
+
+      const first = stepReplayEvents(events, new Set([4]), -1);
+      const second = stepReplayEvents(stepReplayEvents(first, new Set([3]), -1), new Set([3]), -1);
+      const keyOf = (event: ReplayEvent) => momentOf(event) + Number(event.patch?.after['minorIndex'] ?? 0);
+
+      expect(second.map((event) => event.seq)).toEqual([1, 3, 2, 4]);
+      expect(keyOf(bySeq(second, 3))).toBeLessThan(keyOf(bySeq(second, 4)));
+      expect(keyOf(bySeq(second, 3))).toBeGreaterThan(keyOf(bySeq(second, 1)));
+    });
+
+    it('says a line moved above a run of its speaker’s lines a moment apart before the first of them', () => {
+      const run = [0, 1, 2].map((n) => minor(by('alice', n + 2, 100000 + n), 0.5));
+      const events = [minor(by('bob', 1, 99999), 0.5), ...run, by('alice', 9, 200000)];
+      const keyOf = (event: ReplayEvent) => momentOf(event) + Number(event.patch?.after['minorIndex'] ?? 0);
+
+      const moved = moveReplayEvent(events, 9, -3);
+
+      expect(moved.map((event) => event.seq)).toEqual([1, 9, 2, 3, 4]);
+      expect(keyOf(bySeq(moved, 9))).toBeGreaterThan(99999.5);
+      expect(keyOf(bySeq(moved, 9))).toBeLessThan(100000.5);
+    });
+
+    it('says a line moved before a roll of its speaker before it, never between the roll and its result', () => {
+      const events = [
+        minor(by('bob', 1, 99999), 0.5),
+        minor(by('alice', 2, 100000, '2d6'), 0.5),
+        result(3, 30, 100001),
+        by('alice', 4, 200000),
+      ];
+
+      const moved = moveReplayEvent(events, 4, -2);
+
+      expect(moved.map((event) => event.seq)).toEqual([1, 4, 2, 3]);
+      expect(momentOf(bySeq(moved, 4))).toBeLessThan(100000);
+      expect(momentOf(bySeq(moved, 3))).toBe(100001);
+    });
+
+    it('never says a line moved before a line with a notice at the moment just before that notice', () => {
+      const notice = minor(by('alice', 4, 100002, 'HP -3'), 0.4);
+      notice.patch!.after['attributes.from'] = 'System';
+      const events = [
+        minor(by('alice', 1, 50000), 0.3),
+        minor(by('bob', 2, 99999), 0.5),
+        minor(by('alice', 3, 100000, ':HP-3'), 0.6),
+        notice,
+      ];
+
+      const moved = moveReplayEvent(events, 1, 1);
+      const back = moveReplayEvent(moved, 1, -1);
+
+      expect(moved.map((event) => event.seq)).toEqual([2, 1, 3, 4]);
+      expect(momentOf(bySeq(moved, 1))).not.toBe(100001);
+      expect(momentOf(bySeq(back, 4))).toBe(100002);
+    });
+
     it('never says a line moved before a roll at the moment of that roll, which would take its result', () => {
       const events = [by('bob', 1, 10000), minor(by('alice', 2, 10001, '2d6'), 0.7), result(3, 30, 10002)];
 

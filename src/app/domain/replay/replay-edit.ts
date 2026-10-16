@@ -193,6 +193,8 @@ interface ChatLine {
   message: string;
   /** Who says the line, which with its tab and its moment is what ties an answer to it. */
   speaker: string;
+  /** For a dice result or a notice, who asked for it, whose line it answers; empty for any other line. */
+  asker: string;
   moment: number;
   /** The fraction the chat adds to the moment to sort lines said at the same one. */
   minor: number;
@@ -253,30 +255,43 @@ function withChatMoments(events: readonly ReplayEvent[], moved: ReadonlySet<numb
   const nextKept = new Map<number, number>();
   const ahead = new Map<string, number>();
   for (let index = events.length - 1; index >= 0; index--) {
-    const line = lines.get(events[index].seq);
+    const seq = events[index].seq;
+    const line = lines.get(seq);
     if (!line) continue;
-    if (retold.has(events[index].seq)) {
+    if (retold.has(seq)) {
       const kept = ahead.get(line.tab);
-      if (kept !== undefined) nextKept.set(events[index].seq, kept);
-    } else {
+      if (kept !== undefined) nextKept.set(seq, kept);
+    } else if (!followed(seq)) {
       ahead.set(line.tab, line.moment + line.minor);
     }
   }
 
-  const heldAhead = new Map<string, number>();
-  const behind = new Set<string>();
-  const momentKey = (line: ChatLine, moment: number) => `${line.tab}\0${line.speaker}\0${moment}`;
-  const holdAhead = (line: ChatLine, count: number) => {
-    const key = momentKey(line, line.moment);
-    heldAhead.set(key, (heldAhead.get(key) ?? 0) + count);
-  };
+  const keyOf = (tab: string, speaker: string, moment: number) => `${tab}\0${speaker}\0${moment}`;
+  const count = (counts: Map<string, number>, key: string, by: number) => counts.set(key, (counts.get(key) ?? 0) + by);
+  const linesAhead = new Map<string, number>();
+  const linesBehind = new Set<string>();
+  const answersAt = new Map<string, number>();
+  const followers = new Map<number, ChatLine[]>();
   for (const [seq, line] of lines) {
-    if (!retold.has(seq)) holdAhead(line, 1);
+    if (!retold.has(seq)) {
+      count(linesAhead, keyOf(line.tab, line.speaker, line.moment), 1);
+      if (line.asker !== '') count(answersAt, keyOf(line.tab, line.asker, line.moment), 1);
+    } else if (followed(seq) && !remade.has(seq)) {
+      followers.set(line.answers!.seq, [...(followers.get(line.answers!.seq) ?? []), line]);
+    }
   }
-  const shadows = (line: ChatLine, answerTop: number) => (moment: number) => {
-    const key = momentKey(line, moment);
-    const held = (heldAhead.get(key) ?? 0) > 0;
-    return answerTop > 0 ? held || behind.has(key) : held && !behind.has(key);
+  const clashes = (line: ChatLine, answerTop: number) => (moment: number) => {
+    const says = (speaker: string, at: number) =>
+      (linesAhead.get(keyOf(line.tab, speaker, at)) ?? 0) > 0 || linesBehind.has(keyOf(line.tab, speaker, at));
+    const answered = (at: number) => (answersAt.get(keyOf(line.tab, line.speaker, at)) ?? 0) > 0;
+    if (line.asker !== '' && (says(line.asker, moment - 1) || says(line.asker, moment - 2))) return true;
+    if (answerTop > 0) {
+      return (
+        says(line.speaker, moment) || says(line.speaker, moment + 1) || answered(moment + 1) || answered(moment + 2)
+      );
+    }
+    if (linesBehind.has(keyOf(line.tab, line.speaker, moment))) return false;
+    return answered(moment + 1) || (answered(moment + 2) && !says(line.speaker, moment + 1));
   };
 
   const said = new Map<number, Said>();
@@ -285,16 +300,22 @@ function withChatMoments(events: readonly ReplayEvent[], moved: ReadonlySet<numb
     const line = lines.get(event.seq);
     if (!line) return event;
     const answerTop = answerTops.get(event.seq) ?? 0;
+    const isFollower = retold.has(event.seq) && followed(event.seq) && !remade.has(event.seq);
     let when: Said = { moment: line.moment, minor: line.minor };
-    if (!retold.has(event.seq)) holdAhead(line, -1);
+    if (!retold.has(event.seq)) count(linesAhead, keyOf(line.tab, line.speaker, line.moment), -1);
     if (remade.has(event.seq)) {
       when = said.get(remade.get(event.seq)!)!;
-    } else if (retold.has(event.seq) && followed(event.seq)) {
+    } else if (isFollower) {
       when = { moment: said.get(line.answers!.seq)!.moment + line.answers!.gap, minor: line.minor };
     } else if (retold.has(event.seq)) {
-      when = saidBetween(passed.get(line.tab), nextKept.get(event.seq), answerTop, when, shadows(line, answerTop));
+      when = saidBetween(passed.get(line.tab), nextKept.get(event.seq), answerTop, when, clashes(line, answerTop));
     }
-    behind.add(momentKey(line, when.moment));
+    linesBehind.add(keyOf(line.tab, line.speaker, when.moment));
+    if (retold.has(event.seq) && !isFollower && line.asker !== '')
+      count(answersAt, keyOf(line.tab, line.asker, when.moment), 1);
+    for (const follower of followers.get(event.seq) ?? []) {
+      count(answersAt, keyOf(follower.tab, follower.asker, when.moment + follower.answers!.gap), 1);
+    }
     said.set(event.seq, when);
     const reach = Math.max(when.moment + when.minor, answerTop > 0 ? when.moment + answerTop : -Infinity);
     passed.set(line.tab, Math.max(passed.get(line.tab) ?? reach, reach));
@@ -314,18 +335,17 @@ function chatLinesOf(events: readonly ReplayEvent[]): Map<number, ChatLine> {
     const tab = String(after['parentIdentifier'] ?? event.detail['tabIdentifier'] ?? '');
     const minor = typeof after['minorIndex'] === 'number' ? after['minorIndex'] : 0;
     const speaker = String(after['attributes.from'] ?? '');
-    lines.set(event.seq, { index, tab, message: event.patch?.identifier ?? '', speaker, moment, minor, answers: null });
+    const asker = ANSWER_SENDERS.has(speaker) ? String(after['attributes.originFrom'] ?? '') : '';
+    const message = event.patch?.identifier ?? '';
+    lines.set(event.seq, { index, tab, message, speaker, asker, moment, minor, answers: null });
     const key = keyOf(tab, speaker, moment);
     if (!bySpeaker.has(key)) bySpeaker.set(key, event.seq);
   });
-  for (const event of events) {
-    const line = lines.get(event.seq);
-    const after = event.patch?.after ?? {};
-    const asker = String(after['attributes.originFrom'] ?? '');
-    if (!line || asker === '' || !ANSWER_SENDERS.has(String(after['attributes.from'] ?? ''))) continue;
+  for (const line of lines.values()) {
+    if (line.asker === '') continue;
     for (const gap of ANSWER_GAPS) {
-      const seq = bySpeaker.get(keyOf(line.tab, asker, line.moment - gap));
-      if (seq !== undefined && seq !== event.seq) {
+      const seq = bySpeaker.get(keyOf(line.tab, line.asker, line.moment - gap));
+      if (seq !== undefined && lines.get(seq) !== line) {
         line.answers = { seq, gap };
         break;
       }
@@ -338,11 +358,11 @@ function chatLinesOf(events: readonly ReplayEvent[]): Map<number, ChatLine> {
  * When to say a line placed after lines that reach as far as `after` in the chat's order and before
  * one sorting at `before`, either of which may be missing, its own answers reaching `answerTop`
  * past its moment. A line with nothing either side keeps `own`. It never takes a moment `clashes`
- * says another line of its speaker in the tab would lose its answers to, or would take this line's
- * from, as an answer goes to whichever of them comes first. A whole moment is taken where there is room for the line and its answers; a line
- * with no answers takes the fraction halfway between where there is no whole one. Where there is
- * no room at all, as lines said by clocks that disagree can leave, it goes after `after`, so that
- * it is never said before a line that comes before it in the list.
+ * says would hand an answer to another line than its own, as an answer goes to whichever line of
+ * its asker said the moment before it comes first. A whole moment is taken where there is room for
+ * the line and its answers; a line with no answers otherwise takes a fraction past `after` within
+ * its moment. Where there is no room at all, as lines said by clocks that disagree can leave, it
+ * goes after `after`, so that it is never said before a line that comes before it in the list.
  */
 function saidBetween(
   after: number | undefined,
@@ -351,16 +371,22 @@ function saidBetween(
   own: Said,
   clashes: (moment: number) => boolean
 ): Said {
-  const free = (moment: number, step: number): number => (clashes(moment) ? free(moment + step, step) : moment);
   if (after === undefined) {
-    return before === undefined ? own : { moment: free(Math.floor(before - answerTop) - 1, -1), minor: 0 };
+    if (before === undefined) return own;
+    let moment = Math.floor(before - answerTop) - 1;
+    while (clashes(moment)) moment--;
+    return { moment, minor: 0 };
   }
-  const moment = free(Math.floor(after) + 1, 1);
-  if (before === undefined || (moment < before && moment + answerTop < before)) return { moment, minor: 0 };
-  const halfway = (after + before) / 2;
-  if (answerTop === 0 && before > after && !clashes(Math.floor(halfway))) {
-    return { moment: Math.floor(halfway), minor: halfway - Math.floor(halfway) };
+  if (before !== undefined && before > after) {
+    for (let moment = Math.floor(after) + 1; moment + answerTop < before; moment++) {
+      if (!clashes(moment)) return { moment, minor: 0 };
+    }
+    const moment = Math.floor(after);
+    if (answerTop === 0 && !clashes(moment))
+      return { moment, minor: (after + Math.min(moment + 1, before)) / 2 - moment };
   }
+  let moment = Math.floor(after) + 1;
+  while (clashes(moment)) moment++;
   return { moment, minor: 0 };
 }
 
