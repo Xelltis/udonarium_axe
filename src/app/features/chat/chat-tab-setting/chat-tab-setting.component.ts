@@ -111,10 +111,17 @@ export class ChatTabSettingComponent {
     else if (key === 'guestCanView' && !value) tab.guestCanSpeak = false;
   }
 
-  /** Every chat tab in the room, in the order they are listed. */
+  /**
+   * Every chat tab in the room, in the order they are listed; in a room server's room, only those
+   * this seat may read, for anyone but the game master, since the lines of the others never came.
+   */
   get chatTabs(): readonly ChatTab[] {
     this.objectChange.collectionOf('chat-tab')();
-    return this.chatMessageService.chatTabs;
+    this.objectChange.trackMyCursor();
+    const tabs = this.chatMessageService.chatTabs;
+    if (Network.authorityPeerId === null || PeerCursor.isMyselfGameMaster) return tabs;
+    for (const tab of tabs) this.objectChange.versionOf(tab.identifier)();
+    return tabs.filter((tab) => canRoleViewTab(tab, PeerCursor.myRole));
   }
   /** Whether the room has no chat tabs at all. */
   get isEmpty(): boolean {

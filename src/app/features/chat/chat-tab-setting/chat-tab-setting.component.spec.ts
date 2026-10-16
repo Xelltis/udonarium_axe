@@ -461,6 +461,18 @@ describe('ChatTabSettingComponent', () => {
       expect(tab.chatMessages).not.toContain(rolled);
     });
 
+    it('lists for a player only the tabs they may read, the others being out of their reach', () => {
+      beSeat(PeerRole.Player);
+      const open = ChatTabList.instance.addChatTab('open');
+      const closed = ChatTabList.instance.addChatTab('closed');
+      closed.plCanView = false;
+
+      expect(component.chatTabs).toContain(open);
+      expect(component.chatTabs).not.toContain(closed);
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      expect(component.chatTabs).toContain(closed);
+    });
+
     it('says nothing of a clear-all in a tab a player may not read, whose lines never came to them', () => {
       beSeat(PeerRole.Player);
       const open = ChatTabList.instance.addChatTab('open');
