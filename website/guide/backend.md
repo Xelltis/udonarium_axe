@@ -40,14 +40,14 @@ Axeが呼び出すAPI（`GET /v1/status`・`POST /v1/skyway2023/token`、レス�
 
 ## 動作確認
 
-デプロイ後、`https://<バックエンドのURL>/v1/status`を開いて`OK`が返れば、トークン発行が機能しています。
+デプロイ後、`https://<バックエンドのURL>/v1/status`を開いて`OK`が返れば、トークン発行が機能しています。Vercel版はブラウザで開くと`ORIGIN_REQUIRED`を返しますが、Originが付いていないので断っているだけで、これも正しく動いている印です。
 あとは[クイックスタート](/guide/quickstart)の手順3以降でフロントエンドを接続先に向けるだけです。
 
 ## 部屋のサーバー（ベータ） {#room-server}
 
 SkyWayを使わずに遊ぶ方法も用意しています。
 [udonarium_axe_backend](https://github.com/Xelltis/udonarium_axe_backend)のCloudflare版（`apps/cloudflare`）とVercel版（`apps/vercel`）は、部屋ごとにサーバーを立てて、卓のやりとりをすべてそこで中継します。
-Axeから見てどちらも同じように動くので、すでに使っているほうを選んでください。
+Axeから見てどちらも同じように動きます。迷ったらCloudflare版にしてください。Vercel版は数分ごとにつなぎ直し、使っているVercelのWebSocketはまだベータです。くわしくは[サーバー版：Cloudflare版かVercel版か](https://xelltis.github.io/udonarium_axe_backend/guide/choose#サーバー版-cloudflare版かvercel版か)にあります。
 SkyWayのアプリもトークンも要りません。
 
 SkyWay版とは、次の点が変わります。

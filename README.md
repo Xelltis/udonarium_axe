@@ -53,7 +53,7 @@ Secretをブラウザに置くわけにはいきません。そのため、**ト
    - `SKYWAY_SECRET` … 手順1のSecret
    - `ACCESS_CONTROL_ALLOW_ORIGIN` … Axeを公開するURL（例: `https://your-axe.example.com`。`*`で全許可）
 
-   ブラウザや`curl`で`https://<バックエンドのURL>/v1/status`を開き、`OK`が返れば成功です。
+   ブラウザで`https://<バックエンドのURL>/v1/status`を開き、`OK`が返れば成功です。Vercel版は、ブラウザで開くと`ORIGIN_REQUIRED`を返します。Originが付いていないので断っているだけで、これも正しく動いている印です。
 
 3. **フロントエンドを配置**
    [Releases](https://github.com/Xelltis/udonarium_axe/releases)の`axe_x.y.z.zip`を展開し

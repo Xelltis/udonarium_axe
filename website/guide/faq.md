@@ -30,11 +30,11 @@ SkyWay版では、SkyWayのSecretをブラウザに置けないので、署名�
 
 上から順に確かめてください。
 
-1. `https://<バックエンドのURL>/v1/status`を開いて`OK`が返るか
+1. `https://<バックエンドのURL>/v1/status`を開いて`OK`が返るか（Vercel版は、ブラウザで開くと返る`ORIGIN_REQUIRED`でも動いています）
 2. バックエンドの`ACCESS_CONTROL_ALLOW_ORIGIN`が、Axeを公開しているURLを許可しているか
 3. フロントエンドの`assets/config.json`の`backend.url`が、そのバックエンドを指しているか
 
-部屋のサーバー（Cloudflare版）には`/v1/status`がありません。1の代わりに、次のように`/v1/auth/config`を尋ねて、`{"providers":["discord"]}`が返るかを見てください。`Origin`には、`ACCESS_CONTROL_ALLOW_ORIGIN`に書いたURLを付けます。
+部屋のサーバーでは、1では確かめられません。Cloudflare版には`/v1/status`が無く、Vercel版はSkyWayの設定を入れていなければ`CONFIG_INVALID`を返すからです。1の代わりに、次のように`/v1/auth/config`を尋ねて、`{"providers":["discord"]}`が返るかを見てください。`Origin`には、`ACCESS_CONTROL_ALLOW_ORIGIN`に書いたURLを付けます。
 
 ```sh
 curl -H "Origin: https://axe.example.com" https://<バックエンドのURL>/v1/auth/config
