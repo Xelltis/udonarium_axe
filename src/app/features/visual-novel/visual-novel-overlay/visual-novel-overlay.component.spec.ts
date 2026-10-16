@@ -668,6 +668,19 @@ describe('VisualNovelOverlayComponent', () => {
     expect(speaker.vnPortraitPos).toBe(before);
   });
 
+  it('lists the key for the stage slots to those who may place a character, and not to a guest', () => {
+    createComponent();
+    const slotKey = 'feature.visualNovel.shortcuts.slot';
+    const listed = () => component.shortcutHelpItems().map((item) => item.labelKey);
+    expect(listed()).toContain(slotKey);
+
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+
+    expect(listed()).not.toContain(slotKey);
+    expect(listed()).toContain('feature.visualNovel.shortcuts.next');
+  });
+
   it('reads what the room says of itself in words, not as the key it is kept under', () => {
     tab.addMessage({
       from: 'System',

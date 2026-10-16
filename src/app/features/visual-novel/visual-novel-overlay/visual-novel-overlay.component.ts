@@ -35,6 +35,7 @@ import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { keyboardShortcutsOf, shortcutKeysText } from '@axe/domain/ui/keyboard-shortcuts';
+import { isAudienceOffered } from '@axe/domain/ui/menu-command';
 import { encodeVnEmote, VN_EMOTION_MARK_CHARS, vnEmoteOf, VnEmotionMark } from '@axe/domain/visual-novel/vn-emote';
 import {
   isVnPortraitPosSet,
@@ -221,10 +222,14 @@ export class VisualNovelOverlayComponent {
   readonly messageKindOptions = this.emoteSelection.messageKindOptions;
   readonly isGameMaster = this.emoteSelection.isGameMaster;
   readonly slotIndexes = Array.from({ length: VN_STAGE_SLOT_COUNT }, (_, i) => i);
-  readonly shortcutHelpItems = keyboardShortcutsOf('visualNovel').map((shortcut) => ({
-    keys: shortcutKeysText(shortcut),
-    labelKey: shortcut.labelKey,
-  }));
+  /** The keys novel mode answers, less those for what this reader's role may not do. */
+  readonly shortcutHelpItems = computed(() => {
+    this.objectChange.trackMyCursor();
+    const role = PeerCursor.myRole;
+    return keyboardShortcutsOf('visualNovel')
+      .filter((shortcut) => isAudienceOffered(shortcut.audience ?? 'anyone', role))
+      .map((shortcut) => ({ keys: shortcutKeysText(shortcut), labelKey: shortcut.labelKey }));
+  });
 
   /**
    * The chat tab being read in novel mode; choosing another stops auto play, returns to its newest

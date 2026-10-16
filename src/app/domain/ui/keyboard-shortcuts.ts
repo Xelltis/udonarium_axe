@@ -68,8 +68,13 @@ function line(scope: ShortcutScope, id: string, keys: KeyboardShortcut['keys'], 
 }
 
 /** What the novel mode's own list has always called its lines. */
-function novel(id: string, keys: KeyboardShortcut['keys'], probe: ShortcutProbe): KeyboardShortcut {
-  return { id, scope: 'visualNovel', keys, labelKey: `feature.visualNovel.shortcuts.${id}`, probe };
+function novel(
+  id: string,
+  keys: KeyboardShortcut['keys'],
+  probe: ShortcutProbe,
+  audience?: MenuAudience
+): KeyboardShortcut {
+  return { id, scope: 'visualNovel', keys, labelKey: `feature.visualNovel.shortcuts.${id}`, probe, audience };
 }
 
 /**
@@ -152,7 +157,7 @@ export const KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
   novel('edges', [['Home'], ['End']], { key: 'Home', command: 'toStart' }),
   novel('autoPlay', [['A']], { key: 'a', command: 'toggleAutoPlay' }),
   novel('log', [['L']], { key: 'l', command: 'toggleBacklog' }),
-  novel('slot', [['S']], { key: 's', command: 'toggleSlotGuide' }),
+  novel('slot', [['S']], { key: 's', command: 'toggleSlotGuide' }, 'playing'),
   novel('close', [['Esc']], { key: 'Escape', command: 'exit' }),
 
   line('whiteBoard', 'tools', [['V'], ['P'], ['M'], ['E'], ['L'], ['A'], ['R'], ['T'], ['N'], ['I']], {
