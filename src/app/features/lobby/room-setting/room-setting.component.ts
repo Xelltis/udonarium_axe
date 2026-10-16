@@ -67,7 +67,7 @@ export class RoomSettingComponent {
   /**
    * Opens a new room under the name and password typed in, and closes the dialog.
    *
-   * A player who creates a room becomes its game master. The room and the role are written down in
+   * Whoever creates a room becomes its game master, a guest as well as a player. The room and the role are written down in
    * this browser so it can find its way back after a reload.
    */
   createRoom() {
@@ -79,7 +79,7 @@ export class RoomSettingComponent {
     const roomId = PeerContext.generateId('***');
     Network.open(userId, roomId, this.roomName(), this.password());
     PeerCursor.myCursor.peerId = Network.peerId;
-    if (PeerCursor.myCursor.role === PeerRole.Player) PeerCursor.myCursor.role = PeerRole.GameMaster;
+    if (PeerCursor.myCursor.role !== PeerRole.GameMaster) PeerCursor.myCursor.role = PeerRole.GameMaster;
     this.myPeer.reConnectPass = this.password();
     saveIdentity({
       userId,

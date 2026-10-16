@@ -61,6 +61,22 @@ describe('RoomSettingComponent', () => {
     });
   });
 
+  it('makes whoever creates a room its game master, a guest as well as a player', () => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'user', isRoom: false } as PeerContext);
+    vi.spyOn(Network, 'open').mockImplementation(() => {});
+    component.roomName.set('月夜の卓');
+
+    component.createRoom();
+
+    expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
+    expect(loadIdentity()?.roomRole).toBe(PeerRole.GameMaster);
+    clearIdentity();
+    PeerCursor.myCursor = null!;
+    vi.restoreAllMocks();
+  });
+
   describe('on a room server', () => {
     const KEY = '0123456789abcdef0123456789abcdef';
 
