@@ -12,8 +12,8 @@ import {
   SendMessageEvent,
 } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
-import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
+import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
 import { getAuthorityPeerId, getMyPeerId } from '@axe/core/network/peer-context-source';
 import {
   AuthorityEvent,
