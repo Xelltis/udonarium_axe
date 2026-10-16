@@ -141,6 +141,19 @@ describe('InviteJoinComponent', () => {
     expect(roleWhenJoined).toBe(PeerRole.Guest);
   });
 
+  it('leaves the role of a room the seat went into meanwhile when it cannot get in', async () => {
+    join.mockImplementation(async () => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'u', isRoom: true } as never);
+      vi.spyOn(Network, 'peerId', 'get').mockReturnValue('myseatzzzroomname-');
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      return false;
+    });
+    await setup('#join?r=a1b&n=room&role=guest');
+
+    await eventually(() => expect(bannerText()).toContain('参加できませんでした'));
+    expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
+  });
+
   it('leaves the seat in the role it had when it cannot get in', async () => {
     join.mockResolvedValue(false);
     await setup('#join?r=a1b&n=room&role=guest');

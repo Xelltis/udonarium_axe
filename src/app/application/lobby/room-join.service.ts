@@ -24,6 +24,14 @@ export function wasLastIn(roomId: string): boolean {
   return roomId.length > 0 && loadIdentity()?.roomId === roomId;
 }
 
+/**
+ * Whether the network has moved into a room other than this one, as one made or joined while a
+ * join to this one waited: anything but waiting outside, or this room itself.
+ */
+export function isInAnotherRoom(roomId: string): boolean {
+  return !!Network.peerContext?.isRoom && PeerContext.parse(Network.peerId).roomId !== roomId;
+}
+
 /** Whether this tab was last in this room as its game master. */
 function wasGameMasterIn(roomId: string): boolean {
   return wasLastIn(roomId) && loadIdentity()?.roomRole === PeerRole.GameMaster;
@@ -142,7 +150,9 @@ export class RoomJoinService {
    * return to it.
    *
    * A join that comes to nothing takes back what it wrote down, the room and the role put down to
-   * come in, so that a reload does not take the room it was tried on for the one the seat was in.
+   * come in, so that a reload does not take the room it was tried on for the one the seat was in;
+   * whether it or the handling of a network error went back to waiting, but not once the seat has
+   * gone into another room meanwhile.
    *
    * It goes in two steps. Opening the room can wait up to a minute, while what a reload left of
    * this seat is still in it; an error opening it ends the join at once. Once it is open, the
@@ -187,7 +197,10 @@ export class RoomJoinService {
         offConnect();
         offDisconnect();
         const joined = isJoined || Network.peerContexts.length > 0;
-        if (!joined && this.resetNetwork(context.roomId, userId)) this.takeBackTry(identityBefore, roleBefore);
+        if (!joined) {
+          this.resetNetwork(context.roomId, userId);
+          if (!isInAnotherRoom(context.roomId)) this.takeBackTry(identityBefore, roleBefore);
+        }
         resolve(joined);
       };
 
@@ -231,15 +244,14 @@ export class RoomJoinService {
    * Goes back to waiting outside any room after a join that came to nothing, as the user it tried
    * to join as, unless something else has already, as the handling of a network error does. A join
    * to a room server still `unopened`, waiting on the login, is stopped too, so that it does not
-   * walk into the room once the login comes. Answers whether it went back.
+   * walk into the room once the login comes.
    */
-  private resetNetwork(roomId: string, userId: string, stopUnopened = false): boolean {
+  private resetNetwork(roomId: string, userId: string, stopUnopened = false): void {
     const unopened = stopUnopened && Network.peerId === UNOPENED_PEER_ID;
-    if (Network.peerContexts.length > 0) return false;
-    if (!unopened && PeerContext.parse(Network.peerId).roomId !== roomId) return false;
+    if (Network.peerContexts.length > 0) return;
+    if (!unopened && PeerContext.parse(Network.peerId).roomId !== roomId) return;
     Network.openStandby(userId);
     PeerCursor.myCursor.peerId = Network.peerId;
-    return true;
   }
 
   /** Puts back who this tab was and the role it held before a join that came to nothing. */

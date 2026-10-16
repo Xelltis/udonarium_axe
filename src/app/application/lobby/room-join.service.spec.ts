@@ -316,6 +316,37 @@ describe('RoomJoinService', () => {
       expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
     });
 
+    it('takes it back too where the handling of a network error went back to waiting first', async () => {
+      saveIdentity({ userId: 'user', roomId: 'xyz', roomName: 'mine', role: PeerRole.GameMaster, reConnectPass: '' });
+      PeerCursor.myCursor = { peerId: '', role: PeerRole.GameMaster } as PeerCursor;
+      const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
+      roomOpens();
+      saveIdentity({ userId: 'user', roomId: 'abc', roomName: 'room', role: PeerRole.Player, reConnectPass: '' });
+      livePeerId = 'standbypeer';
+
+      stubChange.peerDisconnect$.emit({ peerId: 'peer-1' });
+
+      await expect(joined).resolves.toBe(false);
+      expect(loadIdentity()).toEqual(expect.objectContaining({ roomId: 'xyz', role: PeerRole.GameMaster }));
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
+    });
+
+    it('leaves the room the seat went into meanwhile as it is, as one it made', async () => {
+      PeerCursor.myCursor = { peerId: '', role: PeerRole.Player } as PeerCursor;
+      const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
+      roomOpens();
+      livePeerId = 'myseatzzzroomname-';
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'user', isRoom: true } as PeerContext);
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      saveIdentity({ userId: 'user', roomId: 'zzz', roomName: 'made', role: PeerRole.GameMaster, reConnectPass: '' });
+
+      stubChange.peerDisconnect$.emit({ peerId: 'peer-1' });
+
+      await expect(joined).resolves.toBe(false);
+      expect(loadIdentity()).toEqual(expect.objectContaining({ roomId: 'zzz', role: PeerRole.GameMaster }));
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
+    });
+
     it('forgets the room it was tried on for a tab that was in none, as a reload would take it for its own', async () => {
       const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
       roomOpens();

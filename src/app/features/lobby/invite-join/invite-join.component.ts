@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { RoomJoinService, wasLastIn } from '@axe/application/lobby/room-join.service';
+import { isInAnotherRoom, RoomJoinService, wasLastIn } from '@axe/application/lobby/room-join.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -128,7 +128,8 @@ export class InviteJoinComponent {
    * that the room never sees the seat in another and a reload while it waits comes back in it. A seat
    * coming back to the room this tab was last in, as a reload brings it back, takes up the role it
    * held there instead, which may have been given since the link was. A join that comes to nothing
-   * leaves the seat in the role it had.
+   * leaves the seat in the role it had, unless it has gone into another room meanwhile, as one it
+   * made, where its role is that room's.
    */
   private async join(params: InviteLinkParams): Promise<void> {
     if (Network.transport === 'server') {
@@ -153,7 +154,7 @@ export class InviteJoinComponent {
     if (!wasLastIn(params.roomId)) this.applyRole(params.role);
     const isJoined = await this.roomJoin.join(peerContexts, password);
     if (!isJoined) {
-      this.applyRole(roleBefore);
+      if (!isInAnotherRoom(params.roomId)) this.applyRole(roleBefore);
       this.state.set('failed');
       return;
     }
