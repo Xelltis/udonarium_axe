@@ -5,6 +5,7 @@ import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-d
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { generateUuid } from '@axe/core/util/uuid';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -277,13 +278,20 @@ export class TabletopService {
    * Lets a chat tab read from a file keep the names it and its lines were saved under, when nothing
    * here goes by them, saying first that they are coming back, as a room server, or a seat that saw
    * them deleted, would delete them again. Beside a tab or a line here under any of those names, it
-   * comes in as a copy under names of its own, as two under one name would be one to the room.
+   * comes in as a copy under names of its own, as two under one name would be one to the room; a
+   * reply or a quotation within it then points at the copy's line it pointed at before.
    */
   private takeUpSavedNames(element: Element): void {
     const named = [element, ...Array.from(element.querySelectorAll('[identifier]'))];
     const names = named.map((node) => node.getAttribute('identifier') ?? '').filter((name) => name.length > 0);
     if (names.some((name) => this.objectStore.get(name))) {
-      for (const node of named) node.removeAttribute('identifier');
+      const renamed = new Map(names.map((name) => [name, generateUuid()]));
+      for (const node of [element, ...Array.from(element.querySelectorAll('*'))]) {
+        for (const attribute of ['identifier', 'replyTo', 'quoteOf']) {
+          const fresh = renamed.get(node.getAttribute(attribute) ?? '');
+          if (fresh) node.setAttribute(attribute, fresh);
+        }
+      }
       return;
     }
     this.objectStore.announceComingBack(names);

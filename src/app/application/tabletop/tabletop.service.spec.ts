@@ -75,6 +75,25 @@ describe('TabletopService', () => {
       expect(ObjectStore.instance.get('tab-saved')).toBe(here);
     });
 
+    it('points the copy’s replies and quotations at its own lines, not at the tab it stands beside', () => {
+      TestBed.inject(TabletopService);
+      ChatTabList.instance.addChatTab('冒険', 'tab-saved');
+
+      emitXmlLoaded({
+        xmlElement: xml2element(
+          '<chat-tab identifier="tab-saved" name="冒険"><chat identifier="line-1">x</chat>' +
+            '<chat identifier="line-2" replyTo="line-1" quoteOf="line-1">y</chat></chat-tab>'
+        )!,
+      });
+
+      const copy = ObjectStore.instance.getObjects(ChatTab).find((tab) => tab.identifier !== 'tab-saved')!;
+      const first = copy.chatMessages.find((line) => line.text === 'x')!;
+      const second = copy.chatMessages.find((line) => line.text === 'y')!;
+      expect(first.identifier).not.toBe('line-1');
+      expect(second.replyTo).toBe(first.identifier);
+      expect(second.quoteOf).toBe(first.identifier);
+    });
+
     it('says the tab and its lines are coming back under their names when none is here', () => {
       TestBed.inject(TabletopService);
       const announce = vi.spyOn(ObjectStore.instance, 'announceComingBack');
