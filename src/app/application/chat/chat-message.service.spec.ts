@@ -1,6 +1,7 @@
 import { inject, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { MyDiceService } from '@axe/application/dice/my-dice.service';
+import { resourceEditMessage$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -766,6 +767,36 @@ describe('ChatMessageService', () => {
 
       expect(PeerCursor.myCursor.lastControlImageIdentifier).toBe('img-1');
       expect(PeerCursor.myCursor.lastControlImageIndex).toBe(1);
+    });
+    describe('spoken by a guest on a room server, which writes no piece', () => {
+      let resourceEdits: string[];
+      let stopListening: () => void;
+
+      beforeEach(() => {
+        PeerCursor.myCursor.role = PeerRole.Guest;
+        vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+        resourceEdits = [];
+        stopListening = resourceEditMessage$.subscribe((event) => resourceEdits.push(event.messageIdentifier));
+      });
+
+      afterEach(() => stopListening());
+
+      it('shows the portrait on the line but leaves the piece showing its own', () => {
+        const message = speak('こんにちは @笑顔');
+
+        expect(message.imageIdentifier).toBe('img-1');
+        expect(character.selectedPortraitIndex).toBe(0);
+      });
+
+      it('reads no resource edit out of the line, but does among peers', () => {
+        speak(':HP-3');
+        expect(resourceEdits).toEqual([]);
+
+        vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+        const message = speak(':HP-3 @笑顔');
+        expect(resourceEdits).toEqual([message.identifier]);
+        expect(character.selectedPortraitIndex).toBe(1);
+      });
     });
   });
 });

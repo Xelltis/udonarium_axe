@@ -320,7 +320,8 @@ export class ChatMessageService {
    * room's images. A line not whispered to anyone also records who this reader last spoke as, which
    * `sendSystemMessageAsLastSpeaker` follows. A stamp sent with the line goes under it, with the
    * words standing in for it on a last line of their own, after everything else has been read out of
-   * the line.
+   * the line. A guest on a room server changes no piece by speaking: resource edits are not read out
+   * of the line, and a portrait command picks the line's portrait but leaves the piece's alone.
    */
   sendMessage(
     chatTab: ChatTab,
@@ -394,10 +395,12 @@ export class ChatMessageService {
       });
     }
     emitDiceTableMessage({ messageIdentifier: chat.identifier });
-    emitResourceEditMessage({
-      messageIdentifier: chat.identifier,
-      messageTargetContext: eventPlan.resourceEditTargetContext,
-    });
+    if (!this.keptOffTable) {
+      emitResourceEditMessage({
+        messageIdentifier: chat.identifier,
+        messageTargetContext: eventPlan.resourceEditTargetContext,
+      });
+    }
 
     return chat;
   }
@@ -509,7 +512,7 @@ export class ChatMessageService {
     chatMessage.imageIdentifier = found.identifier;
     chatMessage.text = stripPortraitCommand(text);
     const obj = this.objectStore.get(sendFrom);
-    if (obj instanceof GameCharacter) obj.selectedPortraitIndex = found.index;
+    if (obj instanceof GameCharacter && !this.keptOffTable) obj.selectedPortraitIndex = found.index;
     return found;
   }
 
@@ -653,9 +656,17 @@ export class ChatMessageService {
    * elsewhere. Among peers nothing is held back.
    */
   private keptFromWriting(message: ChatMessage): boolean {
-    if (Network.authorityPeerId === null || PeerCursor.myRole !== PeerRole.Guest) return false;
+    if (!this.keptOffTable) return false;
     const tab = message.parent;
     return !(tab instanceof ChatTab) || !tab.guestCanSpeak;
+  }
+
+  /**
+   * Whether this reader is a guest on a room server, which writes no piece: the server would put
+   * back a change a guest made to one and leave whatever said so standing.
+   */
+  private get keptOffTable(): boolean {
+    return Network.authorityPeerId !== null && PeerCursor.myRole === PeerRole.Guest;
   }
 
   /**
