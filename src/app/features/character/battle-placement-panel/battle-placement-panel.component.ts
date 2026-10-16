@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BattlePlacementService } from '@axe/application/tabletop/battle-placement.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -26,6 +27,10 @@ export class BattlePlacementPanelComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly placement = inject(BattlePlacementService);
+
+  constructor() {
+    closeWhenOffTheTable();
+  }
   private readonly zones = inject(EngagementZoneService);
 
   /** The piece leading the first side, by its identifier. */

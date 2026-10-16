@@ -5,6 +5,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { Config } from '@axe/domain/peer/config';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { BattlePlacementPanelComponent } from '@axe/features/character/battle-placement-panel/battle-placement-panel.component';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const GRID = 50;
@@ -43,6 +44,10 @@ describe('BattlePlacementPanelComponent', () => {
     await fixture.whenStable();
     return fixture;
   }
+
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() => TestBed.createComponent(BattlePlacementPanelComponent));
+  });
 
   it('offers the pieces on the other side to lead it, and says what the distance between the leaders does', async () => {
     const leader = pieceAt('先頭', 5, 5);
