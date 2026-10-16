@@ -20,7 +20,7 @@ const UNOPENED_PEER_ID = '???';
 export const ROOM_SERVER_OPEN_TIMEOUT_MS = 30_000;
 
 /** Whether this tab was last in this room, which is where a reload leaves whoever was in it. */
-function wasLastIn(roomId: string): boolean {
+export function wasLastIn(roomId: string): boolean {
   return roomId.length > 0 && loadIdentity()?.roomId === roomId;
 }
 

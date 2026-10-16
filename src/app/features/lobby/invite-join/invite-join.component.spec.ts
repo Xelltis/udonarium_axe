@@ -6,6 +6,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo, RoomInfo } from '@axe/core/network/room-info';
+import { clearIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { buildInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -118,6 +119,17 @@ describe('InviteJoinComponent', () => {
     await setup('#join?r=a1b&n=room&role=guest');
 
     await eventually(() => expect(PeerCursor.myCursor.role).toBe(PeerRole.Guest));
+  });
+
+  it('keeps the role held in the room this tab was last in, coming back to it, over the one the link names', async () => {
+    saveIdentity({ userId: 'u', roomId: 'a1b', roomName: 'room', role: PeerRole.GameMaster, reConnectPass: '' });
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    await setup('#join?r=a1b&n=room&role=pl');
+
+    await eventually(() => expect(join).toHaveBeenCalledOnce());
+    await flush();
+    expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
+    clearIdentity();
   });
 
   it('says a browser set to play offline cannot join, and lets the banner be closed', async () => {

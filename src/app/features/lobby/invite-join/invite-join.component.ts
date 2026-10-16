@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { RoomJoinService } from '@axe/application/lobby/room-join.service';
+import { RoomJoinService, wasLastIn } from '@axe/application/lobby/room-join.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -110,6 +110,11 @@ export class InviteJoinComponent {
     }
   }
 
+  /**
+   * Joins the room the link names, in the role the link names. A seat coming back to the room this
+   * tab was last in, as a reload brings it back, takes up the role it held there instead, which may
+   * have been given since the link was.
+   */
   private async join(params: InviteLinkParams): Promise<void> {
     if (Network.transport === 'server') {
       await this.joinThroughServer(params);
@@ -129,13 +134,14 @@ export class InviteJoinComponent {
     }
 
     PeerCursor.myCursor.reConnectPass = password;
+    const isComingBack = wasLastIn(params.roomId);
     const isJoined = await this.roomJoin.join(peerContexts, password);
     if (!isJoined) {
       this.state.set('failed');
       return;
     }
 
-    this.applyRole(params.role);
+    if (!isComingBack) this.applyRole(params.role);
     this.state.set('done');
   }
 
