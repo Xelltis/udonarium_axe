@@ -1,7 +1,9 @@
 import { NgStyle } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { PanelService } from '@axe/application/ui/panel.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -60,6 +62,14 @@ export class ChatColorSettingComponent {
   private readonly modalService = inject(ModalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatSettings = inject(ChatSettingsEventHandlerService);
+  private readonly panelService = inject(PanelService);
+  private readonly rolePermission = inject(RolePermissionService);
+
+  /** Whether this seat may change a piece's colours, which a guest may not; its own it always may. */
+  private readonly mayEditPiece = computed(() => {
+    this.objectChange.trackMyCursor();
+    return this.rolePermission.canEditTabletop;
+  });
 
   readonly themes: readonly ChatTheme[] = ['light', 'dark'];
   readonly slots = [0, 1, 2] as const;
@@ -82,6 +92,10 @@ export class ChatColorSettingComponent {
   constructor() {
     const option = this.modalService.option as Record<string, unknown>;
     this.isAllowedEmpty = !!option?.isAllowedEmpty;
+    // A seat made a guest with a piece's colours open leaves them: its lines go in its own now.
+    effect(() => {
+      if (!this.mayEditPiece() && untracked(() => this.tabletopObject)) untracked(() => this.panelService.close());
+    });
   }
 
   private get owner(): GameCharacter | PeerCursor {
@@ -148,6 +162,7 @@ export class ChatColorSettingComponent {
    * stored in the chat preferences. Either way the previews redraw.
    */
   changeColor(event: string, num: number): void {
+    if (this.tabletopObject && !this.mayEditPiece()) return;
     if (this.tabletopObject) {
       this.tabletopObject.chatColorCode[num] = event;
       this.bumpCharacter();
@@ -163,6 +178,7 @@ export class ChatColorSettingComponent {
    * stored as the text colour is. An empty value hands the bubble back to the automatic colour.
    */
   changeBubble(event: string, num: number, theme: ChatTheme): void {
+    if (this.tabletopObject && !this.mayEditPiece()) return;
     const codes = theme === 'dark' ? this.owner.chatBubbleDark : this.owner.chatBubbleLight;
     codes[num] = event;
     if (this.tabletopObject) this.bumpCharacter();
