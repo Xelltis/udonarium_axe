@@ -103,6 +103,23 @@ describe('LobbyComponent', () => {
       TestBed.inject(RoomJoinService).waitingForPreviousConnection.set(false);
     });
 
+    it('goes nowhere when somebody joined this seat while the password was asked for', async () => {
+      const ctx = PeerContext.parse('test-peer');
+      Object.defineProperty(ctx, 'hasPassword', { get: () => true });
+      vi.spyOn(ctx, 'verifyPassword').mockResolvedValue(true);
+      PeerCursor.myCursor.reConnectPass = 'kept';
+      const peers = vi.spyOn(Network, 'peerIds', 'get').mockReturnValue([]);
+      vi.spyOn(TestBed.inject(ModalService), 'open').mockImplementation(async () => {
+        peers.mockReturnValue(['joined-meanwhile']);
+        return 'typed';
+      });
+
+      await component.connect([ctx]);
+
+      expect(openSpy).not.toHaveBeenCalled();
+      expect(PeerCursor.myCursor.reConnectPass).toBe('kept');
+    });
+
     it('does not open it when the password dialogue is dismissed', async () => {
       const ctx = PeerContext.parse('test-peer');
       Object.defineProperty(ctx, 'hasPassword', { get: () => true });

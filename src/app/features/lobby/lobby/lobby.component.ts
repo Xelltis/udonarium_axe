@@ -197,10 +197,13 @@ export class LobbyComponent {
         };
         password = await this.modalService.open<string>(PasswordCheckComponent, options);
         if (password == null) password = '';
-        this.myPeer.reConnectPass = password;
       }
 
       if (!(await context.verifyPassword(password))) return;
+      // Joined by somebody while the password was asked for, the seat stays in that room, its own
+      // password kept for reconnecting, rather than carry the table off into this one.
+      if (Network.peerIds.length > 0) return;
+      if (context.hasPassword) this.myPeer.reConnectPass = password;
 
       isJoinStarted = true;
       void this.roomJoin
