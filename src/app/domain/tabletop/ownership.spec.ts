@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { Network } from '@axe/core/network/network';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -80,6 +81,39 @@ describe('ownership', () => {
       } finally {
         note.destroy();
         open.destroy();
+      }
+    });
+  });
+
+  describe('forgetChosenViewers on a room server', () => {
+    it('keeps the accounts picked, which no seat takes up without logging in as them, and forgets the rest', () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      const note = TextNote.create('メモ', '本文');
+      note.disclosureUserIds = ['acct_alice', 'tab-user'];
+      const kept = TextNote.create('メモ', '本文');
+      kept.disclosureUserIds = ['acct_bob'];
+      try {
+        expect(forgetChosenViewers([note, kept])).toBe(1);
+
+        expect(note.disclosureUserIds).toEqual(['acct_alice']);
+        expect(kept.disclosureUserIds).toEqual(['acct_bob']);
+      } finally {
+        note.destroy();
+        kept.destroy();
+        vi.restoreAllMocks();
+      }
+    });
+
+    it('forgets an account picked when the table comes into SkyWay, where any seat may name it', () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('skyway');
+      const note = TextNote.create('メモ', '本文');
+      note.disclosureUserIds = ['acct_alice'];
+      try {
+        expect(forgetChosenViewers([note])).toBe(1);
+        expect(note.disclosureUserIds).toEqual([]);
+      } finally {
+        note.destroy();
+        vi.restoreAllMocks();
       }
     });
   });
