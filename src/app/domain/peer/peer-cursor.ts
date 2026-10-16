@@ -1,4 +1,5 @@
 import { domainPeerDisconnect$ } from '@axe/core/event/domain-events';
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { getAuthorityPeerId, getMyPeerId, getPeerContext, getPeerIds } from '@axe/core/network/peer-context-source';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -290,12 +291,14 @@ export class PeerCursor extends GameObject {
    * object store. When they came back with a new cursor under the same peer id, as a seat loading the
    * page again does, the old one is deleted here for good, so that a peer offering it again is told
    * to delete it too. A cursor under this seat's own peer id that is not its own is one it left behind
-   * before loading the page again, which it deletes for every peer as it arrives.
+   * before loading the page again, which it deletes for every peer as it arrives. One under this
+   * seat's own cursor's identifier is its own, put back as a replay hands the table back, and one
+   * shown while a replay keeps the seat off the network is left alone.
    */
   override onStoreAdded() {
     super.onStoreAdded();
-    if (this.isMine) return;
-    if (this.peerId.length > 0 && this.peerId === getMyPeerId()) {
+    if (this.isMine || this.identifier === PeerCursor.myCursor?.identifier) return;
+    if (this.peerId.length > 0 && this.peerId === getMyPeerId() && !isNetworkIsolated()) {
       queueMicrotask(() => {
         if (ObjectStore.instance.get(this.identifier) === this) ObjectStore.instance.delete(this);
       });

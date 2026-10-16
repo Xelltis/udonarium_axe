@@ -8,6 +8,7 @@ import {
   ReplayPlaybackService,
 } from '@axe/application/replay/replay-playback.service';
 import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
+import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated, setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
 import { AudioFile } from '@axe/core/storage/audio-file';
@@ -21,6 +22,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement } from '@axe/domain/data/data-element';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
 import { CutIn } from '@axe/domain/media/cut-in';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { createReplayEntry, retextReplayEvent } from '@axe/domain/replay/replay-edit';
 import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
 import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
@@ -157,6 +159,27 @@ describe('ReplayPlaybackService', () => {
 
     await service.exitBoardMode();
     expect(isNetworkIsolated()).toBe(false);
+  });
+
+  it('hands this seat its own cursor back on going back to the table, deleting it for nobody', async () => {
+    vi.spyOn(Network, 'peerId', 'get').mockReturnValue('peer-me');
+    const mine = PeerCursor.createMyCursor();
+    const sent = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+    try {
+      await service.open(1);
+      await service.enterBoardMode();
+      expect(objectStore.get(mine.identifier)).toBeFalsy();
+
+      await service.exitBoardMode();
+      await Promise.resolve();
+
+      expect(objectStore.get(mine.identifier)).toBe(mine);
+      expect(PeerCursor.myCursor).toBe(mine);
+      expect(objectStore.isDeleted(mine.identifier)).toBe(false);
+      expect(sent).not.toHaveBeenCalledWith(expect.objectContaining({ eventName: 'DELETE_GAME_OBJECT' }), undefined);
+    } finally {
+      PeerCursor.myCursor = null!;
+    }
   });
 
   it('builds the board up from a keyframe', async () => {

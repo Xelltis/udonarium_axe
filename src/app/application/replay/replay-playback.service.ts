@@ -14,6 +14,7 @@ import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { CutIn } from '@axe/domain/media/cut-in';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { collectReplayCast, type ReplayCastMember } from '@axe/domain/replay/replay-cast';
 import { cloneSyncValue, isSameSyncValue, mergeSyncData, type SyncData } from '@axe/domain/replay/replay-diff';
 import {
@@ -468,8 +469,16 @@ export class ReplayPlaybackService {
     markForChanged(object);
   }
 
+  /**
+   * Puts an object of a board back. This seat's own cursor is put back as the very cursor the seat
+   * holds, which a copy under its identifier would leave the seat without.
+   */
   private createObject(snapshot: ReplayObjectSnapshot): void {
-    const object = this.objectFactory.create(snapshot.aliasName, snapshot.identifier);
+    const mine = PeerCursor.myCursor;
+    const object =
+      mine && snapshot.identifier === mine.identifier
+        ? mine
+        : this.objectFactory.create(snapshot.aliasName, snapshot.identifier);
     if (!object) return;
     const context: ObjectContext = {
       identifier: snapshot.identifier,
