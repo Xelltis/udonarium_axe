@@ -7,13 +7,18 @@ import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ActiveCharacterService } from '@axe/features/pl-tools/active-character.service';
 import { OwnedCharacterListPanelComponent } from '@axe/features/pl-tools/owned-character-list/owned-character-list-panel.component';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('OwnedCharacterListPanelComponent', () => {
   let component: OwnedCharacterListPanelComponent;
   let fixture: ComponentFixture<OwnedCharacterListPanelComponent>;
-  let panelStub: { open: ReturnType<typeof vi.fn>; openLazy: ReturnType<typeof vi.fn> };
+  let panelStub: {
+    open: ReturnType<typeof vi.fn>;
+    openLazy: ReturnType<typeof vi.fn>;
+    close: ReturnType<typeof vi.fn>;
+  };
 
   function makeCharacter(name: string, owner: string, locationName: string): GameCharacter {
     const character = GameCharacter.create(name, 1, '');
@@ -23,7 +28,7 @@ describe('OwnedCharacterListPanelComponent', () => {
   }
 
   beforeEach(async () => {
-    panelStub = { open: vi.fn(), openLazy: vi.fn() };
+    panelStub = { open: vi.fn(), openLazy: vi.fn(), close: vi.fn() };
     await TestBed.configureTestingModule({
       imports: [OwnedCharacterListPanelComponent],
       providers: [...TEST_PROVIDERS],
@@ -37,6 +42,10 @@ describe('OwnedCharacterListPanelComponent', () => {
 
   afterEach(() => {
     PeerCursor.myCursor = null!;
+  });
+
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() => TestBed.createComponent(OwnedCharacterListPanelComponent));
   });
 
   it('lists only the characters you own', () => {

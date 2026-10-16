@@ -17,13 +17,15 @@ describe('MobileShellComponent', () => {
       offersCharacters: () => boolean;
     };
     const actions = () => shell.sharedItems().map((item) => item.action);
-    expect(actions()).toEqual(expect.arrayContaining(['effect', 'hand', 'zipLoad', 'importCharacter', 'createObject']));
+    expect(actions()).toEqual(
+      expect.arrayContaining(['effect', 'hand', 'zipLoad', 'importCharacter', 'createObject', 'activePalette'])
+    );
     expect(shell.offersCharacters()).toBe(true);
 
     PeerCursor.myCursor.role = PeerRole.Guest;
     TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
 
-    for (const action of ['effect', 'hand', 'zipLoad', 'importCharacter', 'createObject']) {
+    for (const action of ['effect', 'hand', 'zipLoad', 'importCharacter', 'createObject', 'activePalette']) {
       expect(actions()).not.toContain(action);
     }
     expect(actions()).toContain('jukebox');

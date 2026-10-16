@@ -63,7 +63,7 @@ export const MOBILE_MENU_ITEMS: readonly MobileMenuItem[] = [
   { action: 'roomSnapshot', icon: 'history', labelKey: 'app.fab.roomSnapshot' },
   { action: 'replay', icon: 'receipt_long', labelKey: 'app.fab.replay' },
   { action: 'visualNovel', icon: 'auto_stories', labelKey: 'app.fab.visualNovel' },
-  { action: 'activePalette', icon: 'chat', labelKey: 'feature.mobile.activePalette' },
+  { action: 'activePalette', icon: 'chat', labelKey: 'feature.mobile.activePalette', audience: 'playing' },
   { action: 'hand', icon: 'style', labelKey: 'app.fab.handCards', audience: 'playing' },
   { action: 'zipLoad', icon: 'open_in_browser', labelKey: 'app.fab.zipLoad', audience: 'playing' },
   { action: 'save', icon: 'sd_storage', labelKey: 'app.fab.save' },

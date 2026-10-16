@@ -5,6 +5,7 @@ import { PartyService } from '@axe/application/party/party.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { matchesSearchText, normalizeSearchText, splitSearchTerms } from '@axe/core/util/text-search';
@@ -42,6 +43,11 @@ export class OwnedCharacterListPanelComponent {
   protected readonly activeCharacter = inject(ActiveCharacterService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly disclosure = inject(DisclosureService);
+
+  constructor() {
+    // Made a guest meanwhile, the seat may no longer write what this panel writes.
+    closeWhenOffTheTable();
+  }
 
   readonly characters = computed<GameCharacter[]>(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
