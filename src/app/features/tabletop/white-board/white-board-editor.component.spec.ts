@@ -19,6 +19,7 @@ import {
   textLayer,
   wordsAt,
 } from '@axe/features/tabletop/white-board/white-board-scene';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 interface EditorInternals {
@@ -105,6 +106,10 @@ describe('WhiteBoardEditorComponent', () => {
     editor.bindToBoard(made);
     return { fixture, editor, board: made };
   }
+
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() => mount());
+  });
 
   function key(init: KeyboardEventInit & { key: string }): KeyboardEvent {
     return new KeyboardEvent('keydown', { cancelable: true, ...init });

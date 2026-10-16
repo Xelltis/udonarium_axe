@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
@@ -56,6 +57,24 @@ describe('TextNoteComponent', () => {
     canEdit.mockReturnValue(true);
     component.onMouseDown(new MouseEvent('mousedown', { button: 2 }));
     expect(topmost).toHaveBeenCalledTimes(1);
+    note.destroy();
+  });
+
+  it('leaves a note being written as the room has it once the seat is made a guest, the draft unwritten', async () => {
+    PeerCursor.createMyCursor();
+    const note = TextNote.create('メモ', '本文');
+    fixture.componentRef.setInput('textNote', note);
+    fixture.detectChanges();
+    component.enterEdit();
+    component.text = '書きかけ';
+
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+    TestBed.tick();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(component.isEditing()).toBe(false);
+    expect(note.text).toBe('本文');
     note.destroy();
   });
 

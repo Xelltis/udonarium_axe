@@ -10,6 +10,7 @@ import { DataElement, DataElementAttribute, DataElementRole, DataElementType } f
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { RemoteControllerComponent } from '@axe/features/controller/remote-controller/remote-controller.component';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -43,6 +44,10 @@ describe('RemoteControllerComponent', () => {
     createdChars.push(char);
     return char;
   }
+
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() => TestBed.createComponent(RemoteControllerComponent));
+  });
 
   it('should create', () => {
     expect(component).toBeTruthy();

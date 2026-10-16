@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
@@ -58,6 +59,8 @@ export class CardStackCardListComponent {
   });
 
   constructor() {
+    // Made a guest meanwhile, the seat may no longer write what this panel writes.
+    closeWhenOffTheTable();
     effect(() => {
       const stack = this.cardStack();
       untracked(() => this.claimOwnership(stack));

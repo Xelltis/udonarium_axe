@@ -20,6 +20,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -184,6 +185,8 @@ export class RemoteControllerComponent {
   }
 
   constructor() {
+    // Made a guest meanwhile, the seat may no longer write what this panel writes.
+    closeWhenOffTheTable();
     queueMicrotask(() => this.updatePanelTitle());
     this.chatTabidentifier.set(this.sendableChatTabs()[0]?.identifier ?? '');
     // A tab gone, or one this seat may no longer speak in, gives way to the first it may.

@@ -5,6 +5,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { CardStackCardListComponent } from '@axe/features/card/card-stack-card-list/card-stack-card-list.component';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CardStackCardListComponent', () => {
@@ -27,6 +28,12 @@ describe('CardStackCardListComponent', () => {
     fixture = TestBed.createComponent(CardStackCardListComponent);
     fixture.componentRef.setInput('cardStack', stack);
     component = fixture.componentInstance;
+  });
+
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() =>
+      TestBed.createComponent(CardStackCardListComponent).componentRef.setInput('cardStack', stack)
+    );
   });
 
   it('should be created and render the card rows', () => {

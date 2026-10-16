@@ -8,6 +8,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BuffManagerPanelComponent } from '@axe/features/buff/buff-manager-panel/buff-manager-panel.component';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('BuffManagerPanelComponent', () => {
@@ -37,6 +38,10 @@ describe('BuffManagerPanelComponent', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() => TestBed.createComponent(BuffManagerPanelComponent));
   });
 
   it('leaves out the pieces carrying nothing', () => {

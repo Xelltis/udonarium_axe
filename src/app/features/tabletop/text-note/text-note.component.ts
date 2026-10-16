@@ -9,6 +9,7 @@ import {
   inject,
   input,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -128,6 +129,17 @@ export class TextNoteComponent {
       this._text.set(note.text);
       this._fontSize.set(note.fontSize);
       this.calcFitHeightIfNeeded();
+    });
+    // A seat made a guest while it wrote leaves the note as the room has it, the draft unwritten.
+    effect(() => {
+      this.objectChange.trackMyCursor();
+      if (this.rolePermission.canEditTabletop || !untracked(this.isEditing)) return;
+      untracked(() => {
+        if (this.textUpdateTimer) clearTimeout(this.textUpdateTimer);
+        this.textUpdateTimer = null;
+        this._text.set(this.textNote().text);
+        this.isEditing.set(false);
+      });
     });
   }
 
