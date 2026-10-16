@@ -305,6 +305,20 @@ describe('ServerConnection', () => {
       expect(connection.peerIds).toEqual([OTHER.peerId]);
     });
 
+    it('tells of a role changed while the link was down, once back on the new one', async () => {
+      connection.callback.onRoleChange = (role) => calls.push(`role ${role}`);
+      const socket = await enterRoom([OTHER]);
+      socket.close(1012, 'rotate');
+      welcomeOn(latest());
+      await vi.waitFor(() => expect(calls).toContain('reconnect resumed'));
+      expect(calls).not.toContain('role pl');
+
+      latest().close(1012, 'rotate');
+      welcomeOn(latest(), { role: 'gm' });
+
+      await vi.waitFor(() => expect(calls).toContain('role gm'));
+    });
+
     it('tries again after the usual wait when asked back before its first welcome, rather than giving up', async () => {
       const socket = await openRoom();
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });

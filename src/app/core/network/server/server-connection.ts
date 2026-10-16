@@ -520,6 +520,8 @@ export class ServerConnection implements Connection {
     this.welcomed = true;
     const cameBack = this.comingBack;
     this.comingBack = false;
+    // A role changed while the link was down is told as any change is, once the seat is back.
+    const roleBefore = this.everWelcomed ? this.role : message.role;
     this.role = message.role;
     this.clockOffset = message.serverTime - Date.now();
     this.assetUpload = readAssetUploadPolicy(message.assetUpload);
@@ -542,6 +544,7 @@ export class ServerConnection implements Connection {
       this.callback.onOpen?.(this.me);
     }
     this.callback.onConnect?.(authority);
+    if (roleBefore !== message.role) this.callback.onRoleChange?.(message.role);
     const present = new Set(message.members.map((member) => member.peerId));
     for (const peerId of [...this.members.keys()]) {
       if (!present.has(peerId)) this.removeMember(peerId);
