@@ -33,6 +33,7 @@ describe('leaving the room', () => {
   let ask: ReturnType<typeof vi.fn>;
 
   function inRoom(transport: 'server' | 'skyway', { linked = true, images = false, sounds = false } = {}): void {
+    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true } as never);
     vi.spyOn(Network, 'transport', 'get').mockReturnValue(transport);
     vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(linked);
     vi.spyOn(ImageStorage.instance, 'hasUploadsPending', 'get').mockReturnValue(images);
@@ -85,6 +86,13 @@ describe('leaving the room', () => {
     expect(await TestBed.inject(LeaveRoomService).leave(win)).toBe(true);
 
     expect(calls).toEqual(['save', 'reload']);
+  });
+
+  it('finds nothing to lose outside a room', () => {
+    inRoom('skyway', { images: true });
+    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: false } as never);
+
+    expect(leavingLoss()).toBeNull();
   });
 
   it('leaves a room server’s room unasked when everything has reached the server', async () => {

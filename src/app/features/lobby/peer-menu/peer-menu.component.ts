@@ -38,8 +38,10 @@ import {
   roleShortLabelKey,
 } from '@axe/domain/peer/peer-role';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { leavingLoss } from '@axe/features/lobby/leave-room';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { ReConnectComponent } from '@axe/features/lobby/re-connect/re-connect.component';
+import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -69,6 +71,7 @@ export class PeerMenuComponent {
   private readonly localModePreference = inject(LocalModePreferenceService);
 
   private readonly confirm = inject(ConfirmService);
+  private readonly roomArchive = inject(RoomArchiveEventHandlerService);
   private readonly roomDeletion = inject(RoomDeletionService);
 
   /** Whether the room is being deleted from here, which holds the button back. */
@@ -93,17 +96,23 @@ export class PeerMenuComponent {
   /**
    * Switches between playing online and playing alone, once the reader has confirmed.
    *
-   * The choice is written down in this browser and the page reloads into it, without the browser
-   * asking again whether to leave, which would keep the page in the mode left. Choosing the mode
-   * already in use does nothing.
+   * Going offline leaves the room, so the question also says what leaving a room server's room now
+   * would lose, and the room is kept in this browser's automatic save first. The choice is written
+   * down in this browser and the page reloads into it, without the browser asking again whether to
+   * leave, which would keep the page in the mode left. Choosing the mode already in use does nothing.
    */
   async chooseConnectionMode(mode: ConnectionMode): Promise<void> {
     if (mode === this.connectionMode()) return;
+    const loss = mode === 'offline' ? leavingLoss() : null;
+    const question = this.t(
+      mode === 'offline' ? 'feature.lobby.peerMenu.confirmOffline' : 'feature.lobby.peerMenu.confirmOnline'
+    );
     const asked = await this.confirm.ask(
-      this.t(mode === 'offline' ? 'feature.lobby.peerMenu.confirmOffline' : 'feature.lobby.peerMenu.confirmOnline')
+      loss === 'unsent' || loss === 'uploads' ? `${question}\n${this.t(`feature.lobby.leaveRoom.${loss}`)}` : question
     );
     if (!asked) return;
     this.localModePreference.set(mode === 'offline');
+    await this.roomArchive.flush();
     Network.letPageGo();
     this.reload();
   }

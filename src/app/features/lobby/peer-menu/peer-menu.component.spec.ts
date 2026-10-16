@@ -8,10 +8,12 @@ import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { LOCAL_MODE_STORAGE_KEY, LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { PeerMenuComponent } from '@axe/features/lobby/peer-menu/peer-menu.component';
+import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -532,6 +534,28 @@ describe('PeerMenuComponent', () => {
       expect(localStorage.getItem(LOCAL_MODE_STORAGE_KEY)).toBe('1');
       expect(letGo).toHaveBeenCalledTimes(1);
       expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it('says what leaving the room would lose, and keeps the room in the automatic save before going offline', async () => {
+      const calls: string[] = [];
+      vi.spyOn(component as unknown as { reload(): void }, 'reload').mockImplementation(() => calls.push('reload'));
+      vi.spyOn(Network.instance, 'letPageGo').mockImplementation(() => {});
+      vi.spyOn(TestBed.inject(RoomArchiveEventHandlerService), 'flush').mockImplementation(async () => {
+        calls.push('save');
+      });
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ isRoom: true } as never);
+      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network.instance, 'isAuthorityOpen', 'get').mockReturnValue(true);
+      vi.spyOn(ImageStorage.instance, 'hasUploadsPending', 'get').mockReturnValue(true);
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+      const t = TestBed.inject(TRANSLATE_FN);
+
+      await component.chooseConnectionMode('offline');
+
+      expect(ask).toHaveBeenCalledWith(
+        `${t('feature.lobby.peerMenu.confirmOffline')}\n${t('feature.lobby.leaveRoom.uploads')}`
+      );
+      expect(calls).toEqual(['save', 'reload']);
     });
 
     it('does nothing when the mode it is already in is chosen again', async () => {
