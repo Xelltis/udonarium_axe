@@ -98,11 +98,15 @@ export class SaveDataService {
 
   /**
    * Builds the same archive as `saveRoomAsync` as a blob, without downloading it. Used for room
-   * snapshots; queued with the saves. Snapshots are taken in the background, so code for zips that
-   * could not be fetched asks no reload from here: the reader hears of it from what they do.
+   * snapshots; queued with the saves. One taken in the background asks no reload when the code for
+   * zips could not be fetched, since the reader hears of it from what they do; one the reader asked
+   * for does, through the archiver.
    */
-  createRoomArchiveAsync(): Promise<Blob> {
-    return SaveDataService.queue.add(() => createZipBlob(this.buildRoomFiles(false)));
+  createRoomArchiveAsync(options: { background?: boolean } = {}): Promise<Blob> {
+    const files = () => this.buildRoomFiles(false);
+    return SaveDataService.queue.add(() =>
+      options.background ? createZipBlob(files()) : this.fileArchiver.createZipBlobAsync(files())
+    );
   }
 
   /**

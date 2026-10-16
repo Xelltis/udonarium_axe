@@ -285,10 +285,19 @@ describe('SaveDataService', () => {
       const service = TestBed.inject(SaveDataService);
       const viaArchiver = vi.spyOn(TestBed.inject(FileArchiver), 'createZipBlobAsync');
 
-      const archive = await service.createRoomArchiveAsync();
+      const archive = await service.createRoomArchiveAsync({ background: true });
 
       expect(archive).toBeInstanceOf(Blob);
       expect(viaArchiver).not.toHaveBeenCalled();
+    });
+
+    it('is packed through the archiver when the reader asked for it, to ask for the reload if need be', async () => {
+      const service = TestBed.inject(SaveDataService);
+      const viaArchiver = vi.spyOn(TestBed.inject(FileArchiver), 'createZipBlobAsync');
+
+      await service.createRoomArchiveAsync();
+
+      expect(viaArchiver).toHaveBeenCalledOnce();
     });
   });
 

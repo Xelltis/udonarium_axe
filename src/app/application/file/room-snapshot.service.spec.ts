@@ -85,6 +85,15 @@ describe('RoomSnapshotService', () => {
     expect(service.latest?.byteSize).toBe(3);
   });
 
+  it('tells the save whether it is taken in the background, which asks for no reload', async () => {
+    const build = vi.spyOn(TestBed.inject(SaveDataService), 'createRoomArchiveAsync');
+
+    await service.capture({ background: true });
+    await service.capture();
+
+    expect(build.mock.calls).toEqual([[{ background: true }], [{}]]);
+  });
+
   it('drops the oldest snapshots past the limit', async () => {
     for (let i = 0; i < 7; i++) {
       await service.capture();

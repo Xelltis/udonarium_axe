@@ -68,14 +68,16 @@ export class RoomSnapshotService {
    * Saves the room as it stands into this browser as a new snapshot, then removes the expired ones.
    *
    * Answers null where snapshots are unsupported, while a capture is already running, or when the
-   * save fails, which is logged. How long it took lands in `lastCaptureMs` either way.
+   * save fails, which is logged. How long it took lands in `lastCaptureMs` either way. One taken in
+   * the `background` asks for no reload should the code for zips be missing; one the reader asked
+   * for does.
    */
-  async capture(): Promise<RoomSnapshotMeta | null> {
+  async capture(options: { background?: boolean } = {}): Promise<RoomSnapshotMeta | null> {
     if (!this.isSupported || this._isCapturing()) return null;
     this._isCapturing.set(true);
     const startedAt = performance.now();
     try {
-      const blob = await this.saveDataService.createRoomArchiveAsync();
+      const blob = await this.saveDataService.createRoomArchiveAsync(options);
       const id = await this.store.put({ roomName: this.currentRoomName(), savedAt: Date.now(), blob });
       if (id == null) return null;
       await this.prune();

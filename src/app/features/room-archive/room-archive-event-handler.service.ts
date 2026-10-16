@@ -48,7 +48,7 @@ export class RoomArchiveEventHandlerService {
       return;
     }
     this.isDirty = false;
-    await this.roomSnapshot.capture();
+    await this.roomSnapshot.capture({ background: true });
   }
 
   private isBusy(): boolean {

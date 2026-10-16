@@ -88,7 +88,7 @@ describe('RoomArchiveEventHandlerService', () => {
     expect(capture).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(2_000);
-    expect(capture).toHaveBeenCalledOnce();
+    expect(capture).toHaveBeenCalledExactlyOnceWith({ background: true });
   });
 
   it('gathers a run of changes into one save', async () => {
