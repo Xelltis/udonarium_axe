@@ -280,6 +280,22 @@ function withChatMoments(
     }
   }
 
+  const roomWanted = new Map<number, number>();
+  const wantedAhead = new Map<string, number>();
+  for (let index = events.length - 1; index >= 0; index--) {
+    const seq = events[index].seq;
+    const line = lines.get(seq);
+    if (!line) continue;
+    if (retold.has(seq)) {
+      roomWanted.set(seq, wantedAhead.get(line.tab) ?? 0);
+      if (remade.has(seq) || (followed(seq) && retold.has(line.answers!.seq))) continue;
+      const top = answerTops.get(seq) ?? 0;
+      wantedAhead.set(line.tab, (wantedAhead.get(line.tab) ?? 0) + (top > 0 ? Math.ceil(top) + 1 : 1));
+    } else if (!followed(seq)) {
+      wantedAhead.set(line.tab, 0);
+    }
+  }
+
   const keyOf = (tab: string, speaker: string, moment: number) => `${tab}\0${speaker}\0${moment}`;
   const count = (counts: Map<string, number>, key: string, by: number) => counts.set(key, (counts.get(key) ?? 0) + by);
   const linesAhead = new Map<string, number>();
@@ -339,6 +355,7 @@ function withChatMoments(
         !moved.has(event.seq) &&
         (after === undefined || after < key) &&
         (before === undefined || key < before) &&
+        (before === undefined || Math.floor(before) - line.moment - 1 >= (roomWanted.get(event.seq) ?? 0)) &&
         !clashes(line, answerTop)(line.moment);
       if (!staysPut) when = saidBetween(after, before, answerTop, when, clashes(line, answerTop));
     }

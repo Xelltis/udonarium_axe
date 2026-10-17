@@ -744,6 +744,29 @@ describe('chat moments that follow a new place', () => {
       expect(momentOf(bySeq(moved, 4))).toBe(momentOf(bySeq(apart, 4)));
     });
 
+    it('moves a notice left behind when there is no room for the lines moved in after it, keeping a roll with its result', () => {
+      const answering = (event: ReplayEvent, asker: string): ReplayEvent => ({
+        ...event,
+        patch: { ...event.patch!, after: { ...event.patch!.after, 'attributes.originFrom': asker } },
+      });
+      const events = [
+        minor(by('gm', 1, 1000000), 0.5),
+        minor(by('quinn', 2, 1060000), 0.3),
+        minor(by('pat', 3, 1060001), 0.7),
+        minor(answering(by('System', 4, 1060003, '知らせ'), 'pat'), 0.1),
+        minor(by('pat', 5, 1060004, '2d6'), 0.9),
+        minor(answering(result(6, 60, 1060005), 'pat'), 0.9),
+      ];
+      const keyOf = (event: ReplayEvent) => momentOf(event) + Number(event.patch?.after['minorIndex'] ?? 0);
+
+      const stepped = stepReplayEvents(events, new Set([2, 3]), 1);
+      const keys = stepped.map(keyOf);
+
+      expect(stepped.map((event) => event.seq)).toEqual([1, 4, 2, 3, 5, 6]);
+      expect(keys).toEqual([...keys].sort((a, b) => a - b));
+      expect(momentOf(bySeq(stepped, 6))).toBe(momentOf(bySeq(stepped, 5)) + 1);
+    });
+
     it('leaves a result whose roll was deleted at its moment, where that ties it to no other line', () => {
       const events = [
         minor(by('bob', 1, 1000000), 0.4),
