@@ -1,7 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { CardGameService } from '@axe/application/card/card-game.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
@@ -28,6 +30,44 @@ describe('CardStackComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('dealing the whole stack out', () => {
+    const dealOut = (cardStack: CardStack) => {
+      fixture.componentRef.setInput('cardStack', cardStack);
+      return (component as unknown as { dealAll(): Promise<void> }).dealAll();
+    };
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('asks first when some cards are face down to this seat on a room server, and deals nothing if declined', async () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+      const deal = vi.spyOn(TestBed.inject(CardGameService), 'dealAll');
+      const deck = CardStack.create('山札');
+      const card = Card.create('ジョーカー', 'front.png', 'back.png');
+      card.imageDataElement!.removeChild(card.imageDataElement!.getFirstElementByName('front')!);
+      deck.putOnBottom(card);
+
+      await dealOut(deck);
+
+      expect(ask).toHaveBeenCalledTimes(1);
+      expect(deal).not.toHaveBeenCalled();
+      deck.destroy();
+    });
+
+    it('deals without asking when every face is here', async () => {
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask');
+      const deal = vi.spyOn(TestBed.inject(CardGameService), 'dealAll').mockReturnValue({ dealt: 1, participants: 1 });
+      const deck = CardStack.create('山札');
+      deck.putOnBottom(Card.create('A', 'front.png', 'back.png'));
+
+      await dealOut(deck);
+
+      expect(ask).not.toHaveBeenCalled();
+      expect(deal).toHaveBeenCalledTimes(1);
+      deck.destroy();
+    });
   });
 
   it('brings the stack to the top on a press, for a seat that may change the table alone', () => {

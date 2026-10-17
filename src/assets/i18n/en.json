@@ -1135,7 +1135,8 @@
       },
       "message": {
         "dealt": "Dealt {{count}} cards to {{players}} players",
-        "noSeats": "Nobody can be dealt cards"
+        "noSeats": "Nobody can be dealt cards",
+        "dealWithheld": "Some cards are face down to you, so jokers cannot be told apart, and every joker will be dealt too. You can ask the GM to deal instead. Deal anyway?"
       }
     },
     "coin": {

@@ -18,6 +18,7 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
@@ -89,6 +90,7 @@ export class CardStackComponent {
   private readonly multiMovableService = inject(MultiMovableService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
+  private readonly confirm = inject(ConfirmService);
 
   readonly isHiddenByFog = computed(() => {
     const piece = this.cardStack();
@@ -491,8 +493,15 @@ export class CardStackComponent {
     if (changed > 0) SoundEffect.play(PresetSound.cardPut);
   }
 
-  private dealAll() {
-    this.cardGameService.dealAll(this.cardStack());
+  /**
+   * Deals the whole stack out. Asked first when some cards are face down to this seat on a room
+   * server, as their jokers cannot be told apart and go out with the rest.
+   */
+  private async dealAll() {
+    const stack = this.cardStack();
+    const withheld = stack.cards.some((card) => card.isFaceWithheld);
+    if (withheld && !(await this.confirm.ask(this.translateFn('feature.cardStack.message.dealWithheld')))) return;
+    this.cardGameService.dealAll(stack);
   }
 
   private breakStack() {
