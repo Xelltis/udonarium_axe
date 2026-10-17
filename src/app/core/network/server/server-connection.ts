@@ -58,12 +58,18 @@ export const SEND_GATHER_MS = 16;
 /** The window the server counts a connection's sends in, the protocol's RATE_WINDOW_SECONDS. */
 export const SEND_WINDOW_MS = 10_000;
 /**
- * How many events a seat writes in SEND_WINDOW_MS at most, three quarters of the 20,000 past which
- * the server cuts the connection off. A tab of many lines deleted, or a big room loaded again, goes
- * out over a few windows rather than losing the seat and what was over.
+ * The window a seat paces its sends over: a second longer than the server's, which starts as the
+ * first frame is taken in, so that a frame held up on the way does not bring two steps into one.
+ */
+export const PACE_WINDOW_MS = SEND_WINDOW_MS + 1000;
+/**
+ * How many events to everybody a seat writes in PACE_WINDOW_MS at most, three quarters of the 20,000
+ * past which the server cuts the connection off. A tab of many lines deleted, or a big room loaded
+ * again, goes out over a few windows rather than losing the seat and what was over. What goes to the
+ * server alone, few things such as a roll or an invitation asked for, is not held back behind them.
  */
 export const SEND_BUDGET_EVENTS = 15_000;
-/** How many frames a seat writes in SEND_WINDOW_MS at most, three quarters of the server's 2,000. */
+/** How many frames to everybody a seat writes in PACE_WINDOW_MS at most, three quarters of the server's 2,000. */
 export const SEND_BUDGET_FRAMES = 1_500;
 /** How many events go out in one batch at most, so that the budget fills in steps. */
 const SEND_CHUNK_EVENTS = 2_500;
@@ -217,6 +223,8 @@ export class ServerConnection implements Connection {
   private outbound: Outbound[] = [];
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private sending: Promise<void> = Promise.resolve();
+  /** The writing of what goes to one peer or the server, and of the connection's own messages, which is not paced. */
+  private sendingDirect: Promise<void> = Promise.resolve();
   private inbound: Promise<void> = Promise.resolve();
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private pongTimer: ReturnType<typeof setTimeout> | null = null;
@@ -225,7 +233,7 @@ export class ServerConnection implements Connection {
   private held: Outbound[] = [];
   /** Batches handed on to be written to the link and not written yet, oldest first. */
   private unwritten: Outbound[] = [];
-  /** What was written to the link within the last SEND_WINDOW_MS, oldest first. */
+  /** What was written to the link within the last PACE_WINDOW_MS, oldest first. */
   private sentLately: { at: number; events: number; frames: number }[] = [];
   /** Ends a wait for room in the window early, as when the link goes. */
   private wakePacing: (() => void) | null = null;
@@ -907,26 +915,36 @@ export class ServerConnection implements Connection {
     this.outbound = [];
     this.unwritten.push(...batches);
     const socket = this.socket;
-    this.sending = this.sending
-      .then(async () => {
-        for (const batch of batches) {
-          // A link that went took what was on its way out with it, the requests among them kept.
-          if (!this.unwritten.includes(batch)) return;
-          const frames = await encodeSendFrames(batch.events, batch.to);
-          await this.roomInWindow(batch, frames.length);
-          if (!this.unwritten.includes(batch)) return;
-          if (socket == null || socket !== this.socket || socket.readyState !== SOCKET_OPEN) {
-            const left = this.unwritten;
-            this.unwritten = [];
-            this.keepRequests(left);
-            return;
-          }
-          for (const frame of frames) socket.send(frame);
-          this.sentLately.push({ at: Date.now(), events: batch.events.length, frames: frames.length });
-          this.unwritten = this.unwritten.filter((waiting) => waiting !== batch);
-        }
-      })
-      .catch((e) => Logger.warn('[ServerConnection] a send failed', e));
+    const paced = batches.filter((batch) => batch.to === undefined);
+    const direct = batches.filter((batch) => batch.to !== undefined);
+    if (paced.length > 0) {
+      this.sending = this.sending
+        .then(() => this.write(socket, paced, true))
+        .catch((e) => Logger.warn('[ServerConnection] a send failed', e));
+    }
+    if (direct.length > 0) {
+      this.sendingDirect = this.sendingDirect
+        .then(() => this.write(socket, direct, false))
+        .catch((e) => Logger.warn('[ServerConnection] a send failed', e));
+    }
+  }
+
+  /**
+   * Writes batches to the link in order, those to everybody once the window has room. A link that
+   * goes, or is going, keeps what was not written yet for socketClosed, which holds the requests
+   * among them ahead of what gathered behind them.
+   */
+  private async write(socket: WebSocket | null, batches: Outbound[], paced: boolean): Promise<void> {
+    for (const batch of batches) {
+      if (!this.unwritten.includes(batch)) return;
+      const frames = await encodeSendFrames(batch.events, batch.to);
+      if (paced) await this.roomInWindow(batch, frames.length);
+      if (!this.unwritten.includes(batch)) return;
+      if (socket == null || socket !== this.socket || socket.readyState !== SOCKET_OPEN) return;
+      for (const frame of frames) socket.send(frame);
+      this.sentLately.push({ at: Date.now(), events: batch.events.length, frames: frames.length });
+      this.unwritten = this.unwritten.filter((waiting) => waiting !== batch);
+    }
   }
 
   /**
@@ -936,12 +954,12 @@ export class ServerConnection implements Connection {
   private async roomInWindow(batch: Outbound, frames: number): Promise<void> {
     while (this.unwritten.includes(batch)) {
       const now = Date.now();
-      this.sentLately = this.sentLately.filter((sent) => now - sent.at < SEND_WINDOW_MS);
+      this.sentLately = this.sentLately.filter((sent) => now - sent.at < PACE_WINDOW_MS);
       const events = this.sentLately.reduce((count, sent) => count + sent.events, batch.events.length);
       const written = this.sentLately.reduce((count, sent) => count + sent.frames, frames);
       if (this.sentLately.length === 0 || (events <= SEND_BUDGET_EVENTS && written <= SEND_BUDGET_FRAMES)) return;
       await new Promise<void>((resolve) => {
-        const timer = setTimeout(wake, this.sentLately[0].at + SEND_WINDOW_MS - now);
+        const timer = setTimeout(wake, this.sentLately[0].at + PACE_WINDOW_MS - now);
         function wake(): void {
           clearTimeout(timer);
           resolve();
@@ -959,10 +977,13 @@ export class ServerConnection implements Connection {
     this.wakePacing = null;
   }
 
-  /** Sends one message of the connection's own, such as the hello, in order with the events. */
+  /**
+   * Sends one message of the connection's own, such as the hello, in order with what goes to the
+   * server alone, never held back behind a big load going out to everybody.
+   */
   private post(message: ClientMessage): void {
     const socket = this.socket;
-    this.sending = this.sending
+    this.sendingDirect = this.sendingDirect
       .then(async () => {
         const frame = await encodeFrame(message);
         if (socket != null && socket === this.socket && socket.readyState === SOCKET_OPEN) socket.send(frame);

@@ -3,6 +3,7 @@ import {
   ASSET_TOKEN_MARGIN_MS,
   ASSET_TOKEN_WAIT_MS,
   INVITE_TIMEOUT_MS,
+  PACE_WINDOW_MS,
   PING_INTERVAL_MS,
   PONG_TIMEOUT_MS,
   SEND_BUDGET_EVENTS,
@@ -203,7 +204,7 @@ describe('ServerConnection', () => {
     expect((await socket.frames()).map((frame) => frame['type'])).toEqual(['hello']);
   });
 
-  it('gathers what is sent within a moment into one frame per destination, in order', async () => {
+  it('gathers what is sent within a moment into one frame per destination, each in order', async () => {
     const socket = await enterRoom([OTHER]);
 
     connection.send([event('A')]);
@@ -211,9 +212,9 @@ describe('ServerConnection', () => {
     connection.send([event('C')], OTHER.peerId);
     await vi.waitFor(async () => expect((await socket.frames()).length).toBe(3));
 
-    const [, broadcast, unicast] = await socket.frames();
-    expect(broadcast).toEqual({ type: 'send', events: [event('A'), event('B')] });
-    expect(unicast).toEqual({ type: 'send', to: OTHER.peerId, events: [event('C')] });
+    const sent = (await socket.frames()).slice(1);
+    expect(sent).toContainEqual({ type: 'send', events: [event('A'), event('B')] });
+    expect(sent).toContainEqual({ type: 'send', to: OTHER.peerId, events: [event('C')] });
   });
 
   it('gzips a large frame, and sends the pieces of a file in frames of their own as they are', async () => {
@@ -673,11 +674,51 @@ describe('ServerConnection', () => {
     connection.send(deletions);
     await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
     await vi.waitFor(async () => expect(await written()).toBe(SEND_BUDGET_EVENTS));
-    await vi.advanceTimersByTimeAsync(SEND_WINDOW_MS / 2);
+    // The server's window may start late, as its first frame is taken in, so the next waits past it.
+    await vi.advanceTimersByTimeAsync(SEND_WINDOW_MS);
     expect(await written()).toBe(SEND_BUDGET_EVENTS);
 
-    await vi.advanceTimersByTimeAsync(SEND_WINDOW_MS / 2);
+    await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS - SEND_WINDOW_MS);
     await vi.waitFor(async () => expect(await written()).toBe(30_000));
+  });
+
+  it('writes what goes to the server alone, and its own messages, while a big load waits for room', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+    const socket = await enterRoom();
+    const deletions = Array.from({ length: 20_000 }, (_, i) =>
+      event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
+    );
+    connection.send(deletions);
+    await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
+    await vi.waitFor(() => expect(connection.sendsPending).toBe(true));
+    const roleRequest = event('ROLE_REQUEST', { peerId: OTHER.peerId, role: 'gm' });
+
+    connection.send([roleRequest], AUTHORITY_PEER_ID);
+    void connection.requestInvite('pl').catch(() => undefined);
+    await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
+
+    await vi.waitFor(async () => {
+      const frames = await socket.frames();
+      expect(frames).toContainEqual({ type: 'send', to: AUTHORITY_PEER_ID, events: [roleRequest] });
+      expect(frames).toContainEqual(expect.objectContaining({ type: 'invite', role: 'pl' }));
+    });
+    expect(connection.sendsPending).toBe(true);
+  });
+
+  it('keeps a deletion ahead of a word that it comes back, when the link is closing as it would be written', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    const socket = await enterRoom();
+    const deletion = event('DELETE_GAME_OBJECT', { aliasName: 'chat-tab', identifier: 'tab-1' });
+    const comingBack = event('FORGET_DELETED_OBJECTS', { identifiers: ['tab-1'] });
+    connection.send([deletion]);
+    vi.advanceTimersByTime(SEND_GATHER_MS);
+    socket.readyState = 2;
+    connection.send([comingBack]);
+    await vi.advanceTimersByTimeAsync(0);
+
+    socket.close(1006);
+
+    expect(await sentOnceBack()).toEqual([deletion, comingBack]);
   });
 
   it('says it has sends pending while it holds some back, and none once they have gone or only gather', async () => {
