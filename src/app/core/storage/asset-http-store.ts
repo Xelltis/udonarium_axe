@@ -45,6 +45,17 @@ const RATE_LIMIT_BACKOFF_MS = [10_000, 20_000, 40_000];
  */
 const REFUSED_STATUSES = new Set([400, 403, 413, 415, 451]);
 
+/** The error a room server's answer names, or null when it names none. */
+async function errorCodeOf(res: Response): Promise<string | null> {
+  try {
+    const body: unknown = await res.json();
+    const error = typeof body === 'object' && body !== null ? (body as { error?: unknown }).error : null;
+    return typeof error === 'string' ? error : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * A picture's or sound's name as the server keeps it: well formed and no longer than it keeps. A half
  * of a character, which encodeURIComponent cannot take, is written as the replacement character.
@@ -212,7 +223,7 @@ export class AssetHttpStore {
           // The name goes along so that the room's list can name a picture or sound nobody else describes.
           const header = assetNameHeader(name);
           const named: Record<string, string> = header ? { [ASSET_NAME_HEADER]: header } : {};
-          return this.answerOf(
+          return await this.answerOf(
             await this.withBackoff(() =>
               this.authorized((access) =>
                 this.sendBytes(this.urlOf(access, identifier), blob, { ...this.headersOf(access), ...named })
@@ -247,7 +258,7 @@ export class AssetHttpStore {
       )
     );
     // Anything but a ticket says what became of the upload already: kept before, or never to be.
-    if (asked?.status !== 201) return this.answerOf(asked);
+    if (asked?.status !== 201) return await this.answerOf(asked);
     const ticket = readUploadTicket(await asked.json());
     if (!ticket) return 'failed';
     // The place to put them is held only until the time on the ticket, by the server's clock;
@@ -255,7 +266,7 @@ export class AssetHttpStore {
     const deadline = ticket.upload.expiresAt - (this.access?.()?.clockOffset ?? 0);
     const put = await this.sendBytes(ticket.upload.url, blob, ticket.upload.headers, deadline);
     if (!put.ok) return 'failed';
-    return this.answerOf(
+    return await this.answerOf(
       await this.authorized((access) =>
         this.post(`${this.urlOf(access, identifier)}/uploads/complete`, access, { ticket: ticket.ticket })
       )
@@ -274,11 +285,16 @@ export class AssetHttpStore {
     }
   }
 
-  /** What became of an upload by the server's answer to it: kept now, kept already, never, or not yet. */
-  private answerOf(res: Response | null): AssetUploadResult {
+  /**
+   * What became of an upload by the server's answer to it: kept now, kept already, never, or not yet.
+   * A seat the room server does not count among the players is one it has not taken back in yet,
+   * as for a moment after another instance took the room over on Vercel, so that is not yet.
+   */
+  private async answerOf(res: Response | null): Promise<AssetUploadResult> {
     if (!res) return 'failed';
     if (res.status === 201) return 'stored';
     if (res.ok) return 'exists';
+    if (res.status === 403 && (await errorCodeOf(res)) === 'not-a-player') return 'failed';
     return REFUSED_STATUSES.has(res.status) ? 'refused' : 'failed';
   }
 

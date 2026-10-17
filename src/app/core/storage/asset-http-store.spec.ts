@@ -121,6 +121,14 @@ describe('AssetHttpStore', () => {
       expect(await store.upload(id, new Blob([bytes]))).toBe('refused');
     });
 
+    it('fails for now when the room server does not count the seat among the players yet', async () => {
+      respond(
+        new Response(null, { status: 404 }),
+        new Response(JSON.stringify({ error: 'not-a-player' }), { status: 403 })
+      );
+      expect(await store.upload(id, new Blob([bytes]))).toBe('failed');
+    });
+
     it('fails for now when the token was turned away, for a later try with a fresh one', async () => {
       respond(new Response(null, { status: 401 }), new Response('{}', { status: 401 }));
       expect(await store.upload(id, new Blob([bytes]))).toBe('failed');
