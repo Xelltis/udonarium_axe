@@ -1,3 +1,4 @@
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -14,16 +15,19 @@ import { TextNote } from '@axe/domain/tabletop/text-note';
  *
  * A copy of such an object would carry the withheld shape to the whole room as an object of its
  * own. Never so with SkyWay, which hands everything over whole, unless the table held here came
- * from a room server so, as after leaving it or loading a save marked so. Away from a room server
- * only what the object actually lacks tells, as dice and notes come whole from anyone else there.
+ * from a room server so, as after leaving it or loading a save marked so, or a recording's board is
+ * shown in its place, as the one who recorded it saw it. What the object actually lacks tells, even
+ * on the game master's table a marked save was loaded into; on a room server, so does what the
+ * server keeps from this user.
  */
 export function isWithheldHere(object: unknown): boolean {
-  const onServer = getAuthorityPeerId() !== null;
-  if (!onServer && !isTableWithheld()) return false;
+  const isolated = isNetworkIsolated();
+  const onServer = getAuthorityPeerId() !== null && !isolated;
+  if (!onServer && !isTableWithheld() && !isolated) return false;
   if (object instanceof Card) return object.isFaceWithheld;
   if (object instanceof CardStack) return object.cards.some((card) => card.isFaceWithheld);
-  if (!onServer) return lacksWithheldPart(object);
-  if (PeerCursor.isMyselfGameMaster) return false;
+  if (lacksWithheldPart(object)) return true;
+  if (!onServer || PeerCursor.isMyselfGameMaster) return false;
   if (object instanceof DiceSymbol) return !object.isVisible;
   if (object instanceof TextNote) {
     const viewer = { userId: PeerCursor.myCursor?.userId ?? '', isGameMaster: false, ownerUserId: object.owner };
@@ -33,11 +37,12 @@ export function isWithheldHere(object: unknown): boolean {
 }
 
 /**
- * Whether a die or a note lacks what a room server withholds: the face of a die somebody owns, or
- * the title or text of a note, blacked out.
+ * Whether a die or a note lacks what a room server withholds: the face of a die that has faces to
+ * show, or the title or text of a note, blacked out. Loading a save takes every owner away, so who
+ * owns the die is not asked.
  */
 function lacksWithheldPart(object: unknown): boolean {
-  if (object instanceof DiceSymbol) return object.hasOwner && object.face === '';
+  if (object instanceof DiceSymbol) return object.face === '' && object.faces.length > 0;
   if (object instanceof TextNote) return isBlackedOut(object.title) || isBlackedOut(object.text);
   return false;
 }

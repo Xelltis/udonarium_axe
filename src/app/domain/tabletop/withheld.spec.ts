@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { Network } from '@axe/core/network/network';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -110,15 +111,61 @@ describe('isWithheldHere', () => {
     }
   });
 
+  it('holds back a die whose face a marked save lacked, though loading took its owner away', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+    markLoadedWithheld(true, false);
+    try {
+      const masked = die('');
+      masked.face = '';
+
+      expect(isWithheldHere(masked)).toBe(true);
+    } finally {
+      markLoadedWithheld(false, false);
+    }
+  });
+
+  it('holds back from the game master on a room server what a marked save brought in lacking', () => {
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    markLoadedWithheld(true, false);
+    try {
+      const masked = die('');
+      masked.face = '';
+      const blacked = note(DisclosureMode.All);
+      blacked.text = '███';
+
+      expect(isWithheldHere(masked)).toBe(true);
+      expect(isWithheldHere(blacked)).toBe(true);
+      expect(isWithheldHere(die('someone'))).toBe(false);
+    } finally {
+      markLoadedWithheld(false, false);
+    }
+  });
+
+  it('holds back what a recording’s board lacks while it is shown, with nothing marked', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+    setNetworkIsolated(true);
+    try {
+      const masked = die('someone');
+      masked.face = '';
+
+      expect(isWithheldHere(faceDown())).toBe(true);
+      expect(isWithheldHere(masked)).toBe(true);
+      expect(isWithheldHere(die('someone'))).toBe(false);
+    } finally {
+      setNetworkIsolated(false);
+    }
+  });
+
   it('holds back no die or note handed over whole with SkyWay after a marked save was loaded', () => {
     vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
     markLoadedWithheld(true, false);
     try {
-      const unowned = die('');
-      unowned.face = '';
+      const faceless = die('');
+      for (const face of [...(faceless.imageDataElement?.children ?? [])]) face.destroy();
+      faceless.face = '';
 
       expect(isWithheldHere(die('someone'))).toBe(false);
-      expect(isWithheldHere(unowned)).toBe(false);
+      expect(isWithheldHere(faceless)).toBe(false);
       expect(isWithheldHere(note(DisclosureMode.GameMaster))).toBe(false);
     } finally {
       markLoadedWithheld(false, false);

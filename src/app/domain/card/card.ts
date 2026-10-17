@@ -1,3 +1,4 @@
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { getAuthorityPeerId, getPeerContext } from '@axe/core/network/peer-context-source';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { Attributes } from '@axe/core/sync/attributes';
@@ -125,10 +126,11 @@ export class Card extends OwnedTabletopObject {
   /**
    * Whether a room server keeps the front from this user: the card is face down to them, and its
    * front picture, name and text never came. Never with SkyWay, which hands every card over whole,
-   * unless the table held here came from a room server so.
+   * unless the table held here came from a room server so, or a recording's board shown in its place
+   * does, as the one who recorded it saw it.
    */
   get isFaceWithheld(): boolean {
-    if ((!getAuthorityPeerId() && !isTableWithheld()) || !this.imageDataElement) return false;
+    if ((!getAuthorityPeerId() && !isTableWithheld() && !isNetworkIsolated()) || !this.imageDataElement) return false;
     return !this.getElement('front', this.imageDataElement);
   }
 
