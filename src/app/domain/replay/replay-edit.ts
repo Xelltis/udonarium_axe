@@ -187,8 +187,10 @@ const ANSWER_SENDERS: ReadonlySet<string> = new Set([DICEBOT_SENDER, 'System']);
 const ANSWER_GAPS = [1, 2];
 
 /**
- * How many moments an answer left behind wants kept free for it ahead of the next line kept: its
- * own, and the ones just after its asker's lines, which would take it as theirs.
+ * How many moments an answer left behind wants kept free for it ahead of the next line kept, when a
+ * line moved in before it is placed: its own, and the ones just after its asker's lines, which would
+ * take it as theirs. Whether a result left behind stays where it is counts one, as staying it needs
+ * only its own.
  */
 const LEFT_ANSWER_ROOM = ANSWER_GAPS.length + 1;
 
@@ -287,19 +289,27 @@ function withChatMoments(
   }
 
   const roomWanted = new Map<number, number>();
+  const stayWanted = new Map<number, number>();
   const wantedAhead = new Map<string, number>();
+  const stayAhead = new Map<string, number>();
   for (let index = events.length - 1; index >= 0; index--) {
     const seq = events[index].seq;
     const line = lines.get(seq);
     if (!line) continue;
     if (retold.has(seq)) {
       roomWanted.set(seq, wantedAhead.get(line.tab) ?? 0);
+      stayWanted.set(seq, stayAhead.get(line.tab) ?? 0);
       if (remade.has(seq) || (followed(seq) && retold.has(line.answers!.seq))) continue;
       const top = answerTops.get(seq) ?? 0;
-      const wanted = top > 0 ? Math.ceil(top) + 1 : line.asker !== '' ? LEFT_ANSWER_ROOM : 1;
-      wantedAhead.set(line.tab, (wantedAhead.get(line.tab) ?? 0) + wanted);
+      const own = top > 0 ? Math.ceil(top) + 1 : 1;
+      wantedAhead.set(
+        line.tab,
+        (wantedAhead.get(line.tab) ?? 0) + (top === 0 && line.asker !== '' ? LEFT_ANSWER_ROOM : own)
+      );
+      stayAhead.set(line.tab, (stayAhead.get(line.tab) ?? 0) + own);
     } else if (!followed(seq)) {
       wantedAhead.set(line.tab, 0);
+      stayAhead.set(line.tab, 0);
     }
   }
 
@@ -374,7 +384,7 @@ function withChatMoments(
       const staysPut =
         mayStay &&
         (before === undefined ||
-          Math.ceil(before) - line.moment - 1 >= (roomWanted.get(event.seq) ?? 0) ||
+          Math.ceil(before) - line.moment - 1 >= (stayWanted.get(event.seq) ?? 0) ||
           elsewhere.moment + elsewhere.minor >= key);
       if (!staysPut) when = elsewhere;
     }

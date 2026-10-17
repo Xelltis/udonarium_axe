@@ -830,6 +830,23 @@ describe('chat moments that follow a new place', () => {
         inOrder(stepped);
       });
 
+      it('leaves a result where it is when it fits there, so that the next edit still has room for its roll', () => {
+        const events = [
+          minor(by('quinn', 1, 1000001, '2d6'), 0.5),
+          minor(answering(result(2, 20, 1000002), 'quinn'), 0.5),
+          minor(by('quinn', 3, 1000004, '2d6'), 0.5),
+          minor(answering(result(4, 40, 1000005), 'quinn'), 0.5),
+          minor(answering(by('System', 5, 1000006, '知らせ'), 'quinn'), 0.5),
+          minor(by('gm', 6, 1000007), 0.5),
+        ];
+
+        const moved = moveReplayEvent(events, 3, 2);
+        const stepped = stepReplayEvents(moved, new Set([1]), 1);
+
+        expect(momentOf(bySeq(moved, 4))).toBe(1000005);
+        inOrder(stepped);
+      });
+
       it('counts the room up to the next line kept to the moment it is said in, fraction and all', () => {
         const events = [
           minor(by('gm', 1, 1000000), 0.07),
