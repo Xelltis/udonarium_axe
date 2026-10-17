@@ -199,11 +199,15 @@ export class DiceSymbolSheetComponent {
 
   /**
    * Places a copy of the die beside the original, offset by 50 pixels each way, and plays the
-   * die-put sound; none of a die a room server withholds the face of from this user.
+   * die-put sound; none of a die a room server withholds the face of from this user, which it says.
    */
   clone() {
     const dice = this._diceSymbol();
-    if (!dice || isWithheldHere(dice)) return;
+    if (!dice) return;
+    if (isWithheldHere(dice)) {
+      this.snackbar.show(this.translateFn('feature.inventory.sheet.copyWithheld'));
+      return;
+    }
     const cloneObject = dice.clone();
     cloneObject.location.x += 50;
     cloneObject.location.y += 50;

@@ -886,11 +886,16 @@ export class GameCharacterSheetComponent {
 
   /**
    * Places a copy of the piece beside it, from the sheet's copy button; does nothing for a user who
-   * may not edit the table.
+   * may not edit the table, and says why it copies nothing of a piece a room server withholds part
+   * of from this user.
    */
   clone() {
-    if (!this.rolePermission.canEditTabletop) return;
-    if (this.tabletopObject) cloneTabletopObject(this.tabletopObject);
+    if (!this.rolePermission.canEditTabletop || !this.tabletopObject) return;
+    if (isWithheldHere(this.tabletopObject)) {
+      this.snackbar.show(this.translateFn('feature.inventory.sheet.copyWithheld'));
+      return;
+    }
+    cloneTabletopObject(this.tabletopObject);
   }
 
   /** Does nothing; the hide checkbox changes the character through its own binding. */

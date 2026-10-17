@@ -1633,6 +1633,7 @@
         "copy": "복제 만들기",
         "save": "저장",
         "saving": "저장 중 {{percent}}%",
+        "copyWithheld": "숨겨진 부분이 있어 복사할 수 없습니다. 방 서버가 일부를 당신에게 숨기고 있습니다.",
         "saveWithheld": "숨겨진 부분이 있어 저장할 수 없습니다. 방 서버가 일부를 당신에게 숨기고 있습니다.",
         "popupWidth": "팝업 가로 폭",
         "popupMaxHeight": "팝업 세로 최대",

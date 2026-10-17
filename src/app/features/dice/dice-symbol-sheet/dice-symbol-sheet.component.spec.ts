@@ -27,6 +27,23 @@ describe('DiceSymbolSheetComponent', () => {
     vi.restoreAllMocks();
   });
 
+  it('copies nothing of a die whose face a room server keeps from this seat, and says so', () => {
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(DiceSymbol.prototype, 'isVisible', 'get').mockReturnValue(false);
+    const component = TestBed.createComponent(DiceSymbolSheetComponent).componentInstance;
+    const die = DiceSymbol.create('ほかの人のダイス', DiceType.D6, 1);
+    const cloned = vi.spyOn(die, 'clone');
+    component.diceSymbol = die;
+
+    const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+    component.clone();
+
+    expect(cloned).not.toHaveBeenCalled();
+    expect(shown).toHaveBeenCalledTimes(1);
+    die.destroy();
+    vi.restoreAllMocks();
+  });
+
   it('closes once its seat is made a guest, who may no longer write what it writes', () => {
     expectClosesForAGuest(() => TestBed.createComponent(DiceSymbolSheetComponent));
   });
