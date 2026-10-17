@@ -141,6 +141,18 @@ describe('isWithheldHere', () => {
     }
   });
 
+  it('holds back no note written in █ alone on a room server with nothing come from elsewhere', () => {
+    const blacked = note(DisclosureMode.All);
+    blacked.text = '███';
+    const faceless = die('');
+    faceless.face = '';
+
+    expect(isWithheldHere(blacked)).toBe(false);
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    expect(isWithheldHere(blacked)).toBe(false);
+    expect(isWithheldHere(faceless)).toBe(false);
+  });
+
   it('holds back what a recording’s board lacks while it is shown, with nothing marked', () => {
     vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
     setNetworkIsolated(true);

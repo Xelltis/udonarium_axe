@@ -5,7 +5,7 @@ import { CardStack } from '@axe/domain/card/card-stack';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { canViewDisclosable } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { isTableWithheld } from '@axe/domain/peer/withheld-table';
+import { holdsWithheldFromElsewhere, isTableWithheld } from '@axe/domain/peer/withheld-table';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 
 /**
@@ -16,9 +16,10 @@ import { TextNote } from '@axe/domain/tabletop/text-note';
  * A copy of such an object would carry the withheld shape to the whole room as an object of its
  * own. Never so with SkyWay, which hands everything over whole, unless the table held here came
  * from a room server so, as after leaving it or loading a save marked so, or a recording's board is
- * shown in its place, as the one who recorded it saw it. What the object actually lacks tells, even
- * on the game master's table a marked save was loaded into; on a room server, so does what the
- * server keeps from this user.
+ * shown in its place, as the one who recorded it saw it. Away from a room server, or where parts
+ * came withheld from elsewhere, what the object actually lacks tells, the game master's table
+ * included; on a room server, so does what the server keeps from this user, and nothing else, as a
+ * note written in █ alone is just that there.
  */
 export function isWithheldHere(object: unknown): boolean {
   const isolated = isNetworkIsolated();
@@ -26,7 +27,7 @@ export function isWithheldHere(object: unknown): boolean {
   if (!onServer && !isTableWithheld() && !isolated) return false;
   if (object instanceof Card) return object.isFaceWithheld;
   if (object instanceof CardStack) return object.cards.some((card) => card.isFaceWithheld);
-  if (lacksWithheldPart(object)) return true;
+  if ((!onServer || holdsWithheldFromElsewhere()) && lacksWithheldPart(object)) return true;
   if (!onServer || PeerCursor.isMyselfGameMaster) return false;
   if (object instanceof DiceSymbol) return !object.isVisible;
   if (object instanceof TextNote) {
