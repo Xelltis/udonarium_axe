@@ -788,7 +788,30 @@ export class ServerConnection implements Connection {
     for (const event of message.events) {
       if (typeof event.sendFrom !== 'string' || event.sendFrom.length === 0) event.sendFrom = message.from;
     }
+    this.keepWhatTheServerHandsBack(message.events);
     this.callback.onData?.(from, message.events);
+  }
+
+  /**
+   * Drops the deletions yet to go out of what the server has just handed back as it stands, as the
+   * lines of a tab a player may not delete, which came back with it: sent after the server's while
+   * for keeping them is up, as after getting back into the room, they would delete those lines for
+   * everyone. The server's word on an object outranks a deletion of it this seat has yet to send.
+   */
+  private keepWhatTheServerHandsBack(events: EventContext[]): void {
+    const authority = this.authority?.peerId;
+    const handedBack = new Set(
+      events.flatMap((event) =>
+        event.eventName === AuthorityEvent.AUTHORITATIVE && event.sendFrom === authority
+          ? [identifierOf(event)].filter((id): id is string => id !== undefined)
+          : []
+      )
+    );
+    if (handedBack.size < 1) return;
+    const unless = (event: EventContext) => event.eventName !== DELETION || !handedBack.has(identifierOf(event) ?? '');
+    for (const batch of [...this.held, ...this.unwritten, ...this.outbound]) {
+      if (batch.events.some((event) => !unless(event))) batch.events = batch.events.filter(unless);
+    }
   }
 
   private answerInvite(message: InviteMessage): void {
@@ -975,9 +998,11 @@ export class ServerConnection implements Connection {
   private async write(socket: WebSocket | null, batches: Outbound[]): Promise<void> {
     for (const batch of batches) {
       if (!this.unwritten.includes(batch)) return;
-      const frames = await encodeSendFrames(batch.events, batch.to);
+      const encoded = batch.events;
+      let frames = await encodeSendFrames(encoded, batch.to);
       await this.roomInWindow(batch, frames.length);
       if (!this.unwritten.includes(batch)) return;
+      if (batch.events !== encoded) frames = await encodeSendFrames(batch.events, batch.to);
       if (socket == null || socket !== this.socket || socket.readyState !== SOCKET_OPEN) return;
       for (const frame of frames) socket.send(frame);
       this.sentLately.push({ at: Date.now(), events: batch.events.length, frames: frames.length });
