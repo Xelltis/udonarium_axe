@@ -736,14 +736,13 @@ describe('interpretSignal()', () => {
 
 describe('shouldDiffObjectChange()', () => {
   it('takes the difference of anything at the widest setting', () => {
-    expect(shouldDiffObjectChange(ReplayDetailLevel.Full, 'character', false)).toBe(true);
-    expect(shouldDiffObjectChange(ReplayDetailLevel.Notable, 'character', false)).toBe(true);
+    expect(shouldDiffObjectChange(ReplayDetailLevel.Full, 'character')).toBe(true);
+    expect(shouldDiffObjectChange(ReplayDetailLevel.Notable, 'character')).toBe(true);
   });
 
-  it('looks at nothing but a new line at the narrowest', () => {
-    expect(shouldDiffObjectChange(ReplayDetailLevel.ChatOnly, 'chat', true)).toBe(true);
-    expect(shouldDiffObjectChange(ReplayDetailLevel.ChatOnly, 'chat', false)).toBe(false);
-    expect(shouldDiffObjectChange(ReplayDetailLevel.ChatOnly, 'character', true)).toBe(false);
+  it('looks at nothing but the lines at the narrowest, new or changed', () => {
+    expect(shouldDiffObjectChange(ReplayDetailLevel.ChatOnly, 'chat')).toBe(true);
+    expect(shouldDiffObjectChange(ReplayDetailLevel.ChatOnly, 'character')).toBe(false);
   });
 
   it('never disagrees with what each kind keeps and drops', () => {

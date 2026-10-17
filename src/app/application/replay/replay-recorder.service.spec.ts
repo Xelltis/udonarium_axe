@@ -715,6 +715,49 @@ describe('ReplayRecorderService', () => {
     expect(service.recentEvents().map((e) => e.kind)).toEqual([ReplayEventKind.ChatMessage]);
   });
 
+  describe('a secret roll made public', () => {
+    const roll = (tag: string, sendFrom: string) =>
+      localDispatch(
+        'UPDATE_GAME_OBJECT',
+        context('r1', 'chat', {
+          value: '(2D6) → 12',
+          parentIdentifier: 'main-tab',
+          attributes: { from: 'System-BCDice', name: '<BCDice：アリス>', tag, originFrom: 'alice', timestamp: 1 },
+        }),
+        sendFrom
+      );
+    const revealed = () => service.recentEvents().filter((event) => event.detail['revealed'] === true);
+
+    beforeEach(() => {
+      const gm = new PeerCursor('cursor-g');
+      gm.peerId = 'peer-g';
+      gm.userId = 'gm';
+      gm.role = PeerRole.GameMaster;
+      objectStore.add(gm, false);
+    });
+
+    it('is told even at the chat-only detail level', async () => {
+      service.setDetailLevel(ReplayDetailLevel.ChatOnly);
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      roll('DiceBot secret', 'peer-a');
+      roll('DiceBot', 'peer-a');
+
+      expect(revealed()).toHaveLength(1);
+    });
+
+    it('is put down to its roller when the GM makes it public', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      roll('DiceBot secret', 'peer-a');
+      roll('DiceBot', 'peer-g');
+
+      expect(revealed().map((event) => event.actorId)).toEqual(['alice']);
+    });
+  });
+
   it('writes a chunk out at intervals', async () => {
     await service.start();
     vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);

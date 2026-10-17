@@ -346,7 +346,7 @@ export class ReplayRecorderService {
 
     const fresh = before !== null || this.isFreshArrival(context.aliasName, after, sendFrom);
     if (!fresh && at < this.baselineUntil) return;
-    if (!shouldDiffObjectChange(this.preference.detailLevel(), context.aliasName, !before)) return;
+    if (!shouldDiffObjectChange(this.preference.detailLevel(), context.aliasName)) return;
 
     const draft = interpretObjectChange({
       aliasName: context.aliasName,
@@ -365,16 +365,16 @@ export class ReplayRecorderService {
       this.linesSeen.add(context.identifier);
       if (again || (!fresh && sendFrom === Network.authorityPeerId)) draft.detail[REPLAY_CAUGHT_UP_FLAG] = true;
     }
-    this.push(draft, this.actorOf(context.aliasName, after, sendFrom), at);
+    this.push(draft, this.actorOf(context.aliasName, after, sendFrom, draft.detail['revealed'] === true), at);
   }
 
   /**
    * Who did what a room server passes on as its own: a line, as a roll it made, by whoever said or
-   * asked for it, and a cursor it changed, as by a role it set, by whoever the cursor is. Anything
-   * else stays the sender's.
+   * asked for it, and a cursor it changed, as by a role it set, by whoever the cursor is. A secret
+   * roll made public is the roller's, whoever made it public. Anything else stays the sender's.
    */
-  private actorOf(aliasName: string, after: SyncData, sendFrom: string): string {
-    if (sendFrom !== Network.authorityPeerId) return sendFrom;
+  private actorOf(aliasName: string, after: SyncData, sendFrom: string, revealed = false): string {
+    if (sendFrom !== Network.authorityPeerId && !revealed) return sendFrom;
     const speaker = [syncValueOf(after, 'originFrom'), syncValueOf(after, 'from')].find(
       (userId): userId is string => typeof userId === 'string' && userId !== '' && !userId.startsWith('System')
     );
