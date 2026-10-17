@@ -334,6 +334,20 @@ describe('DiceBot', () => {
       bot.destroy();
       tab.destroy();
     });
+
+    it('asks again for the rolls unanswered once the same seat joins the room again', async () => {
+      const bot = new DiceBot();
+      bot.initialize();
+      const { tab, requests } = await askedRoll(bot);
+
+      localDispatch('OPEN_NETWORK', { peerId: 'acct_me-peer' });
+
+      expect(requests()).toHaveLength(2);
+      expect(requests()[1]).toEqual(requests()[0]);
+      expect(bot['serverRolls'].size).toBe(1);
+      bot.destroy();
+      tab.destroy();
+    });
   });
 
   describe('with SkyWay, or outside a room', () => {

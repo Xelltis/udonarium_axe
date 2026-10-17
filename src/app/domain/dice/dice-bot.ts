@@ -115,6 +115,8 @@ export class DiceBot extends GameObject {
    * answers share the line's time, and their fractions keep them in the targets' order.
    */
   private answersAsked = { source: '', count: 0 };
+  /** The peer id this seat had in the room it last asked the room server for a roll in. */
+  private rollsAskedAs = '';
   /** The rolls this seat asked of the room server and has no answer to yet. */
   private readonly serverRolls = new ServerRollRequests({
     send: (request) => {
@@ -525,7 +527,8 @@ export class DiceBot extends GameObject {
   /**
    * Follows what becomes of the rolls asked of the room server: one it would not make, the seat
    * getting back into the room, where it asks again for what is unanswered, and a room left or
-   * another entered, where nothing asked before is answered any more.
+   * another entered, where nothing asked before is answered any more. Joining the same room again
+   * under the same peer id, as a reconnect does, is getting back in.
    */
   private followServerRolls(message: { eventName: string; data: unknown }): void {
     switch (message.eventName) {
@@ -542,9 +545,12 @@ export class DiceBot extends GameObject {
         if (data.state === 'recovered' || data.state === 'resumed') this.serverRolls.askAgain();
         return;
       }
-      case 'OPEN_NETWORK':
-        this.serverRolls.clear();
+      case 'OPEN_NETWORK': {
+        const data = message.data as { peerId?: unknown } | null;
+        if (this.rollsAskedAs && data?.peerId === this.rollsAskedAs) this.serverRolls.askAgain();
+        else this.serverRolls.clear();
         return;
+      }
     }
   }
 
@@ -743,6 +749,7 @@ export class DiceBot extends GameObject {
       speaker: originalMessage.name,
     };
     if (suffix) request['suffix'] = suffix;
+    this.rollsAskedAs = getMyPeerId();
     this.serverRolls.ask(answer.identifier, originalMessage.identifier, request);
   }
 
