@@ -87,10 +87,19 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
   }
 
   // GameObject Lifecycle
-  /** Also takes the node out of its parent's children. */
+  /**
+   * Also takes the node out of its parent's children. The children still in the store wait for it,
+   * to be adopted by a node made again under its name, as a room server hands one back.
+   */
   override onStoreRemoved() {
     super.onStoreRemoved();
     if (this.parent) this.parent.removeChild(this);
+    const left = this._children.filter((child) => ObjectStore.instance.get(child.identifier) === child);
+    if (left.length > 0)
+      ObjectNode.pendingChildrenByParentId[this.identifier] = [
+        ...(ObjectNode.pendingChildrenByParentId[this.identifier] ?? []),
+        ...left,
+      ];
     // A node that left before its parent arrived must not be adopted by that parent later.
     const waiting = ObjectNode.pendingChildrenByParentId[this.parentIdentifier];
     if (waiting) {

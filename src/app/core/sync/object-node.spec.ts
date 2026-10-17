@@ -226,6 +226,40 @@ describe('ObjectNode', () => {
     });
   });
 
+  describe('a node made again under a name taken out of the store', () => {
+    it('adopts the children the node taken out left in the store', () => {
+      const parent = new ObjectNode('handed-back');
+      parent.initialize();
+      const child = new ObjectNode('left-child');
+      child.initialize();
+      parent.appendChild(child);
+      store.remove(parent);
+
+      const again = new ObjectNode('handed-back');
+      again.initialize();
+
+      expect(again.children).toEqual([child]);
+      again.destroy();
+    });
+
+    it('adopts none of the children destroyed with the node', () => {
+      const parent = new ObjectNode('destroyed-parent');
+      parent.initialize();
+      const child = new ObjectNode('destroyed-child');
+      child.initialize();
+      parent.appendChild(child);
+      parent.destroy();
+      store.clearDeleteHistory();
+
+      const again = new ObjectNode('destroyed-parent');
+      again.initialize();
+
+      expect(again.children).toEqual([]);
+      again.destroy();
+      store.clearDeleteHistory();
+    });
+  });
+
   describe('a node waiting for its parent', () => {
     it('is not adopted by the parent once it has left the store', () => {
       const child = new ObjectNode('waiting-child');
