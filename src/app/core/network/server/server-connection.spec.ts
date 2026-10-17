@@ -7,6 +7,7 @@ import {
   PACE_WINDOW_MS,
   PING_INTERVAL_MS,
   PONG_TIMEOUT_MS,
+  WELCOME_TIMEOUT_MS,
   SEND_BUDGET_EVENTS,
   SEND_BUDGET_FRAMES,
   SEND_GATHER_MS,
@@ -464,6 +465,19 @@ describe('ServerConnection', () => {
 
     expect(socket.readyState).toBe(3);
     expect(calls).toContain('reconnect retrying');
+  });
+
+  it('takes a connection the server never lets in as lost, though something answers its pings', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    const socket = await openRoom();
+    socket.accept();
+
+    for (let waited = 0; waited < WELCOME_TIMEOUT_MS; waited += PONG_TIMEOUT_MS / 2) {
+      vi.advanceTimersByTime(PONG_TIMEOUT_MS / 2);
+      socket.onmessage?.({ data: 'pong' });
+    }
+
+    expect(socket.readyState).toBe(3);
   });
 
   it('takes a silent link as lost at once, without waiting for a close that may never come', async () => {

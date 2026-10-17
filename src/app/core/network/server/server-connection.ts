@@ -51,6 +51,12 @@ export const PING_INTERVAL_MS = 25_000;
 /** How long it waits for any answer to that before it takes the connection as lost. */
 export const PONG_TIMEOUT_MS = 10_000;
 /**
+ * How long a connection waits to be let into the room after it says hello before it takes the
+ * connection as lost: longer than a room server spread over instances looks for the one holding
+ * the room (twice its 15-second lease), so that a holder gone silent does not keep it waiting.
+ */
+export const WELCOME_TIMEOUT_MS = 45_000;
+/**
  * How long sends gather before they go out as one frame. It keeps a busy table, sixty frames a
  * second at most, well inside the server's limit of 2000 frames in ten seconds.
  */
@@ -270,6 +276,7 @@ export class ServerConnection implements Connection {
   private inbound: Promise<void> = Promise.resolve();
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private pongTimer: ReturnType<typeof setTimeout> | null = null;
+  private welcomeTimer: ReturnType<typeof setTimeout> | null = null;
   private tokenTimer: ReturnType<typeof setInterval> | null = null;
   /** Requests to the server sent while getting back into the room, to send once back in. */
   private held: Outbound[] = [];
@@ -1122,6 +1129,12 @@ export class ServerConnection implements Connection {
 
   private startPing(socket: WebSocket): void {
     this.stopPing();
+    this.welcomeTimer = setTimeout(() => {
+      this.welcomeTimer = null;
+      if (socket !== this.socket || this.welcomed) return;
+      socket.close(4002, 'no welcome');
+      if (socket === this.socket) this.socketClosed();
+    }, WELCOME_TIMEOUT_MS);
     this.pingTimer = setInterval(() => {
       if (socket !== this.socket || socket.readyState !== SOCKET_OPEN) return;
       socket.send(PING);
@@ -1146,6 +1159,8 @@ export class ServerConnection implements Connection {
   private stopPing(): void {
     if (this.pingTimer != null) clearInterval(this.pingTimer);
     this.pingTimer = null;
+    if (this.welcomeTimer != null) clearTimeout(this.welcomeTimer);
+    this.welcomeTimer = null;
     this.heardFrom();
   }
 }
