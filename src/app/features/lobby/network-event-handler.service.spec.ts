@@ -27,6 +27,7 @@ import { Card } from '@axe/domain/card/card';
 import { handLocationOf } from '@axe/domain/card/hand-location';
 import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { isTableWithheld, markTableWithheld } from '@axe/domain/peer/withheld-table';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -894,6 +895,23 @@ describe('NetworkEventHandlerService', () => {
 
       expect(images).toHaveBeenCalledTimes(1);
       expect(PeerCursor.myCursor.role).toBe('pl');
+    });
+
+    it('holds the table as withheld while a role other than the GM, and whole once the GM', () => {
+      vi.spyOn(ImageStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
+      vi.spyOn(AudioStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
+      const role = vi.spyOn(Network, 'serverRole', 'get').mockReturnValue('pl');
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ peerId: 'p', userId: 'u', isRoom: true } as never);
+      try {
+        localDispatch('SERVER_ROLE_CHANGED', { role: 'pl' });
+        expect(isTableWithheld()).toBe(true);
+
+        role.mockReturnValue('gm');
+        localDispatch('SERVER_ROLE_CHANGED', { role: 'gm' });
+        expect(isTableWithheld()).toBe(false);
+      } finally {
+        markTableWithheld(false);
+      }
     });
 
     it('says why the server kept a role as it was', () => {

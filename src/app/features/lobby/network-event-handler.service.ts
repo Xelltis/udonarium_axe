@@ -25,6 +25,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { handOverOwnership } from '@axe/domain/peer/ownership';
 import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit, DEFAULT_PEER_ROLE } from '@axe/domain/peer/peer-role';
+import { markTableWithheld } from '@axe/domain/peer/withheld-table';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 
 /** What to say for each reason the room server gives for keeping a role as it was. */
@@ -288,11 +289,16 @@ export class NetworkEventHandlerService {
     return this.auth.account()?.userId ?? this.lastAccountUserId;
   }
 
-  /** Takes on the role the room server gave this seat on letting it in; SkyWay gives none. */
+  /**
+   * Takes on the role the room server gave this seat on letting it in; SkyWay gives none. Anyone but
+   * the GM is handed part of the table only in the shape the server withholds, which a save of it
+   * is then marked as holding; the GM is handed it all.
+   */
   private takeServerRole(): void {
     const role = Network.serverRole;
     const cursor = PeerCursor.myCursor;
     if (role && cursor && cursor.role !== role) cursor.role = role;
+    if (role) markTableWithheld(role !== 'gm');
   }
 
   /**

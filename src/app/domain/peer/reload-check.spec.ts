@@ -41,6 +41,18 @@ describe('ReloadCheck', () => {
       expect(reloadCheck.isLoadOk()).toBe(false);
     });
 
+    it('asks nothing more in a room once it is declined, the overwrite of the chat beside it included', () => {
+      reloadCheck.reloadCheckStart(true);
+      const confirm = vi.fn().mockReturnValue(false);
+      window.confirm = confirm;
+
+      reloadCheck.answerWithheldCheck();
+      confirm.mockReturnValue(true);
+
+      expect(reloadCheck.answerCheck()).toBe(false);
+      expect(confirm).toHaveBeenCalledTimes(1);
+    });
+
     it('asks afresh for the next load', () => {
       reloadCheck.reloadCheckStart(true);
       window.confirm = vi.fn().mockReturnValue(false);

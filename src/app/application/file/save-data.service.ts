@@ -43,6 +43,7 @@ import { ImageTagList } from '@axe/domain/media/image-tag-list';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { Room } from '@axe/domain/peer/room';
+import { isTableWithheld } from '@axe/domain/peer/withheld-table';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 type UpdateCallback = (percent: number) => void;
 
@@ -146,12 +147,15 @@ export class SaveDataService {
   }
 
   /**
-   * The room to write, marked as withheld when saved on a room server by anyone but the GM: they hold
-   * some of it only in the shape the server withholds from them, which a load would spread as it is.
+   * The room to write, marked as withheld when the table held here has some of it only in the shape
+   * a room server withholds from this seat, which a load would spread as it is: as for anyone but
+   * the GM on a room server, still so after leaving it.
    */
   private roomToSave(): Room {
     const room = new Room();
-    if (getAuthorityPeerId() !== null && !PeerCursor.isMyselfGameMaster) room.withheld = 'true';
+    if (isTableWithheld() || (getAuthorityPeerId() !== null && !PeerCursor.isMyselfGameMaster)) {
+      room.withheld = 'true';
+    }
     return room;
   }
 

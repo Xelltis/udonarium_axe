@@ -55,6 +55,7 @@ export class ReloadCheck extends TabletopObject {
             '続きはGMの保存から読み込んでください。それでも読み込みますか？'
         );
       this.isWithheldAnswer = true;
+      if (!this.reloadOK) this.isAnswer = true;
     }
     return this.reloadOK;
   }

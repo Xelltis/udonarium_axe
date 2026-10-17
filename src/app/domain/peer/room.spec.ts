@@ -16,6 +16,7 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { Party, PARTY_COLORS } from '@axe/domain/party/party';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { Room } from '@axe/domain/peer/room';
+import { isTableWithheld } from '@axe/domain/peer/withheld-table';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 
@@ -133,6 +134,14 @@ describe('Room', () => {
       loadWithheld(true);
 
       expect(store.getObjects(GameTable).map((each) => each.name)).toEqual(['新しい卓']);
+    });
+
+    it('holds the table as withheld once such a save is loaded, and whole again after a whole one', () => {
+      loadWithheld(true);
+      expect(isTableWithheld()).toBe(true);
+
+      loadRoom('<game-table name="まっさらな卓"></game-table>');
+      expect(isTableWithheld()).toBe(false);
     });
 
     it('marks it so when written', () => {

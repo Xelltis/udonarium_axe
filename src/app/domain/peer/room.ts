@@ -1,3 +1,4 @@
+import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -18,7 +19,9 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { createDefaultCutIns, defaultCutInIdentifiers } from '@axe/domain/media/builtin-cut-ins';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { Party } from '@axe/domain/party/party';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
+import { markTableWithheld } from '@axe/domain/peer/withheld-table';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
@@ -101,7 +104,8 @@ export class Room extends GameObject implements InnerXml {
    * peek or hold on an object is cleared. Declining leaves the room untouched.
    */
   parseInnerXml(element: Element) {
-    if (element.getAttribute('withheld') === 'true' && !this.reloadCheck.answerWithheldCheck()) return;
+    const withheld = element.getAttribute('withheld') === 'true';
+    if (withheld && !this.reloadCheck.answerWithheldCheck()) return;
     // Deleted and put back under the same identifiers, the others refuse them as the return of
     // what was deleted, and only whoever loaded the room still has them. So what is made under
     // a fixed identifier is left alone by a room that brings none of its own: the effect
@@ -139,6 +143,7 @@ export class Room extends GameObject implements InnerXml {
 
     const reLoadOk = this.reloadCheck.answerCheck();
     if (reLoadOk) {
+      markTableWithheld(withheld || (getAuthorityPeerId() !== null && !PeerCursor.isMyselfGameMaster));
       for (const object of objects) {
         object.destroy();
       }
