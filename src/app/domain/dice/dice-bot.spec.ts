@@ -323,11 +323,13 @@ describe('DiceBot', () => {
       tab.destroy();
     });
 
-    it('forgets the rolls asked in a room once another room, or none, is opened', async () => {
+    it('forgets the rolls asked in a room once another room is opened', async () => {
+      const roomKey = vi.spyOn(Network, 'roomKey', 'get').mockReturnValue('room-1');
       const bot = new DiceBot();
       bot.initialize();
       const { tab } = await askedRoll(bot);
 
+      roomKey.mockReturnValue('room-2');
       localDispatch('OPEN_NETWORK', { peerId: 'me' });
 
       expect(bot['serverRolls'].size).toBe(0);
@@ -335,12 +337,30 @@ describe('DiceBot', () => {
       tab.destroy();
     });
 
-    it('asks again for the rolls unanswered once the same seat joins the room again', async () => {
+    it('keeps the rolls asked in a room while out of any room, and asks again on getting back in', async () => {
+      const roomKey = vi.spyOn(Network, 'roomKey', 'get').mockReturnValue('room-1');
       const bot = new DiceBot();
       bot.initialize();
       const { tab, requests } = await askedRoll(bot);
 
+      roomKey.mockReturnValue(null);
+      localDispatch('OPEN_NETWORK', { peerId: 'standby' });
+      expect(bot['serverRolls'].size).toBe(1);
+      roomKey.mockReturnValue('room-1');
       localDispatch('OPEN_NETWORK', { peerId: 'acct_me-peer' });
+
+      expect(requests()).toHaveLength(2);
+      bot.destroy();
+      tab.destroy();
+    });
+
+    it('asks again for the rolls unanswered once the same room is opened again, under another seat too', async () => {
+      vi.spyOn(Network, 'roomKey', 'get').mockReturnValue('room-1');
+      const bot = new DiceBot();
+      bot.initialize();
+      const { tab, requests } = await askedRoll(bot);
+
+      localDispatch('OPEN_NETWORK', { peerId: 'acct_other-peer' });
 
       expect(requests()).toHaveLength(2);
       expect(requests()[1]).toEqual(requests()[0]);

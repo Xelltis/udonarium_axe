@@ -14,7 +14,7 @@ import {
 import { Logger } from '@axe/core/logging/logger';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
-import { getAuthorityPeerId, getMyPeerId } from '@axe/core/network/peer-context-source';
+import { getAuthorityPeerId, getMyPeerId, getRoomKey } from '@axe/core/network/peer-context-source';
 import {
   AuthorityEvent,
   MAX_ROLL_COMMAND_LENGTH,
@@ -115,8 +115,8 @@ export class DiceBot extends GameObject {
    * answers share the line's time, and their fractions keep them in the targets' order.
    */
   private answersAsked = { source: '', count: 0 };
-  /** The peer id this seat had in the room it last asked the room server for a roll in. */
-  private rollsAskedAs = '';
+  /** The key of the room it last asked the room server for a roll in. */
+  private rollsAskedIn: string | null = null;
   /** The rolls this seat asked of the room server and has no answer to yet. */
   private readonly serverRolls = new ServerRollRequests({
     send: (request) => {
@@ -131,6 +131,7 @@ export class DiceBot extends GameObject {
       // Out of the room by then, the line is in no room to answer it.
       if (getAuthorityPeerId()) emitServerRollUnanswered({ messageIdentifier: sourceIdentifier, reason });
     },
+    inRoom: () => getAuthorityPeerId() !== null,
   });
 
   static diceBotInfos: GameSystemInfo[] = [];
@@ -526,9 +527,10 @@ export class DiceBot extends GameObject {
 
   /**
    * Follows what becomes of the rolls asked of the room server: one it would not make, the seat
-   * getting back into the room, where it asks again for what is unanswered, and a room left or
-   * another entered, where nothing asked before is answered any more. Joining the same room again
-   * under the same peer id, as a reconnect does, is getting back in.
+   * getting back into the room, where it asks again for what is unanswered, and another room
+   * entered, where nothing asked before is answered any more. Joining the same room again, as a
+   * reconnect does, a login or logout in the room, or coming back from the lobby after giving up on
+   * the link, is getting back in; out of any room, the rolls wait for it.
    */
   private followServerRolls(message: { eventName: string; data: unknown }): void {
     switch (message.eventName) {
@@ -546,8 +548,9 @@ export class DiceBot extends GameObject {
         return;
       }
       case 'OPEN_NETWORK': {
-        const data = message.data as { peerId?: unknown } | null;
-        if (this.rollsAskedAs && data?.peerId === this.rollsAskedAs) this.serverRolls.askAgain();
+        const roomKey = getRoomKey();
+        if (roomKey === null) this.serverRolls.pause();
+        else if (roomKey === this.rollsAskedIn) this.serverRolls.askAgain();
         else this.serverRolls.clear();
         return;
       }
@@ -749,7 +752,7 @@ export class DiceBot extends GameObject {
       speaker: originalMessage.name,
     };
     if (suffix) request['suffix'] = suffix;
-    this.rollsAskedAs = getMyPeerId();
+    this.rollsAskedIn = getRoomKey();
     this.serverRolls.ask(answer.identifier, originalMessage.identifier, request);
   }
 

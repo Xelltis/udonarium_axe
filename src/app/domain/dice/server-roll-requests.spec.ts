@@ -10,6 +10,7 @@ describe('ServerRollRequests', () => {
   let sent: string[];
   let answered: [string, string][];
   let unanswered: [string, string][];
+  let inRoom: boolean;
   let requests: ServerRollRequests;
 
   beforeEach(() => {
@@ -17,10 +18,12 @@ describe('ServerRollRequests', () => {
     sent = [];
     answered = [];
     unanswered = [];
+    inRoom = true;
     const hooks: ServerRollHooks = {
       send: (request) => sent.push(request['id'] as string),
       answered: (answer, source) => answered.push([answer, source]),
       unanswered: (source, reason) => unanswered.push([source, reason]),
+      inRoom: () => inRoom,
     };
     requests = new ServerRollRequests(hooks);
   });
@@ -31,6 +34,19 @@ describe('ServerRollRequests', () => {
   });
 
   const ask = (answer: string, source = 'line') => requests.ask(answer, source, { id: answer });
+
+  it('keeps a roll whose wait ends out of the room, for getting back in to ask again', () => {
+    ask('answer-1');
+    inRoom = false;
+
+    vi.advanceTimersByTime(SERVER_ROLL_WAIT_MS);
+
+    expect(unanswered).toEqual([]);
+    expect(requests.size).toBe(1);
+    inRoom = true;
+    requests.askAgain();
+    expect(sent).toEqual(['answer-1', 'answer-1']);
+  });
 
   it('sends a roll at once and takes its answer as a roll made here', () => {
     ask('answer-1');

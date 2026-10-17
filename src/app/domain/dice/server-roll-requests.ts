@@ -20,6 +20,8 @@ export interface ServerRollHooks {
   answered(answerIdentifier: string, sourceIdentifier: string): void;
   /** The line asked about will have no answer, for the reason given. */
   unanswered(sourceIdentifier: string, reason: UnansweredRollReason): void;
+  /** Whether the seat is in the room, where a roll given up on can be told of. */
+  inRoom(): boolean;
 }
 
 interface PendingRoll {
@@ -88,7 +90,8 @@ export class ServerRollRequests {
 
   /**
    * Stops waiting while the link is down, keeping every roll to ask again for once back: a roll that
-   * timed out while away would never be asked for again.
+   * timed out while away would never be asked for again. One whose wait ends while the seat is out
+   * of the room, as between leaving and getting back in by hand, is kept the same way.
    */
   pause(): void {
     this.stopPacing();
@@ -131,7 +134,8 @@ export class ServerRollRequests {
       this.sentAt.push(now);
       this.stopWaiting(roll);
       roll.timer = setTimeout(() => {
-        if (this.settle(identifier)) this.hooks.unanswered(roll.sourceIdentifier, 'timeout');
+        roll.timer = null;
+        if (this.hooks.inRoom() && this.settle(identifier)) this.hooks.unanswered(roll.sourceIdentifier, 'timeout');
       }, SERVER_ROLL_WAIT_MS);
       this.hooks.send(roll.request);
     }

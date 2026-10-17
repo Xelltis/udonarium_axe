@@ -59,3 +59,8 @@ export function getMyPeerId(): string {
 export function getAuthorityPeerId(): string | null {
   return Network.authorityPeerId;
 }
+
+/** The key of the room server's room this device is in or getting into; null with SkyWay or outside one. */
+export function getRoomKey(): string | null {
+  return Network.roomKey;
+}
