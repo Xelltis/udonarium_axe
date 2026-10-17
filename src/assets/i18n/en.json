@@ -3424,7 +3424,7 @@
       },
       "withheldEntry": {
         "title": "This table holds withheld parts",
-        "message": "The table on screen holds things a room server handed over only in their withheld shape (cards whose face you cannot see, others' dice faces, blacked-out notes, the contents of secret rolls and so on). Going into a room now spreads the table there in that shape.",
+        "message": "The table on screen holds things a room server handed over only in their withheld shape (cards whose face you cannot see, others' dice faces, blacked-out notes, the contents of secret rolls and so on). Going into a room now spreads the table there in that shape. Saves taken after going in, the GM's included, ask before they are loaded.",
         "ok": "Go in anyway"
       }
     },
