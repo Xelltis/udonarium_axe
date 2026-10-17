@@ -63,13 +63,13 @@ export const SEND_WINDOW_MS = 10_000;
  */
 export const PACE_WINDOW_MS = SEND_WINDOW_MS + 1000;
 /**
- * How many events to everybody a seat writes in PACE_WINDOW_MS at most, three quarters of the 20,000
- * past which the server cuts the connection off. A tab of many lines deleted, or a big room loaded
- * again, goes out over a few windows rather than losing the seat and what was over. What goes to the
- * server alone, few things such as a roll or an invitation asked for, is not held back behind them.
+ * How many events a seat writes in PACE_WINDOW_MS at most, three quarters of the 20,000 past which
+ * the server cuts the connection off. A tab of many lines deleted, or a big room loaded again, goes
+ * out over a few windows rather than losing the seat and what was over. The events stay in the order
+ * they were sent, whoever they go to; only the connection's own messages are not held back.
  */
 export const SEND_BUDGET_EVENTS = 15_000;
-/** How many frames to everybody a seat writes in PACE_WINDOW_MS at most, three quarters of the server's 2,000. */
+/** How many frames a seat writes in PACE_WINDOW_MS at most, three quarters of the server's 2,000. */
 export const SEND_BUDGET_FRAMES = 1_500;
 /** How many events go out in one batch at most, so that the budget fills in steps. */
 const SEND_CHUNK_EVENTS = 2_500;
@@ -102,7 +102,8 @@ const HELD_EVENT_NAMES: ReadonlySet<string> = new Set([AuthorityEvent.ROLE_REQUE
  * What goes to everybody that the catalogs do not mend either, the server keeping deletions
  * itself: a deletion, and the word that what was deleted is coming back.
  */
-const HELD_BROADCAST_EVENT_NAMES: ReadonlySet<string> = new Set(['DELETE_GAME_OBJECT', 'FORGET_DELETED_OBJECTS']);
+const COMING_BACK = 'FORGET_DELETED_OBJECTS';
+const HELD_BROADCAST_EVENT_NAMES: ReadonlySet<string> = new Set(['DELETE_GAME_OBJECT', COMING_BACK]);
 /** The refusal for a hello whose login is gone or belongs to somebody else. */
 const UNAUTHORIZED = 'unauthorized';
 
@@ -223,8 +224,8 @@ export class ServerConnection implements Connection {
   private outbound: Outbound[] = [];
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private sending: Promise<void> = Promise.resolve();
-  /** The writing of what goes to one peer or the server, and of the connection's own messages, which is not paced. */
-  private sendingDirect: Promise<void> = Promise.resolve();
+  /** The writing of the connection's own messages, such as the hello or an invitation asked for, which is not paced. */
+  private posting: Promise<void> = Promise.resolve();
   private inbound: Promise<void> = Promise.resolve();
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private pongTimer: ReturnType<typeof setTimeout> | null = null;
@@ -333,11 +334,11 @@ export class ServerConnection implements Connection {
   }
 
   /**
-   * Whether sends are held back to keep inside the server's limits, as a big load or deletion is:
-   * those wait seconds, unlike what is only gathering to go out in a moment.
+   * Whether sends are on their way out to the link, as a big load or deletion is for seconds while
+   * held back to keep inside the server's limits, unlike what is only gathering to go out in a moment.
    */
   get sendsPending(): boolean {
-    return this.wakePacing !== null;
+    return this.unwritten.length > 0;
   }
 
   /** The server decides who is in the room; there is nobody to connect to by hand. */
@@ -380,15 +381,20 @@ export class ServerConnection implements Connection {
   /**
    * Keeps the requests to the server, and the deletions and words on what comes back sent to
    * everybody, among events sent while getting back into the room, to send once back in; the rest
-   * go, as SkyWay drops what it sends with nobody connected.
+   * go, as SkyWay drops what it sends with nobody connected. A word that something comes back is
+   * kept past the limit, as without it what came back would be deleted again.
    */
   private hold(events: EventContext[], sendTo: string | undefined): void {
     if (!this.everWelcomed || this.stopped) return;
-    const kept = this.keptOf(events, sendTo);
     const limit = sendTo === undefined ? MAX_HELD_BROADCASTS : MAX_HELD_EVENTS;
     const held = this.held.filter((batch) => batch.to === sendTo);
-    const room = limit - held.reduce((count, batch) => count + batch.events.length, 0);
-    if (kept.length > 0 && room > 0) this.held.push({ to: sendTo, events: kept.slice(0, room) });
+    let room = limit - held.reduce((count, batch) => count + batch.events.length, 0);
+    const kept = this.keptOf(events, sendTo).filter((event) => {
+      if (event.eventName === COMING_BACK) return true;
+      room--;
+      return room >= 0;
+    });
+    if (kept.length > 0) this.held.push({ to: sendTo, events: kept });
   }
 
   /** The batches with only what is kept while getting back into the room, those left with nothing dropped. */
@@ -891,12 +897,13 @@ export class ServerConnection implements Connection {
   }
 
   /**
-   * Sends again, over the link there is now or the next, the requests to the server, and the
-   * deletions and words on what comes back, among batches that never went out; the rest are left to
-   * the catalogs traded on getting back in.
+   * Holds for the next link the requests to the server, and the deletions and words on what comes
+   * back, among batches sent while in the room that never went out, all of them whatever the limits
+   * on what is sent while getting back in; the rest are left to the catalogs traded on getting back in.
    */
   private keepRequests(batches: Outbound[]): void {
-    for (const batch of this.keptBatchesOf(batches)) this.send(batch.events, batch.to);
+    if (!this.everWelcomed || this.stopped) return;
+    this.held.push(...this.keptBatchesOf(batches));
   }
 
   private dropQueued(): void {
@@ -915,30 +922,21 @@ export class ServerConnection implements Connection {
     this.outbound = [];
     this.unwritten.push(...batches);
     const socket = this.socket;
-    const paced = batches.filter((batch) => batch.to === undefined);
-    const direct = batches.filter((batch) => batch.to !== undefined);
-    if (paced.length > 0) {
-      this.sending = this.sending
-        .then(() => this.write(socket, paced, true))
-        .catch((e) => Logger.warn('[ServerConnection] a send failed', e));
-    }
-    if (direct.length > 0) {
-      this.sendingDirect = this.sendingDirect
-        .then(() => this.write(socket, direct, false))
-        .catch((e) => Logger.warn('[ServerConnection] a send failed', e));
-    }
+    this.sending = this.sending
+      .then(() => this.write(socket, batches))
+      .catch((e) => Logger.warn('[ServerConnection] a send failed', e));
   }
 
   /**
-   * Writes batches to the link in order, those to everybody once the window has room. A link that
-   * goes, or is going, keeps what was not written yet for socketClosed, which holds the requests
-   * among them ahead of what gathered behind them.
+   * Writes batches to the link in order, each once the window has room. A link that goes, or is
+   * going, keeps what was not written yet for socketClosed, which holds the requests among them
+   * ahead of what gathered behind them.
    */
-  private async write(socket: WebSocket | null, batches: Outbound[], paced: boolean): Promise<void> {
+  private async write(socket: WebSocket | null, batches: Outbound[]): Promise<void> {
     for (const batch of batches) {
       if (!this.unwritten.includes(batch)) return;
       const frames = await encodeSendFrames(batch.events, batch.to);
-      if (paced) await this.roomInWindow(batch, frames.length);
+      await this.roomInWindow(batch, frames.length);
       if (!this.unwritten.includes(batch)) return;
       if (socket == null || socket !== this.socket || socket.readyState !== SOCKET_OPEN) return;
       for (const frame of frames) socket.send(frame);
@@ -978,12 +976,12 @@ export class ServerConnection implements Connection {
   }
 
   /**
-   * Sends one message of the connection's own, such as the hello, in order with what goes to the
-   * server alone, never held back behind a big load going out to everybody.
+   * Sends one message of the connection's own, such as the hello, never held back behind a big load
+   * going out. None of them has to keep its place among the events.
    */
   private post(message: ClientMessage): void {
     const socket = this.socket;
-    this.sendingDirect = this.sendingDirect
+    this.posting = this.posting
       .then(async () => {
         const frame = await encodeFrame(message);
         if (socket != null && socket === this.socket && socket.readyState === SOCKET_OPEN) socket.send(frame);

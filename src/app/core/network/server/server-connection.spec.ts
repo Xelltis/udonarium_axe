@@ -3,6 +3,7 @@ import {
   ASSET_TOKEN_MARGIN_MS,
   ASSET_TOKEN_WAIT_MS,
   INVITE_TIMEOUT_MS,
+  MAX_HELD_BROADCASTS,
   PACE_WINDOW_MS,
   PING_INTERVAL_MS,
   PONG_TIMEOUT_MS,
@@ -682,7 +683,7 @@ describe('ServerConnection', () => {
     await vi.waitFor(async () => expect(await written()).toBe(30_000));
   });
 
-  it('writes what goes to the server alone, and its own messages, while a big load waits for room', async () => {
+  it('writes its own messages while a big load waits for room, and the events behind it in order', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
     const socket = await enterRoom();
     const deletions = Array.from({ length: 20_000 }, (_, i) =>
@@ -690,19 +691,58 @@ describe('ServerConnection', () => {
     );
     connection.send(deletions);
     await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
-    await vi.waitFor(() => expect(connection.sendsPending).toBe(true));
+    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
     const roleRequest = event('ROLE_REQUEST', { peerId: OTHER.peerId, role: 'gm' });
 
     connection.send([roleRequest], AUTHORITY_PEER_ID);
     void connection.requestInvite('pl').catch(() => undefined);
     await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
 
+    await vi.waitFor(async () =>
+      expect(await socket.frames()).toContainEqual(expect.objectContaining({ type: 'invite' }))
+    );
+    expect(await socket.frames()).not.toContainEqual(expect.objectContaining({ to: AUTHORITY_PEER_ID }));
+    await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
     await vi.waitFor(async () => {
-      const frames = await socket.frames();
-      expect(frames).toContainEqual({ type: 'send', to: AUTHORITY_PEER_ID, events: [roleRequest] });
-      expect(frames).toContainEqual(expect.objectContaining({ type: 'invite', role: 'pl' }));
+      const frames = (await socket.frames()) as { type: string; to?: string; events?: EventContext[] }[];
+      const sends = frames.filter((frame) => frame.type === 'send');
+      expect(sends.at(-1)).toEqual({ type: 'send', to: AUTHORITY_PEER_ID, events: [roleRequest] });
+      expect(sends.flatMap((frame) => frame.events ?? [])).toHaveLength(20_001);
     });
-    expect(connection.sendsPending).toBe(true);
+  });
+
+  it('holds every deletion a dropped link cut off, past the limit on what is held while getting back in', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+    const socket = await enterRoom();
+    const deletions = Array.from({ length: 40_000 }, (_, i) =>
+      event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
+    );
+    connection.send(deletions);
+    await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
+    await vi.waitFor(() => expect(connection.sendsPending).toBe(true));
+    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
+
+    socket.close(1006);
+
+    const held = (connection as unknown as { held: { events: unknown[] }[] }).held;
+    expect(held.reduce((count, batch) => count + batch.events.length, 0)).toBe(40_000 - SEND_BUDGET_EVENTS);
+  });
+
+  it('keeps a word that something comes back while getting back in, past the limit the deletions filled', async () => {
+    const socket = await enterRoom();
+    socket.close(1006);
+    const comingBack = event('FORGET_DELETED_OBJECTS', { identifiers: ['tab-1'] });
+
+    connection.send(
+      Array.from({ length: MAX_HELD_BROADCASTS }, (_, i) =>
+        event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
+      )
+    );
+    connection.send([event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: 'over' }), comingBack]);
+
+    const held = (connection as unknown as { held: { events: unknown[] }[] }).held.flatMap((batch) => batch.events);
+    expect(held).toHaveLength(MAX_HELD_BROADCASTS + 1);
+    expect(held.at(-1)).toEqual(comingBack);
   });
 
   it('keeps a deletion ahead of a word that it comes back, when the link is closing as it would be written', async () => {
@@ -721,7 +761,7 @@ describe('ServerConnection', () => {
     expect(await sentOnceBack()).toEqual([deletion, comingBack]);
   });
 
-  it('says it has sends pending while it holds some back, and none once they have gone or only gather', async () => {
+  it('says it has sends pending while they are on their way out, and none once they have gone or only gather', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
     const socket = await enterRoom();
     const deletions = Array.from({ length: 20_000 }, (_, i) =>
@@ -730,7 +770,9 @@ describe('ServerConnection', () => {
 
     connection.send(deletions);
     expect(connection.sendsPending).toBe(false);
-    await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
+    vi.advanceTimersByTime(SEND_GATHER_MS);
+    expect(connection.sendsPending).toBe(true);
+    await vi.advanceTimersByTimeAsync(0);
     await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
     expect(connection.sendsPending).toBe(true);
 
