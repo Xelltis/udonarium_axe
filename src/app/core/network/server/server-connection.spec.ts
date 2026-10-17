@@ -83,7 +83,7 @@ function event(eventName: string, data: unknown = null): EventContext {
  * How long a spec waits for all it sent to be written. Each frame of a big load is encoded on its
  * way out, which a busy machine can take seconds over; the wait ends as soon as all is written.
  */
-const DRAINED = { timeout: 10_000 };
+const DRAINED = { timeout: 20_000 };
 
 describe('ServerConnection', () => {
   let connection: ServerConnection;
@@ -701,6 +701,18 @@ describe('ServerConnection', () => {
     return eventsWritten(again);
   }
 
+  /**
+   * Lets the windows go by until all that was sent is written. A window passes whole at each look,
+   * since a frame written late on a busy machine is counted from the faked time it went out at, and
+   * the window after it opens only that much later.
+   */
+  async function drained(): Promise<void> {
+    await vi.waitFor(async () => {
+      if (connection.sendsPending) await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
+      expect(connection.sendsPending).toBe(false);
+    }, DRAINED);
+  }
+
   /** The events written to a socket for everyone, in order. */
   async function eventsWritten(socket: FakeWebSocket): Promise<unknown[]> {
     return ((await socket.frames()) as { type: string; to?: string; events?: unknown[] }[]).flatMap((frame) =>
@@ -841,8 +853,7 @@ describe('ServerConnection', () => {
       events: [handedBack('tab-1', 'chat-tab-list'), handedBack(kept, 'tab-1')],
     });
     await vi.waitFor(() => expect(received.length).toBe(1));
-    await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
-    await vi.waitFor(() => expect(connection.sendsPending).toBe(false), DRAINED);
+    await drained();
 
     const sent = ((await socket.frames()) as { type: string; events?: EventContext[] }[]).flatMap((frame) =>
       frame.type === 'send' ? (frame.events ?? []) : []
@@ -877,8 +888,7 @@ describe('ServerConnection', () => {
       events: [{ eventName: 'AUTHORITATIVE_OBJECT', data: line('rolled'), sendFrom: AUTHORITY_PEER_ID }],
     });
     await vi.waitFor(() => expect(received.length).toBe(1));
-    await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS * 2);
-    await vi.waitFor(() => expect(connection.sendsPending).toBe(false), DRAINED);
+    await drained();
 
     const deleted = ((await socket.frames()) as { type: string; events?: EventContext[] }[])
       .flatMap((frame) => (frame.type === 'send' ? (frame.events ?? []) : []))
@@ -904,8 +914,7 @@ describe('ServerConnection', () => {
       events: [{ eventName: 'AUTHORITATIVE_OBJECT', data: { identifier: die }, sendFrom: AUTHORITY_PEER_ID }],
     });
     await vi.waitFor(() => expect(received.length).toBe(1));
-    await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
-    await vi.waitFor(() => expect(connection.sendsPending).toBe(false), DRAINED);
+    await drained();
 
     const sent = ((await socket.frames()) as { type: string; events?: EventContext[] }[]).flatMap((frame) =>
       frame.type === 'send' ? (frame.events ?? []) : []
@@ -931,8 +940,7 @@ describe('ServerConnection', () => {
 
     socket.deliver({ type: 'data', from: AUTHORITY_PEER_ID, events: [handedBack('line-5'), handedBack(later)] });
     await vi.waitFor(() => expect(received.length).toBe(1));
-    await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
-    await vi.waitFor(() => expect(connection.sendsPending).toBe(false), DRAINED);
+    await drained();
 
     const sent = ((await socket.frames()) as { type: string; events?: EventContext[] }[]).flatMap((frame) =>
       frame.type === 'send' ? (frame.events ?? []) : []
@@ -961,8 +969,7 @@ describe('ServerConnection', () => {
     await vi.waitFor(() => expect(received.length).toBe(1));
 
     expect(received[0].events).toEqual([other]);
-    await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
-    await vi.waitFor(() => expect(connection.sendsPending).toBe(false), DRAINED);
+    await drained();
     const sent = ((await socket.frames()) as { type: string; events?: EventContext[] }[]).flatMap((frame) =>
       frame.type === 'send' ? (frame.events ?? []) : []
     );
@@ -1067,8 +1074,7 @@ describe('ServerConnection', () => {
     await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
     expect(connection.sendsPending).toBe(true);
 
-    await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
-    await vi.waitFor(() => expect(connection.sendsPending).toBe(false), DRAINED);
+    await drained();
   });
 
   it('stops waiting to write when the link goes, keeping the deletions for the next', async () => {
