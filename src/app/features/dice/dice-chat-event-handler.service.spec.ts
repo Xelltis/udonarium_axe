@@ -178,6 +178,23 @@ describe('DiceChatEventHandlerService', () => {
     }
   });
 
+  it('passes over a die whose face a room server keeps from this user, for the next to take the roll', () => {
+    const goblin = makeCharacter('ゴブリンA');
+    const hidden = makeDice(goblin);
+    hidden.owner = 'someone-else';
+    const before = hidden.face;
+    const shown = makeDice(goblin);
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    try {
+      roll('1d6 dice:ゴブリンA', [{ sides: 6, value: 4 }]);
+
+      expect(hidden.face).toBe(before);
+      expect(shown.face).toBe('4');
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
   it('turns nothing on a roll from somebody else', () => {
     // The faces are synchronised, so the sender's own end is the one that sets them.
     const goblin = makeCharacter('ゴブリンA');
