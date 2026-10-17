@@ -168,6 +168,34 @@ describe('ObjectSynchronizer', () => {
       ObjectStore.instance.clearDeleteHistory();
     });
 
+    it('makes again what it asked the server about from the server’s answer alone, not a change passed on meanwhile', () => {
+      const gone = new DataElement('asked-about');
+      ObjectStore.instance.add(gone, false);
+      ObjectStore.instance.delete(gone, false);
+      const changed = (majorVersion: number) => ({ ...gone.toContext(), majorVersion });
+
+      localDispatch('UPDATE_GAME_OBJECT', changed(5), 'peer-a');
+      localDispatch('UPDATE_GAME_OBJECT', changed(6), 'peer-a');
+      expect(ObjectStore.instance.get('asked-about')).toBeNull();
+
+      localDispatch('UPDATE_GAME_OBJECT', changed(6), AUTHORITY);
+      expect(ObjectStore.instance.get('asked-about')).not.toBeNull();
+      ObjectStore.instance.get('asked-about')?.destroy();
+      ObjectStore.instance.clearDeleteHistory();
+    });
+
+    it('asks the server nothing about its own change of what it deleted', () => {
+      const gone = new GameObject('deleted-by-me');
+      ObjectStore.instance.add(gone, false);
+      ObjectStore.instance.delete(gone, false);
+
+      localDispatch('UPDATE_GAME_OBJECT', { ...gone.toContext(), majorVersion: 5 });
+
+      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([]);
+      expect(ObjectStore.instance.isDeleted('deleted-by-me')).toBe(true);
+      ObjectStore.instance.clearDeleteHistory();
+    });
+
     it('asks the server for what its catalog offers, though this seat saw it deleted, never deleting it', () => {
       const gone = new GameObject('brought-back');
       ObjectStore.instance.add(gone, false);

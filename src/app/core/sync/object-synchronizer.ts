@@ -36,6 +36,12 @@ export class ObjectSynchronizer {
   }
 
   private requestMap: Map<ObjectIdentifier, SynchronizeRequest> = new Map();
+  /**
+   * What this seat deleted and asked the room server about, on hearing another change it: made
+   * again only from the server's answer, which comes after the deletion, not from a change passed
+   * on meanwhile, which would put it back until then.
+   */
+  private readonly askedOfServer = new Set<ObjectIdentifier>();
   private peerMap: Map<PeerId, SynchronizeTask[]> = new Map();
   private tasks: SynchronizeTask[] = [];
   private cleanups: (() => void)[] = [];
@@ -103,8 +109,9 @@ export class ObjectSynchronizer {
               if (!msg.isSendFromSelf) object = this.updateObject(object, context);
               markForChanged(object, msg.sendFrom);
             } else if (ObjectStore.instance.isDeleted(context.identifier)) {
-              this.answerChangeOfDeleted(context, msg.sendFrom);
-            } else {
+              if (!msg.isSendFromSelf) this.answerChangeOfDeleted(context, msg.sendFrom);
+            } else if (!this.askedOfServer.has(context.identifier) || isFromAuthority(msg.sendFrom)) {
+              this.askedOfServer.delete(context.identifier);
               object = this.createObject(context);
               if (object) markForChanged(object, msg.sendFrom);
             }
@@ -129,6 +136,7 @@ export class ObjectSynchronizer {
           case 'DELETE_GAME_OBJECT': {
             if (msg.isSendFromSelf) break;
             const identifier: ObjectIdentifier = (msg.data as { identifier: string }).identifier;
+            this.askedOfServer.delete(identifier);
             ObjectStore.instance.delete(identifier, false);
             break;
           }
@@ -137,6 +145,7 @@ export class ObjectSynchronizer {
           case AuthorityEvent.AUTHORITATIVE: {
             if (!isFromAuthority(msg.sendFrom)) break;
             const context = msg.data as ObjectContext;
+            this.askedOfServer.delete(context.identifier);
             ObjectStore.instance.forgetDeleted([context.identifier]);
             const object = ObjectStore.instance.get(context.identifier);
             if (object) {
@@ -173,6 +182,7 @@ export class ObjectSynchronizer {
     this.cleanups = [];
     for (const sender of this.catalogSenders) clearInterval(sender);
     this.catalogSenders.clear();
+    this.askedOfServer.clear();
   }
 
   /**
@@ -239,6 +249,7 @@ export class ObjectSynchronizer {
       return;
     }
     ObjectStore.instance.forgetDeleted([context.identifier]);
+    this.askedOfServer.add(context.identifier);
     this.addRequestMap(
       { identifier: context.identifier, version: context.majorVersion + context.minorVersion },
       authority
