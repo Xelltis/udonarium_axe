@@ -1136,7 +1136,8 @@
       "message": {
         "dealt": "Dealt {{count}} cards to {{players}} players",
         "noSeats": "Nobody can be dealt cards",
-        "dealWithheld": "Some cards are face down to you, so jokers cannot be told apart, and every joker will be dealt too. You can ask the GM to deal instead. Deal anyway?"
+        "dealWithheld": "Some cards are face down to you, so jokers cannot be told apart, and every joker will be dealt too. {{askGm}}Deal anyway?",
+        "dealWithheldAskGm": "You can ask the GM to deal instead. "
       }
     },
     "coin": {
@@ -1633,8 +1634,8 @@
         "copy": "Duplicate",
         "save": "Save",
         "saving": "Saving {{percent}}%",
-        "copyWithheld": "This cannot be copied: part of it is hidden from you by the room server.",
-        "saveWithheld": "This cannot be saved: part of it is hidden from you by the room server.",
+        "copyWithheld": "This cannot be copied: part of it came from a room server in its withheld shape.",
+        "saveWithheld": "This cannot be saved: part of it came from a room server in its withheld shape.",
         "popupWidth": "Popup width",
         "popupMaxHeight": "Popup max height",
         "limitHeight": "Limit height to value",
@@ -3425,7 +3426,7 @@
       },
       "withheldEntry": {
         "title": "This table holds withheld parts",
-        "message": "The table on screen holds things a room server handed over only in their withheld shape (cards whose face you cannot see, others' dice faces, blacked-out notes, the contents of secret rolls and so on). Going into a room now spreads the table there in that shape. Saves taken after going in, the GM's included, ask before they are loaded.",
+        "message": "The table on screen holds things a room server handed over only in their withheld shape (cards whose face you cannot see, others' dice faces, blacked-out notes, the contents of secret rolls and so on). Going into a room now spreads the table there in that shape. Saves taken on this screen after going in, as the GM too, ask before they are loaded; saves others in the room take hold the withheld shapes without asking.",
         "ok": "Go in anyway"
       }
     },

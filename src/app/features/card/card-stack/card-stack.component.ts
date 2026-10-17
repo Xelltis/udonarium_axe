@@ -27,6 +27,8 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { Network } from '@axe/core/index';
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
+import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -495,12 +497,18 @@ export class CardStackComponent {
 
   /**
    * Deals the whole stack out. Asked first when some cards are face down to this seat on a room
-   * server, as their jokers cannot be told apart and go out with the rest.
+   * server, as their jokers cannot be told apart and go out with the rest; a player there is
+   * pointed to the GM, who holds every face.
    */
   private async dealAll() {
     const stack = this.cardStack();
     const withheld = stack.cards.some((card) => card.isFaceWithheld);
-    if (withheld && !(await this.confirm.ask(this.translateFn('feature.cardStack.message.dealWithheld')))) return;
+    if (withheld) {
+      const gameMasterHoldsThem =
+        getAuthorityPeerId() !== null && !isNetworkIsolated() && !PeerCursor.isMyselfGameMaster;
+      const askGm = gameMasterHoldsThem ? this.translateFn('feature.cardStack.message.dealWithheldAskGm') : '';
+      if (!(await this.confirm.ask(this.translateFn('feature.cardStack.message.dealWithheld', { askGm })))) return;
+    }
     this.cardGameService.dealAll(stack);
   }
 

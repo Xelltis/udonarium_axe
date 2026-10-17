@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CardGameService } from '@axe/application/card/card-game.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -9,6 +10,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { markLoadedWithheld } from '@axe/domain/peer/withheld-table';
 import { CardStackComponent } from '@axe/features/card/card-stack/card-stack.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -56,6 +58,33 @@ describe('CardStackComponent', () => {
       deck.destroy();
     });
 
+    it('points a player to the GM, who holds every face, but not the GM, nor anyone off the room server', async () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      const authority = vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+      const gameMaster = vi.spyOn(PeerCursor, 'isMyselfGameMaster', 'get').mockReturnValue(false);
+      const deck = CardStack.create('山札');
+      const card = Card.create('ジョーカー', 'front.png', 'back.png');
+      card.imageDataElement!.removeChild(card.imageDataElement!.getFirstElementByName('front')!);
+      deck.putOnBottom(card);
+      const askGm = t('feature.cardStack.message.dealWithheldAskGm');
+
+      await dealOut(deck);
+      gameMaster.mockReturnValue(true);
+      await dealOut(deck);
+      gameMaster.mockReturnValue(false);
+      authority.mockReturnValue(null);
+      markLoadedWithheld(true, false);
+      try {
+        await dealOut(deck);
+      } finally {
+        markLoadedWithheld(false, false);
+      }
+
+      expect(ask.mock.calls.map(([question]) => String(question).includes(askGm))).toEqual([true, false, false]);
+      deck.destroy();
+    });
+
     it('deals without asking when every face is here', async () => {
       const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask');
       const deal = vi.spyOn(TestBed.inject(CardGameService), 'dealAll').mockReturnValue({ dealt: 1, participants: 1 });
@@ -95,7 +124,7 @@ describe('CardStackComponent', () => {
     fixture.componentRef.setInput('cardStack', deck);
     internals.connection = { send };
     try {
-      internals.sendQueue();
+      for (let i = 0; i < 5; i++) internals.sendQueue();
       send.mockClear();
 
       (component as unknown as { splitStack(split: number): void }).splitStack(2);
