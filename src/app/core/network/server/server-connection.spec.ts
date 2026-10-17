@@ -649,7 +649,12 @@ describe('ServerConnection', () => {
     welcomeBack(again);
     await vi.waitFor(async () => expect((await again.frames()).length).toBeGreaterThan(0));
     await new Promise((resolve) => setTimeout(resolve, SEND_GATHER_MS + 50));
-    return ((await again.frames()) as { type: string; to?: string; events?: unknown[] }[]).flatMap((frame) =>
+    return eventsWritten(again);
+  }
+
+  /** The events written to a socket for everyone, in order. */
+  async function eventsWritten(socket: FakeWebSocket): Promise<unknown[]> {
+    return ((await socket.frames()) as { type: string; to?: string; events?: unknown[] }[]).flatMap((frame) =>
       frame.type === 'send' && frame.to === undefined ? (frame.events ?? []) : []
     );
   }
@@ -965,13 +970,18 @@ describe('ServerConnection', () => {
     );
     connection.send(deletions);
     await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
-    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
+    await vi.waitFor(async () => expect(await eventsWritten(socket)).toHaveLength(SEND_BUDGET_EVENTS));
 
     socket.close(1006);
-    const sent = await sentOnceBack();
+    vi.advanceTimersByTime(1000);
+    vi.useRealTimers();
+    const again = latest();
+    welcomeBack(again);
 
-    expect(sent).toHaveLength(SEND_BUDGET_EVENTS);
-    expect(sent[0]).toEqual(deletions[SEND_BUDGET_EVENTS]);
+    await vi.waitFor(async () => expect(await eventsWritten(again)).toHaveLength(SEND_BUDGET_EVENTS), {
+      timeout: PACE_WINDOW_MS / 2,
+    });
+    expect((await eventsWritten(again))[0]).toEqual(deletions[SEND_BUDGET_EVENTS]);
   });
 
   it('keeps the connection while the server answers', async () => {
