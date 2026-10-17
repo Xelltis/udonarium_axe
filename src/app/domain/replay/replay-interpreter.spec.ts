@@ -193,6 +193,25 @@ describe('interpretObjectChange()', () => {
     expect(draft?.detail).toEqual({ aliasName: 'character' });
   });
 
+  it('tells a secret roll made public as a line, then', () => {
+    const line = (tag: string) => ({
+      value: 'S2D6 → 7',
+      parentIdentifier: 'tab1',
+      attributes: { name: 'アリス', from: 'System-BCDice', to: '', tag, dicebot: '', timestamp: 1700000000000 },
+    });
+
+    const draft = interpretObjectChange({
+      aliasName: 'chat',
+      identifier: 'r1',
+      before: line('secret'),
+      after: line(''),
+    });
+
+    expect(draft?.kind).toBe(ReplayEventKind.ChatDice);
+    expect(draft?.detail['revealed']).toBe(true);
+    expect(draft?.detail['text']).toBe('S2D6 → 7');
+  });
+
   it('reads a new chat message as a line', () => {
     const draft = interpretObjectChange({
       aliasName: 'chat',

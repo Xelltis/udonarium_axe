@@ -1,12 +1,18 @@
 import {
   GM_ONLY_VISIBILITY,
+  PLAYERS_VISIBILITY,
   PUBLIC_VISIBILITY,
   type ReplayEvent,
   ReplayEventKind,
   type ReplayTargetSnapshot,
   type ReplayVisibility,
 } from '@axe/domain/replay/replay-event';
-import { hiddenPiecesIn, inheritOwnerVisibility, visibilityOfDisclosure } from '@axe/domain/replay/replay-visibility';
+import {
+  hiddenPiecesIn,
+  inheritOwnerVisibility,
+  visibilityOfChatLine,
+  visibilityOfDisclosure,
+} from '@axe/domain/replay/replay-visibility';
 import { buildLongReplayFixture, SHORT_SESSION } from '@axe/testing/replay-fixtures';
 
 function event(seq: number, kind: ReplayEventKind, targetId: string, visibility: ReplayVisibility): ReplayEvent {
@@ -40,6 +46,29 @@ describe('replay visibility', () => {
     ]);
 
     expect([...hidden.keys()]).toEqual(['boss']);
+  });
+
+  describe('visibilityOfChatLine', () => {
+    const open = { plCanView: true, guestCanView: true };
+
+    it('keeps a whisper to those it was said to, and a secret roll to its roller and the GM', () => {
+      expect(visibilityOfChatLine({ to: 'bob carol', tag: '' }, open)).toEqual({
+        kind: 'direct',
+        to: ['bob', 'carol'],
+      });
+      expect(visibilityOfChatLine({ to: '', tag: 'secret' }, open)).toEqual({ kind: 'direct', to: [] });
+    });
+
+    it('keeps a line to those who may read its tab', () => {
+      expect(visibilityOfChatLine({ to: '', tag: '' }, open)).toEqual(PUBLIC_VISIBILITY);
+      expect(visibilityOfChatLine({ to: '', tag: '' }, { plCanView: false, guestCanView: false })).toEqual(
+        GM_ONLY_VISIBILITY
+      );
+      expect(visibilityOfChatLine({ to: '', tag: '' }, { plCanView: true, guestCanView: false })).toEqual(
+        PLAYERS_VISIBILITY
+      );
+      expect(visibilityOfChatLine({ to: '', tag: '' }, null)).toEqual(PUBLIC_VISIBILITY);
+    });
   });
 
   describe('inheritOwnerVisibility', () => {

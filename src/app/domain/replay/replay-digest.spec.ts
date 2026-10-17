@@ -97,6 +97,18 @@ describe('buildReplayDigest()', () => {
     expect(digest.speakers[0]).toMatchObject({ userId: 'alice', name: 'アリス', messages: 2, diceRolls: 1 });
   });
 
+  it('counts a line told twice, as a secret roll and once made public, once', () => {
+    const secret = {
+      ...event(ReplayEventKind.ChatDice, 'alice', {}, 'roll-1'),
+      visibility: { kind: 'direct' as const, to: [] },
+    };
+    const revealed = { ...event(ReplayEventKind.ChatDice, 'alice', { revealed: true }, 'roll-1') };
+
+    const digest = buildReplayDigest([secret, revealed], MANIFEST, GAME_MASTER);
+
+    expect(digest.numbers.diceRolls).toBe(1);
+  });
+
   it('does not count a notice the tool wrote into the chat as anybody’s line', () => {
     const digest = buildReplayDigest(
       [

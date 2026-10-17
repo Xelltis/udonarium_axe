@@ -12,12 +12,12 @@ import { ReplayLogStore, type ReplayRecordingMeta, selectExpiredRecordings } fro
 import type { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { compressAsync } from '@axe/core/util/compress';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canMergeReplayEvents, mergeReplayEvents } from '@axe/domain/replay/replay-coalescer';
 import { encodeReplayEvents, encodeReplayManifest } from '@axe/domain/replay/replay-codec';
 import { cloneSyncData, type SyncData, syncValueOf } from '@axe/domain/replay/replay-diff';
 import {
-  GM_ONLY_VISIBILITY,
   PUBLIC_VISIBILITY,
   REPLAY_FORMAT_VERSION,
   type ReplayActorSnapshot,
@@ -39,7 +39,11 @@ import {
   shouldDiffObjectChange,
 } from '@axe/domain/replay/replay-interpreter';
 import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
-import { visibilityOfDisclosure, visibilityOfSyncData } from '@axe/domain/replay/replay-visibility';
+import {
+  visibilityOfChatLine,
+  visibilityOfDisclosure,
+  visibilityOfSyncData,
+} from '@axe/domain/replay/replay-visibility';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export const REPLAY_CHUNK_EVENT_LIMIT = 500;
@@ -736,13 +740,8 @@ export class ReplayRecorderService {
 
   private visibilityOf(draft: ReplayDraft): ReplayVisibility {
     if (draft.kind === ReplayEventKind.ChatMessage || draft.kind === ReplayEventKind.ChatDice) {
-      const to = String(draft.detail['to'] ?? '')
-        .trim()
-        .split(/\s+/)
-        .filter((userId) => userId.length > 0);
-      if (to.length > 0) return { kind: 'direct', to };
-      if (String(draft.detail['tag'] ?? '').includes('secret')) return GM_ONLY_VISIBILITY;
-      return PUBLIC_VISIBILITY;
+      const tab = this.objectStore.get(String(draft.detail['tabIdentifier'] ?? ''));
+      return visibilityOfChatLine(draft.detail, tab instanceof ChatTab ? tab : null);
     }
 
     const target = draft.targetIdentifier;

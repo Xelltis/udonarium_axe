@@ -139,15 +139,24 @@ export function buildReplayDigest(
   let rounds = 0;
   let hasDiceDetail = false;
   let hasLedger = false;
+  // A line told twice, as a secret roll and once made public, is counted once.
+  const linesCounted = new Set<string>();
+  const countedBefore = (event: ReplayEvent) => {
+    if (!event.targetId) return false;
+    if (linesCounted.has(event.targetId)) return true;
+    linesCounted.add(event.targetId);
+    return false;
+  };
 
   for (const event of visible) {
     switch (event.kind) {
       case ReplayEventKind.ChatMessage:
-        if (isSystemReplayChat(event)) break;
+        if (isSystemReplayChat(event) || countedBefore(event)) break;
         messages++;
         countSpeech(speakers, event, manifest, 'messages');
         break;
       case ReplayEventKind.ChatDice: {
+        if (countedBefore(event)) break;
         diceRolls++;
         countSpeech(speakers, event, manifest, 'diceRolls');
         const detail = parseDiceRollDetail(asString(event.detail['dicebot']));

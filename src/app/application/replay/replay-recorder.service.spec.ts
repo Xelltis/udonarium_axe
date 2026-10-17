@@ -29,12 +29,13 @@ import { isCompressed } from '@axe/core/util/compress';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { decodeReplayEvents, decodeReplayManifest } from '@axe/domain/replay/replay-codec';
-import { ReplayDetailLevel, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import { GM_ONLY_VISIBILITY, ReplayDetailLevel, ReplayEventKind } from '@axe/domain/replay/replay-event';
 import { ReplayEventCategory, replayEventCategory } from '@axe/domain/replay/replay-event-category';
 import { decodeReplayKeyframe } from '@axe/domain/replay/replay-keyframe';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -445,6 +446,33 @@ describe('ReplayRecorderService', () => {
       expect(handed.actorId).toBe('alice');
       expect(replayEventCategory(handed)).toBe(ReplayEventCategory.Hidden);
     });
+  });
+
+  it('keeps a line said in a tab the players may not read to the game master', async () => {
+    const tab = new ChatTab('gm-notes');
+    tab.plCanView = false;
+    tab.guestCanView = false;
+    objectStore.add(tab, false);
+    await service.start();
+    vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+    localDispatch(
+      'UPDATE_GAME_OBJECT',
+      {
+        identifier: 'note-1',
+        aliasName: 'chat',
+        majorVersion: 1,
+        minorVersion: 0.5,
+        syncData: {
+          value: 'ボスの正体',
+          parentIdentifier: 'gm-notes',
+          attributes: { from: 'gm', tag: '', timestamp: Date.now() },
+        },
+      },
+      'peer-a'
+    );
+
+    expect(service.recentEvents()[0].visibility).toEqual(GM_ONLY_VISIBILITY);
   });
 
   it('records a whisper as private, with its recipients', async () => {

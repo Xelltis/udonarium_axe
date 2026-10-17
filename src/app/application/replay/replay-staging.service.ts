@@ -4,10 +4,10 @@ import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
 import type { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { canMergeReplayEvents, mergeReplayEvents } from '@axe/domain/replay/replay-coalescer';
 import { cloneSyncData, type SyncData } from '@axe/domain/replay/replay-diff';
 import {
-  GM_ONLY_VISIBILITY,
   PUBLIC_VISIBILITY,
   type ReplayEvent,
   ReplayEventKind,
@@ -22,7 +22,11 @@ import {
   isIgnoredReplayEvent,
   type ReplayDraft,
 } from '@axe/domain/replay/replay-interpreter';
-import { visibilityOfDisclosure, visibilityOfSyncData } from '@axe/domain/replay/replay-visibility';
+import {
+  visibilityOfChatLine,
+  visibilityOfDisclosure,
+  visibilityOfSyncData,
+} from '@axe/domain/replay/replay-visibility';
 
 /** What a piece keeps to some, as the recorder reads it. */
 interface Disclosing {
@@ -343,13 +347,8 @@ export class ReplayStagingService {
 
   private visibilityOf(draft: ReplayDraft): ReplayVisibility {
     if (draft.kind === ReplayEventKind.ChatMessage || draft.kind === ReplayEventKind.ChatDice) {
-      const to = String(draft.detail['to'] ?? '')
-        .trim()
-        .split(/\s+/)
-        .filter((userId) => userId.length > 0);
-      if (to.length > 0) return { kind: 'direct', to };
-      if (String(draft.detail['tag'] ?? '').includes('secret')) return GM_ONLY_VISIBILITY;
-      return PUBLIC_VISIBILITY;
+      const tab = this.objectStore.get(String(draft.detail['tabIdentifier'] ?? ''));
+      return visibilityOfChatLine(draft.detail, tab instanceof ChatTab ? tab : null);
     }
 
     const target = draft.targetIdentifier;

@@ -1,6 +1,7 @@
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import {
   GM_ONLY_VISIBILITY,
+  PLAYERS_VISIBILITY,
   PUBLIC_VISIBILITY,
   type ReplayEvent,
   ReplayEventKind,
@@ -16,6 +17,25 @@ export function visibilityOfDisclosure(mode: unknown, userIds: unknown): ReplayV
   if (mode === DisclosureMode.Selected && Array.isArray(userIds)) {
     return { kind: 'direct', to: userIds.filter((id): id is string => typeof id === 'string') };
   }
+  return PUBLIC_VISIBILITY;
+}
+
+/**
+ * Who may see a chat line as it was said: those it was whispered to, with its speaker; the speaker
+ * and the game master for a secret roll; and otherwise those who may read its tab then.
+ */
+export function visibilityOfChatLine(
+  detail: Readonly<Record<string, unknown>>,
+  tab: { plCanView: boolean; guestCanView: boolean } | null
+): ReplayVisibility {
+  const to = String(detail['to'] ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter((userId) => userId.length > 0);
+  if (to.length > 0) return { kind: 'direct', to };
+  if (String(detail['tag'] ?? '').includes('secret')) return { kind: 'direct', to: [] };
+  if (tab && !tab.plCanView) return GM_ONLY_VISIBILITY;
+  if (tab && !tab.guestCanView) return PLAYERS_VISIBILITY;
   return PUBLIC_VISIBILITY;
 }
 

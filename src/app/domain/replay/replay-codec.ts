@@ -1,6 +1,7 @@
 import { decode, encode } from '@axe/core/util/message-pack';
 import {
   GM_ONLY_VISIBILITY,
+  PLAYERS_VISIBILITY,
   PUBLIC_VISIBILITY,
   REPLAY_FORMAT_VERSION,
   type ReplayEvent,
@@ -99,6 +100,7 @@ function asArray<T>(value: unknown): T[] {
 function asVisibility(value: unknown): ReplayVisibility {
   if (!isRecord(value)) return PUBLIC_VISIBILITY;
   if (value['kind'] === 'gm-only') return GM_ONLY_VISIBILITY;
+  if (value['kind'] === 'players') return PLAYERS_VISIBILITY;
   if (value['kind'] === 'direct') return { kind: 'direct', to: asArray<string>(value['to']) };
   return PUBLIC_VISIBILITY;
 }
