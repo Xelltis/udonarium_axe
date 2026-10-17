@@ -184,6 +184,61 @@ describe('ObjectSynchronizer', () => {
       ObjectStore.instance.clearDeleteHistory();
     });
 
+    describe('stops waiting on what it asked about', () => {
+      const askAbout = (identifier: string) => {
+        const gone = new DataElement(identifier);
+        ObjectStore.instance.add(gone, false);
+        ObjectStore.instance.delete(gone, false);
+        const changed = (majorVersion: number) => ({ ...gone.toContext(), majorVersion });
+        localDispatch('UPDATE_GAME_OBJECT', changed(5), 'peer-a');
+        return changed;
+      };
+
+      afterEach(() => {
+        ObjectStore.instance.clearDeleteHistory();
+      });
+
+      it('once the server withdraws it, making it from a change its writer sends later', () => {
+        const changed = askAbout('withdrawn-when-asked');
+
+        localDispatch(AuthorityEvent.WITHDRAW, { identifier: 'withdrawn-when-asked' }, AUTHORITY);
+        localDispatch('UPDATE_GAME_OBJECT', changed(6), 'peer-a');
+
+        expect(ObjectStore.instance.get('withdrawn-when-asked')).not.toBeNull();
+        ObjectStore.instance.get('withdrawn-when-asked')?.destroy();
+      });
+
+      it('once a loader says the name is coming back', () => {
+        const changed = askAbout('loaded-again');
+
+        localDispatch('FORGET_DELETED_OBJECTS', { identifiers: ['loaded-again'] }, 'peer-a');
+        localDispatch('UPDATE_GAME_OBJECT', changed(6), 'peer-a');
+
+        expect(ObjectStore.instance.get('loaded-again')).not.toBeNull();
+        ObjectStore.instance.get('loaded-again')?.destroy();
+      });
+
+      it('once another room is opened', () => {
+        const changed = askAbout('asked-in-the-last-room');
+
+        localDispatch('OPEN_NETWORK', { peerId: 'me' });
+        localDispatch('UPDATE_GAME_OBJECT', changed(6), 'peer-a');
+
+        expect(ObjectStore.instance.get('asked-in-the-last-room')).not.toBeNull();
+        ObjectStore.instance.get('asked-in-the-last-room')?.destroy();
+      });
+
+      it('once there is no room server to answer', () => {
+        const changed = askAbout('asked-of-a-server-gone');
+        vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
+
+        localDispatch('UPDATE_GAME_OBJECT', changed(6), 'peer-a');
+
+        expect(ObjectStore.instance.get('asked-of-a-server-gone')).not.toBeNull();
+        ObjectStore.instance.get('asked-of-a-server-gone')?.destroy();
+      });
+    });
+
     it('asks the server nothing about its own change of what it deleted', () => {
       const gone = new GameObject('deleted-by-me');
       ObjectStore.instance.add(gone, false);

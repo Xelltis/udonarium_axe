@@ -39,7 +39,8 @@ export class ObjectSynchronizer {
   /**
    * What this seat deleted and asked the room server about, on hearing another change it: made
    * again only from the server's answer, which comes after the deletion, not from a change passed
-   * on meanwhile, which would put it back until then.
+   * on meanwhile, which would put it back until then. It is no longer waited on once the server
+   * withdraws it, once a loader says the name is coming back, or once another room is opened.
    */
   private readonly askedOfServer = new Set<ObjectIdentifier>();
   private peerMap: Map<PeerId, SynchronizeTask[]> = new Map();
@@ -61,6 +62,9 @@ export class ObjectSynchronizer {
       networkMessage$.subscribe((msg) => {
         if (isNetworkIsolated() && OBJECT_SYNC_EVENTS.has(msg.eventName)) return;
         switch (msg.eventName) {
+          case 'OPEN_NETWORK':
+            this.askedOfServer.clear();
+            break;
           case 'CONNECT_PEER': {
             const peerId = (msg as NetworkMessage<{ peerId: string }>).data.peerId;
             if (msg.isSendFromSelf && tradesCatalogWith(peerId)) this.sendCatalog(peerId);
@@ -110,7 +114,11 @@ export class ObjectSynchronizer {
               markForChanged(object, msg.sendFrom);
             } else if (ObjectStore.instance.isDeleted(context.identifier)) {
               if (!msg.isSendFromSelf) this.answerChangeOfDeleted(context, msg.sendFrom);
-            } else if (!this.askedOfServer.has(context.identifier) || isFromAuthority(msg.sendFrom)) {
+            } else if (
+              Network.authorityPeerId == null ||
+              !this.askedOfServer.has(context.identifier) ||
+              isFromAuthority(msg.sendFrom)
+            ) {
               this.askedOfServer.delete(context.identifier);
               object = this.createObject(context);
               if (object) markForChanged(object, msg.sendFrom);
@@ -127,6 +135,7 @@ export class ObjectSynchronizer {
             if (msg.isSendFromSelf) break;
             const { identifiers } = msg.data as { identifiers?: ObjectIdentifier[] };
             ObjectStore.instance.forgetDeleted(identifiers ?? []);
+            for (const identifier of identifiers ?? []) this.askedOfServer.delete(identifier);
             break;
           }
           // The store took the object away before the word went out, so hearing it back
@@ -164,6 +173,7 @@ export class ObjectSynchronizer {
             const data = msg.data as { identifier: string; aliasName?: string };
             // Something asked for that went out of view before it came is no longer waited on.
             this.requestMap.delete(data.identifier);
+            this.askedOfServer.delete(data.identifier);
             const object = ObjectStore.instance.get(data.identifier);
             if (!object) break;
             // Those who hear of it after this, such as the replay recorder, are told what it was.
