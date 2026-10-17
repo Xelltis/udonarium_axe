@@ -269,6 +269,8 @@ export class ServerConnection implements Connection {
   private held: Outbound[] = [];
   /** Batches handed on to be written to the link and not written yet, oldest first. */
   private unwritten: Outbound[] = [];
+  /** What this link has carried deletions of, and when, for telling a deletion the server turned down. */
+  private deletionsWritten = new Map<string, number>();
   /** What was written to the link within the last PACE_WINDOW_MS, oldest first. */
   private sentLately: { at: number; events: number; frames: number }[] = [];
   /** Ends a wait for room in the window early, as when the link goes. */
@@ -793,10 +795,11 @@ export class ServerConnection implements Connection {
   }
 
   /**
-   * Drops the deletions yet to go out of what the server has just handed back as it stands, as the
-   * lines of a tab a player may not delete, which came back with it: sent after the server's while
-   * for keeping them is up, as after getting back into the room, they would delete those lines for
-   * everyone. The server's word on an object outranks a deletion of it this seat has yet to send.
+   * Drops the deletions yet to go out of what the server hands back on turning down a deletion this
+   * link carried, as a tab a player may not delete and its lines, which come back with it: sent
+   * after the server's while for keeping them is up, as after getting back into the room, they would
+   * delete those lines for everyone. What it hands back for a change turned down keeps the deletions
+   * behind it, the server not having turned those down, or only the object would stay, emptied.
    */
   private keepWhatTheServerHandsBack(events: EventContext[]): void {
     const authority = this.authority?.peerId;
@@ -807,7 +810,7 @@ export class ServerConnection implements Connection {
           : []
       )
     );
-    if (handedBack.size < 1) return;
+    if (![...handedBack].some((identifier) => this.deletionsWritten.has(identifier))) return;
     const unless = (event: EventContext) => event.eventName !== DELETION || !handedBack.has(identifierOf(event) ?? '');
     for (const batch of [...this.held, ...this.unwritten, ...this.outbound]) {
       if (batch.events.some((event) => !unless(event))) batch.events = batch.events.filter(unless);
@@ -1006,6 +1009,7 @@ export class ServerConnection implements Connection {
       if (socket == null || socket !== this.socket || socket.readyState !== SOCKET_OPEN) return;
       for (const frame of frames) socket.send(frame);
       this.sentLately.push({ at: Date.now(), events: batch.events.length, frames: frames.length });
+      this.rememberDeletions(batch.events);
       this.unwritten = this.unwritten.filter((waiting) => waiting !== batch);
     }
   }
@@ -1033,9 +1037,26 @@ export class ServerConnection implements Connection {
     }
   }
 
+  /**
+   * Notes the deletions written, for a while long enough for the server to turn them down: the
+   * notes older than a minute go once there are many.
+   */
+  private rememberDeletions(events: EventContext[]): void {
+    const now = Date.now();
+    for (const event of events) {
+      const identifier = identifierOf(event);
+      if (event.eventName === DELETION && identifier !== undefined) this.deletionsWritten.set(identifier, now);
+    }
+    if (this.deletionsWritten.size <= MAX_HELD_BROADCASTS) return;
+    for (const [identifier, at] of this.deletionsWritten) {
+      if (now - at > 60_000) this.deletionsWritten.delete(identifier);
+    }
+  }
+
   /** Forgets what the link had written, a new one being counted afresh, and ends any wait for it. */
   private stopPacing(): void {
     this.sentLately = [];
+    this.deletionsWritten.clear();
     this.wakePacing?.();
     this.wakePacing = null;
   }

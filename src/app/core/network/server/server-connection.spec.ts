@@ -764,22 +764,24 @@ describe('ServerConnection', () => {
     await vi.waitFor(async () => expect(await written()).toBe(SEND_BUDGET_EVENTS * 2));
   });
 
-  it('sends no deletion still to go of what the server has handed back, as the lines of a tab it kept', async () => {
+  it('sends no deletion still to go of what the server hands back on refusing a deletion, as the lines of a tab it kept', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
     const socket = await enterRoom();
-    const deletions = Array.from({ length: SEND_BUDGET_EVENTS * 2 }, (_, i) =>
+    const tab = event('DELETE_GAME_OBJECT', { aliasName: 'chat-tab', identifier: 'tab-1' });
+    const deletions = Array.from({ length: SEND_BUDGET_EVENTS * 2 - 1 }, (_, i) =>
       event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
     );
-    connection.send(deletions);
+    connection.send([tab, ...deletions]);
     await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
-    await vi.waitFor(() => expect(connection.sendsPending).toBe(true));
+    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
     const kept = `line-${SEND_BUDGET_EVENTS + 5}`;
-
-    socket.deliver({
-      type: 'data',
-      from: AUTHORITY_PEER_ID,
-      events: [{ eventName: 'AUTHORITATIVE_OBJECT', data: { identifier: kept }, sendFrom: AUTHORITY_PEER_ID }],
+    const handedBack = (identifier: string) => ({
+      eventName: 'AUTHORITATIVE_OBJECT',
+      data: { identifier },
+      sendFrom: AUTHORITY_PEER_ID,
     });
+
+    socket.deliver({ type: 'data', from: AUTHORITY_PEER_ID, events: [handedBack('tab-1'), handedBack(kept)] });
     await vi.waitFor(() => expect(received.length).toBe(1));
     await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
     await vi.waitFor(() => expect(connection.sendsPending).toBe(false));
@@ -789,6 +791,32 @@ describe('ServerConnection', () => {
     );
     expect(sent).toHaveLength(SEND_BUDGET_EVENTS * 2 - 1);
     expect(sent.map((sentEvent) => (sentEvent.data as { identifier: string }).identifier)).not.toContain(kept);
+  });
+
+  it('still sends a deletion of what the server hands back for a change it turned down, the deletion being no part of it', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+    const socket = await enterRoom();
+    const deletions = Array.from({ length: SEND_BUDGET_EVENTS * 2 }, (_, i) =>
+      event('DELETE_GAME_OBJECT', { aliasName: 'part', identifier: `part-${i}` })
+    );
+    connection.send(deletions);
+    await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
+    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
+    const die = `part-${SEND_BUDGET_EVENTS + 5}`;
+
+    socket.deliver({
+      type: 'data',
+      from: AUTHORITY_PEER_ID,
+      events: [{ eventName: 'AUTHORITATIVE_OBJECT', data: { identifier: die }, sendFrom: AUTHORITY_PEER_ID }],
+    });
+    await vi.waitFor(() => expect(received.length).toBe(1));
+    await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
+    await vi.waitFor(() => expect(connection.sendsPending).toBe(false));
+
+    const sent = ((await socket.frames()) as { type: string; events?: EventContext[] }[]).flatMap((frame) =>
+      frame.type === 'send' ? (frame.events ?? []) : []
+    );
+    expect(sent.map((sentEvent) => (sentEvent.data as { identifier: string }).identifier)).toContain(die);
   });
 
   it('keeps two steps inside the server’s window should the first come in late', () => {
