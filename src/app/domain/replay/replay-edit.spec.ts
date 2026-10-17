@@ -793,6 +793,24 @@ describe('chat moments that follow a new place', () => {
         inOrder(moved);
       });
 
+      it('leaves room behind a roll it moves for the results left behind after it, in a run said a moment apart', () => {
+        const events = [
+          minor(by('gm', 1, 1000007), 0.8),
+          minor(by('quinn', 2, 1000008, '2d6'), 0.5),
+          minor(answering(result(3, 30, 1000009), 'quinn'), 0.5),
+          minor(by('gm', 4, 1000010), 0.5),
+          minor(by('quinn', 5, 1000011, '2d6'), 0.5),
+          minor(answering(result(6, 60, 1000012), 'quinn'), 0.5),
+          minor(by('quinn', 7, 1000013), 0.5),
+          minor(answering(by('System', 8, 1000015, '知らせ'), 'quinn'), 0.5),
+        ];
+
+        const stepped = stepReplayEvents(events, new Set([2, 5]), 1);
+
+        expect(stepped.map((event) => event.seq)).toEqual([1, 3, 2, 4, 6, 5, 7, 8]);
+        inOrder(stepped);
+      });
+
       it('counts the room up to the next line kept to the moment it is said in, fraction and all', () => {
         const events = [
           minor(by('gm', 1, 1000000), 0.07),

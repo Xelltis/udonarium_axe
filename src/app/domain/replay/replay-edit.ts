@@ -356,7 +356,14 @@ function withChatMoments(
         (after === undefined || after < key) &&
         (before === undefined || key < before) &&
         !clashes(line, answerTop)(line.moment);
-      const elsewhere = saidBetween(after, before, answerTop, when, clashes(line, answerTop));
+      const elsewhere = saidBetween(
+        after,
+        before,
+        answerTop,
+        when,
+        clashes(line, answerTop),
+        roomWanted.get(event.seq) ?? 0
+      );
       const staysPut =
         mayStay &&
         (before === undefined ||
@@ -427,14 +434,17 @@ function chatLinesOf(events: readonly ReplayEvent[]): Map<number, ChatLine> {
  * its asker said the moment before it comes first. A whole moment is taken where there is room for
  * the line and its answers; a line with no answers otherwise takes a fraction past `after` within
  * its moment. Where there is no room at all, as lines said by clocks that disagree can leave, it
- * goes after `after`, so that it is never said before a line that comes before it in the list.
+ * goes after `after`, so that it is never said before a line that comes before it in the list. With
+ * `wanted` whole moments to be left behind it for lines moved in after it, a place leaving them is
+ * taken first.
  */
 function saidBetween(
   after: number | undefined,
   before: number | undefined,
   answerTop: number,
   own: Said,
-  clashes: (moment: number) => boolean
+  clashes: (moment: number) => boolean,
+  wanted = 0
 ): Said {
   if (after === undefined) {
     if (before === undefined) return own;
@@ -443,6 +453,13 @@ function saidBetween(
     return { moment, minor: 0 };
   }
   if (before !== undefined && before > after) {
+    const reach = answerTop > 0 ? Math.ceil(answerTop) : 0;
+    for (let moment = Math.floor(after) + 1; moment + reach + wanted < before; moment++) {
+      if (!clashes(moment)) return { moment, minor: 0 };
+    }
+    const at = Math.floor(after);
+    if (wanted > 0 && answerTop === 0 && !clashes(at) && at + wanted < before)
+      return { moment: at, minor: (after + Math.min(at + 1, before)) / 2 - at };
     for (let moment = Math.floor(after) + 1; moment + answerTop < before; moment++) {
       if (!clashes(moment)) return { moment, minor: 0 };
     }
