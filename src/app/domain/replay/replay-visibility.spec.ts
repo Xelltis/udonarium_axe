@@ -59,6 +59,10 @@ describe('replay visibility', () => {
       expect(visibilityOfChatLine({ to: '', tag: 'secret' }, open)).toEqual({ kind: 'direct', to: [] });
     });
 
+    it('keeps a secret roll whispered to somebody from the one it was whispered to, as its words were', () => {
+      expect(visibilityOfChatLine({ to: 'bob alice', tag: 'secret' }, open)).toEqual({ kind: 'direct', to: [] });
+    });
+
     it('keeps a line to those who may read its tab', () => {
       expect(visibilityOfChatLine({ to: '', tag: '' }, open)).toEqual(PUBLIC_VISIBILITY);
       expect(visibilityOfChatLine({ to: '', tag: '' }, { plCanView: false, guestCanView: false })).toEqual(
