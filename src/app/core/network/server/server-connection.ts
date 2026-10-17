@@ -57,6 +57,13 @@ export const PONG_TIMEOUT_MS = 10_000;
  */
 export const WELCOME_TIMEOUT_MS = 45_000;
 /**
+ * How long a member missing from the welcome on getting back in is kept for, before it is taken to
+ * have left: a room server spread over instances that changed hands lets everybody back in one by
+ * one, and the others coming back meanwhile is no leaving and joining. The same as its seats are
+ * kept for a socket it asked to come back.
+ */
+export const MISSING_MEMBER_GRACE_MS = 15_000;
+/**
  * How long sends gather before they go out as one frame. It keeps a busy table, sixty frames a
  * second at most, well inside the server's limit of 2000 frames in ten seconds.
  */
@@ -277,6 +284,8 @@ export class ServerConnection implements Connection {
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private pongTimer: ReturnType<typeof setTimeout> | null = null;
   private welcomeTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The members missing from the welcome on getting back in, each until taken to have left. */
+  private readonly missing = new Map<string, ReturnType<typeof setTimeout>>();
   private tokenTimer: ReturnType<typeof setInterval> | null = null;
   /** Requests to the server sent while getting back into the room, to send once back in. */
   private held: Outbound[] = [];
@@ -673,7 +682,11 @@ export class ServerConnection implements Connection {
     if (roleBefore !== message.role) this.callback.onRoleChange?.(message.role);
     const present = new Set(message.members.map((member) => member.peerId));
     for (const peerId of [...this.members.keys()]) {
-      if (!present.has(peerId)) this.removeMember(peerId);
+      if (present.has(peerId) || this.missing.has(peerId)) continue;
+      this.missing.set(
+        peerId,
+        setTimeout(() => this.removeMember(peerId), MISSING_MEMBER_GRACE_MS)
+      );
     }
     for (const member of message.members) this.addMember(member);
     const held = latestChanges(this.held);
@@ -776,6 +789,7 @@ export class ServerConnection implements Connection {
   }
 
   private addMember(member: Member): void {
+    this.stopMissing(member.peerId);
     if (this.members.has(member.peerId) || member.peerId === this.me.peerId) return;
     const peer = PeerContext.parse(member.peerId);
     peer.userId = member.userId;
@@ -784,7 +798,13 @@ export class ServerConnection implements Connection {
     this.callback.onConnect?.(peer);
   }
 
+  private stopMissing(peerId: string): void {
+    clearTimeout(this.missing.get(peerId));
+    this.missing.delete(peerId);
+  }
+
   private removeMember(peerId: string): void {
+    this.stopMissing(peerId);
     const peer = this.members.get(peerId);
     if (!peer) return;
     this.members.delete(peerId);
@@ -985,6 +1005,7 @@ export class ServerConnection implements Connection {
 
   private teardown(): void {
     this.reconnectScheduler.cancelAll();
+    for (const peerId of [...this.missing.keys()]) this.stopMissing(peerId);
     this.askedBack = false;
     this.comingBack = false;
     this.stopPing();

@@ -4,6 +4,7 @@ import {
   ASSET_TOKEN_WAIT_MS,
   INVITE_TIMEOUT_MS,
   MAX_HELD_BROADCASTS,
+  MISSING_MEMBER_GRACE_MS,
   PACE_WINDOW_MS,
   PING_INTERVAL_MS,
   PONG_TIMEOUT_MS,
@@ -315,6 +316,34 @@ describe('ServerConnection', () => {
       welcomeOn(latest());
       await vi.waitFor(() => expect(calls.slice(before)).toEqual(['reconnect resumed', 'connect authority']));
       expect(connection.peerIds).toEqual([OTHER.peerId]);
+    });
+
+    it('shows no member leaving that is let back in a while after the seat, as by a server that changed hands', async () => {
+      const socket = await enterRoom([OTHER]);
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+      socket.close(1012, 'moved');
+      welcomeOn(latest(), { members: [] });
+      await vi.waitFor(() => expect(calls).toContain('reconnect resumed'));
+
+      latest().deliver({ type: 'join', member: OTHER });
+      await vi.advanceTimersByTimeAsync(MISSING_MEMBER_GRACE_MS);
+
+      expect(calls).not.toContain(`disconnect ${OTHER.peerId}`);
+      expect(connection.peerIds).toEqual([OTHER.peerId]);
+    });
+
+    it('takes a member still missing from the room a while after getting back in as gone', async () => {
+      const socket = await enterRoom([OTHER]);
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+      socket.close(1012, 'moved');
+      welcomeOn(latest(), { members: [] });
+      await vi.waitFor(() => expect(calls).toContain('reconnect resumed'));
+      expect(calls).not.toContain(`disconnect ${OTHER.peerId}`);
+
+      await vi.advanceTimersByTimeAsync(MISSING_MEMBER_GRACE_MS);
+
+      expect(calls).toContain(`disconnect ${OTHER.peerId}`);
+      expect(connection.peerIds).toEqual([]);
     });
 
     it('tells of the drop after all when the new link is asked back too before letting the seat in', async () => {
