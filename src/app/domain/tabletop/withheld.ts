@@ -14,12 +14,15 @@ import { TextNote } from '@axe/domain/tabletop/text-note';
  *
  * A copy of such an object would carry the withheld shape to the whole room as an object of its
  * own. Never so with SkyWay, which hands everything over whole, unless the table held here came
- * from a room server so, as after leaving it or loading a save marked so.
+ * from a room server so, as after leaving it or loading a save marked so. Away from a room server
+ * only what the object actually lacks tells, as dice and notes come whole from anyone else there.
  */
 export function isWithheldHere(object: unknown): boolean {
-  if (!getAuthorityPeerId() && !isTableWithheld()) return false;
+  const onServer = getAuthorityPeerId() !== null;
+  if (!onServer && !isTableWithheld()) return false;
   if (object instanceof Card) return object.isFaceWithheld;
   if (object instanceof CardStack) return object.cards.some((card) => card.isFaceWithheld);
+  if (!onServer) return lacksWithheldPart(object);
   if (PeerCursor.isMyselfGameMaster) return false;
   if (object instanceof DiceSymbol) return !object.isVisible;
   if (object instanceof TextNote) {
@@ -27,6 +30,21 @@ export function isWithheldHere(object: unknown): boolean {
     return !canViewDisclosable(object, viewer);
   }
   return false;
+}
+
+/**
+ * Whether a die or a note lacks what a room server withholds: the face of a die somebody owns, or
+ * the title or text of a note, blacked out.
+ */
+function lacksWithheldPart(object: unknown): boolean {
+  if (object instanceof DiceSymbol) return object.hasOwner && object.face === '';
+  if (object instanceof TextNote) return isBlackedOut(object.title) || isBlackedOut(object.text);
+  return false;
+}
+
+/** Whether every character of the text is turned to █, as a room server masks a note. */
+function isBlackedOut(text: string): boolean {
+  return /^[█\s]*█[█\s]*$/.test(text);
 }
 
 /**

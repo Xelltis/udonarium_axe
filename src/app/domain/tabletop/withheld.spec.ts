@@ -97,8 +97,29 @@ describe('isWithheldHere', () => {
     vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
     markSeatWithheld(true, 'room');
     try {
+      const masked = die('someone');
+      masked.face = '';
+      const blacked = note(DisclosureMode.GameMaster);
+      blacked.text = '██ ██';
+
       expect(isWithheldHere(faceDown())).toBe(true);
-      expect(isWithheldHere(die('someone'))).toBe(true);
+      expect(isWithheldHere(masked)).toBe(true);
+      expect(isWithheldHere(blacked)).toBe(true);
+    } finally {
+      markLoadedWithheld(false, false);
+    }
+  });
+
+  it('holds back no die or note handed over whole with SkyWay after a marked save was loaded', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+    markLoadedWithheld(true, false);
+    try {
+      const unowned = die('');
+      unowned.face = '';
+
+      expect(isWithheldHere(die('someone'))).toBe(false);
+      expect(isWithheldHere(unowned)).toBe(false);
+      expect(isWithheldHere(note(DisclosureMode.GameMaster))).toBe(false);
     } finally {
       markLoadedWithheld(false, false);
     }
