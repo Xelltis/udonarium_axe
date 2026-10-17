@@ -25,6 +25,7 @@ import {
   ReplayEventKind,
   type ReplayManifest,
   type ReplayPatch,
+  type ReplayTargetSnapshot,
 } from '@axe/domain/replay/replay-event';
 import {
   decodeReplayKeyframe,
@@ -140,6 +141,18 @@ export class ReplayPlaybackService {
     this._cursor.set(0);
     await this.loadCast(id, events);
     return true;
+  }
+
+  /**
+   * Names pieces the recording did not know, as a scene acted out on the board brings in, for the
+   * lines told of them and the recording saved from the edits. One already named keeps its name.
+   */
+  addTargets(targets: readonly ReplayTargetSnapshot[]): void {
+    const manifest = this._manifest();
+    if (!manifest) return;
+    const known = new Set(manifest.targets.map((target) => target.identifier));
+    const added = targets.filter((target) => !known.has(target.identifier));
+    if (added.length > 0) this._manifest.set({ ...manifest, targets: [...manifest.targets, ...added] });
   }
 
   /** Closes the recording, putting the live table back first if the board was being replayed. */

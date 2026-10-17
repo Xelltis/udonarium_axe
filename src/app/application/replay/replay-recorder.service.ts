@@ -1,5 +1,6 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { pieceOf } from '@axe/application/replay/replay-piece';
 import { ReplayPreferenceService } from '@axe/application/replay/replay-preference.service';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
@@ -9,7 +10,6 @@ import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { keepStoragePersistent } from '@axe/core/storage/persistent-storage';
 import { ReplayLogStore, type ReplayRecordingMeta, selectExpiredRecordings } from '@axe/core/storage/replay-log-store';
 import type { ObjectContext } from '@axe/core/sync/game-object';
-import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { compressAsync } from '@axe/core/util/compress';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -377,7 +377,7 @@ export class ReplayRecorderService {
    */
   private notePartOwner(identifier: string, parentIdentifier: unknown): void {
     const parent = typeof parentIdentifier === 'string' ? this.objectStore.get(parentIdentifier) : null;
-    const owner = parent instanceof TabletopObject ? parent : ownerOf(parent);
+    const owner = parent instanceof TabletopObject ? parent : pieceOf(parent);
     if (owner) this.partOwners.set(identifier, owner.identifier);
     else this.partOwners.delete(identifier);
   }
@@ -429,7 +429,7 @@ export class ReplayRecorderService {
   private notePart(identifier: string, after: SyncData, draft: ReplayDraft): boolean {
     const parent = after['parentIdentifier'];
     const awaitsParent = typeof parent === 'string' && parent.length > 0 && !this.shadows.has(parent);
-    const owner = ownerOf(this.objectStore.get(identifier));
+    const owner = pieceOf(this.objectStore.get(identifier));
     if (!owner && !awaitsParent) return false;
     this.partOwners.set(identifier, owner?.identifier ?? '');
     draft.detail[REPLAY_PART_FLAG] = true;
@@ -642,7 +642,7 @@ export class ReplayRecorderService {
 
   private seedShadows(): void {
     for (const object of this.objectStore.getObjects()) {
-      const owner = ownerOf(object);
+      const owner = pieceOf(object);
       if (owner) this.partOwners.set(object.identifier, owner.identifier);
       else if (object instanceof TabletopObject) this.namesAtStart.set(object.identifier, nameOf(object));
     }
@@ -707,7 +707,7 @@ export class ReplayRecorderService {
     const object = this.objectStore.get(identifier);
     if (!object) return;
 
-    const owner = ownerOf(object);
+    const owner = pieceOf(object);
     const snapshot: ReplayTargetSnapshot = {
       identifier,
       aliasName: object.aliasName,
@@ -740,7 +740,7 @@ export class ReplayRecorderService {
     // Taken out of the room before the word arrived, it is judged as it was last seen.
     if (!object) return (target && this.lastVisibility.get(target)) || PUBLIC_VISIBILITY;
     // A part such as a piece's HP has no disclosure of its own and is kept as its piece is.
-    const holder = (isDisclosable(object) ? object : ownerOf(object)) as Disclosing | null;
+    const holder = (isDisclosable(object) ? object : pieceOf(object)) as Disclosing | null;
     const visibility = visibilityOfDisclosure(holder?.disclosureMode, holder?.disclosureUserIds);
     if (target) this.lastVisibility.set(target, visibility);
     return visibility;
@@ -798,14 +798,6 @@ interface Disclosing {
 
 function isDisclosable(object: unknown): boolean {
   return typeof object === 'object' && object !== null && 'disclosureMode' in object;
-}
-
-function ownerOf(object: unknown): ObjectNode | null {
-  if (!(object instanceof ObjectNode)) return null;
-  for (let current = object.parent; current; current = current.parent) {
-    if (current instanceof TabletopObject) return current;
-  }
-  return null;
 }
 
 function nameOf(object: unknown): string {

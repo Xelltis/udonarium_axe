@@ -60,6 +60,7 @@ export class ReplayStagingBannerComponent {
   }
 
   protected async accept(): Promise<void> {
+    this.playback.addTargets(this.staging.broughtInTargets());
     const captured = this.staging.take();
     this.editor.insertManyAfter(this.staging.afterSeq(), this.staging.insertIndex(), captured);
     await this.playback.showBoardAfresh();

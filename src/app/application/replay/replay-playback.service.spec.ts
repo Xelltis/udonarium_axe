@@ -129,6 +129,22 @@ describe('ReplayPlaybackService', () => {
     expect(service.currentEvent()?.seq).toBe(1);
   });
 
+  it('names pieces the recording did not know, keeping the names it had', async () => {
+    const known = { identifier: 'c1', aliasName: 'character', name: 'ゴブリン', sinceSeq: 0 };
+    library.load.mockResolvedValue({ manifest: { targets: [known], actors: [] }, events });
+    await service.open(1);
+
+    service.addTargets([
+      { identifier: 'brought-in', aliasName: 'character', name: '勇者', sinceSeq: 0 },
+      { ...known, name: '別の名前' },
+    ]);
+
+    expect(service.manifest()!.targets).toEqual([
+      known,
+      { identifier: 'brought-in', aliasName: 'character', name: '勇者', sinceSeq: 0 },
+    ]);
+  });
+
   it('refuses to open an empty recording', async () => {
     library.load.mockResolvedValue({ manifest: null, events: [] });
     expect(await service.open(1)).toBe(false);

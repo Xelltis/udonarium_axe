@@ -16,6 +16,9 @@ function sendUpdate(identifier: string, attributes: Record<string, unknown>): vo
   localDispatch('UPDATE_GAME_OBJECT', context(identifier, 'character', attributes));
 }
 
+/** Lets what this reader just did be taken in, as it is once the action is over. */
+const settled = () => Promise.resolve();
+
 describe('ReplayStagingService', () => {
   let service: ReplayStagingService;
   let objectStore: ObjectStore;
@@ -46,14 +49,16 @@ describe('ReplayStagingService', () => {
     expect(service.isStaging()).toBe(false);
   });
 
-  it('collects nothing before staging begins', () => {
+  it('collects nothing before staging begins', async () => {
     sendUpdate('c1', { location: { name: 'table', x: 50, y: 0 } });
+    await settled();
     expect(service.captured()).toHaveLength(0);
   });
 
-  it('collects a table action as a line to insert', () => {
+  it('collects a table action as a line to insert', async () => {
     service.begin(2, 'alice');
     sendUpdate('c1', { location: { name: 'table', x: 50, y: 0 } });
+    await settled();
 
     const [event] = service.captured();
     expect(event.kind).toBe(ReplayEventKind.ObjectMove);
@@ -61,24 +66,26 @@ describe('ReplayStagingService', () => {
     expect(event.patch?.identifier).toBe('c1');
   });
 
-  it('folds a run of actions into one', () => {
+  it('folds a run of actions into one', async () => {
     service.begin(0, 'alice');
     for (let x = 10; x <= 50; x += 10) sendUpdate('c1', { location: { name: 'table', x, y: 0 } });
+    await settled();
 
     expect(service.captured()).toHaveLength(1);
     expect(service.captured()[0].detail['to']).toMatchObject({ x: 50 });
   });
 
-  it('collects the cues in a form that can sound again', () => {
+  it('collects the cues in a form that can sound again', async () => {
     service.begin(0, 'alice');
     localDispatch('SOUND_EFFECT', 'se-dice');
+    await settled();
 
     const [event] = service.captured();
     expect(event.kind).toBe(ReplayEventKind.MediaSoundEffect);
     expect(event.signal).toEqual({ name: 'SOUND_EFFECT', data: 'se-dice' });
   });
 
-  it('collects nothing from the others at the table', () => {
+  it('collects nothing from the others at the table', async () => {
     service.begin(0, 'alice');
     localDispatch(
       'UPDATE_GAME_OBJECT',
@@ -86,29 +93,64 @@ describe('ReplayStagingService', () => {
       'peer-b'
     );
     localDispatch('SOUND_EFFECT', 'se-dice', 'peer-b');
+    await settled();
 
     expect(service.captured()).toHaveLength(0);
   });
 
-  it('collects none of the noise', () => {
+  it('collects none of the noise', async () => {
     service.begin(0, 'alice');
     localDispatch('CURSOR_MOVE', [1, 2, 3]);
+    await settled();
     expect(service.captured()).toHaveLength(0);
   });
 
-  it('collects nothing until the table is cut off', () => {
+  it('collects nothing until the table is cut off', async () => {
     setNetworkIsolated(false);
     service.begin(0, 'alice');
     sendUpdate('c1', { location: { name: 'table', x: 50, y: 0 } });
+    await settled();
     expect(service.captured()).toHaveLength(0);
   });
 
-  it('can change whose action it is recorded as', () => {
+  it('can change whose action it is recorded as', async () => {
     service.begin(0, 'alice');
     sendUpdate('c1', { location: { name: 'table', x: 50, y: 0 } });
+    await settled();
     service.setActorId('bob');
 
     expect(service.captured()[0].actorId).toBe('bob');
+  });
+
+  it('takes a piece brought in with its parts as one arrival, and taking it away as one removal', async () => {
+    service.begin(1, 'alice');
+    const hero = GameCharacter.create('勇者', 1, '');
+    await settled();
+
+    expect(service.captured().map((event) => event.kind)).toEqual([ReplayEventKind.ObjectCreate]);
+    const [arrival] = service.captured();
+    expect(arrival.targetId).toBe(hero.identifier);
+    expect(arrival.parts?.length).toBeGreaterThan(0);
+
+    hero.destroy();
+    await settled();
+
+    expect(service.captured().map((event) => event.kind)).toEqual([
+      ReplayEventKind.ObjectCreate,
+      ReplayEventKind.ObjectRemove,
+    ]);
+    expect(service.captured()[1].removedParts?.length).toBeGreaterThan(0);
+  });
+
+  it('names a piece brought in by what it is called when the scene is taken', async () => {
+    service.begin(1, 'alice');
+    const hero = GameCharacter.create('勇者', 1, '');
+    hero.name = '勇者アルス';
+    await settled();
+
+    expect(service.broughtInTargets()).toEqual([
+      { identifier: hero.identifier, aliasName: hero.aliasName, name: '勇者アルス', sinceSeq: 0 },
+    ]);
   });
 
   it('folds the staging away and hands back what it holds', () => {
@@ -140,14 +182,16 @@ describe('ReplayStagingService', () => {
     expect(service.captured()).toHaveLength(0);
   });
 
-  it('collects only what changed after that', () => {
+  it('collects only what changed after that', async () => {
     const character = objectStore.get<GameCharacter>('c1')!;
     service.begin(0, 'alice');
     localDispatch('UPDATE_GAME_OBJECT', character.toContext());
+    await settled();
     expect(service.captured()).toHaveLength(0);
 
     character.location.x = 120;
     localDispatch('UPDATE_GAME_OBJECT', character.toContext());
+    await settled();
     expect(service.captured()).toHaveLength(1);
     expect(service.captured()[0].detail['to']).toMatchObject({ x: 120 });
   });

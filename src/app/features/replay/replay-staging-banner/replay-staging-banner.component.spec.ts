@@ -88,6 +88,8 @@ describe('ReplayStagingBannerComponent', () => {
 
   it('puts what was acted out after the row it was started on, wherever that row has moved', async () => {
     const insertManyAfter = vi.fn();
+    const addTargets = vi.fn();
+    const broughtIn = [{ identifier: 'new-piece', aliasName: 'character', name: '勇者', sinceSeq: 0 }];
     const captured: ReplayEvent[] = [
       {
         seq: 1,
@@ -113,6 +115,7 @@ describe('ReplayStagingBannerComponent', () => {
             afterSeq: signal(12).asReadonly(),
             setActorId: vi.fn(),
             take: () => captured,
+            broughtInTargets: () => broughtIn,
           },
         },
         { provide: ReplayEditorService, useValue: { insertManyAfter } },
@@ -122,6 +125,7 @@ describe('ReplayStagingBannerComponent', () => {
             manifest: signal(manifest).asReadonly(),
             events: signal<readonly ReplayEvent[]>([]).asReadonly(),
             showBoardAfresh: vi.fn().mockResolvedValue(undefined),
+            addTargets,
           },
         },
       ],
@@ -132,5 +136,6 @@ describe('ReplayStagingBannerComponent', () => {
     await (fixture.componentInstance as unknown as { accept(): Promise<void> }).accept();
 
     expect(insertManyAfter).toHaveBeenCalledWith(12, 4, captured);
+    expect(addTargets).toHaveBeenCalledWith(broughtIn);
   });
 });

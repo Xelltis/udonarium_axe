@@ -1,4 +1,5 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
+import { pieceOf } from '@axe/application/replay/replay-piece';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
 import type { ObjectContext } from '@axe/core/sync/game-object';
@@ -11,8 +12,10 @@ import {
   PUBLIC_VISIBILITY,
   type ReplayEvent,
   ReplayEventKind,
+  type ReplayTargetSnapshot,
   type ReplayVisibility,
 } from '@axe/domain/replay/replay-event';
+import { REPLAY_PART_FLAG } from '@axe/domain/replay/replay-event-category';
 import {
   interpretObjectChange,
   interpretObjectRemove,
@@ -20,6 +23,7 @@ import {
   isIgnoredReplayEvent,
   type ReplayDraft,
 } from '@axe/domain/replay/replay-interpreter';
+import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 @Injectable({ providedIn: 'root' })
 export class ReplayStagingService {
@@ -40,6 +44,14 @@ export class ReplayStagingService {
   readonly afterSeq = this._afterSeq.asReadonly();
 
   private readonly shadows = new Map<string, SyncData>();
+  /** For each part of a piece on the board, the piece it belongs to, as far as is known. */
+  private readonly partOwners = new Map<string, string>();
+  /** The arrival or removal of a piece just captured, by the piece, open for its parts. */
+  private readonly openPieces = new Map<string, number>();
+  /** The pieces brought onto the board while capturing, with the names they came with. */
+  private readonly broughtIn = new Map<string, ReplayTargetSnapshot>();
+  /** What this reader did in the action under way, taken in once it is over. */
+  private queued: { eventName: string; data: unknown; at: number }[] = [];
   private pending: ReplayEvent | null = null;
   private seq = 0;
   private originAt = 0;
@@ -47,8 +59,45 @@ export class ReplayStagingService {
   constructor() {
     networkMessage$.subscribe((message) => {
       if (!this._isStaging() || !message.isSendFromSelf) return;
-      this.handleMessage(message.eventName, message.data, Date.now());
+      this.queued.push({ eventName: message.eventName, data: message.data, at: Date.now() });
+      if (this.queued.length === 1) queueMicrotask(() => this.drain());
     }, this.destroyRef);
+  }
+
+  /**
+   * Takes in what this reader did, once the action that did it is over. Cut off from the room,
+   * each change comes at once, and a piece made with its parts makes each part before putting it
+   * under the piece; taken a step later, as the recorder takes the room's, a part is seen in its
+   * piece. Something that came onto the board in the step is taken once, as it was at the end of it.
+   */
+  private drain(): void {
+    const batch = this.queued;
+    this.queued = [];
+    if (!this._isStaging()) return;
+    const first = new Map<string, number>();
+    const last = new Map<string, number>();
+    const removed = new Set<string>();
+    batch.forEach((message, index) => {
+      const identifier = (message.data as { identifier?: unknown } | null)?.identifier;
+      if (typeof identifier !== 'string') return;
+      if (message.eventName === 'DELETE_GAME_OBJECT') removed.add(identifier);
+      if (message.eventName !== 'UPDATE_GAME_OBJECT' || removed.has(identifier)) return;
+      if (!first.has(identifier)) {
+        if (this.shadows.has(identifier)) return;
+        first.set(identifier, index);
+      }
+      last.set(identifier, index);
+    });
+    batch.forEach((message, index) => {
+      const identifier = (message.data as { identifier?: unknown } | null)?.identifier;
+      const from = typeof identifier === 'string' ? first.get(identifier) : undefined;
+      if (from !== undefined && message.eventName === 'UPDATE_GAME_OBJECT') {
+        const to = last.get(identifier as string) as number;
+        if (index === from) return this.handleMessage(message.eventName, batch[to].data, message.at);
+        if (index <= to) return;
+      }
+      this.handleMessage(message.eventName, message.data, message.at);
+    });
   }
 
   /**
@@ -61,8 +110,11 @@ export class ReplayStagingService {
   begin(insertIndex: number, actorId: string, afterSeq: number | null = null): void {
     if (!isNetworkIsolated()) return;
     this.shadows.clear();
+    this.partOwners.clear();
     for (const object of this.objectStore.getObjects()) {
       this.shadows.set(object.identifier, cloneSyncData(object.toContext().syncData as SyncData));
+      const piece = pieceOf(object);
+      if (piece) this.partOwners.set(object.identifier, piece.identifier);
     }
     this.pending = null;
     this.seq = 0;
@@ -81,8 +133,20 @@ export class ReplayStagingService {
     if (this.pending) this.pending = { ...this.pending, actorId };
   }
 
+  /**
+   * Names the pieces brought onto the board while capturing, as they are called now, for the lines
+   * told of them once the events are inserted.
+   */
+  broughtInTargets(): ReplayTargetSnapshot[] {
+    return [...this.broughtIn.values()].map((target) => {
+      const object = this.objectStore.get(target.identifier);
+      return object instanceof TabletopObject ? { ...target, name: object.name } : target;
+    });
+  }
+
   /** Hands over what was captured and stops capturing. */
   take(): ReplayEvent[] {
+    this.drain();
     this.commitPending();
     const captured = [...this._captured()];
     this.end();
@@ -98,7 +162,11 @@ export class ReplayStagingService {
     this._isStaging.set(false);
     this._captured.set([]);
     this.pending = null;
+    this.queued = [];
     this.shadows.clear();
+    this.partOwners.clear();
+    this.openPieces.clear();
+    this.broughtIn.clear();
   }
 
   private handleMessage(eventName: string, data: unknown, at: number): void {
@@ -110,6 +178,7 @@ export class ReplayStagingService {
       const after = context.syncData as SyncData;
       const before = this.shadows.get(context.identifier) ?? null;
       this.shadows.set(context.identifier, cloneSyncData(after));
+      if (before && before['parentIdentifier'] !== after['parentIdentifier']) this.notePartOwner(context.identifier);
 
       const draft = interpretObjectChange({
         aliasName: context.aliasName,
@@ -117,14 +186,36 @@ export class ReplayStagingService {
         before,
         after,
       });
-      if (draft) this.push(draft, at);
+      if (!draft) return;
+      if (!before && this.notePart(context.identifier, after, draft)) {
+        const patch = draft.patch;
+        const folded =
+          patch &&
+          this.fold(this.partOwners.get(context.identifier), ReplayEventKind.ObjectCreate, (event) => ({
+            ...event,
+            parts: [...(event.parts ?? []), patch],
+          }));
+        if (folded) return;
+      }
+      this.push(draft, at);
       return;
     }
 
     if (eventName === 'DELETE_GAME_OBJECT') {
       const context = data as { identifier: string; aliasName: string };
       this.shadows.delete(context.identifier);
-      this.push(interpretObjectRemove(context.identifier, context.aliasName), at);
+      const owner = this.partOwners.get(context.identifier);
+      this.partOwners.delete(context.identifier);
+      const folded =
+        owner !== undefined &&
+        this.fold(owner, ReplayEventKind.ObjectRemove, (event) => ({
+          ...event,
+          removedParts: [...(event.removedParts ?? []), context.identifier],
+        }));
+      if (folded) return;
+      const draft = interpretObjectRemove(context.identifier, context.aliasName);
+      if (owner !== undefined) draft.detail[REPLAY_PART_FLAG] = true;
+      this.push(draft, at);
       return;
     }
 
@@ -155,7 +246,63 @@ export class ReplayStagingService {
 
     this.commitPending();
     this.pending = event;
+    this.openPieces.clear();
+    this.openIfPiece(event);
     this.publishPending();
+  }
+
+  /**
+   * Flags a part of a piece arriving, so it is not told as an arrival of its own, and notes its
+   * piece. A part whose parent has not come yet counts too, as the recorder takes it.
+   */
+  private notePart(identifier: string, after: SyncData, draft: ReplayDraft): boolean {
+    const parent = after['parentIdentifier'];
+    const awaitsParent = typeof parent === 'string' && parent.length > 0 && !this.shadows.has(parent);
+    const piece = pieceOf(this.objectStore.get(identifier));
+    if (!piece && !awaitsParent) return false;
+    this.partOwners.set(identifier, piece?.identifier ?? '');
+    draft.detail[REPLAY_PART_FLAG] = true;
+    return true;
+  }
+
+  /** Keeps up with the piece an object belongs to once it has moved, as a card drawn from its deck. */
+  private notePartOwner(identifier: string): void {
+    const piece = pieceOf(this.objectStore.get(identifier));
+    if (piece) this.partOwners.set(identifier, piece.identifier);
+    else this.partOwners.delete(identifier);
+  }
+
+  /**
+   * Folds a part's arrival or removal into its piece's, when that was just captured, so a piece
+   * brought in or taken away with its many parts is one event. Answers whether it was folded.
+   */
+  private fold(piece: string | undefined, kind: ReplayEventKind, change: (event: ReplayEvent) => ReplayEvent): boolean {
+    const seq = piece ? this.openPieces.get(piece) : undefined;
+    const event = seq === undefined ? undefined : this._captured().find((captured) => captured.seq === seq);
+    if (!event || event.kind !== kind) return false;
+    const folded = change(event);
+    if (this.pending?.seq === seq) this.pending = folded;
+    this._captured.update((events) => events.map((captured) => (captured.seq === seq ? folded : captured)));
+    return true;
+  }
+
+  /** Keeps a piece's arrival or removal open for its parts, and names a piece brought in. */
+  private openIfPiece(event: ReplayEvent): void {
+    if (event.kind !== ReplayEventKind.ObjectCreate && event.kind !== ReplayEventKind.ObjectRemove) return;
+    if (!event.targetId || event.detail[REPLAY_PART_FLAG] === true) return;
+    this.openPieces.set(event.targetId, event.seq);
+    const object = this.objectStore.get(event.targetId);
+    if (
+      event.kind === ReplayEventKind.ObjectCreate &&
+      object instanceof TabletopObject &&
+      !this.broughtIn.has(object.identifier)
+    )
+      this.broughtIn.set(object.identifier, {
+        identifier: object.identifier,
+        aliasName: object.aliasName,
+        name: object.name,
+        sinceSeq: 0,
+      });
   }
 
   private publishPending(): void {
