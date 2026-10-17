@@ -18,7 +18,7 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { markSeatWithheld } from '@axe/domain/peer/withheld-table';
+import { markLoadedWithheld, markSeatWithheld } from '@axe/domain/peer/withheld-table';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -82,11 +82,11 @@ describe('SaveDataService', () => {
     });
 
     it('is marked after leaving the room server, as the table still holds what was withheld', async () => {
-      markSeatWithheld(true);
+      markSeatWithheld(true, 'room');
       try {
         expect(await roomXmlSavedBy(false, null)).toContain('withheld="true"');
       } finally {
-        markSeatWithheld(false);
+        markLoadedWithheld(false, false);
       }
     });
 

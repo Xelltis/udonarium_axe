@@ -910,7 +910,26 @@ describe('NetworkEventHandlerService', () => {
         localDispatch('SERVER_ROLE_CHANGED', { role: 'gm' });
         expect(isTableWithheld()).toBe(false);
       } finally {
-        markSeatWithheld(false);
+        markLoadedWithheld(false, false);
+      }
+    });
+
+    it('keeps the table withheld when the seat is the GM of another room, or of one it made', () => {
+      vi.spyOn(ImageStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
+      vi.spyOn(AudioStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
+      vi.spyOn(Network, 'serverRole', 'get').mockReturnValue('gm');
+      const key = vi.spyOn(Network, 'roomKey', 'get').mockReturnValue('room-b');
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ peerId: 'p', userId: 'u', isRoom: true } as never);
+      markSeatWithheld(true, 'room-a');
+      try {
+        localDispatch('SERVER_ROLE_CHANGED', { role: 'gm' });
+        expect(isTableWithheld()).toBe(true);
+
+        key.mockReturnValue('room-a');
+        localDispatch('SERVER_ROLE_CHANGED', { role: 'gm' });
+        expect(isTableWithheld()).toBe(false);
+      } finally {
+        markLoadedWithheld(false, false);
       }
     });
 

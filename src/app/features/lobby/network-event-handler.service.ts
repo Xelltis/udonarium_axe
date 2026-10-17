@@ -292,13 +292,13 @@ export class NetworkEventHandlerService {
   /**
    * Takes on the role the room server gave this seat on letting it in; SkyWay gives none. Anyone but
    * the GM is handed part of the table only in the shape the server withholds, which a save of it
-   * is then marked as holding; the GM is handed it all.
+   * is then marked as holding; the GM is handed all of that room.
    */
   private takeServerRole(): void {
     const role = Network.serverRole;
     const cursor = PeerCursor.myCursor;
     if (role && cursor && cursor.role !== role) cursor.role = role;
-    if (role) markSeatWithheld(role !== 'gm');
+    if (role) markSeatWithheld(role !== 'gm', Network.roomKey ?? '');
   }
 
   /**

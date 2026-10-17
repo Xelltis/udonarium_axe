@@ -7,7 +7,7 @@ import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { markSeatWithheld } from '@axe/domain/peer/withheld-table';
+import { markLoadedWithheld, markSeatWithheld } from '@axe/domain/peer/withheld-table';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 import { beMyself } from '@axe/testing/peer-context-stub';
@@ -95,12 +95,12 @@ describe('isWithheldHere', () => {
 
   it('still holds back what a table brought from a room server lacks, once away from it', () => {
     vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
-    markSeatWithheld(true);
+    markSeatWithheld(true, 'room');
     try {
       expect(isWithheldHere(faceDown())).toBe(true);
       expect(isWithheldHere(die('someone'))).toBe(true);
     } finally {
-      markSeatWithheld(false);
+      markLoadedWithheld(false, false);
     }
   });
 });
