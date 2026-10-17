@@ -11,6 +11,7 @@ import {
   CUT_IN_MULTI_DIRECTION_PREPARE_TIMEOUT_MS,
   CutInEventHandlerService,
 } from '@axe/features/media/cut-in-event-handler.service';
+import { CUT_IN_WINDOW_LOADER, type CutInWindowType } from '@axe/features/media/cut-in-window-loader';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function makeCutIn(overrides: Partial<CutIn> = {}): CutIn {
@@ -262,13 +263,18 @@ describe('CutInEventHandlerService before its window arrives', () => {
   let panelStub: { open: ReturnType<typeof vi.fn> };
   let audioStub: { get: ReturnType<typeof vi.fn> };
   let service: CutInEventHandlerService;
+  let arrive: () => void;
 
   beforeEach(() => {
     panelStub = { open: vi.fn().mockReturnValue({ cutIn: null, forceNoLoop: false, startCutIn: vi.fn() }) };
     audioStub = { get: vi.fn() };
+    const windowArrives = new Promise<CutInWindowType>((resolve) => {
+      arrive = () => resolve(class {} as unknown as CutInWindowType);
+    });
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     TestBed.overrideProvider(PanelService, { useValue: panelStub });
     TestBed.overrideProvider(AudioStorage, { useValue: audioStub });
+    TestBed.overrideProvider(CUT_IN_WINDOW_LOADER, { useValue: () => windowArrives });
     service = TestBed.inject(CutInEventHandlerService);
     TestBed.inject(TabletopService).currentTable.mode2d = false;
   });
@@ -281,6 +287,7 @@ describe('CutInEventHandlerService before its window arrives', () => {
     emitStartCutIn({ cutIn: makeCutIn() });
 
     expect(panelStub.open).not.toHaveBeenCalled();
+    arrive();
     await service.prepareWindow();
     await vi.waitFor(() => expect(panelStub.open).toHaveBeenCalledTimes(1));
   });
@@ -291,6 +298,7 @@ describe('CutInEventHandlerService before its window arrives', () => {
     emitStopCutIn({ cutIn });
     emitStartCutIn({ cutIn: makeCutIn({ identifier: 'cut-2' }) });
 
+    arrive();
     await service.prepareWindow();
     await vi.waitFor(() => expect(panelStub.open).toHaveBeenCalledTimes(1));
     expect(panelStub.open.mock.calls[0][1].cutInIdentifier).toBe('cut-2');
@@ -302,6 +310,7 @@ describe('CutInEventHandlerService before its window arrives', () => {
     emitStopCutInByBgm();
     emitStartCutIn({ cutIn: makeCutIn({ identifier: 'cut-2', audioIdentifier: '', tagName: '' }) });
 
+    arrive();
     await service.prepareWindow();
     await vi.waitFor(() => expect(panelStub.open).toHaveBeenCalledTimes(1));
     expect(panelStub.open.mock.calls[0][1].cutInIdentifier).toBe('cut-2');
@@ -314,6 +323,7 @@ describe('CutInEventHandlerService before its window arrives', () => {
     emitStartCutIn({ cutIn: makeCutIn({ identifier: 'cut-2', tagName: '' }) });
     emitStartCutIn({ cutIn: makeCutIn({ identifier: 'cut-3', tagName: 'face' }) });
 
+    arrive();
     await service.prepareWindow();
     await vi.waitFor(() => expect(panelStub.open).toHaveBeenCalledTimes(2));
     expect(panelStub.open.mock.calls.map(([, option]) => option.cutInIdentifier)).toEqual(['cut-2', 'cut-3']);
@@ -324,6 +334,7 @@ describe('CutInEventHandlerService before its window arrives', () => {
     emitStartCutIn({ cutIn });
     emitSoundOnlyCutIn({ cutIn });
 
+    arrive();
     await service.prepareWindow();
     await vi.waitFor(() => expect(panelStub.open).toHaveBeenCalledTimes(1));
     expect(panelStub.open.mock.calls[0][1].invisible).toBe(true);

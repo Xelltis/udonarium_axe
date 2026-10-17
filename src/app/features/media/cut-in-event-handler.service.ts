@@ -1,4 +1,4 @@
-import { DestroyRef, inject, Injectable, Type } from '@angular/core';
+import { DestroyRef, inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -12,10 +12,9 @@ import { mixLevelOf } from '@axe/domain/media/mix-level';
 import { asCutInMultiDirectionMode } from '@axe/domain/tabletop/cut-in-multi-direction';
 import { makeCutInMultiDirectionLayout } from '@axe/features/media/cut-in-multi-direction-layout';
 import type { CutInWindowComponent } from '@axe/features/media/cut-in-window/cut-in-window.component';
+import { CUT_IN_WINDOW_LOADER, type CutInWindowType } from '@axe/features/media/cut-in-window-loader';
 
 export const CUT_IN_MULTI_DIRECTION_PREPARE_TIMEOUT_MS = 500;
-
-type CutInWindowType = Type<CutInWindowComponent>;
 
 /** A cut-in asked for before the window arrived, and whether it was stopped meanwhile. */
 interface WaitingCutIn {
@@ -31,6 +30,7 @@ export class CutInEventHandlerService {
   private readonly panelService = inject(PanelService);
   private readonly tabletopService = inject(TabletopService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly loadWindow = inject(CUT_IN_WINDOW_LOADER);
 
   private readonly soundOnlyPlayer = new AudioPlayer();
 
@@ -88,8 +88,8 @@ export class CutInEventHandlerService {
    * The service starts this itself; a test awaits it to have cut-ins open at once.
    */
   prepareWindow(): Promise<CutInWindowType> {
-    this.windowLoad ??= import('@axe/features/media/cut-in-window/cut-in-window.component').then(
-      (m) => (this.windowType = m.CutInWindowComponent),
+    this.windowLoad ??= this.loadWindow().then(
+      (windowType) => (this.windowType = windowType),
       (reason: unknown) => {
         this.windowLoad = null;
         throw reason;
