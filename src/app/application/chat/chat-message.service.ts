@@ -301,7 +301,7 @@ export class ChatMessageService {
     const imgIndex = resolvePortraitIndex(portraitIndex);
     const chatMessage: ChatMessageContext = {
       from: Network.peerContext.userId,
-      to: sendTo != null ? this.findId(sendTo) : undefined,
+      to: sendTo != null ? this.whisperTo(sendTo) : undefined,
       name: this.makeMessageName(sendFrom, sendTo),
       imageIdentifier: this.findImageIdentifier(sendFrom, imgIndex),
       timestamp: this.calcTimeStamp(chatTab),
@@ -362,7 +362,7 @@ export class ChatMessageService {
 
     const chatMessage: ChatMessageContext = {
       from: Network.peerContext.userId,
-      to: sendTo != null ? this.findId(sendTo) : undefined,
+      to: sendTo != null ? this.whisperTo(sendTo) : undefined,
       name: this.makeMessageName(sendFrom, sendTo),
       imageIdentifier: this.findImageIdentifier(sendFrom, imgIndex),
       timestamp: this.calcTimeStamp(chatTab),
@@ -527,6 +527,14 @@ export class ChatMessageService {
     const obj = this.objectStore.get(sendFrom);
     if (obj instanceof GameCharacter && !this.keptOffTable) obj.selectedPortraitIndex = found.index;
     return found;
+  }
+
+  /**
+   * Whom a whisper goes to. One whose target is not here at the moment, as while its cursor is on
+   * its way back, stays addressed to the target rather than going out to everybody.
+   */
+  private whisperTo(identifier: string): string {
+    return this.findId(identifier) || identifier;
   }
 
   private findId(identifier: string): string {

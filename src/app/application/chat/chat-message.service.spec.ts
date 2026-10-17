@@ -616,6 +616,18 @@ describe('ChatMessageService', () => {
 
       expect(message.senderRole).toBe(PeerRole.GameMaster);
     });
+
+    it('keeps a whisper to someone not here at the moment addressed to them, not to everybody', () => {
+      const service = TestBed.inject(ChatMessageService);
+      PeerCursor.createMyCursor();
+      const chatTab = new ChatTab();
+      chatTab.initialize();
+      ObjectStore.instance.add(chatTab);
+
+      const message = service.sendMessage(chatTab, 'ないしょ', null, PeerCursor.myCursor.identifier, 'cursor-away');
+
+      expect(message.to).toBe('cursor-away');
+    });
   });
 
   describe('how the speaker’s dice look', () => {
