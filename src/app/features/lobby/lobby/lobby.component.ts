@@ -29,6 +29,7 @@ import {
 } from '@axe/features/lobby/password-check/password-check.component';
 import { RoomSettingComponent } from '@axe/features/lobby/room-setting/room-setting.component';
 import { ServerAccountComponent } from '@axe/features/lobby/server-account/server-account.component';
+import { WithheldEntryService } from '@axe/features/lobby/withheld-entry';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -58,6 +59,7 @@ export class LobbyComponent {
   private readonly auth = inject(ServerAuthService);
   private readonly roomDeletion = inject(RoomDeletionService);
   private readonly reach = inject(NetworkReachService);
+  private readonly withheldEntry = inject(WithheldEntryService);
 
   /** Whether rooms are on a room server, where creating one takes a login. */
   protected readonly isServerTransport = Network.transport === 'server';
@@ -224,6 +226,7 @@ export class LobbyComponent {
     try {
       const context = peerContexts[0];
       let password = '';
+      if (!(await this.withheldEntry.mayEnter(null))) return;
 
       if (context.hasPassword) {
         const options: PasswordCheckOptions = {
@@ -266,6 +269,7 @@ export class LobbyComponent {
     this.isJoining.set(true);
     let isJoinStarted = false;
     try {
+      if (!(await this.withheldEntry.mayEnter(room.roomKey ?? null))) return;
       let password = '';
       if (room.hasPassword) {
         const options: PasswordCheckOptions = { checkedByServer: true, title: `${room.name}/${room.id}` };

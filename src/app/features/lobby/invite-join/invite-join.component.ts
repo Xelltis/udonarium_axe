@@ -27,6 +27,7 @@ import {
   PasswordCheckComponent,
   type PasswordCheckOptions,
 } from '@axe/features/lobby/password-check/password-check.component';
+import { WithheldEntryService } from '@axe/features/lobby/withheld-entry';
 import { RoomRestoreOfferService } from '@axe/features/room-archive/room-restore-banner/room-restore-offer.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -49,6 +50,7 @@ export class InviteJoinComponent {
   private readonly isCompact = inject(ViewportService).isCompact;
   private readonly restoreOffer = inject(RoomRestoreOfferService);
   private readonly reach = inject(NetworkReachService);
+  private readonly withheldEntry = inject(WithheldEntryService);
 
   private readonly state = signal<InviteJoinState>('idle');
   private readonly roomName = signal('');
@@ -175,6 +177,10 @@ export class InviteJoinComponent {
       return;
     }
 
+    if (!(await this.withheldEntry.mayEnter(null))) {
+      this.state.set('failed');
+      return;
+    }
     const password = await this.resolvePassword(room.hasPassword, params.password, peerContexts[0]);
     if (this.movedOn(params)) return;
     if (password === null || !(await peerContexts[0].verifyPassword(password))) {
@@ -207,6 +213,10 @@ export class InviteJoinComponent {
       return;
     }
 
+    if (!(await this.withheldEntry.mayEnter(room.roomKey ?? null))) {
+      this.state.set('failed');
+      return;
+    }
     let password = params.password;
     if (room.hasPassword && password.length < 1) {
       const options: PasswordCheckOptions = { checkedByServer: true, title: `${room.name}/${room.id}` };

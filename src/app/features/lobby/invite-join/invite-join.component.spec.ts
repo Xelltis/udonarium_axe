@@ -2,6 +2,7 @@ import { signal, type WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { LOCAL_MODE_STORAGE_KEY } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -12,6 +13,7 @@ import { clearIdentity, saveIdentity } from '@axe/core/storage/identity-storage'
 import { buildInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { markLoadedWithheld, markSeatWithheld } from '@axe/domain/peer/withheld-table';
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { RoomRestoreOfferService } from '@axe/features/room-archive/room-restore-banner/room-restore-offer.service';
@@ -107,6 +109,20 @@ describe('InviteJoinComponent', () => {
 
     await eventually(() => expect(join).toHaveBeenCalledOnce());
     expect(findRoom).toHaveBeenCalledWith('a1b');
+  });
+
+  it('joins nothing with a table holding withheld parts unless the reader says to go in', async () => {
+    const ask = vi.spyOn(ConfirmService.prototype, 'ask').mockResolvedValue(false);
+    markLoadedWithheld(true, false);
+    try {
+      await setup('#join?r=a1b&n=room');
+
+      await eventually(() => expect(ask).toHaveBeenCalledOnce());
+      await flush();
+      expect(join).not.toHaveBeenCalled();
+    } finally {
+      markLoadedWithheld(false, false);
+    }
   });
 
   it('takes the banner away once it is in', async () => {
@@ -358,6 +374,21 @@ describe('InviteJoinComponent', () => {
       expect(findServerRoom).toHaveBeenCalledWith(KEY, 'a1b', 'room');
       expect(join).not.toHaveBeenCalled();
       expect(modalOpen).not.toHaveBeenCalled();
+    });
+
+    it('joins no other room with a table withheld in one, unless the reader says to go in', async () => {
+      const ask = vi.spyOn(ConfirmService.prototype, 'ask').mockResolvedValue(false);
+      markSeatWithheld(true, 'f'.repeat(32));
+      findServerRoom.mockResolvedValue(serverRoom(false));
+      try {
+        await setup(link(''));
+
+        await eventually(() => expect(ask).toHaveBeenCalledOnce());
+        await flush();
+        expect(joinServerRoom).not.toHaveBeenCalled();
+      } finally {
+        markLoadedWithheld(false, false);
+      }
     });
 
     it('asks for the password, for the server to check, when the link carries none', async () => {

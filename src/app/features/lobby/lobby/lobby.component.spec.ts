@@ -4,6 +4,7 @@ import { RoomDeletionService } from '@axe/application/lobby/room-deletion.servic
 import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { Network } from '@axe/core/index';
 import { localDispatch } from '@axe/core/network/network-messaging';
@@ -11,6 +12,7 @@ import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { markLoadedWithheld, markSeatWithheld } from '@axe/domain/peer/withheld-table';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -338,6 +340,35 @@ describe('LobbyComponent', () => {
       await component.connectRoom({ alias: '', roomName: room.name, info: room, peerContexts: [] });
 
       expect(joinServerRoom).not.toHaveBeenCalled();
+    });
+
+    it('asks before taking a table with withheld parts into another room, and joins nothing on a no', async () => {
+      markSeatWithheld(true, 'f'.repeat(32));
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+      const joinServerRoom = vi.spyOn(TestBed.inject(RoomJoinService), 'joinServerRoom').mockResolvedValue(false);
+      try {
+        await component.connectRoom({ alias: '', roomName: room.name, info: room, peerContexts: [] });
+
+        expect(ask).toHaveBeenCalledTimes(1);
+        expect(joinServerRoom).not.toHaveBeenCalled();
+      } finally {
+        markLoadedWithheld(false, false);
+      }
+    });
+
+    it('asks nothing on going back into the room the table was withheld in', async () => {
+      markSeatWithheld(true, room.roomKey!);
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+      vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue('pw');
+      const joinServerRoom = vi.spyOn(TestBed.inject(RoomJoinService), 'joinServerRoom').mockResolvedValue(false);
+      try {
+        await component.connectRoom({ alias: '', roomName: room.name, info: room, peerContexts: [] });
+
+        await vi.waitFor(() => expect(joinServerRoom).toHaveBeenCalledWith(room, 'pw'));
+        expect(ask).not.toHaveBeenCalled();
+      } finally {
+        markLoadedWithheld(false, false);
+      }
     });
 
     it('asks for the password for the server to check, and joins through the server', async () => {

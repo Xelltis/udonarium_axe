@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
@@ -7,6 +8,7 @@ import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { clearIdentity, loadIdentity } from '@axe/core/storage/identity-storage';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { markLoadedWithheld } from '@axe/domain/peer/withheld-table';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { RoomSettingComponent } from '@axe/features/lobby/room-setting/room-setting.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
@@ -78,6 +80,30 @@ describe('RoomSettingComponent', () => {
     clearIdentity();
     PeerCursor.myCursor = null!;
     vi.restoreAllMocks();
+  });
+
+  it('makes a room with a table holding withheld parts only once the reader says to', async () => {
+    PeerCursor.createMyCursor();
+    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'user', isRoom: false } as PeerContext);
+    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(true);
+    const open = vi.spyOn(Network, 'open').mockImplementation(() => {});
+    const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+    markLoadedWithheld(true, false);
+    try {
+      component.createRoom();
+      await vi.waitFor(() => expect(ask).toHaveBeenCalledTimes(1));
+      await Promise.resolve();
+      expect(open).not.toHaveBeenCalled();
+
+      ask.mockResolvedValue(true);
+      component.createRoom();
+      await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(1));
+    } finally {
+      markLoadedWithheld(false, false);
+      clearIdentity();
+      PeerCursor.myCursor = null!;
+      vi.restoreAllMocks();
+    }
   });
 
   it('makes no SkyWay room before the connection it is opened through is, and says so', () => {

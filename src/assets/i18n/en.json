@@ -3421,6 +3421,11 @@
         "unsent": "The link to the room server is down. What had not all gone out before it dropped, and what you changed since, has not reached the server and is lost if you leave now.",
         "sending": "Some changes have not all gone out to the room server yet; a big load or deletion goes out a little at a time. If you leave now, what has not gone out is lost.",
         "uploads": "Some pictures or sounds have not reached the room server yet. If you leave now, the others will not get them."
+      },
+      "withheldEntry": {
+        "title": "This table holds withheld parts",
+        "message": "The table on screen holds things a room server handed over only in their withheld shape (cards whose face you cannot see, others' dice faces, blacked-out notes, the contents of secret rolls and so on). Going into a room now spreads the table there in that shape.",
+        "ok": "Go in anyway"
       }
     },
     "chat": {

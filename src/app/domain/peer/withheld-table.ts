@@ -30,3 +30,12 @@ export function markLoadedWithheld(withheld: boolean, onServerAsPlayer: boolean)
   heldFromSave = withheld;
   if (!onServerAsPlayer) heldAsSeatIn = null;
 }
+
+/**
+ * Whether going into the room of the given key would take parts of the table held here into it
+ * only in their withheld shape, for them to spread there as they are. The room this seat was
+ * handed them in holds them whole already, so going back there takes none in.
+ */
+export function carriesWithheldInto(roomKey: string | null): boolean {
+  return heldFromSave || (heldAsSeatIn !== null && heldAsSeatIn !== roomKey);
+}

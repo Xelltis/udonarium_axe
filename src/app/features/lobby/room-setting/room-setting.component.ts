@@ -10,8 +10,10 @@ import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { saveIdentity } from '@axe/core/storage/identity-storage';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { carriesWithheldInto } from '@axe/domain/peer/withheld-table';
 import { LeaveRoomService } from '@axe/features/lobby/leave-room';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
+import { WithheldEntryService } from '@axe/features/lobby/withheld-entry';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -28,6 +30,7 @@ export class RoomSettingComponent {
   private readonly panelService = inject(PanelService);
   private readonly modalService = inject(ModalService);
   private readonly reach = inject(NetworkReachService);
+  private readonly withheldEntry = inject(WithheldEntryService);
 
   readonly roomName = signal<string>(this.t('feature.lobby.roomSetting.defaultRoomName'));
   readonly password = signal<string>('');
@@ -80,10 +83,21 @@ export class RoomSettingComponent {
    * Opens a new room under the name and password typed in, and closes the dialog.
    *
    * Whoever creates a room becomes its game master, a guest as well as a player. The room and the role are written down in
-   * this browser so it can find its way back after a reload.
+   * this browser so it can find its way back after a reload. A table holding parts only in the
+   * shape a room server withholds goes into the new room only once the reader says to.
    */
   createRoom() {
     if (Network.transport !== 'server' && !Network.isOpen) return;
+    if (!carriesWithheldInto(null)) {
+      this.openNewRoom();
+      return;
+    }
+    void this.withheldEntry.mayEnter(null).then((sure) => {
+      if (sure && !this.isConnected() && (Network.transport === 'server' || Network.isOpen)) this.openNewRoom();
+    });
+  }
+
+  private openNewRoom(): void {
     if (Network.transport === 'server') {
       void this.createServerRoom();
       return;
