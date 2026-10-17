@@ -267,7 +267,8 @@ describe('FileArchiver', () => {
   describe('a room archive whose load is declined', () => {
     const PNG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3]);
 
-    it('takes none of its pictures in once the room data it carries is declined', async () => {
+    /** Answers no to a room's data withheld in part, and notes what goes in and what is asked. */
+    function declineWithheld(): { asked: string[]; added: string[]; read: string[]; off: () => void } {
       let ok = true;
       const asked: string[] = [];
       vi.spyOn(ObjectStore.instance, 'get').mockReturnValue({
@@ -288,13 +289,33 @@ describe('FileArchiver', () => {
         added.push((file as File).name);
         return ImageFile.createEmpty('x');
       });
-      const zipped = zipSync({ 'data.xml': strToU8('<room withheld="true"></room>'), 'face.png': PNG });
+      const read: string[] = [];
+      const off = xmlLoaded$.subscribe((event) => read.push(event.xmlElement.tagName));
+      return { asked, added, read, off };
+    }
 
-      await FileArchiver.instance.load([new File([zipped.slice()], 'room.zip', { type: 'application/zip' })]);
+    it.each([
+      ['as saved', ''],
+      ['packed again inside a folder', 'save/'],
+    ])(
+      'takes none of its pictures or settings in once the room data it carries is declined, %s',
+      async (_name, folder) => {
+        const { asked, added, read, off } = declineWithheld();
+        const zipped = zipSync({
+          [`${folder}data.xml`]: strToU8('<room withheld="true"></room>'),
+          [`${folder}face.png`]: PNG,
+          [`${folder}${'a'.repeat(64)}.png`]: PNG,
+          [`${folder}config.xml`]: strToU8('<config></config>'),
+        });
 
-      expect(added).toEqual([]);
-      expect(asked).toEqual(['withheld']);
-    });
+        await FileArchiver.instance.load([new File([zipped.slice()], 'room.zip', { type: 'application/zip' })]);
+        off();
+
+        expect(added).toEqual([]);
+        expect(read).not.toContain('config');
+        expect(asked).toEqual(['withheld']);
+      }
+    );
   });
 
   describe('an archive made elsewhere, naming its pictures by the bytes they came as', () => {

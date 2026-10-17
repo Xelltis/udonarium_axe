@@ -282,13 +282,14 @@ export class FileArchiver {
     if (!isXmlCandidateFile(file)) return;
 
     let isLoadOk = true;
+    const name = baseNameOf(file.name);
     // room data passes here and is confirmed later, once its contents are known
     if (
-      file.name === 'config.xml' ||
-      file.name === 'imagetag.xml' ||
-      file.name === 'audiotag.xml' ||
-      file.name === 'summary.xml' ||
-      file.name === 'ailment.xml'
+      name === 'config.xml' ||
+      name === 'imagetag.xml' ||
+      name === 'audiotag.xml' ||
+      name === 'summary.xml' ||
+      name === 'ailment.xml'
     ) {
       isLoadOk = this.reloadCheck?.isLoadOk() ?? true;
     }
@@ -327,7 +328,7 @@ export class FileArchiver {
       try {
         const type = entry.type || (await imageTypeOf(entry.blob));
         const file = new File([entry.blob], entry.name, { type });
-        if (type.startsWith('image/') && !SAVED_IMAGE_NAME.test(entry.name)) {
+        if (type.startsWith('image/') && !SAVED_IMAGE_NAME.test(baseNameOf(entry.name))) {
           await this.loadArchivedImage(file, renamed, tooLarge);
         } else {
           rest.push(file);
@@ -354,7 +355,7 @@ export class FileArchiver {
    */
   private async roomLoadAgreed(entries: ZipEntry[]): Promise<boolean> {
     const guard = this.reloadCheck;
-    const data = entries.find((entry) => entry.name === 'data.xml');
+    const data = entries.find((entry) => baseNameOf(entry.name) === 'data.xml');
     if (!guard || !data) return true;
     const root = /<room\b[^>]*>/.exec(await data.blob.slice(0, ROOM_HEAD_BYTES).text())?.[0];
     if (!root) return true;
@@ -434,6 +435,14 @@ async function toUnzipped(entries: readonly ZipEntry[]): Promise<Unzipped> {
 
 function toArrayOfFileList(fileList: FileList): File[] {
   return Array.from(fileList);
+}
+
+/**
+ * The name of a file within an archive, without the folders it sits in: a save unpacked and packed
+ * again as a folder holds its files under that folder's name.
+ */
+function baseNameOf(name: string): string {
+  return name.slice(name.lastIndexOf('/') + 1);
 }
 
 /** How much of a room's data is read to find the room's own element, which opens it. */
