@@ -20,6 +20,7 @@ import { PeerContext } from '@axe/core/network/peer-context';
 import { InviteLinkParams, parseInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { dropInvitationFromAddress } from '@axe/features/lobby/leave-room';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import {
@@ -139,11 +140,13 @@ export class InviteJoinComponent {
 
   /**
    * Whether the seat has been sent into another room while the invitation waited, as one it made
-   * from the lobby, which the invitation then leaves it in: the banner goes, and nothing is joined.
+   * from the lobby, which the invitation then leaves it in: the banner goes, nothing is joined, and
+   * the invitation leaves the address, which would take the page reloaded to the invited room.
    */
   private movedOn(params: InviteLinkParams): boolean {
     if (!isInAnotherRoom(params.roomId)) return false;
     this.state.set('done');
+    dropInvitationFromAddress();
     return true;
   }
 

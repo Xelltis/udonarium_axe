@@ -141,6 +141,7 @@ describe('InviteJoinComponent', () => {
     expect(findRoom).not.toHaveBeenCalled();
     expect(join).not.toHaveBeenCalled();
     expect(bannerText().trim()).toBe('');
+    expect(location.hash).toBe('');
   });
 
   it('leaves a seat in the room it made while the invited room was looked up', async () => {
@@ -155,6 +156,7 @@ describe('InviteJoinComponent', () => {
 
     expect(join).not.toHaveBeenCalled();
     expect(bannerText().trim()).toBe('');
+    expect(location.hash).toBe('');
   });
 
   it('joins nothing when a connection opens after it said it could not get in', async () => {
