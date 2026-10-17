@@ -106,6 +106,43 @@ describe('Room', () => {
     });
   });
 
+  describe('a room saved with what was withheld from whoever saved it', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+      for (const table of store.getObjects(GameTable)) table.destroy();
+    });
+
+    function loadWithheld(answer: boolean): void {
+      const reloadCheck = new ReloadCheck('ReloadCheck');
+      reloadCheck.initialize();
+      reloadCheck.reloadCheckStart(false);
+      window.confirm = vi.fn().mockReturnValue(answer);
+      ObjectSerializer.instance.parseXml('<room withheld="true"><game-table name="新しい卓"></game-table></room>');
+    }
+
+    it('leaves the room in play as it is when the load is declined', () => {
+      const table = new GameTable('kept-table');
+      table.initialize();
+
+      loadWithheld(false);
+
+      expect(store.getObjects(GameTable).map((each) => each.identifier)).toEqual(['kept-table']);
+    });
+
+    it('loads it once agreed to', () => {
+      loadWithheld(true);
+
+      expect(store.getObjects(GameTable).map((each) => each.name)).toEqual(['新しい卓']);
+    });
+
+    it('marks it so when written', () => {
+      const room = new Room();
+      room.withheld = 'true';
+
+      expect(room.toXml()).toContain('withheld="true"');
+    });
+  });
+
   describe('saving who travels together', () => {
     function makeParty(identifier?: string): Party {
       const party = new Party(identifier);

@@ -8,6 +8,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
@@ -40,6 +41,7 @@ import { AudioTagList } from '@axe/domain/media/audio-tag-list';
 import { carriedImagesOf } from '@axe/domain/media/carried-images';
 import { ImageTagList } from '@axe/domain/media/image-tag-list';
 import { Config } from '@axe/domain/peer/config';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { Room } from '@axe/domain/peer/room';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 type UpdateCallback = (percent: number) => void;
@@ -143,8 +145,18 @@ export class SaveDataService {
     return this.saveAsync(this.buildRoomFiles(), this.appendTimestamp(fileName), updateCallback);
   }
 
+  /**
+   * The room to write, marked as withheld when saved on a room server by anyone but the GM: they hold
+   * some of it only in the shape the server withholds from them, which a load would spread as it is.
+   */
+  private roomToSave(): Room {
+    const room = new Room();
+    if (getAuthorityPeerId() !== null && !PeerCursor.isMyselfGameMaster) room.withheld = 'true';
+    return room;
+  }
+
   private buildRoomXmlParts(pretty: boolean): { roomXml: string; chatXml: string; files: File[] } {
-    const roomXml = this.convertToXml(new Room(), pretty);
+    const roomXml = this.convertToXml(this.roomToSave(), pretty);
     const chatXml = this.convertToXml(this.chatTabList, pretty);
     const configXml = this.convertToXml(this.appConfig, pretty);
     const summarySetting = this.convertToXml(this.dataSummarySetting, pretty);

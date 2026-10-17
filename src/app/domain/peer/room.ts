@@ -1,5 +1,5 @@
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { SyncObject } from '@axe/core/sync/decorator';
+import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { identifiersIn, InnerXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -31,6 +31,13 @@ import { TextNote } from '@axe/domain/tabletop/text-note';
 
 @SyncObject('room')
 export class Room extends GameObject implements InnerXml {
+  /**
+   * 'true' when whoever saved the room saw some of it only in the shape a room server withholds
+   * from them: a note kept to the GM, a card face down to them, somebody else's die, a secret roll.
+   * Loading such a save asks first, as the withheld shape would go to the whole room as it stands.
+   */
+  @SyncVar() withheld = '';
+
   // GameObject Lifecycle
   /** A room only wraps a save file, so it takes itself back out of the object store and is never synced. */
   override onStoreAdded() {
@@ -94,6 +101,7 @@ export class Room extends GameObject implements InnerXml {
    * peek or hold on an object is cleared. Declining leaves the room untouched.
    */
   parseInnerXml(element: Element) {
+    if (element.getAttribute('withheld') === 'true' && !this.reloadCheck.answerWithheldCheck()) return;
     // Deleted and put back under the same identifiers, the others refuse them as the return of
     // what was deleted, and only whoever loaded the room still has them. So what is made under
     // a fixed identifier is left alone by a room that brings none of its own: the effect

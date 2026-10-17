@@ -3,6 +3,7 @@ import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Logger } from '@axe/core/logging/logger';
+import { Network } from '@axe/core/network/network';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
@@ -16,6 +17,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -59,6 +61,29 @@ describe('SaveDataService', () => {
 
     const files = saveAsyncSpy.mock.calls[0][0] as File[];
     expect(files.some((file: File) => file.name.startsWith('image-null-blob.'))).toBe(false);
+  });
+
+  describe('a room saved on a room server', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    async function roomXmlSavedBy(isGameMaster: boolean, authority: string | null): Promise<string> {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(authority);
+      vi.spyOn(PeerCursor, 'isMyselfGameMaster', 'get').mockReturnValue(isGameMaster);
+      const privateApi = TestBed.inject(SaveDataService) as unknown as SaveDataServicePrivateApi;
+      const saveAsyncSpy = vi.spyOn(privateApi, 'saveAsync').mockResolvedValue(undefined);
+      await privateApi._saveRoomAsync('room');
+      const files = saveAsyncSpy.mock.calls[0][0] as File[];
+      return files.find((file) => file.name === 'data.xml')!.text();
+    }
+
+    it('is marked as withheld when saved by anyone but the GM, who holds some of it only in part', async () => {
+      expect(await roomXmlSavedBy(false, '@authority')).toContain('withheld="true"');
+    });
+
+    it('is not marked when saved by the GM, or among peers', async () => {
+      expect(await roomXmlSavedBy(true, '@authority')).not.toContain('withheld="true"');
+      expect(await roomXmlSavedBy(false, null)).not.toContain('withheld="true"');
+    });
   });
 
   it('saves an object even when a finished image carries no blob', async () => {

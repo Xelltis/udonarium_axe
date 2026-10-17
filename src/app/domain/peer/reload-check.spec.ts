@@ -28,6 +28,30 @@ describe('ReloadCheck', () => {
     });
   });
 
+  describe('answerWithheldCheck()', () => {
+    it('asks once for a load, in a room or out of one, and stops the rest of it when declined', () => {
+      reloadCheck.reloadCheckStart(false);
+      const confirm = vi.fn().mockReturnValue(false);
+      window.confirm = confirm;
+
+      expect(reloadCheck.answerWithheldCheck()).toBe(false);
+      expect(reloadCheck.answerWithheldCheck()).toBe(false);
+
+      expect(confirm).toHaveBeenCalledTimes(1);
+      expect(reloadCheck.isLoadOk()).toBe(false);
+    });
+
+    it('asks afresh for the next load', () => {
+      reloadCheck.reloadCheckStart(true);
+      window.confirm = vi.fn().mockReturnValue(false);
+      reloadCheck.answerWithheldCheck();
+      reloadCheck.reloadCheckStart(true);
+      window.confirm = vi.fn().mockReturnValue(true);
+
+      expect(reloadCheck.answerWithheldCheck()).toBe(true);
+    });
+  });
+
   describe('answerCheck()', () => {
     it('allows it without asking offline', () => {
       reloadCheck.reloadCheckStart(false);
