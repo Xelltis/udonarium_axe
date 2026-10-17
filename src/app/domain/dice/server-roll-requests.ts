@@ -20,7 +20,10 @@ export interface ServerRollHooks {
   answered(answerIdentifier: string, sourceIdentifier: string): void;
   /** The line asked about will have no answer, for the reason given. */
   unanswered(sourceIdentifier: string, reason: UnansweredRollReason): void;
-  /** Whether the seat is in the room, where a roll given up on can be told of. */
+  /**
+   * Whether the seat is in the room with its link up, where a roll given up on can be told of and
+   * one waiting for the link to come back is not.
+   */
   inRoom(): boolean;
 }
 

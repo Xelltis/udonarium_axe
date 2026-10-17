@@ -14,7 +14,7 @@ import {
 import { Logger } from '@axe/core/logging/logger';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
-import { getAuthorityPeerId, getMyPeerId, getRoomKey } from '@axe/core/network/peer-context-source';
+import { getAuthorityPeerId, getMyPeerId, getRoomKey, isAuthorityOpen } from '@axe/core/network/peer-context-source';
 import {
   AuthorityEvent,
   MAX_ROLL_COMMAND_LENGTH,
@@ -131,7 +131,7 @@ export class DiceBot extends GameObject {
       // Out of the room by then, the line is in no room to answer it.
       if (getAuthorityPeerId()) emitServerRollUnanswered({ messageIdentifier: sourceIdentifier, reason });
     },
-    inRoom: () => getAuthorityPeerId() !== null,
+    inRoom: () => getAuthorityPeerId() !== null && isAuthorityOpen(),
   });
 
   static diceBotInfos: GameSystemInfo[] = [];

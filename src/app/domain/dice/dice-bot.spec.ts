@@ -16,6 +16,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
+import { SERVER_ROLL_WAIT_MS } from '@axe/domain/dice/server-roll-requests';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { beMyself } from '@axe/testing/peer-context-stub';
 
@@ -316,6 +317,47 @@ describe('DiceBot', () => {
       vi.advanceTimersByTime(120_000);
 
       expect(told).not.toHaveBeenCalled();
+      expect(bot['serverRolls'].size).toBe(1);
+      off();
+      vi.useRealTimers();
+      bot.destroy();
+      tab.destroy();
+    });
+
+    it('tells of a roll unanswered for a minute while its link is up', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
+      const bot = new DiceBot();
+      bot.initialize();
+      const told = vi.fn();
+      const off = serverRollUnanswered$.subscribe(told);
+      const { tab, asked } = await askedRoll(bot);
+
+      vi.advanceTimersByTime(SERVER_ROLL_WAIT_MS);
+
+      expect(told).toHaveBeenCalledWith({ messageIdentifier: asked.identifier, reason: 'timeout' });
+      off();
+      vi.useRealTimers();
+      bot.destroy();
+      tab.destroy();
+    });
+
+    it('keeps a roll asked while its link is down past a minute, and asks again once back', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const open = vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(false);
+      const bot = new DiceBot();
+      bot.initialize();
+      const told = vi.fn();
+      const off = serverRollUnanswered$.subscribe(told);
+      localDispatch('PEER_RECONNECT', { peerId: 'acct_me-peer', state: 'retrying' });
+      const { tab, requests } = await askedRoll(bot);
+
+      vi.advanceTimersByTime(SERVER_ROLL_WAIT_MS * 2);
+      expect(told).not.toHaveBeenCalled();
+      open.mockReturnValue(true);
+      localDispatch('PEER_RECONNECT', { peerId: 'acct_me-peer', state: 'recovered' });
+
+      expect(requests()).toHaveLength(2);
       expect(bot['serverRolls'].size).toBe(1);
       off();
       vi.useRealTimers();

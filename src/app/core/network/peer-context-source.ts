@@ -60,6 +60,11 @@ export function getAuthorityPeerId(): string | null {
   return Network.authorityPeerId;
 }
 
+/** Whether the link to the room server is up; false with SkyWay, outside a room, or while it is down. */
+export function isAuthorityOpen(): boolean {
+  return Network.isAuthorityOpen;
+}
+
 /** The key of the room server's room this device is in or getting into; null with SkyWay or outside one. */
 export function getRoomKey(): string | null {
   return Network.roomKey;
