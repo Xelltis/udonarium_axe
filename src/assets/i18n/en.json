@@ -5344,6 +5344,7 @@
       "buttonGuide": "Show every button's name (? key)",
       "soundSettings": "Sound settings"
     },
+    "saveWhileReplayBoard": "The room cannot be saved while a recording's board is shown. Choose \"Give it back\" first.",
     "roomDataDefault": "Room data"
   },
   "feature.controller": {

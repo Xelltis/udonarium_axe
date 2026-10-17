@@ -5344,6 +5344,7 @@
       "buttonGuide": "ボタンの名前をすべて表示（? キー）",
       "soundSettings": "音の設定"
     },
+    "saveWhileReplayBoard": "記録の盤面を映しているあいだは、部屋を保存できません。「卓に戻す」で戻してから保存してください",
     "roomDataDefault": "ルームデータ"
   },
   "feature.controller": {

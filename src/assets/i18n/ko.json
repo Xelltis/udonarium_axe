@@ -5626,6 +5626,7 @@
       "buttonGuide": "모든 버튼 이름 표시 (? 키)",
       "soundSettings": "소리 설정"
     },
+    "saveWhileReplayBoard": "기록의 판면을 비추는 동안에는 방을 저장할 수 없습니다. \"탁상으로 되돌리기\"로 돌아온 뒤 저장해 주세요",
     "roomDataDefault": "룸 데이터"
   },
   "ui": {

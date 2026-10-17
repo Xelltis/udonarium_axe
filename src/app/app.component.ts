@@ -42,11 +42,13 @@ import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SkinService } from '@axe/application/ui/skin.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { WIDGET_FAB } from '@axe/application/ui/widget-place';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { Network } from '@axe/core/network/network';
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
@@ -216,6 +218,7 @@ export class AppComponent {
   private readonly panelService = inject(PanelService);
   private readonly roomPanels = inject(RoomPanelService);
   private readonly saveDataService = inject(SaveDataService);
+  private readonly snackbar = inject(SnackbarService);
   private readonly fileArchiver = inject(FileArchiver);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly objectStore = inject(ObjectStore);
@@ -533,10 +536,16 @@ export class AppComponent {
   /**
    * Saves the room to a file from the save button, named after the room, showing progress as it goes.
    *
-   * A press while a save is already running is ignored.
+   * A press while a save is already running is ignored. While a recording's board is shown in place
+   * of the table, cut off from the room, nothing is saved and the reader is told why: the board is
+   * what the one who recorded it saw, which may be only the shape a room server withheld from them.
    */
   async save() {
     if (this.isSaving()) return;
+    if (isNetworkIsolated()) {
+      this.snackbar.show(this.t('app.saveWhileReplayBoard'));
+      return;
+    }
     this.isSaving.set(true);
     this.progressPercent.set(0);
 
