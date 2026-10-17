@@ -1,6 +1,10 @@
 import { PeerRole } from '@axe/domain/peer/peer-role';
 
-export const REPLAY_FORMAT_VERSION = 3;
+/**
+ * The format recordings are written in. 4 added a line kept from guests (`players`), which earlier
+ * versions would show to everyone, so they do not read it.
+ */
+export const REPLAY_FORMAT_VERSION = 4;
 
 export const ReplayEventKind = {
   ChatMessage: 'chat.message',
