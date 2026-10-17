@@ -261,6 +261,7 @@ export class ReplayStagingService {
 
   private push(draft: ReplayDraft, at: number): void {
     this.rememberTarget(draft.targetIdentifier);
+    for (const identifier of draft.relatedIdentifiers ?? []) this.rememberTarget(identifier);
     const event: ReplayEvent = {
       seq: ++this.seq,
       at,

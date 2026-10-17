@@ -1,5 +1,5 @@
 import { AUTHORITY_PEER_ID } from '@axe/core/network/server/server-protocol';
-import { type ReplayManifest, resolveSnapshotAt } from '@axe/domain/replay/replay-event';
+import { type ReplayManifest, resolveSnapshotOrFirst } from '@axe/domain/replay/replay-event';
 import type { ReplayNameLookup } from '@axe/features/replay/replay-log-line';
 
 export type ReplayDictionary = Pick<ReplayManifest, 'actors' | 'targets'>;
@@ -51,9 +51,9 @@ function indexOf(dictionary: ReplayDictionary): DictionaryIndex {
  */
 export function replayNamesAt(dictionary: ReplayDictionary, seq: number): ReplayNameLookup {
   const index = indexOf(dictionary);
-  const targetAt = (identifier: string) => resolveSnapshotAt(index.targets.get(identifier) ?? [], seq);
+  const targetAt = (identifier: string) => resolveSnapshotOrFirst(index.targets.get(identifier) ?? [], seq);
   return {
-    actorName: (userId) => resolveSnapshotAt(index.actors.get(userId) ?? [], seq)?.name || userId,
+    actorName: (userId) => resolveSnapshotOrFirst(index.actors.get(userId) ?? [], seq)?.name || userId,
     targetName: (identifier) => targetAt(identifier)?.name || identifier,
     ownerName: (identifier) => {
       const owner = targetAt(identifier)?.ownerIdentifier;

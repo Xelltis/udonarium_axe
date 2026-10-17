@@ -12,12 +12,11 @@
 import { type DiceRollDetail, parseDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import {
   canViewReplayEvent,
-  findActorAt,
-  findTargetAt,
   type ReplayEvent,
   ReplayEventKind,
   type ReplayManifest,
   type ReplayViewer,
+  resolveSnapshotOrFirst,
 } from '@axe/domain/replay/replay-event';
 import { isSystemReplayChat, REPLAY_CAUGHT_UP_FLAG } from '@axe/domain/replay/replay-event-category';
 
@@ -425,11 +424,21 @@ function pick<T>(rows: readonly T[], valueOf: (row: T) => number): T | null {
 }
 
 function actorNameOf(manifest: Pick<ReplayManifest, 'actors'>, event: ReplayEvent): string {
-  return findActorAt(manifest, event.actorId, event.seq)?.name ?? '';
+  return (
+    resolveSnapshotOrFirst(
+      manifest.actors.filter((actor) => actor.userId === event.actorId),
+      event.seq
+    )?.name ?? ''
+  );
 }
 
 function targetNameOf(manifest: Pick<ReplayManifest, 'targets'>, identifier: string, seq: number): string {
-  return findTargetAt(manifest, identifier, seq)?.name ?? '';
+  return (
+    resolveSnapshotOrFirst(
+      manifest.targets.filter((target) => target.identifier === identifier),
+      seq
+    )?.name ?? ''
+  );
 }
 
 function changesOf(raw: unknown): ChangeEntry[] {

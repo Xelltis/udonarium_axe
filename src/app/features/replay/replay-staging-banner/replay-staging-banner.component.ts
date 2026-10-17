@@ -49,8 +49,8 @@ export class ReplayStagingBannerComponent {
       .map((event) => ({
         seq: event.seq,
         line: toReplayLogLine(event, {
-          actorName: (userId) => findActorAt(manifest, userId, event.seq)?.name || userId,
-          targetName: (identifier) => findTargetAt(manifest, identifier, event.seq)?.name || identifier,
+          actorName: (userId) => findActorAt(manifest, userId, Infinity)?.name || userId,
+          targetName: (identifier) => findTargetAt(manifest, identifier, Infinity)?.name || identifier,
         }),
       }));
   });

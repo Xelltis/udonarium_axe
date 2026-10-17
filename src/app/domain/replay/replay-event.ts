@@ -179,6 +179,18 @@ export function resolveSnapshotAt<T extends { sinceSeq: number }>(snapshots: rea
   return resolved ?? null;
 }
 
+/**
+ * The snapshot in force at a point, or, before any was taken there, the first one taken: an event
+ * moved or inserted ahead of where a name was first seen is still called by that name.
+ */
+export function resolveSnapshotOrFirst<T extends { sinceSeq: number }>(snapshots: readonly T[], seq: number): T | null {
+  const resolved = resolveSnapshotAt(snapshots, seq);
+  if (resolved) return resolved;
+  let first: T | null = null;
+  for (const snapshot of snapshots) if (!first || snapshot.sinceSeq < first.sinceSeq) first = snapshot;
+  return first;
+}
+
 /** How a user stood at a point in the recording: their name, role and picture then. Null before they appear. */
 export function findActorAt(
   manifest: Pick<ReplayManifest, 'actors'>,
