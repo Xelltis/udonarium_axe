@@ -3,8 +3,8 @@ import {
   type ReplayEvent,
   ReplayEventKind,
   type ReplayTargetSnapshot,
-  resolveSnapshotAt,
   type ReplayViewer,
+  resolveSnapshotAt,
 } from '@axe/domain/replay/replay-event';
 import type { ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 
