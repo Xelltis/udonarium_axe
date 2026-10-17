@@ -359,6 +359,21 @@ describe('FileArchiver', () => {
       expect(added).toEqual([`${saved}.png`]);
     });
 
+    it('hands a sound and a picture packed again inside a folder to the stores under their own names', async () => {
+      const sounds: string[] = [];
+      vi.spyOn(AudioStorage.instance, 'addAsync').mockImplementation(async (file) => {
+        sounds.push((file as File).name);
+        return null as never;
+      });
+      const { added } = await loaded({
+        'save/BGM.mp3': new Uint8Array([0x49, 0x44, 0x33, 1, 2, 3]),
+        'save/maps/face.png': PNG,
+      });
+
+      expect(sounds).toEqual(['BGM.mp3']);
+      expect(added).toEqual(['face.png']);
+    });
+
     it('leaves alone room data that names a picture saved under its own id, and a longer run of hex digits', async () => {
       const saved = 'a'.repeat(64);
       const longer = 'c'.repeat(80);
