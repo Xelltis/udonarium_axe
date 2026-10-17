@@ -187,7 +187,7 @@ describe('ReConnectComponent', () => {
 
       await component.reConnect();
 
-      expect(ask).toHaveBeenCalledWith(TestBed.inject(TRANSLATE_FN)('feature.lobby.leaveRoom.sending'));
+      expect(ask).toHaveBeenCalledWith(TestBed.inject(TRANSLATE_FN)('feature.lobby.reConnect.sending'));
       expect(disconnect).not.toHaveBeenCalled();
       expect(find).not.toHaveBeenCalled();
     });

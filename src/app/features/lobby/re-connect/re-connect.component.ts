@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { leavingLoss, leavingLossText } from '@axe/application/lobby/leaving-loss';
+import { leavingLoss } from '@axe/application/lobby/leaving-loss';
 import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -115,10 +115,10 @@ export class ReConnectComponent {
    */
   async reConnect(): Promise<void> {
     if (Network.transport === 'server') {
-      const lost = leavingLossText(
-        leavingLoss().filter((loss) => loss !== 'uploads'),
-        this.t
-      );
+      const lost = leavingLoss()
+        .filter((loss) => loss === 'unsent' || loss === 'sending')
+        .map((loss) => this.t(`feature.lobby.reConnect.${loss}`))
+        .join('\n');
       if (lost && !(await this.confirm.ask(lost))) return;
     }
     this.reconnectUserId = resolveReconnectUserId(this.reconnectUserId, this.networkService.peerContext.userId);
