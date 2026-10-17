@@ -1,3 +1,4 @@
+import { AUTHORITY_PEER_ID } from '@axe/core/network/server/server-protocol';
 import {
   canViewReplayEvent,
   isIncidentalReplayEvent,
@@ -71,9 +72,12 @@ export function filterReplayEvents(
   return events.filter((event) => matchesReplayLogFilter(event, filter, viewer));
 }
 
-/** The user ids that performed any of the events, each once, in the order they first appear. */
+/**
+ * The user ids that performed any of the events, each once, in the order they first appear. The
+ * room server is nobody at the table, and is left out.
+ */
 export function collectReplayActorIds(events: readonly ReplayEvent[]): string[] {
   const seen = new Set<string>();
-  for (const event of events) seen.add(event.actorId);
+  for (const event of events) if (event.actorId !== AUTHORITY_PEER_ID) seen.add(event.actorId);
   return [...seen];
 }

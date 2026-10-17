@@ -54,13 +54,20 @@ const BOARD_KINDS: ReadonlySet<ReplayEventKind> = new Set([
 export const REPLAY_PART_FLAG = 'part';
 
 /**
+ * The detail flag that marks a chat line said before recording began, handed over only later, as
+ * a room server does with a tab that comes into view. It belongs to the board, not the story.
+ */
+export const REPLAY_CAUGHT_UP_FLAG = 'caughtUp';
+
+/**
  * Where an event belongs when the session is read back or turned into a video.
  *
  * A notice the tool wrote into the chat — a lost connection, a cleared log, the tutorial — is the
  * running of the room, not the story. Unknown kinds count as `system`.
  */
 export function replayEventCategory(event: ReplayEvent): ReplayEventCategory {
-  if (isPartArrivalOrRemoval(event) || isValueCue(event)) return ReplayEventCategory.Hidden;
+  if (isPartArrivalOrRemoval(event) || isValueCue(event) || event.detail[REPLAY_CAUGHT_UP_FLAG] === true)
+    return ReplayEventCategory.Hidden;
   if (isSystemReplayChat(event)) return ReplayEventCategory.System;
   if (STORY_KINDS.has(event.kind)) return ReplayEventCategory.Story;
   if (BOARD_KINDS.has(event.kind)) return ReplayEventCategory.Board;

@@ -35,6 +35,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { decodeReplayEvents, decodeReplayManifest } from '@axe/domain/replay/replay-codec';
 import { ReplayDetailLevel, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import { ReplayEventCategory, replayEventCategory } from '@axe/domain/replay/replay-event-category';
 import { decodeReplayKeyframe } from '@axe/domain/replay/replay-keyframe';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -355,6 +356,65 @@ describe('ReplayRecorderService', () => {
 
     expect(service.recentEvents().map((event) => event.kind)).toContain(ReplayEventKind.ObjectRemove);
     expect(service.recentEvents().length).toBeGreaterThan(1);
+  });
+
+  describe('through a room server', () => {
+    beforeEach(() => vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority'));
+
+    it('puts a roll the server made down to whoever asked for it', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      localDispatch(
+        'UPDATE_GAME_OBJECT',
+        context('r1', 'chat', {
+          value: '(2D6) → 7',
+          attributes: { from: 'System-BCDice', originFrom: 'alice', tag: '', timestamp: Date.now() },
+        }),
+        '@authority'
+      );
+
+      const [rolled] = service.recentEvents();
+      expect(rolled.actorId).toBe('alice');
+      expect(replayEventCategory(rolled)).not.toBe(ReplayEventCategory.Hidden);
+    });
+
+    it('puts a role the server set down to whoever the cursor is', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      localDispatch(
+        'UPDATE_GAME_OBJECT',
+        context('cursor-a', 'PeerCursor', { peerId: 'peer-a', role: 'pl' }),
+        'peer-a'
+      );
+
+      localDispatch(
+        'AUTHORITATIVE_OBJECT',
+        context('cursor-a', 'PeerCursor', { peerId: 'peer-a', role: 'gm' }),
+        '@authority'
+      );
+
+      const changed = service.recentEvents().find((event) => event.kind === ReplayEventKind.PeerRoleChange);
+      expect(changed?.actorId).toBe('alice');
+    });
+
+    it('keeps a line said before recording began, handed over by the server only later, out of the story', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      localDispatch(
+        'AUTHORITATIVE_OBJECT',
+        context('old-line', 'chat', {
+          value: '昔の話',
+          attributes: { from: 'alice', tag: '', timestamp: Date.now() - 10_000_000 },
+        }),
+        '@authority'
+      );
+
+      const [handed] = service.recentEvents();
+      expect(handed.actorId).toBe('alice');
+      expect(replayEventCategory(handed)).toBe(ReplayEventCategory.Hidden);
+    });
   });
 
   it('records a whisper as private, with its recipients', async () => {

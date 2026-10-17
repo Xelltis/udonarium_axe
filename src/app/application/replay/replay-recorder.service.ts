@@ -29,7 +29,7 @@ import {
   type ReplayTargetSnapshot,
   type ReplayVisibility,
 } from '@axe/domain/replay/replay-event';
-import { REPLAY_PART_FLAG } from '@axe/domain/replay/replay-event-category';
+import { REPLAY_CAUGHT_UP_FLAG, REPLAY_PART_FLAG } from '@axe/domain/replay/replay-event-category';
 import {
   interpretObjectChange,
   interpretObjectRemove,
@@ -48,6 +48,7 @@ export const REPLAY_CHUNK_INTERVAL_MS = 30_000;
 export const REPLAY_KEYFRAME_INTERVAL_MS = 600_000;
 export const REPLAY_BASELINE_GRACE_MS = 5_000;
 const CHAT_ALIAS = 'chat';
+const PEER_CURSOR_ALIAS = 'PeerCursor';
 /** How far another browser's clock may run behind ours for a line it stamped to still count as new. */
 export const REPLAY_CLOCK_SKEW_MS = 2_000;
 export const REPLAY_RECENT_EVENT_LIMIT = 300;
@@ -334,7 +335,8 @@ export class ReplayRecorderService {
       this.notePartOwner(context.identifier, after['parentIdentifier']);
     }
 
-    if (!before && at < this.baselineUntil && !this.isFreshArrival(context.aliasName, after, sendFrom)) return;
+    const fresh = before !== null || this.isFreshArrival(context.aliasName, after, sendFrom);
+    if (!fresh && at < this.baselineUntil) return;
     if (!shouldDiffObjectChange(this.preference.detailLevel(), context.aliasName, !before)) return;
 
     const draft = interpretObjectChange({
@@ -347,7 +349,25 @@ export class ReplayRecorderService {
     if (!before && this.notePart(context.identifier, after, draft) && this.foldPartArrival(context.identifier, draft)) {
       return;
     }
-    this.push(draft, sendFrom, at);
+    if (!fresh && context.aliasName === CHAT_ALIAS && sendFrom === Network.authorityPeerId)
+      draft.detail[REPLAY_CAUGHT_UP_FLAG] = true;
+    this.push(draft, this.actorOf(context.aliasName, after, sendFrom), at);
+  }
+
+  /**
+   * Who did what a room server passes on as its own: a line, as a roll it made, by whoever said or
+   * asked for it, and a cursor it changed, as by a role it set, by whoever the cursor is. Anything
+   * else stays the sender's.
+   */
+  private actorOf(aliasName: string, after: SyncData, sendFrom: string): string {
+    if (sendFrom !== Network.authorityPeerId) return sendFrom;
+    const speaker = [syncValueOf(after, 'originFrom'), syncValueOf(after, 'from')].find(
+      (userId): userId is string => typeof userId === 'string' && userId !== '' && !userId.startsWith('System')
+    );
+    if (aliasName === CHAT_ALIAS && speaker !== undefined) return PeerCursor.findByUserId(speaker)?.peerId ?? speaker;
+    const peerId = syncValueOf(after, 'peerId');
+    if (aliasName === PEER_CURSOR_ALIAS && typeof peerId === 'string' && peerId !== '') return peerId;
+    return sendFrom;
   }
 
   /**

@@ -5,6 +5,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
+import { AUTHORITY_PEER_ID } from '@axe/core/network/server/server-protocol';
 import { findActorAt, findTargetAt, type ReplayManifest } from '@axe/domain/replay/replay-event';
 import { replayLineParams, type ReplayLogLine, toReplayLogLine } from '@axe/features/replay/replay-log-line';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -33,6 +34,7 @@ export class ReplayStagingBannerComponent {
     const seen = new Map<string, string>();
     for (const actor of manifest?.actors ?? []) seen.set(actor.userId, actor.name || actor.userId);
     for (const event of this.playback.events()) if (!seen.has(event.actorId)) seen.set(event.actorId, event.actorId);
+    seen.delete(AUTHORITY_PEER_ID);
     return [...seen].map(([userId, name]) => ({ userId, name }));
   });
 

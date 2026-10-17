@@ -19,7 +19,7 @@ import {
   type ReplayManifest,
   type ReplayViewer,
 } from '@axe/domain/replay/replay-event';
-import { isSystemReplayChat } from '@axe/domain/replay/replay-event-category';
+import { isSystemReplayChat, REPLAY_CAUGHT_UP_FLAG } from '@axe/domain/replay/replay-event-category';
 
 export interface ReplayDigestNumbers {
   readonly elapsedMs: number;
@@ -125,7 +125,9 @@ export function buildReplayDigest(
   manifest: Pick<ReplayManifest, 'roomName' | 'startedAt' | 'endedAt' | 'actors' | 'targets'>,
   viewer: ReplayViewer
 ): ReplayDigest {
-  const visible = events.filter((event) => canViewReplayEvent(event, viewer));
+  const visible = events.filter(
+    (event) => canViewReplayEvent(event, viewer) && event.detail[REPLAY_CAUGHT_UP_FLAG] !== true
+  );
   if (visible.length < 1) return { ...EMPTY_REPLAY_DIGEST, roomName: manifest.roomName, startedAt: manifest.startedAt };
 
   const speakers = new Map<string, { name: string; messages: number; diceRolls: number }>();
