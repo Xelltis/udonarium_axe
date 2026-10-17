@@ -82,7 +82,7 @@ test.describe('rooms and roles on the room server', () => {
     const coGm = await openSeat(browser, roomServer, '副GMさん', loginFor(roomServer, '副GMさん'), invitation);
     await expectInRoom(coGm.page, room);
 
-    expect(await serverRole(coGm.page)).toBe('GM');
+    await expect(coGm.page.getByTestId('peer-menu-server-role')).toHaveText('GM', { timeout: 10_000 });
     await leaveAll(gm, coGm);
   });
 

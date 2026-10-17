@@ -239,6 +239,7 @@ test.describe('assets on the room server', () => {
     browser,
     roomServer,
   }) => {
+    test.setTimeout(300_000);
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const pl = await openSeat(browser, roomServer, 'PLさん');
     const room = uniqueName('中継の画像の卓');
@@ -263,10 +264,13 @@ test.describe('assets on the room server', () => {
     await addImage(gm.page, 'relayed.png', uniquePng());
 
     await expect.poll(() => refused, { timeout: 20_000 }).not.toBe('');
-    await expect.poll(() => plImages.count(), { timeout: 30_000 }).toBeGreaterThan(before);
-    expect(plCalls.filter((call) => call.id === refused).map((call) => `${call.method} ${call.status}`)).toEqual([
-      'GET 404',
-    ]);
+    // It is named to the others only once the tries to put it up have been given up, ten, twenty and
+    // forty seconds apart.
+    await expect.poll(() => plImages.count(), { timeout: 150_000 }).toBeGreaterThan(before);
+    const calls = () => plCalls.filter((call) => call.id === refused).map((call) => `${call.method} ${call.status}`);
+    expect(calls()[0]).toBe('GET 404');
+    // Whoever took it in puts it up to the server in its place.
+    await expect.poll(calls, { timeout: 30_000 }).toContain('PUT 201');
     await leaveAll(gm, pl);
   });
 

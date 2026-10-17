@@ -71,22 +71,26 @@ test.describe('when the login runs out while in a room', () => {
     await leaveAll(gm, pl);
   });
 
-  test('the server closes the seat and the reason shows when the token cannot be refreshed', async ({
+  test('a seat whose login the server no longer takes goes back into the room as a guest, and says so', async ({
     browser,
     roomServer,
   }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const pl = await openSeat(browser, roomServer, 'PLさん', loginFor(roomServer, 'PLさん', TOKEN_SECONDS));
-    // The server cannot be reached for a refresh, so the login stands but the token is not renewed.
-    await pl.context.route(`${roomServer.apiUrl}/v1/auth/token`, (route) => route.fulfill({ status: 503, body: '' }));
+    // The server no longer takes the refresh token, so the login is gone once the token is due.
+    await pl.context.route(`${roomServer.apiUrl}/v1/auth/token`, (route) =>
+      route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'invalid-grant' }) })
+    );
     const room = uniqueName('切れる卓');
     await createRoom(gm.page, room);
     await joinRoom(pl.page, room);
 
-    await pl.page.waitForTimeout(PAST_GRACE_MS);
+    await expect(pl.page.getByTestId('snackbar')).toContainText('見学として部屋に入り直しました', {
+      timeout: PAST_GRACE_MS,
+    });
+    await expect(pl.page.getByTestId('peer-menu-server-role')).toHaveText('見学', { timeout: 10_000 });
     await say(gm.page, '期限の確認');
-
-    await expect.poll(() => chatTabText(pl.page, 'システム'), { timeout: 20_000 }).toContain('ログインの期限が切れた');
+    await expect.poll(() => chatTabText(pl.page, 'メイン'), { timeout: 15_000 }).toContain('期限の確認');
     await leaveAll(gm, pl);
   });
 });

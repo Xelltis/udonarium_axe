@@ -234,7 +234,7 @@ export function accessTokenFor(server: RoomServer, userId: string, name: string,
 export function assetTokenFor(server: RoomServer, roomKey: string, role: 'gm' | 'pl' | 'guest'): string {
   const header = base64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const payload = base64url(
-    JSON.stringify({ aud: 'asset', room: roomKey, role, exp: Math.floor(Date.now() / 1000) + 900 })
+    JSON.stringify({ aud: 'asset', room: roomKey, role, uid: 'acct_e2e', exp: Math.floor(Date.now() / 1000) + 900 })
   );
   const body = `${header}.${payload}`;
   return `${body}.${createHmac('sha256', server.secret).update(body).digest('base64url')}`;
