@@ -125,6 +125,22 @@ describe('ObjectStore', () => {
       expect(loaded.version).toBeGreaterThan(old.version);
     });
 
+    it('keeps what deleted objects had been through across a record of deletions put back', () => {
+      const old = new GameObject('kept-id');
+      store.add(old, false);
+      for (let i = 0; i < 4; i++) old.update();
+      store.delete(old);
+      const saved = store.snapshotDeleteHistory();
+      store.clearDeleteHistory();
+
+      store.replaceDeleteHistory(saved);
+      store.forgetDeleted(['kept-id']);
+      const remade = new GameObject('kept-id');
+      store.add(remade);
+
+      expect(remade.version).toBeGreaterThan(old.version);
+    });
+
     it('takes what arrives from elsewhere under a name deleted here at the version it came with', () => {
       const old = new GameObject('arrived-id');
       store.add(old, false);

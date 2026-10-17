@@ -12,7 +12,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import type { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { markForChanged } from '@axe/core/sync/object-event-extension';
 import { ObjectFactory } from '@axe/core/sync/object-factory';
-import { ObjectStore } from '@axe/core/sync/object-store';
+import { DeleteHistory, ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -106,7 +106,7 @@ export class ReplayPlaybackService {
   private savedBoard: ReplayObjectSnapshot[] | null = null;
   /** The versions the live table's objects had as the board was first shown, to be put back as they were. */
   private savedVersions: Map<string, ObjectVersion> | null = null;
-  private savedDeleteHistory: Map<string, number> | null = null;
+  private savedDeleteHistory: DeleteHistory | null = null;
   private baseKeyframe: { seq: number; snapshots: readonly ReplayObjectSnapshot[] } | null = null;
   /**
    * What the board is showing now.
@@ -307,7 +307,7 @@ export class ReplayPlaybackService {
       this.savedVersions = null;
       this.baseKeyframe = null;
       this.appliedBoard = null;
-      this.objectStore.replaceDeleteHistory(this.savedDeleteHistory ?? new Map());
+      this.objectStore.replaceDeleteHistory(this.savedDeleteHistory);
       this.savedDeleteHistory = null;
     }
     await Promise.resolve();

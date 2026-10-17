@@ -9,6 +9,12 @@ type TimeStamp = number;
 
 export type CatalogItem = { identifier: string; version: number };
 
+/** A copy of the record of deletions: when each name was deleted, and what its object had been through. */
+export interface DeleteHistory {
+  readonly deleted: ReadonlyMap<ObjectIdentifier, TimeStamp>;
+  readonly versions: ReadonlyMap<ObjectIdentifier, number>;
+}
+
 const GARBAGE_MAP_LIMIT = 100000;
 const GARBAGE_TTL_MS = 10 * 60 * 1000;
 const GARBAGE_SWEEP_INTERVAL_MS = 1000;
@@ -195,13 +201,14 @@ export class ObjectStore {
   }
 
   /** A copy of the record of deletions, to put back later with replaceDeleteHistory. */
-  snapshotDeleteHistory(): Map<ObjectIdentifier, TimeStamp> {
-    return new Map(this.garbageMap);
+  snapshotDeleteHistory(): DeleteHistory {
+    return { deleted: new Map(this.garbageMap), versions: new Map(this.deletedVersions) };
   }
 
-  /** Replaces the record of deletions with the given one, such as a snapshot taken earlier. */
-  replaceDeleteHistory(history: ReadonlyMap<ObjectIdentifier, TimeStamp>) {
-    this.garbageMap = new Map(history);
+  /** Replaces the record of deletions with the given one, such as a snapshot taken earlier; none clears it. */
+  replaceDeleteHistory(history: DeleteHistory | null) {
+    this.garbageMap = new Map(history?.deleted);
+    this.deletedVersions = new Map(history?.versions);
   }
 
   /** Forgets all deletions so those identifiers may be added again, as on joining or reconnecting. */
