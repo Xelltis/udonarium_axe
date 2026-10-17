@@ -30,7 +30,7 @@ import {
   tabVisibilityNear,
   textOf,
 } from '@axe/domain/replay/replay-edit';
-import { type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import { canViewReplayEvent, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
 import { ReplayFocusService } from '@axe/features/replay/replay-focus.service';
 import {
   collectReplayActorIds,
@@ -514,7 +514,9 @@ export class ReplayEntryListComponent {
       tabIdentifier,
       imageIdentifier: member?.imageIdentifier ?? '',
       chatColor: member?.chatColor ?? '',
-      visibility: tabVisibilityNear(this.editor.edited(), index, tabIdentifier),
+      visibility: tabVisibilityNear(this.editor.edited(), index, tabIdentifier, (event) =>
+        canViewReplayEvent(event, this.viewer())
+      ),
     });
     this.insertText.set('');
     const added = this.editor.edited()[Math.max(0, Math.min(index, this.editor.edited().length - 1))];
@@ -581,7 +583,9 @@ export class ReplayEntryListComponent {
   }
 
   private insertTabIdentifier(index: number): string {
-    const fromRecording = chatTabIdentifierNear(this.editor.edited(), index);
+    const fromRecording = chatTabIdentifierNear(this.editor.edited(), index, (event) =>
+      canViewReplayEvent(event, this.viewer())
+    );
     if (fromRecording.length > 0) return fromRecording;
     return this.chatMessageService.chatTabs[0]?.identifier ?? '';
   }

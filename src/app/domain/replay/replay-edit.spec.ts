@@ -194,6 +194,22 @@ describe('tabVisibilityNear()', () => {
     expect(tabVisibilityNear(lines, 3, 'new-tab')).toEqual(PUBLIC_VISIBILITY);
   });
 
+  it('passes over a secret roll an older recording kept to the GM, which says nothing of the tab', () => {
+    const secret = {
+      ...line(4, 'main-tab', GM_ONLY_VISIBILITY),
+      detail: { tabIdentifier: 'main-tab', tag: 'DiceBot secret' },
+    };
+
+    expect(tabVisibilityNear([line(3, 'main-tab'), secret], 2, 'main-tab')).toEqual(PUBLIC_VISIBILITY);
+  });
+
+  it('looks only at the lines the one writing sees, for the tab and for who could read it', () => {
+    const sees = (event: ReplayEvent) => event.visibility.kind !== 'gm-only';
+
+    expect(chatTabIdentifierNear(lines, 3, sees)).toBe('main-tab');
+    expect(tabVisibilityNear(lines, 1, 'gm-tab', sees)).toEqual(PUBLIC_VISIBILITY);
+  });
+
   it('puts the visibility on the line made', () => {
     const made = createReplayEntry(
       {

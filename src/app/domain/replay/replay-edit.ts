@@ -30,17 +30,23 @@ export const DICEBOT_SENDER = 'System-BCDice';
 
 /**
  * The chat tab of the nearest event before a position that names one, or failing that the
- * nearest after, so a line inserted there lands in the same tab.
+ * nearest after, so a line inserted there lands in the same tab. Only events the editor `sees` are
+ * looked at, so a line is not put in a tab kept from whoever writes it.
  *
  * Empty when no event names a tab.
  */
-export function chatTabIdentifierNear(events: readonly ReplayEvent[], atIndex: number): string {
+export function chatTabIdentifierNear(
+  events: readonly ReplayEvent[],
+  atIndex: number,
+  sees: (event: ReplayEvent) => boolean = () => true
+): string {
+  const tabOf = (event: ReplayEvent) => (sees(event) ? String(event.detail['tabIdentifier'] ?? '') : '');
   for (let index = Math.min(atIndex, events.length) - 1; index >= 0; index--) {
-    const tab = String(events[index].detail['tabIdentifier'] ?? '');
+    const tab = tabOf(events[index]);
     if (tab.length > 0) return tab;
   }
   for (let index = Math.max(0, atIndex); index < events.length; index++) {
-    const tab = String(events[index].detail['tabIdentifier'] ?? '');
+    const tab = tabOf(events[index]);
     if (tab.length > 0) return tab;
   }
   return '';
@@ -49,17 +55,21 @@ export function chatTabIdentifierNear(events: readonly ReplayEvent[], atIndex: n
 /**
  * Who could read a tab at a position, as the nearest line said in it before, or failing that
  * after, was kept: a line inserted there is kept the same way. A whisper or a secret roll, kept to
- * its own readers, says nothing of the tab and is passed over. Public when no line says.
+ * its own readers (an older recording kept a secret roll to the GM), says nothing of the tab and
+ * is passed over, as is a line the editor does not `see`. Public when no line says.
  */
 export function tabVisibilityNear(
   events: readonly ReplayEvent[],
   atIndex: number,
-  tabIdentifier: string
+  tabIdentifier: string,
+  sees: (event: ReplayEvent) => boolean = () => true
 ): ReplayVisibility {
   const says = (event: ReplayEvent) =>
     (event.kind === ReplayEventKind.ChatMessage || event.kind === ReplayEventKind.ChatDice) &&
     event.detail['tabIdentifier'] === tabIdentifier &&
-    event.visibility.kind !== 'direct';
+    event.visibility.kind !== 'direct' &&
+    !String(event.detail['tag'] ?? '').includes('secret') &&
+    sees(event);
   for (let index = Math.min(atIndex, events.length) - 1; index >= 0; index--) {
     if (says(events[index])) return events[index].visibility;
   }
