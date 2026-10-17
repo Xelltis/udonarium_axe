@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { BottomSheetService } from '@axe/application/ui/bottom-sheet.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { Network } from '@axe/core/network/network';
 import { Card, CardState } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute, DataElementRole } from '@axe/domain/data/data-element';
@@ -36,6 +38,22 @@ describe('GameCharacterSheetComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('saves nothing of a card whose face a room server keeps from this seat, and saves a whole one', async () => {
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    const save = vi.spyOn(TestBed.inject(SaveDataService), 'saveGameObjectAsync').mockResolvedValue();
+    const card = Card.create('伏せ札', 'front.png', 'back.png');
+    card.imageDataElement!.removeChild(card.imageDataElement!.getFirstElementByName('front')!);
+    component.tabletopObject = card;
+
+    await component.saveToXML();
+    expect(save).not.toHaveBeenCalled();
+
+    component.tabletopObject = Card.create('表の札', 'front.png', 'back.png');
+    await component.saveToXML();
+    expect(save).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
   });
 
   describe('the width a card is set to', () => {

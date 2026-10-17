@@ -210,11 +210,12 @@ export class DiceSymbolSheetComponent {
 
   /**
    * Downloads the die as a save file, showing progress until shortly after it finishes; does
-   * nothing while a save is running.
+   * nothing while a save is running, nor for a die a room server withholds the face of from this
+   * user, as for a copy.
    */
   async saveToXML() {
     const dice = this._diceSymbol();
-    if (!dice || this.isSaving()) return;
+    if (!dice || this.isSaving() || isWithheldHere(dice)) return;
     this.isSaving.set(true);
     this.progressPercent.set(0);
     await this.saveDataService.saveGameObjectAsync(dice, 'xml_' + dice.name, (percent) => {

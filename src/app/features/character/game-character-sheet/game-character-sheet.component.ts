@@ -47,6 +47,7 @@ import { RangeArea } from '@axe/domain/tabletop/range';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain, TERRAIN_FACES, TerrainFace } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
+import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 import { CardStackCardListComponent } from '@axe/features/card/card-stack-card-list/card-stack-card-list.component';
 import { CharacterPortraitPanelComponent } from '@axe/features/character/game-character-sheet/character-portrait-panel.component';
 import { buildCharacterSheetMenu } from '@axe/features/character/game-character-sheet/character-sheet-context-menu';
@@ -956,11 +957,12 @@ export class GameCharacterSheetComponent {
    * Saves the piece with its pictures as a zip file named after it, from the sheet's save button.
    *
    * Progress is shown while it saves and cleared half a second after. A click while a save is still
-   * running is ignored.
+   * running is ignored, as is one for a piece a room server withholds part of from this seat, which
+   * dropped back on a table would go to the whole room in that shape, as a copy would.
    */
   async saveToXML() {
     const obj = this.tabletopObject;
-    if (!obj || this.isSaving()) return;
+    if (!obj || this.isSaving() || isWithheldHere(obj)) return;
     this.isSaving.set(true);
     this.progressPercent.set(0);
     const element = obj.commonDataElement?.getFirstElementByName('name');
