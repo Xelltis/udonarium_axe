@@ -9,6 +9,8 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
+import { localDispatch } from '@axe/core/network/network-messaging';
+import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -549,10 +551,24 @@ describe('ChatTabSettingComponent', () => {
       component.allowDeleteTab = true;
 
       component.delete();
-      ObjectStore.instance.forgetDeleted([tab.identifier]);
-      ObjectStore.instance.add(new ChatTab(tab.identifier), false);
+      localDispatch(AuthorityEvent.AUTHORITATIVE, { ...tab.toContext() }, '@authority');
 
       expect(show).toHaveBeenCalledWith(TestBed.inject(TRANSLATE_FN)('feature.chat.tabSetting.deleteTurnedDown'));
+    });
+
+    it('gives no such reason for a tab it deleted that comes back with the room’s catalog', () => {
+      beSeat(PeerRole.Player);
+      const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+      const tab = ChatTabList.instance.addChatTab('lost-deletion');
+      component.selectedTab.set(tab);
+      component.allowDeleteTab = true;
+
+      component.delete();
+      ObjectStore.instance.forgetDeleted([tab.identifier]);
+      ObjectStore.instance.add(new ChatTab(tab.identifier), false);
+      localDispatch('UPDATE_GAME_OBJECT', { ...tab.toContext() }, '@authority');
+
+      expect(show).not.toHaveBeenCalled();
     });
 
     it('says nothing of a tab it deleted and brought back itself', () => {

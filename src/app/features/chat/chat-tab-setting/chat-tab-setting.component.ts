@@ -12,6 +12,8 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
+import { networkMessage$ } from '@axe/core/network/network-messaging';
+import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { identifiersInXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CHAT_LOG_STYLES, ChatLogStyle } from '@axe/domain/chat/chat-log-style';
@@ -260,11 +262,14 @@ export class ChatTabSettingComponent {
       if (!this.selectedTab() || e.identifier !== this.selectedTab()!.identifier || this.selectedTabXml) return;
       this.selectedTab.set(null);
     }, this.destroyRef);
-    // A room server puts back a tab holding dice it rolled, whispers this seat cannot see among
-    // them, which only the game master may delete; the seat is told why the tab came back.
-    this.objectChange.objectAdded$.subscribe((e) => {
+    // A room server hands back a tab holding dice it rolled, whispers this seat cannot see among
+    // them, which only the game master may delete; the seat is told why the tab came back. One that
+    // comes back with the room's catalog, its deletion lost with the link, is no such refusal.
+    networkMessage$.subscribe((message) => {
       const deleted = this.deletedOnServer;
-      if (!deleted || e.identifier !== deleted.identifier) return;
+      if (!deleted || message.eventName !== AuthorityEvent.AUTHORITATIVE) return;
+      if (message.sendFrom !== Network.authorityPeerId) return;
+      if ((message.data as { identifier?: unknown } | null)?.identifier !== deleted.identifier) return;
       this.deletedOnServer = null;
       if (Date.now() - deleted.at < TURNED_DOWN_WITHIN_MS)
         this.snackbar.show(this.t('feature.chat.tabSetting.deleteTurnedDown'));
