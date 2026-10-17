@@ -60,6 +60,8 @@ describe('FileArchiver', () => {
     vi.spyOn(ObjectStore.instance, 'get').mockReturnValue({
       isLoadOk: () => true,
       reloadCheckStart: vi.fn(),
+      answerWithheldCheck: () => true,
+      answerCheck: () => true,
     } as unknown as ReturnType<typeof ObjectStore.instance.get>);
     Object.defineProperty(Network, 'peerContext', {
       get: () => ({ roomName: '' }),
@@ -259,6 +261,39 @@ describe('FileArchiver', () => {
       off();
 
       expect(dropped).toHaveLength(0);
+    });
+  });
+
+  describe('a room archive whose load is declined', () => {
+    const PNG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3]);
+
+    it('takes none of its pictures in once the room data it carries is declined', async () => {
+      let ok = true;
+      const asked: string[] = [];
+      vi.spyOn(ObjectStore.instance, 'get').mockReturnValue({
+        isLoadOk: () => ok,
+        reloadCheckStart: vi.fn(),
+        answerWithheldCheck: () => {
+          asked.push('withheld');
+          ok = false;
+          return false;
+        },
+        answerCheck: () => {
+          asked.push('overwrite');
+          return ok;
+        },
+      } as unknown as ReturnType<typeof ObjectStore.instance.get>);
+      const added: string[] = [];
+      vi.spyOn(ImageStorage.instance, 'addAsync').mockImplementation(async (file) => {
+        added.push((file as File).name);
+        return ImageFile.createEmpty('x');
+      });
+      const zipped = zipSync({ 'data.xml': strToU8('<room withheld="true"></room>'), 'face.png': PNG });
+
+      await FileArchiver.instance.load([new File([zipped.slice()], 'room.zip', { type: 'application/zip' })]);
+
+      expect(added).toEqual([]);
+      expect(asked).toEqual(['withheld']);
     });
   });
 

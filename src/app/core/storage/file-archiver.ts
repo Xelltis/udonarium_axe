@@ -31,6 +31,8 @@ type UpdateCallback = (metadata: MetaData) => void;
 interface LoadGuard extends GameObject {
   reloadCheckStart(isOnline: boolean): void;
   isLoadOk(): boolean;
+  answerWithheldCheck(): boolean;
+  answerCheck(): boolean;
 }
 
 const MEGA_BYTE = 1024 * 1024;
@@ -316,6 +318,8 @@ export class FileArchiver {
       return;
     }
 
+    if (!(await this.roomLoadAgreed(entries))) return;
+
     // Pictures first, so the room data beside them can be read under the ids they were stored as.
     const renamed = new Map<string, string>();
     const rest: File[] = [];
@@ -340,6 +344,22 @@ export class FileArchiver {
         Logger.warn('[FileArchiver] ZIP展開エラー', reason);
       }
     }
+  }
+
+  /**
+   * Whether the room data an archive carries may go in, asked before its pictures are taken in, which
+   * would otherwise go up to the room for a load then declined. Asked as reading the room data asks:
+   * first about a save withheld in part, then about overwriting the room in play; the answers hold
+   * for the rest of the load.
+   */
+  private async roomLoadAgreed(entries: ZipEntry[]): Promise<boolean> {
+    const guard = this.reloadCheck;
+    const data = entries.find((entry) => entry.name === 'data.xml');
+    if (!guard || !data) return true;
+    const root = /<room\b[^>]*>/.exec(await data.blob.slice(0, ROOM_HEAD_BYTES).text())?.[0];
+    if (!root) return true;
+    if (/\swithheld="true"/.test(root) && !guard.answerWithheldCheck()) return false;
+    return guard.answerCheck();
   }
 
   /**
@@ -415,6 +435,9 @@ async function toUnzipped(entries: readonly ZipEntry[]): Promise<Unzipped> {
 function toArrayOfFileList(fileList: FileList): File[] {
   return Array.from(fileList);
 }
+
+/** How much of a room's data is read to find the room's own element, which opens it. */
+const ROOM_HEAD_BYTES = 4096;
 
 /** The name a picture is saved under in a room's archive: the hash it is known by, then its extension. */
 const SAVED_IMAGE_NAME = /^[0-9a-f]{64}\./;
