@@ -10,6 +10,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { identifiersInXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -22,6 +23,9 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { ChatLogPreviewComponent } from '@axe/features/chat/chat-log-preview/chat-log-preview.component';
 import { TranslocoModule } from '@jsverse/transloco';
+
+/** How soon after this seat deleted a tab a room server putting it back is taken as turning the deletion down. */
+const TURNED_DOWN_WITHIN_MS = 30_000;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -43,6 +47,9 @@ export class ChatTabSettingComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly snackbar = inject(SnackbarService);
+  /** A tab this seat deleted in a room server's room, which the server may put back, and when. */
+  private deletedOnServer: { identifier: string; at: number } | null = null;
 
   readonly selectedTab = signal<ChatTab | null>(null);
   selectedTabXml = '';
@@ -253,6 +260,15 @@ export class ChatTabSettingComponent {
       if (!this.selectedTab() || e.identifier !== this.selectedTab()!.identifier || this.selectedTabXml) return;
       this.selectedTab.set(null);
     }, this.destroyRef);
+    // A room server puts back a tab holding dice it rolled, whispers this seat cannot see among
+    // them, which only the game master may delete; the seat is told why the tab came back.
+    this.objectChange.objectAdded$.subscribe((e) => {
+      const deleted = this.deletedOnServer;
+      if (!deleted || e.identifier !== deleted.identifier) return;
+      this.deletedOnServer = null;
+      if (Date.now() - deleted.at < TURNED_DOWN_WITHIN_MS)
+        this.snackbar.show(this.t('feature.chat.tabSetting.deleteTurnedDown'));
+    }, this.destroyRef);
     // A tab gone from the list, or one this seat may no longer read, is let go of, as on the seat
     // being made a player while it had a tab only the game master reads picked. One this seat has
     // just deleted stays picked while its copy is kept, for the offer to bring it back, until it
@@ -374,6 +390,8 @@ export class ChatTabSettingComponent {
       const parentElement = this.selectedTab()!.parent!;
       const index: number = parentElement.children.indexOf(this.selectedTab()!);
       this.selectedTabXml = this.selectedTab()!.toXml();
+      if (this.isKeptToGameMasterByServer)
+        this.deletedOnServer = { identifier: this.selectedTab()!.identifier, at: Date.now() };
       this.selectedTab()!.destroy();
 
       if (this.systemTabIndex > index) {
@@ -459,6 +477,7 @@ export class ChatTabSettingComponent {
   restore() {
     if (!this.canEditTabs) return;
     if (this.selectedTab() && this.selectedTabXml) {
+      this.deletedOnServer = null;
       ObjectStore.instance.announceComingBack(identifiersInXml(this.selectedTabXml));
       const restoreTable = this.objectSerializer.parseXml(this.selectedTabXml)! as ChatTab;
       this.chatTabList.addChatTab(restoreTable);

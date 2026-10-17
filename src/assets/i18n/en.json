@@ -3664,6 +3664,7 @@
         "resetImage": "Restore the default picture"
       },
       "tabSetting": {
+        "deleteTurnedDown": "The room server put the tab back. Only the GM may delete a tab holding dice the server rolled, whispers you cannot see included.",
         "panelTitle": "Chat tab settings",
         "sidebarTitle": "Chat tabs",
         "addTabTooltip": "Add tab",

@@ -3664,6 +3664,7 @@
         "resetImage": "既定の画像に戻す"
       },
       "tabSetting": {
+        "deleteTurnedDown": "部屋のサーバーがタブの削除を戻しました。サーバーが振ったダイスの結果（自分には見えない秘話を含む）があるタブは、GMだけが削除できます。",
         "panelTitle": "チャットタブ設定",
         "sidebarTitle": "チャットタブ",
         "addTabTooltip": "タブを追加",

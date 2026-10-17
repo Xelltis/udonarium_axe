@@ -5,7 +5,9 @@ import {
   CHAT_LOG_STYLE_STORAGE_KEY,
 } from '@axe/application/chat/chat-log-style-preference.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -537,6 +539,33 @@ describe('ChatTabSettingComponent', () => {
       rolledBy(rolled, '2D6 → 7');
       component.selectedTab.set(rolled);
       expect(component.isDeletable).toBe(true);
+    });
+
+    it('tells a player why the server put back a tab it deleted, holding dice it could not see', () => {
+      beSeat(PeerRole.Player);
+      const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+      const tab = ChatTabList.instance.addChatTab('hidden-rolls');
+      component.selectedTab.set(tab);
+      component.allowDeleteTab = true;
+
+      component.delete();
+      ObjectStore.instance.forgetDeleted([tab.identifier]);
+      ObjectStore.instance.add(new ChatTab(tab.identifier), false);
+
+      expect(show).toHaveBeenCalledWith(TestBed.inject(TRANSLATE_FN)('feature.chat.tabSetting.deleteTurnedDown'));
+    });
+
+    it('says nothing of a tab it deleted and brought back itself', () => {
+      beSeat(PeerRole.Player);
+      const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+      const tab = ChatTabList.instance.addChatTab('brought-back');
+      component.selectedTab.set(tab);
+      component.allowDeleteTab = true;
+
+      component.delete();
+      component.restore();
+
+      expect(show).not.toHaveBeenCalled();
     });
 
     it('leaves the dice the server rolled when a player clears a log, and the game master clears them too', () => {
