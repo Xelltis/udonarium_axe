@@ -771,3 +771,101 @@ describe('acting out a scene to go in at a row', () => {
     expect(begin).not.toHaveBeenCalled();
   });
 });
+
+describe('ReplayEntryListComponent selects', () => {
+  let fixture: ComponentFixture<ReplayEntryListComponent>;
+  let insert: ReturnType<typeof vi.fn>;
+  const edited = signal<readonly ReplayEvent[]>([]);
+  const say = (seq: number, actorId: string, text: string): ReplayEvent => ({
+    ...event(seq, text),
+    actorId,
+    detail: { name: actorId, text, tabIdentifier: 'main' },
+  });
+  const manifest = {
+    actors: [
+      { userId: 'alice', peerId: 'pa', name: 'アリス', role: 'pl', imageIdentifier: '', sinceSeq: 1 },
+      { userId: 'bob', peerId: 'pb', name: 'ボブ', role: 'pl', imageIdentifier: '', sinceSeq: 1 },
+    ],
+    targets: [],
+  };
+
+  beforeEach(async () => {
+    edited.set([say(1, 'alice', 'a1'), say(2, 'bob', 'b1'), say(3, 'alice', 'a2')]);
+    insert = vi.fn();
+    PeerCursor.myCursor = Object.assign(new PeerCursor(), { peerId: 'p', userId: 'gm', role: PeerRole.GameMaster });
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [ReplayEntryListComponent],
+      providers: [
+        ...TEST_PROVIDERS,
+        {
+          provide: ReplayPlaybackService,
+          useValue: {
+            events: edited.asReadonly(),
+            recordingId: signal(1).asReadonly(),
+            cursor: signal(0).asReadonly(),
+            manifest: signal(manifest).asReadonly(),
+            cast: signal([]).asReadonly(),
+            isBoardMode: signal(false).asReadonly(),
+            isEnteringBoardMode: signal(false).asReadonly(),
+            isSeeking: signal(false).asReadonly(),
+            seekTo: vi.fn().mockResolvedValue(undefined),
+            enterBoardMode: vi.fn().mockResolvedValue(true),
+          },
+        },
+        {
+          provide: ReplayEditorService,
+          useValue: {
+            edited: edited.asReadonly(),
+            isEditing: signal(true).asReadonly(),
+            isSaving: signal(false).asReadonly(),
+            isInserted: () => false,
+            insert,
+            move: vi.fn(),
+            remove: vi.fn(),
+            retext: vi.fn(),
+          },
+        },
+      ],
+    }).compileComponents();
+    fixture = TestBed.createComponent(ReplayEntryListComponent);
+    fixture.componentRef.setInput('editing', true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+  });
+
+  afterEach(() => {
+    PeerCursor.myCursor = null as unknown as PeerCursor;
+  });
+
+  const selects = (): HTMLSelectElement[] => [...fixture.nativeElement.querySelectorAll('select')];
+  const choose = (select: HTMLSelectElement, value: string) => {
+    select.value = value;
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+  };
+
+  it('still shows who a line to add is put down to once the form is made again', async () => {
+    const actorSelect = () => selects()[selects().length - 1];
+    const kindSelect = () =>
+      selects().find((select) => [...select.options].some((option) => option.value === ReplayEventKind.Marker))!;
+    choose(actorSelect(), 'bob');
+
+    choose(kindSelect(), ReplayEventKind.Marker);
+    choose(kindSelect(), ReplayEventKind.ChatMessage);
+    await fixture.whenStable();
+
+    expect(actorSelect().value).toBe('bob');
+  });
+
+  it('filters nobody out once every line of the speaker filtered by is deleted, as the filter shows', async () => {
+    choose(selects()[0], 'bob');
+
+    edited.set([say(1, 'alice', 'a1'), say(3, 'alice', 'a2')]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(selects()[0].value).toBe('');
+    expect(fixture.nativeElement.textContent).toContain('a1');
+  });
+});

@@ -169,6 +169,18 @@ export class ReplayEntryListComponent {
     replayActorsOf(this.playback.manifest() ?? EMPTY_REPLAY_DICTIONARY, this.actorIds())
   );
 
+  /** Who a line to add is put down to: the one chosen, or the first of those in the recording. */
+  protected readonly chosenActorId = computed(() => this.insertActorId() || this.actors()[0]?.userId || '');
+
+  /**
+   * The filter in force: a speaker no longer in the recording, as once all their lines are deleted,
+   * filters nobody out, as the speaker filter then shows.
+   */
+  protected readonly shownFilter = computed<ReplayLogFilter>(() => {
+    const filter = this.filter();
+    return filter.actorId && !this.actorIds().includes(filter.actorId) ? { ...filter, actorId: '' } : filter;
+  });
+
   protected readonly cast = computed(() =>
     this.playback
       .cast()
@@ -183,7 +195,7 @@ export class ReplayEntryListComponent {
    * thousands of rows and only a screenful is ever on show.
    */
   protected readonly rows = computed<ReplayEntryRow[]>(() => {
-    const filter = this.filter();
+    const filter = this.shownFilter();
     const viewer = this.viewer();
     const rows: ReplayEntryRow[] = [];
     this.source().forEach((event, index) => {
@@ -489,7 +501,7 @@ export class ReplayEntryListComponent {
     const member = this.selectedCast();
     this.editor.insert(index, {
       kind: this.insertKind(),
-      actorId: this.insertActorId() || this.actors()[0]?.userId || '',
+      actorId: this.chosenActorId(),
       speaker: member?.name ?? this.insertSpeaker().trim(),
       text: this.insertText().trim(),
       tabIdentifier: this.insertTabIdentifier(index),
@@ -536,7 +548,7 @@ export class ReplayEntryListComponent {
         if (!wasBoardMode && this.playback.recordingId() === recordingId) await this.playback.exitBoardMode();
         return;
       }
-      this.staging.begin(index, this.insertActorId() || this.actors()[0]?.userId || '', afterSeq);
+      this.staging.begin(index, this.chosenActorId(), afterSeq);
     } finally {
       this.isStartingStage.set(false);
     }

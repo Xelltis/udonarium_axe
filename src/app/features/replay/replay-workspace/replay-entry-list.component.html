@@ -14,9 +14,11 @@
       class="border-ui-border bg-ui-panel rounded-ui-sm border border-solid px-1 py-0.5 text-[0.7rem]"
       (change)="setActor($any($event.target).value)"
     >
-      <option value="" [selected]="filter().actorId === ''">{{ 'feature.replay.panel.allActors' | transloco }}</option>
+      <option value="" [selected]="shownFilter().actorId === ''">
+        {{ 'feature.replay.panel.allActors' | transloco }}
+      </option>
       @for (actorId of actorIds(); track actorId) {
-        <option [value]="actorId" [selected]="filter().actorId === actorId">{{ actorLabel(actorId) }}</option>
+        <option [value]="actorId" [selected]="shownFilter().actorId === actorId">{{ actorLabel(actorId) }}</option>
       }
     </select>
     <label class="text-ui-muted flex cursor-pointer items-center gap-1 text-[0.7rem]">
@@ -184,11 +186,10 @@
           }
           <select
             class="border-ui-border bg-ui-panel rounded-ui-sm border border-solid px-1 py-0.5"
-            [value]="insertActorId()"
             (change)="insertActorId.set($any($event.target).value)"
           >
             @for (actor of actors(); track actor.userId) {
-              <option [value]="actor.userId">{{ actor.name }}</option>
+              <option [value]="actor.userId" [selected]="chosenActorId() === actor.userId">{{ actor.name }}</option>
             }
           </select>
         }
