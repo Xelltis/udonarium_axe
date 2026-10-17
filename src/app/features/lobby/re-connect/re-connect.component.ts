@@ -111,15 +111,18 @@ export class ReConnectComponent {
    *
    * With force cleanup ticked, the local characters, ranges, notes, dice, masks and terrain are
    * thrown away first. When the room is no longer listed, it only logs a warning. On a room server,
-   * where joining again drops what has yet to go out to it, the reader is asked first.
+   * where joining again drops what has yet to go out to it, the reader is asked first; with force
+   * cleanup ticked, the pieces' changes yet to reach it are said to be lost too, as the room's own
+   * copies replace them.
    */
   async reConnect(): Promise<void> {
     if (Network.transport === 'server') {
+      const cleanUp = this.forceCleanup();
       const lost = leavingLoss()
         .filter((loss) => loss === 'unsent' || loss === 'sending')
-        .map((loss) => this.t(`feature.lobby.reConnect.${loss}`))
-        .join('\n');
-      if (lost && !(await this.confirm.ask(lost))) return;
+        .map((loss) => this.t(`feature.lobby.reConnect.${cleanUp && loss === 'unsent' ? 'unsentCleanup' : loss}`));
+      if (cleanUp && lost.length > 0) lost.push(this.t('feature.lobby.reConnect.cleanupLoss'));
+      if (lost.length > 0 && !(await this.confirm.ask(lost.join('\n')))) return;
     }
     this.reconnectUserId = resolveReconnectUserId(this.reconnectUserId, this.networkService.peerContext.userId);
     this.disConnect();

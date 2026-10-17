@@ -192,6 +192,23 @@ describe('ReConnectComponent', () => {
       expect(find).not.toHaveBeenCalled();
     });
 
+    it('says the pieces’ changes are lost too when asked to drop inconsistent data with the link down', async () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true, userId: 'u' } as PeerContext);
+      vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(false);
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+      vi.spyOn(component, 'disConnect').mockImplementation(() => undefined);
+      component.forceCleanup.set(true);
+
+      await component.reConnect();
+
+      const t = TestBed.inject(TRANSLATE_FN);
+      expect(ask).toHaveBeenCalledWith(
+        [t('feature.lobby.reConnect.unsentCleanup'), t('feature.lobby.reConnect.cleanupLoss')].join('\n')
+      );
+    });
+
     it('takes nothing away until it has found the room to get back into', async () => {
       vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
       vi.spyOn(component, 'myPeer', 'get').mockReturnValue({ reConnectPass: '' } as PeerCursor);

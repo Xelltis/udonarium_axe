@@ -3313,8 +3313,10 @@
         "forceCleanup": "Drop inconsistent data (only when sync is broken)",
         "notice": "Reconnection may fail. If it does not recover, reload the page.",
         "warning": "Warning: if no one else owns the room data, the data will be lost on failure.",
-        "unsent": "The link to the room server is down. If you reconnect now, what you deleted since it dropped may come back, and what you brought back may go again. What you moved or wrote gets there once you are back in.",
+        "unsent": "The link to the room server is down. If you reconnect now, deletions that had not all gone out before it dropped, and what you deleted since, may come back, and what you brought back may go again. What you moved or wrote gets there once you are back in.",
         "sending": "Some changes have not all gone out to the room server yet; a big load or deletion goes out a little at a time. If you reconnect now, of what has not gone out, what you deleted may come back and what you brought back may go again.",
+        "unsentCleanup": "The link to the room server is down. If you reconnect now, deletions that had not all gone out before it dropped, and what you deleted since, may come back, and what you brought back may go again. What you wrote gets there once you are back in.",
+        "cleanupLoss": "With \"Drop inconsistent data\" on, characters, ranges, shared notes, dice, masks and terrain go back to how the room server has them; what you moved or made of them that has not reached it is lost.",
         "warningServer": "Note: on a room server the table stays on the server. \"Drop inconsistent data\" removes things from this screen only.",
         "warning2": "Save the room data first if needed.",
         "cleanupDesc1": "Enabling \"Drop inconsistent data\" removes objects that may cause sync inconsistencies before reconnecting.",
@@ -3414,7 +3416,7 @@
       "leaveRoom": {
         "title": "Leave the room?",
         "peer-to-peer": "The page reloads and you leave this room. The table stays with the others; with nobody else here, the room closes.",
-        "unsent": "The link to the room server is down. What you changed since it dropped has not reached the server and is lost if you leave now.",
+        "unsent": "The link to the room server is down. What had not all gone out before it dropped, and what you changed since, has not reached the server and is lost if you leave now.",
         "sending": "Some changes have not all gone out to the room server yet; a big load or deletion goes out a little at a time. If you leave now, what has not gone out is lost.",
         "uploads": "Some pictures or sounds have not reached the room server yet. If you leave now, the others will not get them."
       }
