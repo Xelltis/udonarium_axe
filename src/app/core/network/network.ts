@@ -67,6 +67,10 @@ export class Network {
   static get isAuthorityOpen(): boolean {
     return Network.instance.isAuthorityOpen;
   }
+  /** Whether the connection is holding sends back for seconds, as a room server's does for a big load. */
+  static get hasSendsPending(): boolean {
+    return Network.instance.hasSendsPending;
+  }
   /** How far the room server's clock runs ahead of this one; null with SkyWay or before it let the seat in. */
   static get serverClockOffset(): number | null {
     return Network.instance.serverClockOffset;
@@ -166,6 +170,9 @@ export class Network {
   }
   get isAuthorityOpen(): boolean {
     return this.connection?.authorityOpen ?? false;
+  }
+  get hasSendsPending(): boolean {
+    return this.connection?.sendsPending ?? false;
   }
   get serverClockOffset(): number | null {
     return this.connection?.serverClockOffset ?? null;

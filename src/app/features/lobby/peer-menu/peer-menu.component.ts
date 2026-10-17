@@ -114,7 +114,7 @@ export class PeerMenuComponent {
       mode === 'offline' ? 'feature.lobby.peerMenu.confirmOffline' : 'feature.lobby.peerMenu.confirmOnline'
     );
     const asked = await this.confirm.ask(
-      loss === 'unsent' || loss === 'uploads' ? `${question}\n${this.t(`feature.lobby.leaveRoom.${loss}`)}` : question
+      loss !== null && loss !== 'peer-to-peer' ? `${question}\n${this.t(`feature.lobby.leaveRoom.${loss}`)}` : question
     );
     if (!asked) return;
     this.switchingMode = true;

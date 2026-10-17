@@ -680,6 +680,23 @@ describe('ServerConnection', () => {
     await vi.waitFor(async () => expect(await written()).toBe(30_000));
   });
 
+  it('says it has sends pending while it holds some back, and none once they have gone or only gather', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+    const socket = await enterRoom();
+    const deletions = Array.from({ length: 20_000 }, (_, i) =>
+      event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
+    );
+
+    connection.send(deletions);
+    expect(connection.sendsPending).toBe(false);
+    await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
+    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
+    expect(connection.sendsPending).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(SEND_WINDOW_MS);
+    await vi.waitFor(() => expect(connection.sendsPending).toBe(false));
+  });
+
   it('stops waiting to write when the link goes, keeping the deletions for the next', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
     const socket = await enterRoom();

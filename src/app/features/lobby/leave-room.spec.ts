@@ -33,10 +33,14 @@ describe('leaving the room', () => {
   let win: Window;
   let ask: ReturnType<typeof vi.fn>;
 
-  function inRoom(transport: 'server' | 'skyway', { linked = true, images = false, sounds = false } = {}): void {
+  function inRoom(
+    transport: 'server' | 'skyway',
+    { linked = true, sending = false, images = false, sounds = false } = {}
+  ): void {
     vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true } as never);
     vi.spyOn(Network, 'transport', 'get').mockReturnValue(transport);
     vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(linked);
+    vi.spyOn(Network, 'hasSendsPending', 'get').mockReturnValue(sending);
     vi.spyOn(ImageStorage.instance, 'hasUploadsPending', 'get').mockReturnValue(images);
     vi.spyOn(AudioStorage.instance, 'hasUploadsPending', 'get').mockReturnValue(sounds);
   }
@@ -63,6 +67,7 @@ describe('leaving the room', () => {
   it.each([
     ['through SkyWay, where the table stays only with whoever is left', 'skyway', {}, 'peer-to-peer'],
     ['while the link to the room server is down', 'server', { linked: false }, 'unsent'],
+    ['while changes are still going out to the room server', 'server', { sending: true }, 'sending'],
     ['while a picture has yet to go up', 'server', { images: true }, 'uploads'],
     ['while a sound has yet to go up', 'server', { sounds: true }, 'uploads'],
   ] as const)('asks first %s, and stays when the reader says no', async (_case, transport, state, loss) => {

@@ -34,7 +34,7 @@ export class BrowserDataWipeService {
     const sure = await this.confirm.ask({
       title: this.t('feature.roomSettings.wipeConfirmTitle'),
       message:
-        loss === 'unsent' || loss === 'uploads'
+        loss !== null && loss !== 'peer-to-peer'
           ? `${this.t('feature.roomSettings.wipeConfirmMessage')}\n\n${this.t(`feature.lobby.leaveRoom.${loss}`)}`
           : this.t('feature.roomSettings.wipeConfirmMessage'),
       okLabel: this.t('feature.roomSettings.wipeConfirmOk'),

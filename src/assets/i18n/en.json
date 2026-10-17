@@ -3413,6 +3413,7 @@
         "title": "Leave the room?",
         "peer-to-peer": "The page reloads and you leave this room. The table stays with the others; with nobody else here, the room closes.",
         "unsent": "The link to the room server is down. What you changed since it dropped has not reached the server and is lost if you leave now.",
+        "sending": "Some changes have not all gone out to the room server yet; a big load or deletion goes out a little at a time. If you leave now, what has not gone out is lost.",
         "uploads": "Some pictures or sounds have not reached the room server yet. If you leave now, the others will not get them."
       }
     },

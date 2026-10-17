@@ -73,6 +73,8 @@ export interface Connection {
   readonly roomKey?: string;
   /** The role a room server gave this seat on letting it in; SkyWay leaves roles to the peers. */
   readonly serverRole?: ServerRole;
+  /** Whether a room server connection is holding sends back for seconds, to keep inside the server's limits. */
+  readonly sendsPending?: boolean;
 
   configure(config: Record<string, unknown>): void;
   openStandby(userId?: string): void;

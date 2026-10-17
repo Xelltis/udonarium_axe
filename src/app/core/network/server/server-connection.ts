@@ -324,6 +324,14 @@ export class ServerConnection implements Connection {
     this.connectSocket();
   }
 
+  /**
+   * Whether sends are held back to keep inside the server's limits, as a big load or deletion is:
+   * those wait seconds, unlike what is only gathering to go out in a moment.
+   */
+  get sendsPending(): boolean {
+    return this.wakePacing !== null;
+  }
+
   /** The server decides who is in the room; there is nobody to connect to by hand. */
   connect(_peer: IPeerContext): boolean {
     return false;
