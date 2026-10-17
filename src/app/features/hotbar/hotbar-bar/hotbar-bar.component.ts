@@ -36,6 +36,7 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { presetSoundLabelKey, soundFileName } from '@axe/domain/media/preset-sound-labels';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { MenuCommand, menuCommandOf } from '@axe/domain/ui/menu-command';
 import { HotbarService } from '@axe/features/hotbar/hotbar.service';
 import { findSlotActorAmong } from '@axe/features/hotbar/hotbar-actor';
@@ -385,10 +386,15 @@ export class HotbarBarComponent {
     this.fileRef()?.nativeElement.click();
   }
 
+  /**
+   * Loads the file chosen, as a fresh load: what was answered to an earlier one, such as declining a
+   * save withheld in part, holds nothing back here, and a room within is asked about as any is.
+   */
   protected async loadFile(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const files = input.files;
     try {
+      this.objectStore.get<ReloadCheck>('ReloadCheck')?.reloadCheckStart(Network.peerContext.roomName !== '');
       if (files && files.length > 0) await this.fileArchiver.load(files);
     } finally {
       // Emptied either way: a box still holding the file it choked on sends no second change.

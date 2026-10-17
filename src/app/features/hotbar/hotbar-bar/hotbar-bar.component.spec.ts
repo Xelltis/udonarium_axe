@@ -6,6 +6,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { HotbarPreferenceService } from '@axe/application/ui/hotbar-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
+import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Hotbar } from '@axe/domain/hotbar/hotbar';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
@@ -13,6 +14,7 @@ import { HotbarSet } from '@axe/domain/hotbar/hotbar-set';
 import { HOTBAR_SLOTS_PER_PAGE } from '@axe/domain/hotbar/hotbar-size';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { HotbarService } from '@axe/features/hotbar/hotbar.service';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
 import { HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
@@ -87,6 +89,23 @@ describe('HotbarBarComponent', () => {
     PeerCursor.myCursor = null!;
     localStorage.removeItem('ui-widgets');
     localStorage.removeItem('ui-hotbar');
+  });
+
+  it('loads a chosen file as a fresh load, whatever was answered to the one before', async () => {
+    const reloadCheck = new ReloadCheck('ReloadCheck');
+    reloadCheck.initialize();
+    const start = vi.spyOn(reloadCheck, 'reloadCheckStart');
+    const load = vi.spyOn(TestBed.inject(FileArchiver), 'load').mockResolvedValue();
+    const input = document.createElement('input');
+    Object.defineProperty(input, 'files', { value: [new File(['<hotbar-set/>'], 'hotbar.xml')] });
+
+    await (fixture.componentInstance as unknown as { loadFile(event: Event): Promise<void> }).loadFile({
+      target: input,
+    } as unknown as Event);
+
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(start.mock.invocationCallOrder[0]).toBeLessThan(load.mock.invocationCallOrder[0]);
+    reloadCheck.destroy();
   });
 
   it('stays out of the way until it is asked for', () => {
