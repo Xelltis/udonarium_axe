@@ -1,5 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
@@ -16,6 +18,8 @@ export class RoomSnapshotService {
   private readonly saveDataService = inject(SaveDataService);
   private readonly fileArchiver = inject(FileArchiver);
   private readonly objectStore = inject(ObjectStore);
+  private readonly snackbar = inject(SnackbarService);
+  private readonly t = inject(TRANSLATE_FN);
 
   private readonly _snapshots = signal<readonly RoomSnapshotMeta[]>([]);
   readonly snapshots = this._snapshots.asReadonly();
@@ -119,10 +123,16 @@ export class RoomSnapshotService {
    * Loads a snapshot back into the room, as a room file dropped on the table would be.
    *
    * Answers false where snapshots are unsupported, while a restore is already running, for an id
-   * the store does not hold, or when loading fails, which is logged.
+   * the store does not hold, or when loading fails, which is logged. While a replay's board is shown
+   * in place of the table it restores nothing and says why, as the board and what went onto it are
+   * thrown away when the table comes back.
    */
   async restore(id: number): Promise<boolean> {
     if (!this.isSupported || this._isRestoring()) return false;
+    if (isNetworkIsolated()) {
+      this.snackbar.show(this.t('app.restoreWhileReplayBoard'));
+      return false;
+    }
     this._isRestoring.set(true);
     try {
       const record = await this.store.get(id);

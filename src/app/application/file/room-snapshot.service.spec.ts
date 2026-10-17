@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { RoomSnapshotService } from '@axe/application/file/room-snapshot.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import {
@@ -142,6 +143,20 @@ describe('RoomSnapshotService', () => {
     expect(load).toHaveBeenCalledOnce();
     const files = load.mock.calls[0][0] as File[];
     expect(files[0].name).toBe('room-snapshot.zip');
+  });
+
+  it('restores nothing while a replay’s board is shown in place of the table, and says so', async () => {
+    const meta = await service.capture();
+    const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+    setNetworkIsolated(true);
+    try {
+      await expect(service.restore(meta!.id)).resolves.toBe(false);
+
+      expect(load).not.toHaveBeenCalled();
+      expect(shown).toHaveBeenCalledTimes(1);
+    } finally {
+      setNetworkIsolated(false);
+    }
   });
 
   it('reports failure restoring an id that is not there', async () => {

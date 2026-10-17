@@ -8,6 +8,7 @@ import {
   xmlLoaded$,
 } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/index';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import {
@@ -372,6 +373,24 @@ describe('FileArchiver', () => {
 
       expect(sounds).toEqual(['BGM.mp3']);
       expect(added).toEqual(['face.png']);
+    });
+
+    it('reads none of the room data once a recording’s board was shown or put away while the pictures came in', async () => {
+      const xml: string[] = [];
+      const off = xmlLoaded$.subscribe((event) => xml.push(event.xmlElement.tagName));
+      vi.spyOn(ImageStorage.instance, 'addAsync').mockImplementation(async () => {
+        setNetworkIsolated(true);
+        return ImageFile.createEmpty(STORED);
+      });
+      const zipped = zipSync({ 'data.xml': strToU8('<room></room>'), 'face.png': PNG });
+      try {
+        await FileArchiver.instance.load([new File([zipped.slice()], 'room.zip', { type: 'application/zip' })]);
+      } finally {
+        setNetworkIsolated(false);
+        off();
+      }
+
+      expect(xml).toEqual([]);
     });
 
     it('leaves alone room data that names a picture saved under its own id, and a longer run of hex digits', async () => {

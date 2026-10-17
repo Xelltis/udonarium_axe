@@ -8,6 +8,7 @@ import {
 } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
 import type { ImageFile } from '@axe/core/storage/image-file';
@@ -324,6 +325,7 @@ export class FileArchiver {
     }
 
     if (!(await this.roomLoadAgreed(entries))) return;
+    const isolated = isNetworkIsolated();
 
     // Pictures first, so the room data beside them can be read under the ids they were stored as.
     const renamed = new Map<string, string>();
@@ -344,6 +346,10 @@ export class FileArchiver {
       }
     }
     for (const entry of rest) {
+      if (isNetworkIsolated() !== isolated) {
+        Logger.warn('[FileArchiver] 読み込みの途中で盤面と卓が入れ替わったので、残りを読みません');
+        return;
+      }
       try {
         const file = renamed.size > 0 && isXmlCandidateFile(entry) ? await withImagesRenamed(entry, renamed) : entry;
         await this.loadFiles([file], dropPoint, false, tooLarge);
