@@ -1,6 +1,7 @@
 import { MAX_ROLLS_PER_WINDOW } from '@axe/core/network/server/server-protocol';
 import {
   ROLL_PACE_WINDOW_MS,
+  ROLL_RETRY_MS,
   SERVER_ROLL_WAIT_MS,
   ServerRollHooks,
   ServerRollRequests,
@@ -81,6 +82,32 @@ describe('ServerRollRequests', () => {
     expect(unanswered).toEqual([['line-1', 'not-allowed']]);
     expect(answered).toEqual([]);
     expect(requests.size).toBe(0);
+  });
+
+  it('asks once more, a little later, for a roll asked again that the server found invalid', () => {
+    ask('answer-1');
+    requests.askAgain();
+
+    requests.rejected('answer-1', 'invalid');
+    expect(unanswered).toEqual([]);
+    vi.advanceTimersByTime(ROLL_RETRY_MS - 1);
+    expect(sent).toEqual(['answer-1', 'answer-1']);
+    vi.advanceTimersByTime(1);
+    expect(sent).toEqual(['answer-1', 'answer-1', 'answer-1']);
+
+    requests.rejected('answer-1', 'invalid');
+    expect(unanswered).toEqual([['line', 'invalid']]);
+    expect(requests.size).toBe(0);
+  });
+
+  it('tells at once of a roll found invalid when first asked', () => {
+    ask('answer-1');
+
+    requests.rejected('answer-1', 'invalid');
+    vi.advanceTimersByTime(ROLL_RETRY_MS);
+
+    expect(unanswered).toEqual([['line', 'invalid']]);
+    expect(sent).toEqual(['answer-1']);
   });
 
   it('tells of a roll no answer came to in time, once', () => {

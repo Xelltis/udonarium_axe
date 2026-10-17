@@ -9,6 +9,13 @@ export const SERVER_ROLL_WAIT_MS = 60_000;
  */
 export const ROLL_PACE_WINDOW_MS = RATE_WINDOW_SECONDS * 1000 + 1000;
 
+/**
+ * How long after getting back in a roll the server found nowhere to put is asked for once more
+ * (milliseconds). Its tab may have been made while the link was down, and reaches the server only
+ * with the catalogs traded on getting back in, after the roll asked again.
+ */
+export const ROLL_RETRY_MS = 5_000;
+
 /** Why a roll asked of the server came to nothing: a reason the server gave, or no answer in time. */
 export type UnansweredRollReason = string;
 
@@ -31,6 +38,8 @@ interface PendingRoll {
   sourceIdentifier: string;
   request: Record<string, unknown>;
   timer: ReturnType<typeof setTimeout> | null;
+  /** Asked again on getting back in, and not yet asked once more for having been found invalid. */
+  askedAgain: boolean;
 }
 
 /**
@@ -63,7 +72,7 @@ export class ServerRollRequests {
   /** Asks for a roll whose answer will come under `answerIdentifier`. */
   ask(answerIdentifier: string, sourceIdentifier: string, request: Record<string, unknown>): void {
     if (this.pending.has(answerIdentifier)) return;
-    this.pending.set(answerIdentifier, { sourceIdentifier, request, timer: null });
+    this.pending.set(answerIdentifier, { sourceIdentifier, request, timer: null, askedAgain: false });
     this.waiting.push(answerIdentifier);
     this.pump();
   }
@@ -76,9 +85,22 @@ export class ServerRollRequests {
 
   /**
    * Gives up on a roll the server would not make. A line that is no command goes without a word,
-   * as one rolled here shows nothing either.
+   * as one rolled here shows nothing either. One asked again on getting back in that the server
+   * found invalid is asked for once more a little later instead, as its tab may not have reached
+   * the server yet.
    */
   rejected(identifier: string, reason: string): void {
+    const waiting = this.pending.get(identifier);
+    if (waiting?.askedAgain && reason === 'invalid') {
+      waiting.askedAgain = false;
+      this.stopWaiting(waiting);
+      waiting.timer = setTimeout(() => {
+        waiting.timer = null;
+        this.waiting.push(identifier);
+        this.pump();
+      }, ROLL_RETRY_MS);
+      return;
+    }
     const roll = this.settle(identifier);
     if (roll && reason !== 'not-a-command') this.hooks.unanswered(roll.sourceIdentifier, reason);
   }
@@ -87,7 +109,10 @@ export class ServerRollRequests {
   askAgain(): void {
     this.stopPacing();
     this.waiting = [...this.pending.keys()];
-    for (const roll of this.pending.values()) this.stopWaiting(roll);
+    for (const roll of this.pending.values()) {
+      this.stopWaiting(roll);
+      roll.askedAgain = true;
+    }
     this.pump();
   }
 
