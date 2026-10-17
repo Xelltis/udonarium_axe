@@ -1039,13 +1039,23 @@ export class ServerConnection implements Connection {
 
   /**
    * Notes the deletions written, for a while long enough for the server to turn them down: the
-   * notes older than a minute go once there are many.
+   * notes older than a minute go once there are many. A word that something comes back, or a change
+   * of it, written after its deletion takes the note away, as the deletion went through.
    */
   private rememberDeletions(events: EventContext[]): void {
     const now = Date.now();
     for (const event of events) {
       const identifier = identifierOf(event);
-      if (event.eventName === DELETION && identifier !== undefined) this.deletionsWritten.set(identifier, now);
+      if (event.eventName === COMING_BACK) {
+        const { identifiers } = event.data as { identifiers?: unknown };
+        if (Array.isArray(identifiers)) for (const id of identifiers) this.deletionsWritten.delete(String(id));
+      } else if (identifier === undefined) {
+        continue;
+      } else if (event.eventName === DELETION) {
+        this.deletionsWritten.set(identifier, now);
+      } else if (event.eventName === CHANGE) {
+        this.deletionsWritten.delete(identifier);
+      }
     }
     if (this.deletionsWritten.size <= MAX_HELD_BROADCASTS) return;
     for (const [identifier, at] of this.deletionsWritten) {

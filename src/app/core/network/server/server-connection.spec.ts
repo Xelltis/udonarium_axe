@@ -793,6 +793,42 @@ describe('ServerConnection', () => {
     expect(sent.map((sentEvent) => (sentEvent.data as { identifier: string }).identifier)).not.toContain(kept);
   });
 
+  it('still sends a deletion of what it brought back after deleting it, when the server hands that back for a change', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+    const socket = await enterRoom();
+    const line = (identifier: string) => ({ aliasName: 'chat', identifier, majorVersion: 2, syncData: {} });
+    connection.send([
+      event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: 'rolled' }),
+      event('FORGET_DELETED_OBJECTS', { identifiers: ['rolled'] }),
+      event('UPDATE_GAME_OBJECT', line('rolled')),
+    ]);
+    await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
+    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
+    const clearing = Array.from({ length: SEND_BUDGET_EVENTS * 2 }, (_, i) =>
+      event('DELETE_GAME_OBJECT', {
+        aliasName: 'chat',
+        identifier: i === SEND_BUDGET_EVENTS + 5 ? 'rolled' : `line-${i}`,
+      })
+    );
+    connection.send(clearing);
+    await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
+
+    socket.deliver({
+      type: 'data',
+      from: AUTHORITY_PEER_ID,
+      events: [{ eventName: 'AUTHORITATIVE_OBJECT', data: line('rolled'), sendFrom: AUTHORITY_PEER_ID }],
+    });
+    await vi.waitFor(() => expect(received.length).toBe(1));
+    await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS * 2);
+    await vi.waitFor(() => expect(connection.sendsPending).toBe(false));
+
+    const deleted = ((await socket.frames()) as { type: string; events?: EventContext[] }[])
+      .flatMap((frame) => (frame.type === 'send' ? (frame.events ?? []) : []))
+      .filter((sentEvent) => sentEvent.eventName === 'DELETE_GAME_OBJECT')
+      .map((sentEvent) => (sentEvent.data as { identifier: string }).identifier);
+    expect(deleted.filter((identifier) => identifier === 'rolled')).toHaveLength(2);
+  });
+
   it('still sends a deletion of what the server hands back for a change it turned down, the deletion being no part of it', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
     const socket = await enterRoom();
