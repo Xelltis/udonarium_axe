@@ -144,6 +144,16 @@ describe('Room', () => {
       expect(isTableWithheld()).toBe(false);
     });
 
+    it('leaves what the table is marked as alone when loaded onto a recording’s board shown in its place', () => {
+      setNetworkIsolated(true);
+      try {
+        loadWithheld(true);
+        expect(isTableWithheld()).toBe(false);
+      } finally {
+        setNetworkIsolated(false);
+      }
+    });
+
     it('marks it so when written', () => {
       const room = new Room();
       room.withheld = 'true';

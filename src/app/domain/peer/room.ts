@@ -1,3 +1,4 @@
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
@@ -101,7 +102,8 @@ export class Room extends GameObject implements InnerXml {
    *
    * Destroys the current tables and everything on them, then reads in the saved objects. Effect presets and
    * cut-ins are kept when the save carries none, the default sets are made when neither side has any, and every
-   * peek or hold on an object is cleared. Declining leaves the room untouched.
+   * peek or hold on an object is cleared. Declining leaves the room untouched. Loaded onto a recording's board
+   * shown in place of the table, it leaves what the table is marked as alone, as the table comes back after.
    */
   parseInnerXml(element: Element) {
     const withheld = element.getAttribute('withheld') === 'true';
@@ -143,7 +145,9 @@ export class Room extends GameObject implements InnerXml {
 
     const reLoadOk = this.reloadCheck.answerCheck();
     if (reLoadOk) {
-      markLoadedWithheld(withheld, getAuthorityPeerId() !== null && !PeerCursor.isMyselfGameMaster);
+      if (!isNetworkIsolated()) {
+        markLoadedWithheld(withheld, getAuthorityPeerId() !== null && !PeerCursor.isMyselfGameMaster);
+      }
       for (const object of objects) {
         object.destroy();
       }
