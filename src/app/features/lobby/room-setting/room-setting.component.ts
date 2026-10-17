@@ -11,6 +11,7 @@ import { saveIdentity } from '@axe/core/storage/identity-storage';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { LeaveRoomService } from '@axe/features/lobby/leave-room';
+import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -26,6 +27,7 @@ export class RoomSettingComponent {
   private readonly leaveRoomService = inject(LeaveRoomService);
   private readonly panelService = inject(PanelService);
   private readonly modalService = inject(ModalService);
+  private readonly reach = inject(NetworkReachService);
 
   readonly roomName = signal<string>(this.t('feature.lobby.roomSetting.defaultRoomName'));
   readonly password = signal<string>('');
@@ -41,6 +43,8 @@ export class RoomSettingComponent {
     this.objectChange.networkVersion();
     return Network.transport !== 'server' && !Network.isOpen;
   });
+  /** Whether that wait is over without a connection, every try to connect having failed, which only a reload mends. */
+  protected readonly unreachable = computed(() => this.waitingForConnection() && this.reach.unreachable());
 
   /** This browser's peer ID on the network. */
   get peerId(): string {
@@ -79,7 +83,7 @@ export class RoomSettingComponent {
    * this browser so it can find its way back after a reload.
    */
   createRoom() {
-    if (this.waitingForConnection()) return;
+    if (Network.transport !== 'server' && !Network.isOpen) return;
     if (Network.transport === 'server') {
       void this.createServerRoom();
       return;

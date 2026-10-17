@@ -73,7 +73,9 @@
   </div>
   @if (waitingForConnection()) {
     <p class="text-ui-dim mt-2 text-[0.75rem]" data-testid="room-setting-not-connected">
-      {{ 'feature.lobby.roomSetting.notConnected' | transloco }}
+      {{
+        (unreachable() ? 'feature.lobby.lobby.hintUnreachable' : 'feature.lobby.roomSetting.notConnected') | transloco
+      }}
     </p>
   }
   @if (createError()) {

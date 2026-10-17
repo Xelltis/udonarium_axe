@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
@@ -6,6 +7,7 @@ import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { clearIdentity, loadIdentity } from '@axe/core/storage/identity-storage';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { RoomSettingComponent } from '@axe/features/lobby/room-setting/room-setting.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -92,6 +94,39 @@ describe('RoomSettingComponent', () => {
     expect(open).not.toHaveBeenCalled();
     expect(create?.disabled).toBe(true);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('まだサーバーにつながっていません');
+    vi.restoreAllMocks();
+  });
+
+  it('makes no SkyWay room once the connection has gone since the form was opened, and says so after the word', async () => {
+    const isOpen = vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(true);
+    const open = vi.spyOn(Network, 'open').mockImplementation(() => {});
+    component.roomName.set('月夜の卓');
+    fixture.detectChanges();
+
+    isOpen.mockReturnValue(false);
+    component.createRoom();
+    expect(open).not.toHaveBeenCalled();
+
+    (
+      TestBed.inject(ObjectChangeService) as unknown as { _networkError$: { emit(e: unknown): void } }
+    )._networkError$.emit({ errorType: 'error', errorMessage: 'gone' });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    fixture.detectChanges();
+    const create = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '[data-testid="room-setting-create"]'
+    );
+    expect(create?.disabled).toBe(true);
+    vi.restoreAllMocks();
+  });
+
+  it('says to reload rather than to wait once the tries to connect have run out', () => {
+    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
+    TestBed.inject(NetworkReachService).giveUp();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('ページを再読み込みしてください');
+    expect(text).not.toContain('つながってから作成できます');
     vi.restoreAllMocks();
   });
 

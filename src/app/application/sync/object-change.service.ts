@@ -406,6 +406,7 @@ export class ObjectChangeService {
     this._peerConnect$.subscribe(bumpNetworkVersion, this.destroyRef);
     this._peerDisconnect$.subscribe(bumpNetworkVersion, this.destroyRef);
     this._peerReconnect$.subscribe(bumpNetworkVersion, this.destroyRef);
+    this._networkError$.subscribe(bumpNetworkVersion, this.destroyRef);
     peerStatsUpdated$.subscribe(() => this.peerStatsVersion.update((v) => v + 1), this.destroyRef);
     this.destroyRef.onDestroy(() => {
       if (netTimer !== null) clearTimeout(netTimer);
