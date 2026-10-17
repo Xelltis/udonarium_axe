@@ -199,6 +199,20 @@ describe('ReplayPlaybackService', () => {
     await service.exitBoardMode();
   });
 
+  it('jumps to the end without a step when only lines not shown are left', async () => {
+    const hidden = { ...moveEvent(2, 20, 10), visibility: GM_ONLY_VISIBILITY };
+    library.load.mockResolvedValue({ manifest: null, events: [moveEvent(1, 10, 0), hidden] });
+    await service.open(1);
+    await service.enterBoardMode();
+    const step = vi.spyOn(service as unknown as { stepBoardForward(event: ReplayEvent): void }, 'stepBoardForward');
+
+    await service.next();
+
+    expect(service.cursor()).toBe(1);
+    expect(step).not.toHaveBeenCalled();
+    await service.exitBoardMode();
+  });
+
   it('cuts itself off from the table when board playback begins', async () => {
     await service.open(1);
     expect(isNetworkIsolated()).toBe(false);

@@ -18,6 +18,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import type { PeerRole } from '@axe/domain/peer/peer-role';
 import { collectReplayCast, type ReplayCastMember } from '@axe/domain/replay/replay-cast';
 import { cloneSyncValue, isSameSyncValue, mergeSyncData, type SyncData } from '@axe/domain/replay/replay-diff';
 import {
@@ -222,12 +223,19 @@ export class ReplayPlaybackService {
 
   /**
    * Steps forward to the next event this reader is shown, the board taking in those passed on the
-   * way; to the end when none is left. The board is worked out up to the one before it, and the step
-   * onto it is taken as a step, so that it slides and sounds as any step does.
+   * way. The board is worked out up to the one before it, and the step onto it is taken as a step,
+   * so that it slides and sounds as any step does. When none is left, it jumps to the end, so that
+   * nothing kept from the reader slides or sounds.
    */
   async next(): Promise<void> {
     if (this.staging.isStaging()) return;
     const target = this.shownFrom(this._cursor() + 1, 1);
+    if (!this.isShownAt(target)) {
+      if (target <= this._cursor()) return;
+      this._cursor.set(target);
+      if (this._isBoardMode()) await this.applyBoard(target);
+      return;
+    }
     if (target > this._cursor() + 1) {
       this._cursor.set(target - 1);
       if (this._isBoardMode()) await this.applyBoard(target - 1);
@@ -240,10 +248,21 @@ export class ReplayPlaybackService {
     await this.seekTo(this.shownFrom(this._cursor() - 1, -1));
   }
 
+  /** Whether the event at `index` is one this reader is shown. */
+  private isShownAt(index: number): boolean {
+    const event = this._events()[index];
+    return event !== undefined && isShownReplayEvent(event, this.reader());
+  }
+
+  /** Who reads the recording, as its events are judged shown or not. */
+  private reader(): { userId: string; role: PeerRole } {
+    return { userId: PeerCursor.myCursor?.userId ?? '', role: PeerCursor.myRole };
+  }
+
   /** The first event from `index` on, going `step`, this reader is shown, or the end reached. */
   private shownFrom(index: number, step: 1 | -1): number {
     const events = this._events();
-    const viewer = { userId: PeerCursor.myCursor?.userId ?? '', role: PeerCursor.myRole };
+    const viewer = this.reader();
     for (let at = index; at >= 0 && at < events.length; at += step) {
       if (isShownReplayEvent(events[at], viewer)) return at;
     }
