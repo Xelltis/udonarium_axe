@@ -327,8 +327,9 @@ export class FileArchiver {
     for (const entry of entries) {
       try {
         const type = entry.type || (await imageTypeOf(entry.blob));
-        const file = new File([entry.blob], entry.name, { type });
-        if (type.startsWith('image/') && !SAVED_IMAGE_NAME.test(baseNameOf(entry.name))) {
+        const saved = type.startsWith('image/') && SAVED_IMAGE_NAME.test(baseNameOf(entry.name));
+        const file = new File([entry.blob], saved ? baseNameOf(entry.name) : entry.name, { type });
+        if (type.startsWith('image/') && !saved) {
           await this.loadArchivedImage(file, renamed, tooLarge);
         } else {
           rest.push(file);

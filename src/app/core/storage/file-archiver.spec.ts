@@ -349,6 +349,16 @@ describe('FileArchiver', () => {
       expect(xml[0]).not.toContain(original);
     });
 
+    it.each([
+      ['as saved', ''],
+      ['packed again inside a folder', 'save/'],
+    ])('hands a picture saved under its own id to the store under that name alone, %s', async (_name, folder) => {
+      const saved = 'a'.repeat(64);
+      const { added } = await loaded({ [`${folder}${saved}.png`]: PNG });
+
+      expect(added).toEqual([`${saved}.png`]);
+    });
+
     it('leaves alone room data that names a picture saved under its own id, and a longer run of hex digits', async () => {
       const saved = 'a'.repeat(64);
       const longer = 'c'.repeat(80);
