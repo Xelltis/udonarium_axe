@@ -7,6 +7,8 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { Network } from '@axe/core/network/network';
+import { localDispatch } from '@axe/core/network/network-messaging';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
@@ -67,6 +69,25 @@ describe('ChatInputComponent', () => {
     character.chatBubbleDark = ['#444444', '#555555', '#666666'];
     return character;
   }
+
+  it('moves a whisper onto the cursor its target came back on, once the one it left is taken away', () => {
+    const before = new PeerCursor('bob-before');
+    before.initialize();
+    before.userId = 'user-bob';
+    const after = new PeerCursor('bob-after');
+    after.initialize();
+    after.userId = 'user-bob';
+    try {
+      component.sendTo = 'bob-before';
+
+      ObjectStore.instance.remove(before);
+      localDispatch('DELETE_GAME_OBJECT', { aliasName: PeerCursor.aliasName, identifier: 'bob-before' }, 'peer-b');
+
+      expect(component.sendTo).toBe('bob-after');
+    } finally {
+      ObjectStore.instance.remove(after);
+    }
+  });
 
   it('sends a guest’s lines in the guest’s own colours, which their colour panel sets, not the piece’s', () => {
     const character = speaker('ヒロ');

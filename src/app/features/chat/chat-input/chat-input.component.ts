@@ -307,6 +307,14 @@ export class ChatInputComponent {
         this.sendTo = '';
       }
     }, this.destroyRef);
+    this.objectChange.onObjectChangedForAlias(
+      [PeerCursor.aliasName],
+      () => this.followWhisperTarget(),
+      this.destroyRef
+    );
+    this.objectChange.objectDeleted$.subscribe((event) => {
+      if (event.identifier === this.sendTo) this.followWhisperTarget();
+    }, this.destroyRef);
     this.destroyRef.onDestroy(() => {
       this.batchService.remove(this);
       if (this.writingEventInterval) {
@@ -552,6 +560,16 @@ export class ChatInputComponent {
     return this.objectStore
       .getObjects(PeerCursor)
       .filter((peer) => peer === this.myPeer || peer.identifier === this.sendTo || mayBeChosen(peer));
+  }
+
+  /**
+   * Moves the whisper onto the cursor its target came back on, as after the target opened the page
+   * again, so that the choice shows who it still goes to.
+   */
+  private followWhisperTarget(): void {
+    if (!this.sendTo) return;
+    const standing = PeerCursor.standingFor(this.sendTo);
+    if (standing && standing.identifier !== this.sendTo) this.sendTo = standing.identifier;
   }
 
   private calcFitHeightInterval: ReturnType<typeof setTimeout> | null = null;

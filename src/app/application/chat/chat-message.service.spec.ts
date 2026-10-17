@@ -628,6 +628,29 @@ describe('ChatMessageService', () => {
 
       expect(message.to).toBe('cursor-away');
     });
+
+    it('sends a whisper to a cursor that went to the user it stood for, named as the cursor they came back on', () => {
+      const service = TestBed.inject(ChatMessageService);
+      PeerCursor.createMyCursor();
+      const chatTab = new ChatTab();
+      chatTab.initialize();
+      ObjectStore.instance.add(chatTab);
+      const before = new PeerCursor('bob-before');
+      before.initialize();
+      before.userId = 'user-bob';
+      ObjectStore.instance.remove(before);
+
+      const away = service.sendMessage(chatTab, 'ないしょ', null, PeerCursor.myCursor.identifier, 'bob-before');
+      const after = new PeerCursor('bob-after');
+      after.initialize();
+      after.userId = 'user-bob';
+      after.name = 'ボブ';
+      const back = service.sendMessage(chatTab, 'ないしょ', null, PeerCursor.myCursor.identifier, 'bob-before');
+
+      expect([away.to, back.to]).toEqual(['user-bob', 'user-bob']);
+      expect(back.name.endsWith(' > ボブ')).toBe(true);
+      ObjectStore.instance.remove(after);
+    });
   });
 
   describe('how the speaker’s dice look', () => {

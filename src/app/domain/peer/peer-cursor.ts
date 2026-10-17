@@ -12,6 +12,9 @@ import { Vote } from '@axe/domain/vote/vote';
 
 const PEER_DISCONNECT_TIMEOUT_MS = 30_000;
 
+/** How many cursors that went are remembered by the user they stood for. */
+const GONE_CURSORS_KEPT = 256;
+
 /** The name a cursor starts with, until the reader gives one. */
 export const DEFAULT_CURSOR_NAME = 'プレイヤー';
 /** The picture a cursor starts with, the plain avatar, until the reader chooses one. */
@@ -223,6 +226,8 @@ export class PeerCursor extends GameObject {
   static myCursor: PeerCursor = null!;
   private static userIdMap: Map<UserId, ObjectIdentifier> = new Map();
   private static peerIdMap: Map<PeerId, ObjectIdentifier> = new Map();
+  /** The user each cursor that left the store stood for, by its identifier, the latest last. */
+  private static goneUserIds: Map<ObjectIdentifier, UserId> = new Map();
   chatColorCode: string[] = [...DEFAULT_CHAT_COLOR_CODES];
   /** The bubble each colour is shown on, per theme. An empty entry is worked out instead. */
   chatBubbleLight: string[] = [...DEFAULT_CHAT_BUBBLE_CODES];
@@ -326,6 +331,33 @@ export class PeerCursor extends GameObject {
     this.cleanups = [];
     if (PeerCursor.userIdMap.get(this.userId) === this.identifier) PeerCursor.userIdMap.delete(this.userId);
     if (PeerCursor.peerIdMap.get(this.peerId) === this.identifier) PeerCursor.peerIdMap.delete(this.peerId);
+    if (this.userId.length < 1) return;
+    PeerCursor.goneUserIds.delete(this.identifier);
+    PeerCursor.goneUserIds.set(this.identifier, this.userId);
+    if (PeerCursor.goneUserIds.size > GONE_CURSORS_KEPT) {
+      PeerCursor.goneUserIds.delete(PeerCursor.goneUserIds.keys().next().value as ObjectIdentifier);
+    }
+  }
+
+  /**
+   * The user a cursor stands for, by its identifier: while it is here, or after it went, as when
+   * its seat opened the page again and came back on a cursor of another name. Empty for one never
+   * seen here.
+   */
+  static userIdOf(identifier: ObjectIdentifier): UserId {
+    const cursor = ObjectStore.instance.get(identifier);
+    if (cursor instanceof PeerCursor) return cursor.userId;
+    return PeerCursor.goneUserIds.get(identifier) ?? '';
+  }
+
+  /**
+   * The cursor that stands now for the user a cursor stood for: the cursor itself while it is here,
+   * or the one its user came back on. Null when the user is not here.
+   */
+  static standingFor(identifier: ObjectIdentifier): PeerCursor | null {
+    const cursor = ObjectStore.instance.get(identifier);
+    if (cursor instanceof PeerCursor) return cursor;
+    return PeerCursor.findByUserId(PeerCursor.userIdOf(identifier));
   }
 
   /**

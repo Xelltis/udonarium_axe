@@ -18,6 +18,7 @@ describe('PeerCursor', () => {
     PeerCursor.myCursor = null!;
     (PeerCursor as unknown as Record<string, unknown>)['userIdMap'] = new Map();
     (PeerCursor as unknown as Record<string, unknown>)['peerIdMap'] = new Map();
+    (PeerCursor as unknown as Record<string, unknown>)['goneUserIds'] = new Map();
   });
 
   afterEach(() => {
@@ -224,6 +225,24 @@ describe('PeerCursor', () => {
 
       expect(PeerCursor.findByUserId('guest-1')).toBeNull();
       expect(PeerCursor.findByUserId('acct_1')).toBe(cursor);
+    });
+
+    it('stands for the user a cursor that went stood for, through the one that user came back on', () => {
+      const before = new PeerCursor('cursor-before');
+      before.initialize();
+      before.userId = 'user-bob';
+      store.remove(before);
+
+      expect(PeerCursor.userIdOf('cursor-before')).toBe('user-bob');
+      expect(PeerCursor.standingFor('cursor-before')).toBeNull();
+      const after = new PeerCursor('cursor-after');
+      after.initialize();
+      after.userId = 'user-bob';
+
+      expect(PeerCursor.standingFor('cursor-before')).toBe(after);
+      expect(PeerCursor.standingFor('cursor-after')).toBe(after);
+      expect(PeerCursor.userIdOf('never-here')).toBe('');
+      store.remove(after);
     });
 
     it('matches no unset cursor for an empty identifier', () => {

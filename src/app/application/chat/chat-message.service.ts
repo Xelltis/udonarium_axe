@@ -530,11 +530,12 @@ export class ChatMessageService {
   }
 
   /**
-   * Whom a whisper goes to. One whose target is not here at the moment, as while its cursor is on
-   * its way back, stays addressed to the target rather than going out to everybody.
+   * Whom a whisper goes to. One whose target's cursor is not here at the moment, as while it is on
+   * its way back or after its seat opened the page again, goes to the user it stood for rather than
+   * out to everybody.
    */
   private whisperTo(identifier: string): string {
-    return this.findId(identifier) || identifier;
+    return this.findId(identifier) || PeerCursor.userIdOf(identifier) || identifier;
   }
 
   private findId(identifier: string): string {
@@ -560,7 +561,7 @@ export class ChatMessageService {
     } else if (object instanceof PeerCursor) {
       return object.name;
     }
-    return identifier;
+    return PeerCursor.standingFor(identifier)?.name ?? identifier;
   }
 
   private makeMessageName(sendFrom: string, sendTo?: string): string {
