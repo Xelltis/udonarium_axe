@@ -780,13 +780,17 @@ describe('ServerConnection', () => {
     await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
     await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
     const kept = `line-${SEND_BUDGET_EVENTS + 5}`;
-    const handedBack = (identifier: string) => ({
+    const handedBack = (identifier: string, parentIdentifier: string) => ({
       eventName: 'AUTHORITATIVE_OBJECT',
-      data: { identifier },
+      data: { identifier, syncData: { parentIdentifier } },
       sendFrom: AUTHORITY_PEER_ID,
     });
 
-    socket.deliver({ type: 'data', from: AUTHORITY_PEER_ID, events: [handedBack('tab-1'), handedBack(kept)] });
+    socket.deliver({
+      type: 'data',
+      from: AUTHORITY_PEER_ID,
+      events: [handedBack('tab-1', 'chat-tab-list'), handedBack(kept, 'tab-1')],
+    });
     await vi.waitFor(() => expect(received.length).toBe(1));
     await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
     await vi.waitFor(() => expect(connection.sendsPending).toBe(false));
@@ -858,6 +862,33 @@ describe('ServerConnection', () => {
       frame.type === 'send' ? (frame.events ?? []) : []
     );
     expect(sent.map((sentEvent) => (sentEvent.data as { identifier: string }).identifier)).toContain(die);
+  });
+
+  it('still sends a deletion of what comes back for a change together with what it deleted already', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+    const socket = await enterRoom();
+    const deletions = Array.from({ length: SEND_BUDGET_EVENTS * 2 }, (_, i) =>
+      event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
+    );
+    connection.send(deletions);
+    await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
+    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
+    const handedBack = (identifier: string) => ({
+      eventName: 'AUTHORITATIVE_OBJECT',
+      data: { identifier, syncData: { parentIdentifier: 'tab-1' } },
+      sendFrom: AUTHORITY_PEER_ID,
+    });
+    const later = `line-${SEND_BUDGET_EVENTS + 5}`;
+
+    socket.deliver({ type: 'data', from: AUTHORITY_PEER_ID, events: [handedBack('line-5'), handedBack(later)] });
+    await vi.waitFor(() => expect(received.length).toBe(1));
+    await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
+    await vi.waitFor(() => expect(connection.sendsPending).toBe(false));
+
+    const sent = ((await socket.frames()) as { type: string; events?: EventContext[] }[]).flatMap((frame) =>
+      frame.type === 'send' ? (frame.events ?? []) : []
+    );
+    expect(sent.map((sentEvent) => (sentEvent.data as { identifier: string }).identifier)).toContain(later);
   });
 
   it('keeps two steps inside the server’s window should the first come in late', () => {

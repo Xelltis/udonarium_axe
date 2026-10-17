@@ -128,6 +128,12 @@ function identifierOf(event: EventContext): string | undefined {
   return typeof identifier === 'string' ? identifier : undefined;
 }
 
+/** The parent an object's context names, when it names one. */
+function parentOf(event: EventContext): string | undefined {
+  const parent = (event.data as { syncData?: { parentIdentifier?: unknown } } | null)?.syncData?.parentIdentifier;
+  return typeof parent === 'string' && parent !== '' ? parent : undefined;
+}
+
 /**
  * The batches with only the last change of each object kept between deletions and words on what
  * comes back, at its place: one dragged while getting back into the room goes once, as it stands
@@ -798,20 +804,30 @@ export class ServerConnection implements Connection {
    * Drops the deletions yet to go out of what the server hands back on turning down a deletion this
    * link carried, as a tab a player may not delete and its lines, which come back with it: sent
    * after the server's while for keeping them is up, as after getting back into the room, they would
-   * delete those lines for everyone. What it hands back for a change turned down keeps the deletions
-   * behind it, the server not having turned those down, or only the object would stay, emptied.
+   * delete those lines for everyone. Only what was deleted here, and what comes back under it, is
+   * taken so. What else comes back with it, handed back for a change turned down, keeps the
+   * deletions behind it, the server not having turned those down, or only the object would stay,
+   * emptied.
    */
   private keepWhatTheServerHandsBack(events: EventContext[]): void {
     const authority = this.authority?.peerId;
-    const handedBack = new Set(
-      events.flatMap((event) =>
-        event.eventName === AuthorityEvent.AUTHORITATIVE && event.sendFrom === authority
-          ? [identifierOf(event)].filter((id): id is string => id !== undefined)
-          : []
-      )
-    );
-    if (![...handedBack].some((identifier) => this.deletionsWritten.has(identifier))) return;
-    const unless = (event: EventContext) => event.eventName !== DELETION || !handedBack.has(identifierOf(event) ?? '');
+    const parents = new Map<string, string | undefined>();
+    for (const event of events) {
+      const identifier = identifierOf(event);
+      if (event.eventName !== AuthorityEvent.AUTHORITATIVE || event.sendFrom !== authority || !identifier) continue;
+      parents.set(identifier, parentOf(event));
+    }
+    const underDeletion = (identifier: string) => {
+      let at: string | undefined = identifier;
+      for (let step = 0; at !== undefined && step <= parents.size; step++) {
+        if (this.deletionsWritten.has(at)) return true;
+        at = parents.get(at);
+      }
+      return false;
+    };
+    const kept = new Set([...parents.keys()].filter(underDeletion));
+    if (kept.size === 0) return;
+    const unless = (event: EventContext) => event.eventName !== DELETION || !kept.has(identifierOf(event) ?? '');
     for (const batch of [...this.held, ...this.unwritten, ...this.outbound]) {
       if (batch.events.some((event) => !unless(event))) batch.events = batch.events.filter(unless);
     }
