@@ -107,6 +107,18 @@ describe('ReplayIndicatorComponent', () => {
     expect(mark).toHaveBeenCalledWith('第二幕');
   });
 
+  it('shows the detail level and how many to keep that are in use, not the first of each', async () => {
+    localStorage.setItem('axe-replay-preference', JSON.stringify({ detailLevel: 'notable', keepCount: 5 }));
+    await setup();
+    pill()?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const [level, keep] = [...fixture.nativeElement.querySelectorAll('select')] as HTMLSelectElement[];
+    expect(level.value).toBe(ReplayDetailLevel.Notable);
+    expect(keep.value).toBe('5');
+  });
+
   it('marks nothing without one', async () => {
     await setup();
     pill()?.click();

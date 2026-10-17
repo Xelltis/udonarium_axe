@@ -71,7 +71,11 @@ export class ReplayIndicatorComponent {
   }
 
   protected keepCountValue(): string {
-    const count = this.preference.keepCount();
+    return this.keepValueOf(this.preference.keepCount());
+  }
+
+  /** How a choice of how many recordings to keep is written in the select. */
+  protected keepValueOf(count: number | null | undefined): string {
     return count == null ? 'all' : String(count);
   }
 

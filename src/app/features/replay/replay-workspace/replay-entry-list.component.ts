@@ -135,6 +135,8 @@ export class ReplayEntryListComponent {
 
   protected readonly insertKind = signal<ReplayEventKind>(ReplayEventKind.ChatMessage);
   protected readonly insertCastId = signal('');
+  /** Whether the speaker of the line to add is this one of the cast, or nobody of it for ''. */
+  protected readonly isCastChosen = (identifier: string): boolean => this.insertCastId() === identifier;
   protected readonly insertSpeaker = signal('');
   protected readonly insertActorId = signal('');
   protected readonly insertText = signal('');

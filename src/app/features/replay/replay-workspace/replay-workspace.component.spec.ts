@@ -404,7 +404,7 @@ describe('ReplayWorkspaceComponent', () => {
     fixture.detectChanges();
 
     const selects = [...fixture.nativeElement.querySelectorAll('select')] as HTMLSelectElement[];
-    const speaker = selects.find((select) => [...select.options].some((option) => option.text === '魔術師'))!;
+    const speaker = selects.find((select) => [...select.options].some((option) => option.text.trim() === '魔術師'))!;
     speaker.value = 'c2';
     speaker.dispatchEvent(new Event('change'));
     fixture.detectChanges();
