@@ -7,13 +7,13 @@ import {
   PACE_WINDOW_MS,
   PING_INTERVAL_MS,
   PONG_TIMEOUT_MS,
-  WELCOME_TIMEOUT_MS,
   SEND_BUDGET_EVENTS,
   SEND_BUDGET_FRAMES,
   SEND_GATHER_MS,
   SEND_WINDOW_MS,
   ServerConnection,
   TOKEN_CHECK_MS,
+  WELCOME_TIMEOUT_MS,
 } from '@axe/core/network/server/server-connection';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { decodeFrame, MAX_FRAME_BYTES } from '@axe/core/network/server/server-frames';
