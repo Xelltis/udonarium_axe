@@ -158,4 +158,25 @@ describe('parseReplayArchive()', () => {
     const content = await parseReplayArchive(nested);
     expect(content?.events.map((e) => e.seq)).toEqual([1]);
   });
+
+  it('reads one macOS packed again, passing over the resource forks it added', async () => {
+    const APPLE_DOUBLE = new Uint8Array([0x00, 0x05, 0x16, 0x07, 0x00, 0x02, 0x00, 0x00]);
+    const files = buildReplayArchiveFiles({
+      manifest,
+      chunks: [{ index: 0, events: [event(1)] }],
+      keyframes: [],
+      assets: [],
+    });
+    const packed = files.flatMap((file) => [
+      { name: `replay_20260102/${file.name}`, blob: file },
+      {
+        name: `__MACOSX/replay_20260102/${file.name.replace(/[^/]+$/, (base) => `._${base}`)}`,
+        blob: new Blob([APPLE_DOUBLE]),
+      },
+    ]);
+
+    const content = await parseReplayArchive(packed);
+
+    expect(content?.events.map((e) => e.seq)).toEqual([1]);
+  });
 });
