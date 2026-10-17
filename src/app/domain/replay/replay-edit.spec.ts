@@ -173,6 +173,18 @@ describe('chatTabIdentifierNear()', () => {
   it('returns nothing when there is none either way', () => {
     expect(chatTabIdentifierNear([event(1)], 0)).toBe('');
   });
+
+  it('passes over a whisper, a secret roll and what is no line, which say nothing of a tab to write in', () => {
+    const events: ReplayEvent[] = [
+      { ...event(1), detail: { text: '一', tabIdentifier: 'main-tab' } },
+      { ...event(2), detail: { text: '二', tabIdentifier: 'gm-tab' }, visibility: { kind: 'direct', to: ['bob'] } },
+      { ...event(3), detail: { tabIdentifier: 'gm-tab', tag: 'DiceBot secret' } },
+      { ...event(4), kind: ReplayEventKind.VnPlayhead, detail: { tabIdentifier: 'gm-tab' } },
+    ];
+
+    expect(chatTabIdentifierNear(events, 4)).toBe('main-tab');
+    expect(chatTabIdentifierNear(events.slice(1), 0)).toBe('');
+  });
 });
 
 describe('tabVisibilityNear()', () => {

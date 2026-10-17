@@ -29,18 +29,33 @@ export interface ReplayEntryDraft {
 export const DICEBOT_SENDER = 'System-BCDice';
 
 /**
- * The chat tab of the nearest event before a position that names one, or failing that the
- * nearest after, so a line inserted there lands in the same tab. Only events the editor `sees` are
- * looked at, so a line is not put in a tab kept from whoever writes it.
+ * Whether a line speaks for who could read its tab: a chat or dice line said to the tab, rather
+ * than a whisper or a secret roll kept to its own readers (an older recording kept a secret roll to
+ * the GM), and one the editor `sees`.
+ */
+function speaksForTab(event: ReplayEvent, sees: (event: ReplayEvent) => boolean): boolean {
+  return (
+    (event.kind === ReplayEventKind.ChatMessage || event.kind === ReplayEventKind.ChatDice) &&
+    event.visibility.kind !== 'direct' &&
+    !String(event.detail['tag'] ?? '').includes('secret') &&
+    sees(event)
+  );
+}
+
+/**
+ * The chat tab of the nearest line before a position that names one, or failing that the nearest
+ * after, so a line inserted there lands in the same tab. Only lines said to their tab that the
+ * editor `sees` are looked at, so a line is not put in a tab kept from whoever writes it, as a
+ * whisper to them there would.
  *
- * Empty when no event names a tab.
+ * Empty when no line names a tab.
  */
 export function chatTabIdentifierNear(
   events: readonly ReplayEvent[],
   atIndex: number,
   sees: (event: ReplayEvent) => boolean = () => true
 ): string {
-  const tabOf = (event: ReplayEvent) => (sees(event) ? String(event.detail['tabIdentifier'] ?? '') : '');
+  const tabOf = (event: ReplayEvent) => (speaksForTab(event, sees) ? String(event.detail['tabIdentifier'] ?? '') : '');
   for (let index = Math.min(atIndex, events.length) - 1; index >= 0; index--) {
     const tab = tabOf(events[index]);
     if (tab.length > 0) return tab;
@@ -54,9 +69,8 @@ export function chatTabIdentifierNear(
 
 /**
  * Who could read a tab at a position, as the nearest line said in it before, or failing that
- * after, was kept: a line inserted there is kept the same way. A whisper or a secret roll, kept to
- * its own readers (an older recording kept a secret roll to the GM), says nothing of the tab and
- * is passed over, as is a line the editor does not `see`. Public when no line says.
+ * after, was kept: a line inserted there is kept the same way. Only lines that speak for their tab
+ * are looked at. Public when no line says.
  */
 export function tabVisibilityNear(
   events: readonly ReplayEvent[],
@@ -64,12 +78,7 @@ export function tabVisibilityNear(
   tabIdentifier: string,
   sees: (event: ReplayEvent) => boolean = () => true
 ): ReplayVisibility {
-  const says = (event: ReplayEvent) =>
-    (event.kind === ReplayEventKind.ChatMessage || event.kind === ReplayEventKind.ChatDice) &&
-    event.detail['tabIdentifier'] === tabIdentifier &&
-    event.visibility.kind !== 'direct' &&
-    !String(event.detail['tag'] ?? '').includes('secret') &&
-    sees(event);
+  const says = (event: ReplayEvent) => event.detail['tabIdentifier'] === tabIdentifier && speaksForTab(event, sees);
   for (let index = Math.min(atIndex, events.length) - 1; index >= 0; index--) {
     if (says(events[index])) return events[index].visibility;
   }
