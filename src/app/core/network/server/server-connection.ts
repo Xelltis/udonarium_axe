@@ -63,16 +63,17 @@ export const SEND_WINDOW_MS = 10_000;
  */
 export const PACE_WINDOW_MS = SEND_WINDOW_MS + 1000;
 /**
- * How many events a seat writes in PACE_WINDOW_MS at most, three quarters of the 20,000 past which
- * the server cuts the connection off. A tab of many lines deleted, or a big room loaded again, goes
- * out over a few windows rather than losing the seat and what was over. The events stay in the order
- * they were sent, whoever they go to; only the connection's own messages are not held back.
+ * How many events a seat writes in PACE_WINDOW_MS at most, under half of the 20,000 past which the
+ * server cuts the connection off, so that two steps taken into one of its windows, the first held up
+ * on the way, still keep inside it. A tab of many lines deleted, or a big room loaded again, goes out
+ * over a few windows rather than losing the seat and what was over. The events stay in the order they
+ * were sent, whoever they go to; only the connection's own messages are not held back.
  */
-export const SEND_BUDGET_EVENTS = 15_000;
-/** How many frames a seat writes in PACE_WINDOW_MS at most, three quarters of the server's 2,000. */
-export const SEND_BUDGET_FRAMES = 1_500;
+export const SEND_BUDGET_EVENTS = 9_000;
+/** How many frames a seat writes in PACE_WINDOW_MS at most, under half of the server's 2,000. */
+export const SEND_BUDGET_FRAMES = 900;
 /** How many events go out in one batch at most, so that the budget fills in steps. */
-const SEND_CHUNK_EVENTS = 2_500;
+const SEND_CHUNK_EVENTS = 1_500;
 /** How long an invite request waits for the server's answer. */
 export const INVITE_TIMEOUT_MS = 10_000;
 /**

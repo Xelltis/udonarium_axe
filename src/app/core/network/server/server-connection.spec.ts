@@ -8,6 +8,7 @@ import {
   PING_INTERVAL_MS,
   PONG_TIMEOUT_MS,
   SEND_BUDGET_EVENTS,
+  SEND_BUDGET_FRAMES,
   SEND_GATHER_MS,
   SEND_WINDOW_MS,
   ServerConnection,
@@ -680,7 +681,7 @@ describe('ServerConnection', () => {
   it('spreads many deletions over the server’s windows rather than going past its limit and being cut off', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
     const socket = await enterRoom();
-    const deletions = Array.from({ length: 30_000 }, (_, i) =>
+    const deletions = Array.from({ length: SEND_BUDGET_EVENTS * 2 }, (_, i) =>
       event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
     );
     const written = async () =>
@@ -697,13 +698,18 @@ describe('ServerConnection', () => {
     expect(await written()).toBe(SEND_BUDGET_EVENTS);
 
     await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS - SEND_WINDOW_MS);
-    await vi.waitFor(async () => expect(await written()).toBe(30_000));
+    await vi.waitFor(async () => expect(await written()).toBe(SEND_BUDGET_EVENTS * 2));
+  });
+
+  it('keeps two steps inside the server’s window should the first come in late', () => {
+    expect(SEND_BUDGET_EVENTS * 2).toBeLessThanOrEqual(20_000);
+    expect(SEND_BUDGET_FRAMES * 2).toBeLessThanOrEqual(2_000);
   });
 
   it('writes its own messages while a big load waits for room, and the events behind it in order', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
     const socket = await enterRoom();
-    const deletions = Array.from({ length: 20_000 }, (_, i) =>
+    const deletions = Array.from({ length: SEND_BUDGET_EVENTS * 2 - 1 }, (_, i) =>
       event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
     );
     connection.send(deletions);
@@ -724,7 +730,7 @@ describe('ServerConnection', () => {
       const frames = (await socket.frames()) as { type: string; to?: string; events?: EventContext[] }[];
       const sends = frames.filter((frame) => frame.type === 'send');
       expect(sends.at(-1)).toEqual({ type: 'send', to: AUTHORITY_PEER_ID, events: [roleRequest] });
-      expect(sends.flatMap((frame) => frame.events ?? [])).toHaveLength(20_001);
+      expect(sends.flatMap((frame) => frame.events ?? [])).toHaveLength(SEND_BUDGET_EVENTS * 2);
     });
   });
 
@@ -781,7 +787,7 @@ describe('ServerConnection', () => {
   it('says it has sends pending while they are on their way out, and none once they have gone or only gather', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
     const socket = await enterRoom();
-    const deletions = Array.from({ length: 20_000 }, (_, i) =>
+    const deletions = Array.from({ length: SEND_BUDGET_EVENTS * 2 }, (_, i) =>
       event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
     );
 
@@ -793,14 +799,14 @@ describe('ServerConnection', () => {
     await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
     expect(connection.sendsPending).toBe(true);
 
-    await vi.advanceTimersByTimeAsync(SEND_WINDOW_MS);
+    await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
     await vi.waitFor(() => expect(connection.sendsPending).toBe(false));
   });
 
   it('stops waiting to write when the link goes, keeping the deletions for the next', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
     const socket = await enterRoom();
-    const deletions = Array.from({ length: 20_000 }, (_, i) =>
+    const deletions = Array.from({ length: SEND_BUDGET_EVENTS * 2 }, (_, i) =>
       event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
     );
     connection.send(deletions);
@@ -810,7 +816,7 @@ describe('ServerConnection', () => {
     socket.close(1006);
     const sent = await sentOnceBack();
 
-    expect(sent).toHaveLength(20_000 - SEND_BUDGET_EVENTS);
+    expect(sent).toHaveLength(SEND_BUDGET_EVENTS);
     expect(sent[0]).toEqual(deletions[SEND_BUDGET_EVENTS]);
   });
 
