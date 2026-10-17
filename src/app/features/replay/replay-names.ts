@@ -1,3 +1,4 @@
+import { AUTHORITY_PEER_ID } from '@axe/core/network/server/server-protocol';
 import { type ReplayManifest, resolveSnapshotAt } from '@axe/domain/replay/replay-event';
 import type { ReplayNameLookup } from '@axe/features/replay/replay-log-line';
 
@@ -63,7 +64,7 @@ export function replayNamesAt(dictionary: ReplayDictionary, seq: number): Replay
 
 /**
  * Every actor in the recording under the last name recorded for them, followed by any of the given
- * ids the dictionary does not know, named by the id.
+ * ids the dictionary does not know, named by the id. The room server is nobody at the table.
  */
 export function replayActorsOf(
   dictionary: ReplayDictionary,
@@ -72,5 +73,6 @@ export function replayActorsOf(
   const seen = new Map<string, string>();
   for (const actor of dictionary.actors) seen.set(actor.userId, actor.name || actor.userId);
   for (const userId of fallbackIds) if (!seen.has(userId)) seen.set(userId, userId);
+  seen.delete(AUTHORITY_PEER_ID);
   return [...seen].map(([userId, name]) => ({ userId, name }));
 }

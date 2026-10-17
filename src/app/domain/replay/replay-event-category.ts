@@ -56,8 +56,9 @@ const BOARD_KINDS: ReadonlySet<ReplayEventKind> = new Set([
 export const REPLAY_PART_FLAG = 'part';
 
 /**
- * The detail flag that marks a chat line said before recording began, handed over only later, as
- * a room server does with a tab that comes into view. It belongs to the board, not the story.
+ * The detail flag that marks what belongs to the board, not the story: a chat line said before
+ * recording began, or told already, handed over only later, as a room server does with a tab that
+ * comes into view, and what a room server takes away of its own accord.
  */
 export const REPLAY_CAUGHT_UP_FLAG = 'caughtUp';
 

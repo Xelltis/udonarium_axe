@@ -398,6 +398,36 @@ describe('ReplayRecorderService', () => {
       expect(changed?.actorId).toBe('alice');
     });
 
+    it('tells a line handed back again only once, keeping the second to the board', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      const line = context('said-once', 'chat', {
+        value: 'こんにちは',
+        attributes: { from: 'alice', tag: '', timestamp: Date.now() },
+      });
+
+      localDispatch('UPDATE_GAME_OBJECT', line, 'peer-a');
+      localDispatch('WITHDRAW_GAME_OBJECT', { identifier: 'said-once', aliasName: 'chat' }, '@authority');
+      localDispatch('AUTHORITATIVE_OBJECT', line, '@authority');
+
+      const lines = service.recentEvents().filter((event) => event.kind === ReplayEventKind.ChatMessage);
+      expect(lines.map((event) => replayEventCategory(event))).toEqual([
+        ReplayEventCategory.Story,
+        ReplayEventCategory.Hidden,
+      ]);
+    });
+
+    it('keeps what the server takes away of its own accord to the board', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      localDispatch('WITHDRAW_GAME_OBJECT', { identifier: 'left-cursor', aliasName: 'PeerCursor' }, '@authority');
+
+      const [taken] = service.recentEvents();
+      expect(taken.kind).toBe(ReplayEventKind.ObjectRemove);
+      expect(replayEventCategory(taken)).toBe(ReplayEventCategory.Hidden);
+    });
+
     it('keeps a line said before recording began, handed over by the server only later, out of the story', async () => {
       await service.start();
       vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);

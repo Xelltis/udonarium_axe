@@ -107,6 +107,8 @@ export class ReplayRecorderService {
   private boardDirty = false;
   /** Who could see each object when it was last recorded, for judging its removal once it is gone. */
   private readonly lastVisibility = new Map<string, ReplayVisibility>();
+  /** The chat lines recorded as said, by name, so one handed back again is not told twice. */
+  private readonly linesSeen = new Set<string>();
   /**
    * The objects that are parts of a piece, whose arrival and removal are not told on their own,
    * each with the piece it belongs to, or empty where that piece has not been seen yet.
@@ -227,6 +229,7 @@ export class ReplayRecorderService {
     this.buffer = [];
     this.pending = null;
     this.shadows.clear();
+    this.linesSeen.clear();
     this.actors.clear();
     this.targets.clear();
     this.lastVisibility.clear();
@@ -318,6 +321,9 @@ export class ReplayRecorderService {
       }
       const draft = interpretObjectRemove(context.identifier, context.aliasName);
       if (owner !== undefined) draft.detail[REPLAY_PART_FLAG] = true;
+      // What a room server takes away of its own accord, as what goes out of view or a cursor left
+      // behind, is the board's, not anyone's doing.
+      if (sendFrom === Network.authorityPeerId) draft.detail[REPLAY_CAUGHT_UP_FLAG] = true;
       this.push(draft, sendFrom, at);
       return;
     }
@@ -349,8 +355,13 @@ export class ReplayRecorderService {
     if (!before && this.notePart(context.identifier, after, draft) && this.foldPartArrival(context.identifier, draft)) {
       return;
     }
-    if (!fresh && context.aliasName === CHAT_ALIAS && sendFrom === Network.authorityPeerId)
-      draft.detail[REPLAY_CAUGHT_UP_FLAG] = true;
+    if (!before && context.aliasName === CHAT_ALIAS) {
+      // A line said again under a name already recorded came back, as one taken out of view and
+      // handed back, and was told when first said.
+      const again = this.linesSeen.has(context.identifier);
+      this.linesSeen.add(context.identifier);
+      if (again || (!fresh && sendFrom === Network.authorityPeerId)) draft.detail[REPLAY_CAUGHT_UP_FLAG] = true;
+    }
     this.push(draft, this.actorOf(context.aliasName, after, sendFrom), at);
   }
 
