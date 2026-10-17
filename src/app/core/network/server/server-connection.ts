@@ -89,8 +89,9 @@ export const ASSET_TOKEN_WAIT_MS = 10_000;
 /** How many requests to the server a seat keeps while it gets back into the room. */
 export const MAX_HELD_EVENTS = 64;
 /**
- * How many changes, deletions and words on what comes back a seat keeps while it gets back into the
- * room, apart from the requests: a tab deleted goes as one deletion for each of its lines.
+ * How many deletions a seat keeps while it gets back into the room, apart from the requests: a tab
+ * deleted goes as one deletion for each of its lines. The words on what comes back are kept past it,
+ * and so are the changes, of which only the last of each object between deletions is kept.
  */
 export const MAX_HELD_BROADCASTS = 20_000;
 /**
@@ -108,7 +109,8 @@ const HELD_EVENT_NAMES: ReadonlySet<string> = new Set([AuthorityEvent.ROLE_REQUE
  */
 const COMING_BACK = 'FORGET_DELETED_OBJECTS';
 const CHANGE = 'UPDATE_GAME_OBJECT';
-const HELD_BROADCAST_EVENT_NAMES: ReadonlySet<string> = new Set(['DELETE_GAME_OBJECT', COMING_BACK, CHANGE]);
+const DELETION = 'DELETE_GAME_OBJECT';
+const HELD_BROADCAST_EVENT_NAMES: ReadonlySet<string> = new Set([DELETION, COMING_BACK, CHANGE]);
 /** The refusal for a hello whose login is gone or belongs to somebody else. */
 const UNAUTHORIZED = 'unauthorized';
 
@@ -120,17 +122,26 @@ interface Outbound {
   events: EventContext[];
 }
 
+/** The identifier an event names, if it names one. */
+function identifierOf(event: EventContext): string | undefined {
+  const identifier = (event.data as { identifier?: unknown } | null)?.identifier;
+  return typeof identifier === 'string' ? identifier : undefined;
+}
+
 /**
- * The batches with only the last change kept of each object, at its place: one dragged while
- * getting back into the room goes once, as it stands now.
+ * The batches with only the last change of each object kept between deletions and words on what
+ * comes back, at its place: one dragged while getting back into the room goes once, as it stands
+ * now, while a change made before a deletion stays before it, as a card moved out of a deck before
+ * the deck is deleted has to.
  */
 function latestChanges(batches: Outbound[]): Outbound[] {
   const seen = new Set<string>();
   const kept = [...batches].reverse().map((batch) => ({
     to: batch.to,
     events: [...batch.events].reverse().filter((event) => {
-      const identifier = (event.data as { identifier?: unknown } | null)?.identifier;
-      if (event.eventName !== CHANGE || typeof identifier !== 'string') return true;
+      if (event.eventName === DELETION || event.eventName === COMING_BACK) seen.clear();
+      const identifier = identifierOf(event);
+      if (event.eventName !== CHANGE || identifier === undefined) return true;
       if (seen.has(identifier)) return false;
       seen.add(identifier);
       return true;
@@ -406,22 +417,24 @@ export class ServerConnection implements Connection {
   }
 
   /**
-   * Keeps the requests to the server, and the deletions and words on what comes back sent to
-   * everybody, among events sent while getting back into the room, to send once back in; the rest
-   * go, as SkyWay drops what it sends with nobody connected. A word that something comes back is
-   * kept past the limit, as without it what came back would be deleted again.
+   * Keeps the requests to the server, and the changes, deletions and words on what comes back sent
+   * to everybody, among events sent while getting back into the room, to send once back in; the rest
+   * go, as SkyWay drops what it sends with nobody connected. Only deletions count toward the limit:
+   * a word that something comes back is kept past it, as without it what came back would be deleted
+   * again, and the changes kept are only the last of each object between deletions.
    */
   private hold(events: EventContext[], sendTo: string | undefined): void {
     if (!this.everWelcomed || this.stopped) return;
     const limit = sendTo === undefined ? MAX_HELD_BROADCASTS : MAX_HELD_EVENTS;
+    const counts = (event: EventContext) => event.eventName !== COMING_BACK && event.eventName !== CHANGE;
     const held = this.held.filter((batch) => batch.to === sendTo);
-    let room = limit - held.reduce((count, batch) => count + batch.events.length, 0);
+    let room = limit - held.reduce((count, batch) => count + batch.events.filter(counts).length, 0);
     const kept = this.keptOf(events, sendTo).filter((event) => {
-      if (event.eventName === COMING_BACK) return true;
+      if (!counts(event)) return true;
       room--;
       return room >= 0;
     });
-    if (kept.length > 0) this.held.push({ to: sendTo, events: kept });
+    if (kept.length > 0) this.held = latestChanges([...this.held, { to: sendTo, events: kept }]);
   }
 
   /** The batches with only what is kept while getting back into the room, those left with nothing dropped. */

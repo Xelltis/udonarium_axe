@@ -546,6 +546,47 @@ describe('ServerConnection', () => {
     expect(await sentOnceBack()).toEqual([newDeck, moved, deletion]);
   });
 
+  it('keeps a card moved before its old deck goes ahead of the deletion, though the card is touched again after it', async () => {
+    const socket = await enterRoom();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    socket.close(1006);
+    const change = (identifier: string, parent: string, majorVersion: number) =>
+      event('UPDATE_GAME_OBJECT', {
+        aliasName: 'card',
+        identifier,
+        majorVersion,
+        syncData: { parentIdentifier: parent },
+      });
+    const moved = change('card-1', 'deck-2', 2);
+    const deletion = event('DELETE_GAME_OBJECT', { aliasName: 'card-stack', identifier: 'deck-1' });
+    const shuffled = change('card-1', 'deck-2', 3);
+
+    connection.send([moved, deletion]);
+    connection.send([change('card-1', 'deck-2', 3)]);
+    connection.send([shuffled]);
+
+    expect(await sentOnceBack()).toEqual([moved, deletion, shuffled]);
+  });
+
+  it('keeps a deletion while getting back in though changes held already would fill the limit', async () => {
+    const socket = await enterRoom();
+    socket.close(1006);
+    const deletion = event('DELETE_GAME_OBJECT', { aliasName: 'card', identifier: 'gone' });
+
+    connection.send(
+      Array.from({ length: MAX_HELD_BROADCASTS }, (_, i) =>
+        event('UPDATE_GAME_OBJECT', { aliasName: 'card', identifier: `card-${i % 10}`, majorVersion: i })
+      )
+    );
+    connection.send([deletion]);
+
+    const held = (connection as unknown as { held: { events: EventContext[] }[] }).held.flatMap(
+      (batch) => batch.events
+    );
+    expect(held).toHaveLength(11);
+    expect(held.at(-1)).toEqual(deletion);
+  });
+
   it('keeps every deletion of a long tab deleted while getting back in, and what comes after it', async () => {
     const socket = await enterRoom();
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
