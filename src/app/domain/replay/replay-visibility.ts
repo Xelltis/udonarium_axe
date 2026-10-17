@@ -49,9 +49,10 @@ export function visibilityOfChatLine(
 /**
  * Keeps the lines of a recording made before tabs' views were recorded to those who could read
  * their tab, as the tabs stood on the board when recording began. A line in a tab made later stays
- * as it was recorded.
+ * as it was recorded. A secret roll whispered to somebody, which such a recording kept to them too,
+ * goes to its roller and the game master alone.
  */
-export function keepLinesToTheirTabs(
+export function keepOlderLinesAsSeen(
   events: readonly ReplayEvent[],
   board: readonly ReplayObjectSnapshot[]
 ): ReplayEvent[] {
@@ -67,11 +68,13 @@ export function keepLinesToTheirTabs(
       ])
   );
   return events.map((event) => {
-    if (!CHAT_LINE_KINDS.has(event.kind) || event.visibility.kind !== 'public') return event;
-    const tab = tabs.get(String(event.detail['tabIdentifier'] ?? ''));
-    if (!tab) return event;
-    const visibility = visibilityOfChatLine(event.detail, tab);
-    return visibility.kind === 'public' ? event : { ...event, visibility };
+    if (!CHAT_LINE_KINDS.has(event.kind) || event.visibility.kind === 'gm-only') return event;
+    const visibility = visibilityOfChatLine(
+      event.detail,
+      tabs.get(String(event.detail['tabIdentifier'] ?? '')) ?? null
+    );
+    const narrower = visibility.kind === 'direct' ? visibility.to.length === 0 : visibility.kind !== 'public';
+    return narrower ? { ...event, visibility } : event;
   });
 }
 

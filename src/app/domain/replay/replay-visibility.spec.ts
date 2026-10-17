@@ -10,7 +10,7 @@ import {
 import {
   hiddenPiecesIn,
   inheritOwnerVisibility,
-  keepLinesToTheirTabs,
+  keepOlderLinesAsSeen,
   visibilityOfChatLine,
   visibilityOfDisclosure,
 } from '@axe/domain/replay/replay-visibility';
@@ -49,7 +49,7 @@ describe('replay visibility', () => {
     expect([...hidden.keys()]).toEqual(['boss']);
   });
 
-  describe('keepLinesToTheirTabs', () => {
+  describe('keepOlderLinesAsSeen', () => {
     const board = [
       { identifier: 'gm-tab', aliasName: 'chat-tab', syncData: { plCanView: false, guestCanView: false } },
       {
@@ -71,7 +71,7 @@ describe('replay visibility', () => {
     it('keeps each line to those who could read its tab as the board began', () => {
       const events = [line(1, 'gm-tab'), line(2, 'pl-tab'), line(3, 'main-tab'), line(4, 'made-later')];
 
-      expect(keepLinesToTheirTabs(events, board).map((e) => e.visibility)).toEqual([
+      expect(keepOlderLinesAsSeen(events, board).map((e) => e.visibility)).toEqual([
         GM_ONLY_VISIBILITY,
         PLAYERS_VISIBILITY,
         PUBLIC_VISIBILITY,
@@ -79,14 +79,26 @@ describe('replay visibility', () => {
       ]);
     });
 
+    it('keeps a secret roll whispered to somebody to its roller and the GM', () => {
+      const whispered = {
+        ...line(1, 'main-tab', { kind: 'direct', to: ['bob', 'alice'] }),
+        detail: { tabIdentifier: 'main-tab', to: 'bob alice', tag: 'DiceBot secret' },
+      };
+
+      expect(keepOlderLinesAsSeen([whispered], board)[0].visibility).toEqual({ kind: 'direct', to: [] });
+    });
+
     it('leaves alone a whisper, and what is not a line', () => {
-      const whisper = line(1, 'gm-tab', { kind: 'direct', to: ['bob'] });
+      const whisper = {
+        ...line(1, 'gm-tab', { kind: 'direct', to: ['bob'] }),
+        detail: { tabIdentifier: 'gm-tab', to: 'bob' },
+      };
       const move = {
         ...event(2, ReplayEventKind.ObjectMove, 'piece', PUBLIC_VISIBILITY),
         detail: { tabIdentifier: 'gm-tab' },
       };
 
-      expect(keepLinesToTheirTabs([whisper, move], board)).toEqual([whisper, move]);
+      expect(keepOlderLinesAsSeen([whisper, move], board)).toEqual([whisper, move]);
     });
   });
 

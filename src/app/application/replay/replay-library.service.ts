@@ -30,7 +30,7 @@ import {
 } from '@axe/domain/replay/replay-event-category';
 import { decodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 import { applyReplayEvents, indexOfSeq } from '@axe/domain/replay/replay-patch';
-import { hiddenPiecesIn, inheritOwnerVisibility, keepLinesToTheirTabs } from '@axe/domain/replay/replay-visibility';
+import { hiddenPiecesIn, inheritOwnerVisibility, keepOlderLinesAsSeen } from '@axe/domain/replay/replay-visibility';
 
 export const REPLAY_IMPORT_CHUNK_SIZE = 500;
 
@@ -63,7 +63,7 @@ export class ReplayLibraryService {
     const board = await this.boardAtStart(id, events);
     const inherited = inheritOwnerVisibility(events, manifest.targets, hiddenPiecesIn(board));
     const visible =
-      manifest.formatVersion >= REPLAY_TAB_VIEWS_SINCE_FORMAT ? inherited : keepLinesToTheirTabs(inherited, board);
+      manifest.formatVersion >= REPLAY_TAB_VIEWS_SINCE_FORMAT ? inherited : keepOlderLinesAsSeen(inherited, board);
     if (manifest.formatVersion >= REPLAY_PARTS_FLAGGED_SINCE_FORMAT) return { manifest, events: visible };
     return { manifest, events: flagReplayParts(visible, replayPartJudge(manifest.targets, board)) };
   }
