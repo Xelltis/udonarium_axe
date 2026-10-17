@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import {
@@ -560,6 +561,26 @@ describe('NetworkEventHandlerService', () => {
       TestBed.tick();
 
       expect(open).toHaveBeenCalledWith('acct_1', 'Ab3', '月夜の卓', 'secret', '0123456789abcdef0123456789abcdef');
+    });
+
+    it('says the seat is a guest now when the login goes while in a room, but not on a login', () => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({
+        isRoom: true,
+        userId: 'acct_1',
+        roomId: 'Ab3',
+        roomName: '月夜の卓',
+        password: '',
+      } as never);
+      vi.spyOn(Network, 'open').mockImplementation(() => {});
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+
+      account.set(ACCOUNT);
+      TestBed.tick();
+      expect(shown).not.toHaveBeenCalled();
+
+      account.set(null);
+      TestBed.tick();
+      expect(shown).toHaveBeenCalledExactlyOnceWith(TestBed.inject(TRANSLATE_FN)('feature.lobby.signedOutInRoom'));
     });
 
     it('goes into the room again as whoever is logged in when that changed while it was getting in', () => {

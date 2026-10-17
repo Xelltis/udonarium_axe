@@ -3410,6 +3410,7 @@
           "retry": "Please log in again."
         }
       },
+      "signedOutInRoom": "You are no longer logged in, so you are back in the room as a guest. Log in again to go on as a GM or a player.",
       "roleRejected": {
         "notGameMaster": "Only the GM can change roles.",
         "unknownPeer": "{{name}} is not in the room, so their role was not changed.",

@@ -415,6 +415,7 @@ export class NetworkEventHandlerService {
    * again as whoever is logged in now; outside one, it waits as them, taking what the old id held
    * along. A login also lends the cursor the account's name and avatar while it has the defaults,
    * and a logout takes back what is still as lent, so the guest seat does not go on as the account.
+   * A login gone in a room, as when the server no longer takes it, says the seat is a guest now.
    */
   private followAccount(userId: string | null): void {
     const previous = this.followedAccountUserId;
@@ -430,6 +431,8 @@ export class NetworkEventHandlerService {
     const next = this.standbyUserId() ?? PeerContext.generateUserId();
     if (peer.isRoom) {
       Network.open(next, peer.roomId, peer.roomName, peer.password, Network.roomKey ?? undefined);
+      if (previous && !userId && !this.overlayMode.active())
+        this.snackbar.show(this.t('feature.lobby.signedOutInRoom'));
       return;
     }
     handOverOwnership(peer.userId, next);
