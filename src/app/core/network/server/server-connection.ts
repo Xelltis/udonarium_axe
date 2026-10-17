@@ -55,6 +55,18 @@ export const PONG_TIMEOUT_MS = 10_000;
  * second at most, well inside the server's limit of 2000 frames in ten seconds.
  */
 export const SEND_GATHER_MS = 16;
+/** The window the server counts a connection's sends in, the protocol's RATE_WINDOW_SECONDS. */
+export const SEND_WINDOW_MS = 10_000;
+/**
+ * How many events a seat writes in SEND_WINDOW_MS at most, three quarters of the 20,000 past which
+ * the server cuts the connection off. A tab of many lines deleted, or a big room loaded again, goes
+ * out over a few windows rather than losing the seat and what was over.
+ */
+export const SEND_BUDGET_EVENTS = 15_000;
+/** How many frames a seat writes in SEND_WINDOW_MS at most, three quarters of the server's 2,000. */
+export const SEND_BUDGET_FRAMES = 1_500;
+/** How many events go out in one batch at most, so that the budget fills in steps. */
+const SEND_CHUNK_EVENTS = 2_500;
 /** How long an invite request waits for the server's answer. */
 export const INVITE_TIMEOUT_MS = 10_000;
 /**
@@ -213,6 +225,10 @@ export class ServerConnection implements Connection {
   private held: Outbound[] = [];
   /** Batches handed on to be written to the link and not written yet, oldest first. */
   private unwritten: Outbound[] = [];
+  /** What was written to the link within the last SEND_WINDOW_MS, oldest first. */
+  private sentLately: { at: number; events: number; frames: number }[] = [];
+  /** Ends a wait for room in the window early, as when the link goes. */
+  private wakePacing: (() => void) | null = null;
 
   /** Takes the room server's address from the app config's backend url. */
   configure(config: Record<string, unknown>): void {
@@ -742,6 +758,7 @@ export class ServerConnection implements Connection {
     // those already on their way out ahead of the rest.
     this.keepRequests(this.unwritten);
     this.unwritten = [];
+    this.stopPacing();
     this.keepRequests(this.outbound);
     this.dropQueued();
     // The server asked the seat back on another link. It comes straight back, and nobody is told it
@@ -845,6 +862,7 @@ export class ServerConnection implements Connection {
     this.stopAssetTokenChecks();
     this.held = [];
     this.unwritten = [];
+    this.stopPacing();
     this.dropQueued();
     const socket = this.socket;
     this.socket = null;
@@ -872,7 +890,12 @@ export class ServerConnection implements Connection {
   }
 
   private flush(): void {
-    const batches = this.outbound;
+    const batches = this.outbound.flatMap((batch) =>
+      Array.from({ length: Math.ceil(batch.events.length / SEND_CHUNK_EVENTS) }, (_, index) => ({
+        to: batch.to,
+        events: batch.events.slice(index * SEND_CHUNK_EVENTS, (index + 1) * SEND_CHUNK_EVENTS),
+      }))
+    );
     this.outbound = [];
     this.unwritten.push(...batches);
     const socket = this.socket;
@@ -882,6 +905,7 @@ export class ServerConnection implements Connection {
           // A link that went took what was on its way out with it, the requests among them kept.
           if (!this.unwritten.includes(batch)) return;
           const frames = await encodeSendFrames(batch.events, batch.to);
+          await this.roomInWindow(batch, frames.length);
           if (!this.unwritten.includes(batch)) return;
           if (socket == null || socket !== this.socket || socket.readyState !== SOCKET_OPEN) {
             const left = this.unwritten;
@@ -890,10 +914,41 @@ export class ServerConnection implements Connection {
             return;
           }
           for (const frame of frames) socket.send(frame);
+          this.sentLately.push({ at: Date.now(), events: batch.events.length, frames: frames.length });
           this.unwritten = this.unwritten.filter((waiting) => waiting !== batch);
         }
       })
       .catch((e) => Logger.warn('[ServerConnection] a send failed', e));
+  }
+
+  /**
+   * Waits until a batch fits in what the window has left of the budget, or it is no longer to be
+   * written. A batch over the budget on its own goes once the window is empty.
+   */
+  private async roomInWindow(batch: Outbound, frames: number): Promise<void> {
+    while (this.unwritten.includes(batch)) {
+      const now = Date.now();
+      this.sentLately = this.sentLately.filter((sent) => now - sent.at < SEND_WINDOW_MS);
+      const events = this.sentLately.reduce((count, sent) => count + sent.events, batch.events.length);
+      const written = this.sentLately.reduce((count, sent) => count + sent.frames, frames);
+      if (this.sentLately.length === 0 || (events <= SEND_BUDGET_EVENTS && written <= SEND_BUDGET_FRAMES)) return;
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(wake, this.sentLately[0].at + SEND_WINDOW_MS - now);
+        function wake(): void {
+          clearTimeout(timer);
+          resolve();
+        }
+        this.wakePacing = wake;
+      });
+      this.wakePacing = null;
+    }
+  }
+
+  /** Forgets what the link had written, a new one being counted afresh, and ends any wait for it. */
+  private stopPacing(): void {
+    this.sentLately = [];
+    this.wakePacing?.();
+    this.wakePacing = null;
   }
 
   /** Sends one message of the connection's own, such as the hello, in order with the events. */

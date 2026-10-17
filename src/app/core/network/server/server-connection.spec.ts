@@ -5,7 +5,9 @@ import {
   INVITE_TIMEOUT_MS,
   PING_INTERVAL_MS,
   PONG_TIMEOUT_MS,
+  SEND_BUDGET_EVENTS,
   SEND_GATHER_MS,
+  SEND_WINDOW_MS,
   ServerConnection,
   TOKEN_CHECK_MS,
 } from '@axe/core/network/server/server-connection';
@@ -654,6 +656,45 @@ describe('ServerConnection', () => {
     await vi.waitFor(() => expect(calls).toContain('reconnect recovered'));
     expect(FakeWebSocket.instances).toHaveLength(2);
     expect((await again.frames())[0]).toMatchObject({ type: 'hello', peerId: connection.peerId });
+  });
+
+  it('spreads many deletions over the server’s windows rather than going past its limit and being cut off', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+    const socket = await enterRoom();
+    const deletions = Array.from({ length: 30_000 }, (_, i) =>
+      event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
+    );
+    const written = async () =>
+      ((await socket.frames()) as { type: string; events?: unknown[] }[]).reduce(
+        (count, frame) => count + (frame.type === 'send' ? (frame.events?.length ?? 0) : 0),
+        0
+      );
+
+    connection.send(deletions);
+    await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
+    await vi.waitFor(async () => expect(await written()).toBe(SEND_BUDGET_EVENTS));
+    await vi.advanceTimersByTimeAsync(SEND_WINDOW_MS / 2);
+    expect(await written()).toBe(SEND_BUDGET_EVENTS);
+
+    await vi.advanceTimersByTimeAsync(SEND_WINDOW_MS / 2);
+    await vi.waitFor(async () => expect(await written()).toBe(30_000));
+  });
+
+  it('stops waiting to write when the link goes, keeping the deletions for the next', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+    const socket = await enterRoom();
+    const deletions = Array.from({ length: 20_000 }, (_, i) =>
+      event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
+    );
+    connection.send(deletions);
+    await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
+    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
+
+    socket.close(1006);
+    const sent = await sentOnceBack();
+
+    expect(sent).toHaveLength(20_000 - SEND_BUDGET_EVENTS);
+    expect(sent[0]).toEqual(deletions[SEND_BUDGET_EVENTS]);
   });
 
   it('keeps the connection while the server answers', async () => {
