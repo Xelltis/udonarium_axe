@@ -23,7 +23,13 @@ import { ReplayStagingService } from '@axe/application/replay/replay-staging.ser
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import type { ReplayCastMember } from '@axe/domain/replay/replay-cast';
-import { chatTabIdentifierNear, INSERTABLE_KINDS, isTextEditable, textOf } from '@axe/domain/replay/replay-edit';
+import {
+  chatTabIdentifierNear,
+  INSERTABLE_KINDS,
+  isTextEditable,
+  tabVisibilityNear,
+  textOf,
+} from '@axe/domain/replay/replay-edit';
 import { type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
 import { ReplayFocusService } from '@axe/features/replay/replay-focus.service';
 import {
@@ -499,14 +505,16 @@ export class ReplayEntryListComponent {
   protected insertHere(index = this.insertIndex()): void {
     if (!this.canInsert()) return;
     const member = this.selectedCast();
+    const tabIdentifier = this.insertTabIdentifier(index);
     this.editor.insert(index, {
       kind: this.insertKind(),
       actorId: this.chosenActorId(),
       speaker: member?.name ?? this.insertSpeaker().trim(),
       text: this.insertText().trim(),
-      tabIdentifier: this.insertTabIdentifier(index),
+      tabIdentifier,
       imageIdentifier: member?.imageIdentifier ?? '',
       chatColor: member?.chatColor ?? '',
+      visibility: tabVisibilityNear(this.editor.edited(), index, tabIdentifier),
     });
     this.insertText.set('');
     const added = this.editor.edited()[Math.max(0, Math.min(index, this.editor.edited().length - 1))];

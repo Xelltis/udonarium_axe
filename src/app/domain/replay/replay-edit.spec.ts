@@ -14,9 +14,15 @@ import {
   resequenceReplayEvents,
   retextReplayEvent,
   stepReplayEvents,
+  tabVisibilityNear,
   textOf,
 } from '@axe/domain/replay/replay-edit';
-import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import {
+  GM_ONLY_VISIBILITY,
+  PUBLIC_VISIBILITY,
+  type ReplayEvent,
+  ReplayEventKind,
+} from '@axe/domain/replay/replay-event';
 
 function event(seq: number, kind: ReplayEventKind = ReplayEventKind.ChatMessage, at = seq * 1000): ReplayEvent {
   return {
@@ -166,6 +172,42 @@ describe('chatTabIdentifierNear()', () => {
 
   it('returns nothing when there is none either way', () => {
     expect(chatTabIdentifierNear([event(1)], 0)).toBe('');
+  });
+});
+
+describe('tabVisibilityNear()', () => {
+  const line = (seq: number, tabIdentifier: string, visibility = PUBLIC_VISIBILITY): ReplayEvent => ({
+    ...event(seq),
+    detail: { text: `${seq}`, tabIdentifier },
+    visibility,
+  });
+  const lines = [
+    line(1, 'gm-tab', GM_ONLY_VISIBILITY),
+    line(2, 'gm-tab', { kind: 'direct', to: ['bob'] }),
+    line(3, 'main-tab'),
+  ];
+
+  it('keeps a line inserted in a tab as the nearest line said in it was kept, passing over a whisper', () => {
+    expect(tabVisibilityNear(lines, 2, 'gm-tab')).toEqual(GM_ONLY_VISIBILITY);
+    expect(tabVisibilityNear(lines, 0, 'gm-tab')).toEqual(GM_ONLY_VISIBILITY);
+    expect(tabVisibilityNear(lines, 3, 'main-tab')).toEqual(PUBLIC_VISIBILITY);
+    expect(tabVisibilityNear(lines, 3, 'new-tab')).toEqual(PUBLIC_VISIBILITY);
+  });
+
+  it('puts the visibility on the line made', () => {
+    const made = createReplayEntry(
+      {
+        kind: ReplayEventKind.ChatMessage,
+        actorId: 'gm',
+        speaker: 'GM',
+        text: 'メモ',
+        tabIdentifier: 'gm-tab',
+        visibility: GM_ONLY_VISIBILITY,
+      },
+      10,
+      10_000
+    );
+    expect(made.visibility).toEqual(GM_ONLY_VISIBILITY);
   });
 });
 

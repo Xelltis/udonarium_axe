@@ -1,5 +1,10 @@
 import { generateUuid } from '@axe/core/util/uuid';
-import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import {
+  PUBLIC_VISIBILITY,
+  type ReplayEvent,
+  ReplayEventKind,
+  type ReplayVisibility,
+} from '@axe/domain/replay/replay-event';
 
 export const INSERTABLE_KINDS: readonly ReplayEventKind[] = [
   ReplayEventKind.ChatMessage,
@@ -17,6 +22,8 @@ export interface ReplayEntryDraft {
   tabIdentifier: string;
   imageIdentifier?: string;
   chatColor?: string;
+  /** Who may see the line, as those who could read its tab there; public when not given. */
+  visibility?: ReplayVisibility;
 }
 
 export const DICEBOT_SENDER = 'System-BCDice';
@@ -39,6 +46,29 @@ export function chatTabIdentifierNear(events: readonly ReplayEvent[], atIndex: n
   return '';
 }
 
+/**
+ * Who could read a tab at a position, as the nearest line said in it before, or failing that
+ * after, was kept: a line inserted there is kept the same way. A whisper or a secret roll, kept to
+ * its own readers, says nothing of the tab and is passed over. Public when no line says.
+ */
+export function tabVisibilityNear(
+  events: readonly ReplayEvent[],
+  atIndex: number,
+  tabIdentifier: string
+): ReplayVisibility {
+  const says = (event: ReplayEvent) =>
+    (event.kind === ReplayEventKind.ChatMessage || event.kind === ReplayEventKind.ChatDice) &&
+    event.detail['tabIdentifier'] === tabIdentifier &&
+    event.visibility.kind !== 'direct';
+  for (let index = Math.min(atIndex, events.length) - 1; index >= 0; index--) {
+    if (says(events[index])) return events[index].visibility;
+  }
+  for (let index = Math.max(0, atIndex); index < events.length; index++) {
+    if (says(events[index])) return events[index].visibility;
+  }
+  return PUBLIC_VISIBILITY;
+}
+
 /** Whether the replay editor can insert events of this kind: a chat line, a dice line or a marker. */
 export function isInsertableKind(kind: ReplayEventKind): boolean {
   return INSERTABLE_KINDS.includes(kind);
@@ -49,7 +79,8 @@ export function isInsertableKind(kind: ReplayEventKind): boolean {
  *
  * A marker keeps its text as a label. A chat line gets a fresh message identifier and a patch
  * that creates the message in its tab; a dice line is sent as the dice bot, with no picture or
- * colour. Every entry is public, and its offset is left at 0 until the list is restamped.
+ * colour. A marker is public, and a line is kept as the draft says; its offset is left at 0 until
+ * the list is restamped.
  */
 export function createReplayEntry(draft: ReplayEntryDraft, seq: number, at: number): ReplayEvent {
   if (draft.kind === ReplayEventKind.Marker) {
@@ -110,7 +141,7 @@ export function createReplayEntry(draft: ReplayEntryDraft, seq: number, at: numb
         'attributes.originFrom': draft.actorId,
       },
     },
-    visibility: PUBLIC_VISIBILITY,
+    visibility: draft.visibility ?? PUBLIC_VISIBILITY,
   };
 }
 
