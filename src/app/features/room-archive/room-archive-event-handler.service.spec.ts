@@ -5,6 +5,8 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
+import { GameObject } from '@axe/core/sync/game-object';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -86,11 +88,23 @@ describe('RoomArchiveEventHandlerService', () => {
     isKeeping = true;
     isDragging = false;
     lastCaptureMs = 0;
+    ObjectStore.instance.add(new GameObject('obj'), false);
   });
 
   afterEach(() => {
     vi.useRealTimers();
     TestBed.resetTestingModule();
+    const obj = ObjectStore.instance.get('obj');
+    if (obj) ObjectStore.instance.remove(obj);
+  });
+
+  it('takes no change to what is not in the room, as what a save is written with, for one', async () => {
+    setup();
+    objectChanged$.emit({ identifier: 'image-tag-list', aliasName: 'image-tag-list' });
+
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+
+    expect(capture).not.toHaveBeenCalled();
   });
 
   it('saves once the changes stop', async () => {

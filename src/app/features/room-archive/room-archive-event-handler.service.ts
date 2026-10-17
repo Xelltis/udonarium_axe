@@ -4,6 +4,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { SNAPSHOT_BUSY_RETRY_MS, snapshotDelays } from '@axe/features/room-archive/room-snapshot-schedule';
 
 const IDLE_CALLBACK_TIMEOUT_MS = 10_000;
@@ -20,8 +21,14 @@ export class RoomArchiveEventHandlerService {
   private maxTimer: ReturnType<typeof setTimeout> | null = null;
   private isDirty = false;
 
+  /**
+   * Watches the room for changes. A change to something not in the room, as what a save is written
+   * with, is none: counted, each snapshot would ask for the next.
+   */
   constructor() {
-    this.objectChange.objectChanged$.subscribe(() => this.markDirty(), this.destroyRef);
+    this.objectChange.objectChanged$.subscribe((event) => {
+      if (ObjectStore.instance.get(event.identifier)) this.markDirty();
+    }, this.destroyRef);
     this.objectChange.objectAdded$.subscribe(() => this.markDirty(), this.destroyRef);
     this.objectChange.objectRemoved$.subscribe(() => this.markDirty(), this.destroyRef);
     this.destroyRef.onDestroy(() => this.clearTimers());
