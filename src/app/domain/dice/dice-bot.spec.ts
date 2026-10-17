@@ -365,6 +365,29 @@ describe('DiceBot', () => {
       tab.destroy();
     });
 
+    it('keeps the rolls asked while a replay’s board cut it off from the room, and asks again once back', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
+      const bot = new DiceBot();
+      bot.initialize();
+      const told = vi.fn();
+      const off = serverRollUnanswered$.subscribe(told);
+      const { tab, requests } = await askedRoll(bot);
+
+      setNetworkIsolated(true);
+      localDispatch('PEER_RECONNECT', { peerId: 'acct_me-peer', state: 'recovered' });
+      vi.advanceTimersByTime(SERVER_ROLL_WAIT_MS * 2);
+      expect(told).not.toHaveBeenCalled();
+      setNetworkIsolated(false);
+
+      expect(requests().length).toBeGreaterThan(1);
+      expect(bot['serverRolls'].size).toBe(1);
+      off();
+      vi.useRealTimers();
+      bot.destroy();
+      tab.destroy();
+    });
+
     it('forgets the rolls asked in a room once another room is opened', async () => {
       const roomKey = vi.spyOn(Network, 'roomKey', 'get').mockReturnValue('room-1');
       const bot = new DiceBot();

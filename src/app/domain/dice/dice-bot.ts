@@ -12,7 +12,7 @@ import {
   SendMessageEvent,
 } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
-import { isNetworkIsolated } from '@axe/core/network/network-isolation';
+import { isNetworkIsolated, onNetworkIsolationEnded } from '@axe/core/network/network-isolation';
 import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
 import { getAuthorityPeerId, getMyPeerId, getRoomKey, isAuthorityOpen } from '@axe/core/network/peer-context-source';
 import {
@@ -131,7 +131,7 @@ export class DiceBot extends GameObject {
       // Out of the room by then, the line is in no room to answer it.
       if (getAuthorityPeerId()) emitServerRollUnanswered({ messageIdentifier: sourceIdentifier, reason });
     },
-    inRoom: () => getAuthorityPeerId() !== null && isAuthorityOpen(),
+    inRoom: () => getAuthorityPeerId() !== null && isAuthorityOpen() && !isNetworkIsolated(),
   });
 
   static diceBotInfos: GameSystemInfo[] = [];
@@ -523,6 +523,13 @@ export class DiceBot extends GameObject {
     this.cleanups.push(resourceEditMessage$.subscribe((data) => this.handleResourceEditMessage(data)));
     this.cleanups.push(objectAdded$.subscribe((event) => this.serverRolls.arrived(event.identifier)));
     this.cleanups.push(networkMessage$.subscribe((message) => this.followServerRolls(message)));
+    // Cut off from the room, as while a replay's board is shown, what is asked of the server goes
+    // nowhere; back in it, the rolls still unanswered are asked for again.
+    this.cleanups.push(
+      onNetworkIsolationEnded(() => {
+        if (getAuthorityPeerId() !== null && isAuthorityOpen()) this.serverRolls.askAgain();
+      })
+    );
   }
 
   /**
