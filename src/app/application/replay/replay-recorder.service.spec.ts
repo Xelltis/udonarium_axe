@@ -747,6 +747,21 @@ describe('ReplayRecorderService', () => {
       expect(revealed()).toHaveLength(1);
     });
 
+    it('names its roller as before when the GM makes it public after they left', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      roll('DiceBot secret', 'peer-a');
+      objectStore.remove(objectStore.get('cursor-a')!);
+      roll('DiceBot', 'peer-g');
+      await service.stop();
+
+      const manifest = decodeReplayManifest([...store.recordings.values()][0].manifest!)!;
+      expect(manifest.actors.filter((actor) => actor.userId === 'alice').map((actor) => actor.name)).toEqual([
+        'アリス',
+      ]);
+    });
+
     it('is put down to its roller when the GM makes it public', async () => {
       await service.start();
       vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);

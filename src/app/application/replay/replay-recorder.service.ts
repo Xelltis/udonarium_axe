@@ -690,8 +690,17 @@ export class ReplayRecorderService {
     this._recentEvents.set([...this.recent]);
   }
 
+  /**
+   * Who did something, as they stand now: a new snapshot when their name, role or picture changed.
+   * One whose cursor is gone, as after leaving, is who they were when last seen under that id.
+   */
   private rememberActor(peerId: string): ReplayActorSnapshot {
     const cursor = PeerCursor.findByPeerId(peerId);
+    const seen = cursor
+      ? undefined
+      : (this.actors.get(peerId) ??
+        [...this.actors.values()].find((history) => history.some((snapshot) => snapshot.peerId === peerId)));
+    if (seen) return seen[seen.length - 1];
     const snapshot: ReplayActorSnapshot = {
       userId: cursor?.userId || peerId,
       peerId,
