@@ -27,6 +27,7 @@ import {
   type ReplayPatch,
   type ReplayTargetSnapshot,
 } from '@axe/domain/replay/replay-event';
+import { isShownReplayEvent } from '@axe/domain/replay/replay-event-category';
 import {
   decodeReplayKeyframe,
   encodeReplayKeyframe,
@@ -219,14 +220,27 @@ export class ReplayPlaybackService {
     if (this._isBoardMode()) await this.applyBoard(this._cursor());
   }
 
-  /** Steps forward one event. */
+  /**
+   * Steps forward to the next event this reader is shown, the board taking in those passed on the
+   * way; to the end when none is left.
+   */
   async next(): Promise<void> {
-    await this.seekTo(this._cursor() + 1);
+    await this.seekTo(this.shownFrom(this._cursor() + 1, 1));
   }
 
-  /** Steps back one event. */
+  /** Steps back to the event this reader was shown before; to the start when there was none. */
   async previous(): Promise<void> {
-    await this.seekTo(this._cursor() - 1);
+    await this.seekTo(this.shownFrom(this._cursor() - 1, -1));
+  }
+
+  /** The first event from `index` on, going `step`, this reader is shown, or the end reached. */
+  private shownFrom(index: number, step: 1 | -1): number {
+    const events = this._events();
+    const viewer = { userId: PeerCursor.myCursor?.userId ?? '', role: PeerCursor.myRole };
+    for (let at = index; at >= 0 && at < events.length; at += step) {
+      if (isShownReplayEvent(events[at], viewer)) return at;
+    }
+    return step > 0 ? events.length - 1 : 0;
   }
 
   /** Jumps to the first event. */

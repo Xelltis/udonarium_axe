@@ -1,8 +1,10 @@
 import {
+  canViewReplayEvent,
   type ReplayEvent,
   ReplayEventKind,
   type ReplayTargetSnapshot,
   resolveSnapshotAt,
+  type ReplayViewer,
 } from '@axe/domain/replay/replay-event';
 import type { ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 
@@ -72,6 +74,14 @@ export function replayEventCategory(event: ReplayEvent): ReplayEventCategory {
   if (STORY_KINDS.has(event.kind)) return ReplayEventCategory.Story;
   if (BOARD_KINDS.has(event.kind)) return ReplayEventCategory.Board;
   return ReplayEventCategory.System;
+}
+
+/**
+ * Whether the viewer is shown the event as one of the session's lines, as the player stops on and
+ * the log lists: one they may see, and no part of a piece or line kept to the board.
+ */
+export function isShownReplayEvent(event: ReplayEvent, viewer: ReplayViewer): boolean {
+  return canViewReplayEvent(event, viewer) && replayEventCategory(event) !== ReplayEventCategory.Hidden;
 }
 
 /** Whether a chat line was written by the tool rather than by anyone at the table, as the chat itself tells them apart. */

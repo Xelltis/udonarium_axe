@@ -5,6 +5,8 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { isShownReplayEvent } from '@axe/domain/replay/replay-event-category';
 import {
   formatReplayElapsed,
   replayLineParams,
@@ -66,11 +68,20 @@ export class ReplayStageComponent {
     return reached;
   });
 
+  /**
+   * The line this reader was last shown where the recording stands: what they may not see, and the
+   * parts and lines kept to the board, are passed over, as the log leaves them out.
+   */
   protected readonly line = computed<ReplayLogLine | null>(() => {
-    const event = this.playback.currentEvent();
-    if (!event) return null;
-    const dictionary = this.playback.manifest() ?? EMPTY_REPLAY_DICTIONARY;
-    return toReplayLogLine(event, replayNamesAt(dictionary, event.seq));
+    const events = this.playback.events();
+    const viewer = { userId: PeerCursor.myCursor?.userId ?? '', role: PeerCursor.myRole };
+    for (let at = Math.min(this.cursor(), events.length - 1); at >= 0; at--) {
+      const event = events[at];
+      if (!isShownReplayEvent(event, viewer)) continue;
+      const dictionary = this.playback.manifest() ?? EMPTY_REPLAY_DICTIONARY;
+      return toReplayLogLine(event, replayNamesAt(dictionary, event.seq));
+    }
+    return null;
   });
 
   private wantedIndex: number | null = null;

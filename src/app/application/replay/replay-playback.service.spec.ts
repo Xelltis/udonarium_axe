@@ -27,7 +27,12 @@ import { BackgroundSound } from '@axe/domain/media/background-sound';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { createReplayEntry, retextReplayEvent } from '@axe/domain/replay/replay-edit';
-import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import {
+  GM_ONLY_VISIBILITY,
+  PUBLIC_VISIBILITY,
+  type ReplayEvent,
+  ReplayEventKind,
+} from '@axe/domain/replay/replay-event';
 import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -143,6 +148,17 @@ describe('ReplayPlaybackService', () => {
       known,
       { identifier: 'brought-in', aliasName: 'character', name: '勇者', sinceSeq: 0 },
     ]);
+  });
+
+  it('steps over what this reader may not see, the board taking it in on the way', async () => {
+    const hidden = { ...moveEvent(2, 20, 10), visibility: GM_ONLY_VISIBILITY };
+    library.load.mockResolvedValue({ manifest: null, events: [moveEvent(1, 10, 0), hidden, moveEvent(3, 30, 20)] });
+    await service.open(1);
+
+    await service.next();
+    expect(service.cursor()).toBe(2);
+    await service.previous();
+    expect(service.cursor()).toBe(0);
   });
 
   it('refuses to open an empty recording', async () => {
