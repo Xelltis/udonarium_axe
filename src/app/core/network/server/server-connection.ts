@@ -89,8 +89,8 @@ export const ASSET_TOKEN_WAIT_MS = 10_000;
 /** How many requests to the server a seat keeps while it gets back into the room. */
 export const MAX_HELD_EVENTS = 64;
 /**
- * How many deletions and words on what comes back a seat keeps while it gets back into the room,
- * apart from the requests: a tab deleted goes as one deletion for each of its lines.
+ * How many changes, deletions and words on what comes back a seat keeps while it gets back into the
+ * room, apart from the requests: a tab deleted goes as one deletion for each of its lines.
  */
 export const MAX_HELD_BROADCASTS = 20_000;
 /**
@@ -101,10 +101,14 @@ export const MAX_HELD_BROADCASTS = 20_000;
 const HELD_EVENT_NAMES: ReadonlySet<string> = new Set([AuthorityEvent.ROLE_REQUEST]);
 /**
  * What goes to everybody that the catalogs do not mend either, the server keeping deletions
- * itself: a deletion, and the word that what was deleted is coming back.
+ * itself: a deletion, and the word that what was deleted is coming back. The changes go with them,
+ * in the order they were made, though the catalogs would mend those: a deck split while getting
+ * back in moves its cards into the new one before the old one is deleted, and its deletion going
+ * first would take the cards with it.
  */
 const COMING_BACK = 'FORGET_DELETED_OBJECTS';
-const HELD_BROADCAST_EVENT_NAMES: ReadonlySet<string> = new Set(['DELETE_GAME_OBJECT', COMING_BACK]);
+const CHANGE = 'UPDATE_GAME_OBJECT';
+const HELD_BROADCAST_EVENT_NAMES: ReadonlySet<string> = new Set(['DELETE_GAME_OBJECT', COMING_BACK, CHANGE]);
 /** The refusal for a hello whose login is gone or belongs to somebody else. */
 const UNAUTHORIZED = 'unauthorized';
 
@@ -114,6 +118,25 @@ const SOCKET_KEY = 'room-server';
 interface Outbound {
   to: string | undefined;
   events: EventContext[];
+}
+
+/**
+ * The batches with only the last change kept of each object, at its place: one dragged while
+ * getting back into the room goes once, as it stands now.
+ */
+function latestChanges(batches: Outbound[]): Outbound[] {
+  const seen = new Set<string>();
+  const kept = [...batches].reverse().map((batch) => ({
+    to: batch.to,
+    events: [...batch.events].reverse().filter((event) => {
+      const identifier = (event.data as { identifier?: unknown } | null)?.identifier;
+      if (event.eventName !== CHANGE || typeof identifier !== 'string') return true;
+      if (seen.has(identifier)) return false;
+      seen.add(identifier);
+      return true;
+    }),
+  }));
+  return kept.reverse().map((batch) => ({ to: batch.to, events: batch.events.reverse() }));
 }
 
 interface InviteWaiter {
@@ -624,7 +647,7 @@ export class ServerConnection implements Connection {
       if (!present.has(peerId)) this.removeMember(peerId);
     }
     for (const member of message.members) this.addMember(member);
-    const held = this.held;
+    const held = latestChanges(this.held);
     this.held = [];
     for (const batch of held) this.send(batch.events, batch.to);
     if (this.accountSeat) this.startTokenChecks();

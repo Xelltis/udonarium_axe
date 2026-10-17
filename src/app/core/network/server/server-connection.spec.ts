@@ -494,7 +494,7 @@ describe('ServerConnection', () => {
     socket.close(1006);
     const roleRequest = event('ROLE_REQUEST', { peerId: OTHER.peerId, role: 'gm' });
     connection.send([event('ROLL_REQUEST', { command: '2d6' }), roleRequest, event('CHAT')], AUTHORITY_PEER_ID);
-    connection.send([event('UPDATE_GAME_OBJECT')]);
+    connection.send([event('CURSOR_MOVE')]);
     vi.advanceTimersByTime(1000);
     vi.useRealTimers();
 
@@ -505,13 +505,13 @@ describe('ServerConnection', () => {
     expect((await again.frames())[1]).toEqual({ type: 'send', to: AUTHORITY_PEER_ID, events: [roleRequest] });
   });
 
-  it('keeps a deletion and a word on what comes back while getting back in, for everybody once back', async () => {
+  it('keeps a deletion, a change and a word on what comes back while getting back in, for everybody once back', async () => {
     const socket = await enterRoom();
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
     socket.close(1006);
     const deletion = event('DELETE_GAME_OBJECT', { aliasName: 'chat-tab', identifier: 'tab-1' });
     const comingBack = event('FORGET_DELETED_OBJECTS', { identifiers: ['tab-2'] });
-    connection.send([deletion, event('UPDATE_GAME_OBJECT'), comingBack]);
+    connection.send([deletion, event('UPDATE_GAME_OBJECT'), event('CURSOR_MOVE'), comingBack]);
     vi.advanceTimersByTime(1000);
     vi.useRealTimers();
 
@@ -522,7 +522,28 @@ describe('ServerConnection', () => {
     const [, sent] = (await again.frames()) as { type: string; to?: string; events: unknown[] }[];
     expect(sent.type).toBe('send');
     expect(sent.to).toBeUndefined();
-    expect(sent.events).toEqual([deletion, comingBack]);
+    expect(sent.events).toEqual([deletion, event('UPDATE_GAME_OBJECT'), comingBack]);
+  });
+
+  it('keeps a deck split while getting back in whole: its cards move to the new deck before the old one goes', async () => {
+    const socket = await enterRoom();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    socket.close(1006);
+    const change = (identifier: string, parent: string, majorVersion: number) =>
+      event('UPDATE_GAME_OBJECT', {
+        aliasName: 'card',
+        identifier,
+        majorVersion,
+        syncData: { parentIdentifier: parent },
+      });
+    const newDeck = change('deck-2', 'table', 1);
+    const moved = change('card-1', 'deck-2', 3);
+    const deletion = event('DELETE_GAME_OBJECT', { aliasName: 'card-stack', identifier: 'deck-1' });
+
+    connection.send([newDeck, change('card-1', 'deck-1', 2)]);
+    connection.send([moved, deletion]);
+
+    expect(await sentOnceBack()).toEqual([newDeck, moved, deletion]);
   });
 
   it('keeps every deletion of a long tab deleted while getting back in, and what comes after it', async () => {
@@ -620,7 +641,7 @@ describe('ServerConnection', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
     await enterRoom();
     const deletion = event('DELETE_GAME_OBJECT', { aliasName: 'card', identifier: 'card-1' });
-    connection.send([deletion, event('UPDATE_GAME_OBJECT')]);
+    connection.send([deletion, event('CURSOR_MOVE')]);
 
     connection.leaveImmediately();
     await connection.rejoinAfterLeave();
