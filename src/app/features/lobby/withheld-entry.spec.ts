@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
-import { markLoadedWithheld, markSeatWithheld } from '@axe/domain/peer/withheld-table';
+import { isTableWithheld, markLoadedWithheld, markSeatWithheld } from '@axe/domain/peer/withheld-table';
 import { WithheldEntryService } from '@axe/features/lobby/withheld-entry';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -33,6 +33,17 @@ describe('WithheldEntryService', () => {
     expect(await service.mayEnter(null)).toBe(true);
     expect(ask).toHaveBeenCalledTimes(2);
     expect(ask.mock.calls[0][0]).toMatchObject({ danger: true });
+  });
+
+  it('keeps the table marked once taken in, even as the GM of the room it went into', async () => {
+    markSeatWithheld(true, 'room-a');
+    ask.mockResolvedValue(true);
+
+    await service.mayEnter('room-b');
+    markSeatWithheld(true, 'room-b');
+    markSeatWithheld(false, 'room-b');
+
+    expect(isTableWithheld()).toBe(true);
   });
 
   it('lets it back into the room it was withheld in without asking', async () => {
