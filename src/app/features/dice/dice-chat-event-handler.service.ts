@@ -10,6 +10,7 @@ import {
   serverRollUnanswered$,
   ServerRollUnansweredEvent,
 } from '@axe/core/event/domain-events';
+import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -19,7 +20,6 @@ import { parseDiceChatToken } from '@axe/domain/dice/dice-chat-token';
 import { linkRollsToDice } from '@axe/domain/dice/dice-link';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 
 /**
  * Carries what the dice bot did with a line back to the table and to the sender.
@@ -132,11 +132,12 @@ export class DiceChatEventHandlerService {
   /**
    * Its dice, in the order they were made, so the same line lands the same way twice. A die whose
    * face a room server keeps from this user is passed over, as the server would put the face it
-   * took back, and the roll goes on to the next die.
+   * took back, and the roll goes on to the next die; one that only lacks its face takes the roll.
    */
   private diceOf(owner: GameCharacter): DiceSymbol[] {
+    const keptByServer = getAuthorityPeerId() !== null && !PeerCursor.isMyselfGameMaster;
     return this.objectStore
       .getObjects<DiceSymbol>(DiceSymbol)
-      .filter((die) => die.ownerCharacterIdentifier === owner.identifier && !isWithheldHere(die));
+      .filter((die) => die.ownerCharacterIdentifier === owner.identifier && !(keptByServer && !die.isVisible));
   }
 }

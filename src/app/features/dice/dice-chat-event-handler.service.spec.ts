@@ -14,6 +14,7 @@ import { encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { markLoadedWithheld } from '@axe/domain/peer/withheld-table';
 import { DiceChatEventHandlerService } from '@axe/features/dice/dice-chat-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -192,6 +193,20 @@ describe('DiceChatEventHandlerService', () => {
       expect(shown.face).toBe('4');
     } finally {
       vi.restoreAllMocks();
+    }
+  });
+
+  it('turns a die that only lacks its face, which nobody would put back', () => {
+    const goblin = makeCharacter('ゴブリンA');
+    const faceless = makeDice(goblin);
+    faceless.face = '';
+    markLoadedWithheld(true, false);
+    try {
+      roll('1d6 dice:ゴブリンA', [{ sides: 6, value: 4 }]);
+
+      expect(faceless.face).toBe('4');
+    } finally {
+      markLoadedWithheld(false, false);
     }
   });
 
