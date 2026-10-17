@@ -14,7 +14,7 @@ import type { ImageFile } from '@axe/core/storage/image-file';
 import { imageTypeOf } from '@axe/core/storage/image-sniff';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
-import { isCcfoliaRoomArchive } from '@axe/core/storage/room-archive';
+import { ccfoliaRoomFolderOf } from '@axe/core/storage/room-archive';
 import { createZipBlob, readZipEntries, ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import type { ZipEntry } from '@axe/core/storage/zip-archive-message';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -314,8 +314,12 @@ export class FileArchiver {
       this.noticeCodeUnavailable(reason);
       return;
     }
-    if (isCcfoliaRoomArchive(entries.map((entry) => entry.name))) {
-      emitCcfoliaRoomDropped({ entries: await toUnzipped(entries) });
+    const ccfoliaFolder = ccfoliaRoomFolderOf(entries.map((entry) => entry.name));
+    if (ccfoliaFolder !== null) {
+      const inFolder = entries
+        .filter((entry) => entry.name.startsWith(ccfoliaFolder))
+        .map((entry) => ({ ...entry, name: entry.name.slice(ccfoliaFolder.length) }));
+      emitCcfoliaRoomDropped({ entries: await toUnzipped(inFolder) });
       return;
     }
 

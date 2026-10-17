@@ -615,6 +615,27 @@ describe('FileArchiver', () => {
       expect(Object.keys(dropped[0].entries)).toContain('__data.json');
       expect(addAsync).not.toHaveBeenCalled();
     });
+
+    it('hands over a room archive from the other tool packed again inside a folder, as it was saved', async () => {
+      const addAsync = vi
+        .spyOn(ImageStorage.instance, 'addAsync')
+        .mockImplementation(() => Promise.resolve(ImageFile.createEmpty('image')));
+      const zipped = zipSync({
+        'room/__data.json': strToU8('{"meta":{"version":"1.1.0"},"entities":{}}'),
+        'room/aaaa.png': new Uint8Array([1, 2, 3]),
+        '__MACOSX/room/._aaaa.png': new Uint8Array([0]),
+      });
+      const zipFile = new File([zipped.slice()], 'room.zip', { type: 'application/zip' });
+
+      const dropped: CcfoliaRoomDroppedEvent[] = [];
+      const off = ccfoliaRoomDropped$.subscribe((event) => dropped.push(event));
+      await FileArchiver.instance.load([zipFile]);
+      off();
+
+      expect(dropped).toHaveLength(1);
+      expect(Object.keys(dropped[0].entries).sort()).toEqual(['__data.json', 'aaaa.png']);
+      expect(addAsync).not.toHaveBeenCalled();
+    });
   });
 
   describe('writing an archive', () => {
