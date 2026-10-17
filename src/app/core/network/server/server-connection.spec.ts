@@ -587,45 +587,35 @@ describe('ServerConnection', () => {
     );
   }
 
-  it('sends a deletion again once back in when the link went before the server showed it had it', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
-    const socket = await enterRoom();
-    const deletion = await writeDeletion(socket, 'card-1');
-
-    socket.close(1006);
-
-    expect(await sentOnceBack()).toEqual([deletion]);
-  });
-
-  it('sends a deletion again when the only ping answered went before it was written', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
-    const socket = await enterRoom();
-    vi.advanceTimersByTime(PING_INTERVAL_MS);
-    const deletion = await writeDeletion(socket, 'card-1');
-    socket.onmessage?.({ data: 'pong' });
-
-    socket.close(1006);
-
-    expect(await sentOnceBack()).toEqual([deletion]);
-  });
-
-  it('sends no deletion again that the server answered a ping sent after, only those written since', async () => {
+  it('sends no deletion again that was written to a link that dropped, as it may have been brought back since', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
     const socket = await enterRoom();
     await writeDeletion(socket, 'card-1');
-    vi.advanceTimersByTime(PING_INTERVAL_MS);
-    const later = await writeDeletion(socket, 'card-2');
-    socket.onmessage?.({ data: 'pong' });
 
     socket.close(1006);
 
-    expect(await sentOnceBack()).toEqual([later]);
+    expect(await sentOnceBack()).toEqual([]);
   });
 
-  it('sends a deletion the server may not have had again when a page left for the cache is shown again', async () => {
+  it('keeps a deletion on its way out ahead of a word that it comes back sent after it, when the link drops', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
-    const socket = await enterRoom();
-    const deletion = await writeDeletion(socket, 'card-1');
+    await enterRoom();
+    const deletion = event('DELETE_GAME_OBJECT', { aliasName: 'chat-tab', identifier: 'tab-1' });
+    const comingBack = event('FORGET_DELETED_OBJECTS', { identifiers: ['tab-1'] });
+    connection.send([deletion]);
+    vi.advanceTimersByTime(SEND_GATHER_MS);
+    connection.send([comingBack]);
+
+    latest().close(1006);
+
+    expect(await sentOnceBack()).toEqual([deletion, comingBack]);
+  });
+
+  it('keeps a deletion still gathering to go out when the page is left for the cache', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    await enterRoom();
+    const deletion = event('DELETE_GAME_OBJECT', { aliasName: 'card', identifier: 'card-1' });
+    connection.send([deletion, event('UPDATE_GAME_OBJECT')]);
 
     connection.leaveImmediately();
     await connection.rejoinAfterLeave();

@@ -30,7 +30,6 @@ import {
   isRetryableError,
   Member,
   PING,
-  PONG,
   readAssetUploadPolicy,
   readServerMessage,
   ServerMessage,
@@ -212,15 +211,8 @@ export class ServerConnection implements Connection {
   private tokenTimer: ReturnType<typeof setInterval> | null = null;
   /** Requests to the server sent while getting back into the room, to send once back in. */
   private held: Outbound[] = [];
-  /**
-   * What would be held, written to the link since the last ping the server answered. A link that
-   * dies without a word swallows what was written into it, so these go again once back in.
-   */
-  private unconfirmed: { written: number; batch: Outbound }[] = [];
-  /** How many batches have been written to a link, which the pings and the unconfirmed count by. */
-  private written = 0;
-  /** For each ping not answered yet, how many batches had been written when it went. */
-  private pingsAt: number[] = [];
+  /** Batches handed on to be written to the link and not written yet, oldest first. */
+  private unwritten: Outbound[] = [];
 
   /** Takes the room server's address from the app config's backend url. */
   configure(config: Record<string, unknown>): void {
@@ -303,7 +295,7 @@ export class ServerConnection implements Connection {
   /** Lets go of the server at once, for a page being hidden or unloaded. */
   leaveImmediately(): void {
     this.stopped = true;
-    const kept = [...this.unconfirmed.map(({ batch }) => batch), ...this.held, ...this.keptBatchesOf(this.outbound)];
+    const kept = [...this.held, ...this.keptBatchesOf([...this.unwritten, ...this.outbound])];
     this.teardown();
     // A page left for the cache may be shown again, and then sends what it would have held.
     this.held = kept;
@@ -468,7 +460,6 @@ export class ServerConnection implements Connection {
     socket.onmessage = (event: MessageEvent) => {
       if (socket !== this.socket) return;
       this.heardFrom();
-      if (event.data === PONG) this.answered();
       if (typeof event.data !== 'string') this.receive(new Uint8Array(event.data as ArrayBuffer));
     };
     socket.onclose = (event: CloseEvent) => {
@@ -747,8 +738,10 @@ export class ServerConnection implements Connection {
     this.stopPing();
     this.stopTokenChecks();
     this.stopAssetTokenChecks();
-    // What was still gathering to go out goes with the link, but for the requests kept for later.
-    this.keepUnconfirmed();
+    // What was still gathering to go out goes with the link, but for the requests kept for later,
+    // those already on their way out ahead of the rest.
+    this.keepRequests(this.unwritten);
+    this.unwritten = [];
     this.keepRequests(this.outbound);
     this.dropQueued();
     // The server asked the seat back on another link. It comes straight back, and nobody is told it
@@ -851,8 +844,7 @@ export class ServerConnection implements Connection {
     this.stopTokenChecks();
     this.stopAssetTokenChecks();
     this.held = [];
-    this.unconfirmed = [];
-    this.pingsAt = [];
+    this.unwritten = [];
     this.dropQueued();
     const socket = this.socket;
     this.socket = null;
@@ -873,25 +865,6 @@ export class ServerConnection implements Connection {
     for (const batch of this.keptBatchesOf(batches)) this.send(batch.events, batch.to);
   }
 
-  /**
-   * Sends again, over the next link, what was kept among batches written to a link that went before
-   * the server answered a ping sent after them. Those it did have are deleted, or said to come
-   * back, once more, which changes nothing there.
-   */
-  private keepUnconfirmed(): void {
-    const unconfirmed = this.unconfirmed;
-    this.unconfirmed = [];
-    this.pingsAt = [];
-    for (const { batch } of unconfirmed) this.send(batch.events, batch.to);
-  }
-
-  /** The server answered the oldest ping waiting, and so has everything written before it. */
-  private answered(): void {
-    const writtenBefore = this.pingsAt.shift();
-    if (writtenBefore === undefined) return;
-    this.unconfirmed = this.unconfirmed.filter((entry) => entry.written > writtenBefore);
-  }
-
   private dropQueued(): void {
     if (this.flushTimer != null) clearTimeout(this.flushTimer);
     this.flushTimer = null;
@@ -901,20 +874,23 @@ export class ServerConnection implements Connection {
   private flush(): void {
     const batches = this.outbound;
     this.outbound = [];
+    this.unwritten.push(...batches);
     const socket = this.socket;
     this.sending = this.sending
       .then(async () => {
-        for (const [index, batch] of batches.entries()) {
+        for (const batch of batches) {
+          // A link that went took what was on its way out with it, the requests among them kept.
+          if (!this.unwritten.includes(batch)) return;
           const frames = await encodeSendFrames(batch.events, batch.to);
+          if (!this.unwritten.includes(batch)) return;
           if (socket == null || socket !== this.socket || socket.readyState !== SOCKET_OPEN) {
-            // The link went while these were on their way out: the requests among them are kept.
-            this.keepRequests(batches.slice(index));
+            const left = this.unwritten;
+            this.unwritten = [];
+            this.keepRequests(left);
             return;
           }
           for (const frame of frames) socket.send(frame);
-          this.written += 1;
-          const kept = this.keptOf(batch.events, batch.to);
-          if (kept.length > 0) this.unconfirmed.push({ written: this.written, batch: { to: batch.to, events: kept } });
+          this.unwritten = this.unwritten.filter((waiting) => waiting !== batch);
         }
       })
       .catch((e) => Logger.warn('[ServerConnection] a send failed', e));
@@ -936,7 +912,6 @@ export class ServerConnection implements Connection {
     this.pingTimer = setInterval(() => {
       if (socket !== this.socket || socket.readyState !== SOCKET_OPEN) return;
       socket.send(PING);
-      this.pingsAt.push(this.written);
       if (this.pongTimer == null) {
         this.pongTimer = setTimeout(() => {
           this.pongTimer = null;
