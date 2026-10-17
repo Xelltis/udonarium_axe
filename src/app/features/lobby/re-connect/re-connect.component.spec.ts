@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
@@ -172,6 +174,22 @@ describe('ReConnectComponent', () => {
 
       expect(find).toHaveBeenCalledTimes(2);
       expect(join.mock.calls.map(([, password]) => password)).toEqual(['', 'other-room']);
+    });
+
+    it('asks first when changes have yet to reach the room server, and stays when the reader says no', async () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true, userId: 'u' } as PeerContext);
+      vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
+      vi.spyOn(Network, 'hasSendsPending', 'get').mockReturnValue(true);
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+      const find = vi.spyOn(TestBed.inject(RoomJoinService), 'findServerRoom');
+      const disconnect = vi.spyOn(component, 'disConnect').mockImplementation(() => undefined);
+
+      await component.reConnect();
+
+      expect(ask).toHaveBeenCalledWith(TestBed.inject(TRANSLATE_FN)('feature.lobby.leaveRoom.sending'));
+      expect(disconnect).not.toHaveBeenCalled();
+      expect(find).not.toHaveBeenCalled();
     });
 
     it('takes nothing away until it has found the room to get back into', async () => {

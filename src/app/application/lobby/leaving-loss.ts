@@ -6,17 +6,25 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 export type LeavingLoss = 'peer-to-peer' | 'unsent' | 'sending' | 'uploads';
 
 /**
- * What leaving the room now would lose, or null for nothing, as outside a room. Through SkyWay the
- * table stays only with whoever is left, and nobody may be. On a room server the table stays there,
- * except what was changed while the link to it is down, what is still going out to it, a big load
- * or deletion going out a little at a time, and the pictures and sounds this seat has yet to put up
- * there.
+ * Everything leaving the room now would lose, none outside a room. Through SkyWay the table stays
+ * only with whoever is left, and nobody may be. On a room server the table stays there, except what
+ * was changed while the link to it is down, what is still going out to it, a big load or deletion
+ * going out a little at a time, and the pictures and sounds this seat has yet to put up there.
  */
-export function leavingLoss(): LeavingLoss | null {
-  if (!Network.peerContext.isRoom) return null;
-  if (Network.transport !== 'server') return 'peer-to-peer';
-  if (!Network.isAuthorityOpen) return 'unsent';
-  if (Network.hasSendsPending) return 'sending';
-  if (ImageStorage.instance.hasUploadsPending || AudioStorage.instance.hasUploadsPending) return 'uploads';
-  return null;
+export function leavingLoss(): LeavingLoss[] {
+  if (!Network.peerContext.isRoom) return [];
+  if (Network.transport !== 'server') return ['peer-to-peer'];
+  const losses: LeavingLoss[] = [];
+  if (!Network.isAuthorityOpen) losses.push('unsent');
+  else if (Network.hasSendsPending) losses.push('sending');
+  if (ImageStorage.instance.hasUploadsPending || AudioStorage.instance.hasUploadsPending) losses.push('uploads');
+  return losses;
+}
+
+/** What a room server's room would lose, said as the lines asking about it; empty when nothing would be. */
+export function leavingLossText(losses: readonly LeavingLoss[], t: (key: string) => string): string {
+  return losses
+    .filter((loss) => loss !== 'peer-to-peer')
+    .map((loss) => t(`feature.lobby.leaveRoom.${loss}`))
+    .join('\n');
 }

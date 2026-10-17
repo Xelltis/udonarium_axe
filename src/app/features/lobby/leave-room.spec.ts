@@ -73,7 +73,7 @@ describe('leaving the room', () => {
   ] as const)('asks first %s, and stays when the reader says no', async (_case, transport, state, loss) => {
     inRoom(transport, state);
 
-    expect(leavingLoss()).toBe(loss);
+    expect(leavingLoss()).toEqual([loss]);
     expect(await TestBed.inject(LeaveRoomService).leave(win)).toBe(false);
 
     expect(ask).toHaveBeenCalledWith(
@@ -83,6 +83,20 @@ describe('leaving the room', () => {
       })
     );
     expect(calls).toEqual([]);
+  });
+
+  it('says every loss at once, changes still going out and pictures yet to go up alike', async () => {
+    inRoom('server', { sending: true, images: true });
+    const t = TestBed.inject(TRANSLATE_FN);
+
+    expect(leavingLoss()).toEqual(['sending', 'uploads']);
+    expect(await TestBed.inject(LeaveRoomService).leave(win)).toBe(false);
+
+    expect(ask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: `${t('feature.lobby.leaveRoom.sending')}\n${t('feature.lobby.leaveRoom.uploads')}`,
+      })
+    );
   });
 
   it('keeps the room in the automatic save before leaving, once the reader is sure', async () => {
@@ -98,7 +112,7 @@ describe('leaving the room', () => {
     inRoom('skyway', { images: true });
     vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: false } as never);
 
-    expect(leavingLoss()).toBeNull();
+    expect(leavingLoss()).toEqual([]);
   });
 
   it('takes one press at a time while it is on its way out', async () => {
@@ -121,7 +135,7 @@ describe('leaving the room', () => {
   it('leaves a room server’s room unasked when everything has reached the server', async () => {
     inRoom('server');
 
-    expect(leavingLoss()).toBeNull();
+    expect(leavingLoss()).toEqual([]);
     expect(await TestBed.inject(LeaveRoomService).leave(win)).toBe(true);
 
     expect(ask).not.toHaveBeenCalled();

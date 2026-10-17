@@ -321,6 +321,7 @@ export class ServerConnection implements Connection {
   leaveImmediately(): void {
     this.stopped = true;
     const kept = [...this.held, ...this.keptBatchesOf([...this.unwritten, ...this.outbound])];
+    if (this.authority) this.authority.isOpen = false;
     this.teardown();
     // A page left for the cache may be shown again, and then sends what it would have held.
     this.held = kept;
@@ -335,10 +336,11 @@ export class ServerConnection implements Connection {
 
   /**
    * Whether sends are on their way out to the link, as a big load or deletion is for seconds while
-   * held back to keep inside the server's limits, unlike what is only gathering to go out in a moment.
+   * held back to keep inside the server's limits, or held to go once back in; unlike what is only
+   * gathering to go out in a moment.
    */
   get sendsPending(): boolean {
-    return this.unwritten.length > 0;
+    return this.unwritten.length > 0 || this.held.length > 0;
   }
 
   /** The server decides who is in the room; there is nobody to connect to by hand. */

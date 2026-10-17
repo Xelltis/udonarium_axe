@@ -627,6 +627,23 @@ describe('ServerConnection', () => {
     expect(await sentOnceBack()).toEqual([deletion]);
   });
 
+  it('counts what it holds while getting back in as sends pending, and its link as down once the page is cached', async () => {
+    const socket = await enterRoom();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    socket.close(1006);
+    expect(connection.sendsPending).toBe(false);
+
+    connection.send([event('DELETE_GAME_OBJECT', { aliasName: 'card', identifier: 'card-1' })]);
+    expect(connection.sendsPending).toBe(true);
+
+    vi.advanceTimersByTime(1000);
+    vi.useRealTimers();
+    welcomeBack(latest());
+    await vi.waitFor(() => expect(connection.authorityOpen).toBe(true));
+    connection.leaveImmediately();
+    expect(connection.authorityOpen).toBe(false);
+  });
+
   it('keeps a deletion held while getting back in through a page left for the cache', async () => {
     const socket = await enterRoom();
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });

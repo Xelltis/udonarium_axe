@@ -1,6 +1,6 @@
 import { DOCUMENT, inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { leavingLoss } from '@axe/application/lobby/leaving-loss';
+import { leavingLoss, leavingLossText } from '@axe/application/lobby/leaving-loss';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { Network } from '@axe/core/network/network';
@@ -30,13 +30,12 @@ export class BrowserDataWipeService {
    * browser is not let ask again whether to leave the page, which would keep a page wiped under it.
    */
   async wipe(): Promise<boolean> {
-    const loss = leavingLoss();
+    const lost = leavingLossText(leavingLoss(), this.t);
     const sure = await this.confirm.ask({
       title: this.t('feature.roomSettings.wipeConfirmTitle'),
-      message:
-        loss !== null && loss !== 'peer-to-peer'
-          ? `${this.t('feature.roomSettings.wipeConfirmMessage')}\n\n${this.t(`feature.lobby.leaveRoom.${loss}`)}`
-          : this.t('feature.roomSettings.wipeConfirmMessage'),
+      message: lost
+        ? `${this.t('feature.roomSettings.wipeConfirmMessage')}\n\n${lost}`
+        : this.t('feature.roomSettings.wipeConfirmMessage'),
       okLabel: this.t('feature.roomSettings.wipeConfirmOk'),
       danger: true,
     });

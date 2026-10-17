@@ -13,7 +13,7 @@ import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { leavingLoss } from '@axe/application/lobby/leaving-loss';
+import { leavingLoss, leavingLossText } from '@axe/application/lobby/leaving-loss';
 import { roomDeletionMessageKey, RoomDeletionService } from '@axe/application/lobby/room-deletion.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
@@ -109,13 +109,11 @@ export class PeerMenuComponent {
    */
   async chooseConnectionMode(mode: ConnectionMode): Promise<void> {
     if (mode === this.connectionMode() || this.switchingMode) return;
-    const loss = mode === 'offline' ? leavingLoss() : null;
+    const lost = mode === 'offline' ? leavingLossText(leavingLoss(), this.t) : '';
     const question = this.t(
       mode === 'offline' ? 'feature.lobby.peerMenu.confirmOffline' : 'feature.lobby.peerMenu.confirmOnline'
     );
-    const asked = await this.confirm.ask(
-      loss !== null && loss !== 'peer-to-peer' ? `${question}\n${this.t(`feature.lobby.leaveRoom.${loss}`)}` : question
-    );
+    const asked = await this.confirm.ask(lost ? `${question}\n${lost}` : question);
     if (!asked) return;
     this.switchingMode = true;
     await this.roomArchive.flush();

@@ -38,11 +38,11 @@ export class LeaveRoomService {
    */
   async leave(win: Window = window): Promise<boolean> {
     if (this.leaving) return false;
-    const loss = leavingLoss();
-    if (loss) {
+    const losses = leavingLoss();
+    if (losses.length > 0) {
       const sure = await this.confirm.ask({
         title: this.t('feature.lobby.leaveRoom.title'),
-        message: this.t(`feature.lobby.leaveRoom.${loss}`),
+        message: losses.map((loss) => this.t(`feature.lobby.leaveRoom.${loss}`)).join('\n'),
         okLabel: this.t('feature.lobby.lobby.leaveRoom'),
         danger: true,
       });

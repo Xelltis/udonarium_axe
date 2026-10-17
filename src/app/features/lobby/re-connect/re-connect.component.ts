@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { leavingLoss, leavingLossText } from '@axe/application/lobby/leaving-loss';
 import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { Network } from '@axe/core/index';
@@ -68,6 +70,7 @@ export class ReConnectComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly roomJoin = inject(RoomJoinService);
+  private readonly confirm = inject(ConfirmService);
   /** Whether the table is kept by a room server, which a reconnect leaves as it is. */
   protected readonly onRoomServer = Network.transport === 'server';
 
@@ -107,9 +110,17 @@ export class ReConnectComponent {
    * Drops every connection and joins the room this peer was in again, under the same user id.
    *
    * With force cleanup ticked, the local characters, ranges, notes, dice, masks and terrain are
-   * thrown away first. When the room is no longer listed, it only logs a warning.
+   * thrown away first. When the room is no longer listed, it only logs a warning. On a room server,
+   * where joining again drops what has yet to go out to it, the reader is asked first.
    */
-  reConnect() {
+  async reConnect(): Promise<void> {
+    if (Network.transport === 'server') {
+      const lost = leavingLossText(
+        leavingLoss().filter((loss) => loss !== 'uploads'),
+        this.t
+      );
+      if (lost && !(await this.confirm.ask(lost))) return;
+    }
     this.reconnectUserId = resolveReconnectUserId(this.reconnectUserId, this.networkService.peerContext.userId);
     this.disConnect();
     if (Network.transport === 'server') {
