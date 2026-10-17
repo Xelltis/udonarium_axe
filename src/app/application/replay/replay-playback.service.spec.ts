@@ -185,6 +185,20 @@ describe('ReplayPlaybackService', () => {
     expect(service.isAtEnd()).toBe(true);
   });
 
+  it('steps onto the next line shown, past one not shown, as a step on the board', async () => {
+    const hidden = { ...moveEvent(2, 20, 10), visibility: GM_ONLY_VISIBILITY };
+    library.load.mockResolvedValue({ manifest: null, events: [moveEvent(1, 10, 0), hidden, moveEvent(3, 30, 20)] });
+    await service.open(1);
+    await service.enterBoardMode();
+    const step = vi.spyOn(service as unknown as { stepBoardForward(event: ReplayEvent): void }, 'stepBoardForward');
+
+    await service.next();
+
+    expect(service.cursor()).toBe(2);
+    expect(step.mock.calls.map(([event]) => event.seq)).toEqual([3]);
+    await service.exitBoardMode();
+  });
+
   it('cuts itself off from the table when board playback begins', async () => {
     await service.open(1);
     expect(isNetworkIsolated()).toBe(false);

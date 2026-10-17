@@ -111,8 +111,9 @@ export class ReplayStageComponent {
     await this.scrubTo(event);
   }
 
+  /** Steps as the buttons do, over what this reader is not shown. */
   protected async scrubKey(step: number): Promise<void> {
-    await this.playback.seekTo(this.cursor() + step);
+    await (step > 0 ? this.playback.next() : this.playback.previous());
   }
 
   private async scrubTo(event: PointerEvent): Promise<void> {

@@ -212,9 +212,12 @@ describe('ReplayStageComponent', () => {
     expect(seekTo).toHaveBeenLastCalledWith(4);
   });
 
-  it('steps one event at a time on the arrow keys', () => {
+  it('steps on the arrow keys as the buttons do, over what this reader is not shown', () => {
+    const playback = TestBed.inject(ReplayPlaybackService);
     const track: HTMLElement = fixture.nativeElement.querySelector('[role="slider"]');
     track.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    expect(seekTo).toHaveBeenCalledWith(1);
+    track.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(playback.next).toHaveBeenCalledOnce();
+    expect(playback.previous).toHaveBeenCalledOnce();
   });
 });

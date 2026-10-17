@@ -222,10 +222,17 @@ export class ReplayPlaybackService {
 
   /**
    * Steps forward to the next event this reader is shown, the board taking in those passed on the
-   * way; to the end when none is left.
+   * way; to the end when none is left. The board is worked out up to the one before it, and the step
+   * onto it is taken as a step, so that it slides and sounds as any step does.
    */
   async next(): Promise<void> {
-    await this.seekTo(this.shownFrom(this._cursor() + 1, 1));
+    if (this.staging.isStaging()) return;
+    const target = this.shownFrom(this._cursor() + 1, 1);
+    if (target > this._cursor() + 1) {
+      this._cursor.set(target - 1);
+      if (this._isBoardMode()) await this.applyBoard(target - 1);
+    }
+    await this.seekTo(target);
   }
 
   /** Steps back to the event this reader was shown before; to the start when there was none. */
