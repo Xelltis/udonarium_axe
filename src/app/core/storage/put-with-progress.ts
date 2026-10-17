@@ -6,8 +6,11 @@ export interface UploadLimits {
   deadline?: number;
 }
 
+/** The statuses whose responses carry no body. */
+const BODILESS_STATUSES: ReadonlySet<number> = new Set([101, 204, 205, 304]);
+
 /**
- * Sends bytes with a PUT and answers with the response's status, given up on once `idleMs` passes
+ * Sends bytes with a PUT and answers with the response's status and body, given up on once `idleMs` passes
  * with nothing sent or received: an upload still going, however slowly, is waited for, while one on
  * a line gone quiet is not. Unlike fetch, XMLHttpRequest tells how far an upload has got. One with a
  * `deadline`, as a place to put the bytes is held only so long, is given up on then too.
@@ -51,7 +54,10 @@ export function putWithProgress(
     xhr.onload = () => {
       stop();
       if (xhr.status < 200 || 599 < xhr.status) reject(new TypeError('the upload got no answer'));
-      else resolve(new Response(null, { status: xhr.status, statusText: xhr.statusText }));
+      else {
+        const text = BODILESS_STATUSES.has(xhr.status) || xhr.responseText === '' ? null : xhr.responseText;
+        resolve(new Response(text, { status: xhr.status, statusText: xhr.statusText }));
+      }
     };
     xhr.onerror = () => {
       stop();

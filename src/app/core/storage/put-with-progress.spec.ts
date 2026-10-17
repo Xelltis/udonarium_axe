@@ -8,6 +8,7 @@ class FakeXhr {
   onerror: (() => void) | null = null;
   status = 0;
   statusText = '';
+  responseText = '';
   method = '';
   url = '';
   readonly headers: Record<string, string> = {};
@@ -27,8 +28,9 @@ class FakeXhr {
   abort(): void {
     this.aborted = true;
   }
-  answer(status: number): void {
+  answer(status: number, responseText = ''): void {
     this.status = status;
+    this.responseText = responseText;
     this.onload?.();
   }
 }
@@ -54,6 +56,20 @@ describe('putWithProgress', () => {
     deadline = undefined;
   });
   afterEach(() => vi.useRealTimers());
+
+  it('answers with the body the server sent, as the reason it turned the bytes away', async () => {
+    const result = put();
+    xhr.answer(403, '{"error":"not-a-player"}');
+
+    expect(await (await result).json()).toEqual({ error: 'not-a-player' });
+  });
+
+  it('answers with no body for a status that carries none', async () => {
+    const result = put();
+    xhr.answer(204);
+
+    expect((await result).status).toBe(204);
+  });
 
   it('sends the bytes with their headers and answers with the status', async () => {
     const result = put();
