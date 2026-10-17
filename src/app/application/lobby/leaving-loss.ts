@@ -9,13 +9,14 @@ export type LeavingLoss = 'peer-to-peer' | 'unsent' | 'sending' | 'uploads';
  * Everything leaving the room now would lose, none outside a room. Through SkyWay the table stays
  * only with whoever is left, and nobody may be. On a room server the table stays there, except what
  * was changed while the link to it is down, what is still going out to it, a big load or deletion
- * going out a little at a time, and the pictures and sounds this seat has yet to put up there.
+ * going out a little at a time, and the pictures and sounds this seat has yet to put up there. A
+ * seat the server has yet to let in for the first time has sent nothing, and loses nothing unsent.
  */
 export function leavingLoss(): LeavingLoss[] {
   if (!Network.peerContext.isRoom) return [];
   if (Network.transport !== 'server') return ['peer-to-peer'];
   const losses: LeavingLoss[] = [];
-  if (!Network.isAuthorityOpen) losses.push('unsent');
+  if (!Network.isAuthorityOpen && Network.authorityPeerId !== null) losses.push('unsent');
   else if (Network.hasSendsPending) losses.push('sending');
   if (ImageStorage.instance.hasUploadsPending || AudioStorage.instance.hasUploadsPending) losses.push('uploads');
   return losses;

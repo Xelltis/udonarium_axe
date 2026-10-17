@@ -40,6 +40,7 @@ describe('leaving the room', () => {
     vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true } as never);
     vi.spyOn(Network, 'transport', 'get').mockReturnValue(transport);
     vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(linked);
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(transport === 'server' ? '@authority' : null);
     vi.spyOn(Network, 'hasSendsPending', 'get').mockReturnValue(sending);
     vi.spyOn(ImageStorage.instance, 'hasUploadsPending', 'get').mockReturnValue(images);
     vi.spyOn(AudioStorage.instance, 'hasUploadsPending', 'get').mockReturnValue(sounds);
@@ -106,6 +107,13 @@ describe('leaving the room', () => {
     expect(await TestBed.inject(LeaveRoomService).leave(win)).toBe(true);
 
     expect(calls).toEqual(['save', 'reload']);
+  });
+
+  it('finds nothing unsent before the room server has first let the seat in, nothing having gone out', () => {
+    inRoom('server', { linked: false });
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
+
+    expect(leavingLoss()).toEqual([]);
   });
 
   it('finds nothing to lose outside a room', () => {

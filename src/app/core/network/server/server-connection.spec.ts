@@ -691,6 +691,7 @@ describe('ServerConnection', () => {
     expect(calls).toEqual([]);
 
     await connection.rejoinAfterLeave();
+    expect(calls).toEqual(['disconnect authority']);
     const again = latest();
     welcomeBack(again);
 

@@ -351,10 +351,11 @@ export class ServerConnection implements Connection {
     this.held = kept;
   }
 
-  /** Comes back after leaveImmediately, when the page stayed after all. */
+  /** Comes back after leaveImmediately, when the page stayed after all, saying the link went meanwhile. */
   async rejoinAfterLeave(): Promise<void> {
     if (!this.room) return;
     this.stopped = false;
+    if (this.authority && this.everWelcomed) this.callback.onDisconnect?.(this.authority);
     this.connectSocket();
   }
 

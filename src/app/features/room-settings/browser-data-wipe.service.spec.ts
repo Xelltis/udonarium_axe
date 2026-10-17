@@ -48,6 +48,7 @@ describe('BrowserDataWipeService', () => {
     vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true } as never);
     vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
     vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(false);
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
 
     await service.wipe();
 
