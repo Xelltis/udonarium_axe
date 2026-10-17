@@ -891,6 +891,35 @@ describe('ServerConnection', () => {
     expect(sent.map((sentEvent) => (sentEvent.data as { identifier: string }).identifier)).toContain(later);
   });
 
+  it('takes back nothing the server hands back whose deletion is yet to go out, the deletion going after', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+    const socket = await enterRoom();
+    const deletions = Array.from({ length: SEND_BUDGET_EVENTS * 2 }, (_, i) =>
+      event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
+    );
+    connection.send(deletions);
+    await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
+    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
+    const handedBack = (identifier: string) => ({
+      eventName: 'AUTHORITATIVE_OBJECT',
+      data: { identifier, syncData: { parentIdentifier: 'tab-1' } },
+      sendFrom: AUTHORITY_PEER_ID,
+    });
+    const later = `line-${SEND_BUDGET_EVENTS + 5}`;
+    const other = { eventName: 'UPDATE_GAME_OBJECT', data: { identifier: 'piece' }, sendFrom: AUTHORITY_PEER_ID };
+
+    socket.deliver({ type: 'data', from: AUTHORITY_PEER_ID, events: [handedBack(later), other] });
+    await vi.waitFor(() => expect(received.length).toBe(1));
+
+    expect(received[0].events).toEqual([other]);
+    await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
+    await vi.waitFor(() => expect(connection.sendsPending).toBe(false));
+    const sent = ((await socket.frames()) as { type: string; events?: EventContext[] }[]).flatMap((frame) =>
+      frame.type === 'send' ? (frame.events ?? []) : []
+    );
+    expect(sent.map((sentEvent) => (sentEvent.data as { identifier: string }).identifier)).toContain(later);
+  });
+
   it('keeps two steps inside the server’s window should the first come in late', () => {
     expect(SEND_BUDGET_EVENTS * 2).toBeLessThanOrEqual(20_000);
     expect(SEND_BUDGET_FRAMES * 2).toBeLessThanOrEqual(2_000);

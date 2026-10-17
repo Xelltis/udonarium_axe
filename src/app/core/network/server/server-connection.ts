@@ -797,7 +797,26 @@ export class ServerConnection implements Connection {
       if (typeof event.sendFrom !== 'string' || event.sendFrom.length === 0) event.sendFrom = message.from;
     }
     this.keepWhatTheServerHandsBack(message.events);
-    this.callback.onData?.(from, message.events);
+    this.callback.onData?.(from, this.withoutWhatIsBeingDeleted(message.events));
+  }
+
+  /**
+   * Leaves out what the server hands back of something whose deletion is yet to go out from here,
+   * as one turned down for a change made before it: taken back now, it would stay on this seat
+   * alone once the deletion goes through, which the server tells back only when it got the
+   * deletion before handing the object back. What the server says once it has the deletion is
+   * taken as usual.
+   */
+  private withoutWhatIsBeingDeleted(events: EventContext[]): EventContext[] {
+    const authority = this.authority?.peerId;
+    const handedBack = (event: EventContext) =>
+      event.eventName === AuthorityEvent.AUTHORITATIVE && event.sendFrom === authority;
+    if (!events.some(handedBack)) return events;
+    const deleting = new Set<string>();
+    for (const batch of [...this.held, ...this.unwritten, ...this.outbound]) {
+      for (const event of batch.events) if (event.eventName === DELETION) deleting.add(identifierOf(event) ?? '');
+    }
+    return events.filter((event) => !handedBack(event) || !deleting.has(identifierOf(event) ?? ''));
   }
 
   /**
