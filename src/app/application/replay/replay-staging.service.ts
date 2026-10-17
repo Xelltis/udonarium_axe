@@ -4,7 +4,6 @@ import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
 import type { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { canMergeReplayEvents, mergeReplayEvents } from '@axe/domain/replay/replay-coalescer';
 import { cloneSyncData, type SyncData } from '@axe/domain/replay/replay-diff';
 import {
@@ -23,7 +22,14 @@ import {
   isIgnoredReplayEvent,
   type ReplayDraft,
 } from '@axe/domain/replay/replay-interpreter';
+import { visibilityOfDisclosure, visibilityOfSyncData } from '@axe/domain/replay/replay-visibility';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+
+/** What a piece keeps to some, as the recorder reads it. */
+interface Disclosing {
+  disclosureMode?: unknown;
+  disclosureUserIds?: unknown;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ReplayStagingService {
@@ -48,6 +54,8 @@ export class ReplayStagingService {
   private readonly partOwners = new Map<string, string>();
   /** The arrival or removal of a piece just captured, by the piece, open for its parts. */
   private readonly openPieces = new Map<string, number>();
+  /** Who could see each object as last judged, for its removal once the board has let it go. */
+  private readonly lastVisibility = new Map<string, ReplayVisibility>();
   /** The pieces brought onto the board while capturing, with the names they came with. */
   private readonly broughtIn = new Map<string, ReplayTargetSnapshot>();
   /** What this reader did in the action under way, taken in once it is over. */
@@ -167,6 +175,7 @@ export class ReplayStagingService {
     this.partOwners.clear();
     this.openPieces.clear();
     this.broughtIn.clear();
+    this.lastVisibility.clear();
   }
 
   private handleMessage(eventName: string, data: unknown, at: number): void {
@@ -203,8 +212,9 @@ export class ReplayStagingService {
 
     if (eventName === 'DELETE_GAME_OBJECT') {
       const context = data as { identifier: string; aliasName: string };
-      this.shadows.delete(context.identifier);
       const owner = this.partOwners.get(context.identifier);
+      this.noteRemovedVisibility(context.identifier, owner);
+      this.shadows.delete(context.identifier);
       this.partOwners.delete(context.identifier);
       const folded =
         owner !== undefined &&
@@ -331,9 +341,25 @@ export class ReplayStagingService {
       return PUBLIC_VISIBILITY;
     }
 
-    const object = draft.targetIdentifier ? this.objectStore.get(draft.targetIdentifier) : null;
-    const disclosable = object as { disclosureMode?: unknown } | null;
-    if (disclosable?.disclosureMode === DisclosureMode.GameMaster) return GM_ONLY_VISIBILITY;
-    return PUBLIC_VISIBILITY;
+    const target = draft.targetIdentifier;
+    const object = target ? this.objectStore.get(target) : null;
+    // Taken off the board before the word came, it is judged as it was last seen, as the recorder does.
+    if (!object) return (target && this.lastVisibility.get(target)) || PUBLIC_VISIBILITY;
+    // A part such as a piece's HP has no disclosure of its own and is kept as its piece is.
+    const holder = ('disclosureMode' in object ? object : pieceOf(object)) as Disclosing | null;
+    const visibility = visibilityOfDisclosure(holder?.disclosureMode, holder?.disclosureUserIds);
+    if (target) this.lastVisibility.set(target, visibility);
+    return visibility;
+  }
+
+  /**
+   * Keeps who could see an object taken off the board, from its last state or its piece's, before
+   * that is let go: its removal is judged by it, as the store has let it go by then.
+   */
+  private noteRemovedVisibility(identifier: string, owner: string | undefined): void {
+    const holder = owner || identifier;
+    const shadow = this.shadows.get(holder);
+    const visibility = shadow ? visibilityOfSyncData(shadow) : this.lastVisibility.get(holder);
+    if (visibility) this.lastVisibility.set(identifier, visibility);
   }
 }

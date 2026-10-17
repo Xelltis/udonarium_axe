@@ -5,7 +5,9 @@ import { localDispatch } from '@axe/core/network/network-messaging';
 import type { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { ReplayEventKind } from '@axe/domain/replay/replay-event';
+import { DataElement } from '@axe/domain/data/data-element';
+import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
+import { GM_ONLY_VISIBILITY, ReplayEventKind } from '@axe/domain/replay/replay-event';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function context(identifier: string, aliasName: string, attributes: Record<string, unknown>): ObjectContext {
@@ -150,6 +152,32 @@ describe('ReplayStagingService', () => {
 
     expect(service.broughtInTargets()).toEqual([
       { identifier: hero.identifier, aliasName: hero.aliasName, name: '勇者アルス', sinceSeq: 0 },
+    ]);
+  });
+
+  it('keeps a change to a part of a piece kept to the GM as the piece is kept', async () => {
+    const boss = GameCharacter.create('ボス', 1, '');
+    boss.disclosureMode = DisclosureMode.GameMaster;
+    const part = boss.commonDataElement!.children[0] as DataElement;
+    service.begin(1, 'gm');
+
+    part.value = '隠し名';
+    await settled();
+
+    expect(service.captured().map((event) => event.visibility)).toEqual([GM_ONLY_VISIBILITY]);
+  });
+
+  it('keeps the removal of a piece shown to some as it was shown', async () => {
+    const scout = GameCharacter.create('斥候', 1, '');
+    scout.disclosureMode = DisclosureMode.Selected;
+    scout.disclosureUserIds = ['bob'];
+    service.begin(1, 'gm');
+
+    scout.destroy();
+    await settled();
+
+    expect(service.captured().map((event) => [event.kind, event.visibility])).toEqual([
+      [ReplayEventKind.ObjectRemove, { kind: 'direct', to: ['bob'] }],
     ]);
   });
 
