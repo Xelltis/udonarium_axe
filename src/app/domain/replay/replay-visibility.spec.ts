@@ -10,6 +10,7 @@ import {
 import {
   hiddenPiecesIn,
   inheritOwnerVisibility,
+  keepLinesToTheirTabs,
   visibilityOfChatLine,
   visibilityOfDisclosure,
 } from '@axe/domain/replay/replay-visibility';
@@ -46,6 +47,47 @@ describe('replay visibility', () => {
     ]);
 
     expect([...hidden.keys()]).toEqual(['boss']);
+  });
+
+  describe('keepLinesToTheirTabs', () => {
+    const board = [
+      { identifier: 'gm-tab', aliasName: 'chat-tab', syncData: { plCanView: false, guestCanView: false } },
+      {
+        identifier: 'pl-tab',
+        aliasName: 'chat-tab',
+        syncData: { attributes: { plCanView: true, guestCanView: 'false' } },
+      },
+      { identifier: 'main-tab', aliasName: 'chat-tab', syncData: {} },
+    ];
+    const line = (
+      seq: number,
+      tabIdentifier: string,
+      visibility: ReplayVisibility = PUBLIC_VISIBILITY
+    ): ReplayEvent => ({
+      ...event(seq, ReplayEventKind.ChatMessage, `line-${seq}`, visibility),
+      detail: { tabIdentifier },
+    });
+
+    it('keeps each line to those who could read its tab as the board began', () => {
+      const events = [line(1, 'gm-tab'), line(2, 'pl-tab'), line(3, 'main-tab'), line(4, 'made-later')];
+
+      expect(keepLinesToTheirTabs(events, board).map((e) => e.visibility)).toEqual([
+        GM_ONLY_VISIBILITY,
+        PLAYERS_VISIBILITY,
+        PUBLIC_VISIBILITY,
+        PUBLIC_VISIBILITY,
+      ]);
+    });
+
+    it('leaves alone a whisper, and what is not a line', () => {
+      const whisper = line(1, 'gm-tab', { kind: 'direct', to: ['bob'] });
+      const move = {
+        ...event(2, ReplayEventKind.ObjectMove, 'piece', PUBLIC_VISIBILITY),
+        detail: { tabIdentifier: 'gm-tab' },
+      };
+
+      expect(keepLinesToTheirTabs([whisper, move], board)).toEqual([whisper, move]);
+    });
   });
 
   describe('visibilityOfChatLine', () => {

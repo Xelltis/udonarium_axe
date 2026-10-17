@@ -13,6 +13,7 @@ import {
   ReplayEventKind,
   type ReplayManifest,
 } from '@axe/domain/replay/replay-event';
+import { decode } from '@msgpack/msgpack';
 
 const manifest: ReplayManifest = {
   formatVersion: REPLAY_FORMAT_VERSION,
@@ -83,6 +84,17 @@ describe('buildReplayArchiveFiles()', () => {
   it('writes the catalogue as readable json', async () => {
     const [manifestFile] = buildReplayArchiveFiles({ manifest, chunks: [], keyframes: [], assets: [] });
     expect(JSON.parse(await manifestFile.text())).toEqual(manifest);
+  });
+
+  it('packs the events of an older recording in its own format, as its catalogue says', async () => {
+    const [, chunkFile] = buildReplayArchiveFiles({
+      manifest: { ...manifest, formatVersion: 3 },
+      chunks: [{ index: 0, events: [event(1)] }],
+      keyframes: [],
+      assets: [],
+    });
+
+    expect((decode(new Uint8Array(await chunkFile.arrayBuffer())) as { v: number }).v).toBe(3);
   });
 });
 

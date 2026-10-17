@@ -104,6 +104,9 @@ function isValueCue(event: ReplayEvent): boolean {
 /** The first format whose recorder flags the parts itself, so that a recording read back needs no flagging. */
 export const REPLAY_PARTS_FLAGGED_SINCE_FORMAT = 3;
 
+/** The first format whose recorder keeps a line to those who could read its tab. */
+export const REPLAY_TAB_VIEWS_SINCE_FORMAT = 4;
+
 /** Whether an object was part of a piece at a point in a recording. */
 export type ReplayPartJudge = (identifier: string, seq: number) => boolean;
 

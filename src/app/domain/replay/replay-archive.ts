@@ -52,7 +52,7 @@ export function buildReplayArchiveFiles(source: ReplayArchiveSource): File[] {
   ];
 
   for (const chunk of source.chunks) {
-    const bytes = encodeReplayEvents(chunk.events);
+    const bytes = encodeReplayEvents(chunk.events, source.manifest.formatVersion);
     files.push(
       new File([bytes as BlobPart], `${REPLAY_EVENT_DIR}${indexName(chunk.index)}.msgpack`, {
         type: 'application/octet-stream',

@@ -1,4 +1,5 @@
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
+import { syncValueOf } from '@axe/domain/replay/replay-diff';
 import {
   GM_ONLY_VISIBILITY,
   PLAYERS_VISIBILITY,
@@ -10,6 +11,11 @@ import {
   resolveSnapshotAt,
 } from '@axe/domain/replay/replay-event';
 import type { ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
+
+const CHAT_TAB_ALIAS = 'chat-tab';
+
+/** The kinds that are lines said in a tab. */
+const CHAT_LINE_KINDS: ReadonlySet<ReplayEventKind> = new Set([ReplayEventKind.ChatMessage, ReplayEventKind.ChatDice]);
 
 /** Who may see an object with this disclosure: the game master only, the chosen users, or everyone. */
 export function visibilityOfDisclosure(mode: unknown, userIds: unknown): ReplayVisibility {
@@ -39,6 +45,38 @@ export function visibilityOfChatLine(
   if (tab && !tab.guestCanView) return PLAYERS_VISIBILITY;
   return PUBLIC_VISIBILITY;
 }
+
+/**
+ * Keeps the lines of a recording made before tabs' views were recorded to those who could read
+ * their tab, as the tabs stood on the board when recording began. A line in a tab made later stays
+ * as it was recorded.
+ */
+export function keepLinesToTheirTabs(
+  events: readonly ReplayEvent[],
+  board: readonly ReplayObjectSnapshot[]
+): ReplayEvent[] {
+  const tabs = new Map(
+    board
+      .filter((snapshot) => snapshot.aliasName === CHAT_TAB_ALIAS)
+      .map((snapshot) => [
+        snapshot.identifier,
+        {
+          plCanView: isTrue(syncValueOf(snapshot.syncData, 'plCanView')),
+          guestCanView: isTrue(syncValueOf(snapshot.syncData, 'guestCanView')),
+        },
+      ])
+  );
+  return events.map((event) => {
+    if (!CHAT_LINE_KINDS.has(event.kind) || event.visibility.kind !== 'public') return event;
+    const tab = tabs.get(String(event.detail['tabIdentifier'] ?? ''));
+    if (!tab) return event;
+    const visibility = visibilityOfChatLine(event.detail, tab);
+    return visibility.kind === 'public' ? event : { ...event, visibility };
+  });
+}
+
+/** Whether a synced flag is on, as a missing one is by default. */
+const isTrue = (value: unknown): boolean => value !== false && value !== 'false';
 
 /** Who may see an object, read from its synced state: the disclosure among its attributes, or none. */
 export function visibilityOfSyncData(syncData: Readonly<Record<string, unknown>>): ReplayVisibility {
