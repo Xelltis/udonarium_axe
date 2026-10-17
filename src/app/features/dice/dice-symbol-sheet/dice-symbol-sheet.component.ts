@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
@@ -49,6 +51,8 @@ export class DiceSymbolSheetComponent {
   private readonly saveDataService = inject(SaveDataService);
   private readonly imageService = inject(ImageService);
   private readonly imageStorage = inject(ImageStorage);
+  private readonly snackbar = inject(SnackbarService);
+  private readonly translateFn = inject(TRANSLATE_FN);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -215,7 +219,11 @@ export class DiceSymbolSheetComponent {
    */
   async saveToXML() {
     const dice = this._diceSymbol();
-    if (!dice || this.isSaving() || isWithheldHere(dice)) return;
+    if (!dice || this.isSaving()) return;
+    if (isWithheldHere(dice)) {
+      this.snackbar.show(this.translateFn('feature.inventory.sheet.saveWithheld'));
+      return;
+    }
     this.isSaving.set(true);
     this.progressPercent.set(0);
     await this.saveDataService.saveGameObjectAsync(dice, 'xml_' + dice.name, (percent) => {

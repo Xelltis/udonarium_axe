@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { DiceSymbolSheetComponent } from '@axe/features/dice/dice-symbol-sheet/dice-symbol-sheet.component';
@@ -18,9 +19,11 @@ describe('DiceSymbolSheetComponent', () => {
     const component = TestBed.createComponent(DiceSymbolSheetComponent).componentInstance;
     component.diceSymbol = DiceSymbol.create('ほかの人のダイス', DiceType.D6, 1);
 
+    const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
     await component.saveToXML();
 
     expect(save).not.toHaveBeenCalled();
+    expect(shown).toHaveBeenCalledTimes(1);
     vi.restoreAllMocks();
   });
 

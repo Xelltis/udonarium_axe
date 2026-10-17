@@ -5,6 +5,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { BottomSheetService } from '@axe/application/ui/bottom-sheet.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { Card, CardState } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -47,8 +48,10 @@ describe('GameCharacterSheetComponent', () => {
     card.imageDataElement!.removeChild(card.imageDataElement!.getFirstElementByName('front')!);
     component.tabletopObject = card;
 
+    const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
     await component.saveToXML();
     expect(save).not.toHaveBeenCalled();
+    expect(shown).toHaveBeenCalledTimes(1);
 
     component.tabletopObject = Card.create('表の札', 'front.png', 'back.png');
     await component.saveToXML();

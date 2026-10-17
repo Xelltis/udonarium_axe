@@ -26,6 +26,7 @@ import { MotionService } from '@axe/application/ui/motion.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { buildReorderContextMenu } from '@axe/application/ui/reorder-context-menu';
 import { SheetViewPreferenceService } from '@axe/application/ui/sheet-view-preference.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -106,6 +107,7 @@ export class GameCharacterSheetComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly dataElementDrag = inject(DataElementDragService);
   private readonly translateFn = inject(TRANSLATE_FN);
+  private readonly snackbar = inject(SnackbarService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly dataElementDeletion = inject(DataElementDeletionService);
   private readonly bottomSheet = inject(BottomSheetService);
@@ -962,7 +964,11 @@ export class GameCharacterSheetComponent {
    */
   async saveToXML() {
     const obj = this.tabletopObject;
-    if (!obj || this.isSaving() || isWithheldHere(obj)) return;
+    if (!obj || this.isSaving()) return;
+    if (isWithheldHere(obj)) {
+      this.snackbar.show(this.translateFn('feature.inventory.sheet.saveWithheld'));
+      return;
+    }
     this.isSaving.set(true);
     this.progressPercent.set(0);
     const element = obj.commonDataElement?.getFirstElementByName('name');

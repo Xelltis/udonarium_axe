@@ -4,6 +4,7 @@ import { Attributes } from '@axe/core/sync/attributes';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { handLocationOf, isHandLocation, isHandOf } from '@axe/domain/card/hand-location';
 import { DataElement, DataElementType } from '@axe/domain/data/data-element';
+import { isTableWithheld } from '@axe/domain/peer/withheld-table';
 import { OwnedTabletopObject } from '@axe/domain/tabletop/owned-tabletop-object';
 import { moveToTopmost } from '@axe/domain/tabletop/tabletop-object-util';
 
@@ -123,10 +124,11 @@ export class Card extends OwnedTabletopObject {
 
   /**
    * Whether a room server keeps the front from this user: the card is face down to them, and its
-   * front picture, name and text never came. Never with SkyWay, which hands every card over whole.
+   * front picture, name and text never came. Never with SkyWay, which hands every card over whole,
+   * unless the table held here came from a room server so.
    */
   get isFaceWithheld(): boolean {
-    if (!getAuthorityPeerId() || !this.imageDataElement) return false;
+    if ((!getAuthorityPeerId() && !isTableWithheld()) || !this.imageDataElement) return false;
     return !this.getElement('front', this.imageDataElement);
   }
 

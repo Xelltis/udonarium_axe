@@ -1633,6 +1633,7 @@
         "copy": "コピーを作る",
         "save": "保存",
         "saving": "保存中 {{percent}}%",
+        "saveWithheld": "伏せられた部分があるので保存できません（部屋のサーバーで、あなたに見えていない部分があります）",
         "popupWidth": "ポップアップ横幅",
         "popupMaxHeight": "ポップアップ縦幅最大",
         "limitHeight": "height設定値に高さを制限",

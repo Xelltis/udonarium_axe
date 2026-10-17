@@ -1633,6 +1633,7 @@
         "copy": "Duplicate",
         "save": "Save",
         "saving": "Saving {{percent}}%",
+        "saveWithheld": "This cannot be saved: part of it is hidden from you by the room server.",
         "popupWidth": "Popup width",
         "popupMaxHeight": "Popup max height",
         "limitHeight": "Limit height to value",
