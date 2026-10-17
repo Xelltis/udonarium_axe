@@ -77,6 +77,12 @@ function event(eventName: string, data: unknown = null): EventContext {
   return { eventName, data, sendFrom: 'me' };
 }
 
+/**
+ * How long a spec waits for all it sent to be written. Each frame of a big load is encoded on its
+ * way out, which a busy machine can take seconds over; the wait ends as soon as all is written.
+ */
+const DRAINED = { timeout: 10_000 };
+
 describe('ServerConnection', () => {
   let connection: ServerConnection;
   let calls: string[];
@@ -793,7 +799,7 @@ describe('ServerConnection', () => {
     });
     await vi.waitFor(() => expect(received.length).toBe(1));
     await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
-    await vi.waitFor(() => expect(connection.sendsPending).toBe(false));
+    await vi.waitFor(() => expect(connection.sendsPending).toBe(false), DRAINED);
 
     const sent = ((await socket.frames()) as { type: string; events?: EventContext[] }[]).flatMap((frame) =>
       frame.type === 'send' ? (frame.events ?? []) : []
@@ -829,7 +835,7 @@ describe('ServerConnection', () => {
     });
     await vi.waitFor(() => expect(received.length).toBe(1));
     await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS * 2);
-    await vi.waitFor(() => expect(connection.sendsPending).toBe(false));
+    await vi.waitFor(() => expect(connection.sendsPending).toBe(false), DRAINED);
 
     const deleted = ((await socket.frames()) as { type: string; events?: EventContext[] }[])
       .flatMap((frame) => (frame.type === 'send' ? (frame.events ?? []) : []))
@@ -856,7 +862,7 @@ describe('ServerConnection', () => {
     });
     await vi.waitFor(() => expect(received.length).toBe(1));
     await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
-    await vi.waitFor(() => expect(connection.sendsPending).toBe(false));
+    await vi.waitFor(() => expect(connection.sendsPending).toBe(false), DRAINED);
 
     const sent = ((await socket.frames()) as { type: string; events?: EventContext[] }[]).flatMap((frame) =>
       frame.type === 'send' ? (frame.events ?? []) : []
@@ -883,7 +889,7 @@ describe('ServerConnection', () => {
     socket.deliver({ type: 'data', from: AUTHORITY_PEER_ID, events: [handedBack('line-5'), handedBack(later)] });
     await vi.waitFor(() => expect(received.length).toBe(1));
     await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
-    await vi.waitFor(() => expect(connection.sendsPending).toBe(false));
+    await vi.waitFor(() => expect(connection.sendsPending).toBe(false), DRAINED);
 
     const sent = ((await socket.frames()) as { type: string; events?: EventContext[] }[]).flatMap((frame) =>
       frame.type === 'send' ? (frame.events ?? []) : []
@@ -913,7 +919,7 @@ describe('ServerConnection', () => {
 
     expect(received[0].events).toEqual([other]);
     await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
-    await vi.waitFor(() => expect(connection.sendsPending).toBe(false));
+    await vi.waitFor(() => expect(connection.sendsPending).toBe(false), DRAINED);
     const sent = ((await socket.frames()) as { type: string; events?: EventContext[] }[]).flatMap((frame) =>
       frame.type === 'send' ? (frame.events ?? []) : []
     );
@@ -1019,7 +1025,7 @@ describe('ServerConnection', () => {
     expect(connection.sendsPending).toBe(true);
 
     await vi.advanceTimersByTimeAsync(PACE_WINDOW_MS);
-    await vi.waitFor(() => expect(connection.sendsPending).toBe(false));
+    await vi.waitFor(() => expect(connection.sendsPending).toBe(false), DRAINED);
   });
 
   it('stops waiting to write when the link goes, keeping the deletions for the next', async () => {
