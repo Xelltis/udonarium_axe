@@ -25,7 +25,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { handOverOwnership } from '@axe/domain/peer/ownership';
 import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit, DEFAULT_PEER_ROLE } from '@axe/domain/peer/peer-role';
-import { markTableWithheld } from '@axe/domain/peer/withheld-table';
+import { markSeatWithheld } from '@axe/domain/peer/withheld-table';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 
 /** What to say for each reason the room server gives for keeping a role as it was. */
@@ -298,7 +298,7 @@ export class NetworkEventHandlerService {
     const role = Network.serverRole;
     const cursor = PeerCursor.myCursor;
     if (role && cursor && cursor.role !== role) cursor.role = role;
-    if (role) markTableWithheld(role !== 'gm');
+    if (role) markSeatWithheld(role !== 'gm');
   }
 
   /**

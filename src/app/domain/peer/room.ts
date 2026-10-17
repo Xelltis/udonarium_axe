@@ -21,7 +21,7 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
-import { markTableWithheld } from '@axe/domain/peer/withheld-table';
+import { markLoadedWithheld } from '@axe/domain/peer/withheld-table';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
@@ -143,7 +143,7 @@ export class Room extends GameObject implements InnerXml {
 
     const reLoadOk = this.reloadCheck.answerCheck();
     if (reLoadOk) {
-      markTableWithheld(withheld || (getAuthorityPeerId() !== null && !PeerCursor.isMyselfGameMaster));
+      markLoadedWithheld(withheld, getAuthorityPeerId() !== null && !PeerCursor.isMyselfGameMaster);
       for (const object of objects) {
         object.destroy();
       }

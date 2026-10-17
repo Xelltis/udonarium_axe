@@ -27,7 +27,7 @@ import { Card } from '@axe/domain/card/card';
 import { handLocationOf } from '@axe/domain/card/hand-location';
 import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { isTableWithheld, markTableWithheld } from '@axe/domain/peer/withheld-table';
+import { isTableWithheld, markLoadedWithheld, markSeatWithheld } from '@axe/domain/peer/withheld-table';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -910,7 +910,22 @@ describe('NetworkEventHandlerService', () => {
         localDispatch('SERVER_ROLE_CHANGED', { role: 'gm' });
         expect(isTableWithheld()).toBe(false);
       } finally {
-        markTableWithheld(false);
+        markSeatWithheld(false);
+      }
+    });
+
+    it('keeps the table withheld after a marked save was loaded, even once the GM', () => {
+      vi.spyOn(ImageStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
+      vi.spyOn(AudioStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
+      vi.spyOn(Network, 'serverRole', 'get').mockReturnValue('gm');
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ peerId: 'p', userId: 'u', isRoom: true } as never);
+      markLoadedWithheld(true, false);
+      try {
+        localDispatch('SERVER_ROLE_CHANGED', { role: 'gm' });
+
+        expect(isTableWithheld()).toBe(true);
+      } finally {
+        markLoadedWithheld(false, false);
       }
     });
 
