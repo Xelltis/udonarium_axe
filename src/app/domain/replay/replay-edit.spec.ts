@@ -811,6 +811,25 @@ describe('chat moments that follow a new place', () => {
         inOrder(stepped);
       });
 
+      it('keeps a run of rolls by one speaker in order when several are stepped down past their results', () => {
+        const events = [
+          minor(by('quinn', 1, 1000002, '2d6'), 0.5),
+          minor(answering(result(2, 20, 1000003), 'quinn'), 0.5),
+          minor(by('quinn', 3, 1000004, '2d6'), 0.5),
+          minor(answering(result(4, 40, 1000005), 'quinn'), 0.5),
+          minor(by('quinn', 5, 1000006, '2d6'), 0.5),
+          minor(answering(result(6, 60, 1000007), 'quinn'), 0.5),
+          minor(by('quinn', 7, 1000008, '2d6'), 0.5),
+          minor(answering(result(8, 80, 1000009), 'quinn'), 0.5),
+          minor(by('gm', 9, 1000010), 0.5),
+        ];
+
+        const stepped = stepReplayEvents(events, new Set([1, 3, 5]), 1);
+
+        expect(stepped.map((event) => event.seq)).toEqual([2, 1, 4, 3, 6, 5, 7, 8, 9]);
+        inOrder(stepped);
+      });
+
       it('counts the room up to the next line kept to the moment it is said in, fraction and all', () => {
         const events = [
           minor(by('gm', 1, 1000000), 0.07),

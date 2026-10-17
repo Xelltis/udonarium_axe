@@ -186,6 +186,12 @@ const ANSWER_SENDERS: ReadonlySet<string> = new Set([DICEBOT_SENDER, 'System']);
 /** How many moments after the line it answers a dice result, and then a resource notice, is said. */
 const ANSWER_GAPS = [1, 2];
 
+/**
+ * How many moments an answer left behind wants kept free for it ahead of the next line kept: its
+ * own, and the ones just after its asker's lines, which would take it as theirs.
+ */
+const LEFT_ANSWER_ROOM = ANSWER_GAPS.length + 1;
+
 interface ChatLine {
   index: number;
   tab: string;
@@ -290,7 +296,8 @@ function withChatMoments(
       roomWanted.set(seq, wantedAhead.get(line.tab) ?? 0);
       if (remade.has(seq) || (followed(seq) && retold.has(line.answers!.seq))) continue;
       const top = answerTops.get(seq) ?? 0;
-      wantedAhead.set(line.tab, (wantedAhead.get(line.tab) ?? 0) + (top > 0 ? Math.ceil(top) + 1 : 1));
+      const wanted = top > 0 ? Math.ceil(top) + 1 : line.asker !== '' ? LEFT_ANSWER_ROOM : 1;
+      wantedAhead.set(line.tab, (wantedAhead.get(line.tab) ?? 0) + wanted);
     } else if (!followed(seq)) {
       wantedAhead.set(line.tab, 0);
     }
