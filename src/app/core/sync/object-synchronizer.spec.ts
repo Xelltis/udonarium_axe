@@ -83,6 +83,32 @@ describe('ObjectSynchronizer', () => {
     });
   });
 
+  describe('between peers', () => {
+    afterEach(() => {
+      ObjectSynchronizer.instance.destroy();
+      ObjectStore.instance.clearDeleteHistory();
+      vi.restoreAllMocks();
+    });
+
+    it('tells a peer changing what was deleted here that it is deleted', () => {
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      ObjectSynchronizer.instance.initialize();
+      const gone = new GameObject('deleted-here');
+      ObjectStore.instance.add(gone, false);
+      ObjectStore.instance.delete(gone, false);
+
+      localDispatch('UPDATE_GAME_OBJECT', { ...gone.toContext(), majorVersion: 5 }, 'peer-a');
+
+      expect(send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventName: 'DELETE_GAME_OBJECT',
+          data: { aliasName: '', identifier: 'deleted-here' },
+        }),
+        'peer-a'
+      );
+    });
+  });
+
   describe('through a room server', () => {
     const AUTHORITY = '@authority';
     let sendCatalog: ReturnType<typeof vi.fn>;
@@ -127,6 +153,19 @@ describe('ObjectSynchronizer', () => {
       localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'kept-by-the-server', version: 1 }], AUTHORITY);
 
       expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
+    });
+
+    it('asks the server for a change it passes on of what this seat saw deleted, never deleting it', () => {
+      const gone = new GameObject('lost-here');
+      ObjectStore.instance.add(gone, false);
+      ObjectStore.instance.delete(gone, false);
+
+      localDispatch('UPDATE_GAME_OBJECT', { ...gone.toContext(), majorVersion: 5 }, 'peer-a');
+
+      expect(sentTo('DELETE_GAME_OBJECT')).toEqual([]);
+      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
+      expect(ObjectStore.instance.isDeleted('lost-here')).toBe(false);
+      ObjectStore.instance.clearDeleteHistory();
     });
 
     it('asks the server for what its catalog offers, though this seat saw it deleted, never deleting it', () => {

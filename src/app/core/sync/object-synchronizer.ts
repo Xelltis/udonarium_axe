@@ -103,11 +103,7 @@ export class ObjectSynchronizer {
               if (!msg.isSendFromSelf) object = this.updateObject(object, context);
               markForChanged(object, msg.sendFrom);
             } else if (ObjectStore.instance.isDeleted(context.identifier)) {
-              networkSend(
-                'DELETE_GAME_OBJECT',
-                { aliasName: context.aliasName, identifier: context.identifier },
-                msg.sendFrom
-              );
+              this.answerChangeOfDeleted(context, msg.sendFrom);
             } else {
               object = this.createObject(context);
               if (object) markForChanged(object, msg.sendFrom);
@@ -228,6 +224,26 @@ export class ObjectSynchronizer {
       }
     }, CATALOG_TICK_MS);
     this.catalogSenders.add(interval);
+  }
+
+  /**
+   * Answers a change of something deleted here. A peer is told it is deleted. A room server keeps
+   * deletions itself, so what it passes on is there now, as for what its catalog lists: it is
+   * asked for, and its answer comes after any deletion this seat sent before. A deletion sent back
+   * would take the object from everybody, when it may be only this seat that lost it.
+   */
+  private answerChangeOfDeleted(context: ObjectContext, sendFrom: PeerId): void {
+    const authority = Network.authorityPeerId;
+    if (authority == null) {
+      networkSend('DELETE_GAME_OBJECT', { aliasName: context.aliasName, identifier: context.identifier }, sendFrom);
+      return;
+    }
+    ObjectStore.instance.forgetDeleted([context.identifier]);
+    this.addRequestMap(
+      { identifier: context.identifier, version: context.majorVersion + context.minorVersion },
+      authority
+    );
+    this.synchronize();
   }
 
   private addRequestMap(item: CatalogItem, sendFrom: PeerId) {
