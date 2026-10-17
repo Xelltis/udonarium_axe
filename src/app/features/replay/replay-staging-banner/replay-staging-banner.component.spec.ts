@@ -26,6 +26,7 @@ describe('ReplayStagingBannerComponent', () => {
           useValue: {
             isStaging: signal(true).asReadonly(),
             captured: signal<readonly ReplayEvent[]>([]).asReadonly(),
+            stagedTargets: () => [],
             actorId: signal('bob').asReadonly(),
             insertIndex: signal(0).asReadonly(),
             setActorId: vi.fn(),
@@ -60,6 +61,7 @@ describe('ReplayStagingBannerComponent', () => {
           useValue: {
             isStaging: signal(true).asReadonly(),
             captured: signal<readonly ReplayEvent[]>([]).asReadonly(),
+            stagedTargets: () => [],
             actorId: signal('alice').asReadonly(),
             insertIndex: signal(0).asReadonly(),
             setActorId,
@@ -115,7 +117,7 @@ describe('ReplayStagingBannerComponent', () => {
             afterSeq: signal(12).asReadonly(),
             setActorId: vi.fn(),
             take: () => captured,
-            broughtInTargets: () => broughtIn,
+            stagedTargets: () => broughtIn,
           },
         },
         { provide: ReplayEditorService, useValue: { insertManyAfter } },

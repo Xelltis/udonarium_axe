@@ -1,6 +1,6 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
-import { pieceOf } from '@axe/application/replay/replay-piece';
+import { pieceOf, targetNameOf } from '@axe/application/replay/replay-piece';
 import { ReplayPreferenceService } from '@axe/application/replay/replay-preference.service';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
@@ -12,7 +12,6 @@ import { ReplayLogStore, type ReplayRecordingMeta, selectExpiredRecordings } fro
 import type { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { compressAsync } from '@axe/core/util/compress';
-import { DataElement } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canMergeReplayEvents, mergeReplayEvents } from '@axe/domain/replay/replay-coalescer';
 import { encodeReplayEvents, encodeReplayManifest } from '@axe/domain/replay/replay-codec';
@@ -655,7 +654,7 @@ export class ReplayRecorderService {
     for (const object of this.objectStore.getObjects()) {
       const owner = pieceOf(object);
       if (owner) this.partOwners.set(object.identifier, owner.identifier);
-      else if (object instanceof TabletopObject) this.namesAtStart.set(object.identifier, nameOf(object));
+      else if (object instanceof TabletopObject) this.namesAtStart.set(object.identifier, targetNameOf(object));
     }
     for (const snapshot of this.snapshotStore()) {
       this.shadows.set(snapshot.identifier, cloneSyncData(snapshot.syncData));
@@ -722,7 +721,7 @@ export class ReplayRecorderService {
     const snapshot: ReplayTargetSnapshot = {
       identifier,
       aliasName: object.aliasName,
-      name: nameOf(object),
+      name: targetNameOf(object),
       ownerIdentifier: owner?.identifier,
       sinceSeq: this.seq + 1,
     };
@@ -809,11 +808,4 @@ interface Disclosing {
 
 function isDisclosable(object: unknown): boolean {
   return typeof object === 'object' && object !== null && 'disclosureMode' in object;
-}
-
-function nameOf(object: unknown): string {
-  if (object instanceof TabletopObject) return object.name;
-  if (object instanceof DataElement) return String(object.getAttribute('name') ?? '');
-  const named = object as { name?: unknown };
-  return typeof named?.name === 'string' ? named.name : '';
 }

@@ -39,7 +39,11 @@ export class ReplayStagingBannerComponent {
   });
 
   protected readonly lines = computed(() => {
-    const manifest = this.playback.manifest() ?? EMPTY_DICTIONARY;
+    const recorded = this.playback.manifest() ?? EMPTY_DICTIONARY;
+    const staged = this.staging
+      .stagedTargets()
+      .filter((target) => !findTargetAt(recorded, target.identifier, Infinity));
+    const manifest = { ...recorded, targets: [...recorded.targets, ...staged] };
     return this.captured()
       .slice(-4)
       .map((event) => ({
@@ -60,7 +64,7 @@ export class ReplayStagingBannerComponent {
   }
 
   protected async accept(): Promise<void> {
-    this.playback.addTargets(this.staging.broughtInTargets());
+    this.playback.addTargets(this.staging.stagedTargets());
     const captured = this.staging.take();
     this.editor.insertManyAfter(this.staging.afterSeq(), this.staging.insertIndex(), captured);
     await this.playback.showBoardAfresh();

@@ -144,15 +144,32 @@ describe('ReplayStagingService', () => {
     expect(service.captured()[1].removedParts?.length).toBeGreaterThan(0);
   });
 
-  it('names a piece brought in by what it is called when the scene is taken', async () => {
+  it('names a piece brought in by what it is called when the scene is taken, and its parts as its own', async () => {
     service.begin(1, 'alice');
     const hero = GameCharacter.create('勇者', 1, '');
+    await settled();
     hero.name = '勇者アルス';
     await settled();
 
-    expect(service.broughtInTargets()).toEqual([
-      { identifier: hero.identifier, aliasName: hero.aliasName, name: '勇者アルス', sinceSeq: 0 },
-    ]);
+    const targets = service.stagedTargets();
+    expect(targets.find((target) => target.identifier === hero.identifier)).toEqual({
+      identifier: hero.identifier,
+      aliasName: hero.aliasName,
+      name: '勇者アルス',
+      sinceSeq: 0,
+    });
+    const part = targets.find((target) => target.ownerIdentifier === hero.identifier);
+    expect(part?.aliasName).toBe(DataElement.aliasName);
+  });
+
+  it('names a piece taken away that was on the board before capturing began', async () => {
+    const goblin = GameCharacter.create('ゴブリン', 1, '');
+    service.begin(1, 'alice');
+
+    goblin.destroy();
+    await settled();
+
+    expect(service.stagedTargets().find((target) => target.identifier === goblin.identifier)?.name).toBe('ゴブリン');
   });
 
   it('keeps a change to a part of a piece kept to the GM as the piece is kept', async () => {

@@ -1,8 +1,8 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
-import { pieceOf } from '@axe/application/replay/replay-piece';
+import { pieceOf, targetNameOf } from '@axe/application/replay/replay-piece';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
-import type { ObjectContext } from '@axe/core/sync/game-object';
+import type { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { canMergeReplayEvents, mergeReplayEvents } from '@axe/domain/replay/replay-coalescer';
 import { cloneSyncData, type SyncData } from '@axe/domain/replay/replay-diff';
@@ -23,7 +23,6 @@ import {
   type ReplayDraft,
 } from '@axe/domain/replay/replay-interpreter';
 import { visibilityOfDisclosure, visibilityOfSyncData } from '@axe/domain/replay/replay-visibility';
-import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 /** What a piece keeps to some, as the recorder reads it. */
 interface Disclosing {
@@ -56,8 +55,10 @@ export class ReplayStagingService {
   private readonly openPieces = new Map<string, number>();
   /** Who could see each object as last judged, for its removal once the board has let it go. */
   private readonly lastVisibility = new Map<string, ReplayVisibility>();
-  /** The pieces brought onto the board while capturing, with the names they came with. */
-  private readonly broughtIn = new Map<string, ReplayTargetSnapshot>();
+  /** What was captured of, with what it was called and the piece it was part of. */
+  private readonly touched = new Map<string, ReplayTargetSnapshot>();
+  /** What the pieces on the board were called when capturing began, for those taken away. */
+  private readonly namesAtStart = new Map<string, ReplayTargetSnapshot>();
   /** What this reader did in the action under way, taken in once it is over. */
   private queued: { eventName: string; data: unknown; at: number }[] = [];
   private pending: ReplayEvent | null = null;
@@ -123,6 +124,7 @@ export class ReplayStagingService {
       this.shadows.set(object.identifier, cloneSyncData(object.toContext().syncData as SyncData));
       const piece = pieceOf(object);
       if (piece) this.partOwners.set(object.identifier, piece.identifier);
+      this.namesAtStart.set(object.identifier, this.snapshotOf(object));
     }
     this.pending = null;
     this.seq = 0;
@@ -142,14 +144,33 @@ export class ReplayStagingService {
   }
 
   /**
-   * Names the pieces brought onto the board while capturing, as they are called now, for the lines
-   * told of them once the events are inserted.
+   * Names what was captured of, pieces and their parts, as they are called now or were when last
+   * seen, for the lines told of them once the events are inserted.
    */
-  broughtInTargets(): ReplayTargetSnapshot[] {
-    return [...this.broughtIn.values()].map((target) => {
+  stagedTargets(): ReplayTargetSnapshot[] {
+    return [...this.touched.values()].map((target) => {
       const object = this.objectStore.get(target.identifier);
-      return object instanceof TabletopObject ? { ...target, name: object.name } : target;
+      return object ? this.snapshotOf(object) : target;
     });
+  }
+
+  /** Remembers what an event is about, called as it is now or, once gone, as it was at the start. */
+  private rememberTarget(identifier: string | undefined): void {
+    if (!identifier || this.touched.has(identifier)) return;
+    const object = this.objectStore.get(identifier);
+    const snapshot = object ? this.snapshotOf(object) : this.namesAtStart.get(identifier);
+    if (snapshot) this.touched.set(identifier, snapshot);
+  }
+
+  private snapshotOf(object: GameObject): ReplayTargetSnapshot {
+    const piece = pieceOf(object);
+    return {
+      identifier: object.identifier,
+      aliasName: object.aliasName,
+      name: targetNameOf(object),
+      ...(piece ? { ownerIdentifier: piece.identifier } : {}),
+      sinceSeq: 0,
+    };
   }
 
   /** Hands over what was captured and stops capturing. */
@@ -174,7 +195,8 @@ export class ReplayStagingService {
     this.shadows.clear();
     this.partOwners.clear();
     this.openPieces.clear();
-    this.broughtIn.clear();
+    this.touched.clear();
+    this.namesAtStart.clear();
     this.lastVisibility.clear();
   }
 
@@ -234,6 +256,7 @@ export class ReplayStagingService {
   }
 
   private push(draft: ReplayDraft, at: number): void {
+    this.rememberTarget(draft.targetIdentifier);
     const event: ReplayEvent = {
       seq: ++this.seq,
       at,
@@ -296,23 +319,11 @@ export class ReplayStagingService {
     return true;
   }
 
-  /** Keeps a piece's arrival or removal open for its parts, and names a piece brought in. */
+  /** Keeps a piece's arrival or removal open for its parts. */
   private openIfPiece(event: ReplayEvent): void {
     if (event.kind !== ReplayEventKind.ObjectCreate && event.kind !== ReplayEventKind.ObjectRemove) return;
     if (!event.targetId || event.detail[REPLAY_PART_FLAG] === true) return;
     this.openPieces.set(event.targetId, event.seq);
-    const object = this.objectStore.get(event.targetId);
-    if (
-      event.kind === ReplayEventKind.ObjectCreate &&
-      object instanceof TabletopObject &&
-      !this.broughtIn.has(object.identifier)
-    )
-      this.broughtIn.set(object.identifier, {
-        identifier: object.identifier,
-        aliasName: object.aliasName,
-        name: object.name,
-        sinceSeq: 0,
-      });
   }
 
   private publishPending(): void {
