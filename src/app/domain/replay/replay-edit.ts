@@ -350,14 +350,19 @@ function withChatMoments(
       const after = passed.get(line.tab);
       const before = nextKept.get(event.seq);
       const key = line.moment + line.minor;
-      const staysPut =
+      const mayStay =
         leftBehind.has(event.seq) &&
         !moved.has(event.seq) &&
         (after === undefined || after < key) &&
         (before === undefined || key < before) &&
-        (before === undefined || Math.floor(before) - line.moment - 1 >= (roomWanted.get(event.seq) ?? 0)) &&
         !clashes(line, answerTop)(line.moment);
-      if (!staysPut) when = saidBetween(after, before, answerTop, when, clashes(line, answerTop));
+      const elsewhere = saidBetween(after, before, answerTop, when, clashes(line, answerTop));
+      const staysPut =
+        mayStay &&
+        (before === undefined ||
+          Math.ceil(before) - line.moment - 1 >= (roomWanted.get(event.seq) ?? 0) ||
+          elsewhere.moment + elsewhere.minor >= key);
+      if (!staysPut) when = elsewhere;
     }
     linesBehind.add(keyOf(line.tab, line.speaker, when.moment));
     if (retold.has(event.seq) && !isFollower && line.asker !== '')

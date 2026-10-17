@@ -767,6 +767,49 @@ describe('chat moments that follow a new place', () => {
       expect(momentOf(bySeq(stepped, 6))).toBe(momentOf(bySeq(stepped, 5)) + 1);
     });
 
+    describe('with results and notices left behind as their lines move', () => {
+      const answering = (event: ReplayEvent, asker: string): ReplayEvent => ({
+        ...event,
+        patch: { ...event.patch!, after: { ...event.patch!.after, 'attributes.originFrom': asker } },
+      });
+      const keyOf = (event: ReplayEvent) => momentOf(event) + Number(event.patch?.after['minorIndex'] ?? 0);
+      const inOrder = (events: readonly ReplayEvent[]) => {
+        const keys = events.map(keyOf);
+        expect(keys).toEqual([...keys].sort((a, b) => a - b));
+      };
+
+      it('keeps a line after a roll dropped below its result from coming between the roll and its notice', () => {
+        const events = [
+          minor(by('gm', 1, 995000), 0.5),
+          minor(by('pat', 2, 1000000, '2d6'), 0.9),
+          minor(by('gm', 3, 1000001), 0.1),
+          minor(answering(result(4, 40, 1000001), 'pat'), 0.5),
+          minor(answering(by('System', 5, 1000002, '知らせ'), 'pat'), 0.3),
+          minor(by('gm', 6, 1000004), 0.5),
+        ];
+
+        const moved = moveReplayEvent(events, 2, 2);
+
+        inOrder(moved);
+      });
+
+      it('counts the room up to the next line kept to the moment it is said in, fraction and all', () => {
+        const events = [
+          minor(by('gm', 1, 1000000), 0.07),
+          minor(by('pat', 2, 1000001, '2d6'), 0.31),
+          minor(answering(result(3, 30, 1000002), 'pat'), 0.26),
+          minor(by('pat', 4, 1000003, '2d6'), 0.97),
+          minor(answering(result(5, 50, 1000004), 'pat'), 0.1),
+          minor(by('pat', 6, 1000005), 0.32),
+          minor(answering(by('System', 7, 1000007, '知らせ'), 'pat'), 0.68),
+        ];
+
+        const stepped = stepReplayEvents(events, new Set([2, 4]), 1);
+
+        inOrder(stepped);
+      });
+    });
+
     it('leaves a result whose roll was deleted at its moment, where that ties it to no other line', () => {
       const events = [
         minor(by('bob', 1, 1000000), 0.4),
