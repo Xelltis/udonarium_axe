@@ -144,6 +144,23 @@ describe('InviteJoinComponent', () => {
     expect(location.hash).toBe('');
   });
 
+  it('takes the invitation off the address once another room opens, after the banner said it could not join', async () => {
+    findRoom.mockResolvedValue(null);
+    await setup('#join?r=a1b&n=room');
+    await eventually(() => expect(bannerText()).toContain('見つかりませんでした'));
+    const change = TestBed.inject(ObjectChangeService) as unknown as {
+      _networkOpen$: { emit(event: { peerId: string }): void };
+    };
+
+    vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('a1b');
+    change._networkOpen$.emit({ peerId: 'invited-room-peer' });
+    expect(location.hash).toBe('#join?r=a1b&n=room');
+
+    vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('made-room');
+    change._networkOpen$.emit({ peerId: 'made-room-peer' });
+    expect(location.hash).toBe('');
+  });
+
   it('leaves a seat in the room it made while the invited room was looked up', async () => {
     let found: (room: unknown) => void = () => undefined;
     findRoom.mockReturnValue(new Promise((resolve) => (found = resolve)));

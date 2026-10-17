@@ -90,6 +90,9 @@ export class InviteJoinComponent {
   constructor() {
     const params = parseInviteLink(location.hash);
     if (!params) return;
+    this.objectChange.networkOpen$.subscribe(() => {
+      if (isInAnotherRoom(params.roomId)) dropInvitationFromAddress();
+    }, this.destroyRef);
 
     this.roomName.set(params.roomName);
     if (this.localModePreference.enabled()) {
@@ -141,7 +144,8 @@ export class InviteJoinComponent {
   /**
    * Whether the seat has been sent into another room while the invitation waited, as one it made
    * from the lobby, which the invitation then leaves it in: the banner goes, nothing is joined, and
-   * the invitation leaves the address, which would take the page reloaded to the invited room.
+   * the invitation leaves the address, which would take the page reloaded to the invited room. Any
+   * room but the invited one opening later takes it off the address too.
    */
   private movedOn(params: InviteLinkParams): boolean {
     if (!isInAnotherRoom(params.roomId)) return false;
