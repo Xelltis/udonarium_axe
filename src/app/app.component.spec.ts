@@ -1,13 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AppComponent } from '@axe/app.component';
-import { SaveDataService } from '@axe/application/file/save-data.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { MenuLayoutService } from '@axe/application/ui/menu-layout.service';
-import { SnackbarService } from '@axe/application/ui/snackbar.service';
-import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -61,20 +58,6 @@ describe('AppComponent', () => {
     afterEach(() => {
       for (const surface of MENU_SURFACES) TestBed.inject(MenuLayoutService).reset(surface);
       vi.restoreAllMocks();
-    });
-
-    it('saves no room while a recording’s board is shown in place of the table, and says so', async () => {
-      const save = vi.spyOn(TestBed.inject(SaveDataService), 'saveRoomAsync').mockResolvedValue();
-      const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
-      setNetworkIsolated(true);
-      try {
-        await fixture.componentInstance.save();
-
-        expect(save).not.toHaveBeenCalled();
-        expect(show).toHaveBeenCalledTimes(1);
-      } finally {
-        setNetworkIsolated(false);
-      }
     });
 
     it('is on the drawer button, which is no part of any arrangement', () => {

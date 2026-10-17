@@ -4,6 +4,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
@@ -361,6 +362,22 @@ describe('SaveDataService', () => {
 
       await expect(service.saveRoomAsync('room')).resolves.toBeUndefined();
       expect(Logger.error).toHaveBeenCalled();
+    });
+
+    it('saves no room while a recording’s board is shown in place of the table, and says so', async () => {
+      const service = TestBed.inject(SaveDataService);
+      const t = TestBed.inject(TRANSLATE_FN);
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+      const saved = vi.spyOn(TestBed.inject(FileArchiver), 'saveAsync').mockResolvedValue();
+      setNetworkIsolated(true);
+      try {
+        await service.saveRoomAsync('room');
+
+        expect(saved).not.toHaveBeenCalled();
+        expect(shown).toHaveBeenCalledWith(t('app.saveWhileReplayBoard'));
+      } finally {
+        setNetworkIsolated(false);
+      }
     });
 
     it('tells the reader of every save that fails, and to reload when the code could not be fetched', async () => {

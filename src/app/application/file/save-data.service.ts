@@ -8,6 +8,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -94,8 +95,16 @@ export class SaveDataService {
    *
    * The archive holds the room, chat, config, summary setting and status catalogue as XML, with the
    * pictures they refer to and the audio list. Saves are queued, so one never overlaps another.
+   *
+   * While a recording's board is shown in place of the table, cut off from the room, nothing is
+   * saved and the reader is told why: the board is what the one who recorded it saw, which may be
+   * only the shape a room server withheld from them, with no mark to say so.
    */
   saveRoomAsync(fileName: string = '', updateCallback?: UpdateCallback): Promise<void> {
+    if (isNetworkIsolated()) {
+      this.snackbar.show(this.translate('app.saveWhileReplayBoard'));
+      return Promise.resolve();
+    }
     return SaveDataService.queue.add(() => this._saveRoomAsync(fileName, updateCallback));
   }
 
