@@ -1,9 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
+import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { heldDiceOf, storeHeldDie } from '@axe/domain/character/character-dice';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
+import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CharacterDiceService', () => {
@@ -141,6 +145,32 @@ describe('CharacterDiceService', () => {
 
     expect(ObjectStore.instance.get(symbol.identifier)).toBe(symbol);
     expect(service.held(character)).toEqual([]);
+  });
+
+  it('leaves on the table a die whose name and face a room server keeps from this user', () => {
+    beMyself('me');
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.userId = 'me';
+    PeerCursor.myCursor.role = PeerRole.Player;
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    try {
+      const character = makeCharacter();
+      const hidden = makeSymbol('攻撃ダイス');
+      hidden.ownerCharacterIdentifier = character.identifier;
+      hidden.owner = 'someone';
+      hidden.face = '';
+      const shown = makeSymbol('防御ダイス', DiceType.D10);
+      shown.ownerCharacterIdentifier = character.identifier;
+
+      service.store(character, hidden);
+      expect(service.putAway(character)).toBe(1);
+
+      expect(ObjectStore.instance.get(hidden.identifier)).toBe(hidden);
+      expect(service.held(character).map((die) => die.name)).toEqual(['防御ダイス']);
+    } finally {
+      vi.restoreAllMocks();
+      PeerCursor.myCursor = null!;
+    }
   });
 
   it('reads back what a character keeps', () => {

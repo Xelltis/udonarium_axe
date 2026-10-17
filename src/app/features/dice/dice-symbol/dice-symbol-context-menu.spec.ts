@@ -1,5 +1,11 @@
-import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
+import { TestBed } from '@angular/core/testing';
+import { Network } from '@axe/core/network/network';
+import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { buildDiceSymbolContextMenu } from '@axe/features/dice/dice-symbol/dice-symbol-context-menu';
+import { beMyself } from '@axe/testing/peer-context-stub';
+import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
 const t = createSyncTranslate('ja');
@@ -236,6 +242,31 @@ describe('buildDiceSymbolContextMenu()', () => {
       owner?.subActions?.find((m) => m.name === '持ち主を外す')?.action!();
 
       expect(dice.ownerCharacterIdentifier).toBe('');
+    });
+
+    it('offers to put it away onto that piece, but not one whose face a room server keeps back', () => {
+      TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+      beMyself('me');
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'me';
+      PeerCursor.myCursor.role = PeerRole.Player;
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const die = DiceSymbol.create('攻撃ダイス', DiceType.D6, 1);
+      try {
+        die.ownerCharacterIdentifier = 'goblin';
+        const store = () =>
+          buildDiceSymbolContextMenu(die, 50, { ...cb([goblin]), onStoreToOwner: vi.fn() }, t).find(
+            (m) => m.name === 'コマにしまう'
+          );
+        expect(store()?.enabled).not.toBe(false);
+
+        die.owner = 'someone';
+        expect(store()?.enabled).toBe(false);
+      } finally {
+        die.destroy();
+        vi.restoreAllMocks();
+        PeerCursor.myCursor = null!;
+      }
     });
 
     it('offers nothing of the sort with no pieces on the table', () => {
