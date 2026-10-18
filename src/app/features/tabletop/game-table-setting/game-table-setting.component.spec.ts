@@ -3,6 +3,8 @@ import { CutInService } from '@axe/application/media/cut-in.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { AudioFile } from '@axe/core/storage/audio-file';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { Config } from '@axe/domain/peer/config';
@@ -242,6 +244,15 @@ describe('GameTableSettingComponent', () => {
       component.selectGameTable(table.identifier);
 
       expect(music).not.toHaveBeenCalled();
+    });
+
+    it('offers the room’s music, and none of the sounds that come with the tool', () => {
+      vi.spyOn(TestBed.inject(AudioStorage), 'audios', 'get').mockReturnValue([
+        { identifier: 'theme', name: 'theme.mp3', isHidden: false },
+        { identifier: 'preset-alarm', name: 'alarm', isHidden: true },
+      ] as AudioFile[]);
+
+      expect(component.tableBgmTracks().map((track) => track.value)).toEqual(['theme']);
     });
 
     it('writes the music the table puts on, stops or leaves', () => {

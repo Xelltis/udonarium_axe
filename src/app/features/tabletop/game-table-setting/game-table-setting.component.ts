@@ -680,10 +680,14 @@ export class GameTableSettingComponent {
     this.selectedTable.cutInIdentifiers = encodeCutInIdentifiers(identifiers ?? []);
   }
 
-  /** The music the room has, offered as what the picked table puts on when it is switched to. */
+  /**
+   * The music the room has, offered as what the picked table puts on when it is switched to. The
+   * sounds that come with the tool are left out, as the jukebox leaves them out of its list.
+   */
   tableBgmTracks(): { value: string; name: string }[] {
     this.objectChange.fileVersion();
-    return [...this.audioStorage.audios]
+    return this.audioStorage.audios
+      .filter((audio) => !audio.isHidden)
       .map((audio) => ({ value: audio.identifier, name: soundFileName(audio.name) }))
       .sort((left, right) => left.name.localeCompare(right.name, 'ja'));
   }
