@@ -36,6 +36,7 @@ import {
 import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { asFogMode, DEFAULT_FOG_COLOR, FOG_MODES, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { FilterType, GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
+import { MAX_SQUARE_SPAN, squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
 import { MAX_CELL_PX, MIN_CELL_PX } from '@axe/domain/tabletop/rescale-table-contents';
 import {
   asTableLayerPlacement,
@@ -552,6 +553,22 @@ export class GameTableSettingComponent {
   }
   set tableGridType(gridType: GridType) {
     if (this.isEditable && this.selectedTable) this.selectedTable.gridType = Number(gridType);
+  }
+
+  /** How many cells across a square may be made of, for the picked table's moves and ranges. */
+  readonly squareSpans = Array.from({ length: MAX_SQUARE_SPAN }, (_, index) => index + 1);
+
+  /** Whether the picked table has a square grid, the one grid whose cells can be put into squares. */
+  get isSquareGridTable(): boolean {
+    return Number(this.tableGridType) === GridType.SQUARE;
+  }
+
+  /** How many cells across one square of the picked table is; writes are ignored while it cannot be edited. */
+  get tableSquareSpan(): number {
+    return this.selectedTable ? squareSpanOf(this.selectedTable) : 1;
+  }
+  set tableSquareSpan(span: number) {
+    if (this.isEditable && this.selectedTable) this.selectedTable.squareSpan = Number(span);
   }
 
   /** The filter drawn over the picked table's distant-view background. */

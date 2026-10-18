@@ -42,11 +42,12 @@ import { canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { gatherSpotsAround } from '@axe/domain/tabletop/move/gather-cells';
+import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
 import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
@@ -511,7 +512,7 @@ export class TabletopActionService {
     const gathering = bringInAway ? members : members.filter((member) => member.isVisibleOnTable);
     if (gathering.length === 0) return 0;
 
-    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const grid = moveGridOf(table);
     const start = cellIndexAt(grid, position.x, position.y);
     if (start < 0) return 0;
 

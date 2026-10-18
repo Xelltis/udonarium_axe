@@ -10,6 +10,8 @@ export interface MovableSetup<T extends TabletopObject> {
   readonly collideLayers?: readonly string[];
   readonly snapStyle?: GridSnapStyle | ((t: T) => GridSnapStyle | undefined);
   readonly snapOrigin?: (t: T) => { x: number; y: number } | undefined;
+  /** Where the piece goes when snapped from a place, ahead of the table's own snap; see {@link MovableOption}. */
+  readonly snapToSquare?: (t: T, at: { x: number; y: number }) => { x: number; y: number } | null;
   readonly transformCssOffset?: string;
   readonly layerName?: string;
 }
@@ -27,6 +29,7 @@ function applyMovableOption<T extends TabletopObject>(
     colideLayers: opts.collideLayers ? [...opts.collideLayers] : undefined,
     snapStyle,
     snapOrigin,
+    snapToSquare: opts.snapToSquare ? (at) => opts.snapToSquare!(piece, at) : undefined,
     layerName: opts.layerName,
   });
 }

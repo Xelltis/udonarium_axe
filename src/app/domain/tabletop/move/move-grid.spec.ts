@@ -19,7 +19,13 @@ import {
 } from '@axe/domain/tabletop/move/move-grid';
 import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
 import { pieceFitsOn } from '@axe/domain/tabletop/move/piece-footprint';
-import { moveShiftOf, pieceCellOf, pieceCornerOn, sizeShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
+import {
+  moveShiftOf,
+  pieceCellOf,
+  pieceCornerOn,
+  pieceCornerOnSquare,
+  sizeShiftOf,
+} from '@axe/domain/tabletop/move/piece-on-grid';
 import { MOVE_COST_HALF_EXTRA, TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 
@@ -185,6 +191,26 @@ describe('where a piece stands on squares', () => {
 
     expect(corner).toEqual({ x: 125, y: 225 });
     expect(pieceCellOf(twos, piece, 50, corner)).toBe(square);
+    piece.destroy();
+  });
+});
+
+describe('where a dragged piece is snapped to', () => {
+  it('goes on the square under where it is dropped, on a table counting squares of several cells', () => {
+    const piece = pieceAt(1, 0, 0);
+
+    expect(pieceCornerOnSquare({ ...table(2), width: 8, height: 8 }, piece, { x: 160, y: 30 })).toEqual({
+      x: 125,
+      y: 25,
+    });
+    piece.destroy();
+  });
+
+  it('is left to the table’s own snap on a table counting each cell', () => {
+    const piece = pieceAt(1, 0, 0);
+
+    expect(pieceCornerOnSquare(table(1), piece, { x: 160, y: 30 })).toBeNull();
+    expect(pieceCornerOnSquare(table(2, GridType.HEX_VERTICAL), piece, { x: 160, y: 30 })).toBeNull();
     piece.destroy();
   });
 });

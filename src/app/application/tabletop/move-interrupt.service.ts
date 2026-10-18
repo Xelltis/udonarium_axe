@@ -14,10 +14,12 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
-import { cellCenterOf, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import type { MovePoint } from '@axe/domain/tabletop/move/blocked-path';
 import { exactMoveCellsOf } from '@axe/domain/tabletop/move/move-cells';
+import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
+import { squarePxOf } from '@axe/domain/tabletop/move/move-grid';
 import { lengthByKind, moveKindNamed, parseMoveKinds } from '@axe/domain/tabletop/move/move-kind';
 import { readMovingPoints } from '@axe/domain/tabletop/move/moving-points';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
@@ -591,7 +593,7 @@ export class MoveInterruptService {
     const walk = exactMoveCellsOf(piece, rules.moveRangeElementNames, rules.cellDistance, rules.cellDistanceUnit);
     if (walk === null || walk <= 0) return 0;
     const kind = moveKindNamed(parseMoveKinds(this.config()?.moveKinds ?? ''), this.config()?.interruptKind ?? '');
-    return lengthByKind(kind, walk, metresPerCell(rules)) * table.gridSize;
+    return lengthByKind(kind, walk, metresPerCell(rules)) * squarePxOf(table);
   }
 
   /**
@@ -614,7 +616,7 @@ export class MoveInterruptService {
   /** The way a cursor has declared, as points in table pixels. */
   private pathOf(cursor: PeerCursor, table: GameTable): MovePoint[] {
     if (cursor.movingPoints) return readMovingPoints(cursor.movingPoints);
-    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const grid = moveGridOf(table);
     return cursor.movingWay
       .split(',')
       .map(Number)

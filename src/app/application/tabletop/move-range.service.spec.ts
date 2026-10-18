@@ -15,6 +15,7 @@ import { Config } from '@axe/domain/peer/config';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { isSquareGrid } from '@axe/domain/tabletop/move/move-grid';
 import { stepsFor } from '@axe/domain/tabletop/move/move-steps';
 import { countCells } from '@axe/domain/tabletop/move/reachable-cells';
 import { TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
@@ -199,6 +200,46 @@ describe('MoveRangeService', () => {
     service.show(pieceAt(5, 5, 3));
 
     expect(service.range()!.held).toBeNull();
+  });
+
+  describe('on a table that counts two cells as one square', () => {
+    beforeEach(() => {
+      table.squareSpan = 2;
+    });
+
+    it('reaches as many squares as the piece walks, over squares two cells across', () => {
+      service.show(pieceAt(4, 5, 2));
+
+      const view = service.range()!;
+      expect(isSquareGrid(view.grid)).toBe(true);
+      expect([view.grid.cols, view.grid.sizePx]).toEqual([6, 2 * GRID]);
+      expect(countCells(view.cells)).toBe(24);
+      expect(view.cells.get(cellIndexOf(view.grid, 4, 2))).toBe(true);
+      expect(view.cells.get(cellIndexOf(view.grid, 5, 2))).toBe(false);
+    });
+
+    it('stops at the squares a wall one cell thick runs through', () => {
+      wallOver(7, 0, 12);
+
+      service.show(pieceAt(4, 5, 2));
+
+      const view = service.range()!;
+      expect(view.cells.get(cellIndexOf(view.grid, 3, 2))).toBe(false);
+      expect(view.cells.get(cellIndexOf(view.grid, 4, 2))).toBe(false);
+      expect(view.cells.get(cellIndexOf(view.grid, 1, 2))).toBe(true);
+    });
+
+    it('counts each cell of a hex table as it always did', () => {
+      table.gridType = GridType.HEX_VERTICAL;
+      service.show(pieceAt(5, 5, 2));
+      const squared = service.range()!;
+      service.hide();
+      table.squareSpan = 1;
+      service.show(pieceAt(5, 5, 2));
+
+      expect(isSquareGrid(squared.grid)).toBe(false);
+      expect(squared.cells.equals(service.range()!.cells)).toBe(true);
+    });
   });
 
   describe('a piece up on the blocks', () => {

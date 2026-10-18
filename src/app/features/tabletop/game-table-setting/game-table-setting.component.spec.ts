@@ -168,6 +168,51 @@ describe('GameTableSettingComponent', () => {
     });
   });
 
+  describe('how many cells make a square', () => {
+    let table: GameTable;
+
+    beforeEach(async () => {
+      table = new GameTable();
+      table.initialize();
+      component.selectGameTable(table.identifier);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    afterEach(() => {
+      table.destroy();
+    });
+
+    const choice = (): HTMLSelectElement | null =>
+      fixture.nativeElement.querySelector('[data-testid="table-square-span"]');
+
+    it('is offered on a square grid, and writes the choice to the table', async () => {
+      const select = choice()!;
+      select.value = select.options[1].value;
+      select.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      expect(table.squareSpan).toBe(2);
+      expect(component.tableSquareSpan).toBe(2);
+    });
+
+    it('shows what the table holds', async () => {
+      table.squareSpan = 3;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(choice()!.selectedIndex).toBe(2);
+    });
+
+    it('is not offered on a hex grid', async () => {
+      table.gridType = GridType.HEX_VERTICAL;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(choice()).toBeNull();
+    });
+  });
+
   describe('choosing a table from the list', () => {
     let table: GameTable;
 

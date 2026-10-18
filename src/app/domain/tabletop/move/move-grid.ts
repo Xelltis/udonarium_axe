@@ -1,6 +1,7 @@
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import {
   cellCenterOf,
+  cellColRow,
   cellCount,
   CellGrid,
   cellGridOf,
@@ -97,6 +98,23 @@ export function squareOfCell(grid: SquareGrid, cell: number): number {
   const col = cell % grid.fine.cols;
   const row = Math.floor(cell / grid.fine.cols);
   return cellIndexOf(grid, Math.floor(col / grid.span), Math.floor(row / grid.span));
+}
+
+/** The cell of a grid holding the table's cell at a column and row, or -1 off the grid. */
+export function cellHolding(grid: CellGrid, col: number, row: number): number {
+  const span = spanOf(grid);
+  return cellIndexOf(grid, Math.floor(col / span), Math.floor(row / span));
+}
+
+/** The table's cells, by column and row, that a cell of a grid is made of: itself, or a square's. */
+export function tableCellsOf(grid: CellGrid, index: number): { col: number; row: number }[] {
+  const { col, row } = cellColRow(grid, index);
+  const span = spanOf(grid);
+  const cells: { col: number; row: number }[] = [];
+  for (let down = 0; down < span; down++) {
+    for (let across = 0; across < span; across++) cells.push({ col: col * span + across, row: row * span + down });
+  }
+  return cells;
 }
 
 /**

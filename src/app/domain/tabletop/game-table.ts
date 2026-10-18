@@ -69,6 +69,11 @@ export class GameTable extends ObjectNode {
   @SyncVar() gridShow: boolean = false;
   @SyncVar() gridSnap: boolean = true;
   @SyncVar() gridSnapStyle: GridSnapStyle = GridSnapStyle.CENTER;
+  /**
+   * How many cells across one square is, for moving pieces and counting ranges: 1 counts every
+   * cell, and 2 to 4 put that many cells across together into one square. Square grids only.
+   */
+  @SyncVar() squareSpan: number = 1;
   @SyncVar() imageBillboard: boolean = false;
   @SyncVar() mode2d: boolean = false;
   /**

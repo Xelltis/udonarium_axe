@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { FilterType, GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
 import { DEFAULT_TABLETOP_DISPLAY_SETTINGS, resolveTabletopDisplay } from '@axe/domain/tabletop/tabletop-display';
 
 describe('GameTable', () => {
@@ -232,6 +233,31 @@ describe('GameTable', () => {
       const table = new GameTable();
       table.initialize();
       expect(table.cutInIdentifiers).toBe('');
+    });
+
+    it('counts each cell as a square, also when a saved table says nothing of squares', () => {
+      const table = new GameTable();
+      table.initialize();
+      const saved = ObjectSerializer.instance.parseXml(
+        '<game-table name="古い卓" gridType="0"></game-table>'
+      ) as GameTable;
+      const empty = ObjectSerializer.instance.parseXml(
+        '<game-table name="空の卓" gridType="0" squareSpan=""></game-table>'
+      ) as GameTable;
+
+      expect(squareSpanOf(table)).toBe(1);
+      expect(squareSpanOf(saved)).toBe(1);
+      expect(squareSpanOf(empty)).toBe(1);
+    });
+
+    it('keeps the squares it counts through a save', () => {
+      const table = new GameTable();
+      table.squareSpan = 3;
+      table.initialize();
+
+      const restored = ObjectSerializer.instance.parseXml(table.toXml()) as GameTable;
+
+      expect(squareSpanOf(restored)).toBe(3);
     });
   });
 

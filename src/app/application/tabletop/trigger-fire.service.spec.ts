@@ -15,6 +15,7 @@ import { SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
 import { pieceCornerOn } from '@axe/domain/tabletop/move/piece-on-grid';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -70,6 +71,29 @@ describe('TriggerFireService', () => {
   function hpOf(piece: GameCharacter): number {
     return Number(DataElement.findElementByReference(piece.rootDataElement!, 'ライフ')!.currentValue);
   }
+
+  describe('on a table that counts two cells as one square', () => {
+    it('springs ground under any cell of a square the piece enters, once', () => {
+      table.squareSpan = 2;
+      const squares = moveGridOf(table);
+      trapAt(3, 1);
+      const hero = heroWith(10);
+
+      const firings = service.stepped(hero, squares, cellIndexOf(squares, 1, 0), true);
+
+      expect(firings).toHaveLength(1);
+      expect(hpOf(hero)).toBe(7);
+    });
+
+    it('lands a piece carried off by ground on the square holding the cell it names', () => {
+      table.squareSpan = 2;
+      const hero = heroWith(10);
+
+      service.carryTo(hero, 3, 2, table);
+
+      expect([hero.location.x, hero.location.y]).toEqual([2 * GRID + GRID / 2, 2 * GRID + GRID / 2]);
+    });
+  });
 
   describe('a piece carried by hand', () => {
     function standAt(piece: GameCharacter, col: number, row: number): void {

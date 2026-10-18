@@ -1,6 +1,6 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { cellCenterOf, CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
-import { cellPxOf, spanOf } from '@axe/domain/tabletop/move/move-grid';
+import { cellPxOf, moveGridOf, spanOf, SquaredTable, squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
 
 /**
  * How far a piece's corner sits from the middle of the cell it stands on.
@@ -79,4 +79,20 @@ export function pieceCornerOn(
   const centre = cellCenterOf(grid, cell);
   const shift = shiftOn(grid, character, gridSize);
   return { x: centre.x - shift, y: centre.y - shift };
+}
+
+/**
+ * Where a piece's corner goes to stand on the square under a place it is dropped at, on a table
+ * that counts several cells as one square; nothing on a table that counts each cell, which is
+ * left to snap the way it always has.
+ */
+export function pieceCornerOnSquare(
+  table: SquaredTable,
+  character: GameCharacter,
+  at: { x: number; y: number }
+): { x: number; y: number } | null {
+  if (squareSpanOf(table) < 2) return null;
+  const grid = moveGridOf(table);
+  const square = pieceCellOf(grid, character, table.gridSize, at);
+  return square < 0 ? null : pieceCornerOn(grid, character, table.gridSize, square);
 }

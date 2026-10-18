@@ -9,9 +9,10 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { newStatusAilment } from '@axe/domain/character/status-ailment';
 import { DataElement } from '@axe/domain/data/data-element';
 import { Config } from '@axe/domain/peer/config';
-import { cellColRow, cellCount, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCount, CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { cheapestPath } from '@axe/domain/tabletop/move/cheapest-path';
+import { cellHolding, moveGridOf, tableCellsOf } from '@axe/domain/tabletop/move/move-grid';
 import { pieceCellOf, pieceCornerOn } from '@axe/domain/tabletop/move/piece-on-grid';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -77,7 +78,7 @@ export class TriggerFireService {
     this.lifted.delete(piece.identifier);
     const table = this.tableSelecter.viewTable;
     if (from === undefined || !table || table.gridSize <= 0) return [];
-    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const grid = moveGridOf(table);
     const to = this.cellOf(piece);
     if (to < 0 || to === from) return [];
     return this.walked(piece, grid, this.carriedWay(piece, grid, from, to));
@@ -121,7 +122,7 @@ export class TriggerFireService {
   private cellOf(piece: GameCharacter): number {
     const table = this.tableSelecter.viewTable;
     if (!table || table.gridSize <= 0 || table.width <= 0 || table.height <= 0) return -1;
-    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const grid = moveGridOf(table);
     return pieceCellOf(grid, piece, table.gridSize);
   }
 
@@ -181,13 +182,16 @@ export class TriggerFireService {
   standingOn(piece: GameCharacter, moment: TriggerMoment): TriggerFiring[] {
     const table = this.tableSelecter.viewTable;
     if (!table || table.gridSize <= 0 || table.width <= 0 || table.height <= 0) return [];
-    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const grid = moveGridOf(table);
     const cell = pieceCellOf(grid, piece, table.gridSize);
     if (cell < 0) return [];
     return this.fire(piece, grid, cell, true, (trigger) => trigger.firesOn === moment);
   }
 
-  /** Every piece of ground over one cell that answers to `wants`, sprung in the order it is laid. */
+  /**
+   * Every piece of ground over one cell that answers to `wants`, sprung in the order it is laid. On
+   * a grid of squares, ground over any of the table's cells in the square is sprung, once each.
+   */
   private fire(
     piece: GameCharacter,
     grid: CellGrid,
@@ -196,13 +200,13 @@ export class TriggerFireService {
     wants: (trigger: TableTrigger) => boolean
   ): TriggerFiring[] {
     const table = this.tableSelecter.viewTable;
-    const { col, row } = cellColRow(grid, cell);
+    const under = tableCellsOf(grid, cell);
     const firings: TriggerFiring[] = [];
     const round = this.round();
     for (const trigger of triggersOn(table)) {
       // Asked again each time: ground with one go in it is spent by the first cell of it.
       if (!trigger.hasGoFor(piece.identifier, round)) continue;
-      if (!trigger.covers(col, row)) continue;
+      if (!under.some(({ col, row }) => trigger.covers(col, row))) continue;
       if (!wants(trigger)) continue;
       if (!triggerCatches(trigger.catches, piece.isNpc)) continue;
       firings.push(this.spring(trigger, piece, ending, round));
@@ -290,8 +294,8 @@ export class TriggerFireService {
    */
   carryTo(piece: GameCharacter, col: number, row: number, table: GameTable | null): void {
     if (!table || table.gridSize <= 0 || table.width <= 0 || table.height <= 0) return;
-    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
-    const to = cellIndexOf(grid, Math.round(col), Math.round(row));
+    const grid = moveGridOf(table);
+    const to = cellHolding(grid, Math.round(col), Math.round(row));
     // Ground pointing off the board carries nobody: a piece set down outside it would be a
     // piece nothing on the table could reach.
     if (to < 0) return;
