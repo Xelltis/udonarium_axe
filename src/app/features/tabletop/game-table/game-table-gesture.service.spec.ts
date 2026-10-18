@@ -4,10 +4,17 @@ import { SwitchPressService } from '@axe/application/tabletop/switch-press.servi
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { SwitchNoticeService } from '@axe/application/ui/switch-notice.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { GameTable } from '@axe/domain/tabletop/game-table';
+import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import {
   GameTableGestureService,
   MOUSE_ZOOM_MAX_Z,
+  mouseZoomInLimitZ,
+  touchZoomInLimitZ,
   ZOOM_MIN_Z,
+  zoomOutLimitZ,
+  zoomReachFor,
 } from '@axe/features/tabletop/game-table/game-table-gesture.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -252,6 +259,20 @@ describe('GameTableGestureService', () => {
       expect(service.viewPositionZ).toBe(ZOOM_MIN_Z);
     });
 
+    it('goes back a little further over a table of larger cells', async () => {
+      const table = new GameTable();
+      table.gridSize = 200;
+      table.initialize();
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      for (let notch = 0; notch < 60; notch++) wheel(-300);
+
+      expect(service.viewPositionZ).toBe(zoomOutLimitZ(200));
+      expect(zoomOutLimitZ(200)).toBeLessThan(ZOOM_MIN_Z);
+      table.destroy();
+    });
+
     it('leaves a view set nearer still where it is, coming in, and lets it back out', () => {
       service.snapToViewPositionZ(MOUSE_ZOOM_MAX_Z + 200);
 
@@ -260,6 +281,29 @@ describe('GameTableGestureService', () => {
 
       wheel(-180);
       expect(service.viewPositionZ).toBe(MOUSE_ZOOM_MAX_Z + 200 - 540);
+    });
+  });
+
+  describe('how far the zoom limits follow the size of a cell', () => {
+    it('keeps the limits set for the usual cell', () => {
+      expect(zoomReachFor(50)).toBe(1);
+      expect(zoomOutLimitZ(50)).toBe(ZOOM_MIN_Z);
+      expect(mouseZoomInLimitZ(50)).toBe(MOUSE_ZOOM_MAX_Z);
+      expect(touchZoomInLimitZ(50)).toBe(0);
+    });
+
+    it('follows a little, by the square root, within bounds', () => {
+      expect(zoomReachFor(72)).toBeCloseTo(1.2);
+      expect(zoomReachFor(256)).toBe(1.5);
+      expect(zoomReachFor(16)).toBe(0.75);
+      expect(zoomReachFor(Number.NaN)).toBe(1);
+    });
+
+    it('lets smaller cells be looked at more closely, short of the plane the camera stands on', () => {
+      expect(mouseZoomInLimitZ(25)).toBeGreaterThan(MOUSE_ZOOM_MAX_Z);
+      expect(mouseZoomInLimitZ(25)).toBeLessThan(TABLE_PERSPECTIVE_PX);
+      expect(touchZoomInLimitZ(25)).toBeGreaterThan(0);
+      expect(mouseZoomInLimitZ(200)).toBeLessThan(MOUSE_ZOOM_MAX_Z);
     });
   });
 
