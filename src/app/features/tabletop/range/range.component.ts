@@ -34,6 +34,7 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { cellPatternBoundingBox, parseCellPattern } from '@axe/domain/tabletop/cell-pattern';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import { squareCentreAt } from '@axe/domain/tabletop/move/move-grid';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { rangeCovers } from '@axe/domain/tabletop/range-coverage';
@@ -94,7 +95,7 @@ export class RangeComponent {
   readonly clipPath = computed<string>(() => {
     this._clipVersion();
     const range = this.range();
-    return rangeClipPathCss(this.painted() ?? initialRangeClip(range.type), range, this.gridSize);
+    return rangeClipPathCss(this.painted() ?? initialRangeClip(range.type), range, this.squarePx);
   });
 
   /** What the canvases were last painted to be cut to, or nothing before the first paint. */
@@ -159,11 +160,11 @@ export class RangeComponent {
     return ['SQUARE', 'RHOMBUS', 'TRIANGLE', 'PENTAGON', 'HEXAGON', 'CUSTOM'].includes(this.range().type);
   });
 
-  readonly rotateGrabDistancePx = computed(() => Math.max(1, this.length()) * this.gridSize);
+  readonly rotateGrabDistancePx = computed(() => Math.max(1, this.length()) * this.tabletopService.squarePx());
 
   readonly singleRotateGrabX = 0;
 
-  readonly singleRotateGrabY = computed(() => -Math.max(1, this.length()) * this.gridSize);
+  readonly singleRotateGrabY = computed(() => -Math.max(1, this.length()) * this.tabletopService.squarePx());
 
   readonly altitude = computed(() => {
     this.rangeVersion();
@@ -190,6 +191,14 @@ export class RangeComponent {
   private readonly _clipVersion = signal(0);
 
   /** The table's grid cell size in pixels, which the range's length, width and altitude are measured in. */
+  /**
+   * The size of a square in px, which a range is counted and painted in: a cell, or several across
+   * on a table that counts squares of several cells.
+   */
+  get squarePx(): number {
+    return this.tabletopService.squarePx();
+  }
+
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
@@ -223,6 +232,7 @@ export class RangeComponent {
       target: this.range,
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_RANGE_PX),
+      snapToSquare: (_, at) => squareCentreAt(this.currentTable, at),
       snapOrigin: () => {
         const half = this.gridSize / 2;
         const snapXY = isHexGrid(this.currentTable.gridType) ? 0 : half;
@@ -316,7 +326,7 @@ export class RangeComponent {
     const inside = this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
       .filter((piece) => piece.isVisibleOnTable && piece.offField !== '1' && this.vision.isTokenVisible(piece))
-      .filter((piece) => rangeCovers(shape, this.gridSize, reading.pointOf(piece)) === true);
+      .filter((piece) => rangeCovers(shape, this.squarePx, reading.pointOf(piece)) === true);
     this.pieceTarget.setOnly(inside);
   }
 
@@ -412,7 +422,7 @@ export class RangeComponent {
     const range = this.range();
     this.painted.set(
       paintRange(gridCanvasRef.nativeElement, rangeCanvasRef.nativeElement, range, {
-        gridSize: this.gridSize,
+        gridSize: this.squarePx,
         gridType: this.currentTable.gridType,
         docked: this.objectStore.get(range.followingCharacterIdentifier) !== null,
         degree,

@@ -44,7 +44,8 @@ export class GridLineRender {
    * Draws the grid over a whole table onto the canvas, its width and height counted in squares,
    * with each cell labelled column-row.
    *
-   * The canvas is sized even for a negative grid type, which draws no grid.
+   * The canvas is sized even for a negative grid type, which draws no grid. Where a square grid
+   * counts `squareSpan` cells across as one square, the edges of those squares are drawn heavier.
    */
   render(
     width: number,
@@ -55,7 +56,8 @@ export class GridLineRender {
     gridFontColor: string = gridColor,
     overTerrain = false,
     offsetTop: number = 0,
-    offsetLeft: number = 0
+    offsetLeft: number = 0,
+    squareSpan: number = 1
   ) {
     this.canvasElement.width = this.canvasPx(width * gridSize);
     this.canvasElement.height = this.canvasPx(height * gridSize);
@@ -71,6 +73,7 @@ export class GridLineRender {
     switch (gridType) {
       case GridType.SQUARE:
         this.renderSquareGrid(context, width, height, gridSize, overTerrain, offsetTop, offsetLeft);
+        if (squareSpan > 1) this.strokeSquares(context, width, height, gridSize, squareSpan);
         break;
       case GridType.HEX_VERTICAL:
       case GridType.HEX_HORIZONTAL:
@@ -182,6 +185,33 @@ export class GridLineRender {
         context.fillText(w + 1 + offLeft + '-' + (h + 1 + offTop), gx + gridSize / 2, gy + gridSize / 2);
       }
     }
+  }
+
+  /** Draws the edges of the squares `span` cells across, heavier than the cells, over whole squares only. */
+  private strokeSquares(
+    context: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    gridSize: number,
+    span: number
+  ): void {
+    const cols = Math.floor(width / span);
+    const rows = Math.floor(height / span);
+    if (cols < 1 || rows < 1) return;
+    const size = span * gridSize;
+    context.save();
+    context.lineWidth = Math.max(2, gridSize / 20);
+    context.beginPath();
+    for (let col = 0; col <= cols; col++) {
+      context.moveTo(col * size, 0);
+      context.lineTo(col * size, rows * size);
+    }
+    for (let row = 0; row <= rows; row++) {
+      context.moveTo(0, row * size);
+      context.lineTo(cols * size, row * size);
+    }
+    context.stroke();
+    context.restore();
   }
 
   private renderHexGrid(

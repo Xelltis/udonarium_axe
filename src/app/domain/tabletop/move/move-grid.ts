@@ -5,6 +5,7 @@ import {
   cellCount,
   CellGrid,
   cellGridOf,
+  cellIndexAt,
   cellIndexOf,
   forEachCellInBox,
 } from '@axe/domain/tabletop/fog/cell-grid';
@@ -86,6 +87,17 @@ export function fineGridOf(grid: CellGrid): CellGrid {
 /** The size of one of the table's cells, in px, under a grid. */
 export function cellPxOf(grid: CellGrid): number {
   return fineGridOf(grid).sizePx;
+}
+
+/**
+ * The middle of the square under a point, on a table that counts several cells as one square;
+ * nothing on a table that counts each cell, or off its squares.
+ */
+export function squareCentreAt(table: SquaredTable, at: { x: number; y: number }): { x: number; y: number } | null {
+  if (squareSpanOf(table) < 2) return null;
+  const grid = moveGridOf(table);
+  const square = cellIndexAt(grid, at.x, at.y);
+  return square < 0 ? null : cellCenterOf(grid, square);
 }
 
 /** The size of one square of a table, in px: what a move and a range are counted in. */

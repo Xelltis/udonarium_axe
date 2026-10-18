@@ -19,7 +19,7 @@
       [style.height.px]="0"
       [style.clip-path]="clipPath()"
     >
-      <div class="absolute" [style.top.px]="0" [style.left.px]="-1 * areaQuadrantSize() * gridSize">
+      <div class="absolute" [style.top.px]="0" [style.left.px]="-1 * areaQuadrantSize() * squarePx">
         <div [appTooltip]="range()">
           <canvas class="absolute inset-0 m-auto block" [style.opacity]="opacity()" #gridCanvas></canvas>
           <canvas class="absolute inset-0 m-auto block" #rangeCanvas></canvas>
@@ -139,7 +139,7 @@
     class="absolute z-0 transform-3d"
     [style.visibility]="altitude() !== 0 ? 'visible' : 'hidden'"
     [style.top.px]="0"
-    [style.left.px]="-1 * areaQuadrantSize() * gridSize"
+    [style.left.px]="-1 * areaQuadrantSize() * squarePx"
   >
     <canvas class="absolute inset-0 m-auto block transform-3d" #centerPunch></canvas>
   </div>

@@ -18,6 +18,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
+import { squarePxOf } from '@axe/domain/tabletop/move/move-grid';
 import { claimBroughtInPiece } from '@axe/domain/tabletop/ownership';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { clampCellPx, rescaleTableContents } from '@axe/domain/tabletop/rescale-table-contents';
@@ -99,6 +100,8 @@ export class TabletopService {
   /** How wide one square is meant to measure on the glass. */
   readonly cellMm: Signal<number> = computed(() => this.display().cellMm);
   readonly gridSize: Signal<number> = computed(() => this.currentTableVersion().gridSize);
+  /** The size of a square in px: a cell, or several across where the table counts squares of several. */
+  readonly squarePx: Signal<number> = computed(() => squarePxOf(this.currentTableVersion()));
   /** What shape the table's cells are, which anything cut to a cell is shaped by. */
   readonly gridType: Signal<GridType> = computed(() => this.currentTableVersion().gridType);
 

@@ -10,6 +10,7 @@ import {
   forEachCellCovered,
   isSquareGrid,
   moveGridOf,
+  squareCentreAt,
   SquareGrid,
   squareGridOver,
   squarePxOf,
@@ -212,6 +213,13 @@ describe('where a dragged piece is snapped to', () => {
     expect(pieceCornerOnSquare(table(1), piece, { x: 160, y: 30 })).toBeNull();
     expect(pieceCornerOnSquare(table(2, GridType.HEX_VERTICAL), piece, { x: 160, y: 30 })).toBeNull();
     piece.destroy();
+  });
+});
+
+describe('where a range is snapped to', () => {
+  it('goes on the middle of the square under it, on a table counting squares of several cells', () => {
+    expect(squareCentreAt({ ...table(2), width: 8, height: 8 }, { x: 160, y: 30 })).toEqual({ x: 150, y: 50 });
+    expect(squareCentreAt(table(1), { x: 160, y: 30 })).toBeNull();
   });
 });
 
