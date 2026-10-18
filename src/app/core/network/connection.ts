@@ -13,6 +13,12 @@ import {
  */
 export type PeerReconnectState = 'retrying' | 'recovered' | 'failed' | 'resumed';
 
+/**
+ * Where a seat stands on being let out of its room for the page left alone: about to be, back in use
+ * before that, or let out, to come back only when its reader asks.
+ */
+export type IdleState = 'soon' | 'back' | 'left';
+
 export class ConnectionCallback {
   onOpen!: (peer: IPeerContext) => void;
   onClose!: (peer: IPeerContext) => void;
@@ -23,6 +29,8 @@ export class ConnectionCallback {
   onError!: (peer: IPeerContext, errorType: string, errorMessage: string, errorObject: unknown) => void;
   /** The room server gave this seat another role while it is in the room. */
   onRoleChange?: (role: ServerRole) => void;
+  /** The seat is about to be let out, or was, for the page left alone, or the page is in use again. */
+  onIdle?: (state: IdleState) => void;
 }
 
 /** How a seat reaches its room's pictures and sounds on the room server: the room and its token. */
@@ -98,6 +106,8 @@ export interface Connection {
   /** Asks the room server for a fresh asset token, for one it turned down, and gives the access then. */
   refreshAssetAccess?(): Promise<AssetAccess | null>;
   deleteRoom?(roomKey: string): Promise<void>;
+  /** Takes a seat let out of its room for the page left alone back in, when its reader asks. */
+  comeBackFromIdle?(): void;
   /** Gives a room server connection the login to say hello with. */
   useCredentials?(source: ServerCredentialSource | null): void;
   /** An invitation for the next room opened, from a link, sent with its hello. */

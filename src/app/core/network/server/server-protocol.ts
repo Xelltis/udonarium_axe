@@ -11,7 +11,7 @@
  */
 
 /** Raised whenever an envelope changes; a hello at another version is refused with protocol-mismatch. */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 /** The room server's own peer id, a shape no client id can take. */
 export const AUTHORITY_PEER_ID = '@authority';
@@ -31,6 +31,10 @@ export const MAX_ROLL_TARGET_NAME_LENGTH = 128;
 export const RATE_WINDOW_SECONDS = 10;
 /** How many rolls one connection may ask for in RATE_WINDOW_SECONDS; more are refused as rate-limited. */
 export const MAX_ROLLS_PER_WINDOW = 20;
+/** How long a seat may go without saying active, in seconds, before the server lets it out as idle. */
+export const IDLE_SECONDS = 3 * 60 * 60;
+/** How often, at most, the page says active while it is being used, in seconds. */
+export const ACTIVE_REPORT_SECONDS = 5 * 60;
 /** The longest name an uploaded picture or sound keeps on the server. */
 export const MAX_ASSET_NAME_LENGTH = 255;
 /** The most catalog items one SYNCHRONIZE_GAME_OBJECT carries. */
@@ -101,6 +105,11 @@ export interface HelloMessage {
   accessToken?: string;
   /** An invitation from a link, deciding the role of somebody logged in on their first visit. */
   invite?: string;
+  /**
+   * How long ago the page was last used, in milliseconds, so that a page left alone does not count as
+   * used again each time it connects. The server lets in no hello of IDLE_SECONDS or more.
+   */
+  idleMs?: number;
 }
 
 /** A batch of events, for one peer when `to` is given and for everybody else otherwise. */
@@ -135,7 +144,16 @@ export interface AssetTokenRequest {
   type: 'asset-token';
 }
 
-export type ClientMessage = HelloMessage | SendMessage | TimeRequest | InviteRequest | AuthMessage | AssetTokenRequest;
+/**
+ * Says the page has been used since the last one, at most once every ACTIVE_REPORT_SECONDS. A seat
+ * that says none for IDLE_SECONDS is let out as idle.
+ */
+export interface ActiveMessage {
+  type: 'active';
+}
+
+export type ClientMessage =
+  HelloMessage | SendMessage | TimeRequest | InviteRequest | AuthMessage | AssetTokenRequest | ActiveMessage;
 
 // ---- server to client ----
 
@@ -232,18 +250,21 @@ export const ERROR_CODES = [
   'replaced',
   'unauthorized',
   'room-deleted',
+  'idle',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
 /**
  * The refusals that may go away, so that connecting again is worth trying: a full room or a busy
- * sender later, and an expired access token once it is refreshed.
+ * sender later, an expired access token once it is refreshed, and a seat let out as idle once its
+ * reader is back, which only the reader asks for.
  */
 export const RETRYABLE_ERROR_CODES: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
   'room-full',
   'too-many-messages',
   'unauthorized',
+  'idle',
 ]);
 
 /** Whether a code the server closed with is one worth connecting again for. */
@@ -471,15 +492,25 @@ export interface HelloOptions {
   password?: string;
   accessToken?: string;
   invite?: string;
+  idleMs?: number;
 }
 
-/** The hello for a peer, carrying the password, access token and invitation only when there are some. */
+/**
+ * The hello for a peer, carrying the password, access token and invitation only when there are some,
+ * and how long the page has gone unused whenever that is given.
+ */
 export function helloMessage(peerId: string, userId: string, options: HelloOptions = {}): HelloMessage {
   const hello: HelloMessage = { type: 'hello', protocolVersion: PROTOCOL_VERSION, peerId, userId };
   if (options.password) hello.password = options.password;
   if (options.accessToken) hello.accessToken = options.accessToken;
   if (options.invite) hello.invite = options.invite;
+  if (options.idleMs !== undefined) hello.idleMs = Math.max(0, Math.round(options.idleMs));
   return hello;
+}
+
+/** Says the page has been used. */
+export function activeMessage(): ActiveMessage {
+  return { type: 'active' };
 }
 
 /** Asks for an invitation in a role. */

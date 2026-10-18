@@ -8,7 +8,7 @@
       "message": {
         "type": "error",
         "code": "protocol-mismatch",
-        "protocolVersion": 2
+        "protocolVersion": 3
       }
     },
     {
@@ -18,7 +18,7 @@
       "message": {
         "type": "error",
         "code": "room-not-found",
-        "protocolVersion": 2
+        "protocolVersion": 3
       }
     },
     {
@@ -28,7 +28,7 @@
       "message": {
         "type": "error",
         "code": "room-full",
-        "protocolVersion": 2
+        "protocolVersion": 3
       }
     },
     {
@@ -38,7 +38,7 @@
       "message": {
         "type": "error",
         "code": "wrong-password",
-        "protocolVersion": 2
+        "protocolVersion": 3
       }
     },
     {
@@ -48,7 +48,7 @@
       "message": {
         "type": "error",
         "code": "hello-required",
-        "protocolVersion": 2
+        "protocolVersion": 3
       }
     },
     {
@@ -58,7 +58,7 @@
       "message": {
         "type": "error",
         "code": "bad-message",
-        "protocolVersion": 2
+        "protocolVersion": 3
       }
     },
     {
@@ -68,7 +68,7 @@
       "message": {
         "type": "error",
         "code": "too-many-messages",
-        "protocolVersion": 2
+        "protocolVersion": 3
       }
     },
     {
@@ -78,7 +78,7 @@
       "message": {
         "type": "error",
         "code": "replaced",
-        "protocolVersion": 2
+        "protocolVersion": 3
       }
     },
     {
@@ -88,7 +88,7 @@
       "message": {
         "type": "error",
         "code": "unauthorized",
-        "protocolVersion": 2
+        "protocolVersion": 3
       }
     },
     {
@@ -98,7 +98,17 @@
       "message": {
         "type": "error",
         "code": "room-deleted",
-        "protocolVersion": 2
+        "protocolVersion": 3
+      }
+    },
+    {
+      "code": "idle",
+      "when": "IDLE_SECONDS（3時間）のあいだ active が届かなかった（ページが放っておかれた）。hello の idleMs がそれ以上のときも。つなぎ直せば入れるが、Axe は自分ではつなぎ直さず、人が操作してからつなぎ直す",
+      "retry": true,
+      "message": {
+        "type": "error",
+        "code": "idle",
+        "protocolVersion": 3
       }
     }
   ]

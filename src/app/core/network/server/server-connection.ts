@@ -9,10 +9,13 @@ import {
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { PeerReconnectScheduler } from '@axe/core/network/peer-reconnect-scheduler';
 import { IRoomInfo } from '@axe/core/network/room-info';
+import { pageActivity } from '@axe/core/network/server/page-activity';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { decodeFrame, encodeFrame, encodeSendFrames } from '@axe/core/network/server/server-frames';
 import {
   ACCOUNT_USER_ID_PREFIX,
+  ACTIVE_REPORT_SECONDS,
+  activeMessage,
   assetTokenRequest,
   AssetUploadPolicy,
   authMessage,
@@ -25,6 +28,7 @@ import {
   DataMessage,
   EventContext,
   helloMessage,
+  IDLE_SECONDS,
   InviteMessage,
   inviteRequest,
   isRetryableError,
@@ -107,6 +111,8 @@ export const MAX_HELD_EVENTS = 64;
  * and so are the changes, of which only the last of each object between deletions is kept.
  */
 export const MAX_HELD_BROADCASTS = 20_000;
+/** How long before a seat would be let out for the page left alone its reader is told so. */
+export const IDLE_WARNING_MS = 5 * 60_000;
 /**
  * Requests to the server that would be lost while reconnecting, and that the catalogs traded on
  * getting back in do not mend: a role change asked for in the meantime. A roll is not among them:
@@ -126,6 +132,8 @@ const DELETION = 'DELETE_GAME_OBJECT';
 const HELD_BROADCAST_EVENT_NAMES: ReadonlySet<string> = new Set([DELETION, COMING_BACK, CHANGE]);
 /** The refusal for a hello whose login is gone or belongs to somebody else. */
 const UNAUTHORIZED = 'unauthorized';
+/** The refusal for a seat whose page was left alone, which comes back only when its reader asks. */
+const IDLE = 'idle';
 
 const SOCKET_OPEN = 1;
 const SOCKET_KEY = 'room-server';
@@ -274,6 +282,15 @@ export class ServerConnection implements Connection {
   private stopped = false;
   private refusal: string | null = null;
   private readonly reconnectScheduler = new PeerReconnectScheduler();
+  /** When the room server last heard the page was in use: by the hello that got in, or by active. */
+  private reportedAt = 0;
+  /** The last use the hello on its way says, which the server takes up once it lets the seat in. */
+  private helloInputAt = 0;
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private idleWarned = false;
+  /** Let out of the room for the page left alone; the seat comes back only when its reader asks. */
+  private leftAlone = false;
+  private stopHearingInput: (() => void) | null = null;
 
   private outbound: Outbound[] = [];
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -333,6 +350,7 @@ export class ServerConnection implements Connection {
    */
   open(userId: string, roomId: string, roomName: string, password: string, roomKey?: string): void {
     this.stopped = false;
+    pageActivity.watch();
     void this.openAs(userId, roomId, roomName, password, roomKey);
   }
 
@@ -599,8 +617,14 @@ export class ServerConnection implements Connection {
       accessToken = credentials.accessToken;
     }
     this.helloToken = accessToken || null;
+    this.helloInputAt = pageActivity.lastInputAt;
     this.post(
-      helloMessage(this.me.peerId, userId, { password: this.room?.password, accessToken, invite: this.invite })
+      helloMessage(this.me.peerId, userId, {
+        password: this.room?.password,
+        accessToken,
+        invite: this.invite,
+        idleMs: Date.now() - this.helloInputAt,
+      })
     );
   }
 
@@ -668,6 +692,8 @@ export class ServerConnection implements Connection {
     if (message.role !== 'guest') this.invite = '';
     this.retriedUnauthorized = false;
     this.reconnectScheduler.reset(SOCKET_KEY);
+    this.reportedAt = this.helloInputAt;
+    this.watchIdle();
     const authority = PeerContext.parse(message.authorityPeerId);
     authority.isOpen = true;
     this.authority = authority;
@@ -904,6 +930,7 @@ export class ServerConnection implements Connection {
     this.stopPing();
     this.stopTokenChecks();
     this.stopAssetTokenChecks();
+    this.stopIdleWatch();
     // What was still gathering to go out goes with the link, but for the requests kept for later,
     // those already on their way out ahead of the rest.
     this.keepRequests(this.unwritten);
@@ -937,6 +964,10 @@ export class ServerConnection implements Connection {
 
     const refusal = this.refusal;
     this.refusal = null;
+    if (refusal === IDLE) {
+      this.leaveForIdle();
+      return;
+    }
     if (refusal === UNAUTHORIZED) {
       void this.retryUnauthorized();
       return;
@@ -1005,6 +1036,9 @@ export class ServerConnection implements Connection {
 
   private teardown(): void {
     this.reconnectScheduler.cancelAll();
+    this.stopIdleWatch();
+    this.leftAlone = false;
+    this.idleWarned = false;
     for (const peerId of [...this.missing.keys()]) this.stopMissing(peerId);
     this.askedBack = false;
     this.comingBack = false;
@@ -1146,6 +1180,69 @@ export class ServerConnection implements Connection {
         if (socket != null && socket === this.socket && socket.readyState === SOCKET_OPEN) socket.send(frame);
       })
       .catch((e) => Logger.warn('[ServerConnection] a send failed', e));
+  }
+
+  /**
+   * Takes a seat let out for the page left alone back into its room, on the same peer id, once its
+   * reader asks. Nothing happens unless it was let out so.
+   */
+  comeBackFromIdle(): void {
+    if (!this.leftAlone || this.stopped) return;
+    this.leftAlone = false;
+    this.reconnectScheduler.reset(SOCKET_KEY);
+    this.connectSocket();
+  }
+
+  /**
+   * Stays out of the room the server let the seat out of for the page left alone, connecting again
+   * only when its reader asks, and says so.
+   */
+  private leaveForIdle(): void {
+    this.leftAlone = true;
+    this.idleWarned = false;
+    this.reconnectScheduler.cancelAll();
+    this.callback.onIdle?.('left');
+  }
+
+  /**
+   * Hears the page's use while the seat is in, saying active to the server when it was used at least
+   * ACTIVE_REPORT_SECONDS after the server last heard so, and warns IDLE_WARNING_MS before the seat
+   * would be let out.
+   */
+  private watchIdle(): void {
+    this.stopHearingInput ??= pageActivity.onInput((at) => this.usedAt(at));
+    this.armIdleWarning();
+  }
+
+  private usedAt(at: number): void {
+    if (!this.welcomed || at - this.reportedAt < ACTIVE_REPORT_SECONDS * 1000) return;
+    this.reportedAt = at;
+    this.post(activeMessage());
+    this.armIdleWarning();
+    if (!this.idleWarned) return;
+    this.idleWarned = false;
+    this.callback.onIdle?.('back');
+  }
+
+  private armIdleWarning(): void {
+    if (this.idleTimer != null) clearTimeout(this.idleTimer);
+    const warnAt = this.reportedAt + IDLE_SECONDS * 1000 - IDLE_WARNING_MS;
+    this.idleTimer = setTimeout(
+      () => {
+        this.idleTimer = null;
+        if (!this.welcomed || this.idleWarned) return;
+        this.idleWarned = true;
+        this.callback.onIdle?.('soon');
+      },
+      Math.max(0, warnAt - Date.now())
+    );
+  }
+
+  private stopIdleWatch(): void {
+    if (this.idleTimer != null) clearTimeout(this.idleTimer);
+    this.idleTimer = null;
+    this.stopHearingInput?.();
+    this.stopHearingInput = null;
   }
 
   private startPing(socket: WebSocket): void {

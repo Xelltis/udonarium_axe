@@ -117,6 +117,10 @@ export class Network {
   static requestInvite(role: ServerRole): Promise<InviteMessage> {
     return Network.instance.requestInvite(role);
   }
+  /** Takes a seat let out of its room for the page left alone back in; nothing with SkyWay. */
+  static comeBackFromIdle(): void {
+    Network.instance.comeBackFromIdle();
+  }
   /**
    * Opens a network session in no room, closing any session first.
    *
@@ -264,6 +268,10 @@ export class Network {
   /** The invitation kept for the room it was given for, until a logged-in seat is let in with it. */
   get pendingServerInvite(): { invite: string; roomKey: string } | null {
     return this.pendingInvite;
+  }
+
+  comeBackFromIdle(): void {
+    this.connection?.comeBackFromIdle?.();
   }
 
   requestInvite(role: ServerRole): Promise<InviteMessage> {
@@ -493,6 +501,7 @@ export class Network {
       if (this.callback.onError) this.callback.onError(peer, errorType, errorMessage, errorObject);
     };
     connection.callback.onRoleChange = (role) => this.callback.onRoleChange?.(role);
+    connection.callback.onIdle = (state) => this.callback.onIdle?.(state);
 
     if (this.queue.size > 0 && this.sendInterval === null) this.sendInterval = setZeroTimeout(this.sendCallback);
 

@@ -181,6 +181,10 @@ export function initializeNetworkMessaging(): void {
     localDispatch('SERVER_ROLE_CHANGED', { role });
   };
 
+  callback.onIdle = (state) => {
+    localDispatch('SEAT_IDLE', { state });
+  };
+
   callback.onReconnect = (peer, state) => {
     Logger.debug('[NetworkMessaging]', `<${peer.peerId}> reconnect <${state}>`);
     localDispatch('PEER_RECONNECT', { peerId: peer.peerId, state });

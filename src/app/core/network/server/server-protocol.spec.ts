@@ -9,6 +9,7 @@ import source from '@axe/core/network/server/contract/source.json';
 import * as protocol from '@axe/core/network/server/server-protocol';
 import {
   ACCOUNT_USER_ID_PREFIX,
+  activeMessage,
   assetTokenRequest,
   authMessage,
   AUTHORITY_ONLY_EVENTS,
@@ -121,6 +122,16 @@ describe('the room server protocol, held to the server’s fixtures', () => {
         invite: helloLoggedIn.invite,
       })
     ).toEqual(helloLoggedIn);
+  });
+
+  it('says how long the page went unused, and that it was used, as the server expects', () => {
+    const { helloLeftAlone, active } = messages.client;
+
+    expect(helloMessage(helloLeftAlone.peerId, helloLeftAlone.userId, { idleMs: helloLeftAlone.idleMs })).toEqual(
+      helloLeftAlone
+    );
+    expect(helloMessage('p', 'u', { idleMs: -5 }).idleMs).toBe(0);
+    expect(activeMessage()).toEqual(active);
   });
 
   it('leaves out of a hello whatever is empty', () => {

@@ -1,7 +1,9 @@
 import { IPeerContext } from '@axe/core/network/peer-context';
+import { pageActivity } from '@axe/core/network/server/page-activity';
 import {
   ASSET_TOKEN_MARGIN_MS,
   ASSET_TOKEN_WAIT_MS,
+  IDLE_WARNING_MS,
   INVITE_TIMEOUT_MS,
   MAX_HELD_BROADCASTS,
   MISSING_MEMBER_GRACE_MS,
@@ -19,8 +21,10 @@ import {
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { decodeFrame, MAX_FRAME_BYTES } from '@axe/core/network/server/server-frames';
 import {
+  ACTIVE_REPORT_SECONDS,
   AUTHORITY_PEER_ID,
   EventContext,
+  IDLE_SECONDS,
   Member,
   PROTOCOL_VERSION,
   ServerMessage,
@@ -156,6 +160,7 @@ describe('ServerConnection', () => {
       peerId: connection.peerId,
       userId: 'my-user',
       password: 'secret',
+      idleMs: expect.any(Number),
     });
   });
 
@@ -482,6 +487,129 @@ describe('ServerConnection', () => {
 
     expect(calls.filter((call) => call === 'open')).toHaveLength(1);
     expect(calls.slice(-3)).toEqual(['reconnect recovered', 'connect authority', `connect ${OTHER.peerId}`]);
+  });
+
+  describe('a page left alone', () => {
+    const MINUTE = 60_000;
+    let idle: string[];
+
+    beforeEach(() => {
+      idle = [];
+      connection.callback.onIdle = (state) => idle.push(state);
+    });
+
+    const fakeClock = () =>
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+    const actives = async (socket: FakeWebSocket) =>
+      (await socket.frames()).filter((frame) => frame['type'] === 'active').length;
+    /** The server answers every ping, so that hours can pass on the fake clock with the link kept. */
+    const answerPings = (socket: FakeWebSocket) => {
+      const send = socket.send.bind(socket);
+      socket.send = (data) => {
+        send(data);
+        if (data === 'ping') setTimeout(() => socket.onmessage?.({ data: 'pong' }), 0);
+      };
+      return socket;
+    };
+    const welcomeOn = (socket: FakeWebSocket) =>
+      socket.deliver({
+        type: 'welcome',
+        protocolVersion: PROTOCOL_VERSION,
+        peerId: connection.peerId,
+        authorityPeerId: AUTHORITY_PEER_ID,
+        role: 'pl',
+        members: [],
+        serverTime: Date.now(),
+        assetToken: 'asset-1',
+        assetTokenExpiresAt: Date.now() + 15 * MINUTE,
+      });
+
+    it('says in the hello how long the page has gone unused', async () => {
+      fakeClock();
+      pageActivity.noteInput();
+      vi.advanceTimersByTime(20 * MINUTE);
+      const socket = await openRoom();
+      socket.accept();
+
+      await vi.waitFor(async () => expect((await socket.frames()).length).toBe(1));
+      const { idleMs } = (await socket.frames())[0] as { idleMs: number };
+      expect(idleMs).toBeGreaterThanOrEqual(20 * MINUTE);
+      expect(idleMs).toBeLessThan(21 * MINUTE);
+    });
+
+    it('says active when the page is used once the server last heard so a while ago, and no sooner', async () => {
+      fakeClock();
+      pageActivity.noteInput();
+      const socket = answerPings(await enterRoom());
+
+      vi.advanceTimersByTime(MINUTE);
+      pageActivity.noteInput();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(await actives(socket)).toBe(0);
+
+      vi.advanceTimersByTime(ACTIVE_REPORT_SECONDS * 1000);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(await actives(socket)).toBe(0);
+      pageActivity.noteInput();
+      pageActivity.noteInput();
+      await vi.waitFor(async () => expect(await actives(socket)).toBe(1));
+    });
+
+    it('warns before the seat would be let out, and takes the warning back once the page is used', async () => {
+      fakeClock();
+      pageActivity.noteInput();
+      const socket = answerPings(await enterRoom());
+      const warnIn = pageActivity.lastInputAt + IDLE_SECONDS * 1000 - IDLE_WARNING_MS - Date.now();
+
+      vi.advanceTimersByTime(warnIn - 1);
+      expect(idle).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(idle).toEqual(['soon']);
+
+      pageActivity.noteInput();
+      expect(idle).toEqual(['soon', 'back']);
+      await vi.waitFor(async () => expect(await actives(socket)).toBe(1));
+    });
+
+    it('stays out once let out as idle, and goes back in on the same peer id only when asked', async () => {
+      const socket = await enterRoom();
+      fakeClock();
+      socket.deliver({ type: 'error', code: 'idle', protocolVersion: PROTOCOL_VERSION });
+      await vi.advanceTimersByTimeAsync(0);
+      socket.close(4000, 'idle');
+
+      expect(idle).toEqual(['left']);
+      await vi.advanceTimersByTimeAsync(60 * MINUTE);
+      expect(FakeWebSocket.instances.length).toBe(1);
+      expect(errors).toEqual([]);
+      vi.useRealTimers();
+
+      connection.comeBackFromIdle();
+      const again = latest();
+      expect(FakeWebSocket.instances.length).toBe(2);
+      again.accept();
+      await vi.waitFor(async () => expect((await again.frames()).length).toBe(1));
+      expect((await again.frames())[0]).toMatchObject({ type: 'hello', peerId: connection.peerId });
+      welcomeOn(again);
+      await vi.waitFor(() => expect(calls).toContain('reconnect recovered'));
+    });
+
+    it('stays out when the hello itself is turned away as idle', async () => {
+      const socket = await openRoom();
+      socket.accept();
+      socket.deliver({ type: 'error', code: 'idle', protocolVersion: PROTOCOL_VERSION });
+      await settle();
+      socket.close(4000, 'idle');
+
+      expect(idle).toEqual(['left']);
+      expect(errors).toEqual([]);
+    });
+
+    it('goes back in only when it was let out so', () => {
+      connection.comeBackFromIdle();
+
+      expect(FakeWebSocket.instances.length).toBe(0);
+    });
   });
 
   it('asks a quiet server whether it is there, and takes the connection as lost when nothing answers', async () => {
@@ -1374,6 +1502,7 @@ describe('ServerConnection', () => {
         userId: 'acct_me',
         accessToken: 'token-1',
         invite: 'the-invite',
+        idleMs: expect.any(Number),
       });
       expect(connection.peer.userId).toBe('acct_me');
     });
