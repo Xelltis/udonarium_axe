@@ -9,6 +9,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { isInStore } from '@axe/core/sync/object-store';
 import {
   groundSurfaceLayer,
   groundSurfaceWash,
@@ -22,7 +23,6 @@ import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import { buildTableAmbienceContextMenuModel } from '@axe/features/tabletop/table-ambience/table-ambience-context-menu';
-import { TableAmbienceSettingsComponent } from '@axe/features/tabletop/table-ambience/table-ambience-settings.component';
 import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
@@ -223,8 +223,14 @@ export class TableAmbienceComponent {
       width: 340,
       height: 380,
     };
-    const component = this.panelService.open(TableAmbienceSettingsComponent, option);
-    component.target = area;
+    this.panelService.openLazy(
+      () =>
+        import('@axe/features/tabletop/table-ambience/table-ambience-settings.component').then(
+          (m) => m.TableAmbienceSettingsComponent
+        ),
+      { ...option, stillWanted: () => isInStore(area) },
+      (component) => (component.target = area)
+    );
   }
 }
 
