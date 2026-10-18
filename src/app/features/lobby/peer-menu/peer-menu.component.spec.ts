@@ -14,6 +14,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { IdleSeatService } from '@axe/features/lobby/idle-seat.service';
 import { PeerMenuComponent } from '@axe/features/lobby/peer-menu/peer-menu.component';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
@@ -489,6 +490,25 @@ describe('PeerMenuComponent', () => {
           invite: `signed-${role}`,
           expiresAt: Date.now() + 1e9,
         }));
+      });
+
+      it('offers to go back into the room only while the seat is let out for the page left alone', () => {
+        const idleSeat = TestBed.inject(IdleSeatService);
+        const comeBack = vi.spyOn(Network, 'comeBackFromIdle').mockImplementation(() => {});
+        fixture = TestBed.createComponent(PeerMenuComponent);
+        const button = () =>
+          (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+            '[data-testid="peer-menu-come-back"]'
+          );
+        fixture.detectChanges();
+        expect(button()).toBeNull();
+
+        idleSeat.markLeft();
+        fixture.detectChanges();
+        button()!.click();
+
+        expect(comeBack).toHaveBeenCalledTimes(1);
+        expect(idleSeat.leftAlone()).toBe(false);
       });
 
       it('lets a GM delete the room it is in, by its key', async () => {

@@ -26,6 +26,7 @@ import { handOverOwnership } from '@axe/domain/peer/ownership';
 import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit, DEFAULT_PEER_ROLE } from '@axe/domain/peer/peer-role';
 import { markSeatWithheld } from '@axe/domain/peer/withheld-table';
+import { IdleSeatService } from '@axe/features/lobby/idle-seat.service';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 
 /** What to say for each reason the room server gives for keeping a role as it was. */
@@ -38,6 +39,10 @@ const ROLE_REJECTED_KEYS: Readonly<Record<string, string>> = {
 
 /** How long after somebody leaves the room's list of pictures and sounds is read again. */
 const ROOM_ASSET_RELIST_MS = 30_000;
+/** How long the word that the seat is about to be let out stays: until it would be. */
+const IDLE_NOTICE_MS = 5 * 60_000;
+/** How long the word that the seat was let out stays, offering to go back in: as good as for good. */
+const LEFT_ALONE_NOTICE_MS = 24 * 60 * 60_000;
 
 @Injectable({ providedIn: 'root' })
 export class NetworkEventHandlerService {
@@ -49,6 +54,7 @@ export class NetworkEventHandlerService {
   private readonly snackbar = inject(SnackbarService);
   private readonly overlayMode = inject(OverlayModeService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly idleSeat = inject(IdleSeatService);
 
   /**
    * How often and how slowly it reconnects after a server error, meaning the token backend is out of reach.
@@ -77,6 +83,8 @@ export class NetworkEventHandlerService {
   private readonly roomAssetListRetries = new AssetRetries();
   private roomAssetRelistTimer: ReturnType<typeof setTimeout> | null = null;
   private localMode = false;
+  /** The notice saying the seat is about to be let out, to take away once the page is used again. */
+  private idleNotice: number | null = null;
   /** The account last followed; undefined until the first look, which changes nothing. */
   private followedAccountUserId: string | null | undefined = undefined;
   /** The last account followed, kept after a logout so its user id is never taken for the tab's own. */
@@ -96,6 +104,10 @@ export class NetworkEventHandlerService {
     networkMessage$.subscribe((message) => {
       if (message.eventName !== AuthorityEvent.ROLE_REJECTED || message.sendFrom !== Network.authorityPeerId) return;
       this.tellRoleRejected(message.data as { peerId?: unknown; reason?: unknown } | null);
+    }, this.destroyRef);
+    networkMessage$.subscribe((message) => {
+      if (message.eventName !== 'SEAT_IDLE' || !message.isSendFromSelf) return;
+      this.tellIdle((message.data as { state?: unknown } | null)?.state);
     }, this.destroyRef);
     // The room server gave this seat another role: a guest made a player brings its pictures up.
     networkMessage$.subscribe((message) => {
@@ -398,6 +410,32 @@ export class NetworkEventHandlerService {
     const key = ROLE_REJECTED_KEYS[reason] ?? 'feature.lobby.roleRejected.other';
     const name = typeof data?.peerId === 'string' ? this.resolvePeerName(data.peerId) : '';
     this.chatMessageService.sendSystemMessage(encodeI18nMessage(key, { name, reason }));
+  }
+
+  /**
+   * Tells the reader the seat is about to be let out for the page left alone, takes that back once
+   * the page is used again, or says it was let out, offering to go back in. The offer stays until
+   * taken, here and in the peer menu, as nothing takes the seat back in by itself.
+   */
+  private tellIdle(state: unknown): void {
+    if (state === 'soon') {
+      if (!this.overlayMode.active()) this.snackbar.show(this.t('feature.lobby.idle.soon'), { ms: IDLE_NOTICE_MS });
+      this.idleNotice = this.snackbar.current()?.id ?? null;
+      return;
+    }
+    if (state === 'back') {
+      if (this.idleNotice !== null && this.snackbar.current()?.id === this.idleNotice) this.snackbar.dismiss();
+      this.idleNotice = null;
+      return;
+    }
+    if (state !== 'left') return;
+    this.idleSeat.markLeft();
+    this.idleNotice = null;
+    if (this.overlayMode.active()) return;
+    this.snackbar.show(this.t('feature.lobby.idle.left'), {
+      action: { label: this.t('feature.lobby.idle.comeBack'), run: () => this.idleSeat.comeBack() },
+      ms: LEFT_ALONE_NOTICE_MS,
+    });
   }
 
   /**

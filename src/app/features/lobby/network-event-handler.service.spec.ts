@@ -29,6 +29,7 @@ import { handLocationOf } from '@axe/domain/card/hand-location';
 import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { isTableWithheld, markLoadedWithheld, markSeatWithheld } from '@axe/domain/peer/withheld-table';
+import { IdleSeatService } from '@axe/features/lobby/idle-seat.service';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -665,6 +666,26 @@ describe('NetworkEventHandlerService', () => {
       vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
       vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
       PeerCursor.myCursor = new PeerCursor();
+    });
+
+    it('warns of being let out for the page left alone, takes it back once used, and offers to go back in', () => {
+      const snackbar = TestBed.inject(SnackbarService);
+      const shown = vi.spyOn(snackbar, 'show');
+      const comeBack = vi.spyOn(Network, 'comeBackFromIdle').mockImplementation(() => {});
+      const idleSeat = TestBed.inject(IdleSeatService);
+
+      localDispatch('SEAT_IDLE', { state: 'soon' }, 'someone-else');
+      localDispatch('SEAT_IDLE', { state: 'soon' });
+      expect(shown).toHaveBeenCalledTimes(1);
+      localDispatch('SEAT_IDLE', { state: 'back' });
+      expect(snackbar.current()).toBeNull();
+
+      localDispatch('SEAT_IDLE', { state: 'left' });
+      expect(idleSeat.leftAlone()).toBe(true);
+      snackbar.runAction();
+
+      expect(comeBack).toHaveBeenCalledTimes(1);
+      expect(idleSeat.leftAlone()).toBe(false);
     });
 
     it('takes on the role the server gave as the room opens, over the one saved before', () => {

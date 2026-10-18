@@ -40,6 +40,7 @@ import {
   roleShortLabelKey,
 } from '@axe/domain/peer/peer-role';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { IdleSeatService } from '@axe/features/lobby/idle-seat.service';
 import { dropInvitationFromAddress } from '@axe/features/lobby/leave-room';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { ReConnectComponent } from '@axe/features/lobby/re-connect/re-connect.component';
@@ -73,6 +74,7 @@ export class PeerMenuComponent {
   private readonly localModePreference = inject(LocalModePreferenceService);
 
   private readonly confirm = inject(ConfirmService);
+  protected readonly idleSeat = inject(IdleSeatService);
   private readonly roomArchive = inject(RoomArchiveEventHandlerService);
   /** Whether the page is on its way to reloading into the mode chosen, which takes no second choice. */
   private switchingMode = false;
@@ -208,6 +210,11 @@ export class PeerMenuComponent {
   /** This browser's own cursor, which carries the reader's name, icon, role and timeout. */
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
+  }
+
+  /** Takes the seat let out for the page left alone back into its room. */
+  protected comeBackFromIdle(): void {
+    this.idleSeat.comeBack();
   }
 
   /**

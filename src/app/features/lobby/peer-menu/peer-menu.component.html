@@ -200,6 +200,18 @@
           }
         }
       </div>
+      @if (isServerTransport() && idleSeat.leftAlone()) {
+        <div class="space-y-1 pt-1">
+          <p class="m-0 text-[0.7rem] text-(--ui-text-dim)">{{ 'feature.lobby.idle.left' | transloco }}</p>
+          <button
+            class="flex items-center gap-1 text-xs"
+            data-testid="peer-menu-come-back"
+            (click)="comeBackFromIdle()"
+          >
+            <span class="material-icons text-[1.1em]!">login</span>{{ 'feature.lobby.idle.comeBack' | transloco }}
+          </button>
+        </div>
+      }
       @if (isServerTransport() && amGameMaster()) {
         <div class="space-y-1 pt-1">
           <button

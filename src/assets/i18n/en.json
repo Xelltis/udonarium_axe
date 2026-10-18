@@ -3410,6 +3410,11 @@
           "retry": "Please log in again."
         }
       },
+      "idle": {
+        "soon": "Nothing has been done here for a while, so you will soon leave the room. Use the page a little to stay.",
+        "left": "Nothing was done here for a while, so you left the room.",
+        "comeBack": "Back to the room"
+      },
       "signedOutInRoom": "You are no longer logged in, so you are back in the room as a guest. Log in again to go on as a GM or a player.",
       "roleRejected": {
         "notGameMaster": "Only the GM can change roles.",
