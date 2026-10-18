@@ -40,6 +40,7 @@ import { ChatMessageComponent } from '@axe/features/chat/chat-message/chat-messa
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { loadLinkify } from '@axe/ui/text-decoration/linkify-loader';
 import type { MockInstance } from 'vitest';
 
 describe('ChatMessageComponent', () => {
@@ -806,6 +807,8 @@ describe('ChatMessageComponent', () => {
   });
 
   describe('the menu of what can be done with a line', () => {
+    beforeAll(() => loadLinkify());
+
     let open: MockInstance<ContextMenuService['open']>;
     const clipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
     const strays: Element[] = [];

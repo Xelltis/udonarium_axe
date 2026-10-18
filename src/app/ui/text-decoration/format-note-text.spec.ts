@@ -1,6 +1,9 @@
 import { formatNoteText } from '@axe/ui/text-decoration/format-note-text';
+import { loadLinkify } from '@axe/ui/text-decoration/linkify-loader';
 
 describe('a shared note drawn with formatting', () => {
+  beforeAll(() => loadLinkify());
+
   it('reads headings, lists and quotes from the marks that start their lines', () => {
     expect(formatNoteText('# 洞窟\n## 入口\n### 罠')).toBe('<h1>洞窟</h1><h2>入口</h2><h3>罠</h3>');
     expect(formatNoteText('- たいまつ\n- ロープ')).toBe('<ul><li>たいまつ</li><li>ロープ</li></ul>');
