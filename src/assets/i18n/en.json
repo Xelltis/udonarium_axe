@@ -2536,7 +2536,7 @@
         "tableBgmKeep": "Leave as it is",
         "tableBgmStop": "Stop",
         "tableBgmMissing": "Missing track",
-        "tableBgmHint": "Played when the room is switched to this table from the list, by a switch or by a pitfall. A track already playing carries on.",
+        "tableBgmHint": "Played to everyone when the room is switched to this table from the list, by a switch or by a pitfall. A track already playing carries on.",
         "sectionSize": "Size",
         "width": "Width",
         "height": "Height",
