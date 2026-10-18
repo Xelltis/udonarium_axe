@@ -3,6 +3,7 @@ import { ObjectNode } from '@axe/core/sync/object-node';
 import { CellBits, decodeCellBits, encodeCellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, CellGrid, sameCellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { isSquareGrid, squaresClosedBy } from '@axe/domain/tabletop/move/move-grid';
 
 @SyncObject('move-block-map')
 export class MoveBlockMap extends ObjectNode {
@@ -21,8 +22,13 @@ export class MoveBlockMap extends ObjectNode {
     return sameCellGrid(this.grid, grid);
   }
 
-  /** The blocked cells for a grid; empty when they were marked on a different grid, such as before a resize. */
+  /**
+   * The blocked cells for a grid; empty when they were marked on a different grid, such as before a
+   * resize. A grid of squares is read through the table's own cells it is made of, and a square is
+   * closed where they run right across it.
+   */
   read(grid: CellGrid): CellBits {
+    if (isSquareGrid(grid)) return squaresClosedBy(grid, this.read(grid.fine));
     const count = cellCount(grid);
     if (!this.matches(grid)) return new CellBits(count);
     return decodeCellBits(this.bits, count);

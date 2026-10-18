@@ -1,5 +1,6 @@
-import { cellCount, CellGrid, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, cellCount, CellGrid, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { isSquareGrid } from '@axe/domain/tabletop/move/move-grid';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf, terrainCovers } from '@axe/domain/tabletop/terrain-box';
@@ -43,11 +44,19 @@ export function landingHeightAt(
  *
  * The same answer {@link landingHeightAt} gives, for the whole board at once: a piece walks
  * cell by cell and is put down in the middle of each, so that is where the ground under it is
- * read. The floor reads as nothing, and cells with no cell size to speak of read as floor.
+ * read. The floor reads as nothing, and cells with no cell size to speak of read as floor. A square
+ * of several cells is read at its middle too, which is where a piece moved onto it is put down.
  */
 export function landingHeightsOn(grid: CellGrid, terrains: readonly Terrain[]): Float64Array {
   const heights = new Float64Array(cellCount(grid));
   if (grid.sizePx <= 0) return heights;
+  if (isSquareGrid(grid)) {
+    for (let square = 0; square < heights.length; square++) {
+      const centre = cellCenterOf(grid, square);
+      heights[square] = landingHeightAt(terrains, grid.fine.sizePx, centre.x, centre.y, grid.type);
+    }
+    return heights;
+  }
   for (const terrain of terrains) {
     if (!canBeStoodOn(terrain)) continue;
     const box = terrainBoxOf(terrain, grid.sizePx);

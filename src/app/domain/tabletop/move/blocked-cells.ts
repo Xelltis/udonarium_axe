@@ -1,5 +1,6 @@
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, CellGrid, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import { isSquareGrid, squaresClosedBy } from '@axe/domain/tabletop/move/move-grid';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
@@ -33,13 +34,15 @@ export function terrainBlocksJump(terrain: Terrain): boolean {
  * The cells covered by terrain that stops a piece, judged by `stops`: walking by default, or
  * {@link terrainBlocksJump} for a piece that jumps.
  *
- * Empty for a grid with no cell size.
+ * Empty for a grid with no cell size. On a grid of squares, the cells are worked out first and a
+ * square is closed where they run right across it, as {@link squaresClosedBy} has it.
  */
 export function blockedByTerrain(
   grid: CellGrid,
   terrains: readonly Terrain[],
   stops: (terrain: Terrain) => boolean = terrainBlocksMovement
 ): CellBits {
+  if (isSquareGrid(grid)) return squaresClosedBy(grid, blockedByTerrain(grid.fine, terrains, stops));
   const bits = new CellBits(cellCount(grid));
   if (grid.sizePx <= 0) return bits;
   for (const terrain of terrains) {
