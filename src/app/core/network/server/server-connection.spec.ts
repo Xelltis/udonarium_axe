@@ -122,6 +122,20 @@ describe('ServerConnection', () => {
     return socket;
   }
 
+  /**
+   * The server answers every ping, so that the fake clock can run on with the link kept: a test
+   * that lets send windows go by is otherwise cut off for want of an answer, once a busy machine
+   * has it look one window more than the sends needed.
+   */
+  function answerPings(socket: FakeWebSocket): FakeWebSocket {
+    const send = socket.send.bind(socket);
+    socket.send = (data) => {
+      send(data);
+      if (data === 'ping') setTimeout(() => socket.onmessage?.({ data: 'pong' }), 0);
+    };
+    return socket;
+  }
+
   beforeEach(() => {
     FakeWebSocket.instances = [];
     vi.stubGlobal('WebSocket', FakeWebSocket);
@@ -502,15 +516,6 @@ describe('ServerConnection', () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
     const actives = async (socket: FakeWebSocket) =>
       (await socket.frames()).filter((frame) => frame['type'] === 'active').length;
-    /** The server answers every ping, so that hours can pass on the fake clock with the link kept. */
-    const answerPings = (socket: FakeWebSocket) => {
-      const send = socket.send.bind(socket);
-      socket.send = (data) => {
-        send(data);
-        if (data === 'ping') setTimeout(() => socket.onmessage?.({ data: 'pong' }), 0);
-      };
-      return socket;
-    };
     const welcomeOn = (socket: FakeWebSocket) =>
       socket.deliver({
         type: 'welcome',
@@ -960,7 +965,7 @@ describe('ServerConnection', () => {
 
   it('sends no deletion still to go of what the server hands back on refusing a deletion, as the lines of a tab it kept', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
-    const socket = await enterRoom();
+    const socket = answerPings(await enterRoom());
     const tab = event('DELETE_GAME_OBJECT', { aliasName: 'chat-tab', identifier: 'tab-1' });
     const deletions = Array.from({ length: SEND_BUDGET_EVENTS * 2 - 1 }, (_, i) =>
       event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
@@ -992,7 +997,7 @@ describe('ServerConnection', () => {
 
   it('still sends a deletion of what it brought back after deleting it, when the server hands that back for a change', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
-    const socket = await enterRoom();
+    const socket = answerPings(await enterRoom());
     const line = (identifier: string) => ({ aliasName: 'chat', identifier, majorVersion: 2, syncData: {} });
     connection.send([
       event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: 'rolled' }),
@@ -1027,7 +1032,7 @@ describe('ServerConnection', () => {
 
   it('still sends a deletion of what the server hands back for a change it turned down, the deletion being no part of it', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
-    const socket = await enterRoom();
+    const socket = answerPings(await enterRoom());
     const deletions = Array.from({ length: SEND_BUDGET_EVENTS * 2 }, (_, i) =>
       event('DELETE_GAME_OBJECT', { aliasName: 'part', identifier: `part-${i}` })
     );
@@ -1052,7 +1057,7 @@ describe('ServerConnection', () => {
 
   it('still sends a deletion of what comes back for a change together with what it deleted already', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
-    const socket = await enterRoom();
+    const socket = answerPings(await enterRoom());
     const deletions = Array.from({ length: SEND_BUDGET_EVENTS * 2 }, (_, i) =>
       event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
     );
@@ -1078,7 +1083,7 @@ describe('ServerConnection', () => {
 
   it('takes back nothing the server hands back whose deletion is yet to go out, the deletion going after', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
-    const socket = await enterRoom();
+    const socket = answerPings(await enterRoom());
     const deletions = Array.from({ length: SEND_BUDGET_EVENTS * 2 }, (_, i) =>
       event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
     );
@@ -1189,7 +1194,7 @@ describe('ServerConnection', () => {
 
   it('says it has sends pending while they are on their way out, and none once they have gone or only gather', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
-    const socket = await enterRoom();
+    const socket = answerPings(await enterRoom());
     const deletions = Array.from({ length: SEND_BUDGET_EVENTS * 2 }, (_, i) =>
       event('DELETE_GAME_OBJECT', { aliasName: 'chat', identifier: `line-${i}` })
     );
