@@ -37,7 +37,11 @@
       <app-hand-rail></app-hand-rail>
     }
   } @else {
-    <app-mini-jukebox [hidden]="!widgets.miniPlayer()"></app-mini-jukebox>
+    @defer (when widgets.miniPlayer()) {
+      <app-mini-jukebox [hidden]="!widgets.miniPlayer()"></app-mini-jukebox>
+    } @error {
+      <ng-container appReloadNotice />
+    }
     <app-digital-clock></app-digital-clock>
     @defer (when widgets.compass()) {
       <app-compass></app-compass>
