@@ -67,7 +67,6 @@ import { ChatSettingsEventHandlerService } from '@axe/features/chat/chat-setting
 import { ChatSoundEventHandlerService } from '@axe/features/chat/chat-sound-event-handler.service';
 import { ChatTickerComponent } from '@axe/features/chat/chat-ticker/chat-ticker.component';
 import { DiceChatEventHandlerService } from '@axe/features/dice/dice-chat-event-handler.service';
-import { DiceSymbolCreateDialogComponent } from '@axe/features/dice/dice-symbol-create-dialog/dice-symbol-create-dialog.component';
 import { DiceThrowEventHandlerService } from '@axe/features/dice/dice-throw-event-handler.service';
 import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-event-handler.service';
 import { FilesTooLargeEventHandlerService } from '@axe/features/file/files-too-large/files-too-large-event-handler.service';
@@ -585,4 +584,7 @@ ContextMenuService.loadFourWayRadialMenuComponent = () =>
 ModalService.ModalComponentClass = ModalComponent;
 BottomSheetService.frameComponentClass = BottomSheetComponent;
 ConfirmService.dialogComponentClass = ConfirmDialogComponent;
-TabletopActionService.diceCreateDialogComponentClass = DiceSymbolCreateDialogComponent;
+TabletopActionService.loadDiceCreateDialog = () =>
+  import('@axe/features/dice/dice-symbol-create-dialog/dice-symbol-create-dialog.component').then(
+    (m) => m.DiceSymbolCreateDialogComponent
+  );

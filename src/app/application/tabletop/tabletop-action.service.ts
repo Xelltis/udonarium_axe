@@ -24,6 +24,7 @@ import {
 } from '@axe/application/tabletop/tabletop-default-setup';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { getPeerContext } from '@axe/core/network/peer-context-source';
@@ -66,8 +67,11 @@ const BOARD_DEFAULT_HEIGHT = 4;
   providedIn: 'root',
 })
 export class TabletopActionService {
-  /** The dialogue for making several dice at once, handed over by the composition root. */
-  static diceCreateDialogComponentClass: { new (...args: unknown[]): unknown } | null = null;
+  /**
+   * Fetches the dialogue for making several dice at once, handed over by the composition root. It
+   * is fetched the first time it is asked for, being seldom wanted.
+   */
+  static loadDiceCreateDialog: (() => Promise<{ new (...args: unknown[]): unknown }>) | null = null;
 
   private readonly imageStorage = inject(ImageStorage);
   private readonly modalService = inject(ModalService);
@@ -648,7 +652,7 @@ export class TabletopActionService {
         },
       });
     });
-    if (TabletopActionService.diceCreateDialogComponentClass) {
+    if (TabletopActionService.loadDiceCreateDialog) {
       subMenus.push({
         name: this.t('feature.tabletop.action.createDiceMany'),
         action: () => void this.openDiceCreateDialog(position),
@@ -659,8 +663,13 @@ export class TabletopActionService {
 
   /** Asks which die and how many, then makes them. Nothing is made where the asking is dropped. */
   private async openDiceCreateDialog(position: PointerCoordinate): Promise<void> {
-    const dialogClass = TabletopActionService.diceCreateDialogComponentClass;
-    if (!dialogClass) return;
+    const load = TabletopActionService.loadDiceCreateDialog;
+    if (!load) return;
+    const dialogClass = await load().catch(() => null);
+    if (!dialogClass) {
+      PanelService.loadFailureNotice?.();
+      return;
+    }
 
     const option: DiceCreateDialogOption = {
       defaultCount: 2,
