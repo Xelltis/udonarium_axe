@@ -53,6 +53,8 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_controllerResources') private _controllerResources: string = '';
   @SyncVar('_stampRules') private _stampRules: string = '';
   @SyncVar('_speechBubbles') private _speechBubbles: string = '';
+  @SyncVar('_turnSignal') private _turnSignal: string = '';
+  @SyncVar('_turnTick') private _turnTick: string = '';
 
   // How the round is taken, which is the room's own decision rather than a table's.
   @SyncVar('_turnOrderMode') private _turnOrderMode: string = '';
@@ -265,6 +267,28 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set speechBubblesEnabled(enabled: boolean) {
     this._speechBubbles = enabled ? '' : 'off';
+  }
+
+  /**
+   * Whether the owner of a character hears a signal when its turn begins; on unless the room turned
+   * it off, which is the one value that does.
+   */
+  get turnSignalEnabled(): boolean {
+    return this._turnSignal !== 'off';
+  }
+  set turnSignalEnabled(enabled: boolean) {
+    this._turnSignal = enabled ? '' : 'off';
+  }
+
+  /**
+   * Whether everyone else hears a tick when a turn begins that is not theirs; off unless the room
+   * turned it on, which is the one value that does.
+   */
+  get turnTickEnabled(): boolean {
+    return this._turnTick === 'on';
+  }
+  set turnTickEnabled(enabled: boolean) {
+    this._turnTick = enabled ? 'on' : '';
   }
 
   /**

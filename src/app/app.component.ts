@@ -84,6 +84,7 @@ import { BeatLightComponent } from '@axe/features/media/beat-light/beat-light.co
 import { CutInEventHandlerService } from '@axe/features/media/cut-in-event-handler.service';
 import { MiniJukeboxComponent } from '@axe/features/media/mini-jukebox/mini-jukebox.component';
 import { MixEventHandlerService } from '@axe/features/media/mix-event-handler.service';
+import { TurnSoundEventHandlerService } from '@axe/features/media/turn-sound/turn-sound-event-handler.service';
 import {
   isMenuGroupView,
   MenuCommandService,
@@ -478,6 +479,7 @@ export class AppComponent {
     inject(DiceThrowService);
     inject(ChatSettingsEventHandlerService);
     inject(ChatSoundEventHandlerService);
+    inject(TurnSoundEventHandlerService);
     inject(EffectChatEventHandlerService);
     inject(VoteEventHandlerService);
     inject(CardEventHandlerService);

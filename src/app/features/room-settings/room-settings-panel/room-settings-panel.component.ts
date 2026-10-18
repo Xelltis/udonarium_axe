@@ -646,6 +646,24 @@ export class RoomSettingsPanelComponent {
    *
    * Only a user allowed to change the shared settings can set it.
    */
+  /** Whether the owner of a piece hears a signal when its turn begins; only the master changes it. */
+  get turnSignal(): boolean {
+    this.objectChange.versionOf('Config')();
+    return this.config.turnSignalEnabled;
+  }
+  set turnSignal(enabled: boolean) {
+    if (!this.isSharedReadOnly()) this.config.turnSignalEnabled = enabled;
+  }
+
+  /** Whether everyone else hears a tick when a turn begins; only the master changes it. */
+  get turnTick(): boolean {
+    this.objectChange.versionOf('Config')();
+    return this.config.turnTickEnabled;
+  }
+  set turnTick(enabled: boolean) {
+    if (!this.isSharedReadOnly()) this.config.turnTickEnabled = enabled;
+  }
+
   get speechBubbles(): boolean {
     this.objectChange.versionOf('Config')();
     return this.config.speechBubblesEnabled;

@@ -29,7 +29,7 @@ import {
   SideGroup,
   sideOfPiece,
 } from '@axe/domain/tabletop/turn-side';
-import { TurnPhase, TurnState } from '@axe/domain/tabletop/turn-state';
+import { TurnPhase, turnStartMark, TurnState } from '@axe/domain/tabletop/turn-state';
 
 /** How many of the pieces still waiting are named before the rest are counted. */
 const UNACTED_NAMES_SHOWN = 8;
@@ -274,6 +274,7 @@ export class TurnOrderService {
       }
       turnState.phase = 'acting';
       turnState.currentIdentifier = identifier;
+      turnState.turnStart = turnStartMark(identifier, Date.now());
       this.announceCharacter(identifier);
     });
   }
@@ -591,6 +592,7 @@ export class TurnOrderService {
     const turnState = this.turnState;
     turnState.phase = 'acting';
     turnState.currentIdentifier = identifier;
+    turnState.turnStart = turnStartMark(identifier, Date.now());
     this.announceCharacter(identifier);
   }
 
