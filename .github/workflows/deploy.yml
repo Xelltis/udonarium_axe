@@ -1,7 +1,7 @@
 name: Deploy
 
 # A reusable workflow that syncs to S3 and invalidates CloudFront for one environment
-# (production / public), called from release.yml through workflow_call.
+# (production / public / production-vercel), called from release.yml through workflow_call.
 #
 # The `environment` input names a GitHub Environment, and the secrets are resolved from that
 # environment alone. Each environment holds these five secrets.
@@ -15,7 +15,7 @@ on:
   workflow_call:
     inputs:
       environment:
-        description: 'GitHub Environment name (production | public)'
+        description: 'GitHub Environment name (production | public | production-vercel)'
         required: true
         type: string
       ref:

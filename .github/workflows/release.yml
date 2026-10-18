@@ -82,3 +82,13 @@ jobs:
       environment: public
       ref: v${{ needs.release.outputs.version }}
     secrets: inherit
+
+  deploy-production-vercel:
+    name: Production (Vercel)
+    needs: [release, deploy-production]
+    if: needs.release.outputs.released == 'true'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production-vercel
+      ref: v${{ needs.release.outputs.version }}
+    secrets: inherit
