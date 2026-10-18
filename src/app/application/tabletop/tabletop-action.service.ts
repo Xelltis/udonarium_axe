@@ -98,8 +98,8 @@ export class TabletopActionService {
    */
   createGameCharacterWith(position: PointerCoordinate, name: string, imageIdentifier: string): GameCharacter {
     const character = GameCharacter.create(name, 1, imageIdentifier);
-    character.location.x = position.x - 25;
-    character.location.y = position.y - 25;
+    character.location.x = position.x - this.halfCell();
+    character.location.y = position.y - this.halfCell();
     character.posZ = position.z;
     this.applyCreationDefaults(character);
     return character;
@@ -120,8 +120,8 @@ export class TabletopActionService {
     if (!viewTable) return undefined;
 
     const tableMask = GameTableMask.create(this.t('feature.tabletop.action.defaultMaskName'), 5, 5, 100);
-    tableMask.location.x = position.x - 25;
-    tableMask.location.y = position.y - 25;
+    tableMask.location.x = position.x - this.halfCell();
+    tableMask.location.y = position.y - this.halfCell();
     tableMask.posZ = position.z;
 
     viewTable.appendChild(tableMask);
@@ -173,8 +173,8 @@ export class TabletopActionService {
       image.identifier,
       image.identifier
     );
-    terrain.location.x = position.x - 50;
-    terrain.location.y = position.y - 50;
+    terrain.location.x = position.x - viewTable.gridSize;
+    terrain.location.y = position.y - viewTable.gridSize;
     terrain.posZ = position.z;
 
     viewTable.appendChild(terrain);
@@ -230,7 +230,7 @@ export class TabletopActionService {
       if (faceEl) faceEl.value = image.identifier;
     });
 
-    const place = placement ?? getDicePlacements(position, 1)[0];
+    const place = placement ?? getDicePlacements(position, 1, this.tabletopService.gridSize())[0];
     diceSymbol.location.x = place.x;
     diceSymbol.location.y = place.y;
     diceSymbol.posZ = position.z;
@@ -250,7 +250,7 @@ export class TabletopActionService {
     ownership: { ownerCharacterIdentifier?: string; hiddenToOthers?: boolean } = {}
   ): DiceSymbol[] {
     const owner = ownership.hiddenToOthers === true ? getPeerContext().userId : '';
-    return getDicePlacements(position, count).map((placement) => {
+    return getDicePlacements(position, count, this.tabletopService.gridSize()).map((placement) => {
       const dice = this.createDiceSymbol(position, item.diceName, item.type, item.imagePathPrefix, placement);
       if (ownership.ownerCharacterIdentifier) dice.ownerCharacterIdentifier = ownership.ownerCharacterIdentifier;
       if (owner.length > 0) dice.owner = owner;
@@ -336,8 +336,8 @@ export class TabletopActionService {
   /** Puts a light on the table in view, centred on a point and owned by whoever made it. */
   createLightSource(position: PointerCoordinate): LightSource {
     const light = LightSource.create(this.t('feature.tabletop.action.defaultLightName'));
-    light.location.x = position.x - 25;
-    light.location.y = position.y - 25;
+    light.location.x = position.x - this.halfCell();
+    light.location.y = position.y - this.halfCell();
     light.posZ = position.z;
     light.owner = PeerCursor.myCursor?.userId ?? '';
     // A light belongs to its table, so clearing the table takes its lights with it.
@@ -349,8 +349,8 @@ export class TabletopActionService {
   /** Makes a stack of a full deck of playing cards and two jokers, registering the bundled card images on first use. */
   createTrump(position: PointerCoordinate): CardStack {
     const cardStack = CardStack.create(this.t('feature.tabletop.action.defaultTrumpStackName'));
-    cardStack.location.x = position.x - 25;
-    cardStack.location.y = position.y - 25;
+    cardStack.location.x = position.x - this.halfCell();
+    cardStack.location.y = position.y - this.halfCell();
     cardStack.posZ = position.z;
 
     const back = TRUMP_BACK_IMAGE_PATH;
@@ -385,8 +385,8 @@ export class TabletopActionService {
     }
 
     const card = Card.create(this.t('feature.tabletop.action.defaultCardName'), front, back);
-    card.location.x = position.x - 25;
-    card.location.y = position.y - 25;
+    card.location.x = position.x - this.halfCell();
+    card.location.y = position.y - this.halfCell();
     card.posZ = position.z;
     card.faceUp();
     // Card ownership means "show only to me", so a newly created public card must remain unclaimed.
@@ -626,8 +626,8 @@ export class TabletopActionService {
     if (sources.length < 1) return null;
 
     const cardStack = CardStack.create(tag.length > 0 ? tag : this.t('feature.tabletop.action.defaultDeckName'));
-    cardStack.location.x = position.x - 25;
-    cardStack.location.y = position.y - 25;
+    cardStack.location.x = position.x - this.halfCell();
+    cardStack.location.y = position.y - this.halfCell();
     cardStack.posZ = position.z;
 
     const back = TRUMP_BACK_IMAGE_PATH;
@@ -702,8 +702,8 @@ export class TabletopActionService {
   /** Makes a coin centred on a point, on top of everything else there. */
   createCoin(position: PointerCoordinate): Coin {
     const coin = Coin.create(this.t('feature.tabletop.action.defaultCoinName'));
-    coin.location.x = position.x - 25;
-    coin.location.y = position.y - 25;
+    coin.location.x = position.x - this.halfCell();
+    coin.location.y = position.y - this.halfCell();
     coin.posZ = position.z;
     coin.toTopmost();
     return coin;
@@ -764,6 +764,11 @@ export class TabletopActionService {
 
   private getViewTable(): GameTable | null {
     return this.tableSelecter.viewTable;
+  }
+
+  /** Half a cell of the table in view, by which a new piece is drawn back so that it sits under the pointer. */
+  private halfCell(): number {
+    return this.tabletopService.gridSize() / 2;
   }
 }
 

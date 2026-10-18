@@ -76,7 +76,7 @@ export class LightSourceComponent {
         const id = this.lightSource().followingCharacterIdentifier;
         return id ? [id] : [];
       },
-      () => this.lightSource().following(),
+      () => this.lightSource().following(this.gridSize),
       this.destroyRef
     );
   }

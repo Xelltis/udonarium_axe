@@ -252,8 +252,8 @@ export class TabletopService {
               dropTarget
             )
           : this.coordinateService.calcTabletopLocalCoordinate();
-        gameObject.location.x = pointer.x - 25;
-        gameObject.location.y = pointer.y - 25;
+        gameObject.location.x = pointer.x - this.gridSize() / 2;
+        gameObject.location.y = pointer.y - this.gridSize() / 2;
         gameObject.posZ = pointer.z;
         claimBroughtInPiece(gameObject, PeerCursor.myCursor?.userId ?? '');
         if (gameObject instanceof GameCharacter) gameObject.partyIdentifier = '';

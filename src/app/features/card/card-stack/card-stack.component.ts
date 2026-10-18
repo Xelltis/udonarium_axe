@@ -53,6 +53,9 @@ import { supersampleFactor, supersampleInsetPercent, supersampleTransform } from
 import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/** The cell, in px, that the offsets for drawn and scattered cards were laid out for. */
+const LAID_OUT_FOR_CELL_PX = 50;
+
 @Component({
   selector: 'card-stack',
   templateUrl: './card-stack.component.html',
@@ -326,7 +329,7 @@ export class CardStackComponent {
         (card.location.x - this.cardStack().location.x) ** 2 +
         (card.location.y - this.cardStack().location.y) ** 2 +
         (card.posZ - this.cardStack().posZ) ** 2;
-      if (distance < 50 ** 2) {
+      if (distance < this.gridSize ** 2) {
         this.cardStack().putOnTop(card);
         for (const follower of this.multiMovableService.followerTabletopObjectsFor(card.identifier)) {
           if (follower instanceof Card) this.cardStack().putOnTop(follower);
@@ -338,7 +341,7 @@ export class CardStackComponent {
         (cardStack.location.x - this.cardStack().location.x) ** 2 +
         (cardStack.location.y - this.cardStack().location.y) ** 2 +
         (cardStack.posZ - this.cardStack().posZ) ** 2;
-      if (distance < 25 ** 2) this.concatStack(cardStack);
+      if (distance < (this.gridSize / 2) ** 2) this.concatStack(cardStack);
     }
   }
 
@@ -458,8 +461,9 @@ export class CardStackComponent {
     const card = this.cardStack().drawCard();
     if (card) {
       this.cardStack().update();
-      card.location.x += 100 + index * 18 + Math.random() * 50;
-      card.location.y += 25 + index * 8 + Math.random() * 50;
+      const scale = this.gridSize / LAID_OUT_FOR_CELL_PX;
+      card.location.x += (100 + index * 18 + Math.random() * 50) * scale;
+      card.location.y += (25 + index * 8 + Math.random() * 50) * scale;
       card.setLocation(this.cardStack().location.name);
     }
     return card;
@@ -514,9 +518,10 @@ export class CardStackComponent {
 
   private breakStack() {
     const cards = this.cardStack().drawCardAll().reverse();
+    const scale = this.gridSize / LAID_OUT_FOR_CELL_PX;
     for (const card of cards) {
-      card.location.x += 25 - Math.random() * 50;
-      card.location.y += 25 - Math.random() * 50;
+      card.location.x += (25 - Math.random() * 50) * scale;
+      card.location.y += (25 - Math.random() * 50) * scale;
       card.toTopmost();
       card.setLocation(this.cardStack().location.name);
     }
@@ -531,10 +536,11 @@ export class CardStackComponent {
   private splitStack(split: number) {
     if (split < 2) return;
     const cardStacks: CardStack[] = [];
+    const scale = this.gridSize / LAID_OUT_FOR_CELL_PX;
     for (let i = 0; i < split; i++) {
       const cardStack = CardStack.create(this.cardStack().name);
-      cardStack.location.x = this.cardStack().location.x + 50 - Math.random() * 100;
-      cardStack.location.y = this.cardStack().location.y + 50 - Math.random() * 100;
+      cardStack.location.x = this.cardStack().location.x + (50 - Math.random() * 100) * scale;
+      cardStack.location.y = this.cardStack().location.y + (50 - Math.random() * 100) * scale;
       cardStack.posZ = this.cardStack().posZ;
       cardStack.location.name = this.cardStack().location.name;
       cardStack.rotate = this.rotate;

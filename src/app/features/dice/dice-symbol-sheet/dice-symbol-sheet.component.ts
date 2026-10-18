@@ -4,6 +4,7 @@ import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -54,6 +55,7 @@ export class DiceSymbolSheetComponent {
   private readonly snackbar = inject(SnackbarService);
   private readonly translateFn = inject(TRANSLATE_FN);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly tabletop = inject(TabletopService);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly _diceSymbol = signal<DiceSymbol | null>(null);
@@ -209,8 +211,8 @@ export class DiceSymbolSheetComponent {
       return;
     }
     const cloneObject = dice.clone();
-    cloneObject.location.x += 50;
-    cloneObject.location.y += 50;
+    cloneObject.location.x += this.tabletop.gridSize();
+    cloneObject.location.y += this.tabletop.gridSize();
     if (dice.parent) dice.parent.appendChild(cloneObject);
     cloneObject.update();
     SoundEffect.play(PresetSound.dicePut);

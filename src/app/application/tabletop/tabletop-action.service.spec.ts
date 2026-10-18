@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
-import { TRUMP_BACK_IMAGE_PATH } from '@axe/application/tabletop/tabletop-action-helpers';
+import { getDiceMenuItems, TRUMP_BACK_IMAGE_PATH } from '@axe/application/tabletop/tabletop-action-helpers';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -180,6 +180,38 @@ describe('TabletopActionService', () => {
       } finally {
         for (const range of made) range.destroy();
       }
+    });
+  });
+
+  describe('on a table whose cells are larger than the default', () => {
+    let table: GameTable;
+
+    beforeEach(() => {
+      table = new GameTable();
+      table.gridSize = 100;
+      table.initialize();
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
+    });
+
+    afterEach(() => {
+      table.destroy();
+    });
+
+    it('puts a new piece half of that cell back, so it sits under the point asked', () => {
+      const card = service.createBlankCard({ x: 300, y: 400, z: 0 });
+      const character = service.createGameCharacter({ x: 300, y: 400, z: 0 });
+
+      expect([card.location.x, card.location.y]).toEqual([250, 350]);
+      expect([character.location.x, character.location.y]).toEqual([250, 350]);
+    });
+
+    it('lays several dice a cell and its gap apart', () => {
+      const dice = service.createDiceSymbols({ x: 300, y: 400, z: 0 }, getDiceMenuItems()[1], 2, {});
+
+      expect(dice.map((die) => [die.location.x, die.location.y])).toEqual([
+        [250, 350],
+        [360, 350],
+      ]);
     });
   });
 

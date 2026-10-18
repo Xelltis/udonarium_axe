@@ -76,19 +76,18 @@ describe('LightSource', () => {
       character.location.x = 100;
       character.location.y = 200;
       const light = LightSource.create('追従光');
-      light.gridSize = 50;
       light.followingCharacterIdentifier = character.identifier;
 
-      light.following();
+      light.following(80);
 
-      expect(light.location.x).toBe(100 + (50 * 2) / 2);
-      expect(light.location.y).toBe(200 + (50 * 2) / 2);
+      expect(light.location.x).toBe(100 + (80 * 2) / 2);
+      expect(light.location.y).toBe(200 + (80 * 2) / 2);
     });
 
     it('stops following a character that is not there', () => {
       const light = LightSource.create('test');
       light.followingCharacterIdentifier = 'missing-id';
-      light.following();
+      light.following(50);
       expect(light.followingCharacterIdentifier).toBe('');
     });
   });

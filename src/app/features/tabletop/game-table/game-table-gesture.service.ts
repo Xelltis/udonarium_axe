@@ -398,7 +398,7 @@ export class GameTableGestureService {
   private onMarqueeEnd(rect: MarqueeRect, modifiers: MarqueeModifiers): void {
     this.selectionSignalService.marqueeState.set(null);
     const candidates = this.collectSelectableObjects();
-    const hits = selectByRect(candidates, rect);
+    const hits = selectByRect(candidates, rect, { gridSize: this.tabletopService.gridSize() });
     const joins = marqueeApply(modifiers, this.selectionSignalService.selectionSize() > 0);
     if (joins === 'add') {
       for (const id of hits) this.selectionSignalService.addSelection(id);

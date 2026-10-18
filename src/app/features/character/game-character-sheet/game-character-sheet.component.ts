@@ -18,6 +18,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { BottomSheetService } from '@axe/application/ui/bottom-sheet.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { DataElementDragService } from '@axe/application/ui/data-element-drag.service';
@@ -96,6 +97,7 @@ const NARROW_SHEET_REM = 36;
 export class GameCharacterSheetComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
   private readonly saveDataService = inject(SaveDataService);
+  private readonly tabletop = inject(TabletopService);
   private readonly panelService = inject(PanelService);
   private readonly modalService = inject(ModalService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
@@ -895,7 +897,7 @@ export class GameCharacterSheetComponent {
       this.snackbar.show(this.translateFn('feature.inventory.sheet.copyWithheld'));
       return;
     }
-    cloneTabletopObject(this.tabletopObject);
+    cloneTabletopObject(this.tabletopObject, this.tabletop.gridSize());
   }
 
   /** Does nothing; the hide checkbox changes the character through its own binding. */

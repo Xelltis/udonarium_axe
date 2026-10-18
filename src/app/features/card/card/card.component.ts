@@ -386,7 +386,7 @@ export class CardComponent {
         (cardStack.location.x - this.card().location.x) ** 2 +
         (cardStack.location.y - this.card().location.y) ** 2 +
         (cardStack.posZ - this.card().posZ) ** 2;
-      if (distance < 25 ** 2) {
+      if (distance < (this.gridSize / 2) ** 2) {
         cardStack.location.x = this.card().location.x;
         cardStack.location.y = this.card().location.y;
         cardStack.posZ = this.card().posZ;

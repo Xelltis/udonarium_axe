@@ -11,6 +11,7 @@ import {
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { getRangeMenuItems } from '@axe/application/tabletop/tabletop-action-helpers';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -53,6 +54,7 @@ export class PlToolbarComponent {
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly turnOrder = inject(TurnOrderService);
   private readonly tabletopAction = inject(TabletopActionService);
+  private readonly tabletop = inject(TabletopService);
   protected readonly active = inject(ActiveCharacterService);
   private readonly firstPerson = inject(FirstPersonService);
   private readonly t = inject(TRANSLATE_FN);
@@ -193,7 +195,7 @@ export class PlToolbarComponent {
       typeName
     );
     range.followingCharacterIdentifier = character.identifier;
-    range.following();
+    range.following(this.tabletop.gridSize());
     SoundEffect.play(PresetSound.dicePut);
   }
 

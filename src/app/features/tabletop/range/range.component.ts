@@ -214,7 +214,7 @@ export class RangeComponent {
       (e) => {
         if (!this._initialized) return;
         const range = this.range();
-        if (e.identifier === range.followingCharacterIdentifier) range.following();
+        if (e.identifier === range.followingCharacterIdentifier) range.following(this.gridSize);
         this.setRange();
       },
       this.destroyRef

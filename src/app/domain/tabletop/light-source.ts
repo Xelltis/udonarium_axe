@@ -39,8 +39,6 @@ export class LightSource extends OwnedTabletopObject {
   @SyncVar() followingCharacterIdentifier: string = '';
   @SyncVar() followingCounterDummy: number = 0;
 
-  gridSize: number = 50;
-
   /**
    * The way the light faces, which is its light direction under the name every turnable piece uses.
    */
@@ -71,18 +69,18 @@ export class LightSource extends OwnedTabletopObject {
   }
 
   /**
-   * Moves the light onto the centre of the character it follows and bumps the follow counter so
-   * that peers redraw it.
+   * Moves the light onto the centre of the character it follows, on a table whose cells are
+   * `gridSize` across, and bumps the follow counter so that peers redraw it.
    *
    * When that character is gone, the light stops following instead.
    */
-  following(): void {
+  following(gridSize: number): void {
     const character = ObjectStore.instance.get<GameCharacter>(this.followingCharacterIdentifier);
     if (!character) {
       this.followingCharacterIdentifier = '';
       return;
     }
-    centerFollowerOnCharacter(this, character, this.gridSize);
+    centerFollowerOnCharacter(this, character, gridSize);
     this.followingCounterDummy = (this.followingCounterDummy + 1) % 50;
   }
 
