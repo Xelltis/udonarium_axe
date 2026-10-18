@@ -5,6 +5,7 @@ import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { TRANSLATE_FN, TranslateFn } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
+import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -989,6 +990,16 @@ describe('TriggerFireService and the ground that carries a piece away', () => {
 
       const landing = cellGridOf(below.width, below.height, 80, GridType.SQUARE);
       expect(pieceCellOf(landing, piece, 80)).toBe(cellIndexOf(landing, 2, 9));
+    });
+
+    it('puts on the music of the table the room is carried down to', () => {
+      const below = floorBelow();
+      pitAt(5, 5, { warpCol: 2, warpRow: 9, warpTable: below.identifier });
+      const music = vi.spyOn(TestBed.inject(TableBgmService), 'playFor').mockImplementation(() => undefined);
+
+      service.walked(heroAt(4, 5), grid(), [at(4, 5), at(5, 5)]);
+
+      expect(music).toHaveBeenCalledWith(below);
     });
 
     it('leaves the room where it is where the ground names no table', () => {

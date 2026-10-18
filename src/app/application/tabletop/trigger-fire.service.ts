@@ -3,6 +3,7 @@ import { StatusAilmentService } from '@axe/application/character/status-ailment.
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { NamedCueService } from '@axe/application/media/named-cue.service';
+import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -48,6 +49,7 @@ export class TriggerFireService {
   private readonly moveRange = inject(MoveRangeService);
   private readonly cues = inject(NamedCueService);
   private readonly objectStore = inject(ObjectStore);
+  private readonly tableBgm = inject(TableBgmService);
   private readonly t = inject(TRANSLATE_FN);
 
   /** Where each piece was lifted from, so putting it down knows what it crossed to get here. */
@@ -305,7 +307,10 @@ export class TriggerFireService {
     piece.location = { name: piece.location.name, x: corner.x, y: corner.y };
     piece.update();
     // Turned to last, so that the room arrives to find the piece already standing where it fell.
-    if (floors) this.tableSelecter.viewTableIdentifier = table.identifier;
+    if (floors) {
+      this.tableSelecter.viewTableIdentifier = table.identifier;
+      this.tableBgm.playFor(table);
+    }
   }
 
   /**

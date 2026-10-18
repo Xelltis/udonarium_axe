@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CutInService } from '@axe/application/media/cut-in.service';
+import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -227,10 +228,36 @@ describe('GameTableSettingComponent', () => {
 
     it('plays what the table asks for', () => {
       const launchForTable = watchLaunch();
+      const music = vi.spyOn(TestBed.inject(TableBgmService), 'playFor').mockImplementation(() => undefined);
 
       component.chooseGameTable(table.identifier);
 
       expect(launchForTable).toHaveBeenCalledWith(table);
+      expect(music).toHaveBeenCalledWith(table);
+    });
+
+    it('leaves the music alone when a table is only created', () => {
+      const music = vi.spyOn(TestBed.inject(TableBgmService), 'playFor').mockImplementation(() => undefined);
+
+      component.selectGameTable(table.identifier);
+
+      expect(music).not.toHaveBeenCalled();
+    });
+
+    it('writes the music the table puts on, stops or leaves', () => {
+      component.selectGameTable(table.identifier);
+
+      component.tableBgmChoice = 'track-a';
+      expect([table.tableBgm, table.tableBgmIdentifier]).toEqual(['play', 'track-a']);
+      expect(component.missingTableBgm()).toBe('track-a');
+
+      component.tableBgmChoice = 'stop';
+      expect([table.tableBgm, table.tableBgmIdentifier]).toEqual(['stop', '']);
+      expect(component.tableBgmChoice).toBe('stop');
+
+      component.tableBgmChoice = '';
+      expect(component.tableBgmChoice).toBe('');
+      expect(component.missingTableBgm()).toBeNull();
     });
 
     it('stays quiet on the table already showing', () => {

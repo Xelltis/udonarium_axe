@@ -184,6 +184,13 @@ export class GameTable extends ObjectNode {
 
   /** Cut-ins to play when this table is chosen. Several are separated by commas, and one is drawn. */
   @SyncVar() cutInIdentifiers: string = '';
+  /**
+   * What the music does when the table is switched to: `''` leaves it, `'stop'` stops it, and
+   * `'play'` puts on {@link tableBgmIdentifier}.
+   */
+  @SyncVar() tableBgm: string = '';
+  /** The track put on when the table is switched to, while {@link tableBgm} is `'play'`. */
+  @SyncVar() tableBgmIdentifier: string = '';
 
   gridClipRect: { top: number; right: number; bottom: number; left: number } | null = null;
   /** The terrain pieces on this table. */
