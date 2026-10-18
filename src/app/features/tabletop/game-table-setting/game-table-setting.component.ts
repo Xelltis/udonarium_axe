@@ -7,6 +7,7 @@ import { CutInService } from '@axe/application/media/cut-in.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { GUEST_PERSONA, VisionService } from '@axe/application/tabletop/vision.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -35,6 +36,7 @@ import {
 import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { asFogMode, DEFAULT_FOG_COLOR, FOG_MODES, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { FilterType, GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
+import { MAX_CELL_PX, MIN_CELL_PX } from '@axe/domain/tabletop/rescale-table-contents';
 import {
   asTableLayerPlacement,
   MAX_TABLE_BACKGROUND_LAYERS,
@@ -82,6 +84,7 @@ export class GameTableSettingComponent {
   private readonly saveDataService = inject(SaveDataService);
   private readonly imageService = inject(ImageService);
   private readonly panelService = inject(PanelService);
+  private readonly tabletopService = inject(TabletopService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectSerializer = inject(ObjectSerializer);
   private readonly tableSelecter = inject(TableSelecter);
@@ -99,6 +102,8 @@ export class GameTableSettingComponent {
 
   minSize: number = 1;
   maxSize: number = 100;
+  readonly minCellSize = MIN_CELL_PX;
+  readonly maxCellSize = MAX_CELL_PX;
 
   /** The picked table's floor image, or the empty image when it has none. */
   get tableBackgroundImage(): ImageFile {
@@ -128,6 +133,24 @@ export class GameTableSettingComponent {
   }
   set tableWidth(tableWidth: number) {
     if (this.isEditable && this.selectedTable) this.selectedTable.width = tableWidth;
+  }
+
+  /** The size of a cell of the picked table, in px; the default cell when no table is picked. */
+  get tableCellSize(): number {
+    return Number(this.selectedTable?.gridSize ?? 50);
+  }
+
+  /**
+   * Gives the picked table the cell size a field was left at, moving what is on it to keep to its
+   * cells. Taken once the slider is let go or the number is entered rather than at every step, as
+   * each change scales the pieces by the change. The field is then shown the size the table took.
+   */
+  commitTableCellSize(event: Event): void {
+    const field = event.target as HTMLInputElement;
+    if (this.isEditable && this.selectedTable) {
+      this.tabletopService.changeCellSize(this.selectedTable, field.valueAsNumber);
+    }
+    field.value = String(this.tableCellSize);
   }
 
   /** The picked table's height in grid cells; 10 when no table is picked. */

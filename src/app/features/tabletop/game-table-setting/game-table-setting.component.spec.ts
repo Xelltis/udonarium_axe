@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { Config } from '@axe/domain/peer/config';
@@ -125,6 +126,46 @@ describe('GameTableSettingComponent', () => {
     } finally {
       table.destroy();
     }
+  });
+
+  describe('the size of a cell', () => {
+    let table: GameTable;
+
+    beforeEach(async () => {
+      table = new GameTable();
+      table.gridSize = 50;
+      table.initialize();
+      component.selectGameTable(table.identifier);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    afterEach(() => {
+      table.destroy();
+    });
+
+    function leaveAt(testId: string, value: string): HTMLInputElement {
+      const field: HTMLInputElement = fixture.nativeElement.querySelector(`[data-testid="${testId}"]`);
+      field.value = value;
+      field.dispatchEvent(new Event('change'));
+      return field;
+    }
+
+    it('hands the size the slider is let go at to the tabletop, which moves what is on the table', () => {
+      const changeCellSize = vi.spyOn(TestBed.inject(TabletopService), 'changeCellSize');
+
+      leaveAt('table-cell-size-range', '80');
+
+      expect(changeCellSize).toHaveBeenCalledWith(table, 80);
+      expect(table.gridSize).toBe(80);
+    });
+
+    it('shows the size the table took when the number entered is out of bounds', () => {
+      const field = leaveAt('table-cell-size-num', '9999');
+
+      expect(table.gridSize).toBe(256);
+      expect(field.value).toBe('256');
+    });
   });
 
   describe('choosing a table from the list', () => {

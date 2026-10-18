@@ -2568,6 +2568,8 @@
         "bgFilterWhite": "ホワイト",
         "bgFilterBlack": "ブラック",
         "wallHeight": "壁の高さ",
+        "cellSize": "1マスの大きさ（px）",
+        "cellSizeHint": "変えると、卓に置いてあるものも同じマスに残るように動きます。",
         "showWall": "表示",
         "imageNorthWall": "北壁",
         "imageEastWall": "東壁",

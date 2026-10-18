@@ -20,6 +20,7 @@ import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { claimBroughtInPiece } from '@axe/domain/tabletop/ownership';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { clampCellPx, rescaleTableContents } from '@axe/domain/tabletop/rescale-table-contents';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { lightSourcesOn } from '@axe/domain/tabletop/table-lights';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -186,6 +187,31 @@ export class TabletopService {
   /** The coins out on the table. */
   get coins(): Coin[] {
     return this.coinCache.objects;
+  }
+
+  /**
+   * Gives a table cells of `size` px across, kept to the bounds a cell may take, and moves what is
+   * on it to keep to the same cells. The pieces every table shares, such as characters, are moved
+   * only when it is the table in view, as that is the table they were placed for.
+   */
+  changeCellSize(table: GameTable, size: number): void {
+    const to = clampCellPx(size);
+    const from = Number(table.gridSize);
+    if (to === from) return;
+    const shared: TabletopObject[] =
+      table === this.tableSelecter.viewTable
+        ? [
+            ...this.characters,
+            ...this.cards,
+            ...this.cardStacks,
+            ...this.ranges,
+            ...this.textNotes,
+            ...this.coins,
+            ...this.diceSymbols,
+          ]
+        : [];
+    rescaleTableContents(table, from, to, shared);
+    table.gridSize = to;
   }
   /** The cursor of every peer in the room, this reader's included. Not cached, unlike the rest. */
   get peerCursors(): PeerCursor[] {

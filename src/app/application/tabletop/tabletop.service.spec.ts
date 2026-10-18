@@ -13,6 +13,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('TabletopService', () => {
@@ -127,6 +128,54 @@ describe('TabletopService', () => {
 
       here.destroy();
       there.destroy();
+    });
+  });
+
+  describe("changing the size of a table's cells", () => {
+    let here: GameTable;
+    let there: GameTable;
+    let goblin: GameCharacter;
+    let wall: Terrain;
+
+    beforeEach(async () => {
+      here = new GameTable();
+      here.gridSize = 50;
+      here.initialize();
+      there = new GameTable();
+      there.gridSize = 50;
+      there.initialize();
+      wall = Terrain.create('壁', 1, 1, 1, '', '');
+      wall.location = { ...wall.location, x: 50, y: 100 };
+      there.appendChild(wall);
+      goblin = GameCharacter.create('ゴブリン', 1, '');
+      goblin.location = { ...goblin.location, name: 'table', x: 100, y: 150 };
+      TableSelecter.instance.viewTableIdentifier = here.identifier;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    afterEach(() => {
+      for (const object of [goblin, wall, here, there]) object.destroy();
+    });
+
+    it('moves the pieces out on the table in view along with it', () => {
+      TestBed.inject(TabletopService).changeCellSize(here, 100);
+
+      expect(here.gridSize).toBe(100);
+      expect([goblin.location.x, goblin.location.y]).toEqual([200, 300]);
+    });
+
+    it('moves only the pieces of a table that is not in view', () => {
+      TestBed.inject(TabletopService).changeCellSize(there, 25);
+
+      expect(there.gridSize).toBe(25);
+      expect([wall.location.x, wall.location.y]).toEqual([25, 50]);
+      expect([goblin.location.x, goblin.location.y]).toEqual([100, 150]);
+    });
+
+    it('keeps the size within the bounds a cell may take', () => {
+      TestBed.inject(TabletopService).changeCellSize(here, 9999);
+
+      expect(here.gridSize).toBe(256);
     });
   });
 

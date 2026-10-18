@@ -2568,6 +2568,8 @@
         "bgFilterWhite": "화이트",
         "bgFilterBlack": "블랙",
         "wallHeight": "벽 높이",
+        "cellSize": "한 칸의 크기(px)",
+        "cellSizeHint": "바꾸면 테이블에 놓인 것도 같은 칸에 남도록 움직입니다.",
         "showWall": "표시",
         "imageNorthWall": "북쪽 벽",
         "imageEastWall": "동쪽 벽",

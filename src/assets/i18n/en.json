@@ -2568,6 +2568,8 @@
         "bgFilterWhite": "White",
         "bgFilterBlack": "Black",
         "wallHeight": "Wall height",
+        "cellSize": "Cell size (px)",
+        "cellSizeHint": "Changing it moves what is on the table so that it stays on the same cells.",
         "showWall": "Show",
         "imageNorthWall": "North wall",
         "imageEastWall": "East wall",
