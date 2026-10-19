@@ -3,6 +3,8 @@ import { join } from 'node:path';
 
 import { defineConfig } from 'vitepress';
 
+import { slugify } from './slugify.mjs';
+
 const repo = 'https://github.com/Xelltis/udonarium_axe';
 const base = '/udonarium_axe/';
 
@@ -106,26 +108,45 @@ export default defineConfig({
     css: { postcss: { plugins: [] } },
   },
   markdown: {
-    // A copy of VitePress's own slugify with the result put back into NFC.
-    // Its NFKD pass strips only the combining marks in U+0300..U+036F, which
-    // leaves a Japanese dakuten decomposed: the id holds ハ + U+3099 where a
-    // hand-written link holds バ. The two are indistinguishable on screen and
-    // never match, and neither the build nor a reviewer can see the difference.
+    // The same slugify scripts/check-doc-anchors.mjs checks links against (see slugify.mjs).
     // The same function makes the ids and the page outline, so both move together.
-    anchor: {
-      slugify: (str: string) =>
-        str
-          .normalize('NFKD')
-          .replace(/[\u0300-\u036F]/g, '')
-          .replace(/[\u0000-\u001f]/g, '')
-          .replace(/[\s~`!@#$%^&*()\-_+=[\]{}|\\;:"'“”‘’<>,.?/]+/g, '-')
-          .replace(/-{2,}/g, '-')
-          .replace(/^-+|-+$/g, '')
-          .replace(/^(\d)/, '_$1')
-          .toLowerCase()
-          .normalize('NFC'),
-    },
+    anchor: { slugify },
     config: (md) => {
+      // A heading that starts with a step number ("1. …") is drawn as a numbered step. The number
+      // stays in the heading's text, so its id and the outline keep it; only the dot is hidden.
+      // This runs after the anchor plugin, so the ids are made from the heading as written.
+      md.core.ruler.push('axe-step-headings', (state) => {
+        const tokens = state.tokens;
+        for (let i = 0; i < tokens.length - 1; i += 1) {
+          const open = tokens[i];
+          if (open.type !== 'heading_open' || (open.tag !== 'h2' && open.tag !== 'h3')) continue;
+          const first = tokens[i + 1].children?.[0];
+          const step = first?.type === 'text' ? first.content.match(/^(\d+)\.\s+/) : null;
+          if (!first || !step) continue;
+          open.attrJoin('class', 'axe-step');
+          const badge = new state.Token('html_inline', '', 0);
+          badge.content = `<span class="axe-step-number">${step[1]}<span class="axe-step-dot">.</span></span> `;
+          first.content = first.content.slice(step[0].length);
+          tokens[i + 1].children?.unshift(badge);
+        }
+      });
+
+      // A short name in a table (a setting, a value, an error) breaks at its hyphens when its
+      // column is narrow. Such names are kept on one line; a URL or a sentence in code still wraps.
+      md.core.ruler.push('axe-table-code', (state) => {
+        let inTable = false;
+        for (const token of state.tokens) {
+          if (token.type === 'table_open') inTable = true;
+          if (token.type === 'table_close') inTable = false;
+          if (!inTable || token.type !== 'inline') continue;
+          for (const kid of token.children ?? []) {
+            if (kid.type === 'code_inline' && kid.content.length <= 32 && !/\s/.test(kid.content)) {
+              kid.attrJoin('class', 'axe-code-whole');
+            }
+          }
+        }
+      });
+
       // Default VitePress tables are `display: block`, so they shrink to their
       // content and hug the left edge. Wrapping them lets the table fill the
       // column while wide ones scroll sideways inside the wrapper.

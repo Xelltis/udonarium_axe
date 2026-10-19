@@ -166,5 +166,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The build checks that a linked page exists, not that the heading a link names does.
+      - name: Check links to headings
+        run: npm run check
+
       - name: Build
         run: npm run build

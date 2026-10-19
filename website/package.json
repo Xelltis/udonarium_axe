@@ -10,7 +10,8 @@
     "dev": "vitepress dev",
     "prebuild": "npm run sync:icons",
     "build": "vitepress build",
-    "preview": "vitepress preview"
+    "preview": "vitepress preview",
+    "check": "node scripts/check-doc-anchors.mjs"
   },
   "devDependencies": {
     "vitepress": "2.0.0-alpha.19"
