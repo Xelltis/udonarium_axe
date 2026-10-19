@@ -664,7 +664,8 @@
         "ownVolumeHeading": "自分の音量",
         "ownVolumeNote": "自分にだけ効き、このブラウザに保存されます",
         "roomVolumeHeading": "部屋の音量",
-        "roomVolumeNote": "部屋の全員に効き、GM だけが変えられます"
+        "roomVolumeNote": "部屋の全員に効き、GM だけが変えられます",
+        "remove": "部屋から削除"
       },
       "miniJukebox": {
         "stopped": "— 停止中 —",
@@ -1956,7 +1957,9 @@
         "pasteNothing": "クリップボードに画像がありません",
         "pasteWithKeys": "ブラウザが貼り付けを許しませんでした。一覧を選んで Ctrl+V で貼ってください",
         "editImage": "編集",
-        "editImageHint": "チェックした画像 1 枚を編集して置き換えます。使っているコマなども新しい画像になります"
+        "editImageHint": "チェックした画像 1 枚を編集して置き換えます。使っているコマなども新しい画像になります",
+        "remove": "削除",
+        "removeHint": "チェックした画像を部屋から削除します。ほかの参加者からも消えます"
       },
       "tooLarge": {
         "one": "「{{name}}」は大きすぎるため読み込めませんでした（{{limits}}）",
@@ -1964,6 +1967,17 @@
         "audioLimit": "音源は{{mb}}MBまで",
         "imageLimit": "画像は{{mb}}MBまで",
         "separator": "、"
+      },
+      "removal": {
+        "imageTitle": "画像を削除",
+        "imageConfirm": "{{count}}件の画像を部屋から削除します。ほかの参加者の画面からも消えます。",
+        "imageRemoved": "{{count}}件の画像を削除しました",
+        "audioTitle": "音声を削除",
+        "audioConfirm": "{{count}}件の音声を部屋から削除します。ほかの参加者からも消え、鳴っていれば止まります。",
+        "audioRemoved": "{{count}}件の音声を削除しました",
+        "uses": "部屋の中の{{uses}}か所で使われています。",
+        "restore": "取り消しはできません。同じファイルをもう一度足すと、使っていたところに戻ります。",
+        "ok": "削除する"
       }
     },
     "character": {

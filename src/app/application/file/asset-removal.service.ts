@@ -1,5 +1,8 @@
 import { inject, Injectable } from '@angular/core';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AssetRetries } from '@axe/core/storage/asset-retries';
@@ -14,6 +17,20 @@ import { mentionsIdentifier } from '@axe/domain/media/image-reference';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 
+/** The words for asking and telling, for each kind removed. */
+const WORDS: Readonly<Record<AssetRemovalKind, { title: string; confirm: string; removed: string }>> = {
+  image: {
+    title: 'feature.file.removal.imageTitle',
+    confirm: 'feature.file.removal.imageConfirm',
+    removed: 'feature.file.removal.imageRemoved',
+  },
+  audio: {
+    title: 'feature.file.removal.audioTitle',
+    confirm: 'feature.file.removal.audioConfirm',
+    removed: 'feature.file.removal.audioRemoved',
+  },
+};
+
 /**
  * Removes pictures and sounds from the whole room, as only its GM may.
  *
@@ -26,6 +43,9 @@ import { Jukebox } from '@axe/domain/media/jukebox';
 export class AssetRemovalService {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly objectStore = inject(ObjectStore);
+  private readonly confirm = inject(ConfirmService);
+  private readonly snackbar = inject(SnackbarService);
+  private readonly t = inject(TRANSLATE_FN);
   private readonly storeRetries = new AssetRetries();
 
   /**
@@ -69,6 +89,33 @@ export class AssetRemovalService {
     });
     for (const identifier of targets) this.takeOutOfStore(identifier);
     return targets.length;
+  }
+
+  /**
+   * Asks the GM first, saying how many things use them and how to bring them back, then removes them
+   * and says how many went. Gives back how many were removed.
+   */
+  async removeAfterAsking(kind: AssetRemovalKind, identifiers: readonly string[]): Promise<number> {
+    if (!this.rolePermission.canEditShared) return 0;
+    const targets = this.removable(kind, identifiers);
+    if (targets.length === 0) return 0;
+    const words = WORDS[kind];
+    const uses = this.countUses(targets);
+    const message = [
+      this.t(words.confirm, { count: targets.length }),
+      ...(uses > 0 ? [this.t('feature.file.removal.uses', { uses })] : []),
+      this.t('feature.file.removal.restore'),
+    ].join('\n');
+    const sure = await this.confirm.ask({
+      title: this.t(words.title),
+      message,
+      okLabel: this.t('feature.file.removal.ok'),
+      danger: true,
+    });
+    if (!sure) return 0;
+    const removed = this.remove(kind, targets);
+    if (removed > 0) this.snackbar.show(this.t(words.removed, { count: removed }));
+    return removed;
   }
 
   private counts(object: GameObject): boolean {

@@ -1,6 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { ConfirmDialogOption } from '@axe/application/ui/confirm-option';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { AssetHttpStore, AssetRemovalResult } from '@axe/core/storage/asset-http-store';
 import { ASSET_RETRY_DELAY_MS, ASSET_RETRY_LIMIT } from '@axe/core/storage/asset-retries';
@@ -20,12 +24,18 @@ describe('AssetRemovalService', () => {
   const trackId = 'b'.repeat(64);
   let isGameMaster: boolean;
   let service: AssetRemovalService;
+  let ask: ReturnType<typeof vi.fn<(option: ConfirmDialogOption) => Promise<boolean>>>;
+  let show: ReturnType<typeof vi.fn<(message: string) => void>>;
 
   beforeEach(() => {
     isGameMaster = true;
+    ask = vi.fn(async () => true);
+    show = vi.fn();
     TestBed.configureTestingModule({
       providers: [
         ...TEST_PROVIDERS,
+        { provide: ConfirmService, useValue: { ask } },
+        { provide: SnackbarService, useValue: { show } },
         {
           provide: RolePermissionService,
           useValue: {
@@ -98,6 +108,52 @@ describe('AssetRemovalService', () => {
     expect(service.countUses([pictureId, otherId])).toBe(2);
     expect(service.countUses([trackId])).toBe(0);
     expect(service.countUses([])).toBe(0);
+  });
+
+  describe('asking first', () => {
+    it('says how many go, how many things use them and how to bring them back, then removes them and says so', async () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      const table = new GameTable('table-1');
+      table.initialize();
+      table.imageIdentifier = pictureId;
+
+      expect(await service.removeAfterAsking('image', [pictureId, otherId])).toBe(2);
+
+      expect(ask).toHaveBeenCalledTimes(1);
+      const asked = ask.mock.calls[0][0];
+      expect(asked.danger).toBe(true);
+      expect(asked.title).toBe(t('feature.file.removal.imageTitle'));
+      expect(asked.message.split('\n')).toEqual([
+        t('feature.file.removal.imageConfirm', { count: 2 }),
+        t('feature.file.removal.uses', { uses: 1 }),
+        t('feature.file.removal.restore'),
+      ]);
+      expect(AssetRemoval.get(pictureId)?.isRemoved).toBe(true);
+      expect(show).toHaveBeenCalledWith(t('feature.file.removal.imageRemoved', { count: 2 }));
+    });
+
+    it('leaves out how many use them when nothing does, and removes nothing when told no', async () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      ask.mockResolvedValue(false);
+
+      expect(await service.removeAfterAsking('audio', [trackId])).toBe(0);
+
+      expect(ask.mock.calls[0][0].message.split('\n')).toEqual([
+        t('feature.file.removal.audioConfirm', { count: 1 }),
+        t('feature.file.removal.restore'),
+      ]);
+      expect(AssetRemoval.all()).toEqual([]);
+      expect(show).not.toHaveBeenCalled();
+    });
+
+    it('asks nothing of anyone but the GM, nor about nothing removable', async () => {
+      isGameMaster = false;
+      expect(await service.removeAfterAsking('image', [pictureId])).toBe(0);
+      isGameMaster = true;
+      expect(await service.removeAfterAsking('image', ['none_icon'])).toBe(0);
+
+      expect(ask).not.toHaveBeenCalled();
+    });
   });
 
   describe('on a room server', () => {

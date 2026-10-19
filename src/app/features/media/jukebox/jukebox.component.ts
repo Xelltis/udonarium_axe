@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
@@ -64,6 +65,7 @@ export class JukeboxComponent {
   protected readonly backgroundSounds = inject(BackgroundSoundPlaybackService);
   private readonly personalVolumes = inject(PersonalVolumeService);
   private readonly roomVolumes = inject(RoomVolumeService);
+  private readonly assetRemoval = inject(AssetRemovalService);
 
   /** Whether this player may move the room volume, which only the game master may, as with the room's other settings. */
   readonly canChangeRoomVolume = this.roomVolumes.canChange;
@@ -73,6 +75,9 @@ export class JukeboxComponent {
 
   /** Whether this player may turn shuffle and repeat, which only the game master may. */
   readonly canChangeModes = this.playback.canChangeModes;
+
+  /** Whether this player may remove a sound from the room, which only the game master may too. */
+  readonly canRemove = this.playback.canChangeModes;
 
   /**
    * The room-wide volume every player's sound is multiplied by, from the room volume slider.
@@ -491,6 +496,16 @@ export class JukeboxComponent {
   /** Stops this player's preview; also called when the panel closes. */
   stop() {
     this.auditionPlayer.stop();
+  }
+
+  /**
+   * Removes a sound from the whole room, once the game master has said so, and stops it here if it
+   * was being tried.
+   */
+  async removeAudio(audio: AudioFile): Promise<void> {
+    if (!this.canRemove()) return;
+    if ((await this.assetRemoval.removeAfterAsking('audio', [audio.identifier])) < 1) return;
+    if (this.auditionPlayer.audio === audio) this.stop();
   }
 
   /**

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
@@ -278,6 +279,57 @@ describe('JukeboxComponent', () => {
       expect(component.getTagOf(AudioStorage.instance.get('other')!)).toBe('BGM');
       expect(ObjectStore.instance.getObjects(Playlist)).toHaveLength(playlists);
       expect(component.jukebox.isSeekLocked).toBe(true);
+    });
+  });
+
+  describe('removing a sound from the room', () => {
+    const trackId = 'd'.repeat(64);
+    const removeButtons = () =>
+      (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="jukebox-remove"]').length;
+
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+      AudioStorage.instance.add(makeReadyAudio(trackId, 'theme.ogg'));
+    });
+
+    it.each([
+      [PeerRole.GameMaster, 1],
+      [PeerRole.Player, 0],
+    ])('is offered on each row to a seat of role %s: %i', async (role, offered) => {
+      PeerCursor.myCursor.role = role;
+      await fixture.whenStable();
+
+      expect(removeButtons()).toBe(offered);
+    });
+
+    it('asks to remove the sound, as the game master, and stops trying it here once removed', async () => {
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      const removeAfterAsking = vi
+        .spyOn(TestBed.inject(AssetRemovalService), 'removeAfterAsking')
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(1);
+      const audio = AudioStorage.instance.get(trackId)!;
+      component.auditionPlayer.audio = audio;
+      const stopTrying = vi.spyOn(component.auditionPlayer, 'stop').mockImplementation(() => {});
+
+      await component.removeAudio(audio);
+      expect(stopTrying).not.toHaveBeenCalled();
+      await component.removeAudio(audio);
+
+      expect(removeAfterAsking.mock.calls).toEqual([
+        ['audio', [trackId]],
+        ['audio', [trackId]],
+      ]);
+      expect(stopTrying).toHaveBeenCalledTimes(1);
+    });
+
+    it('asks nothing for a player', async () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      const removeAfterAsking = vi.spyOn(TestBed.inject(AssetRemovalService), 'removeAfterAsking');
+
+      await component.removeAudio(AudioStorage.instance.get(trackId)!);
+
+      expect(removeAfterAsking).not.toHaveBeenCalled();
     });
   });
 

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { ImageUploadPreferenceService } from '@axe/application/file/image-upload-preference.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -34,6 +35,7 @@ export class FileStorageComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly editQueue = inject(ImageEditQueue);
+  private readonly assetRemoval = inject(AssetRemovalService);
   protected readonly uploadPreference = inject(ImageUploadPreferenceService);
 
   /** The label shown for a tag in the tag filter, with the all and untagged entries translated. */
@@ -58,6 +60,15 @@ export class FileStorageComponent {
   protected readonly canEdit = computed(() => {
     this.objectChange.trackMyCursor();
     return this.rolePermission.canEditTabletop;
+  });
+
+  /**
+   * Whether this seat may remove pictures from the room, which only the master may. It follows this
+   * seat's cursor, as `canEdit` does.
+   */
+  protected readonly canRemove = computed(() => {
+    this.objectChange.trackMyCursor();
+    return this.rolePermission.canEditShared;
   });
 
   /** The master's own view of what is being kept. Everyone else never sees them at all. */
@@ -184,6 +195,18 @@ export class FileStorageComponent {
       if (tag.tag === SYSTEM_RESERVED_TAG) continue;
       tag.isSecret = secret;
     }
+  }
+
+  /**
+   * Removes every picture ticked in the current list from the whole room, once the master has said
+   * so, and unticks them.
+   */
+  async removeChecked(): Promise<void> {
+    if (!this.canRemove()) return;
+    const checked = this.images()
+      .map((image) => image.context.identifier)
+      .filter((identifier) => this.checkedFiles().has(identifier));
+    if ((await this.assetRemoval.removeAfterAsking('image', checked)) > 0) this.checkedFiles.set(new Set());
   }
 
   readonly selectTag = signal('');

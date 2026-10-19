@@ -664,7 +664,8 @@
         "ownVolumeHeading": "Your volume",
         "ownVolumeNote": "Only you hear it; saved in this browser",
         "roomVolumeHeading": "Room volume",
-        "roomVolumeNote": "Applies to everyone in the room; only the GM can change it"
+        "roomVolumeNote": "Applies to everyone in the room; only the GM can change it",
+        "remove": "Delete from the room"
       },
       "miniJukebox": {
         "stopped": "— Stopped —",
@@ -1956,7 +1957,9 @@
         "pasteNothing": "There is no picture on the clipboard",
         "pasteWithKeys": "The browser did not hand the clipboard over. Click this list and press Ctrl+V",
         "editImage": "Edit",
-        "editImageHint": "Edits the one ticked picture and puts the result in its place, wherever it is used"
+        "editImageHint": "Edits the one ticked picture and puts the result in its place, wherever it is used",
+        "remove": "Delete",
+        "removeHint": "Delete the checked images from the room, for the other players too"
       },
       "tooLarge": {
         "one": "“{{name}}” was not loaded because it is too large ({{limits}})",
@@ -1964,6 +1967,17 @@
         "audioLimit": "sounds up to {{mb}} MB",
         "imageLimit": "images up to {{mb}} MB",
         "separator": ", "
+      },
+      "removal": {
+        "imageTitle": "Delete images",
+        "imageConfirm": "Delete {{count}} image(s) from the room. They disappear for the other players too.",
+        "imageRemoved": "Deleted {{count}} image(s)",
+        "audioTitle": "Delete sounds",
+        "audioConfirm": "Delete {{count}} sound(s) from the room. They disappear for the other players too, and stop if playing.",
+        "audioRemoved": "Deleted {{count}} sound(s)",
+        "uses": "They are used in {{uses}} place(s) in the room.",
+        "restore": "This cannot be undone. Adding the same file again brings it back wherever it was used.",
+        "ok": "Delete"
       }
     },
     "character": {
