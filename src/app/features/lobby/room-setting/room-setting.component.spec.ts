@@ -254,5 +254,18 @@ describe('RoomSettingComponent', () => {
 
       await vi.waitFor(() => expect(component.createError()).toContain('ログインが要ります'));
     });
+
+    it.each([
+      [503, 'paused', '部屋を作ることを一時的に止めています'],
+      [403, 'banned', 'このアカウントか回線を止めているため'],
+    ])('says in words when the room server’s operator answers %i %s', async (status, code, words) => {
+      vi.spyOn(Network, 'createRoom').mockRejectedValue(new ServerRoomApiError(status, code));
+      vi.spyOn(Network, 'open').mockImplementation(() => {});
+
+      component.createRoom();
+
+      await vi.waitFor(() => expect(component.createError()).toContain(words));
+      expect(component.createError()).not.toContain(code);
+    });
   });
 });

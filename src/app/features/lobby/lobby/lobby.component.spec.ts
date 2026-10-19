@@ -407,6 +407,14 @@ describe('LobbyComponent', () => {
 
       expect(component.help()).toContain('backend.url');
     });
+
+    it('says the room server’s operator blocked this connection, rather than that the list failed', async () => {
+      vi.spyOn(Network, 'listAllRooms').mockRejectedValue(new ServerRoomApiError(403, 'banned'));
+
+      await component.reload();
+
+      expect(component.help()).toBe('部屋のサーバーの運営者が、この回線を止めています');
+    });
   });
 
   describe('deleting a room from the list', () => {

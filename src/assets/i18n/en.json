@@ -3294,7 +3294,8 @@
         "hintListFailed": "Failed to fetch room list. Press \"Refresh list\" to retry.",
         "hintNoBackend": "No server is configured (backend.url in config.json)",
         "createRoomAfterLogin": "Log in to create a room",
-        "deleteRoom": "Delete room"
+        "deleteRoom": "Delete room",
+        "hintBanned": "The room server's operator has blocked this connection."
       },
       "roomSetting": {
         "title": " Create room",
@@ -3316,7 +3317,9 @@
         "alreadyInRoomServer": "You cannot create a room while you are in one.",
         "defaultRoomName": "My room",
         "createFailed": "The room could not be created ({{reason}})",
-        "loginRequired": "Creating a room needs a login."
+        "loginRequired": "Creating a room needs a login.",
+        "paused": "The room server's operator has stopped making rooms for now. Please try again later.",
+        "banned": "The room server's operator has blocked this account or connection, so it cannot make rooms."
       },
       "passwordCheck": {
         "title": "Password",
@@ -3421,7 +3424,9 @@
           "providerFailed": "Talking to Discord failed. Please try again later.",
           "rateLimited": "Too many login attempts. Please wait a while.",
           "network": "The login server cannot be reached.",
-          "retry": "Please log in again."
+          "retry": "Please log in again.",
+          "banned": "The room server's operator has blocked this account or connection.",
+          "paused": "The room server's operator has stopped new logins for now. Please try again later."
         }
       },
       "idle": {
@@ -3448,6 +3453,11 @@
         "title": "This table holds withheld parts",
         "message": "The table on screen holds things a room server handed over only in their withheld shape (cards whose face you cannot see, others' dice faces, blacked-out notes, the contents of secret rolls and so on). Going into a room now spreads the table there in that shape. Saves taken on this screen after going in, as the GM too, ask before they are loaded; saves others in the room take hold the withheld shapes without asking.",
         "ok": "Go in anyway"
+      },
+      "uploads": {
+        "paused": "The room server's operator has stopped putting up pictures and sounds for now. What you add now reaches the other players only once that is over.",
+        "resumed": "Pictures and sounds can be put up again. What was held back now reaches the other players too.",
+        "blocked": "The room server's operator has barred a picture or sound you added. It does not reach the other players."
       }
     },
     "chat": {

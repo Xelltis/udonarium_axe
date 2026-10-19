@@ -205,8 +205,16 @@ export class LobbyComponent {
       this.help.set(this.t('feature.lobby.lobby.hintNoRooms'));
     } catch (e) {
       Logger.error('[Lobby] failed to fetch room list', e);
-      const noBackend = e instanceof ServerRoomApiError && e.code === 'no-backend';
-      this.help.set(this.t(noBackend ? 'feature.lobby.lobby.hintNoBackend' : 'feature.lobby.lobby.hintListFailed'));
+      const code = e instanceof ServerRoomApiError ? e.code : '';
+      this.help.set(
+        this.t(
+          code === 'no-backend'
+            ? 'feature.lobby.lobby.hintNoBackend'
+            : code === 'banned'
+              ? 'feature.lobby.lobby.hintBanned'
+              : 'feature.lobby.lobby.hintListFailed'
+        )
+      );
     } finally {
       this.isReloading.set(false);
     }

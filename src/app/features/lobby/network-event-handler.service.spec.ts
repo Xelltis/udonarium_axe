@@ -437,6 +437,45 @@ describe('NetworkEventHandlerService', () => {
     expect(chatStub.sendSystemMessage).not.toHaveBeenCalled();
   });
 
+  describe('uploads the room server’s operator held back', () => {
+    it('tells the reader they were stopped, that they go up again, and of one barred', () => {
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+      const t = TestBed.inject(TRANSLATE_FN);
+
+      AssetHttpStore.instance.onUploadsPaused(true);
+      AssetHttpStore.instance.onUploadsPaused(false);
+      AssetHttpStore.instance.onUploadBlocked('a'.repeat(64));
+
+      expect(shown.mock.calls.map(([text]) => text)).toEqual([
+        t('feature.lobby.uploads.paused'),
+        t('feature.lobby.uploads.resumed'),
+        t('feature.lobby.uploads.blocked'),
+      ]);
+      expect(shown.mock.calls[0][0]).toContain('運営者');
+    });
+
+    it('shows none of it on a screen made for streaming', () => {
+      vi.spyOn(TestBed.inject(OverlayModeService), 'active').mockReturnValue(true);
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+
+      AssetHttpStore.instance.onUploadsPaused(true);
+      AssetHttpStore.instance.onUploadsPaused(false);
+      AssetHttpStore.instance.onUploadBlocked('a'.repeat(64));
+
+      expect(shown).not.toHaveBeenCalled();
+    });
+
+    it('stops listening once it is gone', () => {
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+
+      TestBed.resetTestingModule();
+      AssetHttpStore.instance.onUploadsPaused(true);
+      AssetHttpStore.instance.onUploadBlocked('a'.repeat(64));
+
+      expect(shown).not.toHaveBeenCalled();
+    });
+  });
+
   it('falls back to the head of the identifier for a peer whose name it does not know', () => {
     stubChange.peerReconnect$.emit({ peerId: 'abcdef123', state: 'retrying' });
 

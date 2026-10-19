@@ -43,6 +43,8 @@ const ROOM_ASSET_RELIST_MS = 30_000;
 const IDLE_NOTICE_MS = 5 * 60_000;
 /** How long the word that the seat was let out stays, offering to go back in: as good as for good. */
 const LEFT_ALONE_NOTICE_MS = 24 * 60 * 60_000;
+/** How long the word of uploads the room server's operator held back stays: long enough to read twice. */
+const UPLOAD_NOTICE_MS = 15_000;
 
 @Injectable({ providedIn: 'root' })
 export class NetworkEventHandlerService {
@@ -98,9 +100,13 @@ export class NetworkEventHandlerService {
       if (this.roomAssetRelistTimer) clearTimeout(this.roomAssetRelistTimer);
       ImageStorage.instance.receivedUploadTurn = () => 0;
       AudioStorage.instance.receivedUploadTurn = () => 0;
+      AssetHttpStore.instance.onUploadsPaused = () => {};
+      AssetHttpStore.instance.onUploadBlocked = () => {};
     });
     ImageStorage.instance.receivedUploadTurn = () => this.turnToPutUpReceived();
     AudioStorage.instance.receivedUploadTurn = () => this.turnToPutUpReceived();
+    AssetHttpStore.instance.onUploadsPaused = (paused) => this.tellUploadsPaused(paused);
+    AssetHttpStore.instance.onUploadBlocked = () => this.tellUploadBlocked();
     networkMessage$.subscribe((message) => {
       if (message.eventName !== AuthorityEvent.ROLE_REJECTED || message.sendFrom !== Network.authorityPeerId) return;
       this.tellRoleRejected(message.data as { peerId?: unknown; reason?: unknown } | null);
@@ -410,6 +416,24 @@ export class NetworkEventHandlerService {
     const key = ROLE_REJECTED_KEYS[reason] ?? 'feature.lobby.roleRejected.other';
     const name = typeof data?.peerId === 'string' ? this.resolvePeerName(data.peerId) : '';
     this.chatMessageService.sendSystemMessage(encodeI18nMessage(key, { name, reason }));
+  }
+
+  /**
+   * Tells the reader that the room server's operator has stopped pictures and sounds from going up
+   * for a while, so that what they add reaches nobody else till the stop is over, and then that it
+   * is over and what was held has gone up. A screen made for streaming shows none of it.
+   */
+  private tellUploadsPaused(paused: boolean): void {
+    if (this.overlayMode.active()) return;
+    if (paused) this.snackbar.show(this.t('feature.lobby.uploads.paused'), { ms: UPLOAD_NOTICE_MS });
+    else this.snackbar.show(this.t('feature.lobby.uploads.resumed'));
+  }
+
+  /** Tells the reader that the operator barred a picture or sound they added, so it reaches nobody else. */
+  private tellUploadBlocked(): void {
+    if (!this.overlayMode.active()) {
+      this.snackbar.show(this.t('feature.lobby.uploads.blocked'), { ms: UPLOAD_NOTICE_MS });
+    }
   }
 
   /**

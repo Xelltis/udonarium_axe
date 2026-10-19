@@ -16,6 +16,13 @@ import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { WithheldEntryService } from '@axe/features/lobby/withheld-entry';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/** The words for a room the server would not make, by the reason it gave; any other names the reason. */
+const CREATE_ERROR_KEYS: Readonly<Record<string, string>> = {
+  'login-required': 'feature.lobby.roomSetting.loginRequired',
+  paused: 'feature.lobby.roomSetting.paused',
+  banned: 'feature.lobby.roomSetting.banned',
+};
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'room-setting',
@@ -147,11 +154,8 @@ export class RoomSettingComponent {
       this.modalService.resolve(true);
     } catch (e) {
       const reason = e instanceof ServerRoomApiError ? e.code : String(e);
-      this.createError.set(
-        reason === 'login-required'
-          ? this.t('feature.lobby.roomSetting.loginRequired')
-          : this.t('feature.lobby.roomSetting.createFailed', { reason })
-      );
+      const key = CREATE_ERROR_KEYS[reason];
+      this.createError.set(key ? this.t(key) : this.t('feature.lobby.roomSetting.createFailed', { reason }));
     } finally {
       this.isCreating.set(false);
     }

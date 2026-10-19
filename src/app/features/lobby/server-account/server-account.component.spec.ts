@@ -103,6 +103,16 @@ describe('ServerAccountComponent', () => {
     expect(find(element, 'server-account-error')!.textContent).toContain('ログインがキャンセルされました');
   });
 
+  it.each([
+    ['paused', '新しいログインを一時的に止めています'],
+    ['banned', 'このアカウントか回線を止めています'],
+  ])('says in words when the room server’s operator turned the login away as %s', (code, words) => {
+    error.set(code);
+    const element = render().nativeElement as HTMLElement;
+
+    expect(find(element, 'server-account-error')!.textContent).toContain(words);
+  });
+
   it('says the server keeps no rooms when it offers no login', () => {
     providers.set(false);
     const element = render().nativeElement as HTMLElement;

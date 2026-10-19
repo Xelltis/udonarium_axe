@@ -7,6 +7,8 @@ const LOGIN_ERROR_KEYS: Readonly<Record<string, string>> = {
   denied: 'feature.lobby.account.errors.denied',
   'provider-failed': 'feature.lobby.account.errors.providerFailed',
   'rate-limited': 'feature.lobby.account.errors.rateLimited',
+  banned: 'feature.lobby.account.errors.banned',
+  paused: 'feature.lobby.account.errors.paused',
   network: 'feature.lobby.account.errors.network',
 };
 
