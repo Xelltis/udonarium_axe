@@ -3359,7 +3359,7 @@
         "roomServerNoBackend": "接続先（config.json の backend.url）が設定されていません",
         "roomServerRefused": "部屋のサーバーに接続を断られました（{{code}}）",
         "roomServerUnauthorized": "ログインの期限が切れたか、別のアカウントでログインし直しました。部屋に入り直してください",
-        "roomServerDeleted": "部屋のGMが部屋を削除しました",
+        "roomServerDeleted": "部屋のGMか、部屋のサーバーの運営者が部屋を削除しました",
         "roomServerBanned": "部屋のサーバーの運営者が、このアカウントか回線を止めているため、部屋に入れません"
       },
       "deleteRoom": {

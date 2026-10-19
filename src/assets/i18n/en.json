@@ -3359,7 +3359,7 @@
         "roomServerNoBackend": "No server is configured (backend.url in config.json)",
         "roomServerRefused": "The room server refused the connection ({{code}})",
         "roomServerUnauthorized": "Your login expired, or you logged in as someone else. Please join the room again.",
-        "roomServerDeleted": "The room's GM deleted the room",
+        "roomServerDeleted": "The room's GM or the room server's operator deleted the room",
         "roomServerBanned": "The room server's operator has blocked this account or connection, so you cannot be in the room."
       },
       "deleteRoom": {

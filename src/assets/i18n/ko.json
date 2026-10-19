@@ -3359,7 +3359,7 @@
         "roomServerNoBackend": "접속처(config.json의 backend.url)가 설정되어 있지 않습니다",
         "roomServerRefused": "방 서버가 연결을 거부했습니다({{code}})",
         "roomServerUnauthorized": "로그인이 만료되었거나 다른 계정으로 다시 로그인했습니다. 방에 다시 들어가 주세요.",
-        "roomServerDeleted": "방의 GM이 방을 삭제했습니다",
+        "roomServerDeleted": "방의 GM 또는 방 서버 운영자가 방을 삭제했습니다",
         "roomServerBanned": "방 서버 운영자가 이 계정 또는 회선을 차단했으므로 방에 들어갈 수 없습니다."
       },
       "deleteRoom": {
