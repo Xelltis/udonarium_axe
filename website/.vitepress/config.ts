@@ -185,8 +185,8 @@ export default defineConfig({
     nav: [
       { text: '遊びかた', link: '/play/' },
       { text: '操作マニュアル', link: '/manual/' },
-      { text: 'できること', link: '/guide/features' },
-      { text: '設置する', link: '/guide/' },
+      { text: '機能の一覧', link: '/guide/features' },
+      { text: '設置ガイド', link: '/guide/' },
       { text: 'リリースノート', link: '/release-notes/' },
     ],
     sidebar: {
@@ -194,18 +194,18 @@ export default defineConfig({
         {
           text: '遊びかた',
           items: [
-            { text: '遊びはじめる', link: '/play/' },
+            { text: '遊びかたの案内', link: '/play/' },
             { text: '招待リンクをもらったら', link: '/play/join' },
             { text: 'はじめてのセッション', link: '/play/first-session' },
             { text: '遊ぶときの困りごと', link: '/play/faq' },
           ],
         },
         {
-          text: 'そのあと',
+          text: '関連ページ',
           items: [
             { text: '操作マニュアル', link: '/manual/' },
-            { text: 'できること', link: '/guide/features' },
-            { text: '自分の環境を用意する', link: '/guide/' },
+            { text: '機能の一覧', link: '/guide/features' },
+            { text: '設置ガイド', link: '/guide/' },
           ],
         },
       ],
@@ -215,29 +215,28 @@ export default defineConfig({
           items: [
             { text: '画面の見かた', link: '/manual/' },
             { text: 'キー操作の一覧', link: '/manual/shortcuts' },
-            { text: '部屋とロビー', link: '/manual/rooms' },
+            { text: 'PLツールバー', link: '/manual/pl-tools' },
+            { text: 'ホットバー', link: '/manual/hotbar' },
             { text: 'スマートフォンで使う', link: '/manual/mobile' },
-            { text: '遊びはじめる', link: '/play/' },
+            { text: 'テーマ（配色と動き）', link: '/manual/theme' },
+            { text: '遊びかたの案内', link: '/play/' },
             { text: '遊ぶときの困りごと', link: '/play/faq' },
           ],
         },
         {
-          text: 'ロールと公開範囲',
+          text: '部屋と参加者',
           items: [
+            { text: '部屋とロビー', link: '/manual/rooms' },
             { text: 'ロール（GM / PL / 見学）', link: '/manual/roles' },
-            { text: 'PLツールバー', link: '/manual/pl-tools' },
-            { text: 'ホットバー', link: '/manual/hotbar' },
             { text: '情報の公開範囲', link: '/manual/disclosure' },
-            { text: 'オブジェクト一覧（GM）', link: '/manual/gm-object-list' },
-            { text: 'マップエディター', link: '/manual/map-editor' },
-            { text: 'マップ生成', link: '/manual/map-generator' },
+            { text: '部屋設定', link: '/manual/room-settings' },
+            { text: '接続が切れたとき', link: '/manual/connection' },
           ],
         },
         {
           text: 'テーブル',
           items: [
             { text: '視点とテーブル操作', link: '/manual/tabletop' },
-            { text: '部屋設定', link: '/manual/room-settings' },
             { text: 'テーブル設定', link: '/manual/table-setting' },
             { text: '暗闇・視界・光源', link: '/manual/vision-lighting' },
             { text: '移動範囲', link: '/manual/move-range' },
@@ -253,9 +252,10 @@ export default defineConfig({
           ],
         },
         {
-          text: 'オブジェクト',
+          text: 'コマと物',
           items: [
             { text: 'オブジェクトの基本操作', link: '/manual/objects' },
+            { text: 'インベントリ', link: '/manual/inventory' },
             { text: 'キャラクターコマ', link: '/manual/character' },
             { text: 'シートの項目（データ要素）', link: '/manual/data-element' },
             { text: 'キャラクターの取り込み', link: '/manual/character-import' },
@@ -292,17 +292,20 @@ export default defineConfig({
           ],
         },
         {
-          text: '管理・全体',
+          text: 'GMの道具',
           items: [
-            { text: 'インベントリ', link: '/manual/inventory' },
-            { text: '保存と読み込み', link: '/manual/save-load' },
-            { text: '接続が切れたとき', link: '/manual/connection' },
-            { text: 'ココフォリアのルーム取り込み（実験的）', link: '/manual/room-import' },
-            { text: 'テーマ', link: '/manual/theme' },
+            { text: 'オブジェクト一覧（GM）', link: '/manual/gm-object-list' },
+            { text: 'マップエディター', link: '/manual/map-editor' },
+            { text: 'マップ生成', link: '/manual/map-generator' },
           ],
         },
-      ],
-      '/release-notes/': [
+        {
+          text: '保存と取り込み',
+          items: [
+            { text: '保存と読み込み', link: '/manual/save-load' },
+            { text: 'ココフォリアのルーム取り込み（実験的）', link: '/manual/room-import' },
+          ],
+        },
         {
           text: 'リリースノート',
           items: [
@@ -395,7 +398,7 @@ export default defineConfig({
       ],
       '/guide/': [
         {
-          text: '自分で設置する',
+          text: '設置ガイド',
           items: [
             { text: 'はじめに', link: '/guide/' },
             { text: '方式を選ぶ', link: '/guide/choose' },
@@ -412,13 +415,13 @@ export default defineConfig({
           text: 'Axeについて',
           items: [
             { text: 'Udonarium Axeとは', link: '/guide/getting-started' },
-            { text: 'できること', link: '/guide/features' },
+            { text: '機能の一覧', link: '/guide/features' },
           ],
         },
         {
-          text: '遊ぶほうへ',
+          text: '関連ページ',
           items: [
-            { text: '遊びはじめる', link: '/play/' },
+            { text: '遊びかたの案内', link: '/play/' },
             { text: '操作マニュアル', link: '/manual/' },
           ],
         },

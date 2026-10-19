@@ -25,7 +25,7 @@ SkyWay版では、SkyWayを使う許可証（トークン）を作るのに秘�
 すでに本家用に立てているなら、`assets/config.json`の`backend.url`をそこへ向けるだけで済みます。
 本家のサーバーは、SkyWay版で使えます。サーバー版には使えません。
 
-## 接続できません {#cannot-connect}
+## 接続できない {#cannot-connect}
 
 [困ったとき](/guide/troubleshooting)の「まず確かめること」から順に確かめてください。
 サーバーが動いているか、`config.json`が読めているか、Axeに出ている表示はどれか、の順に見ると、どこで止まっているかが分かります。
@@ -50,7 +50,7 @@ GMが部屋を削除すれば消えます。
 新しい版のzipを展開し、`config.json`を書き直してから置き直します。
 → [更新するとき](/guide/update)
 
-## Cloudflare Pagesにドラッグ＆ドロップで置けません {#cloudflare-pages}
+## Cloudflare Pagesにドラッグ＆ドロップで置けない {#cloudflare-pages}
 
 ダッシュボードのドラッグ＆ドロップで上げられるのは、1,000ファイルまでです。
 今のAxeのファイルは1,000未満なので、そのまま上がります。

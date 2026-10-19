@@ -156,7 +156,7 @@ GMツールのタブは、GMのときだけ出ます。
 GMが使う道具でも、ツールバーにないものはFABメニューから開きます。
 
 - [マップエディター](/manual/map-editor)と[マップ生成](/manual/map-generator)は**テーブル関連**
-- [手札](/manual/cards#手札)と[バフマネージャー](/manual/buff#卓じゅうのバフを一覧する)は**ゲームリソース**
+- [手札](/manual/cards#手札)と[バフマネージャー](/manual/buff#卓全体のバフの一覧)は**ゲームリソース**
 - [エフェクト](/manual/map-effects)は**メディア**
 
 ## 部屋のサーバーでのロール {#room-server}

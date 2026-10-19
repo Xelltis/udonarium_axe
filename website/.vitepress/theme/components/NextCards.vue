@@ -2,10 +2,10 @@
 import { withBase } from 'vitepress';
 
 const cards = [
-  { title: '遊びはじめる', body: 'どの入口から来ても、まずここ', link: '/play/' },
-  { title: '操作マニュアル', body: '画面の見かたから各機能の使い方まで', link: '/manual/' },
-  { title: 'できること', body: '盤面・暗闇・記録まで、場面ごとに', link: '/guide/features' },
-  { title: '設置する', body: '自分の場所にAxeを置くときの流れと手順', link: '/guide/' },
+  { title: '遊びかた', body: '招待リンクで参加する人と、GMをする人の入口', link: '/play/' },
+  { title: '操作マニュアル', body: '画面の見かたと、機能ごとの操作', link: '/manual/' },
+  { title: '機能の一覧', body: 'Axeでできることを場面ごとに', link: '/guide/features' },
+  { title: '設置ガイド', body: '自分の環境にAxeを置く手順', link: '/guide/' },
 ];
 </script>
 
