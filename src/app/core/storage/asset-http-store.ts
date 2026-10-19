@@ -19,10 +19,10 @@ export type AssetUploadResult = 'stored' | 'exists' | 'refused' | 'failed' | 'pa
 
 /**
  * Why a download brought no bytes: the store lacks them, or sent bytes that are not them, which
- * asking again will not mend; or the request failed, too often or while the server was out of
- * reach, which a later try may.
+ * asking again will not mend; the request failed, too often or while the server was out of reach,
+ * which a later try may; or the room server's operator barred them, so that nobody is to be asked.
  */
-export type AssetDownloadMiss = 'missing' | 'failed';
+export type AssetDownloadMiss = 'missing' | 'failed' | 'blocked';
 
 /** Bytes fetched from the store, with the name they were put up under, or empty for none. */
 export interface AssetDownload {
@@ -237,6 +237,7 @@ export class AssetHttpStore {
           // A token turned down even after a fresh one was asked for will be turned down for the PUT too.
           if (!head || head.status === 401) return 'failed';
           if (head.ok) return 'exists';
+          if (head.status === 451) return 'blocked';
           // Only a store that lacks the bytes is sent them; one that asked for fewer requests, or failed,
           // is asked again later rather than sent the whole of them now.
           if (head.status !== 404) return 'failed';
@@ -357,8 +358,8 @@ export class AssetHttpStore {
   /**
    * Fetches the bytes stored under an identifier, with the name they were put up under. Without them
    * it says why: `missing` when the server lacks them or sends bytes whose hash is not the
-   * identifier, `failed` when the request failed, as when the server asks for fewer requests or
-   * cannot be reached, or there is no room.
+   * identifier, `blocked` when the operator barred them, `failed` when the request failed, as when
+   * the server asks for fewer requests or cannot be reached, or there is no room.
    *
    * Pictures and sounds wait their turn together; one asked for `first`, such as the music the room
    * is playing, goes ahead of those already waiting.
@@ -373,6 +374,7 @@ export class AssetHttpStore {
             this.request(this.urlOf(access, identifier), { method: 'GET', headers: this.headersOf(access) })
           );
           if (!res) return 'failed';
+          if (res.status === 451) return 'blocked';
           if (!res.ok) return res.status === 404 ? 'missing' : 'failed';
           const bytes = await res.arrayBuffer();
           if ((await sha256Hex(bytes)) !== identifier) {

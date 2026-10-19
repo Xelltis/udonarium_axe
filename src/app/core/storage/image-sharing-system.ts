@@ -37,6 +37,8 @@ export class ImageSharingSystem {
   private httpFetching: Map<string, string | null> = new Map();
   /** Images the asset server did not have, which are asked of peers from then on. */
   private httpMissed: Set<string> = new Set();
+  /** Images the room server's operator took down, asked of nobody: neither the store nor a peer. */
+  private httpBarred: Set<string> = new Set();
   /** Images the room's list named that the asset server could not send just then. */
   private httpRetries = new AssetRetries();
 
@@ -69,6 +71,7 @@ export class ImageSharingSystem {
                 ImageStorage.instance.add(image);
               }
               if (image.state < ImageState.COMPLETE && !this.receiveTaskMap.has(item.identifier)) {
+                if (this.httpBarred.has(item.identifier)) continue;
                 if (this.fetchOverHttp(item.identifier, msg.sendFrom)) continue;
                 request.push({ identifier: item.identifier, state: image.state });
               }
@@ -197,6 +200,7 @@ export class ImageSharingSystem {
    */
   forgetMisses(): void {
     this.httpMissed.clear();
+    this.httpBarred.clear();
     this.httpRetries.clear();
   }
 
@@ -213,11 +217,13 @@ export class ImageSharingSystem {
    * An image the server could not send is asked of the peer whose catalogue named it, the way it
    * would have been without the server. With no such peer, one the server lacks, or sends bytes for
    * that do not match, is left, and one it could not send just then is tried again later. Only the
-   * server's lacking it keeps it from being fetched from there again.
+   * server's lacking it keeps it from being fetched from there again. One the operator took down is
+   * asked of nobody.
    */
   private fetchOverHttp(identifier: string, catalogPeer: string | null): boolean {
     const store = AssetHttpStore.instance;
     if (!store.isEnabled || !AssetHttpStore.isAssetId(identifier) || this.httpMissed.has(identifier)) return false;
+    if (this.httpBarred.has(identifier)) return false;
     if (this.httpFetching.has(identifier)) {
       if (this.httpFetching.get(identifier) === null) this.httpFetching.set(identifier, catalogPeer);
       return true;
@@ -227,6 +233,10 @@ export class ImageSharingSystem {
       .then((received) => {
         if (received === true) {
           this.httpRetries.forget(identifier);
+          return;
+        }
+        if (received === 'blocked') {
+          this.httpBarred.add(identifier);
           return;
         }
         if (received === 'missing') this.httpMissed.add(identifier);

@@ -135,6 +135,17 @@ describe('AssetHttpStore', () => {
       expect(blocked.mock.calls).toEqual([[id]]);
     });
 
+    it('sends no bytes the operator barred, which asking whether the room has them already tells', async () => {
+      const blocked = vi.fn();
+      store.onUploadBlocked = blocked;
+      respond(new Response(JSON.stringify({ error: 'blocked' }), { status: 451 }));
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('blocked');
+
+      expect(callsOf()).toEqual([['HEAD', urlOf(id)]]);
+      expect(blocked.mock.calls).toEqual([[id]]);
+    });
+
     it('tells the app when uploads first meet the operator’s stop, and when bytes go up again after it', async () => {
       const paused = vi.fn();
       store.onUploadsPaused = paused;
@@ -540,6 +551,11 @@ describe('AssetHttpStore', () => {
     it('throws away bytes whose hash is not the name, as bytes the server lacks', async () => {
       respond(new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
       expect(await store.download(id)).toBe('missing');
+    });
+
+    it('tells an asset the operator took down from one the server lacks', async () => {
+      respond(new Response(JSON.stringify({ error: 'blocked' }), { status: 451 }));
+      expect(await store.download(id)).toBe('blocked');
     });
 
     it('tells an asset the server lacks from one it could not send just then', async () => {

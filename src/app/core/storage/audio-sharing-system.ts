@@ -34,6 +34,8 @@ export class AudioSharingSystem {
   private httpFetching: Map<string, string | null> = new Map();
   /** Audio the asset server did not have, which is asked of peers from then on. */
   private httpMissed: Set<string> = new Set();
+  /** Audio the room server's operator took down, asked of nobody: neither the store nor a peer. */
+  private httpBarred: Set<string> = new Set();
   /** Sounds the room's list named that the asset server could not send just then. */
   private httpRetries = new AssetRetries();
 
@@ -75,6 +77,7 @@ export class AudioSharingSystem {
                 AudioStorage.instance.add(audio);
               }
               if (audio.state < AudioState.COMPLETE && !this.receiveTaskMap.has(item.identifier)) {
+                if (this.httpBarred.has(item.identifier)) continue;
                 if (this.fetchOverHttp(item.identifier, msg.sendFrom)) continue;
                 request.push({ identifier: item.identifier, state: audio.state });
               }
@@ -194,6 +197,7 @@ export class AudioSharingSystem {
    */
   forgetMisses(): void {
     this.httpMissed.clear();
+    this.httpBarred.clear();
     this.httpRetries.clear();
   }
 
@@ -210,7 +214,8 @@ export class AudioSharingSystem {
    * Audio the server could not send is asked of the peer whose catalogue named it, the way it would
    * have been without the server. With no such peer, audio the server lacks, or sends bytes for that
    * do not match, is left, and audio it could not send just then is tried again later. Only the
-   * server's lacking it keeps it from being fetched from there again.
+   * server's lacking it keeps it from being fetched from there again. Audio the operator took down
+   * is asked of nobody.
    *
    * What the room is playing goes ahead of the pictures and sounds waiting their turn, and moves to
    * the front should it be waiting already.
@@ -218,6 +223,7 @@ export class AudioSharingSystem {
   private fetchOverHttp(identifier: string, catalogPeer: string | null): boolean {
     const store = AssetHttpStore.instance;
     if (!store.isEnabled || !AssetHttpStore.isAssetId(identifier) || this.httpMissed.has(identifier)) return false;
+    if (this.httpBarred.has(identifier)) return false;
     const first = this.preferredIdentifiers().includes(identifier);
     if (this.httpFetching.has(identifier)) {
       if (this.httpFetching.get(identifier) === null) this.httpFetching.set(identifier, catalogPeer);
@@ -235,6 +241,10 @@ export class AudioSharingSystem {
           const { blob } = fetched;
           localDispatch('UPDATE_AUDIO_RESOURE', [{ identifier, name, type: blob.type, blob, url: '' }]);
           AudioStorage.instance.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
+          return;
+        }
+        if (fetched === 'blocked') {
+          this.httpBarred.add(identifier);
           return;
         }
         if (fetched === 'missing') this.httpMissed.add(identifier);

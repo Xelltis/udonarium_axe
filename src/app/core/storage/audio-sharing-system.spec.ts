@@ -318,6 +318,19 @@ describe('AudioSharingSystem', () => {
       });
     });
 
+    it('asks no peer, then or for a later catalogue, for a sound the operator took down', async () => {
+      download.mockResolvedValue('blocked');
+      emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-b' });
+      await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-c' });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(download).toHaveBeenCalledTimes(1);
+      expect(requestsSent()).toEqual([]);
+    });
+
     it('puts a sound the server lacked up once a peer has sent it, and no other', async () => {
       const upload = vi.spyOn(AudioStorage.instance, 'uploadReceived').mockImplementation(() => {});
       download.mockResolvedValue('missing');
