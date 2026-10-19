@@ -186,7 +186,7 @@ export default defineConfig({
       { text: '遊びかた', link: '/play/' },
       { text: '操作マニュアル', link: '/manual/' },
       { text: 'できること', link: '/guide/features' },
-      { text: '設置する', link: '/guide/quickstart' },
+      { text: '設置する', link: '/guide/' },
       { text: 'リリースノート', link: '/release-notes/' },
     ],
     sidebar: {
@@ -205,7 +205,7 @@ export default defineConfig({
           items: [
             { text: '操作マニュアル', link: '/manual/' },
             { text: 'できること', link: '/guide/features' },
-            { text: '自分の環境を用意する', link: '/guide/quickstart' },
+            { text: '自分の環境を用意する', link: '/guide/' },
           ],
         },
       ],
@@ -397,10 +397,15 @@ export default defineConfig({
         {
           text: '自分で設置する',
           items: [
-            { text: 'なぜバックエンドが要るのか', link: '/guide/requirements' },
-            { text: 'クイックスタート', link: '/guide/quickstart' },
-            { text: 'バックエンドの選択肢', link: '/guide/backend' },
-            { text: '自分で設置するときの質問', link: '/guide/faq' },
+            { text: 'はじめに', link: '/guide/' },
+            { text: '方式を選ぶ', link: '/guide/choose' },
+            { text: '設置の準備', link: '/guide/requirements' },
+            { text: 'サーバーを置く', link: '/guide/backend' },
+            { text: 'Axeを置く', link: '/guide/quickstart' },
+            { text: 'config.jsonを書く', link: '/guide/configuration' },
+            { text: '更新するとき', link: '/guide/update' },
+            { text: '困ったとき', link: '/guide/troubleshooting' },
+            { text: '設置するときの質問', link: '/guide/faq' },
           ],
         },
         {

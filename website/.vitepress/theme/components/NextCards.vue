@@ -5,7 +5,7 @@ const cards = [
   { title: '遊びはじめる', body: 'どの入口から来ても、まずここ', link: '/play/' },
   { title: '操作マニュアル', body: '画面の見かたから各機能の使い方まで', link: '/manual/' },
   { title: 'できること', body: '盤面・暗闇・記録まで、場面ごとに', link: '/guide/features' },
-  { title: 'クイックスタート', body: '自分の場所を持つときの手順', link: '/guide/quickstart' },
+  { title: '設置する', body: '自分の場所にAxeを置くときの流れと手順', link: '/guide/' },
 ];
 </script>
 
