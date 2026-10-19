@@ -113,6 +113,15 @@ describe('MusicBus', () => {
     expect(context.createGain).not.toHaveBeenCalled();
   });
 
+  it('stops waiting for the audio context once forgotten', () => {
+    MusicBus.forget();
+
+    void AudioPlayer.audioContext;
+
+    expect(MusicBus.current).toBeNull();
+    expect(context.createGain).not.toHaveBeenCalled();
+  });
+
   it('sets itself into the music channel as soon as the page makes its audio context', () => {
     void AudioPlayer.audioContext;
 
@@ -166,6 +175,7 @@ describe('MusicBus', () => {
   it('lets the music go straight to its volume where the bus cannot be built', () => {
     MusicBus.forget();
     useContext(contextMock({ analysers: false }));
+    MusicBus.installWhenReady();
 
     void AudioPlayer.audioContext;
 
