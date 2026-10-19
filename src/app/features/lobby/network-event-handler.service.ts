@@ -600,6 +600,8 @@ export class NetworkEventHandlerService {
         return encodeI18nMessage('feature.lobby.errors.roomServerNoBackend');
       case 'unauthorized':
         return encodeI18nMessage('feature.lobby.errors.roomServerUnauthorized');
+      case 'banned':
+        return encodeI18nMessage('feature.lobby.errors.roomServerBanned');
       case 'room-deleted':
         return encodeI18nMessage('feature.lobby.errors.roomServerDeleted');
       case 'hello-required':

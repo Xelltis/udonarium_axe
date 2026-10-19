@@ -17,6 +17,7 @@ import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
+import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { InviteLinkParams, parseInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -31,7 +32,7 @@ import { WithheldEntryService } from '@axe/features/lobby/withheld-entry';
 import { RoomRestoreOfferService } from '@axe/features/room-archive/room-restore-banner/room-restore-offer.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
-type InviteJoinState = 'idle' | 'joining' | 'offline' | 'notFound' | 'failed' | 'done';
+type InviteJoinState = 'idle' | 'joining' | 'offline' | 'notFound' | 'failed' | 'banned' | 'done';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -84,6 +85,8 @@ export class InviteJoinComponent {
         return this.t('feature.lobby.invite.notFound', { roomName: this.roomName() });
       case 'failed':
         return this.t('feature.lobby.invite.failed', { roomName: this.roomName() });
+      case 'banned':
+        return this.t('feature.lobby.invite.banned', { roomName: this.roomName() });
       default:
         return '';
     }
@@ -133,13 +136,14 @@ export class InviteJoinComponent {
 
   /**
    * Joins as the link says, and says it could not when looking the room up failed, as when the
-   * server cannot be reached, rather than leaving the banner saying it is joining.
+   * server cannot be reached or its operator has blocked this connection, rather than leaving the
+   * banner saying it is joining.
    */
   private async joinOrSayFailed(params: InviteLinkParams): Promise<void> {
     try {
       await this.join(params);
-    } catch {
-      this.state.set('failed');
+    } catch (reason) {
+      this.state.set(reason instanceof ServerRoomApiError && reason.code === 'banned' ? 'banned' : 'failed');
     }
   }
 

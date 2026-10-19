@@ -9,6 +9,7 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo, RoomInfo } from '@axe/core/network/room-info';
+import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { clearIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { buildInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -444,6 +445,14 @@ describe('InviteJoinComponent', () => {
       await setup(link(''));
 
       await eventually(() => expect(bannerText()).toContain('参加できません'));
+      expect(joinServerRoom).not.toHaveBeenCalled();
+    });
+
+    it('says the operator has blocked this connection when the server turns the lookup away for it', async () => {
+      findServerRoom.mockRejectedValue(new ServerRoomApiError(403, 'banned'));
+      await setup(link(''));
+
+      await eventually(() => expect(bannerText()).toContain('運営者が、この回線を止めています'));
       expect(joinServerRoom).not.toHaveBeenCalled();
     });
 

@@ -3359,7 +3359,8 @@
         "roomServerNoBackend": "접속처(config.json의 backend.url)가 설정되어 있지 않습니다",
         "roomServerRefused": "방 서버가 연결을 거부했습니다({{code}})",
         "roomServerUnauthorized": "로그인이 만료되었거나 다른 계정으로 다시 로그인했습니다. 방에 다시 들어가 주세요.",
-        "roomServerDeleted": "방의 GM이 방을 삭제했습니다"
+        "roomServerDeleted": "방의 GM이 방을 삭제했습니다",
+        "roomServerBanned": "방 서버 운영자가 이 계정 또는 회선을 차단했으므로 방에 들어갈 수 없습니다."
       },
       "deleteRoom": {
         "confirmTitle": "방 삭제",
@@ -3402,6 +3403,7 @@
         "joining": "\"{{roomName}}\"에 참가하고 있습니다…",
         "notFound": "\"{{roomName}}\"을(를) 찾지 못했습니다",
         "failed": "\"{{roomName}}\"에 참가하지 못했습니다",
+        "banned": "\"{{roomName}}\"에 들어갈 수 없습니다. 방 서버 운영자가 이 회선을 차단했습니다.",
         "offline": "오프라인이라 \"{{roomName}}\"에 들어갈 수 없습니다. 들어가려면 연결 패널에서 온라인으로 전환해 주세요",
         "openLobby": "로비 열기",
         "dismiss": "닫기"
