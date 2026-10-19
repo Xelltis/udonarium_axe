@@ -89,7 +89,7 @@ Axeの`backend.url`とサーバーの`ACCESS_CONTROL_ALLOW_ORIGIN`は、互い�
 | ロビーに「このサーバーにはログインが用意されていないため、部屋を使えません」                               | 部屋のサーバーに、ログインの設定が入っていません                                                                 |
 | サーバー版なのに、ロビーの上に**Discordでログイン**が出ない                                                | `transport`が`"server"`になっていません                                                                          |
 
-ほかの表示と直しかたは、[困ったとき](/guide/troubleshooting)にあります。
+ほかの表示と直しかたは、[設置で困ったとき](/guide/troubleshooting)にあります。
 
 ## GitHub Actionsで配るとき
 
@@ -118,5 +118,5 @@ Axeのリポジトリをフォークし、付属のワークフロー（`.github
 
 ## 次に読むもの
 
-- [困ったとき](/guide/troubleshooting) — つながらないときの表示と直しかた
+- [設置で困ったとき](/guide/troubleshooting) — つながらないときの表示と直しかた
 - [更新するとき](/guide/update) — 新しい版に置き換えるときに`config.json`を残す

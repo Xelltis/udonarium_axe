@@ -7,7 +7,7 @@ import { withBase } from 'vitepress';
  * `startup.webp` is captured with a different layout.
  */
 const spots = [
-  { x: 2.8, y: 3.9, name: 'FABメニュー', body: '各種パネルを開くメインメニュー。', link: '/manual/#fabメニュー' },
+  { x: 2.8, y: 3.9, name: 'FABメニュー', body: '各種パネルを開くメインメニュー。', link: '/manual/screen#fabメニュー' },
   {
     x: 33.8,
     y: 3.4,

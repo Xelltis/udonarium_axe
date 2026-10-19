@@ -2,9 +2,9 @@
 import { withBase } from 'vitepress';
 
 const cards = [
-  { title: '遊びかた', body: '招待リンクで参加する人と、GMをする人の入口', link: '/play/' },
-  { title: '操作マニュアル', body: '画面の見かたと、機能ごとの操作', link: '/manual/' },
-  { title: '機能の一覧', body: 'Axeでできることを場面ごとに', link: '/guide/features' },
+  { title: 'はじめに', body: 'Axeとは何か、試しかた、参加のしかた、はじめてのセッション', link: '/start/' },
+  { title: '操作マニュアル', body: '機能ごとの操作と設定', link: '/manual/' },
+  { title: '困ったとき', body: '症状から、読むところを探す', link: '/help/' },
   { title: '設置ガイド', body: '自分の環境にAxeを置く手順', link: '/guide/' },
 ];
 </script>

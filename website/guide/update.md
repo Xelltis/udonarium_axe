@@ -98,5 +98,5 @@ SkyWay版では、違う版のAxeの人どうしでも、同じ部屋に入れ�
 
 ## 次に読むもの
 
-- [困ったとき](/guide/troubleshooting) — 置き換えたあとにつながらないとき
+- [設置で困ったとき](/guide/troubleshooting) — 置き換えたあとにつながらないとき
 - [リリースノート](/release-notes/) — 版ごとの変更

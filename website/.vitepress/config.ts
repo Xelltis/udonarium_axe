@@ -183,44 +183,34 @@ export default defineConfig({
   },
   themeConfig: {
     nav: [
-      { text: '遊びかた', link: '/play/' },
-      { text: '操作マニュアル', link: '/manual/' },
-      { text: '機能の一覧', link: '/guide/features' },
-      { text: '設置ガイド', link: '/guide/' },
-      { text: 'リリースノート', link: '/release-notes/' },
+      { text: 'はじめに', link: '/start/', activeMatch: '^/start/' },
+      { text: '操作マニュアル', link: '/manual/', activeMatch: '^/manual/' },
+      { text: '困ったとき', link: '/help/', activeMatch: '^/help/' },
+      { text: '設置ガイド', link: '/guide/', activeMatch: '^/guide/' },
+      { text: 'リリースノート', link: '/release-notes/', activeMatch: '^/release-notes/' },
     ],
     sidebar: {
-      '/play/': [
-        {
-          text: '遊びかた',
-          items: [
-            { text: '遊びかたの案内', link: '/play/' },
-            { text: '招待リンクをもらったら', link: '/play/join' },
-            { text: 'はじめてのセッション', link: '/play/first-session' },
-            { text: '遊ぶときの困りごと', link: '/play/faq' },
-          ],
-        },
-        {
-          text: '関連ページ',
-          items: [
-            { text: '操作マニュアル', link: '/manual/' },
-            { text: '機能の一覧', link: '/guide/features' },
-            { text: '設置ガイド', link: '/guide/' },
-          ],
-        },
+      '/start/': [
+        { text: 'はじめに', link: '/start/' },
+        { text: 'Axeでできること', link: '/start/features' },
+        { text: '招待リンクで参加する', link: '/start/join' },
+        { text: 'はじめてのセッション（GM）', link: '/start/first-session' },
+        { text: '用語集', link: '/start/glossary' },
+        { text: 'Udonarium Axeについて', link: '/start/about' },
       ],
       '/manual/': [
+        { text: 'マニュアルの使いかた', link: '/manual/' },
         {
-          text: 'はじめに',
+          text: '基本の操作',
           items: [
-            { text: '画面の見かた', link: '/manual/' },
+            { text: '画面の見かた', link: '/manual/screen' },
+            { text: 'オブジェクトの基本操作', link: '/manual/objects' },
+            { text: '視点とテーブル操作', link: '/manual/tabletop' },
             { text: 'キー操作の一覧', link: '/manual/shortcuts' },
             { text: 'PLツールバー', link: '/manual/pl-tools' },
             { text: 'ホットバー', link: '/manual/hotbar' },
             { text: 'スマートフォンで使う', link: '/manual/mobile' },
             { text: 'テーマ（配色と動き）', link: '/manual/theme' },
-            { text: '遊びかたの案内', link: '/play/' },
-            { text: '遊ぶときの困りごと', link: '/play/faq' },
           ],
         },
         {
@@ -234,41 +224,49 @@ export default defineConfig({
           ],
         },
         {
-          text: 'テーブル',
+          text: 'キャラクター',
           items: [
-            { text: '視点とテーブル操作', link: '/manual/tabletop' },
-            { text: 'テーブル設定', link: '/manual/table-setting' },
-            { text: '暗闇・視界・光源', link: '/manual/vision-lighting' },
-            { text: '移動範囲', link: '/manual/move-range' },
-            { text: '交戦エリア', link: '/manual/engagement-zone' },
-            { text: '乗り物に乗る', link: '/manual/ride' },
-            { text: '同行（パーティ）', link: '/manual/party' },
+            { text: 'キャラクターコマ', link: '/manual/character' },
+            { text: 'シートの項目（データ要素）', link: '/manual/data-element' },
+            { text: 'キャラクターの取り込み', link: '/manual/character-import' },
+            { text: 'バフ／デバフ', link: '/manual/buff' },
+            { text: '行動順', link: '/manual/turn-order' },
+            { text: 'インベントリ', link: '/manual/inventory' },
+          ],
+        },
+        {
+          text: 'テーブルに置く物',
+          items: [
+            { text: 'カード', link: '/manual/cards' },
+            { text: 'ダイス', link: '/manual/dice' },
+            { text: '共有メモ', link: '/manual/notes' },
+            { text: '射程範囲', link: '/manual/range' },
             { text: '地形', link: '/manual/terrain' },
-            { text: '水域と水中', link: '/manual/water' },
-            { text: 'スイッチ', link: '/manual/switch' },
-            { text: 'ダンジョンドリィマスターモード', link: '/manual/dungeondry-master' },
             { text: 'マップマスク', link: '/manual/map-mask' },
             { text: 'ホワイトボード', link: '/manual/white-board' },
           ],
         },
         {
-          text: 'コマと物',
+          text: 'テーブルの環境',
           items: [
-            { text: 'オブジェクトの基本操作', link: '/manual/objects' },
-            { text: 'インベントリ', link: '/manual/inventory' },
-            { text: 'キャラクターコマ', link: '/manual/character' },
-            { text: 'シートの項目（データ要素）', link: '/manual/data-element' },
-            { text: 'キャラクターの取り込み', link: '/manual/character-import' },
-            { text: 'バフ／デバフ', link: '/manual/buff' },
-            { text: 'カード', link: '/manual/cards' },
-            { text: 'ダイス', link: '/manual/dice' },
-            { text: '共有メモ', link: '/manual/notes' },
-            { text: '射程範囲', link: '/manual/range' },
-            { text: '行動順', link: '/manual/turn-order' },
+            { text: 'テーブル設定', link: '/manual/table-setting' },
+            { text: '暗闇・視界・光源', link: '/manual/vision-lighting' },
+            { text: '水域と水中', link: '/manual/water' },
+            { text: 'スイッチ', link: '/manual/switch' },
           ],
         },
         {
-          text: 'チャット',
+          text: '移動と戦闘',
+          items: [
+            { text: '移動範囲', link: '/manual/move-range' },
+            { text: '交戦エリア', link: '/manual/engagement-zone' },
+            { text: '乗り物に乗る', link: '/manual/ride' },
+            { text: '同行（パーティ）', link: '/manual/party' },
+            { text: 'ダンジョンドリィマスターモード', link: '/manual/dungeondry-master' },
+          ],
+        },
+        {
+          text: 'チャットとダイス',
           items: [
             { text: 'チャットの基本', link: '/manual/chat' },
             { text: 'チャットの特殊記法', link: '/manual/chat-syntax' },
@@ -279,7 +277,7 @@ export default defineConfig({
           ],
         },
         {
-          text: 'メディア',
+          text: '演出と音',
           items: [
             { text: '画像', link: '/manual/images' },
             { text: 'ジュークボックス', link: '/manual/jukebox' },
@@ -288,7 +286,6 @@ export default defineConfig({
             { text: 'カットイン', link: '/manual/cut-in' },
             { text: 'マップ演出（エフェクト）', link: '/manual/map-effects' },
             { text: 'ビジュアルノベルモード', link: '/manual/visual-novel' },
-            { text: 'セッションログ（リプレイ）', link: '/manual/replay' },
           ],
         },
         {
@@ -300,12 +297,41 @@ export default defineConfig({
           ],
         },
         {
-          text: '保存と取り込み',
+          text: '保存と記録',
           items: [
             { text: '保存と読み込み', link: '/manual/save-load' },
+            { text: 'セッションログ（リプレイ）', link: '/manual/replay' },
             { text: 'ココフォリアのルーム取り込み（実験的）', link: '/manual/room-import' },
           ],
         },
+      ],
+      '/help/': [
+        {
+          text: '困ったとき',
+          items: [
+            { text: '遊んでいるときの困りごと', link: '/help/' },
+            { text: '接続が切れたとき', link: '/manual/connection' },
+            { text: '設置で困ったとき', link: '/guide/troubleshooting' },
+          ],
+        },
+      ],
+      '/guide/': [
+        {
+          text: '設置ガイド',
+          items: [
+            { text: '設置の流れ', link: '/guide/' },
+            { text: '方式を選ぶ', link: '/guide/choose' },
+            { text: '設置の準備', link: '/guide/requirements' },
+            { text: 'サーバーを置く', link: '/guide/backend' },
+            { text: 'Axeを置く', link: '/guide/quickstart' },
+            { text: 'config.jsonを書く', link: '/guide/configuration' },
+            { text: '更新するとき', link: '/guide/update' },
+            { text: '設置で困ったとき', link: '/guide/troubleshooting' },
+            { text: '設置のよくある質問', link: '/guide/faq' },
+          ],
+        },
+      ],
+      '/release-notes/': [
         {
           text: 'リリースノート',
           items: [
@@ -396,38 +422,22 @@ export default defineConfig({
           ],
         },
       ],
-      '/guide/': [
-        {
-          text: '設置ガイド',
-          items: [
-            { text: 'はじめに', link: '/guide/' },
-            { text: '方式を選ぶ', link: '/guide/choose' },
-            { text: '設置の準備', link: '/guide/requirements' },
-            { text: 'サーバーを置く', link: '/guide/backend' },
-            { text: 'Axeを置く', link: '/guide/quickstart' },
-            { text: 'config.jsonを書く', link: '/guide/configuration' },
-            { text: '更新するとき', link: '/guide/update' },
-            { text: '困ったとき', link: '/guide/troubleshooting' },
-            { text: '設置するときの質問', link: '/guide/faq' },
-          ],
-        },
-        {
-          text: 'Axeについて',
-          items: [
-            { text: 'Udonarium Axeとは', link: '/guide/getting-started' },
-            { text: '機能の一覧', link: '/guide/features' },
-          ],
-        },
-        {
-          text: '関連ページ',
-          items: [
-            { text: '遊びかたの案内', link: '/play/' },
-            { text: '操作マニュアル', link: '/manual/' },
-          ],
-        },
-      ],
     },
-    search: { provider: 'local' },
+    search: {
+      provider: 'local',
+      options: {
+        translations: {
+          button: { buttonText: '検索', buttonAriaLabel: '検索' },
+          modal: {
+            displayDetails: '詳しく表示',
+            resetButtonTitle: '検索を消す',
+            backButtonTitle: '閉じる',
+            noResultsText: '見つかりませんでした',
+            footer: { selectText: '開く', navigateText: '選ぶ', closeText: '閉じる' },
+          },
+        },
+      },
+    },
     socialLinks: [{ icon: 'github', link: repo }],
     editLink: {
       pattern: `${repo}/edit/main/website/:path`,
