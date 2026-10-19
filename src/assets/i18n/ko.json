@@ -3800,7 +3800,7 @@
             "description": "코미디·떠들썩한 세션에"
           },
           "coc": {
-            "name": "CoC 로그 형식",
+            "name": "호환 로그 형식",
             "description": "다른 도구에서 읽을 수 있는 기존 형식"
           },
           "text": {

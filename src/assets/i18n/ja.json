@@ -3800,7 +3800,7 @@
             "description": "コメディ・にぎやかな卓に"
           },
           "coc": {
-            "name": "CoCログ形式",
+            "name": "互換ログ形式",
             "description": "他のツールで読み込める従来形式"
           },
           "text": {
