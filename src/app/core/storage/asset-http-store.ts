@@ -10,8 +10,12 @@ import {
 import { putWithProgress } from '@axe/core/storage/put-with-progress';
 import { sha256Hex } from '@axe/core/util/crypto-util';
 
-/** What became of an upload. `failed`, as on a line gone quiet, may pass on a later try. */
-export type AssetUploadResult = 'stored' | 'exists' | 'refused' | 'failed';
+/**
+ * What became of an upload. `failed`, as on a line gone quiet, may pass on a later try. `paused`
+ * means the room server's operator has stopped every upload for a while, and `blocked` that the
+ * operator barred these bytes from every room; neither is to travel between peers instead.
+ */
+export type AssetUploadResult = 'stored' | 'exists' | 'refused' | 'failed' | 'paused' | 'blocked';
 
 /**
  * Why a download brought no bytes: the store lacks them, or sent bytes that are not them, which
@@ -41,9 +45,10 @@ const RATE_LIMIT_BACKOFF_MS = [10_000, 20_000, 40_000];
 
 /**
  * Statuses meaning the server will never take these bytes from this seat: a bad name, a hash
- * mismatch, a guest's seat, too big, not a picture or a sound, taken down.
+ * mismatch, a guest's seat, too big, not a picture or a sound. Those the operator barred (451) are
+ * told apart, since they are not to be passed between peers either.
  */
-const REFUSED_STATUSES = new Set([400, 403, 413, 415, 451]);
+const REFUSED_STATUSES = new Set([400, 403, 413, 415]);
 
 /** The error a room server's answer names, or null when it names none. */
 async function errorCodeOf(res: Response): Promise<string | null> {
@@ -159,6 +164,17 @@ export class AssetHttpStore {
     headers,
     deadline
   ) => putWithProgress(url, body, headers, { idleMs: REQUEST_TIMEOUT_MS, deadline });
+  /**
+   * Told, by the app, when an upload first meets the operator's stop on uploads (true), and when one
+   * goes up again after it (false).
+   */
+  onUploadsPaused: (paused: boolean) => void = () => {};
+  /** Told, by the app, of bytes the operator barred from every room, the first time the server says so. */
+  onUploadBlocked: (identifier: string) => void = () => {};
+  /** Whether the last word on uploads was the operator's stop. */
+  private uploadsPaused = false;
+  /** The bytes already told of as barred, so each is told of once. */
+  private readonly blockedTold = new Set<string>();
 
   private constructor() {}
 
@@ -176,6 +192,8 @@ export class AssetHttpStore {
   configure(url: string | null | undefined): void {
     const trimmed = url?.trim() ?? '';
     this.baseUrl = trimmed ? trimmed.replace(/\/+$/, '') : null;
+    this.uploadsPaused = false;
+    this.blockedTold.clear();
   }
 
   /**
@@ -194,15 +212,22 @@ export class AssetHttpStore {
    * Puts bytes on the server under their identifier, unless they are there already.
    *
    * A refusal means the server will never take them, so they keep travelling between peers. A
-   * failure, after retries for a server that asked for fewer uploads, may pass on a later try.
+   * failure, after retries for a server that asked for fewer uploads, may pass on a later try. The
+   * operator's stop on uploads, and bytes the operator barred, are told apart from both, and told
+   * to the app.
    *
    * Uploads wait their turn; one asked for `first`, such as a picture just added here, goes ahead
    * of those already waiting. Small ones wait in a lane of their own, apart from the big ones.
    */
-  upload(identifier: string, blob: Blob, name = '', options: { first?: boolean } = {}): Promise<AssetUploadResult> {
-    if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return Promise.resolve('refused');
+  async upload(
+    identifier: string,
+    blob: Blob,
+    name = '',
+    options: { first?: boolean } = {}
+  ): Promise<AssetUploadResult> {
+    if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return 'refused';
     const lane = blob.size <= SMALL_UPLOAD_BYTES ? this.smallUploads : this.uploads;
-    return lane.run(
+    const result = await lane.run(
       async () => {
         try {
           // Asked when its turn comes, so that a queued upload goes to the room the seat is in by then.
@@ -238,6 +263,26 @@ export class AssetHttpStore {
       identifier,
       options.first
     );
+    this.tell(identifier, result);
+    return result;
+  }
+
+  /**
+   * Tells the app when uploads meet the operator's stop and when they go up again after it, and of
+   * bytes barred, each once. Only bytes kept anew show the stop is over: bytes already there were
+   * never sent.
+   */
+  private tell(identifier: string, result: AssetUploadResult): void {
+    if (result === 'paused' && !this.uploadsPaused) {
+      this.uploadsPaused = true;
+      this.onUploadsPaused(true);
+    } else if (result === 'stored' && this.uploadsPaused) {
+      this.uploadsPaused = false;
+      this.onUploadsPaused(false);
+    } else if (result === 'blocked' && !this.blockedTold.has(identifier)) {
+      this.blockedTold.add(identifier);
+      this.onUploadBlocked(identifier);
+    }
   }
 
   /** Moves an upload still waiting its turn to the front, to go next. */
@@ -286,7 +331,8 @@ export class AssetHttpStore {
   }
 
   /**
-   * What became of an upload by the server's answer to it: kept now, kept already, never, or not yet.
+   * What became of an upload by the server's answer to it: kept now, kept already, never, not yet,
+   * not while the operator's stop lasts, or barred by the operator.
    * A seat the room server does not count among the players is one it has not taken back in yet,
    * as for a moment after another instance took the room over on Vercel, so that is not yet.
    */
@@ -294,6 +340,8 @@ export class AssetHttpStore {
     if (!res) return 'failed';
     if (res.status === 201) return 'stored';
     if (res.ok) return 'exists';
+    if (res.status === 451) return 'blocked';
+    if (res.status === 503) return (await errorCodeOf(res)) === 'paused' ? 'paused' : 'failed';
     if (res.status === 403 && (await errorCodeOf(res)) === 'not-a-player') return 'failed';
     return REFUSED_STATUSES.has(res.status) ? 'refused' : 'failed';
   }

@@ -40,6 +40,37 @@ describe('ImageSharingSystem', () => {
     });
   });
 
+  describe('a peer asking for pictures', () => {
+    it('sends none this seat holds back for the room server’s operator, and passes the request on', () => {
+      ImageSharingSystem.instance.initialize();
+      const held = ImageFile.create({
+        identifier: 'e'.repeat(64),
+        name: '',
+        type: 'image/png',
+        blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+        url: 'blob:held',
+        thumbnail: { type: 'image/png', blob: new Blob([new Uint8Array([1])], { type: 'image/png' }), url: 'blob:t' },
+      });
+      vi.spyOn(ImageStorage.instance, 'get').mockReturnValue(held);
+      vi.spyOn(ImageStorage.instance, 'isHeldBack').mockReturnValue(true);
+      vi.spyOn(Network, 'peerId', 'get').mockReturnValue('self-peer');
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+
+      localDispatch(
+        'REQUEST_FILE_RESOURE',
+        {
+          identifiers: [{ identifier: held.identifier, state: ImageState.NULL }],
+          receiver: 'asker',
+          candidatePeers: ['other'],
+        },
+        'asker'
+      );
+
+      const sent = send.mock.calls.map(([context, to]) => [(context as { eventName: string }).eventName, to]);
+      expect(sent).toEqual([['REQUEST_FILE_RESOURE', 'other']]);
+    });
+  });
+
   describe('makeSendUpdateImages', () => {
     it('leaves an image with no bytes out of what it sends', () => {
       const imageLike = {

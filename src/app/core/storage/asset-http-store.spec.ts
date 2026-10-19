@@ -33,6 +33,8 @@ describe('AssetHttpStore', () => {
     store.useAccess(null);
     store.delay = originalDelay;
     store.sendBytes = originalSendBytes;
+    store.onUploadsPaused = () => {};
+    store.onUploadBlocked = () => {};
     vi.restoreAllMocks();
   });
 
@@ -116,9 +118,64 @@ describe('AssetHttpStore', () => {
       }
     );
 
-    it.each([400, 403, 413, 415, 451])('gives up for good on %i', async (status) => {
+    it.each([400, 403, 413, 415])('gives up for good on %i', async (status) => {
       respond(new Response(null, { status: 404 }), new Response('{}', { status }));
       expect(await store.upload(id, new Blob([bytes]))).toBe('refused');
+    });
+
+    it('tells bytes the operator barred apart from a refusal, and tells the app of them once', async () => {
+      const blocked = vi.fn();
+      store.onUploadBlocked = blocked;
+      const barred = () => new Response(JSON.stringify({ error: 'blocked' }), { status: 451 });
+      respond(new Response(null, { status: 404 }), barred(), new Response(null, { status: 404 }), barred());
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('blocked');
+      expect(await store.upload(id, new Blob([bytes]))).toBe('blocked');
+
+      expect(blocked.mock.calls).toEqual([[id]]);
+    });
+
+    it('tells the app when uploads first meet the operator’s stop, and when bytes go up again after it', async () => {
+      const paused = vi.fn();
+      store.onUploadsPaused = paused;
+      const stopped = () => new Response(JSON.stringify({ error: 'paused' }), { status: 503 });
+      respond(
+        new Response(null, { status: 404 }),
+        stopped(),
+        new Response(null, { status: 404 }),
+        stopped(),
+        new Response(null, { status: 200 }),
+        new Response(null, { status: 404 }),
+        new Response('{}', { status: 201 })
+      );
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      expect(paused.mock.calls).toEqual([[true]]);
+      // Bytes found there already were never sent, so they do not show the stop is over.
+      expect(await store.upload(id, new Blob([bytes]))).toBe('exists');
+      expect(paused.mock.calls).toEqual([[true]]);
+      expect(await store.upload(id, new Blob([bytes]))).toBe('stored');
+      expect(paused.mock.calls).toEqual([[true], [false]]);
+    });
+
+    it('fails for now on any other 503, and forgets a stop when the address is set again', async () => {
+      const paused = vi.fn();
+      store.onUploadsPaused = paused;
+      respond(
+        new Response(null, { status: 404 }),
+        new Response(JSON.stringify({ error: 'login-unavailable' }), { status: 503 }),
+        new Response(null, { status: 404 }),
+        new Response(JSON.stringify({ error: 'paused' }), { status: 503 })
+      );
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('failed');
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      store.configure(BASE);
+      respond(new Response(null, { status: 404 }), new Response('{}', { status: 201 }));
+      expect(await store.upload(id, new Blob([bytes]))).toBe('stored');
+
+      expect(paused.mock.calls).toEqual([[true]]);
     });
 
     it('fails for now when the room server does not count the seat among the players yet', async () => {
@@ -389,6 +446,8 @@ describe('AssetHttpStore', () => {
       expect(
         await uploadWith(ticketOf(), new Response(null, { status: 200 }), new Response('{}', { status: 400 }))
       ).toBe('refused');
+      expect(await uploadWith(new Response(JSON.stringify({ error: 'paused' }), { status: 503 }))).toBe('paused');
+      expect(await uploadWith(new Response(JSON.stringify({ error: 'blocked' }), { status: 451 }))).toBe('blocked');
     });
 
     it('asks again after a wait when the server wants fewer uploads', async () => {

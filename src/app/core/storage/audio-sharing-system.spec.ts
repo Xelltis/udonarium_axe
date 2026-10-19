@@ -496,6 +496,21 @@ describe('AudioSharingSystem', () => {
       );
     });
 
+    it('sends none this seat holds back for the room server’s operator, and relays the request', () => {
+      const audio = makeAudioFile({ identifier: 'held-audio', blob: new Blob(['x']) });
+      AudioStorageMock.get.mockReturnValue(audio);
+      vi.spyOn(AudioStorage.instance, 'isHeldBack').mockReturnValue(true);
+
+      emit('REQUEST_AUDIO_RESOURE', {
+        identifiers: [{ identifier: 'held-audio', state: AudioState.NULL }],
+        receiver: 'peer-r',
+        candidatePeers: ['peer-b'],
+      });
+
+      expect(BufferSharingTaskMock.createSendTask).not.toHaveBeenCalled();
+      expect(sendSpy).toHaveBeenCalledWith(expect.objectContaining({ eventName: 'REQUEST_AUDIO_RESOURE' }), 'peer-b');
+    });
+
     it('relays rather than sending again', () => {
       const audio = makeAudioFile({ identifier: 'exist-send', blob: new Blob(['x']) });
       AudioStorageMock.get.mockReturnValue(audio);

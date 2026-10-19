@@ -95,7 +95,8 @@ export class AudioSharingSystem {
             const data = msg.data as { identifiers: CatalogItem[]; receiver: string; candidatePeers: string[] };
             const randomRequest: CatalogItem[] = data.identifiers.filter((item) => {
               const audio = AudioStorage.instance.get(item.identifier);
-              return audio && item.state < audio.state;
+              // What this seat holds back for the room server's operator is not sent when asked for either.
+              return audio && item.state < audio.state && !AudioStorage.instance.isHeldBack(item.identifier);
             });
             if (!this.isLimitSendTask() && 0 < randomRequest.length && !this.existsSendTask(data.receiver)) {
               const idx = Math.floor(Math.random() * randomRequest.length);
