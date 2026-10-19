@@ -69,6 +69,7 @@ import { ChatTickerComponent } from '@axe/features/chat/chat-ticker/chat-ticker.
 import { DiceChatEventHandlerService } from '@axe/features/dice/dice-chat-event-handler.service';
 import { DiceThrowEventHandlerService } from '@axe/features/dice/dice-throw-event-handler.service';
 import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-event-handler.service';
+import { AssetRemovalEventHandlerService } from '@axe/features/file/asset-removal-event-handler.service';
 import { FilesTooLargeEventHandlerService } from '@axe/features/file/files-too-large/files-too-large-event-handler.service';
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
@@ -491,6 +492,7 @@ export class AppComponent {
     inject(ReplayEventHandlerService);
     inject(ImageDropEventHandlerService);
     inject(FilesTooLargeEventHandlerService);
+    inject(AssetRemovalEventHandlerService);
     inject(MovePlanEventHandlerService);
     inject(CcfoliaRoomImportEventHandlerService);
     inject(FogMemoryWriterService);

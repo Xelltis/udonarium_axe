@@ -53,3 +53,8 @@ export function replaceIdentifierIn<T>(value: T, from: string, to: string): { va
   }
   return { value, changed: false };
 }
+
+/** Whether synced data mentions an identifier on its own anywhere, down through its lists and records. */
+export function mentionsIdentifier(value: unknown, identifier: string): boolean {
+  return replaceIdentifierIn(value, identifier, '').changed;
+}
