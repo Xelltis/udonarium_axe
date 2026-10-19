@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/c
 import { TestBed } from '@angular/core/testing';
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { formatNoteText } from '@axe/ui/text-decoration/format-note-text';
-import { linkifyIfLoaded, loadLinkify } from '@axe/ui/text-decoration/linkify-loader';
+import { forgetLinkify, linkifyIfLoaded, loadLinkify } from '@axe/ui/text-decoration/linkify-loader';
 
 @Component({
   selector: 'test-linkify-host',
@@ -14,8 +14,10 @@ class LinkifyHostComponent {
   readonly text = signal('https://example.com を見て');
 }
 
-// Each spec file gets its own copy of the loader, so linkify has not been fetched when this runs.
 describe('linkify fetched on first use', () => {
+  // ng test keeps the loader across spec files in a worker, and other specs fetch linkify first.
+  beforeEach(() => forgetLinkify());
+
   it('draws text without links until linkify arrives, then draws it again with them', async () => {
     const fixture = TestBed.createComponent(LinkifyHostComponent);
     const note = computed(() => formatNoteText('https://example.com'));

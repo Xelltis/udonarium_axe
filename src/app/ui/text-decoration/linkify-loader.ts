@@ -39,3 +39,12 @@ export function linkifyIfLoaded(): Linkify | null {
   if (!linkify) void loadLinkify();
   return linkify;
 }
+
+/**
+ * Back to linkify not yet fetched, for specs that watch it arrive: a test runner may keep this
+ * module across spec files, so another file can have fetched it first.
+ */
+export function forgetLinkify(): void {
+  loaded.set(null);
+  loading = null;
+}
