@@ -27,6 +27,17 @@ export class DataSummarySetting extends GameObject implements InnerXml {
   }
 
   /**
+   * Forgets the setting held here, so that the next reader is given one with the defaults.
+   *
+   * The setting is held here as well as in the store. Emptying the store leaves this one holding
+   * whatever a room chose, sorting and columns alike, and it goes back into the store the moment it
+   * is read. Only a test between two of its own has any reason to say this.
+   */
+  static forget(): void {
+    DataSummarySetting._instance = undefined as unknown as DataSummarySetting;
+  }
+
+  /**
    * What the room chose to be read by, and nothing until it chooses.
    *
    * Starting these on the names the sample sheet happens to use would leave a room built out of

@@ -9,6 +9,7 @@ import { Logger, LogLevel } from '@axe/core/logging/logger';
 import { resetPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { readdirSync, readFileSync, statSync } from 'fs';
@@ -373,6 +374,9 @@ function emptyObjectStore(): void {
   // rather than entries of the store. Emptying the store alone leaves that one holding every tab
   // any spec ever added, and it hands them back the moment the next one reads it.
   ChatTabList.forget();
+  // The room's summary setting is held the same way, and a spec that sets out the default table
+  // leaves the inventory sorting by a status and then by name for every file after it.
+  DataSummarySetting.forget();
   // Readings of sounds made on this device are held by their own module beside the store.
   AudioProfile.clearLocal();
 }
