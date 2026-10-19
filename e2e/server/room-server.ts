@@ -162,6 +162,9 @@ async function startRoomServer(index: number): Promise<{ server: RoomServer; sto
       'DISCORD_CLIENT_ID:e2e',
       '--var',
       'DISCORD_CLIENT_SECRET:e2e',
+      // The operator's dashboard, which moderation.spec.ts calls with a session it signs itself.
+      '--var',
+      'ADMIN_DISCORD_IDS:100000000000000001',
     ],
     {
       cwd: BACKEND_DIR,
