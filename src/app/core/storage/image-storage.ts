@@ -235,17 +235,31 @@ export class ImageStorage {
 
   /**
    * Tries one the operator's stop held again a while later, in the room it was held in, to see
-   * whether the stop is over.
+   * whether the stop is over. The smallest is tried, since the bytes may all be sent before the
+   * server's answer that the stop goes on.
    */
   private retryPausedLater(roomKey: string | null): void {
     if (this.pausedRetry) return;
     this.pausedRetry = setTimeout(() => {
       this.pausedRetry = null;
-      const [next] = this.pausedUploads;
+      const next = this.smallestPaused();
       if (next === undefined) return;
       this.pausedUploads.delete(next);
       this.retryUpload(next, roomKey);
     }, ASSET_PAUSE_RETRY_MS);
+  }
+
+  private smallestPaused(): string | undefined {
+    let smallest: string | undefined;
+    let leastBytes = Infinity;
+    for (const identifier of this.pausedUploads) {
+      const bytes = this.imageHash[identifier]?.blob?.size ?? 0;
+      if (bytes < leastBytes) {
+        smallest = identifier;
+        leastBytes = bytes;
+      }
+    }
+    return smallest;
   }
 
   /** Puts up everything the operator's stop held, now that one has gone up. */

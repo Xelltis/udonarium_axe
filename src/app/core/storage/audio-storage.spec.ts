@@ -200,6 +200,24 @@ describe('AudioStorage', () => {
       for (const identifier of ids.slice(1)) storage.delete(identifier);
     });
 
+    it('tries the smallest of what the stop held, since its bytes may all be sent before the answer', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      const larger = 'c'.repeat(64);
+      upload.mockResolvedValue('paused');
+      storage.add(
+        AudioFile.create({ ...contextOf(larger), blob: new Blob([new Uint8Array(1024)], { type: 'audio/ogg' }) })
+      );
+      storage.add(AudioFile.create(contextOf(trackId)));
+      await vi.advanceTimersByTimeAsync(0);
+
+      upload.mockClear();
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+
+      expect(upload.mock.calls.map(([identifier]) => identifier)).toEqual([trackId]);
+      storage.delete(larger);
+    });
+
     it('puts up what the stop held on entering a room, rather than waiting for the next try', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
