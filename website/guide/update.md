@@ -35,17 +35,17 @@
 
 ### Cloudflare Pages
 
-1. [Cloudflareのダッシュボード](https://dash.cloudflare.com/)で、**Workers & Pages**からAxeのプロジェクトを開きます。
-2. **Create a new deployment**を押し、本番（Production）を選びます。
-3. 新しい版の展開したフォルダを、アップロードの枠にドラッグし、上がり終えたら**Save and Deploy**を押します。
-
-Wranglerで上げているときは、初めのときと同じコマンドで置き直せます。
+初めてのときと同じコマンドで、新しい版の展開したフォルダを上げます（→ [Axeを置く](/guide/quickstart#_7-上げる)）。
 
 ```sh
-npx wrangler pages deploy <展開したフォルダ> --project-name <プロジェクトの名前>
+npx wrangler pages deploy <新しい版の展開したフォルダ> --project-name <プロジェクトの名前> --branch main
 ```
 
-URLは変わりません。
+`<新しい版の展開したフォルダ>`には、フォルダをターミナルの窓にドラッグして入れます。
+ログインが切れているときは、ブラウザが開いてログインを求められます。
+AxeのURLは変わりません。
+
+ダッシュボードの画面から上げたときは、Axeのプロジェクトを開いて**Create a new deployment**を押し、本番（Production）を選んで、新しい版のフォルダを上げます。
 
 ### レンタルサーバー
 

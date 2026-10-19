@@ -10,7 +10,7 @@
 
 | 置くもの                          | 要るアカウント                                                                                       |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Axe本体（Cloudflare Pagesに置く） | [Cloudflare](https://dash.cloudflare.com/sign-up)                                                    |
+| Axe本体（Cloudflare Pagesに置く） | [Cloudflare](https://dash.cloudflare.com/sign-up)（上げるのに、パソコンにNode.jsを入れます）         |
 | Axe本体（レンタルサーバーに置く） | 借りているレンタルサーバー                                                                           |
 | トークン発行サーバー（SkyWay版）  | [SkyWay](https://skyway.ntt.com/)と、置き場所（Vercel・Cloudflare・レンタルサーバー）のアカウント    |
 | 部屋のサーバー（サーバー版）      | [Discord](https://discord.com/developers/applications)と、置き場所（Cloudflare・Vercel）のアカウント |
