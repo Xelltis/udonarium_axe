@@ -65,6 +65,7 @@ export class ImageSharingSystem {
             const otherCatalog: CatalogItem[] = msg.data as CatalogItem[];
             const request: CatalogItem[] = [];
             for (const item of otherCatalog) {
+              if (ImageStorage.instance.isRemoved(item.identifier)) continue;
               let image = ImageStorage.instance.get(item.identifier);
               if (image === null) {
                 image = ImageFile.createEmpty(item.identifier);
@@ -114,6 +115,7 @@ export class ImageSharingSystem {
           case 'UPDATE_FILE_RESOURE': {
             const updateImages: ImageContext[] = (msg.data as { updateImages: ImageContext[] }).updateImages;
             for (const context of updateImages) {
+              if (ImageStorage.instance.isRemoved(context.identifier)) continue;
               if (context.blob) context.blob = new Blob([context.blob], { type: context.type });
               if (context.thumbnail.blob)
                 context.thumbnail.blob = new Blob([context.thumbnail.blob], { type: context.thumbnail.type });
@@ -125,7 +127,11 @@ export class ImageSharingSystem {
           case 'START_FILE_TRANSMISSION': {
             const identifier = (msg.data as { taskIdentifier: string }).taskIdentifier;
             const image = ImageStorage.instance.get(identifier);
-            if (this.receiveTaskMap.has(identifier) || (image && ImageState.COMPLETE <= image.state)) {
+            if (
+              this.receiveTaskMap.has(identifier) ||
+              (image && ImageState.COMPLETE <= image.state) ||
+              ImageStorage.instance.isRemoved(identifier)
+            ) {
               Logger.warn('[ImageSync] タスクキャンセル', identifier);
               networkSend(`CANCEL_TASK_${identifier}`, null, msg.sendFrom);
             } else {
@@ -183,6 +189,7 @@ export class ImageSharingSystem {
    */
   fetchListed(assets: readonly { id: string; name: string }[]): void {
     for (const { id, name } of assets) {
+      if (ImageStorage.instance.isRemoved(id)) continue;
       let image = ImageStorage.instance.get(id);
       if (image === null) {
         image = ImageFile.createEmpty(id, name);

@@ -197,6 +197,47 @@ describe('ImageSharingSystem', () => {
       expect(upload.mock.calls).toEqual([[pictureId]]);
     });
 
+    describe('a picture the room removed', () => {
+      beforeEach(() => ImageStorage.instance.markRemoved(pictureId));
+      afterEach(() => ImageStorage.instance.unmarkRemoved(pictureId));
+
+      it('is taken from neither the server nor the peer whose catalogue names it', async () => {
+        receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }], 'peer-a');
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(ImageStorage.instance.get(pictureId)).toBeNull();
+        expect(download).not.toHaveBeenCalled();
+        expect(requestsSent()).toEqual([]);
+      });
+
+      it('is taken neither from the room’s list nor as sent, and its sending is called off', () => {
+        ImageSharingSystem.instance.fetchListed([{ id: pictureId, name: 'map.png' }]);
+        localDispatch(
+          'UPDATE_FILE_RESOURE',
+          {
+            updateImages: [
+              {
+                identifier: pictureId,
+                name: '',
+                type: 'image/png',
+                blob: new Uint8Array([1, 2, 3]) as unknown as Blob,
+                url: '',
+                thumbnail: { type: 'image/png', blob: null, url: '' },
+              },
+            ],
+          },
+          'peer-a'
+        );
+        localDispatch('START_FILE_TRANSMISSION', { taskIdentifier: pictureId }, 'peer-a');
+
+        expect(ImageStorage.instance.get(pictureId)).toBeNull();
+        expect(download).not.toHaveBeenCalled();
+        expect(send.mock.calls.map(([context]) => (context as { eventName: string }).eventName)).toContain(
+          `CANCEL_TASK_${pictureId}`
+        );
+      });
+    });
+
     it('asks no peer, then or for a later catalogue, for an image the operator took down', async () => {
       download.mockResolvedValue('blocked');
       receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }], 'peer-a');

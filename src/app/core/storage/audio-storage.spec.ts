@@ -1,3 +1,4 @@
+import { fileResourceUpdated$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { AssetHttpStore, AssetUploadResult } from '@axe/core/storage/asset-http-store';
 import {
@@ -59,6 +60,54 @@ describe('AudioStorage', () => {
 
     it('reports failure removing audio that is not there', () => {
       expect(storage.delete('nonexistent')).toBe(false);
+    });
+  });
+
+  describe('a sound the room removed', () => {
+    const removedId = 'e'.repeat(64);
+    const fullContext = (): AudioFileContext => ({
+      identifier: removedId,
+      name: 'theme.ogg',
+      type: 'audio/ogg',
+      blob: new Blob([new Uint8Array([0x4f, 0x67, 0x67, 0x53])], { type: 'audio/ogg' }),
+      url: 'blob:track',
+    });
+
+    afterEach(() => {
+      storage.unmarkRemoved(removedId);
+      storage.onRestored = () => {};
+    });
+
+    it('is let go of, keeps its mark, and the files are said to have changed', () => {
+      storage.add(AudioFile.create(fullContext()));
+      const changed = vi.fn();
+      const off = fileResourceUpdated$.subscribe(changed);
+
+      storage.markRemoved(removedId);
+      off();
+
+      expect(storage.get(removedId)).toBeNull();
+      expect(storage.isRemoved(removedId)).toBe(true);
+      expect(storage.getCatalog().map((item) => item.identifier)).not.toContain(removedId);
+      expect(changed).toHaveBeenCalledTimes(1);
+    });
+
+    it('is put back, and the app told, only when this seat adds it in full', () => {
+      const restored = vi.fn();
+      storage.onRestored = restored;
+      storage.markRemoved(removedId);
+
+      storage.add(AudioFile.createEmpty(removedId));
+      storage.delete(removedId);
+      storage.add(fullContext());
+      storage.delete(removedId);
+      expect(storage.isRemoved(removedId)).toBe(true);
+      expect(restored).not.toHaveBeenCalled();
+
+      storage.add(AudioFile.create(fullContext()));
+
+      expect(storage.isRemoved(removedId)).toBe(false);
+      expect(restored.mock.calls).toEqual([[removedId]]);
     });
   });
 

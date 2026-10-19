@@ -1,3 +1,4 @@
+import { fileResourceUpdated$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { AssetHttpStore, AssetUploadResult } from '@axe/core/storage/asset-http-store';
 import {
@@ -61,6 +62,55 @@ describe('ImageStorage', () => {
 
     it('reports failure removing an image that is not there', () => {
       expect(storage.delete('nonexistent')).toBe(false);
+    });
+  });
+
+  describe('a picture the room removed', () => {
+    const removedId = 'e'.repeat(64);
+    const fullContext = (): ImageContext => ({
+      identifier: removedId,
+      name: '',
+      type: 'image/png',
+      blob: new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }),
+      url: 'blob:full',
+      thumbnail: { type: 'image/png', blob: null, url: '' },
+    });
+
+    afterEach(() => {
+      storage.unmarkRemoved(removedId);
+      storage.onRestored = () => {};
+    });
+
+    it('is let go of, keeps its mark, and the pictures are said to have changed', () => {
+      storage.add(ImageFile.create(fullContext()));
+      const changed = vi.fn();
+      const off = fileResourceUpdated$.subscribe(changed);
+
+      storage.markRemoved(removedId);
+      off();
+
+      expect(storage.get(removedId)).toBeNull();
+      expect(storage.isRemoved(removedId)).toBe(true);
+      expect(storage.getCatalog().map((item) => item.identifier)).not.toContain(removedId);
+      expect(changed).toHaveBeenCalledTimes(1);
+    });
+
+    it('is put back, and the app told, only when this seat adds it in full', () => {
+      const restored = vi.fn();
+      storage.onRestored = restored;
+      storage.markRemoved(removedId);
+
+      storage.add(ImageFile.createEmpty(removedId));
+      storage.delete(removedId);
+      storage.add(fullContext());
+      storage.delete(removedId);
+      expect(storage.isRemoved(removedId)).toBe(true);
+      expect(restored).not.toHaveBeenCalled();
+
+      storage.add(ImageFile.create(fullContext()));
+
+      expect(storage.isRemoved(removedId)).toBe(false);
+      expect(restored.mock.calls).toEqual([[removedId]]);
     });
   });
 

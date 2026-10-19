@@ -71,6 +71,7 @@ export class AudioSharingSystem {
             const otherCatalog: CatalogItem[] = msg.data as CatalogItem[];
             const request: CatalogItem[] = [];
             for (const item of this.preferredFirst(otherCatalog)) {
+              if (AudioStorage.instance.isRemoved(item.identifier)) continue;
               let audio = AudioStorage.instance.get(item.identifier);
               if (audio === null) {
                 audio = AudioFile.createEmpty(item.identifier, item.name);
@@ -120,6 +121,7 @@ export class AudioSharingSystem {
           case 'UPDATE_AUDIO_RESOURE': {
             const updateAudios: AudioFileContext[] = msg.data as AudioFileContext[];
             for (const context of updateAudios) {
+              if (AudioStorage.instance.isRemoved(context.identifier)) continue;
               if (context.blob) context.blob = new Blob([context.blob], { type: context.type });
               AudioStorage.instance.add(context);
               if (this.httpMissed.has(context.identifier)) AudioStorage.instance.uploadReceived(context.identifier);
@@ -129,7 +131,7 @@ export class AudioSharingSystem {
           case 'START_AUDIO_TRANSMISSION': {
             const identifier: string = (msg.data as { fileIdentifier: string }).fileIdentifier;
             const audio = AudioStorage.instance.get(identifier);
-            if (this.receiveTaskMap.has(identifier) || audio?.isReady) {
+            if (this.receiveTaskMap.has(identifier) || audio?.isReady || AudioStorage.instance.isRemoved(identifier)) {
               Logger.warn('[AudioSync] タスクキャンセル', identifier);
               networkSend(`CANCEL_TASK_${identifier}`, null, msg.sendFrom);
             } else {
@@ -170,6 +172,7 @@ export class AudioSharingSystem {
       ...assets.filter((asset) => !preferred.includes(asset.id)),
     ];
     for (const { id, name } of ordered) {
+      if (AudioStorage.instance.isRemoved(id)) continue;
       let audio = AudioStorage.instance.get(id);
       if (audio === null) {
         audio = AudioFile.createEmpty(id, name);
@@ -317,7 +320,7 @@ export class AudioSharingSystem {
     };
     task.onfinish = (task, data) => {
       this.stopReceiveTask(task.identifier);
-      if (data) {
+      if (data && !AudioStorage.instance.isRemoved(data.identifier)) {
         if (data.blob) data.blob = new Blob([data.blob], { type: data.type });
         AudioStorage.instance.add(data);
         localDispatch('UPDATE_AUDIO_RESOURE', [data]);

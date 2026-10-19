@@ -318,6 +318,38 @@ describe('AudioSharingSystem', () => {
       });
     });
 
+    describe('a sound the room removed', () => {
+      beforeEach(() => AudioStorage.instance.markRemoved(trackId));
+      afterEach(() => AudioStorage.instance.unmarkRemoved(trackId));
+
+      it('is taken from neither the server nor the peer whose catalogue names it', async () => {
+        emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-b' });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(AudioStorageMock.add).not.toHaveBeenCalled();
+        expect(download).not.toHaveBeenCalled();
+        expect(requestsSent()).toEqual([]);
+      });
+
+      it('is taken neither from the room’s list nor as sent', () => {
+        AudioSharingSystem.instance.fetchListed([{ id: trackId, name: 'theme.ogg' }]);
+        emit('UPDATE_AUDIO_RESOURE', [{ identifier: trackId, name: '', type: 'audio/ogg', blob: null, url: '' }], {
+          sendFrom: 'peer-b',
+        });
+
+        expect(AudioStorageMock.add).not.toHaveBeenCalled();
+        expect(download).not.toHaveBeenCalled();
+      });
+
+      it('calls off its sending', () => {
+        emit('START_AUDIO_TRANSMISSION', { fileIdentifier: trackId }, { sendFrom: 'peer-b' });
+
+        expect(
+          vi.mocked(Network.instance.send).mock.calls.map(([context]) => (context as { eventName: string }).eventName)
+        ).toContain(`CANCEL_TASK_${trackId}`);
+      });
+    });
+
     it('asks no peer, then or for a later catalogue, for a sound the operator took down', async () => {
       download.mockResolvedValue('blocked');
       emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-b' });

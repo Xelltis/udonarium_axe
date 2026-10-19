@@ -1,3 +1,4 @@
+import { fileResourceUpdated$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { networkSend } from '@axe/core/network/network-messaging';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
@@ -49,6 +50,11 @@ export class AudioStorage {
   private pausedRetry: ReturnType<typeof setTimeout> | null = null;
   /** What the operator barred from every room, kept here and named to nobody. */
   private readonly barred = new Set<string>();
+  /** What the room's GM removed: held here no more, and taken from no peer or store until put back. */
+  private readonly removed = new Set<string>();
+
+  /** Told, by the app, when this seat adds in full a sound the room had removed, which puts it back. */
+  onRestored: (identifier: string) => void = () => {};
 
   /** Every audio this seat knows of, including placeholders whose bytes have not arrived. */
   get audios(): AudioFile[] {
@@ -101,7 +107,11 @@ export class AudioStorage {
     return this._add(audio, isLocal);
   }
 
+  /** One added here in full that the room had removed is put back, and the app told. */
   private _add(audio: AudioFile, isLocal: boolean = false): AudioFile {
+    if (isLocal && AudioState.COMPLETE <= audio.state && this.removed.delete(audio.identifier)) {
+      this.onRestored(audio.identifier);
+    }
     if (isLocal) this.uploadToAssetStore(audio, true);
     if (AudioState.COMPLETE <= audio.state) this.catalogSchedule.whenQuiet(100);
     if (this.update(audio)) return this.hash[audio.identifier];
@@ -283,6 +293,26 @@ export class AudioStorage {
    */
   isHeldBack(identifier: string): boolean {
     return this.pausedUploads.has(identifier) || this.barred.has(identifier);
+  }
+
+  /**
+   * Lets go of a sound the room's GM removed and keeps it from coming back: it is taken from no peer
+   * or store, and named to nobody, until `unmarkRemoved`.
+   */
+  markRemoved(identifier: string): void {
+    this.removed.add(identifier);
+    this.uploadRetries.forget(identifier);
+    if (this.delete(identifier)) fileResourceUpdated$.emit();
+  }
+
+  /** Lets a sound the room put back be taken again. */
+  unmarkRemoved(identifier: string): void {
+    this.removed.delete(identifier);
+  }
+
+  /** Whether the room's GM removed it, so that it is to be taken from nobody. */
+  isRemoved(identifier: string): boolean {
+    return this.removed.has(identifier);
   }
 
   /** Tries a failed upload again, while the seat is still a GM or a PL in the room it failed for. */
