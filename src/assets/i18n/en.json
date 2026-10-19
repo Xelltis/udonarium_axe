@@ -2809,7 +2809,6 @@
           "heavy": "Over {{limit}} terrains. Building will take a moment",
           "built": "Made \"{{name}}\"",
           "roomsDiffer": "{{found}} rooms fitted. Caverns run together, so a cave ends up with fewer than asked",
-          "squareOnly": "A generated table always uses a square grid",
           "corridorWidth": "Wider passages take a wider lattice, so fewer rooms fit on the board",
           "doorWidth": "A door wider than the way it bars has the stone beside the opening cut away. An opening wider than the door takes a row of them",
           "doubleDoors": "A pair is two leaves of half the width, parting in the middle. A door of four cells is two of two",
