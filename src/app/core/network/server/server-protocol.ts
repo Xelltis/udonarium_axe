@@ -249,6 +249,7 @@ export const ERROR_CODES = [
   'too-many-messages',
   'replaced',
   'unauthorized',
+  'banned',
   'room-deleted',
   'idle',
 ] as const;
