@@ -93,6 +93,29 @@ export function uniquePng(): Buffer {
   ]);
 }
 
+/** A second of 8-bit noise at 8000 samples a second, as a WAV file no other test uploads. */
+export function uniqueWav(): Buffer {
+  const rate = 8000;
+  const data = randomBytes(rate);
+  const fmt = Buffer.alloc(24);
+  fmt.write('fmt ', 0);
+  fmt.writeUInt32LE(16, 4);
+  fmt.writeUInt16LE(1, 8);
+  fmt.writeUInt16LE(1, 10);
+  fmt.writeUInt32LE(rate, 12);
+  fmt.writeUInt32LE(rate, 16);
+  fmt.writeUInt16LE(1, 20);
+  fmt.writeUInt16LE(8, 22);
+  const dataHeader = Buffer.alloc(8);
+  dataHeader.write('data', 0);
+  dataHeader.writeUInt32LE(data.length, 4);
+  const body = Buffer.concat([Buffer.from('WAVE'), fmt, dataHeader, data]);
+  const riff = Buffer.alloc(8);
+  riff.write('RIFF', 0);
+  riff.writeUInt32LE(body.length, 4);
+  return Buffer.concat([riff, body]);
+}
+
 /** Adds a picture from the image panel, opening it first. */
 export async function addImage(page: Page, name: string, bytes: Buffer): Promise<void> {
   await openPanel(page, '画像');
