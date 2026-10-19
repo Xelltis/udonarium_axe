@@ -2942,7 +2942,7 @@
       "diagonalMove_equal": "Counted as one cell",
       "diagonalMove_alternating": "Counted one cell, then two, by turns",
       "diagonalMove_double": "Always counted as two cells",
-      "diagonalMoveHint": "Counting by turns is how D&D 3.5e and Pathfinder 1e read a corner: the first one costs a cell, the second two.",
+      "diagonalMoveHint": "Counting by turns charges the first corner one cell and the second two.",
       "piecesShareCells": "Let two pieces stand on one cell; off, a cell somebody is on is no place to stop",
       "samePartyPassage": "Pieces of its own party",
       "otherPartyPassage": "Pieces of another party",

@@ -2942,7 +2942,7 @@
       "diagonalMove_equal": "한 칸으로 계산",
       "diagonalMove_alternating": "한 칸과 두 칸을 번갈아 계산",
       "diagonalMove_double": "항상 두 칸으로 계산",
-      "diagonalMoveHint": "번갈아 계산하는 방식은 D&D 3.5e나 패스파인더 1e의 계산법으로, 첫 대각선은 한 칸, 두 번째는 두 칸이 됩니다.",
+      "diagonalMoveHint": "번갈아 계산하면 첫 대각선은 한 칸, 두 번째는 두 칸이 됩니다.",
       "piecesShareCells": "같은 칸에 여러 말을 놓을 수 있음 (끄면 다른 말이 있는 칸은 이동 대상에서 제외)",
       "samePartyPassage": "같은 파티의 말",
       "otherPartyPassage": "다른 파티의 말",

@@ -133,7 +133,7 @@ test.describe('mounts', () => {
     await piece(page, 'キャラクターA').dispatchEvent('contextmenu');
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await menu.getByText('駒の状態', { exact: true }).hover();
+    await menu.getByText('コマの状態', { exact: true }).hover();
     await expect(menu.locator('li', { hasText: '転んでいる' }).getByRole('checkbox')).toBeChecked({ timeout: 5000 });
     await expect(menu.getByText('キャラクターB から降りる')).toHaveCount(0);
 
@@ -155,7 +155,7 @@ test.describe('mounts', () => {
     await piece(page, 'キャラクターA').dispatchEvent('contextmenu');
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await menu.getByText('駒の状態', { exact: true }).hover();
+    await menu.getByText('コマの状態', { exact: true }).hover();
     await expect(menu.locator('li', { hasText: '転んでいる' }).getByRole('checkbox')).not.toBeChecked({
       timeout: 5000,
     });
