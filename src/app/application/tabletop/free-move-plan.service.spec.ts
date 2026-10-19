@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { FreeMovePlanService } from '@axe/application/tabletop/free-move-plan.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -7,6 +8,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -48,6 +50,38 @@ describe('FreeMovePlanService', () => {
   }
 
   const middleOf = (col: number, row: number) => ({ x: (col + 0.5) * GRID, y: (row + 0.5) * GRID });
+
+  describe('a seat made a guest', () => {
+    afterEach(() => {
+      PeerCursor.myCursor = null!;
+    });
+
+    it('drops the move it was working out, moving nothing', () => {
+      PeerCursor.createMyCursor().role = PeerRole.Player;
+      const piece = pieceAt(2, 2, 3);
+      service.begin(piece);
+      TestBed.tick();
+
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      TestBed.tick();
+
+      expect(service.isPlanning()).toBe(false);
+      expect(piece.location.x).toBe(2 * GRID);
+    });
+
+    it('walks nothing, though it is not yet told', async () => {
+      PeerCursor.createMyCursor().role = PeerRole.Player;
+      const piece = pieceAt(2, 2, 3);
+      service.begin(piece);
+      service.lookAt(middleOf(4, 2).x, middleOf(4, 2).y);
+
+      PeerCursor.myCursor.role = PeerRole.Guest;
+
+      expect(await service.run()).toBe(false);
+      expect(piece.location.x).toBe(2 * GRID);
+    });
+  });
 
   it('opens only on a table with no grid whose room asks for it', () => {
     const piece = pieceAt(2, 2, 3);

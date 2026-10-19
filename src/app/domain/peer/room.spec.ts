@@ -9,13 +9,14 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { StampPack } from '@axe/domain/chat/stamp-pack';
-import { createDefaultEffectPresets } from '@axe/domain/effect/builtin-effect-presets';
+import { createDefaultEffectPresets, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
-import { createDefaultCutIns } from '@axe/domain/media/builtin-cut-ins';
+import { createDefaultCutIns, DEFAULT_CUT_IN_SEEDS } from '@axe/domain/media/builtin-cut-ins';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { Party, PARTY_COLORS } from '@axe/domain/party/party';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { Room } from '@axe/domain/peer/room';
+import { isTableWithheld } from '@axe/domain/peer/withheld-table';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 
@@ -103,6 +104,61 @@ describe('Room', () => {
       loadRoom('<game-table><light-source name="燭台"></light-source></game-table>');
 
       expect(store.getObjects(LightSource)).toHaveLength(1);
+    });
+  });
+
+  describe('a room saved with what was withheld from whoever saved it', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+      for (const table of store.getObjects(GameTable)) table.destroy();
+    });
+
+    function loadWithheld(answer: boolean): void {
+      const reloadCheck = new ReloadCheck('ReloadCheck');
+      reloadCheck.initialize();
+      reloadCheck.reloadCheckStart(false);
+      window.confirm = vi.fn().mockReturnValue(answer);
+      ObjectSerializer.instance.parseXml('<room withheld="true"><game-table name="新しい卓"></game-table></room>');
+    }
+
+    it('leaves the room in play as it is when the load is declined', () => {
+      const table = new GameTable('kept-table');
+      table.initialize();
+
+      loadWithheld(false);
+
+      expect(store.getObjects(GameTable).map((each) => each.identifier)).toEqual(['kept-table']);
+    });
+
+    it('loads it once agreed to', () => {
+      loadWithheld(true);
+
+      expect(store.getObjects(GameTable).map((each) => each.name)).toEqual(['新しい卓']);
+    });
+
+    it('holds the table as withheld once such a save is loaded, and whole again after a whole one', () => {
+      loadWithheld(true);
+      expect(isTableWithheld()).toBe(true);
+
+      loadRoom('<game-table name="まっさらな卓"></game-table>');
+      expect(isTableWithheld()).toBe(false);
+    });
+
+    it('leaves what the table is marked as alone when loaded onto a recording’s board shown in its place', () => {
+      setNetworkIsolated(true);
+      try {
+        loadWithheld(true);
+        expect(isTableWithheld()).toBe(false);
+      } finally {
+        setNetworkIsolated(false);
+      }
+    });
+
+    it('marks it so when written', () => {
+      const room = new Room();
+      room.withheld = 'true';
+
+      expect(room.toXml()).toContain('withheld="true"');
     });
   });
 
@@ -210,6 +266,22 @@ describe('Room', () => {
       loadRoom('<card></card>');
 
       expect(store.getObjects<EffectPreset>(EffectPreset).length).toBeGreaterThan(0);
+    });
+
+    it('says the usual set is coming back before making it, as a room server keeps what was deleted', () => {
+      const announce = vi.spyOn(store, 'announceComingBack');
+
+      loadRoom('<card></card>');
+
+      expect(announce).toHaveBeenCalledWith(DEFAULT_EFFECT_PRESET_SEEDS.map((seed) => seed.identifier));
+      expect(announce).toHaveBeenCalledWith(
+        DEFAULT_CUT_IN_SEEDS.flatMap((seed) => [
+          seed.identifier,
+          seed.sceneIdentifier,
+          ...seed.layers.map((layer) => layer.identifier),
+        ])
+      );
+      announce.mockRestore();
     });
   });
 

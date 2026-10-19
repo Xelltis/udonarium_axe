@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { RangeArea } from '@axe/domain/tabletop/range';
 
 describe('RangeArea', () => {
@@ -167,6 +168,32 @@ describe('RangeArea', () => {
       expect(rotatable.isRotatable).toBe(true);
       expect(fixed.isRotatable).toBe(false);
     });
+  });
+});
+
+describe('a range following a character', () => {
+  it('centres itself on the character in the cells of the table it is on', () => {
+    const character = GameCharacter.create('対象', 2, '');
+    character.location.x = 100;
+    character.location.y = 200;
+    const range = RangeArea.create('範囲', 3, 5, 1);
+    range.followingCharacterIdentifier = character.identifier;
+
+    range.following(80);
+
+    expect([range.location.x, range.location.y]).toEqual([180, 280]);
+    character.destroy();
+    range.destroy();
+  });
+
+  it('stops following a character that is not there', () => {
+    const range = RangeArea.create('範囲', 3, 5, 1);
+    range.followingCharacterIdentifier = 'missing-id';
+
+    range.following(50);
+
+    expect(range.followingCharacterIdentifier).toBe('');
+    range.destroy();
   });
 });
 

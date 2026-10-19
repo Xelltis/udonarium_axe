@@ -8,6 +8,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BuffManagerPanelComponent } from '@axe/features/buff/buff-manager-panel/buff-manager-panel.component';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('BuffManagerPanelComponent', () => {
@@ -37,6 +38,10 @@ describe('BuffManagerPanelComponent', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() => TestBed.createComponent(BuffManagerPanelComponent));
   });
 
   it('leaves out the pieces carrying nothing', () => {
@@ -263,6 +268,17 @@ describe('BuffManagerPanelComponent', () => {
       component.builderTrigger.set('術者');
 
       expect(component.builderCommand()).toBe('&!練技/筋力/+/2/3/turnStart/術者');
+    });
+
+    it('writes a division in the amount so that the command still reads as the preview does', () => {
+      component.builderName.set('鼓舞');
+      component.builderStatus.set('攻撃');
+      component.builderOperator.set('+');
+      component.builderAmount.set('(3+4)/2');
+      component.builderRounds.set('1');
+
+      expect(component.builderPreview()).toBe('攻撃+3');
+      expect(component.builderCommand()).toBe('&!鼓舞/攻撃/+/(3+4)÷2/1');
     });
 
     it('says nothing about an effect it cannot read', () => {

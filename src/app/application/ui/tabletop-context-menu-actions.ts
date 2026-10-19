@@ -2,6 +2,7 @@ import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 
 /**
  * The lock or unlock entry for a piece, whichever undoes its current state, playing the matching
@@ -110,7 +111,8 @@ export function copyBeside<T extends TabletopObject>(obj: T, gridSize: number, a
 
 /**
  * The copy entry for a piece, which puts a copy down one cell along and plays a sound, the
- * piece-put sound unless told otherwise.
+ * piece-put sound unless told otherwise. It is greyed out for a piece a room server withholds part
+ * of from this user, whose copy would carry the withheld shape to everyone.
  */
 export function buildCopyAction<T extends TabletopObject>(
   obj: T,
@@ -121,6 +123,7 @@ export function buildCopyAction<T extends TabletopObject>(
   const { sound = PresetSound.piecePut, afterClone } = options;
   return {
     name: t('feature.tabletop.contextMenu.copy'),
+    enabled: !isWithheldHere(obj),
     action: () => {
       copyBeside(obj, gridSize, afterClone);
       SoundEffect.play(sound);

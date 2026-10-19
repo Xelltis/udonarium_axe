@@ -301,7 +301,12 @@ export function menuCommandOf(key: string): MenuCommand | null {
 
 /** Whether a role is offered this command at all. What it is not offered never draws and never runs. */
 export function isMenuCommandOffered(command: MenuCommand, role: PeerRole): boolean {
-  switch (command.audience) {
+  return isAudienceOffered(command.audience, role);
+}
+
+/** Whether a role is among those an audience names. */
+export function isAudienceOffered(audience: MenuAudience, role: PeerRole): boolean {
+  switch (audience) {
     case 'anyone':
       return true;
     case 'playing':

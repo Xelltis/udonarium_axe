@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import {
   AMBIENCE_BRIGHTNESS,
   AmbienceBrightness,
@@ -30,6 +31,10 @@ const MAX_CELLS = 100;
 })
 export class TableAmbienceSettingsComponent {
   private readonly t = inject(TRANSLATE_FN);
+
+  constructor() {
+    closeWhenOffTheTable();
+  }
 
   target: TableAmbience | null = null;
 

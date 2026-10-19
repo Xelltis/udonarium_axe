@@ -2,7 +2,7 @@ import { expect, Locator, Page, test } from '@playwright/test';
 
 import { closeFabMenu, openFabMenu, waitAppReady } from './helpers';
 
-/** 左上のメニューから「テーブル関連」を開き、その中のダンジョンドリィマスターモードの項目を返す。 */
+/** Opens the Table group from the top-left menu and returns the Dungeondry Master mode entry in it. */
 async function firstPersonEntry(page: Page): Promise<Locator> {
   await openFabMenu(page);
   const submenu = page.getByTestId('fab-submenu-table');
@@ -11,12 +11,14 @@ async function firstPersonEntry(page: Page): Promise<Locator> {
   return page.getByTestId('fab-entry-firstPersonView');
 }
 
-test.describe('「テーブル関連」からのダンジョンドリィマスターモード', () => {
+test.describe('Dungeondry Master mode from the Table group', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('コマを選んでダンジョンドリィマスターモードに入り、同じ項目から卓に戻れること', async ({ page }) => {
+  test('enters Dungeondry Master mode on a chosen piece, and goes back to the table from the same entry', async ({
+    page,
+  }) => {
     const entry = await firstPersonEntry(page);
     await expect(entry).toBeVisible();
     await entry.click();

@@ -247,6 +247,31 @@ describe('ReplayLibraryService', () => {
     expect(events[0].detail).toEqual({});
   });
 
+  it.each([
+    ['keeps a line to those who could read its tab, in a recording written before tabs were minded', 3, 'gm-only'],
+    ['trusts a recording written by the current recorder to have kept its lines to their tabs', 4, 'public'],
+  ])('%s', async (_name, formatVersion, kind) => {
+    const id = (await store.createRecording({ roomName: '第一夜', startedAt: manifest.startedAt }))!;
+    const line: ReplayEvent = { ...event(1), detail: { text: 'GMのメモ', tabIdentifier: 'gm-tab' } };
+    await store.appendChunk({
+      recordingId: id,
+      index: 0,
+      seqStart: 1,
+      seqEnd: 1,
+      eventCount: 1,
+      bytes: encodeReplayEvents([line]),
+    });
+    const board = encodeReplayKeyframe([
+      { identifier: 'gm-tab', aliasName: 'chat-tab', syncData: { plCanView: false, guestCanView: false } },
+    ]);
+    await store.putKeyframe({ recordingId: id, seq: 0, at: manifest.startedAt, blob: new Blob([board as BlobPart]) });
+    await store.updateRecording(id, { manifest: encodeReplayManifest({ ...manifest, formatVersion }) });
+
+    const { events } = await service.load(id);
+
+    expect(events[0].visibility.kind).toBe(kind);
+  });
+
   it('returns the nearest keyframe at or before a point', async () => {
     const meta = await seedRecording();
     expect(await firstIdentifierOf((await service.keyframeBefore(meta.id, 1))?.blob)).toBe('a');

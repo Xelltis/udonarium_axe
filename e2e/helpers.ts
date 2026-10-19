@@ -1,8 +1,8 @@
 import { expect, Locator, Page } from '@playwright/test';
 
 /**
- * 起動完了を待つ。ChatWindowComponent / PeerMenuComponentが自動起動するので、
- * chat-inputのtextareaが表示されればbootstrap完了とみなしてよい。
+ * Waits for start-up to finish. ChatWindowComponent and PeerMenuComponent open on their own, so the
+ * bootstrap can be taken as done once the textarea of chat-input shows.
  */
 /**
  * Turns off blurring what lies behind an element, where the page is drawn by WebKit.
@@ -36,8 +36,8 @@ export async function waitAppReady(page: Page) {
 }
 
 /**
- * 左上FABのハンバーガーメニューを開く。閉じている時のみクリックする。
- * data-labelアイテムは`pointer-events-none`なので、開かないと選択不可。
+ * Opens the hamburger menu of the top-left FAB, clicking only while it is closed. The data-label
+ * items are `pointer-events-none`, so they cannot be chosen until it opens.
  */
 export async function openFabMenu(page: Page) {
   const fabBtn = page.getByRole('button', { name: /メニューを(開く|閉じる)/ });
@@ -49,8 +49,8 @@ export async function openFabMenu(page: Page) {
 }
 
 /**
- * 左上FABのメニューを閉じる。開いている時のみクリックする。
- * 開いたままだと画面左側のパネルにポインタが届かない。
+ * Closes the menu of the top-left FAB, clicking only while it is open. Left open, it keeps the
+ * pointer from reaching the panels on the left of the screen.
  */
 export async function closeFabMenu(page: Page) {
   const fabBtn = page.getByRole('button', { name: /メニューを(開く|閉じる)/ });
@@ -61,21 +61,21 @@ export async function closeFabMenu(page: Page) {
 }
 
 /**
- * FABを開き、最下段の「表示」からこの端末の表示設定の小窓を開く。開いた小窓を返す。
+ * Opens the FAB and, from Display at the bottom, the small window of this device's display
+ * settings. Returns the window opened.
  */
 export function openSeatDisplay(page: Page): Promise<Locator> {
   return openFabSubmenu(page, 'fab-display', 'seat-display');
 }
 
-/**
- * FABを開き、最下段の「ウィジェット」からウィジェットの小窓を開く。開いた小窓を返す。
- */
+/** Opens the FAB and, from Widgets at the bottom, the small window of widgets. Returns the window opened. */
 export function openSeatWidgets(page: Page): Promise<Locator> {
   return openFabSubmenu(page, 'fab-widgets', 'seat-widgets');
 }
 
 /**
- * FABを開き、最下段の「セーブ&ロード」から保存と読込の小窓を開く。開いた小窓を返す。
+ * Opens the FAB and, from Save & load at the bottom, the small window for saving and loading.
+ * Returns the window opened.
  */
 export function openSaveLoad(page: Page): Promise<Locator> {
   return openFabSubmenu(page, 'fab-save-load', 'save-load');
@@ -90,8 +90,8 @@ async function openFabSubmenu(page: Page, openerTestId: string, menuTestId: stri
 }
 
 /**
- * FABを開いた上でdata-labelのメニュー項目をクリックする。
- * 既存テストで`getByText('インベントリ')`などを呼んでいた箇所の置換用。
+ * Opens the FAB and clicks the menu entry with that data-label. It replaces the places where
+ * earlier tests called `getByText('インベントリ')` and the like.
  */
 export async function openPanel(page: Page, dataLabel: string) {
   await openFabMenu(page);
@@ -100,7 +100,10 @@ export async function openPanel(page: Page, dataLabel: string) {
   await page.locator(`[data-label="${dataLabel}"]`).click();
 }
 
-/** FABの項目が開く小窓と、その中にある項目。小窓の中の項目は、押す前に小窓を開く。 */
+/**
+ * The small windows the FAB entries open, and the entries in each. An entry inside a small window
+ * has the window opened before it is pressed.
+ */
 const SUBMENU_LABELS: Readonly<Record<string, readonly string[]>> = {
   table: ['テーブル設定', 'マップエディター', 'マップ生成', '卓上ディスプレイ', 'ノベルモード'],
   gameResources: ['インベントリ', 'バフマネージャー', '状態異常', 'ダイス表設定', '手札'],
@@ -108,9 +111,9 @@ const SUBMENU_LABELS: Readonly<Record<string, readonly string[]>> = {
 };
 
 /**
- * チャットウィンドウ右上の歯車（details/summary）を開いて、
- * 「タブ設定」「ダイス表設定」「チャット設定」のいずれかのボタンをクリックする。
- * detailsがclosedのままだと中のボタンはhit-test不可なため、必ず先にopenする。
+ * Opens the gear (details/summary) at the top right of the chat window and clicks one of the tab
+ * settings, dice table settings and chat settings buttons. The buttons inside cannot be hit-tested
+ * while the details is closed, so it is always opened first.
  */
 export async function openChatSettingsMenuItem(page: Page, itemName: 'タブ設定' | 'ダイス表設定' | 'チャット設定') {
   const summary = page.locator('chat-window summary[title="チャット設定"]');
@@ -119,45 +122,41 @@ export async function openChatSettingsMenuItem(page: Page, itemName: 'タブ設�
 }
 
 /**
- * chat-window内のタブピル（ラジオボタンに紐づくラベル）をnameで取得する。
- * パネルタイトル「チャットウィンドウ - メインタブ」と混在するので、exact指定にする。
+ * Gets a tab pill in chat-window (the label tied to a radio button) by its name. The panel title,
+ * which reads the chat window followed by the main tab, holds the same words, so the match is exact.
  */
 export function chatTabPill(page: Page, name: string): Locator {
   return page.locator('chat-window .chat-tab-pill', { hasText: new RegExp(`^\\s*${name}\\s*`) });
 }
 
 /**
- * テーブル上で右クリックしてcontext-menuを表示する。
+ * Right-clicks the table to bring up context-menu.
  *
- * 起動時にPeerMenu（left=80, width=460）とChatWindow（left=80, width=660）が
- * 自動展開されており、ビューポート左～中央へのクリックはui-panelのリサイズハンドラに
- * 取られてしまう。安全圏として右側（x≈1100, y≈250）を既定にする。
- * PointerDeviceServiceがcontextmenu許可フラグを上げるにはmousedown経由の
- * クリックが必要なので、eventのdispatchEventではなく実際の`.click()`を使う。
+ * At start-up PeerMenu (left=80, width=460) and ChatWindow (left=80, width=660) open on their own,
+ * and a click from the left to the middle of the viewport is taken by the resize handler of a
+ * ui-panel. The right side (x≈1100, y≈250) is the default as a safe area. PointerDeviceService
+ * raises its flag allowing contextmenu only on a click that goes through mousedown, so a real
+ * `.click()` is used rather than dispatchEvent.
  */
 export async function openTableContextMenu(page: Page, position = { x: 900, y: 250 }) {
   const table = page.locator('#app-table-layer');
   await table.click({ button: 'right', position });
-  // context-menuはContextMenuService.open()でcreateComponentされ、close()で
-  // destroyされる。要素自体がDOMにある間はitemsが常にレンダリングされるため、
-  // 中の<li>の出現を待てば「メニューの描画が完了した」ことを確実に判定できる。
+  // context-menu is made with createComponent by ContextMenuService.open() and destroyed by
+  // close(). While the element is in the DOM its items are always rendered, so waiting for an <li>
+  // inside to appear tells for sure that the menu has been drawn.
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 7000 });
   return menu;
 }
 
-/**
- * テーブル上に新規キャラクターを作成する。
- */
+/** Makes a new character on the table. */
 export async function createCharacter(page: Page) {
   const menu = await openTableContextMenu(page);
   await menu.getByText('キャラクターを作成').click();
   await expect(page.locator('game-character').first()).toBeAttached({ timeout: 10000 });
 }
 
-/**
- * テーブル上に新規ダイスシンボル（D6）を作成する。
- */
+/** Makes a new dice symbol (D6) on the table. */
 export async function createDiceSymbol(page: Page) {
   const menu = await openTableContextMenu(page);
   await (await revealMenuEntry(page, menu, 'ダイスを作成')).hover();
@@ -167,9 +166,8 @@ export async function createDiceSymbol(page: Page) {
 }
 
 /**
- * ノベルモードの発言キャラクターを選ぶ。
- * ng-selectは候補パネルをbody直下のCDKオーバーレイに出すので、
- * visual-novel-overlayスコープのロケータでは届かない。
+ * Chooses the speaking character of novel mode. ng-select puts its panel of choices in a CDK
+ * overlay right under body, which a locator scoped to visual-novel-overlay cannot reach.
  */
 export async function openVnSpeakerList(page: Page): Promise<Locator> {
   await page.locator('visual-novel-overlay [data-testid="vn-speaker"]').click();
@@ -185,7 +183,7 @@ export async function selectVnSpeaker(page: Page, name: string) {
   await expect(panel).toBeHidden({ timeout: 5000 });
 }
 
-/** ノベルモードの発言入力欄。ng-selectもinputを持つので、data-testidで拾う。 */
+/** The line input of novel mode. ng-select has an input too, so it is picked up by its data-testid. */
 export function vnMessageInput(page: Page): Locator {
   return page.locator('visual-novel-overlay [data-testid="vn-message"]');
 }
@@ -217,10 +215,10 @@ export const MENU_GROUP_OF: Readonly<Record<string, string>> = {
   共有イベントリに移動: 'しまう',
   個人イベントリに移動: 'しまう',
   墓場に移動: 'しまう',
-  姿が見えない: '駒の状態',
-  倒れている: '駒の状態',
-  転んでいる: '駒の状態',
-  その場から動けない: '駒の状態',
+  姿が見えない: 'コマの状態',
+  倒れている: 'コマの状態',
+  転んでいる: 'コマの状態',
+  その場から動けない: 'コマの状態',
   乗り物にする: '乗り物',
   同乗できる: '乗り物',
   積める数: '乗り物',

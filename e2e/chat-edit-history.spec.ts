@@ -2,18 +2,20 @@ import { expect, test } from '@playwright/test';
 
 import { waitAppReady } from './helpers';
 
-test.describe('発言の編集履歴', () => {
+test.describe('the edit history of a line', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('編集すると前の文面が残り、編集済の印から移り変わりを開けること', async ({ page }) => {
+  test('keeps the earlier wording when a line is edited, and opens how it changed from the edited mark', async ({
+    page,
+  }) => {
     const textarea = page.locator('textarea.chat-input');
     await textarea.fill('こんばんわ');
     await textarea.press('Enter');
     await expect(textarea).toHaveValue('');
 
-    // 編集すると文面が変わるので、文面ではなく最後の発言として掴む。
+    // Editing changes the text, so the line is held as the last one rather than by its text.
     const line = page.locator('chat-tab chat-message').last();
     await expect(line).toContainText('こんばんわ');
     for (const next of ['こんばんは', 'こんばんは！']) {

@@ -81,7 +81,7 @@ export interface ClipAreaHexagon {
 }
 
 export interface ClipAreaCorn {
-  clip01x: number; // 根本始点
+  clip01x: number; // the starting point at the base
   clip01y: number;
   clip02x: number;
   clip02y: number;
@@ -89,9 +89,9 @@ export interface ClipAreaCorn {
   clip03y: number;
   clip04x: number;
   clip04y: number;
-  clip05x: number; // 先端部
+  clip05x: number; // the tip
   clip05y: number;
-  clip06x: number; // 折り返し
+  clip06x: number; // where it turns back
   clip06y: number;
   clip07x: number;
   clip07y: number;

@@ -50,9 +50,10 @@ describe('isSupportedReplayFormat()', () => {
   });
 
   it('takes every earlier format', () => {
-    expect(REPLAY_FORMAT_VERSION).toBe(3);
+    expect(REPLAY_FORMAT_VERSION).toBe(4);
     expect(isSupportedReplayFormat(1)).toBe(true);
     expect(isSupportedReplayFormat(2)).toBe(true);
+    expect(isSupportedReplayFormat(3)).toBe(true);
   });
 
   it('turns away a later format and a broken value', () => {

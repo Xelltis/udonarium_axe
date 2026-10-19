@@ -14,6 +14,7 @@ import { BillboardFacing, BillboardFrameService } from '@axe/application/ui/bill
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
+import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -90,6 +91,55 @@ describe('GameCharacterComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('the panels it fetches on first use', () => {
+    type Opener = 'showLightSettings' | 'showBattlePlacement' | 'showLineOfFire';
+
+    /** Opens a panel about the piece, and hands back what the panel would arrive as and be given. */
+    async function opened(opener: Opener, character: GameCharacter) {
+      const openLazy = vi
+        .spyOn(fixture.debugElement.injector.get(PanelService), 'openLazy')
+        .mockImplementation(() => {});
+      (component as unknown as Record<Opener, (piece: GameCharacter) => void>)[opener](character);
+      const [factory, option, setup] = openLazy.mock.calls[0] as [
+        () => Promise<unknown>,
+        PanelOption,
+        (instance: Record<string, unknown>) => void,
+      ];
+      openLazy.mockRestore();
+      return { panel: await factory(), option, setup };
+    }
+
+    it('shows the light settings of the piece with its vision', async () => {
+      const character = GameCharacter.create('灯りのコマ', 1, '');
+      const { LightSettingsComponent } = await import('@axe/features/tabletop/light-settings/light-settings.component');
+
+      const { panel, option, setup } = await opened('showLightSettings', character);
+      const settings: Record<string, unknown> = {};
+      setup(settings);
+
+      expect(panel).toBe(LightSettingsComponent);
+      expect(settings).toEqual({ target: character, showVision: true });
+      expect(option.stillWanted?.()).toBe(true);
+      character.destroy();
+      expect(option.stillWanted?.()).toBe(false);
+    });
+
+    it.each([
+      ['showBattlePlacement', 'leaderIdentifier'],
+      ['showLineOfFire', 'shooterIdentifier'],
+    ] as const)('%s hands the panel the piece by its identifier', async (opener, field) => {
+      const character = GameCharacter.create('隊長', 1, '');
+
+      const { option, setup } = await opened(opener, character);
+      const given = signal('');
+      setup({ [field]: given });
+
+      expect(given()).toBe(character.identifier);
+      character.destroy();
+      expect(option.stillWanted?.()).toBe(false);
+    });
   });
 
   it('carries its place in the pile onto the element the table stacks', async () => {

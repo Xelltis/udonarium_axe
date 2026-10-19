@@ -10,7 +10,7 @@ import {
   type ReplayManifest,
   type ReplayTargetSnapshot,
   type ReplayViewer,
-  resolveSnapshotAt,
+  resolveSnapshotOrFirst,
 } from '@axe/domain/replay/replay-event';
 import type { ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 import { applyReplayEvents } from '@axe/domain/replay/replay-patch';
@@ -315,7 +315,7 @@ function lookupsOf(manifest: ReplayManifest | null, base: readonly ReplayObjectS
     if (history) history.push(target);
     else histories.set(target.identifier, [target]);
   }
-  const targetAt = (identifier: string, seq: number) => resolveSnapshotAt(histories.get(identifier) ?? [], seq);
+  const targetAt = (identifier: string, seq: number) => resolveSnapshotOrFirst(histories.get(identifier) ?? [], seq);
 
   return {
     isCharacter: (identifier: string) => characters.has(identifier),

@@ -4,6 +4,9 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EventChannel } from '@axe/core/event/event-channel';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
+import { GameObject } from '@axe/core/sync/game-object';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -20,6 +23,7 @@ describe('RoomArchiveEventHandlerService', () => {
   let isKeeping: boolean;
   let isDragging: boolean;
   let lastCaptureMs: number;
+  let snapshotRunning: Promise<unknown> | null;
 
   function setup(): RoomArchiveEventHandlerService {
     TestBed.configureTestingModule({
@@ -41,7 +45,17 @@ describe('RoomArchiveEventHandlerService', () => {
             isKeeping: () => isKeeping,
             isRestoring: () => isRestoring,
             lastCaptureMs: () => lastCaptureMs,
-            capture,
+            capture: (...args: unknown[]) => {
+              const running = Promise.resolve((capture as (...params: unknown[]) => unknown)(...args));
+              snapshotRunning = running;
+              void running.finally(() => {
+                if (snapshotRunning === running) snapshotRunning = null;
+              });
+              return running;
+            },
+            whenCaptured: async () => {
+              await snapshotRunning;
+            },
           },
         },
         {
@@ -68,16 +82,29 @@ describe('RoomArchiveEventHandlerService', () => {
     objectAdded$ = new EventChannel<StoreEvent>();
     objectRemoved$ = new EventChannel<StoreEvent>();
     capture = vi.fn().mockResolvedValue(null);
+    snapshotRunning = null;
     canEditTabletop = true;
     isRestoring = false;
     isKeeping = true;
     isDragging = false;
     lastCaptureMs = 0;
+    ObjectStore.instance.add(new GameObject('obj'), false);
   });
 
   afterEach(() => {
     vi.useRealTimers();
     TestBed.resetTestingModule();
+    const obj = ObjectStore.instance.get('obj');
+    if (obj) ObjectStore.instance.remove(obj);
+  });
+
+  it('takes no change to what is not in the room, as what a save is written with, for one', async () => {
+    setup();
+    objectChanged$.emit({ identifier: 'image-tag-list', aliasName: 'image-tag-list' });
+
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+
+    expect(capture).not.toHaveBeenCalled();
   });
 
   it('saves once the changes stop', async () => {
@@ -88,7 +115,7 @@ describe('RoomArchiveEventHandlerService', () => {
     expect(capture).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(2_000);
-    expect(capture).toHaveBeenCalledOnce();
+    expect(capture).toHaveBeenCalledExactlyOnceWith({ background: true });
   });
 
   it('gathers a run of changes into one save', async () => {
@@ -196,6 +223,73 @@ describe('RoomArchiveEventHandlerService', () => {
 
     await service.flush();
     expect(capture).not.toHaveBeenCalled();
+  });
+
+  it('waits for a save already under way, and saves again only for a change since', async () => {
+    const service = setup();
+    let finishSaving!: () => void;
+    capture.mockReturnValueOnce(new Promise<null>((resolve) => (finishSaving = () => resolve(null))));
+    emitChange();
+    await vi.advanceTimersByTimeAsync(21_000);
+    expect(capture).toHaveBeenCalledOnce();
+
+    let flushed = false;
+    void service.flush().then(() => (flushed = true));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(flushed).toBe(false);
+
+    finishSaving();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(flushed).toBe(true);
+    expect(capture).toHaveBeenCalledOnce();
+  });
+
+  it('waits for a save begun while it waited for a quiet moment, and takes none of its own after', async () => {
+    const service = setup();
+    const quiet: (() => void)[] = [];
+    vi.stubGlobal('requestIdleCallback', (callback: () => void) => quiet.push(callback));
+    try {
+      let finishSaving!: () => void;
+      capture.mockReturnValueOnce(new Promise<null>((resolve) => (finishSaving = () => resolve(null))));
+      emitChange();
+      const byTimer = service.flush();
+      const leaving = service.flush();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(quiet).toHaveLength(2);
+
+      quiet[0]();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(capture).toHaveBeenCalledOnce();
+      quiet[1]();
+      let left = false;
+      void leaving.then(() => (left = true));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(left).toBe(false);
+
+      finishSaving();
+      await Promise.all([byTimer, leaving]);
+      expect(capture).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('takes nothing of a replay’s board on the table, and takes a save still due once the table is back', async () => {
+    const service = setup();
+    emitChange();
+    setNetworkIsolated(true);
+    try {
+      emitChange();
+      await vi.advanceTimersByTimeAsync(21_000);
+      await service.flush();
+      expect(capture).not.toHaveBeenCalled();
+    } finally {
+      setNetworkIsolated(false);
+    }
+
+    await vi.advanceTimersByTimeAsync(6_000);
+
+    expect(capture).toHaveBeenCalledOnce();
   });
 
   it('saves for an object added or deleted as well', async () => {

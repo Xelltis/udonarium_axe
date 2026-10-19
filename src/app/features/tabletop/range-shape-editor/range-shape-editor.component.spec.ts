@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RangeShapeEditorComponent } from '@axe/features/tabletop/range-shape-editor/range-shape-editor.component';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('RangeShapeEditorComponent', () => {
@@ -14,6 +15,10 @@ describe('RangeShapeEditorComponent', () => {
 
     fixture = TestBed.createComponent(RangeShapeEditorComponent);
     component = fixture.componentInstance;
+  });
+
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() => TestBed.createComponent(RangeShapeEditorComponent));
   });
 
   it('should create', () => {

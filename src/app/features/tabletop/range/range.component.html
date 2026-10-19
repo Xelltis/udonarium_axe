@@ -19,7 +19,7 @@
       [style.height.px]="0"
       [style.clip-path]="clipPath()"
     >
-      <div class="absolute" [style.top.px]="0" [style.left.px]="-1 * areaQuadrantSize() * gridSize">
+      <div class="absolute" [style.top.px]="0" [style.left.px]="-1 * areaQuadrantSize() * squarePx">
         <div [appTooltip]="range()">
           <canvas class="absolute inset-0 m-auto block" [style.opacity]="opacity()" #gridCanvas></canvas>
           <canvas class="absolute inset-0 m-auto block" #rangeCanvas></canvas>
@@ -87,9 +87,9 @@
           'deg)',
       }"
     >
-      <!-- 上端(sign=1)・下端(sign=-1)の elevation 表示。altitude * sign > 0 のとき可視。
-           下端は追従キャラのチャットバブル分だけ Y 方向にずらす。中央の絶対値ラベルは
-           上端ブロックの直後に 1 度だけ描画する。 -->
+      <!-- The elevation display at the top (sign=1) and the bottom (sign=-1), visible while altitude * sign > 0.
+           The bottom one is shifted along Y by the chat bubble of the character followed. The label with the
+           absolute value in the middle is drawn only once, right after the top block. -->
       @for (sign of [1, -1]; track sign; let isFirst = $first) {
         <div
           class="transform-3d"
@@ -139,7 +139,7 @@
     class="absolute z-0 transform-3d"
     [style.visibility]="altitude() !== 0 ? 'visible' : 'hidden'"
     [style.top.px]="0"
-    [style.left.px]="-1 * areaQuadrantSize() * gridSize"
+    [style.left.px]="-1 * areaQuadrantSize() * squarePx"
   >
     <canvas class="absolute inset-0 m-auto block transform-3d" #centerPunch></canvas>
   </div>

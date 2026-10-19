@@ -2,15 +2,15 @@ import { expect, Locator, Page, test } from '@playwright/test';
 
 import { openPanel, waitAppReady } from './helpers';
 
-/** 1x1 PNG（透明）。上限よりずっと小さい画像として使う。 */
+/** A 1x1 transparent PNG, used as an image well under the limit. */
 const TINY_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
   'base64'
 );
 
 /**
- * 無圧縮の 24bit BMP。1000x800 で約 2.4MB になり、上限の 2MB を超える。
- * 中身は単純なグラデーションなので、切り抜いて書き出せば十分小さくなる。
+ * An uncompressed 24-bit BMP. At 1000x800 it comes to about 2.4MB, over the 2MB limit. Its contents
+ * are a plain gradient, so cropped and written out it gets small enough.
  */
 function largeBmp(width = 1000, height = 800): Buffer {
   const rowSize = Math.ceil((width * 3) / 4) * 4;
@@ -51,8 +51,9 @@ function editorFrame(page: Page): Locator {
 }
 
 /**
- * 画像が止まったときの位置。パネルは飛び込むアニメーションで開くので、その途中で測ると
- * 枠を引く座標がずれる。終わりのあるアニメーションを待ってから、位置が変わらなくなるまで測る。
+ * Where the image rests. The panel opens with a fly-in animation, and measured midway the
+ * coordinates the frame is drawn at would be off. Waits for the animations that have an end, then
+ * measures until the position stops changing.
  */
 async function restingFrame(page: Page) {
   await editorFrame(page).evaluate((element) => {
@@ -74,7 +75,7 @@ async function restingFrame(page: Page) {
   return JSON.parse(last) as { x: number; y: number; width: number; height: number };
 }
 
-/** 画像の範囲の左上寄りから右下寄りへ、本物のマウス操作で枠を引く。 */
+/** Draws a frame with a real mouse, from near the top left of the image to near its bottom right. */
 async function dragCrop(page: Page) {
   const box = await restingFrame(page);
   await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.2);
@@ -84,19 +85,19 @@ async function dragCrop(page: Page) {
   await page.mouse.up();
 }
 
-test.describe('画像の編集', () => {
+test.describe('editing an image', () => {
   test.beforeEach(async ({ page }) => {
     await openFileStorage(page);
   });
 
-  test('上限以内の画像は編集画面を開かずにそのまま追加されること', async ({ page }) => {
+  test('adds an image within the limit as it is, without opening the editor', async ({ page }) => {
     await uploadInput(page).setInputFiles({ name: 'tiny.png', mimeType: 'image/png', buffer: TINY_PNG });
 
     await expect(page.locator('file-storage img[alt="tiny.png"]')).toHaveCount(1, { timeout: 10000 });
     await expect(editorFrame(page)).toHaveCount(0);
   });
 
-  test('2MB を超える画像は編集画面で開き、切り抜いて追加できること', async ({ page }) => {
+  test('opens an image over 2MB in the editor, where it can be cropped and added', async ({ page }) => {
     await uploadInput(page).setInputFiles({ name: 'big.bmp', mimeType: 'image/bmp', buffer: largeBmp() });
 
     await expect(editorFrame(page)).toBeVisible({ timeout: 10000 });
@@ -114,7 +115,7 @@ test.describe('画像の編集', () => {
     await expect(page.locator('file-storage img[alt^="big."]')).toHaveCount(1);
   });
 
-  test('「編集してから追加」にチェックを入れると、小さな画像も編集画面で開くこと', async ({ page }) => {
+  test('opens even a small image in the editor once "edit before adding" is checked', async ({ page }) => {
     await page.getByTestId('file-storage-edit-first').locator('input').check();
     await uploadInput(page).setInputFiles({ name: 'tiny.png', mimeType: 'image/png', buffer: TINY_PNG });
 
@@ -125,7 +126,7 @@ test.describe('画像の編集', () => {
     await expect(page.locator('file-storage img[alt="tiny.png"]')).toHaveCount(1);
   });
 
-  test('チェックした画像を編集で置き換えたあと、続けてもう一度編集できること', async ({ page }) => {
+  test('edits a checked image again right after replacing it by an edit', async ({ page }) => {
     await uploadInput(page).setInputFiles({ name: 'tiny.png', mimeType: 'image/png', buffer: TINY_PNG });
     const tile = page.locator('file-storage img[alt^="tiny."]');
     await expect(tile).toHaveCount(1, { timeout: 10000 });
@@ -143,7 +144,8 @@ test.describe('画像の編集', () => {
       await expect(editorFrame(page)).toHaveCount(0, { timeout: 10000 });
     }
 
-    // 元の画像は一覧から隠れ、編集した画像が 1 枚だけ並ぶ。書き出しの形式はブラウザによって PNG か WebP になる。
+    // The original image is hidden from the list, and the edited one alone is listed. The format
+    // written out is PNG or WebP depending on the browser.
     await expect(page.locator('file-storage img')).toHaveCount(tiles);
     await expect(tile).toHaveCount(1);
     expect(await tile.getAttribute('src')).not.toBe(original);

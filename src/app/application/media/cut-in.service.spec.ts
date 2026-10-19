@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { CutInService } from '@axe/application/media/cut-in.service';
+import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { AudioFile } from '@axe/core/storage/audio-file';
@@ -11,6 +12,8 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { withPortraitFits } from '@axe/domain/media/cut-in-portrait-fit';
 import { Jukebox } from '@axe/domain/media/jukebox';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -53,6 +56,26 @@ describe('CutInService.activateFromChatText()', () => {
     service.activateFromChatText('演出 炎の剣', '');
 
     expect(spy).toHaveBeenCalledWith(cutIn, '', null);
+  });
+
+  it('starts nothing for a guest on a room server, which would take the cut-in back', () => {
+    const cutIn = makeCutIn('炎の剣');
+    const start = vi.spyOn(launcher, 'startCutIn');
+    const soundOnly = vi.spyOn(launcher, 'startSoundOnlyCutIn');
+    const original = PeerCursor.myCursor;
+    PeerCursor.myCursor = { role: PeerRole.Guest } as PeerCursor;
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    try {
+      service.activateFromChatText('演出 炎の剣', '');
+      service.activateFromChatText('演出 @炎の剣', '');
+
+      expect(service.launch(cutIn)).toBe(false);
+      expect(start).not.toHaveBeenCalled();
+      expect(soundOnly).not.toHaveBeenCalled();
+    } finally {
+      PeerCursor.myCursor = original;
+      vi.restoreAllMocks();
+    }
   });
 
   it('ignores a cut-in that chat is not allowed to start', () => {

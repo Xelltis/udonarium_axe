@@ -1,6 +1,7 @@
 import { getPeerContexts } from '@axe/core/network/peer-context-source';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { Disclosable } from '@axe/domain/disclosure/disclosure';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { OwnedTabletopObject } from '@axe/domain/tabletop/owned-tabletop-object';
 
@@ -51,7 +52,30 @@ export function clearOwnershipTree(root: ObjectNode): number {
  */
 export function claimBroughtInPiece(root: ObjectNode, userId: string): void {
   clearOwnershipTree(root);
+  forgetChosenViewers(treeOf(root));
   if (root instanceof GameCharacter) root.owner = userId;
+}
+
+/**
+ * Forgets who objects were shown to by name, and returns how many were changed. The people picked
+ * are those of the session the objects were saved in, gone from a table they are brought into, and
+ * a name left behind would show the object to whoever took it up: what was shown to chosen people
+ * is shown to the game master and its owner alone until people are chosen again.
+ */
+export function forgetChosenViewers(objects: Iterable<unknown>): number {
+  let count = 0;
+  for (const object of objects) {
+    const disclosable = object as Partial<Disclosable> | null;
+    if (disclosable && Array.isArray(disclosable.disclosureUserIds) && disclosable.disclosureUserIds.length > 0) {
+      disclosable.disclosureUserIds = [];
+      count++;
+    }
+  }
+  return count;
+}
+
+function treeOf(root: ObjectNode): ObjectNode[] {
+  return [root, ...root.children.flatMap((child) => treeOf(child))];
 }
 
 /**

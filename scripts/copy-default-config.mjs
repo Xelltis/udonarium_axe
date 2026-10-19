@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// `src/assets/config.json.example`を`dist/assets/config.json`として配置する。
-// 配布物がそのまま動くことと、エンドユーザーが設置先で書き換えられることを両立するための、デフォルトconfigの生成。
+// Places `src/assets/config.json.example` as `dist/assets/config.json`.
+// The default config is generated so that the distribution runs as it is, while the end user can still
+// rewrite it wherever it is installed.
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

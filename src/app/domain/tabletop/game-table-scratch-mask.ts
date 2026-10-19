@@ -12,7 +12,7 @@ export class GameTableScratchMask extends OwnedTabletopObject {
 
   @SyncVar() owner: string = '';
 
-  @SyncVar() M: boolean[] = []; // 保存データ量削減のため1文字変数
+  @SyncVar() M: boolean[] = []; // a one-letter name to keep the saved data small
   fillMapBack: boolean[] = [];
 
   @SyncVar() scratchingGrids: string = '';

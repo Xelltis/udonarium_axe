@@ -1,6 +1,9 @@
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
+import { loadLinkify } from '@axe/ui/text-decoration/linkify-loader';
 
 describe('LinkifyPipe', () => {
+  beforeAll(() => loadLinkify());
+
   let pipe: LinkifyPipe;
 
   beforeEach(() => {

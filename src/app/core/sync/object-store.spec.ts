@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { Network } from '@axe/core/network/network';
 import { GameObject } from '@axe/core/sync/game-object';
 import { objectAdded$, objectRemoved$ } from '@axe/core/sync/object-event-extension';
-import { ObjectStore } from '@axe/core/sync/object-store';
+import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { DataElement } from '@axe/domain/data/data-element';
 
 type ObjectStorePrivate = {
@@ -98,6 +98,62 @@ describe('ObjectStore', () => {
       expect(store.add(new GameObject('fixed-id-2'), false)).toBeNull();
     });
 
+    it('makes what is made again here under a deleted name go past the one deleted, so a copy held elsewhere loses', () => {
+      const old = new GameObject('remade-id');
+      store.add(old, false);
+      for (let i = 0; i < 3; i++) old.update();
+      store.delete(old);
+
+      const remade = new GameObject('remade-id');
+      const update = vi.spyOn(store, 'update');
+      store.add(remade);
+
+      expect(remade.version).toBeGreaterThan(old.version);
+      expect(update).toHaveBeenCalledWith(expect.objectContaining({ identifier: 'remade-id', majorVersion: 4 }));
+    });
+
+    it('makes what a load brings back under a name just taken away go past the one taken away', () => {
+      const old = new GameObject('loaded-id');
+      store.add(old, false);
+      for (let i = 0; i < 5; i++) old.update();
+      store.delete(old);
+      store.announceComingBack(['loaded-id']);
+
+      const loaded = new GameObject('loaded-id');
+      store.add(loaded);
+
+      expect(loaded.version).toBeGreaterThan(old.version);
+    });
+
+    it('keeps what deleted objects had been through across a record of deletions put back', () => {
+      const old = new GameObject('kept-id');
+      store.add(old, false);
+      for (let i = 0; i < 4; i++) old.update();
+      store.delete(old);
+      const saved = store.snapshotDeleteHistory();
+      store.clearDeleteHistory();
+
+      store.replaceDeleteHistory(saved);
+      store.forgetDeleted(['kept-id']);
+      const remade = new GameObject('kept-id');
+      store.add(remade);
+
+      expect(remade.version).toBeGreaterThan(old.version);
+    });
+
+    it('takes what arrives from elsewhere under a name deleted here at the version it came with', () => {
+      const old = new GameObject('arrived-id');
+      store.add(old, false);
+      for (let i = 0; i < 5; i++) old.update();
+      store.delete(old, false);
+      store.forgetDeleted(['arrived-id']);
+
+      const arrived = new GameObject('arrived-id');
+      store.add(arrived, false);
+
+      expect(arrived.majorVersion).toBe(0);
+    });
+
     it('should broadcast update when shouldBroadcast is true', () => {
       vi.spyOn(store, 'update');
       const obj = new GameObject('test-id-5');
@@ -144,6 +200,20 @@ describe('ObjectStore', () => {
       const retrieved = store.get('non-existent');
 
       expect(retrieved).toBeNull();
+    });
+  });
+
+  describe('isInStore()', () => {
+    it('holds while the object is in the store, and not once it is taken out', () => {
+      const obj = new GameObject('test-id-in-store');
+      expect(isInStore(obj)).toBe(false);
+      store.add(obj, false);
+      expect(isInStore(obj)).toBe(true);
+      expect(isInStore(new GameObject('test-id-in-store'))).toBe(false);
+
+      store.remove(obj);
+
+      expect(isInStore(obj)).toBe(false);
     });
   });
 
@@ -295,6 +365,23 @@ describe('ObjectStore', () => {
 
       expect(result).toBeNull();
     });
+  });
+
+  it('sends nothing of an object that takes itself out of the store as it is added, as a holder of loaded data does', () => {
+    class Holder extends GameObject {
+      override onStoreAdded(): void {
+        ObjectStore.instance.remove(this);
+      }
+    }
+    const holder = new Holder('holder-1');
+
+    store.add(holder);
+
+    expect(sendSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({ eventName: 'UPDATE_GAME_OBJECT' }),
+      undefined,
+      'holder-1'
+    );
   });
 
   describe('update()', () => {

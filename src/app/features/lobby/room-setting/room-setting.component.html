@@ -57,20 +57,49 @@
   <div class="flex justify-end">
     <button
       class="rounded-ui-sm border-ui-accent bg-ui-accent hover:border-ui-accent-hover hover:bg-ui-accent-hover cursor-pointer border border-solid px-[1.2em] py-[0.45em] text-[0.875rem] text-white hover:shadow-[0_0_0_3px_var(--ui-accent-glow)]"
-      [disabled]="!roomNameValidation.valid || roomNameTooLong() || !passwordValidation.valid"
+      data-testid="room-setting-create"
+      [disabled]="
+        !roomNameValidation.valid ||
+        roomNameTooLong() ||
+        !passwordValidation.valid ||
+        isCreating() ||
+        waitingForConnection()
+      "
       (click)="createRoom()"
     >
       <i class="material-icons" style="font-size: 14px; vertical-align: middle; margin-right: 4px">meeting_room</i
       >{{ 'feature.lobby.roomSetting.create' | transloco }}
     </button>
   </div>
+  @if (waitingForConnection()) {
+    <p class="text-ui-dim mt-2 text-[0.75rem]" data-testid="room-setting-not-connected">
+      {{
+        (unreachable() ? 'feature.lobby.lobby.hintUnreachable' : 'feature.lobby.roomSetting.notConnected') | transloco
+      }}
+    </p>
+  }
+  @if (createError()) {
+    <p class="text-ui-danger mt-2 text-[0.75rem]" data-testid="room-setting-error">{{ createError() }}</p>
+  }
   <p class="text-ui-muted mt-3 text-[0.75rem] leading-[1.6]">
-    {{ 'feature.lobby.roomSetting.notice' | transloco }}
+    {{ (onRoomServer ? 'feature.lobby.roomSetting.noticeServer' : 'feature.lobby.roomSetting.notice') | transloco }}
   </p>
 } @else {
-  <p class="text-ui-muted text-[0.8rem] leading-[1.7]">
-    {{ 'feature.lobby.roomSetting.alreadyConnected' | transloco }}<br />{{
-      'feature.lobby.roomSetting.alreadyConnectedHint' | transloco
-    }}<br />{{ 'feature.lobby.roomSetting.alreadyConnectedHint2' | transloco }}
+  <p class="text-ui-muted text-[0.8rem] leading-[1.7]" data-testid="room-setting-already-in-room">
+    @if (onRoomServer) {
+      {{ 'feature.lobby.roomSetting.alreadyInRoomServer' | transloco }}<br />{{
+        'feature.lobby.lobby.alreadyInRoomServerHint' | transloco
+      }}<br />
+      <button class="mt-2" data-testid="room-setting-leave-room" (click)="leaveRoom()">
+        {{ 'feature.lobby.lobby.leaveRoom' | transloco }}
+      </button>
+    } @else {
+      {{ 'feature.lobby.roomSetting.alreadyConnected' | transloco }}<br />{{
+        'feature.lobby.roomSetting.alreadyConnectedHint' | transloco
+      }}<br />{{ 'feature.lobby.roomSetting.alreadyConnectedHint2' | transloco }}<br />
+      <button class="mt-2" data-testid="room-setting-leave-room" (click)="leaveRoom()">
+        {{ 'feature.lobby.lobby.leaveRoom' | transloco }}
+      </button>
+    }
   </p>
 }

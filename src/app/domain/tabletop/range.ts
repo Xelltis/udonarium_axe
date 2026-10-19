@@ -4,6 +4,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { generateUuid } from '@axe/core/util/uuid';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { cellPatternBoundingBox, parseCellPattern } from '@axe/domain/tabletop/cell-pattern';
+import { centerFollowerOnCharacter } from '@axe/domain/tabletop/following';
 import { appendPieceDataElements } from '@axe/domain/tabletop/piece-data-elements';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
@@ -22,7 +23,7 @@ export class RangeArea extends TabletopObject {
   @SyncVar() rotate: number = 0;
   /** The saved name is out there misspelt. The name here is corrected and the saved one left alone. */
   @SyncVar('followingCharctorIdentifier') followingCharacterIdentifier: string = '';
-  @SyncVar() followingCounterDummy: number = 0; // 追従時再描画用ダミー
+  @SyncVar() followingCounterDummy: number = 0; // a dummy changed to redraw while following
 
   @SyncVar() offSetX: boolean = false;
   @SyncVar() offSetY: boolean = false;
@@ -68,8 +69,6 @@ export class RangeArea extends TabletopObject {
     this.setCommonValue('width', width);
   }
 
-  gridSize: number = 50;
-
   /**
    * How much of the range is painted, as a share of the whole its sheet keeps.
    *
@@ -107,19 +106,19 @@ export class RangeArea extends TabletopObject {
   }
 
   /**
-   * Moves the range onto the centre of the character it follows and bumps the follow counter.
+   * Moves the range onto the centre of the character it follows, on a table whose cells are
+   * `gridSize` across, and bumps the follow counter.
    *
    * When that character is gone, the range stops following instead.
    */
-  following() {
+  following(gridSize: number) {
     const object = ObjectStore.instance.get<GameCharacter>(this.followingCharacterIdentifier);
     if (!object) {
       this.followingCharacterIdentifier = '';
       return;
     }
 
-    this.location.x = object.location.x + (this.gridSize * object.size) / 2;
-    this.location.y = object.location.y + (this.gridSize * object.size) / 2;
+    centerFollowerOnCharacter(this, object, gridSize);
     this.followingCounterDummyCount();
   }
 

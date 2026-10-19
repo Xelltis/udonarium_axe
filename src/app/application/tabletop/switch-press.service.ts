@@ -3,6 +3,7 @@ import { CharacterMacroService } from '@axe/application/chat/character-macro.ser
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { NamedCueService } from '@axe/application/media/named-cue.service';
+import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { blockFootprintOf } from '@axe/application/tabletop/functional-paint.service';
 import { TableTriggerService } from '@axe/application/tabletop/table-trigger.service';
@@ -102,6 +103,7 @@ export class SwitchPressService {
   private readonly fire = inject(TriggerFireService);
   private readonly images = inject(ImageStorage);
   private readonly audios = inject(AudioStorage);
+  private readonly tableBgm = inject(TableBgmService);
 
   private readonly running = new Set<string>();
   private readonly pressedAt = new Map<string, number>();
@@ -132,6 +134,7 @@ export class SwitchPressService {
       reach: definition.range > 0 ? this.reachOf(character, host, definition.range) : undefined,
       inSight: definition.needsSight ? this.sees(host) : undefined,
       trial: options.trial,
+      guestsKeptOut: Network.authorityPeerId !== null,
     });
   }
 
@@ -245,7 +248,11 @@ export class SwitchPressService {
         return;
       case 'showTable': {
         const table = this.tableNamed(action.table);
-        if (table) emitSelectGameTable({ identifier: table.identifier });
+        if (!table) return;
+        const switched = table.identifier !== this.tableSelecter.viewTableIdentifier;
+        emitSelectGameTable({ identifier: table.identifier });
+        // A switch that sets the music itself has the last word on it.
+        if (switched && !setsMusic(context.definition)) this.tableBgm.playFor(table);
         return;
       }
       case 'carry': {
@@ -422,4 +429,13 @@ export class SwitchPressService {
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Whether a switch puts music on or stops it itself, which a table it shows then leaves to it. */
+function setsMusic(definition: SwitchDefinition): boolean {
+  return definition.actions.some(
+    (action) =>
+      action.kind === 'tableSetting' &&
+      (action.bgmStop || action.bgm.identifier.length > 0 || action.bgm.name.trim().length > 0)
+  );
 }

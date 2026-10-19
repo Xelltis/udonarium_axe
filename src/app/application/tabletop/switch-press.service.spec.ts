@@ -3,6 +3,7 @@ import { CharacterMacroService } from '@axe/application/chat/character-macro.ser
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { NamedCueService } from '@axe/application/media/named-cue.service';
+import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { SWITCH_COOLDOWN_MS, SwitchPressService } from '@axe/application/tabletop/switch-press.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -174,6 +175,15 @@ describe('SwitchPressService', () => {
     PeerCursor.myCursor.role = PeerRole.Guest;
 
     expect(await presses.press(switchWith({ actions: [say('hi')] }))).toBe('watching');
+    expect(said).toEqual([]);
+  });
+
+  it('turns a watcher away from a switch left open to watchers on a room server, which would take it back', async () => {
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    const open = switchWith({ guests: true, actions: [say('hi')] });
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+
+    expect(await presses.press(open)).toBe('watching');
     expect(said).toEqual([]);
   });
 
@@ -447,6 +457,43 @@ describe('SwitchPressService', () => {
       );
 
       expect(TestBed.inject(TableSelecter).viewTableIdentifier).toBe(cellar.identifier);
+    });
+
+    it('puts on the music of the table it turns to, unless the switch sets the music itself', async () => {
+      const cellar = new GameTable();
+      cellar.name = '地下室';
+      cellar.initialize();
+      const music = vi.spyOn(TestBed.inject(TableBgmService), 'playFor').mockImplementation(() => undefined);
+      const showCellar = {
+        kind: 'showTable' as const,
+        table: { identifier: cellar.identifier, name: '地下室' },
+        delayMs: 0,
+        extra: {},
+      };
+
+      await presses.press(switchWith({ actions: [showCellar] }));
+      expect(music).toHaveBeenCalledWith(cellar);
+
+      music.mockClear();
+      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      await presses.press(
+        switchWith({
+          actions: [
+            showCellar,
+            {
+              kind: 'tableSetting',
+              darkness: 'keep',
+              fog: 'keep',
+              image: { identifier: '', name: '' },
+              bgm: { identifier: '', name: '' },
+              bgmStop: true,
+              delayMs: 0,
+              extra: {},
+            },
+          ],
+        })
+      );
+      expect(music).not.toHaveBeenCalled();
     });
 
     it('carries the presser’s piece to a cell, on the table being looked at unless another is named', async () => {

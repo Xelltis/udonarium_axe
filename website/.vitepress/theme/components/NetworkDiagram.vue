@@ -5,7 +5,7 @@
         <title id="net-title">Udonarium Axeの通信構成</title>
         <desc id="net-desc">
           参加者のブラウザどうしがWebRTCで直接つながり、コマ・チャット・画像をやりとりします。
-          SkyWayは接続の仲介、バックエンドは入室トークンの発行だけを担当し、ゲームデータは通りません。
+          SkyWayは接続の仲介、トークン発行サーバーは入室トークンの発行だけを担当し、ゲームデータは通りません。
         </desc>
 
         <!-- everything inside this zone stays between the participants -->
@@ -51,7 +51,7 @@
         </g>
         <g class="aux-text">
           <text x="200" y="376">SkyWay</text>
-          <text x="560" y="376">トークン発行バックエンド</text>
+          <text x="560" y="376">トークン発行サーバー</text>
         </g>
         <g class="node-sub">
           <text x="200" y="398">相手を見つけて繋ぐだけ</text>
@@ -59,7 +59,7 @@
         </g>
       </svg>
     </div>
-    <figcaption>ゲームデータは参加者のブラウザ間だけを流れ、中央サーバーには保存されません。</figcaption>
+    <figcaption>SkyWay版では、ゲームデータは参加者のブラウザ間だけを流れ、中央サーバーには保存されません。</figcaption>
   </figure>
 </template>
 

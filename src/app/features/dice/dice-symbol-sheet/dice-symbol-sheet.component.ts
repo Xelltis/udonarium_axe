@@ -1,14 +1,19 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -47,7 +52,10 @@ export class DiceSymbolSheetComponent {
   private readonly saveDataService = inject(SaveDataService);
   private readonly imageService = inject(ImageService);
   private readonly imageStorage = inject(ImageStorage);
+  private readonly snackbar = inject(SnackbarService);
+  private readonly translateFn = inject(TRANSLATE_FN);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly tabletop = inject(TabletopService);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly _diceSymbol = signal<DiceSymbol | null>(null);
@@ -87,6 +95,7 @@ export class DiceSymbolSheetComponent {
   readonly progressPercent = signal(0);
 
   constructor() {
+    closeWhenOffTheTable();
     this.objectChange.objectDeleted$.subscribe((e) => {
       const dice = this._diceSymbol();
       if (dice && dice.identifier === e.identifier) {
@@ -192,14 +201,18 @@ export class DiceSymbolSheetComponent {
 
   /**
    * Places a copy of the die beside the original, offset by 50 pixels each way, and plays the
-   * die-put sound.
+   * die-put sound; none of a die a room server withholds the face of from this user, which it says.
    */
   clone() {
     const dice = this._diceSymbol();
     if (!dice) return;
+    if (isWithheldHere(dice)) {
+      this.snackbar.show(this.translateFn('feature.inventory.sheet.copyWithheld'));
+      return;
+    }
     const cloneObject = dice.clone();
-    cloneObject.location.x += 50;
-    cloneObject.location.y += 50;
+    cloneObject.location.x += this.tabletop.gridSize();
+    cloneObject.location.y += this.tabletop.gridSize();
     if (dice.parent) dice.parent.appendChild(cloneObject);
     cloneObject.update();
     SoundEffect.play(PresetSound.dicePut);
@@ -207,11 +220,16 @@ export class DiceSymbolSheetComponent {
 
   /**
    * Downloads the die as a save file, showing progress until shortly after it finishes; does
-   * nothing while a save is running.
+   * nothing while a save is running, nor for a die a room server withholds the face of from this
+   * user, as for a copy.
    */
   async saveToXML() {
     const dice = this._diceSymbol();
     if (!dice || this.isSaving()) return;
+    if (isWithheldHere(dice)) {
+      this.snackbar.show(this.translateFn('feature.inventory.sheet.saveWithheld'));
+      return;
+    }
     this.isSaving.set(true);
     this.progressPercent.set(0);
     await this.saveDataService.saveGameObjectAsync(dice, 'xml_' + dice.name, (percent) => {

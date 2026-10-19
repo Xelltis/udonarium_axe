@@ -50,8 +50,11 @@ export function getDiceMenuItems(): DiceMenuItem[] {
   ];
 }
 
-/** How far apart several dice made at once stand, and how many stand in a row before the next begins. */
-const DICE_PLACEMENT_STEP_PX = 55;
+/**
+ * The gap left between several dice made at once, as a share of a cell, and how many stand in a row
+ * before the next begins.
+ */
+const DICE_PLACEMENT_GAP_CELLS = 0.1;
 const DICE_PLACEMENT_PER_ROW = 5;
 
 export interface DicePlacement {
@@ -90,15 +93,21 @@ export interface DiceCreateRequest {
  *
  * One die is made where the table was asked. Several would stand in a pile on that one spot, so
  * they are laid out in rows from it: a handful can then be read and thrown without being pulled
- * apart first, and a row wraps rather than running off the edge of the table.
+ * apart first, and a row wraps rather than running off the edge of the table. Each die is a cell
+ * of `cellPx` across, and the first is drawn back by half of one to sit under the point asked.
  */
-export function getDicePlacements(position: { x: number; y: number }, count: number): DicePlacement[] {
+export function getDicePlacements(
+  position: { x: number; y: number },
+  count: number,
+  cellPx: number = 50
+): DicePlacement[] {
   const wanted = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+  const step = cellPx + cellPx * DICE_PLACEMENT_GAP_CELLS;
   const placements: DicePlacement[] = [];
   for (let index = 0; index < wanted; index++) {
     placements.push({
-      x: position.x - 25 + (index % DICE_PLACEMENT_PER_ROW) * DICE_PLACEMENT_STEP_PX,
-      y: position.y - 25 + Math.floor(index / DICE_PLACEMENT_PER_ROW) * DICE_PLACEMENT_STEP_PX,
+      x: position.x - cellPx / 2 + (index % DICE_PLACEMENT_PER_ROW) * step,
+      y: position.y - cellPx / 2 + Math.floor(index / DICE_PLACEMENT_PER_ROW) * step,
     });
   }
   return placements;

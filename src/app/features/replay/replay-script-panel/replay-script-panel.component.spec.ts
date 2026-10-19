@@ -118,6 +118,24 @@ describe('ReplayScriptPanelComponent', () => {
     expect(await saved[0].blob.text()).toContain('**アリス**');
   });
 
+  it('still shows the layout chosen when it is opened again', async () => {
+    await setup();
+    buttonByText('読み物にする')?.click();
+    fixture.detectChanges();
+    const chosen = fixture.nativeElement.querySelector('select') as HTMLSelectElement;
+    chosen.value = 'script';
+    chosen.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    buttonByText('読み物にする')?.click();
+    fixture.detectChanges();
+    buttonByText('読み物にする')?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement.querySelector('select') as HTMLSelectElement).value).toBe('script');
+  });
+
   it('leaves out what the role of whoever exports it may not see', async () => {
     events = [say(1, 'やあ'), say(2, '内緒話', { visibility: GM_ONLY_VISIBILITY })];
     role = PeerRole.Player;

@@ -36,6 +36,7 @@ import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { Network } from '@axe/core/network/network';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -139,7 +140,12 @@ export class ChatMessageComponent {
 
   /** Whether the pencil is offered on this line. */
   get canChange(): boolean {
-    return !this.readOnly() && (this.chatMessage?.changeable ?? false) && !this.chatMessage.sentStamp;
+    return (
+      !this.readOnly() &&
+      !!this.chatMessage &&
+      this.chatMessageService.canEditMessage(this.chatMessage) &&
+      !this.chatMessage.sentStamp
+    );
   }
 
   /**
@@ -178,6 +184,15 @@ export class ChatMessageComponent {
   /** The message this row draws, as passed in through the `chatMessage` input. */
   get chatMessage(): ChatMessage {
     return this.chatMessageInput();
+  }
+
+  /**
+   * Whether the line wears the mark of a roll the room server made. Only on a room server, which
+   * takes the mark off whatever a device sends; with SkyWay any device could put it on.
+   */
+  get showsServerRoll(): boolean {
+    const message = this.chatMessage;
+    return !!message?.isServerRoll && message.isDicebot && Network.transport === 'server';
   }
 
   /** Whether the line was posted by the app itself, whose name and text are translation keys to decode. */
@@ -624,7 +639,7 @@ export class ChatMessageComponent {
    * focused with the caret at the end once it is drawn. Does nothing for a line that may not change.
    */
   startEdit() {
-    if (!this.chatMessage.changeable) return;
+    if (!this.chatMessageService.canEditMessage(this.chatMessage)) return;
     this.editDraft.set(vnBodyOf(this.chatMessage.vnEmote, this.chatMessage.text ?? ''));
     setTimeout(() => {
       const el = this.editingTextArea()?.nativeElement;
@@ -641,13 +656,14 @@ export class ChatMessageComponent {
    *
    * Trailing space is dropped, and a draft left empty is treated as a cancel. A change marks the line
    * as edited, keeps what it said before in its history, and reaches the room through the synced
-   * message; an unchanged draft writes nothing.
+   * message; an unchanged draft writes nothing. A seat that may no longer edit the line, made a
+   * guest or shut out of the tab while it typed, has the draft thrown away instead.
    */
   saveEdit() {
     const draft = this.editDraft();
     if (draft === null) return;
     const next = draft.trimEnd();
-    if (next.length === 0) {
+    if (next.length === 0 || !this.chatMessageService.canEditMessage(this.chatMessage)) {
       this.cancelEdit();
       return;
     }
@@ -769,9 +785,12 @@ export class ChatMessageComponent {
     return this.canInteract && this.chatMessage.isShownInChat;
   }
 
-  /** Whether a stamp may be put on the line, which the room may have turned off. */
+  /**
+   * Whether a stamp may be put on the line, which the room may have turned off, and which a guest on
+   * a room server may not.
+   */
   get canReact(): boolean {
-    return this.canAnswerWithStamps && this.stampRules.isOn('reaction');
+    return this.canAnswerWithStamps && this.reactions.mayReact && this.stampRules.isOn('reaction');
   }
 
   /**
@@ -779,7 +798,8 @@ export class ChatMessageComponent {
    * theirs, where the room lets that stamp be put on.
    */
   protected canPressReaction(tally: ReactionTally): boolean {
-    return this.canAnswerWithStamps && (tally.mine || this.stampRules.allows('reaction', tally.stampId));
+    if (!this.canAnswerWithStamps || !this.reactions.mayReact) return false;
+    return tally.mine || this.stampRules.allows('reaction', tally.stampId);
   }
 
   private readonly reactionTallies = computed<readonly ReactionTally[]>(

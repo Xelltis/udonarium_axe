@@ -4,10 +4,12 @@ import { EnvironmentProviders, NO_ERRORS_SCHEMA, Provider } from '@angular/core'
 import { ɵresolveComponentResources as resolveComponentResources } from '@angular/core';
 import { TestBed, TestModuleMetadata } from '@angular/core/testing';
 import { BrowserDynamicTestingModule, platformBrowserDynamicTesting } from '@angular/platform-browser-dynamic/testing';
+import { loadConfig$ } from '@axe/core/event/domain-events';
 import { Logger, LogLevel } from '@axe/core/logging/logger';
 import { resetPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { readdirSync, readFileSync, statSync } from 'fs';
@@ -372,6 +374,9 @@ function emptyObjectStore(): void {
   // rather than entries of the store. Emptying the store alone leaves that one holding every tab
   // any spec ever added, and it hands them back the moment the next one reads it.
   ChatTabList.forget();
+  // The room's summary setting is held the same way, and a spec that sets out the default table
+  // leaves the inventory sorting by a status and then by name for every file after it.
+  DataSummarySetting.forget();
   // Readings of sounds made on this device are held by their own module beside the store.
   AudioProfile.clearLocal();
 }
@@ -405,6 +410,26 @@ function forgetSeatPreferences(): void {
   localStorage.removeItem(BEAT_LIGHT_OFF_STORAGE_KEY);
 }
 
+/**
+ * The page's address as the setup found it. A spec that clicks a link, as saving a file does, has
+ * happy-dom set the page's address to the link's, since it cannot load another page; a blob's
+ * address left there is no base for the relative addresses later specs in the worker resolve. It
+ * can land a moment after the click, in the next spec, so the setting is turned off outright, and
+ * the address put back before each test should anything else move it.
+ */
+const PAGE_URL = location.href;
+const happyDOM = (
+  window as unknown as {
+    happyDOM?: { setURL(url: string): void; settings: { navigation: { disableFallbackToSetURL: boolean } } };
+  }
+).happyDOM;
+if (happyDOM) happyDOM.settings.navigation.disableFallbackToSetURL = true;
+
+/** Puts the page back at the address the setup found it at, if a spec moved it. */
+function returnToPageUrl(): void {
+  if (location.href !== PAGE_URL) happyDOM?.setURL(PAGE_URL);
+}
+
 beforeAll(async () => {
   (globalThis as unknown as Record<string, GlobalTestProviders | null>)[GLOBAL_TEST_PROVIDERS_KEY] = specUsesTestBed()
     ? await loadGlobalTestProviders()
@@ -417,7 +442,10 @@ beforeEach(async () => {
   emptyObjectStore();
   forgetMyCursor();
   forgetSeatPreferences();
+  returnToPageUrl();
   resetPeerContextProvider();
+  // The configuration a test announced is replayed to whoever subscribes later, in other files too.
+  loadConfig$.forget();
   await resolveComponentResources(resourceResolver as Parameters<typeof resolveComponentResources>[0]);
   applyConfigureTestingModuleWrapper();
 });

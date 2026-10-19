@@ -28,16 +28,17 @@
         link.rel = 'preload';
         link.as = 'fetch';
         link.crossOrigin = 'anonymous';
-        link.href = 'assets/i18n/' + lang + '.json';
+        // The build writes the app's version in, as the app asks for the file under it.
+        link.href = 'assets/i18n/' + lang + '.json?v=__APP_VERSION__';
         document.head.appendChild(link);
       })();
     </script>
-    <!-- テーマフラッシュ防止: Angular起動前にdata-themeを適用 -->
+    <!-- Keeps the wrong theme from flashing: applies data-theme before Angular starts -->
     <script>
       (function () {
         var t = localStorage.getItem('ui-theme');
         if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
-        // 配信に重ねる画面は、読み込み中の表示から既に透けている必要がある。
+        // A screen laid over a stream has to be see-through already, from the loading display on.
         if (/^#join\?/.test(location.hash) && /[?&]overlay=1(&|$)/.test(location.hash))
           document.documentElement.setAttribute('data-overlay', '1');
       })();

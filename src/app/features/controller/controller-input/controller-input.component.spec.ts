@@ -1,4 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { localDispatch } from '@axe/core/network/network-messaging';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ControllerInputComponent } from '@axe/features/controller/controller-input/controller-input.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -20,6 +23,25 @@ describe('ControllerInputComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('moves a whisper onto the cursor its target came back on, once the one it left is taken away', () => {
+    const before = new PeerCursor('bob-before');
+    before.initialize();
+    before.userId = 'user-bob';
+    const after = new PeerCursor('bob-after');
+    after.initialize();
+    after.userId = 'user-bob';
+    try {
+      component.sendTo.set('bob-before');
+
+      ObjectStore.instance.remove(before);
+      localDispatch('DELETE_GAME_OBJECT', { aliasName: PeerCursor.aliasName, identifier: 'bob-before' }, 'peer-b');
+
+      expect(component.sendTo()).toBe('bob-after');
+    } finally {
+      ObjectStore.instance.remove(after);
+    }
   });
 
   describe('signal-driven CD', () => {

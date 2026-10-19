@@ -28,6 +28,7 @@ import { isLevelWith, isWalkableStep, landingHeightsOn } from '@axe/domain/table
 import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { exactMoveCellsOf } from '@axe/domain/tabletop/move/move-cells';
 import { moveCostCells } from '@axe/domain/tabletop/move/move-cost-cells';
+import { moveGridOf, spanOf, squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
 import { cellsByKind, moveKindNamed } from '@axe/domain/tabletop/move/move-kind';
 import { moveModeTermsOf } from '@axe/domain/tabletop/move/move-mode';
 import { STEPS_PER_CELL, stepsFor } from '@axe/domain/tabletop/move/move-steps';
@@ -87,7 +88,7 @@ function sameElements<T>(a: readonly T[], b: readonly T[]): boolean {
 
 /** What tells one board from another, for anything rasterised over the cells of one. */
 function gridKeyOf(grid: CellGrid): string {
-  return `${grid.cols}:${grid.rows}:${grid.sizePx}:${grid.type}`;
+  return `${grid.cols}:${grid.rows}:${grid.sizePx}:${grid.type}:${spanOf(grid)}`;
 }
 
 export interface MoveRangeView {
@@ -222,7 +223,9 @@ export class MoveRangeService {
   canStepTo(character: GameCharacter, cell: number): boolean {
     const table = this.tableSelecter.viewTable;
     if (!table || cell < 0 || table.gridSize <= 0) return false;
-    const terms = this.termsOf(character);
+    // The cell asked about is one of the table's own; a reach over squares of several cells
+    // numbers its squares instead, so it is answered from the table's cells below.
+    const terms = squareSpanOf(table) > 1 ? null : this.termsOf(character);
     if (terms) return cell < terms.cells.count && terms.cells.get(cell);
     const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
     if (cell >= cellCount(grid)) return false;
@@ -531,7 +534,7 @@ export class MoveRangeService {
     const walk = cellsByKind(kind, opened.walk, metresPerCell(rules));
     if (walk < 1) return null;
 
-    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const grid = moveGridOf(table);
     const fight = this.zones.reachTermsFor(character, grid, kind.name);
     if (fight?.noReach) return null;
     const start = fight?.startPoint

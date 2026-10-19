@@ -3,6 +3,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -67,6 +68,13 @@ describe('MapEditorPanelComponent', () => {
 
   it('can be created', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('puts its keys first on the cheat sheet while it is open', () => {
+    const scopes = TestBed.inject(ShortcutScopeService);
+    expect(scopes.scopes()).toContain('mapEditor');
+    fixture.destroy();
+    expect(scopes.scopes()).not.toContain('mapEditor');
   });
 
   it('shows only the game-master notice to anyone else', () => {

@@ -17,7 +17,7 @@ export default defineConfig({
   timeout: 30000,
   use: {
     baseURL: 'http://localhost:4300',
-    // UI文言を前提にしたアサーションが多いので言語を固定する
+    // Many assertions rely on the UI's wording, so the language is fixed
     locale: 'ja-JP',
     trace: 'on-first-retry',
     // Action/navigation timeouts to prevent indefinite hangs.
@@ -32,7 +32,7 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/],
+      testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/],
     },
     {
       name: 'mobile',
@@ -51,18 +51,27 @@ export default defineConfig({
       testMatch: /visual\/.*\.spec\.ts/,
       retries: 0,
     },
+    // A room on the room server, played in several browsers against the backend's Worker. Run on
+    // its own and locally, like the visual project: see e2e/server/room-server.ts for what it needs.
+    {
+      name: 'server',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
+      testMatch: /server\/.*\.spec\.ts/,
+      retries: 0,
+      timeout: 120_000,
+    },
     // Firefox and WebKit are only run in CI to reduce local resource usage.
     ...(isCI
       ? [
           {
             name: 'firefox',
             use: { ...devices['Desktop Firefox'] },
-            testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/],
+            testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/],
           },
           {
             name: 'webkit',
             use: { ...devices['Desktop Safari'] },
-            testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/],
+            testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/],
           },
           {
             name: 'mobile-safari',

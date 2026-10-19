@@ -24,8 +24,9 @@
   } @else {
     <ol class="m-0 flex list-none flex-col gap-1.5 p-0">
       @for (card of cards(); track trackByCard($index, card); let index = $index) {
-        @let label = trumpLabel(card);
-        @let fallbackHint = label ? '' : cardImageHint(card);
+        @let withheld = isFaceWithheld(card);
+        @let label = withheld ? null : trumpLabel(card);
+        @let fallbackHint = label || withheld ? '' : cardImageHint(card);
         <li
           class="bg-ui-elevated border-ui-border-panel rounded-ui-sm relative flex items-center gap-3 border border-solid px-3 py-2 transition-[opacity,border-color,box-shadow] hover:border-[color-mix(in_srgb,var(--ui-accent)_55%,var(--ui-border-panel))] hover:shadow-[0_0_0_1px_color-mix(in_srgb,var(--ui-accent)_18%,transparent)]"
           [class.opacity-40]="isDragging(card)"
@@ -57,24 +58,35 @@
           </span>
 
           <div class="flex shrink-0 gap-0.5" [appTooltip]="card">
-            <button
-              type="button"
-              class="group/thumb bg-ui-input border-ui-border-panel hover:border-ui-accent rounded-ui-sm relative size-14 cursor-pointer overflow-hidden border border-solid bg-contain bg-center bg-no-repeat p-0 shadow-sm transition-[border-color,transform,box-shadow] hover:scale-[1.06] hover:shadow-md"
-              [attr.title]="'feature.inventory.sheet.changeFrontImage' | transloco"
-              (click)="setImage(card, 'front')"
-            >
-              <card-face-preview
-                [card]="card"
-                [imageUrl]="card.frontImage?.url ?? ''"
-                [frameWidth]="56"
-                [frameHeight]="56"
-              />
+            @if (withheld) {
               <span
-                class="pointer-events-none absolute inset-0 z-3 flex items-center justify-center bg-black/50 text-white opacity-0 transition-opacity group-hover/thumb:opacity-100 [&_.material-icons]:text-[18px]!"
+                class="bg-ui-input border-ui-border-panel rounded-ui-sm relative flex size-14 items-center justify-center overflow-hidden border border-solid bg-contain bg-center bg-no-repeat"
+                data-testid="card-list-face-withheld"
+                [style.background-image]="'url(' + $safeNavigationMigration(card.backImage?.url) + ')' | safe: 'style'"
+                [attr.title]="'feature.cardStack.list.faceWithheld' | transloco"
               >
-                <i class="material-icons">edit</i>
+                <i class="material-icons rounded-full bg-black/50 p-0.5 text-[16px]! text-white">visibility_off</i>
               </span>
-            </button>
+            } @else {
+              <button
+                type="button"
+                class="group/thumb bg-ui-input border-ui-border-panel hover:border-ui-accent rounded-ui-sm relative size-14 cursor-pointer overflow-hidden border border-solid bg-contain bg-center bg-no-repeat p-0 shadow-sm transition-[border-color,transform,box-shadow] hover:scale-[1.06] hover:shadow-md"
+                [attr.title]="'feature.inventory.sheet.changeFrontImage' | transloco"
+                (click)="setImage(card, 'front')"
+              >
+                <card-face-preview
+                  [card]="card"
+                  [imageUrl]="card.frontImage?.url ?? ''"
+                  [frameWidth]="56"
+                  [frameHeight]="56"
+                />
+                <span
+                  class="pointer-events-none absolute inset-0 z-3 flex items-center justify-center bg-black/50 text-white opacity-0 transition-opacity group-hover/thumb:opacity-100 [&_.material-icons]:text-[18px]!"
+                >
+                  <i class="material-icons">edit</i>
+                </span>
+              </button>
+            }
             <button
               type="button"
               class="group/thumb bg-ui-input border-ui-border-panel hover:border-ui-accent rounded-ui-sm relative size-14 cursor-pointer overflow-hidden border border-solid bg-contain bg-center bg-no-repeat p-0 shadow-sm transition-[border-color,transform,box-shadow] hover:scale-[1.06] hover:shadow-md"
@@ -101,11 +113,16 @@
               </span>
             } @else if (fallbackHint) {
               <span class="text-ui-muted font-mono text-[0.85em] leading-tight">{{ fallbackHint }}</span>
+            } @else if (withheld) {
+              <span class="text-ui-muted text-[0.85em] leading-tight">{{
+                'feature.cardStack.list.faceWithheld' | transloco
+              }}</span>
             }
             <input
               type="text"
               class="border-ui-border-panel/60 bg-ui-input/60 text-ui-text focus:border-ui-accent focus:bg-ui-input rounded-ui-sm w-full max-w-xs border border-solid px-2 py-0.75 text-[0.78em] transition-colors outline-none placeholder:italic"
               [value]="cardName(card)"
+              [disabled]="withheld"
               [placeholder]="'feature.cardStack.list.namePlaceholder' | transloco"
               (change)="setCardName(card, $event)"
             />

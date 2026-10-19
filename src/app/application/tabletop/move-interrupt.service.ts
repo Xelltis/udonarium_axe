@@ -13,10 +13,13 @@ import { generateUuid } from '@axe/core/util/uuid';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { cellCenterOf, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { cellCenterOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import type { MovePoint } from '@axe/domain/tabletop/move/blocked-path';
 import { exactMoveCellsOf } from '@axe/domain/tabletop/move/move-cells';
+import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
+import { squarePxOf } from '@axe/domain/tabletop/move/move-grid';
 import { lengthByKind, moveKindNamed, parseMoveKinds } from '@axe/domain/tabletop/move/move-kind';
 import { readMovingPoints } from '@axe/domain/tabletop/move/moving-points';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
@@ -590,17 +593,18 @@ export class MoveInterruptService {
     const walk = exactMoveCellsOf(piece, rules.moveRangeElementNames, rules.cellDistance, rules.cellDistanceUnit);
     if (walk === null || walk <= 0) return 0;
     const kind = moveKindNamed(parseMoveKinds(this.config()?.moveKinds ?? ''), this.config()?.interruptKind ?? '');
-    return lengthByKind(kind, walk, metresPerCell(rules)) * table.gridSize;
+    return lengthByKind(kind, walk, metresPerCell(rules)) * squarePxOf(table);
   }
 
   /**
    * The cursor of the peer that answers for a piece: its owner's, where its owner is here with a
-   * version that knows of this, and otherwise the game master lowest in order that does.
+   * version that knows of this and may change the table, and otherwise the game master lowest in
+   * order that does. An owner made a guest answers for nothing, as with a piece nobody owns.
    */
   private responderOf(piece: GameCharacter): string | null {
     if (piece.owner) {
       const owner = PeerCursor.findByUserId(piece.owner);
-      if (owner && owner.zoneProtocol === '1') return owner.identifier;
+      if (owner && owner.zoneProtocol === '1' && canRoleEdit(owner.role)) return owner.identifier;
     }
     const masters = this.objectStore
       .getObjects<PeerCursor>(PeerCursor)
@@ -612,7 +616,7 @@ export class MoveInterruptService {
   /** The way a cursor has declared, as points in table pixels. */
   private pathOf(cursor: PeerCursor, table: GameTable): MovePoint[] {
     if (cursor.movingPoints) return readMovingPoints(cursor.movingPoints);
-    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const grid = moveGridOf(table);
     return cursor.movingWay
       .split(',')
       .map(Number)

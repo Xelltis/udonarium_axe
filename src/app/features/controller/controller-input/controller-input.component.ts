@@ -18,7 +18,7 @@ import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { Network } from '@axe/core/index';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { ObjectStore } from '@axe/core/sync/object-store';
+import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { chatColorOf, DEFAULT_CHAT_COLOR } from '@axe/domain/chat/chat-color';
@@ -202,7 +202,7 @@ export class ControllerInputComponent {
           import('@axe/features/chat/chat-color-setting/chat-color-setting.component').then(
             (m) => m.ChatColorSettingComponent
           ),
-        option,
+        { ...option, stillWanted: () => isInStore(object) },
         (component) => (component.tabletopObject = object)
       );
     }
@@ -231,6 +231,25 @@ export class ControllerInputComponent {
         this.sendTo.set('');
       }
     }, this.destroyRef);
+    this.objectChange.onObjectChangedForAlias(
+      [PeerCursor.aliasName],
+      () => this.followWhisperTarget(),
+      this.destroyRef
+    );
+    this.objectChange.objectDeleted$.subscribe((event) => {
+      if (event.identifier === this.sendTo()) this.followWhisperTarget();
+    }, this.destroyRef);
+  }
+
+  /**
+   * Moves the whisper onto the cursor its target came back on, as after the target opened the page
+   * again, so that the choice shows who it still goes to.
+   */
+  private followWhisperTarget(): void {
+    const sendTo = this.sendTo();
+    if (!sendTo) return;
+    const standing = PeerCursor.standingFor(sendTo);
+    if (standing && standing.identifier !== sendTo) this.sendTo.set(standing.identifier);
   }
 
   /** Asks the parent to tick every character when none is selected, or to untick them all otherwise. */

@@ -63,8 +63,10 @@ async function rideAOnB(page: Page) {
   await settle(rider);
 }
 
-test.describe('乗り物', () => {
-  test('乗り物にした駒に同じ点から乗ると、乗り手の移動で乗り物ごと動き、降りられること', async ({ page }) => {
+test.describe('mounts', () => {
+  test('lets a piece get on a mount from the same spot, carries the mount along as the rider moves, and lets the rider get off', async ({
+    page,
+  }) => {
     await waitAppReady(page);
     await becomeGm(page);
     await closePanels(page);
@@ -101,7 +103,9 @@ test.describe('乗り物', () => {
     await expect(mount.getByTestId('piece-riders')).toHaveCount(0, { timeout: 5000 });
   });
 
-  test('乗られている乗り物は行動順から外れ、ラウンド表示で乗り手の丸に重なること', async ({ page }) => {
+  test('takes a ridden mount out of the turn order, and lays it over its rider’s circle in the round view', async ({
+    page,
+  }) => {
     await rideAOnB(page);
 
     await openPanel(page, 'インベントリ');
@@ -117,7 +121,9 @@ test.describe('乗り物', () => {
     await expect(panel.locator('button[title="キャラクターB"]')).toHaveCount(0);
   });
 
-  test('乗り物が転ぶと乗り手が落ちて転び、乗り物が起きれば起き上がって乗り直せること', async ({ page }) => {
+  test('throws the rider down when the mount falls, and lets the rider get up and back on once the mount is up', async ({
+    page,
+  }) => {
     await rideAOnB(page);
     const mount = piece(page, 'キャラクターB');
 
@@ -127,7 +133,7 @@ test.describe('乗り物', () => {
     await piece(page, 'キャラクターA').dispatchEvent('contextmenu');
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await menu.getByText('駒の状態', { exact: true }).hover();
+    await menu.getByText('コマの状態', { exact: true }).hover();
     await expect(menu.locator('li', { hasText: '転んでいる' }).getByRole('checkbox')).toBeChecked({ timeout: 5000 });
     await expect(menu.getByText('キャラクターB から降りる')).toHaveCount(0);
 
@@ -136,7 +142,7 @@ test.describe('乗り物', () => {
     await expect(mount.getByTestId('piece-riders').first()).toContainText('1', { timeout: 5000 });
   });
 
-  test('乗っている駒を手で乗り物から離して置くと、そこで降りること', async ({ page }) => {
+  test('gets a rider off where it is put down by hand away from its mount', async ({ page }) => {
     await rideAOnB(page);
     const mount = piece(page, 'キャラクターB');
     const rider = page.locator('game-character[data-e2e-pinned="キャラクターA"]');
@@ -149,13 +155,15 @@ test.describe('乗り物', () => {
     await piece(page, 'キャラクターA').dispatchEvent('contextmenu');
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await menu.getByText('駒の状態', { exact: true }).hover();
+    await menu.getByText('コマの状態', { exact: true }).hover();
     await expect(menu.locator('li', { hasText: '転んでいる' }).getByRole('checkbox')).not.toBeChecked({
       timeout: 5000,
     });
   });
 
-  test('大きな乗り物を手で何度動かしても、乗り手は乗り物の真ん中に乗ったままであること', async ({ page }) => {
+  test('keeps the rider in the middle of a large mount however many times the mount is moved by hand', async ({
+    page,
+  }) => {
     await waitAppReady(page);
     await becomeGm(page);
     await closePanels(page);

@@ -32,6 +32,29 @@ describe('GridLineRender', () => {
     vi.restoreAllMocks();
   });
 
+  describe('a table counting squares of several cells', () => {
+    it('draws the edges of whole squares over the cells, heavier', () => {
+      const { canvas, context } = createCanvasMock();
+      const widths: number[] = [];
+      vi.mocked(context.stroke).mockImplementation(() => widths.push(context.lineWidth));
+
+      new GridLineRender(canvas).render(5, 4, 50, GridType.SQUARE, '#000', '#000', false, 0, 0, 2);
+
+      expect(context.moveTo).toHaveBeenCalledWith(200, 0);
+      expect(context.lineTo).toHaveBeenCalledWith(200, 200);
+      expect(context.moveTo).not.toHaveBeenCalledWith(300, 0);
+      expect(widths).toEqual([2.5]);
+    });
+
+    it('draws no squares where each cell is a square', () => {
+      const { canvas, context } = createCanvasMock();
+
+      new GridLineRender(canvas).render(5, 4, 50, GridType.SQUARE, '#000', '#000');
+
+      expect(context.stroke).not.toHaveBeenCalled();
+    });
+  });
+
   describe('renderViewport', () => {
     it('draws a square grid on a canvas the size of the area', () => {
       const { canvas, context } = createCanvasMock();

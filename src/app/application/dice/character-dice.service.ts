@@ -12,6 +12,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 
 /** How far apart the dice stand, and how far from the piece that laid them out. */
 const DICE_STEP_PX = 55;
@@ -84,13 +85,16 @@ export class CharacterDiceService {
    *
    * The die itself goes: what is kept is its name, its faces and how many there are, and
    * leaving the object behind as well would put the same die in two places. One the sheet
-   * could not keep stays where it stands, rather than being lost between the two.
+   * could not keep stays where it stands, rather than being lost between the two, and so does one
+   * whose name and face a room server keeps from this user, which would go onto the sheet as
+   * another die.
    */
   store(character: GameCharacter, symbol: DiceSymbol): void {
     if (this.take(character, symbol)) SoundEffect.play(PresetSound.sweep);
   }
 
   private take(character: GameCharacter, symbol: DiceSymbol): boolean {
+    if (isWithheldHere(symbol)) return false;
     if (!storeHeldDie(character, heldDieOfSymbol(symbol))) return false;
     symbol.destroy();
     return true;

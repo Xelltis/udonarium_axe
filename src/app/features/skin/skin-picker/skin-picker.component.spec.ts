@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
+import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { SkinImageStore } from '@axe/core/storage/skin-image-store';
 import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { CUSTOM_SKIN, STANDARD_SKIN } from '@axe/domain/ui/skin';
@@ -55,7 +56,10 @@ describe('SkinPickerComponent', () => {
         }) as unknown as MediaQueryList
     );
 
-    TestBed.configureTestingModule({ imports: [SkinPickerComponent], providers: [ThemeService, SkinService] });
+    TestBed.configureTestingModule({
+      imports: [SkinPickerComponent],
+      providers: [ThemeService, SkinService, { provide: FileArchiver, useFactory: () => FileArchiver.instance }],
+    });
     skins = TestBed.inject(SkinService);
     fixture = TestBed.createComponent(SkinPickerComponent);
     fixture.detectChanges();
@@ -205,5 +209,38 @@ describe('SkinPickerComponent', () => {
     fixture.detectChanges();
 
     expect(skins.recipeOf('light').contrast).toBe('high');
+  });
+
+  it('says to reload when a skin cannot be written or read for want of the zip code, and why otherwise', async () => {
+    const trouble = () =>
+      (fixture.nativeElement.querySelector('[data-testid="skin-trouble"]') as HTMLElement | null)?.textContent?.trim();
+    vi.spyOn(skins, 'exportSkin').mockResolvedValueOnce('reload').mockResolvedValueOnce('refused');
+    vi.spyOn(skins, 'importSkin').mockResolvedValueOnce('reload').mockResolvedValueOnce('refused');
+    const chooseFile = async () => {
+      const input = fixture.nativeElement.querySelector('[data-testid="skin-import"]') as HTMLInputElement;
+      Object.defineProperty(input, 'files', { value: [new File(['PK'], 'skin.zip')], configurable: true });
+      input.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      fixture.detectChanges();
+    };
+
+    click('skin-export');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const reload = trouble();
+    click('skin-export');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const exportFailed = trouble();
+    await chooseFile();
+    const readReload = trouble();
+    await chooseFile();
+    const notSkin = trouble();
+
+    expect(reload).toBeTruthy();
+    expect(readReload).toBe(reload);
+    expect(exportFailed).not.toBe(reload);
+    expect(notSkin).not.toBe(reload);
+    expect(notSkin).not.toBe(exportFailed);
   });
 });

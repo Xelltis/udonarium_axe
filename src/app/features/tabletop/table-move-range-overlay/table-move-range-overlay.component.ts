@@ -17,14 +17,8 @@ import { PERF_MOVE_RANGE_PAINT, perfCounters } from '@axe/core/util/perf-counter
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import {
-  cellCenterOf,
-  cellCount,
-  CellGrid,
-  cellGridOf,
-  gridExtentPx,
-  sameCellGrid,
-} from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, cellCount, CellGrid, gridExtentPx, sameCellGrid } from '@axe/domain/tabletop/fog/cell-grid';
+import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { cellPathsFor, wayRunsOn } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
 import { overlayScale } from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
@@ -185,7 +179,7 @@ export class TableMoveRangeOverlayComponent {
     this.objectChange.versionOf(table.identifier)();
 
     const mine = PeerCursor.myCursor?.identifier;
-    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const grid = moveGridOf(table);
     const drawn: DrawnMove[] = [];
     for (const cursor of this.objectStore.getObjects<PeerCursor>(PeerCursor)) {
       if (cursor.identifier === mine) continue;

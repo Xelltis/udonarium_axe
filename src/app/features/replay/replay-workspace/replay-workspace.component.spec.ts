@@ -3,6 +3,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ReplayRecorderService } from '@axe/application/replay/replay-recorder.service';
+import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import type { ReplayRecordingMeta } from '@axe/core/storage/replay-log-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -70,9 +72,14 @@ describe('ReplayWorkspaceComponent', () => {
   let insert: ReturnType<typeof vi.fn>;
   let isEditing: ReturnType<typeof signal<boolean>>;
   let canUndo: ReturnType<typeof signal<boolean>>;
+  let isDirty: ReturnType<typeof signal<boolean>>;
+  let isSaving: ReturnType<typeof signal<boolean>>;
+  let recordingId: ReturnType<typeof signal<number | null>>;
+  let saveAsDerived: ReturnType<typeof vi.fn>;
   let undo: ReturnType<typeof vi.fn>;
   let edited: ReturnType<typeof signal<readonly ReplayEvent[]>>;
   let stopAutoPlay: ReturnType<typeof vi.fn>;
+  let showBoardAfresh: ReturnType<typeof vi.fn>;
 
   async function setup(): Promise<void> {
     await TestBed.configureTestingModule({
@@ -83,11 +90,12 @@ describe('ReplayWorkspaceComponent', () => {
           provide: ReplayPlaybackService,
           useValue: {
             isOpen: isOpen.asReadonly(),
-            recordingId: signal<number | null>(7).asReadonly(),
+            recordingId: recordingId.asReadonly(),
             manifest: signal<ReplayManifest | null>(manifest).asReadonly(),
             events: signal<readonly ReplayEvent[]>(events).asReadonly(),
             cursor: signal(0).asReadonly(),
             isBoardMode: signal(false).asReadonly(),
+            isEnteringBoardMode: signal(false).asReadonly(),
             isSeeking: signal(false).asReadonly(),
             autoPlay: signal(false).asReadonly(),
             isAtStart: signal(true).asReadonly(),
@@ -105,6 +113,7 @@ describe('ReplayWorkspaceComponent', () => {
             stopAutoPlay,
             enterBoardMode: vi.fn().mockResolvedValue(true),
             exitBoardMode: vi.fn().mockResolvedValue(undefined),
+            showBoardAfresh,
           },
         },
         {
@@ -120,8 +129,9 @@ describe('ReplayWorkspaceComponent', () => {
           provide: ReplayEditorService,
           useValue: {
             isEditing: isEditing.asReadonly(),
-            isDirty: signal(false).asReadonly(),
-            isSaving: signal(false).asReadonly(),
+            isDirty: isDirty.asReadonly(),
+            isSaving: isSaving.asReadonly(),
+            saveAsDerived,
             canUndo: canUndo.asReadonly(),
             undo,
             edited: edited.asReadonly(),
@@ -195,7 +205,12 @@ describe('ReplayWorkspaceComponent', () => {
     open = vi.fn().mockResolvedValue(true);
     begin = vi.fn();
     insert = vi.fn();
+    isDirty = signal(false);
+    isSaving = signal(false);
+    recordingId = signal<number | null>(7);
+    saveAsDerived = vi.fn().mockResolvedValue(null);
     stopAutoPlay = vi.fn();
+    showBoardAfresh = vi.fn().mockResolvedValue(undefined);
     PeerCursor.myCursor = { userId: 'alice', role: PeerRole.GameMaster } as PeerCursor;
   });
 
@@ -277,11 +292,89 @@ describe('ReplayWorkspaceComponent', () => {
     expect(undo).toHaveBeenCalledTimes(1);
   });
 
+  it('throws away a scene being acted out along with the edits, and shows the board afresh', async () => {
+    isEditing = signal(true);
+    await setup();
+    const staging = TestBed.inject(ReplayStagingService);
+    setNetworkIsolated(true);
+    try {
+      staging.begin(1, 'alice');
+
+      buttonByText('取りやめ')?.click();
+
+      expect(staging.isStaging()).toBe(false);
+      expect(showBoardAfresh).toHaveBeenCalled();
+    } finally {
+      setNetworkIsolated(false);
+    }
+  });
+
   it('leaves that key alone while nothing is being edited', async () => {
     await setup();
 
     fixture.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
     expect(undo).not.toHaveBeenCalled();
+  });
+
+  it('leaves saving unpressable while a scene is acted out, which the saved recording opening would throw away', async () => {
+    isEditing = signal(true);
+    isDirty.set(true);
+    await setup();
+    expect(buttonByText('別の記録として保存')?.disabled).toBe(false);
+
+    setNetworkIsolated(true);
+    try {
+      TestBed.inject(ReplayStagingService).begin(1, 'alice');
+      fixture.detectChanges();
+
+      expect(buttonByText('別の記録として保存')?.disabled).toBe(true);
+      expect(buttonByText('全部戻す')?.disabled).toBe(false);
+    } finally {
+      TestBed.inject(ReplayStagingService).discard();
+      setNetworkIsolated(false);
+    }
+  });
+
+  it('leaves no way out of the edit, nor to another recording, while it is being saved', async () => {
+    isEditing = signal(true);
+    isDirty.set(true);
+    isSaving = signal(true);
+    await setup();
+
+    expect(buttonByText('取りやめ')?.disabled).toBe(true);
+    expect(buttonByText('全部戻す')?.disabled).toBe(true);
+    expect(buttonByText('取り消す')?.disabled).toBe(true);
+    expect((fixture.nativeElement.querySelector('button[aria-expanded]') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('opens no other recording from a chooser left open as the edits start being saved', async () => {
+    isEditing = signal(true);
+    recordings = [...recordings, { id: 8, roomName: '第二夜', startedAt: 0, endedAt: 1, eventCount: 2, byteSize: 100 }];
+    await setup();
+    openChooser();
+
+    isSaving.set(true);
+    fixture.detectChanges();
+    const items = [...fixture.nativeElement.querySelectorAll('replay-recording-list li')] as HTMLElement[];
+    items.find((item) => item.textContent?.includes('第二夜'))?.click();
+    await fixture.whenStable();
+
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it('opens the recording it saved only while the one it was saved from is still open', async () => {
+    isEditing = signal(true);
+    isDirty.set(true);
+    let saved: (id: number | null) => void = () => undefined;
+    saveAsDerived.mockReturnValue(new Promise((resolve) => (saved = resolve)));
+    await setup();
+
+    buttonByText('別の記録として保存')?.click();
+    recordingId.set(8);
+    saved(42);
+    await fixture.whenStable();
+
+    expect(open).not.toHaveBeenCalledWith(42);
   });
 
   it('leaves the button unpressable with nothing to undo', async () => {
@@ -311,7 +404,7 @@ describe('ReplayWorkspaceComponent', () => {
     fixture.detectChanges();
 
     const selects = [...fixture.nativeElement.querySelectorAll('select')] as HTMLSelectElement[];
-    const speaker = selects.find((select) => [...select.options].some((option) => option.text === '魔術師'))!;
+    const speaker = selects.find((select) => [...select.options].some((option) => option.text.trim() === '魔術師'))!;
     speaker.value = 'c2';
     speaker.dispatchEvent(new Event('change'));
     fixture.detectChanges();

@@ -13,9 +13,10 @@ import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCenterOf, cellCount, CellGrid, cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, cellCount, CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { sheetNumberOf } from '@axe/domain/tabletop/move/move-cells';
+import { moveGridOf, squarePxOf } from '@axe/domain/tabletop/move/move-grid';
 import { MoveKind, moveKindNamed, parseMoveKinds } from '@axe/domain/tabletop/move/move-kind';
 import { convertMoveLength, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
 import { BondedPiece, bondGroupOf, boundBelow, boundTo } from '@axe/domain/tabletop/move/piece-bonds';
@@ -1316,7 +1317,7 @@ export class EngagementZoneService {
     const table = this.tableSelecter.viewTable;
     if (!table) return null;
     const roomRules = resolveRoomRules(this.config()?.roomRuleAnswers ?? null, table);
-    return { table, rules, pxPerMetre: table.gridSize / metresPerCell(roomRules), snap: snapOn(table) };
+    return { table, rules, pxPerMetre: squarePxOf(table) / metresPerCell(roomRules), snap: snapOn(table) };
   }
 
   private zoneById(id: string): EngagementZone | null {
@@ -1352,10 +1353,13 @@ function outside(cells: CellBits): CellBits {
   return rest;
 }
 
-/** Where a worked-out point is put on a table: the middle of its cell on a grid, as it is without one. */
+/**
+ * Where a worked-out point is put on a table: the middle of its cell on a grid, or of its square
+ * where the table counts several cells as one, and as it is without a grid.
+ */
 function snapOn(table: GameTable): (point: ZonePoint) => ZonePoint {
   if (table.gridType === GridType.NONE) return (point) => point;
-  const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+  const grid = moveGridOf(table);
   return (point) => {
     const index = cellIndexAt(grid, point.x, point.y);
     return index < 0 ? point : cellCenterOf(grid, index);

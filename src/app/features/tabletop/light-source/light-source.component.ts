@@ -10,14 +10,13 @@ import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { ObjectStore } from '@axe/core/sync/object-store';
+import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ImageTag } from '@axe/domain/media/image-tag';
 import { LIGHT_IMAGE_TAG, LIGHT_SKIN_ASSET_URLS, LightSkinId } from '@axe/domain/media/light-skins';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
-import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
 import { buildLightSourceContextMenuModel } from '@axe/features/tabletop/light-source/light-source-context-menu';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.directive';
@@ -77,7 +76,7 @@ export class LightSourceComponent {
         const id = this.lightSource().followingCharacterIdentifier;
         return id ? [id] : [];
       },
-      () => this.lightSource().following(),
+      () => this.lightSource().following(this.gridSize),
       this.destroyRef
     );
   }
@@ -231,8 +230,14 @@ export class LightSourceComponent {
       width: 360,
       height: 420,
     };
-    const component = this.panelService.open(LightSettingsComponent, option);
-    component.target = light;
-    component.advanced = true;
+    this.panelService.openLazy(
+      () =>
+        import('@axe/features/tabletop/light-settings/light-settings.component').then((m) => m.LightSettingsComponent),
+      { ...option, stillWanted: () => isInStore(light) },
+      (component) => {
+        component.target = light;
+        component.advanced = true;
+      }
+    );
   }
 }

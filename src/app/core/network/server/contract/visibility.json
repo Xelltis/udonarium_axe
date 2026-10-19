@@ -1,0 +1,613 @@
+{
+  "description": "見え方の期待値。objects を部屋に置いたとき、viewer から identifier がどう見えるか（full：そのまま、masked：一部を伏せる、hidden：届けない、pending：親や発言がまだ無く、だれにも届けない）。ObjectNode の SyncVar は syncData.attributes に入る",
+  "viewers": {
+    "gm": {
+      "userId": "u-gm",
+      "role": "gm"
+    },
+    "owner": {
+      "userId": "u-owner",
+      "role": "pl"
+    },
+    "player": {
+      "userId": "u-pl",
+      "role": "pl"
+    },
+    "guest": {
+      "userId": "u-guest",
+      "role": "guest"
+    }
+  },
+  "rooms": {
+    "faceDownCard": [
+      {
+        "aliasName": "card",
+        "identifier": "card1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "attributes": {
+            "state": 1,
+            "owner": "",
+            "location": {
+              "name": "table"
+            }
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "root1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "card1",
+          "value": "",
+          "attributes": {
+            "name": "card"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "image1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "root1",
+          "value": "",
+          "attributes": {
+            "name": "image"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "front1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "image1",
+          "value": "front.webp",
+          "attributes": {
+            "name": "front",
+            "type": "image"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "back1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "image1",
+          "value": "back.webp",
+          "attributes": {
+            "name": "back",
+            "type": "image"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "common1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "root1",
+          "value": "",
+          "attributes": {
+            "name": "common"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "name1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "common1",
+          "value": "Ace of Spades",
+          "attributes": {
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "peekedCard": [
+      {
+        "aliasName": "card",
+        "identifier": "card1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "attributes": {
+            "state": 1,
+            "owner": "u-owner",
+            "location": {
+              "name": "table"
+            }
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "root1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "card1",
+          "attributes": {
+            "name": "card"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "image1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "root1",
+          "attributes": {
+            "name": "image"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "front1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "image1",
+          "value": "front.webp",
+          "attributes": {
+            "name": "front"
+          }
+        }
+      }
+    ],
+    "handCard": [
+      {
+        "aliasName": "card",
+        "identifier": "card1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "attributes": {
+            "state": 1,
+            "owner": "",
+            "location": {
+              "name": "hand:u-owner"
+            }
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "root1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "card1",
+          "attributes": {
+            "name": "card"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "image1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "root1",
+          "attributes": {
+            "name": "image"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "front1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "image1",
+          "value": "front.webp",
+          "attributes": {
+            "name": "front"
+          }
+        }
+      }
+    ],
+    "chat": [
+      {
+        "aliasName": "chat-tab",
+        "identifier": "tab",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "attributes": {
+            "name": "main",
+            "plCanView": true,
+            "guestCanView": false
+          }
+        }
+      },
+      {
+        "aliasName": "chat",
+        "identifier": "whisper",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "tab",
+          "value": "psst",
+          "attributes": {
+            "from": "u-owner",
+            "to": "u-pl"
+          }
+        }
+      },
+      {
+        "aliasName": "chat",
+        "identifier": "secret",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "tab",
+          "value": "DiceBot : (1D6) → 4",
+          "attributes": {
+            "from": "System-BCDice",
+            "originFrom": "u-owner",
+            "tag": "system secret"
+          }
+        }
+      },
+      {
+        "aliasName": "chat",
+        "identifier": "plain",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "tab",
+          "value": "hello",
+          "attributes": {
+            "from": "u-owner"
+          }
+        }
+      }
+    ],
+    "dice": [
+      {
+        "aliasName": "dice-symbol",
+        "identifier": "die",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "attributes": {
+            "face": "4",
+            "owner": "u-owner"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "dieRoot",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "die",
+          "value": "",
+          "attributes": {
+            "name": "dice-symbol"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "dieCommon",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "dieRoot",
+          "value": "",
+          "attributes": {
+            "name": "common"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "dieName",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "dieCommon",
+          "value": "Hidden die",
+          "attributes": {
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "note": [
+      {
+        "aliasName": "text-note",
+        "identifier": "note",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "attributes": {
+            "disclosureMode": "gm",
+            "owner": "u-gm"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "noteRoot",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "note",
+          "attributes": {
+            "name": "text-note"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "noteCommon",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "noteRoot",
+          "attributes": {
+            "name": "common"
+          }
+        }
+      },
+      {
+        "aliasName": "data",
+        "identifier": "noteTitle",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "noteCommon",
+          "value": "Hidden door",
+          "attributes": {
+            "name": "title"
+          }
+        }
+      }
+    ],
+    "pending": [
+      {
+        "aliasName": "data",
+        "identifier": "stray",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "notYetHere",
+          "value": "",
+          "attributes": {
+            "name": "card"
+          }
+        }
+      },
+      {
+        "aliasName": "chat-reaction",
+        "identifier": "nod",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "messageIdentifier": "notYetSaid"
+        }
+      }
+    ],
+    "gmOnlyTab": [
+      {
+        "aliasName": "chat-tab-list",
+        "identifier": "ChatTabList",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {}
+      },
+      {
+        "aliasName": "chat-tab",
+        "identifier": "gmTab",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "ChatTabList",
+          "attributes": {
+            "name": "GM",
+            "plCanView": false,
+            "guestCanView": false
+          }
+        }
+      },
+      {
+        "aliasName": "chat",
+        "identifier": "gmLine",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "gmTab",
+          "value": "The vault opens",
+          "attributes": {
+            "from": "u-gm",
+            "to": "",
+            "tag": ""
+          }
+        }
+      }
+    ]
+  },
+  "cases": [
+    {
+      "room": "faceDownCard",
+      "identifier": "front1",
+      "expect": {
+        "gm": "full",
+        "owner": "hidden",
+        "player": "hidden",
+        "guest": "hidden"
+      }
+    },
+    {
+      "room": "faceDownCard",
+      "identifier": "name1",
+      "expect": {
+        "gm": "full",
+        "owner": "hidden",
+        "player": "hidden",
+        "guest": "hidden"
+      }
+    },
+    {
+      "room": "faceDownCard",
+      "identifier": "back1",
+      "expect": {
+        "gm": "full",
+        "owner": "full",
+        "player": "full",
+        "guest": "full"
+      }
+    },
+    {
+      "room": "faceDownCard",
+      "identifier": "card1",
+      "expect": {
+        "gm": "full",
+        "owner": "full",
+        "player": "full",
+        "guest": "full"
+      }
+    },
+    {
+      "room": "peekedCard",
+      "identifier": "front1",
+      "expect": {
+        "gm": "full",
+        "owner": "full",
+        "player": "hidden",
+        "guest": "hidden"
+      }
+    },
+    {
+      "room": "handCard",
+      "identifier": "front1",
+      "expect": {
+        "gm": "full",
+        "owner": "full",
+        "player": "hidden",
+        "guest": "hidden"
+      }
+    },
+    {
+      "room": "chat",
+      "identifier": "whisper",
+      "expect": {
+        "gm": "hidden",
+        "owner": "full",
+        "player": "full",
+        "guest": "hidden"
+      }
+    },
+    {
+      "room": "chat",
+      "identifier": "secret",
+      "expect": {
+        "gm": "full",
+        "owner": "full",
+        "player": "masked",
+        "guest": "hidden"
+      }
+    },
+    {
+      "room": "chat",
+      "identifier": "plain",
+      "expect": {
+        "gm": "full",
+        "owner": "full",
+        "player": "full",
+        "guest": "hidden"
+      }
+    },
+    {
+      "room": "dice",
+      "identifier": "die",
+      "expect": {
+        "gm": "full",
+        "owner": "full",
+        "player": "masked",
+        "guest": "masked"
+      }
+    },
+    {
+      "room": "dice",
+      "identifier": "dieName",
+      "expect": {
+        "gm": "full",
+        "owner": "full",
+        "player": "hidden",
+        "guest": "hidden"
+      }
+    },
+    {
+      "room": "dice",
+      "identifier": "dieCommon",
+      "expect": {
+        "gm": "full",
+        "owner": "full",
+        "player": "full",
+        "guest": "full"
+      }
+    },
+    {
+      "room": "note",
+      "identifier": "noteTitle",
+      "expect": {
+        "gm": "full",
+        "owner": "masked",
+        "player": "masked",
+        "guest": "masked"
+      }
+    },
+    {
+      "room": "pending",
+      "identifier": "stray",
+      "expect": {
+        "gm": "pending",
+        "owner": "pending",
+        "player": "pending",
+        "guest": "pending"
+      }
+    },
+    {
+      "room": "pending",
+      "identifier": "nod",
+      "expect": {
+        "gm": "pending",
+        "owner": "pending",
+        "player": "pending",
+        "guest": "pending"
+      }
+    },
+    {
+      "room": "gmOnlyTab",
+      "identifier": "gmLine",
+      "expect": {
+        "gm": "full",
+        "owner": "hidden",
+        "player": "hidden",
+        "guest": "hidden"
+      }
+    }
+  ]
+}

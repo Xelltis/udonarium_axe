@@ -56,9 +56,9 @@ async function box(locator: Locator) {
 }
 
 /**
- * バフのアイコンと、その中の要素を同時に測る。
- * アイコンは少し縮んだ位置から現れるので、アニメーションが終わるのを待ってから測る。
- * 2回に分けて測ると、その間に描き直されたときに別々の時点の位置を比べてしまう。
+ * Measures a buff's icon and an element inside it at the same moment. The icon comes in from a
+ * slightly shrunken size, so the measuring waits for the animation to end. Measured in two goes, a
+ * redraw in between would leave positions from different moments to compare.
  */
 async function settledBoxes(badge: Locator, inner: string) {
   return badge.evaluate(async (element, selector) => {
@@ -82,7 +82,7 @@ function buffRows(piece: Locator): Locator {
   return piece.locator('[game-data-element-buff]:not(:has([game-data-element-buff]))').filter({ hasText: 'R' });
 }
 
-test.describe('コマの頭上表示', () => {
+test.describe('what shows above a piece', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('ui-lang', 'ja');
@@ -94,7 +94,7 @@ test.describe('コマの頭上表示', () => {
     await createCharacter(page);
   });
 
-  test('既定で HP と MP のバーが出て、シートの編集から外せること', async ({ page }) => {
+  test("shows HP and MP bars by default, which can be taken off in the sheet's editor", async ({ page }) => {
     const gauges = newCharacterPiece(page).locator('[data-testid="piece-gauge"]');
     await expect(gauges).toHaveCount(2);
 
@@ -110,7 +110,7 @@ test.describe('コマの頭上表示', () => {
     await expect(gauges).toHaveCount(1, { timeout: 5000 });
   });
 
-  test('リソース行の操作ボタンが 1 段に収まること', async ({ page }) => {
+  test('fits the buttons of a resource row on one line', async ({ page }) => {
     const sheet = await openSheet(page);
     await sheet.locator('button[title="編集"]').first().dispatchEvent('click');
 
@@ -138,7 +138,7 @@ test.describe('コマの頭上表示', () => {
     );
   });
 
-  test('バフ・バー・名前がコマの真上に詰めて積まれること', async ({ page }) => {
+  test('stacks the buffs, the bars and the name close together right above the piece', async ({ page }) => {
     await addBuff(page);
     const piece = newCharacterPiece(page);
 
@@ -163,7 +163,7 @@ test.describe('コマの頭上表示', () => {
     expect(gauge.width, 'リソースバーがキャラ名に比べて広すぎる').toBeLessThan(name.width * 1.6);
   });
 
-  test('右クリックメニューから表示を切り替えられること', async ({ page }) => {
+  test('switches how buffs show from the context menu', async ({ page }) => {
     await addBuff(page, 2);
     const piece = newCharacterPiece(page);
     const badges = piece.locator('[data-testid="buff-badge"]');
@@ -188,7 +188,7 @@ test.describe('コマの頭上表示', () => {
     expect(await movable.evaluate((element) => (element as HTMLElement).style.transform)).toBe(before);
   });
 
-  test('名前ラベルを掴むとコマだけが動くこと', async ({ page }) => {
+  test('moves only that piece when its name label is dragged', async ({ page }) => {
     const piece = newCharacterPiece(page);
     const other = page.locator('game-character').filter({ hasText: 'モンスターA' }).first();
     const name = piece.locator('[data-testid="piece-name"]');
@@ -217,7 +217,7 @@ test.describe('コマの頭上表示', () => {
       .toBeGreaterThan(10);
   });
 
-  test('バフのバッジが横に並ぶこと', async ({ page }) => {
+  test('lines the buff badges up side by side', async ({ page }) => {
     await addBuff(page, 3);
     const badges = newCharacterPiece(page).locator('[data-testid="buff-badge"]');
     await expect(badges.first()).toBeAttached({ timeout: 10000 });
@@ -233,7 +233,7 @@ test.describe('コマの頭上表示', () => {
     expect(third.x - second.x).toBeGreaterThan(first.width * 0.8);
   });
 
-  test('バフが多くても重ならず、横に並んでから折り返すこと', async ({ page }) => {
+  test('keeps many buffs from overlapping, lining them up side by side before wrapping', async ({ page }) => {
     await addBuff(page, 8);
     const piece = newCharacterPiece(page);
     const badges = piece.locator('[data-testid="buff-badge"]');
@@ -260,7 +260,7 @@ test.describe('コマの頭上表示', () => {
     expect(overlaps(await box(piece.locator('[data-testid="buff-plate"]')), gauge)).toBe(false);
   });
 
-  test('詳細表示でもリソースバーに重ならないこと', async ({ page }) => {
+  test('keeps the detailed view off the resource bars too', async ({ page }) => {
     await addBuff(page, 3);
     const piece = newCharacterPiece(page);
     await selectBuffView(page, '詳細');
@@ -279,7 +279,7 @@ test.describe('コマの頭上表示', () => {
     }
   });
 
-  test('残ラウンドがアイコンの右下に重なること', async ({ page }) => {
+  test('lays the rounds left over the lower right of the icon', async ({ page }) => {
     await addBuff(page, 2);
     const piece = newCharacterPiece(page);
     const badge = piece.locator('[data-testid="buff-badge"]').first();
@@ -293,7 +293,7 @@ test.describe('コマの頭上表示', () => {
     expect(rounds.width).toBeLessThan(icon.width * 0.9);
   });
 
-  test('詳細表示が折り返さないこと', async ({ page }) => {
+  test('does not wrap the detailed view', async ({ page }) => {
     await addBuff(page, 3);
     const piece = newCharacterPiece(page);
     await selectBuffView(page, '詳細');
@@ -334,7 +334,7 @@ test.describe('コマの頭上表示', () => {
     }
   });
 
-  test('リソースが減ると赤い数字が飛び出すこと', async ({ page }) => {
+  test('pops out a red number when a resource goes down', async ({ page }) => {
     const piece = newCharacterPiece(page);
     const sheet = await openSheet(page);
     // The piece shakes and flashes for 420ms, which a slow browser can spend before the number
@@ -368,7 +368,7 @@ test.describe('コマの頭上表示', () => {
     await expect(piece.locator('[data-testid="resource-change"]')).toHaveCount(0, { timeout: 5000 });
   });
 
-  test('マイナスリソースでは増減の意味が裏返ること', async ({ page }) => {
+  test('reverses what a rise and a fall mean for an inverted resource', async ({ page }) => {
     const piece = newCharacterPiece(page);
     const sheet = await openSheet(page);
     await sheet.locator('button[title="編集"]').first().dispatchEvent('click');
@@ -388,7 +388,7 @@ test.describe('コマの頭上表示', () => {
     await expect(piece.locator('[data-testid="heal-aura"]')).toBeAttached();
   });
 
-  test('リソースが増えると緑の数字が飛び出すこと', async ({ page }) => {
+  test('pops out a green number when a resource goes up', async ({ page }) => {
     const piece = newCharacterPiece(page);
     const sheet = await openSheet(page);
 

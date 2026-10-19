@@ -1,4 +1,6 @@
-import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService, metresPerCell, ZoneMoveStart } from '@axe/application/tabletop/engagement-zone.service';
 import { InterruptOutcome, MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
 import {
@@ -78,6 +80,8 @@ export class MovePlanService {
   private readonly zones = inject(EngagementZoneService);
   private readonly interrupts = inject(MoveInterruptService);
   private readonly ride = inject(RideService);
+  private readonly objectChange = inject(ObjectChangeService);
+  private readonly rolePermission = inject(RolePermissionService);
 
   private readonly held = signal<MovePlan | null>(null);
   /** Where the piece stood among the engagement zones as the move began. */
@@ -130,6 +134,11 @@ export class MovePlanService {
     // A move being worked out is one the whole table waits on, so it is drawn on every screen
     // rather than only the mover's. It leaves the room's sight the moment the move is over.
     effect(() => this.tellTheRoom(this.held()));
+    // A seat made a guest while it worked a move out drops it, moving nothing.
+    effect(() => {
+      this.objectChange.trackMyCursor();
+      if (!this.rolePermission.canEditTabletop && untracked(this.held) && !this.walking) untracked(() => this.close());
+    });
   }
 
   /**
@@ -396,7 +405,7 @@ export class MovePlanService {
    */
   async run(): Promise<boolean> {
     const plan = this.held();
-    if (!plan || this.walking) return false;
+    if (!plan || this.walking || !this.rolePermission.canEditTabletop) return false;
     const way = this.wholeWay();
     if (way.length < 2) return false;
     const character = this.objectStore.get<GameCharacter>(plan.characterIdentifier);
@@ -420,10 +429,15 @@ export class MovePlanService {
       const steps = way.slice(1, end + 1);
       let standingZ = character.posZ;
       for (const [index, cell] of steps.entries()) {
+        if (!this.rolePermission.canEditTabletop) break;
         standingZ = await this.pieceStep.step(character, table, plan.grid, cell, index === steps.length - 1, standingZ);
       }
     } finally {
       this.walking = false;
+    }
+    if (!this.rolePermission.canEditTabletop) {
+      this.close();
+      return false;
     }
     SoundEffect.play(PresetSound.piecePut);
     const start = this.zoneStart;

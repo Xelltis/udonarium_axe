@@ -11,7 +11,7 @@ async function say(page: Page, lines: string[]) {
   }
 }
 
-test.describe('チャットの検索', () => {
+test.describe('searching the chat', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await say(page, [
@@ -19,14 +19,15 @@ test.describe('チャットの検索', () => {
       ...Array.from({ length: 24 }, (_, i) => `雑談${i + 1}`),
       'アヒルの鳴き声がする',
     ]);
-    // タブを行き来すると、ログは末尾の数行だけを描き直す。最初の発言は DOM から消える。
+    // Going to another tab and back redraws only the last few lines of the log, so the first line
+    // leaves the DOM.
     const textarea = page.locator('textarea.chat-input');
     await textarea.press('Control+ArrowRight');
     await textarea.press('Control+ArrowLeft');
     await expect(page.locator('chat-tab').getByText('合言葉はアヒル')).toHaveCount(0);
   });
 
-  test('Ctrl+F で開き、描かれていない古い発言まで探して見せること', async ({ page }) => {
+  test('opens on Ctrl+F, and finds and shows even old lines that are not drawn', async ({ page }) => {
     const textarea = page.locator('textarea.chat-input');
     await textarea.press('Control+f');
     const box = page.getByTestId('chat-search-input');
@@ -47,7 +48,7 @@ test.describe('チャットの検索', () => {
     await expect(page.getByTestId('chat-search-count')).toHaveText('2 / 2');
   });
 
-  test('Esc で閉じると印が消え、入力欄に戻ること', async ({ page }) => {
+  test('clears the marks and goes back to the input when closed with Esc', async ({ page }) => {
     const textarea = page.locator('textarea.chat-input');
     await textarea.press('Control+f');
     await page.getByTestId('chat-search-input').fill('アヒル');
@@ -61,7 +62,7 @@ test.describe('チャットの検索', () => {
     expect(await page.evaluate(() => CSS.highlights.size)).toBe(0);
   });
 
-  test('見つからないときはそう表示すること', async ({ page }) => {
+  test('says so when nothing is found', async ({ page }) => {
     await page.getByTestId('chat-search-toggle').click();
     await page.getByTestId('chat-search-input').fill('ドラゴン');
 

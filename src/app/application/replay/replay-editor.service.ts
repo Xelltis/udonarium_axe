@@ -25,6 +25,11 @@ import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/rep
 import { applyReplayEvents } from '@axe/domain/replay/replay-patch';
 
 export const REPLAY_HISTORY_LIMIT = 100;
+
+/** The highest sequence number among the events, or `floor` when none is higher. */
+function highestSeq(events: readonly ReplayEvent[], floor: number): number {
+  return events.reduce((highest, event) => Math.max(highest, event.seq), floor);
+}
 export const REPLAY_DERIVED_CHUNK_SIZE = 500;
 
 @Injectable({ providedIn: 'root' })
@@ -36,6 +41,12 @@ export class ReplayEditorService {
   private readonly _isEditing = signal(false);
   private readonly _isSaving = signal(false);
   private readonly _history = signal<readonly (readonly ReplayEvent[])[]>([]);
+  /**
+   * The highest sequence number handed out since editing began, so that one taken back with what it
+   * was on, as by removing a row or undoing, is never handed out again to something else, which a
+   * scene waiting to go in after that row would then follow.
+   */
+  private seqFloor = 0;
 
   readonly edited = this._edited.asReadonly();
   readonly isEditing = this._isEditing.asReadonly();
@@ -47,6 +58,7 @@ export class ReplayEditorService {
 
   /** Starts editing a recording's events, with an empty undo history. */
   begin(events: readonly ReplayEvent[]): void {
+    this.seqFloor = highestSeq(events, 0);
     this._original.set([...events]);
     this._edited.set([...events]);
     this._history.set([]);
@@ -55,6 +67,7 @@ export class ReplayEditorService {
 
   /** Puts the events back as they were before the last change. Only the last 100 changes can be undone. */
   undo(): void {
+    if (this._isSaving()) return;
     const history = this._history();
     const previous = history[history.length - 1];
     if (!previous) return;
@@ -63,8 +76,10 @@ export class ReplayEditorService {
   }
 
   private change(mutate: (events: readonly ReplayEvent[]) => readonly ReplayEvent[]): void {
+    if (this._isSaving()) return;
     const current = this._edited();
     const next = mutate(current);
+    this.seqFloor = highestSeq(next, highestSeq(current, this.seqFloor));
     this._history.update((history) => [...history, current].slice(-REPLAY_HISTORY_LIMIT));
     this._edited.set(next);
   }
@@ -94,7 +109,7 @@ export class ReplayEditorService {
   insert(atIndex: number, draft: ReplayEntryDraft): void {
     this.change((events) => {
       const index = Math.max(0, Math.min(events.length, atIndex));
-      const entry = createReplayEntry(draft, nextInsertSeq(events), insertTimeAt(events, index));
+      const entry = createReplayEntry(draft, nextInsertSeq(events, this.seqFloor), insertTimeAt(events, index));
       return insertReplayEvent(events, index, entry);
     });
   }
@@ -102,7 +117,16 @@ export class ReplayEditorService {
   /** Adds events that were already made, such as a staged scene, at a row. Nothing given changes nothing. */
   insertMany(atIndex: number, entries: readonly ReplayEvent[]): void {
     if (entries.length < 1) return;
-    this.change((events) => insertReplayEvents(events, atIndex, entries));
+    this.change((events) => insertReplayEvents(events, atIndex, entries, this.seqFloor));
+  }
+
+  /**
+   * Adds events that were already made after the row with a sequence number, wherever it stands
+   * now, or at the start for none; at `fallbackIndex` once that row is gone.
+   */
+  insertManyAfter(afterSeq: number | null, fallbackIndex: number, entries: readonly ReplayEvent[]): void {
+    const after = afterSeq === null ? -1 : this._edited().findIndex((event) => event.seq === afterSeq);
+    this.insertMany(afterSeq === null ? 0 : after >= 0 ? after + 1 : fallbackIndex, entries);
   }
 
   /** Whether the event with this sequence number was added in the editor rather than recorded. */
@@ -145,13 +169,20 @@ export class ReplayEditorService {
    * Saves the edited events as a new recording in this browser, leaving the original as it was.
    *
    * The events are renumbered, and boards are rebuilt from `base` along the way so the new
-   * recording can be played from any point. Answers the new recording's id and ends editing, or
-   * null when a save is already running, nothing is left to save, or the storage refuses.
+   * recording can be played from any point; given as a way to read it, it is read once the save is
+   * under way, so that the save counts as begun from the moment it is asked for. The rows hold still
+   * meanwhile, as the saved recording opening would drop what changed in them. Answers the new
+   * recording's id and ends editing, or null when a save is already running, nothing is left to
+   * save, or the storage refuses.
    */
-  async saveAsDerived(source: ReplayManifest, base: readonly ReplayObjectSnapshot[]): Promise<number | null> {
+  async saveAsDerived(
+    source: ReplayManifest,
+    base: readonly ReplayObjectSnapshot[] | (() => Promise<readonly ReplayObjectSnapshot[]>)
+  ): Promise<number | null> {
     if (this._isSaving()) return null;
     this._isSaving.set(true);
     try {
+      const board = typeof base === 'function' ? await base() : base;
       const edited = this._edited();
       const events = resequenceReplayEvents(edited);
       if (events.length < 1) return null;
@@ -163,7 +194,7 @@ export class ReplayEditorService {
         return null;
       }
 
-      const keyframes = await this.writeKeyframes(id, base, events);
+      const keyframes = await this.writeKeyframes(id, board, events);
       const chunks = await this.writeChunks(id, events);
 
       const manifest: ReplayManifest = {

@@ -1,9 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { CardGameService } from '@axe/application/card/card-game.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { Network } from '@axe/core/network/network';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { markLoadedWithheld } from '@axe/domain/peer/withheld-table';
 import { CardStackComponent } from '@axe/features/card/card-stack/card-stack.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -25,6 +32,118 @@ describe('CardStackComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('dealing the whole stack out', () => {
+    const dealOut = (cardStack: CardStack) => {
+      fixture.componentRef.setInput('cardStack', cardStack);
+      return (component as unknown as { dealAll(): Promise<void> }).dealAll();
+    };
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('asks first when some cards are face down to this seat on a room server, and deals nothing if declined', async () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+      const deal = vi.spyOn(TestBed.inject(CardGameService), 'dealAll');
+      const deck = CardStack.create('山札');
+      const card = Card.create('ジョーカー', 'front.png', 'back.png');
+      card.imageDataElement!.removeChild(card.imageDataElement!.getFirstElementByName('front')!);
+      deck.putOnBottom(card);
+
+      await dealOut(deck);
+
+      expect(ask).toHaveBeenCalledTimes(1);
+      expect(deal).not.toHaveBeenCalled();
+      deck.destroy();
+    });
+
+    it('points a player to the GM, who holds every face, but not the GM, nor anyone off the room server', async () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      const authority = vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+      const gameMaster = vi.spyOn(PeerCursor, 'isMyselfGameMaster', 'get').mockReturnValue(false);
+      const deck = CardStack.create('山札');
+      const card = Card.create('ジョーカー', 'front.png', 'back.png');
+      card.imageDataElement!.removeChild(card.imageDataElement!.getFirstElementByName('front')!);
+      deck.putOnBottom(card);
+      const askGm = t('feature.cardStack.message.dealWithheldAskGm');
+
+      await dealOut(deck);
+      gameMaster.mockReturnValue(true);
+      await dealOut(deck);
+      gameMaster.mockReturnValue(false);
+      authority.mockReturnValue(null);
+      markLoadedWithheld(true, false);
+      try {
+        await dealOut(deck);
+      } finally {
+        markLoadedWithheld(false, false);
+      }
+
+      expect(ask.mock.calls.map(([question]) => String(question).includes(askGm))).toEqual([true, false, false]);
+      deck.destroy();
+    });
+
+    it('deals without asking when every face is here', async () => {
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask');
+      const deal = vi.spyOn(TestBed.inject(CardGameService), 'dealAll').mockReturnValue({ dealt: 1, participants: 1 });
+      const deck = CardStack.create('山札');
+      deck.putOnBottom(Card.create('A', 'front.png', 'back.png'));
+
+      await dealOut(deck);
+
+      expect(ask).not.toHaveBeenCalled();
+      expect(deal).toHaveBeenCalledTimes(1);
+      deck.destroy();
+    });
+  });
+
+  it('brings the stack to the top on a press, for a seat that may change the table alone', () => {
+    const cardStack = CardStack.create('山札');
+    fixture.componentRef.setInput('cardStack', cardStack);
+    const canEdit = vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+    const topmost = vi.spyOn(cardStack, 'toTopmost');
+
+    component.onInputStart(new MouseEvent('mousedown'));
+    expect(topmost).not.toHaveBeenCalled();
+
+    canEdit.mockReturnValue(true);
+    component.onInputStart(new MouseEvent('mousedown'));
+    expect(topmost).toHaveBeenCalledTimes(1);
+    cardStack.destroy();
+  });
+
+  it('splits a deck, putting its cards in the new piles before taking away the deck, which takes all it still holds', () => {
+    const internals = Network.instance as unknown as { connection: unknown; sendQueue(): void };
+    const send = vi.fn();
+    const deck = CardStack.create('山札');
+    const cards = [0, 1, 2, 3].map((i) => Card.create(`札${i}`, 'front.png', 'back.png'));
+    for (const card of cards) deck.putOnBottom(card);
+    const before = new Set(ObjectStore.instance.getObjects(CardStack));
+    fixture.componentRef.setInput('cardStack', deck);
+    internals.connection = { send };
+    try {
+      for (let i = 0; i < 5; i++) internals.sendQueue();
+      send.mockClear();
+
+      (component as unknown as { splitStack(split: number): void }).splitStack(2);
+      for (let i = 0; i < 5; i++) internals.sendQueue();
+
+      const events = send.mock.calls.flatMap(
+        (call) => call[0] as { eventName: string; data: { identifier?: string } }[]
+      );
+      const firstDelete = events.findIndex((event) => event.eventName === 'DELETE_GAME_OBJECT');
+      const cardMoves = events.flatMap((event, index) =>
+        cards.some((card) => card.identifier === event.data.identifier) ? [index] : []
+      );
+      const lastCardMove = Math.max(...cardMoves);
+      expect(firstDelete).toBeGreaterThan(-1);
+      expect(firstDelete).toBeGreaterThan(lastCardMove);
+    } finally {
+      internals.connection = null;
+      for (const pile of ObjectStore.instance.getObjects(CardStack)) if (!before.has(pile)) pile.destroy();
+    }
   });
 
   describe('signal-driven CD', () => {

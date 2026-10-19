@@ -27,7 +27,7 @@ function isSurfaceAvailable(table: GameTable, surface: TableSurface): boolean {
 }
 
 function centerOf(table: GameTable, surface: TableSurface): { x: number; y: number } {
-  const half = (n: number) => (n * table.gridSize) / 2 - 25;
+  const half = (n: number) => ((n - 1) * table.gridSize) / 2;
   switch (surface) {
     case 'floor':
       return { x: half(table.width), y: half(table.height) };

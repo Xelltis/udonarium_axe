@@ -31,6 +31,13 @@ describe('pressRefusal', () => {
     expect(pressRefusal(state({ role: PeerRole.Guest, definition: { ...speaks, guests: true } }))).toBeNull();
   });
 
+  it('turns a watcher away from every switch where a room server keeps watchers off the table', () => {
+    const open = { ...speaks, guests: true };
+
+    expect(pressRefusal(state({ role: PeerRole.Guest, definition: open, guestsKeptOut: true }))).toBe('watching');
+    expect(pressRefusal(state({ definition: open, guestsKeptOut: true }))).toBeNull();
+  });
+
   it('holds a switch that speaks to the tab it speaks into', () => {
     expect(pressRefusal(state({ tab: { ...openTab, plCanSpeak: false } }))).toBe('cannotSpeak');
     expect(pressRefusal(state({ tab: null }))).toBe('cannotSpeak');

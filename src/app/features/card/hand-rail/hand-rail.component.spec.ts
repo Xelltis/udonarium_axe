@@ -5,6 +5,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card, CardState } from '@axe/domain/card/card';
 import { handLocationOf } from '@axe/domain/card/hand-location';
@@ -162,10 +163,31 @@ describe('HandRailComponent', () => {
       for (const cursor of ObjectStore.instance.getObjects<PeerCursor>(PeerCursor)) {
         if (cursor !== PeerCursor.myCursor && cursor.userId !== 'me') ObjectStore.instance.delete(cursor, false);
       }
+      vi.spyOn(Network, 'peerIds', 'get').mockImplementation(() =>
+        ObjectStore.instance
+          .getObjects<PeerCursor>(PeerCursor)
+          .filter((cursor) => cursor !== PeerCursor.myCursor)
+          .map((cursor) => cursor.peerId)
+      );
     });
 
     afterEach(() => {
       for (const object of made.splice(0)) object.destroy();
+      vi.restoreAllMocks();
+    });
+
+    it('follows a participant whose link drops and comes back, with nothing else changing', () => {
+      otherPlayer('other', 'あいて');
+      const targets = () => (component as unknown as { giveTargets: () => { userId: string }[] }).giveTargets();
+      const linked = vi.spyOn(Network, 'peerIds', 'get').mockReturnValue([]);
+      const networkVersion = TestBed.inject(ObjectChangeService).networkVersion;
+      networkVersion.update((version) => version + 1);
+      expect(targets()).toEqual([]);
+
+      linked.mockReturnValue(['peer-other']);
+      networkVersion.update((version) => version + 1);
+
+      expect(targets().map((seat) => seat.userId)).toEqual(['other']);
     });
 
     it('offers the other participants and gives the card to the one picked', async () => {

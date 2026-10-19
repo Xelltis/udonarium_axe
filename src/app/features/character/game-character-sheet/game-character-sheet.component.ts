@@ -18,6 +18,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { BottomSheetService } from '@axe/application/ui/bottom-sheet.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { DataElementDragService } from '@axe/application/ui/data-element-drag.service';
@@ -26,6 +27,7 @@ import { MotionService } from '@axe/application/ui/motion.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { buildReorderContextMenu } from '@axe/application/ui/reorder-context-menu';
 import { SheetViewPreferenceService } from '@axe/application/ui/sheet-view-preference.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -47,6 +49,7 @@ import { RangeArea } from '@axe/domain/tabletop/range';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain, TERRAIN_FACES, TerrainFace } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
+import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 import { CardStackCardListComponent } from '@axe/features/card/card-stack-card-list/card-stack-card-list.component';
 import { CharacterPortraitPanelComponent } from '@axe/features/character/game-character-sheet/character-portrait-panel.component';
 import { buildCharacterSheetMenu } from '@axe/features/character/game-character-sheet/character-sheet-context-menu';
@@ -94,6 +97,7 @@ const NARROW_SHEET_REM = 36;
 export class GameCharacterSheetComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
   private readonly saveDataService = inject(SaveDataService);
+  private readonly tabletop = inject(TabletopService);
   private readonly panelService = inject(PanelService);
   private readonly modalService = inject(ModalService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
@@ -105,6 +109,7 @@ export class GameCharacterSheetComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly dataElementDrag = inject(DataElementDragService);
   private readonly translateFn = inject(TRANSLATE_FN);
+  private readonly snackbar = inject(SnackbarService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly dataElementDeletion = inject(DataElementDeletionService);
   private readonly bottomSheet = inject(BottomSheetService);
@@ -143,6 +148,15 @@ export class GameCharacterSheetComponent {
     return !this.rolePermission.canEditTabletop;
   });
 
+  /**
+   * Whether the sheet is closed to a reader who may not change the table, as the panels that write
+   * to it are. A character's sheet stays open, with its tabs to look through, and holds back the
+   * rest itself; every other piece's sheet is a place to change it, and closes.
+   */
+  private readonly isClosedToReader = computed(
+    () => this.isReadOnly() && !(this._tabletopObject() instanceof GameCharacter)
+  );
+
   private readonly _tabletopObject = signal<CharacterSheetTarget | null>(null);
   /**
    * The piece whose sheet this panel shows.
@@ -165,9 +179,12 @@ export class GameCharacterSheetComponent {
 
   readonly editingIds = signal(new Set<string>());
 
-  /** Whether the card of the sheet with this identifier is open for editing. */
+  /**
+   * Whether the card of the sheet with this identifier is open for editing; none is for a reader who
+   * may not change the table.
+   */
   isElementEditing(id: string): boolean {
-    return this.editingIds().has(id);
+    return !this.isReadOnly() && this.editingIds().has(id);
   }
 
   /** Opens a card of the sheet for editing or closes it, from its edit button. */
@@ -687,7 +704,7 @@ export class GameCharacterSheetComponent {
    */
   openPortraitSheet(event?: Event): void {
     const char = this.character;
-    if (!char) return;
+    if (!char || this.isReadOnly()) return;
     this.bottomSheet.open(CharacterPortraitPanelComponent, {
       title: this.translateFn('feature.inventory.sheet.portraitsManageTitle', { name: char.name }),
       inputs: { character: char },
@@ -698,16 +715,18 @@ export class GameCharacterSheetComponent {
 
   /**
    * Opens the menu under the "⋯" at the top of a narrow sheet, which holds what the toolbar and the
-   * portrait column hold on a wide one.
+   * portrait column hold on a wide one: for a reader who may not change the table, only saving and
+   * folding.
    */
   openSheetMenu(event: MouseEvent): void {
     const button = event.currentTarget instanceof Element ? event.currentTarget : null;
     const rect = button?.getBoundingClientRect();
     const position = rect ? { x: rect.right, y: rect.bottom } : this.pointerDeviceService.pointers[0];
+    const mayChange = !this.isReadOnly();
     const actions = buildCharacterSheetMenu(
       {
-        portraits: () => this.openPortraitSheet(event),
-        copy: () => this.clone(),
+        portraits: mayChange ? () => this.openPortraitSheet(event) : undefined,
+        copy: mayChange ? () => this.clone() : undefined,
         save: () => void this.saveToXML(),
         collapseAll: () => this.setAllCardsFolded(true),
         expandAll: () => this.setAllCardsFolded(false),
@@ -741,6 +760,9 @@ export class GameCharacterSheetComponent {
   readonly progressPercent = signal(0);
 
   constructor() {
+    effect(() => {
+      if (this.isClosedToReader()) untracked(() => this.panelService.close());
+    });
     this.objectChange.objectDeleted$.subscribe((e) => {
       if (this.tabletopObject && this.tabletopObject.identifier === e.identifier) {
         this.panelService.close();
@@ -866,11 +888,16 @@ export class GameCharacterSheetComponent {
 
   /**
    * Places a copy of the piece beside it, from the sheet's copy button; does nothing for a user who
-   * may not edit the table.
+   * may not edit the table, and says why it copies nothing of a piece a room server withholds part
+   * of from this user.
    */
   clone() {
-    if (!this.rolePermission.canEditTabletop) return;
-    if (this.tabletopObject) cloneTabletopObject(this.tabletopObject);
+    if (!this.rolePermission.canEditTabletop || !this.tabletopObject) return;
+    if (isWithheldHere(this.tabletopObject)) {
+      this.snackbar.show(this.translateFn('feature.inventory.sheet.copyWithheld'));
+      return;
+    }
+    cloneTabletopObject(this.tabletopObject, this.tabletop.gridSize());
   }
 
   /** Does nothing; the hide checkbox changes the character through its own binding. */
@@ -939,11 +966,16 @@ export class GameCharacterSheetComponent {
    * Saves the piece with its pictures as a zip file named after it, from the sheet's save button.
    *
    * Progress is shown while it saves and cleared half a second after. A click while a save is still
-   * running is ignored.
+   * running is ignored, as is one for a piece a room server withholds part of from this seat, which
+   * dropped back on a table would go to the whole room in that shape, as a copy would.
    */
   async saveToXML() {
     const obj = this.tabletopObject;
     if (!obj || this.isSaving()) return;
+    if (isWithheldHere(obj)) {
+      this.snackbar.show(this.translateFn('feature.inventory.sheet.saveWithheld'));
+      return;
+    }
     this.isSaving.set(true);
     this.progressPercent.set(0);
     const element = obj.commonDataElement?.getFirstElementByName('name');

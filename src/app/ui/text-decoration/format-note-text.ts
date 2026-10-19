@@ -1,5 +1,5 @@
 import { applyRubyMarkup, escapeHtml } from '@axe/ui/text-decoration/decorate-chat-text';
-import { find } from 'linkifyjs';
+import { linkifyIfLoaded } from '@axe/ui/text-decoration/linkify-loader';
 
 const FENCE = /^```/;
 const HEADING = /^(#{1,3})\s+(.*)$/;
@@ -12,7 +12,7 @@ const INLINE_CODE = /`([^`\n]+)`/g;
 function prose(text: string): string {
   let html = '';
   let at = 0;
-  for (const link of find(text, 'url')) {
+  for (const link of linkifyIfLoaded()?.find(text, 'url') ?? []) {
     html += applyRubyMarkup(escapeHtml(text.slice(at, link.start)));
     html += `<a href="${escapeHtml(link.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.value)}</a>`;
     at = link.end;

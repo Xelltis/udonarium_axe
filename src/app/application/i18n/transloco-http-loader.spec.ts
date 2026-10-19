@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { TranslocoHttpLoader } from '@axe/application/i18n/transloco-http-loader';
+import { version as APP_VERSION } from '@pkg';
 import { firstValueFrom } from 'rxjs';
 
 describe('TranslocoHttpLoader', () => {
@@ -16,10 +17,10 @@ describe('TranslocoHttpLoader', () => {
 
   afterEach(() => http.verify());
 
-  it('fetches a language’s translations from the bundled assets', async () => {
+  it('fetches a language’s translations from the bundled assets, under the app’s version', async () => {
     const loaded = firstValueFrom(loader.getTranslation('ja'));
 
-    const request = http.expectOne('assets/i18n/ja.json');
+    const request = http.expectOne(`assets/i18n/ja.json?v=${APP_VERSION}`);
     expect(request.request.method).toBe('GET');
     request.flush({ common: { button: { close: '閉じる' } } });
 
@@ -29,6 +30,6 @@ describe('TranslocoHttpLoader', () => {
   it('asks for the file named after the language it is given', () => {
     void firstValueFrom(loader.getTranslation('ko')).catch(() => undefined);
 
-    http.expectOne('assets/i18n/ko.json').flush({});
+    http.expectOne(`assets/i18n/ko.json?v=${APP_VERSION}`).flush({});
   });
 });

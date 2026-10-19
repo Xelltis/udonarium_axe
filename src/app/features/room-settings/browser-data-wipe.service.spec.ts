@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
+import { Network } from '@axe/core/network/network';
 import { wipeBrowserDataIfRequested } from '@axe/core/storage/browser-data-wipe';
 import { BrowserDataWipeService } from '@axe/features/room-settings/browser-data-wipe.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -40,15 +42,51 @@ describe('BrowserDataWipeService', () => {
     expect(localStorage.getItem('ui-theme')).toBe('dark');
   });
 
-  it('asks the next load to wipe, and loads the page again', async () => {
+  it('says too what leaving a room server’s room now would lose', async () => {
+    const t = TestBed.inject(TRANSLATE_FN);
+    ask.mockResolvedValue(false);
+    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true } as never);
+    vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+    vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(false);
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+
+    await service.wipe();
+
+    expect(ask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: `${t('feature.roomSettings.wipeConfirmMessage')}\n\n${t('feature.lobby.leaveRoom.unsent')}`,
+      })
+    );
+  });
+
+  it('asks the next load to wipe, and loads the page again without the browser asking once more', async () => {
     ask.mockResolvedValue(true);
+    const letGo = vi.spyOn(Network, 'letPageGo').mockImplementation(() => {});
 
     expect(await service.wipe()).toBe(true);
 
+    expect(letGo).toHaveBeenCalledOnce();
     expect(reload).toHaveBeenCalledOnce();
     expect(localStorage.getItem('ui-theme')).toBe('dark');
     expect(await wipeBrowserDataIfRequested()).toBe(true);
     expect(localStorage.getItem('ui-theme')).toBeNull();
+  });
+
+  it('takes an invitation off the address offline, and leaves it online to go back into the room', async () => {
+    ask.mockResolvedValue(true);
+    history.replaceState(null, '', '/axe/?lang=ja#join?r=a1b&n=room');
+    try {
+      await service.wipe();
+      expect(location.hash).toBe('#join?r=a1b&n=room');
+
+      vi.spyOn(TestBed.inject(LocalModePreferenceService), 'enabled').mockReturnValue(true);
+      await service.wipe();
+
+      expect(location.hash).toBe('');
+      expect(location.search).toBe('?lang=ja');
+    } finally {
+      history.replaceState(null, '', '/');
+    }
   });
 
   it('wipes here and now where the next load cannot be asked', async () => {

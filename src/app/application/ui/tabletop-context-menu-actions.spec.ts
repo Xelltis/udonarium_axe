@@ -3,7 +3,10 @@ import {
   buildCopyAction,
   buildLockToggleAction,
 } from '@axe/application/ui/tabletop-context-menu-actions';
+import { Network } from '@axe/core/network/network';
+import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { beMyself } from '@axe/testing/peer-context-stub';
 
 const t = ((key: string) => key) as Parameters<typeof buildLockToggleAction>[2];
 
@@ -69,6 +72,22 @@ describe('buildCopyAction', () => {
     });
     action.action?.();
     expect(cloneObj.isLock).toBe(false);
+  });
+
+  it('greys itself out for a die whose face a room server keeps from this user, and not with SkyWay', () => {
+    beMyself('me');
+    const die = DiceSymbol.create('ダイス', DiceType.D6, 1);
+    die.owner = 'someone';
+    try {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      expect(buildCopyAction(die, 50, t).enabled).toBe(false);
+
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+      expect(buildCopyAction(die, 50, t).enabled).toBe(true);
+    } finally {
+      vi.restoreAllMocks();
+      die.destroy();
+    }
   });
 });
 

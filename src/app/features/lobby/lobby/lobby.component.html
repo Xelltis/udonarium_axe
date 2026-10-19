@@ -1,16 +1,25 @@
+@if (isServerTransport) {
+  <server-account />
+}
 @if (!isConnected()) {
   <div class="mb-4 flex gap-2">
     <button (click)="reload()" [disabled]="isReloading()">
       <i class="material-icons" style="font-size: 14px; vertical-align: middle; margin-right: 3px">refresh</i
       >{{ 'feature.lobby.lobby.reload' | transloco }}
     </button>
-    <button
-      class="rounded-ui-sm border-ui-accent bg-ui-accent hover:border-ui-accent-hover hover:bg-ui-accent-hover cursor-pointer border border-solid px-[1em] py-[0.4em] text-[0.875rem] whitespace-nowrap text-white hover:shadow-[0_0_0_3px_var(--ui-accent-glow)]"
-      (click)="showRoomSetting()"
-    >
-      <i class="material-icons" style="font-size: 14px; vertical-align: middle; margin-right: 3px">add</i
-      >{{ 'feature.lobby.lobby.createRoom' | transloco }}
-    </button>
+    @if (canCreateRoom()) {
+      <button
+        class="rounded-ui-sm border-ui-accent bg-ui-accent hover:border-ui-accent-hover hover:bg-ui-accent-hover cursor-pointer border border-solid px-[1em] py-[0.4em] text-[0.875rem] whitespace-nowrap text-white hover:shadow-[0_0_0_3px_var(--ui-accent-glow)]"
+        data-testid="lobby-create-room"
+        (click)="showRoomSetting()"
+      >
+        <i class="material-icons" style="font-size: 14px; vertical-align: middle; margin-right: 3px">add</i
+        >{{
+          (mustLogInToCreate() ? 'feature.lobby.lobby.createRoomAfterLogin' : 'feature.lobby.lobby.createRoom')
+            | transloco
+        }}
+      </button>
+    }
   </div>
   @if (waitingForPreviousConnection()) {
     <p
@@ -20,6 +29,11 @@
     >
       <i class="material-icons vibration-amine text-[16px]!">hourglass_top</i
       >{{ 'feature.lobby.waitingForPreviousConnection' | transloco }}
+    </p>
+  }
+  @if (deletionNotice()) {
+    <p class="text-ui-muted m-0 mb-2 text-[0.8rem] leading-[1.6]" role="status" data-testid="lobby-deletion-notice">
+      {{ deletionNotice() }}
     </p>
   }
   @if (rooms().length) {
@@ -57,7 +71,7 @@
             <td
               class="border-ui-border-panel text-ui-muted border-b border-solid px-2.5 py-1.75 text-center font-mono text-[0.72rem] whitespace-nowrap"
             >
-              {{ room.peerContexts[0]?.roomId }}
+              {{ room.info.id }}
             </td>
             <td
               class="border-ui-border-panel max-w-50 min-w-20 overflow-hidden border-b border-solid px-2.5 py-1.75 text-left"
@@ -65,7 +79,7 @@
             >
               {{ room.roomName }}
             </td>
-            @if (room.peerContexts[0].hasPassword) {
+            @if (room.info.hasPassword) {
               <td class="border-ui-border-panel border-b border-solid px-2.5 py-1.75 text-center whitespace-nowrap">
                 <i class="material-icons text-ui-accent align-middle text-[14px]!">lock</i>
               </td>
@@ -77,17 +91,30 @@
               </td>
             }
             <td class="border-ui-border-panel border-b border-solid px-2.5 py-1.75 text-center whitespace-nowrap">
-              {{ room.peerContexts.length }}{{ 'feature.lobby.lobby.peopleSuffix' | transloco }}
+              {{ room.info.memberCount }}{{ 'feature.lobby.lobby.peopleSuffix' | transloco }}
             </td>
             <td class="border-ui-border-panel border-b border-solid px-2.5 py-1.75 text-center whitespace-nowrap">
               @if (0 < room.alias.length) {
                 <button
                   class="rounded-ui-sm border-ui-accent text-ui-accent hover:bg-ui-accent-bg cursor-pointer border border-solid bg-transparent px-2.5 py-0.5 text-[0.8rem] whitespace-nowrap hover:shadow-[0_0_0_2px_var(--ui-accent-glow)]"
-                  [disabled]="isJoining() || room.peerContexts[0]?.roomId === currentRoom"
+                  [disabled]="isJoining() || room.info.id === currentRoom"
                   type="button"
-                  (click)="connect(room.peerContexts)"
+                  (click)="connectRoom(room)"
                 >
                   {{ 'feature.lobby.lobby.connect' | transloco }}
+                </button>
+              }
+              @if (room.info.deletable) {
+                <button
+                  class="rounded-ui-sm border-ui-danger text-ui-danger hover:bg-ui-danger-bg ml-1.5 cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 align-middle"
+                  data-testid="lobby-delete-room"
+                  type="button"
+                  [disabled]="isDeleting()"
+                  [title]="'feature.lobby.lobby.deleteRoom' | transloco"
+                  [attr.aria-label]="'feature.lobby.lobby.deleteRoom' | transloco"
+                  (click)="deleteRoom(room)"
+                >
+                  <i class="material-icons align-middle text-[14px]!">delete_outline</i>
                 </button>
               }
             </td>
@@ -99,9 +126,21 @@
     <p class="text-ui-muted text-[0.8rem] leading-[1.6]">{{ help() }}</p>
   }
 } @else {
-  <p class="text-ui-muted text-[0.8rem] leading-[1.7]">
-    {{ 'feature.lobby.lobby.alreadyConnected' | transloco }}<br />{{
-      'feature.lobby.lobby.alreadyConnectedHint' | transloco
-    }}
+  <p class="text-ui-muted text-[0.8rem] leading-[1.7]" data-testid="lobby-already-in-room">
+    @if (isServerTransport) {
+      {{ 'feature.lobby.lobby.alreadyInRoomServer' | transloco }}<br />{{
+        'feature.lobby.lobby.alreadyInRoomServerHint' | transloco
+      }}<br />
+      <button class="mt-2" data-testid="lobby-leave-room" (click)="leaveRoom()">
+        {{ 'feature.lobby.lobby.leaveRoom' | transloco }}
+      </button>
+    } @else {
+      {{ 'feature.lobby.lobby.alreadyConnected' | transloco }}<br />{{
+        'feature.lobby.lobby.alreadyConnectedHint' | transloco
+      }}<br />
+      <button class="mt-2" data-testid="lobby-leave-room" (click)="leaveRoom()">
+        {{ 'feature.lobby.lobby.leaveRoom' | transloco }}
+      </button>
+    }
   </p>
 }

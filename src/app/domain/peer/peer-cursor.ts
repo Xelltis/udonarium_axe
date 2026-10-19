@@ -1,5 +1,6 @@
 import { domainPeerDisconnect$ } from '@axe/core/event/domain-events';
-import { getMyPeerId, getPeerContext, getPeerIds } from '@axe/core/network/peer-context-source';
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
+import { getAuthorityPeerId, getMyPeerId, getPeerContext, getPeerIds } from '@axe/core/network/peer-context-source';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
@@ -10,6 +11,14 @@ import { DEFAULT_PEER_ROLE, PeerRole } from '@axe/domain/peer/peer-role';
 import { Vote } from '@axe/domain/vote/vote';
 
 const PEER_DISCONNECT_TIMEOUT_MS = 30_000;
+
+/** How many cursors that went are remembered by the user they stood for. */
+const GONE_CURSORS_KEPT = 256;
+
+/** The name a cursor starts with, until the reader gives one. */
+export const DEFAULT_CURSOR_NAME = 'プレイヤー';
+/** The picture a cursor starts with, the plain avatar, until the reader chooses one. */
+export const DEFAULT_CURSOR_IMAGE_IDENTIFIER = 'none_icon';
 
 type UserId = string;
 type PeerId = string;
@@ -65,8 +74,8 @@ export class PeerCursor extends GameObject {
    */
   @SyncVar() zoneProtocol = '';
 
-  @SyncVar() voteAnswer = -1; // 投票選択肢のindex値、-2:棄権
-  @SyncVar() voteId = -1; // 回答した投票のID
+  @SyncVar() voteAnswer = -1; // the index of the option chosen in the vote; -2 for an abstention
+  @SyncVar() voteId = -1; // the ID of the vote answered
 
   private _reConnectPass = '';
 
@@ -81,14 +90,15 @@ export class PeerCursor extends GameObject {
   private _lastTimeSignNo = -1;
   private _totalTimeSignNum = 0;
 
-  private _timeout = 40; // 単位秒
+  private _timeout = 40; // in seconds
   private _isDisConnect = true;
 
   private _debugTimeShift = 0;
   private _debugReceiveDelay = 0;
 
   /**
-   * Whether this peer has gone silent: no heartbeat has arrived within the timeout.
+   * Whether this peer has gone silent: no heartbeat has arrived within the timeout or, through a
+   * room server, which sends no heartbeats, the server no longer lists it.
    *
    * Local to each screen and not synced; true until the first heartbeat is heard.
    */
@@ -216,6 +226,8 @@ export class PeerCursor extends GameObject {
   static myCursor: PeerCursor = null!;
   private static userIdMap: Map<UserId, ObjectIdentifier> = new Map();
   private static peerIdMap: Map<PeerId, ObjectIdentifier> = new Map();
+  /** The user each cursor that left the store stood for, by its identifier, the latest last. */
+  private static goneUserIds: Map<ObjectIdentifier, UserId> = new Map();
   chatColorCode: string[] = [...DEFAULT_CHAT_COLOR_CODES];
   /** The bubble each colour is shown on, per theme. An empty entry is worked out instead. */
   chatBubbleLight: string[] = [...DEFAULT_CHAT_BUBBLE_CODES];
@@ -260,6 +272,13 @@ export class PeerCursor extends GameObject {
   static get isMyselfGuest(): boolean {
     return PeerCursor.myCursor?.isGuest ?? false;
   }
+  /**
+   * Whether the local user is a guest on a room server, which takes back whatever a guest writes to
+   * the table; among peers a guest's writes go through.
+   */
+  static get isMyselfKeptOffTable(): boolean {
+    return getAuthorityPeerId() !== null && PeerCursor.myRole === PeerRole.Guest;
+  }
   /** The peer's own avatar image, or null when none is set or it has not arrived. */
   get image(): ImageFile | null {
     return ImageStorage.instance.get(this.imageIdentifier);
@@ -274,33 +293,87 @@ export class PeerCursor extends GameObject {
    * For another peer's cursor, starts watching for that peer to drop out.
    *
    * When they disconnect and have not come back within 30 seconds, the cursor is removed from this peer's
-   * object store.
+   * object store. When they came back with a new cursor under the same peer id, as a seat loading the
+   * page again does, the old one is deleted here for good, so that a peer offering it again is told
+   * to delete it too. A cursor under this seat's own peer id that is not its own is one it left behind
+   * before loading the page again, which it deletes for every peer as it arrives. One under this
+   * seat's own cursor's identifier is its own, put back as a replay hands the table back, and one
+   * shown while a replay keeps the seat off the network is left alone.
    */
   override onStoreAdded() {
     super.onStoreAdded();
-    if (!this.isMine) {
-      this.cleanups.push(
-        domainPeerDisconnect$.subscribe((data) => {
-          if (data.peerId !== this.peerId) return;
-          setTimeout(() => {
-            if (getPeerIds().includes(this.peerId)) return;
-            PeerCursor.userIdMap.delete(this.userId);
-            PeerCursor.peerIdMap.delete(this.peerId);
-            ObjectStore.instance.remove(this);
-          }, PEER_DISCONNECT_TIMEOUT_MS);
-        })
-      );
+    if (this.isMine || this.identifier === PeerCursor.myCursor?.identifier) return;
+    if (this.peerId.length > 0 && this.peerId === getMyPeerId() && !isNetworkIsolated()) {
+      queueMicrotask(() => {
+        if (ObjectStore.instance.get(this.identifier) === this) ObjectStore.instance.delete(this);
+      });
+      return;
     }
+    this.cleanups.push(
+      domainPeerDisconnect$.subscribe((data) => {
+        if (data.peerId !== this.peerId) return;
+        setTimeout(() => {
+          if (!getPeerIds().includes(this.peerId)) ObjectStore.instance.remove(this);
+          else if (PeerCursor.findByPeerId(this.peerId) !== this) ObjectStore.instance.delete(this, false);
+        }, PEER_DISCONNECT_TIMEOUT_MS);
+      })
+    );
   }
 
   // GameObject Lifecycle
-  /** Stops watching for disconnects and forgets this cursor in the user and peer id lookups. */
+  /**
+   * Stops watching for disconnects and forgets this cursor in the user and peer id lookups, unless a
+   * newer cursor has taken its ids there.
+   */
   override onStoreRemoved() {
     super.onStoreRemoved();
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
-    PeerCursor.userIdMap.delete(this.userId);
-    PeerCursor.peerIdMap.delete(this.peerId);
+    if (PeerCursor.userIdMap.get(this.userId) === this.identifier) PeerCursor.userIdMap.delete(this.userId);
+    if (PeerCursor.peerIdMap.get(this.peerId) === this.identifier) PeerCursor.peerIdMap.delete(this.peerId);
+    if (this.userId.length < 1) return;
+    PeerCursor.goneUserIds.delete(this.identifier);
+    PeerCursor.goneUserIds.set(this.identifier, this.userId);
+    if (PeerCursor.goneUserIds.size > GONE_CURSORS_KEPT) {
+      PeerCursor.goneUserIds.delete(PeerCursor.goneUserIds.keys().next().value as ObjectIdentifier);
+    }
+  }
+
+  /**
+   * The user a cursor stands for, by its identifier: while it is here, or after it went, as when
+   * its seat opened the page again and came back on a cursor of another name. Empty for one never
+   * seen here.
+   */
+  static userIdOf(identifier: ObjectIdentifier): UserId {
+    const cursor = ObjectStore.instance.get(identifier);
+    if (cursor instanceof PeerCursor) return cursor.userId;
+    return PeerCursor.goneUserIds.get(identifier) ?? '';
+  }
+
+  /**
+   * The cursor that stands now for the user a cursor stood for: the cursor itself while it is here,
+   * or the one its user came back on. Null when the user is not here.
+   */
+  static standingFor(identifier: ObjectIdentifier): PeerCursor | null {
+    const cursor = ObjectStore.instance.get(identifier);
+    if (cursor instanceof PeerCursor) return cursor;
+    return PeerCursor.findByUserId(PeerCursor.userIdOf(identifier));
+  }
+
+  /**
+   * The cursors of the seats linked now, this one's included, one for each: a seat that loads the page
+   * again comes back under the same peer id with a new cursor, and the one it left behind is not
+   * counted while it waits to be cleared away.
+   */
+  static linkedCursors(): PeerCursor[] {
+    const linked = new Set(getPeerIds());
+    return ObjectStore.instance
+      .getObjects<PeerCursor>(PeerCursor)
+      .filter(
+        (cursor) =>
+          cursor === PeerCursor.myCursor ||
+          (linked.has(cursor.peerId) && PeerCursor.findByPeerId(cursor.peerId) === cursor)
+      );
   }
 
   /**
@@ -320,9 +393,12 @@ export class PeerCursor extends GameObject {
   private static find(map: Map<string, string>, key: string, isUserId: boolean): PeerCursor | null {
     if (key.length < 1) return null;
 
+    // The id on a cursor can be written straight over, as it is when the seat's own user id
+    // changes, leaving the lookup pointing at it under the old id; it holds only while it matches.
     const identifier = map.get(key);
-    if (identifier != null && ObjectStore.instance.get(identifier))
-      return ObjectStore.instance.get<PeerCursor>(identifier)!;
+    const known = identifier != null ? ObjectStore.instance.get<PeerCursor>(identifier) : null;
+    if (known && (isUserId ? known.userId : known.peerId) === key) return known;
+    if (identifier != null) map.delete(key);
     const cursors = ObjectStore.instance.getObjects<PeerCursor>(PeerCursor);
     for (const cursor of cursors) {
       const id = isUserId ? cursor.userId : cursor.peerId;

@@ -29,12 +29,14 @@ import { isCompressed } from '@axe/core/util/compress';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { decodeReplayEvents, decodeReplayManifest } from '@axe/domain/replay/replay-codec';
-import { ReplayDetailLevel, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import { GM_ONLY_VISIBILITY, ReplayDetailLevel, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import { ReplayEventCategory, replayEventCategory } from '@axe/domain/replay/replay-event-category';
 import { decodeReplayKeyframe } from '@axe/domain/replay/replay-keyframe';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -343,6 +345,136 @@ describe('ReplayRecorderService', () => {
     expect(service.recentEvents()[0].kind).toBe(ReplayEventKind.ObjectRemove);
   });
 
+  it('records the room server’s word on an object as a change, and its taking one away as a removal', async () => {
+    await service.start();
+    vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+    localDispatch(
+      'AUTHORITATIVE_OBJECT',
+      context('c1', 'character', { location: { name: 'table', x: 10, y: 0 }, posZ: 0 }),
+      '@authority'
+    );
+    localDispatch('WITHDRAW_GAME_OBJECT', { identifier: 'c1' }, '@authority');
+
+    expect(service.recentEvents().map((event) => event.kind)).toContain(ReplayEventKind.ObjectRemove);
+    expect(service.recentEvents().length).toBeGreaterThan(1);
+  });
+
+  describe('through a room server', () => {
+    beforeEach(() => vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority'));
+
+    it('puts a roll the server made down to whoever asked for it', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      localDispatch(
+        'UPDATE_GAME_OBJECT',
+        context('r1', 'chat', {
+          value: '(2D6) → 7',
+          attributes: { from: 'System-BCDice', originFrom: 'alice', tag: '', timestamp: Date.now() },
+        }),
+        '@authority'
+      );
+
+      const [rolled] = service.recentEvents();
+      expect(rolled.actorId).toBe('alice');
+      expect(replayEventCategory(rolled)).not.toBe(ReplayEventCategory.Hidden);
+    });
+
+    it('puts a role the server set down to whoever the cursor is', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      localDispatch(
+        'UPDATE_GAME_OBJECT',
+        context('cursor-a', 'PeerCursor', { peerId: 'peer-a', role: 'pl' }),
+        'peer-a'
+      );
+
+      localDispatch(
+        'AUTHORITATIVE_OBJECT',
+        context('cursor-a', 'PeerCursor', { peerId: 'peer-a', role: 'gm' }),
+        '@authority'
+      );
+
+      const changed = service.recentEvents().find((event) => event.kind === ReplayEventKind.PeerRoleChange);
+      expect(changed?.actorId).toBe('alice');
+    });
+
+    it('tells a line handed back again only once, keeping the second to the board', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+      const line = context('said-once', 'chat', {
+        value: 'こんにちは',
+        attributes: { from: 'alice', tag: '', timestamp: Date.now() },
+      });
+
+      localDispatch('UPDATE_GAME_OBJECT', line, 'peer-a');
+      localDispatch('WITHDRAW_GAME_OBJECT', { identifier: 'said-once', aliasName: 'chat' }, '@authority');
+      localDispatch('AUTHORITATIVE_OBJECT', line, '@authority');
+
+      const lines = service.recentEvents().filter((event) => event.kind === ReplayEventKind.ChatMessage);
+      expect(lines.map((event) => replayEventCategory(event))).toEqual([
+        ReplayEventCategory.Story,
+        ReplayEventCategory.Hidden,
+      ]);
+    });
+
+    it('keeps what the server takes away of its own accord to the board', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      localDispatch('WITHDRAW_GAME_OBJECT', { identifier: 'left-cursor', aliasName: 'PeerCursor' }, '@authority');
+
+      const [taken] = service.recentEvents();
+      expect(taken.kind).toBe(ReplayEventKind.ObjectRemove);
+      expect(replayEventCategory(taken)).toBe(ReplayEventCategory.Hidden);
+    });
+
+    it('keeps a line said before recording began, handed over by the server only later, out of the story', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      localDispatch(
+        'AUTHORITATIVE_OBJECT',
+        context('old-line', 'chat', {
+          value: '昔の話',
+          attributes: { from: 'alice', tag: '', timestamp: Date.now() - 10_000_000 },
+        }),
+        '@authority'
+      );
+
+      const [handed] = service.recentEvents();
+      expect(handed.actorId).toBe('alice');
+      expect(replayEventCategory(handed)).toBe(ReplayEventCategory.Hidden);
+    });
+  });
+
+  it('keeps a line said in a tab the players may not read to the game master', async () => {
+    const tab = new ChatTab('gm-notes');
+    tab.plCanView = false;
+    tab.guestCanView = false;
+    objectStore.add(tab, false);
+    await service.start();
+    vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+    localDispatch(
+      'UPDATE_GAME_OBJECT',
+      {
+        identifier: 'note-1',
+        aliasName: 'chat',
+        majorVersion: 1,
+        minorVersion: 0.5,
+        syncData: {
+          value: 'ボスの正体',
+          parentIdentifier: 'gm-notes',
+          attributes: { from: 'gm', tag: '', timestamp: Date.now() },
+        },
+      },
+      'peer-a'
+    );
+
+    expect(service.recentEvents()[0].visibility).toEqual(GM_ONLY_VISIBILITY);
+  });
+
   it('records a whisper as private, with its recipients', async () => {
     await service.start();
     vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
@@ -583,6 +715,64 @@ describe('ReplayRecorderService', () => {
     expect(service.recentEvents().map((e) => e.kind)).toEqual([ReplayEventKind.ChatMessage]);
   });
 
+  describe('a secret roll made public', () => {
+    const roll = (tag: string, sendFrom: string) =>
+      localDispatch(
+        'UPDATE_GAME_OBJECT',
+        context('r1', 'chat', {
+          value: '(2D6) → 12',
+          parentIdentifier: 'main-tab',
+          attributes: { from: 'System-BCDice', name: '<BCDice：アリス>', tag, originFrom: 'alice', timestamp: 1 },
+        }),
+        sendFrom
+      );
+    const revealed = () => service.recentEvents().filter((event) => event.detail['revealed'] === true);
+
+    beforeEach(() => {
+      const gm = new PeerCursor('cursor-g');
+      gm.peerId = 'peer-g';
+      gm.userId = 'gm';
+      gm.role = PeerRole.GameMaster;
+      objectStore.add(gm, false);
+    });
+
+    it('is told even at the chat-only detail level', async () => {
+      service.setDetailLevel(ReplayDetailLevel.ChatOnly);
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      roll('DiceBot secret', 'peer-a');
+      roll('DiceBot', 'peer-a');
+
+      expect(revealed()).toHaveLength(1);
+    });
+
+    it('names its roller as before when the GM makes it public after they left', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      roll('DiceBot secret', 'peer-a');
+      objectStore.remove(objectStore.get('cursor-a')!);
+      roll('DiceBot', 'peer-g');
+      await service.stop();
+
+      const manifest = decodeReplayManifest([...store.recordings.values()][0].manifest!)!;
+      expect(manifest.actors.filter((actor) => actor.userId === 'alice').map((actor) => actor.name)).toEqual([
+        'アリス',
+      ]);
+    });
+
+    it('is put down to its roller when the GM makes it public', async () => {
+      await service.start();
+      vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+
+      roll('DiceBot secret', 'peer-a');
+      roll('DiceBot', 'peer-g');
+
+      expect(revealed().map((event) => event.actorId)).toEqual(['alice']);
+    });
+  });
+
   it('writes a chunk out at intervals', async () => {
     await service.start();
     vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
@@ -651,6 +841,26 @@ describe('ReplayRecorderService', () => {
     setNetworkIsolated(false);
     await service.stop();
     expect(store.keyframes).toHaveLength(2);
+  });
+
+  it('writes no board down when playback takes the table while it waits for a quiet moment', async () => {
+    await service.start();
+    vi.advanceTimersByTime(REPLAY_BASELINE_GRACE_MS);
+    sendUpdate('c1', 'character', { posZ: 10 });
+    let quiet: () => void = () => {};
+    vi.stubGlobal('requestIdleCallback', (callback: () => void) => (quiet = callback));
+
+    try {
+      const taking = (service as unknown as { captureKeyframe(force: boolean): Promise<void> }).captureKeyframe(false);
+      setNetworkIsolated(true);
+      quiet();
+      await taking;
+    } finally {
+      vi.unstubAllGlobals();
+      setNetworkIsolated(false);
+    }
+
+    expect(store.keyframes).toHaveLength(1);
   });
 
   it('records outside a room', async () => {

@@ -75,7 +75,7 @@ describe('BufferSharingTask', () => {
       task.oncancel = vi.fn();
       task.start({});
       task.cancel();
-      task.cancel(); // 二重呼出
+      task.cancel(); // the second call
       expect(task.oncancel).toBeNull();
     });
   });

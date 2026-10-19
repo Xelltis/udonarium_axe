@@ -1,7 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { PanelService } from '@axe/application/ui/panel.service';
 import { SkinService } from '@axe/application/ui/skin.service';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import {
   ChatColorSettingComponent,
   PRESET_COLUMNS,
@@ -153,5 +157,38 @@ describe('ChatColorSettingComponent', () => {
 
     expect(component.bubbleCode(1, 'dark')).toBe('');
     expect(component.shownBubble(1, 'dark')).not.toBe('');
+  });
+
+  describe('the colours of a character', () => {
+    let character: GameCharacter;
+
+    beforeEach(() => {
+      character = GameCharacter.create('ヒロ', 1, '');
+      character.chatColorCode[0] = '#111111';
+      component.tabletopObject = character;
+    });
+
+    afterEach(() => character.destroy());
+
+    it('writes none for a guest, and leaves the panel once its seat is made one', () => {
+      const closed = vi.spyOn(TestBed.inject(PanelService), 'close').mockImplementation(() => {});
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      TestBed.tick();
+
+      component.changeColor('#222222', 0);
+      component.changeBubble('#333333', 0, 'light');
+
+      expect(character.chatColorCode[0]).toBe('#111111');
+      expect(character.chatBubbleLight[0] ?? '').toBe('');
+      expect(closed).toHaveBeenCalled();
+      vi.restoreAllMocks();
+    });
+
+    it('writes them for a player', () => {
+      component.changeColor('#222222', 0);
+
+      expect(character.chatColorCode[0]).toBe('#222222');
+    });
   });
 });

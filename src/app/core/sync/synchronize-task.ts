@@ -1,4 +1,5 @@
 import { NetworkMessage, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
+import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { ResettableTimeout } from '@axe/core/util/resettable-timeout';
 
 type PeerId = string;
@@ -43,6 +44,13 @@ export class SynchronizeTask {
               SynchronizeTask.onUpdate((msg as NetworkMessage<{ identifier: string }>).data.identifier);
             break;
           case 'DELETE_GAME_OBJECT':
+            if (!msg.isSendFromSelf)
+              SynchronizeTask.onUpdate((msg as NetworkMessage<{ identifier: string }>).data.identifier);
+            break;
+          // The room server answers a request with its own word on the object, or by taking
+          // away what this seat may not see.
+          case AuthorityEvent.AUTHORITATIVE:
+          case AuthorityEvent.WITHDRAW:
             if (!msg.isSendFromSelf)
               SynchronizeTask.onUpdate((msg as NetworkMessage<{ identifier: string }>).data.identifier);
             break;

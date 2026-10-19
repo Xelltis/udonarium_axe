@@ -9,6 +9,7 @@ import {
   inject,
   input,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -69,6 +70,16 @@ export class TextNoteComponent {
     this.objectChange.trackMyCursor();
     return this.disclosureService.canView(note);
   });
+  /**
+   * Whether the note stops at its height and scrolls a longer text inside, rather than growing to
+   * fit it.
+   */
+  readonly limitHeight = computed(() => {
+    const note = this.textNote();
+    if (!note) return false;
+    this.objectChange.versionOf(note.identifier)();
+    return note.limitHeight;
+  });
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
@@ -119,6 +130,17 @@ export class TextNoteComponent {
       this._fontSize.set(note.fontSize);
       this.calcFitHeightIfNeeded();
     });
+    // A seat made a guest while it wrote leaves the note as the room has it, the draft unwritten.
+    effect(() => {
+      this.objectChange.trackMyCursor();
+      if (this.rolePermission.canEditTabletop || !untracked(this.isEditing)) return;
+      untracked(() => {
+        if (this.textUpdateTimer) clearTimeout(this.textUpdateTimer);
+        this.textUpdateTimer = null;
+        this._text.set(this.textNote().text);
+        this.isEditing.set(false);
+      });
+    });
   }
 
   readonly textAreaElementRef = viewChild<ElementRef<HTMLTextAreaElement>>('textArea');
@@ -149,11 +171,13 @@ export class TextNoteComponent {
   /**
    * Switches the note into editing and puts the caret at the end of its text.
    *
-   * Does nothing for a user who cannot edit the tabletop, on a locked note, or when the note is
-   * already being edited.
+   * Does nothing for a user who cannot edit the tabletop, on a locked note, when the note is
+   * already being edited, or for a reader the note is kept from, whose field would show the text
+   * it hides and write back whatever was typed over it.
    */
   enterEdit() {
     if (!this.rolePermission.canEditTabletop) return;
+    if (!this.canView()) return;
     if (this.textNote().isLock) return;
     if (this.isEditing()) return;
     this.isEditing.set(true);
@@ -386,14 +410,15 @@ export class TextNoteComponent {
   }
 
   /**
-   * Brings the note to the top when it is pressed, and waits for the release to start editing.
+   * Brings the note to the top when it is pressed, for a seat that may change the table, and waits
+   * for the release to start editing.
    *
    * Ignored while the note is being edited. A right press only brings the note to the top.
    */
   onMouseDown(e: MouseEvent) {
     if (this.isSelected) return;
     e.preventDefault();
-    this.textNote().toTopmost();
+    if (this.rolePermission.canEditTabletop) this.textNote().toTopmost();
 
     if (e.button === 2) return;
     this.addMouseEventListeners();

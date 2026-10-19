@@ -14,12 +14,12 @@ async function openMobileMenu(page: Page) {
   await expect(page.locator('app-mobile-shell li').first()).toBeVisible();
 }
 
-test.describe('スマートフォンのシェル', () => {
+test.describe('the phone shell', () => {
   test.beforeEach(async ({ page }) => {
     await waitMobileReady(page);
   });
 
-  test('携帯レイアウトが有効で、卓とチャットが縦に並ぶこと', async ({ page }) => {
+  test('turns on the phone layout, with the table and the chat stacked', async ({ page }) => {
     await expect(page.locator('body')).toHaveClass(/mobile-layout/);
     await expect(page.locator('[data-testid="fab-menu"]')).toHaveCount(0);
 
@@ -29,20 +29,20 @@ test.describe('スマートフォンのシェル', () => {
     expect(overflow).toBe(0);
   });
 
-  test('メニューから機能を開けること', async ({ page }) => {
+  test('opens a feature from the menu', async ({ page }) => {
     await openMobileMenu(page);
     await page.locator('app-mobile-shell li button').filter({ hasText: 'インベントリ' }).first().click();
 
     await expect(page.locator('ui-panel > div').first()).toBeVisible();
   });
 
-  test('メニューにルームの読み込みが並ぶこと', async ({ page }) => {
+  test('lists room loading in the menu', async ({ page }) => {
     await openMobileMenu(page);
 
     await expect(page.locator('app-mobile-shell li input[type="file"]')).toHaveCount(1);
   });
 
-  test('パネルが全画面で開き、閉じられること', async ({ page }) => {
+  test('opens a panel full screen and closes it', async ({ page }) => {
     await openMobileMenu(page);
     await page.locator('app-mobile-shell li button').filter({ hasText: '接続' }).first().click();
 
@@ -56,7 +56,7 @@ test.describe('スマートフォンのシェル', () => {
     await expect(page.locator('ui-panel')).toHaveCount(0);
   });
 
-  test('横向きでも携帯レイアウトのままであること', async ({ page }) => {
+  test('keeps the phone layout in landscape', async ({ page }) => {
     await page.setViewportSize({ width: 840, height: 390 });
 
     await expect(page.locator('body')).toHaveClass(/mobile-layout/);

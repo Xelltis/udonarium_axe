@@ -99,7 +99,7 @@ export function buildLightSourceContextMenuModel(
         name: (light.followingCharacterIdentifier === character.identifier ? '✔ ' : '') + character.name,
         action: () => {
           light.followingCharacterIdentifier = character.identifier;
-          light.following();
+          light.following(gridSize);
           SoundEffect.play(PresetSound.sweep);
         },
       })),

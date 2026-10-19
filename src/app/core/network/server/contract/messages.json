@@ -1,0 +1,304 @@
+{
+  "description": "封筒の例。client はサーバーが受け付けるもの、invalid はサーバーが bad-message で断るもの、server はサーバーが送る形（serverTime などの値は例）",
+  "client": {
+    "hello": {
+      "type": "hello",
+      "protocolVersion": 3,
+      "peerId": "v35gKhXyZq9W8e7r6-",
+      "userId": "8c5b7f0e-2c1d-4e3f-9a8b-7c6d5e4f3a2b"
+    },
+    "helloWithPassword": {
+      "type": "hello",
+      "protocolVersion": 3,
+      "peerId": "v35gKhXy7q9W8e7r6-Pa55w0r",
+      "userId": "8c5b7f0e-2c1d-4e3f-9a8b-7c6d5e4f3a2b",
+      "password": "secret"
+    },
+    "broadcast": {
+      "type": "send",
+      "events": [
+        {
+          "eventName": "UPDATE_GAME_OBJECT",
+          "data": {
+            "aliasName": "character",
+            "identifier": "3f1c9a52-8d0b-4e7f-a1c3-5b9d2e6f7a80",
+            "majorVersion": 4,
+            "minorVersion": 0.6180339887,
+            "syncData": {
+              "location": {
+                "name": "table",
+                "x": 150,
+                "y": 300
+              }
+            }
+          },
+          "sendFrom": "a1B2c3XyZq9W8e7r6-"
+        },
+        {
+          "eventName": "CURSOR_MOVE",
+          "data": [120, 340],
+          "sendFrom": "a1B2c3XyZq9W8e7r6-"
+        }
+      ]
+    },
+    "toOnePeer": {
+      "type": "send",
+      "to": "Zz9Yy8XyZq9W8e7r6-",
+      "events": [
+        {
+          "eventName": "WRITING_A_MESSAGE_DETAIL",
+          "data": "...",
+          "sendFrom": "a1B2c3XyZq9W8e7r6-"
+        }
+      ]
+    },
+    "toAuthority": {
+      "type": "send",
+      "to": "@authority",
+      "events": [
+        {
+          "eventName": "SYNCHRONIZE_GAME_OBJECT",
+          "data": [
+            {
+              "identifier": "3f1c9a52-8d0b-4e7f-a1c3-5b9d2e6f7a80",
+              "version": 4.6180339887
+            }
+          ],
+          "sendFrom": "a1B2c3XyZq9W8e7r6-"
+        }
+      ]
+    },
+    "time": {
+      "type": "time"
+    },
+    "helloLoggedIn": {
+      "type": "hello",
+      "protocolVersion": 3,
+      "peerId": "QkSSnrXyZq9W8e7r6-",
+      "userId": "acct_8c5b7f0e-2c1d-4e3f-9a8b-7c6d5e4f3a2b",
+      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…",
+      "invite": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…"
+    },
+    "inviteRequest": {
+      "type": "invite",
+      "role": "pl"
+    },
+    "roleRequest": {
+      "type": "send",
+      "to": "@authority",
+      "events": [
+        {
+          "eventName": "ROLE_REQUEST",
+          "data": {
+            "peerId": "Zz9Yy8XyZq9W8e7r6-",
+            "role": "guest"
+          },
+          "sendFrom": "a1B2c3XyZq9W8e7r6-"
+        }
+      ]
+    },
+    "auth": {
+      "type": "auth",
+      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…"
+    },
+    "assetToken": {
+      "type": "asset-token"
+    },
+    "active": {
+      "type": "active"
+    },
+    "helloLeftAlone": {
+      "type": "hello",
+      "protocolVersion": 3,
+      "peerId": "v35gKhXyZq9W8e7r6-",
+      "userId": "8c5b7f0e-2c1d-4e3f-9a8b-7c6d5e4f3a2b",
+      "idleMs": 1200000
+    }
+  },
+  "invalid": [
+    {
+      "type": "send"
+    },
+    {
+      "type": "send",
+      "events": {}
+    },
+    {
+      "type": "send",
+      "events": [
+        {
+          "data": 1
+        }
+      ]
+    },
+    {
+      "type": "send",
+      "to": 1,
+      "events": []
+    },
+    {
+      "type": "bogus"
+    },
+    "hello",
+    null,
+    {
+      "type": "invite",
+      "role": "owner"
+    },
+    {
+      "type": "hello",
+      "protocolVersion": 3,
+      "peerId": "a",
+      "userId": "u",
+      "accessToken": 1
+    },
+    {
+      "type": "auth"
+    },
+    {
+      "type": "hello",
+      "protocolVersion": 3,
+      "peerId": "a",
+      "userId": "u",
+      "idleMs": -1
+    }
+  ],
+  "server": {
+    "welcome": {
+      "type": "welcome",
+      "protocolVersion": 3,
+      "peerId": "v35gKhXyZq9W8e7r6-",
+      "authorityPeerId": "@authority",
+      "role": "pl",
+      "members": [
+        {
+          "peerId": "wB0fSVXyZq9W8e7r6-",
+          "userId": "acct_0f9e8d7c-6b5a-4938-2716-0504f3e2d1c0",
+          "role": "gm"
+        }
+      ],
+      "serverTime": 1792000000000,
+      "assetToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…",
+      "assetTokenExpiresAt": 1792000900000
+    },
+    "welcomeWithUpload": {
+      "type": "welcome",
+      "protocolVersion": 3,
+      "peerId": "v35gKhXyZq9W8e7r6-",
+      "authorityPeerId": "@authority",
+      "role": "pl",
+      "members": [
+        {
+          "peerId": "wB0fSVXyZq9W8e7r6-",
+          "userId": "acct_0f9e8d7c-6b5a-4938-2716-0504f3e2d1c0",
+          "role": "gm"
+        }
+      ],
+      "serverTime": 1792000000000,
+      "assetToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…",
+      "assetTokenExpiresAt": 1792000900000,
+      "assetUpload": {
+        "maxPutBytes": 4000000,
+        "directUpload": true
+      }
+    },
+    "join": {
+      "type": "join",
+      "member": {
+        "peerId": "Zz9Yy8XyZq9W8e7r6-",
+        "userId": "acct_0f9e8d7c-6b5a-4938-2716-0504f3e2d1c0",
+        "role": "pl"
+      }
+    },
+    "leave": {
+      "type": "leave",
+      "peerId": "Zz9Yy8XyZq9W8e7r6-"
+    },
+    "data": {
+      "type": "data",
+      "from": "@authority",
+      "events": [
+        {
+          "eventName": "REQUEST_GAME_OBJECT",
+          "data": "3f1c9a52-8d0b-4e7f-a1c3-5b9d2e6f7a80",
+          "sendFrom": "@authority"
+        }
+      ]
+    },
+    "time": {
+      "type": "time",
+      "serverTime": 1792000000000
+    },
+    "error": {
+      "type": "error",
+      "code": "protocol-mismatch",
+      "protocolVersion": 3
+    },
+    "invite": {
+      "type": "invite",
+      "role": "pl",
+      "invite": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…",
+      "expiresAt": 1794592000000
+    },
+    "inviteRefused": {
+      "type": "invite",
+      "role": "gm",
+      "invite": null,
+      "expiresAt": null
+    },
+    "assetToken": {
+      "type": "asset-token",
+      "assetToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…",
+      "expiresAt": 1792000900000,
+      "role": "pl"
+    },
+    "authoritative": {
+      "type": "data",
+      "from": "@authority",
+      "events": [
+        {
+          "eventName": "AUTHORITATIVE_OBJECT",
+          "data": {
+            "aliasName": "PeerCursor",
+            "identifier": "cursor-1",
+            "majorVersion": 3,
+            "minorVersion": 0.5,
+            "syncData": {
+              "peerId": "a1B2c3XyZq9W8e7r6-",
+              "role": "guest"
+            }
+          },
+          "sendFrom": "@authority"
+        }
+      ]
+    },
+    "withdraw": {
+      "type": "data",
+      "from": "@authority",
+      "events": [
+        {
+          "eventName": "WITHDRAW_GAME_OBJECT",
+          "data": {
+            "identifier": "3f1c9a52-8d0b-4e7f-a1c3-5b9d2e6f7a80"
+          },
+          "sendFrom": "@authority"
+        }
+      ]
+    },
+    "roleRejected": {
+      "type": "data",
+      "from": "@authority",
+      "events": [
+        {
+          "eventName": "ROLE_REJECTED",
+          "data": {
+            "peerId": "Zz9Yy8XyZq9W8e7r6-",
+            "role": "guest",
+            "reason": "last-game-master"
+          },
+          "sendFrom": "@authority"
+        }
+      ]
+    }
+  }
+}

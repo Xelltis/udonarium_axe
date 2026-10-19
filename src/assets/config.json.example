@@ -1,4 +1,5 @@
 {
+  "transport": "skyway",
   "backend": {
     "url": "バックエンドサーバーのURLを指定してください。http://localhost:3000"
   }

@@ -2,6 +2,7 @@ import { EventChannel } from '@axe/core/event/event-channel';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
+import { AUTHORITY_ONLY_EVENTS } from '@axe/core/network/server/server-protocol';
 
 export interface EventContext<T = unknown> {
   sendFrom: string;
@@ -89,6 +90,61 @@ function scheduleAngularTick(): void {
   });
 }
 
+/**
+ * The events this device tells only itself, which no peer may send it. A peer's OPEN_NETWORK or
+ * PEER_RECONNECT would pass for this device's own network; its UPDATE_FILE_RESOURE or
+ * UPDATE_AUDIO_RESOURE would hand in bytes under a picture's or sound's name that no transfer
+ * brought; its VN_MODE would turn this screen to novel mode.
+ */
+export const LOCAL_ONLY_EVENTS: ReadonlySet<string> = new Set([
+  'OPEN_NETWORK',
+  'CLOSE_NETWORK',
+  'CONNECT_PEER',
+  'DISCONNECT_PEER',
+  'PEER_RECONNECT',
+  'NETWORK_ERROR',
+  'SERVER_ROLE_CHANGED',
+  'UPDATE_FILE_RESOURE',
+  'UPDATE_AUDIO_RESOURE',
+  'LOCAL_OBJECT_UPDATED',
+  'VN_MODE',
+]);
+
+/**
+ * Delivers events received from the network on networkMessage$, each as a message from its sender.
+ *
+ * An event only the room server may send, whose word outranks any version, is dropped unless the
+ * room server itself sent it: another seat, or any seat with SkyWay, could send one by that name.
+ * An event this device only tells itself is dropped from anybody.
+ */
+export function receiveEvents(events: EventContext[]): void {
+  for (const ctx of events) {
+    if (LOCAL_ONLY_EVENTS.has(ctx.eventName)) {
+      Logger.warn(
+        '[NetworkMessaging]',
+        `${ctx.eventName} from <${ctx.sendFrom}>, which only this device sends, dropped`
+      );
+      continue;
+    }
+    if (AUTHORITY_ONLY_EVENTS.includes(ctx.eventName) && !isFromAuthority(ctx.sendFrom)) {
+      Logger.warn('[NetworkMessaging]', `${ctx.eventName} from <${ctx.sendFrom}>, not the room server, dropped`);
+      continue;
+    }
+    networkMessage$.emit({
+      eventName: ctx.eventName,
+      data: ctx.data,
+      sendFrom: ctx.sendFrom,
+      isSendFromSelf: ctx.sendFrom === Network.peerId,
+    });
+  }
+  scheduleAngularTick();
+}
+
+function isFromAuthority(sendFrom: string): boolean {
+  const authority = Network.authorityPeerId;
+  return authority != null && sendFrom === authority;
+}
+
 let _initialized = false;
 
 /**
@@ -121,22 +177,20 @@ export function initializeNetworkMessaging(): void {
     localDispatch('DISCONNECT_PEER', { peerId: peer.peerId });
   };
 
+  callback.onRoleChange = (role) => {
+    localDispatch('SERVER_ROLE_CHANGED', { role });
+  };
+
+  callback.onIdle = (state) => {
+    localDispatch('SEAT_IDLE', { state });
+  };
+
   callback.onReconnect = (peer, state) => {
     Logger.debug('[NetworkMessaging]', `<${peer.peerId}> reconnect <${state}>`);
     localDispatch('PEER_RECONNECT', { peerId: peer.peerId, state });
   };
 
-  callback.onData = (_peer, data) => {
-    for (const ctx of data as EventContext[]) {
-      networkMessage$.emit({
-        eventName: ctx.eventName,
-        data: ctx.data,
-        sendFrom: ctx.sendFrom,
-        isSendFromSelf: ctx.sendFrom === Network.peerId,
-      });
-    }
-    scheduleAngularTick();
-  };
+  callback.onData = (_peer, data) => receiveEvents(data as EventContext[]);
 
   callback.onError = (peer, errorType, errorMessage, errorObject) => {
     Logger.debug('[NetworkMessaging]', `<${peer.peerId}> ${errorMessage}`);

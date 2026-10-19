@@ -9,6 +9,12 @@ type TimeStamp = number;
 
 export type CatalogItem = { identifier: string; version: number };
 
+/** A copy of the record of deletions: when each name was deleted, and what its object had been through. */
+export interface DeleteHistory {
+  readonly deleted: ReadonlyMap<ObjectIdentifier, TimeStamp>;
+  readonly versions: ReadonlyMap<ObjectIdentifier, number>;
+}
+
 const GARBAGE_MAP_LIMIT = 100000;
 const GARBAGE_TTL_MS = 10 * 60 * 1000;
 const GARBAGE_SWEEP_INTERVAL_MS = 1000;
@@ -24,6 +30,8 @@ export class ObjectStore {
   private identifierMap: Map<ObjectIdentifier, GameObject> = new Map();
   private aliasNameMap: Map<ObjectAliasName, Map<ObjectIdentifier, GameObject>> = new Map();
   private garbageMap: Map<ObjectIdentifier, TimeStamp> = new Map();
+  /** The change count of each object when it was deleted, for what is made again under its name to go past. */
+  private deletedVersions: Map<ObjectIdentifier, number> = new Map();
   private garbageSweepCooldown: ReturnType<typeof setTimeout> | null = null;
 
   private readonly localChanges: Map<string, number> = new Map();
@@ -36,7 +44,10 @@ export class ObjectStore {
    * Null when the identifier is already stored. A deleted identifier is refused for an object from
    * the network (shouldBroadcast false) but let back in for a local add, which is sent to the room.
    * beforeLifecycle runs once the object can be looked up and before onStoreAdded; received sync
-   * data is applied there.
+   * data is applied there. An object that takes itself out again in onStoreAdded, as a holder of
+   * loaded data does, is not sent, as nobody else, a room server included, has a use for it.
+   * Made here under the name of one deleted, it goes past that one's version, as a seat that was
+   * away may still hold it and would otherwise win with it.
    */
   add(object: GameObject, shouldBroadcast: boolean = true, beforeLifecycle?: () => void): GameObject | null {
     if (this.get(object.identifier) != null) return null;
@@ -44,6 +55,11 @@ export class ObjectStore {
       // Something deleted is not resurrected from elsewhere; rebuilding it here is the rebuilder's call.
       if (!shouldBroadcast) return null;
       this.garbageMap.delete(object.identifier);
+    }
+    const deletedVersion = this.deletedVersions.get(object.identifier);
+    if (deletedVersion !== undefined) {
+      this.deletedVersions.delete(object.identifier);
+      if (shouldBroadcast) object.outrank(deletedVersion);
     }
     this.identifierMap.set(object.identifier, object);
     let objectsMap = this.aliasNameMap.get(object.aliasName);
@@ -57,7 +73,7 @@ export class ObjectStore {
     // the new object via ObjectStore.get. onStoreAdded then sees populated SyncVars.
     beforeLifecycle?.();
     object.onStoreAdded();
-    if (shouldBroadcast) this.update(object.toContext());
+    if (shouldBroadcast && this.get(object.identifier) === object) this.update(object.toContext());
     objectAdded$.emit({ identifier: object.identifier, aliasName: object.aliasName });
     return object;
   }
@@ -88,6 +104,7 @@ export class ObjectStore {
     const identifier = typeof arg === 'string' ? arg : arg.identifier;
     const object = typeof arg === 'string' ? this.get(arg) : arg;
     this.markForDelete(identifier);
+    if (object != null) this.rememberVersion(identifier, object.majorVersion);
     if (object == null || this.remove(object) === null) return null;
     if (shouldBroadcast)
       networkSend('DELETE_GAME_OBJECT', { aliasName: object.aliasName, identifier: object.identifier });
@@ -97,6 +114,15 @@ export class ObjectStore {
   private markForDelete(identifier: string) {
     this.garbageMap.set(identifier, performance.now());
     this.sweepGarbage();
+  }
+
+  private rememberVersion(identifier: string, majorVersion: number) {
+    const known = this.deletedVersions.get(identifier) ?? -1;
+    this.deletedVersions.delete(identifier);
+    this.deletedVersions.set(identifier, Math.max(known, majorVersion));
+    if (this.deletedVersions.size > GARBAGE_MAP_LIMIT) {
+      this.deletedVersions.delete(this.deletedVersions.keys().next().value!);
+    }
   }
 
   /**
@@ -175,18 +201,20 @@ export class ObjectStore {
   }
 
   /** A copy of the record of deletions, to put back later with replaceDeleteHistory. */
-  snapshotDeleteHistory(): Map<ObjectIdentifier, TimeStamp> {
-    return new Map(this.garbageMap);
+  snapshotDeleteHistory(): DeleteHistory {
+    return { deleted: new Map(this.garbageMap), versions: new Map(this.deletedVersions) };
   }
 
-  /** Replaces the record of deletions with the given one, such as a snapshot taken earlier. */
-  replaceDeleteHistory(history: ReadonlyMap<ObjectIdentifier, TimeStamp>) {
-    this.garbageMap = new Map(history);
+  /** Replaces the record of deletions with the given one, such as a snapshot taken earlier; none clears it. */
+  replaceDeleteHistory(history: DeleteHistory | null) {
+    this.garbageMap = new Map(history?.deleted);
+    this.deletedVersions = new Map(history?.versions);
   }
 
   /** Forgets all deletions so those identifiers may be added again, as on joining or reconnecting. */
   clearDeleteHistory() {
     this.garbageMap.clear();
+    this.deletedVersions.clear();
   }
 
   /**
@@ -200,6 +228,17 @@ export class ObjectStore {
     for (const identifier of identifiers) this.garbageMap.delete(identifier);
   }
 
+  /**
+   * Takes the named objects out of the graveyard here and on every other seat, and on a room server,
+   * which would otherwise answer what is made again under them by deleting it. For data loaded back
+   * under the names of what it has just taken away, said before the data is read.
+   */
+  announceComingBack(identifiers: readonly ObjectIdentifier[]) {
+    if (identifiers.length < 1) return;
+    this.forgetDeleted(identifiers);
+    networkSend('FORGET_DELETED_OBJECTS', { identifiers });
+  }
+
   private runGarbageCollection(ms: number): void {
     const nowDate = performance.now();
     let checkLength = this.garbageMap.size - GARBAGE_MAP_LIMIT;
@@ -211,4 +250,9 @@ export class ObjectStore {
       this.garbageMap.delete(identifier);
     }
   }
+}
+
+/** Whether an object is in the store, as one deleted, or taken away, is not. */
+export function isInStore(object: GameObject): boolean {
+  return ObjectStore.instance.get(object.identifier) === object;
 }

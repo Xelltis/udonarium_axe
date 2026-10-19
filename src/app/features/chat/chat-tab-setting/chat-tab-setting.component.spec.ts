@@ -5,6 +5,13 @@ import {
   CHAT_LOG_STYLE_STORAGE_KEY,
 } from '@axe/application/chat/chat-log-style-preference.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
+import { Network } from '@axe/core/network/network';
+import { localDispatch } from '@axe/core/network/network-messaging';
+import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
+import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -53,6 +60,101 @@ describe('ChatTabSettingComponent', () => {
 
   it('lets the panel take the pointer again once the drag ends', async () => {
     await expectPanelDragRecovery(ChatTabSettingComponent);
+  });
+
+  it('picks a tab it deleted as it comes back under its name, rather than holding on to the one taken away', async () => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    const keep = ChatTabList.instance.addChatTab('残す');
+    const gone = ChatTabList.instance.addChatTab('作戦');
+    try {
+      component.selectedTab.set(gone);
+      fixture.detectChanges();
+      component.delete();
+      await fixture.whenStable();
+
+      const back = ChatTabList.instance.addChatTab('作戦', gone.identifier);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(component.selectedTab()).toBe(back);
+      expect(component.selectedTabXml).toBe('');
+      expect(component.isDeleted).toBe(false);
+    } finally {
+      keep.destroy();
+      for (const tab of ChatTabList.instance.chatTabs.filter((tab) => tab.name === '作戦')) tab.destroy();
+      PeerCursor.myCursor = null!;
+    }
+  });
+
+  it('keeps no copy of a tab another seat deleted, so that no later offer brings that one back', async () => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    const gone = ChatTabList.instance.addChatTab('消される');
+    const next = ChatTabList.instance.addChatTab('次');
+    const change = TestBed.inject(ObjectChangeService) as unknown as {
+      _objectDeleted$: { emit(event: { aliasName: string; identifier: string }): void };
+    };
+    try {
+      component.selectedTab.set(gone);
+      fixture.detectChanges();
+
+      change._objectDeleted$.emit({ aliasName: gone.aliasName, identifier: gone.identifier });
+      gone.destroy();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(component.selectedTabXml).toBe('');
+      expect(component.isDeleted).toBe(false);
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('元に戻す');
+    } finally {
+      next.destroy();
+      PeerCursor.myCursor = null!;
+    }
+  });
+
+  it('offers to bring a tab it deleted back, keeping it picked rather than moving on to another', async () => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    const keep = ChatTabList.instance.addChatTab('残す');
+    const gone = ChatTabList.instance.addChatTab('消す');
+    try {
+      component.selectedTab.set(gone);
+      fixture.detectChanges();
+
+      component.delete();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(component.selectedTab()).toBe(gone);
+      expect(component.isDeleted).toBe(true);
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('元に戻す');
+    } finally {
+      keep.destroy();
+      PeerCursor.myCursor = null!;
+    }
+  });
+
+  it('says a deleted tab coming back under its name is coming back, before it is made again', () => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    const tab = ChatTabList.instance.addChatTab('残す');
+    const announce = vi.spyOn(ObjectStore.instance, 'announceComingBack');
+    const parse = vi.spyOn(ObjectSerializer.instance, 'parseXml').mockReturnValue(null);
+    try {
+      component.selectedTab.set(tab);
+      component.selectedTabXml =
+        '<chat-tab identifier="gone-tab" name="消した"><chat identifier="gone-line">x</chat></chat-tab>';
+
+      component.restore();
+
+      expect(announce).toHaveBeenCalledWith(['gone-tab', 'gone-line']);
+      expect(announce.mock.invocationCallOrder[0]).toBeLessThan(parse.mock.invocationCallOrder[0]);
+    } finally {
+      vi.restoreAllMocks();
+      tab.destroy();
+      PeerCursor.myCursor = null!;
+    }
   });
 
   describe('clearing the log', () => {
@@ -346,6 +448,200 @@ describe('ChatTabSettingComponent', () => {
       component.setPerm('guestCanSpeak', true);
 
       expect(tab.guestCanSpeak).toBe(true);
+    });
+  });
+
+  describe('in a room server’s room, holds a player to what the server lets them change', () => {
+    const beSeat = (role: PeerRole) => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = role;
+    };
+    const rolledBy = (tab: ChatTab, text: string) => {
+      const message = tab.addMessage({ from: 'System-BCDice', name: 'ダイス', text, timestamp: 1000 });
+      message.serverRoll = true;
+      return message;
+    };
+
+    beforeEach(() => {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+      PeerCursor.myCursor = null!;
+    });
+
+    it('lets a player change who may speak where they may read, but not who may read', () => {
+      beSeat(PeerRole.Player);
+      const tab = ChatTabList.instance.addChatTab('test');
+      tab.plCanView = false;
+      tab.plCanSpeak = false;
+      tab.guestCanView = true;
+      tab.guestCanSpeak = false;
+      component.selectedTab.set(tab);
+
+      component.setPerm('plCanView', true);
+      component.setPerm('plCanSpeak', true);
+      component.setPerm('guestCanView', false);
+      component.setPerm('guestCanSpeak', true);
+
+      expect([tab.plCanView, tab.plCanSpeak, tab.guestCanView, tab.guestCanSpeak]).toEqual([false, false, true, true]);
+      expect(component.canEditPerm('plCanView')).toBe(false);
+      expect(component.canEditPerm('guestCanSpeak')).toBe(true);
+    });
+
+    it('lets the game master change who may read', () => {
+      beSeat(PeerRole.GameMaster);
+      const tab = ChatTabList.instance.addChatTab('test');
+      tab.plCanView = false;
+      component.selectedTab.set(tab);
+
+      component.setPerm('plCanView', true);
+
+      expect(tab.plCanView).toBe(true);
+    });
+
+    it('lets a player among peers change who may read, as before', () => {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+      beSeat(PeerRole.Player);
+      const tab = ChatTabList.instance.addChatTab('test');
+      tab.plCanView = false;
+      component.selectedTab.set(tab);
+
+      component.setPerm('plCanView', true);
+
+      expect(tab.plCanView).toBe(true);
+    });
+
+    it('lets a player delete no tab holding dice the server rolled, and says why', () => {
+      beSeat(PeerRole.Player);
+      const tab = ChatTabList.instance.addChatTab('test');
+      rolledBy(tab, '2D6 → 7');
+      component.selectedTab.set(tab);
+      component.allowDeleteTab = true;
+      fixture.detectChanges();
+
+      component.delete();
+
+      expect(component.isDeletable).toBe(false);
+      expect(ObjectStore.instance.get(tab.identifier)).toBe(tab);
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('GM だけが削除できます');
+    });
+
+    it('lets a player delete a tab with no dice the server rolled, and the game master any', () => {
+      beSeat(PeerRole.Player);
+      const plain = ChatTabList.instance.addChatTab('plain');
+      plain.addMessage({ from: 'someone', name: '誰か', text: 'こんにちは', timestamp: 1000 });
+      component.selectedTab.set(plain);
+      expect(component.isDeletable).toBe(true);
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      const rolled = ChatTabList.instance.addChatTab('rolled');
+      rolledBy(rolled, '2D6 → 7');
+      component.selectedTab.set(rolled);
+      expect(component.isDeletable).toBe(true);
+    });
+
+    it('tells a player why the server put back a tab it deleted, holding dice it could not see', () => {
+      beSeat(PeerRole.Player);
+      const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+      const tab = ChatTabList.instance.addChatTab('hidden-rolls');
+      component.selectedTab.set(tab);
+      component.allowDeleteTab = true;
+
+      component.delete();
+      localDispatch(AuthorityEvent.AUTHORITATIVE, { ...tab.toContext() }, '@authority');
+
+      expect(show).toHaveBeenCalledWith(TestBed.inject(TRANSLATE_FN)('feature.chat.tabSetting.deleteTurnedDown'));
+    });
+
+    it('gives no such reason for a tab it deleted that comes back with the room’s catalog', () => {
+      beSeat(PeerRole.Player);
+      const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+      const tab = ChatTabList.instance.addChatTab('lost-deletion');
+      component.selectedTab.set(tab);
+      component.allowDeleteTab = true;
+
+      component.delete();
+      ObjectStore.instance.forgetDeleted([tab.identifier]);
+      ObjectStore.instance.add(new ChatTab(tab.identifier), false);
+      localDispatch('UPDATE_GAME_OBJECT', { ...tab.toContext() }, '@authority');
+
+      expect(show).not.toHaveBeenCalled();
+    });
+
+    it('says nothing of a tab it deleted and brought back itself', () => {
+      beSeat(PeerRole.Player);
+      const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+      const tab = ChatTabList.instance.addChatTab('brought-back');
+      component.selectedTab.set(tab);
+      component.allowDeleteTab = true;
+
+      component.delete();
+      component.restore();
+
+      expect(show).not.toHaveBeenCalled();
+    });
+
+    it('leaves the dice the server rolled when a player clears a log, and the game master clears them too', () => {
+      beSeat(PeerRole.Player);
+      const tab = ChatTabList.instance.addChatTab('test');
+      tab.addMessage({ from: 'someone', name: '誰か', text: '消える発言', timestamp: 1000 });
+      const rolled = rolledBy(tab, '2D6 → 7');
+      component.selectedTab.set(tab);
+      component.allowDeleteLog = true;
+
+      component.deleteLog();
+      expect(tab.chatMessages.filter((message) => !message.isSystemMessage || message.isDicebot)).toEqual([rolled]);
+
+      component.deleteLogALL();
+      expect(tab.chatMessages).toContain(rolled);
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      component.deleteLog();
+      expect(tab.chatMessages).not.toContain(rolled);
+    });
+
+    it('clears and deletes no tab picked before the player could no longer read it', () => {
+      beSeat(PeerRole.Player);
+      const closed = ChatTabList.instance.addChatTab('closed');
+      closed.addMessage({ from: 'someone', name: '誰か', text: '読めた発言', timestamp: 1000 });
+      component.selectedTab.set(closed);
+      component.allowDeleteLog = true;
+      component.allowDeleteTab = true;
+      closed.plCanView = false;
+
+      component.deleteLog();
+      component.delete();
+
+      expect(ObjectStore.instance.get(closed.identifier)).toBe(closed);
+      expect(closed.chatMessages.map((message) => message.text)).toEqual(['読めた発言']);
+    });
+
+    it('lists for a player only the tabs they may read, the others being out of their reach', () => {
+      beSeat(PeerRole.Player);
+      const open = ChatTabList.instance.addChatTab('open');
+      const closed = ChatTabList.instance.addChatTab('closed');
+      closed.plCanView = false;
+
+      expect(component.chatTabs).toContain(open);
+      expect(component.chatTabs).not.toContain(closed);
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      expect(component.chatTabs).toContain(closed);
+    });
+
+    it('says nothing of a clear-all in a tab a player may not read, whose lines never came to them', () => {
+      beSeat(PeerRole.Player);
+      const open = ChatTabList.instance.addChatTab('open');
+      const closed = ChatTabList.instance.addChatTab('closed');
+      closed.plCanView = false;
+      component.allowDeleteLog = true;
+
+      component.deleteLogALL();
+
+      expect(open.chatMessages.map((message) => message.isSystemMessage)).toEqual([true]);
+      expect(closed.chatMessages).toEqual([]);
     });
   });
 

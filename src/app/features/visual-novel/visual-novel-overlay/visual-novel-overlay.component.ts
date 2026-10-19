@@ -33,6 +33,9 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { keyboardShortcutsOf, shortcutKeysText } from '@axe/domain/ui/keyboard-shortcuts';
+import { isAudienceOffered } from '@axe/domain/ui/menu-command';
 import { encodeVnEmote, VN_EMOTION_MARK_CHARS, vnEmoteOf, VnEmotionMark } from '@axe/domain/visual-novel/vn-emote';
 import {
   isVnPortraitPosSet,
@@ -100,17 +103,6 @@ import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 
 const WHEEL_THROTTLE_MS = 160;
-
-const SHORTCUT_HELP_ITEMS: readonly { keys: string; labelKey: string }[] = [
-  { keys: 'Enter / Space / → / ↓', labelKey: 'next' },
-  { keys: '← / ↑', labelKey: 'prev' },
-  { keys: 'Ctrl', labelKey: 'skip' },
-  { keys: 'Home / End', labelKey: 'edges' },
-  { keys: 'A', labelKey: 'autoPlay' },
-  { keys: 'L', labelKey: 'log' },
-  { keys: 'S', labelKey: 'slot' },
-  { keys: 'Esc', labelKey: 'close' },
-];
 
 const EMOTION_MARK_COLORS: Record<Exclude<VnEmotionMark, 'none'>, string> = {
   surprise: 'text-red-500',
@@ -230,7 +222,14 @@ export class VisualNovelOverlayComponent {
   readonly messageKindOptions = this.emoteSelection.messageKindOptions;
   readonly isGameMaster = this.emoteSelection.isGameMaster;
   readonly slotIndexes = Array.from({ length: VN_STAGE_SLOT_COUNT }, (_, i) => i);
-  readonly shortcutHelpItems = SHORTCUT_HELP_ITEMS;
+  /** The keys novel mode answers, less those for what this reader's role may not do. */
+  readonly shortcutHelpItems = computed(() => {
+    this.objectChange.trackMyCursor();
+    const role = PeerCursor.myRole;
+    return keyboardShortcutsOf('visualNovel')
+      .filter((shortcut) => isAudienceOffered(shortcut.audience ?? 'anyone', role))
+      .map((shortcut) => ({ keys: shortcutKeysText(shortcut), labelKey: shortcut.labelKey }));
+  });
 
   /**
    * The chat tab being read in novel mode; choosing another stops auto play, returns to its newest
@@ -754,6 +753,14 @@ export class VisualNovelOverlayComponent {
   }
 
   readonly attachedSe = signal<AttachedSound | null>(null);
+  /**
+   * Whether this reader may change the table: play sounds and cut-ins for the room from the board,
+   * as on the jukebox, and move or turn the portrait of the piece they speak as. A guest may not.
+   */
+  readonly mayEditTable = computed(() => {
+    this.objectChange.trackMyCursor();
+    return canRoleEdit(PeerCursor.myRole);
+  });
 
   /**
    * Attaches a sound from the sound board to the next line, played when the line is sent, and
@@ -782,9 +789,11 @@ export class VisualNovelOverlayComponent {
    * Mirrors the speaker's portrait for the lines they send, or turns it back.
    *
    * The setting lives on the character's sheet, where a flip field is added next to the portrait
-   * position when it has none.
+   * position when it has none, under a name of its own: it is found by its field name, and a row
+   * deleted from the sheet stays deleted under its name on a room server.
    */
   toggleSpeakerFlip(): void {
+    if (!this.mayEditTable()) return;
     const object = this.objectStore.get(this._sendFrom());
     if (!(object instanceof GameCharacter)) return;
     let element = object.detailDataElement?.getFirstElementByName('FLIP') ?? null;
@@ -792,7 +801,7 @@ export class VisualNovelOverlayComponent {
       const posElement = object.detailDataElement?.getFirstElementByName('POS');
       const parent = posElement?.parent instanceof DataElement ? posElement.parent : object.detailDataElement;
       if (!parent) return;
-      element = DataElement.create('FLIP', 0, {}, `FLIP_${object.identifier}`);
+      element = DataElement.create('FLIP', 0, {});
       parent.appendChild(element);
     }
     element.value = Number(element.value) === 1 ? 0 : 1;
@@ -1055,7 +1064,7 @@ export class VisualNovelOverlayComponent {
    * the speaker is not a character.
    */
   toggleSlotGuide(): void {
-    if (this.speakerSlot() < 0) return;
+    if (this.speakerSlot() < 0 || !this.mayEditTable()) return;
     this.togglePopover('slotGuide');
   }
 
@@ -1116,7 +1125,7 @@ export class VisualNovelOverlayComponent {
    * closes the guide.
    */
   pickSlot(slot: number): void {
-    const character = this.speakerCharacter();
+    const character = this.mayEditTable() ? this.speakerCharacter() : null;
     if (character) character.vnPortraitPos = Math.min(VN_STAGE_SLOT_COUNT - 1, Math.max(0, slot));
     this.closePopovers();
   }
@@ -1126,7 +1135,7 @@ export class VisualNovelOverlayComponent {
    * guide.
    */
   followChatSlot(): void {
-    const character = this.speakerCharacter();
+    const character = this.mayEditTable() ? this.speakerCharacter() : null;
     if (character) character.vnPortraitPos = VN_PORTRAIT_POS_UNSET;
     this.closePopovers();
   }
@@ -1250,7 +1259,7 @@ export class VisualNovelOverlayComponent {
         undefined,
         emote
       );
-      if (attachedSe) this.jukebox?.play(attachedSe.identifier);
+      if (attachedSe && this.mayEditTable()) this.jukebox?.play(attachedSe.identifier);
     });
     if (this.selectedKind() === 'scene') this.scene.playTransition();
     this.attachedSe.set(null);
@@ -1263,8 +1272,10 @@ export class VisualNovelOverlayComponent {
     return object instanceof GameCharacter ? object.selectedPortraitIndex : 0;
   }
 
+  /** The colour a line goes in: the character's, but a guest's own, as the chat input has it. */
   private colorOf(sendFrom: string): string {
     const object = this.objectStore.get(sendFrom);
-    return chatColorOf(object instanceof GameCharacter ? object : PeerCursor.myCursor, 0);
+    const fromCharacter = object instanceof GameCharacter && canRoleEdit(PeerCursor.myRole);
+    return chatColorOf(fromCharacter ? object : PeerCursor.myCursor, 0);
   }
 }

@@ -1,0 +1,115 @@
+{
+  "description": "サーバーが接続を閉じる理由。サーバーは error を送ってから、close code 4000、reason に同じ code を付けて閉じる。when は起きるとき、retry はつなぎ直して直るか",
+  "errors": [
+    {
+      "code": "protocol-mismatch",
+      "when": "hello の protocolVersion がサーバーと違う。protocolVersion にサーバーの版が入る",
+      "retry": false,
+      "message": {
+        "type": "error",
+        "code": "protocol-mismatch",
+        "protocolVersion": 3
+      }
+    },
+    {
+      "code": "room-not-found",
+      "when": "部屋が無い。作られていないか、最後の1人が出てから保持期間が過ぎて消えた",
+      "retry": false,
+      "message": {
+        "type": "error",
+        "code": "room-not-found",
+        "protocolVersion": 3
+      }
+    },
+    {
+      "code": "room-full",
+      "when": "部屋にいる人が MAX_MEMBERS（32）に達している",
+      "retry": true,
+      "message": {
+        "type": "error",
+        "code": "room-full",
+        "protocolVersion": 3
+      }
+    },
+    {
+      "code": "wrong-password",
+      "when": "パスワードのある部屋で、hello の password が違うか、無い",
+      "retry": false,
+      "message": {
+        "type": "error",
+        "code": "wrong-password",
+        "protocolVersion": 3
+      }
+    },
+    {
+      "code": "hello-required",
+      "when": "接続して最初のメッセージが hello でない",
+      "retry": false,
+      "message": {
+        "type": "error",
+        "code": "hello-required",
+        "protocolVersion": 3
+      }
+    },
+    {
+      "code": "bad-message",
+      "when": "MessagePack として読めない、展開すると 32MiB を超える、封筒の形が違う、または Axe の部屋の形のピア ID の頭が userId のダイジェストと合わない（ほかの人のピア ID を名乗った）",
+      "retry": false,
+      "message": {
+        "type": "error",
+        "code": "bad-message",
+        "protocolVersion": 3
+      }
+    },
+    {
+      "code": "too-many-messages",
+      "when": "10秒のあいだに 2000 を超えるフレームか、20000 を超えるイベントを送った",
+      "retry": true,
+      "message": {
+        "type": "error",
+        "code": "too-many-messages",
+        "protocolVersion": 3
+      }
+    },
+    {
+      "code": "replaced",
+      "when": "同じピア ID で新しい接続が入った。古い方が受け取る。つなぎ直すと、新しい方を追い出してしまう",
+      "retry": false,
+      "message": {
+        "type": "error",
+        "code": "replaced",
+        "protocolVersion": 3
+      }
+    },
+    {
+      "code": "unauthorized",
+      "when": "hello の accessToken が無効か期限切れ、または userId がトークンの userId と違う。リフレッシュトークンで組を替えてから、つなぎ直す。accessToken を付けずに acct_ で始まる userId（ログインした人のユーザー ID）や、この部屋にログインして入ったことのあるユーザー ID を名乗ったときも。同じ userId の人がログインして入ってきたら、その userId を名乗っていた見学の席もこれで閉じる",
+      "retry": true,
+      "message": {
+        "type": "error",
+        "code": "unauthorized",
+        "protocolVersion": 3
+      }
+    },
+    {
+      "code": "room-deleted",
+      "when": "GM が部屋を削除した。部屋にいた全員が受け取る。部屋はもう無いので、つなぎ直しても room-not-found になる",
+      "retry": false,
+      "message": {
+        "type": "error",
+        "code": "room-deleted",
+        "protocolVersion": 3
+      }
+    },
+    {
+      "code": "idle",
+      "when": "IDLE_SECONDS（3時間）のあいだ active が届かなかった（ページが放っておかれた）。hello の idleMs がそれ以上のときも。つなぎ直せば入れるが、Axe は自分ではつなぎ直さず、人が操作してからつなぎ直す",
+      "retry": true,
+      "message": {
+        "type": "error",
+        "code": "idle",
+        "protocolVersion": 3
+      }
+    }
+  ]
+}

@@ -31,6 +31,39 @@ export const MOUSE_ZOOM_MAX_Z = TABLE_PERSPECTIVE_PX * 0.9;
 /** How far back any gesture may take the camera. */
 export const ZOOM_MIN_Z = -6000;
 
+/** The size of a cell the two limits above are set for. */
+const ZOOM_LIMITS_CELL_PX = 50;
+
+/**
+ * How far the zoom limits follow a table's cell size: a little, by the square root of how many
+ * times the usual cell it is, held between 0.75 and 1.5. A board of large cells can then be taken
+ * in whole from further back, and one of small cells looked at more closely.
+ */
+export function zoomReachFor(gridSize: number): number {
+  if (!(gridSize > 0)) return 1;
+  return Math.min(1.5, Math.max(0.75, Math.sqrt(gridSize / ZOOM_LIMITS_CELL_PX)));
+}
+
+/** How far back any gesture may take the camera over a table whose cells are `gridSize` across. */
+export function zoomOutLimitZ(gridSize: number): number {
+  return ZOOM_MIN_Z * zoomReachFor(gridSize);
+}
+
+/**
+ * How near the wheel and the keys may bring the camera over a table whose cells are `gridSize`
+ * across: {@link MOUSE_ZOOM_MAX_Z} over the usual cell, magnifying a little more over smaller cells
+ * and a little less over larger ones.
+ */
+export function mouseZoomInLimitZ(gridSize: number): number {
+  const magnification = TABLE_PERSPECTIVE_PX / (TABLE_PERSPECTIVE_PX - MOUSE_ZOOM_MAX_Z);
+  return TABLE_PERSPECTIVE_PX * (1 - zoomReachFor(gridSize) / magnification);
+}
+
+/** How near a touch may bring the camera: life size over the usual cell, a little nearer over smaller ones. */
+export function touchZoomInLimitZ(gridSize: number): number {
+  return Math.max(0, TABLE_PERSPECTIVE_PX * (1 - zoomReachFor(gridSize)));
+}
+
 @Injectable()
 export class GameTableGestureService {
   private readonly contextMenuService = inject(ContextMenuService);
@@ -266,10 +299,11 @@ export class GameTableGestureService {
     if (80 < rotateX + this.viewRotateX) rotateX += 80 - (rotateX + this.viewRotateX);
     if (rotateX + this.viewRotateX < 0) rotateX += 0 - (rotateX + this.viewRotateX);
 
-    const maxZ = 0;
+    const gridSize = this.tabletopService.gridSize();
+    const maxZ = touchZoomInLimitZ(gridSize);
     if (maxZ < transformZ + this.viewPositionZ) transformZ += maxZ - (transformZ + this.viewPositionZ);
 
-    const minZ = ZOOM_MIN_Z;
+    const minZ = zoomOutLimitZ(gridSize);
     if (transformZ + this.viewPositionZ < minZ) transformZ += minZ - (transformZ + this.viewPositionZ);
 
     this.setTransform(transformX, transformY, transformZ, rotateX, rotateY, rotateZ);
@@ -364,8 +398,11 @@ export class GameTableGestureService {
     transformX *= scale;
     transformY *= scale;
     transformZ *= 3;
-    if (0 < transformZ) transformZ = Math.min(transformZ, Math.max(0, MOUSE_ZOOM_MAX_Z - this.viewPositionZ));
-    if (transformZ < 0) transformZ = Math.max(transformZ, Math.min(0, ZOOM_MIN_Z - this.viewPositionZ));
+    const gridSize = this.tabletopService.gridSize();
+    const nearest = mouseZoomInLimitZ(gridSize);
+    const furthest = zoomOutLimitZ(gridSize);
+    if (0 < transformZ) transformZ = Math.min(transformZ, Math.max(0, nearest - this.viewPositionZ));
+    if (transformZ < 0) transformZ = Math.max(transformZ, Math.min(0, furthest - this.viewPositionZ));
 
     this.setTransform(transformX, transformY, transformZ, rotateX, rotateY, rotateZ);
     this.isTableTransformed = true;
@@ -398,7 +435,7 @@ export class GameTableGestureService {
   private onMarqueeEnd(rect: MarqueeRect, modifiers: MarqueeModifiers): void {
     this.selectionSignalService.marqueeState.set(null);
     const candidates = this.collectSelectableObjects();
-    const hits = selectByRect(candidates, rect);
+    const hits = selectByRect(candidates, rect, { gridSize: this.tabletopService.gridSize() });
     const joins = marqueeApply(modifiers, this.selectionSignalService.selectionSize() > 0);
     if (joins === 'add') {
       for (const id of hits) this.selectionSignalService.addSelection(id);

@@ -241,6 +241,62 @@ describe('ChatPaletteComponent', () => {
     });
   });
 
+  describe('rewriting the palette', () => {
+    let char: GameCharacter;
+
+    beforeEach(() => {
+      char = createChar('術者');
+      char.chatPalette!.setPalette('2d6 攻撃');
+      char.chatPalette!.dicebot = 'DiceBot';
+      component.character.set(char);
+    });
+
+    function editButton(): HTMLButtonElement | null {
+      return (fixture.nativeElement as HTMLElement).querySelector('[data-action="edit-palette"]');
+    }
+
+    function beGuest(): void {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+    }
+
+    it('is offered to a player', () => {
+      fixture.detectChanges();
+
+      expect(editButton()).not.toBeNull();
+    });
+
+    it('is not offered to a guest, nor opened by asking', () => {
+      beGuest();
+      fixture.detectChanges();
+      component.toggleEditMode();
+
+      expect(editButton()).toBeNull();
+      expect(component.isEdit()).toBe(false);
+    });
+
+    it('leaves a guest choosing a dice bot to roll with without writing it to the character', () => {
+      beGuest();
+
+      component.gameType = 'Cthulhu7th';
+
+      expect(component.gameType).toBe('Cthulhu7th');
+      expect(char.chatPalette!.dicebot).toBe('DiceBot');
+    });
+
+    it('closes an edit a player made a guest had open, writing none of it back', () => {
+      fixture.detectChanges();
+      component.toggleEditMode();
+      component.editPalette.set('1d100 書き換え');
+
+      beGuest();
+      TestBed.tick();
+
+      expect(component.isEdit()).toBe(false);
+      expect(char.chatPalette!.value).toBe('2d6 攻撃');
+    });
+  });
+
   describe('reaching the headings', () => {
     function speakerWithHeadings(): void {
       const speaker = createChar('術者');

@@ -1,10 +1,11 @@
 import { inject, Injectable } from '@angular/core';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { cellCenterOf, CellGrid, cellGridOf, cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, CellGrid, cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { hopHeightAt, hopLiftFor, landingHeightAt } from '@axe/domain/tabletop/move/landing-height';
-import { cornerShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
+import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
+import { pieceCornerOn } from '@axe/domain/tabletop/move/piece-on-grid';
 
 /** How long the piece rests on each cell of the way it walks, once the way is settled. */
 export const MOVE_STEP_MS = 90;
@@ -41,8 +42,7 @@ export class PieceStepService {
     standingZ: number = character.posZ
   ): Promise<number> {
     const centre = cellCenterOf(grid, cell);
-    const shift = cornerShiftOf(character, table.gridSize);
-    const corner = { x: centre.x - shift, y: centre.y - shift };
+    const corner = pieceCornerOn(grid, character, table.gridSize, cell);
     return this.arrive(character, table, { centre, corner, grid, cell, ending, standingZ });
   }
 
@@ -55,7 +55,7 @@ export class PieceStepService {
   ): Promise<number> {
     const half = (Math.max(1, character.size) * table.gridSize) / 2;
     const corner = { x: centre.x - half, y: centre.y - half };
-    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const grid = moveGridOf(table);
     const cell = cellIndexAt(grid, centre.x, centre.y);
     return this.arrive(character, table, { centre, corner, grid, cell, ending, standingZ });
   }

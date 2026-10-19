@@ -85,10 +85,16 @@ export class AudioPlayer {
    * Runs something each time the page's audio context is made, and at once if it already is, so
    * what hangs off it can be built without making a context before anything plays: a browser warns
    * of a context made before the user has touched the page.
+   *
+   * Answers with a function that stops running it for contexts made later.
    */
-  static whenContextReady(listener: (context: AudioContext) => void): void {
+  static whenContextReady(listener: (context: AudioContext) => void): () => void {
     AudioPlayer.contextListeners.push(listener);
     if (AudioPlayer._audioContext) listener(AudioPlayer._audioContext);
+    return () => {
+      const at = AudioPlayer.contextListeners.indexOf(listener);
+      if (at >= 0) AudioPlayer.contextListeners.splice(at, 1);
+    };
   }
 
   private static readonly channels = new Map<VolumeType, Channel>();

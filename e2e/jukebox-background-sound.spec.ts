@@ -57,8 +57,10 @@ async function tagAsBackgroundSound(jukebox: Locator, name: string) {
   await expect(libraryRow(jukebox, name).locator('select option:checked')).toHaveText('環境音');
 }
 
-test.describe('ジュークボックスの環境音', () => {
-  test('環境音を BGM と重ねて鳴らし、部屋共有の音量を変え、1 本ずつとまとめて止められること', async ({ page }) => {
+test.describe('ambience in the jukebox', () => {
+  test('plays ambience over the BGM, changes its room-wide volume, and stops it one sound at a time or all at once', async ({
+    page,
+  }) => {
     const jukebox = await openJukeboxWithTracks(page);
     await tagAsBackgroundSound(jukebox, 'Rain.wav');
     await tagAsBackgroundSound(jukebox, 'Campfire.wav');
@@ -90,7 +92,7 @@ test.describe('ジュークボックスの環境音', () => {
     await expect(mini).toHaveCount(0);
   });
 
-  test('止めた環境音をもう一度鳴らすと、部屋共有の音量が前のまま残っていること', async ({ page }) => {
+  test('keeps the room-wide volume of a stopped ambience when it is played again', async ({ page }) => {
     const jukebox = await openJukeboxWithTracks(page);
     await tagAsBackgroundSound(jukebox, 'Rain.wav');
     const toggle = libraryRow(jukebox, 'Rain.wav').getByTestId('jukebox-background-toggle');

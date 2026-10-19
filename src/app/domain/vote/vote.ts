@@ -19,6 +19,11 @@ export class Vote extends GameObject {
   @SyncVar() choices: string[] = [];
   @SyncVar() chairId = '';
   @SyncVar() isRollCall = false;
+  /**
+   * Whether the answers stay hidden until the vote is over, so that nobody votes with the crowd.
+   * Only how many have answered shows meanwhile. A roll call never hides them.
+   */
+  @SyncVar() isSecret = false;
   @SyncVar() isFinish = false;
   @SyncVar() voteId = 0;
   @SyncVar() chatTabIdentifier = '';
@@ -38,7 +43,7 @@ export class Vote extends GameObject {
       }
       return -1;
     } else {
-      return -2; // 棄権扱いにする
+      return -2; // counted as an abstention
     }
   }
 
@@ -55,8 +60,8 @@ export class Vote extends GameObject {
   }
 
   /**
-   * Sets up a new vote: its chair, title, the peers asked, the choices and whether it is a roll
-   * call.
+   * Sets up a new vote: its chair, title, the peers asked, the choices, whether it is a roll call
+   * and whether its answers stay hidden until it is over.
    *
    * It bumps the vote id, which leaves every earlier answer behind, and stamps the start time so
    * that peers open the vote when the change reaches them.
@@ -67,9 +72,11 @@ export class Vote extends GameObject {
     targetPeerId: string[],
     choices: string[],
     isRollCall: boolean,
-    chatTabIdentifier = ''
+    chatTabIdentifier = '',
+    isSecret = false
   ) {
     this.isRollCall = isRollCall;
+    this.isSecret = isSecret && !isRollCall;
     this.chairId = chairId;
     this.choices = choices;
     this.voteTitle = voteTitle;
@@ -116,20 +123,29 @@ export class Vote extends GameObject {
 
   /**
    * Finishes the vote and announces the result once everyone asked has answered, when this client
-   * is the chair and it has not finished already.
+   * is the chair and it has not finished already. A chair made a guest on a room server leaves it
+   * open, since the server would take the finish back and the result would be said again each time.
    */
   chkFinishVote() {
-    if (this.isFinish) return;
+    if (this.isFinish || PeerCursor.isMyselfKeptOffTable) return;
     if (this.chairId == PeerCursor.myCursor?.peerId && this.votedTotalNum() == this.targetPeerId.length) {
       this.finish();
     }
   }
 
-  /** Ends the vote early and announces the result. Only the chair can, and only once. */
+  /**
+   * Ends the vote early and announces the result. Only the chair can, and only once, and not as a
+   * guest on a room server.
+   */
   finishByChair() {
-    if (this.isFinish) return;
+    if (this.isFinish || PeerCursor.isMyselfKeptOffTable) return;
     if (this.chairId != PeerCursor.myCursor?.peerId) return;
     this.finish();
+  }
+
+  /** Whether who answered what can be shown: always, unless the vote is secret and still open. */
+  answersShown(): boolean {
+    return !this.isSecret || this.isFinish;
   }
 
   /** Whether this client is the one running the vote. */

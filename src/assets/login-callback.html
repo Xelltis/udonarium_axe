@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Udonarium Axe</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 2rem 1rem;
+        font-family: system-ui, sans-serif;
+        text-align: center;
+        color: #333;
+        background: #fafafa;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          color: #ddd;
+          background: #1e1e1e;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <p id="message">ログインしています… / Signing in…</p>
+    <script>
+      // Hands the fragment the login came back with, and the attempt it was opened for, to the tab
+      // that opened it, which holds the verifier, and closes. Opened in a tab of its own, it asks
+      // to be closed instead.
+      (function () {
+        var fragment = location.hash.replace(/^#/, '');
+        var attempt = new URLSearchParams(location.search).get('attempt');
+        history.replaceState(null, '', location.pathname);
+        try {
+          var channel = new BroadcastChannel('udonarium-axe.server-login');
+          channel.postMessage({ type: 'login-callback', fragment: fragment, attempt: attempt });
+          channel.close();
+        } catch (e) {}
+        window.close();
+        setTimeout(function () {
+          document.getElementById('message').textContent =
+            'ログインの結果を元の画面に渡しました。このタブは閉じてください。 / Done. You can close this tab.';
+        }, 300);
+      })();
+    </script>
+  </body>
+</html>

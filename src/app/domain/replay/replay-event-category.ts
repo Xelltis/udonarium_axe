@@ -1,7 +1,9 @@
 import {
+  canViewReplayEvent,
   type ReplayEvent,
   ReplayEventKind,
   type ReplayTargetSnapshot,
+  type ReplayViewer,
   resolveSnapshotAt,
 } from '@axe/domain/replay/replay-event';
 import type { ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
@@ -54,17 +56,33 @@ const BOARD_KINDS: ReadonlySet<ReplayEventKind> = new Set([
 export const REPLAY_PART_FLAG = 'part';
 
 /**
+ * The detail flag that marks what belongs to the board, not the story: a chat line said before
+ * recording began, or told already, handed over only later, as a room server does with a tab that
+ * comes into view, and what a room server takes away of its own accord.
+ */
+export const REPLAY_CAUGHT_UP_FLAG = 'caughtUp';
+
+/**
  * Where an event belongs when the session is read back or turned into a video.
  *
  * A notice the tool wrote into the chat — a lost connection, a cleared log, the tutorial — is the
  * running of the room, not the story. Unknown kinds count as `system`.
  */
 export function replayEventCategory(event: ReplayEvent): ReplayEventCategory {
-  if (isPartArrivalOrRemoval(event) || isValueCue(event)) return ReplayEventCategory.Hidden;
+  if (isPartArrivalOrRemoval(event) || isValueCue(event) || event.detail[REPLAY_CAUGHT_UP_FLAG] === true)
+    return ReplayEventCategory.Hidden;
   if (isSystemReplayChat(event)) return ReplayEventCategory.System;
   if (STORY_KINDS.has(event.kind)) return ReplayEventCategory.Story;
   if (BOARD_KINDS.has(event.kind)) return ReplayEventCategory.Board;
   return ReplayEventCategory.System;
+}
+
+/**
+ * Whether the viewer is shown the event as one of the session's lines, as the player stops on and
+ * the log lists: one they may see, and no part of a piece or line kept to the board.
+ */
+export function isShownReplayEvent(event: ReplayEvent, viewer: ReplayViewer): boolean {
+  return canViewReplayEvent(event, viewer) && replayEventCategory(event) !== ReplayEventCategory.Hidden;
 }
 
 /** Whether a chat line was written by the tool rather than by anyone at the table, as the chat itself tells them apart. */
@@ -85,6 +103,9 @@ function isValueCue(event: ReplayEvent): boolean {
 
 /** The first format whose recorder flags the parts itself, so that a recording read back needs no flagging. */
 export const REPLAY_PARTS_FLAGGED_SINCE_FORMAT = 3;
+
+/** The first format whose recorder keeps a line to those who could read its tab. */
+export const REPLAY_TAB_VIEWS_SINCE_FORMAT = 4;
 
 /** Whether an object was part of a piece at a point in a recording. */
 export type ReplayPartJudge = (identifier: string, seq: number) => boolean;

@@ -9,19 +9,19 @@ async function reopenCharacterMenu(page: Page) {
   return menu;
 }
 
-test.describe('オブジェクトの高度設定 (altitudeHande)', () => {
-  test('キャラクターの高度設定サブメニューに altitude スライダー UI が組み込まれていること', async ({ page }) => {
+test.describe('setting an object’s altitude (altitudeHande)', () => {
+  test('builds the altitude slider UI into a character’s altitude submenu', async ({ page }) => {
     await waitAppReady(page);
     await createCharacter(page);
     const menu = await reopenCharacterMenu(page);
     await (await revealMenuEntry(page, menu, '高度設定')).hover();
-    // altitudeHandeが紐付いたサブメニューを開くと、コンテキストメニュー側で
-    // 縦方向のrangeスライダー（name="altitude"）と数値入力（name="altitude-number"）が現れる。
+    // Opening the submenu tied to altitudeHande makes the context menu show a vertical range slider
+    // (name="altitude") and a number input (name="altitude-number").
     await expect(page.locator('context-menu input[name="altitude"]')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('context-menu input[name="altitude-number"]')).toBeVisible();
   });
 
-  test('terrain でも同様に高度設定スライダーが現れること', async ({ page }) => {
+  test('shows the altitude slider for terrain in the same way', async ({ page }) => {
     await waitAppReady(page);
     const tableMenu = await openTableContextMenu(page);
     await (await revealMenuEntry(page, tableMenu, '地形を作成')).click();
@@ -32,7 +32,7 @@ test.describe('オブジェクトの高度設定 (altitudeHande)', () => {
     await expect(page.locator('context-menu input[name="altitude"]')).toBeVisible({ timeout: 5000 });
   });
 
-  test('text-note の高度設定サブメニューにも altitude UI が居ること', async ({ page }) => {
+  test('has the altitude UI in the text-note’s altitude submenu too', async ({ page }) => {
     await waitAppReady(page);
     const tableMenu = await openTableContextMenu(page);
     await (await revealMenuEntry(page, tableMenu, '共有メモを作成')).click();

@@ -1,6 +1,6 @@
 /* Text decoration shared by the chat and the shared notes.
-   生のテキスト文字列を受け取り、HTML エスケープ → ルビ → 引用ブロック装飾を順に適用した HTML を返す。
-   ChatMessageComponent (live chat) と TextNoteComponent (非編集モード) が同じ見た目で描画するために使う。 */
+   Takes a raw text string and returns HTML with HTML escaping → ruby → quote-block decoration applied in turn.
+   ChatMessageComponent (live chat) and TextNoteComponent (non-editing mode) use it to draw with the same look. */
 
 import { RUBY_NOTATION, rubyRunsOf } from '@axe/domain/chat/chat-ruby-notation';
 

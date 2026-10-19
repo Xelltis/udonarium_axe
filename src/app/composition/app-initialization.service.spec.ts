@@ -1,8 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { PERSONAL_VOLUME_STORAGE_KEY } from '@axe/application/media/personal-volumes';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AppConfigService } from '@axe/composition/app-config.service';
 import { AppInitializationService } from '@axe/composition/app-initialization.service';
+import { localDispatch } from '@axe/core/network/network-messaging';
 import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { LoopPlayer } from '@axe/core/storage/loop-player';
@@ -61,6 +63,18 @@ describe('AppInitializationService', () => {
     expect(jukebox.volume).toBe(0.2);
     expect(jukebox.backgroundVolume).toBe(0.3);
     expect(jukebox.seVolume).toBe(0.5);
+  });
+
+  it('moves the music the room starts to the front of the downloads waiting', async () => {
+    const preferWaiting = vi.spyOn(AudioSharingSystem.instance, 'preferWaiting').mockImplementation(() => {});
+    service.initialize();
+    preferWaiting.mockClear();
+
+    TestBed.inject(ObjectChangeService);
+    const jukebox = objectStore.get<Jukebox>('Jukebox')!;
+    localDispatch('UPDATE_GAME_OBJECT', { ...jukebox.toContext(), majorVersion: jukebox.version + 1 }, 'gm-peer');
+
+    await vi.waitFor(() => expect(preferWaiting).toHaveBeenCalled());
   });
 
   describe('initialize()', () => {

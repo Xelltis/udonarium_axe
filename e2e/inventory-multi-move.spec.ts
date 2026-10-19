@@ -9,15 +9,15 @@ async function openInventoryWithCharacter(page: Page) {
   await expect(page.locator('game-object-inventory input[name="tab"]')).toHaveCount(4, { timeout: 5000 });
 }
 
-test.describe('インベントリの一括移動 (multi-move)', () => {
+test.describe('moving many inventory items at once (multi-move)', () => {
   test.beforeEach(async ({ page }) => {
     await openInventoryWithCharacter(page);
   });
 
-  test('一括移動ボタンを押すと multi-move バーが現れること', async ({ page }) => {
+  test('shows the multi-move bar when the move-multiple button is pressed', async ({ page }) => {
     await page.locator('game-object-inventory button[title="一括移動"]').click();
-    // multi-moveバー左端の見出しspan。material-iconsのligature "open_with"が
-    // 同じノードのテキストに含まれるので、anchorは使わずsubstring matchにする。
+    // The heading span at the left end of the multi-move bar. The material-icons ligature "open_with" is in
+    // the same node's text, so the match is on a substring rather than anchored.
     await expect(
       page
         .locator('game-object-inventory')
@@ -26,13 +26,13 @@ test.describe('インベントリの一括移動 (multi-move)', () => {
     ).toBeVisible({
       timeout: 5000,
     });
-    // 移動先ボタン（3件: 共有/個人/墓場）
+    // The three destination buttons: shared, personal and graveyard.
     await expect(page.locator('game-object-inventory').getByRole('button', { name: /共有/ })).toBeVisible();
     await expect(page.locator('game-object-inventory').getByRole('button', { name: /個人/ })).toBeVisible();
     await expect(page.locator('game-object-inventory').getByRole('button', { name: /墓場/ })).toBeVisible();
   });
 
-  test('「全選択」「全解除」トグルが動作すること', async ({ page }) => {
+  test('toggles between "select all" and "deselect all"', async ({ page }) => {
     await page.locator('game-object-inventory button[title="一括移動"]').click();
     const allSelect = page.locator('game-object-inventory').getByRole('button', { name: /全選択/ });
     await expect(allSelect).toBeVisible({ timeout: 5000 });
@@ -45,7 +45,7 @@ test.describe('インベントリの一括移動 (multi-move)', () => {
     await expect(page.locator('game-object-inventory').getByRole('button', { name: /全選択/ })).toBeVisible();
   });
 
-  test('「キャンセル」で multi-move を抜けると一括移動バーが消えること', async ({ page }) => {
+  test('hides the multi-move bar on leaving multi-move with "cancel"', async ({ page }) => {
     await page.locator('game-object-inventory button[title="一括移動"]').click();
     const heading = page
       .locator('game-object-inventory')
@@ -59,7 +59,9 @@ test.describe('インベントリの一括移動 (multi-move)', () => {
     await expect(heading).toBeHidden();
   });
 
-  test('全選択 → 「共有」で対象アイテムが共有タブに移動し、テーブルタブから減ること', async ({ page }) => {
+  test('moves the items to the shared tab, out of the table tab, on "select all" and then "shared"', async ({
+    page,
+  }) => {
     const items = page.locator('game-object-inventory [data-testid="inventory-item"]');
     const initialCount = await items.count();
     await page.locator('game-object-inventory button[title="一括移動"]').click();
@@ -69,12 +71,12 @@ test.describe('インベントリの一括移動 (multi-move)', () => {
       .click();
     await page.locator('game-object-inventory').getByRole('button', { name: /共有/ }).click();
     await expect.poll(() => items.count(), { timeout: 5000 }).toBeLessThan(initialCount);
-    // 共有タブに切替
+    // Switch to the shared tab.
     await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(1).click();
     await expect(items.first()).toBeVisible({ timeout: 5000 });
   });
 
-  test('テーブルタブでは「インベントリで非表示」「表示」ボタンが現れること', async ({ page }) => {
+  test('shows the "hide in inventory" and "show in inventory" buttons on the table tab', async ({ page }) => {
     await page.locator('game-object-inventory button[title="一括移動"]').click();
     await expect(
       page.locator('game-object-inventory').getByRole('button', { name: /インベントリで非表示/ })

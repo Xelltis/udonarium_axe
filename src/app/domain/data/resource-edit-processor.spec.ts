@@ -180,7 +180,7 @@ describe('ResourceEditProcessor', () => {
 
       const result = processor.resourceEdit(edit, character);
       expect(result).toContain('HP');
-      expect(result).toContain('200'); // 初期値
+      expect(result).toContain('200'); // the initial value
     });
 
     it('assigns', () => {

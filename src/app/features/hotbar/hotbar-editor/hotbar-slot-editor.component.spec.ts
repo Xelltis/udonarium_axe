@@ -10,6 +10,7 @@ import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { HotbarSlot } from '@axe/domain/hotbar/hotbar-slot';
 import { HOTBAR_SLOT_KINDS } from '@axe/domain/hotbar/hotbar-slot-kind';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { HotbarSlotEditorComponent } from '@axe/features/hotbar/hotbar-editor/hotbar-slot-editor.component';
 import { HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -55,6 +56,48 @@ describe('HotbarSlotEditorComponent', () => {
     const options = [...root().querySelectorAll<HTMLOptionElement>('[data-testid="hotbar-editor-kind"] option')];
 
     expect(options.map((option) => option.value)).toEqual([...HOTBAR_SLOT_KINDS]);
+  });
+
+  describe('a menu slot', () => {
+    function menuOptions(): string[] {
+      return [...root().querySelectorAll<HTMLOptionElement>('[data-testid="hotbar-editor-menu"] option')].map(
+        (option) => option.value
+      );
+    }
+
+    it('picks an entry of the menu instead of taking text', async () => {
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      component.setFrom({ page: 1, slotIndex: 3 }, emptyHotbarSlotDraft('menu'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(root().querySelector('[data-testid="hotbar-editor-argument"]')).toBeNull();
+      expect(menuOptions()).toContain('jukebox');
+      expect(menuOptions()).toContain('mapEditor');
+      expect(menuOptions()).not.toContain('turnIndicator');
+    });
+
+    it('offers a player only what a player may press', async () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      component.setFrom({ page: 1, slotIndex: 3 }, emptyHotbarSlotDraft('menu'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(menuOptions()).toContain('jukebox');
+      expect(menuOptions()).not.toContain('mapEditor');
+    });
+
+    it('keeps the chosen entry in the options and leaves the value empty', async () => {
+      component.setFrom({ page: 1, slotIndex: 3 }, emptyHotbarSlotDraft('menu'));
+      fixture.detectChanges();
+      const picker = root().querySelector<HTMLSelectElement>('[data-testid="hotbar-editor-menu"]')!;
+
+      picker.value = 'jukebox';
+      picker.dispatchEvent(new Event('change'));
+
+      expect(component.draft().payload).toEqual({ kind: 'menu', command: 'jukebox' });
+      expect(component.draft().value).toBe('');
+    });
   });
 
   it('opens on the settings the slot already holds', () => {

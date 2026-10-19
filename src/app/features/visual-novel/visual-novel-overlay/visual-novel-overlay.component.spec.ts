@@ -272,6 +272,20 @@ describe('VisualNovelOverlayComponent', () => {
     expect(vnMode.active()).toBe(false);
   });
 
+  it('lists its keys from the list of keys', () => {
+    createComponent();
+    component.toggleShortcutHelp();
+    fixture.detectChanges();
+
+    const rows = [...fixture.nativeElement.querySelectorAll('dt')].map((term: HTMLElement) => [
+      term.textContent?.trim(),
+      term.nextElementSibling?.textContent?.trim(),
+    ]);
+    expect(rows[0]).toEqual(['Enter / Space / → / ↓', '次へ進む / 全文表示']);
+    expect(rows.at(-1)).toEqual(['Esc', '閉じる / 終了']);
+    expect(rows).toHaveLength(8);
+  });
+
   it('does not advance the text from a key pressed in a field', () => {
     addMessage('こんにちは');
     createComponent();
@@ -494,6 +508,22 @@ describe('VisualNovelOverlayComponent', () => {
     expect(component.isBacklogOpen()).toBe(true);
   });
 
+  it('offers a guest no sound board, the jukebox and the cut-ins being for the players', () => {
+    const original = PeerCursor.myCursor;
+    PeerCursor.myCursor = { role: PeerRole.Guest } as PeerCursor;
+    try {
+      createComponent();
+      fixture.detectChanges();
+
+      expect(component.mayEditTable()).toBe(false);
+      expect(fixture.nativeElement.querySelector('button[title="SE再生"]')).toBeNull();
+      component.toggleSlotGuide();
+      expect(component.isPopover('slotGuide')).toBe(false);
+    } finally {
+      PeerCursor.myCursor = original;
+    }
+  });
+
   it('opens and closes the log from the same button', () => {
     addMessage('m1');
     createComponent();
@@ -622,6 +652,33 @@ describe('VisualNovelOverlayComponent', () => {
     expect(component.isPopover('slotGuide')).toBe(false);
     // Anything outside is pulled to the end frame.
     expect(speaker.vnPortraitPos).toBe(VN_STAGE_SLOT_COUNT - 1);
+  });
+
+  it('lets a guest neither place nor turn the speaking character', () => {
+    addMessage('こんにちは', 'アリス', addImage());
+    const speaker = charactersByName.get('アリス')!;
+    const before = speaker.vnPortraitPos;
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    createComponent();
+
+    component.toggleSlotGuide();
+    component.pickSlot(3);
+
+    expect(component.isPopover('slotGuide')).toBe(false);
+    expect(speaker.vnPortraitPos).toBe(before);
+  });
+
+  it('lists the key for the stage slots to those who may place a character, and not to a guest', () => {
+    createComponent();
+    const slotKey = 'feature.visualNovel.shortcuts.slot';
+    const listed = () => component.shortcutHelpItems().map((item) => item.labelKey);
+    expect(listed()).toContain(slotKey);
+
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+
+    expect(listed()).not.toContain(slotKey);
+    expect(listed()).toContain('feature.visualNovel.shortcuts.next');
   });
 
   it('reads what the room says of itself in words, not as the key it is kept under', () => {
@@ -1212,6 +1269,22 @@ describe('VisualNovelOverlayComponent', () => {
     await vi.waitFor(() => expect(sendSpy).toHaveBeenCalled(), { timeout: 5000 });
     expect(sendSpy.mock.calls[0][1]).toBe('ふりかえる');
     expect(sendSpy.mock.calls[0][12]).toBe('flip');
+    character.destroy();
+  });
+
+  it('makes the flip row again under a name of its own once it was deleted, as a room server keeps that one deleted', () => {
+    const character = GameCharacter.create('反転の作り直し', 1, addImage());
+    createComponent();
+    component.sendFrom = character.identifier;
+
+    component.toggleSpeakerFlip();
+    character.detailDataElement!.getFirstElementByName('FLIP')!.destroy();
+    component.toggleSpeakerFlip();
+
+    const again = character.detailDataElement!.getFirstElementByName('FLIP');
+    expect(again).toBeTruthy();
+    expect(again!.identifier).not.toBe(`FLIP_${character.identifier}`);
+    expect(Number(again!.value)).toBe(1);
     character.destroy();
   });
 

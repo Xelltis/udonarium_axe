@@ -1,3 +1,4 @@
+import { shortcutProbesOf } from '@axe/domain/ui/keyboard-shortcuts';
 import {
   type MapEditorKeyContext,
   mapEditorKeyDown,
@@ -101,4 +102,13 @@ describe('mapEditorKeyUp()', () => {
   it('returns nothing for any other key', () => {
     expect(mapEditorKeyUp('KeyB')).toBeNull();
   });
+});
+
+describe('the map editor’s lines on the list of keys', () => {
+  for (const { id, probe } of shortcutProbesOf('mapEditor')) {
+    it(`answers ${id} as listed`, () => {
+      const pressed = context({ chord: !!probe.ctrl, shift: !!probe.shift, alt: !!probe.alt, ...probe.when });
+      expect(mapEditorKeyDown(probe.key ?? '', probe.code ?? '', pressed)?.command).toBe(probe.command);
+    });
+  }
 });

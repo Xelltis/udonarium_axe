@@ -12,7 +12,7 @@
   <div
     class="pointer-events-auto size-full transform-3d"
     [class.cursor-grab]="!isLocked()"
-    [class.cursor-pointer]="(isDoor() || pressable()) && isLocked()"
+    [class.cursor-pointer]="((isDoor() && mayOpenDoor()) || pressable()) && isLocked()"
     (pointerdown)="notePress($event)"
     (click)="onBlockClick($event)"
     [attr.data-table-passthrough]="isLocked() ? '' : null"

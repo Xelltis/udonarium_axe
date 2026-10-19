@@ -25,6 +25,8 @@ export interface HotbarCellContext {
   speaker: GameCharacter | null;
   /** What a slot points at by identifier, named as it stands now, so a rename shows through. */
   referencedName(slot: HotbarSlot): string;
+  /** The icon of what a slot points at, for a slot that wears it rather than its kind's. */
+  referencedIcon?(slot: HotbarSlot): string;
   keyOf(slotIndex: number): string;
 }
 
@@ -75,7 +77,7 @@ export function hotbarCellView(slot: HotbarSlot | null, slotIndex: number, conte
     slotIndex,
     slot,
     label: hotbarSlotLabel(slot.argument, slot.label, context.referencedName(slot)),
-    icon: hotbarSlotIcon(kind, slot.argument, slot.icon),
+    icon: hotbarSlotIcon(kind, slot.argument, slot.icon, context.referencedIcon?.(slot) ?? ''),
     color: hotbarSlotColor(kind, slot.color),
     needsCharacter: hotbarSlotNeedsCharacter(kind),
     key,

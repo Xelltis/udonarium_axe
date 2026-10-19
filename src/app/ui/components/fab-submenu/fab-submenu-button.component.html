@@ -9,6 +9,7 @@
   [attr.data-label]="label()"
   [attr.data-testid]="testId()"
   (click)="press.emit($event)"
+  (contextmenu)="contextMenuRequest.emit($event)"
 >
   @if (text()) {
     <span class="text-[11px] font-semibold tracking-wide">{{ text() }}</span>

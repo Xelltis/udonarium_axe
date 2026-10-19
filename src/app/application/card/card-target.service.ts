@@ -1,4 +1,5 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -17,6 +18,7 @@ export class CardTargetService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly tabletopService = inject(TabletopService);
+  private readonly rolePermission = inject(RolePermissionService);
 
   private readonly _pickingIdentifier = signal('');
   readonly pickingIdentifier = this._pickingIdentifier.asReadonly();
@@ -41,6 +43,10 @@ export class CardTargetService {
     return arrows;
   });
 
+  /**
+   * Points the card being chosen for at the next other piece selected. A seat made a guest while it
+   * chose stops choosing, and points nothing.
+   */
   constructor() {
     effect(() => {
       const selected = this.selectionSignalService.selectedObject();
@@ -48,8 +54,13 @@ export class CardTargetService {
       if (!selected || source.length < 1 || selected.identifier === source) return;
 
       this._pickingIdentifier.set('');
+      if (!untracked(() => this.rolePermission.canEditTabletop)) return;
       const card = this.objectStore.get<Card>(source);
       if (card instanceof Card) card.targetIdentifier = selected.identifier;
+    });
+    effect(() => {
+      this.objectChange.trackMyCursor();
+      if (!this.rolePermission.canEditTabletop) untracked(() => this.cancelPicking());
     });
   }
 

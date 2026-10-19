@@ -1,3 +1,4 @@
+import { shortcutProbesOf } from '@axe/domain/ui/keyboard-shortcuts';
 import { HotbarKeyContext, hotbarKeyDown, pressEmptiesSlot } from '@axe/features/hotbar/hotbar-shortcut';
 
 describe('the keys a hotbar answers', () => {
@@ -102,4 +103,20 @@ describe('emptying a slot with a held press', () => {
     expect(pressEmptiesSlot({ ctrlKey: false, metaKey: false }, false)).toBe(false);
     expect(pressEmptiesSlot({ ctrlKey: false, metaKey: false }, true)).toBe(false);
   });
+});
+
+describe('the hotbar’s lines on the list of keys', () => {
+  for (const { id, probe } of shortcutProbesOf('hotbar')) {
+    it(`answers ${id} as listed`, () => {
+      const context: HotbarKeyContext = {
+        typing: false,
+        composing: false,
+        chord: !!(probe.ctrl || probe.alt),
+        shift: !!probe.shift,
+        slotCount: 10,
+        pageCount: 5,
+      };
+      expect(hotbarKeyDown(probe.code ?? '', context, probe.key)?.command).toBe(probe.command);
+    });
+  }
 });

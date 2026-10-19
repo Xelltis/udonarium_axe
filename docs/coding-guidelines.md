@@ -63,9 +63,10 @@
 
 ## コメント・テスト名の言語
 
-- **コードコメントは英語**で書く（`src/`配下の`//` `/* */` `/** */`）
-- **テスト名も英語**で書く（`describe()` / `it()`に渡す文字列）
-- 対象外: i18nの翻訳文字列（`src/assets/i18n/*.json`）、`docs/` `website/` `README.md`の本文。
+- **コードコメントは英語**で書く（`src/` `e2e/` `scripts/`と設定ファイルの`//` `/* */` `/** */`、HTMLとCSSのコメント、YAMLや`.gitignore`の`#`）
+- **テスト名も英語**で書く（`describe()` / `it()`、e2eの`test()` / `test.describe()` / `test.step()`に渡す文字列）
+- 画面の文言や実際の出力を引くときは、英語のコメントの中に元の日本語を引用として残してよい
+- 対象外: i18nの翻訳文字列（`src/assets/i18n/*.json`）、セレクタや期待値・ログなどの文字列、`docs/` `website/` `README.md`の本文。
   ドキュメントの日本語は[contribution.md](contribution.md)の規範に従う
 - コミットメッセージは従来どおり英語（[contribution.md](contribution.md)）
 

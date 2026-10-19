@@ -24,6 +24,17 @@ export class CardStack extends OwnedTabletopObject {
     }
     return null;
   }
+  /**
+   * Copies the stack with nobody holding it or any of its cards: the copy is new to everyone, and a
+   * card in a deck is given a holder by the game master alone, so a room server would take back a
+   * copy made by anyone else with a holder left on a card.
+   */
+  override clone(): this {
+    const copy = super.clone();
+    copy.owner = '';
+    for (const card of copy.cards) card.owner = '';
+    return copy;
+  }
   /** The cards in the stack, top card first. */
   get cards(): readonly Card[] {
     const cardRoot = this.cardRoot;

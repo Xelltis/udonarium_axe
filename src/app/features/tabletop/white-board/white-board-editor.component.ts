@@ -14,8 +14,10 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { AnimatedImageService } from '@axe/application/media/animated-image.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { downloadBlob } from '@axe/core/util/download-blob';
@@ -763,6 +765,9 @@ export class WhiteBoardEditorComponent {
   }
 
   constructor() {
+    // Made a guest meanwhile, the seat may no longer write what this panel writes.
+    closeWhenOffTheTable();
+    inject(ShortcutScopeService).hold('whiteBoard', this.destroyRef);
     effect(() => {
       const box = this.wordBoxRef()?.nativeElement;
       if (!this.wantsCaret || !box) return;

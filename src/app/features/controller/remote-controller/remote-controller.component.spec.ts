@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -9,6 +10,7 @@ import { DataElement, DataElementAttribute, DataElementRole, DataElementType } f
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { RemoteControllerComponent } from '@axe/features/controller/remote-controller/remote-controller.component';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -43,6 +45,10 @@ describe('RemoteControllerComponent', () => {
     return char;
   }
 
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() => TestBed.createComponent(RemoteControllerComponent));
+  });
+
   it('should create', () => {
     expect(component).toBeTruthy();
   });
@@ -70,6 +76,46 @@ describe('RemoteControllerComponent', () => {
       (fixture.nativeElement as HTMLElement).querySelector(`[data-line="${line}"]`)!.textContent;
     expect(row(0)).toBe('HP-1');
     expect(row(1)).toBe('//回復=3');
+  });
+
+  describe('the tabs the panel sends its word to', () => {
+    afterEach(() => {
+      for (const tab of [...ChatTabList.instance.chatTabs]) tab.destroy();
+    });
+
+    it('lists only the tabs this seat may read and speak in, and moves off one closed to it', () => {
+      const open = ChatTabList.instance.addChatTab('雑談');
+      const watched = ChatTabList.instance.addChatTab('観戦');
+      watched.plCanSpeak = false;
+      const hidden = ChatTabList.instance.addChatTab('GMだけ');
+      hidden.plCanView = false;
+      fixture = TestBed.createComponent(RemoteControllerComponent);
+      component = fixture.componentInstance;
+
+      expect(component.sendableChatTabs()).toEqual([open]);
+      expect(component.chatTabidentifier()).toBe(open.identifier);
+
+      open.plCanSpeak = false;
+      TestBed.inject(ObjectChangeService).notifyChanged(open.identifier);
+      TestBed.tick();
+
+      expect(component.sendableChatTabs()).toEqual([]);
+      expect(component.chatTabidentifier()).toBe('');
+    });
+
+    it('says nothing without a tab it may speak in, rather than in another', () => {
+      const watched = ChatTabList.instance.addChatTab('観戦');
+      watched.plCanSpeak = false;
+      fixture = TestBed.createComponent(RemoteControllerComponent);
+      component = fixture.componentInstance;
+      const said = vi.spyOn(TestBed.inject(ChatMessageService), 'sendMessage');
+
+      component.character.set(createChar('テスト'));
+      component['announce']('HPを1減らしました', { portraitIndex: 0 });
+
+      expect(said).not.toHaveBeenCalled();
+      vi.restoreAllMocks();
+    });
   });
 
   describe('targetBlockClick', () => {

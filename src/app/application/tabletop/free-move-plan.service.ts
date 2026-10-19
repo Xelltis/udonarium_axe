@@ -1,4 +1,6 @@
-import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import {
   centreOf,
   EngagementZoneService,
@@ -85,6 +87,8 @@ export class FreeMovePlanService {
   private readonly zones = inject(EngagementZoneService);
   private readonly interrupts = inject(MoveInterruptService);
   private readonly ride = inject(RideService);
+  private readonly objectChange = inject(ObjectChangeService);
+  private readonly rolePermission = inject(RolePermissionService);
 
   private readonly held = signal<FreePlan | null>(null);
   private readonly opened = signal(0);
@@ -115,6 +119,11 @@ export class FreeMovePlanService {
 
   constructor() {
     effect(() => this.tellTheRoom(this.held()));
+    // A seat made a guest while it worked a move out drops it, moving nothing.
+    effect(() => {
+      this.objectChange.trackMyCursor();
+      if (!this.rolePermission.canEditTabletop && untracked(this.held) && !this.walking) untracked(() => this.close());
+    });
   }
 
   get isWalking(): boolean {
@@ -259,7 +268,7 @@ export class FreeMovePlanService {
    */
   async run(): Promise<boolean> {
     const plan = this.held();
-    if (!plan || this.walking) return false;
+    if (!plan || this.walking || !this.rolePermission.canEditTabletop) return false;
     const character = this.objectStore.get<GameCharacter>(plan.characterIdentifier);
     const table = this.tableSelecter.viewTable;
     const way = this.wholeWay();
@@ -278,10 +287,15 @@ export class FreeMovePlanService {
       const steps = stepsAlong(walked, table.gridSize / 2);
       let standingZ = character.posZ;
       for (const [index, point] of steps.entries()) {
+        if (!this.rolePermission.canEditTabletop) break;
         standingZ = await this.pieceStep.stepToPoint(character, table, point, index === steps.length - 1, standingZ);
       }
     } finally {
       this.walking = false;
+    }
+    if (!this.rolePermission.canEditTabletop) {
+      this.close();
+      return false;
     }
     SoundEffect.play(PresetSound.piecePut);
     const start = this.zoneStart;

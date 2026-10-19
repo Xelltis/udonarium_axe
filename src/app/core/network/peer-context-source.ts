@@ -54,3 +54,18 @@ export function getPeerIds(): string[] {
 export function getMyPeerId(): string {
   return currentProvider.peerId;
 }
+
+/** The room server's peer id while connected through one; null with SkyWay or outside a room. */
+export function getAuthorityPeerId(): string | null {
+  return Network.authorityPeerId;
+}
+
+/** Whether the link to the room server is up; false with SkyWay, outside a room, or while it is down. */
+export function isAuthorityOpen(): boolean {
+  return Network.isAuthorityOpen;
+}
+
+/** The key of the room server's room this device is in or getting into; null with SkyWay or outside one. */
+export function getRoomKey(): string | null {
+  return Network.roomKey;
+}

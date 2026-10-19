@@ -5,6 +5,12 @@ export interface IRoomInfo {
   readonly name: string;
   readonly hasPassword: boolean;
   readonly peers: IPeerContext[];
+  /** How many are in the room. A room server reports a count rather than the peers themselves. */
+  readonly memberCount: number;
+  /** The key a room server finds the room by; SkyWay rooms have none. */
+  readonly roomKey?: string;
+  /** Whether the reader may delete the room: a room server's GM of it. SkyWay rooms are never deleted. */
+  readonly deletable?: boolean;
 
   filterByPassword(password: string): IPeerContext[] | Promise<IPeerContext[]>;
 }
@@ -13,6 +19,10 @@ export class RoomInfo implements IRoomInfo {
   /** Whether any peer in the room has a password. */
   get hasPassword(): boolean {
     return this.peers.some((peer) => peer.hasPassword);
+  }
+
+  get memberCount(): number {
+    return this.peers.length;
   }
 
   constructor(

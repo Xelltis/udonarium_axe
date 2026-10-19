@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { EffectLibraryPanelComponent } from '@axe/features/effect/effect-library-panel/effect-library-panel.component';
 import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -24,6 +27,23 @@ describe('EffectLibraryPanelComponent', () => {
 
   afterEach(() => {
     ObjectStore.instance.remove(preset);
+  });
+
+  it('casts nothing for a guest, who shows nothing on anybody’s table', () => {
+    const cast = TestBed.inject(EffectCastService);
+    vi.spyOn(cast, 'resolveTargets').mockReturnValue([{ name: 'ミナ' }] as never);
+    const fired = vi.spyOn(cast, 'fire').mockImplementation(() => undefined as never);
+    preset.targeting = 'self';
+    PeerCursor.createMyCursor().role = PeerRole.Guest;
+    const panel = fixture.componentInstance as unknown as { fire(preset: EffectPreset): void };
+
+    panel.fire(preset);
+    expect(fired).not.toHaveBeenCalled();
+
+    PeerCursor.myCursor.role = PeerRole.Player;
+    panel.fire(preset);
+    expect(fired).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
   });
 
   it('lists the effects that have been added', () => {

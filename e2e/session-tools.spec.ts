@@ -8,13 +8,13 @@ import { openPanel, waitAppReady } from './helpers';
  * the entry points open, report their empty state honestly, and — for turn
  * order — that the widget actually lists the pieces on the table.
  */
-test.describe('セッション進行まわり', () => {
+test.describe('running a session', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('リプレイは記録が無いことを伝えたうえで読み込み口を出すこと', async ({ page }) => {
-    // リプレイは部屋設定の「ユーティリティ」タブから開く。
+  test('says in the replay that there are no recordings, and offers a way to load one', async ({ page }) => {
+    // The replay opens from the utility tab of the room settings.
     await openPanel(page, '部屋設定');
     const settings = page.locator('room-settings-panel');
     await expect(settings).toBeVisible({ timeout: 15000 });
@@ -23,13 +23,13 @@ test.describe('セッション進行まわり', () => {
 
     const replay = page.locator('app-replay-workspace');
     await expect(replay).toBeVisible({ timeout: 15000 });
-    // 白紙で終わらせず、まだ何も無いことと次の一手を出す。
+    // Rather than a blank page, it says there is nothing yet and what to do next.
     await expect(replay).toContainText('保存された記録はありません');
     await expect(replay).toContainText('読み込み');
   });
 
-  test('自動保存はまだ世代が無いことを伝え、その場で保存できること', async ({ page }) => {
-    // 自動保存は部屋設定の「自動保存」タブに入っている。
+  test('says autosave has no generations yet, and saves one on the spot', async ({ page }) => {
+    // Autosave lives in the autosave tab of the room settings.
     await openPanel(page, '部屋設定');
     const settings = page.locator('room-settings-panel');
     await expect(settings).toBeVisible({ timeout: 15000 });
@@ -40,12 +40,14 @@ test.describe('セッション進行まわり', () => {
     await expect(snapshot).toContainText('まだスナップショットがありません');
 
     await snapshot.getByRole('button', { name: /今すぐ保存/ }).click();
-    // 保存できたら世代の数え上げが動く。部屋全体をzipにまとめるので、ブラウザを並べて
-    // 流していると普段の0.3秒が10秒を超えることがある。
+    // Once saved, the count of generations moves. The whole room is packed into a zip, so with browsers
+    // run side by side the usual 0.3 seconds can go past 10.
     await expect(snapshot).not.toContainText('まだスナップショットがありません', { timeout: 30000 });
   });
 
-  test('インベントリをラウンド表示に切り替えると行動順だけに縮み、卓上のコマが並ぶこと', async ({ page }) => {
+  test('shrinks the inventory to the turn order alone in the round view, listing the pieces on the table', async ({
+    page,
+  }) => {
     const names = await page.locator('game-character [data-testid="piece-name"]').allInnerTexts();
     expect(names.length).toBeGreaterThan(0);
 
@@ -53,8 +55,8 @@ test.describe('セッション進行まわり', () => {
     const inventory = page.locator('game-object-inventory');
     await expect(inventory).toBeVisible({ timeout: 10000 });
 
-    // 表示の切り替えはタイトルバーの一つのボタンで、リッチ → 簡略（表） → ラウンドと巡る。
-    // ボタンは浮いているツールバーの下に入ることがある。
+    // One button in the title bar switches the view, going round rich → simple (table) → round.
+    // The button can end up under a floating toolbar.
     const panel = page.locator('ui-panel').filter({ hasText: 'インベントリ' });
     await panel.locator('button[title="リッチ表示"]').dispatchEvent('click');
     await panel.locator('button[title="簡略表示（表）"]').dispatchEvent('click');
@@ -64,7 +66,7 @@ test.describe('セッション進行まわり', () => {
     await expect(panel).toContainText('restart_alt');
     await expect(panel).not.toContainText('墓場');
 
-    // 卓上のコマがそのまま積まれている。
+    // The pieces on the table are all stacked there.
     expect(await panel.locator('img').count()).toBeGreaterThanOrEqual(names.length);
   });
 });

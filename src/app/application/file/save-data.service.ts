@@ -5,7 +5,11 @@ import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { stampLabel } from '@axe/application/chat/stamp-words';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/index';
+import { Logger } from '@axe/core/logging/logger';
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
+import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
@@ -14,6 +18,7 @@ import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
+import { createZipBlob, ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { downloadBlob } from '@axe/core/util/download-blob';
@@ -21,14 +26,14 @@ import { formatXml } from '@axe/core/util/format-xml';
 import { PromiseQueue } from '@axe/core/util/promise-queue';
 import { xml2element } from '@axe/core/util/xml-util';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
-import { ChatLogImages, exportChatLog } from '@axe/domain/chat/chat-log-export';
+import type { ChatLogImages, exportChatLog } from '@axe/domain/chat/chat-log-export';
 import {
   ChatLogExporter,
   ChatLogImageSrcResolver,
   ChatLogTab,
   ChatLogTextDecoder,
 } from '@axe/domain/chat/chat-log-exporter';
-import { ChatLogLabels, ChatLogScope } from '@axe/domain/chat/chat-log-rich';
+import type { ChatLogLabels, ChatLogScope } from '@axe/domain/chat/chat-log-rich';
 import { ChatLogStyle, isPlainChatLogStyle } from '@axe/domain/chat/chat-log-style';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
@@ -37,7 +42,9 @@ import { AudioTagList } from '@axe/domain/media/audio-tag-list';
 import { carriedImagesOf } from '@axe/domain/media/carried-images';
 import { ImageTagList } from '@axe/domain/media/image-tag-list';
 import { Config } from '@axe/domain/peer/config';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { Room } from '@axe/domain/peer/room';
+import { isTableWithheld } from '@axe/domain/peer/withheld-table';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 type UpdateCallback = (percent: number) => void;
 
@@ -71,6 +78,7 @@ export class SaveDataService {
   private readonly dataSummarySetting = inject(DataSummarySetting);
   private readonly statusAilmentCatalog = inject(StatusAilmentCatalog);
   private readonly translate = inject(TRANSLATE_FN);
+  private readonly snackbar = inject(SnackbarService);
   private readonly chatReactions = inject(ChatReactionService);
   private readonly stampPacks = inject(StampPackService);
   private readonly chatPreferences = inject(ChatPreferencesService);
@@ -87,17 +95,30 @@ export class SaveDataService {
    *
    * The archive holds the room, chat, config, summary setting and status catalogue as XML, with the
    * pictures they refer to and the audio list. Saves are queued, so one never overlaps another.
+   *
+   * While a recording's board is shown in place of the table, cut off from the room, nothing is
+   * saved and the reader is told why: the board is what the one who recorded it saw, which may be
+   * only the shape a room server withheld from them, with no mark to say so.
    */
   saveRoomAsync(fileName: string = '', updateCallback?: UpdateCallback): Promise<void> {
+    if (isNetworkIsolated()) {
+      this.snackbar.show(this.translate('app.saveWhileReplayBoard'));
+      return Promise.resolve();
+    }
     return SaveDataService.queue.add(() => this._saveRoomAsync(fileName, updateCallback));
   }
 
   /**
    * Builds the same archive as `saveRoomAsync` as a blob, without downloading it. Used for room
-   * snapshots; queued with the saves.
+   * snapshots; queued with the saves. One taken in the background asks no reload when the code for
+   * zips could not be fetched, since the reader hears of it from what they do; one the reader asked
+   * for does, through the archiver.
    */
-  createRoomArchiveAsync(): Promise<Blob> {
-    return SaveDataService.queue.add(() => this.fileArchiver.createZipBlobAsync(this.buildRoomFiles(false)));
+  createRoomArchiveAsync(options: { background?: boolean } = {}): Promise<Blob> {
+    const files = () => this.buildRoomFiles(false);
+    return SaveDataService.queue.add(() =>
+      options.background ? createZipBlob(files()) : this.fileArchiver.createZipBlobAsync(files())
+    );
   }
 
   /**
@@ -134,8 +155,21 @@ export class SaveDataService {
     return this.saveAsync(this.buildRoomFiles(), this.appendTimestamp(fileName), updateCallback);
   }
 
+  /**
+   * The room to write, marked as withheld when the table held here has some of it only in the shape
+   * a room server withholds from this seat, which a load would spread as it is: as for anyone but
+   * the GM on a room server, still so after leaving it.
+   */
+  private roomToSave(): Room {
+    const room = new Room();
+    if (isTableWithheld() || (getAuthorityPeerId() !== null && !PeerCursor.isMyselfGameMaster)) {
+      room.withheld = 'true';
+    }
+    return room;
+  }
+
   private buildRoomXmlParts(pretty: boolean): { roomXml: string; chatXml: string; files: File[] } {
-    const roomXml = this.convertToXml(new Room(), pretty);
+    const roomXml = this.convertToXml(this.roomToSave(), pretty);
     const chatXml = this.convertToXml(this.chatTabList, pretty);
     const configXml = this.convertToXml(this.appConfig, pretty);
     const summarySetting = this.convertToXml(this.dataSummarySetting, pretty);
@@ -208,14 +242,27 @@ export class SaveDataService {
     return this.saveAsync(files, this.appendTimestamp(fileName), updateCallback);
   }
 
-  private saveAsync(files: File[], zipName: string, updateCallback?: UpdateCallback): Promise<void> {
+  /**
+   * Packs and downloads the files. A save that fails is logged and settles all the same, so that
+   * whoever waits on it is not left saving for ever, and the reader is told every time, since the
+   * reload the archiver asks for once when the code could not be fetched is asked only once a page.
+   * Then the notice says to reload.
+   */
+  private async saveAsync(files: File[], zipName: string, updateCallback?: UpdateCallback): Promise<void> {
     let progressPercent = -1;
-    return this.fileArchiver.saveAsync(files, zipName, (meta) => {
-      const percent = meta.percent | 0;
-      if (percent <= progressPercent) return;
-      progressPercent = percent;
-      updateCallback?.(progressPercent);
-    });
+    try {
+      await this.fileArchiver.saveAsync(files, zipName, (meta) => {
+        const percent = meta.percent | 0;
+        if (percent <= progressPercent) return;
+        progressPercent = percent;
+        updateCallback?.(progressPercent);
+      });
+    } catch (reason) {
+      Logger.error('[SaveDataService] 保存に失敗しました', zipName, reason);
+      const notice =
+        reason instanceof ZipCodeUnavailableError ? 'common.dialog.saveFailedReload' : 'common.dialog.saveFailed';
+      this.snackbar.show(this.translate(notice));
+    }
   }
 
   private createImageArchiveFile(image: ImageFile): File | null {
@@ -315,7 +362,9 @@ export class SaveDataService {
     const logTabs = options.omitDeleted ? ChatLogExporter.withoutDeleted(tabs) : tabs;
     const plain = isPlainChatLogStyle(style);
     const images = plain ? SaveDataService.NO_CHAT_LOG_IMAGES : await this.prepareChatLogImages(logTabs);
-    const text = this.renderChatLog(style, scope, logTabs, images);
+    // Fetched only now: the log's pages and their themes are no part of starting the app.
+    const { exportChatLog: render } = await import('@axe/domain/chat/chat-log-export');
+    const text = this.renderChatLog(render, style, scope, logTabs, images);
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
     downloadBlob(blob, this.appendTimestamp(`${this.chatLogRoomName()}_log_${label}`) + (plain ? '.txt' : '.html'));
   }
@@ -323,11 +372,18 @@ export class SaveDataService {
   private static readonly NO_CHAT_LOG_IMAGES: ChatLogImages = { resolver: () => '', registryScript: '' };
 
   /**
-   * Renders chat tabs as a log, an HTML page using images already prepared by `prepareChatLogImages`
-   * or plain text for the `text` style, without downloading anything.
+   * Renders chat tabs as a log with `render` (`exportChatLog`, which its caller fetches), an HTML
+   * page using images already prepared by `prepareChatLogImages` or plain text for the `text`
+   * style, without downloading anything.
    */
-  renderChatLog(style: ChatLogStyle, scope: ChatLogScope, tabs: readonly ChatLogTab[], images: ChatLogImages): string {
-    const body = exportChatLog(style, scope, tabs, {
+  renderChatLog(
+    render: typeof exportChatLog,
+    style: ChatLogStyle,
+    scope: ChatLogScope,
+    tabs: readonly ChatLogTab[],
+    images: ChatLogImages
+  ): string {
+    const body = render(style, scope, tabs, {
       imageSrcResolver: images.resolver,
       textDecoder: this.chatLogTextDecoder,
       showTime: this.chatTabList.simpleDispFlagTime,

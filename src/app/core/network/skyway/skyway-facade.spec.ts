@@ -1,6 +1,8 @@
 import { PeerContext } from '@axe/core/network/peer-context';
 import { SAME_NAME_MEMBER_WAIT_MS, SameNameWaitCancelledError } from '@axe/core/network/skyway/same-name-member';
+import { SkyWayBackend } from '@axe/core/network/skyway/skyway-backend';
 import { SkyWayFacade } from '@axe/core/network/skyway/skyway-facade';
+import { SkyWayContext } from '@skyway-sdk/core';
 
 describe('SkyWayFacade', () => {
   it('is exported', () => {
@@ -162,5 +164,96 @@ describe('joining the room under its own name', () => {
 
     await expect(joined).rejects.toBeInstanceOf(SameNameWaitCancelledError);
     expect(room.join).not.toHaveBeenCalled();
+  });
+});
+
+describe('a token that comes back empty', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  function opening(): { facade: SkyWayFacade; answer: (token: string) => void; done: Promise<void> } {
+    let answer: (token: string) => void = () => undefined;
+    vi.spyOn(SkyWayBackend.prototype, 'createSkyWayAuthToken').mockReturnValue(
+      new Promise((resolve) => (answer = resolve))
+    );
+    const facade = new SkyWayFacade();
+    facade.onFatalError = vi.fn();
+    facade.onOpen = vi.fn();
+    const done = facade.open(PeerContext.parse('standby'));
+    return { facade, answer: (token) => answer(token), done };
+  }
+
+  it('is said to be a server error while the connection still opens, which then does not open', async () => {
+    const { facade, answer, done } = opening();
+    await vi.waitFor(() => expect(SkyWayBackend.prototype.createSkyWayAuthToken).toHaveBeenCalled());
+
+    answer('');
+    await done;
+
+    expect(facade.onOpen).not.toHaveBeenCalled();
+    expect(facade.isOpen).toBe(false);
+
+    expect(facade.onFatalError).toHaveBeenCalledWith(
+      expect.anything(),
+      'server-error',
+      expect.any(String),
+      expect.any(Error)
+    );
+  });
+
+  it('lets go of a context made after the connection was closed meanwhile', async () => {
+    vi.spyOn(SkyWayBackend.prototype, 'createSkyWayAuthToken').mockResolvedValue('token');
+    let made: (context: SkyWayContext) => void = () => undefined;
+    vi.spyOn(SkyWayContext, 'Create').mockReturnValue(new Promise((resolve) => (made = resolve)));
+    const facade = new SkyWayFacade();
+    const done = facade.open(PeerContext.parse('standby'));
+    await vi.waitFor(() => expect(SkyWayContext.Create).toHaveBeenCalled());
+
+    await facade.close();
+    const context = { dispose: vi.fn(), onTokenUpdateReminder: { add: vi.fn() } };
+    made(context as unknown as SkyWayContext);
+    await done;
+
+    expect(context.dispose).toHaveBeenCalled();
+    expect(facade.context).toBeNull();
+  });
+
+  it('says nothing of a token it was renewing when the connection was closed meanwhile', async () => {
+    const renewals: (() => Promise<void>)[] = [];
+    const context = {
+      disposed: false,
+      dispose: vi.fn(() => (context.disposed = true)),
+      updateAuthToken: vi.fn(),
+      onTokenUpdateReminder: { add: (renew: () => Promise<void>) => renewals.push(renew) },
+      onTokenExpired: { add: vi.fn() },
+      onFatalError: { add: vi.fn() },
+    };
+    vi.spyOn(SkyWayContext, 'Create').mockResolvedValue(context as unknown as SkyWayContext);
+    let renewed: (token: string) => void = () => undefined;
+    vi.spyOn(SkyWayBackend.prototype, 'createSkyWayAuthToken')
+      .mockResolvedValueOnce('token')
+      .mockReturnValueOnce(new Promise((resolve) => (renewed = resolve)));
+    const facade = new SkyWayFacade();
+    facade.onFatalError = vi.fn();
+    await facade.open(PeerContext.parse('standby'));
+
+    const renewing = renewals[0]();
+    await facade.close();
+    renewed('');
+    await renewing;
+
+    expect(facade.onFatalError).not.toHaveBeenCalled();
+    expect(context.updateAuthToken).not.toHaveBeenCalled();
+  });
+
+  it('says nothing once the connection was closed meanwhile, neither an error nor that it opened', async () => {
+    const { facade, answer, done } = opening();
+    await vi.waitFor(() => expect(SkyWayBackend.prototype.createSkyWayAuthToken).toHaveBeenCalled());
+
+    await facade.close();
+    answer('');
+    await done;
+
+    expect(facade.onFatalError).not.toHaveBeenCalled();
+    expect(facade.onOpen).not.toHaveBeenCalled();
   });
 });

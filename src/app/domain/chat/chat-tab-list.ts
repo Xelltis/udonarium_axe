@@ -1,6 +1,6 @@
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectNode } from '@axe/core/sync/object-node';
-import { InnerXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
+import { identifiersIn, InnerXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatLogExporter } from '@axe/domain/chat/chat-log-exporter';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -186,7 +186,10 @@ export class ChatTabList extends ObjectNode implements InnerXml {
    * destroys the loaded copy.
    *
    * Every tab but the system tab is replaced, and notices from room data written while the system
-   * tab still travelled are gathered back into it. When the guard refuses, nothing is replaced.
+   * tab still travelled are gathered back into it. The tabs and lines the data brings back under the
+   * names of those just taken away, as every room's main tab is, are said to be coming back before
+   * they are read, as every other seat and a room server would delete them again. When the guard
+   * refuses, nothing is replaced.
    */
   override parseInnerXml(element: Element) {
     const reLoadOk = this.reloadCheck.answerCheck();
@@ -197,23 +200,29 @@ export class ChatTabList extends ObjectNode implements InnerXml {
         if (child instanceof ChatTab && child.isSystemTab) continue;
         child.destroy();
       }
+      ObjectStore.instance.announceComingBack(identifiersIn(element));
 
       const context = ChatTabList.instance.toContext();
       context.syncData = this.toContext().syncData;
       ChatTabList.instance.apply(context);
       ChatTabList.instance.update();
 
+      const travelledSystemTab = Array.from(element.children).every((tab) => !tab.hasAttribute('identifier'));
       super.parseInnerXml.apply(ChatTabList.instance, [element]);
-      ChatTabList.instance.restoreSystemTab();
+      ChatTabList.instance.restoreSystemTab(travelledSystemTab);
       this.destroy();
     }
   }
 
-  /** The tidying after a load: room data written while the system tab still travelled has its notices gathered back into one. */
-  private restoreSystemTab(): void {
+  /**
+   * The tidying after a load: room data written while the system tab still travelled, `travelled`,
+   * has its notices gathered back into one. Its tabs carry no identifiers, which every tab has been
+   * saved with since, so a tab of the room that only shares the name is left alone.
+   */
+  private restoreSystemTab(travelled: boolean): void {
     const system = this.ensureSystemTab();
     for (const tab of [...this.chatTabs]) {
-      if (tab === system || tab.name !== SYSTEM_CHAT_TAB_NAME) continue;
+      if (!travelled || tab === system || tab.name !== SYSTEM_CHAT_TAB_NAME) continue;
       for (const message of [...tab.children]) system.appendChild(message);
       tab.destroy();
     }

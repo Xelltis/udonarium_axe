@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card, CardState } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -13,6 +14,27 @@ describe('CardStack', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe('clone()', () => {
+    it('copies a deck with nobody holding it or its cards, as a card in a deck is given a holder by the game master alone', () => {
+      const deck = CardStack.create('山札');
+      const copy = CardStack.create('山札');
+      const card = Card.create('剣の2', 'front.png', 'back.png');
+      copy.putOnTop(card);
+      copy.owner = 'acct_alice';
+      card.owner = 'acct_bob';
+      vi.spyOn(ObjectSerializer.instance, 'parseXml').mockReturnValue(copy);
+      try {
+        expect(deck.clone()).toBe(copy);
+        expect(copy.owner).toBe('');
+        expect(card.owner).toBe('');
+      } finally {
+        vi.restoreAllMocks();
+        copy.destroy();
+        deck.destroy();
+      }
+    });
   });
 
   describe('create()', () => {

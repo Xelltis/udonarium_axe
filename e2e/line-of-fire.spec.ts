@@ -20,8 +20,10 @@ async function closePanels(page: Page) {
   await expect(panels).toHaveCount(0);
 }
 
-test.describe('射線チェック', () => {
-  test('ターゲットにした駒までの距離が、交戦エリアのメニューから開くパネルに出ること', async ({ page }) => {
+test.describe('line-of-fire check', () => {
+  test('shows the distance to the targeted piece in the panel opened from the engagement zone menu', async ({
+    page,
+  }) => {
     await waitAppReady(page);
     await becomeGm(page);
     await openPanel(page, '部屋設定');

@@ -23,8 +23,14 @@ import { ReplayStagingService } from '@axe/application/replay/replay-staging.ser
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import type { ReplayCastMember } from '@axe/domain/replay/replay-cast';
-import { chatTabIdentifierNear, INSERTABLE_KINDS, isTextEditable, textOf } from '@axe/domain/replay/replay-edit';
-import { type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import {
+  chatTabIdentifierNear,
+  INSERTABLE_KINDS,
+  isTextEditable,
+  tabVisibilityNear,
+  textOf,
+} from '@axe/domain/replay/replay-edit';
+import { canViewReplayEvent, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
 import { ReplayFocusService } from '@axe/features/replay/replay-focus.service';
 import {
   collectReplayActorIds,
@@ -96,6 +102,22 @@ export class ReplayEntryListComponent {
 
   protected readonly cursor = this.playback.cursor;
   protected readonly isStaging = this.staging.isStaging;
+  /** Whether the edits are being saved, while the rows hold still and the list takes no input. */
+  protected readonly isSaving = this.editor.isSaving;
+  /** Whether a scene to act out is on its way, while the board is moved to the row it goes after. */
+  private readonly isStartingStage = signal(false);
+  /**
+   * Whether a scene may be started now: none is being acted out or on its way, the board is still,
+   * and the edits are not being saved, which opens the recording saved and throws a scene away.
+   */
+  protected readonly canStage = computed(
+    () =>
+      !this.isStaging() &&
+      !this.isStartingStage() &&
+      !this.playback.isSeeking() &&
+      !this.playback.isEnteringBoardMode() &&
+      !this.editor.isSaving()
+  );
   protected readonly scopes = [ReplayLogScope.All, ReplayLogScope.Chat, ReplayLogScope.Board];
   protected readonly insertKinds = INSERTABLE_KINDS;
 
@@ -119,6 +141,8 @@ export class ReplayEntryListComponent {
 
   protected readonly insertKind = signal<ReplayEventKind>(ReplayEventKind.ChatMessage);
   protected readonly insertCastId = signal('');
+  /** Whether the speaker of the line to add is this one of the cast, or nobody of it for ''. */
+  protected readonly isCastChosen = (identifier: string): boolean => this.insertCastId() === identifier;
   protected readonly insertSpeaker = signal('');
   protected readonly insertActorId = signal('');
   protected readonly insertText = signal('');
@@ -151,6 +175,18 @@ export class ReplayEntryListComponent {
     replayActorsOf(this.playback.manifest() ?? EMPTY_REPLAY_DICTIONARY, this.actorIds())
   );
 
+  /** Who a line to add is put down to: the one chosen, or the first of those in the recording. */
+  protected readonly chosenActorId = computed(() => this.insertActorId() || this.actors()[0]?.userId || '');
+
+  /**
+   * The filter in force: a speaker no longer in the recording, as once all their lines are deleted,
+   * filters nobody out, as the speaker filter then shows.
+   */
+  protected readonly shownFilter = computed<ReplayLogFilter>(() => {
+    const filter = this.filter();
+    return filter.actorId && !this.actorIds().includes(filter.actorId) ? { ...filter, actorId: '' } : filter;
+  });
+
   protected readonly cast = computed(() =>
     this.playback
       .cast()
@@ -165,7 +201,7 @@ export class ReplayEntryListComponent {
    * thousands of rows and only a screenful is ever on show.
    */
   protected readonly rows = computed<ReplayEntryRow[]>(() => {
-    const filter = this.filter();
+    const filter = this.shownFilter();
     const viewer = this.viewer();
     const rows: ReplayEntryRow[] = [];
     this.source().forEach((event, index) => {
@@ -355,7 +391,7 @@ export class ReplayEntryListComponent {
     }
     const only = this.onlyChosenRow();
     const actions = buildReplayEntryContextMenu(
-      { count: this.chosen().size, canRewrite: !!only?.editable, canStage: this.canEdit && !this.isStaging() },
+      { count: this.chosen().size, canRewrite: !!only?.editable, canStage: this.canEdit && this.canStage() },
       {
         rewrite: () => only && this.beginRowEdit(only),
         moveUp: () => this.stepChosen(-1),
@@ -469,14 +505,18 @@ export class ReplayEntryListComponent {
   protected insertHere(index = this.insertIndex()): void {
     if (!this.canInsert()) return;
     const member = this.selectedCast();
+    const tabIdentifier = this.insertTabIdentifier(index);
     this.editor.insert(index, {
       kind: this.insertKind(),
-      actorId: this.insertActorId() || this.actors()[0]?.userId || '',
+      actorId: this.chosenActorId(),
       speaker: member?.name ?? this.insertSpeaker().trim(),
       text: this.insertText().trim(),
-      tabIdentifier: this.insertTabIdentifier(index),
+      tabIdentifier,
       imageIdentifier: member?.imageIdentifier ?? '',
       chatColor: member?.chatColor ?? '',
+      visibility: tabVisibilityNear(this.editor.edited(), index, tabIdentifier, (event) =>
+        canViewReplayEvent(event, this.viewer())
+      ),
     });
     this.insertText.set('');
     const added = this.editor.edited()[Math.max(0, Math.min(index, this.editor.edited().length - 1))];
@@ -486,10 +526,56 @@ export class ReplayEntryListComponent {
     }
   }
 
+  /**
+   * Starts acting out a scene to go in after a row, on the board as it stood at the last row before
+   * it that was recorded, or at the first event when none was. The scene follows that row wherever
+   * the rows are moved meanwhile. Stepping on its own stops, as the recording stands still while a
+   * scene is acted out, and nothing starts while the board is still being worked out, which the
+   * scene would be measured against as it stood before. Nor does it start once the board is up if
+   * the editing, the recording or the row shown changed meanwhile, as the save taken before the
+   * board comes up gives time for; a board brought up for it alone is put away again.
+   */
   protected async stageAt(index = this.insertIndex()): Promise<void> {
-    if (!this.canEdit || this.isStaging()) return;
-    if (!this.playback.isBoardMode() && !(await this.playback.enterBoardMode())) return;
-    this.staging.begin(index, this.insertActorId() || this.actors()[0]?.userId || '');
+    if (!this.canEdit || !this.canStage()) return;
+    this.isStartingStage.set(true);
+    try {
+      this.playback.stopAutoPlay();
+      const editing = this.editor.isEditing();
+      const recordingId = this.playback.recordingId();
+      const afterSeq = index > 0 ? (this.source()[index - 1]?.seq ?? null) : null;
+      const at = this.recordedIndexBefore(index);
+      const wasBoardMode = this.playback.isBoardMode();
+      await this.playback.seekTo(at);
+      if (wasBoardMode) await this.playback.showBoardAfresh();
+      else if (!(await this.playback.enterBoardMode())) return;
+      const unchanged =
+        this.editor.isEditing() === editing &&
+        !this.editor.isSaving() &&
+        this.playback.recordingId() === recordingId &&
+        this.playback.cursor() === at;
+      if (this.isStaging() || !this.playback.isBoardMode()) return;
+      if (!unchanged) {
+        if (!wasBoardMode && this.playback.recordingId() === recordingId) await this.playback.exitBoardMode();
+        return;
+      }
+      this.staging.begin(index, this.chosenActorId(), afterSeq);
+    } finally {
+      this.isStartingStage.set(false);
+    }
+  }
+
+  /**
+   * Where the recording as played has the last row before an index that it recorded, a row written
+   * in while editing having no board of its own; the first event when no row before it was recorded.
+   */
+  private recordedIndexBefore(index: number): number {
+    const played = new Map(this.playback.events().map((event, at) => [event.seq, at]));
+    const rows = this.source();
+    for (let i = Math.min(index, rows.length) - 1; i >= 0; i--) {
+      const at = played.get(rows[i].seq);
+      if (at !== undefined) return at;
+    }
+    return 0;
   }
 
   private selectedCast(): ReplayCastMember | null {
@@ -497,7 +583,9 @@ export class ReplayEntryListComponent {
   }
 
   private insertTabIdentifier(index: number): string {
-    const fromRecording = chatTabIdentifierNear(this.editor.edited(), index);
+    const fromRecording = chatTabIdentifierNear(this.editor.edited(), index, (event) =>
+      canViewReplayEvent(event, this.viewer())
+    );
     if (fromRecording.length > 0) return fromRecording;
     return this.chatMessageService.chatTabs[0]?.identifier ?? '';
   }

@@ -1,9 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
+import { AUTHORITY_PEER_ID } from '@axe/core/network/server/server-protocol';
 import { findActorAt, findTargetAt, type ReplayManifest } from '@axe/domain/replay/replay-event';
 import { replayLineParams, type ReplayLogLine, toReplayLogLine } from '@axe/features/replay/replay-log-line';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -14,7 +16,7 @@ const EMPTY_DICTIONARY: Pick<ReplayManifest, 'actors' | 'targets'> = { actors: [
   selector: 'replay-staging-banner',
   templateUrl: './replay-staging-banner.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoModule],
+  imports: [FormsModule, TranslocoModule],
 })
 export class ReplayStagingBannerComponent {
   private readonly staging = inject(ReplayStagingService);
@@ -32,18 +34,23 @@ export class ReplayStagingBannerComponent {
     const seen = new Map<string, string>();
     for (const actor of manifest?.actors ?? []) seen.set(actor.userId, actor.name || actor.userId);
     for (const event of this.playback.events()) if (!seen.has(event.actorId)) seen.set(event.actorId, event.actorId);
+    seen.delete(AUTHORITY_PEER_ID);
     return [...seen].map(([userId, name]) => ({ userId, name }));
   });
 
   protected readonly lines = computed(() => {
-    const manifest = this.playback.manifest() ?? EMPTY_DICTIONARY;
+    const recorded = this.playback.manifest() ?? EMPTY_DICTIONARY;
+    const staged = this.staging
+      .stagedTargets()
+      .filter((target) => !findTargetAt(recorded, target.identifier, Infinity));
+    const manifest = { ...recorded, targets: [...recorded.targets, ...staged] };
     return this.captured()
       .slice(-4)
       .map((event) => ({
         seq: event.seq,
         line: toReplayLogLine(event, {
-          actorName: (userId) => findActorAt(manifest, userId, event.seq)?.name || userId,
-          targetName: (identifier) => findTargetAt(manifest, identifier, event.seq)?.name || identifier,
+          actorName: (userId) => findActorAt(manifest, userId, Infinity)?.name || userId,
+          targetName: (identifier) => findTargetAt(manifest, identifier, Infinity)?.name || identifier,
         }),
       }));
   });
@@ -57,13 +64,14 @@ export class ReplayStagingBannerComponent {
   }
 
   protected async accept(): Promise<void> {
+    this.playback.addTargets(this.staging.stagedTargets());
     const captured = this.staging.take();
-    this.editor.insertMany(this.staging.insertIndex(), captured);
-    await this.playback.seekTo(this.playback.cursor());
+    this.editor.insertManyAfter(this.staging.afterSeq(), this.staging.insertIndex(), captured);
+    await this.playback.showBoardAfresh();
   }
 
   protected async discard(): Promise<void> {
     this.staging.discard();
-    await this.playback.seekTo(this.playback.cursor());
+    await this.playback.showBoardAfresh();
   }
 }

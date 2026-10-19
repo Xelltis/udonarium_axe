@@ -31,7 +31,7 @@ import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switc
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { imageFileEqual } from '@axe/core/storage/image-file';
-import { ObjectStore } from '@axe/core/sync/object-store';
+import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -515,6 +515,7 @@ export class DiceSymbolComponent {
     const option: PanelOption = {
       title: title,
       ...sheetPanelBox(coordinate, 500, 600),
+      stillWanted: () => isInStore(gameObject),
     };
     this.panelService.openLazy(
       () =>

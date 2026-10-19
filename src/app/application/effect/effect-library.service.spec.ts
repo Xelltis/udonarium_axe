@@ -51,6 +51,19 @@ describe('EffectLibraryService', () => {
     expect(service.get(seed.identifier)?.scale).toBe(seed.scale);
   });
 
+  it('says a deleted default is coming back before it is made again under its own identifier', () => {
+    service.restoreDefaults();
+    const seed = DEFAULT_EFFECT_PRESET_SEEDS[0];
+    service.get(seed.identifier)!.destroy();
+    const announce = vi.spyOn(ObjectStore.instance, 'announceComingBack');
+
+    service.restoreDefaults();
+
+    expect(announce).toHaveBeenCalledWith([seed.identifier]);
+    expect(service.get(seed.identifier)).toBeTruthy();
+    announce.mockRestore();
+  });
+
   it('can rebuild what was deleted', () => {
     service.restoreDefaults();
     const seed = DEFAULT_EFFECT_PRESET_SEEDS[0];

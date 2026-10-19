@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test';
 
 import { openPanel, waitAppReady } from './helpers';
 
-test.describe('大きすぎる音源', () => {
-  test('10MB を超える音源は取り込まず、そのことを画面の下で知らせること', async ({ page }) => {
+test.describe('a sound file that is too large', () => {
+  test('takes in no sound file over 10MB, and says so at the bottom of the screen', async ({ page }) => {
     await waitAppReady(page);
     await openPanel(page, 'ジュークボックス');
     const jukebox = page.locator('app-jukebox');

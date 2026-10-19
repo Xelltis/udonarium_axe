@@ -386,7 +386,7 @@ export class CardComponent {
         (cardStack.location.x - this.card().location.x) ** 2 +
         (cardStack.location.y - this.card().location.y) ** 2 +
         (cardStack.posZ - this.card().posZ) ** 2;
-      if (distance < 25 ** 2) {
+      if (distance < (this.gridSize / 2) ** 2) {
         cardStack.location.x = this.card().location.x;
         cardStack.location.y = this.card().location.y;
         cardStack.posZ = this.card().posZ;
@@ -427,10 +427,13 @@ export class CardComponent {
     e.preventDefault();
   }
 
-  /** Brings the card to the top when it is pressed, and starts watching for a double tap. */
+  /**
+   * Brings the card to the top when it is pressed, for a seat that may change the table, and starts
+   * watching for a double tap.
+   */
   onInputStart(e: MouseEvent | TouchEvent) {
     this.startDoubleClickTimer(e);
-    this.card().toTopmost();
+    if (this.rolePermission.canEditTabletop) this.card().toTopmost();
     this.iconHiding.touch();
   }
 

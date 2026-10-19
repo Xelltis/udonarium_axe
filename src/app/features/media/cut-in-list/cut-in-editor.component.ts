@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { emitStartCutIn } from '@axe/core/event/domain-events';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -15,6 +16,7 @@ import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { portraitFitFor } from '@axe/domain/media/cut-in-portrait-fit';
 import { type CutInSpeaker, SPEAKER_NAME_TOKEN } from '@axe/domain/media/cut-in-speaker';
 import { Jukebox } from '@axe/domain/media/jukebox';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CutInBgmComponent } from '@axe/features/media/cut-in-bgm/cut-in-bgm.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { OpenUrlComponent } from '@axe/ui/components/open-url/open-url.component';
@@ -432,9 +434,25 @@ export class CutInEditorComponent {
     return 0;
   }
 
-  /** Plays the cut-in on this screen only, sized to its picture first when original size is on. */
+  /**
+   * Whether this reader is a guest on a room server, which takes back the launcher a guest writes:
+   * such a reader may only try a cut-in out on this screen, without the launcher.
+   */
+  readonly keptOffTable = computed(() => {
+    this.objectChange.trackMyCursor();
+    return PeerCursor.isMyselfKeptOffTable;
+  });
+
+  /**
+   * Plays the cut-in on this screen only, sized to its picture first when original size is on. A
+   * guest on a room server plays it here alone without touching the cut-in or the launcher.
+   */
   previewCutIn() {
     if (!this.c) return;
+    if (PeerCursor.isMyselfKeptOffTable) {
+      emitStartCutIn({ cutIn: this.c, speaker: this.trySpeaker() });
+      return;
+    }
     if (this.c.originalSize) {
       const imageurl = this.cutInImage().url;
       if (imageurl.length > 0) {
@@ -449,10 +467,10 @@ export class CutInEditorComponent {
    * Plays the cut-in for everyone in the room.
    *
    * It is sized to its picture first when original size is on, and the jukebox is stopped when the
-   * cut-in brings its own sound and has no tag.
+   * cut-in brings its own sound and has no tag. Not for a guest on a room server.
    */
   playCutIn() {
-    if (!this.c) return;
+    if (!this.c || PeerCursor.isMyselfKeptOffTable) return;
     if (this.c.originalSize) {
       const imageurl = this.cutInImage().url;
       if (imageurl.length > 0) {
@@ -466,9 +484,9 @@ export class CutInEditorComponent {
     this.cutInLauncher.startCutIn(this.c, undefined, this.trySpeaker());
   }
 
-  /** Stops the cut-in for everyone in the room. */
+  /** Stops the cut-in for everyone in the room; not for a guest on a room server. */
   stopCutIn() {
-    if (this.c) this.cutInLauncher.stopCutIn(this.c);
+    if (this.c && !PeerCursor.isMyselfKeptOffTable) this.cutInLauncher.stopCutIn(this.c);
   }
 
   /**

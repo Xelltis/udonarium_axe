@@ -2,7 +2,9 @@ import {
   createZipBlob,
   createZipBlobOnMainThread,
   readZipEntries,
+  useFflateLoader,
   useZipWorkerFactory,
+  ZipCodeUnavailableError,
 } from '@axe/core/storage/zip-archive';
 import { strToU8, unzipSync } from 'fflate';
 
@@ -60,6 +62,28 @@ describe('readZipEntries()', () => {
 
   it('fails on a broken archive', async () => {
     await expect(readZipEntries(new Blob([new Uint8Array([0, 1, 2, 3])]))).rejects.toBeDefined();
+  });
+});
+
+describe('without the code for zips', () => {
+  afterEach(() => useFflateLoader(null));
+
+  it('says the code could not be fetched, packing or unpacking, so a reload can be offered', async () => {
+    const missing = new TypeError('Failed to fetch dynamically imported module');
+    useFflateLoader(() => Promise.reject(missing));
+    const files = [new File([strToU8('<room />')], 'data.xml', { type: 'text/plain' })];
+
+    const packing = createZipBlob(files);
+    await expect(packing).rejects.toBeInstanceOf(ZipCodeUnavailableError);
+    await expect(packing).rejects.toMatchObject({ cause: missing });
+    await expect(readZipEntries(new Blob([new Uint8Array([1])]))).rejects.toBeInstanceOf(ZipCodeUnavailableError);
+  });
+
+  it('leaves a broken archive a broken archive', async () => {
+    const reading = readZipEntries(new Blob([new Uint8Array([0, 1, 2, 3])]));
+
+    await expect(reading).rejects.toBeDefined();
+    await expect(reading).rejects.not.toBeInstanceOf(ZipCodeUnavailableError);
   });
 });
 

@@ -3,6 +3,7 @@ import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/con
 import { Network } from '@axe/core/index';
 import { Card, CardState } from '@axe/domain/card/card';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 
 /**
  * The right-click menu of a card on the table: lock, flip, peek, take into the hand, stack, flip
@@ -172,6 +173,7 @@ export function buildCardContextMenu(
   });
   menuArray.push({
     name: t('feature.tabletop.contextMenu.copy'),
+    enabled: !isWithheldHere(card),
     action: () => {
       const cloneObject = card.clone();
       cloneObject.location.x += gridSize;

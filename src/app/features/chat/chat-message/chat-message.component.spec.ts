@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatReactionService } from '@axe/application/chat/chat-reaction.service';
 import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
@@ -22,6 +23,8 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { emitFileLoaded } from '@axe/core/event/domain-events';
+import { Network } from '@axe/core/network/network';
+import { Transport } from '@axe/core/network/transport';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -37,6 +40,7 @@ import { ChatMessageComponent } from '@axe/features/chat/chat-message/chat-messa
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { loadLinkify } from '@axe/ui/text-decoration/linkify-loader';
 import type { MockInstance } from 'vitest';
 
 describe('ChatMessageComponent', () => {
@@ -803,6 +807,8 @@ describe('ChatMessageComponent', () => {
   });
 
   describe('the menu of what can be done with a line', () => {
+    beforeAll(() => loadLinkify());
+
     let open: MockInstance<ContextMenuService['open']>;
     const clipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
     const strays: Element[] = [];
@@ -1437,6 +1443,89 @@ describe('ChatMessageComponent', () => {
     });
   });
 
+  describe('a line the room server rolled', () => {
+    let tab: ChatTab;
+    let transport: MockInstance<() => Transport>;
+    const mark = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="chat-message-server-roll"]');
+
+    beforeEach(() => {
+      beMyself('me');
+      tab = ChatTabList.instance.addChatTab('メイン');
+      transport = vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+    });
+
+    afterEach(() => {
+      tab.destroy();
+      transport.mockRestore();
+    });
+
+    it('wears a mark saying the server rolled it, as read back from a saved room too', () => {
+      const answer = tab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'someone',
+        name: '<BCDice：ノア>',
+        text: 'DiceBot : (2D6) → 7',
+        tag: 'system',
+        timestamp: 1000,
+      });
+      answer.serverRoll = 'true';
+      fixture.componentRef.setInput('chatMessage', answer);
+      fixture.detectChanges();
+
+      expect(mark()).not.toBeNull();
+    });
+
+    it('keeps the name and the colon together in the simple layout', () => {
+      const answer = tab.addMessage({ from: 'someone', name: 'ノア', text: 'こんにちは', timestamp: 1000 });
+      fixture.componentRef.setInput('chatMessage', answer);
+      fixture.componentRef.setInput('chatSimpleDispFlag', true);
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('ノア：');
+    });
+
+    it('wears none with SkyWay, where any device could put it on', () => {
+      transport.mockReturnValue('skyway');
+      const answer = tab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'someone',
+        name: '<BCDice：ノア>',
+        text: 'DiceBot : (2D6) → 7',
+        tag: 'system',
+        timestamp: 1000,
+      });
+      answer.serverRoll = true;
+      fixture.componentRef.setInput('chatMessage', answer);
+      fixture.detectChanges();
+
+      expect(mark()).toBeNull();
+    });
+
+    it('wears none on a line that is not the dice bot’s, whatever it carries', () => {
+      const answer = tab.addMessage({ from: 'someone', name: 'ノア', text: '6 だった', timestamp: 1000 });
+      answer.serverRoll = true;
+      fixture.componentRef.setInput('chatMessage', answer);
+      fixture.detectChanges();
+
+      expect(mark()).toBeNull();
+    });
+
+    it('wears none on a roll made by a player’s own device', () => {
+      const answer = tab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'someone',
+        name: '<BCDice：ノア>',
+        text: 'DiceBot : (2D6) → 7',
+        tag: 'system',
+        timestamp: 1000,
+      });
+      fixture.componentRef.setInput('chatMessage', answer);
+      fixture.detectChanges();
+
+      expect(mark()).toBeNull();
+    });
+  });
+
   describe('following a line back to the one it answers', () => {
     let tab: ChatTab;
 
@@ -2000,6 +2089,19 @@ describe('ChatMessageComponent', () => {
 
       expect(message.text).toBe('こんにちは');
       expect(message.vnEmote).toBe('');
+    });
+
+    it('throws the draft away when the seat may no longer edit the line by the time it is saved', () => {
+      const message = spoken('こんばんは');
+      fixture.componentRef.setInput('chatMessage', message);
+      component.startEdit();
+      component.editDraft.set('こんにちは');
+      vi.spyOn(TestBed.inject(ChatMessageService), 'canEditMessage').mockReturnValue(false);
+
+      component.saveEdit();
+
+      expect(message.text).toBe('こんばんは');
+      expect(component.editDraft()).toBeNull();
     });
   });
 

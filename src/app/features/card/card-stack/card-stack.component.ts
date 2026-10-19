@@ -18,6 +18,7 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
@@ -26,6 +27,8 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { Network } from '@axe/core/index';
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
+import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -49,6 +52,9 @@ import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop
 import { supersampleFactor, supersampleInsetPercent, supersampleTransform } from '@axe/ui/tabletop/supersample';
 import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
 import { TranslocoModule } from '@jsverse/transloco';
+
+/** The cell, in px, that the offsets for drawn and scattered cards were laid out for. */
+const LAID_OUT_FOR_CELL_PX = 50;
 
 @Component({
   selector: 'card-stack',
@@ -89,6 +95,7 @@ export class CardStackComponent {
   private readonly multiMovableService = inject(MultiMovableService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
+  private readonly confirm = inject(ConfirmService);
 
   readonly isHiddenByFog = computed(() => {
     const piece = this.cardStack();
@@ -322,7 +329,7 @@ export class CardStackComponent {
         (card.location.x - this.cardStack().location.x) ** 2 +
         (card.location.y - this.cardStack().location.y) ** 2 +
         (card.posZ - this.cardStack().posZ) ** 2;
-      if (distance < 50 ** 2) {
+      if (distance < this.gridSize ** 2) {
         this.cardStack().putOnTop(card);
         for (const follower of this.multiMovableService.followerTabletopObjectsFor(card.identifier)) {
           if (follower instanceof Card) this.cardStack().putOnTop(follower);
@@ -334,7 +341,7 @@ export class CardStackComponent {
         (cardStack.location.x - this.cardStack().location.x) ** 2 +
         (cardStack.location.y - this.cardStack().location.y) ** 2 +
         (cardStack.posZ - this.cardStack().posZ) ** 2;
-      if (distance < 25 ** 2) this.concatStack(cardStack);
+      if (distance < (this.gridSize / 2) ** 2) this.concatStack(cardStack);
     }
   }
 
@@ -365,12 +372,12 @@ export class CardStackComponent {
   }
 
   /**
-   * Starts a press on the stack: arms the double tap, brings the stack to the top, briefly hides
-   * its handle icons and selects it.
+   * Starts a press on the stack: arms the double tap, brings the stack to the top for a seat that
+   * may change the table, briefly hides its handle icons and selects it.
    */
   onInputStart(e: MouseEvent | TouchEvent) {
     this.startDoubleClickTimer(e);
-    this.cardStack().toTopmost();
+    if (this.rolePermission.canEditTabletop) this.cardStack().toTopmost();
     this.iconHiding.touch();
 
     this.selectionSignalService.selectObject(this.cardStack().identifier, 'GameCharacter');
@@ -454,8 +461,9 @@ export class CardStackComponent {
     const card = this.cardStack().drawCard();
     if (card) {
       this.cardStack().update();
-      card.location.x += 100 + index * 18 + Math.random() * 50;
-      card.location.y += 25 + index * 8 + Math.random() * 50;
+      const scale = this.gridSize / LAID_OUT_FOR_CELL_PX;
+      card.location.x += (100 + index * 18 + Math.random() * 50) * scale;
+      card.location.y += (25 + index * 8 + Math.random() * 50) * scale;
       card.setLocation(this.cardStack().location.name);
     }
     return card;
@@ -491,15 +499,29 @@ export class CardStackComponent {
     if (changed > 0) SoundEffect.play(PresetSound.cardPut);
   }
 
-  private dealAll() {
-    this.cardGameService.dealAll(this.cardStack());
+  /**
+   * Deals the whole stack out. Asked first when some cards are face down to this seat on a room
+   * server, as their jokers cannot be told apart and go out with the rest; a player there is
+   * pointed to the GM, who holds every face.
+   */
+  private async dealAll() {
+    const stack = this.cardStack();
+    const withheld = stack.cards.some((card) => card.isFaceWithheld);
+    if (withheld) {
+      const gameMasterHoldsThem =
+        getAuthorityPeerId() !== null && !isNetworkIsolated() && !PeerCursor.isMyselfGameMaster;
+      const askGm = gameMasterHoldsThem ? this.translateFn('feature.cardStack.message.dealWithheldAskGm') : '';
+      if (!(await this.confirm.ask(this.translateFn('feature.cardStack.message.dealWithheld', { askGm })))) return;
+    }
+    this.cardGameService.dealAll(stack);
   }
 
   private breakStack() {
     const cards = this.cardStack().drawCardAll().reverse();
+    const scale = this.gridSize / LAID_OUT_FOR_CELL_PX;
     for (const card of cards) {
-      card.location.x += 25 - Math.random() * 50;
-      card.location.y += 25 - Math.random() * 50;
+      card.location.x += (25 - Math.random() * 50) * scale;
+      card.location.y += (25 - Math.random() * 50) * scale;
       card.toTopmost();
       card.setLocation(this.cardStack().location.name);
     }
@@ -507,13 +529,18 @@ export class CardStackComponent {
     this.cardStack().destroy();
   }
 
+  /**
+   * Deals the deck's cards in turn into `split` new piles beside it. The cards go into the piles
+   * before the deck is taken away, as a room server takes away with a deck all it still holds.
+   */
   private splitStack(split: number) {
     if (split < 2) return;
     const cardStacks: CardStack[] = [];
+    const scale = this.gridSize / LAID_OUT_FOR_CELL_PX;
     for (let i = 0; i < split; i++) {
       const cardStack = CardStack.create(this.cardStack().name);
-      cardStack.location.x = this.cardStack().location.x + 50 - Math.random() * 100;
-      cardStack.location.y = this.cardStack().location.y + 50 - Math.random() * 100;
+      cardStack.location.x = this.cardStack().location.x + (50 - Math.random() * 100) * scale;
+      cardStack.location.y = this.cardStack().location.y + (50 - Math.random() * 100) * scale;
       cardStack.posZ = this.cardStack().posZ;
       cardStack.location.name = this.cardStack().location.name;
       cardStack.rotate = this.rotate;
@@ -522,9 +549,6 @@ export class CardStackComponent {
     }
 
     const cards = this.cardStack().drawCardAll();
-    this.cardStack().setLocation('graveyard');
-    this.cardStack().destroy();
-
     let num = 0;
     let splitIndex = (cards.length / split) * (num + 1);
     for (let i = 0; i < cards.length; i++) {
@@ -534,6 +558,9 @@ export class CardStackComponent {
         splitIndex = (cards.length / split) * (num + 1);
       }
     }
+
+    this.cardStack().setLocation('graveyard');
+    this.cardStack().destroy();
   }
 
   private concatStack(topStack: CardStack, bottomStack: CardStack = this.cardStack()) {

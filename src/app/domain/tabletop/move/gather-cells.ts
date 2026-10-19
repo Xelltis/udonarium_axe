@@ -1,6 +1,7 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCount, CellGrid, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCount, CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
+import { forEachCellCovered } from '@axe/domain/tabletop/move/move-grid';
 import { forEachMoveNeighbour } from '@axe/domain/tabletop/move/move-neighbours';
 import { pieceCornerOn } from '@axe/domain/tabletop/move/piece-on-grid';
 
@@ -117,5 +118,5 @@ function coverOf(
 ): void {
   const span = Math.max(1, character.size) * gridSize;
   const corner = pieceCornerOn(grid, character, gridSize, cell);
-  forEachCellInBox(grid, corner.x, corner.y, corner.x + span - 1, corner.y + span - 1, visit);
+  forEachCellCovered(grid, corner.x, corner.y, corner.x + span - 1, corner.y + span - 1, visit);
 }

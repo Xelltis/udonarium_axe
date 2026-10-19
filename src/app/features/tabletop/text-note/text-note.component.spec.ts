@@ -1,10 +1,15 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -38,6 +43,39 @@ describe('TextNoteComponent', () => {
   it('registers its effect in the constructor, so nothing is set up outside an injection context', () => {
     // the effect is registered in the constructor rather than from a lifecycle hook
     expect(component).toBeTruthy();
+  });
+
+  it('brings the note to the top on a press, for a seat that may change the table alone', () => {
+    const note = TextNote.create('メモ', '本文');
+    fixture.componentRef.setInput('textNote', note);
+    const canEdit = vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+    const topmost = vi.spyOn(note, 'toTopmost');
+
+    component.onMouseDown(new MouseEvent('mousedown', { button: 2 }));
+    expect(topmost).not.toHaveBeenCalled();
+
+    canEdit.mockReturnValue(true);
+    component.onMouseDown(new MouseEvent('mousedown', { button: 2 }));
+    expect(topmost).toHaveBeenCalledTimes(1);
+    note.destroy();
+  });
+
+  it('leaves a note being written as the room has it once the seat is made a guest, the draft unwritten', async () => {
+    PeerCursor.createMyCursor();
+    const note = TextNote.create('メモ', '本文');
+    fixture.componentRef.setInput('textNote', note);
+    fixture.detectChanges();
+    component.enterEdit();
+    component.text = '書きかけ';
+
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+    TestBed.tick();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(component.isEditing()).toBe(false);
+    expect(note.text).toBe('本文');
+    note.destroy();
   });
 
   describe('viewRotateZ computed signal', () => {
@@ -79,6 +117,19 @@ describe('TextNoteComponent', () => {
     it('goes into edit mode on request', () => {
       component.enterEdit();
       expect(component.isEditing()).toBe(true);
+    });
+
+    it('stays out of it for a player the note is kept from, whose field would show what it hides', () => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'a-player';
+      PeerCursor.myCursor.role = PeerRole.Player;
+      note.disclosureMode = DisclosureMode.GameMaster;
+      fixture.detectChanges();
+
+      component.enterEdit();
+
+      expect(component.isEditing()).toBe(false);
+      PeerCursor.myCursor.destroy();
     });
 
     it('stays out of it while the note is locked', () => {
@@ -140,6 +191,53 @@ describe('TextNoteComponent', () => {
 
       expect(body().querySelector('h1')).toBeNull();
       expect(body().textContent).not.toContain('洞窟');
+    });
+  });
+
+  describe('a note limited to its height', () => {
+    let note: TextNote;
+
+    function frame(): HTMLElement {
+      return (fixture.nativeElement.querySelector('[data-v]:not(textarea)') as HTMLElement).parentElement!;
+    }
+    const cap = () => `${component.height * component.gridSize}px`;
+
+    beforeEach(() => {
+      note = TextNote.create('メモ', '一行目\n'.repeat(80));
+    });
+
+    afterEach(() => {
+      note.destroy();
+    });
+
+    it('stops at its height, so a long text scrolls inside it', () => {
+      note.limitHeight = true;
+      fixture.componentRef.setInput('textNote', note);
+      fixture.detectChanges();
+
+      expect(frame().style.maxHeight).toBe(cap());
+      expect(frame().style.minHeight).toBe(cap());
+    });
+
+    it('grows with its text when the limit is off', () => {
+      fixture.componentRef.setInput('textNote', note);
+      fixture.detectChanges();
+
+      expect(frame().style.maxHeight).toBe('');
+      expect(frame().style.minHeight).toBe(cap());
+    });
+
+    it('takes up the limit as soon as it is switched on', async () => {
+      fixture.componentRef.setInput('textNote', note);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(frame().style.maxHeight).toBe('');
+
+      note.limitHeight = true;
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(frame().style.maxHeight).toBe(cap());
     });
   });
 

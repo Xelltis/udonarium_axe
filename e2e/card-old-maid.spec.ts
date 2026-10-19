@@ -28,7 +28,7 @@ async function openCardStackMenu(page: Page) {
   return menu;
 }
 
-test.describe('ババ抜き向けのカード操作', () => {
+test.describe('card handling for old maid', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('ui-lang', 'ja'));
     await waitAppReady(page);
@@ -36,7 +36,7 @@ test.describe('ババ抜き向けのカード操作', () => {
     await openHandRail(page);
   });
 
-  test('「全員に配り切る」で山札が手札へ入り、ジョーカーが 1 枚残ること', async ({ page }) => {
+  test('deals the deck out into the hands with "deal everything out", leaving one joker', async ({ page }) => {
     await dealAll(page);
 
     const hand = page.locator('app-hand-rail');
@@ -44,7 +44,7 @@ test.describe('ババ抜き向けのカード操作', () => {
     await expect(page.locator('card-stack').first()).toContainText('1', { timeout: 5000 });
   });
 
-  test('ペアを捨てると捨て札の山ができること', async ({ page }) => {
+  test('makes a discard pile when the pairs are thrown away', async ({ page }) => {
     await dealAll(page);
     const hand = page.locator('app-hand-rail');
     await expect(hand).toContainText('手札 53枚', { timeout: 15000 });
@@ -55,7 +55,7 @@ test.describe('ババ抜き向けのカード操作', () => {
     await expect(page.locator('card-stack')).toHaveCount(2, { timeout: 5000 });
   });
 
-  test('相手がいなければ引く相手の候補が空になること', async ({ page }) => {
+  test('offers nobody to draw from when no one else is there', async ({ page }) => {
     const hand = page.locator('app-hand-rail');
     await hand.locator('button[title="相手の手札から引く"]').click();
 

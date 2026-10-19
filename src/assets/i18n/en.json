@@ -16,7 +16,10 @@
       "updatedTitle": "Udonarium Axe has been updated",
       "updatedMessage": "Reload the page to switch to the new version. Until you do, some parts of the app will not open.",
       "reload": "Reload",
-      "later": "Later"
+      "later": "Later",
+      "saveFailed": "Could not save",
+      "saveFailedReload": "Could not save. Reload the page, then try again",
+      "reloadNeeded": "Part of the page could not be loaded. Reload the page."
     },
     "language": {
       "ja": "日本語",
@@ -334,6 +337,7 @@
       "gmOnly": "GM only",
       "selectPlayers": "Disclose to",
       "noPlayers": "No other players",
+      "noLoggedInPlayers": "People not logged in can't be chosen",
       "owner": "Owner",
       "ownerNone": "None",
       "locked": "Not disclosed"
@@ -379,7 +383,9 @@
         "notFound": "What this slot points at is gone",
         "noTab": "There is no chat tab to speak into",
         "empty": "This slot is empty",
-        "offTable": "The piece is not on the table"
+        "offTable": "The piece is not on the table",
+        "notAllowed": "Your current role may not use this entry",
+        "unavailable": "This entry cannot be used just now"
       },
       "emptySlot": "Empty slot",
       "pin": "Keep in front",
@@ -451,7 +457,8 @@
         "appearancePortrait": "Portrait",
         "appearanceSize": "Size",
         "appearanceKeep": "Leave",
-        "appearanceHint": "A box left empty is left alone. The picture and the portrait are numbered from one, in the order the character carries them. The size is in cells. The portrait reaches this screen alone."
+        "appearanceHint": "A box left empty is left alone. The picture and the portrait are numbered from one, in the order the character carries them. The size is in cells. The portrait reaches this screen alone.",
+        "menuCommand": "Entry"
       },
       "kind": {
         "chat": "Chat / dice",
@@ -459,6 +466,7 @@
         "range": "Lay out or clear a range",
         "diceDeploy": "Lay out or put away dice",
         "panel": "Open a panel",
+        "menu": "Menu entry",
         "focus": "Look at the piece",
         "firstPerson": "Dungeondry Master mode, and back",
         "sound": "Sound",
@@ -491,6 +499,7 @@
         "range": "Choose the shape of the range. Its name, its size, its colours and how it paints, and whether it docks to the piece are set below. Press it again to clear the range this slot laid.",
         "diceDeploy": "Lays out the dice the character is holding. Press it again while they are on the table to put them away.",
         "panel": "Opens one of that character's panels. Press it again to close it.",
+        "menu": "Pick an entry of the floating menu or a toolbar. Pressing the slot does what pressing that entry does. An entry your current role may not use does nothing.",
         "focus": "Moves the camera to that character's piece.",
         "firstPerson": "Puts you behind that character's eyes. Press it again while you are looking to come back to the table.",
         "sound": "Chosen from the sounds the table holds.",
@@ -1102,6 +1111,7 @@
         "drawFromStack": "Send to table",
         "edit": "Details",
         "namePlaceholder": "Card name",
+        "faceWithheld": "Its front is kept from you",
         "stackName": "Deck name"
       },
       "contextMenu": {
@@ -1125,7 +1135,9 @@
       },
       "message": {
         "dealt": "Dealt {{count}} cards to {{players}} players",
-        "noSeats": "Nobody can be dealt cards"
+        "noSeats": "Nobody can be dealt cards",
+        "dealWithheld": "Some cards are face down to you, so jokers cannot be told apart, and every joker will be dealt too. {{askGm}}Deal anyway?",
+        "dealWithheldAskGm": "You can ask the GM to deal instead. "
       }
     },
     "coin": {
@@ -1622,6 +1634,8 @@
         "copy": "Duplicate",
         "save": "Save",
         "saving": "Saving {{percent}}%",
+        "copyWithheld": "This cannot be copied: part of it came from a room server in its withheld shape.",
+        "saveWithheld": "This cannot be saved: part of it came from a room server in its withheld shape.",
         "popupWidth": "Popup width",
         "popupMaxHeight": "Popup max height",
         "limitHeight": "Limit height to value",
@@ -1801,6 +1815,123 @@
         "displayItemsTable": "Display items (table)",
         "foldsOnOpen": "Open with the folders folded up",
         "foldsOnOpenHint": "Takes effect on the next inventory opened. Pieces in no folder are shown as before"
+      }
+    },
+    "keyboard": {
+      "tabletop": {
+        "targeted": "Aiming at {{count}} characters",
+        "targetsCleared": "Stopped aiming at everything",
+        "nothingToTarget": "Pick character pieces, then press T",
+        "disclosedToAll": "Disclosed {{count}} pieces to everyone",
+        "disclosedToGm": "Disclosed {{count}} pieces to the GM only",
+        "nothingToDisclose": "Pick pieces whose disclosure you may change, then press G"
+      },
+      "scope": {
+        "global": "Anywhere",
+        "tabletop": "Table",
+        "selection": "Picking pieces",
+        "hotbar": "Hotbar",
+        "chat": "Chat",
+        "firstPerson": "Dungeondry Master mode",
+        "visualNovel": "Novel mode",
+        "whiteBoard": "Editing a white board",
+        "mapEditor": "Map editor",
+        "cutInEditor": "Editing a cut-in"
+      },
+      "pointer": {
+        "click": "Click",
+        "drag": "Drag"
+      },
+      "sheet": {
+        "title": "Keys",
+        "macNote": "On a Mac, read Ctrl as ⌘"
+      },
+      "keys": {
+        "global": {
+          "guide": "Show or hide button names and this list of keys"
+        },
+        "tabletop": {
+          "pan": "Move the table",
+          "turn": "Turn the table",
+          "tilt": "Tilt the table",
+          "zoom": "Zoom in or out",
+          "target": "Aim at the picked characters only",
+          "clearTargets": "Stop aiming at everything",
+          "disclosure": "Switch who the picked pieces are disclosed to (GM only ⇔ everyone)",
+          "enter": "Confirm the targets picked for an effect",
+          "escape": "Stop picking targets, or drop the selection"
+        },
+        "selection": {
+          "add": "Add a piece to the selection, or take it out",
+          "box": "Drag across an empty spot to pick the pieces inside",
+          "boxAdd": "Add the pieces inside to the selection",
+          "boxToggle": "Flip whether the pieces inside are picked",
+          "aim": "Aim at a piece, or stop",
+          "clearAims": "Stop aiming at everything",
+          "snap": "While turning a piece, snap to 45° (30° on hexes)"
+        },
+        "hotbar": {
+          "fire": "Fire the slot with that number",
+          "page": "Go to a page",
+          "turnPage": "Turn to the page before or after",
+          "empty": "Empty a slot"
+        },
+        "chat": {
+          "send": "Send",
+          "newline": "Start a new line",
+          "history": "Bring back what you sent",
+          "search": "Search the log, with the pointer over the chat window"
+        },
+        "firstPerson": {
+          "move": "Move",
+          "frontBack": "Step forward or back",
+          "slantFront": "Step forward at a slant",
+          "slantBack": "Step back at a slant",
+          "turn": "Turn",
+          "door": "Open or close a door",
+          "torch": "Light or put out the torch",
+          "target": "Aim at the piece ahead",
+          "clearTargets": "Stop aiming at everything",
+          "cast": "Confirm the targets picked for an effect",
+          "escape": "Face ahead again, stop picking targets, or go back to the table",
+          "look": "Drag to look around"
+        },
+        "whiteBoard": {
+          "tools": "Pick a tool",
+          "pan": "Hold and drag to move the view",
+          "undo": "Undo",
+          "redo": "Redo",
+          "delete": "Delete what is picked",
+          "finish": "Finish the line being drawn",
+          "drop": "Drop the line being drawn",
+          "zoom": "Zoom in or out",
+          "zoomReset": "Back to actual size",
+          "zoomFit": "Fit everything in view",
+          "selectAll": "Pick everything",
+          "duplicate": "Duplicate",
+          "copyPaste": "Copy or paste",
+          "order": "Bring forward or send backward"
+        },
+        "mapEditor": {
+          "tools": "Pick a tool by the letter on its button",
+          "pan": "Hold and drag to move the view",
+          "undo": "Undo",
+          "redo": "Redo",
+          "delete": "Delete what is picked",
+          "commit": "Finish what is being drawn",
+          "cancel": "Drop what is being drawn"
+        },
+        "cutInEditor": {
+          "play": "Play or stop",
+          "step": "Step back or forward",
+          "jump": "Jump to the keyframe before or after",
+          "edges": "To the start or the end",
+          "nudge": "Nudge the picked layer (further with Alt)",
+          "undo": "Undo",
+          "redo": "Redo",
+          "pose": "Copy or paste the picked layer’s pose",
+          "delete": "Delete the picked layer"
+        }
       }
     },
     "file": {
@@ -2401,6 +2532,11 @@
         "cutIns": "Cut-ins on changing",
         "cutInsPlaceholder": "(none)",
         "cutInsHint": "Plays one of these for everyone on changing to this table. Pick two or more and one is drawn each time.",
+        "tableBgm": "Music on switching",
+        "tableBgmKeep": "Leave as it is",
+        "tableBgmStop": "Stop",
+        "tableBgmMissing": "Missing track",
+        "tableBgmHint": "Played to everyone when the room is switched to this table from the list, by a switch or by a pitfall. A track already playing carries on.",
         "sectionSize": "Size",
         "width": "Width",
         "height": "Height",
@@ -2437,6 +2573,11 @@
         "bgFilterWhite": "White",
         "bgFilterBlack": "Black",
         "wallHeight": "Wall height",
+        "cellSize": "Cell size (px)",
+        "squareSpan": "One square for moves and ranges",
+        "squareSpanOption": "{{span}}×{{span}} cells",
+        "squareSpanHint": "At 2×2 or more, moves, paths, ranges and zones of control count this many cells as one square, and pieces stop in the middle of a square. Square grids only.",
+        "cellSizeHint": "Changing it moves what is on the table so that it stays on the same cells.",
         "showWall": "Show",
         "imageNorthWall": "North wall",
         "imageEastWall": "East wall",
@@ -2668,7 +2809,6 @@
           "heavy": "Over {{limit}} terrains. Building will take a moment",
           "built": "Made \"{{name}}\"",
           "roomsDiffer": "{{found}} rooms fitted. Caverns run together, so a cave ends up with fewer than asked",
-          "squareOnly": "A generated table always uses a square grid",
           "corridorWidth": "Wider passages take a wider lattice, so fewer rooms fit on the board",
           "doorWidth": "A door wider than the way it bars has the stone beside the opening cut away. An opening wider than the door takes a row of them",
           "doubleDoors": "A pair is two leaves of half the width, parting in the middle. A door of four cells is two of two",
@@ -2801,7 +2941,7 @@
       "diagonalMove_equal": "Counted as one cell",
       "diagonalMove_alternating": "Counted one cell, then two, by turns",
       "diagonalMove_double": "Always counted as two cells",
-      "diagonalMoveHint": "Counting by turns is how D&D 3.5e and Pathfinder 1e read a corner: the first one costs a cell, the second two.",
+      "diagonalMoveHint": "Counting by turns charges the first corner one cell and the second two.",
       "piecesShareCells": "Let two pieces stand on one cell; off, a cell somebody is on is no place to stop",
       "samePartyPassage": "Pieces of its own party",
       "otherPartyPassage": "Pieces of another party",
@@ -2850,6 +2990,11 @@
       "diceStageHint": "Chat rolls tumble in 3D and land on the numbers rolled. A secret roll shows on the roller's screen alone",
       "sectionSpeechBubbles": "Speech bubbles",
       "speechBubbles": "Show what characters say in a bubble over their pieces",
+      "sectionTurnSound": "Turn sounds",
+      "turnSignal": "Play a signal on my turn",
+      "turnSignalHint": "When a character's turn begins, it plays on its owner's screen only. NPC turns do not play it.",
+      "turnTick": "Play a tick on other turns",
+      "turnTickHint": "When another player's character or an NPC begins its turn, a quiet single note plays on everyone else's screen.",
       "speechBubblesHint": "A public line said as a character on the table shows over its piece for a few seconds, only the words in 「」 where there are any. Whispers, secret lines, and dice or command lines do not show. Each person can hide them on their own screen from the toolbar",
       "sectionControllerResources": "Values and resources on the remote",
       "controllerResourcesShowAll": "Show all",
@@ -2942,7 +3087,7 @@
       "wipeBrowserData": "Erase all data in this browser",
       "wipeBrowserDataHint": "Erases everything kept in this browser, such as your settings, the room's automatic saves and recorded replays, then reloads the page. Try it when something keeps looking or acting wrong. This cannot be undone.",
       "wipeConfirmTitle": "Erase all data in this browser?",
-      "wipeConfirmMessage": "The following will be erased and the page reloaded. This cannot be undone.\n- Your settings (display, volumes, skins, widget layout and so on)\n- The room's automatic saves and recorded replays\n- The pictures for your dice and skins\n\nReloading takes you out of the current room for now. If you are playing alone, anything in the room you have not saved is lost too.\nIf the app is open in other tabs, close them first.",
+      "wipeConfirmMessage": "The following will be erased and the page reloaded. This cannot be undone.\n- Your settings (display, volumes, skins, widget layout and so on)\n- The room's automatic saves and recorded replays\n- The pictures for your dice and skins\n- Your login to the room server, and what takes you back to the same seat when the page reloads\n\nReloading takes you out of the current room for now. If you came in through an invite link, it takes you back in: through SkyWay as someone else, your hand and the GM's role staying with your old seat, and on a room server as a guest until you log in again. If you came in from the lobby, you are left outside the room. Through SkyWay or offline, if you are playing alone, anything in the room you have not saved is lost too.\nIf the app is open in other tabs, close them first.",
       "wipeConfirmOk": "Erase all and reload",
       "hostilityBy": "How the sides are told apart",
       "hostilityBy_npc": "By whom the master runs",
@@ -3042,6 +3187,8 @@
       "import": "Load a zip",
       "trouble_picture": "That picture could not be read.",
       "trouble_skin": "That file does not look like a skin.",
+      "trouble_export": "Could not export the skin.",
+      "trouble_reload": "Reload the page, then try again.",
       "opacity": "Opacity",
       "fit": "Fit",
       "anchor": "Placement",
@@ -3094,6 +3241,7 @@
         "fullSync": "Re-sync room data",
         "fullSyncHint": "Use this when objects or chat differ from what others see. The connection stays up.",
         "fullSyncRequested": "Requested a room data re-sync from {{count}} peer(s).",
+        "fullSyncRequestedFromServer": "Requested a room data re-sync from the room server.",
         "timeoutLabel": "seconds — silent peers are reported in chat",
         "showDetail": "Show details",
         "connecting": "[Connecting] ",
@@ -3115,7 +3263,13 @@
         "modeHint_offline": "This browser is on its own: no SkyWay, no backend, nobody else. Switching reloads the page.",
         "confirmOffline": "Go offline? The page reloads and you leave this room.",
         "confirmOnline": "Go online? The page reloads and connects.",
-        "offlineNote": "Saving and loading a room still works. Switch to Online to play with others."
+        "offlineNote": "Saving and loading a room still works. Switch to Online to play with others.",
+        "roleDecidedByServer": "The room server decides the roles. Only the room's GM can change them.",
+        "inviteWithoutRole": "Those who join with this link play as PL when logged in, and watch as guests otherwise. The GM can make invitations with a role.",
+        "inviteFailed": "The room server gave no invitation. Please open this again later.",
+        "inviteExpires": "This invitation works until {{date}}. It sets the role of someone logged in on their first visit.",
+        "deleteRoom": "Delete room",
+        "deleteRoomHint": "Everyone in the room leaves, and the room is removed from the server. Only a GM of the room can delete it."
       },
       "lobby": {
         "title": "Lobby",
@@ -3128,11 +3282,19 @@
         "connect": "Join",
         "peopleSuffix": "",
         "alreadyConnected": "Disconnect from other peers before joining another room.",
-        "alreadyConnectedHint": "(Reload the page to disconnect.)",
+        "alreadyConnectedHint": "(Use \"Leave the room\" below to disconnect.)",
+        "alreadyInRoomServer": "You cannot enter another room while you are in one.",
+        "alreadyInRoomServerHint": "To enter another room, leave this one first with \"Leave the room\". The table of this room stays on the room server.",
+        "leaveRoom": "Leave the room",
         "hintInitial": "Press \"Refresh list\" to show available rooms.",
         "hintSearching": "Searching...",
         "hintNoRooms": "No available rooms found. Use \"Create new room\" to make one.",
-        "hintListFailed": "Failed to fetch room list. Press \"Refresh list\" to retry."
+        "hintUnreachable": "Not connected to the server. Wait a little, then reload the page.",
+        "hintConnecting": "Not connected to the server yet. Wait a little, then press \"Refresh list\".",
+        "hintListFailed": "Failed to fetch room list. Press \"Refresh list\" to retry.",
+        "hintNoBackend": "No server is configured (backend.url in config.json)",
+        "createRoomAfterLogin": "Log in to create a room",
+        "deleteRoom": "Delete room"
       },
       "roomSetting": {
         "title": " Create room",
@@ -3145,11 +3307,16 @@
         "passwordPlaceholder": "No password",
         "passwordTooLong": "Password must be 12 characters or less.",
         "create": "Create room",
+        "notConnected": "Not connected to the server yet. You can create a room once it connects.",
         "notice": "Rooms are dismissed once all members leave. Save the room data if you want to continue later.",
+        "noticeServer": "Rooms stay on the room server for a while after the last member leaves, then are removed. Save the room data if you want to keep it yourself.",
         "alreadyConnected": "You cannot create a room while connected to other peers.",
         "alreadyConnectedHint": "Disconnect from other peers before joining another room.",
-        "alreadyConnectedHint2": "(Reload the page to disconnect.)",
-        "defaultRoomName": "My room"
+        "alreadyConnectedHint2": "(Use \"Leave the room\" below to disconnect.)",
+        "alreadyInRoomServer": "You cannot create a room while you are in one.",
+        "defaultRoomName": "My room",
+        "createFailed": "The room could not be created ({{reason}})",
+        "loginRequired": "Creating a room needs a login."
       },
       "passwordCheck": {
         "title": "Password",
@@ -3164,17 +3331,41 @@
         "forceCleanup": "Drop inconsistent data (only when sync is broken)",
         "notice": "Reconnection may fail. If it does not recover, reload the page.",
         "warning": "Warning: if no one else owns the room data, the data will be lost on failure.",
+        "unsent": "The link to the room server is down. If you reconnect now, deletions that had not all gone out before it dropped, and what you deleted since, may come back, and what you brought back may go again. What you moved or wrote gets there once you are back in.",
+        "sending": "Some changes have not all gone out to the room server yet; a big load or deletion goes out a little at a time. If you reconnect now, of what has not gone out, what you deleted may come back and what you brought back may go again.",
+        "unsentCleanup": "The link to the room server is down. If you reconnect now, deletions that had not all gone out before it dropped, and what you deleted since, may come back, and what you brought back may go again. What you wrote gets there once you are back in.",
+        "cleanupLoss": "With \"Drop inconsistent data\" on, characters, ranges, shared notes, dice, masks and terrain go back to how the room server has them; what you moved or made of them that has not reached it is lost.",
+        "warningServer": "Note: on a room server the table stays on the server. \"Drop inconsistent data\" removes things from this screen only.",
         "warning2": "Save the room data first if needed.",
         "cleanupDesc1": "Enabling \"Drop inconsistent data\" removes objects that may cause sync inconsistencies before reconnecting.",
         "cleanupDesc2": "Use only as a last resort."
       },
       "errors": {
-        "skywayServer": "Cannot reach the SkyWay backend server. Check your network settings.",
+        "skywayServer": "Cannot reach the SkyWay backend server. Check your network settings, then reload the page.",
         "tokenExpired": "The SkyWay auth token has expired. Reconnecting...",
         "generic": "A network error occurred. ({{errorType}})",
         "reconnecting": "Attempting to reconnect...",
-        "lastReconnect": "This is the last attempt. If it does not connect, leave it a while and come back in.",
-        "sameNameMember": "You are in this room in another tab, or your previous connection has not dropped yet. Close the other tab, or wait a little and join again"
+        "lastReconnect": "This is the last attempt. If it does not connect, wait a little, then reload the page.",
+        "sameNameMember": "You are in this room in another tab, or your previous connection has not dropped yet. Close the other tab, or wait a little and join again",
+        "roomServerProtocolMismatch": "A newer version of Axe is out. Reload the page",
+        "roomServerWrongPassword": "The password is wrong",
+        "roomServerNotFound": "The room was not found. It was closed, or removed after being kept for a while",
+        "roomServerFull": "The room is full ({{max}} at most)",
+        "roomServerReplaced": "This seat came into the room again from another screen, so this connection was closed",
+        "roomServerUnreachable": "Cannot reach the room server",
+        "roomServerNoBackend": "No server is configured (backend.url in config.json)",
+        "roomServerRefused": "The room server refused the connection ({{code}})",
+        "roomServerUnauthorized": "Your login expired, or you logged in as someone else. Please join the room again.",
+        "roomServerDeleted": "The room's GM deleted the room"
+      },
+      "deleteRoom": {
+        "confirmTitle": "Delete room",
+        "confirmMessage": "Delete “{{name}}”? Everyone in it will leave, and the table kept on the server will be gone, along with the pictures and sounds put up to the room. This cannot be undone. (The table on each screen stays as it is.)",
+        "confirmOk": "Delete",
+        "deleted": "Deleted the room",
+        "gone": "The room had already been deleted",
+        "notGameMaster": "You are not a GM of this room, so you cannot delete it",
+        "failed": "Could not delete the room. Please try again in a while."
       },
       "waitingForPreviousConnection": "Waiting for your previous connection to drop (up to about a minute)",
       "peerCursor": {
@@ -3192,20 +3383,71 @@
         "pingUnit": "ms",
         "widgetTitle": "Connection quality",
         "noPeers": "No one else is connected.",
+        "roomServer": "Room server",
         "relayed": "Via relay server",
         "relayedHint": "Some links go through a relay server. Those peers could not connect directly, so they tend to be slower."
       },
       "peerReconnect": {
         "retrying": "Lost the connection to {{name}}. Reconnecting…",
         "recovered": "Restored the connection to {{name}}.",
-        "failed": "Could not reconnect to {{name}}. Reconnect from the connection panel if it does not recover."
+        "failed": "Could not reconnect to {{name}}. Reconnect from the connection panel if it does not recover.",
+        "serverRetrying": "Lost the connection to the room server. Reconnecting…",
+        "serverRecovered": "Restored the connection to the room server.",
+        "serverFailed": "Could not reconnect to the room server. Reconnect from the connection panel if it does not recover."
       },
       "invite": {
         "joining": "Joining \"{{roomName}}\"…",
         "notFound": "\"{{roomName}}\" was not found",
         "failed": "Could not join \"{{roomName}}\"",
+        "offline": "You are offline, so you cannot join \"{{roomName}}\". To join, switch to online in the connection panel",
         "openLobby": "Open lobby",
         "dismiss": "Dismiss"
+      },
+      "account": {
+        "login": "Log in with Discord",
+        "loggingIn": "Opening the login…",
+        "loggedInAs": "Logged in as {{name}}",
+        "logout": "Log out",
+        "delete": "Delete account",
+        "deleteConfirm": "This deletes your account on this server: your Discord name and avatar, and your logins. Logging in again afterwards makes a new account, which cannot take back your seats and hands in rooms. To come back as GM to a room you ran, enter it with the new account for the first time through a GM invitation you gave there (leave the room before logging in again on every screen that is in it, other tabs included); another GM can also make you GM. GM invitations keep working for 30 days from when they were made, and make whoever opens them GM. Your lines left in rooms keep the name and avatar they were written with until each room is removed.",
+        "deleteConfirmButton": "Delete",
+        "deleteCancel": "Cancel",
+        "deleteFailed": "The account could not be deleted. Please try again later.",
+        "deleteFailedLoggedOut": "Could not delete the account. Log in again, then delete it once more.",
+        "guestHint": "Without logging in you join as a guest. Log in to create rooms and move things on the table.",
+        "unavailable": "This server offers no login, so it has no rooms.",
+        "errors": {
+          "denied": "The login was cancelled.",
+          "providerFailed": "Talking to Discord failed. Please try again later.",
+          "rateLimited": "Too many login attempts. Please wait a while.",
+          "network": "The login server cannot be reached.",
+          "retry": "Please log in again."
+        }
+      },
+      "idle": {
+        "soon": "Nothing has been done here for a while, so you will soon leave the room. Use the page a little to stay.",
+        "left": "Nothing was done here for a while, so you left the room.",
+        "comeBack": "Back to the room"
+      },
+      "signedOutInRoom": "You are no longer logged in, so you are back in the room as a guest. Log in again to go on as a GM or a player.",
+      "roleRejected": {
+        "notGameMaster": "Only the GM can change roles.",
+        "unknownPeer": "{{name}} is not in the room, so their role was not changed.",
+        "notLoggedIn": "{{name}} is not logged in and stays a guest.",
+        "lastGameMaster": "The room would have no GM left, so {{name}}'s role was not changed.",
+        "other": "The role could not be changed ({{reason}})."
+      },
+      "leaveRoom": {
+        "title": "Leave the room?",
+        "peer-to-peer": "The page reloads and you leave this room. The table stays with the others; with nobody else here, the room closes.",
+        "unsent": "The link to the room server is down. What had not all gone out before it dropped, and what you changed since, has not reached the server and is lost if you leave now.",
+        "sending": "Some changes have not all gone out to the room server yet; a big load or deletion goes out a little at a time. If you leave now, what has not gone out is lost.",
+        "uploads": "Some pictures or sounds have not reached the room server yet. If you leave now, the others will not get them."
+      },
+      "withheldEntry": {
+        "title": "This table holds withheld parts",
+        "message": "The table on screen holds things a room server handed over only in their withheld shape (cards whose face you cannot see, others' dice faces, blacked-out notes, the contents of secret rolls and so on). Going into a room now spreads the table there in that shape. Saves taken on this screen after going in, as the GM too, ask before they are loaded; saves others in the room take hold the withheld shapes without asking.",
+        "ok": "Go in anyway"
       }
     },
     "chat": {
@@ -3293,6 +3535,8 @@
         "tutorialToPlayer": "Tutorial > Player",
         "intro1": "A serverless TRPG online session tool. Participants connect to each other and synchronize pieces, image files, and so on.",
         "intro2": "All data lives in each participant's browser, so you must run \"Save\" to generate a save file (zip) if you want to keep the room state for later. Drop the zip into the browser window to load it.",
+        "intro1Server": "A TRPG online session tool that uses a room server. The server keeps the table and synchronizes pieces, image files, and so on between participants.",
+        "intro2Server": "A while after the last person leaves, the table is removed from the room server. To keep the room state yourself, run \"Save\" to generate a save file (zip). Drop the zip into the browser window to load it.",
         "dm1": "Direct messages (private chat) are not recorded in save files.",
         "dm2": "Past direct messages also become invisible once your ID is renewed, even in the same room. Take care.",
         "env": "On a phone the app switches to a layout of its own: press and hold a piece for its menu, tap it for a summary.",
@@ -3316,7 +3560,7 @@
         "selectText": "Select text",
         "afterWhisper": "Whisper it afterwards",
         "afterWhisperTo": "Whisper to",
-        "afterWhisperNobody": "Whisper it afterwards (nobody else is here)",
+        "afterWhisperNobody": "Whisper it afterwards (nobody to choose)",
         "undoAfterWhisper": "Undo the whisper and show it to everyone",
         "deleteLine": "Delete",
         "deleteLineHint": "Delete (it leaves everyone’s screen but stays in the log)",
@@ -3348,7 +3592,8 @@
         },
         "actions": "Line actions",
         "more": "More actions",
-        "edit": "Edit"
+        "edit": "Edit",
+        "serverRoll": "The room server rolled these dice, so the roller could not change them."
       },
       "stream": {
         "title": "Message stream",
@@ -3448,6 +3693,7 @@
         "resetImage": "Restore the default picture"
       },
       "tabSetting": {
+        "deleteTurnedDown": "The room server put the tab back. Only the GM may delete a tab holding dice the server rolled, whispers you cannot see included.",
         "panelTitle": "Chat tab settings",
         "sidebarTitle": "Chat tabs",
         "addTabTooltip": "Add tab",
@@ -3460,6 +3706,7 @@
         "permView": "View",
         "permSpeak": "Speak",
         "permGmNote": "GM can always view and speak",
+        "permViewGmOnServer": "On a room server, only the GM can change who can view",
         "moveUpTooltip": "Move up",
         "moveDownTooltip": "Move down",
         "deletedNotice": "This tab is deleted",
@@ -3467,6 +3714,7 @@
         "save": "Save",
         "allowDelete": "Enable delete",
         "deleteTab": "Delete tab",
+        "deleteKeptForGmOnServer": "On a room server, only the GM can delete a tab holding dice the server rolled",
         "logSaveSection": "Save log",
         "saveThisTab": "This tab",
         "saveAllTabs": "All tabs",
@@ -3474,6 +3722,7 @@
         "allowDeleteLog": "Enable clear",
         "deleteLogThisTab": "This tab",
         "deleteLogAllTabs": "All tabs",
+        "logKeepsServerRollsOnServer": "On a room server, dice the server rolled stay in the log (the GM can clear them)",
         "defaultTabName": "Tab",
         "noneMark": "—",
         "allTabsLogName": "All tabs",
@@ -3551,7 +3800,7 @@
             "description": "For comedy and lively tables"
           },
           "coc": {
-            "name": "CoC log",
+            "name": "Compatible log",
             "description": "The classic layout other tools can read"
           },
           "text": {
@@ -3611,6 +3860,14 @@
         "titleWith": "Dice bot <{{name}}>",
         "descSuffix": " — help",
         "unreachable": "The dice bot \"{{name}}\" could not be loaded, so no dice were rolled for this line. If sending it again still does not roll, reload the page.",
+        "serverRollUnanswered": {
+          "invalid": "The room server did not accept the dice of this line, so they were not rolled.",
+          "not-allowed": "Guests cannot roll dice in this tab, so the dice of this line were not rolled.",
+          "rate-limited": "Too many dice were asked for in a short time, so the dice of this line were not rolled. Wait a moment and send it again.",
+          "busy": "Too many dice are waiting to be rolled in the room, so the dice of this line were not rolled. Wait a moment and send it again.",
+          "failed": "The room server could not roll the dice of this line, so they were not rolled.",
+          "timeout": "The result of this line’s dice has not come from the room server. If it does not come in a while, send the line again."
+        },
         "intro": "[Dice bot] Type dice expressions in chat to roll dice.\nInput example) 2d6+1 attack!\nOutput example) 2d6+1 attack!\n              diceBot: (2d6) → 7\nYou can also include a dice expression followed by a space and additional text.\n\nUsage examples\n  3D6+1>=9 : Roll 3d6+1 and check whether the total is 9 or more.\n  1D100<=50 : D100 downward roll with target value 50.\n  3U6[5] : Roll 3d6 with reroll on 5+ (open-ended above).\n  3B6 : Roll 3d6 and output values separately (no sum).\n  10B6>=4 : Roll 10d6 and count dice with value 4+.\n  2R6[>3]>=5 : Reroll dice >3 then count dice with value 5+.\n  (8/2)D(4+6)<=(5*3) : Arithmetic is allowed in count/sides/target.\n  c(10-4*3/2+2) : c(expression) evaluates math only.\n  choice[a,b,c] : Pick one element at random.\n  S3d6 : Prefix S for a secret roll (others cannot see).\n  3d6/2 : Divide the result (rounding depends on system). Use /2C (ceil), /2R (round), /2F (floor).\n  D66 : D66 die. Order depends on the system: D66N (raw), D66A (ascending), D66D (descending).\n\nFor full details see the bcdice command guide:\nhttps://docs.bcdice.org/\n===================================\n"
       },
       "stampPack": {
@@ -4290,7 +4547,7 @@
       },
       "staging": {
         "title": "Staging — {{count}} entries",
-        "hint": "Use the table as you normally would. What you move, roll and cast is captured and inserted at the point you are editing. Nothing reaches the other players.",
+        "hint": "Use the table as you normally would. What you move, roll and cast is captured and inserted after the row you started recording at. Nothing reaches the other players.",
         "accept": "Insert {{count}}",
         "discard": "Discard"
       },
@@ -4813,6 +5070,7 @@
       "tab": "Tab",
       "tabOpen": "The tab the presser has open",
       "guests": "Spectators can press it too (where the tab lets them speak)",
+      "guestsOnServer": "On a room server, spectators cannot press switches",
       "actionsHint": "Pressing it runs these from the top. From the second one on, you can add a wait after the previous one (up to 10 seconds).",
       "kind": {
         "say": "Say",
@@ -5108,6 +5366,8 @@
       "buttonGuide": "Show every button's name (? key)",
       "soundSettings": "Sound settings"
     },
+    "restoreWhileReplayBoard": "The last table cannot be restored while a recording's board is shown. Choose \"Give it back\" first.",
+    "saveWhileReplayBoard": "The room cannot be saved while a recording's board is shown. Choose \"Give it back\" first (while staging, insert or discard what was staged first).",
     "roomDataDefault": "Room data"
   },
   "feature.controller": {
@@ -5240,7 +5500,13 @@
     "notConfirmed": "Pending",
     "notVoted": "Pending",
     "absent": "Absent",
-    "abstain": "Abstain"
+    "abstain": "Abstain",
+    "secret": "Hide the answers until it closes",
+    "secretHint": "Who chose what, and how many chose each choice, stay hidden from everyone until the vote closes. Only how many have answered shows",
+    "voteStartSecret": "Vote started! ({{title}}, answers hidden until it closes)",
+    "secretAnswered": "Answered ({{voted}}/{{total}})",
+    "answered": "Answered",
+    "secretNotice": "Who chose what stays hidden until the vote closes"
   },
   "feature.dataElement": {
     "placeholderName": "Name",

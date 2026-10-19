@@ -3,6 +3,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { handLocationOf } from '@axe/domain/card/hand-location';
@@ -10,6 +11,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { HandDrawPanelComponent } from '@axe/features/card/hand-draw/hand-draw-panel.component';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('HandDrawPanelComponent', () => {
@@ -41,6 +43,12 @@ describe('HandDrawPanelComponent', () => {
     PeerCursor.myCursor.name = 'わたし';
     PeerCursor.myCursor.role = PeerRole.Player;
     TestBed.configureTestingModule({ imports: [HandDrawPanelComponent], providers: [...TEST_PROVIDERS] });
+    vi.spyOn(Network, 'peerIds', 'get').mockImplementation(() =>
+      ObjectStore.instance
+        .getObjects<PeerCursor>(PeerCursor)
+        .filter((cursor) => cursor !== PeerCursor.myCursor)
+        .map((cursor) => cursor.peerId)
+    );
     vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockReturnValue(null as unknown as ChatMessage);
     fixture = TestBed.createComponent(HandDrawPanelComponent);
     component = fixture.componentInstance;
@@ -55,6 +63,23 @@ describe('HandDrawPanelComponent', () => {
     }
   });
 
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() => TestBed.createComponent(HandDrawPanelComponent));
+  });
+
+  it('lists the hand of a seat made a guest on a room server as one to hand over, as soon as it is one', () => {
+    vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    const other = peer('other', 'あいて');
+    card('s01', 'other');
+    expect(component.absentHands()).toEqual([]);
+
+    other.role = PeerRole.Guest;
+    TestBed.inject(ObjectChangeService).notifyChanged(other.identifier);
+
+    expect(component.absentHands().map((hand) => hand.userId)).toEqual(['other']);
+  });
+
   it('offers only the other players who hold a hand', () => {
     peer('other', 'あいて');
     peer('empty', 'てふだなし');
@@ -64,6 +89,20 @@ describe('HandDrawPanelComponent', () => {
 
     expect(component.targets().map((target) => target.userId)).toEqual(['other']);
     expect(component.targets()[0].count).toBe(1);
+  });
+
+  it('follows a participant whose link drops and comes back, with nothing else changing', () => {
+    peer('other', 'あいて');
+    card('s01', 'other');
+    const linked = vi.spyOn(Network, 'peerIds', 'get').mockReturnValue([]);
+    const networkVersion = TestBed.inject(ObjectChangeService).networkVersion;
+    networkVersion.update((version) => version + 1);
+    expect(component.targets()).toEqual([]);
+
+    linked.mockReturnValue(['peer-other']);
+    networkVersion.update((version) => version + 1);
+
+    expect(component.targets().map((target) => target.userId)).toEqual(['other']);
   });
 
   it('lays their hand out face down once one is chosen', () => {

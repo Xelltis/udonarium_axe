@@ -1,9 +1,17 @@
-import { signal, type WritableSignal } from '@angular/core';
+import { computed, signal, type WritableSignal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
+import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import {
+  GM_ONLY_VISIBILITY,
+  PUBLIC_VISIBILITY,
+  type ReplayEvent,
+  ReplayEventKind,
+} from '@axe/domain/replay/replay-event';
+import { REPLAY_CAUGHT_UP_FLAG } from '@axe/domain/replay/replay-event-category';
 import { ReplayStageComponent } from '@axe/features/replay/replay-workspace/replay-stage.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -35,7 +43,9 @@ function scrub(track: HTMLElement, name: string, clientX: number): Promise<void>
 describe('ReplayStageComponent', () => {
   let fixture: ComponentFixture<ReplayStageComponent>;
   let cursor: WritableSignal<number>;
+  let eventList: WritableSignal<readonly ReplayEvent[]>;
   let seekTo: ReturnType<typeof vi.fn>;
+  let isEnteringBoardMode: WritableSignal<boolean>;
 
   async function setup(): Promise<void> {
     await TestBed.configureTestingModule({
@@ -45,11 +55,12 @@ describe('ReplayStageComponent', () => {
         {
           provide: ReplayPlaybackService,
           useValue: {
-            events: signal(events).asReadonly(),
+            events: eventList.asReadonly(),
             cursor: cursor.asReadonly(),
             manifest: signal(null).asReadonly(),
-            currentEvent: signal<ReplayEvent | null>(events[0]).asReadonly(),
+            currentEvent: computed(() => eventList()[cursor()] ?? null),
             isBoardMode: signal(false).asReadonly(),
+            isEnteringBoardMode: isEnteringBoardMode.asReadonly(),
             isSeeking: signal(false).asReadonly(),
             autoPlay: signal(false).asReadonly(),
             isAtStart: signal(true).asReadonly(),
@@ -73,13 +84,65 @@ describe('ReplayStageComponent', () => {
 
   beforeEach(async () => {
     cursor = signal(0);
+    eventList = signal(events);
     seekTo = vi.fn().mockResolvedValue(undefined);
+    isEnteringBoardMode = signal(false);
     PeerCursor.myCursor = Object.assign(new PeerCursor(), { peerId: 'p', userId: 'gm', role: PeerRole.GameMaster });
     await setup();
   });
 
   afterEach(() => {
     PeerCursor.myCursor = null as unknown as PeerCursor;
+  });
+
+  it('shows the line this reader was last shown, passing over one kept from them or kept to the board', () => {
+    PeerCursor.myCursor = Object.assign(new PeerCursor(), { peerId: 'p', userId: 'bob', role: PeerRole.Player });
+    eventList.set([
+      event(1, 0, ReplayEventKind.ChatMessage, { name: '盗賊', text: 'こんばんは' }),
+      { ...event(2, 100, ReplayEventKind.ChatMessage, { name: 'GM', text: 'ひみつ' }), visibility: GM_ONLY_VISIBILITY },
+      event(3, 200, ReplayEventKind.ChatMessage, { name: '昔', text: 'むかしの話', [REPLAY_CAUGHT_UP_FLAG]: true }),
+    ]);
+    cursor.set(2);
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('こんばんは');
+    expect(text).not.toContain('ひみつ');
+    expect(text).not.toContain('むかしの話');
+  });
+
+  it('leaves stepping and putting the board away unpressable while a scene is acted out', () => {
+    const buttons = () => [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
+    const board = () => buttons().find((each) => each.textContent?.includes('盤面を映す'));
+    const next = () =>
+      buttons().find((each) => each.querySelector('.material-icons')?.textContent?.trim() === 'navigate_next');
+    expect(board()?.disabled).toBe(false);
+    expect(next()?.disabled).toBe(false);
+
+    setNetworkIsolated(true);
+    try {
+      TestBed.inject(ReplayStagingService).begin(0, 'alice');
+      fixture.detectChanges();
+
+      expect(board()?.disabled).toBe(true);
+      expect(next()?.disabled).toBe(true);
+    } finally {
+      TestBed.inject(ReplayStagingService).discard();
+      setNetworkIsolated(false);
+    }
+  });
+
+  it('leaves the button that shows the board unpressable while the board is on its way up', () => {
+    const button = () =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find((each) =>
+        each.textContent?.includes('盤面を映す')
+      );
+    expect(button()?.disabled).toBe(false);
+
+    isEnteringBoardMode.set(true);
+    fixture.detectChanges();
+
+    expect(button()?.disabled).toBe(true);
   });
 
   it('draws the busy stretches as peaks', () => {
@@ -149,9 +212,12 @@ describe('ReplayStageComponent', () => {
     expect(seekTo).toHaveBeenLastCalledWith(4);
   });
 
-  it('steps one event at a time on the arrow keys', () => {
+  it('steps on the arrow keys as the buttons do, over what this reader is not shown', () => {
+    const playback = TestBed.inject(ReplayPlaybackService);
     const track: HTMLElement = fixture.nativeElement.querySelector('[role="slider"]');
     track.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    expect(seekTo).toHaveBeenCalledWith(1);
+    track.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(playback.next).toHaveBeenCalledOnce();
+    expect(playback.previous).toHaveBeenCalledOnce();
   });
 });

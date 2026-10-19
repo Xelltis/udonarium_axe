@@ -3,6 +3,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
+import { Logger } from '@axe/core/logging/logger';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { CutIn, cutInPanelChrome } from '@axe/domain/media/cut-in';
@@ -10,9 +11,16 @@ import type { CutInSpeaker } from '@axe/domain/media/cut-in-speaker';
 import { mixLevelOf } from '@axe/domain/media/mix-level';
 import { asCutInMultiDirectionMode } from '@axe/domain/tabletop/cut-in-multi-direction';
 import { makeCutInMultiDirectionLayout } from '@axe/features/media/cut-in-multi-direction-layout';
-import { CutInWindowComponent } from '@axe/features/media/cut-in-window/cut-in-window.component';
+import type { CutInWindowComponent } from '@axe/features/media/cut-in-window/cut-in-window.component';
+import { CUT_IN_WINDOW_LOADER, type CutInWindowType } from '@axe/features/media/cut-in-window-loader';
 
 export const CUT_IN_MULTI_DIRECTION_PREPARE_TIMEOUT_MS = 500;
+
+/** A cut-in asked for before the window arrived, and whether it was stopped meanwhile. */
+interface WaitingCutIn {
+  readonly cutIn: CutIn;
+  cancelled: boolean;
+}
 
 @Injectable({ providedIn: 'root' })
 export class CutInEventHandlerService {
@@ -22,12 +30,37 @@ export class CutInEventHandlerService {
   private readonly panelService = inject(PanelService);
   private readonly tabletopService = inject(TabletopService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly loadWindow = inject(CUT_IN_WINDOW_LOADER);
 
   private readonly soundOnlyPlayer = new AudioPlayer();
 
+  private windowType: CutInWindowType | null = null;
+  private windowLoad: Promise<CutInWindowType> | null = null;
+  private readonly waiting: WaitingCutIn[] = [];
+
   constructor() {
+    // The same three ways an open window is closed, for a cut-in still waiting to open one. These
+    // come first, so a sound-only cut-in puts aside those before it and not the one it asks for.
+    this.objectChange.stopCutIn$.subscribe((event) => {
+      const cutIn = event.cutIn as CutIn;
+      this.cancelWaiting((waiting) => waiting.identifier == cutIn?.identifier);
+    }, this.destroyRef);
+    this.objectChange.stopCutInByBgm$.subscribe(() => {
+      this.cancelWaiting((waiting) => waiting.tagName == '' && !!this.audioStorage.get(waiting.audioIdentifier));
+    }, this.destroyRef);
+    this.objectChange.soundOnlyCutIn$.subscribe((event) => {
+      const cutIn = event.cutIn as CutIn;
+      if (!cutIn?.videoId) return;
+      this.cancelWaiting((waiting) => waiting.identifier == cutIn.identifier || waiting.tagName == cutIn.tagName);
+    }, this.destroyRef);
     this.objectChange.startCutIn$.subscribe((event) => {
-      this.openCutInPanel(event.cutIn as CutIn, false, (event.speaker as CutInSpeaker | null | undefined) ?? null);
+      const cutIn = event.cutIn as CutIn;
+      // An open window closes for a cut-in with its name or its tag, and so does one still waiting,
+      // before this one waits in turn.
+      if (cutIn) {
+        this.cancelWaiting((waiting) => waiting.identifier == cutIn.identifier || waiting.tagName == cutIn.tagName);
+      }
+      this.openCutInPanel(cutIn, false, (event.speaker as CutInSpeaker | null | undefined) ?? null);
     }, this.destroyRef);
     this.objectChange.soundOnlyCutIn$.subscribe((event) => {
       const cutIn = event.cutIn as CutIn;
@@ -44,15 +77,71 @@ export class CutInEventHandlerService {
         }
       }
     }, this.destroyRef);
+    // Fetched now rather than at the first cut-in, which would otherwise wait for it. A failure
+    // is said by the cut-in that needs the window, which tries again.
+    this.prepareWindow().catch(() => undefined);
+  }
+
+  /**
+   * Fetches the code of the cut-in window, which nothing needs at start.
+   *
+   * The service starts this itself; a test awaits it to have cut-ins open at once.
+   */
+  prepareWindow(): Promise<CutInWindowType> {
+    this.windowLoad ??= this.loadWindow().then(
+      (windowType) => (this.windowType = windowType),
+      (reason: unknown) => {
+        this.windowLoad = null;
+        throw reason;
+      }
+    );
+    return this.windowLoad;
+  }
+
+  private cancelWaiting(matches: (cutIn: CutIn) => boolean): void {
+    for (const request of this.waiting) {
+      if (matches(request.cutIn)) request.cancelled = true;
+    }
+  }
+
+  /** Opens at once when the window is here, and otherwise once it arrives, unless stopped meanwhile. */
+  private withWindow(cutIn: CutIn, open: (windowType: CutInWindowType) => void): void {
+    if (this.windowType) {
+      open(this.windowType);
+      return;
+    }
+    const request: WaitingCutIn = { cutIn, cancelled: false };
+    this.waiting.push(request);
+    const settle = () => this.waiting.splice(this.waiting.indexOf(request), 1);
+    this.prepareWindow().then(
+      (windowType) => {
+        settle();
+        if (!request.cancelled) open(windowType);
+      },
+      (reason: unknown) => {
+        settle();
+        Logger.error('[CutIn] カットインの窓を読み込めませんでした', reason);
+        PanelService.loadFailureNotice?.();
+      }
+    );
   }
 
   private openCutInPanel(cutIn: CutIn, invisible = false, speaker: CutInSpeaker | null = null): void {
     if (!cutIn) return;
+    this.withWindow(cutIn, (windowType) => this.openCutInPanelWith(windowType, cutIn, invisible, speaker));
+  }
+
+  private openCutInPanelWith(
+    windowType: CutInWindowType,
+    cutIn: CutIn,
+    invisible: boolean,
+    speaker: CutInSpeaker | null
+  ): void {
     const mode = this.tabletopService.mode2d()
       ? asCutInMultiDirectionMode(this.tabletopService.display().cutInMultiDirectionMode)
       : 'none';
     if (invisible || mode === 'none') {
-      this.openSingleCutInPanel(cutIn, invisible, speaker);
+      this.openSingleCutInPanel(windowType, cutIn, invisible, speaker);
       return;
     }
 
@@ -80,7 +169,7 @@ export class CutInEventHandlerService {
         frameless: cutIn.frameless,
       };
 
-      const component = this.panelService.open(CutInWindowComponent, option);
+      const component = this.panelService.open(windowType, option);
       component.cutIn = cutIn;
       component.speaker = speaker;
       component.audioEnabled = face.primary;
@@ -118,7 +207,12 @@ export class CutInEventHandlerService {
     });
   }
 
-  private openSingleCutInPanel(cutIn: CutIn, invisible: boolean, speaker: CutInSpeaker | null = null): void {
+  private openSingleCutInPanel(
+    windowType: CutInWindowType,
+    cutIn: CutIn,
+    invisible: boolean,
+    speaker: CutInSpeaker | null
+  ): void {
     const chrome = cutInPanelChrome(cutIn);
     const marginW = Math.max(0, window.innerWidth - cutIn.width);
     const marginH = Math.max(0, window.innerHeight - cutIn.height - chrome);
@@ -135,7 +229,7 @@ export class CutInEventHandlerService {
       frameless: cutIn.frameless,
     };
 
-    const component = this.panelService.open(CutInWindowComponent, option);
+    const component = this.panelService.open(windowType, option);
     component.cutIn = cutIn;
     component.speaker = speaker;
     component.forceNoLoop = invisible;

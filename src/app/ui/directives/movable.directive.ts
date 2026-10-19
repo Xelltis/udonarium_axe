@@ -76,6 +76,11 @@ export interface MovableOption {
   readonly transformCssOffset?: string;
   readonly snapOrigin?: { x: number; y: number };
   readonly snapStyle?: GridSnapStyle;
+  /**
+   * Where the piece goes when it is snapped from a place, ahead of the table's own snap; nothing
+   * leaves it to that. A piece moved over squares of several cells is put on a square this way.
+   */
+  readonly snapToSquare?: (at: { x: number; y: number }) => { x: number; y: number } | null;
 }
 
 @Directive({ selector: '[appMovable]' })
@@ -120,6 +125,7 @@ export class MovableDirective implements MovableInteractionContext {
   private transformCssOffset: string = '';
   private snapOrigin: { x: number; y: number } | undefined;
   private snapStyle: GridSnapStyle | undefined;
+  private snapToSquare: MovableOption['snapToSquare'];
 
   readonly option = input.required<MovableOption>({ alias: 'movable.option' });
   readonly isDisable = input(false, { alias: 'movable.disable' });
@@ -207,6 +213,7 @@ export class MovableDirective implements MovableInteractionContext {
       if (opt.transformCssOffset != null) this.transformCssOffset = opt.transformCssOffset;
       this.snapOrigin = opt.snapOrigin;
       this.snapStyle = opt.snapStyle;
+      this.snapToSquare = opt.snapToSquare;
       this.refreshOverlapRegistration();
       this.refreshObjectChangeListener();
       this.refreshMultiMovableRegistration();
@@ -928,6 +935,12 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   private snapToGridNow(gridSize: number = 25) {
+    const square = this.snapToSquare?.({ x: this.posX, y: this.posY });
+    if (square) {
+      this.posX = square.x;
+      this.posY = square.y;
+      return;
+    }
     const table = this.tableSelecter.viewTable;
     const effectiveGridSize = table?.gridSize ?? gridSize;
     const gridType = table?.gridType ?? GridType.SQUARE;

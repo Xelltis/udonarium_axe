@@ -46,7 +46,7 @@ import { isMenuGroup } from '@axe/domain/ui/menu-layout';
 import { VIEW_MODES } from '@axe/domain/ui/view-mode';
 import { FIRST_PERSON_FACING_NAMES, FIRST_PERSON_PAD_LABELS } from '@axe/features/first-person/first-person-hud';
 import { MAP_KINDS } from '@axe/features/tabletop/dungeon-generator/dungeon-generator.component';
-const HOTBAR_FAILURES = ['noCharacter', 'notFound', 'noTab', 'offTable', 'empty'] as const;
+const HOTBAR_FAILURES = ['noCharacter', 'notFound', 'noTab', 'offTable', 'empty', 'notAllowed', 'unavailable'] as const;
 
 /**
  * A screen that builds its key out of a value — `'…clip' + shape` — puts that key beyond

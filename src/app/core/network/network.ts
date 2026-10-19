@@ -1,7 +1,9 @@
 import { Logger } from '@axe/core/logging/logger';
-import { Connection, ConnectionCallback } from '@axe/core/network/connection';
+import { AssetAccess, Connection, ConnectionCallback, ServerCredentialSource } from '@axe/core/network/connection';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
+import { CreateRoomResponse, InviteMessage, ServerRole } from '@axe/core/network/server/server-protocol';
+import { Transport, transportOf } from '@axe/core/network/transport';
 import { setZeroTimeout } from '@axe/core/util/zero-timeout';
 
 type QueueItem = { data: unknown; sendTo: string | undefined; turn: number };
@@ -20,6 +22,14 @@ export class Network {
   /** Whether this device has an open SkyWay session. */
   static get isOpen(): boolean {
     return Network.instance.isOpen;
+  }
+  /** The room the network was last asked to open, at once as it is asked; empty once asked to wait outside any. */
+  static get requestedRoomId(): string {
+    return Network.instance.requestedRoomId;
+  }
+  /** How many times the network has been asked to open a room or to wait outside any. */
+  static get openRequests(): number {
+    return Network.instance.openRequests;
   }
   /** This device's peer id, or the placeholder '???' before a session exists. */
   static get peerId(): string {
@@ -49,9 +59,67 @@ export class Network {
   static get bandwidthUsage(): number {
     return Network.instance.bandwidthUsage;
   }
+  /** The room server's peer id when connected through one; null with SkyWay or without a connection. */
+  static get authorityPeerId(): string | null {
+    return Network.instance.authorityPeerId;
+  }
+  /** Whether the link to the room server is up just now; false with SkyWay, or while it is down. */
+  static get isAuthorityOpen(): boolean {
+    return Network.instance.isAuthorityOpen;
+  }
+  /** Whether the connection is holding sends back for seconds, as a room server's does for a big load. */
+  static get hasSendsPending(): boolean {
+    return Network.instance.hasSendsPending;
+  }
+  /** How far the room server's clock runs ahead of this one; null with SkyWay or before it let the seat in. */
+  static get serverClockOffset(): number | null {
+    return Network.instance.serverClockOffset;
+  }
+  /** How this deployment connects players, as config.json names it. */
+  static get transport(): Transport {
+    return Network.instance.transport;
+  }
+  /** The key of the open room on a room server; null with SkyWay or outside a room. */
+  static get roomKey(): string | null {
+    return Network.instance.roomKey;
+  }
+  /** The role a room server gave this seat; null with SkyWay or outside a room. */
+  static get serverRole(): ServerRole | null {
+    return Network.instance.serverRole;
+  }
+  /**
+   * Lets the page be left without the browser asking whether to, for a reload or a leave the reader
+   * has already chosen and been told of.
+   */
+  static letPageGo(): void {
+    Network.instance.letPageGo();
+  }
   /** Keeps the app config, such as the backend URL, for the connection made on the next open. */
   static configure(config: Record<string, unknown>) {
     Network.instance.configure(config);
+  }
+  /** Keeps the login a room server connection says hello with, for this connection and every later one. */
+  static setServerCredentials(source: ServerCredentialSource | null) {
+    Network.instance.setServerCredentials(source);
+  }
+  /**
+   * Keeps an invitation from a link for the room it invites to, carried by every hello to that room
+   * until a logged-in seat gets in with it; a guest's seat leaves it for after a login.
+   */
+  static setServerInvite(invite: string, roomKey: string) {
+    Network.instance.setServerInvite(invite, roomKey);
+  }
+  /** The invitation kept for the room it was given for, until a logged-in seat is let in with it. */
+  static get pendingServerInvite(): { invite: string; roomKey: string } | null {
+    return Network.instance.pendingServerInvite;
+  }
+  /** Asks the room server for an invitation in a role; rejects with SkyWay or outside a room. */
+  static requestInvite(role: ServerRole): Promise<InviteMessage> {
+    return Network.instance.requestInvite(role);
+  }
+  /** Takes a seat let out of its room for the page left alone back in; nothing with SkyWay. */
+  static comeBackFromIdle(): void {
+    Network.instance.comeBackFromIdle();
   }
   /**
    * Opens a network session in no room, closing any session first.
@@ -68,8 +136,8 @@ export class Network {
    * This returns before the session is open; the OPEN_NETWORK event follows once it is. From then
    * on, leaving the page asks for confirmation and hiding it leaves the room.
    */
-  static open(userId: string, roomId: string, roomName: string, password: string): void {
-    Network.instance.open(userId, roomId, roomName, password);
+  static open(userId: string, roomId: string, roomName: string, password: string, roomKey?: string): void {
+    Network.instance.open(userId, roomId, roomName, password, roomKey);
   }
 
   get isOpen(): boolean {
@@ -101,8 +169,50 @@ export class Network {
   get bandwidthUsage(): number {
     return this.connection ? this.connection.bandwidthUsage : 0;
   }
+  get authorityPeerId(): string | null {
+    return this.connection?.authorityPeerId ?? null;
+  }
+  get isAuthorityOpen(): boolean {
+    return this.connection?.authorityOpen ?? false;
+  }
+  get hasSendsPending(): boolean {
+    return this.connection?.sendsPending ?? false;
+  }
+  get serverClockOffset(): number | null {
+    return this.connection?.serverClockOffset ?? null;
+  }
+  get transport(): Transport {
+    return transportOf(this.config);
+  }
+  get roomKey(): string | null {
+    return this.connection?.roomKey ?? null;
+  }
+  get serverRole(): ServerRole | null {
+    return this.connection?.serverRole ?? null;
+  }
 
   private config: Record<string, unknown> = {};
+  private credentialSource: ServerCredentialSource | null = null;
+  private pendingInvite: { invite: string; roomKey: string } | null = null;
+  private _requestedRoomId = '';
+
+  /**
+   * The room the network was last asked to open, set as it is asked, before the session going is
+   * closed or the new one has a peer id; empty once asked to wait outside any. A join still waiting
+   * on another room tells by it that the seat has moved on, which the peer id says only later.
+   */
+  get requestedRoomId(): string {
+    return this._requestedRoomId;
+  }
+  private _openRequests = 0;
+
+  /**
+   * How many times the network has been asked to open a room or to wait outside any, counted as it
+   * is asked. A step put off for later tells by it whether the seat was sent somewhere meanwhile.
+   */
+  get openRequests(): number {
+    return this._openRequests;
+  }
   private connectionClassPromise: Promise<ConnectionClass> | null = null;
   private connectionClass!: ConnectionClass;
   private connection: Connection | null = null;
@@ -123,6 +233,15 @@ export class Network {
     if (!e.persisted) this.close();
   };
 
+  /**
+   * Comes back into a room server's room when a page left for the back-forward cache is shown
+   * again; without this, the restored page looked open while it sent and heard nothing. SkyWay is
+   * left as it was.
+   */
+  private callbackPageShow: (e: PageTransitionEvent) => void = (e: PageTransitionEvent) => {
+    if (e.persisted && this.transport === 'server') void this.connection?.rejoinAfterLeave?.();
+  };
+
   private callbackBeforeUnload: (e: BeforeUnloadEvent) => void = (e: BeforeUnloadEvent) => {
     e.preventDefault();
   };
@@ -133,15 +252,51 @@ export class Network {
     this.config = config;
   }
 
-  open(userId: string, roomId: string, roomName: string, password: string): void {
+  letPageGo(): void {
+    window.removeEventListener('beforeunload', this.callbackBeforeUnload);
+  }
+
+  setServerCredentials(source: ServerCredentialSource | null) {
+    this.credentialSource = source;
+    this.connection?.useCredentials?.(source);
+  }
+
+  setServerInvite(invite: string, roomKey: string) {
+    this.pendingInvite = invite && roomKey ? { invite, roomKey } : null;
+  }
+
+  /** The invitation kept for the room it was given for, until a logged-in seat is let in with it. */
+  get pendingServerInvite(): { invite: string; roomKey: string } | null {
+    return this.pendingInvite;
+  }
+
+  comeBackFromIdle(): void {
+    this.connection?.comeBackFromIdle?.();
+  }
+
+  requestInvite(role: ServerRole): Promise<InviteMessage> {
+    if (!this.connection?.requestInvite) return Promise.reject(new Error('invitations come from a room server'));
+    return this.connection.requestInvite(role);
+  }
+
+  open(userId: string, roomId: string, roomName: string, password: string, roomKey?: string): void {
+    this._requestedRoomId = roomId;
+    this._openRequests++;
     if (this.connectionClassPromise != null) {
       Logger.warn('[Network] 既に接続済みです');
       this.close();
     }
-    this.openAsync(() => this.connection!.open(userId, roomId, roomName, password));
+    const pending = this.pendingInvite;
+    const invite = pending && pending.roomKey === roomKey ? pending.invite : '';
+    this.openAsync(() => {
+      if (invite) this.connection!.useInvite?.(invite);
+      this.connection!.open(userId, roomId, roomName, password, roomKey);
+    });
   }
 
   openStandby(userId?: string): void {
+    this._requestedRoomId = '';
+    this._openRequests++;
     if (this.connectionClassPromise != null) {
       Logger.warn('[Network] 既に接続済みです');
       this.close();
@@ -160,6 +315,7 @@ export class Network {
     connectFn();
 
     window.addEventListener('pagehide', this.callbackPageHide);
+    window.addEventListener('pageshow', this.callbackPageShow);
     window.addEventListener('beforeunload', this.callbackBeforeUnload);
   }
 
@@ -168,6 +324,7 @@ export class Network {
     this.connection = null;
     this.connectionClassPromise = null;
     window.removeEventListener('pagehide', this.callbackPageHide);
+    window.removeEventListener('pageshow', this.callbackPageShow);
     window.removeEventListener('beforeunload', this.callbackBeforeUnload);
     Logger.debug('[Network] close');
   }
@@ -272,11 +429,57 @@ export class Network {
     return this.connection ? this.connection.listAllRooms() : Promise.resolve([]);
   }
 
+  /**
+   * One room found by its key, null when the room server has none. It rejects where rooms are not
+   * found by key, as on SkyWay, and when the server cannot say.
+   */
+  findRoom(roomKey: string): Promise<IRoomInfo | null> {
+    if (!this.connection?.findRoom) return Promise.reject(new Error('rooms are not found by key here'));
+    return this.connection.findRoom(roomKey);
+  }
+
+  /** The room's pictures and sounds as this seat may reach them, while in a room server's room. */
+  get assetAccess(): AssetAccess | null {
+    return this.connection?.assetAccess ?? null;
+  }
+
+  /** Asks the room server for a fresh asset token, once the store has been turned down with the one held. */
+  refreshAssetAccess(): Promise<AssetAccess | null> {
+    return this.connection?.refreshAssetAccess?.() ?? Promise.resolve(null);
+  }
+
+  /**
+   * Creates a room on the room server, which answers with the key to open it by. It rejects
+   * without a connection, and with SkyWay, where a room needs no creating.
+   */
+  createRoom(name: string, password: string): Promise<CreateRoomResponse> {
+    if (!this.connection?.createRoom) return Promise.reject(new Error('rooms are not created on this transport'));
+    return this.connection.createRoom(name, password);
+  }
+
+  /**
+   * Deletes a room on the room server, closing it for everybody in it. It rejects without a
+   * connection, and with SkyWay, where a room is gone once everybody has left.
+   */
+  deleteRoom(roomKey: string): Promise<void> {
+    if (!this.connection?.deleteRoom) return Promise.reject(new Error('rooms are not deleted on this transport'));
+    return this.connection.deleteRoom(roomKey);
+  }
+
   private initializeConnection(): Connection {
     const connection = new this.connectionClass();
     connection.configure(this.config);
+    connection.useCredentials?.(this.credentialSource);
 
     connection.callback.onOpen = (peer) => {
+      // A logged-in seat got into the invited room, and the invitation has done its work.
+      if (
+        connection.serverRole &&
+        connection.serverRole !== 'guest' &&
+        connection.roomKey === this.pendingInvite?.roomKey
+      ) {
+        this.pendingInvite = null;
+      }
       if (this.callback.onOpen) this.callback.onOpen(peer);
     };
     connection.callback.onClose = (peer) => {
@@ -297,13 +500,19 @@ export class Network {
     connection.callback.onError = (peer, errorType, errorMessage, errorObject) => {
       if (this.callback.onError) this.callback.onError(peer, errorType, errorMessage, errorObject);
     };
+    connection.callback.onRoleChange = (role) => this.callback.onRoleChange?.(role);
+    connection.callback.onIdle = (state) => this.callback.onIdle?.(state);
 
     if (this.queue.size > 0 && this.sendInterval === null) this.sendInterval = setZeroTimeout(this.sendCallback);
 
     return connection;
   }
 
-  private async dynamicImport(_mode: string = ''): Promise<ConnectionClass> {
+  /** The connection code for the transport the config names, loaded on first use: SkyWay unless it says server. */
+  private async dynamicImport(): Promise<ConnectionClass> {
+    if (transportOf(this.config) === 'server') {
+      return (await import('@axe/core/network/server/server-connection')).ServerConnection;
+    }
     return (await import('@axe/core/network/skyway/skyway-connection')).SkyWayConnection;
   }
 }

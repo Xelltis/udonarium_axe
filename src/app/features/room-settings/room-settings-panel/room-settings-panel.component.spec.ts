@@ -157,6 +157,31 @@ describe('RoomSettingsPanelComponent', () => {
     expect(component.zocExtraCost).toBe(0);
   });
 
+  it('lets only the master turn the sounds of a turn beginning on or off', async () => {
+    component.tab.set('battle');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const box = (testId: string): HTMLInputElement => fixture.nativeElement.querySelector(`[data-testid="${testId}"]`);
+    expect([box('room-settings-turn-signal').checked, box('room-settings-turn-tick').checked]).toEqual([true, false]);
+
+    box('room-settings-turn-tick').click();
+    box('room-settings-turn-signal').click();
+    expect([Config.instance.turnSignalEnabled, Config.instance.turnTickEnabled]).toEqual([false, true]);
+
+    PeerCursor.myCursor.role = PeerRole.Player;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    component.turnTick = false;
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(Config.instance.turnTickEnabled).toBe(true);
+    expect(box('room-settings-turn-tick').disabled).toBe(true);
+    expect(box('room-settings-turn-signal').disabled).toBe(true);
+    Config.instance.turnSignalEnabled = true;
+    Config.instance.turnTickEnabled = false;
+  });
+
   describe('how the round is taken', () => {
     let heroes: Party;
     let monsters: Party;

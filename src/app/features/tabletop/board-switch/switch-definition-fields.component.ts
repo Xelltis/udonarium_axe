@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { Network } from '@axe/core/network/network';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import {
   clampSwitchRange,
@@ -40,6 +41,11 @@ export class SwitchDefinitionFieldsComponent {
     this.objectChange.collectionOf(ChatTab.aliasName)();
     return this.chat.chatTabs.filter((tab) => !tab.isSystemTab);
   });
+
+  /** Whether a room server keeps watchers off every switch, whatever this one says. */
+  protected get guestsKeptOutByServer(): boolean {
+    return Network.authorityPeerId !== null;
+  }
 
   protected emit<K extends keyof SwitchDefinition>(key: K, value: SwitchDefinition[K]): void {
     this.changed.emit({ [key]: value } as Partial<SwitchDefinition>);

@@ -7,7 +7,7 @@ import { withBase } from 'vitepress';
  * `startup.webp` is captured with a different layout.
  */
 const spots = [
-  { x: 2.8, y: 3.9, name: 'FABメニュー', body: '各種パネルを開くメインメニュー。', link: '/manual/#fabメニュー' },
+  { x: 2.8, y: 3.9, name: 'FABメニュー', body: '各種パネルを開くメインメニュー。', link: '/manual/screen#fabメニュー' },
   {
     x: 33.8,
     y: 3.4,
@@ -19,7 +19,7 @@ const spots = [
     x: 87,
     y: 7.2,
     name: 'ミニプレイヤー',
-    body: 'BGMの再生状況。ツールバーから表示を切り替えます。',
+    body: 'BGMの再生状況。FABメニューのウィジェットで出し入れします。',
     link: '/manual/jukebox',
   },
   { x: 16, y: 21, name: '接続パネル', body: 'ニックネーム・アイコン・ロール・ロビー。', link: '/manual/roles' },
@@ -36,7 +36,7 @@ const src = withBase('/images/screenshots/startup.webp');
     <div class="tour__stage">
       <img
         :src="src"
-        alt="ルームを開いた直後の画面。左に接続パネルとチャットウィンドウ、中央から右にテーブルが表示されている"
+        alt="Axeを開いた直後の画面。左に接続パネルとチャットウィンドウ、中央から右にテーブルが表示されている"
       />
       <span
         v-for="(spot, index) in spots"

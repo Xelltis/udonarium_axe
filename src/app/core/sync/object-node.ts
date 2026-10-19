@@ -87,10 +87,26 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
   }
 
   // GameObject Lifecycle
-  /** Also takes the node out of its parent's children. */
+  /**
+   * Also takes the node out of its parent's children. The children still in the store wait for it,
+   * to be adopted by a node made again under its name, as a room server hands one back.
+   */
   override onStoreRemoved() {
     super.onStoreRemoved();
     if (this.parent) this.parent.removeChild(this);
+    const left = this._children.filter((child) => ObjectStore.instance.get(child.identifier) === child);
+    if (left.length > 0)
+      ObjectNode.pendingChildrenByParentId[this.identifier] = [
+        ...(ObjectNode.pendingChildrenByParentId[this.identifier] ?? []),
+        ...left,
+      ];
+    // A node that left before its parent arrived must not be adopted by that parent later.
+    const waiting = ObjectNode.pendingChildrenByParentId[this.parentIdentifier];
+    if (waiting) {
+      const kept = waiting.filter((node) => node !== this);
+      if (kept.length > 0) ObjectNode.pendingChildrenByParentId[this.parentIdentifier] = kept;
+      else delete ObjectNode.pendingChildrenByParentId[this.parentIdentifier];
+    }
   }
 
   // ObjectNode Lifecycle
@@ -181,6 +197,22 @@ export class ObjectNode extends GameObject implements XmlAttributes, InnerXml {
     this.updateChildren(child);
 
     return child;
+  }
+
+  /**
+   * The node as it would travel once appended to the parent, without appending it or touching the
+   * parent: a context for somebody else to place, such as a room server asked to say a line.
+   */
+  contextAsLastChildOf(parent: ObjectNode): ObjectContext {
+    const children = parent.children;
+    const context = this.toContext();
+    context.syncData = {
+      ...(context.syncData as Record<string, unknown>),
+      parentIdentifier: parent.identifier,
+      majorIndex: children.length > 0 ? children[children.length - 1].majorIndex + 1 : 0,
+      minorIndex: Math.random(),
+    };
+    return context;
   }
 
   /**

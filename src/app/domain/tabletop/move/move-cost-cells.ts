@@ -1,4 +1,5 @@
 import { cellCount, CellGrid, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { isSquareGrid, SquareGrid, squareOfCell } from '@axe/domain/tabletop/move/move-grid';
 import { MOVE_COST_HALF_EXTRA, TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
 
 /**
@@ -14,9 +15,16 @@ import { MOVE_COST_HALF_EXTRA, TableMoveCost } from '@axe/domain/tabletop/table-
  *
  * Nothing at all comes back as nothing, so a table with no such ground on it is priced the
  * way it always was, without a lookup standing between every step and the next.
+ *
+ * A square of several cells charges the dearest of its cells, and a road through any of them makes
+ * it a road, the same order of things over a larger piece of ground.
  */
 export function moveCostCells(grid: CellGrid, areas: readonly TableMoveCost[]): Float64Array | null {
   if (areas.length < 1) return null;
+  if (isSquareGrid(grid)) {
+    const costs = moveCostCells(grid.fine, areas);
+    return costs ? squareCosts(grid, costs) : null;
+  }
   const total = cellCount(grid);
   if (total < 1) return null;
 
@@ -49,4 +57,20 @@ export function moveCostCells(grid: CellGrid, areas: readonly TableMoveCost[]): 
     }
   }
   return charged ? costs : null;
+}
+
+/** What each square charges, from what each of its cells does: the dearest, or a road over all. */
+function squareCosts(grid: SquareGrid, cells: Float64Array): Float64Array {
+  const costs = new Float64Array(cellCount(grid));
+  const roads = new Uint8Array(costs.length);
+  for (let cell = 0; cell < cells.length; cell++) {
+    const square = squareOfCell(grid, cell);
+    if (square < 0) continue;
+    if (cells[cell] === MOVE_COST_HALF_EXTRA) roads[square] = 1;
+    else if (cells[cell] > costs[square]) costs[square] = cells[cell];
+  }
+  for (let square = 0; square < costs.length; square++) {
+    if (roads[square]) costs[square] = MOVE_COST_HALF_EXTRA;
+  }
+  return costs;
 }

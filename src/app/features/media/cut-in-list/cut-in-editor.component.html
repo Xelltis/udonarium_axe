@@ -64,15 +64,17 @@
         </label>
       }
       <div class="flex flex-wrap gap-1.5">
-        <button
-          class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm hover:bg-ui-hover hover:border-ui-accent hover:text-ui-accent inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-1 text-[12px] transition-[background,border-color,color] [&_.material-icons]:text-[15px]!"
-          type="button"
-          (click)="playCutIn()"
-          [title]="'feature.media.cutIn.playAll' | transloco"
-        >
-          <i class="material-icons">play_arrow</i>
-          <span>{{ 'feature.media.cutIn.playAllLabel' | transloco }}</span>
-        </button>
+        @if (!keptOffTable()) {
+          <button
+            class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm hover:bg-ui-hover hover:border-ui-accent hover:text-ui-accent inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-1 text-[12px] transition-[background,border-color,color] [&_.material-icons]:text-[15px]!"
+            type="button"
+            (click)="playCutIn()"
+            [title]="'feature.media.cutIn.playAll' | transloco"
+          >
+            <i class="material-icons">play_arrow</i>
+            <span>{{ 'feature.media.cutIn.playAllLabel' | transloco }}</span>
+          </button>
+        }
         <button
           class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm hover:bg-ui-hover hover:border-ui-accent hover:text-ui-accent inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-1 text-[12px] transition-[background,border-color,color] [&_.material-icons]:text-[15px]!"
           type="button"
@@ -82,15 +84,17 @@
           <i class="material-icons">personal_video</i>
           <span>{{ 'feature.media.cutIn.playSelfLabel' | transloco }}</span>
         </button>
-        <button
-          class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm hover:bg-ui-hover hover:border-ui-danger hover:text-ui-danger inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-1 text-[12px] transition-[background,border-color,color] [&_.material-icons]:text-[15px]!"
-          type="button"
-          (click)="stopCutIn()"
-          [title]="'feature.media.cutIn.stop' | transloco"
-        >
-          <i class="material-icons">stop</i>
-          <span>{{ 'feature.media.cutIn.stop' | transloco }}</span>
-        </button>
+        @if (!keptOffTable()) {
+          <button
+            class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm hover:bg-ui-hover hover:border-ui-danger hover:text-ui-danger inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-1 text-[12px] transition-[background,border-color,color] [&_.material-icons]:text-[15px]!"
+            type="button"
+            (click)="stopCutIn()"
+            [title]="'feature.media.cutIn.stop' | transloco"
+          >
+            <i class="material-icons">stop</i>
+            <span>{{ 'feature.media.cutIn.stop' | transloco }}</span>
+          </button>
+        }
       </div>
     </div>
   </div>

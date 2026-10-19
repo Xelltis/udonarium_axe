@@ -1,8 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
-import { TRUMP_BACK_IMAGE_PATH } from '@axe/application/tabletop/tabletop-action-helpers';
+import { getDiceMenuItems, TRUMP_BACK_IMAGE_PATH } from '@axe/application/tabletop/tabletop-action-helpers';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
+import { ModalService } from '@axe/application/ui/modal.service';
+import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -119,6 +121,49 @@ describe('TabletopActionService', () => {
     ]);
   });
 
+  describe('making several dice at once', () => {
+    const loader = TabletopActionService.loadDiceCreateDialog;
+    const notice = PanelService.loadFailureNotice;
+
+    afterEach(() => {
+      TabletopActionService.loadDiceCreateDialog = loader;
+      PanelService.loadFailureNotice = notice;
+    });
+
+    const manyEntry = () =>
+      entryIn(service.makeDefaultContextMenuActions({ x: 0, y: 0, z: 0 }), 'ダイスを作成')?.subActions?.find(
+        (entry) => entry.name === '個数を指定して作成…'
+      );
+
+    it('fetches the dialogue when asked for, and asks with it', async () => {
+      class Dialog {}
+      TabletopActionService.loadDiceCreateDialog = () => Promise.resolve(Dialog);
+      const open = vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue(null);
+
+      manyEntry()!.action!();
+
+      await vi.waitFor(() => expect(open).toHaveBeenCalledWith(Dialog, expect.anything()));
+    });
+
+    it('says the page wants reloading when the dialogue cannot be fetched, and asks nothing', async () => {
+      TabletopActionService.loadDiceCreateDialog = () => Promise.reject(new Error('chunk gone'));
+      const told = vi.fn();
+      PanelService.loadFailureNotice = told;
+      const open = vi.spyOn(TestBed.inject(ModalService), 'open');
+
+      manyEntry()!.action!();
+
+      await vi.waitFor(() => expect(told).toHaveBeenCalledOnce());
+      expect(open).not.toHaveBeenCalled();
+    });
+
+    it('is not offered when no dialogue was handed over', () => {
+      TabletopActionService.loadDiceCreateDialog = null;
+
+      expect(manyEntry()).toBeUndefined();
+    });
+  });
+
   describe('the range create menu', () => {
     it('makes the square as a diamond or square to the grid, from under the square', () => {
       const menu = entryIn(service.makeDefaultContextMenuActions({ x: 0, y: 0, z: 0 }), '射程範囲を作成');
@@ -135,6 +180,38 @@ describe('TabletopActionService', () => {
       } finally {
         for (const range of made) range.destroy();
       }
+    });
+  });
+
+  describe('on a table whose cells are larger than the default', () => {
+    let table: GameTable;
+
+    beforeEach(() => {
+      table = new GameTable();
+      table.gridSize = 100;
+      table.initialize();
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
+    });
+
+    afterEach(() => {
+      table.destroy();
+    });
+
+    it('puts a new piece half of that cell back, so it sits under the point asked', () => {
+      const card = service.createBlankCard({ x: 300, y: 400, z: 0 });
+      const character = service.createGameCharacter({ x: 300, y: 400, z: 0 });
+
+      expect([card.location.x, card.location.y]).toEqual([250, 350]);
+      expect([character.location.x, character.location.y]).toEqual([250, 350]);
+    });
+
+    it('lays several dice a cell and its gap apart', () => {
+      const dice = service.createDiceSymbols({ x: 300, y: 400, z: 0 }, getDiceMenuItems()[1], 2, {});
+
+      expect(dice.map((die) => [die.location.x, die.location.y])).toEqual([
+        [250, 350],
+        [360, 350],
+      ]);
     });
   });
 

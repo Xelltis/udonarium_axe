@@ -3,7 +3,7 @@ import { expect, Page, test } from '@playwright/test';
 import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
 
 /** A block the master turns into a switch speaks into the chat when a player presses it. */
-test.describe('スイッチ', () => {
+test.describe('switches', () => {
   async function becomeRole(page: Page, role: 'GM' | 'PL' | '見学') {
     await page
       .locator('ui-panel')
@@ -17,7 +17,7 @@ test.describe('スイッチ', () => {
     await page.locator('context-menu li').filter({ hasText: item }).first().click();
   }
 
-  /** パネルの閉じるボタンは浮いているツールバーの下に入るので、イベントを直接送る。 */
+  /** A panel's close button sits under the floating toolbar, so the click is sent to it directly. */
   async function closePanel(page: Page, title: string) {
     await page
       .locator('ui-panel')
@@ -55,7 +55,9 @@ test.describe('スイッチ', () => {
     await block.dispatchEvent('click', { clientX: 10, clientY: 10 });
   }
 
-  test('GM が地形をスイッチにし、PL が押すと、その物の名前でチャットに出ること', async ({ page }) => {
+  test("shows in the chat under the block's name when the GM makes terrain a switch and a player presses it", async ({
+    page,
+  }) => {
     await setUpChest(page);
     await becomeRole(page, 'PL');
     await expect(page.locator('[data-testid="terrain-switch-label"]')).toContainText('宝箱を開ける');
@@ -65,7 +67,7 @@ test.describe('スイッチ', () => {
     await expect(page.locator('chat-window')).toContainText('ギィ…と蓋が開いた', { timeout: 10000 });
   });
 
-  test('見学は押せず、ブロックの上に理由が出ること', async ({ page }) => {
+  test('does not let a guest press it, and shows why above the block', async ({ page }) => {
     await setUpChest(page);
     await becomeRole(page, '見学');
 
@@ -75,7 +77,7 @@ test.describe('スイッチ', () => {
     await expect(page.locator('chat-window')).not.toContainText('ギィ…と蓋が開いた');
   });
 
-  test('PL の右クリックメニューにはスイッチの項目が出ないこと', async ({ page }) => {
+  test("leaves the switch entries out of a player's context menu", async ({ page }) => {
     await setUpChest(page);
     await becomeRole(page, 'PL');
 

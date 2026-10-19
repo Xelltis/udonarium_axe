@@ -18,6 +18,7 @@ import { PointerCoordinate } from '@axe/application/input/pointer-device.service
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { callCursorMove, callHeartBeat } from '@axe/core/event/domain-events';
+import { Network } from '@axe/core/network/network';
 import { getPeerContexts, getPeerIds } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ResettableTimeout } from '@axe/core/util/resettable-timeout';
@@ -112,6 +113,16 @@ export class PeerCursorComponent {
   get delayMsHb(): number {
     const maxDelay = getPeerIds().length * 166;
     return maxDelay < 1000 ? 1000 : maxDelay;
+  }
+
+  /**
+   * Whether the room goes through a room server. There the server's own ping keeps the connection
+   * and a member who leaves is reported as leaving, so no heartbeat is sent or listened for: one
+   * from every seat every second would keep the server awake for as long as anybody is in. A seat
+   * counts as dropped while the server does not list it.
+   */
+  private get relayedByServer(): boolean {
+    return Network.authorityPeerId != null;
   }
 
   constructor() {
@@ -248,6 +259,11 @@ export class PeerCursorComponent {
       this.timestampTimer = setTimeout(() => {
         this.timestampTimer = null;
 
+        if (this.relayedByServer) {
+          if (!this.cursor().isMine) this.cursor().isDisConnect = !getPeerIds().includes(this.cursor().peerId);
+          this.timestampLoop();
+          return;
+        }
         if (PeerCursor.myCursor.peerId == this.cursor().peerId) {
           const peerlength = getPeerContexts().length;
           if (peerlength) {

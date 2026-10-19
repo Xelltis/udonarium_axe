@@ -1,0 +1,103 @@
+{
+  "description": "judgeUpdate の期待値。stored が null なら、そのオブジェクトをまだ持っていない。版は majorVersion と minorVersion の和で比べる",
+  "cases": [
+    {
+      "name": "the first copy",
+      "stored": null,
+      "incoming": {
+        "majorVersion": 1,
+        "minorVersion": 0.25
+      },
+      "deleted": false,
+      "verdict": "accept"
+    },
+    {
+      "name": "a later change",
+      "stored": {
+        "majorVersion": 3,
+        "minorVersion": 0.9
+      },
+      "incoming": {
+        "majorVersion": 4,
+        "minorVersion": 0.1
+      },
+      "deleted": false,
+      "verdict": "accept"
+    },
+    {
+      "name": "the same number of changes with a larger fraction",
+      "stored": {
+        "majorVersion": 3,
+        "minorVersion": 0.2
+      },
+      "incoming": {
+        "majorVersion": 3,
+        "minorVersion": 0.7
+      },
+      "deleted": false,
+      "verdict": "accept"
+    },
+    {
+      "name": "the same number of changes with a smaller fraction",
+      "stored": {
+        "majorVersion": 3,
+        "minorVersion": 0.7
+      },
+      "incoming": {
+        "majorVersion": 3,
+        "minorVersion": 0.2
+      },
+      "deleted": false,
+      "verdict": "stale"
+    },
+    {
+      "name": "an earlier change",
+      "stored": {
+        "majorVersion": 5,
+        "minorVersion": 0.1
+      },
+      "incoming": {
+        "majorVersion": 4,
+        "minorVersion": 0.9
+      },
+      "deleted": false,
+      "verdict": "stale"
+    },
+    {
+      "name": "the same version",
+      "stored": {
+        "majorVersion": 2,
+        "minorVersion": 0.5
+      },
+      "incoming": {
+        "majorVersion": 2,
+        "minorVersion": 0.5
+      },
+      "deleted": false,
+      "verdict": "same"
+    },
+    {
+      "name": "fractions that differ but add up to the same sum",
+      "stored": {
+        "majorVersion": 1,
+        "minorVersion": 0.30000000000000004
+      },
+      "incoming": {
+        "majorVersion": 1,
+        "minorVersion": 0.3
+      },
+      "deleted": false,
+      "verdict": "same"
+    },
+    {
+      "name": "an object that was deleted",
+      "stored": null,
+      "incoming": {
+        "majorVersion": 9,
+        "minorVersion": 0.5
+      },
+      "deleted": true,
+      "verdict": "deleted"
+    }
+  ]
+}

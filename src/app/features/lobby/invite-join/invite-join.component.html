@@ -1,18 +1,22 @@
 @if (visible()) {
   <div
-    class="border-ui-border-panel bg-ui-panel rounded-ui-lg shadow-ui-md text-ui-text absolute top-3 left-1/2 z-200 flex max-w-[92vw] -translate-x-1/2 items-center gap-3 border border-solid px-4 py-2.5 [backdrop-filter:blur(24px)_saturate(1.5)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
+    [class.top-3]="!isOffline()"
+    [class.top-24]="isOffline()"
+    class="border-ui-border-panel bg-ui-panel rounded-ui-lg shadow-ui-md text-ui-text absolute left-1/2 z-200 flex max-w-[92vw] -translate-x-1/2 items-center gap-3 border border-solid px-4 py-2.5 [backdrop-filter:blur(24px)_saturate(1.5)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
   >
     <i class="material-icons text-ui-accent text-[20px]" [class.vibration-amine]="isJoining()">
       {{ isJoining() ? 'meeting_room' : 'error_outline' }}
     </i>
     <span class="truncate text-[0.82rem]">{{ message() }}</span>
     @if (!isJoining()) {
-      <button
-        class="rounded-ui-sm border-ui-accent bg-ui-accent hover:border-ui-accent-hover hover:bg-ui-accent-hover cursor-pointer border border-solid px-[1.1em] py-[0.4em] text-[0.8rem] text-white hover:shadow-[0_0_0_3px_var(--ui-accent-glow)]"
-        (click)="showLobby()"
-      >
-        {{ 'feature.lobby.invite.openLobby' | transloco }}
-      </button>
+      @if (!isOffline()) {
+        <button
+          class="rounded-ui-sm border-ui-accent bg-ui-accent hover:border-ui-accent-hover hover:bg-ui-accent-hover cursor-pointer border border-solid px-[1.1em] py-[0.4em] text-[0.8rem] text-white hover:shadow-[0_0_0_3px_var(--ui-accent-glow)]"
+          (click)="showLobby()"
+        >
+          {{ 'feature.lobby.invite.openLobby' | transloco }}
+        </button>
+      }
       <button class="rounded-ui-sm cursor-pointer px-[0.9em] py-[0.4em] text-[0.8rem]" (click)="dismiss()">
         {{ 'feature.lobby.invite.dismiss' | transloco }}
       </button>

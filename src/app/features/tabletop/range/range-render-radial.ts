@@ -111,7 +111,7 @@ export function renderCorn(
   const p2y = p2x_ * sinRad + p2y_ * cosRad;
 
   const clip: ClipAreaCorn = {
-    clip01x: clip01x_ * cosRad - clip01y_ * sinRad, // 根本始点
+    clip01x: clip01x_ * cosRad - clip01y_ * sinRad, // where the root starts
     clip01y: clip01x_ * sinRad + clip01y_ * cosRad,
     clip02x: clip02x_ * cosRad - clip02y_ * sinRad,
     clip02y: clip02x_ * sinRad + clip02y_ * cosRad,
@@ -119,9 +119,9 @@ export function renderCorn(
     clip03y: clip03x_ * sinRad + clip03y_ * cosRad,
     clip04x: clip04x_ * cosRad - clip04y_ * sinRad,
     clip04y: clip04x_ * sinRad + clip04y_ * cosRad,
-    clip05x: clip05x_ * cosRad - clip05y_ * sinRad, // 先端部
+    clip05x: clip05x_ * cosRad - clip05y_ * sinRad, // the tip
     clip05y: clip05x_ * sinRad + clip05y_ * cosRad,
-    clip06x: clip06x_ * cosRad - clip06y_ * sinRad, // 折り返し
+    clip06x: clip06x_ * cosRad - clip06y_ * sinRad, // where it turns back
     clip06y: clip06x_ * sinRad + clip06y_ * cosRad,
     clip07x: clip07x_ * cosRad - clip07y_ * sinRad,
     clip07y: clip07x_ * sinRad + clip07y_ * cosRad,

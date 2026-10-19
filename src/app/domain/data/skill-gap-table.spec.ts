@@ -42,7 +42,7 @@ describe('createSkillGapTableElement', () => {
 
   it('takes what was learnt and where the gaps fall', () => {
     const checked = categories.map((_, c) => Array.from({ length: 11 }, (__, r) => c === 0 && r === 0));
-    const gaps = [false, true, false, false, false, false]; // ギャップ2 (体術-忍術)
+    const gaps = [false, true, false, false, false, false]; // ギャップ2, between 体術 and 忍術
     const table = createSkillGapTableElement({ name: '特技表', categories, skillsByCategory, checked, gaps });
 
     const row2 = table.children.find((child) => child.name === '2')!;

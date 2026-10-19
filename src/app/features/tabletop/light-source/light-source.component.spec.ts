@@ -2,9 +2,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { LightSource } from '@axe/domain/tabletop/light-source';
+import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
 import { LightSourceComponent } from '@axe/features/tabletop/light-source/light-source.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -45,6 +47,26 @@ describe('LightSourceComponent', () => {
     light.altitude = 1;
 
     expect(component.skinTransform()).toContain('translateZ(75px)');
+  });
+
+  it('opens its settings on this light with every setting shown, unless it is gone when they arrive', async () => {
+    const openLazy = vi.spyOn(fixture.debugElement.injector.get(PanelService), 'openLazy').mockImplementation(() => {});
+
+    (component as unknown as { openSettings(light: LightSource): void }).openSettings(light);
+
+    const [factory, option, setup] = openLazy.mock.calls[0] as [
+      () => Promise<unknown>,
+      PanelOption,
+      (instance: LightSettingsComponent) => void,
+    ];
+    expect(await factory()).toBe(LightSettingsComponent);
+    const settings = {} as LightSettingsComponent;
+    setup(settings);
+    expect(settings.target).toBe(light);
+    expect(settings.advanced).toBe(true);
+    expect(option.stillWanted?.()).toBe(true);
+    light.destroy();
+    expect(option.stillWanted?.()).toBe(false);
   });
 
   describe('context menu display', () => {

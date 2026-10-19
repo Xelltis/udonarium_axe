@@ -6,7 +6,7 @@ import { openPanel, waitAppReady } from './helpers';
  * A player's lists name only what the table draws for them. With the dark down, the pieces it
  * keeps back leave the inventory too, rather than being named there for anyone to read.
  */
-test.describe('見えていないコマを一覧に出さない', () => {
+test.describe('keeping unseen pieces out of the lists', () => {
   async function setRole(page: Page, role: 'GM' | 'PL') {
     const connection = page.locator('ui-panel').filter({ hasText: '接続情報' });
     await connection.getByRole('button', { name: new RegExp(`^\\s*${role}\\s*$`) }).click();
@@ -24,7 +24,7 @@ test.describe('見えていないコマを一覧に出さない', () => {
       .locator('game-object-inventory')
       .locator('[data-testid="inventory-item"], [data-testid="inventory-table-row"]');
 
-  test('暗闇でプレイヤーに見えないコマは、インベントリのテーブルに並ばないこと', async ({ page }) => {
+  test('leaves pieces a player cannot see in the dark off the inventory’s table tab', async ({ page }) => {
     await waitAppReady(page);
     await setRole(page, 'GM');
     const darkness = page.locator('app-gm-toolbar [title^="暗闇"]');

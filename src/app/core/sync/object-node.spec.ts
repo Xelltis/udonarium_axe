@@ -226,6 +226,80 @@ describe('ObjectNode', () => {
     });
   });
 
+  describe('a node made again under a name taken out of the store', () => {
+    it('adopts the children the node taken out left in the store', () => {
+      const parent = new ObjectNode('handed-back');
+      parent.initialize();
+      const child = new ObjectNode('left-child');
+      child.initialize();
+      parent.appendChild(child);
+      store.remove(parent);
+
+      const again = new ObjectNode('handed-back');
+      again.initialize();
+
+      expect(again.children).toEqual([child]);
+      again.destroy();
+    });
+
+    it('adopts none of the children destroyed with the node', () => {
+      const parent = new ObjectNode('destroyed-parent');
+      parent.initialize();
+      const child = new ObjectNode('destroyed-child');
+      child.initialize();
+      parent.appendChild(child);
+      parent.destroy();
+      store.clearDeleteHistory();
+
+      const again = new ObjectNode('destroyed-parent');
+      again.initialize();
+
+      expect(again.children).toEqual([]);
+      again.destroy();
+      store.clearDeleteHistory();
+    });
+  });
+
+  describe('a node waiting for its parent', () => {
+    it('is not adopted by the parent once it has left the store', () => {
+      const child = new ObjectNode('waiting-child');
+      child.apply({
+        ...child.toContext(),
+        syncData: { ...child.toContext().syncData, parentIdentifier: 'late-parent' },
+      });
+      store.add(child, false);
+      store.remove(child);
+
+      const parent = new ObjectNode('late-parent');
+      parent.initialize();
+
+      expect(parent.children).toEqual([]);
+      parent.destroy();
+    });
+  });
+
+  describe('contextAsLastChildOf()', () => {
+    it('gives the node as it would travel at the end of the parent, touching neither', () => {
+      const parent = new ObjectNode();
+      parent.initialize();
+      const first = new ObjectNode();
+      first.initialize();
+      parent.appendChild(first);
+      const line = new ObjectNode();
+
+      const context = line.contextAsLastChildOf(parent);
+
+      expect(context.identifier).toBe(line.identifier);
+      expect(context.syncData['parentIdentifier']).toBe(parent.identifier);
+      expect(context.syncData['majorIndex']).toBe(first.index - (first.index % 1) + 1);
+      expect(parent.children).toEqual([first]);
+      expect(line.parentId).toBe('');
+      expect(store.get(line.identifier)).toBeNull();
+      first.destroy();
+      parent.destroy();
+    });
+  });
+
   describe('insertBefore()', () => {
     it('should insert child before reference node', () => {
       const parent = new ObjectNode('parent');

@@ -13,7 +13,7 @@ import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { TurnState } from '@axe/domain/tabletop/turn-state';
+import { readTurnStart, turnStartMark, TurnState } from '@axe/domain/tabletop/turn-state';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('TurnOrderService', () => {
@@ -231,6 +231,20 @@ describe('TurnOrderService', () => {
     service.prev(); // round 1 start -> idle
     expect(turnState.phase).toBe('idle');
     expect(turnState.round).toBe(0);
+  });
+
+  it('marks whose turn has begun and when, whether handed on or jumped to, and not when put back', () => {
+    service.next(); // round begins
+    service.next(); // first turn opens
+    expect(readTurnStart(turnState.turnStart)?.identifier).toBe(chars[0].identifier);
+
+    service.setCurrent(chars[2].identifier);
+    const jumped = readTurnStart(turnState.turnStart);
+    expect(jumped?.identifier).toBe(chars[2].identifier);
+    expect(Date.now() - jumped!.at).toBeLessThan(5000);
+
+    service.prev();
+    expect(turnState.turnStart).toBe(turnStartMark(jumped!.identifier, jumped!.at));
   });
 
   it('tells whatever waits on the turn whose turn has begun', () => {

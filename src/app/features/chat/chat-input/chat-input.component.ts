@@ -43,9 +43,11 @@ import { composeChatOutgoing, composeStampOutgoing, OutgoingStamp } from '@axe/d
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
+import { mayBeChosen } from '@axe/domain/peer/chosen-seat';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { ChatColorSettingComponent } from '@axe/features/chat/chat-color-setting/chat-color-setting.component';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { ChatInputDiceBotHelper } from '@axe/features/chat/chat-input/chat-input-dicebot';
@@ -93,17 +95,22 @@ export class ChatInputComponent {
   private readonly tabletopDisplay = inject(TabletopDisplayService);
   private readonly tabletopService = inject(TabletopService);
 
-  /** The ticker is this screen's, so the switch is offered only where one is running. */
   /**
    * Whether this seat has a ticker to send a line to.
    *
    * The band only runs along the edge of a table being looked straight down on, so a seat in
    * perspective has none. Offered there all the same, the switch would send a line to everybody
-   * else's band and leave the sender's own screen with nothing to show for it.
+   * else's band and leave the sender's own screen with nothing to show for it. A guest, who puts
+   * nothing on anybody's screen, is not offered it, as the line's own menu offers it none.
    */
-  readonly showsTickerSwitch = computed(
-    () => this.tabletopService.mode2d() && this.tabletopDisplay.settings().multiAngleTickerEnabled
-  );
+  readonly showsTickerSwitch = computed(() => {
+    this.objectChange.trackMyCursor();
+    return (
+      canRoleEdit(PeerCursor.myRole) &&
+      this.tabletopService.mode2d() &&
+      this.tabletopDisplay.settings().multiAngleTickerEnabled
+    );
+  });
   readonly sendsToTicker = signal(false);
 
   private readonly roomPanels = inject(RoomPanelService);
@@ -300,6 +307,14 @@ export class ChatInputComponent {
         this.sendTo = '';
       }
     }, this.destroyRef);
+    this.objectChange.onObjectChangedForAlias(
+      [PeerCursor.aliasName],
+      () => this.followWhisperTarget(),
+      this.destroyRef
+    );
+    this.objectChange.objectDeleted$.subscribe((event) => {
+      if (event.identifier === this.sendTo) this.followWhisperTarget();
+    }, this.destroyRef);
     this.destroyRef.onDestroy(() => {
       this.batchService.remove(this);
       if (this.writingEventInterval) {
@@ -429,10 +444,19 @@ export class ChatInputComponent {
     return this.chatColor(this.colorSelectNo());
   }
 
+  /**
+   * Whether the colours of the lines come from the character spoken as: they do but for a guest,
+   * whose colour panel sets the colours of their own lines instead.
+   */
+  private colorsFromCharacter(object: unknown): object is GameCharacter {
+    this.objectChange.trackMyCursor();
+    return object instanceof GameCharacter && canRoleEdit(PeerCursor.myRole);
+  }
+
   /** The bubble the sender asked for on each theme, which travels with the message. */
   private chatBubbles(num: number): ChatBubbleColors {
     const object = this.objectStore.get(this.sendFrom);
-    const source = object instanceof GameCharacter ? object : this.myPeer;
+    const source = this.colorsFromCharacter(object) ? object : this.myPeer;
     this.objectChange.versionOf(source.identifier)();
     return chatBubbleOf(source, num);
   }
@@ -443,7 +467,7 @@ export class ChatInputComponent {
    */
   chatColor(num: number): string {
     const object = this.objectStore.get(this.sendFrom);
-    if (object instanceof GameCharacter) return this.characterChatColor(num);
+    if (this.colorsFromCharacter(object)) return this.characterChatColor(num);
     return this.playerChatColor(num);
   }
 
@@ -527,9 +551,25 @@ export class ChatInputComponent {
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
   }
-  /** Every peer cursor in the room, including this seat's own, offered as whisper targets. */
+  /**
+   * Every peer cursor in the room offered as whisper targets: this seat's own, the one whispered to
+   * now, so that it can be put back, and every other that may be chosen, which on a room server
+   * leaves out a seat not logged in, as whoever names itself the same would be handed the whisper.
+   */
   get otherPeers(): PeerCursor[] {
-    return this.objectStore.getObjects(PeerCursor);
+    return this.objectStore
+      .getObjects(PeerCursor)
+      .filter((peer) => peer === this.myPeer || peer.identifier === this.sendTo || mayBeChosen(peer));
+  }
+
+  /**
+   * Moves the whisper onto the cursor its target came back on, as after the target opened the page
+   * again, so that the choice shows who it still goes to.
+   */
+  private followWhisperTarget(): void {
+    if (!this.sendTo) return;
+    const standing = PeerCursor.standingFor(this.sendTo);
+    if (standing && standing.identifier !== this.sendTo) this.sendTo = standing.identifier;
   }
 
   private calcFitHeightInterval: ReturnType<typeof setTimeout> | null = null;
@@ -744,8 +784,9 @@ export class ChatInputComponent {
   showColorSetting() {
     // Pressing it again puts the panel away, rather than laying another one over it.
     if (this.panelService.closeSingle(COLOR_SETTING_PANEL)) return;
+    // A guest, who may not write a piece, sets the colours of their own lines instead.
     const object = this.objectStore.get(this.sendFrom);
-    if (object instanceof GameCharacter) {
+    if (object instanceof GameCharacter && canRoleEdit(PeerCursor.myRole)) {
       const coordinate = this.pointerDeviceService.pointers[0];
       const title = object.name.length
         ? this.t('feature.chat.input.colorSettingWithChar', { name: object.name })

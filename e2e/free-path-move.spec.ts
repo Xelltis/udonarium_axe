@@ -36,8 +36,10 @@ async function standStill(of: ReturnType<typeof piece>) {
     .toBe(true);
 }
 
-test.describe('グリッドなしの卓の折れ線の移動', () => {
-  test('部屋設定でオンにすると、移動の計画が折れ線になり、引いた先まで歩くこと', async ({ page }) => {
+test.describe('moving along a polyline on a table without a grid', () => {
+  test('once turned on in the room settings, plans a move as a polyline and walks to where it was drawn to', async ({
+    page,
+  }) => {
     await waitAppReady(page);
     await becomeGm(page);
     await openPanel(page, 'テーブル設定');

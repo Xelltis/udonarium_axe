@@ -13,6 +13,7 @@
 Udonarium Axeは、ブラウザ上で動作するTRPGオンラインセッション支援ツールです。
 テーブル上のオブジェクト（コマ・カード・ダイスなど）はWebRTC（SkyWay SDK v2）のP2P通信で
 ブラウザ間に直接同期され、ゲームデータが中央サーバーに保存されることはありません。
+SkyWayを使わずに部屋ごとのサーバーで同期する方法も、ベータとして選べます（この場合、卓はしばらくサーバーに残ります）。
 
 [Udonarium](https://github.com/TK11235/udonarium)（TK11235）を源流とし、その派生である
 [Udonarium Lily](https://github.com/entyu/udonarium_lily)（entyu）の機能・コードを受け継いでいます。
@@ -52,7 +53,7 @@ Secretをブラウザに置くわけにはいきません。そのため、**ト
    - `SKYWAY_SECRET` … 手順1のSecret
    - `ACCESS_CONTROL_ALLOW_ORIGIN` … Axeを公開するURL（例: `https://your-axe.example.com`。`*`で全許可）
 
-   ブラウザや`curl`で`https://<バックエンドのURL>/v1/status`を開き、`OK`が返れば成功です。
+   ブラウザで`https://<バックエンドのURL>/v1/status`を開き、`OK`が返れば成功です。Vercel版は、ブラウザで開くと`ORIGIN_REQUIRED`を返します。Originが付いていないので断っているだけで、これも正しく動いている印です。
 
 3. **フロントエンドを配置**
    [Releases](https://github.com/Xelltis/udonarium_axe/releases)の`axe_x.y.z.zip`を展開し
@@ -79,11 +80,11 @@ Secretをブラウザに置くわけにはいきません。そのため、**ト
 いずれもAxeが呼び出すAPI（`GET /v1/status`・`POST /v1/skyway2023/token`）に対応しており、そのまま利用できます。
 必要な環境変数（`SKYWAY_APP_ID` / `SKYWAY_SECRET` / `ACCESS_CONTROL_ALLOW_ORIGIN`）も共通です。
 
-| バックエンド                                                                    | 実装 / 配置先                                               | こんな人に                                 | デプロイ方法                                         |
-| ------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------- |
-| [udonarium-backend-vercel](https://github.com/Xelltis/udonarium-backend-vercel) | TypeScript (Hono) / **Vercel Edge**                         | とにかく手軽に始めたい                     | ◎ READMEの**Deploy with Vercel**ボタンから           |
-| [udonarium_axe_backend](https://github.com/Xelltis/udonarium_axe_backend)       | **PHP 8.3 / Apache**                                        | レンタルサーバーを持っている               | ○ Releasesのzipを展開し`.env`を設定してdocrootに配置 |
-| [udonarium-backend（本家）](https://github.com/TK11235/udonarium-backend)       | TypeScript (Hono) / Cloudflare Workers・AWS Lambda・Node.js | CF Workers / Lambda / 自前Nodeで運用したい | ○ 各環境に自前でデプロイ（CLI）                      |
+| バックエンド                                                              | 実装 / 配置先                                               | こんな人に                                 | デプロイ方法                                         |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------- |
+| [Vercel版](https://xelltis.github.io/udonarium_axe_backend/skyway/vercel) | TypeScript (Hono) / **Vercel Functions**                    | とにかく手軽に始めたい                     | ◎ 手順のページの**Deploy with Vercel**ボタンから     |
+| [PHP版](https://xelltis.github.io/udonarium_axe_backend/skyway/php)       | **PHP 8.3 / Apache**                                        | レンタルサーバーを持っている               | ○ Releasesのzipを展開し`.env`を設定してdocrootに配置 |
+| [udonarium-backend（本家）](https://github.com/TK11235/udonarium-backend) | TypeScript (Hono) / Cloudflare Workers・AWS Lambda・Node.js | CF Workers / Lambda / 自前Nodeで運用したい | ○ 各環境に自前でデプロイ（CLI）                      |
 
 > 本家[TK11235/udonarium-backend](https://github.com/TK11235/udonarium-backend)も**そのまま利用できます**。
 > Axeが呼び出すAPI（`GET /v1/status`・`POST /v1/skyway2023/token`、レスポンス`{ "token": ... }`）と

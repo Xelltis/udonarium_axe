@@ -2,7 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 
 import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
 
-test.describe('地形 (terrain) の追加コンテキスト操作', () => {
+test.describe('more context menu actions on terrain', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     const tableMenu = await openTableContextMenu(page);
@@ -10,7 +10,7 @@ test.describe('地形 (terrain) の追加コンテキスト操作', () => {
     await expect(page.locator('terrain').first()).toBeAttached({ timeout: 10000 });
   });
 
-  test('「壁を非表示」を選ぶと次回メニューに「壁を表示」が出ること', async ({ page }) => {
+  test('offers "show walls" in the next menu once "hide walls" is chosen', async ({ page }) => {
     await page.locator('terrain').first().dispatchEvent('contextmenu');
     await expect(page.locator('context-menu').locator('li').first()).toBeVisible({ timeout: 5000 });
     await page.locator('context-menu').getByText('壁を非表示').click();
@@ -18,18 +18,18 @@ test.describe('地形 (terrain) の追加コンテキスト操作', () => {
     await expect(page.locator('context-menu').getByText('壁を表示')).toBeVisible({ timeout: 5000 });
   });
 
-  test('「傾斜」サブメニューに、なしと四角い卓の四辺と全方向が並ぶこと', async ({ page }) => {
+  test('lists none, the four sides of a square table and all directions in the "slope" submenu', async ({ page }) => {
     await page.locator('terrain').first().dispatchEvent('contextmenu');
     await expect(page.locator('context-menu').locator('li').first()).toBeVisible({ timeout: 5000 });
     await page.locator('context-menu').getByText('傾斜').hover();
-    // チェックマークはcontext-menu側で視覚ノードからstripされるので、li単位で検証する。
+    // context-menu strips the check marks from the visible nodes, so each li is checked as a whole.
     const items = page.locator('context-menu li');
     for (const side of ['なし', '北', '東', '南', '西', '全方向']) {
       await expect(items.filter({ hasText: side }).first()).toBeVisible({ timeout: 5000 });
     }
   });
 
-  test('傾斜は複数の辺に設定でき、全方向で角錐になること', async ({ page }) => {
+  test('slopes more than one side, and makes a pyramid with all directions', async ({ page }) => {
     const faces = page.locator('[data-testid="terrain-slope-face"]');
 
     await chooseSlope(page, '南');
@@ -70,17 +70,17 @@ async function createDiceOnTable(page: Page) {
   await expect(page.locator('dice-symbol').first()).toBeAttached({ timeout: 10000 });
 }
 
-test.describe('ダイスシンボル ダイス目設定サブメニュー', () => {
+test.describe('the dice symbol’s set-face submenu', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await createDiceOnTable(page);
   });
 
-  test('「ダイス目を設定」サブメニューに数値選択肢が出ること (D6 は 1-6)', async ({ page }) => {
+  test('offers numbers in the "set face" submenu (1 to 6 for a D6)', async ({ page }) => {
     await page.locator('dice-symbol').first().dispatchEvent('contextmenu');
     await expect(page.locator('context-menu').locator('li').first()).toBeVisible({ timeout: 5000 });
     await page.locator('context-menu').getByText('ダイス目を設定').hover();
-    // D6は6面体なので少なくとも6種類の選択肢が出る（◉/○のラジオマーク付き）。
+    // A D6 has six faces, so at least six choices show (with ◉/○ radio marks).
     const items = page.locator('context-menu li');
     for (const face of ['1', '2', '3', '4', '5', '6']) {
       await expect(items.filter({ hasText: new RegExp(`(?:^|\\s)${face}(?:$|\\s)`) }).first()).toBeVisible({
@@ -90,15 +90,15 @@ test.describe('ダイスシンボル ダイス目設定サブメニュー', () =
   });
 });
 
-test.describe('ダイスの公開/非公開トグル', () => {
-  test('「自分だけ見る」を選ぶと次回メニューに「ダイスを公開」が出ること', async ({ page }) => {
+test.describe('showing and hiding a die', () => {
+  test('offers "reveal the die" in the next menu once "only me" is chosen', async ({ page }) => {
     await waitAppReady(page);
     await createDiceOnTable(page);
     await page.locator('dice-symbol').first().dispatchEvent('contextmenu');
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     const onlyMe = menu.getByText('自分だけ見る');
-    // 既に非公開なら「ダイスを公開」が見える筈なのでスキップ。
+    // Skipped when the die is already hidden, as the menu should then offer "reveal the die" instead.
     if ((await onlyMe.count()) === 0) {
       test.skip(true, '既定で既に非公開状態のためスキップ');
     }

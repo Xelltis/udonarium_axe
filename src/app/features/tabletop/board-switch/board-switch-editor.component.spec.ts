@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SwitchPressService } from '@axe/application/tabletop/switch-press.service';
+import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -60,6 +61,19 @@ describe('BoardSwitchEditorComponent', () => {
 
     expect(press).toHaveBeenCalledWith(target, { trial: true });
     expect(field('board-switch-tried').textContent?.trim()).toBe('何もしないスイッチです');
+  });
+
+  it('tells the master that a room server keeps watchers off every switch', () => {
+    expect(field('board-switch-guests-on-server')).toBeNull();
+
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    fixture = TestBed.createComponent(BoardSwitchEditorComponent);
+    fixture.componentInstance.target.set(target);
+    fixture.detectChanges();
+
+    expect(field('board-switch-guests-on-server').textContent?.trim()).toBe(
+      '部屋のサーバーでは、見学者はスイッチを押せません'
+    );
   });
 
   it('shows a player nothing of what the switch does', () => {

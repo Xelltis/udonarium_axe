@@ -3,6 +3,8 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { GameObject } from '@axe/core/sync/game-object';
+import { isInStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { CharacterSheetTarget } from '@axe/domain/tabletop/character-sheet-target';
 import { PanelWindowService } from '@axe/features/panels/panel-window.service';
@@ -76,7 +78,7 @@ export class ObjectPanelService {
       import('@axe/features/character/game-character-sheet/game-character-sheet.component').then(
         (m) => m.GameCharacterSheetComponent
       );
-    const option = this.option(title, size, place, {
+    const option = this.option(object, title, size, place, {
       key: `sheet:${object.identifier}`,
       open: (layer) => this.openSheet(object, title, size, place, layer),
       restore: () => this.openSheet(object, title, size, place),
@@ -110,6 +112,7 @@ export class ObjectPanelService {
     const load = () =>
       import('@axe/features/chat/chat-palette/chat-palette.component').then((m) => m.ChatPaletteComponent);
     const option = this.option(
+      character,
       this.t('feature.character.panel.chatPaletteWithName', { name: character.name }),
       CHAT_PALETTE_SIZE,
       place,
@@ -135,6 +138,7 @@ export class ObjectPanelService {
         (m) => m.RemoteControllerComponent
       );
     const option = this.option(
+      character,
       this.t('feature.character.panel.remoteControllerWithName', { name: character.name }),
       REMOTE_CONTROLLER_SIZE,
       { offset: REMOTE_CONTROLLER_OFFSET, ...place },
@@ -149,7 +153,14 @@ export class ObjectPanelService {
     else this.panelService.openLazy(load, option, (component) => component.character.set(character));
   }
 
-  private option(title: string, size: ObjectPanelSize, place: ObjectPanelPlace, detach: DetachRequest): PanelOption {
+  /** The panel's options, for one that opens nothing should what it shows be gone by the time it arrives. */
+  private option(
+    shown: GameObject,
+    title: string,
+    size: ObjectPanelSize,
+    place: ObjectPanelPlace,
+    detach: DetachRequest
+  ): PanelOption {
     const at = place.at ?? this.pointerDeviceService.pointers[0];
     const offset = place.offset ?? { x: size.width / 2, y: size.height / 2 };
     const option: PanelOption = {
@@ -160,6 +171,7 @@ export class ObjectPanelService {
       top: at.y - offset.y,
       windowed: detach.taken,
       controls: this.popOutControl(size, detach),
+      stillWanted: () => isInStore(shown),
     };
     if (place.single) option.single = place.single;
     return option;

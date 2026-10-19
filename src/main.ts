@@ -4,7 +4,6 @@ import { ɵChangeDetectionScheduler as ChangeDetectionScheduler } from '@angular
 import { APP_INITIALIZER, enableProdMode, importProvidersFrom, provideZonelessChangeDetection } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { bootstrapApplication, BrowserModule } from '@angular/platform-browser';
-import { YouTubePlayerModule } from '@angular/youtube-player';
 import { AppComponent } from '@axe/app.component';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
@@ -19,13 +18,14 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { AppConfigService } from '@axe/composition/app-config.service';
 import { AppInitializationService } from '@axe/composition/app-initialization.service';
+import { BEFORE_BOARD_MODE_PROVIDER } from '@axe/composition/before-board-mode.provider';
+import { BEFORE_RELOAD_PROVIDER } from '@axe/composition/before-reload.provider';
 import { CLASS_SINGLETON_PROVIDERS } from '@axe/composition/class-provider';
 import { Logger } from '@axe/core/logging/logger';
 import { setNetworkTick } from '@axe/core/network/network-messaging';
 import { wipeBrowserDataIfRequested } from '@axe/core/storage/browser-data-wipe';
 import { environment } from '@env/environment';
 import { provideTransloco } from '@jsverse/transloco';
-import { NgSelectModule } from '@ng-select/ng-select';
 
 if (environment.production) {
   enableProdMode();
@@ -35,11 +35,13 @@ if (environment.production) {
 function bootstrap(): Promise<void> {
   return bootstrapApplication(AppComponent, {
     providers: [
-      importProvidersFrom(BrowserModule, CommonModule, FormsModule, YouTubePlayerModule, NgSelectModule),
+      importProvidersFrom(BrowserModule, CommonModule, FormsModule),
       provideZonelessChangeDetection(),
       provideHttpClient(withXhr()),
       provideTransloco({ config: transLocoConfig, loader: TranslocoHttpLoader }),
       ...CLASS_SINGLETON_PROVIDERS,
+      BEFORE_BOARD_MODE_PROVIDER,
+      BEFORE_RELOAD_PROVIDER,
       AppConfigService,
       ChatMessageService,
       ContextMenuService,

@@ -38,18 +38,28 @@
       </div>
       <div class="flex items-center gap-1.5">
         <span>{{ 'feature.lobby.peerMenu.roleLabel' | transloco }}</span>
-        @for (role of assignableRoles; track role) {
-          <button
-            class="rounded-sm px-1.5 py-0.5 text-[0.7rem] disabled:cursor-not-allowed disabled:opacity-40"
-            [class]="
-              myPeer.role === role ? roleBadgeClass(role) : 'border border-(--ui-panel-border) text-(--ui-text-muted)'
-            "
-            [disabled]="!isRoleSelfAssignable(role)"
-            [title]="isRoleSelfAssignable(role) ? '' : ('feature.lobby.peerMenu.gmAssignOnlyByGm' | transloco)"
-            (click)="setMyRole(role)"
+        @if (isServerTransport()) {
+          <span
+            class="rounded-sm px-1.5 py-0.5 text-[0.7rem] font-bold"
+            [class]="roleBadgeClass(myPeer.role)"
+            [title]="'feature.lobby.peerMenu.roleDecidedByServer' | transloco"
+            data-testid="peer-menu-server-role"
+            >{{ roleShortLabelKey(myPeer.role) | transloco }}</span
           >
-            {{ roleShortLabelKey(role) | transloco }}
-          </button>
+        } @else {
+          @for (role of assignableRoles; track role) {
+            <button
+              class="rounded-sm px-1.5 py-0.5 text-[0.7rem] disabled:cursor-not-allowed disabled:opacity-40"
+              [class]="
+                myPeer.role === role ? roleBadgeClass(role) : 'border border-(--ui-panel-border) text-(--ui-text-muted)'
+              "
+              [disabled]="!isRoleSelfAssignable(role)"
+              [title]="isRoleSelfAssignable(role) ? '' : ('feature.lobby.peerMenu.gmAssignOnlyByGm' | transloco)"
+              (click)="setMyRole(role)"
+            >
+              {{ roleShortLabelKey(role) | transloco }}
+            </button>
+          }
         }
       </div>
       <div class="text-(--ui-text-dim)">{{ myTime() | date: 'yy/MM/dd HH:mm:ss' }}</div>
@@ -120,18 +130,21 @@
       <div class="space-y-1.5 pt-1">
         <div class="flex flex-wrap items-center gap-1.5">
           <span>{{ 'feature.lobby.peerMenu.inviteLabel' | transloco }}</span>
-          @for (role of inviteRoles; track role) {
-            <button
-              class="rounded-sm px-1.5 py-0.5 text-[0.7rem]"
-              [class]="
-                inviteRole() === role
-                  ? roleBadgeClass(role)
-                  : 'border border-(--ui-panel-border) text-(--ui-text-muted)'
-              "
-              (click)="inviteRole.set(role)"
-            >
-              {{ roleShortLabelKey(role) | transloco }}
-            </button>
+          @if (!isServerTransport() || amGameMaster()) {
+            @for (role of inviteRoles(); track role) {
+              <button
+                class="rounded-sm px-1.5 py-0.5 text-[0.7rem]"
+                [class]="
+                  inviteRole() === role
+                    ? roleBadgeClass(role)
+                    : 'border border-(--ui-panel-border) text-(--ui-text-muted)'
+                "
+                [attr.data-testid]="'peer-menu-invite-role-' + role"
+                (click)="inviteRole.set(role)"
+              >
+                {{ roleShortLabelKey(role) | transloco }}
+              </button>
+            }
           }
           @if (networkService.peerContext.hasPassword) {
             <label class="flex cursor-pointer items-center gap-1.5 text-xs">
@@ -171,7 +184,55 @@
             }}
           </button>
         </div>
+        @if (isServerTransport()) {
+          @if (!amGameMaster()) {
+            <p class="m-0 text-[0.7rem] text-(--ui-text-dim)">
+              {{ 'feature.lobby.peerMenu.inviteWithoutRole' | transloco }}
+            </p>
+          } @else if (serverInviteFailed()) {
+            <p class="text-ui-danger m-0 text-[0.7rem]" data-testid="peer-menu-invite-failed">
+              {{ 'feature.lobby.peerMenu.inviteFailed' | transloco }}
+            </p>
+          } @else if (serverInviteExpiresAt(); as expiresAt) {
+            <p class="m-0 text-[0.7rem] text-(--ui-text-dim)" data-testid="peer-menu-invite-expires">
+              {{ 'feature.lobby.peerMenu.inviteExpires' | transloco: { date: (expiresAt | date: 'yyyy/MM/dd') } }}
+            </p>
+          }
+        }
       </div>
+      @if (isServerTransport() && idleSeat.leftAlone()) {
+        <div class="space-y-1 pt-1">
+          <p class="m-0 text-[0.7rem] text-(--ui-text-dim)">{{ 'feature.lobby.idle.left' | transloco }}</p>
+          <button
+            class="flex items-center gap-1 text-xs"
+            data-testid="peer-menu-come-back"
+            (click)="comeBackFromIdle()"
+          >
+            <span class="material-icons text-[1.1em]!">login</span>{{ 'feature.lobby.idle.comeBack' | transloco }}
+          </button>
+        </div>
+      }
+      @if (isServerTransport() && amGameMaster()) {
+        <div class="space-y-1 pt-1">
+          <button
+            class="danger flex items-center gap-1 text-xs"
+            data-testid="peer-menu-delete-room"
+            [disabled]="isDeletingRoom()"
+            (click)="deleteRoom()"
+          >
+            <span class="material-icons text-[1.1em]!">delete_outline</span
+            >{{ 'feature.lobby.peerMenu.deleteRoom' | transloco }}
+          </button>
+          <p class="m-0 text-[0.7rem] text-(--ui-text-dim)">
+            {{ 'feature.lobby.peerMenu.deleteRoomHint' | transloco }}
+          </p>
+          @if (roomDeletionFailure()) {
+            <p class="text-ui-danger m-0 text-[0.7rem]" role="alert" data-testid="peer-menu-delete-room-failed">
+              {{ roomDeletionFailure() }}
+            </p>
+          }
+        </div>
+      }
       @if (canRequestFullSync) {
         <button (click)="requestFullSync()">{{ 'feature.lobby.peerMenu.fullSync' | transloco }}</button>
         <p class="px-1 text-xs text-(--ui-text-muted)">{{ 'feature.lobby.peerMenu.fullSyncHint' | transloco }}</p>
@@ -210,17 +271,21 @@
         <span class="min-w-0 flex-1 truncate" [title]="findUserId(context.peerId)">{{
           findPeerName(context.peerId) || shortId(context.peerId)
         }}</span>
-        @if (isMyselfGameMaster) {
-          <select
-            class="shrink-0 text-[0.7rem]"
-            [ngModel]="findPeerRole(context.peerId)"
-            (ngModelChange)="reassignRole(context.peerId, $event)"
-            [name]="'peer-role-' + context.peerId"
-          >
-            @for (role of assignableRoles; track role) {
-              <option [ngValue]="role">{{ roleShortLabelKey(role) | transloco }}</option>
-            }
-          </select>
+        @if (amGameMaster()) {
+          <!-- Drawn again when the room server keeps a role as it was, so the picker shows the role as it stands. -->
+          @for (drawn of [roleSelectsDrawn()]; track drawn) {
+            <select
+              class="shrink-0 text-[0.7rem]"
+              [ngModel]="findPeerRole(context.peerId)"
+              (ngModelChange)="reassignRole(context.peerId, $event)"
+              [name]="'peer-role-' + context.peerId"
+              [attr.data-testid]="'peer-menu-role-' + context.peerId"
+            >
+              @for (role of assignableRoles; track role) {
+                <option [ngValue]="role">{{ roleShortLabelKey(role) | transloco }}</option>
+              }
+            </select>
+          }
         } @else {
           <span
             class="shrink-0 rounded-sm px-1.5 py-0.5 text-[0.65rem] font-bold"
@@ -249,11 +314,9 @@
   }
 
   <div class="px-3 py-2">
-    @if (networkService.peerIds.length <= 1) {
-      <button class="w-full" (click)="showLobby()" [disabled]="!networkService.isOpen">
-        {{ 'feature.lobby.peerMenu.showLobby' | transloco }}
-      </button>
-    }
+    <button class="w-full" data-testid="peer-menu-show-lobby" (click)="showLobby()">
+      {{ 'feature.lobby.peerMenu.showLobby' | transloco }}
+    </button>
   </div>
 } @else {
   <div

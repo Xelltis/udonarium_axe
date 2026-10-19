@@ -24,6 +24,7 @@ import {
 } from '@axe/application/tabletop/tabletop-default-setup';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { getPeerContext } from '@axe/core/network/peer-context-source';
@@ -41,11 +42,12 @@ import { canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { gatherSpotsAround } from '@axe/domain/tabletop/move/gather-cells';
+import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
 import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
@@ -66,8 +68,11 @@ const BOARD_DEFAULT_HEIGHT = 4;
   providedIn: 'root',
 })
 export class TabletopActionService {
-  /** The dialogue for making several dice at once, handed over by the composition root. */
-  static diceCreateDialogComponentClass: { new (...args: unknown[]): unknown } | null = null;
+  /**
+   * Fetches the dialogue for making several dice at once, handed over by the composition root. It
+   * is fetched the first time it is asked for, being seldom wanted.
+   */
+  static loadDiceCreateDialog: (() => Promise<{ new (...args: unknown[]): unknown }>) | null = null;
 
   private readonly imageStorage = inject(ImageStorage);
   private readonly modalService = inject(ModalService);
@@ -94,8 +99,8 @@ export class TabletopActionService {
    */
   createGameCharacterWith(position: PointerCoordinate, name: string, imageIdentifier: string): GameCharacter {
     const character = GameCharacter.create(name, 1, imageIdentifier);
-    character.location.x = position.x - 25;
-    character.location.y = position.y - 25;
+    character.location.x = position.x - this.halfCell();
+    character.location.y = position.y - this.halfCell();
     character.posZ = position.z;
     this.applyCreationDefaults(character);
     return character;
@@ -116,8 +121,8 @@ export class TabletopActionService {
     if (!viewTable) return undefined;
 
     const tableMask = GameTableMask.create(this.t('feature.tabletop.action.defaultMaskName'), 5, 5, 100);
-    tableMask.location.x = position.x - 25;
-    tableMask.location.y = position.y - 25;
+    tableMask.location.x = position.x - this.halfCell();
+    tableMask.location.y = position.y - this.halfCell();
     tableMask.posZ = position.z;
 
     viewTable.appendChild(tableMask);
@@ -169,8 +174,8 @@ export class TabletopActionService {
       image.identifier,
       image.identifier
     );
-    terrain.location.x = position.x - 50;
-    terrain.location.y = position.y - 50;
+    terrain.location.x = position.x - viewTable.gridSize;
+    terrain.location.y = position.y - viewTable.gridSize;
     terrain.posZ = position.z;
 
     viewTable.appendChild(terrain);
@@ -226,7 +231,7 @@ export class TabletopActionService {
       if (faceEl) faceEl.value = image.identifier;
     });
 
-    const place = placement ?? getDicePlacements(position, 1)[0];
+    const place = placement ?? getDicePlacements(position, 1, this.tabletopService.gridSize())[0];
     diceSymbol.location.x = place.x;
     diceSymbol.location.y = place.y;
     diceSymbol.posZ = position.z;
@@ -246,7 +251,7 @@ export class TabletopActionService {
     ownership: { ownerCharacterIdentifier?: string; hiddenToOthers?: boolean } = {}
   ): DiceSymbol[] {
     const owner = ownership.hiddenToOthers === true ? getPeerContext().userId : '';
-    return getDicePlacements(position, count).map((placement) => {
+    return getDicePlacements(position, count, this.tabletopService.gridSize()).map((placement) => {
       const dice = this.createDiceSymbol(position, item.diceName, item.type, item.imagePathPrefix, placement);
       if (ownership.ownerCharacterIdentifier) dice.ownerCharacterIdentifier = ownership.ownerCharacterIdentifier;
       if (owner.length > 0) dice.owner = owner;
@@ -332,8 +337,8 @@ export class TabletopActionService {
   /** Puts a light on the table in view, centred on a point and owned by whoever made it. */
   createLightSource(position: PointerCoordinate): LightSource {
     const light = LightSource.create(this.t('feature.tabletop.action.defaultLightName'));
-    light.location.x = position.x - 25;
-    light.location.y = position.y - 25;
+    light.location.x = position.x - this.halfCell();
+    light.location.y = position.y - this.halfCell();
     light.posZ = position.z;
     light.owner = PeerCursor.myCursor?.userId ?? '';
     // A light belongs to its table, so clearing the table takes its lights with it.
@@ -345,8 +350,8 @@ export class TabletopActionService {
   /** Makes a stack of a full deck of playing cards and two jokers, registering the bundled card images on first use. */
   createTrump(position: PointerCoordinate): CardStack {
     const cardStack = CardStack.create(this.t('feature.tabletop.action.defaultTrumpStackName'));
-    cardStack.location.x = position.x - 25;
-    cardStack.location.y = position.y - 25;
+    cardStack.location.x = position.x - this.halfCell();
+    cardStack.location.y = position.y - this.halfCell();
     cardStack.posZ = position.z;
 
     const back = TRUMP_BACK_IMAGE_PATH;
@@ -381,8 +386,8 @@ export class TabletopActionService {
     }
 
     const card = Card.create(this.t('feature.tabletop.action.defaultCardName'), front, back);
-    card.location.x = position.x - 25;
-    card.location.y = position.y - 25;
+    card.location.x = position.x - this.halfCell();
+    card.location.y = position.y - this.halfCell();
     card.posZ = position.z;
     card.faceUp();
     // Card ownership means "show only to me", so a newly created public card must remain unclaimed.
@@ -507,7 +512,7 @@ export class TabletopActionService {
     const gathering = bringInAway ? members : members.filter((member) => member.isVisibleOnTable);
     if (gathering.length === 0) return 0;
 
-    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const grid = moveGridOf(table);
     const start = cellIndexAt(grid, position.x, position.y);
     if (start < 0) return 0;
 
@@ -622,8 +627,8 @@ export class TabletopActionService {
     if (sources.length < 1) return null;
 
     const cardStack = CardStack.create(tag.length > 0 ? tag : this.t('feature.tabletop.action.defaultDeckName'));
-    cardStack.location.x = position.x - 25;
-    cardStack.location.y = position.y - 25;
+    cardStack.location.x = position.x - this.halfCell();
+    cardStack.location.y = position.y - this.halfCell();
     cardStack.posZ = position.z;
 
     const back = TRUMP_BACK_IMAGE_PATH;
@@ -648,7 +653,7 @@ export class TabletopActionService {
         },
       });
     });
-    if (TabletopActionService.diceCreateDialogComponentClass) {
+    if (TabletopActionService.loadDiceCreateDialog) {
       subMenus.push({
         name: this.t('feature.tabletop.action.createDiceMany'),
         action: () => void this.openDiceCreateDialog(position),
@@ -659,8 +664,13 @@ export class TabletopActionService {
 
   /** Asks which die and how many, then makes them. Nothing is made where the asking is dropped. */
   private async openDiceCreateDialog(position: PointerCoordinate): Promise<void> {
-    const dialogClass = TabletopActionService.diceCreateDialogComponentClass;
-    if (!dialogClass) return;
+    const load = TabletopActionService.loadDiceCreateDialog;
+    if (!load) return;
+    const dialogClass = await load().catch(() => null);
+    if (!dialogClass) {
+      PanelService.loadFailureNotice?.();
+      return;
+    }
 
     const option: DiceCreateDialogOption = {
       defaultCount: 2,
@@ -693,8 +703,8 @@ export class TabletopActionService {
   /** Makes a coin centred on a point, on top of everything else there. */
   createCoin(position: PointerCoordinate): Coin {
     const coin = Coin.create(this.t('feature.tabletop.action.defaultCoinName'));
-    coin.location.x = position.x - 25;
-    coin.location.y = position.y - 25;
+    coin.location.x = position.x - this.halfCell();
+    coin.location.y = position.y - this.halfCell();
     coin.posZ = position.z;
     coin.toTopmost();
     return coin;
@@ -755,6 +765,11 @@ export class TabletopActionService {
 
   private getViewTable(): GameTable | null {
     return this.tableSelecter.viewTable;
+  }
+
+  /** Half a cell of the table in view, by which a new piece is drawn back so that it sits under the pointer. */
+  private halfCell(): number {
+    return this.tabletopService.gridSize() / 2;
   }
 }
 

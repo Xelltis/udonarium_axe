@@ -2,12 +2,14 @@ import { TestBed } from '@angular/core/testing';
 import { messageAdded$, selectGameTable$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
+import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { SynchronizeRequest, SynchronizeTask } from '@axe/core/sync/synchronize-task';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { DataElement } from '@axe/domain/data/data-element';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 
@@ -78,6 +80,269 @@ describe('ObjectSynchronizer', () => {
       localDispatch('REQUEST_CATALOG', {});
 
       expect(sendCatalogSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('between peers', () => {
+    afterEach(() => {
+      ObjectSynchronizer.instance.destroy();
+      ObjectStore.instance.clearDeleteHistory();
+      vi.restoreAllMocks();
+    });
+
+    it('tells a peer changing what was deleted here that it is deleted', () => {
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      ObjectSynchronizer.instance.initialize();
+      const gone = new GameObject('deleted-here');
+      ObjectStore.instance.add(gone, false);
+      ObjectStore.instance.delete(gone, false);
+
+      localDispatch('UPDATE_GAME_OBJECT', { ...gone.toContext(), majorVersion: 5 }, 'peer-a');
+
+      expect(send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventName: 'DELETE_GAME_OBJECT',
+          data: { aliasName: '', identifier: 'deleted-here' },
+        }),
+        'peer-a'
+      );
+    });
+  });
+
+  describe('through a room server', () => {
+    const AUTHORITY = '@authority';
+    let sendCatalog: ReturnType<typeof vi.fn>;
+
+    const sentTo = (eventName: string) =>
+      vi
+        .mocked(Network.instance.send)
+        .mock.calls.filter(([context]) => (context as { eventName: string }).eventName === eventName)
+        .map(([, sendTo]) => sendTo);
+
+    beforeEach(() => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(AUTHORITY);
+      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([{ peerId: 'peer-a', isOpen: true }] as never);
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      sendCatalog = vi.fn();
+      ObjectSynchronizer.instance.initialize();
+    });
+
+    afterEach(() => {
+      localDispatch('DISCONNECT_PEER', { peerId: AUTHORITY }, AUTHORITY);
+      ObjectSynchronizer.instance.destroy();
+      vi.restoreAllMocks();
+    });
+
+    it('trades catalogs with the server alone as peers connect', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.spyOn(ObjectSynchronizer.instance as any, 'sendCatalog').mockImplementation(sendCatalog);
+
+      localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+      localDispatch('CONNECT_PEER', { peerId: AUTHORITY });
+
+      expect(sendCatalog.mock.calls).toEqual([[AUTHORITY]]);
+    });
+
+    it('asks the server alone for a full sync', () => {
+      expect(ObjectSynchronizer.instance.requestFullSync()).toBe(1);
+
+      expect(sentTo('REQUEST_CATALOG')).toEqual([AUTHORITY]);
+    });
+
+    it('asks the server for what its catalog offers', () => {
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'kept-by-the-server', version: 1 }], AUTHORITY);
+
+      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
+    });
+
+    it('asks the server for a change it passes on of what this seat saw deleted, never deleting it', () => {
+      const gone = new GameObject('lost-here');
+      ObjectStore.instance.add(gone, false);
+      ObjectStore.instance.delete(gone, false);
+
+      localDispatch('UPDATE_GAME_OBJECT', { ...gone.toContext(), majorVersion: 5 }, 'peer-a');
+
+      expect(sentTo('DELETE_GAME_OBJECT')).toEqual([]);
+      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
+      expect(ObjectStore.instance.isDeleted('lost-here')).toBe(false);
+      ObjectStore.instance.clearDeleteHistory();
+    });
+
+    it('makes again what it asked the server about from the server’s answer alone, not a change passed on meanwhile', () => {
+      const gone = new DataElement('asked-about');
+      ObjectStore.instance.add(gone, false);
+      ObjectStore.instance.delete(gone, false);
+      const changed = (majorVersion: number) => ({ ...gone.toContext(), majorVersion });
+
+      localDispatch('UPDATE_GAME_OBJECT', changed(5), 'peer-a');
+      localDispatch('UPDATE_GAME_OBJECT', changed(6), 'peer-a');
+      expect(ObjectStore.instance.get('asked-about')).toBeNull();
+
+      localDispatch('UPDATE_GAME_OBJECT', changed(6), AUTHORITY);
+      expect(ObjectStore.instance.get('asked-about')).not.toBeNull();
+      ObjectStore.instance.get('asked-about')?.destroy();
+      ObjectStore.instance.clearDeleteHistory();
+    });
+
+    describe('stops waiting on what it asked about', () => {
+      const askAbout = (identifier: string) => {
+        const gone = new DataElement(identifier);
+        ObjectStore.instance.add(gone, false);
+        ObjectStore.instance.delete(gone, false);
+        const changed = (majorVersion: number) => ({ ...gone.toContext(), majorVersion });
+        localDispatch('UPDATE_GAME_OBJECT', changed(5), 'peer-a');
+        return changed;
+      };
+
+      afterEach(() => {
+        ObjectStore.instance.clearDeleteHistory();
+      });
+
+      it('once the server withdraws it, making it from a change its writer sends later', () => {
+        const changed = askAbout('withdrawn-when-asked');
+
+        localDispatch(AuthorityEvent.WITHDRAW, { identifier: 'withdrawn-when-asked' }, AUTHORITY);
+        localDispatch('UPDATE_GAME_OBJECT', changed(6), 'peer-a');
+
+        expect(ObjectStore.instance.get('withdrawn-when-asked')).not.toBeNull();
+        ObjectStore.instance.get('withdrawn-when-asked')?.destroy();
+      });
+
+      it('once a loader says the name is coming back', () => {
+        const changed = askAbout('loaded-again');
+
+        localDispatch('FORGET_DELETED_OBJECTS', { identifiers: ['loaded-again'] }, 'peer-a');
+        localDispatch('UPDATE_GAME_OBJECT', changed(6), 'peer-a');
+
+        expect(ObjectStore.instance.get('loaded-again')).not.toBeNull();
+        ObjectStore.instance.get('loaded-again')?.destroy();
+      });
+
+      it('once another room is opened', () => {
+        const changed = askAbout('asked-in-the-last-room');
+
+        localDispatch('OPEN_NETWORK', { peerId: 'me' });
+        localDispatch('UPDATE_GAME_OBJECT', changed(6), 'peer-a');
+
+        expect(ObjectStore.instance.get('asked-in-the-last-room')).not.toBeNull();
+        ObjectStore.instance.get('asked-in-the-last-room')?.destroy();
+      });
+
+      it('once there is no room server to answer', () => {
+        const changed = askAbout('asked-of-a-server-gone');
+        vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
+
+        localDispatch('UPDATE_GAME_OBJECT', changed(6), 'peer-a');
+
+        expect(ObjectStore.instance.get('asked-of-a-server-gone')).not.toBeNull();
+        ObjectStore.instance.get('asked-of-a-server-gone')?.destroy();
+      });
+    });
+
+    it('asks the server nothing about its own change of what it deleted', () => {
+      const gone = new GameObject('deleted-by-me');
+      ObjectStore.instance.add(gone, false);
+      ObjectStore.instance.delete(gone, false);
+
+      localDispatch('UPDATE_GAME_OBJECT', { ...gone.toContext(), majorVersion: 5 });
+
+      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([]);
+      expect(ObjectStore.instance.isDeleted('deleted-by-me')).toBe(true);
+      ObjectStore.instance.clearDeleteHistory();
+    });
+
+    it('asks the server for what its catalog offers, though this seat saw it deleted, never deleting it', () => {
+      const gone = new GameObject('brought-back');
+      ObjectStore.instance.add(gone, false);
+      ObjectStore.instance.delete(gone, false);
+
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'brought-back', version: 1 }], AUTHORITY);
+
+      expect(sentTo('DELETE_GAME_OBJECT')).toEqual([]);
+      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
+      expect(ObjectStore.instance.isDeleted('brought-back')).toBe(false);
+      ObjectStore.instance.clearDeleteHistory();
+    });
+
+    describe('the server’s own word on objects', () => {
+      const elementContext = (identifier: string, value: string, majorVersion = 1) => ({
+        aliasName: 'data',
+        identifier,
+        majorVersion,
+        minorVersion: 0.5,
+        syncData: { value, attributes: { name: identifier } },
+      });
+
+      afterEach(() => {
+        for (const identifier of ['held', 'gone', 'parent', 'child']) {
+          const object = ObjectStore.instance.get(identifier);
+          if (object) ObjectStore.instance.remove(object);
+        }
+        ObjectStore.instance.clearDeleteHistory();
+      });
+
+      it('takes on what the server says an object is, whatever its version', () => {
+        const held = DataElement.create('held', 'mine', {}, 'held');
+        held.initialize();
+        held.apply({ ...held.toContext(), majorVersion: 9 });
+
+        localDispatch(AuthorityEvent.AUTHORITATIVE, elementContext('held', 'the server’s'), AUTHORITY);
+
+        expect(held.value).toBe('the server’s');
+        expect(held.majorVersion).toBe(1);
+      });
+
+      it('brings back an object it had marked deleted when the server hands it over', () => {
+        ObjectStore.instance.delete('gone', false);
+
+        localDispatch(AuthorityEvent.AUTHORITATIVE, elementContext('gone', 'back'), AUTHORITY);
+
+        expect(ObjectStore.instance.isDeleted('gone')).toBe(false);
+        expect(ObjectStore.instance.get<DataElement>('gone')?.value).toBe('back');
+      });
+
+      it('stops waiting for something asked for that went out of view, and names what it takes away', () => {
+        const requests = (ObjectSynchronizer.instance as unknown as { requestMap: Map<string, SynchronizeRequest> })
+          .requestMap;
+        // still waiting its turn, behind the most tasks that run at once
+        requests.set('never-coming', { identifier: 'never-coming', version: 1, holderIds: [AUTHORITY], ttl: 2 });
+        const held = DataElement.create('held', 'mine', {}, 'held');
+        held.initialize();
+        const withdrawn = { identifier: 'held' } as { identifier: string; aliasName?: string };
+
+        localDispatch(AuthorityEvent.WITHDRAW, { identifier: 'never-coming' }, AUTHORITY);
+        localDispatch(AuthorityEvent.WITHDRAW, withdrawn, AUTHORITY);
+
+        expect(requests.has('never-coming')).toBe(false);
+        expect(withdrawn.aliasName).toBe('data');
+      });
+
+      it('takes nobody else’s word over its versions', () => {
+        const held = DataElement.create('held', 'mine', {}, 'held');
+        held.initialize();
+
+        localDispatch(AuthorityEvent.AUTHORITATIVE, elementContext('held', 'forged'), 'peer-a');
+        localDispatch(AuthorityEvent.WITHDRAW, { identifier: 'held' }, 'peer-a');
+
+        expect(ObjectStore.instance.get<DataElement>('held')?.value).toBe('mine');
+      });
+
+      it('takes away what the server withdraws, with all beneath it, marking nothing deleted and telling nobody', () => {
+        const parent = DataElement.create('parent', '', {}, 'parent');
+        const child = DataElement.create('child', 'hidden', {}, 'child');
+        parent.appendChild(child);
+        parent.initialize();
+        child.initialize();
+        vi.mocked(Network.instance.send).mockClear();
+
+        localDispatch(AuthorityEvent.WITHDRAW, { identifier: 'parent' }, AUTHORITY);
+
+        expect(ObjectStore.instance.get('parent')).toBeNull();
+        expect(ObjectStore.instance.get('child')).toBeNull();
+        expect(ObjectStore.instance.isDeleted('parent')).toBe(false);
+        expect(ObjectStore.instance.isDeleted('child')).toBe(false);
+        expect(Network.instance.send).not.toHaveBeenCalled();
+      });
     });
   });
 

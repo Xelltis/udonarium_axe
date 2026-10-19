@@ -32,6 +32,8 @@ export class VoteMenuComponent {
   voteContentsText = '';
   voteTitle = this.t('feature.vote.voteTitlePlaceholder');
   isRollCall = true;
+  /** Whether a vote keeps its answers hidden until it closes. A roll call ignores it. */
+  isSecret = false;
   includSelf = false;
 
   /** Every peer connected to the room, one row each in the vote menu. */
@@ -93,9 +95,11 @@ export class VoteMenuComponent {
    * menu.
    *
    * A roll call asks a fixed ready answer. A vote takes its choices from the choices field split on
-   * spaces, or a default choice when the field is empty.
+   * spaces, or a default choice when the field is empty, and says in its announcement when its
+   * answers are hidden until it closes.
    */
   send() {
+    if (PeerCursor.isMyselfKeptOffTable) return;
     const vote = this.vote;
     let voteTitle: string;
     let choicesInput: string = this.voteContentsText.replace(/\s*$/i, '').replace(/^\s*/i, '');
@@ -107,13 +111,23 @@ export class VoteMenuComponent {
       voteTitle = this.t('feature.vote.rollCall');
     } else {
       choicesInput = choicesInput.length == 0 ? this.t('feature.vote.rollCallDefault') : choicesInput;
-      startMessage = this.t('feature.vote.voteStart', { title: this.voteTitle });
+      startMessage = this.t(this.isSecret ? 'feature.vote.voteStartSecret' : 'feature.vote.voteStart', {
+        title: this.voteTitle,
+      });
       voteTitle = this.voteTitle;
     }
     const choices = choicesInput.split(/\s+/i);
     const peerList = this.selectedList();
 
-    vote.makeVote(PeerCursor.myCursor.peerId, voteTitle, peerList, choices, this.isRollCall, this.chatTabidentifier);
+    vote.makeVote(
+      PeerCursor.myCursor.peerId,
+      voteTitle,
+      peerList,
+      choices,
+      this.isRollCall,
+      this.chatTabidentifier,
+      this.isSecret
+    );
     vote.startVote();
     this.chatMessageService.sendSystemMessageAsLastSpeaker(startMessage, this.chatTabidentifier);
     this.panelService.close();

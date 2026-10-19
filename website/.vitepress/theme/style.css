@@ -108,7 +108,7 @@
 
 /*
  * Japanese breaks between any two characters, so a heading or a label cell can
- * be squeezed down to one character per line（倉/庫, 消しゴ/ム）. `keep-all`
+ * be squeezed down to one character per line (倉/庫, 消しゴ/ム). `keep-all`
  * keeps each word whole while still allowing a break at spaces and slashes.
  */
 .vp-doc .table-wrap > table th,
@@ -148,4 +148,48 @@
   font-size: 11.5px;
   font-weight: 600;
   vertical-align: 2px;
+}
+
+/* A heading that starts with a step number is drawn with the number in a circle. */
+.vp-doc h2.axe-step,
+.vp-doc h3.axe-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.vp-doc .axe-step-number {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--vp-button-brand-bg);
+  color: var(--vp-button-brand-text);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.vp-doc h3.axe-step .axe-step-number {
+  width: 32px;
+  height: 32px;
+  font-size: 15px;
+  box-shadow: 0 0 0 4px var(--vp-c-brand-soft);
+}
+
+/* The dot after a step number stays in the text for the outline and search, unseen. */
+.vp-doc .axe-step-dot {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* A short name in a table is kept on one line rather than broken at its hyphens. */
+.vp-doc .table-wrap > table code.axe-code-whole {
+  white-space: nowrap;
 }

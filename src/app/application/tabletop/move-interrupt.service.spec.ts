@@ -194,6 +194,36 @@ describe('MoveInterruptService', () => {
     expect(outcome).toEqual({ along: 100, pieces: [foe.identifier], zone: '', pullsIn: false, atOnce: false });
   });
 
+  it('asks the game master rather than an owner made a guest, whose answer counts for nothing', async () => {
+    const hero = pieceAt(2, 2, 6);
+    const foe = pieceAt(5, 3, 2, true);
+    foe.owner = 'user-b';
+    const owner = new PeerCursor('owner-cursor');
+    owner.initialize();
+    owner.peerId = 'peer-b';
+    owner.userId = 'user-b';
+    owner.zoneProtocol = '1';
+    owner.role = PeerRole.Guest;
+    const master = new PeerCursor('master-cursor');
+    master.initialize();
+    master.peerId = 'peer-0';
+    master.role = PeerRole.GameMaster;
+    master.zoneProtocol = '1';
+
+    let outcome: InterruptOutcome | null | undefined;
+    void service.negotiate(hero, WAY).then((result) => (outcome = result));
+    TestBed.tick();
+    await look();
+    owner.interruptAnswer = `${PeerCursor.myCursor.movingDeclared}|100|${foe.identifier}`;
+    await look();
+    expect(outcome).toBeUndefined();
+
+    master.interruptAnswer = `${PeerCursor.myCursor.movingDeclared}|100|${foe.identifier}`;
+    await look();
+
+    expect(outcome).toEqual({ along: 100, pieces: [foe.identifier], zone: '', pullsIn: false, atOnce: false });
+  });
+
   it('lets a game master let the move go on as though nobody had stepped in', async () => {
     const hero = pieceAt(2, 2, 6);
     pieceAt(5, 3, 2, true);

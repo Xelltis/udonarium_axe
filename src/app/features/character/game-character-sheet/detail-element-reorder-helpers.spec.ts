@@ -54,7 +54,7 @@ describe('canReorderDetailElement', () => {
   });
 
   it('refuses to move an element that contains the sheet, which would make a loop', () => {
-    appendSection(character, 'A'); // 別 section が target になれるよう用意
+    appendSection(character, 'A'); // another section, so that there is one other than B to be the target
     const targetSection = appendSection(character, 'B');
     // is false for the root, which contains it
     const root = character.rootDataElement!;

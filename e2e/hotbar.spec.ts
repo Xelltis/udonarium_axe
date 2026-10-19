@@ -2,7 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 
 import { waitAppReady } from './helpers';
 
-/** ウィジェットの表示状態はlocalStorage由来なので、読み込み前に仕込んでバーを出しておく。 */
+/** Whether a widget shows comes from localStorage, so it is set before the page loads to have the bar out. */
 async function showHotbar(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem('ui-widgets', JSON.stringify({ hotbar: true }));
@@ -16,18 +16,18 @@ function slots(page: Page) {
   return page.locator('[data-testid="hotbar-slot"]');
 }
 
-test.describe('ホットバー', () => {
+test.describe('the hotbar', () => {
   test.beforeEach(async ({ page }) => {
     await showHotbar(page);
   });
 
-  test('数字キーの数だけ枠が並び、ページとショートカットの説明が上に出ること', async ({ page }) => {
+  test('lines up a slot for each number key, with hints for the pages and shortcuts above', async ({ page }) => {
     await expect(slots(page)).toHaveCount(10);
     await expect(page.locator('[data-testid="hotbar-page"]')).toHaveCount(5);
     await expect(page.locator('[data-testid="hotbar-hint"]')).toBeVisible();
   });
 
-  test('空き枠を押すと設定パネルが開き、保存すると枠が埋まること', async ({ page }) => {
+  test('opens the settings panel on an empty slot, and fills the slot on save', async ({ page }) => {
     await slots(page).nth(1).click();
     await expect(page.locator('hotbar-slot-editor')).toBeVisible({ timeout: 10000 });
 
@@ -40,7 +40,7 @@ test.describe('ホットバー', () => {
     await expect(slots(page).nth(1)).toHaveAttribute('title', '耳打ち');
   });
 
-  test('登録した枠は数字キーで撃てること', async ({ page }) => {
+  test('fires a filled slot with its number key', async ({ page }) => {
     await slots(page).nth(2).click();
     await expect(page.locator('hotbar-slot-editor')).toBeVisible({ timeout: 10000 });
     await page.locator('[data-testid="hotbar-editor-kind"]').selectOption('prefill');
@@ -54,7 +54,22 @@ test.describe('ホットバー', () => {
     await expect(page.locator('textarea.chat-input')).toHaveValue('走って逃げる');
   });
 
-  test('ページを切り替えると別の枠になり、戻すと元の枠が出ること', async ({ page }) => {
+  test('opens the panel of the menu entry put in a slot when the slot is pressed', async ({ page }) => {
+    await slots(page).nth(3).click();
+    await expect(page.locator('hotbar-slot-editor')).toBeVisible({ timeout: 10000 });
+    await page.locator('[data-testid="hotbar-editor-kind"]').selectOption('menu');
+    await page.locator('[data-testid="hotbar-editor-menu"]').selectOption('jukebox');
+    await page.locator('[data-testid="hotbar-editor-save"]').click();
+
+    await expect(slots(page).nth(3)).toHaveAttribute('data-filled', 'true');
+    await expect(slots(page).nth(3)).toHaveAttribute('title', 'ジュークボックス');
+
+    await slots(page).nth(3).click();
+
+    await expect(page.locator('app-jukebox')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('shows other slots on another page, and the first ones again on going back', async ({ page }) => {
     await slots(page).nth(0).click();
     await expect(page.locator('hotbar-slot-editor')).toBeVisible({ timeout: 10000 });
     await page.locator('[data-testid="hotbar-editor-kind"]').selectOption('prefill');
@@ -69,7 +84,7 @@ test.describe('ホットバー', () => {
     await expect(slots(page).nth(0)).toHaveAttribute('data-filled', 'true');
   });
 
-  test('固定すると動かなくなること', async ({ page }) => {
+  test('stays put once locked', async ({ page }) => {
     const bar = page.locator('[data-testid="hotbar"]');
     const before = await bar.boundingBox();
 

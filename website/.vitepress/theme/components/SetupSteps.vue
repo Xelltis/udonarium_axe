@@ -1,24 +1,58 @@
 <script setup lang="ts">
+import { withBase } from 'vitepress';
+
+/**
+ * The four steps of putting up Axe, each leading to its page. `here` names the step the page it
+ * stands on is, which is marked and not linked; with none given, every step is a link.
+ */
+const props = defineProps<{ here?: 'choose' | 'server' | 'axe' | 'connect' }>();
+
 const steps = [
-  { title: 'SkyWayでアプリを作成', body: 'App IDとSecretを控える', note: '無料枠あり' },
   {
-    title: 'バックエンドをデプロイ',
-    body: 'App ID / Secret / 許可オリジンを環境変数に',
-    note: 'Workers・Vercel・PHPなど',
+    key: 'choose',
+    title: '方式を選ぶ',
+    body: 'SkyWay版かサーバー版かを決める',
+    note: 'あとから変えられる',
+    link: '/guide/choose',
   },
-  { title: 'フロントエンドを配置', body: 'リリースzipを静的ホスティングに置く', note: 'ビルド不要' },
-  { title: '接続先を設定', body: 'assets/config.jsonのbackend.urlを書き換える', note: '1行だけ' },
+  {
+    key: 'server',
+    title: 'サーバーを置く',
+    body: 'トークン発行サーバーか部屋のサーバーを置く',
+    note: '30分〜1時間',
+    link: '/guide/backend',
+  },
+  {
+    key: 'axe',
+    title: 'Axeを置く',
+    body: 'リリースのzipを静的ホスティングに置く',
+    note: 'ビルド不要',
+    link: '/guide/quickstart',
+  },
+  {
+    key: 'connect',
+    title: 'つないで確かめる',
+    body: 'config.jsonにサーバーのURLを書き、部屋を作る',
+    note: '2行だけ',
+    link: '/guide/configuration',
+  },
 ];
 </script>
 
 <template>
   <ol class="steps">
-    <li v-for="(step, index) in steps" :key="step.title">
+    <li
+      v-for="(step, index) in steps"
+      :key="step.key"
+      :class="{ 'steps__item--here': props.here === step.key }"
+      :aria-current="props.here === step.key ? 'step' : undefined"
+    >
       <div class="steps__head">
         <span class="steps__no">{{ index + 1 }}</span>
         <span v-if="index < steps.length - 1" class="steps__rule" aria-hidden="true"></span>
       </div>
-      <strong>{{ step.title }}</strong>
+      <strong v-if="props.here === step.key">{{ step.title }}（このページ）</strong>
+      <a v-else class="steps__link" :href="withBase(step.link)">{{ step.title }}</a>
       <span class="steps__body">{{ step.body }}</span>
       <span class="steps__note">{{ step.note }}</span>
     </li>
@@ -70,9 +104,26 @@ const steps = [
   background: var(--vp-c-divider);
 }
 
-.steps strong {
+.steps strong,
+.steps__link {
   font-size: 15px;
+  font-weight: 700;
   line-height: 1.5;
+}
+
+.steps__link {
+  color: var(--vp-c-brand-1);
+  text-decoration: none;
+}
+
+.steps__link:hover {
+  text-decoration: underline;
+}
+
+/* The step the page stands on keeps its number in the brand colour; the others are muted. */
+.steps:has(.steps__item--here) li:not(.steps__item--here) .steps__no {
+  background: var(--vp-c-default-soft);
+  color: var(--vp-c-text-2);
 }
 
 .steps__body {

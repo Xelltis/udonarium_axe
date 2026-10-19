@@ -47,12 +47,12 @@ describe('WritingPeerManager', () => {
     it('puts that clock back on another add', () => {
       manager.add('peer-1');
       vi.advanceTimersByTime(1500);
-      manager.add('peer-1'); // リセット
+      manager.add('peer-1'); // puts the clock back
       vi.advanceTimersByTime(1500);
       // long past the first add, but the second put the clock back
       expect(manager.names()).toEqual(['User(peer-1)']);
 
-      vi.advanceTimersByTime(500); // 2回目の add から合計 2000ms
+      vi.advanceTimersByTime(500); // 2000ms in all since the second add
       expect(manager.names()).toEqual([]);
     });
   });

@@ -69,6 +69,11 @@ export class GameTable extends ObjectNode {
   @SyncVar() gridShow: boolean = false;
   @SyncVar() gridSnap: boolean = true;
   @SyncVar() gridSnapStyle: GridSnapStyle = GridSnapStyle.CENTER;
+  /**
+   * How many cells across one square is, for moving pieces and counting ranges: 1 counts every
+   * cell, and 2 to 4 put that many cells across together into one square. Square grids only.
+   */
+  @SyncVar() squareSpan: number = 1;
   @SyncVar() imageBillboard: boolean = false;
   @SyncVar() mode2d: boolean = false;
   /**
@@ -179,6 +184,13 @@ export class GameTable extends ObjectNode {
 
   /** Cut-ins to play when this table is chosen. Several are separated by commas, and one is drawn. */
   @SyncVar() cutInIdentifiers: string = '';
+  /**
+   * What the music does when the table is switched to: `''` leaves it, `'stop'` stops it, and
+   * `'play'` puts on {@link tableBgmIdentifier}.
+   */
+  @SyncVar() tableBgm: string = '';
+  /** The track put on when the table is switched to, while {@link tableBgm} is `'play'`. */
+  @SyncVar() tableBgmIdentifier: string = '';
 
   gridClipRect: { top: number; right: number; bottom: number; left: number } | null = null;
   /** The terrain pieces on this table. */

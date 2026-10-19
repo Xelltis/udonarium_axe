@@ -15,50 +15,50 @@ async function openCardStackMenu(page: Page) {
   return menu;
 }
 
-test.describe('カードスタック (山札)', () => {
+test.describe('card stacks (decks)', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await createCardStack(page);
   });
 
-  test('右クリックでスタック操作メニューが開けること', async ({ page }) => {
+  test('opens the stack menu on a right click', async ({ page }) => {
     const menu = await openCardStackMenu(page);
     await expect(menu.getByText('１枚引く')).toBeVisible();
     await expect(menu.getByText('シャッフル')).toBeVisible();
     await expect(menu.getByText('詳細を表示')).toBeVisible();
   });
 
-  test('シャッフルしてもクラッシュしないこと', async ({ page }) => {
+  test('does not crash on a shuffle', async ({ page }) => {
     const menu = await openCardStackMenu(page);
     await menu.getByText('シャッフル').click();
-    // シャッフル後もスタックは存在し続ける。
+    // The stack is still there after the shuffle.
     await expect(page.locator('card-stack').first()).toBeAttached();
   });
 
-  test('「すべて表にする」が動作すること', async ({ page }) => {
+  test('runs "turn all face up"', async ({ page }) => {
     const menu = await openCardStackMenu(page);
     await menu.getByText('すべて表にする').click();
     await expect(page.locator('card-stack').first()).toBeAttached();
   });
 
-  test('「１枚引く」で card 要素が増えること', async ({ page }) => {
+  test('adds a card element with "draw one"', async ({ page }) => {
     const initialCardCount = await page.locator('card').count();
     const menu = await openCardStackMenu(page);
     await menu.getByText('１枚引く').click();
-    // 1枚引くとテーブル上にcardが現れる（stack表示数とは別のDOM）。
+    // Drawing one puts a card on the table, a DOM element apart from the count shown on the stack.
     await expect.poll(() => page.locator('card').count(), { timeout: 5000 }).toBeGreaterThan(initialCardCount);
   });
 
-  test('「山札を削除する」で card-stack が DOM から消えること', async ({ page }) => {
+  test('removes the card-stack from the DOM with "delete the deck"', async ({ page }) => {
     const menu = await openCardStackMenu(page);
     await menu.getByText('山札を削除する').click();
     await expect(page.locator('card-stack')).toHaveCount(0, { timeout: 5000 });
   });
 
-  test('「詳細を表示」で山札シートが開くこと', async ({ page }) => {
+  test('opens the deck sheet with "show details"', async ({ page }) => {
     const menu = await openCardStackMenu(page);
     await menu.getByText('詳細を表示').click();
-    // 山札の詳細はgame-character-sheetをホストにして開かれる。
+    // The deck's details open hosted by game-character-sheet.
     await expect(page.locator('game-character-sheet')).toBeVisible({ timeout: 10000 });
   });
 });

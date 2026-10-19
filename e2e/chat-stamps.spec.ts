@@ -56,12 +56,12 @@ function closeRoomSettings(page: Page) {
     .dispatchEvent('click');
 }
 
-test.describe('チャットのスタンプとリアクション', () => {
+test.describe('chat stamps and reactions', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
   });
 
-  test('入力欄が空のまま選んだスタンプは、スタンプだけの発言になること', async ({ page }) => {
+  test('makes a stamp picked with the input empty a line of the stamp alone', async ({ page }) => {
     await page.getByTestId('chat-input-stamp').click();
     await pickStamp(page, 'seal:ok');
 
@@ -72,7 +72,7 @@ test.describe('チャットのスタンプとリアクション', () => {
     await expect(stampLines).not.toContainText('［了解］');
   });
 
-  test('文を入力したまま選んだスタンプは、その文と一緒に1つの発言になること', async ({ page }) => {
+  test('makes a stamp picked with text in the input one line together with that text', async ({ page }) => {
     const textarea = page.locator('textarea.chat-input');
     await textarea.fill('今のは見逃せない');
     await page.getByTestId('chat-input-stamp').click();
@@ -89,7 +89,7 @@ test.describe('チャットのスタンプとリアクション', () => {
     ).toHaveCount(1);
   });
 
-  test('ツールバーから付けたリアクションは自分の1件として押された状態で並び、もう一度押すと外れること', async ({
+  test("lists a reaction added from the toolbar as one's own, pressed, and removes it when pressed again", async ({
     page,
   }) => {
     await say(page, 'リアクションしてね');
@@ -108,7 +108,9 @@ test.describe('チャットのスタンプとリアクション', () => {
     await expect(line.getByTestId('chat-message-reactions')).toHaveCount(0);
   });
 
-  test('GM が部屋設定でスタンプの発言を切ると入力欄のスタンプボタンが消え、戻すと出ること', async ({ page }) => {
+  test('hides the stamp button of the input once the GM turns stamp lines off in the room settings, and shows it once they are back on', async ({
+    page,
+  }) => {
     await becomeGameMaster(page);
     const stampButton = page.getByTestId('chat-input-stamp');
     await expect(stampButton).toBeVisible();
@@ -126,7 +128,9 @@ test.describe('チャットのスタンプとリアクション', () => {
     await expect(stampButton).toBeVisible();
   });
 
-  test('リアクションで止めたスタンプはリアクションの一覧から消え、発言用の一覧には残ること', async ({ page }) => {
+  test('leaves a stamp stopped for reactions out of the reaction list, keeping it in the list for lines', async ({
+    page,
+  }) => {
     await becomeGameMaster(page);
     await openStampRules(page);
     const reactionRules = page.getByTestId('room-settings-stamps-reaction');

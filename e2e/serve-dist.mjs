@@ -63,8 +63,12 @@ function resolveFile(urlPath) {
   }
 }
 
-/** Nothing listens on port 9; the suite never wants a real backend. */
-const e2eConfig = JSON.stringify({ backend: { url: 'http://localhost:9/e2e-no-backend' } }, null, 2);
+/**
+ * Nothing listens on port 9; the suite never wants a real backend. The room server project hands
+ * its own config in E2E_CONFIG, pointing at the room server it started.
+ */
+const e2eConfig =
+  process.env['E2E_CONFIG'] ?? JSON.stringify({ backend: { url: 'http://localhost:9/e2e-no-backend' } }, null, 2);
 
 createServer((request, response) => {
   const path = request.url.split('?')[0];

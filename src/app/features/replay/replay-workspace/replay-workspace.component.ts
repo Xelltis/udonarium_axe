@@ -14,6 +14,7 @@ import { ReplayEditorService } from '@axe/application/replay/replay-editor.servi
 import { ReplayLibraryService } from '@axe/application/replay/replay-library.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ReplayRecorderService } from '@axe/application/replay/replay-recorder.service';
+import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
 import { earliestReplaySeq } from '@axe/domain/replay/replay-edit';
 import { ReplayDigestPanelComponent } from '@axe/features/replay/replay-digest-panel/replay-digest-panel.component';
 import { ReplayScriptPanelComponent } from '@axe/features/replay/replay-script-panel/replay-script-panel.component';
@@ -45,6 +46,7 @@ export class ReplayWorkspaceComponent {
   private readonly playback = inject(ReplayPlaybackService);
   private readonly editor = inject(ReplayEditorService);
   private readonly recorder = inject(ReplayRecorderService);
+  private readonly staging = inject(ReplayStagingService);
   private readonly library = inject(ReplayLibraryService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly destroyRef = inject(DestroyRef);
@@ -56,6 +58,7 @@ export class ReplayWorkspaceComponent {
   protected readonly isDirty = this.editor.isDirty;
   protected readonly isSaving = this.editor.isSaving;
   protected readonly canUndo = this.editor.canUndo;
+  protected readonly isStaging = this.staging.isStaging;
   protected readonly isDigestOpen = signal(false);
   /** Whether the left column shows the video as it will be written, rather than the playback controls. */
   protected readonly isPreviewOpen = signal(false);
@@ -116,7 +119,16 @@ export class ReplayWorkspaceComponent {
     this.editor.begin(this.playback.events());
   }
 
+  /**
+   * Throws every edit away and stops editing, and with it a scene being acted out to go in, which
+   * would have no edit left to go into. Nothing is thrown away while the edits are being saved.
+   */
   protected cancelEditing(): void {
+    if (this.isSaving()) return;
+    if (this.staging.isStaging()) {
+      this.staging.discard();
+      void this.playback.showBoardAfresh();
+    }
     this.editor.cancel();
   }
 
@@ -135,16 +147,25 @@ export class ReplayWorkspaceComponent {
     this.undo();
   }
 
+  /**
+   * Saves the edits as a recording of their own and opens it, unless another recording was opened
+   * meanwhile. Nothing is saved while a scene is being acted out, which would be left out and thrown
+   * away as the saved one opens.
+   */
   protected async saveEdits(): Promise<void> {
+    if (this.isStaging()) return;
     const id = this.playback.recordingId();
     const manifest = this.playback.manifest();
     const edited = this.editor.edited();
     if (id == null || !manifest || edited.length < 1) return;
 
-    const base = await this.library.boardBefore(id, earliestReplaySeq(edited), this.playback.events());
-    const derived = await this.editor.saveAsDerived(manifest, base);
+    const events = this.playback.events();
+    const derived = await this.editor.saveAsDerived(manifest, () =>
+      this.library.boardBefore(id, earliestReplaySeq(this.editor.edited()), events)
+    );
     if (derived == null) return;
     await this.recorder.refresh();
+    if (this.playback.recordingId() !== id) return;
     await this.playback.open(derived);
   }
 }

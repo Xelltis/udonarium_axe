@@ -101,6 +101,30 @@
             </ng-select>
             <span class="text-ui-dim text-[11px]">{{ 'feature.tabletop.tableSetting.cutInsHint' | transloco }}</span>
           </div>
+
+          <label class="text-ui-muted text-[11px] whitespace-nowrap" for="table-bgm">{{
+            'feature.tabletop.tableSetting.tableBgm' | transloco
+          }}</label>
+          <div class="flex flex-col gap-1">
+            <select
+              id="table-bgm"
+              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              [(ngModel)]="tableBgmChoice"
+              name="tableBgmChoice"
+              data-testid="table-bgm"
+              [attr.disabled]="!isEditable ? '' : null"
+            >
+              <option [ngValue]="''">{{ 'feature.tabletop.tableSetting.tableBgmKeep' | transloco }}</option>
+              <option [ngValue]="'stop'">{{ 'feature.tabletop.tableSetting.tableBgmStop' | transloco }}</option>
+              @for (track of tableBgmTracks(); track track.value) {
+                <option [ngValue]="track.value">{{ track.name }}</option>
+              }
+              @if (missingTableBgm(); as missing) {
+                <option [ngValue]="missing">{{ 'feature.tabletop.tableSetting.tableBgmMissing' | transloco }}</option>
+              }
+            </select>
+            <span class="text-ui-dim text-[11px]">{{ 'feature.tabletop.tableSetting.tableBgmHint' | transloco }}</span>
+          </div>
         </div>
       </div>
 
@@ -515,6 +539,36 @@
               [attr.disabled]="!isEditable ? '' : null"
             />
           </div>
+
+          <label class="text-ui-muted text-[11px] whitespace-nowrap" for="table-cell-size-num">{{
+            'feature.tabletop.tableSetting.cellSize' | transloco
+          }}</label>
+          <div class="flex items-center gap-2">
+            <input
+              type="range"
+              class="flex-1 [accent-color:var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+              [value]="tableCellSize"
+              (change)="commitTableCellSize($event)"
+              min="{{ minCellSize }}"
+              max="{{ maxCellSize }}"
+              data-testid="table-cell-size-range"
+              [attr.disabled]="!isEditable ? '' : null"
+            />
+            <input
+              type="number"
+              id="table-cell-size-num"
+              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent w-[4.5em] border border-solid px-1.5 py-1 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              [value]="tableCellSize"
+              (change)="commitTableCellSize($event)"
+              min="{{ minCellSize }}"
+              max="{{ maxCellSize }}"
+              data-testid="table-cell-size-num"
+              [attr.disabled]="!isEditable ? '' : null"
+            />
+          </div>
+          <span class="text-ui-dim col-start-2 text-[11px]">{{
+            'feature.tabletop.tableSetting.cellSizeHint' | transloco
+          }}</span>
         </div>
       </div>
 
@@ -539,6 +593,29 @@
             <option value="1">{{ 'feature.tabletop.tableSetting.gridTypeHexVertical' | transloco }}</option>
             <option value="2">{{ 'feature.tabletop.tableSetting.gridTypeHexHorizontal' | transloco }}</option>
           </select>
+
+          @if (isSquareGridTable) {
+            <label class="text-ui-muted text-[11px] whitespace-nowrap" for="table-square-span">{{
+              'feature.tabletop.tableSetting.squareSpan' | transloco
+            }}</label>
+            <select
+              id="table-square-span"
+              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              [(ngModel)]="tableSquareSpan"
+              name="tableSquareSpan"
+              data-testid="table-square-span"
+              [attr.disabled]="!isEditable ? '' : null"
+            >
+              @for (span of squareSpans; track span) {
+                <option [ngValue]="span">
+                  {{ 'feature.tabletop.tableSetting.squareSpanOption' | transloco: { span } }}
+                </option>
+              }
+            </select>
+            <span class="text-ui-dim col-start-2 text-[11px]">{{
+              'feature.tabletop.tableSetting.squareSpanHint' | transloco
+            }}</span>
+          }
 
           <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
             'feature.tabletop.tableSetting.gridColorLabel' | transloco

@@ -3,7 +3,7 @@ import { expect, Page, test } from '@playwright/test';
 import { openPanel, waitAppReady } from './helpers';
 
 /** The game master picks, in the room settings, which values and resources the remote controllers show. */
-test.describe('リモコンに出す数値とリソース', () => {
+test.describe('the values and resources the remote controller shows', () => {
   async function becomeGameMaster(page: Page) {
     await page
       .locator('ui-panel')
@@ -21,14 +21,16 @@ test.describe('リモコンに出す数値とリソース', () => {
     return remote;
   }
 
-  test('部屋設定で外した項目は、リモコンのリソース操作にもコマの欄にも出ないこと', async ({ page }) => {
+  test('keeps an item turned off in the room settings out of both the remote controller’s resource controls and the pieces’ columns', async ({
+    page,
+  }) => {
     await waitAppReady(page);
     await becomeGameMaster(page);
     await openPanel(page, '部屋設定');
     const section = page.getByTestId('room-settings-controller-resources');
     await expect(section.locator('input[data-resource="器用度"]')).toBeChecked();
 
-    // パネルが重なって開くことがあるので、チェックへは直接押下を送る。
+    // Panels can open over one another, so the press is sent straight to the checkbox.
     await section.locator('label:has(input[data-resource="器用度"])').dispatchEvent('click');
     await expect(section.locator('input[data-resource="器用度"]')).not.toBeChecked();
 
@@ -46,13 +48,13 @@ test.describe('リモコンに出す数値とリソース', () => {
     await expect(remote).toContainText('器用度');
   });
 
-  test('PL は部屋設定のこの欄に触れないこと', async ({ page }) => {
+  test('keeps a PL from touching this part of the room settings', async ({ page }) => {
     await waitAppReady(page);
     await openPanel(page, '部屋設定');
     const section = page.getByTestId('room-settings-controller-resources');
     await expect(section.locator('input[data-resource="HP"]')).toBeAttached();
 
-    // GMだけが変えられる欄なので、PLには操作の届かない形で出る。
+    // Only the GM may change this part, so a PL sees it out of reach.
     expect(await section.evaluate((el) => el.closest('[inert]') !== null)).toBe(true);
   });
 });

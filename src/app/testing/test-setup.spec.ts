@@ -1,3 +1,4 @@
+import { emitLoadConfig, loadConfig$ } from '@axe/core/event/domain-events';
 import { SyncObject } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -42,5 +43,39 @@ describe('the shared test setup', () => {
     second.initialize();
 
     expect(ObjectStore.instance.get('test-setup-fixed-identifier')).toBe(second);
+  });
+
+  it('takes a configuration announced, which the channel replays to later listeners', () => {
+    emitLoadConfig({ config: { announcedBy: 'an earlier test' } });
+
+    const heard: unknown[] = [];
+    loadConfig$.subscribe((event) => heard.push(event.config))();
+    expect(heard).toEqual([{ announcedBy: 'an earlier test' }]);
+  });
+
+  it('replays to the next test none of the configuration the one before it announced', () => {
+    const heard: unknown[] = [];
+    loadConfig$.subscribe((event) => heard.push(event.config))();
+
+    expect(heard).toEqual([]);
+  });
+
+  it('leaves the page where it is when a spec clicks a link, as saving a file does', () => {
+    const before = location.href;
+    const link = document.createElement('a');
+    link.href = 'blob:http://localhost/left-behind';
+    link.download = 'room.zip';
+    link.click();
+
+    expect(location.href).toBe(before);
+  });
+
+  it('puts the page back where it was for the next test, should anything have moved it', () => {
+    (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM.setURL('blob:http://localhost/moved');
+  });
+
+  it('starts each test at the page’s own address, so relative addresses resolve', () => {
+    expect(location.href.startsWith('blob:')).toBe(false);
+    expect(new URL('assets/login-callback.html', document.baseURI).pathname).toMatch(/assets\/login-callback\.html$/);
   });
 });

@@ -1,3 +1,5 @@
+import { MenuAudience } from '@axe/domain/ui/menu-command';
+
 export type MobileMenuAction =
   | 'peerMenu'
   | 'tableSetting'
@@ -30,6 +32,8 @@ export interface MobileMenuItem {
   readonly icon: string;
   readonly labelKey: string;
   readonly gameMasterOnly?: boolean;
+  /** Who is offered it among the seats that see the section it is in; anyone when unset. */
+  readonly audience?: MenuAudience;
 }
 
 export const MOBILE_MENU_ITEMS: readonly MobileMenuItem[] = [
@@ -40,7 +44,7 @@ export const MOBILE_MENU_ITEMS: readonly MobileMenuItem[] = [
   { action: 'jukebox', icon: 'queue_music', labelKey: 'app.fab.jukebox' },
   { action: 'soundSettings', icon: 'volume_up', labelKey: 'app.fab.soundSettings' },
   { action: 'cutIn', icon: 'slideshow', labelKey: 'app.fab.cutIn' },
-  { action: 'effect', icon: 'auto_awesome', labelKey: 'feature.effect.title' },
+  { action: 'effect', icon: 'auto_awesome', labelKey: 'feature.effect.title', audience: 'playing' },
   { action: 'inventory', icon: 'folder_shared', labelKey: 'app.fab.inventory' },
   { action: 'objectList', icon: 'list_alt', labelKey: 'feature.mobile.objectList', gameMasterOnly: true },
   { action: 'party', icon: 'diversity_3', labelKey: 'feature.gmTools.party.title', gameMasterOnly: true },
@@ -54,14 +58,14 @@ export const MOBILE_MENU_ITEMS: readonly MobileMenuItem[] = [
     labelKey: 'feature.tabletop.dungeonGenerator.title',
     gameMasterOnly: true,
   },
-  { action: 'createObject', icon: 'add_circle', labelKey: 'app.fab.createObject' },
-  { action: 'importCharacter', icon: 'person_add', labelKey: 'app.fab.importCharacter' },
+  { action: 'createObject', icon: 'add_circle', labelKey: 'app.fab.createObject', audience: 'playing' },
+  { action: 'importCharacter', icon: 'person_add', labelKey: 'app.fab.importCharacter', audience: 'playing' },
   { action: 'roomSnapshot', icon: 'history', labelKey: 'app.fab.roomSnapshot' },
   { action: 'replay', icon: 'receipt_long', labelKey: 'app.fab.replay' },
   { action: 'visualNovel', icon: 'auto_stories', labelKey: 'app.fab.visualNovel' },
-  { action: 'activePalette', icon: 'chat', labelKey: 'feature.mobile.activePalette' },
-  { action: 'hand', icon: 'style', labelKey: 'app.fab.handCards' },
-  { action: 'zipLoad', icon: 'open_in_browser', labelKey: 'app.fab.zipLoad' },
+  { action: 'activePalette', icon: 'chat', labelKey: 'feature.mobile.activePalette', audience: 'playing' },
+  { action: 'hand', icon: 'style', labelKey: 'app.fab.handCards', audience: 'playing' },
+  { action: 'zipLoad', icon: 'open_in_browser', labelKey: 'app.fab.zipLoad', audience: 'playing' },
   { action: 'save', icon: 'sd_storage', labelKey: 'app.fab.save' },
 ];
 

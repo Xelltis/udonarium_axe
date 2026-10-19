@@ -13,7 +13,7 @@ test.use({
 });
 
 /** A chat roll's dice tumble in the frame of the line that answers it, when the room has them shown there. */
-test.describe('チャットのダイスを 3D で転がす', () => {
+test.describe('rolling chat dice in 3D', () => {
   async function becomeGameMaster(page: Page) {
     await page
       .locator('ui-panel')
@@ -63,7 +63,7 @@ test.describe('チャットのダイスを 3D で転がす', () => {
     await becomeGameMaster(page);
   });
 
-  test('セリフの枠で転がった d20 が、ダイスボットの出目で止まること', async ({ page }) => {
+  test("stops a d20 rolled in the frame of a line on the dice bot's result", async ({ page }) => {
     await chooseStage(page, 'frame');
 
     const { answer, total } = await roll(page, '1d20');
@@ -74,7 +74,7 @@ test.describe('チャットのダイスを 3D で転がす', () => {
     await expect.poll(() => isDrawnOn(stage.locator('canvas')), { timeout: 10000 }).toBe(true);
   });
 
-  test('1d100 は十の位と一の位の d10 が、合わせて出目になる面で止まること', async ({ page }) => {
+  test('stops the tens and units d10 of 1d100 on faces that add up to the result', async ({ page }) => {
     await chooseStage(page, 'frame');
 
     const { answer, total } = await roll(page, '1d100');
@@ -87,7 +87,9 @@ test.describe('チャットのダイスを 3D で転がす', () => {
     expect(Number(tens) + Number(units) || 100).toBe(total);
   });
 
-  test('卓の上の設定では、卓に重ねた絵にダイスが描かれ、セリフの枠は出ないこと', async ({ page }) => {
+  test('draws the dice on the picture laid over the table, with no frame in the line, when set to the table', async ({
+    page,
+  }) => {
     await chooseStage(page, 'table');
 
     const { answer } = await roll(page, '2d6');
@@ -110,7 +112,7 @@ test.describe('チャットのダイスを 3D で転がす', () => {
     await expect(answer.getByTestId('dice-roll-stage')).toHaveCount(0);
   });
 
-  test('両方の設定では、セリフの枠と卓の上の両方で同じ目に止まること', async ({ page }) => {
+  test('stops on the same faces in both the frame of the line and on the table when set to both', async ({ page }) => {
     await chooseStage(page, 'both');
 
     const { answer, total } = await roll(page, '1d20');
@@ -124,7 +126,9 @@ test.describe('チャットのダイスを 3D で転がす', () => {
       .toBeGreaterThan(1);
   });
 
-  test('51個以上のロールは50個以下の枠に均等に分けて転がり、出目の合計が合うこと', async ({ page }) => {
+  test('rolls more than 50 dice split evenly over frames of 50 or fewer, with the faces adding up to the result', async ({
+    page,
+  }) => {
     test.setTimeout(90000);
     await chooseStage(page, 'frame');
 
@@ -143,7 +147,7 @@ test.describe('チャットのダイスを 3D で転がす', () => {
     await expect(answer).not.toContainText(/\+\d+$/);
   });
 
-  test('200個を超えるロールは4枠で転がり、残りの個数を最後の枠に出すこと', async ({ page }) => {
+  test('rolls more than 200 dice in four frames, showing the count left over in the last', async ({ page }) => {
     test.setTimeout(90000);
     await chooseStage(page, 'frame');
 
@@ -155,7 +159,9 @@ test.describe('チャットのダイスを 3D で転がす', () => {
     await expect(stages.first()).not.toContainText('+');
   });
 
-  test('出さない設定のときに振った行も、枠に出す設定に替えると出目どおりに止まった姿で出ること', async ({ page }) => {
+  test('shows a line rolled while set not to show the dice, stopped on its result, once set to show them in the frame', async ({
+    page,
+  }) => {
     await chooseStage(page, 'off');
     const { answer, total } = await roll(page, '1d20');
     await expect(answer.getByTestId('dice-roll-stage')).toHaveCount(0);
@@ -168,7 +174,7 @@ test.describe('チャットのダイスを 3D で転がす', () => {
     await expect.poll(() => isDrawnOn(stage.locator('canvas')), { timeout: 10000 }).toBe(true);
   });
 
-  test('マイダイスで選んだ材質で、自分のロールが転がること', async ({ page }) => {
+  test("rolls one's own dice in the material chosen in my dice", async ({ page }) => {
     await chooseStage(page, 'frame');
 
     await page.getByTestId('chat-my-dice').click();
@@ -185,7 +191,7 @@ test.describe('チャットのダイスを 3D で転がす', () => {
     await expect.poll(() => isDrawnOn(stage.locator('canvas')), { timeout: 10000 }).toBe(true);
   });
 
-  test('マイダイスで画像を貼ると、選んだ貼り方で自分のロールが転がること', async ({ page }) => {
+  test("rolls one's own dice with the picture put on in my dice, laid the way chosen", async ({ page }) => {
     await chooseStage(page, 'frame');
 
     await page.getByTestId('chat-my-dice').click();
@@ -215,7 +221,7 @@ test.describe('チャットのダイスを 3D で転がす', () => {
     await expect.poll(() => isDrawnOn(stage.locator('canvas')), { timeout: 10000 }).toBe(true);
   });
 
-  test('スキンで選んだマットの色が、ダイスの枠に敷かれること', async ({ page }) => {
+  test('lays the mat colour chosen in the skin under the frame of the dice', async ({ page }) => {
     await chooseStage(page, 'frame');
     const display = await openSeatDisplay(page);
     await display.getByTestId('seat-skin').click();
@@ -233,7 +239,7 @@ test.describe('チャットのダイスを 3D で転がす', () => {
     await expect(stage).toHaveAttribute('data-mat', '#1f4d3a');
   });
 
-  test('出さない設定では、ロールしても枠が出ないこと', async ({ page }) => {
+  test('shows no frame for a roll when set not to show the dice', async ({ page }) => {
     await chooseStage(page, 'off');
 
     const { answer } = await roll(page, '1d20');

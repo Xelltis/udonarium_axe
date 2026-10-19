@@ -1,6 +1,7 @@
 import { decode, encode } from '@axe/core/util/message-pack';
 import {
   GM_ONLY_VISIBILITY,
+  PLAYERS_VISIBILITY,
   PUBLIC_VISIBILITY,
   REPLAY_FORMAT_VERSION,
   type ReplayEvent,
@@ -25,12 +26,13 @@ export function isSupportedReplayFormat(version: unknown): boolean {
 }
 
 /**
- * Packs a chunk of events into MessagePack, stamped with the current format version.
+ * Packs a chunk of events into MessagePack, stamped with a format version: the current one, or the
+ * one of the recording they belong to when it goes out as it was written.
  *
  * Optional fields an event does not have are left out.
  */
-export function encodeReplayEvents(events: readonly ReplayEvent[]): Uint8Array {
-  const envelope: ChunkEnvelope = { v: REPLAY_FORMAT_VERSION, events: events.map(toWire) };
+export function encodeReplayEvents(events: readonly ReplayEvent[], version = REPLAY_FORMAT_VERSION): Uint8Array {
+  const envelope: ChunkEnvelope = { v: version, events: events.map(toWire) };
   return encode(envelope);
 }
 
@@ -99,6 +101,7 @@ function asArray<T>(value: unknown): T[] {
 function asVisibility(value: unknown): ReplayVisibility {
   if (!isRecord(value)) return PUBLIC_VISIBILITY;
   if (value['kind'] === 'gm-only') return GM_ONLY_VISIBILITY;
+  if (value['kind'] === 'players') return PLAYERS_VISIBILITY;
   if (value['kind'] === 'direct') return { kind: 'direct', to: asArray<string>(value['to']) };
   return PUBLIC_VISIBILITY;
 }

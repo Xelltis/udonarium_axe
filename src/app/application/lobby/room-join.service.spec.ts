@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import {
   ROOM_CONNECT_TIMEOUT_MS,
   ROOM_OPEN_TIMEOUT_MS,
+  ROOM_SERVER_OPEN_TIMEOUT_MS,
   RoomJoinService,
 } from '@axe/application/lobby/room-join.service';
 import {
@@ -14,7 +15,7 @@ import { Network } from '@axe/core/index';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo, RoomInfo } from '@axe/core/network/room-info';
 import { sameNameMemberWait$ } from '@axe/core/network/skyway/same-name-member';
-import { clearIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
+import { clearIdentity, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -73,6 +74,119 @@ describe('RoomJoinService', () => {
     PeerCursor.myCursor = originalMyCursor;
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
+  });
+
+  describe('on a room server', () => {
+    const KEY = '0123456789abcdef0123456789abcdef';
+    const serverRoom = (overrides: Partial<IRoomInfo> = {}): IRoomInfo => ({
+      id: 'abc',
+      name: 'roomname',
+      hasPassword: false,
+      peers: [],
+      memberCount: 1,
+      roomKey: KEY,
+      filterByPassword: () => [],
+      ...overrides,
+    });
+
+    it('finds a room by its key however old, and says so of a key the server has no room for', async () => {
+      const found = serverRoom();
+      const byKey = vi.spyOn(Network, 'findRoom').mockResolvedValueOnce(found).mockResolvedValueOnce(null);
+      const list = vi.spyOn(Network, 'listAllRooms').mockResolvedValue([]);
+
+      expect(await service.findServerRoom(KEY, 'abc', 'roomname')).toBe(found);
+      expect(await service.findServerRoom(KEY, 'abc', 'roomname')).toBeNull();
+      expect(byKey).toHaveBeenCalledWith(KEY);
+      expect(list).not.toHaveBeenCalled();
+    });
+
+    it('finds a room in the list by its key when the key cannot be asked about, or by its id and name for a link from before keys', async () => {
+      const rooms = [serverRoom({ id: 'xyz', name: 'other', roomKey: 'f'.repeat(32) }), serverRoom()];
+      vi.spyOn(Network, 'findRoom').mockRejectedValue(new Error('out of reach'));
+      vi.spyOn(Network, 'listAllRooms').mockResolvedValue(rooms);
+
+      expect(await service.findServerRoom(KEY, '', '')).toBe(rooms[1]);
+      expect(await service.findServerRoom('', 'xyz', 'other')).toBe(rooms[0]);
+      expect(await service.findServerRoom('', 'xyz', 'wrong name')).toBeNull();
+    });
+
+    it('opens the room by its key with the password and is in once its own connection opens', async () => {
+      const joined = service.joinServerRoom(serverRoom(), 'secret');
+      livePeerId = MY_PEER;
+      stubChange.networkOpen$.emit({ peerId: MY_PEER });
+
+      expect(await joined).toBe(true);
+      expect(Network.open).toHaveBeenCalledWith('user', 'abc', 'roomname', 'secret', KEY);
+      expect(Network.connect).not.toHaveBeenCalled();
+    });
+
+    it('gives up when the server refuses, leaving the wait to the handling of the error', async () => {
+      const joined = service.joinServerRoom(serverRoom(), 'wrong');
+      livePeerId = MY_PEER;
+      stubChange.networkError$.emit({
+        peerId: MY_PEER,
+        errorType: 'wrong-password',
+        errorMessage: '',
+        errorObject: null,
+      } as NetworkErrorEvent);
+
+      expect(await joined).toBe(false);
+      // The handling of network errors waits again as whoever the login says, which a join started
+      // before a logout would get wrong.
+      expect(Network.openStandby).not.toHaveBeenCalled();
+    });
+
+    it('gives up at once on a refusal heard after the network went back to waiting', async () => {
+      const joined = service.joinServerRoom(serverRoom(), 'wrong');
+      livePeerId = 'standbypeer';
+      stubChange.networkError$.emit({
+        peerId: MY_PEER,
+        errorType: 'wrong-password',
+        errorMessage: '',
+        errorObject: null,
+      } as NetworkErrorEvent);
+
+      expect(await joined).toBe(false);
+    });
+
+    it('gives up at once when the session fails before it has a peer id of its own', async () => {
+      const joined = service.joinServerRoom(serverRoom(), '');
+      stubChange.networkError$.emit({
+        peerId: '???',
+        errorType: 'server-unreachable',
+        errorMessage: '',
+        errorObject: null,
+      } as NetworkErrorEvent);
+
+      expect(await joined).toBe(false);
+    });
+
+    it('gives up when the server never lets it in', async () => {
+      vi.useFakeTimers();
+      const joined = service.joinServerRoom(serverRoom(), '');
+      livePeerId = MY_PEER;
+
+      vi.advanceTimersByTime(ROOM_SERVER_OPEN_TIMEOUT_MS);
+
+      expect(await joined).toBe(false);
+      vi.useRealTimers();
+    });
+
+    it('waits again as the user it tried to join as, stopping a join still waiting on the login', async () => {
+      vi.useFakeTimers();
+      const joined = service.joinServerRoom(serverRoom(), '');
+
+      vi.advanceTimersByTime(ROOM_SERVER_OPEN_TIMEOUT_MS);
+
+      expect(await joined).toBe(false);
+      expect(Network.openStandby).toHaveBeenCalledExactlyOnceWith('user');
+      vi.useRealTimers();
+    });
+
+    it('joins nothing for a room without a key', async () => {
+      expect(await service.joinServerRoom(serverRoom({ roomKey: undefined }), '')).toBe(false);
+      expect(Network.open).not.toHaveBeenCalled();
+    });
   });
 
   describe('findRoom', () => {
@@ -186,6 +300,96 @@ describe('RoomJoinService', () => {
       expect(Network.openStandby).toHaveBeenCalledOnce();
     });
 
+    it('takes back the room and the role it wrote down for a join that came to nothing', async () => {
+      saveIdentity({ userId: 'user', roomId: 'xyz', roomName: 'mine', role: PeerRole.GameMaster, reConnectPass: '' });
+      PeerCursor.myCursor = { peerId: '', role: PeerRole.GameMaster } as PeerCursor;
+      const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
+      roomOpens();
+      saveIdentity({ userId: 'user', roomId: 'abc', roomName: 'room', role: PeerRole.Player, reConnectPass: '' });
+
+      stubChange.peerDisconnect$.emit({ peerId: 'peer-1' });
+
+      await expect(joined).resolves.toBe(false);
+      expect(loadIdentity()).toEqual(
+        expect.objectContaining({ roomId: 'xyz', role: PeerRole.GameMaster, roomRole: PeerRole.GameMaster })
+      );
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
+    });
+
+    it('takes it back too where the handling of a network error went back to waiting first', async () => {
+      saveIdentity({ userId: 'user', roomId: 'xyz', roomName: 'mine', role: PeerRole.GameMaster, reConnectPass: '' });
+      PeerCursor.myCursor = { peerId: '', role: PeerRole.GameMaster } as PeerCursor;
+      const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
+      roomOpens();
+      saveIdentity({ userId: 'user', roomId: 'abc', roomName: 'room', role: PeerRole.Player, reConnectPass: '' });
+      livePeerId = 'standbypeer';
+
+      stubChange.peerDisconnect$.emit({ peerId: 'peer-1' });
+
+      await expect(joined).resolves.toBe(false);
+      expect(loadIdentity()).toEqual(expect.objectContaining({ roomId: 'xyz', role: PeerRole.GameMaster }));
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
+    });
+
+    it('leaves the room the seat went into meanwhile as it is, as one it made', async () => {
+      PeerCursor.myCursor = { peerId: '', role: PeerRole.Player } as PeerCursor;
+      const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
+      roomOpens();
+      livePeerId = 'myseatzzzroomname-';
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'user', isRoom: true } as PeerContext);
+      vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('zzz');
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      saveIdentity({ userId: 'user', roomId: 'zzz', roomName: 'made', role: PeerRole.GameMaster, reConnectPass: '' });
+
+      stubChange.peerDisconnect$.emit({ peerId: 'peer-1' });
+
+      await expect(joined).resolves.toBe(false);
+      expect(loadIdentity()).toEqual(expect.objectContaining({ roomId: 'zzz', role: PeerRole.GameMaster }));
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
+    });
+
+    it('leaves a room asked for meanwhile alone, its peer id still to come, and takes nothing back', async () => {
+      saveIdentity({ userId: 'user', roomId: 'xyz', roomName: 'mine', role: PeerRole.Player, reConnectPass: '' });
+      PeerCursor.myCursor = { peerId: '', role: PeerRole.Player } as PeerCursor;
+      const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
+      roomOpens();
+      vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('zzz');
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+
+      stubChange.peerDisconnect$.emit({ peerId: 'peer-1' });
+
+      await expect(joined).resolves.toBe(false);
+      expect(Network.openStandby).not.toHaveBeenCalled();
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.GameMaster);
+    });
+
+    it('forgets the room it was tried on for a tab that was in none, as a reload would take it for its own', async () => {
+      const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
+      roomOpens();
+      saveIdentity({ userId: 'user', roomId: 'abc', roomName: 'room', role: PeerRole.Player, reConnectPass: '' });
+
+      stubChange.peerDisconnect$.emit({ peerId: 'peer-1' });
+
+      await expect(joined).resolves.toBe(false);
+      expect(loadIdentity()).toBeNull();
+    });
+
+    it('puts a game master down in the room this tab was last in where it was not the game master there', () => {
+      saveIdentity({
+        userId: 'user',
+        roomId: 'abc',
+        roomName: 'room',
+        role: PeerRole.GameMaster,
+        roomRole: PeerRole.Player,
+        reConnectPass: '',
+      });
+      PeerCursor.myCursor = { peerId: '', role: PeerRole.GameMaster } as PeerCursor;
+
+      void service.join([peerContext('peer-1', 'abc', 'room')], '');
+
+      expect(PeerCursor.myCursor.role).toBe(PeerRole.Player);
+    });
+
     it('settles on the timeout when no one ever answers', async () => {
       vi.useFakeTimers();
       const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
@@ -228,6 +432,15 @@ describe('RoomJoinService', () => {
       vi.useRealTimers();
     });
 
+    it('ends at once on an error opening the room heard after the handling of it went back to waiting', async () => {
+      const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
+      livePeerId = 'standbypeer';
+
+      stubChange.networkError$.emit({ peerId: MY_PEER, errorType: 'disconnect', errorMessage: '' });
+
+      await expect(joined).resolves.toBe(false);
+    });
+
     it('ends at once on an error opening the room, but not on one from another connection', async () => {
       const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
       let settled = false;
@@ -236,12 +449,28 @@ describe('RoomJoinService', () => {
       livePeerId = MY_PEER;
 
       stubChange.networkError$.emit({ peerId: 'standbypeer', errorType: 'disconnect', errorMessage: '' });
-      stubChange.networkError$.emit({ peerId: 'otherpabcroomname-', errorType: 'disconnect', errorMessage: '' });
+      stubChange.networkError$.emit({ peerId: 'otherpxyzroomname-', errorType: 'disconnect', errorMessage: '' });
       await Promise.resolve();
       expect(settled).toBe(false);
 
       stubChange.networkError$.emit({ peerId: MY_PEER, errorType: 'same-name-member', errorMessage: '' });
       await expect(joined).resolves.toBe(false);
+    });
+
+    it('keeps on through an error under the id of no room, which only a connection already closed has', async () => {
+      const joined = service.join([peerContext('peer-1', 'abc', 'room')], '');
+      let settled = false;
+      void joined.then(() => (settled = true));
+
+      stubChange.networkError$.emit({ peerId: '???', errorType: 'server-error', errorMessage: '' });
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      expect(Network.openStandby).not.toHaveBeenCalled();
+
+      roomOpens();
+      connectedPeers = [peerContext('peer-1', 'abc', 'room')];
+      stubChange.peerConnect$.emit({ peerId: 'peer-1' });
+      await expect(joined).resolves.toBe(true);
     });
 
     it('does not take the waiting connection opening for the room', async () => {

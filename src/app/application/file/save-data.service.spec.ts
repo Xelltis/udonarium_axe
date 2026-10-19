@@ -1,17 +1,25 @@
 import { inject, TestBed } from '@angular/core/testing';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
+import { Logger } from '@axe/core/logging/logger';
+import { Network } from '@axe/core/network/network';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
+import { ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
+import { exportChatLog } from '@axe/domain/chat/chat-log-export';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { markLoadedWithheld, markSeatWithheld } from '@axe/domain/peer/withheld-table';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -55,6 +63,38 @@ describe('SaveDataService', () => {
 
     const files = saveAsyncSpy.mock.calls[0][0] as File[];
     expect(files.some((file: File) => file.name.startsWith('image-null-blob.'))).toBe(false);
+  });
+
+  describe('a room saved on a room server', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    async function roomXmlSavedBy(isGameMaster: boolean, authority: string | null): Promise<string> {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(authority);
+      vi.spyOn(PeerCursor, 'isMyselfGameMaster', 'get').mockReturnValue(isGameMaster);
+      const privateApi = TestBed.inject(SaveDataService) as unknown as SaveDataServicePrivateApi;
+      const saveAsyncSpy = vi.spyOn(privateApi, 'saveAsync').mockResolvedValue(undefined);
+      await privateApi._saveRoomAsync('room');
+      const files = saveAsyncSpy.mock.calls[0][0] as File[];
+      return files.find((file) => file.name === 'data.xml')!.text();
+    }
+
+    it('is marked as withheld when saved by anyone but the GM, who holds some of it only in part', async () => {
+      expect(await roomXmlSavedBy(false, '@authority')).toContain('withheld="true"');
+    });
+
+    it('is marked after leaving the room server, as the table still holds what was withheld', async () => {
+      markSeatWithheld(true, 'room');
+      try {
+        expect(await roomXmlSavedBy(false, null)).toContain('withheld="true"');
+      } finally {
+        markLoadedWithheld(false, false);
+      }
+    });
+
+    it('is not marked when saved by the GM, or among peers', async () => {
+      expect(await roomXmlSavedBy(true, '@authority')).not.toContain('withheld="true"');
+      expect(await roomXmlSavedBy(false, null)).not.toContain('withheld="true"');
+    });
   });
 
   it('saves an object even when a finished image carries no blob', async () => {
@@ -263,13 +303,37 @@ describe('SaveDataService', () => {
       const reaction = ChatReaction.create(message.identifier, 'noa', 'ノア');
       reaction.stamps = 'sfx:creepy';
       try {
-        const log = service.renderChatLog('text', 'tab', [tab], { resolver: () => '', registryScript: '' });
+        const log = service.renderChatLog(exportChatLog, 'text', 'tab', [tab], {
+          resolver: () => '',
+          registryScript: '',
+        });
 
         expect(log).toContain(`${t('feature.chat.log.labels.reactions')}: ${t('ui.stamp.items.sfx.creepy.label')}×1`);
       } finally {
         reaction.destroy();
         tab.destroy();
       }
+    });
+  });
+
+  describe('the archive a room snapshot is taken from', () => {
+    it('is packed without the archiver, which would ask for a reload over a snapshot in the background', async () => {
+      const service = TestBed.inject(SaveDataService);
+      const viaArchiver = vi.spyOn(TestBed.inject(FileArchiver), 'createZipBlobAsync');
+
+      const archive = await service.createRoomArchiveAsync({ background: true });
+
+      expect(archive).toBeInstanceOf(Blob);
+      expect(viaArchiver).not.toHaveBeenCalled();
+    });
+
+    it('is packed through the archiver when the reader asked for it, to ask for the reload if need be', async () => {
+      const service = TestBed.inject(SaveDataService);
+      const viaArchiver = vi.spyOn(TestBed.inject(FileArchiver), 'createZipBlobAsync');
+
+      await service.createRoomArchiveAsync();
+
+      expect(viaArchiver).toHaveBeenCalledOnce();
     });
   });
 
@@ -291,6 +355,52 @@ describe('SaveDataService', () => {
       expect(callback).toHaveBeenCalledWith(100);
     });
 
+    it('settles a save that fails, so that nothing waits on it for ever', async () => {
+      const service = TestBed.inject(SaveDataService);
+      vi.spyOn(TestBed.inject(FileArchiver), 'saveAsync').mockRejectedValue(new Error('no code'));
+      vi.spyOn(Logger, 'error').mockImplementation(() => {});
+
+      await expect(service.saveRoomAsync('room')).resolves.toBeUndefined();
+      expect(Logger.error).toHaveBeenCalled();
+    });
+
+    it('saves no room while a recording’s board is shown in place of the table, and says so', async () => {
+      const service = TestBed.inject(SaveDataService);
+      const t = TestBed.inject(TRANSLATE_FN);
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+      const saved = vi.spyOn(TestBed.inject(FileArchiver), 'saveAsync').mockResolvedValue();
+      setNetworkIsolated(true);
+      try {
+        await service.saveRoomAsync('room');
+
+        expect(saved).not.toHaveBeenCalled();
+        expect(shown).toHaveBeenCalledWith(t('app.saveWhileReplayBoard'));
+      } finally {
+        setNetworkIsolated(false);
+      }
+    });
+
+    it('tells the reader of every save that fails, and to reload when the code could not be fetched', async () => {
+      const service = TestBed.inject(SaveDataService);
+      const t = TestBed.inject(TRANSLATE_FN);
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+      vi.spyOn(Logger, 'error').mockImplementation(() => {});
+      vi.spyOn(TestBed.inject(FileArchiver), 'saveAsync')
+        .mockRejectedValueOnce(new ZipCodeUnavailableError(new TypeError('Failed to fetch')))
+        .mockRejectedValueOnce(new ZipCodeUnavailableError(new TypeError('Failed to fetch')))
+        .mockRejectedValueOnce(new Error('out of memory'));
+
+      await service.saveRoomAsync('room');
+      await service.saveRoomAsync('room');
+      await service.saveRoomAsync('room');
+
+      expect(shown.mock.calls.map(([message]) => message)).toEqual([
+        t('common.dialog.saveFailedReload'),
+        t('common.dialog.saveFailedReload'),
+        t('common.dialog.saveFailed'),
+      ]);
+    });
+
     it('reports the same percentage only once', async () => {
       const service = TestBed.inject(SaveDataService);
       const privateApi = service as unknown as SaveDataServicePrivateApi;
@@ -298,7 +408,7 @@ describe('SaveDataService', () => {
       const fileArchiver = TestBed.inject(FileArchiver);
       vi.spyOn(fileArchiver, 'saveAsync').mockImplementation(async (_files, _zipName, cb) => {
         cb?.({ percent: 50, currentFile: '' });
-        cb?.({ percent: 50, currentFile: '' }); // 重複
+        cb?.({ percent: 50, currentFile: '' }); // the same step again
         cb?.({ percent: 100, currentFile: '' });
       });
 

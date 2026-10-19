@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -20,6 +21,10 @@ export class GameCharacterBuffViewComponent {
   private readonly modalService = inject(ModalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly t = inject(TRANSLATE_FN);
+
+  constructor() {
+    closeWhenOffTheTable();
+  }
 
   readonly character = signal<GameCharacter | null>(null);
   readonly isEdit = signal(false);

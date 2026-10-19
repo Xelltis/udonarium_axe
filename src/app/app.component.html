@@ -19,7 +19,11 @@
       [class.h-full]="!isTableSplit()"
       [style.height]="isTableSplit() ? mobile.tableRatio() * 100 + '%' : null"
     >
-      <first-person-view />
+      @defer (on immediate) {
+        <first-person-view />
+      } @error {
+        <ng-container appReloadNotice />
+      }
     </div>
   }
   <app-beat-light />
@@ -33,16 +37,28 @@
       <app-hand-rail></app-hand-rail>
     }
   } @else {
-    <app-mini-jukebox [hidden]="!widgets.miniPlayer()"></app-mini-jukebox>
+    @defer (when widgets.miniPlayer()) {
+      <app-mini-jukebox [hidden]="!widgets.miniPlayer()"></app-mini-jukebox>
+    } @error {
+      <ng-container appReloadNotice />
+    }
     <app-digital-clock></app-digital-clock>
-    <app-compass></app-compass>
+    @defer (when widgets.compass()) {
+      <app-compass></app-compass>
+    } @error {
+      <ng-container appReloadNotice />
+    }
     <app-connection-quality></app-connection-quality>
     <app-gm-toolbar></app-gm-toolbar>
     <app-pl-toolbar></app-pl-toolbar>
     <app-hand-rail></app-hand-rail>
   }
   <app-hotbar />
-  <app-vote-widget />
+  @defer (when voteCalled()) {
+    <app-vote-widget />
+  } @error {
+    <ng-container appReloadNotice />
+  }
   <app-render-stats />
   <app-hand-drag-ghost></app-hand-drag-ghost>
   <app-npc-drag-ghost></app-npc-drag-ghost>
@@ -63,6 +79,7 @@
         class="panel-no-drag border-ui-border-panel bg-ui-panel rounded-ui-lg shadow-ui-md pointer-events-none absolute z-8 w-14 cursor-default border border-solid opacity-0 [backdrop-filter:blur(24px)_saturate(1.5)] transition-[transform,opacity] duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)] group-[.open]:pointer-events-auto group-[.open]:translate-y-0 group-[.open]:opacity-100 [@media(max-height:760px)]:w-28"
         [ngClass]="[fabDrawerPlace(), fabLabelSide(), guide.shown() ? fabGuideDrawer : '']"
         [attr.data-button-guide-keep]="guide.shown() ? '' : null"
+        [attr.data-shortcut-sheet-avoid]="guide.shown() ? '' : null"
       >
         <ul class="m-0 list-none p-1.5" [ngClass]="guide.shown() ? '' : fabColumns">
           @for (node of fabNodes(); track node.id) {
@@ -76,6 +93,7 @@
               [attr.data-fab-submenu-toggle]="isGroup(node) ? '' : null"
               [attr.aria-expanded]="isGroup(node) ? fabSubmenu() === node.id : null"
               (click)="chooseFab(node, $event)"
+              (contextmenu)="isGroup(node) || onFabEntryContextMenu($event, $any(node))"
             >
               <i class="material-icons" [class.vibration-amine]="node.id === 'saveLoad' && isSaving()">{{
                 node.icon
@@ -84,6 +102,7 @@
                 <span
                   class="text-ui-text absolute top-1/2 z-10 flex -translate-y-1/2 items-center gap-1 whitespace-nowrap"
                   [ngClass]="fabSubmenuSide()"
+                  data-shortcut-sheet-avoid
                 >
                   <span
                     class="bg-ui-elevated border-ui-accent rounded-ui shadow-ui-sm border border-solid px-2.5 py-0.5 text-[11px]/4"
@@ -142,6 +161,7 @@
                   [disabled]="entry.disabled"
                   [testId]="entry.testId"
                   (press)="chooseFromFabSubmenu(entry)"
+                  (contextMenuRequest)="onFabEntryContextMenu($event, entry)"
                 />
               }
             </ui-fab-submenu>
@@ -161,6 +181,7 @@
       </button>
     </div>
   }
+  <app-shortcut-sheet />
   <app-room-restore-banner />
   <replay-staging-banner />
   <app-replay-indicator />

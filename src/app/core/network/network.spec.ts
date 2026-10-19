@@ -140,6 +140,24 @@ describe('Network', () => {
     });
   });
 
+  describe('the room asked for', () => {
+    it('names the room asked for at once, before the session going is closed, and none once asked to wait', () => {
+      const instance = Network.instance as unknown as Record<string, unknown>;
+      instance['openAsync'] = vi.fn();
+      instance['connectionClassPromise'] = Promise.resolve();
+      const askedWhenClosing: string[] = [];
+      instance['close'] = vi.fn(() => askedWhenClosing.push(Network.requestedRoomId));
+
+      expect(Network.requestedRoomId).toBe('');
+      Network.open('user', 'abc', 'room', '');
+      expect(Network.requestedRoomId).toBe('abc');
+      expect(askedWhenClosing).toEqual(['abc']);
+
+      Network.openStandby('user');
+      expect(Network.requestedRoomId).toBe('');
+    });
+  });
+
   describe('the unload handlers', () => {
     it('carries an unload handler', () => {
       const instance = Network.instance as unknown as Record<string, unknown>;
@@ -190,6 +208,50 @@ describe('Network', () => {
       instance['connection'] = null;
     });
 
+    it('comes back into a room server’s room when a page left for the cache is shown again', () => {
+      const instance = Network.instance as unknown as Record<string, unknown>;
+      const rejoinAfterLeave = vi.fn(async () => {});
+      instance['connection'] = { rejoinAfterLeave } as unknown;
+      const transport = vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
+      const show = instance['callbackPageShow'] as (e: PageTransitionEvent) => void;
+
+      show({ persisted: false } as PageTransitionEvent);
+      expect(rejoinAfterLeave).not.toHaveBeenCalled();
+      show({ persisted: true } as PageTransitionEvent);
+
+      expect(rejoinAfterLeave).toHaveBeenCalled();
+      transport.mockRestore();
+      instance['connection'] = null;
+    });
+
+    it('leaves SkyWay as it was when a page left for the cache is shown again', () => {
+      const instance = Network.instance as unknown as Record<string, unknown>;
+      const rejoinAfterLeave = vi.fn(async () => {});
+      instance['connection'] = { rejoinAfterLeave } as unknown;
+      const transport = vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('skyway');
+      const show = instance['callbackPageShow'] as (e: PageTransitionEvent) => void;
+
+      show({ persisted: true } as PageTransitionEvent);
+
+      expect(rejoinAfterLeave).not.toHaveBeenCalled();
+      transport.mockRestore();
+      instance['connection'] = null;
+    });
+
+    it('lets the page go without asking, once the reader has chosen to leave it', () => {
+      const instance = Network.instance as unknown as Record<string, unknown>;
+      window.addEventListener('beforeunload', instance['callbackBeforeUnload'] as EventListener);
+      const asking = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(asking);
+      expect(asking.defaultPrevented).toBe(true);
+
+      Network.letPageGo();
+      const leaving = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(leaving);
+
+      expect(leaving.defaultPrevented).toBe(false);
+    });
+
     it('closes the connection when the page is simply hidden', () => {
       const instance = Network.instance as unknown as Record<string, unknown>;
       const leaveImmediately = vi.fn();
@@ -198,6 +260,56 @@ describe('Network', () => {
       (instance['callbackPageHide'] as (e: PageTransitionEvent) => void)({ persisted: false } as PageTransitionEvent);
       expect(leaveImmediately).toHaveBeenCalled();
       instance['connection'] = null;
+    });
+  });
+
+  describe('a room server’s login and invitations', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+
+    it('hands the login to every connection it makes, and an invitation to its room until a login uses it', async () => {
+      class SilentSocket {
+        binaryType = '';
+        readyState = 0;
+        close(): void {}
+      }
+      vi.stubGlobal('WebSocket', SilentSocket);
+      const { ServerConnection } = await import('@axe/core/network/server/server-connection');
+      const useCredentials = vi.spyOn(ServerConnection.prototype, 'useCredentials');
+      const useInvite = vi.spyOn(ServerConnection.prototype, 'useInvite');
+      const source = {
+        credentials: async () => null,
+        accessToken: async () => null,
+        replaceRejected: async () => null,
+        isAccountUserId: () => false,
+      };
+      const ROOM = '0123456789abcdef0123456789abcdef';
+      const OTHER_ROOM = 'fedcba9876543210fedcba9876543210';
+      const opened = async (roomKey: string, times: number) => {
+        Network.open('my-user', 'Ab3', '月夜の卓', '', roomKey);
+        await vi.waitFor(() => expect(useCredentials).toHaveBeenCalledTimes(times));
+      };
+      Network.configure({ transport: 'server', backend: { url: 'https://rooms.example' } });
+      Network.setServerCredentials(source);
+      Network.setServerInvite('the-invite', ROOM);
+
+      await opened(ROOM, 1);
+      await opened(OTHER_ROOM, 2);
+      await opened(ROOM, 3);
+      expect(useInvite.mock.calls).toEqual([['the-invite'], ['the-invite']]);
+
+      // a logged-in seat getting into the room uses the invitation up
+      const connection = (Network.instance as unknown as { connection: InstanceType<typeof ServerConnection> })
+        .connection;
+      Object.assign(connection, { role: 'pl', room: { roomKey: ROOM, password: '' } });
+      connection.callback.onOpen(connection.peer);
+      await opened(ROOM, 4);
+
+      expect(useCredentials.mock.calls.every(([given]) => given === source)).toBe(true);
+      expect(useInvite).toHaveBeenCalledTimes(2);
+      (Network.instance as unknown as { close(): void }).close();
     });
   });
 });

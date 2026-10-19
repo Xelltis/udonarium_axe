@@ -99,4 +99,15 @@ describe('PasswordCheckComponent', () => {
       expect(await target.verifyPassword('wrong')).toBe(false);
     });
   });
+
+  it('takes the password down as typed for a room server, which checks it itself', async () => {
+    setModalOption(modalService, { checkedByServer: true, title: 'Room' });
+    const component = TestBed.createComponent(PasswordCheckComponent).componentInstance;
+    const resolve = vi.spyOn(modalService, 'resolve').mockImplementation(() => {});
+
+    component.onPasswordChange('anything');
+    await component.submit();
+
+    expect(resolve).toHaveBeenCalledWith('anything');
+  });
 });

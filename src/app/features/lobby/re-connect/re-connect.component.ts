@@ -1,18 +1,25 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { leavingLoss } from '@axe/application/lobby/leaving-loss';
+import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { localDispatch } from '@axe/core/network/network-messaging';
 import { PeerContext } from '@axe/core/network/peer-context';
-import { GameObject } from '@axe/core/sync/game-object';
+import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
+import { loadIdentity } from '@axe/core/storage/identity-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { withdraw } from '@axe/core/sync/object-synchronizer';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -62,6 +69,10 @@ export class ReConnectComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly roomJoin = inject(RoomJoinService);
+  private readonly confirm = inject(ConfirmService);
+  /** Whether the table is kept by a room server, which a reconnect leaves as it is. */
+  protected readonly onRoomServer = Network.transport === 'server';
 
   rooms: { alias: string; roomName: string; peerContexts: PeerContext[] }[] = [];
 
@@ -99,11 +110,26 @@ export class ReConnectComponent {
    * Drops every connection and joins the room this peer was in again, under the same user id.
    *
    * With force cleanup ticked, the local characters, ranges, notes, dice, masks and terrain are
-   * thrown away first. When the room is no longer listed, it only logs a warning.
+   * thrown away first. When the room is no longer listed, it only logs a warning. On a room server,
+   * where joining again drops what has yet to go out to it, the reader is asked first; with force
+   * cleanup ticked, the pieces' changes yet to reach it are said to be lost too, as the room's own
+   * copies replace them.
    */
-  reConnect() {
+  async reConnect(): Promise<void> {
+    if (Network.transport === 'server') {
+      const cleanUp = this.forceCleanup();
+      const lost = leavingLoss()
+        .filter((loss) => loss === 'unsent' || loss === 'sending')
+        .map((loss) => this.t(`feature.lobby.reConnect.${cleanUp && loss === 'unsent' ? 'unsentCleanup' : loss}`));
+      if (cleanUp && lost.length > 0) lost.push(this.t('feature.lobby.reConnect.cleanupLoss'));
+      if (lost.length > 0 && !(await this.confirm.ask(lost.join('\n')))) return;
+    }
     this.reconnectUserId = resolveReconnectUserId(this.reconnectUserId, this.networkService.peerContext.userId);
     this.disConnect();
+    if (Network.transport === 'server') {
+      void this.reConnectThroughServer(this.forceCleanup());
+      return;
+    }
     if (this.forceCleanup()) {
       Logger.warn('[Network] reconnecting with force-cleanup enabled');
       this.deleteObject();
@@ -117,6 +143,27 @@ export class ReConnectComponent {
       }
     }
     Logger.warn(`[Network] reconnect target not found (room: ${this.roomName}/${this.roomId})`);
+  }
+
+  /**
+   * Joins the room again on a room server, found by the key this seat kept or by its id and name,
+   * with the password kept from joining. The dialog closes once the server lets the seat back in.
+   * Pieces are cleaned up only once the room is found, for the room to hand them back.
+   */
+  private async reConnectThroughServer(cleanUp: boolean): Promise<void> {
+    const roomKey = Network.roomKey ?? loadIdentity()?.roomKey ?? '';
+    const room = await this.roomJoin.findServerRoom(roomKey, this.roomId, this.roomName).catch(() => null);
+    if (!room) {
+      Logger.warn(`[Network] reconnect target not found (room: ${this.roomName}/${this.roomId})`);
+      return;
+    }
+    if (cleanUp) {
+      Logger.warn('[Network] reconnecting with force-cleanup enabled');
+      this.deleteObject();
+    }
+    // A room without a key takes none; one kept from another room would become this one's own.
+    const password = room.hasPassword ? (this.myPeer.reConnectPass ?? '') : '';
+    if (await this.roomJoin.joinServerRoom(room, password)) this.modalService.resolve();
   }
 
   /** Fetches the open rooms a reconnect looks its room up in; a failed fetch leaves the list empty. */
@@ -228,50 +275,57 @@ export class ReConnectComponent {
    * Destroys the local characters, ranges, notes, dice, masks and terrain so a forced reconnect
    * takes the room's copies from the other peers, and forgets what was deleted so those copies are
    * not refused.
+   *
+   * In a room server's room they are only taken off this screen, the way the server takes things
+   * away, so the panels showing them close too: the server keeps the room's copies, which the seat
+   * takes again on getting back in, and destroying or moving them would destroy or move them for
+   * everybody.
    */
   deleteObject() {
     Logger.info('[Network] dropping objects that may diverge from the new peers');
 
     const gameCharacters = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     for (const obj of gameCharacters) {
-      obj.setLocation('graveyard');
       this.deleteGameObject(obj);
     }
 
     const rangeAreas = this.objectStore.getObjects<RangeArea>(RangeArea);
     for (const obj of rangeAreas) {
-      obj.setLocation('graveyard');
       this.deleteGameObject(obj);
     }
 
     const textNote = this.objectStore.getObjects<TextNote>(TextNote);
     for (const obj of textNote) {
-      obj.setLocation('graveyard');
       this.deleteGameObject(obj);
     }
 
     const diceSymbol = this.objectStore.getObjects<DiceSymbol>(DiceSymbol);
     for (const obj of diceSymbol) {
-      obj.setLocation('graveyard');
       this.deleteGameObject(obj);
     }
 
     const gameTableMask = this.objectStore.getObjects<GameTableMask>(GameTableMask);
     for (const obj of gameTableMask) {
-      obj.setLocation('graveyard');
       this.deleteGameObject(obj);
     }
 
     const terrain = this.objectStore.getObjects<Terrain>(Terrain);
     for (const obj of terrain) {
-      obj.setLocation('graveyard');
       this.deleteGameObject(obj);
     }
 
     this.objectStore.clearDeleteHistory();
   }
 
-  private deleteGameObject(gameObject: GameObject) {
+  private deleteGameObject(gameObject: TabletopObject) {
+    if (Network.transport === 'server') {
+      const authority = Network.authorityPeerId;
+      const { identifier, aliasName } = gameObject;
+      if (authority) localDispatch(AuthorityEvent.WITHDRAW, { identifier, aliasName }, authority);
+      else withdraw(gameObject);
+      return;
+    }
+    gameObject.setLocation('graveyard');
     gameObject.destroy();
   }
 }

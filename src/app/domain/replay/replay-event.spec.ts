@@ -4,6 +4,7 @@ import {
   findActorAt,
   findTargetAt,
   GM_ONLY_VISIBILITY,
+  PLAYERS_VISIBILITY,
   PUBLIC_VISIBILITY,
   type ReplayActorSnapshot,
   type ReplayEvent,
@@ -42,6 +43,13 @@ describe('canViewReplayEvent()', () => {
     expect(canViewReplayEvent(event, { userId: 'bob', role: PeerRole.Player })).toBe(true);
     expect(canViewReplayEvent(event, { userId: 'alice', role: PeerRole.Player })).toBe(true);
     expect(canViewReplayEvent(event, { userId: 'carol', role: PeerRole.Player })).toBe(false);
+  });
+
+  it('lets the game master and the players, and no guest, see one meant for the players', () => {
+    const event = makeEvent(PLAYERS_VISIBILITY);
+    expect(canViewReplayEvent(event, { userId: 'gm', role: PeerRole.GameMaster })).toBe(true);
+    expect(canViewReplayEvent(event, { userId: 'bob', role: PeerRole.Player })).toBe(true);
+    expect(canViewReplayEvent(event, { userId: 'carol', role: PeerRole.Guest })).toBe(false);
   });
 
   it('lets the game master see it too', () => {

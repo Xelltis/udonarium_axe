@@ -23,6 +23,8 @@ export interface PeerLinkView {
   quality: PeerLinkQuality;
   ping: number;
   isRelayed: boolean;
+  /** Whether this is the link to the room server, which is named by the page rather than a peer. */
+  isRoomServer?: boolean;
 }
 
 @Component({
@@ -41,9 +43,18 @@ export class ConnectionQualityComponent {
     top: 96,
   });
 
+  /**
+   * Each link this seat holds and how it is doing. On a room server the seat holds one, to the
+   * server, which is up or down; the links between peers it would grade are not there.
+   */
   protected readonly links = computed<PeerLinkView[]>(() => {
     this.objectChange.peerStatsVersion();
     this.objectChange.networkVersion();
+    const authority = Network.authorityPeerId;
+    if (authority !== null) {
+      const quality = Network.isAuthorityOpen ? PeerLinkQuality.Good : PeerLinkQuality.Lost;
+      return [{ peerId: authority, name: '', quality, ping: 0, isRelayed: false, isRoomServer: true }];
+    }
     return Network.peerContexts.map((peer) => ({
       peerId: peer.peerId,
       name: PeerCursor.findByPeerId(peer.peerId)?.name || peer.peerId.slice(0, 6),

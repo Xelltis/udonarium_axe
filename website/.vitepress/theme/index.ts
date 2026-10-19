@@ -3,6 +3,7 @@ import DefaultTheme from 'vitepress/theme';
 
 import DisclosureMatrix from './components/DisclosureMatrix.vue';
 import HeroShot from './components/HeroShot.vue';
+import MovedPage from './components/MovedPage.vue';
 import NextCards from './components/NextCards.vue';
 import NetworkDiagram from './components/NetworkDiagram.vue';
 import ScreenTour from './components/ScreenTour.vue';
@@ -21,5 +22,6 @@ export default {
     app.component('DisclosureMatrix', DisclosureMatrix);
     app.component('HeroShot', HeroShot);
     app.component('NextCards', NextCards);
+    app.component('MovedPage', MovedPage);
   },
 } satisfies Theme;

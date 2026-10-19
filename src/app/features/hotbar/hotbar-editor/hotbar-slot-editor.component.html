@@ -60,6 +60,7 @@
     kind() !== 'focus' &&
     kind() !== 'firstPerson' &&
     kind() !== 'panel' &&
+    kind() !== 'menu' &&
     kind() !== 'turn' &&
     kind() !== 'group'
   ) {
@@ -131,6 +132,23 @@
           @for (name of panelNames; track name) {
             <option [value]="name" [selected]="name === panelName()">
               {{ panelLabelKey(name) | transloco }}
+            </option>
+          }
+        </select>
+      </label>
+    }
+    @case ('menu') {
+      <label class="flex items-center gap-2">
+        <span class="text-ui-muted w-20 shrink-0">{{ 'feature.hotbar.editor.menuCommand' | transloco }}</span>
+        <select
+          data-testid="hotbar-editor-menu"
+          class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-1"
+          (change)="patchOptions({ command: $any($event.target).value })"
+        >
+          <option value="" [selected]="!menuCommandKey()">{{ 'feature.hotbar.editor.unchosen' | transloco }}</option>
+          @for (command of menuChoices(); track command.key) {
+            <option [value]="command.key" [selected]="command.key === menuCommandKey()">
+              {{ command.labelKey | transloco }}
             </option>
           }
         </select>

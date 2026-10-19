@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import * as domainEvents from '@axe/core/event/domain-events';
+import { Network } from '@axe/core/network/network';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { Vote } from '@axe/domain/vote/vote';
 
 describe('Vote', () => {
@@ -45,6 +47,10 @@ describe('Vote', () => {
 
     it('starts as a vote rather than a roll call', () => {
       expect(vote.isRollCall).toBe(false);
+    });
+
+    it('starts with its answers in the open', () => {
+      expect(vote.isSecret).toBe(false);
     });
 
     it('starts unfinished', () => {
@@ -95,6 +101,38 @@ describe('Vote', () => {
       vote.makeVote('c', '再点呼', ['p1'], ['準備完了'], true);
 
       expect(vote.isFinish).toBe(false);
+    });
+
+    it('keeps the answers in the open unless asked to hide them', () => {
+      vote.makeVote('c', '投票', ['p1'], ['賛成', '反対'], false);
+
+      expect(vote.isSecret).toBe(false);
+      expect(vote.answersShown()).toBe(true);
+    });
+
+    it('hides the answers of a secret vote until it is over', () => {
+      vote.makeVote('c', '投票', ['p1'], ['賛成', '反対'], false, 'tab-main', true);
+
+      expect(vote.isSecret).toBe(true);
+      expect(vote.answersShown()).toBe(false);
+
+      vote.isFinish = true;
+      expect(vote.answersShown()).toBe(true);
+    });
+
+    it('never hides the answers of a roll call', () => {
+      vote.makeVote('c', '点呼', ['p1'], ['準備完了'], true, 'tab-main', true);
+
+      expect(vote.isSecret).toBe(false);
+      expect(vote.answersShown()).toBe(true);
+    });
+
+    it('opens the answers again for the next vote unless it is secret too', () => {
+      vote.makeVote('c', '投票', ['p1'], ['賛成', '反対'], false, 'tab-main', true);
+
+      vote.makeVote('c', '投票', ['p1'], ['賛成', '反対'], false);
+
+      expect(vote.isSecret).toBe(false);
     });
 
     it('remembers the tab it started in', () => {
@@ -233,11 +271,12 @@ describe('Vote', () => {
       vi.spyOn(PeerCursor, 'findByPeerId').mockImplementation((peerId: string) => {
         if (peerId === 'p1') return { voteId: 1, voteAnswer: 0 } as unknown as PeerCursor;
         if (peerId === 'p2') return { voteId: 1, voteAnswer: -2 } as unknown as PeerCursor;
-        if (peerId === 'p3') return { voteId: 0, voteAnswer: 0 } as unknown as PeerCursor; // voteId不一致→未投票(-1)
+        // voteId does not match, so not voted (-1)
+        if (peerId === 'p3') return { voteId: 0, voteAnswer: 0 } as unknown as PeerCursor;
         return null!;
       });
 
-      expect(vote.votedTotalNum()).toBe(2); // p1(投票) + p2(棄権)
+      expect(vote.votedTotalNum()).toBe(2); // p1 (voted) + p2 (abstained)
     });
 
     it('counts none while nobody has answered', () => {
@@ -509,6 +548,34 @@ describe('Vote', () => {
       vote.chkFinishVote();
       vi.advanceTimersByTime(10);
 
+      expect(finishEvents).toHaveLength(1);
+      sub();
+      vi.useRealTimers();
+    });
+  });
+
+  describe('a chair made a guest on a room server', () => {
+    it('leaves it open, since the server would take the finish back and the result be said again', () => {
+      vi.useFakeTimers();
+      vote.chairId = 'my-peer-id';
+      vote.targetPeerId = ['peer-1'];
+      vote.voteId = 1;
+      vote.choices = ['準備完了'];
+      (PeerCursor.myCursor as { role: PeerRole }).role = PeerRole.Guest;
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({ voteId: 1, voteAnswer: 0 } as unknown as PeerCursor);
+      const finishEvents: domainEvents.FinishVoteEvent[] = [];
+      const sub = domainEvents.finishVote$.subscribe((e) => finishEvents.push(e));
+
+      vote.chkFinishVote();
+      vote.finishByChair();
+      vi.advanceTimersByTime(10);
+      expect(vote.isFinish).toBe(false);
+      expect(finishEvents).toHaveLength(0);
+
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+      vote.chkFinishVote();
+      vi.advanceTimersByTime(10);
       expect(finishEvents).toHaveLength(1);
       sub();
       vi.useRealTimers();

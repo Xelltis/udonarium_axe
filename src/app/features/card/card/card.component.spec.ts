@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -26,6 +27,21 @@ describe('CardComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('brings the card to the top on a press, for a seat that may change the table alone', () => {
+    const card = Card.create('テストカード', 'front', 'back');
+    fixture.componentRef.setInput('card', card);
+    const canEdit = vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+    const topmost = vi.spyOn(card, 'toTopmost');
+
+    component.onInputStart(new MouseEvent('mousedown'));
+    expect(topmost).not.toHaveBeenCalled();
+
+    canEdit.mockReturnValue(true);
+    component.onInputStart(new MouseEvent('mousedown'));
+    expect(topmost).toHaveBeenCalledTimes(1);
+    card.destroy();
   });
 
   describe('signal-driven CD', () => {

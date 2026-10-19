@@ -1,12 +1,19 @@
 import {
   GM_ONLY_VISIBILITY,
+  PLAYERS_VISIBILITY,
   PUBLIC_VISIBILITY,
   type ReplayEvent,
   ReplayEventKind,
   type ReplayTargetSnapshot,
   type ReplayVisibility,
 } from '@axe/domain/replay/replay-event';
-import { hiddenPiecesIn, inheritOwnerVisibility, visibilityOfDisclosure } from '@axe/domain/replay/replay-visibility';
+import {
+  hiddenPiecesIn,
+  inheritOwnerVisibility,
+  keepOlderLinesAsSeen,
+  visibilityOfChatLine,
+  visibilityOfDisclosure,
+} from '@axe/domain/replay/replay-visibility';
 import { buildLongReplayFixture, SHORT_SESSION } from '@axe/testing/replay-fixtures';
 
 function event(seq: number, kind: ReplayEventKind, targetId: string, visibility: ReplayVisibility): ReplayEvent {
@@ -40,6 +47,86 @@ describe('replay visibility', () => {
     ]);
 
     expect([...hidden.keys()]).toEqual(['boss']);
+  });
+
+  describe('keepOlderLinesAsSeen', () => {
+    const board = [
+      { identifier: 'gm-tab', aliasName: 'chat-tab', syncData: { plCanView: false, guestCanView: false } },
+      {
+        identifier: 'pl-tab',
+        aliasName: 'chat-tab',
+        syncData: { attributes: { plCanView: true, guestCanView: 'false' } },
+      },
+      { identifier: 'main-tab', aliasName: 'chat-tab', syncData: {} },
+    ];
+    const line = (
+      seq: number,
+      tabIdentifier: string,
+      visibility: ReplayVisibility = PUBLIC_VISIBILITY
+    ): ReplayEvent => ({
+      ...event(seq, ReplayEventKind.ChatMessage, `line-${seq}`, visibility),
+      detail: { tabIdentifier },
+    });
+
+    it('keeps each line to those who could read its tab as the board began', () => {
+      const events = [line(1, 'gm-tab'), line(2, 'pl-tab'), line(3, 'main-tab'), line(4, 'made-later')];
+
+      expect(keepOlderLinesAsSeen(events, board).map((e) => e.visibility)).toEqual([
+        GM_ONLY_VISIBILITY,
+        PLAYERS_VISIBILITY,
+        PUBLIC_VISIBILITY,
+        PUBLIC_VISIBILITY,
+      ]);
+    });
+
+    it('keeps a secret roll whispered to somebody to its roller and the GM', () => {
+      const whispered = {
+        ...line(1, 'main-tab', { kind: 'direct', to: ['bob', 'alice'] }),
+        detail: { tabIdentifier: 'main-tab', to: 'bob alice', tag: 'DiceBot secret' },
+      };
+
+      expect(keepOlderLinesAsSeen([whispered], board)[0].visibility).toEqual({ kind: 'direct', to: [] });
+    });
+
+    it('leaves alone a whisper, and what is not a line', () => {
+      const whisper = {
+        ...line(1, 'gm-tab', { kind: 'direct', to: ['bob'] }),
+        detail: { tabIdentifier: 'gm-tab', to: 'bob' },
+      };
+      const move = {
+        ...event(2, ReplayEventKind.ObjectMove, 'piece', PUBLIC_VISIBILITY),
+        detail: { tabIdentifier: 'gm-tab' },
+      };
+
+      expect(keepOlderLinesAsSeen([whisper, move], board)).toEqual([whisper, move]);
+    });
+  });
+
+  describe('visibilityOfChatLine', () => {
+    const open = { plCanView: true, guestCanView: true };
+
+    it('keeps a whisper to those it was said to, and a secret roll to its roller and the GM', () => {
+      expect(visibilityOfChatLine({ to: 'bob carol', tag: '' }, open)).toEqual({
+        kind: 'direct',
+        to: ['bob', 'carol'],
+      });
+      expect(visibilityOfChatLine({ to: '', tag: 'secret' }, open)).toEqual({ kind: 'direct', to: [] });
+    });
+
+    it('keeps a secret roll whispered to somebody from the one it was whispered to, as its words were', () => {
+      expect(visibilityOfChatLine({ to: 'bob alice', tag: 'secret' }, open)).toEqual({ kind: 'direct', to: [] });
+    });
+
+    it('keeps a line to those who may read its tab', () => {
+      expect(visibilityOfChatLine({ to: '', tag: '' }, open)).toEqual(PUBLIC_VISIBILITY);
+      expect(visibilityOfChatLine({ to: '', tag: '' }, { plCanView: false, guestCanView: false })).toEqual(
+        GM_ONLY_VISIBILITY
+      );
+      expect(visibilityOfChatLine({ to: '', tag: '' }, { plCanView: true, guestCanView: false })).toEqual(
+        PLAYERS_VISIBILITY
+      );
+      expect(visibilityOfChatLine({ to: '', tag: '' }, null)).toEqual(PUBLIC_VISIBILITY);
+    });
   });
 
   describe('inheritOwnerVisibility', () => {

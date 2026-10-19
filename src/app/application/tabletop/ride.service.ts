@@ -12,6 +12,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
 import { Config } from '@axe/domain/peer/config';
 import { sheetNumberOf } from '@axe/domain/tabletop/move/move-cells';
+import { squarePxOf } from '@axe/domain/tabletop/move/move-grid';
 import {
   buffNameOf,
   cargoRoomOf,
@@ -236,7 +237,7 @@ export class RideService {
     const rules = resolveRoomRules(this.config()?.roomRuleAnswers ?? null, table);
     const turn = this.turnMark();
     const before = turn !== '' && mover.rideMoveTurn === turn ? Number(mover.rideMoveM) || 0 : 0;
-    const metres = before + (px / table.gridSize) * metresPerCell(rules);
+    const metres = before + (px / squarePxOf(table)) * metresPerCell(rules);
     GameObject.batch(() => {
       mover.rideMoveTurn = turn;
       mover.rideMoveM = `${Math.round(metres * 10) / 10}`;
@@ -637,7 +638,7 @@ export class RideService {
     if (!table) return 0;
     const roomRules = resolveRoomRules(this.config()?.roomRuleAnswers ?? null, table);
     const zoneRules = resolveZoneRules(this.config()?.zoneRuleAnswers ?? null);
-    return (zoneRules.samePointM * table.gridSize) / metresPerCell(roomRules);
+    return (zoneRules.samePointM * squarePxOf(table)) / metresPerCell(roomRules);
   }
 
   /** The mark of the turn being taken, empty while turns are not being taken. */

@@ -9,7 +9,7 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
-  id-token: write # deploy.yml（reusable）がOIDC AssumeRoleに使う
+  id-token: write # for the OIDC AssumeRole of deploy.yml (reusable)
 
 concurrency:
   group: release-${{ github.ref }}
@@ -80,5 +80,15 @@ jobs:
     uses: ./.github/workflows/deploy.yml
     with:
       environment: public
+      ref: v${{ needs.release.outputs.version }}
+    secrets: inherit
+
+  deploy-production-vercel:
+    name: Production (Vercel)
+    needs: [release, deploy-production]
+    if: needs.release.outputs.released == 'true'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production-vercel
       ref: v${{ needs.release.outputs.version }}
     secrets: inherit

@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { Network } from '@axe/core/network/network';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import {
@@ -10,8 +12,10 @@ import {
   clearOwnership,
   clearOwnershipTree,
   findOrphanedOwnership,
+  forgetChosenViewers,
   releaseOrphanedOwnership,
 } from '@axe/domain/tabletop/ownership';
+import { TextNote } from '@axe/domain/tabletop/text-note';
 
 describe('ownership', () => {
   beforeEach(() => {
@@ -63,7 +67,51 @@ describe('ownership', () => {
     });
   });
 
+  describe('forgetChosenViewers', () => {
+    it('forgets who was picked to see what, counting what it changed, and leaves the rest alone', () => {
+      const note = TextNote.create('メモ', '本文');
+      note.disclosureMode = DisclosureMode.Selected;
+      note.disclosureUserIds = ['skyway-user'];
+      const open = TextNote.create('メモ', '本文');
+      try {
+        expect(forgetChosenViewers([note, open, 'not an object', null])).toBe(1);
+
+        expect(note.disclosureUserIds).toEqual([]);
+        expect(note.disclosureMode).toBe(DisclosureMode.Selected);
+      } finally {
+        note.destroy();
+        open.destroy();
+      }
+    });
+  });
+
+  describe('forgetChosenViewers on a room server', () => {
+    it('forgets an account picked as well, whom the game master could neither see nor take off while it is away', () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      const note = TextNote.create('メモ', '本文');
+      note.disclosureUserIds = ['acct_alice'];
+      try {
+        expect(forgetChosenViewers([note])).toBe(1);
+        expect(note.disclosureUserIds).toEqual([]);
+      } finally {
+        note.destroy();
+        vi.restoreAllMocks();
+      }
+    });
+  });
+
   describe('claimBroughtInPiece', () => {
+    it('forgets who was picked to see the piece and what is nested under it', () => {
+      const stack = CardStack.create('デッキ');
+      const card = Card.create('カード', 'front.png', 'back.png');
+      card.disclosureUserIds = ['skyway-user'];
+      stack.appendChild(card);
+
+      claimBroughtInPiece(stack, 'the-dropper');
+
+      expect(card.disclosureUserIds).toEqual([]);
+    });
+
     it('makes a character the one who brought it in', () => {
       const character = new GameCharacter();
       character.owner = 'whoever-saved-it';

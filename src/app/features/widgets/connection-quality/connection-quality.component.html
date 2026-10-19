@@ -29,7 +29,11 @@
           <i class="material-icons text-[16px]!" [class]="qualityColorClass(link.quality)">{{
             qualityIcon(link.quality)
           }}</i>
-          <span class="min-w-0 flex-1 truncate" [title]="link.name">{{ link.name }}</span>
+          @if (link.isRoomServer) {
+            <span class="min-w-0 flex-1 truncate">{{ 'feature.lobby.linkQuality.roomServer' | transloco }}</span>
+          } @else {
+            <span class="min-w-0 flex-1 truncate" [title]="link.name">{{ link.name }}</span>
+          }
           @if (link.isRelayed) {
             <i
               class="material-icons text-[14px]! text-amber-500"

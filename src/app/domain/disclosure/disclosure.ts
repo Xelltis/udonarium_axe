@@ -57,13 +57,18 @@ export function canEditDisclosure(viewer: DisclosureViewer): boolean {
 }
 
 /**
- * Whether the object has no owner yet, so that a viewer could take it over.
+ * Whether a viewer could take over an object nobody owns yet.
  *
- * Only ownership is looked at here; callers also check the viewer's role and that they have a user
- * id.
+ * Where a room server keeps back what the object hides, as it does a note's, only one the viewer
+ * may see the contents of is theirs to take: owning it would show them what it keeps back, such as
+ * the game master's alone, and the server refuses that. Among peers, where hiding is a matter of
+ * what each screen shows, and for what the server does not hide, any of them is.
+ *
+ * Callers also check the viewer's role and that they have a user id.
  */
-export function canClaimOwnership(viewer: DisclosureViewer): boolean {
-  return !viewer.ownerUserId || viewer.ownerUserId.length === 0;
+export function canClaimOwnership(object: Disclosable, viewer: DisclosureViewer, keptBackByServer: boolean): boolean {
+  if (viewer.ownerUserId && viewer.ownerUserId.length > 0) return false;
+  return !keptBackByServer || canViewDisclosable(object, viewer);
 }
 
 /**
@@ -72,4 +77,16 @@ export function canClaimOwnership(viewer: DisclosureViewer): boolean {
  */
 export function toggleDisclosureUserId(userIds: readonly string[], userId: string): string[] {
   return userIds.includes(userId) ? userIds.filter((id) => id !== userId) : [...userIds, userId];
+}
+
+/**
+ * Where a key that switches several objects at once sends them: to everyone while any of them is
+ * still kept from someone, and back to the game master alone once all of them are open.
+ *
+ * Picked players are never the answer, since a key has no way to say which players.
+ */
+export function switchedDisclosureMode(modes: readonly unknown[]): DisclosureMode {
+  return modes.every((mode) => normalizeDisclosureMode(mode) === DisclosureMode.All)
+    ? DisclosureMode.GameMaster
+    : DisclosureMode.All;
 }

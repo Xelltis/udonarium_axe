@@ -97,11 +97,12 @@ export function isIgnoredReplayEvent(eventName: string): boolean {
  * Whether a change to this object is worth taking the difference for.
  *
  * Taken and then thrown away, one move of one piece would copy and compare a room's worth,
- * and the lightest setting would be the heaviest. At the narrowest only a new line survives.
+ * and the lightest setting would be the heaviest. At the narrowest only the lines survive: a new
+ * one, and one changed, as a secret roll made public is told then.
  */
-export function shouldDiffObjectChange(level: ReplayDetailLevel, aliasName: string, isNew: boolean): boolean {
+export function shouldDiffObjectChange(level: ReplayDetailLevel, aliasName: string): boolean {
   if (level !== ReplayDetailLevel.ChatOnly) return true;
-  return isNew && aliasName === CHAT_ALIAS;
+  return aliasName === CHAT_ALIAS;
 }
 
 /**
@@ -213,6 +214,12 @@ function describeChange(
   const keys = new Set(diff.keys);
 
   if (aliasName === CHAT_ALIAS && !before) return describeChatMessage(after);
+  // A secret roll made public is told then, to those who could not see it before.
+  if (aliasName === CHAT_ALIAS && isSecretLine(before) && !isSecretLine(after)) {
+    const revealed = describeChatMessage(after);
+    revealed.detail['revealed'] = true;
+    return revealed;
+  }
   if (aliasName === CUT_IN_LAUNCHER_ALIAS && before) {
     const cutIn = describeCutIn(before, after, keys);
     if (cutIn) return cutIn;
@@ -426,6 +433,11 @@ function describeCutIn(
     };
   }
   return null;
+}
+
+/** Whether a chat line's tag keeps it secret. */
+function isSecretLine(data: SyncData | null): boolean {
+  return data !== null && asString(syncValueOf(data, 'tag')).includes('secret');
 }
 
 function describeChatMessage(after: SyncData): { kind: ReplayEventKind; detail: Record<string, unknown> } {

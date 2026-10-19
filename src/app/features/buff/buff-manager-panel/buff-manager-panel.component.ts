@@ -6,6 +6,7 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
@@ -55,6 +56,11 @@ export class BuffManagerPanelComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly inventory = inject(GameObjectInventoryService);
   private readonly panelService = inject(PanelService);
+
+  constructor() {
+    // Made a guest meanwhile, the seat may no longer write what this panel writes.
+    closeWhenOffTheTable();
+  }
   private readonly roomPanels = inject(RoomPanelService);
   private readonly turnOrder = inject(TurnOrderService);
   private readonly t = inject(TRANSLATE_FN);
@@ -404,12 +410,16 @@ export class BuffManagerPanelComponent {
   /** Whether a second helping would mean anything: holding a status at a value twice still holds it there. */
   readonly builderCanStack = computed(() => this.builderOperator() !== '=');
 
+  /**
+   * The `&!` command the builder's fields make up. A slash typed in the amount divides there, but
+   * the command is cut into its fields at every slash, so it is written as ÷, which reads the same.
+   */
   readonly builderCommand = computed(() => {
     const parts = [
       this.builderName().trim() || 'バフ',
       this.builderStatus().trim(),
       this.builderOperator(),
-      this.builderAmount().trim(),
+      this.builderAmount().trim().replace(/\//g, '÷'),
       this.builderRounds().trim(),
     ];
     const timing = this.builderTiming();

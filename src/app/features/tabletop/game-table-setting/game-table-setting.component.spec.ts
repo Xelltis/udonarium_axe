@@ -1,6 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CutInService } from '@axe/application/media/cut-in.service';
+import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { AudioFile } from '@axe/core/storage/audio-file';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { Config } from '@axe/domain/peer/config';
@@ -127,6 +131,91 @@ describe('GameTableSettingComponent', () => {
     }
   });
 
+  describe('the size of a cell', () => {
+    let table: GameTable;
+
+    beforeEach(async () => {
+      table = new GameTable();
+      table.gridSize = 50;
+      table.initialize();
+      component.selectGameTable(table.identifier);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    afterEach(() => {
+      table.destroy();
+    });
+
+    function leaveAt(testId: string, value: string): HTMLInputElement {
+      const field: HTMLInputElement = fixture.nativeElement.querySelector(`[data-testid="${testId}"]`);
+      field.value = value;
+      field.dispatchEvent(new Event('change'));
+      return field;
+    }
+
+    it('hands the size the slider is let go at to the tabletop, which moves what is on the table', () => {
+      const changeCellSize = vi.spyOn(TestBed.inject(TabletopService), 'changeCellSize');
+
+      leaveAt('table-cell-size-range', '80');
+
+      expect(changeCellSize).toHaveBeenCalledWith(table, 80);
+      expect(table.gridSize).toBe(80);
+    });
+
+    it('shows the size the table took when the number entered is out of bounds', () => {
+      const field = leaveAt('table-cell-size-num', '9999');
+
+      expect(table.gridSize).toBe(256);
+      expect(field.value).toBe('256');
+    });
+  });
+
+  describe('how many cells make a square', () => {
+    let table: GameTable;
+
+    beforeEach(async () => {
+      table = new GameTable();
+      table.initialize();
+      component.selectGameTable(table.identifier);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    afterEach(() => {
+      table.destroy();
+    });
+
+    const choice = (): HTMLSelectElement | null =>
+      fixture.nativeElement.querySelector('[data-testid="table-square-span"]');
+
+    it('is offered on a square grid, and writes the choice to the table', async () => {
+      const select = choice()!;
+      select.value = select.options[1].value;
+      select.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      expect(table.squareSpan).toBe(2);
+      expect(component.tableSquareSpan).toBe(2);
+    });
+
+    it('shows what the table holds', async () => {
+      table.squareSpan = 3;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(choice()!.selectedIndex).toBe(2);
+    });
+
+    it('is not offered on a hex grid', async () => {
+      table.gridType = GridType.HEX_VERTICAL;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(choice()).toBeNull();
+    });
+  });
+
   describe('choosing a table from the list', () => {
     let table: GameTable;
 
@@ -141,10 +230,45 @@ describe('GameTableSettingComponent', () => {
 
     it('plays what the table asks for', () => {
       const launchForTable = watchLaunch();
+      const music = vi.spyOn(TestBed.inject(TableBgmService), 'playFor').mockImplementation(() => undefined);
 
       component.chooseGameTable(table.identifier);
 
       expect(launchForTable).toHaveBeenCalledWith(table);
+      expect(music).toHaveBeenCalledWith(table);
+    });
+
+    it('leaves the music alone when a table is only created', () => {
+      const music = vi.spyOn(TestBed.inject(TableBgmService), 'playFor').mockImplementation(() => undefined);
+
+      component.selectGameTable(table.identifier);
+
+      expect(music).not.toHaveBeenCalled();
+    });
+
+    it('offers the room’s music, and none of the sounds that come with the tool', () => {
+      vi.spyOn(TestBed.inject(AudioStorage), 'audios', 'get').mockReturnValue([
+        { identifier: 'theme', name: 'theme.mp3', isHidden: false },
+        { identifier: 'preset-alarm', name: 'alarm', isHidden: true },
+      ] as AudioFile[]);
+
+      expect(component.tableBgmTracks().map((track) => track.value)).toEqual(['theme']);
+    });
+
+    it('writes the music the table puts on, stops or leaves', () => {
+      component.selectGameTable(table.identifier);
+
+      component.tableBgmChoice = 'track-a';
+      expect([table.tableBgm, table.tableBgmIdentifier]).toEqual(['play', 'track-a']);
+      expect(component.missingTableBgm()).toBe('track-a');
+
+      component.tableBgmChoice = 'stop';
+      expect([table.tableBgm, table.tableBgmIdentifier]).toEqual(['stop', '']);
+      expect(component.tableBgmChoice).toBe('stop');
+
+      component.tableBgmChoice = '';
+      expect(component.tableBgmChoice).toBe('');
+      expect(component.missingTableBgm()).toBeNull();
     });
 
     it('stays quiet on the table already showing', () => {

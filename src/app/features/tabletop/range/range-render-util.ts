@@ -164,7 +164,7 @@ export function chkOuterProduct(
   const bx = pchkx - p1x;
   const by = pchky - p1y;
   const calc = ax * by - ay * bx;
-  return calc >= -0.01; // 丸め誤差対策で許容範囲を少し広くする。
+  return calc >= -0.01; // The tolerance is widened slightly to allow for rounding error.
 }
 
 /** Whether a point, relative to a circle's centre, lies inside or on a circle of that radius. */

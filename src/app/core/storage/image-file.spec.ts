@@ -1,4 +1,4 @@
-import { ImageFile, ImageState } from '@axe/core/storage/image-file';
+import { ImageContext, ImageFile, ImageState } from '@axe/core/storage/image-file';
 
 describe('ImageFile', () => {
   describe('ImageState enum', () => {
@@ -103,6 +103,49 @@ describe('ImageFile', () => {
       });
       expect(img.identifier).toBe('new-id');
       expect(img.name).toBe('applied.png');
+    });
+  });
+
+  describe('the thumbnail drawn on this page', () => {
+    type Drawer = { createThumbnailOnMainThread: (context: ImageContext) => Promise<unknown> };
+    const draw = (context: ImageContext) => (ImageFile as unknown as Drawer).createThumbnailOnMainThread(context);
+    const context = (): ImageContext => ({
+      identifier: 'pic',
+      name: '',
+      type: 'image/png',
+      blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+      url: 'blob:pic',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    const imageSized = (width: number, height: number) =>
+      class {
+        width = width;
+        height = height;
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        onabort: (() => void) | null = null;
+        set src(_url: string) {
+          queueMicrotask(() => this.onload?.());
+        }
+      };
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+
+    it('fails, rather than never settling, for an image that reads as having no size', async () => {
+      vi.stubGlobal('Image', imageSized(0, 0));
+
+      await expect(draw(context())).rejects.toThrow();
+    });
+
+    it('fails, rather than never settling, when the canvas makes no blob', async () => {
+      vi.stubGlobal('Image', imageSized(64, 32));
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: () => {} } as never);
+      vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback) => callback(null));
+
+      await expect(draw(context())).rejects.toThrow();
     });
   });
 });

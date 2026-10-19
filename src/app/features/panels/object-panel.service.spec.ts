@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { GameCharacterSheetComponent } from '@axe/features/character/game-character-sheet/game-character-sheet.component';
@@ -28,7 +29,10 @@ describe('ObjectPanelService', () => {
     service = TestBed.inject(ObjectPanelService);
   });
 
-  afterEach(() => TestBed.resetTestingModule());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    TestBed.resetTestingModule();
+  });
 
   it('centres a sheet on the pointer and selects what it shows', async () => {
     service.openSheet(terrain, 'Terrain - Hill', { width: 600, height: 300 });
@@ -111,5 +115,19 @@ describe('ObjectPanelService', () => {
     expect(remote).toEqual(expect.objectContaining({ width: 700, height: 600, left: 750, top: 525 }));
     await expect(paletteLoad()).resolves.toBe(ChatPaletteComponent);
     await expect(remoteLoad()).resolves.toBe(RemoteControllerComponent);
+  });
+
+  it('opens nothing for a piece gone by the time its panel arrives, whichever panel it is', () => {
+    const held = new Set<string>(['t1', 'c1']);
+    vi.spyOn(ObjectStore.instance, 'get').mockImplementation(((identifier: string) =>
+      held.has(identifier) ? (identifier === 't1' ? terrain : character) : null) as never);
+    service.openSheet(terrain, 'Terrain', { width: 600, height: 300 });
+    service.openChatPalette(character);
+    service.openRemoteController(character);
+    const stillWanted = () => openLazy.mock.calls.map(([, option]) => option.stillWanted());
+
+    expect(stillWanted()).toEqual([true, true, true]);
+    held.clear();
+    expect(stillWanted()).toEqual([false, false, false]);
   });
 });

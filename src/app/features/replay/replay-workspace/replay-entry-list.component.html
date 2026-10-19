@@ -1,4 +1,4 @@
-<div class="flex h-full min-h-0 min-w-0 flex-col gap-1.5">
+<div class="flex h-full min-h-0 min-w-0 flex-col gap-1.5" [inert]="isSaving()" [class.opacity-60]="isSaving()">
   <div class="flex flex-wrap items-center gap-1">
     @for (scope of scopes; track scope) {
       <button
@@ -12,12 +12,13 @@
     }
     <select
       class="border-ui-border bg-ui-panel rounded-ui-sm border border-solid px-1 py-0.5 text-[0.7rem]"
-      [value]="filter().actorId"
       (change)="setActor($any($event.target).value)"
     >
-      <option value="">{{ 'feature.replay.panel.allActors' | transloco }}</option>
+      <option value="" [selected]="shownFilter().actorId === ''">
+        {{ 'feature.replay.panel.allActors' | transloco }}
+      </option>
       @for (actorId of actorIds(); track actorId) {
-        <option [value]="actorId">{{ actorLabel(actorId) }}</option>
+        <option [value]="actorId" [selected]="shownFilter().actorId === actorId">{{ actorLabel(actorId) }}</option>
       }
     </select>
     <label class="text-ui-muted flex cursor-pointer items-center gap-1 text-[0.7rem]">
@@ -152,23 +153,27 @@
       <div class="flex flex-wrap items-center gap-1 text-[0.7rem]">
         <select
           class="border-ui-border bg-ui-panel rounded-ui-sm border border-solid px-1 py-0.5"
-          [value]="insertKind()"
           (change)="setInsertKind($any($event.target).value)"
         >
           @for (kind of insertKinds; track kind) {
-            <option [value]="kind">{{ 'feature.replay.editor.kind.' + kind | transloco }}</option>
+            <option [value]="kind" [selected]="insertKind() === kind">
+              {{ 'feature.replay.editor.kind.' + kind | transloco }}
+            </option>
           }
         </select>
         @if (!isMarkerDraft()) {
           <select
             class="border-ui-border bg-ui-panel rounded-ui-sm border border-solid px-1 py-0.5"
-            [value]="insertCastId()"
             (change)="setCastId($any($event.target).value)"
           >
             @for (member of cast(); track member.identifier) {
-              <option [value]="member.identifier">{{ member.name }}</option>
+              <option [value]="member.identifier" [selected]="isCastChosen(member.identifier)">
+                {{ member.name }}
+              </option>
             }
-            <option value="">{{ 'feature.replay.editor.freeSpeaker' | transloco }}</option>
+            <option value="" [selected]="isCastChosen('')">
+              {{ 'feature.replay.editor.freeSpeaker' | transloco }}
+            </option>
           </select>
           @if (isFreeSpeaker()) {
             <input
@@ -181,11 +186,10 @@
           }
           <select
             class="border-ui-border bg-ui-panel rounded-ui-sm border border-solid px-1 py-0.5"
-            [value]="insertActorId()"
             (change)="insertActorId.set($any($event.target).value)"
           >
             @for (actor of actors(); track actor.userId) {
-              <option [value]="actor.userId">{{ actor.name }}</option>
+              <option [value]="actor.userId" [selected]="chosenActorId() === actor.userId">{{ actor.name }}</option>
             }
           </select>
         }
@@ -210,7 +214,7 @@
         </button>
         <button
           class="rounded-ui-sm flex cursor-pointer items-center gap-0.5 px-[0.8em] py-[0.3em] text-[0.72rem]"
-          [disabled]="isStaging()"
+          [disabled]="!canStage()"
           [title]="'feature.replay.editor.stageAfter' | transloco"
           (click)="stageAt()"
         >

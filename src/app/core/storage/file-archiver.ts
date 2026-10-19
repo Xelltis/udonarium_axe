@@ -8,14 +8,15 @@ import {
 } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
 import type { ImageFile } from '@axe/core/storage/image-file';
 import { imageTypeOf } from '@axe/core/storage/image-sniff';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
-import { isCcfoliaRoomArchive } from '@axe/core/storage/room-archive';
-import { createZipBlob, readZipEntries } from '@axe/core/storage/zip-archive';
+import { ccfoliaRoomFolderOf } from '@axe/core/storage/room-archive';
+import { createZipBlob, readZipEntries, ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import type { ZipEntry } from '@axe/core/storage/zip-archive-message';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -31,6 +32,8 @@ type UpdateCallback = (metadata: MetaData) => void;
 interface LoadGuard extends GameObject {
   reloadCheckStart(isOnline: boolean): void;
   isLoadOk(): boolean;
+  answerWithheldCheck(): boolean;
+  answerCheck(): boolean;
 }
 
 const MEGA_BYTE = 1024 * 1024;
@@ -81,6 +84,11 @@ export class FileArchiver {
    * app puts in its own answer, every drop is taken.
    */
   mayLoadDrops: () => boolean = () => true;
+  /**
+   * Told when a zip could not be packed or unpacked because the code for it could not be fetched,
+   * which a reload mends. The app puts in its notice; until then nothing is said.
+   */
+  onCodeUnavailable: () => void = () => {};
   /**
    * The guard that asks, during online play, before dropped data overwrites the room settings; null
    * until the domain has put one in the object store.
@@ -275,13 +283,14 @@ export class FileArchiver {
     if (!isXmlCandidateFile(file)) return;
 
     let isLoadOk = true;
+    const name = baseNameOf(file.name);
     // room data passes here and is confirmed later, once its contents are known
     if (
-      file.name === 'config.xml' ||
-      file.name === 'imagetag.xml' ||
-      file.name === 'audiotag.xml' ||
-      file.name === 'summary.xml' ||
-      file.name === 'ailment.xml'
+      name === 'config.xml' ||
+      name === 'imagetag.xml' ||
+      name === 'audiotag.xml' ||
+      name === 'summary.xml' ||
+      name === 'ailment.xml'
     ) {
       isLoadOk = this.reloadCheck?.isLoadOk() ?? true;
     }
@@ -303,12 +312,20 @@ export class FileArchiver {
       entries = await readZipEntries(file);
     } catch (reason) {
       Logger.warn('[FileArchiver] ZIP読み込みエラー', reason);
+      this.noticeCodeUnavailable(reason);
       return;
     }
-    if (isCcfoliaRoomArchive(entries.map((entry) => entry.name))) {
-      emitCcfoliaRoomDropped({ entries: await toUnzipped(entries) });
+    const ccfoliaFolder = ccfoliaRoomFolderOf(entries.map((entry) => entry.name));
+    if (ccfoliaFolder !== null) {
+      const inFolder = entries
+        .filter((entry) => entry.name.startsWith(ccfoliaFolder))
+        .map((entry) => ({ ...entry, name: entry.name.slice(ccfoliaFolder.length) }));
+      emitCcfoliaRoomDropped({ entries: await toUnzipped(inFolder) });
       return;
     }
+
+    if (!(await this.roomLoadAgreed(entries))) return;
+    const isolated = isNetworkIsolated();
 
     // Pictures first, so the room data beside them can be read under the ids they were stored as.
     const renamed = new Map<string, string>();
@@ -316,8 +333,10 @@ export class FileArchiver {
     for (const entry of entries) {
       try {
         const type = entry.type || (await imageTypeOf(entry.blob));
-        const file = new File([entry.blob], entry.name, { type });
-        if (type.startsWith('image/') && !SAVED_IMAGE_NAME.test(entry.name)) {
+        const name = baseNameOf(entry.name);
+        const saved = type.startsWith('image/') && SAVED_IMAGE_NAME.test(name);
+        const file = new File([entry.blob], name, { type });
+        if (type.startsWith('image/') && !saved) {
           await this.loadArchivedImage(file, renamed, tooLarge);
         } else {
           rest.push(file);
@@ -327,6 +346,10 @@ export class FileArchiver {
       }
     }
     for (const entry of rest) {
+      if (isNetworkIsolated() !== isolated) {
+        Logger.warn('[FileArchiver] 読み込みの途中で盤面と卓が入れ替わったので、残りを読みません');
+        return;
+      }
       try {
         const file = renamed.size > 0 && isXmlCandidateFile(entry) ? await withImagesRenamed(entry, renamed) : entry;
         await this.loadFiles([file], dropPoint, false, tooLarge);
@@ -334,6 +357,22 @@ export class FileArchiver {
         Logger.warn('[FileArchiver] ZIP展開エラー', reason);
       }
     }
+  }
+
+  /**
+   * Whether the room data an archive carries may go in, asked before its pictures are taken in, which
+   * would otherwise go up to the room for a load then declined. Asked as reading the room data asks:
+   * first about a save withheld in part, then about overwriting the room in play; the answers hold
+   * for the rest of the load.
+   */
+  private async roomLoadAgreed(entries: ZipEntry[]): Promise<boolean> {
+    const guard = this.reloadCheck;
+    const data = entries.find((entry) => baseNameOf(entry.name) === 'data.xml');
+    if (!guard || !data) return true;
+    const root = /<room\b[^>]*>/.exec(await data.blob.slice(0, ROOM_HEAD_BYTES).text())?.[0];
+    if (!root) return true;
+    if (/\swithheld="true"/.test(root) && !guard.answerWithheldCheck()) return false;
+    return guard.answerCheck();
   }
 
   /**
@@ -357,7 +396,12 @@ export class FileArchiver {
 
   /** Unpacks a zip into its entries, in a worker where one can be used. */
   async readZipEntriesAsync(file: File | Blob): Promise<ZipEntry[]> {
-    return readZipEntries(file);
+    try {
+      return await readZipEntries(file);
+    } catch (reason) {
+      this.noticeCodeUnavailable(reason);
+      throw reason;
+    }
   }
 
   /**
@@ -369,7 +413,13 @@ export class FileArchiver {
 
     updateCallback?.({ percent: 0, currentFile: '' });
 
-    const blob = await createZipBlob(saveFiles);
+    let blob: Blob;
+    try {
+      blob = await createZipBlob(saveFiles);
+    } catch (reason) {
+      this.noticeCodeUnavailable(reason);
+      throw reason;
+    }
 
     updateCallback?.({ percent: 100, currentFile: '' });
     return blob;
@@ -380,6 +430,10 @@ export class FileArchiver {
     if (!files) return;
     const blob = await this.createZipBlobAsync(files, updateCallback);
     downloadBlob(blob, `${zipName}.zip`);
+  }
+
+  private noticeCodeUnavailable(reason: unknown): void {
+    if (reason instanceof ZipCodeUnavailableError) this.onCodeUnavailable();
   }
 }
 
@@ -394,6 +448,17 @@ async function toUnzipped(entries: readonly ZipEntry[]): Promise<Unzipped> {
 function toArrayOfFileList(fileList: FileList): File[] {
   return Array.from(fileList);
 }
+
+/**
+ * The name of a file within an archive, without the folders it sits in: a save unpacked and packed
+ * again as a folder holds its files under that folder's name.
+ */
+function baseNameOf(name: string): string {
+  return name.slice(name.lastIndexOf('/') + 1);
+}
+
+/** How much of a room's data is read to find the room's own element, which opens it. */
+const ROOM_HEAD_BYTES = 4096;
 
 /** The name a picture is saved under in a room's archive: the hash it is known by, then its extension. */
 const SAVED_IMAGE_NAME = /^[0-9a-f]{64}\./;

@@ -73,6 +73,15 @@ describe('tabletop-action-helpers', () => {
       expect(new Set(placements.map((placement) => placement.y)).size).toBe(1);
     });
 
+    it('keeps to the cells of a table whose cells are larger', () => {
+      const placements = getDicePlacements({ x: 100, y: 200 }, 2, 100);
+
+      expect(placements).toEqual([
+        { x: 50, y: 150 },
+        { x: 160, y: 150 },
+      ]);
+    });
+
     it('starts another row once five stand in one', () => {
       expect(getDicePlacements({ x: 100, y: 200 }, 6)[5]).toEqual({ x: 75, y: 230 });
     });

@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BatchService } from '@axe/application/ui/batch.service';
+import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -163,6 +164,68 @@ describe('PeerCursorComponent', () => {
     });
   });
 
+  describe('the heartbeat', () => {
+    const heartbeats = () =>
+      vi
+        .mocked(Network.instance.send)
+        .mock.calls.filter(([context]) => (context as { eventName: string }).eventName === 'HEART_BEAT');
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([{ peerId: 'remote-peer', isOpen: true }] as never);
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      void ChatTabList.instance;
+    });
+
+    afterEach(() => {
+      fixture.destroy();
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    function watch(cursor: PeerCursor): void {
+      fixture.componentRef.setInput('cursor', cursor);
+      fixture.detectChanges();
+      vi.advanceTimersByTime(5_000);
+    }
+
+    it('beats for this seat between browsers that talk to each other', () => {
+      const myCursor = PeerCursor.createMyCursor();
+      myCursor.peerId = 'my-peer';
+
+      watch(myCursor);
+
+      expect(heartbeats().length).toBeGreaterThan(0);
+    });
+
+    it('does not beat through a room server', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const myCursor = PeerCursor.createMyCursor();
+      myCursor.peerId = 'my-peer';
+
+      watch(myCursor);
+
+      expect(heartbeats()).toEqual([]);
+    });
+
+    it('counts a quiet seat as there through a room server while the server lists it, and as dropped once it does not', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const listed = vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['remote-peer']);
+      PeerCursor.createMyCursor().peerId = 'my-peer';
+      const remoteCursor = new PeerCursor();
+      remoteCursor.initialize();
+      remoteCursor.peerId = 'remote-peer';
+      remoteCursor.timestampReceive = Date.now() - 50_000;
+
+      watch(remoteCursor);
+      expect(remoteCursor.isDisConnect).toBe(false);
+
+      listed.mockReturnValue([]);
+      vi.advanceTimersByTime(5_000);
+      expect(remoteCursor.isDisConnect).toBe(true);
+    });
+  });
+
   describe('chkDisConnect', () => {
     it('counts a peer as dropped once it goes quiet for too long', () => {
       const myCursor = PeerCursor.createMyCursor();
@@ -256,8 +319,8 @@ describe('PeerCursorComponent', () => {
       const chatSpy = vi.spyOn(chatService, 'sendSystemMessageOnePlayer');
 
       const priv = component as unknown as { logoutMessage: () => void };
-      priv.logoutMessage(); // 1回目
-      priv.logoutMessage(); // 2回目（静的 Set で防がれる）
+      priv.logoutMessage(); // the first
+      priv.logoutMessage(); // the second, which the static Set stops
 
       expect(chatSpy).toHaveBeenCalledTimes(1);
     });

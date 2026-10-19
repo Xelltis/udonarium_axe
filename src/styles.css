@@ -1,10 +1,10 @@
 /* You can add global styles to this file, and also import other style files */
 
-/* @importはすべて最初にまとめる */
+/* Every @import is gathered here at the top */
 @import '@ng-select/ng-select/themes/default.theme.css';
 
-/* Tailwind v4をまるごと読み込む。@tailwindcss/postcssがユーティリティを生成するには@import 'tailwindcss'が必要。
-   Preflightは@layer baseに入るので、どのレイヤーにも属さない既存のスタイルが優先される */
+/* Loads the whole of Tailwind v4: @tailwindcss/postcss needs @import 'tailwindcss' to generate the utilities.
+   Preflight goes into @layer base, so the existing styles that belong to no layer win over it */
 @import 'tailwindcss' source(none);
 
 @font-face {
@@ -31,12 +31,12 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* Tailwindがスキャンするソース（このCSSファイルからの相対パス）。
-   自動検出を切って、docsやdistを拾わないようにする */
+/* The sources Tailwind scans, relative to this CSS file.
+   Automatic detection is off so that docs and dist are not picked up */
 @source './app/**/*.{ts,html}';
 @source './index.html';
 
-/* ── Tailwindデザイントークン（ユーティリティ生成用） ───────────── */
+/* ── Tailwind design tokens (for generating utilities) ───────────── */
 @theme {
   --color-surface: hsl(220 14% 18%);
   --color-panel: hsl(220 14% 22%);
@@ -50,11 +50,11 @@
     -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Verdana, Meiryo, 'M+ 1p', 'Apple SD Gothic Neo',
     'Malgun Gothic', 'Noto Sans KR', sans-serif;
 
-  /* ── --ui-*ブリッジ: var(--ui-*)をTailwind utility経由で使えるようにする ──
-     例: bg-ui-panel, text-ui-muted, border-ui-border-panel, shadow-ui-md, rounded-ui-lg, animate-fade-in
-     ライト/ダークの切り替えは--ui-*側で行うので、ここでは参照をつなぐだけにする。 */
+  /* ── --ui-* bridge: makes var(--ui-*) usable through Tailwind utilities ──
+     e.g. bg-ui-panel, text-ui-muted, border-ui-border-panel, shadow-ui-md, rounded-ui-lg, animate-fade-in
+     Light and dark are switched on the --ui-* side, so this only wires the references through. */
 
-  /* 背景 → bg-ui-* */
+  /* Backgrounds → bg-ui-* */
   --color-ui-bg: var(--ui-bg);
   --color-ui-surface: var(--ui-surface);
   --color-ui-elevated: var(--ui-elevated);
@@ -70,12 +70,12 @@
   --color-ui-ghost: var(--ui-ghost-bg);
   --color-ui-ghost-header: var(--ui-ghost-header-bg);
 
-  /* テキスト → text-ui-* */
+  /* Text → text-ui-* */
   --color-ui-text: var(--ui-text);
   --color-ui-muted: var(--ui-text-muted);
   --color-ui-dim: var(--ui-text-dim);
 
-  /* アクセント / ステータス */
+  /* Accent / status */
   --color-ui-accent: var(--ui-accent);
   --color-ui-accent-hover: var(--ui-accent-hover);
   --color-ui-accent-glow: var(--ui-accent-glow);
@@ -87,10 +87,10 @@
   --color-ui-success: var(--ui-success);
   --color-ui-warning: var(--ui-warning);
 
-  /* トランプの黒スート（♣♠）。ダークモードでは見やすいように青、ライトモードでは伝統どおり黒 */
+  /* The black playing-card suits (♣♠): blue in dark mode so they stand out, black as is traditional in light mode */
   --color-ui-suit-black: var(--ui-suit-black);
 
-  /* ボーダー → border-ui-* */
+  /* Borders → border-ui-* */
   --color-ui-border-panel: var(--ui-panel-border);
   --color-ui-border-menu: var(--ui-menu-border);
   --color-ui-border-titlebar: var(--ui-titlebar-border);
@@ -98,27 +98,27 @@
   --color-ui-border-separator: var(--ui-menu-separator);
   --color-ui-border-bubble-caret: var(--ui-bubble-caret-border);
 
-  /* color-mixでよく使う比率（3箇所以上で再利用するものだけを登録する）
-     一回限りの特殊な比率は、コンポーネント側のstyle/CSSで扱う */
+  /* Ratios color-mix uses often (only those reused in three or more places are registered)
+     A one-off ratio is handled in the component's own style/CSS */
   --color-ui-accent-soft: color-mix(in srgb, var(--ui-accent) 20%, transparent);
   --color-ui-accent-bold: color-mix(in srgb, var(--ui-accent) 72%, var(--ui-elevated));
   --color-ui-danger-soft: color-mix(in srgb, var(--ui-danger) 20%, transparent);
   --color-ui-danger-ring: color-mix(in srgb, var(--ui-danger) 40%, transparent);
 
-  /* 影 → shadow-ui-{sm,md,lg} */
+  /* Shadows → shadow-ui-{sm,md,lg} */
   --shadow-ui-sm: var(--ui-shadow-sm);
   --shadow-ui-md: var(--ui-shadow-md);
   --shadow-ui-lg: var(--ui-shadow-lg);
 
-  /* 角丸 → rounded-ui-{sm,DEFAULT,lg,xl} */
+  /* Corner radii → rounded-ui-{sm,DEFAULT,lg,xl} */
   --radius-ui-sm: var(--ui-radius-sm);
   --radius-ui: var(--ui-radius);
   --radius-ui-lg: var(--ui-radius-lg);
   --radius-ui-xl: var(--ui-radius-xl);
 
-  /* グローバルの@keyframes → animate-*ユーティリティ
-     既存の.fly-in / .fade-in等のヘルパクラスは、後方互換のためstyles.cssに残してある。
-     新しく書く箇所ではanimate-*を使うこと。 */
+  /* Global @keyframes → animate-* utilities
+     The existing helper classes such as .fly-in / .fade-in stay in styles.css for backward compatibility.
+     New code uses animate-* instead. */
   --animate-bounce-badge: bounce 600ms ease;
   --animate-fly-in: flyIn 100ms ease-out;
   --animate-bg-fade-in: bgFadeIn 200ms ease-out forwards;
@@ -172,20 +172,20 @@
   --animate-cursor-ping: cursor-ping 2s ease-out infinite;
   --animate-writing-dot: writing-dot 1.2s infinite ease-in-out;
   --animate-disc-spin: spin 4s linear infinite;
-  /* Tailwind標準と同じ1sのspin。保存ボタンのsyncアイコンなど、ローディングの表示に使う。 */
+  /* A 1s spin, the same as Tailwind's own. Shows loading, as on the save button's sync icon. */
   --animate-spin: spin 1s linear infinite;
-  /* game-character（タップ後のフォーカス強調）とターゲットマーカー（targetBob）の
-     アニメーション。既存の@keyframesはstyles.cssの後半に定義してある。 */
+  /* The animations of game-character (the focus highlight after a tap) and the target marker
+     (targetBob). Their @keyframes are defined further down in styles.css. */
   --animate-focused: focused 1s ease;
   --animate-target-bob: targetBob 1.1s ease-in-out infinite;
   --animate-target-ring: targetRing 1.1s ease-in-out infinite;
   --animate-multi-angle-name-orbit: multiAngleNameOrbit 12s linear infinite;
   --animate-multi-angle-piece-spin: multiAnglePieceSpin 60s linear infinite;
-  /* mini-jukeboxのトラック名の横スクロール。--scroll-distは、MiniJukeboxComponentが
-     対象のelementへsetPropertyで直接設定する。 */
+  /* The sideways scroll of the mini-jukebox's track name. MiniJukeboxComponent sets --scroll-dist
+     directly on the element with setProperty. */
   --animate-title-scroll: title-scroll 7s ease-in-out infinite;
-  /* マップ演出の画面揺れ。強さごとに別のkeyframesを持つ。 */
-  /* 倒れたコマ自身の崩れ方。演出が当たっているあいだ、コマ本体に掛ける。 */
+  /* The screen shake of the map effects, with separate keyframes for each strength. */
+  /* How a fallen piece itself crumbles, put on the piece's own body while the effect is on it. */
   --animate-defeat-dissolve: effectDefeatDissolve 1.9s cubic-bezier(0.4, 0, 0.6, 1) both;
   --animate-defeat-bisect: effectDefeatBisect 1.6s cubic-bezier(0.3, 0, 0.2, 1) both;
   --animate-defeat-flinch: effectDefeatFlinch 900ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
@@ -194,10 +194,10 @@
   --animate-effect-flash: effectFlash 340ms ease-out both;
 }
 
-/* 盤面の下と上を流れる背景。タイル1枚ぶん動かすので継ぎ目が出ない。
-   1層1要素。横はtransform、縦はtranslateと別プロパティに分けてあるので、
-   斜めに流れる層でも合成面はひとつで済む。流れない軸は名前がnoneになり、
-   その軸にはアニメーション自体が掛からない。 */
+/* Backgrounds flowing under and over the board. Each moves by exactly one tile, so no seam shows.
+   One element per layer. Across runs on transform and down on translate, two separate properties, so
+   a layer flowing diagonally still needs only one compositing surface. An axis that does not flow
+   gets none as its name, and no animation runs on that axis at all. */
 .bg-layer-drift {
   animation-name: var(--bg-layer-x-name, none), var(--bg-layer-y-name, none);
   animation-duration: var(--bg-layer-x-duration, 0s), var(--bg-layer-y-duration, 0s);
@@ -206,8 +206,8 @@
   animation-iteration-count: infinite;
 }
 
-/* mini-jukeboxのトラック名を横スクロールさせるkeyframe。
-   element.style.--scroll-distを読むので、グローバルに定義してもJSから設定した値が反映される。 */
+/* The keyframes that scroll the mini-jukebox's track name sideways. They read element.style.--scroll-dist,
+   so the value set from JS takes effect even though they are defined globally. */
 @keyframes title-scroll {
   0%,
   20% {
@@ -222,9 +222,10 @@
   }
 }
 
-/* mini-jukeboxの<input type="range" class="seek-bar">のベンダー擬似要素。
-   AngularのEmulatedの範囲外なのでグローバルに定義し、.seek-barクラスをマーカーにして見分ける。
-   linear-gradientのvar(--seek-progress)は、HTMLから[style.--seek-progress]で渡す。 */
+/* The vendor pseudo-elements of the mini-jukebox's <input type="range" class="seek-bar">.
+   They lie outside Angular's Emulated encapsulation, so they are defined globally and told apart by the
+   .seek-bar class as a marker. The var(--seek-progress) in the linear-gradient comes from the HTML
+   through [style.--seek-progress]. */
 .seek-bar::-webkit-slider-runnable-track {
   height: 3px;
   border-radius: 2px;
@@ -320,14 +321,15 @@ input[type='range'].portrait-slider::-moz-range-thumb {
   background: var(--ui-accent);
 }
 
-/* Tailwind v4のテキストサイズユーティリティ（text-base / text-sm等）はline-heightも指定するので、
-   Google CDN由来の`.material-icons { line-height: 1 }`を上書きし、アイコンのコンテナが縦に膨らむ。
-   glyphはもともとline-height: 1で設計されているため、ここでグローバルにline-heightを抑える。 */
+/* Tailwind v4's text size utilities (text-base / text-sm and the like) set line-height as well, which
+   overrides the `.material-icons { line-height: 1 }` that came from Google's CDN and makes icon containers
+   grow taller. The glyphs are designed for line-height: 1 in the first place, so line-height is held down
+   here globally. */
 .material-icons {
   line-height: 1 !important;
 }
 
-/* mini-jukeboxのプレイリスト用のカスタムスクロールバー。.playlist-dropdownクラスをマーカーにする。 */
+/* The custom scrollbar of the mini-jukebox's playlist, with the .playlist-dropdown class as its marker. */
 .playlist-dropdown::-webkit-scrollbar {
   width: 4px;
 }
@@ -402,9 +404,10 @@ ruby.chat-ruby rt {
   display: none;
 }
 
-/* `> `で始まる引用行は、隣り合う複数行をまとめて、アクセントの縦線が付いたblockquote風に装飾する。
-   decorateQuoteLinesが<span class="chat-quote">を吐き、見た目はこちら側で決める。
-   チャットとTextNote（共有メモ）の非編集モードで共有するため、`.msg-text`の親スコープを外している。 */
+/* Quote lines starting with `> ` are gathered with their neighbours and decorated like a blockquote with
+   an accent bar down the side. decorateQuoteLines emits <span class="chat-quote">, and the look is decided here.
+   The chat and the non-editing mode of TextNote (the shared notes) both use it, so it is not scoped under
+   `.msg-text`. */
 .chat-quote {
   display: block;
   margin: 4px 0;
@@ -483,9 +486,10 @@ ruby.chat-ruby rt {
   background: none;
 }
 
-/* ChatMessageComponent.jumpEffectが要素の[class.chat-message-highlight]を切り替えたとき、
-   accentカラーで一瞬光らせる。`animation:`ショートハンドはTailwindのanimate-chat-*と衝突して、
-   解除時にスライドインを再生してしまう。そのためbackground-color + box-shadow + transitionで表現する。 */
+/* Flashes the accent colour for a moment when ChatMessageComponent.jumpEffect toggles the element's
+   [class.chat-message-highlight]. The `animation:` shorthand would clash with Tailwind's animate-chat-* and
+   replay the slide-in when the class comes off, so this is done with background-color + box-shadow +
+   transition. */
 chat-message > div > div {
   transition:
     background-color 1.5s ease-out,
@@ -499,8 +503,9 @@ chat-message > div > div {
     box-shadow 120ms ease-out;
 }
 
-/* チャット検索（chat-search-marks.ts）。見つかった語はCSS Custom Highlight APIで印を付け、
-   いま立っている発言の語だけ色を変える。どちらのテーマでも読めるよう文字は黒に固定する。 */
+/* Chat search (chat-search-marks.ts). The words found are marked with the CSS Custom Highlight API, and
+   only those in the line the search now stands on take another colour. The text is fixed to black so it
+   reads in either theme. */
 ::highlight(chat-search) {
   background-color: #fde047;
   color: #111;
@@ -513,11 +518,11 @@ chat-message[data-chat-search-current] > div > div {
   box-shadow: inset 3px 0 0 var(--ui-accent);
 }
 
-/* overview-panelの独自のテーブル表示。.overview-tableを親のマーカーにする。
-   .overview-table-*系のサブマーカーは、overview-panel.component.spec.tsがquerySelectorの対象として
-   参照している（例: .overview-table, .overview-table-column--gap, .overview-table-row-heading--group）。
-   --gap / --gap-activeは[class.X]バインディングで動的に切り替えるため、
-   グローバルに置いておく。 */
+/* The overview panel's own table view, with .overview-table as the parent marker.
+   The .overview-table-* sub-markers are what overview-panel.component.spec.ts looks up with querySelector
+   (e.g. .overview-table, .overview-table-column--gap, .overview-table-row-heading--group).
+   --gap / --gap-active are switched on and off by [class.X] bindings, so they are kept
+   global. */
 .overview-table th,
 .overview-table td {
   min-width: 5.5rem;
@@ -584,9 +589,9 @@ chat-message[data-chat-search-current] > div > div {
     inset -2px 0 0 var(--ui-accent);
 }
 
-/* mini-jukeboxで再生中のディスクが回るアニメーション（4s）と、
-   各種ローディングアイコン用（1s）。Tailwindのanimate-spin /
-   animate-disc-spinユーティリティから参照される。 */
+/* The animation that turns the disc playing in the mini-jukebox (4s), and the one for the
+   loading icons (1s). Referenced from Tailwind's animate-spin /
+   animate-disc-spin utilities. */
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -596,7 +601,7 @@ chat-message[data-chat-search-current] > div > div {
   }
 }
 
-/* chat-tabのwriting indicator（3 dot）用のアニメーション。 */
+/* The animation of chat-tab's writing indicator (three dots). */
 @keyframes writing-dot {
   0%,
   80%,
@@ -610,8 +615,8 @@ chat-message[data-chat-search-current] > div > div {
   }
 }
 
-/* peer-cursor（lobby）のリング状のアニメーション。
-   Tailwindのanimate-cursor-pingユーティリティから参照される。 */
+/* The ring animation of peer-cursor (lobby).
+   Referenced from Tailwind's animate-cursor-ping utility. */
 @keyframes cursor-ping {
   0% {
     box-shadow:
@@ -630,20 +635,20 @@ chat-message[data-chat-search-current] > div > div {
   }
 }
 
-/* ── UIデザイントークン ─────────────────────────────────────────
-   ダークテーマ（デフォルト / システム設定がダークの場合）
-   GitHub Dark Dimmedをベースにした2026年モダンデザイン
+/* ── UI design tokens ─────────────────────────────────────────
+   Dark theme (the default, and when the system setting is dark)
+   A modern 2026 design based on GitHub Dark Dimmed
 ── */
 :root {
-  /* チャットの文字サイズ（チャット設定で上書きする） */
+  /* The chat's font size (the chat settings override it) */
   --chat-font-size: 13px;
 
-  /* ベース背景 */
+  /* Base backgrounds */
   --ui-bg: #0d1117;
   --ui-surface: #161b22;
   --ui-elevated: #21262d;
 
-  /* パネル（グラスモーフィズム） */
+  /* Panels (glassmorphism) */
   --ui-panel-bg: rgba(22, 27, 34, 0.9);
   --ui-panel-border: rgba(48, 54, 61, 0.8);
   --ui-bubble-caret-border: #2d333a;
@@ -657,18 +662,18 @@ chat-message[data-chat-search-current] > div > div {
   --ui-ghost-bg: rgba(0, 0, 0, 0.6);
   --ui-ghost-header-bg: rgba(0, 0, 0, 0.7);
 
-  /* コンテキストメニュー */
+  /* Context menu */
   --ui-menu-bg: rgba(13, 17, 23, 0.96);
   --ui-menu-border: rgba(58, 65, 74, 0.8);
   --ui-menu-hover: rgba(56, 189, 248, 0.12);
   --ui-menu-separator: rgba(48, 54, 61, 0.8);
 
-  /* テキスト */
+  /* Text */
   --ui-text: #e6edf3;
   --ui-text-muted: #8b949e;
   --ui-text-dim: #484f58;
 
-  /* アクセント（エレクトリックブルー） */
+  /* Accent (electric blue) */
   --ui-accent: #58a6ff;
   --ui-accent-hover: #79c0ff;
   --ui-accent-glow: rgba(88, 166, 255, 0.3);
@@ -680,39 +685,39 @@ chat-message[data-chat-search-current] > div > div {
   --ui-quote-text: #d8dee9;
   --ui-quote-name: #9cc7ff;
 
-  /* 危険/エラー */
+  /* Danger / error */
   --ui-danger: #f85149;
   --ui-danger-hover: #ff7b72;
   --ui-danger-glow: rgba(248, 81, 73, 0.3);
   --ui-danger-bg: rgba(248, 81, 73, 0.1);
 
-  /* 成功 */
+  /* Success */
   --ui-success: #3fb950;
 
-  /* 警告 */
+  /* Warning */
   --ui-warning: #d29922;
 
-  /* トランプの黒スートの色（♣♠）。ダーク背景で見やすいように青系にする */
+  /* The colour of the black playing-card suits (♣♠), a blue so they stand out on the dark background */
   --ui-suit-black: #58a6ff;
 
-  /* 入力欄 */
+  /* Input fields */
   --ui-input-bg: rgba(13, 17, 23, 0.8);
   --ui-input-border: rgba(48, 54, 61, 0.8);
 
-  /* シャドウ */
+  /* Shadows */
   --ui-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
   --ui-shadow-md: 0 4px 20px rgba(0, 0, 0, 0.65), 0 1px 4px rgba(0, 0, 0, 0.4);
   --ui-shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.75), 0 2px 8px rgba(0, 0, 0, 0.5);
 
-  /* 丸み */
+  /* Corner radii */
   --ui-radius-sm: 4px;
-  /* 種別ピッカーの幅。ドロップダウンはbody直下に出るので:rootに置く。 */
+  /* The width of the type picker. Its dropdown appears directly under body, so this lives on :root. */
   --gde-select-width: 86px;
   --ui-radius: 8px;
   --ui-radius-lg: 12px;
   --ui-radius-xl: 16px;
 
-  /* トランジション */
+  /* Transitions */
   --ui-transition: 150ms ease;
 }
 
@@ -764,7 +769,7 @@ chat-message[data-chat-search-current] > div > div {
   --ui-success: #40a02b;
   --ui-warning: #8c5a00;
 
-  /* ライトモード: 黒スート（♣♠）は伝統どおり黒 */
+  /* Light mode: the black suits (♣♠) are black, as is traditional */
   --ui-suit-black: #000000;
 
   --ui-input-bg: #ebe2f1;
@@ -837,7 +842,7 @@ chat-message[data-chat-search-current] > div > div {
   animation: bounce 600ms ease;
 }
 
-/* MarkDownテーブル */
+/* Markdown tables */
 .markdown_table {
   display: table;
   table-layout: auto;
@@ -864,7 +869,7 @@ chat-message[data-chat-search-current] > div > div {
   color: var(--ui-text);
 }
 
-/* MarkDownチェックボックス */
+/* Markdown checkboxes */
 .markdown_checkbox {
   cursor: pointer;
   accent-color: var(--ui-accent);
@@ -987,9 +992,9 @@ chat-message[data-chat-search-current] > div > div {
   color: var(--ui-text);
 }
 
-/* データ要素の種別ピッカー。ng-selectはホストのclassをドロップダウンにも写すので、
-   幅はclassではなくここで与える。classで絞ると候補一覧まで同じ幅になり、
-   「テキスト」「射程図形」のような4文字が省略記号で切り詰められる。 */
+/* The type picker of a data element. ng-select copies the host's class onto the dropdown too, so the
+   width is given here rather than through a class. Narrowing it with a class makes the option list just as
+   narrow, and four-character names such as 「テキスト」 and 「射程図形」 get cut short with an ellipsis. */
 .ng-select.ud-select.gde-select {
   width: var(--gde-select-width);
   min-width: var(--gde-select-width);
@@ -1000,9 +1005,9 @@ chat-message[data-chat-search-current] > div > div {
   min-width: var(--gde-select-width) !important;
 }
 
-/* dice-table-settingでフル幅にしたいセレクタに付けるバリアント。
-   dice-table-setting.component.cssから移植した。Tailwind化でスコープドCSSが
-   なくなっても消えないよう、グローバルに置いている。 */
+/* A variant for the selects dice-table-setting wants at full width.
+   Moved over from dice-table-setting.component.css, and kept global so that it
+   survives the scoped CSS going away with the move to Tailwind. */
 .ng-select.ud-select.sys-select {
   display: block !important;
   width: 100% !important;
@@ -1018,9 +1023,9 @@ chat-message[data-chat-search-current] > div > div {
   font-size: 13px !important;
 }
 
-/* chat-inputの発言者/宛先/ダイスボットのセレクタのflex指定。
-   chat-input.component.cssから移植した。Tailwind化でスコープドCSSが
-   なくなっても消えないよう、グローバルに置いている。 */
+/* The flex settings of chat-input's speaker / recipient / dice bot selects.
+   Moved over from chat-input.component.css, and kept global so that they
+   survive the scoped CSS going away with the move to Tailwind. */
 .ng-select.ud-select.chat-select {
   flex: 1 1 9rem;
   width: auto !important;
@@ -1036,9 +1041,9 @@ chat-message[data-chat-search-current] > div > div {
   flex-basis: 11rem;
 }
 
-/* chat-inputの@container (max-width: 420px)と(max-width: 320px)で、
-   発言者セレクタのflex-basisを変える。chat-input-controlsクラスを
-   containerとして扱う。 */
+/* At chat-input's @container (max-width: 420px) and (max-width: 320px),
+   the speaker select's flex-basis changes. The chat-input-controls class
+   serves as the container. */
 @container (max-width: 420px) {
   .ng-select.ud-select.chat-select {
     flex-basis: calc(50% - 16px);
@@ -1059,7 +1064,7 @@ chat-message[data-chat-search-current] > div > div {
   }
 }
 
-/* ノベルモードのツールバーは横に詰まっているので、話者セレクタは幅を抑えて縮む。 */
+/* The novel mode toolbar is packed tight across, so the speaker select keeps its width down and shrinks. */
 .ng-select.ud-select.vn-select {
   flex: 0 1 9rem;
   width: auto !important;
@@ -1103,7 +1108,7 @@ chat-message[data-chat-search-current] > div > div {
   color: var(--ui-accent);
 }
 
-/* ボタンのデフォルトは@layer baseに置く。Tailwindユーティリティ（@layer utilities）がそれより優先して上書きできる */
+/* Button defaults go in @layer base, so Tailwind utilities (@layer utilities) take precedence and can override them */
 @layer base {
   button {
     background: var(--ui-elevated);
@@ -1155,8 +1160,8 @@ chat-message[data-chat-search-current] > div > div {
     opacity: 0.38;
   }
 
-  /* Tailwind v4のpreflightはbackground-color: transparentとborder: 0 solidを
-     input/textarea/selectに適用するため、ブラウザのデフォルトを明示的に戻す */
+  /* Tailwind v4's preflight applies background-color: transparent and border: 0 solid to
+     input/textarea/select, so the browser defaults are put back explicitly */
   input:not([type='range']):not([type='checkbox']):not([type='radio']):not([type='color']) {
     border: 1px solid var(--ui-input-border);
     padding: 2px 6px;
@@ -1201,7 +1206,7 @@ chat-message[data-chat-search-current] > div > div {
     box-shadow: 0 0 0 3px var(--ui-accent-glow);
   }
 
-  /* スクロールバー。細くスタイリッシュにする */
+  /* Scrollbars, kept thin and sleek */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -1221,7 +1226,7 @@ chat-message[data-chat-search-current] > div > div {
     scrollbar-color: var(--ui-text-dim) transparent;
   }
 
-  /* hr要素の既定スタイル */
+  /* The default style of hr elements */
   hr {
     border: none;
     border-top: 1px solid var(--ui-panel-border);
@@ -1229,7 +1234,7 @@ chat-message[data-chat-search-current] > div > div {
   }
 }
 
-/* 回転メニューの独立した項目でも、通常メニューと同じように下地の上へホバー色を重ねる。 */
+/* A standalone item of the rotating menu also lays the hover colour over its backing, as the ordinary menu does. */
 button.rotating-menu-item:hover:not(:disabled) {
   background: var(--ui-menu-bg);
   box-shadow:
@@ -1238,7 +1243,7 @@ button.rotating-menu-item:hover:not(:disabled) {
   color: var(--ui-accent);
 }
 
-/* 回転メニューの親項目は、表示形状とクリック領域を同じドーナツセクターにする。 */
+/* A parent item of the rotating menu takes the same doughnut sector for its drawn shape and its click area. */
 button.radial-menu-sector {
   cursor: pointer;
   transition:
@@ -1276,7 +1281,7 @@ button.radial-child-menu-item:focus-visible {
   outline: none;
 }
 
-/* 回転メニューから開く子・孫メニューは、外箱ではなく各項目に黒い下地を持たせる。 */
+/* Child and grandchild menus opened from the rotating menu give each item a black backing, not the outer box. */
 .context-menu-detached-title {
   margin-bottom: 2px;
   border: 1px solid var(--ui-menu-border);
@@ -1297,7 +1302,8 @@ button.radial-child-menu-item:focus-visible {
   color: var(--ui-accent);
 }
 
-/* 高度スライダーは通常の項目行ではないため、分離表示のときだけ専用の不透明パネルに載せる。 */
+/* The altitude slider is not an ordinary item row, so only when shown detached does it sit on an opaque
+   panel of its own. */
 .context-menu-detached-altitude-slider-panel {
   display: flex;
   align-self: stretch;
@@ -1328,8 +1334,9 @@ body {
   color-scheme: dark light;
 }
 
-/* 配信に重ねる画面。背景を抜き、読み込み中の表示も配信に映らないようにする。
-   ルート要素の背景が残っていると、bodyだけ透明にしてもキャンバスはその色で塗られる。 */
+/* The screen laid over a stream. The background is taken out, and the loading display is kept off the
+   stream as well. While the root element keeps a background, the canvas is painted in that colour even with
+   body alone made transparent. */
 html[data-overlay],
 html[data-overlay] body,
 html:has(body.overlay-mode),
@@ -1435,9 +1442,9 @@ body {
 }
 
 /*
- * デスクトップWindows版Chrome 102-103におけるレンダリング改善のための定義.
- * 3D表示している画像にこのCSSクラスを付与すると至近距離で表示した時の解像度が鮮明になる.
- * 将来的なChromeのアップデートでレンダリング速度が改善された場合は削除を検討.
+ * A definition that improves rendering in desktop Chrome 102-103 on Windows.
+ * Giving this CSS class to an image shown in 3D keeps its resolution sharp when seen up close.
+ * Consider removing it once a later Chrome update improves the rendering speed.
  */
 .chrome-smooth-image-trick {
   transform-style: inherit;
@@ -2181,7 +2188,7 @@ input[type='range']::-moz-range-thumb {
   }
 }
 
-/* CSSの正方向は画面上で時計回り。下を0degとして、名前をコマの周囲に公転させる。 */
+/* CSS's positive direction is clockwise on screen. With the bottom as 0deg, the name orbits the piece. */
 @keyframes multiAngleNameOrbit {
   from {
     transform: rotateZ(0deg);
@@ -3017,8 +3024,8 @@ game-data-element .elm-markdown-view,
   }
 }
 
-/* visual-novelの吹き出しの形。疑似要素やclip-pathを使うので、グローバルに定義する。
-   .vn-bubble-baseの背景色（rgba(255,255,255,0.92)）と合わせている。 */
+/* The shapes of visual-novel speech bubbles. They use pseudo-elements and clip-path, so they are defined
+   globally. They match the background colour of .vn-bubble-base (rgba(255,255,255,0.92)). */
 .vn-bubble-normal::after {
   content: '';
   position: absolute;
@@ -3153,8 +3160,8 @@ game-data-element .elm-markdown-view,
   background: rgba(255, 255, 255, 0.78);
 }
 
-/* visual-novelの吹き出し・立ち絵のゲーム演出。複数のanimationを合成するため、
-   Tailwindのanimate-*ではなくグローバルクラスで定義する。 */
+/* The game-style effects on visual-novel speech bubbles and portraits. They combine several animations,
+   so they are defined as global classes rather than through Tailwind's animate-*. */
 .vn-enter-normal {
   animation: vnBubbleIn 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -3343,8 +3350,8 @@ game-data-element .elm-markdown-view,
 /**************** map effects ****************/
 
 /*
- * 崩壊。下から潰れて浮き上がり、薄くなって消える。
- * 周りに演出を出すだけではコマは倒れないので、コマ本体をここで崩す。
+ * Collapse. Squashed from below, it lifts, fades and is gone.
+ * Effects drawn around a piece do not make it fall on their own, so the piece's body is broken here.
  */
 @keyframes effectDefeatDissolve {
   0% {
@@ -3355,7 +3362,7 @@ game-data-element .elm-markdown-view,
     transform: translate3d(0, 2px, 0) scale3d(1.05, 0.93, 1);
     opacity: 1;
   }
-  /* ここから先は破片が受け持つ。本体が残っていると二重に見える。 */
+  /* From here on the fragments take over. A body left standing would show twice. */
   22% {
     transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
     opacity: 0;
@@ -3366,20 +3373,20 @@ game-data-element .elm-markdown-view,
   }
 }
 
-/* 両断。斬られた向きへずれて滑り落ち、そのまま消える。 */
+/* Cut in two. The halves slip along the cut, slide down and are gone. */
 @keyframes effectDefeatBisect {
   0%,
   16% {
     opacity: 1;
   }
-  /* 斬り抜けた瞬間に消え、ずれた2枚へ入れ替わる。 */
+  /* Gone the moment the blade passes through, swapped for the two halves slipping apart. */
   22%,
   100% {
     opacity: 0;
   }
 }
 
-/* 血しぶき。斬られた衝撃でのけぞって戻る。 */
+/* Blood spray. The piece reels back from the blow and rights itself. */
 @keyframes effectDefeatFlinch {
   0% {
     transform: translate3d(0, 0, 0) rotate(0deg);
@@ -3402,11 +3409,11 @@ game-data-element .elm-markdown-view,
 }
 
 /*
- * 衝撃で画面を揺らす。減衰させないと、揺れが止まったのか分からない。
+ * Shakes the screen on impact. Without damping, nobody can tell whether the shaking has stopped.
  *
- * 揺れ幅は変数にせず、強さごとに別のkeyframesとして持つ。
- * カスタムプロパティは継承するので、盤面に掛けると配下すべてのstyleが
- * 無効になり、6000px四方のレイヤーが作り直されて未描画のまま数フレーム暗く出る。
+ * The amplitude is not a variable but kept as separate keyframes for each strength.
+ * Custom properties are inherited, so setting one on the board invalidates the style of everything
+ * under it, and the 6000px-square layer is rebuilt and shows dark and undrawn for a few frames.
  */
 @keyframes effectShakeSoft {
   0% {
@@ -3450,7 +3457,7 @@ game-data-element .elm-markdown-view,
   }
 }
 
-/* 閃光。焼き付いてから素早く引く。 */
+/* Flash. It burns in, then falls away quickly. */
 @keyframes effectFlash {
   0% {
     opacity: 0;
@@ -3463,7 +3470,7 @@ game-data-element .elm-markdown-view,
   }
 }
 
-/* 稲妻の明滅。放電が数回走ってから消える。 */
+/* Lightning flicker. The discharge runs a few times before it goes. */
 @keyframes effectBoltStrike {
   0% {
     opacity: 1;
@@ -3488,7 +3495,7 @@ game-data-element .elm-markdown-view,
   }
 }
 
-/* 炎の舌。根元を軸に立ち上がって細り、消える。 */
+/* A tongue of flame. It rises pivoting on its root, thins and goes out. */
 @keyframes effectFlameTongue {
   0% {
     transform: translateY(8%) scale(0.78, 0.72);
@@ -3507,7 +3514,7 @@ game-data-element .elm-markdown-view,
   }
 }
 
-/* 炎心。舌より速く短く上がる。 */
+/* The flame's core. It rises faster and shorter than the tongue. */
 @keyframes effectFlameCore {
   0% {
     transform: translateY(6%) scale(0.7, 0.66);
@@ -3522,7 +3529,7 @@ game-data-element .elm-markdown-view,
   }
 }
 
-/* 火の粉。ゆらぎながら舞い上がる。 */
+/* Sparks. They flutter upward, wavering. */
 @keyframes effectEmberRise {
   0% {
     transform: translate(0, 0) scale(1);
@@ -3540,7 +3547,7 @@ game-data-element .elm-markdown-view,
   }
 }
 
-/* 斬撃の刃。刃元から刃先へ抜けるように出て、すぐ消える。 */
+/* The blade of a slash. It sweeps out from the base of the blade to its tip and is gone at once. */
 @keyframes effectSlashSweep {
   0% {
     transform: scaleX(0.05) scaleY(0.4);
@@ -3558,7 +3565,7 @@ game-data-element .elm-markdown-view,
   }
 }
 
-/* 輪が広がって消える。衝撃波・魔法陣の波紋に使う。 */
+/* A ring spreads and is gone. Used for shock waves and the ripples of magic circles. */
 @keyframes effectRingBurst {
   0% {
     transform: scale(0.18);
@@ -3573,21 +3580,21 @@ game-data-element .elm-markdown-view,
   }
 }
 
-/* ゆっくり回る。魔法陣や結晶に。 */
+/* Turns slowly. For magic circles and crystals. */
 @keyframes effectSpinSlow {
   to {
     transform: rotate(360deg);
   }
 }
 
-/* 逆回り。二重の陣を組むときに内側へ掛ける。 */
+/* Turns the other way. Put on the inner ring when two circles are stacked. */
 @keyframes effectSpinReverse {
   to {
     transform: rotate(-360deg);
   }
 }
 
-/* 渦。速く回しながらわずかに脈打たせる。 */
+/* A vortex. It spins fast while pulsing slightly. */
 @keyframes effectSwirl {
   0% {
     transform: rotate(0deg) scale(0.94);
@@ -3600,7 +3607,7 @@ game-data-element .elm-markdown-view,
   }
 }
 
-/* ふわりと脈打つ。霧やオーラの滞留に。 */
+/* A soft pulse. For mist or an aura that lingers. */
 @keyframes effectPulseSoft {
   0%,
   100% {
@@ -3613,7 +3620,7 @@ game-data-element .elm-markdown-view,
   }
 }
 
-/* 煙。ふくらみながら流れる。 */
+/* Smoke. It drifts as it swells. */
 @keyframes effectSmokeRise {
   0% {
     transform: translate(0, 0) scale(0.5);
@@ -4074,7 +4081,7 @@ body.mobile-layout ui-panel textarea {
   display: none;
 }
 
-/* 戦場の霧が空中を漂う。層ごとにdurationと負のdelayをずらして位相を散らす。 */
+/* The fog of war drifting in the air. Each layer shifts its duration and negative delay to scatter the phases. */
 @keyframes fogDrift {
   from {
     transform: translate3d(-2.5%, -1.5%, 0);
@@ -4093,7 +4100,8 @@ body.mobile-layout ui-panel textarea {
   }
 }
 
-/* 縦だけtranslateプロパティを使う。同じ要素で横のtransformと同時に動かすため。 */
+/* Only the vertical axis uses the translate property, so that it can move alongside the horizontal transform
+   on the same element. */
 @keyframes bgLayerScrollY {
   from {
     translate: 0 0;

@@ -4,11 +4,14 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
@@ -52,6 +55,24 @@ describe('RangeComponent', () => {
       const uiSignalService = TestBed.inject(UiSignalService);
       uiSignalService.notifyTableViewRotation(50, 20, 90);
       expect(component.viewRotateZ()).toBe(90);
+    });
+  });
+
+  describe('the panel for choosing whom the range follows', () => {
+    it('opens on this range, and opens nothing for a range gone by the time it arrives', () => {
+      const range = RangeArea.create('テスト範囲', 3, 5, 1);
+      fixture.componentRef.setInput('range', range);
+      const openLazy = vi.spyOn(TestBed.inject(PanelService), 'openLazy').mockImplementation(() => {});
+
+      component.dockingWindowOpen();
+
+      const [, option, setup] = openLazy.mock.calls[0];
+      const panel = { tabletopObject: null as RangeArea | null };
+      setup!(panel as never);
+      expect(panel.tabletopObject).toBe(range);
+      expect(option!.stillWanted!()).toBe(true);
+      ObjectStore.instance.remove(range);
+      expect(option!.stillWanted!()).toBe(false);
     });
   });
 
@@ -232,5 +253,23 @@ describe('RangeComponent', () => {
     expect(inside.targeted).toBe(true);
     expect(outside.targeted).toBe(false);
     expect(resting.targeted).toBe(false);
+  });
+
+  it('takes in pieces as far off as its length counts squares, on a table counting squares of two cells', async () => {
+    const range = RangeArea.create('円', 1, 2, 50);
+    range.type = 'CIRCLE';
+    range.location = { name: 'table', x: 300, y: 300 };
+    fixture.componentRef.setInput('range', range);
+    const twoSquaresOff = GameCharacter.create('二マス先', 1, '');
+    twoSquaresOff.location = { name: 'table', x: 425, y: 275 };
+    const table = new GameTable();
+    table.squareSpan = 2;
+    table.initialize();
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    component.targetInside(range);
+
+    expect(twoSquaresOff.targeted).toBe(true);
   });
 });

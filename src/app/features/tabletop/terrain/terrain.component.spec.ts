@@ -249,6 +249,24 @@ describe('TerrainComponent', () => {
   });
 
   describe('doors', () => {
+    it('opens and shuts for a seat that may change the table, and not for a guest', () => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      const door = Terrain.create('door', 0.25, 1, 2, '', '');
+      door.doorStyle = DoorStyle.SWING;
+      fixture.componentRef.setInput('terrain', door);
+
+      component['onDoorClick']();
+      expect(door.isDoorOpen).toBe(false);
+
+      PeerCursor.myCursor.role = PeerRole.Player;
+      TestBed.inject(ObjectChangeServiceForSpec).notifyChanged(PeerCursor.myCursor.identifier);
+      component['onDoorClick']();
+      expect(door.isDoorOpen).toBe(true);
+
+      door.destroy();
+    });
+
     it('runs a sliding door the length of itself, into the wall it was set into', () => {
       const terrain = Terrain.create('sliding door', 0.25, 1, 2, '', '');
       terrain.doorStyle = DoorStyle.SLIDE;

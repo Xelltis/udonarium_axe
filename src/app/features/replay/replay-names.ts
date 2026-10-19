@@ -1,4 +1,5 @@
-import { type ReplayManifest, resolveSnapshotAt } from '@axe/domain/replay/replay-event';
+import { AUTHORITY_PEER_ID } from '@axe/core/network/server/server-protocol';
+import { type ReplayManifest, resolveSnapshotOrFirst } from '@axe/domain/replay/replay-event';
 import type { ReplayNameLookup } from '@axe/features/replay/replay-log-line';
 
 export type ReplayDictionary = Pick<ReplayManifest, 'actors' | 'targets'>;
@@ -50,9 +51,9 @@ function indexOf(dictionary: ReplayDictionary): DictionaryIndex {
  */
 export function replayNamesAt(dictionary: ReplayDictionary, seq: number): ReplayNameLookup {
   const index = indexOf(dictionary);
-  const targetAt = (identifier: string) => resolveSnapshotAt(index.targets.get(identifier) ?? [], seq);
+  const targetAt = (identifier: string) => resolveSnapshotOrFirst(index.targets.get(identifier) ?? [], seq);
   return {
-    actorName: (userId) => resolveSnapshotAt(index.actors.get(userId) ?? [], seq)?.name || userId,
+    actorName: (userId) => resolveSnapshotOrFirst(index.actors.get(userId) ?? [], seq)?.name || userId,
     targetName: (identifier) => targetAt(identifier)?.name || identifier,
     ownerName: (identifier) => {
       const owner = targetAt(identifier)?.ownerIdentifier;
@@ -63,7 +64,7 @@ export function replayNamesAt(dictionary: ReplayDictionary, seq: number): Replay
 
 /**
  * Every actor in the recording under the last name recorded for them, followed by any of the given
- * ids the dictionary does not know, named by the id.
+ * ids the dictionary does not know, named by the id. The room server is nobody at the table.
  */
 export function replayActorsOf(
   dictionary: ReplayDictionary,
@@ -72,5 +73,6 @@ export function replayActorsOf(
   const seen = new Map<string, string>();
   for (const actor of dictionary.actors) seen.set(actor.userId, actor.name || actor.userId);
   for (const userId of fallbackIds) if (!seen.has(userId)) seen.set(userId, userId);
+  seen.delete(AUTHORITY_PEER_ID);
   return [...seen].map(([userId, name]) => ({ userId, name }));
 }

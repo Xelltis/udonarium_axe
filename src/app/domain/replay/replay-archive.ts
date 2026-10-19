@@ -52,7 +52,7 @@ export function buildReplayArchiveFiles(source: ReplayArchiveSource): File[] {
   ];
 
   for (const chunk of source.chunks) {
-    const bytes = encodeReplayEvents(chunk.events);
+    const bytes = encodeReplayEvents(chunk.events, source.manifest.formatVersion);
     files.push(
       new File([bytes as BlobPart], `${REPLAY_EVENT_DIR}${indexName(chunk.index)}.msgpack`, {
         type: 'application/octet-stream',
@@ -80,7 +80,10 @@ export function buildReplayArchiveFiles(source: ReplayArchiveSource): File[] {
  * come back as one list in sequence order, and the folders are found even when the zip wraps
  * them in an outer folder.
  */
-export async function parseReplayArchive(entries: readonly ReplayArchiveEntry[]): Promise<ReplayArchiveContent | null> {
+export async function parseReplayArchive(
+  archived: readonly ReplayArchiveEntry[]
+): Promise<ReplayArchiveContent | null> {
+  const entries = archived.filter((entry) => !isPackingLeftover(entry.name));
   const manifestEntry = entries.find((entry) => baseName(entry.name) === REPLAY_MANIFEST_NAME);
   if (!manifestEntry) return null;
 
@@ -120,6 +123,15 @@ function baseName(name: string): string {
   const normalized = name.replace(/\\/g, '/');
   const index = normalized.lastIndexOf('/');
   return index < 0 ? normalized : normalized.slice(index + 1);
+}
+
+/**
+ * Whether an entry is what macOS adds when it packs a folder again: the resource forks under
+ * __MACOSX, named with a leading ._, which hold none of the recording.
+ */
+function isPackingLeftover(name: string): boolean {
+  const normalized = name.replace(/\\/g, '/');
+  return normalized.startsWith('__MACOSX/') || baseName(normalized).startsWith('._');
 }
 
 function isInDirectory(name: string, directory: string): boolean {

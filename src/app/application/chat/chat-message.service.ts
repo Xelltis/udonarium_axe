@@ -37,7 +37,9 @@ import { joinStampLine } from '@axe/domain/chat/stamp-line';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { encodeDiceLook } from '@axe/domain/dice/dice-3d/dice-look';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
+import { mayBeChosen } from '@axe/domain/peer/chosen-seat';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import GameSystemClass from 'bcdice/lib/game_system';
 
 const HOURS = 60 * 60 * 1000;
@@ -65,13 +67,20 @@ export class ChatMessageService {
   }
 
   /**
-   * Sets the chat clock by a public time server, then again every six hours.
+   * Sets the chat clock by a public time server, then again every six hours; on a room server, by
+   * the server's clock, which it told the seat on letting it in, asking nobody else.
    *
    * Lines are ordered by the time they are stamped with, so peers whose own clocks disagree would
    * otherwise interleave wrongly. A failed request keeps the clock as it was and tries again on the
    * same schedule. Calling it while a check is already scheduled does nothing.
    */
   calibrateTimeOffset() {
+    const serverOffset = Network.serverClockOffset;
+    if (serverOffset !== null) {
+      this.timeOffset = Date.now() + serverOffset;
+      this.performanceOffset = performance.now();
+      return;
+    }
     if (this.calibrationTimer != null) {
       return;
     }
@@ -229,11 +238,13 @@ export class ChatMessageService {
    * Speaks a notice as whoever this reader last spoke as, with that speaker's portrait where it
    * still matches.
    *
-   * It goes to the named tab, or the system tab when none is named or the name is not a tab.
+   * It goes to the named tab, or the system tab when none is named or the name is not a tab. A guest
+   * on a room server says nothing in a tab guests may not speak in, which the server would take back.
    */
   sendSystemMessageAsLastSpeaker(text: string, chatTabIdentifier?: string) {
     const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
     const sysTab = this.resolveChatTab(chatTabIdentifier) ?? chatTabList!.systemMessageTab!;
+    if (this.keptOffTable && !sysTab?.guestCanSpeak) return;
     const sendFrom = PeerCursor.myCursor.lastControlSendFrom
       ? PeerCursor.myCursor.lastControlSendFrom
       : PeerCursor.myCursor.identifier;
@@ -270,7 +281,8 @@ export class ChatMessageService {
    * `words` stand in for the stamp wherever it cannot be drawn: in a version that does not know it,
    * in a log, in a video. A stamp that is a picture in the room carries the picture as well, for
    * those to show. A stamp this version does not know, one the room does not let be sent, or one
-   * from a reader whose role may not speak in the tab, is not sent, and null comes back.
+   * from a reader whose role may not speak in the tab, is not sent, and null comes back. A guest on a
+   * room server stands no portrait in the tab's slots, which the server would put back.
    */
   sendStamp(
     chatTab: ChatTab,
@@ -289,12 +301,12 @@ export class ChatMessageService {
     const imgIndex = resolvePortraitIndex(portraitIndex);
     const chatMessage: ChatMessageContext = {
       from: Network.peerContext.userId,
-      to: sendTo != null ? this.findId(sendTo) : undefined,
+      to: sendTo != null ? this.whisperTo(sendTo) : undefined,
       name: this.makeMessageName(sendFrom, sendTo),
       imageIdentifier: this.findImageIdentifier(sendFrom, imgIndex),
       timestamp: this.calcTimeStamp(chatTab),
       text: words,
-      imagePos: this.findImagePos(sendFrom),
+      imagePos: this.keptOffTable ? undefined : this.findImagePos(sendFrom),
       messColor: resolveMessageColor(color, '#000000'),
       sendFrom,
       senderRole: PeerCursor.myRole,
@@ -319,7 +331,9 @@ export class ChatMessageService {
    * room's images. A line not whispered to anyone also records who this reader last spoke as, which
    * `sendSystemMessageAsLastSpeaker` follows. A stamp sent with the line goes under it, with the
    * words standing in for it on a last line of their own, after everything else has been read out of
-   * the line.
+   * the line. A guest on a room server changes no piece by speaking: resource edits are not read out
+   * of the line, a portrait command picks the line's portrait but leaves the piece's alone, and the
+   * portrait stands in none of the tab's slots.
    */
   sendMessage(
     chatTab: ChatTab,
@@ -348,13 +362,14 @@ export class ChatMessageService {
 
     const chatMessage: ChatMessageContext = {
       from: Network.peerContext.userId,
-      to: sendTo != null ? this.findId(sendTo) : undefined,
+      to: sendTo != null ? this.whisperTo(sendTo) : undefined,
       name: this.makeMessageName(sendFrom, sendTo),
       imageIdentifier: this.findImageIdentifier(sendFrom, imgIndex),
       timestamp: this.calcTimeStamp(chatTab),
       tag: chatMessageTag,
       text,
-      imagePos: this.findImagePos(sendFrom),
+      // A guest on a room server stands no portrait in the tab's slots, which the server would put back.
+      imagePos: this.keptOffTable ? undefined : this.findImagePos(sendFrom),
       messColor: messageColor,
       sendFrom: sendFrom,
       senderRole: PeerCursor.myRole,
@@ -393,10 +408,12 @@ export class ChatMessageService {
       });
     }
     emitDiceTableMessage({ messageIdentifier: chat.identifier });
-    emitResourceEditMessage({
-      messageIdentifier: chat.identifier,
-      messageTargetContext: eventPlan.resourceEditTargetContext,
-    });
+    if (!this.keptOffTable) {
+      emitResourceEditMessage({
+        messageIdentifier: chat.identifier,
+        messageTargetContext: eventPlan.resourceEditTargetContext,
+      });
+    }
 
     return chat;
   }
@@ -508,8 +525,17 @@ export class ChatMessageService {
     chatMessage.imageIdentifier = found.identifier;
     chatMessage.text = stripPortraitCommand(text);
     const obj = this.objectStore.get(sendFrom);
-    if (obj instanceof GameCharacter) obj.selectedPortraitIndex = found.index;
+    if (obj instanceof GameCharacter && !this.keptOffTable) obj.selectedPortraitIndex = found.index;
     return found;
+  }
+
+  /**
+   * Whom a whisper goes to. One whose target's cursor is not here at the moment, as while it is on
+   * its way back or after its seat opened the page again, goes to the user it stood for rather than
+   * out to everybody.
+   */
+  private whisperTo(identifier: string): string {
+    return this.findId(identifier) || PeerCursor.userIdOf(identifier) || identifier;
   }
 
   private findId(identifier: string): string {
@@ -535,7 +561,7 @@ export class ChatMessageService {
     } else if (object instanceof PeerCursor) {
       return object.name;
     }
-    return identifier;
+    return PeerCursor.standingFor(identifier)?.name ?? identifier;
   }
 
   private makeMessageName(sendFrom: string, sendTo?: string): string {
@@ -637,8 +663,32 @@ export class ChatMessageService {
    * back is the one thing a seat holds against the rest of the table.
    */
   canDiscloseMessage(message: ChatMessage): boolean {
-    if (!message.isSecret) return false;
+    if (!message.isSecret || this.keptFromWriting(message)) return false;
     return message.isSendFromSelf || this.rolePermission.canSeeHidden;
+  }
+
+  /** Whether this reader may edit a line: one they said, where they may still write to it. */
+  canEditMessage(message: ChatMessage): boolean {
+    return message.changeable && !this.keptFromWriting(message);
+  }
+
+  /**
+   * Whether this reader may not write to a line where it stands, whatever else allows it: on a room
+   * server a guest writes only in a tab guests may speak in, and the server puts back any change
+   * elsewhere. Among peers nothing is held back.
+   */
+  private keptFromWriting(message: ChatMessage): boolean {
+    if (!this.keptOffTable) return false;
+    const tab = message.parent;
+    return !(tab instanceof ChatTab) || !tab.guestCanSpeak;
+  }
+
+  /**
+   * Whether this reader is a guest on a room server, which writes no piece: the server would put
+   * back a change a guest made to one and leave whatever said so standing.
+   */
+  private get keptOffTable(): boolean {
+    return Network.authorityPeerId !== null && PeerCursor.myRole === PeerRole.Guest;
   }
 
   /**
@@ -665,25 +715,25 @@ export class ChatMessageService {
    */
   canMakeAfterWhisper(message: ChatMessage): boolean {
     if (message.isDirect && !message.isAfterWhisper) return false;
-    return message.changeable;
+    return this.canEditMessage(message);
   }
 
   /** Whether this reader may put a line they made an after-the-fact whisper back where it was. */
   canUndoAfterWhisper(message: ChatMessage): boolean {
-    return message.isAfterWhisper && message.changeable;
+    return message.isAfterWhisper && this.canEditMessage(message);
   }
 
   /**
    * The seats a line can be whispered to afterwards: everyone in the room but this reader, who said
-   * it and keeps it either way, and but those whose role may not read the tab it is in, who could
-   * never see it.
+   * it and keeps it either way, but those whose role may not read the tab it is in, who could never
+   * see it, and but those who may not be chosen.
    */
   afterWhisperCandidates(message: ChatMessage): PeerCursor[] {
     const me = PeerCursor.myCursor;
     const tab = message.parent;
     return this.objectStore
       .getObjects(PeerCursor)
-      .filter((peer) => peer !== me && !!peer.userId)
+      .filter((peer) => peer !== me && !!peer.userId && mayBeChosen(peer))
       .filter((peer) => !(tab instanceof ChatTab) || canRoleViewTab(tab, peer.role));
   }
 
@@ -708,7 +758,7 @@ export class ChatMessageService {
    * dice result is the dice bot's line, so a roll stays where the table saw it.
    */
   canPseudoDelete(message: ChatMessage): boolean {
-    return !message.isPseudoDeleted && message.changeable;
+    return !message.isPseudoDeleted && this.canEditMessage(message);
   }
 
   /**
@@ -725,10 +775,13 @@ export class ChatMessageService {
    * Says a line again in another tab, as though it had been said there.
    *
    * It goes to the end of that tab rather than back into the middle of it under its old time:
-   * a line copied over is being brought into that conversation now.
+   * a line copied over is being brought into that conversation now. A guest on a room server's copy
+   * stands no portrait in the tab's slots, which the server would put back.
    */
   copyMessageToTab(message: ChatMessage, chatTab: ChatTab): ChatMessage {
-    return chatTab.addMessage(copiedMessageContext(message, this.calcTimeStamp(chatTab)));
+    const context = copiedMessageContext(message, this.calcTimeStamp(chatTab));
+    if (this.keptOffTable) context.imagePos = undefined;
+    return chatTab.addMessage(context);
   }
 
   private calcTimeStamp(chatTab: ChatTab): number {

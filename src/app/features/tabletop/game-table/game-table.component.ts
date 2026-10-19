@@ -64,6 +64,7 @@ import {
 } from '@axe/domain/tabletop/background-scroll';
 import { FilterType, GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
+import { squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { zoomToViewPositionZ } from '@axe/domain/tabletop/physical-scale';
 import { SurfaceDims } from '@axe/domain/tabletop/surface-space';
@@ -373,7 +374,8 @@ export class GameTableComponent {
           this.currentTable.gridSize,
           this.currentTable.gridType,
           this.currentTable.gridColor,
-          this.currentTable.gridFontColor
+          this.currentTable.gridFontColor,
+          squareSpanOf(this.currentTable)
         );
         this.syncMode2d();
         this.snapToRealSize();
@@ -1391,7 +1393,8 @@ export class GameTableComponent {
       this.currentTable.gridSize,
       this.currentTable.gridType,
       this.currentTable.gridColor,
-      this.currentTable.gridFontColor
+      this.currentTable.gridFontColor,
+      squareSpanOf(this.currentTable)
     );
   }
 
@@ -1408,7 +1411,8 @@ export class GameTableComponent {
     gridSize: number = 50,
     gridType: GridType = GridType.SQUARE,
     gridColor: string = '#000000e6',
-    gridFontColor: string = gridColor
+    gridFontColor: string = gridColor,
+    squareSpan: number = 1
   ) {
     const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
     const boardWidthPx = geo ? geo.pixelW : width * gridSize;
@@ -1418,7 +1422,7 @@ export class GameTableComponent {
     const scale = this.renderLite.active()
       ? overlayScale(boardWidthPx, boardHeightPx, LIGHT_OVERLAY_PIXEL_BUDGET, LIGHT_MIN_OVERLAY_SCALE)
       : 1;
-    const drawnFrom = `${width}|${height}|${gridSize}|${gridType}|${gridColor}|${gridFontColor}|${scale}`;
+    const drawnFrom = `${width}|${height}|${gridSize}|${gridType}|${gridColor}|${gridFontColor}|${scale}|${squareSpan}`;
     if (drawnFrom !== this._gridDrawnFrom) {
       this._gridDrawnFrom = drawnFrom;
       const canvas = this.gridCanvas().nativeElement;
@@ -1440,7 +1444,7 @@ export class GameTableComponent {
           -geo.offsetX
         );
       } else {
-        render.render(width, height, gridSize, gridType, gridColor, gridFontColor);
+        render.render(width, height, gridSize, gridType, gridColor, gridFontColor, false, 0, 0, squareSpan);
       }
     }
 

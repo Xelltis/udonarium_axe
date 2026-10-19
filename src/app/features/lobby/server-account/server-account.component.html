@@ -1,0 +1,74 @@
+@if (offersLogin() === false) {
+  <p class="text-ui-muted m-0 mb-3 text-[0.8rem] leading-[1.6]" data-testid="server-account-unavailable">
+    {{ 'feature.lobby.account.unavailable' | transloco }}
+  </p>
+} @else {
+  <div
+    class="border-ui-border-panel mb-3 flex flex-wrap items-center gap-2 border-b border-solid pb-2.5 text-[0.8rem]"
+    data-testid="server-account"
+  >
+    @if (account(); as account) {
+      @if (account.avatarUrl) {
+        <img class="size-6 rounded-full object-cover" [src]="account.avatarUrl" alt="" referrerpolicy="no-referrer" />
+      } @else {
+        <i class="material-icons text-ui-muted text-[20px]!">account_circle</i>
+      }
+      <span class="min-w-0 flex-1 truncate" data-testid="server-account-name">{{
+        'feature.lobby.account.loggedInAs' | transloco: { name: account.name }
+      }}</span>
+      @if (isConfirmingDelete()) {
+        <span class="text-ui-danger basis-full text-[0.75rem]">{{
+          'feature.lobby.account.deleteConfirm' | transloco
+        }}</span>
+        <button
+          class="border-ui-danger text-ui-danger hover:bg-ui-hover rounded-ui-sm cursor-pointer border border-solid bg-transparent px-2.5 py-0.5 text-[0.78rem]"
+          type="button"
+          [disabled]="isDeleting()"
+          data-testid="server-account-delete-confirm"
+          (click)="deleteAccount()"
+        >
+          {{ 'feature.lobby.account.deleteConfirmButton' | transloco }}
+        </button>
+        <button type="button" class="text-[0.78rem]" (click)="isConfirmingDelete.set(false)">
+          {{ 'feature.lobby.account.deleteCancel' | transloco }}
+        </button>
+      } @else {
+        <button type="button" class="text-[0.78rem]" data-testid="server-account-logout" (click)="logout()">
+          {{ 'feature.lobby.account.logout' | transloco }}
+        </button>
+        <button
+          type="button"
+          class="text-ui-muted text-[0.78rem]"
+          data-testid="server-account-delete"
+          (click)="isConfirmingDelete.set(true)"
+        >
+          {{ 'feature.lobby.account.delete' | transloco }}
+        </button>
+      }
+    } @else {
+      <button
+        class="rounded-ui-sm border-ui-accent text-ui-accent hover:bg-ui-accent-bg cursor-pointer border border-solid bg-transparent px-2.5 py-0.5 text-[0.8rem] whitespace-nowrap"
+        type="button"
+        [disabled]="isLoggingIn()"
+        data-testid="server-account-login"
+        (click)="login()"
+      >
+        <i class="material-icons align-middle text-[14px]!">login</i>
+        {{ (isLoggingIn() ? 'feature.lobby.account.loggingIn' : 'feature.lobby.account.login') | transloco }}
+      </button>
+      <span class="text-ui-muted min-w-0 flex-1 text-xs/normal">{{
+        'feature.lobby.account.guestHint' | transloco
+      }}</span>
+    }
+    @if (deleteFailed()) {
+      <span class="text-ui-danger basis-full text-[0.75rem]" data-testid="server-account-delete-failed">{{
+        (account() ? 'feature.lobby.account.deleteFailed' : 'feature.lobby.account.deleteFailedLoggedOut') | transloco
+      }}</span>
+    }
+    @if (errorKey()) {
+      <span class="text-ui-danger basis-full text-[0.75rem]" role="alert" data-testid="server-account-error">{{
+        errorKey() | transloco
+      }}</span>
+    }
+  </div>
+}

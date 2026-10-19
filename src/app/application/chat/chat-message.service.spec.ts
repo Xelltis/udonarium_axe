@@ -1,6 +1,7 @@
 import { inject, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { MyDiceService } from '@axe/application/dice/my-dice.service';
+import { resourceEditMessage$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -33,6 +34,17 @@ describe('ChatMessageService', () => {
   it('should ...', inject([ChatMessageService], (service: ChatMessageService) => {
     expect(service).toBeTruthy();
   }));
+
+  it('sets the chat clock by a room server’s, asking no time server', () => {
+    const service = TestBed.inject(ChatMessageService);
+    vi.spyOn(Network.instance, 'serverClockOffset', 'get').mockReturnValue(60_000);
+    const fetch = vi.spyOn(globalThis, 'fetch');
+
+    service.calibrateTimeOffset();
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(Math.abs(service.getTime() - (Date.now() + 60_000))).toBeLessThan(1_000);
+  });
 
   describe('showing a kept-back roll', () => {
     const secretFrom = (mine: boolean) =>
@@ -117,6 +129,20 @@ describe('ChatMessageService', () => {
 
       other.role = PeerRole.GameMaster;
       expect(service.afterWhisperCandidates(mine)).toEqual([other]);
+    });
+
+    it('offers on a room server no seat not logged in, whose id anybody may take', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      other.role = PeerRole.Guest;
+      const mine = lineFrom('me');
+
+      expect(service.afterWhisperCandidates(mine)).toEqual([]);
+      service.makeAfterWhisper(mine, other);
+      expect(mine.isAfterWhisper).toBe(false);
+
+      other.userId = 'acct_someone';
+      expect(service.afterWhisperCandidates(mine)).toEqual([other]);
+      vi.restoreAllMocks();
     });
 
     it('whispers the reader’s own line to the one chosen, and puts it back', () => {
@@ -229,6 +255,62 @@ describe('ChatMessageService', () => {
 
       expect(theirs.isPseudoDeleted).toBe(false);
       expect(service.canPseudoDelete(result)).toBe(false);
+    });
+  });
+
+  describe('a guest’s own lines on a room server', () => {
+    let service: ChatMessageService;
+    let tab: ChatTab;
+    const original = PeerCursor.myCursor;
+
+    beforeEach(() => {
+      beMyself('me');
+      service = TestBed.inject(ChatMessageService);
+      tab = ChatTabList.instance.addChatTab('テストタブ');
+      PeerCursor.myCursor = { role: PeerRole.Guest, isGameMaster: false } as PeerCursor;
+    });
+
+    afterEach(() => {
+      tab.destroy();
+      PeerCursor.myCursor = original;
+    });
+
+    const mineIn = (guestCanSpeak: boolean) => {
+      tab.guestCanSpeak = guestCanSpeak;
+      return tab.addMessage({ from: 'me', name: 'ゲスト', text: 'こんにちは', tag: 'secret', timestamp: 1000 });
+    };
+    const offered = (line: ChatMessage) => [
+      service.canEditMessage(line),
+      service.canPseudoDelete(line),
+      service.canMakeAfterWhisper(line),
+      service.canDiscloseMessage(line),
+    ];
+
+    it('says no notice in a tab guests may not speak in, which the server would take back, but does where they may', () => {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      PeerCursor.myCursor = { role: PeerRole.Guest, isGameMaster: false, identifier: 'me-cursor' } as PeerCursor;
+      const lines = () => tab.chatMessages.length;
+      tab.guestCanSpeak = false;
+      service.sendSystemMessageAsLastSpeaker('点呼：1/3', tab.identifier);
+      expect(lines()).toBe(0);
+
+      tab.guestCanSpeak = true;
+      service.sendSystemMessageAsLastSpeaker('点呼：2/3', tab.identifier);
+      expect(lines()).toBe(1);
+    });
+
+    it('offers no change to one in a tab guests may not speak in, which the server would put back', () => {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+
+      expect(offered(mineIn(false))).toEqual([false, false, false, false]);
+    });
+
+    it('offers the changes where guests may speak, and everywhere among peers', () => {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      expect(offered(mineIn(true))).toEqual([true, true, true, true]);
+
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+      expect(offered(mineIn(false))).toEqual([true, true, true, true]);
     });
   });
 
@@ -534,6 +616,41 @@ describe('ChatMessageService', () => {
 
       expect(message.senderRole).toBe(PeerRole.GameMaster);
     });
+
+    it('keeps a whisper to someone not here at the moment addressed to them, not to everybody', () => {
+      const service = TestBed.inject(ChatMessageService);
+      PeerCursor.createMyCursor();
+      const chatTab = new ChatTab();
+      chatTab.initialize();
+      ObjectStore.instance.add(chatTab);
+
+      const message = service.sendMessage(chatTab, 'ないしょ', null, PeerCursor.myCursor.identifier, 'cursor-away');
+
+      expect(message.to).toBe('cursor-away');
+    });
+
+    it('sends a whisper to a cursor that went to the user it stood for, named as the cursor they came back on', () => {
+      const service = TestBed.inject(ChatMessageService);
+      PeerCursor.createMyCursor();
+      const chatTab = new ChatTab();
+      chatTab.initialize();
+      ObjectStore.instance.add(chatTab);
+      const before = new PeerCursor('bob-before');
+      before.initialize();
+      before.userId = 'user-bob';
+      ObjectStore.instance.remove(before);
+
+      const away = service.sendMessage(chatTab, 'ないしょ', null, PeerCursor.myCursor.identifier, 'bob-before');
+      const after = new PeerCursor('bob-after');
+      after.initialize();
+      after.userId = 'user-bob';
+      after.name = 'ボブ';
+      const back = service.sendMessage(chatTab, 'ないしょ', null, PeerCursor.myCursor.identifier, 'bob-before');
+
+      expect([away.to, back.to]).toEqual(['user-bob', 'user-bob']);
+      expect(back.name.endsWith(' > ボブ')).toBe(true);
+      ObjectStore.instance.remove(after);
+    });
   });
 
   describe('how the speaker’s dice look', () => {
@@ -723,6 +840,75 @@ describe('ChatMessageService', () => {
 
       expect(PeerCursor.myCursor.lastControlImageIdentifier).toBe('img-1');
       expect(PeerCursor.myCursor.lastControlImageIndex).toBe(1);
+    });
+    describe('spoken by a guest on a room server, which writes no piece', () => {
+      let resourceEdits: string[];
+      let stopListening: () => void;
+
+      beforeEach(() => {
+        PeerCursor.myCursor.role = PeerRole.Guest;
+        vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+        resourceEdits = [];
+        stopListening = resourceEditMessage$.subscribe((event) => resourceEdits.push(event.messageIdentifier));
+      });
+
+      afterEach(() => stopListening());
+
+      it('shows the portrait on the line but leaves the piece showing its own', () => {
+        const message = speak('こんにちは @笑顔');
+
+        expect(message.imageIdentifier).toBe('img-1');
+        expect(character.selectedPortraitIndex).toBe(0);
+      });
+
+      it('stands the portrait in none of the tab’s slots, which the server would put back', () => {
+        vi.spyOn(service as unknown as { findImagePos(id: string): number }, 'findImagePos').mockReturnValue(1);
+        const slots = [...chatTab.imageIdentifier];
+
+        speak('こんにちは @笑顔');
+
+        expect(chatTab.imageIdentifier).toEqual(slots);
+      });
+
+      it('stands no portrait in the tab’s slots for a stamp either', () => {
+        vi.spyOn(service as unknown as { findImagePos(id: string): number }, 'findImagePos').mockReturnValue(1);
+        chatTab.guestCanSpeak = true;
+        const slots = [...chatTab.imageIdentifier];
+
+        service.sendStamp(chatTab, 'seal:ok', '［了解］', character.identifier);
+
+        expect(chatTab.imageIdentifier).toEqual(slots);
+      });
+
+      it('stands no portrait in a tab’s slots for a line copied there either', () => {
+        const other = new ChatTab();
+        other.initialize();
+        ObjectStore.instance.add(other);
+        const said = chatTab.addMessage({
+          from: 'me',
+          name: 'ヒロ',
+          text: 'こんにちは',
+          timestamp: 1000,
+          imageIdentifier: 'img-1',
+          imagePos: 1,
+        });
+        const slots = [...other.imageIdentifier];
+
+        service.copyMessageToTab(said, other);
+
+        expect(other.imageIdentifier).toEqual(slots);
+        other.destroy();
+      });
+
+      it('reads no resource edit out of the line, but does among peers', () => {
+        speak(':HP-3');
+        expect(resourceEdits).toEqual([]);
+
+        vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+        const message = speak(':HP-3 @笑顔');
+        expect(resourceEdits).toEqual([message.identifier]);
+        expect(character.selectedPortraitIndex).toBe(1);
+      });
     });
   });
 });

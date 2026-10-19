@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { RoomSnapshotService } from '@axe/application/file/room-snapshot.service';
+import { LOCAL_MODE_STORAGE_KEY } from '@axe/application/ui/local-mode-preference.service';
 import { WidgetLayoutService } from '@axe/application/ui/widget-layout.service';
 import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
@@ -72,6 +73,22 @@ describe('RoomRestoreBannerComponent', () => {
     await setup();
     expect(banner()).not.toBeNull();
     expect(fixture.nativeElement.textContent).toContain('2026/07/03 09:05');
+  });
+
+  it('shows none while an invitation takes the page into a room, but does offline, where none can', async () => {
+    history.replaceState(null, '', '/#join?r=a1b&n=room');
+    try {
+      await setup();
+      expect(banner()).toBeNull();
+      TestBed.resetTestingModule();
+
+      localStorage.setItem(LOCAL_MODE_STORAGE_KEY, '1');
+      await setup();
+      expect(banner()).not.toBeNull();
+    } finally {
+      localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
+      history.replaceState(null, '', '/');
+    }
   });
 
   it('shows none when there is nothing', async () => {

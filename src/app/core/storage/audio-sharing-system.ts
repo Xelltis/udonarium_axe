@@ -1,6 +1,8 @@
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { localDispatch, NetworkMessage, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
+import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
+import { AssetRetries } from '@axe/core/storage/asset-retries';
 import { AudioFile, AudioFileContext, AudioState } from '@axe/core/storage/audio-file';
 import { AudioStorage, CatalogItem } from '@axe/core/storage/audio-storage';
 import { BufferSharingTask } from '@axe/core/storage/buffer-sharing-task';
@@ -25,6 +27,15 @@ export class AudioSharingSystem {
   private maxSendTask: number = 2;
   private maxReceiveTask: number = 4;
   private cleanups: (() => void)[] = [];
+  /**
+   * Audio being fetched from the asset server, so a second catalogue does not fetch it again, each
+   * with the first peer whose catalogue named it meanwhile, to ask should the server fail.
+   */
+  private httpFetching: Map<string, string | null> = new Map();
+  /** Audio the asset server did not have, which is asked of peers from then on. */
+  private httpMissed: Set<string> = new Set();
+  /** Sounds the room's list named that the asset server could not send just then. */
+  private httpRetries = new AssetRetries();
 
   /**
    * The audio to fetch before any other, such as what the room is playing.
@@ -57,13 +68,14 @@ export class AudioSharingSystem {
             if (msg.isSendFromSelf) break;
             const otherCatalog: CatalogItem[] = msg.data as CatalogItem[];
             const request: CatalogItem[] = [];
-            for (const item of otherCatalog) {
+            for (const item of this.preferredFirst(otherCatalog)) {
               let audio = AudioStorage.instance.get(item.identifier);
               if (audio === null) {
                 audio = AudioFile.createEmpty(item.identifier, item.name);
                 AudioStorage.instance.add(audio);
               }
               if (audio.state < AudioState.COMPLETE && !this.receiveTaskMap.has(item.identifier)) {
+                if (this.fetchOverHttp(item.identifier, msg.sendFrom)) continue;
                 request.push({ identifier: item.identifier, state: audio.state });
               }
             }
@@ -106,6 +118,7 @@ export class AudioSharingSystem {
             for (const context of updateAudios) {
               if (context.blob) context.blob = new Blob([context.blob], { type: context.type });
               AudioStorage.instance.add(context);
+              if (this.httpMissed.has(context.identifier)) AudioStorage.instance.uploadReceived(context.identifier);
             }
             break;
           }
@@ -128,6 +141,114 @@ export class AudioSharingSystem {
   private destroy() {
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
+  }
+
+  /** The catalogue with the preferred audio moved to the front, so it is fetched first. */
+  private preferredFirst(catalog: readonly CatalogItem[]): CatalogItem[] {
+    const preferred = this.preferredIdentifiers();
+    if (preferred.length < 1) return [...catalog];
+    return [
+      ...catalog.filter((item) => preferred.includes(item.identifier)),
+      ...catalog.filter((item) => !preferred.includes(item.identifier)),
+    ];
+  }
+
+  /**
+   * Fetches from the room's asset store the sounds it holds that this seat lacks, named by the room's
+   * list rather than by a peer's catalogue: those left in a room that everybody had gone from, say.
+   * One the store lacks waits for a catalogue to name it; one it could not send just then is tried
+   * again a few times. What the room is playing goes first.
+   */
+  fetchListed(assets: readonly { id: string; name: string }[]): void {
+    const preferred = this.preferredIdentifiers();
+    const ordered = [
+      ...assets.filter((asset) => preferred.includes(asset.id)),
+      ...assets.filter((asset) => !preferred.includes(asset.id)),
+    ];
+    for (const { id, name } of ordered) {
+      let audio = AudioStorage.instance.get(id);
+      if (audio === null) {
+        audio = AudioFile.createEmpty(id, name);
+        AudioStorage.instance.add(audio);
+      }
+      if (audio.state < AudioState.COMPLETE && !this.receiveTaskMap.has(id)) this.fetchOverHttp(id, null);
+    }
+  }
+
+  /**
+   * Moves what the room is playing now to the front of the downloads and the uploads still waiting
+   * their turn, for music started after the room's sounds were lined up, so that it reaches the
+   * store and everyone ahead of the rest.
+   */
+  preferWaiting(): void {
+    for (const identifier of this.preferredIdentifiers()) {
+      if (this.httpFetching.has(identifier)) AssetHttpStore.instance.downloadFirst(identifier);
+      AssetHttpStore.instance.uploadFirst(identifier);
+    }
+  }
+
+  /**
+   * Forgets which sounds the asset store lacked, for another room, which may hold them, and drops
+   * the tries still to come of those it could not send.
+   */
+  forgetMisses(): void {
+    this.httpMissed.clear();
+    this.httpRetries.clear();
+  }
+
+  private fetchListedAgain(identifier: string): void {
+    const audio = AudioStorage.instance.get(identifier);
+    if (audio && audio.state < AudioState.COMPLETE && !this.receiveTaskMap.has(identifier))
+      this.fetchOverHttp(identifier, null);
+  }
+
+  /**
+   * Starts fetching audio from the asset server, and says whether it is on its way from there, so it
+   * need not be asked of a peer.
+   *
+   * Audio the server could not send is asked of the peer whose catalogue named it, the way it would
+   * have been without the server. With no such peer, audio the server lacks, or sends bytes for that
+   * do not match, is left, and audio it could not send just then is tried again later. Only the
+   * server's lacking it keeps it from being fetched from there again.
+   *
+   * What the room is playing goes ahead of the pictures and sounds waiting their turn, and moves to
+   * the front should it be waiting already.
+   */
+  private fetchOverHttp(identifier: string, catalogPeer: string | null): boolean {
+    const store = AssetHttpStore.instance;
+    if (!store.isEnabled || !AssetHttpStore.isAssetId(identifier) || this.httpMissed.has(identifier)) return false;
+    const first = this.preferredIdentifiers().includes(identifier);
+    if (this.httpFetching.has(identifier)) {
+      if (this.httpFetching.get(identifier) === null) this.httpFetching.set(identifier, catalogPeer);
+      if (first) store.downloadFirst(identifier);
+      return true;
+    }
+    this.httpFetching.set(identifier, catalogPeer);
+    void store
+      .download(identifier, { first })
+      .then((fetched) => {
+        if (typeof fetched !== 'string') {
+          this.httpRetries.forget(identifier);
+          // The name stays the one the catalogue or the room's list gave, or else the one it was put up under.
+          const name = AudioStorage.instance.get(identifier)?.name || fetched.name;
+          const { blob } = fetched;
+          localDispatch('UPDATE_AUDIO_RESOURE', [{ identifier, name, type: blob.type, blob, url: '' }]);
+          AudioStorage.instance.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
+          return;
+        }
+        if (fetched === 'missing') this.httpMissed.add(identifier);
+        const audio = AudioStorage.instance.get(identifier);
+        if (!audio || AudioState.COMPLETE <= audio.state) return;
+        const namedBy = this.httpFetching.get(identifier) ?? null;
+        if (namedBy === null) {
+          if (fetched === 'failed') this.httpRetries.schedule(identifier, () => this.fetchListedAgain(identifier));
+          return;
+        }
+        if (this.receiveTaskMap.has(identifier) || this.isLimitReceiveTask()) return;
+        this.request([{ identifier, state: audio.state }], namedBy);
+      })
+      .finally(() => this.httpFetching.delete(identifier));
+    return true;
   }
 
   /** The audio to ask for next: a preferred one if it is wanted, otherwise any of them. */

@@ -70,12 +70,13 @@
           {{ 'feature.replay.panel.detailLevel' | transloco }}
           <select
             class="border-ui-border bg-ui-elevated rounded-ui-sm border border-solid px-1.5 py-0.5 text-[0.72rem]"
-            [value]="detailLevel()"
             [disabled]="!canEdit"
             (change)="setDetailLevel($any($event.target).value)"
           >
             @for (level of detailLevels; track level) {
-              <option [value]="level">{{ 'feature.replay.panel.level.' + level | transloco }}</option>
+              <option [value]="level" [selected]="detailLevel() === level">
+                {{ 'feature.replay.panel.level.' + level | transloco }}
+              </option>
             }
           </select>
         </label>
@@ -84,12 +85,11 @@
           {{ 'feature.replay.panel.keepCount' | transloco }}
           <select
             class="border-ui-border bg-ui-elevated rounded-ui-sm border border-solid px-1.5 py-0.5 text-[0.72rem]"
-            [value]="keepCountValue()"
             [disabled]="!canEdit"
             (change)="setKeepCount($any($event.target).value)"
           >
             @for (choice of keepChoices; track choice) {
-              <option [value]="choice === null ? 'all' : choice">
+              <option [value]="keepValueOf(choice)" [selected]="keepCountValue() === keepValueOf(choice)">
                 @if (choice === null) {
                   {{ 'feature.replay.panel.keep.all' | transloco }}
                 } @else {

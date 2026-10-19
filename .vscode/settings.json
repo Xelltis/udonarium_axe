@@ -1,5 +1,5 @@
 {
-  // === フォーマッター ===
+  // === Formatter ===
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
   "[html]": {
@@ -25,7 +25,7 @@
   "js/ts.preferences.importModuleSpecifier": "non-relative",
   // === Angular ===
   "angular.forceStrictTemplates": true,
-  // === ファイル設定 ===
+  // === Files ===
   "files.associations": {
     "*.css": "tailwindcss"
   },
@@ -45,7 +45,7 @@
     "**/test-results": true,
     "**/coverage": true
   },
-  // === エディタ ===
+  // === Editor ===
   "editor.tabSize": 2,
   "editor.rulers": [120],
   "editor.bracketPairColorization.enabled": true,

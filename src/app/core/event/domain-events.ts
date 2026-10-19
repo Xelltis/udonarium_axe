@@ -128,6 +128,13 @@ export interface DiceBotUnreachableEvent {
   gameType: string;
 }
 
+export interface ServerRollUnansweredEvent {
+  /** The line whose roll the room server did not answer. */
+  messageIdentifier: string;
+  /** The reason the server gave for not rolling it, or `timeout` when no answer came in time. */
+  reason: string;
+}
+
 export interface EffectCastEvent {
   cast: unknown;
 }
@@ -143,6 +150,7 @@ export const diceRolled$ = new EventChannel<DiceRolledEvent>();
 export const diceThrow$ = new EventChannel<DiceThrowEvent>();
 export const diceBotCatalog$ = new EventChannel<void>();
 export const diceBotUnreachable$ = new EventChannel<DiceBotUnreachableEvent>();
+export const serverRollUnanswered$ = new EventChannel<ServerRollUnansweredEvent>();
 export const resourceChange$ = new EventChannel<ResourceChangeEvent>();
 
 export const selectGameTable$ = new EventChannel<SelectGameTableEvent>();
@@ -395,4 +403,9 @@ export function emitDiceBotCatalogLoaded(): void {
 /** Announces on this device that a line went unrolled because its game system's code could not be fetched. */
 export function emitDiceBotUnreachable(event: DiceBotUnreachableEvent): void {
   diceBotUnreachable$.emit(event);
+}
+
+/** Announces on this device that the room server will not answer a line's roll, or has not in time. */
+export function emitServerRollUnanswered(event: ServerRollUnansweredEvent): void {
+  serverRollUnanswered$.emit(event);
 }

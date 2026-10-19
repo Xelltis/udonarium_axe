@@ -2,30 +2,30 @@ import { expect, test } from '@playwright/test';
 
 import { openPanel, waitAppReady } from './helpers';
 
-test.describe('テーブル設定 (詳細)', () => {
+test.describe('table settings in detail', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await openPanel(page, 'テーブル設定');
     await expect(page.locator('game-table-setting')).toBeVisible({ timeout: 10000 });
   });
 
-  test('テーブル一覧 (li[role=option]) に既定テーブルが少なくとも 1 件あること', async ({ page }) => {
+  test('lists at least one default table in the table list (li[role=option])', async ({ page }) => {
     await expect(page.locator('game-table-setting li[role="option"]').first()).toBeVisible({ timeout: 5000 });
   });
 
-  test('スナップモードを「セル」に変更できること', async ({ page }) => {
+  test('changes the snap mode to "cell"', async ({ page }) => {
     const snap = page.locator('select[name="tableSnapMode"]');
     await snap.selectOption('center');
     await expect(snap).toHaveValue('center');
   });
 
-  test('グリッド色入力欄が color 型で存在すること', async ({ page }) => {
+  test('has a grid colour field of type color', async ({ page }) => {
     const gridColor = page.locator('input[name="tableGridColor"]');
     await expect(gridColor).toBeAttached();
     await expect(gridColor).toHaveAttribute('type', 'color');
   });
 
-  test('テーブル幅を直接 number 入力で変更できること', async ({ page }) => {
+  test('changes the table width straight through its number input', async ({ page }) => {
     const widthNum = page.locator('input[name="table-width"]');
     await widthNum.click();
     await widthNum.press('Control+A');
@@ -33,7 +33,9 @@ test.describe('テーブル設定 (詳細)', () => {
     await expect(widthNum).toHaveValue('30');
   });
 
-  test('背景フィルタを既定 → black → white → 既定に切り替えられること', async ({ page }) => {
+  test('switches the background filter from the default to black, to white and back to the default', async ({
+    page,
+  }) => {
     const filter = page.locator('select[name="tableDistanceviewFilter"]');
     await filter.selectOption('black');
     await expect(filter).toHaveValue('black');
@@ -41,7 +43,7 @@ test.describe('テーブル設定 (詳細)', () => {
     await expect(filter).toHaveValue('white');
   });
 
-  test('保存ボタンを押すと zip ダウンロードが始まること', async ({ page }) => {
+  test('starts a zip download when the save button is pressed', async ({ page }) => {
     const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
     await page.locator('game-table-setting').getByRole('button', { name: '保存' }).click();
     const download = await downloadPromise;

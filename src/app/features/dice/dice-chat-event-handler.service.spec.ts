@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { diceBotUnreachable$, emitDiceRolled } from '@axe/core/event/domain-events';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
+import { diceBotUnreachable$, emitDiceRolled, serverRollUnanswered$ } from '@axe/core/event/domain-events';
+import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { PeerSessionGrade } from '@axe/core/network/peer-session-state';
@@ -11,6 +13,8 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
+import { markLoadedWithheld } from '@axe/domain/peer/withheld-table';
 import { DiceChatEventHandlerService } from '@axe/features/dice/dice-chat-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -160,6 +164,52 @@ describe('DiceChatEventHandlerService', () => {
     expect(dice.face).toBe(before);
   });
 
+  it('turns nothing for a guest on a room server, which would take each face back', () => {
+    const goblin = makeCharacter('ゴブリンA');
+    const dice = makeDice(goblin);
+    const before = dice.face;
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    try {
+      roll('2d6 dice:ゴブリンA', [{ sides: 6, value: 4 }]);
+
+      expect(dice.face).toBe(before);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('passes over a die whose face a room server keeps from this user, for the next to take the roll', () => {
+    const goblin = makeCharacter('ゴブリンA');
+    const hidden = makeDice(goblin);
+    hidden.owner = 'someone-else';
+    const before = hidden.face;
+    const shown = makeDice(goblin);
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    try {
+      roll('1d6 dice:ゴブリンA', [{ sides: 6, value: 4 }]);
+
+      expect(hidden.face).toBe(before);
+      expect(shown.face).toBe('4');
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('turns a die that only lacks its face, which nobody would put back', () => {
+    const goblin = makeCharacter('ゴブリンA');
+    const faceless = makeDice(goblin);
+    faceless.face = '';
+    markLoadedWithheld(true, false);
+    try {
+      roll('1d6 dice:ゴブリンA', [{ sides: 6, value: 4 }]);
+
+      expect(faceless.face).toBe('4');
+    } finally {
+      markLoadedWithheld(false, false);
+    }
+  });
+
   it('turns nothing on a roll from somebody else', () => {
     // The faces are synchronised, so the sender's own end is the one that sets them.
     const goblin = makeCharacter('ゴブリンA');
@@ -204,6 +254,59 @@ describe('DiceChatEventHandlerService', () => {
       expect(text).toContain('feature.chat.diceBot.unreachable');
       expect(to).toBe(PeerCursor.myCursor.identifier);
       tell.mockRestore();
+    });
+  });
+
+  describe('a line the room server did not roll', () => {
+    it('is pointed out once for all its targets, to the sender alone, with the reason', () => {
+      const tell = vi
+        .spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageOnePlayer')
+        .mockReturnValue(null as unknown as ChatMessage);
+      const line = tab.addMessage({ from: SELF_USER_ID, text: '2d6', timestamp: 1, tag: 'DiceBot', name: 'わたし' });
+
+      serverRollUnanswered$.emit({ messageIdentifier: line.identifier, reason: 'busy' });
+      serverRollUnanswered$.emit({ messageIdentifier: line.identifier, reason: 'busy' });
+      serverRollUnanswered$.emit({ messageIdentifier: line.identifier, reason: 'something-new' });
+
+      expect(tell.mock.calls.map(([where, text, to]) => [where, text, to])).toEqual([
+        [
+          tab,
+          expect.stringContaining('feature.chat.diceBot.serverRollUnanswered.busy'),
+          PeerCursor.myCursor.identifier,
+        ],
+        [
+          tab,
+          expect.stringContaining('feature.chat.diceBot.serverRollUnanswered.failed'),
+          PeerCursor.myCursor.identifier,
+        ],
+      ]);
+      tell.mockRestore();
+    });
+
+    it('tells a seat that may not speak in the tab at the bottom of the screen, where nothing is taken back', () => {
+      const tell = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageOnePlayer');
+      const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+      const line = tab.addMessage({ from: SELF_USER_ID, text: '2d6', timestamp: 1, tag: 'DiceBot', name: 'わたし' });
+
+      serverRollUnanswered$.emit({ messageIdentifier: line.identifier, reason: 'not-allowed' });
+
+      expect(tell).not.toHaveBeenCalled();
+      expect(show).toHaveBeenCalledOnce();
+      tell.mockRestore();
+      show.mockRestore();
+    });
+
+    it('still tells a seat refused for its tab once the server has taken the asking line back', () => {
+      const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+      const line = tab.addMessage({ from: SELF_USER_ID, text: '2d6', timestamp: 1, tag: 'DiceBot', name: 'わたし' });
+      const identifier = line.identifier;
+      line.destroy();
+
+      serverRollUnanswered$.emit({ messageIdentifier: identifier, reason: 'not-allowed' });
+      serverRollUnanswered$.emit({ messageIdentifier: identifier, reason: 'not-allowed' });
+
+      expect(show).toHaveBeenCalledOnce();
+      show.mockRestore();
     });
   });
 });

@@ -1,7 +1,9 @@
+import { Injector, runInInjectionContext } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
-import { ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
+import { BEFORE_RELOAD, ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Logger } from '@axe/core/logging/logger';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -44,12 +46,34 @@ describe('ReloadNoticeService', () => {
     });
   });
 
-  it('asks only once for the page, however many parts fail after it', () => {
+  it('asks only once for the page, and says nothing more while the question is open', () => {
+    ask.mockReturnValue(new Promise(() => undefined));
+    const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+
     service.tellReloadNeeded();
     service.tellReloadNeeded();
     service.tellReloadNeeded();
 
     expect(ask).toHaveBeenCalledTimes(1);
+    expect(show).not.toHaveBeenCalled();
+  });
+
+  it('says it again at the bottom of the screen for each failure once the reader put it off', async () => {
+    const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+    service.tellReloadNeeded();
+    await vi.waitFor(() => expect(ask).toHaveBeenCalled());
+    await Promise.resolve();
+
+    service.tellReloadNeeded();
+    service.tellReloadNeeded();
+
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(show).toHaveBeenCalledTimes(2);
+    expect(show).toHaveBeenCalledWith('common.dialog.reloadNeeded', {
+      action: { label: 'common.dialog.reload', run: expect.any(Function) },
+    });
+    show.mock.calls[0][1]!.action!.run();
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
   });
 
   it('leaves the page as it is when the reader puts it off', async () => {
@@ -67,6 +91,34 @@ describe('ReloadNoticeService', () => {
     service.tellReloadNeeded();
 
     await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+  });
+
+  it('does what the app asks first before the page reloads', async () => {
+    const calls: string[] = [];
+    reload.mockImplementation(() => calls.push('reload'));
+    const injector = Injector.create({
+      providers: [{ provide: BEFORE_RELOAD, useValue: async () => void calls.push('save') }],
+      parent: TestBed.inject(Injector),
+    });
+    const made = runInInjectionContext(injector, () => new ReloadNoticeService());
+    (made as unknown as { reload: () => void }).reload = reload;
+    ask.mockResolvedValue(true);
+
+    made.tellReloadNeeded();
+
+    await vi.waitFor(() => expect(calls).toEqual(['save', 'reload']));
+  });
+
+  it('says it again at the bottom of the screen when a reload the reader asked for did not happen', async () => {
+    ask.mockResolvedValue(true);
+    const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+    service.tellReloadNeeded();
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+
+    service.tellReloadNeeded();
+
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(show).toHaveBeenCalledTimes(1);
   });
 
   it('asks when a loader it watches cannot fetch, and still rejects', async () => {

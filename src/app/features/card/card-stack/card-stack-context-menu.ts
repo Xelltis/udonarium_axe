@@ -2,9 +2,22 @@ import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
 import { buildLockToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { callShuffleCardStack } from '@axe/core/event/domain-events';
-import { Network } from '@axe/core/index';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
+import { isWithheldHere } from '@axe/domain/tabletop/withheld';
+
+/**
+ * How many seats play at the table, this one included: those dealt cards, which leaves out a guest,
+ * as a screen made for streaming is let in, and anybody gone. Each seat linked now counts once, so
+ * the cursor a seat leaves behind when it goes or loads the page again is not counted. Never fewer
+ * than one.
+ */
+function playingSeatCount(): number {
+  const playing = PeerCursor.linkedCursors().filter((cursor) => cursor.role !== PeerRole.Guest);
+  return Math.max(1, playing.length);
+}
 
 /**
  * Builds the context menu for a card stack on the table.
@@ -135,7 +148,7 @@ export function buildCardStackContextMenu(
     {
       name: t('feature.cardStack.contextMenu.splitByPeers'),
       action: () => {
-        onSplitStack(Network.peerIds.length);
+        onSplitStack(playingSeatCount());
         SoundEffect.play(PresetSound.cardDraw);
       },
     },
@@ -155,11 +168,11 @@ export function buildCardStackContextMenu(
     },
     {
       name: t('feature.tabletop.contextMenu.copy'),
+      enabled: !isWithheldHere(cardStack),
       action: () => {
         const cloneObject = cardStack.clone();
         cloneObject.location.x += gridSize;
         cloneObject.location.y += gridSize;
-        cloneObject.owner = '';
         cloneObject.toTopmost();
         SoundEffect.play(PresetSound.cardPut);
       },

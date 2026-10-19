@@ -48,6 +48,7 @@
         class="absolute inset-y-0 z-1 -ml-2 w-4 cursor-pointer border-none bg-transparent p-0"
         [title]="mark.label || ('feature.replay.player.chapter' | transloco)"
         [style.left.%]="mark.at * 100"
+        [disabled]="isStaging()"
         (pointerdown)="$event.stopPropagation()"
         (click)="seekTo(mark.index)"
       >
@@ -68,35 +69,35 @@
     <div class="flex items-center gap-0.5">
       <button
         class="rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer px-1.5 py-0.5"
-        [disabled]="isAtStart() || isSeeking()"
+        [disabled]="isAtStart() || isSeeking() || isStaging()"
         (click)="toStart()"
       >
         <i class="material-icons text-[18px]">first_page</i>
       </button>
       <button
         class="rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer px-1.5 py-0.5"
-        [disabled]="isAtStart() || isSeeking()"
+        [disabled]="isAtStart() || isSeeking() || isStaging()"
         (click)="previous()"
       >
         <i class="material-icons text-[18px]">navigate_before</i>
       </button>
       <button
         class="rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer px-1.5 py-0.5"
-        [disabled]="isAtEnd()"
+        [disabled]="isAtEnd() || isStaging()"
         (click)="toggleAutoPlay()"
       >
         <i class="material-icons text-[22px]">{{ autoPlay() ? 'pause' : 'play_arrow' }}</i>
       </button>
       <button
         class="rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer px-1.5 py-0.5"
-        [disabled]="isAtEnd() || isSeeking()"
+        [disabled]="isAtEnd() || isSeeking() || isStaging()"
         (click)="next()"
       >
         <i class="material-icons text-[18px]">navigate_next</i>
       </button>
       <button
         class="rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer px-1.5 py-0.5"
-        [disabled]="isAtEnd() || isSeeking()"
+        [disabled]="isAtEnd() || isSeeking() || isStaging()"
         (click)="toEnd()"
       >
         <i class="material-icons text-[18px]">last_page</i>
@@ -108,7 +109,7 @@
   <button
     class="rounded-ui-sm flex cursor-pointer items-center justify-center gap-1.5 px-[0.8em] py-[0.35em] text-[0.76rem]"
     [class.danger]="isBoardMode()"
-    [disabled]="!canEdit || isSeeking()"
+    [disabled]="!canEdit || isSeeking() || isEnteringBoardMode() || isStaging()"
     (click)="toggleBoardMode()"
   >
     <i class="material-icons text-[16px]">{{ isBoardMode() ? 'undo' : 'cast' }}</i>

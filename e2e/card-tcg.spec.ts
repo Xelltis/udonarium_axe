@@ -23,13 +23,13 @@ async function openCardMenu(page: Page) {
   return menu;
 }
 
-test.describe('TCG 向けのカード操作', () => {
+test.describe('card handling for trading card games', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('ui-lang', 'ja'));
     await waitAppReady(page);
   });
 
-  test('テーブルメニューから画像タグの山札を作るダイアログが開くこと', async ({ page }) => {
+  test('opens the dialog that makes a deck from image tags from the table menu', async ({ page }) => {
     const menu = await openTableContextMenu(page);
     await (await revealMenuEntry(page, menu, '画像タグから山札を作成')).click();
 
@@ -39,7 +39,7 @@ test.describe('TCG 向けのカード操作', () => {
     await expect(dialog.getByRole('button', { name: '山札を作る' })).toBeDisabled();
   });
 
-  test('カードのシートで項目を追加できること', async ({ page }) => {
+  test('adds an item on the sheet of a card', async ({ page }) => {
     await createCardStack(page);
     await drawOne(page);
 
@@ -52,7 +52,7 @@ test.describe('TCG 向けのカード操作', () => {
     await expect(sheet.getByText('新しい項目を追加').first()).toBeVisible({ timeout: 5000 });
   });
 
-  test('カードメニューにめくったときのカットインが並ぶこと', async ({ page }) => {
+  test('lists the cut-in for when a card is turned over in the card menu', async ({ page }) => {
     await createCardStack(page);
     await drawOne(page);
 
@@ -60,7 +60,9 @@ test.describe('TCG 向けのカード操作', () => {
     await expect(menu.getByText('めくったときのカットイン')).toBeVisible();
   });
 
-  test('ターゲットを指定するとテーブルに矢印が出て、解除で消えること', async ({ page }) => {
+  test('draws an arrow on the table when a target is set, and removes it when the target is cleared', async ({
+    page,
+  }) => {
     await createCardStack(page);
     await drawOne(page);
     const menu = await openCardMenu(page);

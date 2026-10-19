@@ -5,6 +5,7 @@ import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-d
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { generateUuid } from '@axe/core/util/uuid';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -17,8 +18,10 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
+import { squarePxOf } from '@axe/domain/tabletop/move/move-grid';
 import { claimBroughtInPiece } from '@axe/domain/tabletop/ownership';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { clampCellPx, rescaleTableContents } from '@axe/domain/tabletop/rescale-table-contents';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { lightSourcesOn } from '@axe/domain/tabletop/table-lights';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -97,6 +100,8 @@ export class TabletopService {
   /** How wide one square is meant to measure on the glass. */
   readonly cellMm: Signal<number> = computed(() => this.display().cellMm);
   readonly gridSize: Signal<number> = computed(() => this.currentTableVersion().gridSize);
+  /** The size of a square in px: a cell, or several across where the table counts squares of several. */
+  readonly squarePx: Signal<number> = computed(() => squarePxOf(this.currentTableVersion()));
   /** What shape the table's cells are, which anything cut to a cell is shaped by. */
   readonly gridType: Signal<GridType> = computed(() => this.currentTableVersion().gridType);
 
@@ -186,6 +191,31 @@ export class TabletopService {
   get coins(): Coin[] {
     return this.coinCache.objects;
   }
+
+  /**
+   * Gives a table cells of `size` px across, kept to the bounds a cell may take, and moves what is
+   * on it to keep to the same cells. The pieces every table shares, such as characters, are moved
+   * only when it is the table in view, as that is the table they were placed for.
+   */
+  changeCellSize(table: GameTable, size: number): void {
+    const to = clampCellPx(size);
+    const from = Number(table.gridSize);
+    if (to === from) return;
+    const shared: TabletopObject[] =
+      table === this.tableSelecter.viewTable
+        ? [
+            ...this.characters,
+            ...this.cards,
+            ...this.cardStacks,
+            ...this.ranges,
+            ...this.textNotes,
+            ...this.coins,
+            ...this.diceSymbols,
+          ]
+        : [];
+    rescaleTableContents(table, from, to, shared);
+    table.gridSize = to;
+  }
   /** The cursor of every peer in the room, this reader's included. Not cached, unlike the rest. */
   get peerCursors(): PeerCursor[] {
     return this.objectStore.getObjects<PeerCursor>(PeerCursor);
@@ -237,6 +267,7 @@ export class TabletopService {
     }, this.destroyRef);
     this.objectChange.xmlLoaded$.subscribe((event) => {
       const xmlElement: Element = event.xmlElement;
+      if (xmlElement.tagName === 'chat-tab') this.takeUpSavedNames(xmlElement);
 
       const gameObject = this.objectSerializer.parseXml(xmlElement);
 
@@ -250,8 +281,8 @@ export class TabletopService {
               dropTarget
             )
           : this.coordinateService.calcTabletopLocalCoordinate();
-        gameObject.location.x = pointer.x - 25;
-        gameObject.location.y = pointer.y - 25;
+        gameObject.location.x = pointer.x - this.gridSize() / 2;
+        gameObject.location.y = pointer.y - this.gridSize() / 2;
         gameObject.posZ = pointer.z;
         claimBroughtInPiece(gameObject, PeerCursor.myCursor?.userId ?? '');
         if (gameObject instanceof GameCharacter) gameObject.partyIdentifier = '';
@@ -270,6 +301,29 @@ export class TabletopService {
         }
       }
     }, this.destroyRef);
+  }
+
+  /**
+   * Lets a chat tab read from a file keep the names it and its lines were saved under, when nothing
+   * here goes by them, saying first that they are coming back, as a room server, or a seat that saw
+   * them deleted, would delete them again. Beside a tab or a line here under any of those names, it
+   * comes in as a copy under names of its own, as two under one name would be one to the room; a
+   * reply or a quotation within it then points at the copy's line it pointed at before.
+   */
+  private takeUpSavedNames(element: Element): void {
+    const named = [element, ...Array.from(element.querySelectorAll('[identifier]'))];
+    const names = named.map((node) => node.getAttribute('identifier') ?? '').filter((name) => name.length > 0);
+    if (names.some((name) => this.objectStore.get(name))) {
+      const renamed = new Map(names.map((name) => [name, generateUuid()]));
+      for (const node of [element, ...Array.from(element.querySelectorAll('*'))]) {
+        for (const attribute of ['identifier', 'replyTo', 'quoteOf']) {
+          const fresh = renamed.get(node.getAttribute(attribute) ?? '');
+          if (fresh) node.setAttribute(attribute, fresh);
+        }
+      }
+      return;
+    }
+    this.objectStore.announceComingBack(names);
   }
 
   private findCache(aliasName: string): TabletopCache<TabletopObject> | null {

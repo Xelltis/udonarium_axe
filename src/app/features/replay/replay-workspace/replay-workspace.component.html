@@ -5,6 +5,7 @@
         <button
           class="rounded-ui-sm flex max-w-72 cursor-pointer items-center gap-1 px-[0.8em] py-[0.3em] text-[0.74rem]"
           [attr.aria-expanded]="isChooserOpen()"
+          [disabled]="isSaving()"
           (click)="toggleChooser()"
         >
           <i class="material-icons text-[15px]">video_library</i>
@@ -61,14 +62,14 @@
       } @else {
         <button
           class="rounded-ui-sm border-ui-accent bg-ui-accent hover:border-ui-accent-hover hover:bg-ui-accent-hover cursor-pointer border border-solid px-[0.8em] py-[0.3em] text-[0.74rem] text-white"
-          [disabled]="!isDirty() || isSaving()"
+          [disabled]="!isDirty() || isSaving() || isStaging()"
           (click)="saveEdits()"
         >
           {{ 'feature.replay.editor.save' | transloco }}
         </button>
         <button
           class="rounded-ui-sm flex cursor-pointer items-center gap-1 px-[0.8em] py-[0.3em] text-[0.74rem]"
-          [disabled]="!canUndo()"
+          [disabled]="!canUndo() || isSaving()"
           [title]="'feature.replay.editor.undoHint' | transloco"
           (click)="undo()"
         >
@@ -77,12 +78,16 @@
         </button>
         <button
           class="rounded-ui-sm cursor-pointer px-[0.8em] py-[0.3em] text-[0.74rem]"
-          [disabled]="!isDirty()"
+          [disabled]="!isDirty() || isSaving()"
           (click)="revertEditing()"
         >
           {{ 'feature.replay.editor.revert' | transloco }}
         </button>
-        <button class="rounded-ui-sm cursor-pointer px-[0.8em] py-[0.3em] text-[0.74rem]" (click)="cancelEditing()">
+        <button
+          class="rounded-ui-sm cursor-pointer px-[0.8em] py-[0.3em] text-[0.74rem]"
+          [disabled]="isSaving()"
+          (click)="cancelEditing()"
+        >
           {{ 'feature.replay.editor.cancel' | transloco }}
         </button>
       }

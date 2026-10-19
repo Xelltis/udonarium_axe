@@ -34,7 +34,7 @@ export class RangeShapeInvokeService {
 
   /** Puts a custom range from a range-shape field onto the current table, centred on a piece. */
   spawnForCharacter(character: GameCharacter, field: RangeShapeFieldValue): RangeArea {
-    const cellPx = 50;
+    const cellPx = this.tabletopService.gridSize();
     const center: PointerCoordinate = {
       x: character.location.x + (character.size * cellPx) / 2,
       y: character.location.y + (character.size * cellPx) / 2,

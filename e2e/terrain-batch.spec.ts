@@ -44,7 +44,7 @@ async function closePanels(page: Page) {
   }
 }
 
-test.describe('まとめて描いた地形', () => {
+test.describe('terrain drawn in batches', () => {
   test.setTimeout(180000);
 
   test.beforeEach(async ({ page }) => {
@@ -52,7 +52,7 @@ test.describe('まとめて描いた地形', () => {
     await becomeGm(page);
   });
 
-  test('まとめて描いた壁を右クリックすると、その壁の地形メニューが出ること', async ({ page }) => {
+  test('shows the terrain menu of a wall drawn in a batch on a right-click on it', async ({ page }) => {
     await buildDungeon(page, '四角');
 
     await page.locator('terrain-batch-layer div[data-terrain]').first().dispatchEvent('contextmenu');
@@ -62,7 +62,7 @@ test.describe('まとめて描いた地形', () => {
     await expect(menu.getByText('固定解除')).toBeVisible();
   });
 
-  test('Ctrl を押して壁を選ぶと、その壁だけ一つの箱として描き直されること', async ({ page }) => {
+  test('redraws just the wall chosen with Ctrl held as a box of its own', async ({ page }) => {
     await buildDungeon(page, 'ヘクス（縦）');
     const drawnAlone = await page.locator('terrain').count();
     const wall = page.locator('terrain-batch-layer div[data-terrain]').first();
@@ -75,7 +75,7 @@ test.describe('まとめて描いた地形', () => {
   });
 
   for (const grid of ['四角', 'ヘクス（縦）', 'ヘクス（横）']) {
-    test(`${grid}の迷宮で、扉の上面の真ん中を押すと扉が開くこと`, async ({ page }) => {
+    test(`opens a door when the middle of its top is pressed, in a dungeon on a ${grid} grid`, async ({ page }) => {
       await buildDungeon(page, grid);
 
       const doors = await page.evaluate(() => {

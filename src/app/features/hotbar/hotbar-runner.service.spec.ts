@@ -28,7 +28,9 @@ import { SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { menuCommandOf } from '@axe/domain/ui/menu-command';
 import { HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
+import { MenuCommandService } from '@axe/features/menu/menu-command.service';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -336,6 +338,46 @@ describe('HotbarRunnerService', () => {
   });
 
   describe('what needs no character', () => {
+    describe('an entry of the menu', () => {
+      it('presses the entry it names, with nobody to act as', () => {
+        const press = vi.spyOn(TestBed.inject(MenuCommandService), 'run').mockReturnValue('done');
+        const slot = slotOf('menu', '', { kind: 'menu', command: 'jukebox' });
+
+        expect(run(slot, null)).toEqual({ ok: true });
+        expect(press).toHaveBeenCalledWith(menuCommandOf('jukebox'));
+      });
+
+      it('keeps the entry out of the slot value, so a version that reads it as chat sends nothing', () => {
+        const slot = slotOf('menu', '', { kind: 'menu', command: 'jukebox' });
+
+        expect(slot.argument).toBe('');
+        expect(slot.options).toEqual({ kind: 'menu', command: 'jukebox' });
+      });
+
+      it('says so when the entry is gone or never chosen', () => {
+        const press = vi.spyOn(TestBed.inject(MenuCommandService), 'run');
+
+        expect(run(slotOf('menu', '', { kind: 'menu', command: 'no-such-entry' }), null)).toEqual({
+          ok: false,
+          reason: 'notFound',
+        });
+        expect(run(slotOf('menu', ''), null)).toEqual({ ok: false, reason: 'empty' });
+        expect(press).not.toHaveBeenCalled();
+      });
+
+      it('says why when the menu would not press the entry either', () => {
+        const press = vi.spyOn(TestBed.inject(MenuCommandService), 'run');
+        const slot = slotOf('menu', '', { kind: 'menu', command: 'jukebox' });
+
+        press.mockReturnValue('notOffered');
+        expect(run(slot, null)).toEqual({ ok: false, reason: 'notAllowed' });
+        press.mockReturnValue('noHost');
+        expect(run(slot, null)).toEqual({ ok: false, reason: 'unavailable' });
+        press.mockReturnValue('unavailable');
+        expect(run(slot, null)).toEqual({ ok: false, reason: 'unavailable' });
+      });
+    });
+
     it('plays a sound for the room, or for this screen alone', () => {
       const play = vi.spyOn(SoundEffect, 'play').mockImplementation(() => undefined);
       const playLocal = vi.spyOn(SoundEffect, 'playLocal').mockImplementation(() => undefined);

@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
+import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -79,6 +80,8 @@ describe('rearranging the entries', () => {
             manifest: signal(null).asReadonly(),
             cast: signal([]).asReadonly(),
             isBoardMode: signal(false).asReadonly(),
+            isEnteringBoardMode: signal(false).asReadonly(),
+            isSeeking: signal(false).asReadonly(),
             seekTo: vi.fn().mockResolvedValue(undefined),
             enterBoardMode: vi.fn().mockResolvedValue(true),
           },
@@ -88,6 +91,7 @@ describe('rearranging the entries', () => {
           useValue: {
             edited: signal(events).asReadonly(),
             isEditing: signal(true).asReadonly(),
+            isSaving: signal(false).asReadonly(),
             isInserted: () => false,
             insert: vi.fn(),
             move,
@@ -233,6 +237,8 @@ describe('a long recording in the list', () => {
             manifest: signal(null).asReadonly(),
             cast: signal([]).asReadonly(),
             isBoardMode: signal(false).asReadonly(),
+            isEnteringBoardMode: signal(false).asReadonly(),
+            isSeeking: signal(false).asReadonly(),
             seekTo: vi.fn().mockResolvedValue(undefined),
           },
         },
@@ -241,6 +247,7 @@ describe('a long recording in the list', () => {
           useValue: {
             edited: signal(many).asReadonly(),
             isEditing: signal(false).asReadonly(),
+            isSaving: signal(false).asReadonly(),
             isInserted: () => false,
           },
         },
@@ -318,6 +325,8 @@ describe('editing the list by choosing rows', () => {
             manifest: signal(null).asReadonly(),
             cast: signal([]).asReadonly(),
             isBoardMode: signal(false).asReadonly(),
+            isEnteringBoardMode: signal(false).asReadonly(),
+            isSeeking: signal(false).asReadonly(),
             seekTo: vi.fn().mockResolvedValue(undefined),
           },
         },
@@ -326,6 +335,7 @@ describe('editing the list by choosing rows', () => {
           useValue: {
             edited: signal(story).asReadonly(),
             isEditing: signal(true).asReadonly(),
+            isSaving: signal(false).asReadonly(),
             isInserted: () => false,
             removeMany,
             stepMany,
@@ -514,6 +524,8 @@ describe('writing entries one after another', () => {
             manifest: signal(null).asReadonly(),
             cast: signal([]).asReadonly(),
             isBoardMode: signal(false).asReadonly(),
+            isEnteringBoardMode: signal(false).asReadonly(),
+            isSeeking: signal(false).asReadonly(),
             seekTo: vi.fn().mockResolvedValue(undefined),
           },
         },
@@ -522,6 +534,7 @@ describe('writing entries one after another', () => {
           useValue: {
             edited: edited.asReadonly(),
             isEditing: signal(true).asReadonly(),
+            isSaving: signal(false).asReadonly(),
             isInserted: (seq: number) => inserted.has(seq),
             insert: (index: number, draft: { text: string }) => {
               const entry = event(nextSeq++, draft.text);
@@ -561,5 +574,298 @@ describe('writing entries one after another', () => {
     write('B');
 
     expect(edited().map((entry) => entry.detail['text'])).toEqual(['ひとつめ', 'A', 'B', 'ふたつめ', 'みっつめ']);
+  });
+});
+
+describe('acting out a scene to go in at a row', () => {
+  let fixture: ComponentFixture<ReplayEntryListComponent>;
+  let playback: {
+    events: ReturnType<typeof signal<readonly ReplayEvent[]>>;
+    isSeeking: ReturnType<typeof signal<boolean>>;
+    isBoardMode: ReturnType<typeof signal<boolean>>;
+    isEnteringBoardMode: ReturnType<typeof signal<boolean>>;
+    seekTo: ReturnType<typeof vi.fn>;
+    showBoardAfresh: ReturnType<typeof vi.fn>;
+    enterBoardMode: ReturnType<typeof vi.fn>;
+    exitBoardMode: ReturnType<typeof vi.fn>;
+    stopAutoPlay: ReturnType<typeof vi.fn>;
+  };
+  let begin: ReturnType<typeof vi.fn>;
+  let cursor: ReturnType<typeof signal<number>>;
+  let editing: ReturnType<typeof signal<boolean>>;
+  let saving: ReturnType<typeof signal<boolean>>;
+  const written = { ...event(100, '書き足した'), seq: 100 };
+
+  function stageAt(index: number): Promise<void> {
+    return (fixture.componentInstance as unknown as { stageAt(index: number): Promise<void> }).stageAt(index);
+  }
+
+  beforeEach(async () => {
+    PeerCursor.myCursor = Object.assign(new PeerCursor(), { peerId: 'p', userId: 'gm', role: PeerRole.GameMaster });
+    begin = vi.fn();
+    cursor = signal(0);
+    editing = signal(true);
+    saving = signal(false);
+    playback = {
+      events: signal<readonly ReplayEvent[]>(events),
+      isSeeking: signal(false),
+      isBoardMode: signal(false),
+      isEnteringBoardMode: signal(false),
+      seekTo: vi.fn().mockImplementation(async (index: number) => cursor.set(index)),
+      showBoardAfresh: vi.fn().mockResolvedValue(undefined),
+      enterBoardMode: vi.fn().mockImplementation(async () => {
+        playback.isBoardMode.set(true);
+        return true;
+      }),
+      exitBoardMode: vi.fn().mockImplementation(async () => playback.isBoardMode.set(false)),
+      stopAutoPlay: vi.fn(),
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [ReplayEntryListComponent],
+      providers: [
+        ...TEST_PROVIDERS,
+        {
+          provide: ReplayPlaybackService,
+          useValue: {
+            ...playback,
+            events: playback.events.asReadonly(),
+            isSeeking: playback.isSeeking.asReadonly(),
+            isBoardMode: playback.isBoardMode.asReadonly(),
+            isEnteringBoardMode: playback.isEnteringBoardMode.asReadonly(),
+            recordingId: recordingId.asReadonly(),
+            cursor: cursor.asReadonly(),
+            manifest: signal(null).asReadonly(),
+            cast: signal([]).asReadonly(),
+          },
+        },
+        {
+          provide: ReplayEditorService,
+          useValue: {
+            edited: signal([events[0], written, events[1], events[2]]).asReadonly(),
+            isEditing: editing.asReadonly(),
+            isSaving: saving.asReadonly(),
+            isInserted: (seq: number) => seq === 100,
+            insert: vi.fn(),
+            move: vi.fn(),
+            remove: vi.fn(),
+            retext: vi.fn(),
+          },
+        },
+        { provide: ReplayStagingService, useValue: { isStaging: signal(false).asReadonly(), begin } },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(ReplayEntryListComponent);
+    fixture.componentRef.setInput('editing', true);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    PeerCursor.myCursor = null as unknown as PeerCursor;
+  });
+
+  it('shows the board as it stood at the recorded row before the one it goes after', async () => {
+    await stageAt(3);
+
+    expect(playback.seekTo).toHaveBeenCalledWith(1);
+    expect(playback.enterBoardMode).toHaveBeenCalled();
+    expect(begin).toHaveBeenCalledWith(3, expect.any(String), 2);
+    expect(playback.seekTo.mock.invocationCallOrder[0]).toBeLessThan(begin.mock.invocationCallOrder[0]);
+  });
+
+  it('passes over a row written in while editing for the recorded one before it', async () => {
+    await stageAt(2);
+
+    expect(playback.seekTo).toHaveBeenCalledWith(0);
+  });
+
+  it('works the board out afresh there when it is showing already', async () => {
+    playback.isBoardMode.set(true);
+
+    await stageAt(3);
+
+    expect(playback.seekTo).toHaveBeenCalledWith(1);
+    expect(playback.showBoardAfresh).toHaveBeenCalled();
+    expect(playback.enterBoardMode).not.toHaveBeenCalled();
+    expect(begin).toHaveBeenCalled();
+  });
+
+  it('stops stepping on its own, the recording standing still while a scene is acted out', async () => {
+    await stageAt(3);
+
+    expect(playback.stopAutoPlay).toHaveBeenCalled();
+  });
+
+  it('starts nothing once the board is up if the row shown moved meanwhile', async () => {
+    playback.enterBoardMode.mockImplementation(async () => {
+      cursor.set(2);
+      playback.isBoardMode.set(true);
+      return true;
+    });
+
+    await stageAt(3);
+
+    expect(begin).not.toHaveBeenCalled();
+    expect(playback.exitBoardMode).toHaveBeenCalled();
+  });
+
+  it('starts nothing once the board is up if the editing ended meanwhile', async () => {
+    playback.enterBoardMode.mockImplementation(async () => {
+      editing.set(false);
+      playback.isBoardMode.set(true);
+      return true;
+    });
+
+    await stageAt(3);
+
+    expect(begin).not.toHaveBeenCalled();
+    expect(playback.exitBoardMode).toHaveBeenCalled();
+  });
+
+  it('leaves a board that was up already where it is, starting nothing once the row shown moved', async () => {
+    playback.isBoardMode.set(true);
+    playback.showBoardAfresh.mockImplementation(async () => cursor.set(2));
+
+    await stageAt(3);
+
+    expect(begin).not.toHaveBeenCalled();
+    expect(playback.exitBoardMode).not.toHaveBeenCalled();
+  });
+
+  it('starts nothing while the board is on its way up', async () => {
+    playback.isEnteringBoardMode.set(true);
+
+    await stageAt(3);
+
+    expect(begin).not.toHaveBeenCalled();
+    expect(playback.seekTo).not.toHaveBeenCalled();
+  });
+
+  it('starts nothing once the board is up if saving began meanwhile', async () => {
+    playback.enterBoardMode.mockImplementation(async () => {
+      saving.set(true);
+      playback.isBoardMode.set(true);
+      return true;
+    });
+
+    await stageAt(3);
+
+    expect(begin).not.toHaveBeenCalled();
+  });
+
+  it('starts nothing while the edits are being saved, as the saved recording opening would throw it away', async () => {
+    saving.set(true);
+
+    await stageAt(3);
+
+    expect(begin).not.toHaveBeenCalled();
+    expect(playback.seekTo).not.toHaveBeenCalled();
+  });
+
+  it('starts nothing while the board is still being worked out', async () => {
+    playback.isSeeking.set(true);
+
+    await stageAt(3);
+
+    expect(begin).not.toHaveBeenCalled();
+  });
+});
+
+describe('ReplayEntryListComponent selects', () => {
+  let fixture: ComponentFixture<ReplayEntryListComponent>;
+  let insert: ReturnType<typeof vi.fn>;
+  const edited = signal<readonly ReplayEvent[]>([]);
+  const say = (seq: number, actorId: string, text: string): ReplayEvent => ({
+    ...event(seq, text),
+    actorId,
+    detail: { name: actorId, text, tabIdentifier: 'main' },
+  });
+  const manifest = {
+    actors: [
+      { userId: 'alice', peerId: 'pa', name: 'アリス', role: 'pl', imageIdentifier: '', sinceSeq: 1 },
+      { userId: 'bob', peerId: 'pb', name: 'ボブ', role: 'pl', imageIdentifier: '', sinceSeq: 1 },
+    ],
+    targets: [],
+  };
+
+  beforeEach(async () => {
+    edited.set([say(1, 'alice', 'a1'), say(2, 'bob', 'b1'), say(3, 'alice', 'a2')]);
+    insert = vi.fn();
+    PeerCursor.myCursor = Object.assign(new PeerCursor(), { peerId: 'p', userId: 'gm', role: PeerRole.GameMaster });
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [ReplayEntryListComponent],
+      providers: [
+        ...TEST_PROVIDERS,
+        {
+          provide: ReplayPlaybackService,
+          useValue: {
+            events: edited.asReadonly(),
+            recordingId: signal(1).asReadonly(),
+            cursor: signal(0).asReadonly(),
+            manifest: signal(manifest).asReadonly(),
+            cast: signal([]).asReadonly(),
+            isBoardMode: signal(false).asReadonly(),
+            isEnteringBoardMode: signal(false).asReadonly(),
+            isSeeking: signal(false).asReadonly(),
+            seekTo: vi.fn().mockResolvedValue(undefined),
+            enterBoardMode: vi.fn().mockResolvedValue(true),
+          },
+        },
+        {
+          provide: ReplayEditorService,
+          useValue: {
+            edited: edited.asReadonly(),
+            isEditing: signal(true).asReadonly(),
+            isSaving: signal(false).asReadonly(),
+            isInserted: () => false,
+            insert,
+            move: vi.fn(),
+            remove: vi.fn(),
+            retext: vi.fn(),
+          },
+        },
+      ],
+    }).compileComponents();
+    fixture = TestBed.createComponent(ReplayEntryListComponent);
+    fixture.componentRef.setInput('editing', true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+  });
+
+  afterEach(() => {
+    PeerCursor.myCursor = null as unknown as PeerCursor;
+  });
+
+  const selects = (): HTMLSelectElement[] => [...fixture.nativeElement.querySelectorAll('select')];
+  const choose = (select: HTMLSelectElement, value: string) => {
+    select.value = value;
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+  };
+
+  it('still shows who a line to add is put down to once the form is made again', async () => {
+    const actorSelect = () => selects()[selects().length - 1];
+    const kindSelect = () =>
+      selects().find((select) => [...select.options].some((option) => option.value === ReplayEventKind.Marker))!;
+    choose(actorSelect(), 'bob');
+
+    choose(kindSelect(), ReplayEventKind.Marker);
+    choose(kindSelect(), ReplayEventKind.ChatMessage);
+    await fixture.whenStable();
+
+    expect(actorSelect().value).toBe('bob');
+  });
+
+  it('filters nobody out once every line of the speaker filtered by is deleted, as the filter shows', async () => {
+    choose(selects()[0], 'bob');
+
+    edited.set([say(1, 'alice', 'a1'), say(3, 'alice', 'a2')]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(selects()[0].value).toBe('');
+    expect(fixture.nativeElement.textContent).toContain('a1');
   });
 });

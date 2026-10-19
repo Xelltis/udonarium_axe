@@ -9,8 +9,11 @@ import {
   normalizeDisclosureMode,
   toggleDisclosureUserId,
 } from '@axe/domain/disclosure/disclosure';
+import { mayBeChosen, mayBeOffered } from '@axe/domain/peer/chosen-seat';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { TextNote } from '@axe/domain/tabletop/text-note';
+import { ownerRuledByServer } from '@axe/domain/tabletop/withheld';
 
 interface DisclosableObject extends Disclosable {
   owner?: string;
@@ -33,23 +36,42 @@ function candidateName(cursor: PeerCursor): string {
   return cursor.name || cursor.userId.slice(0, 6);
 }
 
-function audienceCandidates(): DisclosureCandidate[] {
+/**
+ * What to say when nobody is there to choose: that those not logged in can't be chosen, when a connected seat
+ * was left out for that, and otherwise that no other player is there.
+ */
+export function noCandidatesKey(): string {
+  const leftOut = Network.peerContexts.some((context) => {
+    const cursor = PeerCursor.findByPeerId(context.peerId);
+    return cursor !== null && !cursor.isMine && !mayBeChosen(cursor);
+  });
+  return leftOut ? 'feature.disclosure.noLoggedInPlayers' : 'feature.disclosure.noPlayers';
+}
+
+function audienceCandidates(object: DisclosableObject): DisclosureCandidate[] {
   const result: DisclosureCandidate[] = [];
   for (const context of Network.peerContexts) {
     const cursor = PeerCursor.findByPeerId(context.peerId);
-    if (!cursor || cursor.isMine || cursor.isGameMaster) continue;
+    if (!cursor || cursor.isMine || cursor.isGameMaster || !mayBeOffered(cursor, object.disclosureUserIds)) continue;
     result.push({ userId: cursor.userId, name: candidateName(cursor) });
   }
   return result;
 }
 
-function ownerCandidates(): DisclosureCandidate[] {
+/**
+ * Who the owner submenu offers: this user first, then every other connected user who may be chosen
+ * or owns the piece now. A room server lets anyone but the game master give a note, a die or a card
+ * nobody owns to themselves alone, so there it offers only this user for those.
+ */
+function ownerCandidates(object: DisclosableObject): DisclosureCandidate[] {
   const result: DisclosureCandidate[] = [];
   const myCursor = PeerCursor.myCursor;
   if (myCursor) result.push({ userId: myCursor.userId, name: candidateName(myCursor) });
+  const narrowed = Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
+  if (narrowed && ownerRuledByServer(object)) return result;
   for (const context of Network.peerContexts) {
     const cursor = PeerCursor.findByPeerId(context.peerId);
-    if (!cursor || cursor.isMine) continue;
+    if (!cursor || cursor.isMine || !mayBeOffered(cursor, [object.owner ?? ''])) continue;
     result.push({ userId: cursor.userId, name: candidateName(cursor) });
   }
   return result;
@@ -69,8 +91,11 @@ export function buildDisclosureContextMenu(object: DisclosableObject, t: Transla
   const myUserId = PeerCursor.myCursor?.userId ?? '';
   const isGameMaster = PeerCursor.isMyselfGameMaster;
   const viewer = { userId: myUserId, isGameMaster, ownerUserId };
-  const canEdit = canEditDisclosure(viewer);
-  const canClaim = myUserId.length > 0 && canClaimOwnership(viewer) && canRoleEdit(PeerCursor.myRole);
+  const canEdit = canEditDisclosure(viewer) && canRoleEdit(PeerCursor.myRole);
+  const canClaim =
+    myUserId.length > 0 &&
+    canClaimOwnership(object, viewer, Network.authorityPeerId !== null && object instanceof TextNote) &&
+    canRoleEdit(PeerCursor.myRole);
   const showOwnerMenu = isGameMaster || canClaim;
   if (!canEdit && !showOwnerMenu) return [];
 
@@ -78,7 +103,7 @@ export function buildDisclosureContextMenu(object: DisclosableObject, t: Transla
 
   if (canEdit) {
     const mode = normalizeDisclosureMode(object.disclosureMode);
-    const selectedSubActions: ContextMenuAction[] = audienceCandidates().map((peer) => ({
+    const selectedSubActions: ContextMenuAction[] = audienceCandidates(object).map((peer) => ({
       name: mark(object.disclosureUserIds.includes(peer.userId)) + peer.name,
       action: () => {
         object.disclosureUserIds = toggleDisclosureUserId(object.disclosureUserIds, peer.userId);
@@ -87,7 +112,7 @@ export function buildDisclosureContextMenu(object: DisclosableObject, t: Transla
       },
     }));
     if (!selectedSubActions.length) {
-      selectedSubActions.push({ name: t('feature.disclosure.noPlayers'), enabled: false });
+      selectedSubActions.push({ name: t(noCandidatesKey()), enabled: false });
     }
 
     entries.push({
@@ -126,7 +151,7 @@ export function buildDisclosureContextMenu(object: DisclosableObject, t: Transla
             object.update();
           },
         },
-        ...ownerCandidates().map((peer) => ({
+        ...ownerCandidates(object).map((peer) => ({
           name: mark(ownerUserId === peer.userId) + peer.name,
           action: () => {
             object.owner = peer.userId;

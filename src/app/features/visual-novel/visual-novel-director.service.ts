@@ -4,6 +4,7 @@ import { getMyPeerId } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { VnStage } from '@axe/domain/visual-novel/vn-stage';
+import { VisualNovelEventHandlerService } from '@axe/features/visual-novel/visual-novel-event-handler.service';
 import { VisualNovelPlaybackService } from '@axe/features/visual-novel/visual-novel-playback.service';
 
 const STAGE_IDENTIFIER = 'VnStage';
@@ -18,9 +19,16 @@ export class VisualNovelDirectorService {
 
   readonly following = this._following.asReadonly();
 
+  /** Whether the screening on the stage was started by a seat no longer a game master. */
+  private readonly directorDemoted = inject(VisualNovelEventHandlerService).directorDemoted;
+
+  /**
+   * Whether a screening is running. One whose director was made a player or a guest meanwhile has
+   * nobody left to run it, so it counts as over, and every screen goes back to reading alone.
+   */
   readonly isDirected = computed(() => {
     this.objectChange.versionOf(STAGE_IDENTIFIER)();
-    return this.stage?.isDirected === true;
+    return this.stage?.isDirected === true && !this.directorDemoted();
   });
 
   readonly directorPeerId = computed(() => {
@@ -43,7 +51,10 @@ export class VisualNovelDirectorService {
     return PeerCursor.isMyselfGameMaster;
   });
 
-  readonly isDirector = computed(() => this.isDirected() && this.directorPeerId() === getMyPeerId());
+  /** Whether this seat runs the screening: it started it, and is a game master still. */
+  readonly isDirector = computed(
+    () => this.isDirected() && this.directorPeerId() === getMyPeerId() && this.canDirect()
+  );
 
   readonly isFollowing = computed(() => this.isDirected() && !this.isDirector() && this._following());
 
@@ -67,6 +78,8 @@ export class VisualNovelDirectorService {
       if (!this.isFollowing()) return;
       untracked(() => {
         if (tabIdentifier.length > 0 && tabIdentifier !== this.playback.chatTabIdentifier()) {
+          // A tab this reader may not read is not followed into; they stay on the one they are on.
+          if (!this.playback.availableChatTabs().some((tab) => tab.identifier === tabIdentifier)) return;
           this.playback.setChatTab(tabIdentifier);
         }
         this.playback.jumpToIdentifier(identifier);

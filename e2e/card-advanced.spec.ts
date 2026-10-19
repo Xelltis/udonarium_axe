@@ -15,13 +15,13 @@ async function openCardStackMenu(page: Page) {
   return menu;
 }
 
-test.describe('カード枚指定ダイアログ (card-draw-count-dialog)', () => {
+test.describe('the dialog for drawing a number of cards (card-draw-count-dialog)', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await createCardStack(page);
   });
 
-  test('「X枚を引く」で枚数入力ダイアログが開けること', async ({ page }) => {
+  test('opens the count dialog from "draw X cards"', async ({ page }) => {
     const menu = await openCardStackMenu(page);
     await menu.getByText('X枚を引く').click();
     await expect(page.locator('card-draw-count-dialog')).toBeVisible({ timeout: 5000 });
@@ -30,19 +30,19 @@ test.describe('カード枚指定ダイアログ (card-draw-count-dialog)', () =
     await expect(page.locator('card-draw-count-dialog').getByRole('button', { name: 'キャンセル' })).toBeVisible();
   });
 
-  test('枚数入力欄に数値を入力できること', async ({ page }) => {
+  test('takes a number in the count field', async ({ page }) => {
     const menu = await openCardStackMenu(page);
     await menu.getByText('X枚を引く').click();
     const input = page.locator('card-draw-count-dialog input[name="draw-count"]');
     await expect(input).toBeVisible({ timeout: 5000 });
-    // autofocusされており既定値が入っているので、select-allしてから書き換える。
+    // The field has the focus and a default value in it, so it is selected whole before being typed over.
     await input.click();
     await input.press('Control+A');
     await input.fill('5');
     await expect(input).toHaveValue('5');
   });
 
-  test('「キャンセル」ボタンでダイアログが閉じること', async ({ page }) => {
+  test('closes the dialog with the cancel button', async ({ page }) => {
     const menu = await openCardStackMenu(page);
     await menu.getByText('X枚を引く').click();
     await expect(page.locator('card-draw-count-dialog')).toBeVisible({ timeout: 5000 });
@@ -50,15 +50,15 @@ test.describe('カード枚指定ダイアログ (card-draw-count-dialog)', () =
     await expect(page.locator('card-draw-count-dialog')).toHaveCount(0, { timeout: 5000 });
   });
 
-  test('「引く」で指定枚数分の card 要素が増えること', async ({ page }) => {
+  test('adds as many card elements as asked for on "draw"', async ({ page }) => {
     const initialCardCount = await page.locator('card').count();
     const menu = await openCardStackMenu(page);
     await menu.getByText('X枚を引く').click();
     const input = page.locator('card-draw-count-dialog input[name="draw-count"]');
     await expect(input).toBeVisible({ timeout: 5000 });
 
-    // type=numberの入力にfill()で値を入れてもngModelには届かず、既定の2枚の
-    // まま引かれてしまう。人と同じように打ち込む。
+    // A value put into a type=number input with fill() never reaches ngModel, and the default two
+    // cards are drawn instead. It is typed in as a person would.
     await input.click();
     await input.press('Control+a');
     await input.pressSequentially('3');
@@ -70,14 +70,14 @@ test.describe('カード枚指定ダイアログ (card-draw-count-dialog)', () =
   });
 });
 
-test.describe('「山札を崩す」で個別 card 操作が可能になる', () => {
-  test('山札を崩すと card 要素が大量に出現すること', async ({ page }) => {
+test.describe('handling single cards after breaking up the deck', () => {
+  test('puts a great many card elements out when the deck is broken up', async ({ page }) => {
     await waitAppReady(page);
     await createCardStack(page);
     const initialCardCount = await page.locator('card').count();
     const menu = await openCardStackMenu(page);
     await menu.getByText('山札を崩す').click();
-    // 標準的な52枚とジョーカーの山札を想定し、十分多くのcardが現れる。
+    // A standard deck of 52 cards and jokers is assumed, so plenty of cards appear.
     await expect.poll(() => page.locator('card').count(), { timeout: 10000 }).toBeGreaterThan(initialCardCount + 10);
   });
 });

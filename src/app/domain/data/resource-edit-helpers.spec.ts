@@ -254,6 +254,27 @@ describe('resource-edit-helpers', () => {
       expect(character.buffs.find('猛攻撃')!.value).toBe(5);
     });
 
+    it('works out a calculated buff whose amount is written as a sum', () => {
+      character.status.changeValue('HP', 'now', -100);
+      const before = character.status.getValue('HP', 'now')!;
+
+      const text = applyBuffEdit({ command: '&!鼓舞/HP/+/(3+4)÷2/1', object: character, targeted: false }, character);
+
+      expect(character.status.getValue('HP', 'now')).toBe(before + 3);
+      expect(character.buffs.find('鼓舞')!.value).toBe(1);
+      expect(text).toBe('鼓舞を付与 HP+3/1R    ');
+    });
+
+    it('takes a full-width slash as division inside a calculated buff', () => {
+      character.status.changeValue('HP', 'now', -100);
+      const before = character.status.getValue('HP', 'now')!;
+
+      applyBuffEdit({ command: '&!鈍足/HP/-/10／4/2', object: character, targeted: false }, character);
+
+      expect(character.status.getValue('HP', 'now')).toBe(before - 2);
+      expect(character.buffs.find('鈍足')!.value).toBe(2);
+    });
+
     it('grants a marked buff nobody carries yet', () => {
       const text = applyBuffEdit({ command: '&+猛攻撃/攻撃+2/3', object: character, targeted: false }, character);
 

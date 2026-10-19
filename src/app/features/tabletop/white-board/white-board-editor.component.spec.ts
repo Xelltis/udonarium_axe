@@ -1,5 +1,6 @@
 import { Signal, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { MapScene, sceneHeightPx, sceneWidthPx, ShapeItem } from '@axe/features/map-editor/model/scene';
@@ -18,6 +19,7 @@ import {
   textLayer,
   wordsAt,
 } from '@axe/features/tabletop/white-board/white-board-scene';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 interface EditorInternals {
@@ -105,6 +107,10 @@ describe('WhiteBoardEditorComponent', () => {
     return { fixture, editor, board: made };
   }
 
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() => mount());
+  });
+
   function key(init: KeyboardEventInit & { key: string }): KeyboardEvent {
     return new KeyboardEvent('keydown', { cancelable: true, ...init });
   }
@@ -124,6 +130,14 @@ describe('WhiteBoardEditorComponent', () => {
     ObjectStore.instance.clearDeleteHistory();
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it('puts its keys first on the cheat sheet while it is open', () => {
+    const { fixture } = mount();
+    const scopes = TestBed.inject(ShortcutScopeService);
+    expect(scopes.scopes()).toContain('whiteBoard');
+    fixture.destroy();
+    expect(scopes.scopes()).not.toContain('whiteBoard');
   });
 
   it('undoes back to the board as it was opened, not to a blank sheet', () => {

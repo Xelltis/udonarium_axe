@@ -10,15 +10,24 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
-import { ObjectSerializer } from '@axe/core/sync/object-serializer';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
+import { Network } from '@axe/core/network/network';
+import { networkMessage$ } from '@axe/core/network/network-messaging';
+import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
+import { identifiersInXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CHAT_LOG_STYLES, ChatLogStyle } from '@axe/domain/chat/chat-log-style';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { ChatLogPreviewComponent } from '@axe/features/chat/chat-log-preview/chat-log-preview.component';
 import { TranslocoModule } from '@jsverse/transloco';
+
+/** How soon after this seat deleted a tab a room server putting it back is taken as turning the deletion down. */
+const TURNED_DOWN_WITHIN_MS = 30_000;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -40,6 +49,9 @@ export class ChatTabSettingComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly snackbar = inject(SnackbarService);
+  /** A tab this seat deleted in a room server's room, which the server may put back, and when. */
+  private deletedOnServer: { identifier: string; at: number } | null = null;
 
   readonly selectedTab = signal<ChatTab | null>(null);
   selectedTabXml = '';
@@ -99,7 +111,7 @@ export class ChatTabSettingComponent {
    */
   setPerm(key: 'plCanView' | 'plCanSpeak' | 'guestCanView' | 'guestCanSpeak', value: boolean): void {
     const tab = this.selectedTab();
-    if (!this.canEditPermission || !tab || tab.isSystemTab) return;
+    if (!this.canEditPerm(key) || !tab || tab.isSystemTab) return;
     tab[key] = value;
     // whoever may speak may read, so speaking without reading cannot happen
     if (key === 'plCanSpeak' && value) tab.plCanView = true;
@@ -108,10 +120,17 @@ export class ChatTabSettingComponent {
     else if (key === 'guestCanView' && !value) tab.guestCanSpeak = false;
   }
 
-  /** Every chat tab in the room, in the order they are listed. */
+  /**
+   * Every chat tab in the room, in the order they are listed; in a room server's room, only those
+   * this seat may read, for anyone but the game master, since the lines of the others never came.
+   */
   get chatTabs(): readonly ChatTab[] {
     this.objectChange.collectionOf('chat-tab')();
-    return this.chatMessageService.chatTabs;
+    this.objectChange.trackMyCursor();
+    const tabs = this.chatMessageService.chatTabs;
+    if (Network.authorityPeerId === null || PeerCursor.isMyselfGameMaster) return tabs;
+    for (const tab of tabs) this.objectChange.versionOf(tab.identifier)();
+    return tabs.filter((tab) => canRoleViewTab(tab, PeerCursor.myRole));
   }
   /** Whether the room has no chat tabs at all. */
   get isEmpty(): boolean {
@@ -122,16 +141,47 @@ export class ChatTabSettingComponent {
    * restore it.
    */
   get isDeleted(): boolean {
-    return this.selectedTab() ? this.objectStore.get(this.selectedTab()!.identifier) == null : false;
+    return this.selectedTab() ? this.objectStore.get(this.selectedTab()!.identifier) !== this.selectedTab() : false;
   }
   /** The system tab belongs to the tool rather than the room, so its name, its place and whether it travels are all handled apart. */
   get isSystemTabSelected(): boolean {
     return !!this.selectedTab()?.isSystemTab;
   }
 
-  /** It cannot be deleted; with nowhere for the arrivals and departures to go, they come back into the conversation. */
+  /**
+   * Whether the selected tab may be deleted from this seat. The system tab cannot be: with nowhere
+   * for the arrivals and departures to go, they would come back into the conversation. Nor, in a room
+   * server's room, can anyone but the game master delete one that holds dice the server rolled.
+   */
   get isDeletable(): boolean {
-    return !this.isEmpty && !!this.selectedTab() && !this.isSystemTabSelected && this.canEditTabs;
+    return (
+      !this.isEmpty &&
+      !!this.selectedTab() &&
+      !this.isSystemTabSelected &&
+      this.canEditTabs &&
+      !this.isDeleteKeptForGameMaster
+    );
+  }
+
+  /**
+   * Whether the selected tab is one that, in a room server's room, only the game master may delete,
+   * for holding dice the server rolled, which the server keeps from anyone else's deleting.
+   */
+  get isDeleteKeptForGameMaster(): boolean {
+    const tab = this.selectedTab();
+    if (!tab || !this.isKeptToGameMasterByServer) return false;
+    this.objectChange.collectionOf(ChatMessage.aliasName)();
+    this.objectChange.versionOf(tab.identifier)();
+    return tab.chatMessages.some((message) => message.isServerRoll);
+  }
+
+  /**
+   * Whether a room server holds this seat to what only the game master may change in the tabs: who
+   * may read a tab, and deleting the dice the server rolled. Among peers nothing is held back.
+   */
+  get isKeptToGameMasterByServer(): boolean {
+    this.objectChange.trackMyCursor();
+    return Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
   }
 
   /** Whether the selected tab's name may be changed, which the system tab's may not. */
@@ -182,6 +232,21 @@ export class ChatTabSettingComponent {
     return this.isEditable && this.canEditTabs;
   }
 
+  /**
+   * Whether this seat may change one of the selected tab's permissions.
+   *
+   * In a room server's room, who may read a tab is the game master's alone to change, as the server
+   * holds. Anyone else may change who may speak only where those who would speak may already read,
+   * since speaking brings reading with it.
+   */
+  canEditPerm(key: 'plCanView' | 'plCanSpeak' | 'guestCanView' | 'guestCanSpeak'): boolean {
+    if (!this.canEditPermission) return false;
+    if (!this.isKeptToGameMasterByServer) return true;
+    if (key === 'plCanSpeak') return this.perm('plCanView');
+    if (key === 'guestCanSpeak') return this.perm('guestCanView');
+    return false;
+  }
+
   readonly isSaving = signal(false);
   readonly progressPercent = signal(0);
 
@@ -192,25 +257,42 @@ export class ChatTabSettingComponent {
     queueMicrotask(
       () => (this.modalService.title = this.panelService.title = this.t('feature.chat.tabSetting.panelTitle'))
     );
+    // A tab another seat deleted is let go of; only one this seat deleted is offered back.
     this.objectChange.objectDeleted$.subscribe((e) => {
-      if (!this.selectedTab() || e.identifier !== this.selectedTab()!.identifier) return;
-      const object = this.objectStore.get(e.identifier);
-      if (object !== null) {
-        this.selectedTabXml = object.toXml();
-      }
+      if (!this.selectedTab() || e.identifier !== this.selectedTab()!.identifier || this.selectedTabXml) return;
       this.selectedTab.set(null);
     }, this.destroyRef);
+    // A room server hands back a tab holding dice it rolled, whispers this seat cannot see among
+    // them, which only the game master may delete; the seat is told why the tab came back. One that
+    // comes back with the room's catalog, its deletion lost with the link, is no such refusal.
+    networkMessage$.subscribe((message) => {
+      const deleted = this.deletedOnServer;
+      if (!deleted || message.eventName !== AuthorityEvent.AUTHORITATIVE) return;
+      if (message.sendFrom !== Network.authorityPeerId) return;
+      if ((message.data as { identifier?: unknown } | null)?.identifier !== deleted.identifier) return;
+      this.deletedOnServer = null;
+      if (Date.now() - deleted.at < TURNED_DOWN_WITHIN_MS)
+        this.snackbar.show(this.t('feature.chat.tabSetting.deleteTurnedDown'));
+    }, this.destroyRef);
+    // A tab gone from the list, or one this seat may no longer read, is let go of, as on the seat
+    // being made a player while it had a tab only the game master reads picked. One this seat has
+    // just deleted stays picked while its copy is kept, for the offer to bring it back, until it
+    // comes back under its name, as from a file, when the tab that came back is picked instead.
     this.objectChange.onObjectChangedForAlias(
-      [ChatTab.aliasName, ChatTabList.aliasName],
-      (e) => {
-        const object = this.objectStore.get(e.identifier);
-        if (object instanceof ChatTab || object instanceof ChatTabList) {
-          if (this.selectedTab() && !this.objectStore.get(this.selectedTab()!.identifier)) {
-            this.selectedTab.set(null);
-          }
-          if (!this.selectedTab() && this.chatTabs.length > 0) {
-            this.selectedTab.set(this.chatTabs[0]);
-          }
+      [ChatTab.aliasName, ChatTabList.aliasName, PeerCursor.aliasName],
+      () => {
+        const picked = this.selectedTab();
+        const cameBack = picked ? this.objectStore.get<ChatTab>(picked.identifier) : null;
+        if (picked && cameBack && cameBack !== picked && this.chatTabs.includes(cameBack)) {
+          this.selectedTab.set(cameBack);
+          this.selectedTabXml = '';
+        }
+        if (this.selectedTab() && !this.chatTabs.includes(this.selectedTab()!) && !this.selectedTabXml) {
+          this.selectedTab.set(null);
+        }
+        if (!this.selectedTab() && this.chatTabs.length > 0) {
+          this.selectedTab.set(this.chatTabs[0]);
+          this.selectedTabXml = '';
         }
       },
       this.destroyRef
@@ -308,11 +390,13 @@ export class ChatTabSettingComponent {
    * that follow it. Does nothing for a tab that may not be deleted.
    */
   delete() {
-    if (!this.isDeletable) return;
+    if (!this.isDeletable || !this.isSelectionInReach()) return;
     if (!this.isEmpty && this.selectedTab()) {
       const parentElement = this.selectedTab()!.parent!;
       const index: number = parentElement.children.indexOf(this.selectedTab()!);
       this.selectedTabXml = this.selectedTab()!.toXml();
+      if (this.isKeptToGameMasterByServer)
+        this.deletedOnServer = { identifier: this.selectedTab()!.identifier, at: Date.now() };
       this.selectedTab()!.destroy();
 
       if (this.systemTabIndex > index) {
@@ -331,15 +415,14 @@ export class ChatTabSettingComponent {
    * Clears every message from the selected tab for every peer and posts who cleared it.
    *
    * Needs the confirmation box ticked and a seat that may change the tabs; the tab's portraits are
-   * reset along with the log.
+   * reset along with the log. In a room server's room, anyone but the game master leaves the dice
+   * the server rolled where they are, since the server keeps them.
    */
   deleteLog() {
-    if (!this.allowDeleteLog || !this.canEditTabs) return;
+    if (!this.allowDeleteLog || !this.canEditTabs || !this.isSelectionInReach()) return;
 
     if (!this.isEmpty && this.selectedTab()) {
-      while (this.selectedTab()!.children.length > 0) {
-        this.selectedTab()!.children[0].destroy();
-      }
+      this.clearLogOf(this.selectedTab()!);
       this.selectedTab()!.portraitReset();
       const mess = encodeI18nMessage('common.chat.logClearedBy', { user: this.resolveRequesterName() });
       this.chatMessageService.sendSystemMessageToTab(this.selectedTab()!, mess, undefined, this.requesterUserId());
@@ -348,7 +431,9 @@ export class ChatTabSettingComponent {
 
   /**
    * Clears the logs of every tab for every peer, posting who cleared them in each; needs the
-   * confirmation box ticked and a seat that may change the tabs.
+   * confirmation box ticked and a seat that may change the tabs. In a room server's room, anyone but
+   * the game master leaves the dice the server rolled where they are, and leaves alone the tabs
+   * they may not read, whose lines never came to them.
    */
   deleteLogALL() {
     if (!this.allowDeleteLog || !this.canEditTabs) return;
@@ -356,13 +441,27 @@ export class ChatTabSettingComponent {
     const mess = encodeI18nMessage('common.chat.logClearedBy', { user: this.resolveRequesterName() });
 
     const requester = this.requesterUserId();
-    for (const child of this.chatTabList.chatTabs) {
-      while (child.children.length > 0) {
-        child.children[0].destroy();
-      }
+    const readsAll = Network.authorityPeerId === null || PeerCursor.isMyselfGameMaster;
+    const tabs = this.chatTabList.chatTabs.filter((tab) => readsAll || canRoleViewTab(tab, PeerCursor.myRole));
+    for (const child of tabs) {
+      this.clearLogOf(child);
       child.portraitReset();
       this.chatMessageService.sendSystemMessageToTab(child, mess, undefined, requester);
     }
+  }
+
+  private clearLogOf(tab: ChatTab): void {
+    const keepServerRolls = this.isKeptToGameMasterByServer;
+    for (const child of [...tab.children]) {
+      if (keepServerRolls && child instanceof ChatMessage && child.isServerRoll) continue;
+      child.destroy();
+    }
+  }
+
+  /** Whether the picked tab is still one this seat is listed, and so may clear or delete. */
+  private isSelectionInReach(): boolean {
+    const tab = this.selectedTab();
+    return tab !== null && this.chatTabs.includes(tab);
   }
 
   private requesterUserId(): string {
@@ -377,14 +476,18 @@ export class ChatTabSettingComponent {
 
   /**
    * Puts the last deleted tab back into the room from the copy kept when it was removed, then
-   * forgets the copy.
+   * forgets the copy. The tab and its lines come back under their names, which are said to be coming
+   * back first, as every other seat and a room server would delete them again.
    */
   restore() {
     if (!this.canEditTabs) return;
     if (this.selectedTab() && this.selectedTabXml) {
+      this.deletedOnServer = null;
+      ObjectStore.instance.announceComingBack(identifiersInXml(this.selectedTabXml));
       const restoreTable = this.objectSerializer.parseXml(this.selectedTabXml)! as ChatTab;
       this.chatTabList.addChatTab(restoreTable);
       this.selectedTabXml = '';
+      this.selectedTab.set(restoreTable);
     }
   }
 

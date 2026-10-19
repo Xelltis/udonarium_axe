@@ -52,7 +52,10 @@ export class SkyWayFacade {
    * Creates a SkyWay context with a backend token, then joins the room and a lobby as the peer.
    *
    * An open session is closed first, and an open still under way is called off. Failures are
-   * reported through onFatalError, not thrown, and onOpen fires at the end. A peer that is not in a
+   * reported through onFatalError, not thrown, and onOpen fires at the end. An open that got no
+   * token from the backend does not open, which leaves trying again to whoever hears the error. An
+   * open called off, as closing calls it off, reports neither and lets go of a context it made
+   * meanwhile, whose token running out later would otherwise be reported. A peer that is not in a
    * room gets a context but joins no channel.
    *
    * A member left in a channel under this peer's name, as a reload leaves one, is waited out
@@ -71,9 +74,10 @@ export class SkyWayFacade {
       this.peer.password = peer.password;
       this.isDestroyed = false;
 
-      await this.createContext();
+      if (!(await this.createContext(abort.signal))) return;
       await this.joinRoom();
       await this.joinLobby();
+      if (abort.signal.aborted) return;
 
       this.peer.isOpen = true;
 
@@ -139,9 +143,13 @@ export class SkyWayFacade {
     }
   }
 
-  private async createContext() {
+  /**
+   * Makes the SkyWay context with a token from the backend, and says whether it did. The token is
+   * renewed when the context asks, unless the connection has let go of the context meanwhile.
+   */
+  private async createContext(signal: AbortSignal): Promise<boolean> {
     await this.disposeContext();
-    if (this.isDestroyed) return;
+    if (this.isDestroyed) return false;
 
     const backend = new SkyWayBackend(this.url);
     const channelName = this.peer.isRoom
@@ -149,16 +157,22 @@ export class SkyWayFacade {
       : this.peer.peerId;
 
     const authToken = await backend.createSkyWayAuthToken(channelName, this.peer.peerId);
+    if (signal.aborted) return false;
     if (authToken.length < 1) {
       const message = `APIバックエンド< ${backend.url} >にアクセスできませんでした。SkyWayの認証トークンを発行するサーバが必要です。`;
       this.onFatalError?.(this.peer, 'server-error', message, new Error(message));
-      return;
+      return false;
     }
 
     const context = await SkyWayContext.Create(authToken);
+    if (signal.aborted) {
+      context.dispose();
+      return false;
+    }
     context.onTokenUpdateReminder.add(async () => {
       AppLogger.debug('[SkyWay] トークン更新リマインダー');
       const authToken = await backend.createSkyWayAuthToken(channelName, this.peer.peerId);
+      if (context.disposed || this.context !== context) return;
       if (authToken.length < 1) {
         const message = `APIバックエンド< ${backend.url} >にアクセスできませんでした。`;
         this.onFatalError?.(this.peer, 'server-error', message, new Error(message));
@@ -187,6 +201,7 @@ export class SkyWayFacade {
     });
 
     this.context = context;
+    return true;
   }
 
   private async joinLobby() {

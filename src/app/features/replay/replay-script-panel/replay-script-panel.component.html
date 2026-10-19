@@ -16,11 +16,12 @@
         {{ 'feature.replay.script.format' | transloco }}
         <select
           class="border-ui-border bg-ui-elevated rounded-ui-sm border border-solid px-1.5 py-0.5 text-[0.72rem]"
-          [value]="format()"
           (change)="setFormat($any($event.target).value)"
         >
           @for (choice of formats; track choice) {
-            <option [value]="choice">{{ 'feature.replay.script.of.' + choice | transloco }}</option>
+            <option [value]="choice" [selected]="format() === choice">
+              {{ 'feature.replay.script.of.' + choice | transloco }}
+            </option>
           }
         </select>
       </label>

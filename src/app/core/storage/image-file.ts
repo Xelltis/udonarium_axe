@@ -99,11 +99,12 @@ export class ImageFile {
 
   /**
    * A placeholder for an image known only by its identifier, as from a peer's
-   * catalogue, until its data arrives.
+   * catalogue, or by its identifier and name, as from the room's list, until its data arrives.
    */
-  static createEmpty(identifier: string): ImageFile {
+  static createEmpty(identifier: string, name?: string): ImageFile {
     const imageFile = new ImageFile();
     imageFile.context.identifier = identifier;
+    if (name) imageFile.context.name = name;
 
     return imageFile;
   }
@@ -169,6 +170,34 @@ export class ImageFile {
     if (imageFile.context.name == null) imageFile.context.name = imageFile.context.identifier;
 
     return imageFile;
+  }
+
+  /**
+   * The context for bytes fetched by their identifier, with a thumbnail made from them, ready to
+   * hand to the store like a context received from a peer.
+   *
+   * The bytes are kept exactly as they came. Converting them again, as an added file is, could
+   * change the hash they are named by. The context carries no object URLs; the entry that takes it
+   * makes its own.
+   */
+  static async contextFromBytesAsync(identifier: string, blob: Blob): Promise<ImageContext> {
+    const context: ImageContext = {
+      identifier,
+      name: '',
+      type: blob.type,
+      blob,
+      url: window.URL.createObjectURL(blob),
+      thumbnail: { type: '', blob: null, url: '' },
+    };
+    try {
+      const thumbnail = await ImageFile.createThumbnailAsync(context);
+      window.URL.revokeObjectURL(thumbnail.url);
+      context.thumbnail = { type: thumbnail.type, blob: thumbnail.blob, url: '' };
+    } finally {
+      window.URL.revokeObjectURL(context.url);
+      context.url = '';
+    }
+    return context;
   }
 
   /** Revokes the object URLs made for the image and its thumbnail; a linked image has none to revoke. */
@@ -242,10 +271,18 @@ export class ImageFile {
     return ImageFile.createThumbnailOnMainThread(context);
   }
 
+  /**
+   * Draws the thumbnail on this page. Settles either way, as when the canvas makes no blob of an
+   * image that reads as having no size, so that whoever waits on it is not left waiting for ever.
+   */
   private static createThumbnailOnMainThread(context: ImageContext): Promise<ThumbnailContext> {
     return new Promise((resolve, reject) => {
       const image: HTMLImageElement = new Image();
       image.onload = () => {
+        if (!image.width || !image.height) {
+          reject(new Error('the image has no size to draw a thumbnail of'));
+          return;
+        }
         const scale: number = Math.min(THUMBNAIL_MAX_SIZE / Math.max(image.width, image.height), 1.0);
         const dstWidth = image.width * scale;
         const dstHeight = image.height * scale;
@@ -257,12 +294,11 @@ export class ImageFile {
         render.drawImage(image, 0, 0, dstWidth, dstHeight);
 
         canvas.toBlob((blob) => {
-          const thumbnail: ThumbnailContext = {
-            type: blob!.type,
-            blob: blob,
-            url: window.URL.createObjectURL(blob!),
-          };
-          resolve(thumbnail);
+          if (!blob) {
+            reject(new Error('the canvas made no thumbnail'));
+            return;
+          }
+          resolve({ type: blob.type, blob, url: window.URL.createObjectURL(blob) });
         }, context.blob!.type);
       };
       image.onabort = image.onerror = () => {

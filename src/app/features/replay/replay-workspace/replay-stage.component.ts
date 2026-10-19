@@ -3,7 +3,10 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
+import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { isShownReplayEvent } from '@axe/domain/replay/replay-event-category';
 import {
   formatReplayElapsed,
   replayLineParams,
@@ -35,6 +38,12 @@ export class ReplayStageComponent {
   protected readonly cursor = this.playback.cursor;
   protected readonly isBoardMode = this.playback.isBoardMode;
   protected readonly isSeeking = this.playback.isSeeking;
+  protected readonly isEnteringBoardMode = this.playback.isEnteringBoardMode;
+  /**
+   * Whether a scene is being acted out, while the recording stands still and the board is left only
+   * by taking the scene in or throwing it away.
+   */
+  protected readonly isStaging = inject(ReplayStagingService).isStaging;
   protected readonly autoPlay = this.playback.autoPlay;
   protected readonly isAtStart = this.playback.isAtStart;
   protected readonly isAtEnd = this.playback.isAtEnd;
@@ -59,11 +68,20 @@ export class ReplayStageComponent {
     return reached;
   });
 
+  /**
+   * The line this reader was last shown where the recording stands: what they may not see, and the
+   * parts and lines kept to the board, are passed over, as the log leaves them out.
+   */
   protected readonly line = computed<ReplayLogLine | null>(() => {
-    const event = this.playback.currentEvent();
-    if (!event) return null;
-    const dictionary = this.playback.manifest() ?? EMPTY_REPLAY_DICTIONARY;
-    return toReplayLogLine(event, replayNamesAt(dictionary, event.seq));
+    const events = this.playback.events();
+    const viewer = { userId: PeerCursor.myCursor?.userId ?? '', role: PeerCursor.myRole };
+    for (let at = Math.min(this.cursor(), events.length - 1); at >= 0; at--) {
+      const event = events[at];
+      if (!isShownReplayEvent(event, viewer)) continue;
+      const dictionary = this.playback.manifest() ?? EMPTY_REPLAY_DICTIONARY;
+      return toReplayLogLine(event, replayNamesAt(dictionary, event.seq));
+    }
+    return null;
   });
 
   private wantedIndex: number | null = null;
@@ -93,8 +111,9 @@ export class ReplayStageComponent {
     await this.scrubTo(event);
   }
 
+  /** Steps as the buttons do, over what this reader is not shown. */
   protected async scrubKey(step: number): Promise<void> {
-    await this.playback.seekTo(this.cursor() + step);
+    await (step > 0 ? this.playback.next() : this.playback.previous());
   }
 
   private async scrubTo(event: PointerEvent): Promise<void> {

@@ -18,8 +18,8 @@ async function shadesOnBlocks(page: Page) {
   });
 }
 
-test.describe('暗闇のなかの地形', () => {
-  test('ブロックの面がテーブルの影の色で暗くなること', async ({ page }) => {
+test.describe('terrain in the dark', () => {
+  test('darkens the faces of a block with the colour of the table’s shadow', async ({ page }) => {
     await waitAppReady(page);
     const connection = page.locator('ui-panel').filter({ hasText: '接続情報' });
     await connection.getByRole('button', { name: /^\s*GM\s*$/ }).click();

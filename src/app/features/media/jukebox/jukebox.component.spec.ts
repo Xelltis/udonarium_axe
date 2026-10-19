@@ -417,7 +417,7 @@ describe('JukeboxComponent', () => {
       const audio = makeReadyAudio('stop-bgm-02');
       AudioStorage.instance.add(audio);
 
-      component.jukebox.audioIdentifier = 'other-audio'; // 異なる identifier
+      component.jukebox.audioIdentifier = 'other-audio'; // a different identifier
       const otherAudio = makeReadyAudio('other-audio');
       AudioStorage.instance.add(otherAudio);
 

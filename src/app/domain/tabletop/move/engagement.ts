@@ -1,7 +1,8 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { NO_ALLIANCE, PartyAlliance } from '@axe/domain/party/party-alliance';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellColRow, cellCount, CellGrid, cellIndexOf, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellColRow, cellCount, CellGrid, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellPxOf, forEachCellCovered } from '@axe/domain/tabletop/move/move-grid';
 import { forEachMoveNeighbour } from '@axe/domain/tabletop/move/move-neighbours';
 import { DEFAULT_HOSTILITY_BY, HostilityBy, isHostileTo } from '@axe/domain/tabletop/move/zone-of-control';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
@@ -296,9 +297,9 @@ function standingOn(grid: CellGrid, characters: readonly GameCharacter[]): Stand
   for (const piece of characters) {
     if (!piece.isVisibleOnTable || surfaceOf(piece) !== 'floor') continue;
     const cells: number[] = [];
-    const span = Math.max(1, piece.size) * grid.sizePx;
+    const span = Math.max(1, piece.size) * cellPxOf(grid);
     const { x, y } = piece.location;
-    forEachCellInBox(grid, x, y, x + span - 1, y + span - 1, (cell) => cells.push(cell));
+    forEachCellCovered(grid, x, y, x + span - 1, y + span - 1, (cell) => cells.push(cell));
     if (cells.length > 0) standing.push({ piece, cells });
   }
   return standing;

@@ -1,23 +1,23 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { pieceOf, targetNameOf } from '@axe/application/replay/replay-piece';
 import { ReplayPreferenceService } from '@axe/application/replay/replay-preference.service';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
+import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { keepStoragePersistent } from '@axe/core/storage/persistent-storage';
 import { ReplayLogStore, type ReplayRecordingMeta, selectExpiredRecordings } from '@axe/core/storage/replay-log-store';
 import type { ObjectContext } from '@axe/core/sync/game-object';
-import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { compressAsync } from '@axe/core/util/compress';
-import { DataElement } from '@axe/domain/data/data-element';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canMergeReplayEvents, mergeReplayEvents } from '@axe/domain/replay/replay-coalescer';
 import { encodeReplayEvents, encodeReplayManifest } from '@axe/domain/replay/replay-codec';
 import { cloneSyncData, type SyncData, syncValueOf } from '@axe/domain/replay/replay-diff';
 import {
-  GM_ONLY_VISIBILITY,
   PUBLIC_VISIBILITY,
   REPLAY_FORMAT_VERSION,
   type ReplayActorSnapshot,
@@ -28,7 +28,7 @@ import {
   type ReplayTargetSnapshot,
   type ReplayVisibility,
 } from '@axe/domain/replay/replay-event';
-import { REPLAY_PART_FLAG } from '@axe/domain/replay/replay-event-category';
+import { REPLAY_CAUGHT_UP_FLAG, REPLAY_PART_FLAG } from '@axe/domain/replay/replay-event-category';
 import {
   interpretObjectChange,
   interpretObjectRemove,
@@ -39,7 +39,11 @@ import {
   shouldDiffObjectChange,
 } from '@axe/domain/replay/replay-interpreter';
 import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
-import { visibilityOfDisclosure, visibilityOfSyncData } from '@axe/domain/replay/replay-visibility';
+import {
+  visibilityOfChatLine,
+  visibilityOfDisclosure,
+  visibilityOfSyncData,
+} from '@axe/domain/replay/replay-visibility';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export const REPLAY_CHUNK_EVENT_LIMIT = 500;
@@ -47,6 +51,7 @@ export const REPLAY_CHUNK_INTERVAL_MS = 30_000;
 export const REPLAY_KEYFRAME_INTERVAL_MS = 600_000;
 export const REPLAY_BASELINE_GRACE_MS = 5_000;
 const CHAT_ALIAS = 'chat';
+const PEER_CURSOR_ALIAS = 'PeerCursor';
 /** How far another browser's clock may run behind ours for a line it stamped to still count as new. */
 export const REPLAY_CLOCK_SKEW_MS = 2_000;
 export const REPLAY_RECENT_EVENT_LIMIT = 300;
@@ -105,6 +110,8 @@ export class ReplayRecorderService {
   private boardDirty = false;
   /** Who could see each object when it was last recorded, for judging its removal once it is gone. */
   private readonly lastVisibility = new Map<string, ReplayVisibility>();
+  /** The chat lines recorded as said, by name, so one handed back again is not told twice. */
+  private readonly linesSeen = new Set<string>();
   /**
    * The objects that are parts of a piece, whose arrival and removal are not told on their own,
    * each with the piece it belongs to, or empty where that piece has not been seen yet.
@@ -225,6 +232,7 @@ export class ReplayRecorderService {
     this.buffer = [];
     this.pending = null;
     this.shadows.clear();
+    this.linesSeen.clear();
     this.actors.clear();
     this.targets.clear();
     this.lastVisibility.clear();
@@ -285,6 +293,16 @@ export class ReplayRecorderService {
   }
 
   private handleMessage(eventName: string, data: unknown, sendFrom: string): void {
+    // The room server's own word on an object is a change like any other, and what it takes away
+    // is gone from the board like anything deleted.
+    if (eventName === AuthorityEvent.AUTHORITATIVE) {
+      eventName = 'UPDATE_GAME_OBJECT';
+    } else if (eventName === AuthorityEvent.WITHDRAW) {
+      // The synchronizer, which hears it first, names what it took away.
+      const withdrawn = data as { identifier: string; aliasName?: string };
+      eventName = 'DELETE_GAME_OBJECT';
+      data = { identifier: withdrawn.identifier, aliasName: withdrawn.aliasName ?? '' };
+    }
     if (isIgnoredReplayEvent(eventName)) return;
     const at = Date.now();
     this.boardDirty = true;
@@ -306,6 +324,9 @@ export class ReplayRecorderService {
       }
       const draft = interpretObjectRemove(context.identifier, context.aliasName);
       if (owner !== undefined) draft.detail[REPLAY_PART_FLAG] = true;
+      // What a room server takes away of its own accord, as what goes out of view or a cursor left
+      // behind, is the board's, not anyone's doing.
+      if (sendFrom === Network.authorityPeerId) draft.detail[REPLAY_CAUGHT_UP_FLAG] = true;
       this.push(draft, sendFrom, at);
       return;
     }
@@ -323,8 +344,9 @@ export class ReplayRecorderService {
       this.notePartOwner(context.identifier, after['parentIdentifier']);
     }
 
-    if (!before && at < this.baselineUntil && !this.isFreshArrival(context.aliasName, after, sendFrom)) return;
-    if (!shouldDiffObjectChange(this.preference.detailLevel(), context.aliasName, !before)) return;
+    const fresh = before !== null || this.isFreshArrival(context.aliasName, after, sendFrom);
+    if (!fresh && at < this.baselineUntil) return;
+    if (!shouldDiffObjectChange(this.preference.detailLevel(), context.aliasName)) return;
 
     const draft = interpretObjectChange({
       aliasName: context.aliasName,
@@ -336,7 +358,30 @@ export class ReplayRecorderService {
     if (!before && this.notePart(context.identifier, after, draft) && this.foldPartArrival(context.identifier, draft)) {
       return;
     }
-    this.push(draft, sendFrom, at);
+    if (!before && context.aliasName === CHAT_ALIAS) {
+      // A line said again under a name already recorded came back, as one taken out of view and
+      // handed back, and was told when first said.
+      const again = this.linesSeen.has(context.identifier);
+      this.linesSeen.add(context.identifier);
+      if (again || (!fresh && sendFrom === Network.authorityPeerId)) draft.detail[REPLAY_CAUGHT_UP_FLAG] = true;
+    }
+    this.push(draft, this.actorOf(context.aliasName, after, sendFrom, draft.detail['revealed'] === true), at);
+  }
+
+  /**
+   * Who did what a room server passes on as its own: a line, as a roll it made, by whoever said or
+   * asked for it, and a cursor it changed, as by a role it set, by whoever the cursor is. A secret
+   * roll made public is the roller's, whoever made it public. Anything else stays the sender's.
+   */
+  private actorOf(aliasName: string, after: SyncData, sendFrom: string, revealed = false): string {
+    if (sendFrom !== Network.authorityPeerId && !revealed) return sendFrom;
+    const speaker = [syncValueOf(after, 'originFrom'), syncValueOf(after, 'from')].find(
+      (userId): userId is string => typeof userId === 'string' && userId !== '' && !userId.startsWith('System')
+    );
+    if (aliasName === CHAT_ALIAS && speaker !== undefined) return PeerCursor.findByUserId(speaker)?.peerId ?? speaker;
+    const peerId = syncValueOf(after, 'peerId');
+    if (aliasName === PEER_CURSOR_ALIAS && typeof peerId === 'string' && peerId !== '') return peerId;
+    return sendFrom;
   }
 
   /**
@@ -346,7 +391,7 @@ export class ReplayRecorderService {
    */
   private notePartOwner(identifier: string, parentIdentifier: unknown): void {
     const parent = typeof parentIdentifier === 'string' ? this.objectStore.get(parentIdentifier) : null;
-    const owner = parent instanceof TabletopObject ? parent : ownerOf(parent);
+    const owner = parent instanceof TabletopObject ? parent : pieceOf(parent);
     if (owner) this.partOwners.set(identifier, owner.identifier);
     else this.partOwners.delete(identifier);
   }
@@ -398,7 +443,7 @@ export class ReplayRecorderService {
   private notePart(identifier: string, after: SyncData, draft: ReplayDraft): boolean {
     const parent = after['parentIdentifier'];
     const awaitsParent = typeof parent === 'string' && parent.length > 0 && !this.shadows.has(parent);
-    const owner = ownerOf(this.objectStore.get(identifier));
+    const owner = pieceOf(this.objectStore.get(identifier));
     if (!owner && !awaitsParent) return false;
     this.partOwners.set(identifier, owner?.identifier ?? '');
     draft.detail[REPLAY_PART_FLAG] = true;
@@ -542,7 +587,7 @@ export class ReplayRecorderService {
 
     if (!force) {
       await this.whenIdle();
-      if (this.recordingId !== id) return;
+      if (this.recordingId !== id || isNetworkIsolated()) return;
       if (this.pointerDevice.isDragging) {
         this.retryKeyframeLater();
         return;
@@ -611,9 +656,9 @@ export class ReplayRecorderService {
 
   private seedShadows(): void {
     for (const object of this.objectStore.getObjects()) {
-      const owner = ownerOf(object);
+      const owner = pieceOf(object);
       if (owner) this.partOwners.set(object.identifier, owner.identifier);
-      else if (object instanceof TabletopObject) this.namesAtStart.set(object.identifier, nameOf(object));
+      else if (object instanceof TabletopObject) this.namesAtStart.set(object.identifier, targetNameOf(object));
     }
     for (const snapshot of this.snapshotStore()) {
       this.shadows.set(snapshot.identifier, cloneSyncData(snapshot.syncData));
@@ -645,8 +690,17 @@ export class ReplayRecorderService {
     this._recentEvents.set([...this.recent]);
   }
 
+  /**
+   * Who did something, as they stand now: a new snapshot when their name, role or picture changed.
+   * One whose cursor is gone, as after leaving, is who they were when last seen under that id.
+   */
   private rememberActor(peerId: string): ReplayActorSnapshot {
     const cursor = PeerCursor.findByPeerId(peerId);
+    const seen = cursor
+      ? undefined
+      : (this.actors.get(peerId) ??
+        [...this.actors.values()].find((history) => history.some((snapshot) => snapshot.peerId === peerId)));
+    if (seen) return seen[seen.length - 1];
     const snapshot: ReplayActorSnapshot = {
       userId: cursor?.userId || peerId,
       peerId,
@@ -676,11 +730,11 @@ export class ReplayRecorderService {
     const object = this.objectStore.get(identifier);
     if (!object) return;
 
-    const owner = ownerOf(object);
+    const owner = pieceOf(object);
     const snapshot: ReplayTargetSnapshot = {
       identifier,
       aliasName: object.aliasName,
-      name: nameOf(object),
+      name: targetNameOf(object),
       ownerIdentifier: owner?.identifier,
       sinceSeq: this.seq + 1,
     };
@@ -695,13 +749,8 @@ export class ReplayRecorderService {
 
   private visibilityOf(draft: ReplayDraft): ReplayVisibility {
     if (draft.kind === ReplayEventKind.ChatMessage || draft.kind === ReplayEventKind.ChatDice) {
-      const to = String(draft.detail['to'] ?? '')
-        .trim()
-        .split(/\s+/)
-        .filter((userId) => userId.length > 0);
-      if (to.length > 0) return { kind: 'direct', to };
-      if (String(draft.detail['tag'] ?? '').includes('secret')) return GM_ONLY_VISIBILITY;
-      return PUBLIC_VISIBILITY;
+      const tab = this.objectStore.get(String(draft.detail['tabIdentifier'] ?? ''));
+      return visibilityOfChatLine(draft.detail, tab instanceof ChatTab ? tab : null);
     }
 
     const target = draft.targetIdentifier;
@@ -709,7 +758,7 @@ export class ReplayRecorderService {
     // Taken out of the room before the word arrived, it is judged as it was last seen.
     if (!object) return (target && this.lastVisibility.get(target)) || PUBLIC_VISIBILITY;
     // A part such as a piece's HP has no disclosure of its own and is kept as its piece is.
-    const holder = (isDisclosable(object) ? object : ownerOf(object)) as Disclosing | null;
+    const holder = (isDisclosable(object) ? object : pieceOf(object)) as Disclosing | null;
     const visibility = visibilityOfDisclosure(holder?.disclosureMode, holder?.disclosureUserIds);
     if (target) this.lastVisibility.set(target, visibility);
     return visibility;
@@ -767,19 +816,4 @@ interface Disclosing {
 
 function isDisclosable(object: unknown): boolean {
   return typeof object === 'object' && object !== null && 'disclosureMode' in object;
-}
-
-function ownerOf(object: unknown): ObjectNode | null {
-  if (!(object instanceof ObjectNode)) return null;
-  for (let current = object.parent; current; current = current.parent) {
-    if (current instanceof TabletopObject) return current;
-  }
-  return null;
-}
-
-function nameOf(object: unknown): string {
-  if (object instanceof TabletopObject) return object.name;
-  if (object instanceof DataElement) return String(object.getAttribute('name') ?? '');
-  const named = object as { name?: unknown };
-  return typeof named?.name === 'string' ? named.name : '';
 }

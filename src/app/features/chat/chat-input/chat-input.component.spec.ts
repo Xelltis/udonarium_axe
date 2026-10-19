@@ -3,8 +3,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
+import { Network } from '@axe/core/network/network';
+import { localDispatch } from '@axe/core/network/network-messaging';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
@@ -66,6 +70,68 @@ describe('ChatInputComponent', () => {
     return character;
   }
 
+  it('moves a whisper onto the cursor its target came back on, once the one it left is taken away', () => {
+    const before = new PeerCursor('bob-before');
+    before.initialize();
+    before.userId = 'user-bob';
+    const after = new PeerCursor('bob-after');
+    after.initialize();
+    after.userId = 'user-bob';
+    try {
+      component.sendTo = 'bob-before';
+
+      ObjectStore.instance.remove(before);
+      localDispatch('DELETE_GAME_OBJECT', { aliasName: PeerCursor.aliasName, identifier: 'bob-before' }, 'peer-b');
+
+      expect(component.sendTo).toBe('bob-after');
+    } finally {
+      ObjectStore.instance.remove(after);
+    }
+  });
+
+  it('sends a guest’s lines in the guest’s own colours, which their colour panel sets, not the piece’s', () => {
+    const character = speaker('ヒロ');
+    const role = PeerCursor.myCursor.role;
+    const colors = PeerCursor.myCursor.chatColorCode;
+    PeerCursor.myCursor.chatColorCode = ['#abcdef', '#abcdef', '#abcdef'];
+    try {
+      component.sendFrom = character.identifier;
+      expect(component.chatColor(0)).toBe('#111111');
+
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      expect(component.chatColor(0)).toBe('#abcdef');
+    } finally {
+      PeerCursor.myCursor.role = role;
+      PeerCursor.myCursor.chatColorCode = colors;
+      character.destroy();
+    }
+  });
+
+  it('sets a guest speaking as a piece the colours of their own lines, not the piece’s', () => {
+    const character = speaker('ヒロ');
+    const opened: { tabletopObject?: unknown }[] = [];
+    vi.spyOn(TestBed.inject(PanelService), 'open').mockImplementation(() => {
+      const panel = {};
+      opened.push(panel);
+      return panel as never;
+    });
+    const role = PeerCursor.myCursor.role;
+    try {
+      component.sendFrom = character.identifier;
+      component.showColorSetting();
+      expect(opened[0].tabletopObject).toBe(character);
+
+      vi.spyOn(TestBed.inject(PanelService), 'closeSingle').mockReturnValue(false);
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      component.showColorSetting();
+      expect(opened[1].tabletopObject).toBeNull();
+    } finally {
+      PeerCursor.myCursor.role = role;
+      character.destroy();
+      vi.restoreAllMocks();
+    }
+  });
+
   it('should create', () => {
     expect(component).toBeTruthy();
   });
@@ -115,6 +181,55 @@ describe('ChatInputComponent', () => {
       await speakAs(withPortraits(1));
 
       expect(slider()).toBeNull();
+    });
+  });
+
+  describe('the seats to whisper to', () => {
+    it('offers on a room server this seat and the seats logged in, and no seat whose id anybody may take', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const guest = new PeerCursor();
+      guest.initialize();
+      guest.userId = 'guest-tab';
+      guest.role = PeerRole.Guest;
+      const player = new PeerCursor();
+      player.initialize();
+      player.userId = 'acct_player';
+      player.role = PeerRole.Player;
+      try {
+        expect(component.otherPeers).toContain(PeerCursor.myCursor);
+        expect(component.otherPeers).toContain(player);
+        expect(component.otherPeers).not.toContain(guest);
+      } finally {
+        guest.destroy();
+        player.destroy();
+      }
+    });
+
+    it('keeps offering on a room server the seat already whispered to, so that it can be put back to everyone', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      const guest = new PeerCursor();
+      guest.initialize();
+      guest.userId = 'old-account';
+      guest.role = PeerRole.Guest;
+      try {
+        component.sendTo = guest.identifier;
+        expect(component.otherPeers).toContain(guest);
+      } finally {
+        guest.destroy();
+      }
+    });
+
+    it('offers among peers every seat', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
+      const guest = new PeerCursor();
+      guest.initialize();
+      guest.userId = 'guest-tab';
+      guest.role = PeerRole.Guest;
+      try {
+        expect(component.otherPeers).toContain(guest);
+      } finally {
+        guest.destroy();
+      }
     });
   });
 
@@ -391,6 +506,17 @@ describe('ChatInputComponent', () => {
       component.sendChat(null);
 
       expect((await outgoing).toTicker).toBe(true);
+    });
+
+    it('offers a guest no ticker, the band being on everybody else’s screen', () => {
+      TestBed.inject(TabletopDisplayService).set({ multiAngleTickerEnabled: true });
+      TestBed.inject(ViewModePreferenceService).choose('flat');
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeNull();
+      expect(component.showsTickerSwitch()).toBe(false);
     });
 
     it('sends as the character that was picked with its own colours', async () => {

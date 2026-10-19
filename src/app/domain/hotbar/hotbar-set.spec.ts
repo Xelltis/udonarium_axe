@@ -54,6 +54,23 @@ describe('carrying a hotbar between rooms', () => {
     expect(mine.slotAt(2, 5)?.argument).toBe('2d6+3 攻撃');
   });
 
+  it('carries a menu slot with the entry it presses and nothing for a chat line to send', () => {
+    const theirs = new Hotbar('Hotbar_someone-else');
+    theirs.ownerUserId = 'someone-else';
+    theirs.initialize();
+    const draft = emptyHotbarSlotDraft('menu');
+    draft.payload = { kind: 'menu', command: 'jukebox' };
+    theirs.put(0, 2, draft);
+    const xml = serializer.toXml(HotbarSet.of(theirs));
+
+    serializer.parseXml(xml);
+
+    const slot = myHotbar().slotAt(0, 2);
+    expect(slot?.slotKind).toBe('menu');
+    expect(slot?.options).toEqual({ kind: 'menu', command: 'jukebox' });
+    expect(slot?.argument).toBe('');
+  });
+
   it('puts away what the bar held, so the file is what the reader gets', () => {
     const hotbar = myHotbar();
     const standing = emptyHotbarSlotDraft('chat');

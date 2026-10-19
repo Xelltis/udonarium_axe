@@ -1,0 +1,106 @@
+{
+  "description": "HTTP の要求と返事の例。サーバーのテストは、実際の返事が同じ形（キーと値の型）であることを確かめる。値は例",
+  "createRoomRequest": {
+    "name": "Friday table",
+    "password": "s3cret"
+  },
+  "createRoomResponse": {
+    "roomKey": "0123456789abcdef0123456789abcdef",
+    "roomId": "a1B"
+  },
+  "roomList": {
+    "rooms": [
+      {
+        "roomKey": "0123456789abcdef0123456789abcdef",
+        "roomId": "a1B",
+        "name": "Friday table",
+        "hasPassword": true,
+        "members": 3,
+        "deletable": true
+      },
+      {
+        "roomKey": "fedcba9876543210fedcba9876543210",
+        "roomId": "Zz9",
+        "name": "Open table",
+        "hasPassword": false,
+        "members": 0
+      }
+    ]
+  },
+  "room": {
+    "room": {
+      "roomKey": "0123456789abcdef0123456789abcdef",
+      "roomId": "a1B",
+      "name": "Friday table",
+      "hasPassword": true,
+      "members": 3,
+      "deletable": true
+    }
+  },
+  "authConfig": {
+    "providers": ["discord"]
+  },
+  "tokenRequestLoginCode": {
+    "grant_type": "login_code",
+    "code": "a.b.c",
+    "code_verifier": "verifier-0123456789"
+  },
+  "tokenRequestRefresh": {
+    "grant_type": "refresh_token",
+    "refresh_token": "a.b.c"
+  },
+  "tokenResponse": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.sig",
+    "expiresIn": 900,
+    "refreshToken": "ZGlzY29yZDox.id.secret",
+    "account": {
+      "userId": "acct_0f9e8d7c-6b5a-4938-2716-0504f3e2d1c0",
+      "name": "Kai",
+      "avatarUrl": "https://cdn.discordapp.com/avatars/1/a.png"
+    }
+  },
+  "account": {
+    "userId": "acct_0f9e8d7c-6b5a-4938-2716-0504f3e2d1c0",
+    "name": "Kai",
+    "avatarUrl": null
+  },
+  "roomAssetList": {
+    "assets": [
+      {
+        "id": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+        "type": "image/png",
+        "size": 1024,
+        "name": "dragon.png"
+      }
+    ]
+  },
+  "assetStored": {
+    "id": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    "status": "stored"
+  },
+  "assetExists": {
+    "id": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    "status": "exists"
+  },
+  "uploadTicketRequest": {
+    "size": 6291456,
+    "name": "theme.ogg"
+  },
+  "uploadTicket": {
+    "ticket": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.sig",
+    "upload": {
+      "url": "https://vercel.com/api/blob/?pathname=uploads%2F0123456789abcdef0123456789abcdef%2F9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08%2Fn&vercel-blob-signature=sig",
+      "method": "PUT",
+      "headers": {
+        "x-vercel-blob-access": "private"
+      },
+      "expiresAt": 1792000600000
+    }
+  },
+  "uploadComplete": {
+    "ticket": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.sig"
+  },
+  "error": {
+    "error": "room-not-found"
+  }
+}

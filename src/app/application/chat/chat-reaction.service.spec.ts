@@ -1,11 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatReactionService } from '@axe/application/chat/chat-reaction.service';
+import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -64,6 +66,21 @@ describe('ChatReactionService', () => {
     expect(service.toggle(message, 'sfx:creepy')).toBe(false);
     expect(service.toggle(message, 'seal:ok')).toBe(false);
     expect(records()).toHaveLength(0);
+  });
+
+  it('puts no stamp on for a guest on a room server, which the server would take back, but does among peers', () => {
+    const message = line();
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+
+    expect(service.mayReact).toBe(false);
+    expect(service.toggle(message, 'seal:ok')).toBe(false);
+    expect(records()).toHaveLength(0);
+
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+    expect(service.mayReact).toBe(true);
+    expect(service.toggle(message, 'seal:ok')).toBe(true);
+    vi.restoreAllMocks();
   });
 
   it("never writes to anybody else's record", () => {

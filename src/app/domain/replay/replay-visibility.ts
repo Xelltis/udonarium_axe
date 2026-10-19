@@ -1,6 +1,8 @@
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
+import { syncValueOf } from '@axe/domain/replay/replay-diff';
 import {
   GM_ONLY_VISIBILITY,
+  PLAYERS_VISIBILITY,
   PUBLIC_VISIBILITY,
   type ReplayEvent,
   ReplayEventKind,
@@ -10,6 +12,11 @@ import {
 } from '@axe/domain/replay/replay-event';
 import type { ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 
+const CHAT_TAB_ALIAS = 'chat-tab';
+
+/** The kinds that are lines said in a tab. */
+const CHAT_LINE_KINDS: ReadonlySet<ReplayEventKind> = new Set([ReplayEventKind.ChatMessage, ReplayEventKind.ChatDice]);
+
 /** Who may see an object with this disclosure: the game master only, the chosen users, or everyone. */
 export function visibilityOfDisclosure(mode: unknown, userIds: unknown): ReplayVisibility {
   if (mode === DisclosureMode.GameMaster) return GM_ONLY_VISIBILITY;
@@ -18,6 +25,61 @@ export function visibilityOfDisclosure(mode: unknown, userIds: unknown): ReplayV
   }
   return PUBLIC_VISIBILITY;
 }
+
+/**
+ * Who may see a chat line as it was said: the speaker and the game master for a secret roll, even
+ * one whispered, as its words were kept from the one it was whispered to; those it was whispered to,
+ * with its speaker; and otherwise those who may read its tab then.
+ */
+export function visibilityOfChatLine(
+  detail: Readonly<Record<string, unknown>>,
+  tab: { plCanView: boolean; guestCanView: boolean } | null
+): ReplayVisibility {
+  const to = String(detail['to'] ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter((userId) => userId.length > 0);
+  if (String(detail['tag'] ?? '').includes('secret')) return { kind: 'direct', to: [] };
+  if (to.length > 0) return { kind: 'direct', to };
+  if (tab && !tab.plCanView) return GM_ONLY_VISIBILITY;
+  if (tab && !tab.guestCanView) return PLAYERS_VISIBILITY;
+  return PUBLIC_VISIBILITY;
+}
+
+/**
+ * Keeps the lines of a recording made before tabs' views were recorded to those who could read
+ * their tab, as the tabs stood on the board when recording began. A line in a tab made later stays
+ * as it was recorded. A secret roll whispered to somebody, which such a recording kept to them too,
+ * goes to its roller and the game master alone.
+ */
+export function keepOlderLinesAsSeen(
+  events: readonly ReplayEvent[],
+  board: readonly ReplayObjectSnapshot[]
+): ReplayEvent[] {
+  const tabs = new Map(
+    board
+      .filter((snapshot) => snapshot.aliasName === CHAT_TAB_ALIAS)
+      .map((snapshot) => [
+        snapshot.identifier,
+        {
+          plCanView: isTrue(syncValueOf(snapshot.syncData, 'plCanView')),
+          guestCanView: isTrue(syncValueOf(snapshot.syncData, 'guestCanView')),
+        },
+      ])
+  );
+  return events.map((event) => {
+    if (!CHAT_LINE_KINDS.has(event.kind) || event.visibility.kind === 'gm-only') return event;
+    const visibility = visibilityOfChatLine(
+      event.detail,
+      tabs.get(String(event.detail['tabIdentifier'] ?? '')) ?? null
+    );
+    const narrower = visibility.kind === 'direct' ? visibility.to.length === 0 : visibility.kind !== 'public';
+    return narrower ? { ...event, visibility } : event;
+  });
+}
+
+/** Whether a synced flag is on, as a missing one is by default. */
+const isTrue = (value: unknown): boolean => value !== false && value !== 'false';
 
 /** Who may see an object, read from its synced state: the disclosure among its attributes, or none. */
 export function visibilityOfSyncData(syncData: Readonly<Record<string, unknown>>): ReplayVisibility {

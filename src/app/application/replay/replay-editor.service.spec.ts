@@ -124,6 +124,11 @@ const base: ReplayObjectSnapshot[] = [
   { identifier: 'c1', aliasName: 'character', syncData: { attributes: { location: { x: 0, y: 0 } } } },
 ];
 
+/** The rows by sequence number, and those put in by what they say, as putting them in numbers them afresh. */
+function rowsOf(events: readonly ReplayEvent[]): (number | string)[] {
+  return events.map((event) => (event.seq >= 5 ? String(event.detail['text']) : event.seq));
+}
+
 describe('ReplayEditorService', () => {
   const events = [chat(1, '一'), move(2, 10, 0), chat(3, '三'), move(4, 20, 10)];
 
@@ -143,6 +148,26 @@ describe('ReplayEditorService', () => {
     expect(service.isEditing()).toBe(true);
     expect(service.isDirty()).toBe(false);
     expect(service.edited().map((e) => e.seq)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('puts events made already after the row named, wherever it has moved', () => {
+    const scene = { ...chat(90, '場面'), seq: 90 };
+    service.move(3, -1);
+
+    service.insertManyAfter(3, 3, [scene]);
+
+    expect(rowsOf(service.edited())).toEqual([1, 3, '場面', 2, 4]);
+  });
+
+  it('puts them at the place given once the row named is gone, and at the start for none', () => {
+    const scene = { ...chat(90, '場面'), seq: 90 };
+    const opening = { ...chat(91, '幕開け'), seq: 91 };
+    service.remove(3);
+
+    service.insertManyAfter(3, 2, [scene]);
+    service.insertManyAfter(null, 4, [opening]);
+
+    expect(rowsOf(service.edited())).toEqual(['幕開け', 1, 2, '場面', 4]);
   });
 
   it('remembers what was deleted', () => {
@@ -200,6 +225,34 @@ describe('ReplayEditorService', () => {
     });
     expect(service.isInserted(service.edited()[0].seq)).toBe(true);
     expect(service.isInserted(service.edited()[1].seq)).toBe(false);
+  });
+
+  it('counts as saving from the moment it is asked, the board still being read, and holds the rows still meanwhile', async () => {
+    let read!: (board: typeof base) => void;
+    const saving = service.saveAsDerived(manifest, () => new Promise((resolve) => (read = resolve)));
+
+    expect(service.isSaving()).toBe(true);
+    service.remove(2);
+    service.undo();
+    expect(service.edited().map((e) => e.seq)).toEqual([1, 2, 3, 4]);
+
+    read(base);
+    expect(await saving).not.toBeNull();
+    expect(service.isSaving()).toBe(false);
+  });
+
+  it('never gives a number taken back with a row to the next row written in, which a scene waiting after it would follow', () => {
+    const draft = { kind: ReplayEventKind.Marker, actorId: 'gm', speaker: '', text: '', tabIdentifier: 'tab1' };
+    service.insert(2, { ...draft, text: '書き足し' });
+    const first = service.edited()[2].seq;
+    service.remove(first);
+    service.remove(4);
+
+    service.insert(4, { ...draft, text: 'もう一つ' });
+
+    const second = service.edited().find((e) => e.detail['label'] === 'もう一つ')!.seq;
+    expect(second).not.toBe(first);
+    expect(second).not.toBe(4);
   });
 
   it('keeps an inserted line when saving', async () => {

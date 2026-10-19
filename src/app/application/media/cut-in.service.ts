@@ -84,7 +84,7 @@ export class CutInService {
     if (!target) return;
 
     if (isSoundOnly) {
-      launcher.startSoundOnlyCutIn(target, sendTo);
+      this.launchSoundOnly(target, sendTo);
     } else {
       this.launch(target, sendTo, speaker);
     }
@@ -107,11 +107,12 @@ export class CutInService {
 
   /**
    * Plays a cut-in for everyone, handling the music the same way a chat-started one does, for
-   * `speaker` where given.
+   * `speaker` where given. A guest on a room server plays none, since the server would take back
+   * the launcher and the music and the cut-in would only play here.
    */
   launch(cutIn: CutIn, sendTo = '', speaker: CutInSpeaker | null = null): boolean {
     const launcher = this.objectStore.get<CutInLauncher>('CutInLauncher');
-    if (!launcher) return false;
+    if (!launcher || PeerCursor.isMyselfKeptOffTable) return false;
 
     if (this.isCutInBgmUploaded(cutIn.audioIdentifier) && cutIn.tagName === '') {
       this.objectStore.get<Jukebox>('Jukebox')?.stop();
@@ -120,10 +121,13 @@ export class CutInService {
     return true;
   }
 
-  /** Plays only what a cut-in sounds like, the way a chat line ending in `@` asks for. */
+  /**
+   * Plays only what a cut-in sounds like, the way a chat line ending in `@` asks for; as with
+   * `launch`, not for a guest on a room server.
+   */
   launchSoundOnly(cutIn: CutIn, sendTo = ''): boolean {
     const launcher = this.objectStore.get<CutInLauncher>('CutInLauncher');
-    if (!launcher) return false;
+    if (!launcher || PeerCursor.isMyselfKeptOffTable) return false;
 
     launcher.startSoundOnlyCutIn(cutIn, sendTo);
     return true;

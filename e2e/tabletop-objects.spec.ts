@@ -8,13 +8,13 @@ async function createObject(page: Page, menuName: string, selector: string) {
   await expect(page.locator(selector).first()).toBeAttached({ timeout: 10000 });
 }
 
-test.describe('共有メモ (text-note)', () => {
+test.describe('shared notes (text-note)', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await createObject(page, '共有メモを作成', 'text-note');
   });
 
-  test('右クリックメニューに「メモを編集」「コピーを作る」が出ること', async ({ page }) => {
+  test('offers "edit note" and "make a copy" in the right-click menu', async ({ page }) => {
     await page.locator('text-note').first().dispatchEvent('contextmenu');
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
@@ -22,7 +22,7 @@ test.describe('共有メモ (text-note)', () => {
     await expect(menu.getByText('コピーを作る')).toBeVisible();
   });
 
-  test('コピーで text-note が増えること', async ({ page }) => {
+  test('adds a text-note on copy', async ({ page }) => {
     const before = await page.locator('text-note').count();
     await page.locator('text-note').first().dispatchEvent('contextmenu');
     await expect(page.locator('context-menu').locator('li').first()).toBeVisible({ timeout: 5000 });
@@ -30,7 +30,7 @@ test.describe('共有メモ (text-note)', () => {
     await expect.poll(() => page.locator('text-note').count(), { timeout: 5000 }).toBeGreaterThan(before);
   });
 
-  test('「寝かせる」が直後に「直立させる」へ切り替わること', async ({ page }) => {
+  test('turns "lay down" into "stand up" right after it is chosen', async ({ page }) => {
     await page.locator('text-note').first().dispatchEvent('contextmenu');
     await expect(page.locator('context-menu').locator('li').first()).toBeVisible({ timeout: 5000 });
     await page.locator('context-menu').getByText('寝かせる').click();
@@ -39,23 +39,23 @@ test.describe('共有メモ (text-note)', () => {
   });
 });
 
-test.describe('マップマスク (game-table-mask)', () => {
+test.describe('map masks (game-table-mask)', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await createObject(page, 'マップマスクを作成', 'game-table-mask');
   });
 
-  test('右クリックメニューに「スクラッチ開始」が出ること', async ({ page }) => {
+  test('offers "start scratch" in the right-click menu', async ({ page }) => {
     await page.locator('game-table-mask').first().dispatchEvent('contextmenu');
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await expect(menu.getByText('スクラッチ開始')).toBeVisible();
   });
 
-  test('「スクラッチ開始」後はコンテキストメニュー項目が「スクラッチ確定」に切り替わること', async ({ page }) => {
-    // onStartScratchはmask.ownerを自分のuserIdにするだけで、scratch-mask要素は
-    // 実際にユーザーがドラッグしてから初めて発生する。所有権が自分になったことは、
-    // 次回のコンテキストメニューに「スクラッチ確定」が出ることで確認できる。
+  test('turns the context menu entry into "confirm scratch" after "start scratch"', async ({ page }) => {
+    // onStartScratch only sets mask.owner to one's own userId; the scratch-mask element comes about
+    // only once the user actually drags. That the mask is now one's own shows in the next context menu
+    // offering "confirm scratch".
     await page.locator('game-table-mask').first().dispatchEvent('contextmenu');
     await expect(page.locator('context-menu').locator('li').first()).toBeVisible({ timeout: 5000 });
     await page.locator('context-menu').getByText('スクラッチ開始').click();
@@ -64,20 +64,20 @@ test.describe('マップマスク (game-table-mask)', () => {
   });
 });
 
-test.describe('地形 (terrain)', () => {
+test.describe('terrain', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await createObject(page, '地形を作成', 'terrain');
   });
 
-  test('右クリックメニューに「傾斜」サブメニューがあること', async ({ page }) => {
+  test('has a "slope" submenu in the right-click menu', async ({ page }) => {
     await page.locator('terrain').first().dispatchEvent('contextmenu');
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await expect(menu.getByText('傾斜')).toBeVisible();
   });
 
-  test('透明にした地形を GM が天面から掴んで動かせること', async ({ page }) => {
+  test('lets the GM grab terrain made see-through by its top and move it', async ({ page }) => {
     await page
       .locator('ui-panel')
       .filter({ hasText: '接続情報' })
@@ -100,7 +100,7 @@ test.describe('地形 (terrain)', () => {
     await expect.poll(placed).not.toBe(before);
   });
 
-  test('「傾斜」サブメニューに「壁を非表示」項目が出ること', async ({ page }) => {
+  test('offers "hide walls" in the "slope" submenu', async ({ page }) => {
     await page.locator('terrain').first().dispatchEvent('contextmenu');
     await expect(page.locator('context-menu').locator('li').first()).toBeVisible({ timeout: 5000 });
     await page.locator('context-menu').getByText('傾斜').hover();

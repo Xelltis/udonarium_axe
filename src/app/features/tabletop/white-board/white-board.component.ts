@@ -10,7 +10,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { ObjectStore } from '@axe/core/sync/object-store';
+import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_DESERIALIZE_SCENE, perfCounters } from '@axe/core/util/perf-counters';
 import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -291,6 +291,7 @@ export class WhiteBoardComponent {
       width: 960,
       height: 640,
       single: `white-board-${board.identifier}`,
+      stillWanted: () => isInStore(board),
     };
     this.panelService.openLazy(
       () =>

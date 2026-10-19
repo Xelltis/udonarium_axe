@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { CardGameService } from '@axe/application/card/card-game.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -21,10 +22,13 @@ describe('CardGameService', () => {
     return card;
   }
 
+  let linked: string[];
+
   function peer(userId: string, name: string, role: PeerRole = PeerRole.Player): PeerCursor {
     const cursor = new PeerCursor();
     cursor.userId = userId;
     cursor.peerId = `peer-${userId}`;
+    linked.push(cursor.peerId);
     cursor.name = name;
     cursor.role = role;
     cursor.initialize();
@@ -45,6 +49,8 @@ describe('CardGameService', () => {
     PeerCursor.myCursor.name = 'わたし';
     PeerCursor.myCursor.role = PeerRole.Player;
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    linked = [];
+    vi.spyOn(Network, 'peerIds', 'get').mockImplementation(() => [...linked]);
     service = TestBed.inject(CardGameService);
     sendSystemMessage = vi
       .spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage')
@@ -85,6 +91,23 @@ describe('CardGameService', () => {
       expect(new Set(orders).size).toBe(orders.length);
     });
 
+    it('deals once to a seat that loaded the page again, and nothing to one gone', () => {
+      const before = peer('again', 'さいど');
+      const after = peer('again', 'さいど');
+      const gone = peer('gone', 'たいしつ');
+      linked.splice(linked.indexOf(gone.peerId), 1);
+      expect(before.peerId).toBe(after.peerId);
+      const stack = CardStack.create('山札');
+      created.push(stack);
+      for (const code of ['s01', 's02', 's03', 's04']) stack.putOnBottom(trumpCard(code));
+
+      const result = service.dealAll(stack);
+
+      expect(result.participants).toBe(2);
+      expect(service.handCardsOf('again')).toHaveLength(2);
+      expect(service.handCardsOf('gone')).toHaveLength(0);
+    });
+
     it('deals nothing to an onlooker', () => {
       peer('guest', 'けんがく', PeerRole.Guest);
       const stack = CardStack.create('山札');
@@ -108,6 +131,17 @@ describe('CardGameService', () => {
       expect(card.location.name).toBe(handLocationOf('me'));
       expect(service.handCardsOf('other')).toHaveLength(0);
       expect(sendSystemMessage).toHaveBeenCalledOnce();
+    });
+
+    it('moves nothing for a guest, who holds no cards', () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      const card = trumpCard('s07');
+      card.toHand('other');
+
+      expect(service.drawFromHand(card, 'あいて')).toBe(false);
+
+      expect(card.location.name).toBe(handLocationOf('other'));
+      expect(sendSystemMessage).not.toHaveBeenCalled();
     });
   });
 
@@ -186,6 +220,14 @@ describe('CardGameService', () => {
       spoke('gone', 'さいごの名前', 2000);
 
       expect(service.absentHands()).toEqual([{ userId: 'gone', name: 'さいごの名前', count: 2 }]);
+    });
+
+    it('counts as absent on a room server a hand held for one there only as a guest, who holds no cards', () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      peer('claimed', 'なりすまし', PeerRole.Guest);
+      heldBy('claimed', 's01');
+
+      expect(service.absentHands().map((hand) => hand.userId)).toEqual(['claimed']);
     });
 
     it('looks for the names again as lines are said, and not each time a card moves', () => {

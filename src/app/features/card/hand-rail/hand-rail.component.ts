@@ -29,7 +29,6 @@ import { findTrumpPairs } from '@axe/domain/card/trump-card';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
-import { HandDrawPanelComponent } from '@axe/features/card/hand-draw/hand-draw-panel.component';
 import { elementsAt } from '@axe/features/card/hand-rail/elements-at';
 import { buildCardReceiverMenu, buildPlayDroppedCardMenu } from '@axe/features/card/hand-rail/hand-card-context-menu';
 import { reorderHandCards, selectHandCards } from '@axe/features/card/hand-rail/hand-cards';
@@ -221,8 +220,9 @@ export class HandRailComponent {
 
   protected readonly pairCount = computed(() => findTrumpPairs(this.cards()).length);
 
-  /** The other participants a card from this hand can be given to. */
+  /** The other participants a card from this hand can be given to, as they come and go from the room. */
   protected readonly giveTargets = computed<CardSeat[]>(() => {
+    this.objectChange.networkVersion();
     this.objectChange.collectionOf(PeerCursor.aliasName)();
     this.objectChange.trackMyCursor();
     for (const cursor of this.objectStore.getObjects<PeerCursor>(PeerCursor)) {
@@ -242,11 +242,10 @@ export class HandRailComponent {
   }
 
   protected openDrawPanel(): void {
-    this.panelService.open(HandDrawPanelComponent, {
-      title: this.t('feature.card.drawPanel.title'),
-      width: 420,
-      height: 380,
-    });
+    this.panelService.openLazy(
+      () => import('@axe/features/card/hand-draw/hand-draw-panel.component').then((m) => m.HandDrawPanelComponent),
+      { title: this.t('feature.card.drawPanel.title'), width: 420, height: 380 }
+    );
   }
 
   protected discardPairs(): void {

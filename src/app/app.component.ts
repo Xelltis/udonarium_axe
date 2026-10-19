@@ -38,7 +38,7 @@ import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
-import { PanelService } from '@axe/application/ui/panel.service';
+import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SkinService } from '@axe/application/ui/skin.service';
@@ -49,12 +49,15 @@ import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.s
 import { Network } from '@axe/core/network/network';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
-import { MENU_SURFACES } from '@axe/domain/ui/menu-command';
+import { MENU_SURFACES, MenuCommand } from '@axe/domain/ui/menu-command';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
+import type { Vote } from '@axe/domain/vote/vote';
 import { AlarmEventHandlerService } from '@axe/features/alarm/alarm-event-handler.service';
 import { ButtonGuideEventHandlerService } from '@axe/features/button-guide/button-guide-event-handler.service';
+import { CardEventHandlerService } from '@axe/features/card/card-event-handler.service';
 import { CardStackListImageComponent } from '@axe/features/card/card-stack-list-img/card-stack-list-img.component';
 import { HandDragGhostComponent } from '@axe/features/card/hand-rail/hand-drag-ghost.component';
 import { HandRailComponent } from '@axe/features/card/hand-rail/hand-rail.component';
@@ -64,7 +67,6 @@ import { ChatSettingsEventHandlerService } from '@axe/features/chat/chat-setting
 import { ChatSoundEventHandlerService } from '@axe/features/chat/chat-sound-event-handler.service';
 import { ChatTickerComponent } from '@axe/features/chat/chat-ticker/chat-ticker.component';
 import { DiceChatEventHandlerService } from '@axe/features/dice/dice-chat-event-handler.service';
-import { DiceSymbolCreateDialogComponent } from '@axe/features/dice/dice-symbol-create-dialog/dice-symbol-create-dialog.component';
 import { DiceThrowEventHandlerService } from '@axe/features/dice/dice-throw-event-handler.service';
 import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-event-handler.service';
 import { FilesTooLargeEventHandlerService } from '@axe/features/file/files-too-large/files-too-large-event-handler.service';
@@ -72,6 +74,9 @@ import { FirstPersonViewComponent } from '@axe/features/first-person/first-perso
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
 import { NpcDragGhostComponent } from '@axe/features/gm-tools/npc-bar/npc-drag-ghost.component';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
+import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
+import { ShortcutSheetComponent } from '@axe/features/keyboard/shortcut-sheet.component';
+import { TabletopShortcutEventHandlerService } from '@axe/features/keyboard/tabletop-shortcut-event-handler.service';
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
 import { NetworkIndicatorComponent } from '@axe/features/lobby/network-indicator/network-indicator.component';
@@ -79,6 +84,7 @@ import { BeatLightComponent } from '@axe/features/media/beat-light/beat-light.co
 import { CutInEventHandlerService } from '@axe/features/media/cut-in-event-handler.service';
 import { MiniJukeboxComponent } from '@axe/features/media/mini-jukebox/mini-jukebox.component';
 import { MixEventHandlerService } from '@axe/features/media/mix-event-handler.service';
+import { TurnSoundEventHandlerService } from '@axe/features/media/turn-sound/turn-sound-event-handler.service';
 import {
   isMenuGroupView,
   MenuCommandService,
@@ -104,6 +110,7 @@ import { ImageDropEventHandlerService } from '@axe/features/tabletop/image-drop/
 import { InterruptPromptComponent } from '@axe/features/tabletop/interrupt-prompt/interrupt-prompt.component';
 import { MovePlanBandComponent } from '@axe/features/tabletop/move-plan-band/move-plan-band.component';
 import { MovePlanEventHandlerService } from '@axe/features/tabletop/table-move-range-overlay/move-plan-event-handler.service';
+import { VisualNovelEventHandlerService } from '@axe/features/visual-novel/visual-novel-event-handler.service';
 import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { VisualNovelOverlayComponent } from '@axe/features/visual-novel/visual-novel-overlay/visual-novel-overlay.component';
 import { VoteEventHandlerService } from '@axe/features/vote/vote-event-handler.service';
@@ -164,6 +171,7 @@ const FAB_MARGIN_PX = 12;
     VoteWidgetComponent,
     HotbarBarComponent,
     MobileShellComponent,
+    ShortcutSheetComponent,
     RoomRestoreBannerComponent,
     ReplayStagingBannerComponent,
     ReplayIndicatorComponent,
@@ -252,6 +260,7 @@ export class AppComponent {
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly pointers = inject(PointerDeviceService);
   private readonly confirm = inject(ConfirmService);
+  private readonly hotbarFill = inject(HotbarFillService);
 
   /**
    * The way back into the menus, from the drawer's own button.
@@ -362,6 +371,12 @@ export class AppComponent {
   /** The ticker is drawn for the screens that asked for it, and not fetched for the rest. */
   protected readonly tickerWanted = computed(() => this.tabletop.display().multiAngleTickerEnabled);
 
+  /** The vote widget is fetched once somebody has called a vote, and not for a table that never does. */
+  protected readonly voteCalled = computed(() => {
+    this.objectChange.versionOf('Vote')();
+    return (this.objectStore.get<Vote>('Vote')?.initTimeStamp ?? 0) > 0;
+  });
+
   /**
    * Opens a small menu of the drawer, or does what one of its own entries is for.
    *
@@ -391,6 +406,29 @@ export class AppComponent {
   }
 
   protected readonly isGroup = isMenuGroupView;
+
+  /**
+   * Offers to put an entry of the drawer on the hotbar, where a key presses it.
+   *
+   * An entry that draws a menu of its own has nothing a slot could press, so it offers nothing and
+   * the browser's own menu is left alone.
+   */
+  protected onFabEntryContextMenu(event: MouseEvent, entry: MenuEntryView): void {
+    if (entry.command.action.kind === 'custom' || !this.pointers.isAllowedToOpenContextMenu) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuService.open(
+      this.pointers.pointers[0],
+      [{ name: this.t('feature.hotbar.menu.fillFromHere'), action: () => this.putOnHotbar(entry.command) }],
+      this.fabNodeLabel(entry)
+    );
+  }
+
+  private putOnHotbar(command: MenuCommand): void {
+    const draft = emptyHotbarSlotDraft('menu');
+    draft.payload = { kind: 'menu', command: command.key };
+    this.hotbarFill.fill(draft);
+  }
 
   /**
    * What is written in the bubble beside an entry.
@@ -435,13 +473,17 @@ export class AppComponent {
     // so there is nothing to hold onto here — the injection is the point.
     inject(AlarmEventHandlerService);
     inject(ButtonGuideEventHandlerService);
+    inject(TabletopShortcutEventHandlerService);
     inject(DiceChatEventHandlerService);
     inject(DiceThrowEventHandlerService);
     inject(DiceThrowService);
     inject(ChatSettingsEventHandlerService);
     inject(ChatSoundEventHandlerService);
+    inject(TurnSoundEventHandlerService);
     inject(EffectChatEventHandlerService);
     inject(VoteEventHandlerService);
+    inject(CardEventHandlerService);
+    inject(VisualNovelEventHandlerService);
     inject(CutInEventHandlerService);
     inject(MixEventHandlerService);
     inject(NetworkEventHandlerService);
@@ -462,6 +504,7 @@ export class AppComponent {
 
     const reloadNotice = inject(ReloadNoticeService);
     PanelService.loadFailureNotice = () => reloadNotice.tellReloadNeeded();
+    this.fileArchiver.onCodeUnavailable = () => reloadNotice.tellReloadNeeded();
     TooltipDirective.loadTooltipPanelComponent = reloadNotice.noticingFailure(() =>
       import('@axe/features/inventory/overview-panel/overview-panel.component').then((m) => m.OverviewPanelComponent)
     );
@@ -472,16 +515,14 @@ export class AppComponent {
         ModalService.defaultParentViewContainerRef =
         ContextMenuService.defaultParentViewContainerRef =
           this.modalLayerViewContainerRef();
-      this.roomPanels.open('peerMenu', { left: 80, top: 10 });
-      if (this.viewport.isCompact()) return;
-
-      const chatHeight = 460;
-      this.roomPanels.open('chatWindow', {
-        width: 660,
-        height: chatHeight,
-        left: 80,
-        top: Math.max(10, window.innerHeight - chatHeight - 20),
-      });
+      const startPanels: [RoomPanelName, PanelOption][] = [['peerMenu', { left: 80, top: 10 }]];
+      if (!this.viewport.isCompact()) {
+        const chatHeight = 460;
+        const top = Math.max(10, window.innerHeight - chatHeight - 20);
+        startPanels.push(['chatWindow', { width: 660, height: chatHeight, left: 80, top }]);
+      }
+      // The chat window overlaps the connection panel, and stands over it.
+      this.roomPanels.openInTurn(startPanels);
     });
   }
 
@@ -545,4 +586,7 @@ ContextMenuService.loadFourWayRadialMenuComponent = () =>
 ModalService.ModalComponentClass = ModalComponent;
 BottomSheetService.frameComponentClass = BottomSheetComponent;
 ConfirmService.dialogComponentClass = ConfirmDialogComponent;
-TabletopActionService.diceCreateDialogComponentClass = DiceSymbolCreateDialogComponent;
+TabletopActionService.loadDiceCreateDialog = () =>
+  import('@axe/features/dice/dice-symbol-create-dialog/dice-symbol-create-dialog.component').then(
+    (m) => m.DiceSymbolCreateDialogComponent
+  );

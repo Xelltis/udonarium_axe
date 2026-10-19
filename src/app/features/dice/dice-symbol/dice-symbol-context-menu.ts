@@ -8,6 +8,7 @@ import {
 import { Network } from '@axe/core/index';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 
 export interface DiceOwnerCandidate {
   identifier: string;
@@ -106,6 +107,7 @@ export function buildDiceSymbolContextMenu(
   if (owner.length > 0 && callbacks.onStoreToOwner) {
     actions.push({
       name: t('feature.dice.contextMenu.storeToOwner'),
+      enabled: !isWithheldHere(diceSymbol),
       action: () => callbacks.onStoreToOwner?.(owner),
     });
   }

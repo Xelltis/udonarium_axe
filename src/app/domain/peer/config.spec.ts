@@ -365,6 +365,36 @@ describe('Config', () => {
     });
   });
 
+  describe('the sounds of a turn beginning', () => {
+    function attributesOf(context: ObjectContext): Record<string, unknown> {
+      return context.syncData['attributes'] as Record<string, unknown>;
+    }
+
+    afterEach(() => {
+      Config.instance.turnSignalEnabled = true;
+      Config.instance.turnTickEnabled = false;
+    });
+
+    it('signals the owner and ticks nobody in a room that says nothing of them', () => {
+      const older = Config.instance.toContext();
+      delete attributesOf(older)['_turnSignal'];
+      delete attributesOf(older)['_turnTick'];
+      older.majorVersion += 1;
+      Config.instance.apply(older);
+
+      expect(Config.instance.turnSignalEnabled).toBe(true);
+      expect(Config.instance.turnTickEnabled).toBe(false);
+    });
+
+    it('passes the master’s choice on with the rest of the config', () => {
+      Config.instance.turnSignalEnabled = false;
+      Config.instance.turnTickEnabled = true;
+
+      const attributes = attributesOf(Config.instance.toContext());
+      expect([attributes['_turnSignal'], attributes['_turnTick']]).toEqual(['off', 'on']);
+    });
+  });
+
   describe('how the round is taken', () => {
     it('takes the round one piece at a time until it is told otherwise', () => {
       expect(Config.instance.turnOrderMode).toBe('initiative');

@@ -58,6 +58,9 @@ export class VoteWidgetComponent {
     return vote != null && PeerCursor.myCursor != null && vote.chkToMe();
   });
 
+  /** Whether who answered what may be shown, which a secret vote holds back until it closes. */
+  protected readonly answersShown = computed(() => this.vote()?.answersShown() ?? true);
+
   protected readonly isAnswered = computed(() => {
     const vote = this.vote();
     return vote != null && PeerCursor.myCursor != null && vote.isVoteEnd(PeerCursor.myCursor.peerId);
@@ -76,13 +79,12 @@ export class VoteWidgetComponent {
     if (!vote || this.isAnswered()) return;
     vote.voting(choice, PeerCursor.myCursor.peerId);
     const prefix = vote.isRollCall ? this.t('feature.vote.rollCallPrefix') : this.t('feature.vote.votePrefix');
+    const counts = { voted: vote.votedTotalNum(), total: vote.voteAnswer.length };
     const text =
       prefix +
-      this.t('feature.vote.voteResult', {
-        choice,
-        voted: vote.votedTotalNum(),
-        total: vote.voteAnswer.length,
-      });
+      (vote.isSecret
+        ? this.t('feature.vote.secretAnswered', counts)
+        : this.t('feature.vote.voteResult', { choice, ...counts }));
     this.chatMessageService.sendSystemMessageAsLastSpeaker(text, vote.chatTabIdentifier);
   }
 
@@ -91,17 +93,21 @@ export class VoteWidgetComponent {
     if (!vote || this.isAnswered()) return;
     vote.voting(null, PeerCursor.myCursor.peerId);
     const prefix = vote.isRollCall ? this.t('feature.vote.rollCallPrefix') : this.t('feature.vote.votePrefix');
-    const text =
-      prefix +
-      this.t('feature.vote.abstainResult', {
-        voted: vote.votedTotalNum(),
-        total: vote.voteAnswer.length,
-      });
+    const counts = { voted: vote.votedTotalNum(), total: vote.voteAnswer.length };
+    const text = prefix + this.t(vote.isSecret ? 'feature.vote.secretAnswered' : 'feature.vote.abstainResult', counts);
     this.chatMessageService.sendSystemMessageAsLastSpeaker(text, vote.chatTabIdentifier);
   }
 
   protected finishByChair(): void {
     this.vote()?.finishByChair();
+  }
+
+  /**
+   * Whether a peer's answer is kept from view: a secret vote that is still open shows only that
+   * somebody has answered, except to the one who gave the answer.
+   */
+  protected answerHidden(peerId: string, answer: number): boolean {
+    return !this.answersShown() && answer !== -1 && peerId !== PeerCursor.myCursor?.peerId;
   }
 
   protected findPeerName(peerId: string): string {

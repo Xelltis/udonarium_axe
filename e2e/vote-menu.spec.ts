@@ -2,26 +2,26 @@ import { expect, test } from '@playwright/test';
 
 import { waitAppReady } from './helpers';
 
-test.describe('点呼・投票メニュー (vote-menu)', () => {
+test.describe('the roll call and vote menu (vote-menu)', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await page.locator('chat-window button[title="点呼・投票"]').click();
     await expect(page.locator('app-vote-menu')).toBeVisible({ timeout: 5000 });
   });
 
-  test('既定は「点呼」モード (vm_type=rollcall) であること', async ({ page }) => {
+  test('starts in "roll call" mode (vm_type=rollcall)', async ({ page }) => {
     const radios = page.locator('app-vote-menu input[name="vm_type"]');
     await expect(radios.nth(0)).toBeChecked();
   });
 
-  test('「投票」ラジオに切り替えるとタイトル/選択肢入力欄が現れること', async ({ page }) => {
+  test('shows the title and choices fields on switching to the "vote" radio', async ({ page }) => {
     const radios = page.locator('app-vote-menu input[name="vm_type"]');
     await radios.nth(1).check();
     await expect(page.locator('app-vote-menu input[name="voteTitle"]')).toBeVisible({ timeout: 3000 });
     await expect(page.locator('app-vote-menu input[name="voteContents"]')).toBeVisible();
   });
 
-  test('「投票」モードでタイトル/選択肢を入力できること', async ({ page }) => {
+  test('takes a title and choices in "vote" mode', async ({ page }) => {
     const radios = page.locator('app-vote-menu input[name="vm_type"]');
     await radios.nth(1).check();
     const title = page.locator('app-vote-menu input[name="voteTitle"]');
@@ -32,14 +32,35 @@ test.describe('点呼・投票メニュー (vote-menu)', () => {
     await expect(choices).toHaveValue('はい いいえ 棄権');
   });
 
-  test('自分のみ部屋にいる場合、送信ボタンは includSelf を外すと disabled になること', async ({ page }) => {
+  test('disables the send button once includSelf is unchecked, with one alone in the room', async ({ page }) => {
     const includeSelf = page.locator('app-vote-menu input[name="includSelf"]');
     await includeSelf.uncheck();
     const sendBtn = page.locator('app-vote-menu').getByRole('button', { name: /送信/ });
     await expect(sendBtn).toBeDisabled();
   });
 
-  test('自分のみ部屋にいる場合の案内文が表示されること', async ({ page }) => {
+  test('shows the note for being alone in the room', async ({ page }) => {
     await expect(page.locator('app-vote-menu').getByText('自分しか部屋にいません')).toBeVisible();
+  });
+
+  test('hides the counts of a vote that hides its answers until it closes, and writes only that someone answered to the chat', async ({
+    page,
+  }) => {
+    const menu = page.locator('app-vote-menu');
+    await menu.locator('input[name="vm_type"]').nth(1).check();
+    await menu.locator('input[name="voteTitle"]').fill('方針');
+    await menu.locator('input[name="voteContents"]').fill('賛成 反対');
+    await page.getByTestId('vote-menu-secret').check();
+    await menu.locator('input[name="includSelf"]').check();
+    await menu.getByRole('button', { name: /送信/ }).click();
+
+    const widget = page.getByTestId('vote-widget');
+    await expect(widget.getByTestId('vote-widget-secret')).toBeVisible({ timeout: 5000 });
+    await expect(widget.getByTestId('vote-widget-choice-count')).toHaveCount(0);
+
+    await widget.getByRole('button', { name: '賛成' }).click();
+    const chat = page.locator('chat-window');
+    await expect(chat.getByText(/回答しました\(1\/1\)/)).toBeVisible({ timeout: 5000 });
+    await expect(chat.getByText(/投票：賛成/)).toHaveCount(0);
   });
 });

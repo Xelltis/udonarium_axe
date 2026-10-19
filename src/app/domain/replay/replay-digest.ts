@@ -12,14 +12,13 @@
 import { type DiceRollDetail, parseDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import {
   canViewReplayEvent,
-  findActorAt,
-  findTargetAt,
   type ReplayEvent,
   ReplayEventKind,
   type ReplayManifest,
   type ReplayViewer,
+  resolveSnapshotOrFirst,
 } from '@axe/domain/replay/replay-event';
-import { isSystemReplayChat } from '@axe/domain/replay/replay-event-category';
+import { isSystemReplayChat, REPLAY_CAUGHT_UP_FLAG } from '@axe/domain/replay/replay-event-category';
 
 export interface ReplayDigestNumbers {
   readonly elapsedMs: number;
@@ -125,7 +124,9 @@ export function buildReplayDigest(
   manifest: Pick<ReplayManifest, 'roomName' | 'startedAt' | 'endedAt' | 'actors' | 'targets'>,
   viewer: ReplayViewer
 ): ReplayDigest {
-  const visible = events.filter((event) => canViewReplayEvent(event, viewer));
+  const visible = events.filter(
+    (event) => canViewReplayEvent(event, viewer) && event.detail[REPLAY_CAUGHT_UP_FLAG] !== true
+  );
   if (visible.length < 1) return { ...EMPTY_REPLAY_DIGEST, roomName: manifest.roomName, startedAt: manifest.startedAt };
 
   const speakers = new Map<string, { name: string; messages: number; diceRolls: number }>();
@@ -137,15 +138,24 @@ export function buildReplayDigest(
   let rounds = 0;
   let hasDiceDetail = false;
   let hasLedger = false;
+  // A line told twice, as a secret roll and once made public, is counted once.
+  const linesCounted = new Set<string>();
+  const countedBefore = (event: ReplayEvent) => {
+    if (!event.targetId) return false;
+    if (linesCounted.has(event.targetId)) return true;
+    linesCounted.add(event.targetId);
+    return false;
+  };
 
   for (const event of visible) {
     switch (event.kind) {
       case ReplayEventKind.ChatMessage:
-        if (isSystemReplayChat(event)) break;
+        if (isSystemReplayChat(event) || countedBefore(event)) break;
         messages++;
         countSpeech(speakers, event, manifest, 'messages');
         break;
       case ReplayEventKind.ChatDice: {
+        if (countedBefore(event)) break;
         diceRolls++;
         countSpeech(speakers, event, manifest, 'diceRolls');
         const detail = parseDiceRollDetail(asString(event.detail['dicebot']));
@@ -414,11 +424,21 @@ function pick<T>(rows: readonly T[], valueOf: (row: T) => number): T | null {
 }
 
 function actorNameOf(manifest: Pick<ReplayManifest, 'actors'>, event: ReplayEvent): string {
-  return findActorAt(manifest, event.actorId, event.seq)?.name ?? '';
+  return (
+    resolveSnapshotOrFirst(
+      manifest.actors.filter((actor) => actor.userId === event.actorId),
+      event.seq
+    )?.name ?? ''
+  );
 }
 
 function targetNameOf(manifest: Pick<ReplayManifest, 'targets'>, identifier: string, seq: number): string {
-  return findTargetAt(manifest, identifier, seq)?.name ?? '';
+  return (
+    resolveSnapshotOrFirst(
+      manifest.targets.filter((target) => target.identifier === identifier),
+      seq
+    )?.name ?? ''
+  );
 }
 
 function changesOf(raw: unknown): ChangeEntry[] {

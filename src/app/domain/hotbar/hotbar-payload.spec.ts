@@ -168,4 +168,22 @@ describe('hotbar slot payloads', () => {
       });
     });
   });
+
+  describe('an entry of the menu', () => {
+    it('starts with no entry chosen', () => {
+      expect(defaultHotbarPayload('menu')).toEqual({ kind: 'menu', command: '' });
+    });
+
+    it('reads back the key it was written with, even one this version does not know', () => {
+      const written = encodeHotbarPayload({ kind: 'menu', command: 'fromTheFuture' });
+
+      expect(written).toBe('{"command":"fromTheFuture"}');
+      expect(parseHotbarPayload('menu', written)).toEqual({ kind: 'menu', command: 'fromTheFuture' });
+    });
+
+    it('falls back to no entry for options it cannot read', () => {
+      expect(parseHotbarPayload('menu', '')).toEqual({ kind: 'menu', command: '' });
+      expect(parseHotbarPayload('menu', '{"command":3}')).toEqual({ kind: 'menu', command: '' });
+    });
+  });
 });

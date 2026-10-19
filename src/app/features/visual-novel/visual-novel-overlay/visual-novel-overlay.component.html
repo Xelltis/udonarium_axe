@@ -118,9 +118,9 @@
           {{ 'feature.visualNovel.shortcuts.title' | transloco }}
         </div>
         <dl class="text-ui-text m-0 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[11px]">
-          @for (item of shortcutHelpItems; track item.keys) {
+          @for (item of shortcutHelpItems(); track item.keys) {
             <dt class="text-ui-dim font-mono whitespace-nowrap">{{ item.keys }}</dt>
-            <dd class="m-0">{{ 'feature.visualNovel.shortcuts.' + item.labelKey | transloco }}</dd>
+            <dd class="m-0">{{ item.labelKey | transloco }}</dd>
           }
         </dl>
       </div>
@@ -567,7 +567,7 @@
             }
           </div>
         }
-        @if (speakerSlot() >= 0) {
+        @if (speakerSlot() >= 0 && mayEditTable()) {
           <button
             type="button"
             class="border-ui-border-panel bg-ui-input text-ui-text hover:border-ui-accent rounded-ui flex h-8 cursor-pointer items-center gap-0.5 border border-solid px-1.5 text-[11px] transition-colors [&_i]:text-[15px]"
@@ -592,7 +592,7 @@
             </button>
           }
         }
-        @if (speakerFlip() !== null) {
+        @if (speakerFlip() !== null && mayEditTable()) {
           <button
             type="button"
             class="rounded-ui flex h-8 cursor-pointer items-center gap-1 border border-solid px-1.5 text-[11px] transition-colors [&_i]:text-[15px]"
@@ -660,21 +660,23 @@
             <i class="material-icons">movie_filter</i>
           </button>
         }
-        <div class="relative">
-          <button
-            type="button"
-            class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui flex size-8 cursor-pointer items-center justify-center border-0 bg-transparent transition-[color,background] [&_i]:text-[18px]"
-            [class.text-ui-accent]="isPopover('soundBoard')"
-            [title]="'feature.visualNovel.soundBoard' | transloco"
-            [attr.aria-label]="'feature.visualNovel.soundBoard' | transloco"
-            (click)="toggleSoundBoard()"
-          >
-            <i class="material-icons">volume_up</i>
-          </button>
-          @if (isPopover('soundBoard')) {
-            <visual-novel-sound-board (attach)="attachSe($event)" (played)="closePopovers()" />
-          }
-        </div>
+        @if (mayEditTable()) {
+          <div class="relative">
+            <button
+              type="button"
+              class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui flex size-8 cursor-pointer items-center justify-center border-0 bg-transparent transition-[color,background] [&_i]:text-[18px]"
+              [class.text-ui-accent]="isPopover('soundBoard')"
+              [title]="'feature.visualNovel.soundBoard' | transloco"
+              [attr.aria-label]="'feature.visualNovel.soundBoard' | transloco"
+              (click)="toggleSoundBoard()"
+            >
+              <i class="material-icons">volume_up</i>
+            </button>
+            @if (isPopover('soundBoard')) {
+              <visual-novel-sound-board (attach)="attachSe($event)" (played)="closePopovers()" />
+            }
+          </div>
+        }
         @if (attachedSe(); as se) {
           <span
             class="bg-ui-accent-bg text-ui-accent rounded-ui flex max-w-32 items-center gap-0.5 px-1.5 py-1 text-[10px] [&_i]:text-[12px]"

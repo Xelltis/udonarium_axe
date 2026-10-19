@@ -13,6 +13,19 @@ describe('evalCalcFormula', () => {
     expect(evalCalcFormula('10 / 4', {})).toBe(2.5);
   });
 
+  it('keeps a division exact unless asked to round it down', () => {
+    expect(evalCalcFormula('7 / 2', {})).toBe(3.5);
+    expect(evalCalcFormula('7 / 2', {}, { division: 'exact' })).toBe(3.5);
+    expect(evalCalcFormula('7 / 2', {}, { division: 'floor' })).toBe(3);
+    expect(evalCalcFormula('(5 / 2) * 2', {}, { division: 'floor' })).toBe(4);
+  });
+
+  it('leaves the rounding of a division to floor, ceil and round inside them', () => {
+    expect(evalCalcFormula('ceil(7 / 2)', {}, { division: 'floor' })).toBe(4);
+    expect(evalCalcFormula('round(5 / 2) + 7 / 2', {}, { division: 'floor' })).toBe(6);
+    expect(evalCalcFormula('min(7 / 2, 9)', {}, { division: 'floor' })).toBe(3);
+  });
+
   it('gets the precedence right', () => {
     expect(evalCalcFormula('2 + 3 * 4', {})).toBe(14);
     expect(evalCalcFormula('(2 + 3) * 4', {})).toBe(20);

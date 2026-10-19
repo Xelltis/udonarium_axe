@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -38,6 +39,7 @@ export class ImportCharacterImgComponent {
   });
 
   constructor() {
+    closeWhenOffTheTable();
     this.sendFrom = this.gameCharacters().length >= 1 ? this.gameCharacters()[0].identifier : '';
   }
 

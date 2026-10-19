@@ -116,6 +116,7 @@ function makeAudioElm(): AudioElmMock {
 
 type AudioPlayerPrivateStatic = {
   _audioContext: unknown;
+  contextListeners: ((context: AudioContext) => void)[];
   channels: Map<VolumeType, unknown>;
   cacheMap: Map<string, { url: string; blob: Blob }>;
   MAX_CACHE_SIZE: number;
@@ -135,6 +136,9 @@ const asAudioPlayerPrivate = (player: AudioPlayer): AudioPlayerPrivateInstance =
 function resetStaticState() {
   // reset the static fields so nothing leaks between tests
   audioPlayerPrivate._audioContext = undefined;
+  // ng test keeps this module across spec files in a worker, and a service built in another file
+  // leaves what it waits on a context for, such as the music bus, which builds gains of its own.
+  audioPlayerPrivate.contextListeners.length = 0;
   // Emptied rather than set through the setters, which would build the gain graph a test has yet
   // to ask for. A test that reads a default has to find one whatever ran before it.
   audioPlayerPrivate.channels.clear();
@@ -316,6 +320,19 @@ describe('AudioPlayer', () => {
       const a = AudioPlayer.audioContext;
       const b = AudioPlayer.audioContext;
       expect(a).toBe(b);
+    });
+
+    it('tells what waits on it once it is made, and no longer once that stops waiting', () => {
+      const kept = vi.fn();
+      const dropped = vi.fn();
+      AudioPlayer.whenContextReady(kept);
+      const stop = AudioPlayer.whenContextReady(dropped);
+
+      stop();
+      const ctx = AudioPlayer.audioContext;
+
+      expect(kept).toHaveBeenCalledWith(ctx);
+      expect(dropped).not.toHaveBeenCalled();
     });
 
     it('falls back to the prefixed constructor', () => {
@@ -566,8 +583,8 @@ describe('AudioPlayer', () => {
     it('stop before playing', () => {
       const player = new AudioPlayer();
       const af = makeAudioFile({ blob: new Blob(['data']), identifier: 'p2' });
-      player.play(af); // 1回目で要素生成
-      player.play(); // 2回目: stop → play
+      player.play(af); // the first call creates the element
+      player.play(); // the second: stop → play
       expect(audioElmMock.pause).toHaveBeenCalled();
     });
 
@@ -681,7 +698,7 @@ describe('AudioPlayer', () => {
     it('pauses, rewinds, empties the source, reloads and disconnects', () => {
       const player = new AudioPlayer();
       const af = makeAudioFile({ blob: new Blob(['x']), identifier: 'st1' });
-      player.play(af); // 要素生成
+      player.play(af); // creates the element
       player.stop();
       expect(audioElmMock.pause).toHaveBeenCalled();
       expect(audioElmMock.currentTime).toBe(0);

@@ -18,6 +18,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { Network } from '@axe/core/network/network';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { isAppleTouchDevice } from '@axe/core/util/apple-touch';
@@ -161,7 +162,7 @@ export class ChatTabComponent {
     });
   }
 
-  private readonly rawSampleMessages = buildSampleChatMessages();
+  private readonly rawSampleMessages = buildSampleChatMessages(Network.transport === 'server');
   sampleMessages: ChatMessage[] = [];
 
   private topPlacedAt = 0;

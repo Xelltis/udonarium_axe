@@ -151,7 +151,7 @@ describe('findJudgementCandidates', () => {
       const result = findJudgementCandidates(rows, columns, 3, 0, isChecked, 5, { gapCostsBetweenCols });
 
       const bCandidate = result.find((c) => c.colName === 'B' && c.rowName === '行3');
-      expect(bCandidate?.distance).toBe(3); // 基本1 + gap2
+      expect(bCandidate?.distance).toBe(3); // a step of 1 plus a gap of 2
     });
 
     it('leaves the distance alone for a gap that costs nothing', () => {
@@ -172,7 +172,7 @@ describe('findJudgementCandidates', () => {
       const result = findJudgementCandidates(rows, columns, 0, 1, isChecked, 5, { loopVertical: true });
 
       const bCandidate = result.find((c) => c.colName === 'B' && c.rowName === '行3');
-      expect(bCandidate?.distance).toBe(1); // ループで距離1（縦3→0方向）
+      expect(bCandidate?.distance).toBe(1); // 1 by wrapping round, going down from row 3 on to row 0
     });
 
     it('takes the shorter way round when the columns wrap', () => {

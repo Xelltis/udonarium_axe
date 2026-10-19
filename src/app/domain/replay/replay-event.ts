@@ -1,6 +1,10 @@
 import { PeerRole } from '@axe/domain/peer/peer-role';
 
-export const REPLAY_FORMAT_VERSION = 3;
+/**
+ * The format recordings are written in. 4 added a line kept from guests (`players`), which earlier
+ * versions would show to everyone, so they do not read it.
+ */
+export const REPLAY_FORMAT_VERSION = 4;
 
 export const ReplayEventKind = {
   ChatMessage: 'chat.message',
@@ -47,10 +51,16 @@ export const ReplayDetailLevel = {
 
 export type ReplayDetailLevel = (typeof ReplayDetailLevel)[keyof typeof ReplayDetailLevel];
 
-export type ReplayVisibility = { kind: 'public' } | { kind: 'gm-only' } | { kind: 'direct'; to: readonly string[] };
+/**
+ * Who may see an event: everyone, the game master alone, the game master and the players but no
+ * guest, or those it was sent to with its sender.
+ */
+export type ReplayVisibility =
+  { kind: 'public' } | { kind: 'gm-only' } | { kind: 'players' } | { kind: 'direct'; to: readonly string[] };
 
 export const PUBLIC_VISIBILITY: ReplayVisibility = { kind: 'public' };
 export const GM_ONLY_VISIBILITY: ReplayVisibility = { kind: 'gm-only' };
+export const PLAYERS_VISIBILITY: ReplayVisibility = { kind: 'players' };
 
 export interface ReplayActorSnapshot {
   userId: string;
@@ -147,13 +157,15 @@ export function isIncidentalReplayEvent(kind: ReplayEventKind): boolean {
  * Whether a viewer may see an event in the recording.
  *
  * Public events are for everyone and the game master sees everything. An event for the game
- * master is hidden from the rest, and one sent directly is seen by its recipients and its sender.
+ * master is hidden from the rest, one for the players from guests, and one sent directly is seen by
+ * its recipients and its sender.
  */
 export function canViewReplayEvent(event: ReplayEvent, viewer: ReplayViewer): boolean {
   const visibility = event.visibility;
   if (visibility.kind === 'public') return true;
   if (viewer.role === PeerRole.GameMaster) return true;
   if (visibility.kind === 'gm-only') return false;
+  if (visibility.kind === 'players') return viewer.role !== PeerRole.Guest;
   return visibility.to.includes(viewer.userId) || event.actorId === viewer.userId;
 }
 
@@ -169,6 +181,18 @@ export function resolveSnapshotAt<T extends { sinceSeq: number }>(snapshots: rea
     if (!resolved || snapshot.sinceSeq >= resolved.sinceSeq) resolved = snapshot;
   }
   return resolved ?? null;
+}
+
+/**
+ * The snapshot in force at a point, or, before any was taken there, the first one taken: an event
+ * moved or inserted ahead of where a name was first seen is still called by that name.
+ */
+export function resolveSnapshotOrFirst<T extends { sinceSeq: number }>(snapshots: readonly T[], seq: number): T | null {
+  const resolved = resolveSnapshotAt(snapshots, seq);
+  if (resolved) return resolved;
+  let first: T | null = null;
+  for (const snapshot of snapshots) if (!first || snapshot.sinceSeq < first.sinceSeq) first = snapshot;
+  return first;
 }
 
 /** How a user stood at a point in the recording: their name, role and picture then. Null before they appear. */

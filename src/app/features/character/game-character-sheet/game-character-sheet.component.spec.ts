@@ -1,12 +1,23 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { SaveDataService } from '@axe/application/file/save-data.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { BottomSheetService } from '@axe/application/ui/bottom-sheet.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { PanelService } from '@axe/application/ui/panel.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
+import { Network } from '@axe/core/network/network';
 import { Card, CardState } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute, DataElementRole } from '@axe/domain/data/data-element';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { GameCharacterSheetComponent } from '@axe/features/character/game-character-sheet/game-character-sheet.component';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('GameCharacterSheetComponent', () => {
@@ -29,6 +40,41 @@ describe('GameCharacterSheetComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('saves nothing of a card whose face a room server keeps from this seat, and saves a whole one', async () => {
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    const save = vi.spyOn(TestBed.inject(SaveDataService), 'saveGameObjectAsync').mockResolvedValue();
+    const card = Card.create('伏せ札', 'front.png', 'back.png');
+    card.imageDataElement!.removeChild(card.imageDataElement!.getFirstElementByName('front')!);
+    component.tabletopObject = card;
+
+    const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+    await component.saveToXML();
+    expect(save).not.toHaveBeenCalled();
+    expect(shown).toHaveBeenCalledTimes(1);
+
+    component.tabletopObject = Card.create('表の札', 'front.png', 'back.png');
+    await component.saveToXML();
+    expect(save).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
+  });
+
+  it('copies nothing of a card whose face a room server keeps from this seat, and says so', () => {
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(true);
+    const card = Card.create('伏せ札', 'front.png', 'back.png');
+    card.imageDataElement!.removeChild(card.imageDataElement!.getFirstElementByName('front')!);
+    const cloned = vi.spyOn(card, 'clone');
+    component.tabletopObject = card;
+
+    const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+    component.clone();
+
+    expect(cloned).not.toHaveBeenCalled();
+    expect(shown).toHaveBeenCalledWith(TestBed.inject(TRANSLATE_FN)('feature.inventory.sheet.copyWithheld'));
+    card.destroy();
+    vi.restoreAllMocks();
   });
 
   describe('the width a card is set to', () => {
@@ -113,6 +159,88 @@ describe('GameCharacterSheetComponent', () => {
       expect(dropped.preventDefault).not.toHaveBeenCalled();
       expect(dropped.stopPropagation).not.toHaveBeenCalled();
     } finally {
+      character.destroy();
+    }
+  });
+
+  it('closes the sheet of a piece other than a character once its seat is made a guest', () => {
+    const note = TextNote.create('メモ', '本文');
+    try {
+      expectClosesForAGuest(() => {
+        component.tabletopObject = note;
+        fixture.detectChanges();
+      });
+    } finally {
+      note.destroy();
+    }
+  });
+
+  it('keeps a character’s sheet open for a guest to look through', () => {
+    const character = GameCharacter.create('ヒロ', 1, '');
+    const closed = vi.spyOn(TestBed.inject(PanelService), 'close').mockImplementation(() => {});
+    try {
+      PeerCursor.createMyCursor().role = PeerRole.Guest;
+      component.tabletopObject = character;
+      fixture.detectChanges();
+      TestBed.tick();
+
+      expect(closed).not.toHaveBeenCalled();
+    } finally {
+      character.destroy();
+    }
+  });
+
+  it('lets a guest jump between sections and fold them, but neither edit nor add one', () => {
+    const character = GameCharacter.create('ヒロ', 1, '');
+    character.addExtendData();
+    const sections = ['能力', '技能'].map((name) => {
+      const section = DataElement.create(name, '', {});
+      character.detailDataElement!.appendChild(section);
+      return section;
+    });
+    try {
+      PeerCursor.createMyCursor().role = PeerRole.Guest;
+      component.tabletopObject = character;
+      component.editingIds.set(new Set([sections[0].identifier]));
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(host.querySelector('[data-testid="sheet-section-chips"]')!.closest('[inert]')).toBeNull();
+      expect(host.querySelector('[data-testid="sheet-card-title"]')!.closest('[inert]')).toBeNull();
+      expect(host.querySelector('[data-testid="sheet-card-edit"]')).toBeNull();
+      expect(host.querySelector('[data-testid="sheet-add-section"]')).toBeNull();
+      expect(component.isElementEditing(sections[0].identifier)).toBe(false);
+    } finally {
+      PeerCursor.myCursor = null!;
+      character.destroy();
+    }
+  });
+
+  it('offers a guest neither the portraits to manage nor a copy, on a narrow sheet or a wide one', () => {
+    const character = GameCharacter.create('ヒロ', 1, '');
+    const opened = vi.spyOn(TestBed.inject(BottomSheetService), 'open');
+    const menu = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+    const t = TestBed.inject(TRANSLATE_FN);
+    try {
+      PeerCursor.createMyCursor().role = PeerRole.Guest;
+      component.tabletopObject = character;
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      component.openPortraitSheet();
+      component.openSheetMenu(new MouseEvent('click'));
+
+      expect(opened).not.toHaveBeenCalled();
+      const names = (menu.mock.calls[0][1] as { name?: string }[]).map((action) => action.name);
+      expect(names).not.toContain(t('feature.inventory.sheet.portraitsManage'));
+      expect(names).not.toContain(t('feature.inventory.sheet.copy'));
+      expect(names).toContain(t('feature.inventory.sheet.save'));
+      expect((host.querySelector('[data-testid="sheet-portrait-button"]') as HTMLButtonElement).disabled).toBe(true);
+      expect([...host.querySelectorAll('button')].map((button) => button.textContent?.trim())).not.toContain(
+        t('feature.inventory.sheet.copy')
+      );
+    } finally {
+      PeerCursor.myCursor = null!;
       character.destroy();
     }
   });

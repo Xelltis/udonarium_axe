@@ -5,14 +5,24 @@ import {
   emitDiceBotUnreachable,
   emitDiceRolled,
   emitSendMessage,
+  emitServerRollUnanswered,
   resourceEditMessage$,
   ResourceEditMessageEvent,
   sendMessage$,
   SendMessageEvent,
 } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
+import { isNetworkIsolated, onNetworkIsolationEnded } from '@axe/core/network/network-isolation';
+import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
+import { getAuthorityPeerId, getMyPeerId, getRoomKey, isAuthorityOpen } from '@axe/core/network/peer-context-source';
+import {
+  AuthorityEvent,
+  MAX_ROLL_COMMAND_LENGTH,
+  MAX_ROLL_TARGET_NAME_LENGTH,
+} from '@axe/core/network/server/server-protocol';
 import { SyncObject } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
+import { objectAdded$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PromiseQueue } from '@axe/core/util/promise-queue';
 import { toHalfWidth } from '@axe/core/util/string-util';
@@ -22,6 +32,7 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { DiceRollResult, ResourceEditProcessor } from '@axe/domain/data/resource-edit-processor';
 import { diceRollDetailOf, encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { DiceTable } from '@axe/domain/dice/dice-table';
+import { ServerRollRequests } from '@axe/domain/dice/server-roll-requests';
 import { GameSystemInfo } from 'bcdice/lib/bcdice/game_system_list.json';
 import GameSystemClass from 'bcdice/lib/game_system';
 import type Loader from 'bcdice/lib/loader/loader';
@@ -31,6 +42,60 @@ export const PLAIN_DICE_BOT = 'DiceBot';
 
 /** How long the code of a game system may take to arrive before a call gives up on it for now. */
 const FETCH_TIMEOUT_MS = 10_000;
+
+/**
+ * The answer to a roll as a line: said by the dice bot, after the line it answers, to whoever that
+ * line was said to and to its speaker, in that line's colours and dice.
+ */
+function resultMessageContextOf(
+  originalMessage: ChatMessage,
+  text: string,
+  isSecret: boolean,
+  dicebot: string
+): ChatMessageContext {
+  const context: ChatMessageContext = {
+    identifier: '',
+    tabIdentifier: originalMessage.tabIdentifier,
+    originFrom: originalMessage.from,
+    from: 'System-BCDice',
+    timestamp: originalMessage.timestamp + 1,
+    imageIdentifier: '',
+    tag: isSecret ? 'system secret' : 'system',
+    dicebot,
+    name: isSecret ? `<Secret-BCDice：${originalMessage.name}>` : `<BCDice：${originalMessage.name}>`,
+    text,
+    ...answerColorsOf(originalMessage),
+    diceLook: originalMessage.diceLook,
+    diceImageIdentifier: originalMessage.diceImageIdentifier,
+  };
+
+  if (originalMessage.to != null && 0 < originalMessage.to.length) {
+    context.to = originalMessage.to;
+    if (originalMessage.to.indexOf(originalMessage.from) < 0) {
+      context.to += ` ${originalMessage.from}`;
+    }
+  }
+  return context;
+}
+
+/**
+ * The targeted character's name after a roll's result, as a room server takes it: on one line, with
+ * no brackets or arrows that could pass for more of the result, and no longer than it allows. None
+ * for a nameless target.
+ */
+function rollTargetSuffix(name: string): string | undefined {
+  let line = name
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/\[/g, '［')
+    .replace(/\]/g, '］')
+    .replace(/→/g, '⇒');
+  if (line.length > MAX_ROLL_TARGET_NAME_LENGTH) {
+    line = line.slice(0, MAX_ROLL_TARGET_NAME_LENGTH);
+    // A character cut in half is no character.
+    if (/[\uD800-\uDBFF]$/.test(line)) line = line.slice(0, -1);
+  }
+  return line ? ` [${line}]` : undefined;
+}
 
 @SyncObject('dice-bot')
 export class DiceBot extends GameObject {
@@ -45,6 +110,29 @@ export class DiceBot extends GameObject {
     DiceBot.isUnreachable.bind(DiceBot)
   );
   private cleanups: (() => void)[] = [];
+  /**
+   * The line last asked about and how many answers it has asked for, one per target in turn: the
+   * answers share the line's time, and their fractions keep them in the targets' order.
+   */
+  private answersAsked = { source: '', count: 0 };
+  /** The key of the room it last asked the room server for a roll in. */
+  private rollsAskedIn: string | null = null;
+  /** The rolls this seat asked of the room server and has no answer to yet. */
+  private readonly serverRolls = new ServerRollRequests({
+    send: (request) => {
+      const authority = getAuthorityPeerId();
+      if (authority) networkSend(AuthorityEvent.ROLL_REQUEST, request, authority);
+    },
+    answered: (answerIdentifier, sourceIdentifier) => {
+      emitSendMessage({ messageIdentifier: answerIdentifier, messageTarget: null });
+      emitDiceRolled({ sourceMessageIdentifier: sourceIdentifier, resultMessageIdentifier: answerIdentifier });
+    },
+    unanswered: (sourceIdentifier, reason) => {
+      // Out of the room by then, the line is in no room to answer it.
+      if (getAuthorityPeerId()) emitServerRollUnanswered({ messageIdentifier: sourceIdentifier, reason });
+    },
+    inRoom: () => getAuthorityPeerId() !== null && isAuthorityOpen() && !isNetworkIsolated(),
+  });
 
   static diceBotInfos: GameSystemInfo[] = [];
 
@@ -85,8 +173,8 @@ export class DiceBot extends GameObject {
           return {
             id: gameSystem.ID,
             result: `${gameSystem.ID} : ${result.text}`
-              .replace(/\n*(#\d+)\n/gi, '\n$1 ') // 繰り返しダイスロールを行ごとに表示
-              .replace(/: \n/, ': '), // ヘッダー直後の余分な改行を除去
+              .replace(/\n*(#\d+)\n/gi, '\n$1 ') // shows each repeated roll on a line of its own
+              .replace(/: \n/, ': '), // drops the extra line break right after the header
             isSecret: result.secret,
             // This is the only place they can be had; once the text is formatted they cannot be read back.
             detail: diceRollDetailOf(gameSystem.ID, result),
@@ -433,6 +521,47 @@ export class DiceBot extends GameObject {
     this.cleanups.push(sendMessage$.subscribe((data) => this.handleSendMessage(data)));
     this.cleanups.push(diceTableMessage$.subscribe((data) => this.handleDiceTableMessage(data)));
     this.cleanups.push(resourceEditMessage$.subscribe((data) => this.handleResourceEditMessage(data)));
+    this.cleanups.push(objectAdded$.subscribe((event) => this.serverRolls.arrived(event.identifier)));
+    this.cleanups.push(networkMessage$.subscribe((message) => this.followServerRolls(message)));
+    // Cut off from the room, as while a replay's board is shown, what is asked of the server goes
+    // nowhere; back in it, the rolls still unanswered are asked for again.
+    this.cleanups.push(
+      onNetworkIsolationEnded(() => {
+        if (getAuthorityPeerId() !== null && isAuthorityOpen()) this.serverRolls.askAgain();
+      })
+    );
+  }
+
+  /**
+   * Follows what becomes of the rolls asked of the room server: one it would not make, the seat
+   * getting back into the room, where it asks again for what is unanswered, and another room
+   * entered, where nothing asked before is answered any more. Joining the same room again, as a
+   * reconnect does, a login or logout in the room, or coming back from the lobby after giving up on
+   * the link, is getting back in; out of any room, the rolls wait for it.
+   */
+  private followServerRolls(message: { eventName: string; data: unknown }): void {
+    switch (message.eventName) {
+      case AuthorityEvent.ROLL_REJECTED: {
+        const data = message.data as { identifier?: unknown; reason?: unknown } | null;
+        if (typeof data?.identifier !== 'string') return;
+        this.serverRolls.rejected(data.identifier, typeof data.reason === 'string' ? data.reason : 'failed');
+        return;
+      }
+      case 'PEER_RECONNECT': {
+        const data = message.data as { peerId?: unknown; state?: unknown } | null;
+        if (data?.peerId !== getMyPeerId()) return;
+        if (data.state === 'retrying') this.serverRolls.pause();
+        if (data.state === 'recovered' || data.state === 'resumed') this.serverRolls.askAgain();
+        return;
+      }
+      case 'OPEN_NETWORK': {
+        const roomKey = getRoomKey();
+        if (roomKey === null) this.serverRolls.pause();
+        else if (roomKey === this.rollsAskedIn) this.serverRolls.askAgain();
+        else this.serverRolls.clear();
+        return;
+      }
+    }
   }
 
   private async handleSendMessage(data: SendMessageEvent) {
@@ -467,6 +596,15 @@ export class DiceBot extends GameObject {
         }
       }
       if (!rollText || repeat < 1) {
+        return;
+      }
+
+      // A room server rolls the dice itself, so that nobody can change what they showed; a line too
+      // long for it to take is rolled here, as without one, and so is a line said to a table cut off
+      // from the room, as while a replay's board is shown, where the server's answer would never come.
+      if (getAuthorityPeerId() && !isNetworkIsolated() && text.length <= MAX_ROLL_COMMAND_LENGTH) {
+        const target = data.messageTarget?.object;
+        this.askServerToRoll(text, gameSystem.ID, chatMessage, target ? rollTargetSuffix(target.name) : undefined);
         return;
       }
 
@@ -572,8 +710,6 @@ export class DiceBot extends GameObject {
 
   private sendResultMessage(rollResult: DiceRollResult, originalMessage: ChatMessage, multiTargetOption?: string) {
     let result: string = rollResult.result;
-    const isSecret: boolean = rollResult.isSecret;
-
     if (result.length < 1) {
       return;
     }
@@ -583,28 +719,12 @@ export class DiceBot extends GameObject {
       result = result.replace(/ → /g, '\n→ ');
     }
 
-    const diceBotMessage: ChatMessageContext = {
-      identifier: '',
-      tabIdentifier: originalMessage.tabIdentifier,
-      originFrom: originalMessage.from,
-      from: 'System-BCDice',
-      timestamp: originalMessage.timestamp + 1,
-      imageIdentifier: '',
-      tag: isSecret ? 'system secret' : 'system',
-      dicebot: encodeDiceRollDetail(rollResult.detail ?? null),
-      name: isSecret ? `<Secret-BCDice：${originalMessage.name}>` : `<BCDice：${originalMessage.name}>`,
-      text: multiTargetOption ? `${result}${multiTargetOption}` : result,
-      ...answerColorsOf(originalMessage),
-      diceLook: originalMessage.diceLook,
-      diceImageIdentifier: originalMessage.diceImageIdentifier,
-    };
-
-    if (originalMessage.to != null && 0 < originalMessage.to.length) {
-      diceBotMessage.to = originalMessage.to;
-      if (originalMessage.to.indexOf(originalMessage.from) < 0) {
-        diceBotMessage.to += ` ${originalMessage.from}`;
-      }
-    }
+    const diceBotMessage = resultMessageContextOf(
+      originalMessage,
+      multiTargetOption ? `${result}${multiTargetOption}` : result,
+      rollResult.isSecret,
+      encodeDiceRollDetail(rollResult.detail ?? null)
+    );
     const chatTab = ObjectStore.instance.get<ChatTab>(originalMessage.tabIdentifier);
     if (chatTab) {
       const chat = chatTab.addMessage(diceBotMessage);
@@ -615,10 +735,39 @@ export class DiceBot extends GameObject {
     }
   }
 
+  /**
+   * Asks the room server to roll a line's dice. The answer is made ready here, as for a roll made
+   * here, but left for the server to fill in and say; once it arrives, it is treated as a roll made
+   * here, rolling its dice sound and its dice.
+   */
+  private askServerToRoll(command: string, gameSystem: string, originalMessage: ChatMessage, suffix?: string) {
+    const chatTab = ObjectStore.instance.get<ChatTab>(originalMessage.tabIdentifier);
+    if (!getAuthorityPeerId() || !(chatTab instanceof ChatTab)) return;
+
+    const answer = chatTab.createMessage(resultMessageContextOf(originalMessage, '', false, ''));
+    const asked = this.answersAsked;
+    this.answersAsked = {
+      source: originalMessage.identifier,
+      count: asked.source === originalMessage.identifier ? asked.count + 1 : 0,
+    };
+    const message = answer.contextAsLastChildOf(chatTab);
+    message.syncData = { ...message.syncData, minorIndex: Math.min(this.answersAsked.count / 1000, 0.999) };
+    const request: Record<string, unknown> = {
+      message,
+      command,
+      gameSystem,
+      speaker: originalMessage.name,
+    };
+    if (suffix) request['suffix'] = suffix;
+    this.rollsAskedIn = getRoomKey();
+    this.serverRolls.ask(answer.identifier, originalMessage.identifier, request);
+  }
+
   /** Stops answering chat lines once the dice bot leaves the store. */
   override onStoreRemoved() {
     super.onStoreRemoved();
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
+    this.serverRolls.clear();
   }
 }

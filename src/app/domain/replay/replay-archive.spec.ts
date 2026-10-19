@@ -13,6 +13,7 @@ import {
   ReplayEventKind,
   type ReplayManifest,
 } from '@axe/domain/replay/replay-event';
+import { decode } from '@msgpack/msgpack';
 
 const manifest: ReplayManifest = {
   formatVersion: REPLAY_FORMAT_VERSION,
@@ -84,6 +85,17 @@ describe('buildReplayArchiveFiles()', () => {
     const [manifestFile] = buildReplayArchiveFiles({ manifest, chunks: [], keyframes: [], assets: [] });
     expect(JSON.parse(await manifestFile.text())).toEqual(manifest);
   });
+
+  it('packs the events of an older recording in its own format, as its catalogue says', async () => {
+    const [, chunkFile] = buildReplayArchiveFiles({
+      manifest: { ...manifest, formatVersion: 3 },
+      chunks: [{ index: 0, events: [event(1)] }],
+      keyframes: [],
+      assets: [],
+    });
+
+    expect((decode(new Uint8Array(await chunkFile.arrayBuffer())) as { v: number }).v).toBe(3);
+  });
 });
 
 describe('parseReplayArchive()', () => {
@@ -144,6 +156,27 @@ describe('parseReplayArchive()', () => {
     });
     const nested = files.map((file) => ({ name: `replay_20260102/${file.name}`, blob: file }));
     const content = await parseReplayArchive(nested);
+    expect(content?.events.map((e) => e.seq)).toEqual([1]);
+  });
+
+  it('reads one macOS packed again, passing over the resource forks it added', async () => {
+    const APPLE_DOUBLE = new Uint8Array([0x00, 0x05, 0x16, 0x07, 0x00, 0x02, 0x00, 0x00]);
+    const files = buildReplayArchiveFiles({
+      manifest,
+      chunks: [{ index: 0, events: [event(1)] }],
+      keyframes: [],
+      assets: [],
+    });
+    const packed = files.flatMap((file) => [
+      { name: `replay_20260102/${file.name}`, blob: file },
+      {
+        name: `__MACOSX/replay_20260102/${file.name.replace(/[^/]+$/, (base) => `._${base}`)}`,
+        blob: new Blob([APPLE_DOUBLE]),
+      },
+    ]);
+
+    const content = await parseReplayArchive(packed);
+
     expect(content?.events.map((e) => e.seq)).toEqual([1]);
   });
 });

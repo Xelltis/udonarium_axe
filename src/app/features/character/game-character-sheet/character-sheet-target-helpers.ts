@@ -6,6 +6,7 @@ import { CharacterSheetTarget } from '@axe/domain/tabletop/character-sheet-targe
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
+import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 
 /**
  * Places a copy of a piece from its sheet, offset down and to the right of the original, and plays
@@ -13,9 +14,11 @@ import { TextNote } from '@axe/domain/tabletop/text-note';
  *
  * The copy joins the same parent as the original. A copied terrain, card, card stack or mask starts
  * unlocked, and a copied card or stack starts with nobody peeking at it; cards, stacks and notes
- * are brought to the top.
+ * are brought to the top. Nothing is copied of a piece a room server withholds part of from this
+ * user, whose copy would carry the withheld shape to everyone.
  */
 export function cloneTabletopObject(source: CharacterSheetTarget, offsetPx = 50): void {
+  if (isWithheldHere(source)) return;
   const cloneObject = source.clone();
   cloneObject.location.x += offsetPx;
   cloneObject.location.y += offsetPx;

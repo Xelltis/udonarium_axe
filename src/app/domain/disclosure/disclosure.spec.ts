@@ -7,6 +7,7 @@ import {
   DisclosureMode,
   isDisclosureMode,
   normalizeDisclosureMode,
+  switchedDisclosureMode,
   toggleDisclosureUserId,
 } from '@axe/domain/disclosure/disclosure';
 
@@ -68,8 +69,48 @@ describe('disclosure', () => {
   });
 
   it('treats only unowned objects as claimable', () => {
-    expect(canClaimOwnership({ userId: 'p1', isGameMaster: false })).toBe(true);
-    expect(canClaimOwnership({ userId: 'p1', isGameMaster: false, ownerUserId: '' })).toBe(true);
-    expect(canClaimOwnership({ userId: 'p1', isGameMaster: false, ownerUserId: 'p2' })).toBe(false);
+    const open = { disclosureMode: 'all', disclosureUserIds: [] };
+    for (const keptBackByServer of [false, true]) {
+      expect(canClaimOwnership(open, { userId: 'p1', isGameMaster: false }, keptBackByServer)).toBe(true);
+      expect(canClaimOwnership(open, { userId: 'p1', isGameMaster: false, ownerUserId: '' }, keptBackByServer)).toBe(
+        true
+      );
+      expect(canClaimOwnership(open, { userId: 'p1', isGameMaster: false, ownerUserId: 'p2' }, keptBackByServer)).toBe(
+        false
+      );
+    }
+  });
+
+  it('lets nobody claim what a room server keeps from them, as the game master’s alone', () => {
+    const player = { userId: 'p1', isGameMaster: false };
+    expect(canClaimOwnership({ disclosureMode: 'gm', disclosureUserIds: [] }, player, true)).toBe(false);
+    expect(canClaimOwnership({ disclosureMode: 'selected', disclosureUserIds: ['p2'] }, player, true)).toBe(false);
+    expect(canClaimOwnership({ disclosureMode: 'selected', disclosureUserIds: ['p1'] }, player, true)).toBe(true);
+    expect(
+      canClaimOwnership({ disclosureMode: 'gm', disclosureUserIds: [] }, { ...player, isGameMaster: true }, true)
+    ).toBe(true);
+  });
+
+  it('lets anyone among peers claim an unowned thing, kept from them or not', () => {
+    const player = { userId: 'p1', isGameMaster: false };
+    expect(canClaimOwnership({ disclosureMode: 'gm', disclosureUserIds: [] }, player, false)).toBe(true);
+    expect(canClaimOwnership({ disclosureMode: 'selected', disclosureUserIds: ['p2'] }, player, false)).toBe(true);
+  });
+
+  describe('switchedDisclosureMode', () => {
+    it('opens everything to everyone while any of it is kept from someone', () => {
+      expect(switchedDisclosureMode(['gm', 'all'])).toBe(DisclosureMode.All);
+      expect(switchedDisclosureMode(['selected'])).toBe(DisclosureMode.All);
+      expect(switchedDisclosureMode(['all', 'gm', 'gm'])).toBe(DisclosureMode.All);
+    });
+
+    it('keeps everything to the game master once all of it is open', () => {
+      expect(switchedDisclosureMode(['all', 'all'])).toBe(DisclosureMode.GameMaster);
+    });
+
+    it('counts a mode never set as open to everyone, as everywhere else', () => {
+      expect(switchedDisclosureMode(['', 'all'])).toBe(DisclosureMode.GameMaster);
+      expect(switchedDisclosureMode(['', 'gm'])).toBe(DisclosureMode.All);
+    });
   });
 });

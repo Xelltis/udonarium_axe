@@ -6,7 +6,7 @@ import { SwitchDefinition, switchDoesAnything } from '@axe/domain/tabletop/board
  * Why a press came to nothing.
  *
  * `nothing` is a switch with nothing written in it; `watching` is somebody watching the table
- * pressing a switch not left open to watchers; `cannotSpeak` is a switch that would speak into a
+ * pressing a switch not left open to watchers, or any switch on a room server; `cannotSpeak` is a switch that would speak into a
  * tab the presser may not speak in; `retired` is a switch taken off the table for good; `spent` is
  * one with no press left for this presser; `noPiece` and `tooFar` are a switch that has to be
  * reached, pressed by somebody with no piece on the table or with one too far from it; `unseen` is
@@ -47,6 +47,11 @@ export interface SwitchPressState {
   inSight?: boolean;
   /** Whether the master is trying it out, which leaves its count alone. */
   trial?: boolean;
+  /**
+   * Whether a room server keeps watchers from changing the table, which takes back all a switch
+   * does but its lines, its count among them, so that a switch left open to watchers is not.
+   */
+  guestsKeptOut?: boolean;
 }
 
 /**
@@ -64,7 +69,7 @@ export function pressRefusal(state: SwitchPressState): SwitchRefusal | null {
   const { definition } = state;
   if (state.retired) return 'retired';
   if (!switchDoesAnything(definition)) return 'nothing';
-  if (state.role === PeerRole.Guest && !definition.guests) return 'watching';
+  if (state.role === PeerRole.Guest && (state.guestsKeptOut || !definition.guests)) return 'watching';
   const speaks = definition.actions.some((action) => action.kind === 'say' && action.text.trim().length > 0);
   if (speaks && (!state.tab || !canRoleSpeakTab(state.tab, state.role))) return 'cannotSpeak';
   if (!state.trial && state.hasGo === false) return 'spent';

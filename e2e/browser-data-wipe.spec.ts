@@ -72,7 +72,7 @@ async function pressWipe(page: Page): Promise<void> {
   await expect(page.locator('confirm-dialog')).toContainText('元には戻せません');
 }
 
-test.describe('このブラウザのデータをすべて消す', () => {
+test.describe("wiping all of this browser's data", () => {
   test.beforeEach(async ({ page }) => {
     // The app starts here, and again after a wipe, which may first wait out a database held open
     // elsewhere: two starts and that wait are more than one start's worth of time in a busy run.
@@ -82,7 +82,7 @@ test.describe('このブラウザのデータをすべて消す', () => {
     expect(await marksLeft(page)).toEqual(['axe-dice-images', 'e2e-elsewhere', 'localStorage']);
   });
 
-  test('消すと読み込み直し、localStorage と IndexedDB の中身が残らないこと', async ({ page }) => {
+  test('reloads after the wipe, leaving nothing in localStorage or IndexedDB', async ({ page }) => {
     await pressWipe(page);
     const reloaded = page.waitForEvent('load');
     await page.locator('confirm-dialog').getByRole('button', { name: 'すべて消して読み込み直す' }).click();
@@ -93,7 +93,7 @@ test.describe('このブラウザのデータをすべて消す', () => {
     expect(await page.evaluate(() => localStorage.getItem('ui-theme'))).not.toBe('dark');
   });
 
-  test('やめると何も消えないこと', async ({ page }) => {
+  test('wipes nothing when cancelled', async ({ page }) => {
     await pressWipe(page);
     await page.locator('confirm-dialog').getByRole('button', { name: 'キャンセル' }).click();
     await expect(page.locator('confirm-dialog')).toHaveCount(0);

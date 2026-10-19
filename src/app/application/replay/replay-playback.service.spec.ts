@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ReplayLibraryService } from '@axe/application/replay/replay-library.service';
 import {
+  BEFORE_BOARD_MODE,
   REPLAY_AUTO_PLAY_BASE_MS,
   REPLAY_AUTO_PLAY_MAX_MS,
   REPLAY_SLIDE_MAX_MS,
@@ -8,11 +9,14 @@ import {
   ReplayPlaybackService,
 } from '@axe/application/replay/replay-playback.service';
 import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
+import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated, setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { LoopPlayer } from '@axe/core/storage/loop-player';
+import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -21,8 +25,14 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement } from '@axe/domain/data/data-element';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
 import { CutIn } from '@axe/domain/media/cut-in';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { createReplayEntry, retextReplayEvent } from '@axe/domain/replay/replay-edit';
-import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import {
+  GM_ONLY_VISIBILITY,
+  PUBLIC_VISIBILITY,
+  type ReplayEvent,
+  ReplayEventKind,
+} from '@axe/domain/replay/replay-event';
 import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -124,6 +134,33 @@ describe('ReplayPlaybackService', () => {
     expect(service.currentEvent()?.seq).toBe(1);
   });
 
+  it('names pieces the recording did not know, keeping the names it had', async () => {
+    const known = { identifier: 'c1', aliasName: 'character', name: 'ゴブリン', sinceSeq: 0 };
+    library.load.mockResolvedValue({ manifest: { targets: [known], actors: [] }, events });
+    await service.open(1);
+
+    service.addTargets([
+      { identifier: 'brought-in', aliasName: 'character', name: '勇者', sinceSeq: 0 },
+      { ...known, name: '別の名前' },
+    ]);
+
+    expect(service.manifest()!.targets).toEqual([
+      known,
+      { identifier: 'brought-in', aliasName: 'character', name: '勇者', sinceSeq: 0 },
+    ]);
+  });
+
+  it('steps over what this reader may not see, the board taking it in on the way', async () => {
+    const hidden = { ...moveEvent(2, 20, 10), visibility: GM_ONLY_VISIBILITY };
+    library.load.mockResolvedValue({ manifest: null, events: [moveEvent(1, 10, 0), hidden, moveEvent(3, 30, 20)] });
+    await service.open(1);
+
+    await service.next();
+    expect(service.cursor()).toBe(2);
+    await service.previous();
+    expect(service.cursor()).toBe(0);
+  });
+
   it('refuses to open an empty recording', async () => {
     library.load.mockResolvedValue({ manifest: null, events: [] });
     expect(await service.open(1)).toBe(false);
@@ -148,6 +185,34 @@ describe('ReplayPlaybackService', () => {
     expect(service.isAtEnd()).toBe(true);
   });
 
+  it('steps onto the next line shown, past one not shown, as a step on the board', async () => {
+    const hidden = { ...moveEvent(2, 20, 10), visibility: GM_ONLY_VISIBILITY };
+    library.load.mockResolvedValue({ manifest: null, events: [moveEvent(1, 10, 0), hidden, moveEvent(3, 30, 20)] });
+    await service.open(1);
+    await service.enterBoardMode();
+    const step = vi.spyOn(service as unknown as { stepBoardForward(event: ReplayEvent): void }, 'stepBoardForward');
+
+    await service.next();
+
+    expect(service.cursor()).toBe(2);
+    expect(step.mock.calls.map(([event]) => event.seq)).toEqual([3]);
+    await service.exitBoardMode();
+  });
+
+  it('jumps to the end without a step when only lines not shown are left', async () => {
+    const hidden = { ...moveEvent(2, 20, 10), visibility: GM_ONLY_VISIBILITY };
+    library.load.mockResolvedValue({ manifest: null, events: [moveEvent(1, 10, 0), hidden] });
+    await service.open(1);
+    await service.enterBoardMode();
+    const step = vi.spyOn(service as unknown as { stepBoardForward(event: ReplayEvent): void }, 'stepBoardForward');
+
+    await service.next();
+
+    expect(service.cursor()).toBe(1);
+    expect(step).not.toHaveBeenCalled();
+    await service.exitBoardMode();
+  });
+
   it('cuts itself off from the table when board playback begins', async () => {
     await service.open(1);
     expect(isNetworkIsolated()).toBe(false);
@@ -157,6 +222,125 @@ describe('ReplayPlaybackService', () => {
 
     await service.exitBoardMode();
     expect(isNetworkIsolated()).toBe(false);
+  });
+
+  it('hands this seat its own cursor back on going back to the table, deleting it for nobody', async () => {
+    vi.spyOn(Network, 'peerId', 'get').mockReturnValue('peer-me');
+    const mine = PeerCursor.createMyCursor();
+    const sent = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+    try {
+      await service.open(1);
+      await service.enterBoardMode();
+      expect(objectStore.get(mine.identifier)).toBeFalsy();
+
+      await service.exitBoardMode();
+      await Promise.resolve();
+
+      expect(objectStore.get(mine.identifier)).toBe(mine);
+      expect(PeerCursor.myCursor).toBe(mine);
+      expect(objectStore.isDeleted(mine.identifier)).toBe(false);
+      expect(sent).not.toHaveBeenCalledWith(expect.objectContaining({ eventName: 'DELETE_GAME_OBJECT' }), undefined);
+    } finally {
+      PeerCursor.myCursor = null!;
+    }
+  });
+
+  it('drops a board still being worked out when the table is taken back, leaving the live table as it was', async () => {
+    const live = new GameCharacter('live-1');
+    live.initialize();
+    await service.open(1);
+    let keyframeArrives!: (keyframe: unknown) => void;
+    library.keyframeBefore.mockReturnValue(new Promise((resolve) => (keyframeArrives = resolve)));
+
+    const entering = service.enterBoardMode();
+    await Promise.resolve();
+    await service.exitBoardMode();
+    keyframeArrives({ seq: 0, blob: new Blob([encodeReplayKeyframe(keyframeObjects) as BlobPart]) });
+    await entering;
+
+    expect(isNetworkIsolated()).toBe(false);
+    expect(objectStore.get('live-1')).toBe(live);
+    expect(objectStore.get('c2')).toBeFalsy();
+  });
+
+  it('puts the live table back at the versions it had, so what a peer changed meanwhile wins', async () => {
+    const shared = new GameCharacter('c1');
+    shared.initialize();
+    const own = new GameCharacter('live-1');
+    own.initialize();
+    const versionOf = (identifier: string) => {
+      const object = objectStore.get(identifier)!;
+      return [object.majorVersion, object.minorVersion];
+    };
+    const before = { shared: versionOf('c1'), own: versionOf('live-1') };
+    await service.open(1);
+
+    await service.enterBoardMode();
+    await service.toEnd();
+    await service.exitBoardMode();
+
+    expect(versionOf('c1')).toEqual(before.shared);
+    expect(versionOf('live-1')).toEqual(before.own);
+  });
+
+  it('says it did not go into the board when the table was taken back while the board was worked out', async () => {
+    await service.open(1);
+    let keyframeArrives!: (keyframe: unknown) => void;
+    library.keyframeBefore.mockReturnValue(new Promise((resolve) => (keyframeArrives = resolve)));
+
+    const entering = service.enterBoardMode();
+    await Promise.resolve();
+    await service.exitBoardMode();
+    keyframeArrives({ seq: 0, blob: new Blob([encodeReplayKeyframe(keyframeObjects) as BlobPart]) });
+
+    expect(await entering).toBe(false);
+  });
+
+  it('steps nowhere and plays nothing on its own while a scene is acted out on the board', async () => {
+    await service.open(1);
+    await service.enterBoardMode();
+    const staging = TestBed.inject(ReplayStagingService);
+    staging.begin(1, 'alice');
+    try {
+      await service.next();
+      service.toggleAutoPlay();
+
+      expect(service.cursor()).toBe(0);
+      expect(service.autoPlay()).toBe(false);
+    } finally {
+      staging.discard();
+    }
+  });
+
+  it('works the board out afresh once a scene acted out on it is done with', async () => {
+    await service.open(1);
+    await service.enterBoardMode();
+    objectStore.get<GameCharacter>('c1')!.location.x = 777;
+
+    await service.showBoardAfresh();
+
+    expect(characterX()).toBe(10);
+  });
+
+  it('puts back on the table the cursors of those still here, but not of those gone meanwhile', async () => {
+    const here = new PeerCursor('here-cursor');
+    here.initialize();
+    here.peerId = 'peer-here';
+    const gone = new PeerCursor('gone-cursor');
+    gone.initialize();
+    gone.peerId = 'peer-gone';
+    vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['peer-here']);
+    const pictures = vi.spyOn(ImageStorage.instance, 'synchronize').mockImplementation(() => {});
+    const sounds = vi.spyOn(AudioStorage.instance, 'synchronize').mockImplementation(() => {});
+    await service.open(1);
+
+    await service.enterBoardMode();
+    await service.exitBoardMode();
+
+    expect(objectStore.get('here-cursor')).toBeTruthy();
+    expect(objectStore.get('gone-cursor')).toBeFalsy();
+    expect(pictures).toHaveBeenCalled();
+    expect(sounds).toHaveBeenCalled();
   });
 
   it('builds the board up from a keyframe', async () => {
@@ -361,6 +545,55 @@ describe('ReplayPlaybackService', () => {
     }
   });
 
+  it('sets a sliding piece down where it was going when the next step comes before it gets there', async () => {
+    vi.useFakeTimers();
+    try {
+      library.load.mockResolvedValue({
+        manifest: null,
+        events: [moveEvent(1, 10, 0), moveEvent(2, 20, 10), { ...soundEvent, seq: 3 }],
+      });
+      await service.open(1);
+      await service.enterBoardMode();
+      await service.next();
+      await service.next();
+
+      expect(characterX()).toBe(20);
+      await service.toStart();
+      await service.toEnd();
+      expect(characterX()).toBe(20);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('works the board out where a step lands, when the step comes while the board is being worked out', async () => {
+    vi.useFakeTimers();
+    try {
+      library.load.mockResolvedValue({
+        manifest: null,
+        events: [moveEvent(1, 10, 0), moveEvent(2, 20, 10), { ...soundEvent, seq: 3 }],
+      });
+      await service.open(1);
+      await service.enterBoardMode();
+      let release!: () => void;
+      const keyframe = { seq: 0, blob: new Blob([encodeReplayKeyframe(keyframeObjects) as BlobPart]) };
+      library.keyframeBefore.mockImplementationOnce(
+        () => new Promise((resolve) => (release = () => resolve(keyframe)))
+      );
+
+      const afresh = service.showBoardAfresh();
+      await service.next();
+      release();
+      await afresh;
+      await vi.advanceTimersByTimeAsync(REPLAY_SLIDE_MAX_MS);
+
+      expect(service.cursor()).toBe(1);
+      expect(characterX()).toBe(20);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('clears the route once the slide is over', async () => {
     vi.useFakeTimers();
     try {
@@ -383,6 +616,75 @@ describe('ReplayPlaybackService', () => {
 
     expect(service.routeTrail()).toBeNull();
     expect(characterX()).toBe(30);
+  });
+
+  it('takes what is due of the table’s automatic save before cutting the table off for the board', async () => {
+    const isolatedWhenSaved: boolean[] = [];
+    const enteringWhenSaved: boolean[] = [];
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        ...TEST_PROVIDERS,
+        { provide: ReplayLibraryService, useValue: library },
+        {
+          provide: BEFORE_BOARD_MODE,
+          useValue: async () => {
+            isolatedWhenSaved.push(isNetworkIsolated());
+            enteringWhenSaved.push(service.isEnteringBoardMode());
+          },
+        },
+      ],
+    });
+    objectStore = TestBed.inject(ObjectStore);
+    vi.spyOn(TestBed.inject(ObjectSynchronizer), 'requestFullSync').mockReturnValue(0);
+    service = TestBed.inject(ReplayPlaybackService);
+
+    await service.open(1);
+    expect(await service.enterBoardMode()).toBe(true);
+
+    expect(isolatedWhenSaved).toEqual([false]);
+    expect(enteringWhenSaved).toEqual([true]);
+    expect(service.isEnteringBoardMode()).toBe(false);
+  });
+
+  it('shows no board when another recording was opened while the save was taken, whose board nobody asked for', async () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        ...TEST_PROVIDERS,
+        { provide: ReplayLibraryService, useValue: library },
+        { provide: BEFORE_BOARD_MODE, useValue: async () => void (await service.open(2)) },
+      ],
+    });
+    objectStore = TestBed.inject(ObjectStore);
+    vi.spyOn(TestBed.inject(ObjectSynchronizer), 'requestFullSync').mockReturnValue(0);
+    service = TestBed.inject(ReplayPlaybackService);
+
+    await service.open(1);
+    expect(await service.enterBoardMode()).toBe(false);
+
+    expect(service.isBoardMode()).toBe(false);
+    expect(isNetworkIsolated()).toBe(false);
+  });
+
+  it('tells of what putting the table back changed while still cut off, as no change made to the table', async () => {
+    const character = new GameCharacter('live-1');
+    character.location.x = 555;
+    objectStore.add(character, false);
+    await service.open(1);
+    await service.enterBoardMode();
+    const isolatedWhenTold: boolean[] = [];
+    const off = objectChanged$.subscribe(() => isolatedWhenTold.push(isNetworkIsolated()));
+
+    try {
+      await service.exitBoardMode();
+    } finally {
+      off();
+    }
+
+    expect(isolatedWhenTold.length).toBeGreaterThan(0);
+    expect(isolatedWhenTold.every((isolated) => isolated)).toBe(true);
+    expect(isNetworkIsolated()).toBe(false);
   });
 
   it('puts the table back on leaving board playback', async () => {

@@ -360,6 +360,7 @@ function canSeePiece(snapshot: ReplayObjectSnapshot, viewer: ReplayViewer): bool
   );
   if (visibility.kind === 'public') return true;
   if (visibility.kind === 'gm-only') return false;
+  if (visibility.kind === 'players') return viewer.role !== PeerRole.Guest;
   return visibility.to.includes(viewer.userId);
 }
 

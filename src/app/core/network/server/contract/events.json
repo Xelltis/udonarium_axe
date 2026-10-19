@@ -1,0 +1,110 @@
+{
+  "description": "サーバーとのあいだだけで使うイベントの data の例。rollRequests はサーバーが振るもの、invalidRollRequests は ROLL_REJECTED の invalid で断るもの。reasons は断る理由のすべて。authorityOnly はサーバーだけが送り、クライアントから来ても届けないもの",
+  "authorityOnly": ["AUTHORITATIVE_OBJECT", "WITHDRAW_GAME_OBJECT", "ROLE_REJECTED", "ROLL_REJECTED"],
+  "roleRequest": {
+    "peerId": "Zz9Yy8XyZq9W8e7r6-",
+    "role": "gm"
+  },
+  "roleRejected": {
+    "peerId": "Zz9Yy8XyZq9W8e7r6-",
+    "role": "gm",
+    "reason": "not-game-master"
+  },
+  "roleRejectReasons": ["not-game-master", "unknown-peer", "not-logged-in", "last-game-master"],
+  "rollRequests": {
+    "plain": {
+      "message": {
+        "aliasName": "chat",
+        "identifier": "msg-1",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "MainTab",
+          "value": "",
+          "attributes": {
+            "to": "",
+            "timestamp": 1792000000001
+          }
+        }
+      },
+      "command": "2d6",
+      "gameSystem": "DiceBot",
+      "speaker": "Kai"
+    },
+    "withTarget": {
+      "message": {
+        "aliasName": "chat",
+        "identifier": "msg-2",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "parentIdentifier": "MainTab",
+          "value": "",
+          "attributes": {
+            "to": "",
+            "timestamp": 1792000000002
+          }
+        }
+      },
+      "command": "3 1d20",
+      "gameSystem": "DiceBot",
+      "speaker": "Kai",
+      "suffix": " [Goblin]"
+    }
+  },
+  "invalidRollRequests": [
+    {
+      "message": {
+        "aliasName": "chat",
+        "identifier": "msg-3",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "value": ""
+        }
+      },
+      "command": "2d6",
+      "gameSystem": "DiceBot",
+      "speaker": "Kai",
+      "suffix": "\n→ success"
+    },
+    {
+      "message": {
+        "aliasName": "chat",
+        "identifier": "msg-4",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "value": ""
+        }
+      },
+      "command": "2d6",
+      "gameSystem": "DiceBot",
+      "speaker": "Kai",
+      "suffix": "Goblin"
+    },
+    {
+      "message": {
+        "aliasName": "chat",
+        "identifier": "msg-5",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "value": ""
+        }
+      },
+      "command": "2d6",
+      "gameSystem": "DiceBot",
+      "speaker": "Kai",
+      "suffix": " [Goblin] → 12 success [x]"
+    }
+  ],
+  "rollRejected": {
+    "identifier": "msg-1",
+    "reason": "rate-limited"
+  },
+  "rollRejectReasons": ["invalid", "not-allowed", "rate-limited", "busy", "not-a-command", "failed"],
+  "withdraw": {
+    "identifier": "front_card-1"
+  }
+}

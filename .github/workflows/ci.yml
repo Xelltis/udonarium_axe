@@ -1,15 +1,15 @@
 name: CI
 
-# mainへのPull Requestで、ローカルのlefthookが見ているものと同じ関門を通す。
-# pre-commitのlint / ng test、pre-pushのng buildに加えて、
-# フックの外にあるvitest直経路・Prettier・ドキュメントのビルドまで含む。
+# A pull request to main passes the same gates the local lefthook does: the lint and ng test of
+# pre-commit and the ng build of pre-push, and beyond the hooks the direct vitest run, Prettier
+# and the docs site's build.
 #
-# E2Eは入れていない。PlaywrightはCIで5ブラウザぶん走る設定になっていて、
-# ここに載せると1回のPull Requestに何十分もかかる。手元で`npm run e2e`。
+# E2E is left out. Playwright is set to run five browsers in CI, which would make every pull
+# request take tens of minutes. Run `npm run e2e` locally.
 #
-# ユニットテストは2経路を別ジョブに分けてある。ng testはAngular builderが
-# 用意する設定で走り、npx vitest runはvitest.config.tsを読む。
-# 片方だけ落ちることが実際に起きるため、どちらが落ちたかがチェック名で分かるようにしている。
+# The unit tests run their two ways as separate jobs: ng test with the settings the Angular
+# builder makes, npx vitest run with vitest.config.ts. One does fail without the other, so the
+# check's name tells which.
 
 on:
   pull_request:
@@ -165,6 +165,10 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # The build checks that a linked page exists, not that the heading a link names does.
+      - name: Check links to headings
+        run: npm run check
 
       - name: Build
         run: npm run build
