@@ -667,6 +667,48 @@ describe('AssetHttpStore', () => {
     });
   });
 
+  describe('remove', () => {
+    it('asks the room’s store, with the room’s token, to take the bytes out, and is done when they are not there', async () => {
+      respond(new Response(null, { status: 204 }), new Response('{"error":"not-found"}', { status: 404 }));
+
+      expect(await store.remove(id)).toBe('removed');
+      expect(await store.remove(id)).toBe('removed');
+      expect(callsOf()).toEqual([
+        ['DELETE', urlOf(id)],
+        ['DELETE', urlOf(id)],
+      ]);
+      expect(authorizationOf(0)).toBe('Bearer asset-1');
+    });
+
+    it('waits and asks again when the server asks for fewer requests', async () => {
+      respond(new Response(null, { status: 429 }), new Response(null, { status: 204 }));
+
+      expect(await store.remove(id)).toBe('removed');
+      expect(store.delay).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([400, 403])('gives up for good on %i, as for a seat that is not the GM', async (status) => {
+      respond(new Response('{"error":"not-game-master"}', { status }));
+      expect(await store.remove(id)).toBe('refused');
+    });
+
+    it('fails for now when the server errs or cannot be reached, or the seat is outside a room', async () => {
+      respond(new Response(null, { status: 500 }));
+      expect(await store.remove(id)).toBe('failed');
+      fetchSpy.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      expect(await store.remove(id)).toBe('failed');
+      access = null;
+      expect(await store.remove(id)).toBe('failed');
+    });
+
+    it('asks about nothing that is not named by its hash, or with no server', async () => {
+      expect(await store.remove('none_icon')).toBe('refused');
+      store.configure(null);
+      expect(await store.remove(id)).toBe('refused');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('listRoomAssets', () => {
     const listed = { id: 'a'.repeat(64), type: 'image/png', size: 8, name: 'dragon.png' };
 

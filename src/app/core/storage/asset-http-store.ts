@@ -18,6 +18,12 @@ import { sha256Hex } from '@axe/core/util/crypto-util';
 export type AssetUploadResult = 'stored' | 'exists' | 'refused' | 'failed' | 'paused' | 'blocked';
 
 /**
+ * What became of asking the room server to take bytes out of the room: nothing more to do,
+ * `refused` for good, or `failed` for now, which may pass on a later try.
+ */
+export type AssetRemovalResult = 'removed' | 'refused' | 'failed';
+
+/**
  * Why a download brought no bytes: the store lacks them, or sent bytes that are not them, which
  * asking again will not mend; the request failed, too often or while the server was out of reach,
  * which a later try may; or the room server's operator barred them, so that nobody is to be asked.
@@ -396,6 +402,31 @@ export class AssetHttpStore {
   /** Moves a download still waiting its turn to the front, to go next. */
   downloadFirst(identifier: string): void {
     this.downloads.putFirst(identifier);
+  }
+
+  /**
+   * Takes bytes out of the room's store, as only the room's GM may.
+   *
+   * `removed` once there is nothing more to do: they are gone now, were never there, or the server is
+   * one older than the way to take them out, which answers 404 too. `refused` when the seat may not,
+   * `failed` when the server could not be asked just then, as when it asks for fewer requests or
+   * cannot be reached, or there is no room.
+   */
+  async remove(identifier: string): Promise<AssetRemovalResult> {
+    if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return 'refused';
+    try {
+      const res = await this.withBackoff(() =>
+        this.authorized((access) =>
+          this.request(this.urlOf(access, identifier), { method: 'DELETE', headers: this.headersOf(access) })
+        )
+      );
+      if (!res) return 'failed';
+      if (res.ok || res.status === 404) return 'removed';
+      return res.status === 400 || res.status === 403 ? 'refused' : 'failed';
+    } catch (reason) {
+      Logger.warn('[AssetHttpStore] 削除に失敗しました', identifier, reason);
+      return 'failed';
+    }
   }
 
   /**
