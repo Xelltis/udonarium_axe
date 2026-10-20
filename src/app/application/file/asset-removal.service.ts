@@ -181,7 +181,8 @@ export class AssetRemovalService {
   /**
    * Asks the room server to take it out of the store of the room it was removed in, again a few times
    * when it could not be asked just then, while the seat is still in that room and the room still keeps
-   * it removed. Left there, it is still fetched by nobody, each seat following the removal.
+   * it removed. Left there, it is still fetched by nobody, each seat following the removal; the next
+   * removal or reading of the room's list asks afresh.
    */
   private takeOutOfStore(identifier: string, roomKey: string | null): void {
     if (Network.transport !== 'server' || !AssetHttpStore.instance.isEnabled) return;
@@ -195,7 +196,9 @@ export class AssetRemovalService {
         if (result === 'removed') this.putUpIfPutBack(identifier);
         return;
       }
-      this.storeRetries.schedule(identifier, () => this.takeOutOfStore(identifier, roomKey));
+      if (!this.storeRetries.schedule(identifier, () => this.takeOutOfStore(identifier, roomKey))) {
+        this.storeRetries.forget(identifier);
+      }
     });
   }
 }

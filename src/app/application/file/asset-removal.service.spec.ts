@@ -231,6 +231,18 @@ describe('AssetRemovalService', () => {
       expect(remove).toHaveBeenCalledTimes(1);
     });
 
+    it('tries afresh on the next ask once the tries ran out', async () => {
+      remove.mockResolvedValue('failed' satisfies AssetRemovalResult);
+      service.remove('image', [pictureId]);
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 2 ** (ASSET_RETRY_LIMIT + 1));
+      remove.mockClear();
+
+      service.takeOut([pictureId]);
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 2 ** (ASSET_RETRY_LIMIT + 1));
+
+      expect(remove).toHaveBeenCalledTimes(1 + ASSET_RETRY_LIMIT);
+    });
+
     it('puts the bytes up again when the room put them back while the store was taking them out', async () => {
       let land!: (result: AssetRemovalResult) => void;
       remove.mockReturnValue(new Promise((resolve) => (land = resolve)));
