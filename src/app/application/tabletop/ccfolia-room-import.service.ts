@@ -83,7 +83,10 @@ export class CcfoliaRoomImportService {
     for (const resource of room.resources) {
       const bytes = entries[resource.fileName];
       if (!bytes) continue;
-      const imageFile = await this.imageStorage.addAsync(new Blob([bytes.slice()], { type: resource.mime }));
+      const imageFile = await this.imageStorage.addAsync(new Blob([bytes.slice()], { type: resource.mime }), {
+        putBack: true,
+      });
+      if (this.imageStorage.isRemoved(imageFile.identifier)) continue;
       ImageTag.create(imageFile.identifier).tag = IMAGE_TAG;
       images.set(resource.fileName, imageFile.identifier);
     }
