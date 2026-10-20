@@ -206,8 +206,8 @@ export class AudioStorage {
 
   /**
    * Whether one the room removed comes in: chosen to be added in full, by a seat that may put it back.
-   * One put back is asked about in the room's store again a while later, as another seat's request to
-   * take it out may still have been under way.
+   * One put back is asked about in the room's store again a while later, while the seat is still in
+   * that room, as another seat's request to take it out may still have been under way.
    */
   private takeBack(audio: AudioFile, chosen: boolean): boolean {
     if (!chosen || audio.state < AudioState.COMPLETE) return false;
@@ -217,7 +217,10 @@ export class AudioStorage {
     }
     this.removed.delete(audio.identifier);
     const { identifier } = audio;
-    setTimeout(() => this.putUpAgain(identifier), ASSET_PUT_BACK_CHECK_MS);
+    const roomKey = Network.roomKey;
+    setTimeout(() => {
+      if (Network.roomKey === roomKey) this.putUpAgain(identifier);
+    }, ASSET_PUT_BACK_CHECK_MS);
     return true;
   }
 

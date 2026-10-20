@@ -207,8 +207,8 @@ export class ImageStorage {
 
   /**
    * Whether one the room removed comes in: chosen to be added in full, by a seat that may put it back.
-   * One put back is asked about in the room's store again a while later, as another seat's request to
-   * take it out may still have been under way.
+   * One put back is asked about in the room's store again a while later, while the seat is still in
+   * that room, as another seat's request to take it out may still have been under way.
    */
   private takeBack(image: ImageFile, chosen: boolean): boolean {
     if (!chosen || image.state < ImageState.COMPLETE) return false;
@@ -218,7 +218,10 @@ export class ImageStorage {
     }
     this.removed.delete(image.identifier);
     const { identifier } = image;
-    setTimeout(() => this.putUpAgain(identifier), ASSET_PUT_BACK_CHECK_MS);
+    const roomKey = Network.roomKey;
+    setTimeout(() => {
+      if (Network.roomKey === roomKey) this.putUpAgain(identifier);
+    }, ASSET_PUT_BACK_CHECK_MS);
     return true;
   }
 

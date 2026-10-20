@@ -285,6 +285,26 @@ describe('AudioStorage', () => {
         expect(upload).toHaveBeenCalledTimes(2);
       });
 
+      it('asks nothing again of the store once the seat is in another room', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+        vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('gm');
+        const room = vi.spyOn(Network.instance, 'roomKey', 'get').mockReturnValue('room-a');
+        upload.mockResolvedValue('exists');
+        storage.putBack = () => true;
+        storage.markRemoved(trackId);
+
+        (storage as unknown as { _add(file: AudioFile, isLocal: boolean, putBack: boolean): AudioFile })._add(
+          AudioFile.create(contextOf(trackId)),
+          true,
+          true
+        );
+        await vi.advanceTimersByTimeAsync(0);
+        room.mockReturnValue('room-b');
+        await vi.advanceTimersByTimeAsync(ASSET_PUT_BACK_CHECK_MS);
+
+        expect(upload).toHaveBeenCalledTimes(1);
+      });
+
       it('has the app take out bytes that reached the store all the same, and keeps nothing to try again', async () => {
         const uploaded = vi.fn();
         storage.onUploadedWhileRemoved = uploaded;
