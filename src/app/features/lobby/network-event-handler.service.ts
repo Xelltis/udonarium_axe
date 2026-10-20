@@ -439,7 +439,7 @@ export class NetworkEventHandlerService {
     else this.snackbar.show(this.t('feature.lobby.uploads.resumed'));
   }
 
-  /** Tells the reader that the operator barred a picture or sound they added, so it reaches nobody else. */
+  /** Tells the reader that the operator barred a picture or sound this seat holds, so it reaches nobody else. */
   private tellUploadBlocked(): void {
     if (!this.overlayMode.active()) {
       this.snackbar.show(this.t('feature.lobby.uploads.blocked'), { ms: UPLOAD_NOTICE_MS });
