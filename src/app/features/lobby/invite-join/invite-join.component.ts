@@ -17,7 +17,7 @@ import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
-import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
+import { isBanned } from '@axe/core/network/server/server-room-api';
 import { InviteLinkParams, parseInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -143,7 +143,7 @@ export class InviteJoinComponent {
     try {
       await this.join(params);
     } catch (reason) {
-      this.state.set(reason instanceof ServerRoomApiError && reason.code === 'banned' ? 'banned' : 'failed');
+      this.state.set(isBanned(reason) ? 'banned' : 'failed');
     }
   }
 

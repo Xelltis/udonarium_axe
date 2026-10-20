@@ -19,6 +19,11 @@ export class ServerRoomApiError extends Error {
   }
 }
 
+/** Whether a request was turned away for the room server's operator's ban, which no retry mends. */
+export function isBanned(reason: unknown): boolean {
+  return reason instanceof ServerRoomApiError && reason.code === 'banned';
+}
+
 /** The backend url without the slashes it may end in; empty when none is configured. */
 export function trimBaseUrl(url: string): string {
   return url.trim().replace(/\/+$/, '');

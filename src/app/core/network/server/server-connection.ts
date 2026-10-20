@@ -44,6 +44,7 @@ import {
   createRoom,
   deleteRoom,
   findRoom,
+  isBanned,
   listRooms,
   roomInfoOf,
   roomSocketUrl,
@@ -149,11 +150,6 @@ interface Outbound {
 function identifierOf(event: EventContext): string | undefined {
   const identifier = (event.data as { identifier?: unknown } | null)?.identifier;
   return typeof identifier === 'string' ? identifier : undefined;
-}
-
-/** Whether a request was turned away for the room server's operator's ban, which no retry mends. */
-function isBanned(reason: unknown): boolean {
-  return reason instanceof ServerRoomApiError && reason.code === BANNED;
 }
 
 /** The parent an object's context names, when it names one. */
