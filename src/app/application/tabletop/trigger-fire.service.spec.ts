@@ -473,6 +473,16 @@ describe('TriggerFireService', () => {
     expect(hpOf(hero)).toBe(20);
   });
 
+  it('brings nothing down that is already past the full, as a resource set to go over it may be', () => {
+    trapAt(5, 5, { amount: '-5' });
+    const hero = heroWith(20);
+    DataElement.findElementByReference(hero.rootDataElement!, 'ライフ')!.currentValue = 23;
+
+    service.walked(hero, grid(), [at(4, 5), at(5, 5)]);
+
+    expect(hpOf(hero)).toBe(23);
+  });
+
   it('takes nothing from a piece that carries no such thing', () => {
     trapAt(5, 5, { element: 'マナ' });
     const hero = heroWith(20);

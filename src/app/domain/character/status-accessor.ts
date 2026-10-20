@@ -1,3 +1,4 @@
+import { allowsOverResource } from '@axe/domain/character/over-resource';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 
@@ -153,7 +154,8 @@ export class StatusAccessor {
    * (= base + correction) configured on the element:
    *   currentValue ∈ [effectiveMin, value (currentMax)]
    *   value (currentMax) ∈ [effectiveMin, effectiveMax]
-   * `null` from getters means unbounded on that side.
+   * `null` from getters means unbounded on that side. A resource set to go over its maximum has no
+   * upper bound on its current value.
    */
   private static clampToBounds(data: DataElement, type: 'value' | 'currentValue', input: number): number {
     if (!Number.isFinite(input)) return input;
@@ -163,7 +165,7 @@ export class StatusAccessor {
     let upper: number | null = null;
     if (type === 'currentValue') {
       const currentMax = Number(data.value);
-      if (Number.isFinite(currentMax)) upper = currentMax;
+      if (Number.isFinite(currentMax) && !allowsOverResource(data)) upper = currentMax;
     } else {
       upper = data.effectiveMax;
     }

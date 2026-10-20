@@ -1,5 +1,5 @@
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
-import { DataElement, DataElementType } from '@axe/domain/data/data-element';
+import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 
 describe('StatusAccessor', () => {
   let detailDataElement: DataElement;
@@ -201,6 +201,41 @@ describe('StatusAccessor', () => {
       // a maximum and a current value below it
       accessor.setValue('HP', 'now', 9999);
       expect(accessor.getValue('HP', 'now')).toBe(200);
+    });
+
+    describe('on a resource set to go over its maximum', () => {
+      beforeEach(() => {
+        detailDataElement.getFirstElementByName('HP')!.setAttribute(DataElementAttribute.OVER_RESOURCE, 'true');
+      });
+
+      it('lets the current value past the maximum, written or moved, and back to the maximum after', () => {
+        accessor.setValue('HP', 'now', 250);
+        expect(accessor.getValue('HP', 'now')).toBe(250);
+        expect(accessor.changeValue('HP', 'now', 20)).not.toContain('(最大)');
+        expect(accessor.getValue('HP', 'now')).toBe(270);
+
+        accessor.setValue('HP', 'now', accessor.getValue('HP', 'max')!);
+
+        expect(accessor.getValue('HP', 'now')).toBe(200);
+      });
+
+      it('still stops at the maximum when it is asked to', () => {
+        accessor.changeValue('HP', 'now', 100, false, true);
+        expect(accessor.getValue('HP', 'now')).toBe(200);
+      });
+
+      it('keeps a current value over a maximum a correction lowers, and to its floor', () => {
+        const hp = detailDataElement.getFirstElementByName('HP')!;
+        hp.setAttribute('min', '0');
+        hp.setAttribute('max-base', '200');
+        accessor.setValue('HP', 'maxCorrection', -100);
+        expect(accessor.getValue('HP', 'max')).toBe(100);
+        expect(accessor.getValue('HP', 'now')).toBe(150);
+
+        accessor.setValue('HP', 'now', -10);
+
+        expect(accessor.getValue('HP', 'now')).toBe(0);
+      });
     });
 
     it('works the effective maximum out from the base and the correction, and caps the value there', () => {

@@ -223,10 +223,12 @@ export class TriggerFireService {
     const held = this.resourceOf(piece, trigger.element);
     if (held) {
       const current = Number(held.currentValue);
+      const start = Number.isFinite(current) ? current : 0;
       const most = Number(held.value);
-      const next = (Number.isFinite(current) ? current : 0) - taken;
-      // Given back rather than taken, a resource stops at the full it was written with.
-      held.currentValue = taken < 0 && Number.isFinite(most) ? Math.min(most, next) : next;
+      const next = start - taken;
+      // Given back rather than taken, a resource stops at the full it was written with, and one already
+      // past it is not brought down.
+      held.currentValue = taken < 0 && Number.isFinite(most) ? Math.max(start, Math.min(most, next)) : next;
     }
     this.leave(trigger, piece);
     trigger.spend(piece.identifier, round);
