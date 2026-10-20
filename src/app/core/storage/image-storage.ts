@@ -111,9 +111,10 @@ export class ImageStorage {
    * context merged into an entry already held.
    *
    * An entry made on this seat, rather than a context from a peer, also goes up to the asset server
-   * when one is configured.
+   * when one is configured. One the room removed is not taken in, unless `putBack` says it was chosen
+   * here in full and this seat may put it back.
    */
-  add(arg: string | ImageFile | ImageContext): ImageFile {
+  add(arg: string | ImageFile | ImageContext, options: { putBack?: boolean } = {}): ImageFile {
     let image: ImageFile;
     let isLocal = false;
     if (typeof arg === 'string') {
@@ -125,7 +126,7 @@ export class ImageStorage {
       if (this.update(arg)) return this.imageHash[arg.identifier];
       image = ImageFile.create(arg);
     }
-    return this._add(image, isLocal);
+    return this._add(image, isLocal, options.putBack === true);
   }
 
   /**

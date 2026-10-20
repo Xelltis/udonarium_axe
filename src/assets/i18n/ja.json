@@ -1271,7 +1271,8 @@
         "trouble_notPicture": "画像として読めませんでした。",
         "trouble_tooLarge": "8MB を超える画像は使えません。",
         "trouble_unstored": "このブラウザに画像を保存できませんでした。",
-        "trouble_notAllowed": "見学中はダイスに画像を貼れません。"
+        "trouble_notAllowed": "見学中はダイスに画像を貼れません。",
+        "trouble_removed": "GMが部屋から削除した画像です。"
       }
     },
     "effect": {

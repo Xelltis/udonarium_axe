@@ -1271,7 +1271,8 @@
         "trouble_notPicture": "That could not be read as a picture.",
         "trouble_tooLarge": "Pictures over 8 MB cannot be used.",
         "trouble_unstored": "The picture could not be kept in this browser.",
-        "trouble_notAllowed": "Guests cannot put a picture on their dice."
+        "trouble_notAllowed": "Guests cannot put a picture on their dice.",
+        "trouble_removed": "The GM deleted this picture from the room."
       }
     },
     "effect": {

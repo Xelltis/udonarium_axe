@@ -1271,7 +1271,8 @@
         "trouble_notPicture": "이미지로 읽을 수 없었습니다.",
         "trouble_tooLarge": "8MB를 넘는 이미지는 쓸 수 없습니다.",
         "trouble_unstored": "이 브라우저에 이미지를 저장하지 못했습니다.",
-        "trouble_notAllowed": "관전 중에는 주사위에 이미지를 붙일 수 없습니다."
+        "trouble_notAllowed": "관전 중에는 주사위에 이미지를 붙일 수 없습니다.",
+        "trouble_removed": "GM이 방에서 삭제한 이미지입니다."
       }
     },
     "effect": {

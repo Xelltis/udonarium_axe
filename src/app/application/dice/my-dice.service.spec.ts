@@ -108,6 +108,35 @@ describe('MyDiceService', () => {
       expect(service.look().picture).toBe('');
     });
 
+    it('puts back for the room a picture it removed, when this seat may, and wears it', async () => {
+      const bytes = new Blob([PNG_HEAD], { type: 'image/png' });
+      const added = shared(bytes);
+      vi.spyOn(DiceImageStore.instance, 'put').mockResolvedValue(true);
+      const service = TestBed.inject(MyDiceService);
+
+      expect(await service.setPicture(bytes)).toBeNull();
+
+      expect(added).toHaveBeenCalledWith(expect.objectContaining({ identifier: PICTURE }), { putBack: true });
+      expect(service.look().picture).toBe(PICTURE);
+    });
+
+    it('turns away a picture the room removed when it stays removed, and lets go of its copy', async () => {
+      const bytes = new Blob([PNG_HEAD], { type: 'image/png' });
+      const image = imageOf(PICTURE, bytes);
+      vi.spyOn(ImageFile, 'createAsync').mockResolvedValue(image);
+      vi.spyOn(ImageStorage.instance, 'add').mockImplementation((made) => made as ImageFile);
+      vi.spyOn(ImageStorage.instance, 'isRemoved').mockImplementation((identifier) => identifier === PICTURE);
+      vi.spyOn(DiceImageStore.instance, 'put').mockResolvedValue(true);
+      const removed = vi.spyOn(DiceImageStore.instance, 'remove').mockResolvedValue();
+      const service = TestBed.inject(MyDiceService);
+
+      expect(await service.setPicture(bytes)).toBe('removed');
+
+      expect(image.destroy).toHaveBeenCalled();
+      expect(removed).toHaveBeenCalledWith(PICTURE);
+      expect(service.look().picture).toBe('');
+    });
+
     it('lets go of the copy kept for the picture it replaces', async () => {
       const made = vi.spyOn(ImageFile, 'createAsync');
       made.mockResolvedValueOnce(imageOf(PICTURE, new Blob([PNG_HEAD])));
