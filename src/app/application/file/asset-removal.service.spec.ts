@@ -7,7 +7,7 @@ import { ConfirmDialogOption } from '@axe/application/ui/confirm-option';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { AssetHttpStore, AssetRemovalResult } from '@axe/core/storage/asset-http-store';
-import { ASSET_RETRY_DELAY_MS, ASSET_RETRY_LIMIT } from '@axe/core/storage/asset-retries';
+import { ASSET_LAST_TRY_DELAY_MS, ASSET_RETRY_DELAY_MS, ASSET_RETRY_LIMIT } from '@axe/core/storage/asset-retries';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -219,28 +219,43 @@ describe('AssetRemovalService', () => {
       expect(remove.mock.calls).toEqual([[pictureId], [otherId]]);
     });
 
+    /** How long the tries again of one request take in all. */
+    const RETRIES_MS = ASSET_RETRY_DELAY_MS * (2 ** ASSET_RETRY_LIMIT - 1);
+
     it('asks the store again a few times when it could not be asked, and not when it said no', async () => {
       remove.mockResolvedValue('failed' satisfies AssetRemovalResult);
       service.remove('image', [pictureId]);
-      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 2 ** (ASSET_RETRY_LIMIT + 1));
+      await vi.advanceTimersByTimeAsync(RETRIES_MS);
       expect(remove).toHaveBeenCalledTimes(1 + ASSET_RETRY_LIMIT);
 
       remove.mockClear().mockResolvedValue('refused');
       service.remove('image', [otherId]);
-      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 2 ** (ASSET_RETRY_LIMIT + 1));
-      expect(remove).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(RETRIES_MS);
+      expect(remove.mock.calls.filter(([identifier]) => identifier === otherId)).toHaveLength(1);
     });
 
     it('tries afresh on the next ask once the tries ran out', async () => {
       remove.mockResolvedValue('failed' satisfies AssetRemovalResult);
       service.remove('image', [pictureId]);
-      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 2 ** (ASSET_RETRY_LIMIT + 1));
+      await vi.advanceTimersByTimeAsync(RETRIES_MS);
       remove.mockClear();
 
       service.takeOut([pictureId]);
-      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 2 ** (ASSET_RETRY_LIMIT + 1));
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS);
 
-      expect(remove).toHaveBeenCalledTimes(1 + ASSET_RETRY_LIMIT);
+      expect(remove).toHaveBeenCalledTimes(2);
+    });
+
+    it('asks the store once more a while later, for bytes an upload under way put there after, while still removed', async () => {
+      remove.mockResolvedValue('removed');
+      service.remove('image', [pictureId, otherId]);
+      await vi.advanceTimersByTimeAsync(0);
+      remove.mockClear();
+
+      AssetRemoval.restore(otherId);
+      await vi.advanceTimersByTimeAsync(ASSET_LAST_TRY_DELAY_MS);
+
+      expect(remove.mock.calls).toEqual([[pictureId]]);
     });
 
     it('puts the bytes up again when the room put them back while the store was taking them out', async () => {

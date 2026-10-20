@@ -5,7 +5,7 @@ import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
-import { AssetRetries } from '@axe/core/storage/asset-retries';
+import { ASSET_LAST_TRY_DELAY_MS, AssetRetries } from '@axe/core/storage/asset-retries';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -79,7 +79,8 @@ export class AssetRemovalService {
   /**
    * Removes them from the room, and gives back how many were. Nothing is removed for anyone but the
    * GM. What the room is playing of the sounds, as music, a background sound or the cut-in shown, is
-   * stopped first, so that nothing it plays names one gone.
+   * stopped first, so that nothing it plays names one gone. The room's store is asked once more a while
+   * later, for bytes a player's upload under way put there after them.
    */
   remove(kind: AssetRemovalKind, identifiers: readonly string[]): number {
     if (!this.rolePermission.canEditShared) return 0;
@@ -89,7 +90,11 @@ export class AssetRemovalService {
       if (kind === 'audio') this.stopPlaying(targets);
       for (const identifier of targets) AssetRemoval.remove(identifier, kind);
     });
-    for (const identifier of targets) this.takeOutOfStore(identifier, Network.roomKey);
+    const roomKey = Network.roomKey;
+    for (const identifier of targets) this.takeOutOfStore(identifier, roomKey);
+    setTimeout(() => {
+      for (const identifier of targets) this.takeOutOfStore(identifier, roomKey);
+    }, ASSET_LAST_TRY_DELAY_MS);
     return targets.length;
   }
 
