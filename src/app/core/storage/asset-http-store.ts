@@ -7,6 +7,7 @@ import {
   readUploadTicket,
   RoomAsset,
 } from '@axe/core/network/server/server-protocol';
+import { ASSET_PAUSE_RETRY_MS } from '@axe/core/storage/asset-retries';
 import { putWithProgress } from '@axe/core/storage/put-with-progress';
 import { sha256Hex } from '@axe/core/util/crypto-util';
 
@@ -179,6 +180,11 @@ export class AssetHttpStore {
   onUploadBlocked: (identifier: string) => void = () => {};
   /** Whether the last word on uploads was the operator's stop. */
   private uploadsPaused = false;
+  /**
+   * Until when, in epoch milliseconds, an upload sends no bytes for the operator's stop: a while after
+   * the server last said so, after which the next upload tries whether it is over.
+   */
+  private stopHeldUntil = 0;
   /** The bytes already told of as barred, so each is told of once. */
   private readonly blockedTold = new Set<string>();
 
@@ -199,6 +205,7 @@ export class AssetHttpStore {
     const trimmed = url?.trim() ?? '';
     this.baseUrl = trimmed ? trimmed.replace(/\/+$/, '') : null;
     this.uploadsPaused = false;
+    this.stopHeldUntil = 0;
     this.blockedTold.clear();
   }
 
@@ -225,8 +232,8 @@ export class AssetHttpStore {
    * Uploads wait their turn; one asked for `first`, such as a picture just added here, goes ahead
    * of those already waiting. Small ones wait in a lane of their own, apart from the big ones.
    *
-   * While the operator's stop is known, an upload sends no bytes and is answered `paused` at once,
-   * but for a `probe`, which tries whether the stop is over.
+   * For a while after the server said the operator stopped uploads, an upload sends no bytes and is
+   * answered `paused` at once, but for a `probe`, which tries whether the stop is over.
    */
   async upload(
     identifier: string,
@@ -236,6 +243,7 @@ export class AssetHttpStore {
   ): Promise<AssetUploadResult> {
     if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return 'refused';
     const lane = blob.size <= SMALL_UPLOAD_BYTES ? this.smallUploads : this.uploads;
+    let heldForStop = false;
     const result = await lane.run(
       async () => {
         try {
@@ -250,7 +258,10 @@ export class AssetHttpStore {
           // Only a store that lacks the bytes is sent them; one that asked for fewer requests, or failed,
           // is asked again later rather than sent the whole of them now.
           if (head.status !== 404) return 'failed';
-          if (this.uploadsPaused && !options.probe) return 'paused';
+          if (!options.probe && Date.now() < this.stopHeldUntil) {
+            heldForStop = true;
+            return 'paused';
+          }
           // A room server whose requests carry only so much takes bigger bytes straight to its store.
           const policy = this.access?.()?.upload;
           if (policy && policy.maxPutBytes < blob.size) {
@@ -274,6 +285,8 @@ export class AssetHttpStore {
       identifier,
       options.first
     );
+    if (result === 'paused' && !heldForStop) this.stopHeldUntil = Date.now() + ASSET_PAUSE_RETRY_MS;
+    if (result === 'stored') this.stopHeldUntil = 0;
     this.tell(identifier, result);
     return result;
   }

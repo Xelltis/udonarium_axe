@@ -1,5 +1,6 @@
 import type { AssetAccess } from '@axe/core/network/connection';
 import { AssetDownload, AssetHttpStore } from '@axe/core/storage/asset-http-store';
+import { ASSET_PAUSE_RETRY_MS } from '@axe/core/storage/asset-retries';
 import { sha256Hex } from '@axe/core/util/crypto-util';
 import type { MockInstance } from 'vitest';
 
@@ -182,6 +183,24 @@ describe('AssetHttpStore', () => {
       expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
       expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
       expect(await store.upload(id, new Blob([bytes]), '', { probe: true })).toBe('stored');
+
+      expect(callsOf().map(([method]) => method)).toEqual(['HEAD', 'PUT', 'HEAD', 'HEAD', 'PUT']);
+    });
+
+    it('tries whether the stop is over with the next upload, a while after the server last said so', async () => {
+      const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+      respond(
+        new Response(null, { status: 404 }),
+        new Response(JSON.stringify({ error: 'paused' }), { status: 503 }),
+        new Response(null, { status: 404 }),
+        new Response(null, { status: 404 }),
+        new Response('{}', { status: 201 })
+      );
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      now.mockReturnValue(1_000_000 + ASSET_PAUSE_RETRY_MS);
+      expect(await store.upload(id, new Blob([bytes]))).toBe('stored');
 
       expect(callsOf().map(([method]) => method)).toEqual(['HEAD', 'PUT', 'HEAD', 'HEAD', 'PUT']);
     });
