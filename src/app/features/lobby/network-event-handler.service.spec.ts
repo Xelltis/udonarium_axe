@@ -582,7 +582,8 @@ describe('NetworkEventHandlerService', () => {
       await vi.waitFor(() => expect(sent()).toHaveLength(2));
       expect(sent()[0]).toContain('feature.lobby.errors.roomServerBanned');
       expect(sent()[1]).toContain('feature.lobby.operatorContact.chat');
-      expect(sent()[1]).toContain('mailto:admin@example.com');
+      expect(sent()[1]).toContain('admin@example.com');
+      expect(sent()[1]).not.toContain('mailto:');
     });
 
     it('writes nothing more under a ban where the server gives no contact', async () => {

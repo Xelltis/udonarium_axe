@@ -12,6 +12,7 @@ import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
+import { operatorContactText } from '@axe/core/network/server/operator-contact';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { AuthorityEvent, MAX_MEMBERS } from '@axe/core/network/server/server-protocol';
 import { ACCOUNT_USER_ID_PREFIX } from '@axe/core/network/server/server-protocol';
@@ -464,7 +465,9 @@ export class NetworkEventHandlerService {
   private async tellOperatorContact(): Promise<void> {
     const contact = await Network.instance.operatorContact();
     if (contact) {
-      this.chatMessageService.sendSystemMessage(encodeI18nMessage('feature.lobby.operatorContact.chat', { contact }));
+      this.chatMessageService.sendSystemMessage(
+        encodeI18nMessage('feature.lobby.operatorContact.chat', { contact: operatorContactText(contact) })
+      );
     }
   }
 
