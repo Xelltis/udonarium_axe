@@ -256,7 +256,7 @@ export class AudioStorage {
           }
           return;
         }
-        this.barred.delete(identifier);
+        if (result === 'stored' || result === 'exists') this.barred.delete(identifier);
         if (result === 'failed') {
           if (!this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey))) {
             this.giveUp(identifier, roomKey);
@@ -281,20 +281,23 @@ export class AudioStorage {
    * Tries one the operator's stop held again a while later, in the room it was held in, to see
    * whether the stop is over. The smallest is tried, since the bytes may all be sent before the
    * server's answer that the stop goes on. One that does not go up after all, as when it is held no
-   * more, leaves the rest to the next try, as the answer would have.
+   * more, leaves the rest to the next try, as the answer would have; while the seat may not put
+   * anything up, as a guest or while it is getting back in, the try waits with all still held.
    */
   private retryPausedLater(roomKey: string | null): void {
     if (this.pausedRetry) return;
     this.pausedRetry = setTimeout(() => {
       this.pausedRetry = null;
       const next = this.smallestPaused();
-      if (next === undefined) return;
+      const role = Network.serverRole;
+      if (next === undefined || Network.roomKey !== roomKey) return;
+      if (role !== 'gm' && role !== 'pl') {
+        this.retryPausedLater(roomKey);
+        return;
+      }
       this.pausedUploads.delete(next);
       this.retryUpload(next, roomKey, true);
-      const role = Network.serverRole;
-      if (!this.uploading.has(next) && Network.roomKey === roomKey && (role === 'gm' || role === 'pl')) {
-        this.retryPausedLater(roomKey);
-      }
+      if (!this.uploading.has(next)) this.retryPausedLater(roomKey);
     }, ASSET_PAUSE_RETRY_MS);
   }
 

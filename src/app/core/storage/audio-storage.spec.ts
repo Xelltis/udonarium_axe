@@ -302,6 +302,37 @@ describe('AudioStorage', () => {
       expect(storage.isHeldBack(trackId)).toBe(false);
     });
 
+    it('keeps barred one a later try could not put up just then, which says nothing of the bar', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      upload.mockResolvedValueOnce('blocked').mockResolvedValue('failed');
+      storage.add(AudioFile.create(contextOf(trackId)));
+      await vi.advanceTimersByTimeAsync(0);
+
+      storage.uploadAllToAssetStore();
+      await vi.advanceTimersByTimeAsync(600_000);
+
+      expect(storage.isHeldBack(trackId)).toBe(true);
+      expect(catalogued(trackId)).toBe(false);
+    });
+
+    it('waits with all still held while the seat may not put anything up, and tries once it may again', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      const role = vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      upload.mockResolvedValue('paused');
+      storage.add(AudioFile.create(contextOf(trackId)));
+      await vi.advanceTimersByTimeAsync(0);
+      upload.mockClear();
+
+      role.mockReturnValue('guest');
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+      expect(upload).not.toHaveBeenCalled();
+      role.mockReturnValue('pl');
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+
+      expect(upload.mock.calls.map(([identifier]) => identifier)).toEqual([trackId]);
+    });
+
     it('tries the rest later when the one tried whether the stop is over is barred instead', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
