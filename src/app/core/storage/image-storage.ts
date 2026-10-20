@@ -326,10 +326,11 @@ export class ImageStorage {
 
   /**
    * Whether this seat holds one back from peers for the operator: stopped from going up for a while,
-   * or barred. One asked for is not sent either.
+   * or barred. One asked for is not sent either. A guest, who puts nothing up, holds nothing back for
+   * the stop, as it names to peers what it was to put up.
    */
   isHeldBack(identifier: string): boolean {
-    return this.pausedUploads.has(identifier) || this.barred.has(identifier);
+    return (Network.serverRole !== 'guest' && this.pausedUploads.has(identifier)) || this.barred.has(identifier);
   }
 
   /**

@@ -296,6 +296,17 @@ describe('ImageStorage', () => {
       });
     });
 
+    it('holds nothing back for the stop as a guest, who names to peers what it was to put up', async () => {
+      const role = vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      upload.mockResolvedValue('paused');
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      await vi.waitFor(() => expect(storage.isHeldBack(pictureId)).toBe(true));
+
+      role.mockReturnValue('guest');
+
+      expect(storage.isHeldBack(pictureId)).toBe(false);
+    });
+
     it('tries the rest later when the one tried whether the stop is over is barred instead', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');

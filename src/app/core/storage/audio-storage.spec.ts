@@ -281,6 +281,17 @@ describe('AudioStorage', () => {
       });
     });
 
+    it('holds nothing back for the stop as a guest, who names to peers what it was to put up', async () => {
+      const role = vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      upload.mockResolvedValue('paused');
+      storage.add(AudioFile.create(contextOf(trackId)));
+      await vi.waitFor(() => expect(storage.isHeldBack(trackId)).toBe(true));
+
+      role.mockReturnValue('guest');
+
+      expect(storage.isHeldBack(trackId)).toBe(false);
+    });
+
     it('tries the rest later when the one tried whether the stop is over is barred instead', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
