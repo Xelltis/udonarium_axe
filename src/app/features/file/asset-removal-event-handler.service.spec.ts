@@ -69,6 +69,19 @@ describe('AssetRemovalEventHandlerService', () => {
     expect(ImageStorage.instance.isRemoved(pictureId)).toBe(false);
   });
 
+  it('follows each record by itself, keeping the others as they are', async () => {
+    start();
+    const picture = AssetRemoval.remove(pictureId, 'image');
+    AssetRemoval.remove(trackId, 'audio');
+    await settle();
+
+    ObjectStore.instance.remove(picture);
+    await settle();
+
+    expect(ImageStorage.instance.isRemoved(pictureId)).toBe(false);
+    expect(AudioStorage.instance.isRemoved(trackId)).toBe(true);
+  });
+
   it('takes nothing as removed once the records go, as when the seat goes into another room', async () => {
     start();
     const record = AssetRemoval.remove(trackId, 'audio');

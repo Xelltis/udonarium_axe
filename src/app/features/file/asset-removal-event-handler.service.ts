@@ -5,6 +5,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { AssetRemoval } from '@axe/domain/media/asset-removal';
 
 /** The kind the records go by, as the object store names it. */
@@ -26,17 +27,17 @@ export class AssetRemovalEventHandlerService {
   private readonly assetRemoval = inject(AssetRemovalService);
   private readonly snackbar = inject(SnackbarService);
   private readonly t = inject(TRANSLATE_FN);
-  /** What this seat keeps removed now, as the records last said. */
-  private marked = new Set<string>();
+  /** The asset each record keeps removed here now, by the record's identifier. */
+  private readonly marked = new Map<string, string>();
 
   constructor() {
     const destroyRef = inject(DestroyRef);
-    const follow = (event: { aliasName: string }) => {
-      if (event.aliasName === ALIAS) this.follow();
+    const follow = (event: { identifier: string; aliasName: string }) => {
+      if (event.aliasName === ALIAS) this.follow(event.identifier);
     };
     this.objectChange.objectAdded$.subscribe(follow, destroyRef);
     this.objectChange.objectRemoved$.subscribe(follow, destroyRef);
-    this.objectChange.onObjectChangedForAlias([ALIAS], () => this.follow(), destroyRef);
+    this.objectChange.onObjectChangedForAlias([ALIAS], follow, destroyRef);
     for (const [storage, refused] of [
       [ImageStorage.instance, 'feature.file.removal.imageRefused'],
       [AudioStorage.instance, 'feature.file.removal.audioRefused'],
@@ -52,23 +53,23 @@ export class AssetRemovalEventHandlerService {
         storage.onUploadedWhileRemoved = () => {};
       }
     });
-    this.follow();
+    for (const record of AssetRemoval.all()) this.follow(record.identifier);
   }
 
-  private follow(): void {
-    const removed = new Set<string>();
-    for (const record of AssetRemoval.all()) {
-      if (!record.isRemoved) continue;
-      removed.add(record.assetIdentifier);
-      if (this.marked.has(record.assetIdentifier)) continue;
-      if (record.kind === 'audio') AudioStorage.instance.markRemoved(record.assetIdentifier);
-      else ImageStorage.instance.markRemoved(record.assetIdentifier);
+  /** Brings this seat in step with one record, as it stands or gone from the room. */
+  private follow(recordIdentifier: string): void {
+    const found = ObjectStore.instance.get(recordIdentifier);
+    const removing = found instanceof AssetRemoval && found.isRemoved ? found : null;
+    const was = this.marked.get(recordIdentifier);
+    if (was === removing?.assetIdentifier) return;
+    if (was !== undefined) {
+      ImageStorage.instance.unmarkRemoved(was);
+      AudioStorage.instance.unmarkRemoved(was);
+      this.marked.delete(recordIdentifier);
     }
-    for (const identifier of this.marked) {
-      if (removed.has(identifier)) continue;
-      ImageStorage.instance.unmarkRemoved(identifier);
-      AudioStorage.instance.unmarkRemoved(identifier);
-    }
-    this.marked = removed;
+    if (!removing) return;
+    if (removing.kind === 'audio') AudioStorage.instance.markRemoved(removing.assetIdentifier);
+    else ImageStorage.instance.markRemoved(removing.assetIdentifier);
+    this.marked.set(recordIdentifier, removing.assetIdentifier);
   }
 }
