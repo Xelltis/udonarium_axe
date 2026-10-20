@@ -5,6 +5,7 @@ import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import {
   ASSET_LAST_TRY_DELAY_MS,
   ASSET_PAUSE_RETRY_MS,
+  ASSET_PUT_BACK_CHECK_MS,
   AssetRetries,
   receivedUploadTurnMs,
 } from '@axe/core/storage/asset-retries';
@@ -204,7 +205,11 @@ export class ImageStorage {
     if (image && (role === 'gm' || role === 'pl')) this.uploadToAssetStore(image);
   }
 
-  /** Whether one the room removed comes in: chosen to be added in full, by a seat that may put it back. */
+  /**
+   * Whether one the room removed comes in: chosen to be added in full, by a seat that may put it back.
+   * One put back is asked about in the room's store again a while later, as another seat's request to
+   * take it out may still have been under way.
+   */
   private takeBack(image: ImageFile, chosen: boolean): boolean {
     if (!chosen || image.state < ImageState.COMPLETE) return false;
     if (!this.putBack(image.identifier)) {
@@ -212,6 +217,8 @@ export class ImageStorage {
       return false;
     }
     this.removed.delete(image.identifier);
+    const { identifier } = image;
+    setTimeout(() => this.putUpAgain(identifier), ASSET_PUT_BACK_CHECK_MS);
     return true;
   }
 

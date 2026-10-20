@@ -9,6 +9,11 @@ export const ASSET_LAST_TRY_DELAY_MS = 120_000;
  * whether the stop is over.
  */
 export const ASSET_PAUSE_RETRY_MS = 60_000;
+/**
+ * How long after a removal is put back the seat asks the room's store once more whether it holds the
+ * bytes, as another seat's request to take them out may have reached the store meanwhile.
+ */
+export const ASSET_PUT_BACK_CHECK_MS = 10_000;
 
 /** The least a GM or PL waits for each that comes before it to put up what a guest named. */
 export const RECEIVED_UPLOAD_TURN_MS = 5_000;

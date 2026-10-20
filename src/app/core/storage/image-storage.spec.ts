@@ -4,6 +4,7 @@ import { AssetHttpStore, AssetUploadResult } from '@axe/core/storage/asset-http-
 import {
   ASSET_LAST_TRY_DELAY_MS,
   ASSET_PAUSE_RETRY_MS,
+  ASSET_PUT_BACK_CHECK_MS,
   ASSET_RETRY_DELAY_MS,
   AssetRetries,
   RECEIVED_UPLOAD_TURN_MS,
@@ -275,8 +276,28 @@ describe('ImageStorage', () => {
 
     describe('one the room removed while it was going up', () => {
       afterEach(() => {
+        storage.putBack = () => false;
         storage.unmarkRemoved(pictureId);
         storage.onUploadedWhileRemoved = () => {};
+      });
+
+      it('asks the store again a while after it is put back, past a removal another seat had under way', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+        vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('gm');
+        upload.mockResolvedValue('exists');
+        storage.putBack = () => true;
+        storage.markRemoved(pictureId);
+
+        (storage as unknown as { _add(file: ImageFile, isLocal: boolean, putBack: boolean): ImageFile })._add(
+          ImageFile.create(contextOf(pictureId)),
+          true,
+          true
+        );
+        await vi.advanceTimersByTimeAsync(0);
+        expect(upload).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(ASSET_PUT_BACK_CHECK_MS);
+
+        expect(upload).toHaveBeenCalledTimes(2);
       });
 
       it('has the app take out bytes that reached the store all the same, and keeps nothing to try again', async () => {
