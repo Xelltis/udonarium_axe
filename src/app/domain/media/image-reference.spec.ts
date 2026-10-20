@@ -1,4 +1,4 @@
-import { mentionsIdentifier, replaceIdentifierIn, replaceIdentifierInText } from '@axe/domain/media/image-reference';
+import { mentionsAnyOf, replaceIdentifierIn, replaceIdentifierInText } from '@axe/domain/media/image-reference';
 
 describe('image-reference', () => {
   const old = 'a'.repeat(64);
@@ -36,10 +36,12 @@ describe('image-reference', () => {
     expect(result.value).toBe(data);
   });
 
-  it('tells whether data mentions the identifier on its own anywhere', () => {
-    expect(mentionsIdentifier({ attributes: { imageIdentifier: old } }, old)).toBe(true);
-    expect(mentionsIdentifier({ slots: ['', `image:${old}`] }, old)).toBe(true);
-    expect(mentionsIdentifier({ identifier: `imagetag_${old}` }, old)).toBe(false);
-    expect(mentionsIdentifier({ depth: 3, name: 'コマ' }, old)).toBe(false);
+  it('tells whether data mentions any of the identifiers on its own anywhere', () => {
+    expect(mentionsAnyOf({ attributes: { imageIdentifier: old } }, [old])).toBe(true);
+    expect(mentionsAnyOf({ slots: ['', `image:${old}`] }, [next, old])).toBe(true);
+    expect(mentionsAnyOf({ identifier: `imagetag_${old}`, also: `${old}_2 ${old}` }, [old])).toBe(true);
+    expect(mentionsAnyOf({ identifier: `imagetag_${old}` }, [old])).toBe(false);
+    expect(mentionsAnyOf({ depth: 3, name: 'コマ' }, [old, next])).toBe(false);
+    expect(mentionsAnyOf({ name: old }, [])).toBe(false);
   });
 });

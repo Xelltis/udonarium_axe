@@ -15,7 +15,7 @@ import { AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
-import { mentionsIdentifier } from '@axe/domain/media/image-reference';
+import { mentionsAnyOf } from '@axe/domain/media/image-reference';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 
@@ -75,11 +75,7 @@ export class AssetRemovalService {
     if (identifiers.length === 0) return 0;
     return this.objectStore
       .getObjects()
-      .filter((object) => this.counts(object))
-      .filter((object) => {
-        const data = object.toContext().syncData;
-        return identifiers.some((identifier) => mentionsIdentifier(data, identifier));
-      }).length;
+      .filter((object) => this.counts(object) && mentionsAnyOf(object.toContext().syncData, identifiers)).length;
   }
 
   /**

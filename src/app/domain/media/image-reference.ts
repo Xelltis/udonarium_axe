@@ -54,7 +54,25 @@ export function replaceIdentifierIn<T>(value: T, from: string, to: string): { va
   return { value, changed: false };
 }
 
-/** Whether synced data mentions an identifier on its own anywhere, down through its lists and records. */
-export function mentionsIdentifier(value: unknown, identifier: string): boolean {
-  return replaceIdentifierIn(value, identifier, '').changed;
+/**
+ * Whether synced data mentions any of the identifiers on its own anywhere, down through its lists and
+ * records. It stops at the first mention and copies nothing, so a whole room can be asked about many.
+ */
+export function mentionsAnyOf(value: unknown, identifiers: readonly string[]): boolean {
+  if (typeof value === 'string') return identifiers.some((identifier) => mentionsInText(value, identifier));
+  if (Array.isArray(value)) return value.some((item) => mentionsAnyOf(item, identifiers));
+  if (value !== null && typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).some((item) => mentionsAnyOf(item, identifiers));
+  }
+  return false;
+}
+
+function mentionsInText(text: string, identifier: string): boolean {
+  if (identifier.length === 0) return false;
+  for (let at = text.indexOf(identifier); at >= 0; at = text.indexOf(identifier, at + 1)) {
+    const before = at > 0 ? text[at - 1] : '';
+    const after = text[at + identifier.length] ?? '';
+    if (!IDENTIFIER_CHARACTER.test(before) && !IDENTIFIER_CHARACTER.test(after)) return true;
+  }
+  return false;
 }
