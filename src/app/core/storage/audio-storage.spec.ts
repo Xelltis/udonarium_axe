@@ -461,6 +461,17 @@ describe('AudioStorage', () => {
       expect(storage.isHeldBack(trackId)).toBe(false);
     });
 
+    it('keeps holding back one the operator barred though the room is found to list it still', async () => {
+      upload.mockResolvedValue('blocked');
+      storage.add(AudioFile.create(contextOf(trackId)));
+      await vi.waitFor(() => expect(storage.isHeldBack(trackId)).toBe(true));
+
+      storage.forgetUploaded([trackId]);
+
+      expect(storage.isHeldBack(trackId)).toBe(true);
+      expect(catalogued(trackId)).toBe(false);
+    });
+
     it('puts one up again once the upload under way ends, when asked to while it was going up', async () => {
       vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('gm');
       storage.add(AudioFile.create(contextOf(trackId)));

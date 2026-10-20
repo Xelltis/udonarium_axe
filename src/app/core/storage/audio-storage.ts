@@ -401,7 +401,8 @@ export class AudioStorage {
    */
   /**
    * Counts as up what the room's store was found to hold, though this seat could not put it there,
-   * as when another seat has since.
+   * as when another seat has since. One the operator barred stays held back, as a room the takedown
+   * missed may list it still.
    */
   forgetUploaded(identifiers: readonly string[]): void {
     for (const identifier of identifiers) this.forgetUpload(identifier);
@@ -412,7 +413,6 @@ export class AudioStorage {
     this.gaveUp.delete(identifier);
     this.missedUploads.delete(identifier);
     this.pausedUploads.delete(identifier);
-    this.barred.delete(identifier);
     const lastTry = this.lastTries.get(identifier);
     if (lastTry) {
       clearTimeout(lastTry);
@@ -444,6 +444,7 @@ export class AudioStorage {
 
   delete(identifier: string): boolean {
     this.forgetUpload(identifier);
+    this.barred.delete(identifier);
     const audio: AudioFile = this.hash[identifier];
     if (audio) {
       audio.destroy();

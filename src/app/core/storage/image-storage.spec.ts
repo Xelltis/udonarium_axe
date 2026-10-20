@@ -476,6 +476,17 @@ describe('ImageStorage', () => {
       expect(storage.isHeldBack(pictureId)).toBe(false);
     });
 
+    it('keeps holding back one the operator barred though the room is found to list it still', async () => {
+      upload.mockResolvedValue('blocked');
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      await vi.waitFor(() => expect(storage.isHeldBack(pictureId)).toBe(true));
+
+      storage.forgetUploaded([pictureId]);
+
+      expect(storage.isHeldBack(pictureId)).toBe(true);
+      expect(catalogued(pictureId)).toBe(false);
+    });
+
     it('puts one up again once the upload under way ends, when asked to while it was going up', async () => {
       vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('gm');
       storage.add(ImageFile.create(contextOf(pictureId)));
