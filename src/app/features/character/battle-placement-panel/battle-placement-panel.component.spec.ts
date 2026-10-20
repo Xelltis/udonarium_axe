@@ -81,7 +81,7 @@ describe('BattlePlacementPanelComponent', () => {
   });
 
   it('takes a piece out of the fight', async () => {
-    vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockReturnValue(null as never);
+    vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(null as never);
     const leader = pieceAt('先頭', 5, 5);
     pieceAt('敵将', 15, 5, true);
     const fixture = await open(leader);
@@ -96,7 +96,7 @@ describe('BattlePlacementPanelComponent', () => {
 
   it('lists the situations the table names, and says in chat the distance with those ticked', async () => {
     Config.instance.distanceModifiers = '12:修正なし,足場が悪い:判定-2,見通しが良い:隠れる側-2';
-    const sent = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockReturnValue(null as never);
+    const sent = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(null as never);
     const leader = pieceAt('先頭', 5, 5);
     pieceAt('敵将', 15, 5, true);
     const fixture = await open(leader);
@@ -109,7 +109,8 @@ describe('BattlePlacementPanelComponent', () => {
     (host.querySelector('[data-testid="placement-announce"]') as HTMLButtonElement).click();
 
     expect(sent).toHaveBeenCalledOnce();
-    const said = sent.mock.calls[0][0] as string;
+    expect(sent.mock.calls[0][0]).toBe('movement');
+    const said = sent.mock.calls[0][1] as string;
     expect(said).toContain('10.0');
     expect(said).toContain('修正なし');
     expect(said).toContain('足場が悪い：判定-2');

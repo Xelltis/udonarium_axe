@@ -77,20 +77,6 @@ describe('ChatMessageService', () => {
     }));
   });
 
-  it('sendSystemMessageToMainTab routes to the first chat tab', inject(
-    [ChatMessageService],
-    (service: ChatMessageService) => {
-      const mainTab = {} as ChatTab;
-      const chatTabList = { chatTabs: [mainTab, {} as ChatTab] } as unknown as ChatTabList;
-      vi.spyOn(TestBed.inject(ObjectStore), 'get').mockReturnValue(chatTabList as never);
-      const toTabSpy = vi.spyOn(service, 'sendSystemMessageToTab').mockReturnValue(undefined as never);
-
-      service.sendSystemMessageToMainTab('hello');
-
-      expect(toTabSpy).toHaveBeenCalledWith(mainTab, 'hello', undefined);
-    }
-  ));
-
   describe('an after-the-fact whisper', () => {
     let service: ChatMessageService;
     let tab: ChatTab;

@@ -194,7 +194,7 @@ describe('HandRailComponent', () => {
       otherPlayer('other', 'あいて');
       const card = handCard();
       const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
-      const announce = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockReturnValue(null!);
+      const announce = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(null!);
 
       await hoverOverTheHand();
       giveButton()!.click();

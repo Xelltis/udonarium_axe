@@ -370,7 +370,7 @@ export class BuffManagerPanelComponent {
     this.selected.set('');
     this.refresh();
     if (removed.buffs > 0) {
-      this.chat.sendSystemMessageToMainTab(this.t('feature.buffManager.sweepDone', { what, ...removed }));
+      this.chat.sendSystemNotice('round', this.t('feature.buffManager.sweepDone', { what, ...removed }));
     }
   }
 

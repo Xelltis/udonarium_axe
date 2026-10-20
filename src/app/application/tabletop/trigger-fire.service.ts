@@ -436,8 +436,7 @@ export class TriggerFireService {
    * that moved, the very player who was not to notice would be the one who could read it.
    */
   private tell(trigger: TableTrigger, text: string): void {
-    if (trigger.silent) this.chat.sendSecretSystemMessageToMainTab(text);
-    else this.chat.sendSystemMessageToMainTab(text);
+    this.chat.sendSystemNotice('trigger', text, { secret: trigger.silent });
   }
 
   private resourceOf(piece: GameCharacter, name: string): DataElement | null {

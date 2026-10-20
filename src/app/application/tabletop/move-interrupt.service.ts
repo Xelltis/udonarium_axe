@@ -399,7 +399,8 @@ export class MoveInterruptService {
     } else {
       this.zones.formAt(point, [mover, ...pieces], outcome.atOnce === true);
     }
-    this.chat.sendSystemMessage(
+    this.chat.sendSystemNotice(
+      'movement',
       this.t('feature.zone.chat.interrupted', {
         names: pieces.map((piece) => piece.name).join('、'),
         mover: mover.name,

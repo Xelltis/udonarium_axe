@@ -55,6 +55,7 @@ class StubObjectChange {
 describe('NetworkEventHandlerService', () => {
   let chatStub: {
     sendSystemMessage: ReturnType<typeof vi.fn>;
+    sendSystemNotice: ReturnType<typeof vi.fn>;
     calibrateTimeOffset: ReturnType<typeof vi.fn>;
   };
   let stubChange: StubObjectChange;
@@ -64,6 +65,7 @@ describe('NetworkEventHandlerService', () => {
     account = signal<Account | null>(null);
     chatStub = {
       sendSystemMessage: vi.fn(),
+      sendSystemNotice: vi.fn(),
       calibrateTimeOffset: vi.fn(),
     };
     stubChange = new StubObjectChange();
@@ -394,20 +396,21 @@ describe('NetworkEventHandlerService', () => {
   it('says a peer is reconnecting', () => {
     stubChange.peerReconnect$.emit({ peerId: 'abcdef123', state: 'retrying' });
 
-    expect(chatStub.sendSystemMessage).toHaveBeenCalledTimes(1);
-    expect(chatStub.sendSystemMessage.mock.calls[0][0]).toContain('feature.lobby.peerReconnect.retrying');
+    expect(chatStub.sendSystemNotice).toHaveBeenCalledTimes(1);
+    expect(chatStub.sendSystemNotice.mock.calls[0][0]).toBe('room');
+    expect(chatStub.sendSystemNotice.mock.calls[0][1]).toContain('feature.lobby.peerReconnect.retrying');
   });
 
   it('says it has come back', () => {
     stubChange.peerReconnect$.emit({ peerId: 'abcdef123', state: 'recovered' });
 
-    expect(chatStub.sendSystemMessage.mock.calls[0][0]).toContain('feature.lobby.peerReconnect.recovered');
+    expect(chatStub.sendSystemNotice.mock.calls[0][1]).toContain('feature.lobby.peerReconnect.recovered');
   });
 
   it('says it has failed', () => {
     stubChange.peerReconnect$.emit({ peerId: 'abcdef123', state: 'failed' });
 
-    expect(chatStub.sendSystemMessage.mock.calls[0][0]).toContain('feature.lobby.peerReconnect.failed');
+    expect(chatStub.sendSystemNotice.mock.calls[0][1]).toContain('feature.lobby.peerReconnect.failed');
   });
 
   it('tells the reader alone, naming the room server, when the link to it drops and comes back', () => {
@@ -422,7 +425,7 @@ describe('NetworkEventHandlerService', () => {
       '部屋のサーバーとの接続が切れました。再接続しています…',
       '部屋のサーバーとの接続を復旧しました。',
     ]);
-    expect(chatStub.sendSystemMessage).not.toHaveBeenCalled();
+    expect(chatStub.sendSystemNotice).not.toHaveBeenCalled();
   });
 
   it('shows nothing of the link to the room server on a screen made for streaming', () => {
@@ -435,7 +438,7 @@ describe('NetworkEventHandlerService', () => {
     stubChange.peerReconnect$.emit({ peerId: 'my-seat', state: 'recovered' });
 
     expect(shown).not.toHaveBeenCalled();
-    expect(chatStub.sendSystemMessage).not.toHaveBeenCalled();
+    expect(chatStub.sendSystemNotice).not.toHaveBeenCalled();
   });
 
   describe('uploads the room server’s operator held back', () => {
@@ -493,7 +496,7 @@ describe('NetworkEventHandlerService', () => {
   it('falls back to the head of the identifier for a peer whose name it does not know', () => {
     stubChange.peerReconnect$.emit({ peerId: 'abcdef123', state: 'retrying' });
 
-    expect(chatStub.sendSystemMessage.mock.calls[0][0]).toContain('abcdef');
+    expect(chatStub.sendSystemNotice.mock.calls[0][1]).toContain('abcdef');
   });
 
   it('configures the network and stands by as the settings load', () => {
@@ -714,7 +717,7 @@ describe('NetworkEventHandlerService', () => {
   });
 
   describe('roles on a room server', () => {
-    const sent = () => chatStub.sendSystemMessage.mock.calls.map(([text]) => text as string);
+    const sent = () => chatStub.sendSystemNotice.mock.calls.map(([, text]) => text as string);
 
     beforeEach(() => {
       vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');

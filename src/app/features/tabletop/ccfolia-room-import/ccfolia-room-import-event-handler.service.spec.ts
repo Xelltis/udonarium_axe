@@ -18,12 +18,12 @@ const SUMMARY = {
 };
 
 describe('CcfoliaRoomImportEventHandlerService', () => {
-  let chatStub: { sendSystemMessage: ReturnType<typeof vi.fn> };
+  let chatStub: { sendSystemNotice: ReturnType<typeof vi.fn> };
   let importAsync: ReturnType<typeof vi.fn>;
   let canEditTabletop: boolean;
 
   function setup(): void {
-    chatStub = { sendSystemMessage: vi.fn() };
+    chatStub = { sendSystemNotice: vi.fn() };
     importAsync = vi.fn().mockResolvedValue({ summary: SUMMARY, error: null });
 
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
@@ -53,9 +53,9 @@ describe('CcfoliaRoomImportEventHandlerService', () => {
     setup();
 
     emitCcfoliaRoomDropped({ entries: {} });
-    await vi.waitFor(() => expect(chatStub.sendSystemMessage).toHaveBeenCalled());
+    await vi.waitFor(() => expect(chatStub.sendSystemNotice).toHaveBeenCalled());
 
-    const messages = chatStub.sendSystemMessage.mock.calls.map((call) => call[0] as string);
+    const messages = chatStub.sendSystemNotice.mock.calls.map((call) => call[1] as string);
     expect(importAsync).toHaveBeenCalledOnce();
     expect(messages).toHaveLength(3);
     expect(messages[0]).toContain('feature.tabletop.ccfoliaImport.imported');
@@ -68,10 +68,10 @@ describe('CcfoliaRoomImportEventHandlerService', () => {
     setup();
 
     emitCcfoliaRoomDropped({ entries: {} });
-    await vi.waitFor(() => expect(chatStub.sendSystemMessage).toHaveBeenCalled());
+    await vi.waitFor(() => expect(chatStub.sendSystemNotice).toHaveBeenCalled());
 
     expect(importAsync).not.toHaveBeenCalled();
-    expect(chatStub.sendSystemMessage.mock.calls[0][0]).toContain('feature.tabletop.ccfoliaImport.errors.denied');
+    expect(chatStub.sendSystemNotice.mock.calls[0][1]).toContain('feature.tabletop.ccfoliaImport.errors.denied');
   });
 
   it('reports the error alone when it cannot read the file', async () => {
@@ -79,9 +79,9 @@ describe('CcfoliaRoomImportEventHandlerService', () => {
     importAsync.mockResolvedValue({ summary: null, error: 'unrecognized' });
 
     emitCcfoliaRoomDropped({ entries: {} });
-    await vi.waitFor(() => expect(chatStub.sendSystemMessage).toHaveBeenCalled());
+    await vi.waitFor(() => expect(chatStub.sendSystemNotice).toHaveBeenCalled());
 
-    expect(chatStub.sendSystemMessage).toHaveBeenCalledOnce();
-    expect(chatStub.sendSystemMessage.mock.calls[0][0]).toContain('feature.tabletop.ccfoliaImport.errors.unrecognized');
+    expect(chatStub.sendSystemNotice).toHaveBeenCalledOnce();
+    expect(chatStub.sendSystemNotice.mock.calls[0][1]).toContain('feature.tabletop.ccfoliaImport.errors.unrecognized');
   });
 });

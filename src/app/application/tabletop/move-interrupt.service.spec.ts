@@ -43,8 +43,8 @@ describe('MoveInterruptService', () => {
     PeerCursor.myCursor.zoneProtocol = '1';
     service = TestBed.inject(MoveInterruptService);
     said = [];
-    vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockImplementation((text: string) => {
-      said.push(text);
+    vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockImplementation((kind, text: string) => {
+      if (kind === 'movement') said.push(text);
       return null as never;
     });
   });

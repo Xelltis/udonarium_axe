@@ -33,8 +33,8 @@ import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permi
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
 import { dieRollTag } from '@axe/domain/chat/die-roll-tag';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
-import { DEFAULT_NOTICE_PLACE, NOTICE_OFF, noticeRouteOf, SystemNoticeKind } from '@axe/domain/chat/system-notices';
 import { joinStampLine } from '@axe/domain/chat/stamp-line';
+import { DEFAULT_NOTICE_PLACE, NOTICE_OFF, noticeRouteOf, SystemNoticeKind } from '@axe/domain/chat/system-notices';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { encodeDiceLook } from '@axe/domain/dice/dice-3d/dice-look';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
@@ -197,15 +197,6 @@ export class ChatMessageService {
   sendSecretSystemMessageToMainTab(text: string, from?: string, dieIdentifiers: readonly string[] = []): ChatMessage {
     const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
     return this.sendSecretSystemMessageToTab(chatTabList!.chatTabs[0], text, from, undefined, dieIdentifiers);
-  }
-
-  /**
-   * Writes a notice into the first tab of the room, which is where the round and other table-wide
-   * events are announced.
-   */
-  sendSystemMessageToMainTab(text: string, color?: string): ChatMessage {
-    const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
-    return this.sendSystemMessageToTab(chatTabList!.chatTabs[0], text, color);
   }
 
   /**

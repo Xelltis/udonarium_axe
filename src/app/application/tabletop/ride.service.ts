@@ -261,7 +261,8 @@ export class RideService {
       piece.rideLeftSeat = '';
     });
     this.zones.carryBound(mount);
-    this.chat.sendSystemMessage(
+    this.chat.sendSystemNotice(
+      'movement',
       this.t(`feature.ride.chat.on_${seat}`, {
         name: piece.name,
         mount: mount.name,
@@ -285,7 +286,8 @@ export class RideService {
     if (!takenOff && this.changeRefusal(piece) !== null) return false;
     this.getOff(piece, takenOff);
     if (mount) {
-      this.chat.sendSystemMessage(
+      this.chat.sendSystemNotice(
+        'movement',
         this.t('feature.ride.chat.off', {
           name: piece.name,
           mount: mount.name,
@@ -390,7 +392,8 @@ export class RideService {
       piece.prone = prone ? '1' : '';
       piece.proneTurn = prone ? this.ownTurnMark(piece) : '';
     });
-    this.chat.sendSystemMessage(
+    this.chat.sendSystemNotice(
+      'movement',
       this.t(prone ? 'feature.ride.chat.prone' : 'feature.ride.chat.up', { name: piece.name })
     );
     for (const one of thrown) this.fall(one);
@@ -441,7 +444,10 @@ export class RideService {
       piece.prone = '1';
       piece.proneTurn = this.ownTurnMark(piece);
     });
-    this.chat.sendSystemMessage(this.t('feature.ride.chat.fell', { name: piece.name, mount: mount.name, metres }));
+    this.chat.sendSystemNotice(
+      'movement',
+      this.t('feature.ride.chat.fell', { name: piece.name, mount: mount.name, metres })
+    );
     this.settleTwoUp(mount.identifier);
     const damage = this.config()?.fallDamage ?? null;
     if (damage !== null) void this.macro.sendAsCharacter(piece, damage.replaceAll('{m}', `${metres}`));
@@ -484,7 +490,7 @@ export class RideService {
       piece.rideTwoUpBuff = given;
     });
     if (given !== '')
-      this.chat.sendSystemMessage(this.t('feature.ride.chat.twoUpOn', { name: piece.name, buff: name }));
+      this.chat.sendSystemNotice('movement', this.t('feature.ride.chat.twoUpOn', { name: piece.name, buff: name }));
   }
 
   /** Takes the buff for riding two up off a piece, where it is still the one given. */
@@ -497,7 +503,7 @@ export class RideService {
     if (!given) return;
     const name = given.name;
     piece.buffs.remove(given);
-    this.chat.sendSystemMessage(this.t('feature.ride.chat.twoUpOff', { name: piece.name, buff: name }));
+    this.chat.sendSystemNotice('movement', this.t('feature.ride.chat.twoUpOff', { name: piece.name, buff: name }));
   }
 
   /**

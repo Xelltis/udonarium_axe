@@ -247,7 +247,10 @@ export class NetworkEventHandlerService {
       }
       const key = NetworkEventHandlerService.RECONNECT_MESSAGE_KEYS[event.state];
       if (!key) return;
-      this.chatMessageService.sendSystemMessage(encodeI18nMessage(key, { name: this.resolvePeerName(event.peerId) }));
+      this.chatMessageService.sendSystemNotice(
+        'room',
+        encodeI18nMessage(key, { name: this.resolvePeerName(event.peerId) })
+      );
     }, this.destroyRef);
     this.objectChange.onObjectChangedForAlias(
       ['PeerCursor'],
@@ -425,7 +428,7 @@ export class NetworkEventHandlerService {
     const reason = typeof data?.reason === 'string' ? data.reason : '';
     const key = ROLE_REJECTED_KEYS[reason] ?? 'feature.lobby.roleRejected.other';
     const name = typeof data?.peerId === 'string' ? this.resolvePeerName(data.peerId) : '';
-    this.chatMessageService.sendSystemMessage(encodeI18nMessage(key, { name, reason }));
+    this.chatMessageService.sendSystemNotice('room', encodeI18nMessage(key, { name, reason }));
   }
 
   /**

@@ -272,7 +272,7 @@ export class JukeboxPlaybackService {
 
   private logChange(key: string): void {
     const name = PeerCursor.myCursor?.name ?? '';
-    this.chatMessage.sendSystemMessage(encodeI18nMessage(`feature.media.jukebox.log.${key}`, { name }));
+    this.chatMessage.sendSystemNotice('bgm', encodeI18nMessage(`feature.media.jukebox.log.${key}`, { name }));
   }
 
   /** Makes a playlist the one the room plays through and starts it from the top. */

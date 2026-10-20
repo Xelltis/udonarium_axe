@@ -372,9 +372,7 @@ describe('BuffManagerPanelComponent', () => {
     it('takes the chosen buffs off every piece once confirmed, and says so in chat', async () => {
       beRole(PeerRole.GameMaster);
       vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
-      const said = vi
-        .spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageToMainTab')
-        .mockReturnValue(undefined as never);
+      const said = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(undefined as never);
       component.sweepKind.set('name');
       component.sweepName.set('毒');
 
@@ -383,6 +381,7 @@ describe('BuffManagerPanelComponent', () => {
       expect(names(knight)).toEqual(['加速']);
       expect(names(archer)).toEqual([]);
       expect(said).toHaveBeenCalledOnce();
+      expect(said.mock.calls[0][0]).toBe('round');
     });
 
     it('takes nothing when the game master thinks better of it, or for anyone else', async () => {

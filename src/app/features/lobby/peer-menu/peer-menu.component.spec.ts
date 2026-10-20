@@ -279,13 +279,16 @@ describe('PeerMenuComponent', () => {
       vi.spyOn(Network.instance, 'peerIds', 'get').mockReturnValue([]);
       vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
       vi.spyOn(ObjectSynchronizer.instance, 'requestFullSync').mockReturnValue(1);
-      const said = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockReturnValue(null!);
+      const said = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(null);
 
       expect(component.canRequestFullSync).toBe(true);
       expect(component.shouldShowReconnectButton).toBe(true);
       component.requestFullSync();
 
-      expect(said).toHaveBeenCalledWith(encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequestedFromServer'));
+      expect(said).toHaveBeenCalledWith(
+        'room',
+        encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequestedFromServer')
+      );
     });
 
     it('shows your own role as the server gave it, with nothing to press', () => {

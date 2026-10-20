@@ -447,7 +447,7 @@ export class PeerMenuComponent {
       this.networkService.authorityPeerId !== null
         ? encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequestedFromServer')
         : encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequested', { count: peerCount });
-    this.chatMessageService.sendSystemMessage(notice);
+    this.chatMessageService.sendSystemNotice('room', notice);
   }
 
   /** Shows the room's password as plain text, or hides it again. */
