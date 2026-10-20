@@ -47,6 +47,19 @@ describe('BoardKeeper', () => {
     expect(images.addAsync).not.toHaveBeenCalled();
   });
 
+  it('keeps the picture as one drawn here, which the GM may put back, and sends only the drawing when it is kept out', async () => {
+    const painted = new Blob(['board'], { type: 'image/webp' });
+    host.canvas = () => ({ toBlob: (made: BlobCallback) => made(painted) }) as unknown as HTMLCanvasElement;
+    images.addAsync.mockResolvedValue(null);
+
+    keeper.keepPicture();
+    await vi.runAllTimersAsync();
+
+    expect(images.addAsync).toHaveBeenCalledWith(painted, { putBack: true });
+    expect(board.update).toHaveBeenCalledTimes(1);
+    expect(images.delete).not.toHaveBeenCalled();
+  });
+
   it('writes the drawing down at once when put down within the breath', () => {
     keeper.keepPicture();
     keeper.putDown();

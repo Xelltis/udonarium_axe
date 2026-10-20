@@ -59,8 +59,9 @@ export class BoardKeeper {
    * Writes the drawing onto the board and replaces the picture the board wears on the table.
    *
    * The drawing is painted bare, stored as a new image and put on the board, the old image is
-   * deleted, and the board is sent to the room. Where the canvas cannot make an image, only the
-   * drawing is sent. Does nothing without a board or a canvas.
+   * deleted, and the board is sent to the room. Where the canvas cannot make an image, or the image
+   * is one the room removed that this seat may not put back, only the drawing is sent. Does nothing
+   * without a board or a canvas.
    */
   async save(): Promise<void> {
     const board = this.host.board();
@@ -79,7 +80,7 @@ export class BoardKeeper {
       return;
     }
 
-    const file = await this.images.addAsync(blob);
+    const file = await this.images.addAsync(blob, { putBack: true });
     if (!file) {
       board.update();
       this.host.redraw();
