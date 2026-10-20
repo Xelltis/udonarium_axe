@@ -33,11 +33,13 @@ import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permi
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
 import { dieRollTag } from '@axe/domain/chat/die-roll-tag';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
+import { DEFAULT_NOTICE_PLACE, NOTICE_OFF, noticeRouteOf, SystemNoticeKind } from '@axe/domain/chat/system-notices';
 import { joinStampLine } from '@axe/domain/chat/stamp-line';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { encodeDiceLook } from '@axe/domain/dice/dice-3d/dice-look';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { mayBeChosen } from '@axe/domain/peer/chosen-seat';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import GameSystemClass from 'bcdice/lib/game_system';
@@ -204,6 +206,37 @@ export class ChatMessageService {
   sendSystemMessageToMainTab(text: string, color?: string): ChatMessage {
     const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
     return this.sendSystemMessageToTab(chatTabList!.chatTabs[0], text, color);
+  }
+
+  /**
+   * Writes a notice of one kind where the room sends that kind: the tab it chose, or, while it chose
+   * none or that tab is gone, the leftmost tab or the system tab the kind always went to. Nothing is
+   * written, and null comes back, for a kind the room sends nowhere. A secret notice is kept back as
+   * `sendSecretSystemMessageToTab` keeps it.
+   */
+  sendSystemNotice(
+    kind: SystemNoticeKind,
+    text: string,
+    options: { color?: string; from?: string; secret?: boolean; dieIdentifiers?: readonly string[] } = {}
+  ): ChatMessage | null {
+    const tab = this.noticeTabOf(kind);
+    if (!tab) return null;
+    if (options.secret) {
+      return this.sendSecretSystemMessageToTab(tab, text, options.from, options.color, options.dieIdentifiers);
+    }
+    return this.sendSystemMessageToTab(tab, text, options.color, options.from);
+  }
+
+  /** The tab a kind of notice goes to now, or null for a kind the room sends nowhere. */
+  noticeTabOf(kind: SystemNoticeKind): ChatTab | null {
+    const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
+    if (!chatTabList) return null;
+    const config = this.objectStore.get<Config>('Config') ?? Config.instance;
+    const route = noticeRouteOf(config.systemNotices, kind);
+    if (route === NOTICE_OFF) return null;
+    const chosen = route ? chatTabList.chatTabs.find((tab) => tab.identifier === route) : undefined;
+    if (chosen) return chosen;
+    return DEFAULT_NOTICE_PLACE[kind] === 'main' ? (chatTabList.chatTabs[0] ?? null) : chatTabList.systemMessageTab;
   }
 
   /**

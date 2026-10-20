@@ -12,6 +12,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
+import { DEFAULT_SYSTEM_NOTICES, NOTICE_OFF, withNoticeRoute } from '@axe/domain/chat/system-notices';
 import { DataElement } from '@axe/domain/data/data-element';
 import { decodeDiceLook, PLAIN_DICE_LOOK } from '@axe/domain/dice/dice-3d/dice-look';
 import { Config } from '@axe/domain/peer/config';
@@ -420,6 +421,81 @@ describe('ChatMessageService', () => {
       } finally {
         another.destroy();
       }
+    });
+  });
+
+  describe('a notice of a kind the room may send somewhere of its choosing', () => {
+    let service: ChatMessageService;
+    let first: ChatTab;
+    let battle: ChatTab;
+
+    const route = (kind: 'round' | 'card', to: string) => {
+      Config.instance.systemNotices = withNoticeRoute(Config.instance.systemNotices, kind, to);
+    };
+
+    beforeEach(() => {
+      service = TestBed.inject(ChatMessageService);
+      first = ChatTabList.instance.addChatTab('メイン');
+      battle = ChatTabList.instance.addChatTab('戦闘');
+    });
+
+    afterEach(() => {
+      Config.instance.systemNotices = DEFAULT_SYSTEM_NOTICES;
+      battle.destroy();
+      first.destroy();
+    });
+
+    it('goes where its kind always went while the room chose nothing: the leftmost tab, or the system one', () => {
+      const list = ChatTabList.instance;
+      const index = list.systemMessageTabIndex;
+      list.systemMessageTabIndex = list.chatTabs.indexOf(battle);
+      try {
+        const leftmost = list.chatTabs[0];
+        expect(leftmost).not.toBe(battle);
+
+        const round = service.sendSystemNotice('round', 'ラウンド1開始です。');
+        const card = service.sendSystemNotice('card', '配りました。');
+
+        expect(leftmost.chatMessages).toContain(round);
+        expect(list.systemMessageTab).toBe(battle);
+        expect(battle.chatMessages).toContain(card);
+      } finally {
+        list.systemMessageTabIndex = index;
+      }
+    });
+
+    it('goes to the tab the room chose for its kind, and leaves the other kinds where they went', () => {
+      route('round', battle.identifier);
+
+      const round = service.sendSystemNotice('round', 'ラウンド1開始です。');
+
+      expect(battle.chatMessages).toContain(round);
+      expect(round?.tags).toContain('system-message');
+      expect(service.noticeTabOf('card')).toBe(ChatTabList.instance.systemMessageTab);
+    });
+
+    it('is written nowhere for a kind the room sends nowhere', () => {
+      route('round', NOTICE_OFF);
+      const before = ChatTabList.instance.chatTabs.map((tab) => tab.chatMessages.length);
+
+      expect(service.sendSystemNotice('round', 'ラウンド1開始です。')).toBeNull();
+
+      expect(ChatTabList.instance.chatTabs.map((tab) => tab.chatMessages.length)).toEqual(before);
+    });
+
+    it('goes where its kind always went once the tab chosen for it is gone', () => {
+      route('round', 'a-tab-since-deleted');
+
+      expect(service.noticeTabOf('round')).toBe(ChatTabList.instance.chatTabs[0]);
+    });
+
+    it('is kept back as a secret where it is asked to be', () => {
+      route('round', battle.identifier);
+
+      const kept = service.sendSystemNotice('round', '罠が作動した', { secret: true, from: 'me' });
+
+      expect(kept?.isSecret).toBe(true);
+      expect(battle.chatMessages).toContain(kept);
     });
   });
 
