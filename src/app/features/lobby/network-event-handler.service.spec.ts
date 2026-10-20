@@ -455,6 +455,19 @@ describe('NetworkEventHandlerService', () => {
       expect(shown.mock.calls[0][0]).toContain('運営者');
     });
 
+    it('puts up what both stores held once uploads go again, whichever found it out', () => {
+      vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+      const pictures = vi.spyOn(ImageStorage.instance, 'resumePaused').mockImplementation(() => {});
+      const sounds = vi.spyOn(AudioStorage.instance, 'resumePaused').mockImplementation(() => {});
+
+      AssetHttpStore.instance.onUploadsPaused(true);
+      expect(pictures).not.toHaveBeenCalled();
+      AssetHttpStore.instance.onUploadsPaused(false);
+
+      expect(pictures).toHaveBeenCalledTimes(1);
+      expect(sounds).toHaveBeenCalledTimes(1);
+    });
+
     it('shows none of it on a screen made for streaming', () => {
       vi.spyOn(TestBed.inject(OverlayModeService), 'active').mockReturnValue(true);
       const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});

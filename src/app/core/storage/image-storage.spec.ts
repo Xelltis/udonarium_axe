@@ -296,6 +296,23 @@ describe('ImageStorage', () => {
       });
     });
 
+    it('tries the rest later when the one tried whether the stop is over is barred instead', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      const larger = 'c'.repeat(64);
+      upload.mockResolvedValue('paused');
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      storage.add(ImageFile.create({ ...contextOf(larger), blob: new Blob([new Uint8Array(64)]) }));
+      await vi.advanceTimersByTimeAsync(0);
+      upload.mockClear().mockResolvedValueOnce('blocked');
+
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+
+      expect(upload.mock.calls.map(([identifier]) => identifier)).toEqual([pictureId, larger]);
+      storage.delete(larger);
+    });
+
     it('asks the store to try whether the stop is over, and tries the next later when one goes up no more', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');

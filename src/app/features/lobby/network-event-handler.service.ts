@@ -107,7 +107,13 @@ export class NetworkEventHandlerService {
     });
     ImageStorage.instance.receivedUploadTurn = () => this.turnToPutUpReceived();
     AudioStorage.instance.receivedUploadTurn = () => this.turnToPutUpReceived();
-    AssetHttpStore.instance.onUploadsPaused = (paused) => this.tellUploadsPaused(paused);
+    AssetHttpStore.instance.onUploadsPaused = (paused) => {
+      if (!paused) {
+        ImageStorage.instance.resumePaused();
+        AudioStorage.instance.resumePaused();
+      }
+      this.tellUploadsPaused(paused);
+    };
     AssetHttpStore.instance.onUploadBlocked = () => this.tellUploadBlocked();
     networkMessage$.subscribe((message) => {
       if (message.eventName !== AuthorityEvent.ROLE_REJECTED || message.sendFrom !== Network.authorityPeerId) return;

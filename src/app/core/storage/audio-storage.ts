@@ -248,7 +248,6 @@ export class AudioStorage {
             this.barred.add(identifier);
           } else {
             this.pausedUploads.add(identifier);
-            this.retryPausedLater(roomKey);
           }
           return;
         }
@@ -263,11 +262,11 @@ export class AudioStorage {
         }
         // One kept anew shows the stop is over; anything else leaves the rest to be tried later.
         if (result === 'stored') this.resumePaused();
-        else if (this.pausedUploads.size > 0) this.retryPausedLater(roomKey);
         wentUpElsewhere = (result === 'stored' || result === 'exists') && roomKey !== requestedIn;
       })
       .finally(() => {
         this.uploading.delete(identifier);
+        if (this.pausedUploads.size > 0) this.retryPausedLater(Network.roomKey);
         this.catalogSchedule.whenQuiet(100);
         if (wentUpElsewhere) this.putUpHeld(identifier);
       });
@@ -307,8 +306,11 @@ export class AudioStorage {
     return smallest;
   }
 
-  /** Puts up everything the operator's stop held, now that one has gone up. */
-  private resumePaused(): void {
+  /**
+   * Puts up everything the operator's stop held, now that one has gone up here or, as the app tells,
+   * anywhere: the stop is over for every upload.
+   */
+  resumePaused(): void {
     this.stopPausedRetry();
     for (const identifier of [...this.pausedUploads]) {
       this.pausedUploads.delete(identifier);
