@@ -31,6 +31,8 @@ export class AudioStorage {
   private hash: { [identifier: string]: AudioFile } = {};
   /** Audio added on this seat that is queued for the asset server or going up to it. */
   private readonly uploading = new Set<string>();
+  /** What is to go up again once the upload under way ends, asked for while it was going up. */
+  private readonly upAgain = new Set<string>();
   /**
    * Those added here while a room server's room could not be reached, as while the link was down,
    * which go up once the seat is back.
@@ -271,6 +273,7 @@ export class AudioStorage {
       })
       .finally(() => {
         this.uploading.delete(identifier);
+        if (this.upAgain.delete(identifier)) this.putUpAgain(identifier);
         if (this.pausedUploads.size > 0) this.retryPausedLater(Network.roomKey);
         this.catalogSchedule.whenQuiet(100);
         if (wentUpElsewhere) this.putUpHeld(identifier);
@@ -353,9 +356,14 @@ export class AudioStorage {
 
   /**
    * Puts one held here up to the room's store again, as when a removal put back meanwhile had the
-   * store take it out all the same.
+   * store take it out all the same. One going up just then goes up again once that ends, as the store
+   * may have taken it out after it was found there.
    */
   putUpAgain(identifier: string): void {
+    if (this.uploading.has(identifier)) {
+      this.upAgain.add(identifier);
+      return;
+    }
     const audio = this.hash[identifier];
     if (audio) this.uploadToAssetStore(audio);
   }

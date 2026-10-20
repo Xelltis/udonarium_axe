@@ -264,6 +264,7 @@ describe('ImageStorage', () => {
       (storage as unknown as { uploadRetries: AssetRetries }).uploadRetries.clear();
       (storage as unknown as { missedUploads: Set<string> }).missedUploads.clear();
       (storage as unknown as { uploading: Set<string> }).uploading.clear();
+      (storage as unknown as { upAgain: Set<string> }).upAgain.clear();
       (storage as unknown as { gaveUp: Set<string> }).gaveUp.clear();
       (storage as unknown as { clearLastTries(): void }).clearLastTries();
       (storage as unknown as { pausedUploads: Set<string> }).pausedUploads.clear();
@@ -473,6 +474,21 @@ describe('ImageStorage', () => {
       await vi.advanceTimersByTimeAsync(0);
       expect(catalogued(pictureId)).toBe(true);
       expect(storage.isHeldBack(pictureId)).toBe(false);
+    });
+
+    it('puts one up again once the upload under way ends, when asked to while it was going up', async () => {
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('gm');
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      expect(upload).toHaveBeenCalledTimes(1);
+
+      storage.putUpAgain(pictureId);
+      expect(upload).toHaveBeenCalledTimes(1);
+      upload.mockResolvedValue('stored');
+      finishUpload('exists');
+
+      await vi.waitFor(() => expect(upload).toHaveBeenCalledTimes(2));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(upload).toHaveBeenCalledTimes(2);
     });
 
     it('forgets holding one back once it is deleted', async () => {
