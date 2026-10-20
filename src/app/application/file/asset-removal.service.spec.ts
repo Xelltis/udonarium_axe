@@ -218,13 +218,11 @@ describe('AssetRemovalService', () => {
       expect(remove).toHaveBeenCalledTimes(1);
     });
 
-    it('takes out of the store again, as the GM, only what this seat removed and the room keeps removed', async () => {
+    it('takes out of the store again, as the GM, what the room keeps removed, whoever removed it', async () => {
       remove.mockResolvedValue('removed');
-      service.remove('image', [pictureId, otherId]);
+      AssetRemoval.remove(pictureId, 'image');
+      AssetRemoval.remove(otherId, 'image');
       AssetRemoval.restore(otherId);
-      AssetRemoval.remove(trackId, 'audio');
-      await vi.advanceTimersByTimeAsync(0);
-      remove.mockClear();
 
       isGameMaster = false;
       service.takeOut([pictureId, otherId, trackId]);
@@ -233,16 +231,6 @@ describe('AssetRemovalService', () => {
       await vi.advanceTimersByTimeAsync(0);
 
       expect(remove.mock.calls).toEqual([[pictureId]]);
-    });
-
-    it('takes nothing out of the store for a record of a removal someone else wrote', async () => {
-      remove.mockResolvedValue('removed');
-      AssetRemoval.remove(pictureId, 'image');
-
-      service.takeOut([pictureId]);
-      await vi.advanceTimersByTimeAsync(0);
-
-      expect(remove).not.toHaveBeenCalled();
     });
 
     it.each([

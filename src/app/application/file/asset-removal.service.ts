@@ -49,11 +49,6 @@ export class AssetRemovalService {
   private readonly snackbar = inject(SnackbarService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly storeRetries = new AssetRetries();
-  /**
-   * What this seat removed, with the room it removed each in. Only these are taken out of the store
-   * again on its own, since a record of a removal is synced data anyone in the room could have written.
-   */
-  private readonly removedHere = new Map<string, string | null>();
 
   /**
    * Which of these may be removed: those a person added, named by the hash of what they hold, and
@@ -91,10 +86,7 @@ export class AssetRemovalService {
       if (kind === 'audio') this.stopPlaying(targets);
       for (const identifier of targets) AssetRemoval.remove(identifier, kind);
     });
-    for (const identifier of targets) {
-      this.removedHere.set(identifier, Network.roomKey);
-      this.takeOutOfStore(identifier, Network.roomKey);
-    }
+    for (const identifier of targets) this.takeOutOfStore(identifier, Network.roomKey);
     return targets.length;
   }
 
@@ -109,15 +101,13 @@ export class AssetRemovalService {
   }
 
   /**
-   * Takes out of the room's store, as the GM, those of these that this seat removed in the room it is
-   * in and the room still keeps removed: found there after all, as when an upload under way when they
-   * were removed reached it later. A record someone else wrote takes nothing out of the store.
+   * Takes out of the room's store, as the GM, those of these the room keeps removed: found there after
+   * all, as when an upload under way when they were removed reached it later, or a seat of an older
+   * version put them up again. The room server lets only a GM write a removal, so a record is a GM's.
    */
   takeOut(identifiers: readonly string[]): void {
     if (!this.rolePermission.canEditShared) return;
-    for (const identifier of identifiers) {
-      if (this.removedHere.get(identifier) === Network.roomKey) this.takeOutOfStore(identifier, Network.roomKey);
-    }
+    for (const identifier of identifiers) this.takeOutOfStore(identifier, Network.roomKey);
   }
 
   /**
