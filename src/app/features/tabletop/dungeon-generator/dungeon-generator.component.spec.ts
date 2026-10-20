@@ -222,6 +222,7 @@ describe('DungeonGeneratorComponent', () => {
     await component.generate();
 
     expect(exportStub).toHaveBeenCalledOnce();
+    expect(ImageStorage.instance.addAsync).toHaveBeenCalledWith(expect.any(Blob), { putBack: true });
     expect(component.builtTable()!.imageIdentifier).toBe(PAINTED);
   });
 

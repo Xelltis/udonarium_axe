@@ -457,7 +457,7 @@ export class DungeonGeneratorComponent {
         drawGrid: false,
         resolveImageUrl: (id) => this.imageStorage.get(id)?.url ?? null,
       });
-      const file = await this.imageStorage.addAsync(blob);
+      const file = await this.imageStorage.addAsync(blob, { putBack: true });
       this.floorImage.set(file?.identifier ?? '');
       return file?.identifier ?? '';
     } catch {

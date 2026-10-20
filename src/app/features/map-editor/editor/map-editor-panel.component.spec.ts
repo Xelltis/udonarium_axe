@@ -214,7 +214,7 @@ describe('MapEditorPanelComponent', () => {
     await (component as unknown as { setAsTable: () => Promise<void> }).setAsTable();
 
     expect(exportStub).toHaveBeenCalledOnce();
-    expect(imageStorage.addAsync).toHaveBeenCalledWith(blob);
+    expect(imageStorage.addAsync).toHaveBeenCalledWith(blob, { putBack: true });
     expect(table.imageIdentifier).toBe('img-1');
     expect(table.width).toBe(component['state'].current.cols);
     expect(table.height).toBe(component['state'].current.rows);
@@ -229,7 +229,7 @@ describe('MapEditorPanelComponent', () => {
 
     await (component as unknown as { saveImage: () => Promise<void> }).saveImage();
 
-    expect(imageStorage.addAsync).toHaveBeenCalledWith(blob);
+    expect(imageStorage.addAsync).toHaveBeenCalledWith(blob, { putBack: true });
   });
 
   it('starts with the select tool', () => {
