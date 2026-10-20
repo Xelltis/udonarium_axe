@@ -94,11 +94,14 @@ export class MyDiceService {
   /**
    * Puts this seat's dice picture back among the room's images where it is missing, as on a fresh
    * visit, from the bytes this browser kept, so it comes back under the same identifier. A seat
-   * sitting as a guest, who may not add to the room's images, leaves them alone.
+   * sitting as a guest, who may not add to the room's images, leaves them alone, as does every seat
+   * for a picture the room removed, which would not be taken in.
    */
   ensureShared(): Promise<void> {
     const picture = this.look().picture;
-    if (!picture || !this.permission.canEditTabletop) return Promise.resolve();
+    if (!picture || !this.permission.canEditTabletop || ImageStorage.instance.isRemoved(picture)) {
+      return Promise.resolve();
+    }
     const held = ImageStorage.instance.get(picture);
     if (held && ImageState.COMPLETE <= held.state) return Promise.resolve();
     this.restoring ??= this.restore(picture).finally(() => (this.restoring = null));

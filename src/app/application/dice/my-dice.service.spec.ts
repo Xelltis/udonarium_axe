@@ -197,6 +197,18 @@ describe('MyDiceService', () => {
       expect(added).not.toHaveBeenCalled();
     });
 
+    it('leaves the picture kept in this browser unread when the room removed it', async () => {
+      localStorage.setItem('my-dice', JSON.stringify({ ...PLAIN_DICE_LOOK, picture: PICTURE }));
+      vi.spyOn(ImageStorage.instance, 'isRemoved').mockImplementation((identifier) => identifier === PICTURE);
+      const kept = vi.spyOn(DiceImageStore.instance, 'get').mockResolvedValue(new Blob([PNG_HEAD]));
+      const added = vi.spyOn(ImageStorage.instance, 'addAsync').mockResolvedValue(null);
+
+      await TestBed.inject(MyDiceService).ensureShared();
+
+      expect(kept).not.toHaveBeenCalled();
+      expect(added).not.toHaveBeenCalled();
+    });
+
     it('leaves the room’s images alone when the picture is already among them', async () => {
       localStorage.setItem('my-dice', JSON.stringify({ ...PLAIN_DICE_LOOK, picture: PICTURE }));
       vi.spyOn(ImageStorage.instance, 'get').mockReturnValue({ state: 2 } as unknown as ImageFile);
