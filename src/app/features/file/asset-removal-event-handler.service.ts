@@ -37,7 +37,7 @@ export class AssetRemovalEventHandlerService {
     };
     this.objectChange.objectAdded$.subscribe(follow, destroyRef);
     this.objectChange.objectRemoved$.subscribe(follow, destroyRef);
-    this.objectChange.onObjectChangedForAlias([ALIAS], follow, destroyRef);
+    this.objectChange.onObjectChangedForSingleAlias(ALIAS, follow, destroyRef);
     for (const [storage, refused] of [
       [ImageStorage.instance, 'feature.file.removal.imageRefused'],
       [AudioStorage.instance, 'feature.file.removal.audioRefused'],
