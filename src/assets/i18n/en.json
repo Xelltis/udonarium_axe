@@ -5583,6 +5583,8 @@
       "pieceGauge": "Show a bar on the piece",
       "resourceSlider": "Slider",
       "gaugeInverted": "Negative resource",
+      "overResource": "Over-resource",
+      "overResourceHint": "Lets the current value go over the maximum, so a temporary bonus can be tracked with the maximum as the value it returns to",
       "changeEffect": "Effect on change",
       "changeSound": "Sound on change",
       "changeSoundSet": "Sound type",

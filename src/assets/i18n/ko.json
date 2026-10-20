@@ -5031,6 +5031,8 @@
         "pieceGauge": "말에 막대 표시",
         "resourceSlider": "슬라이더 표시",
         "gaugeInverted": "마이너스 리소스",
+        "overResource": "오버 리소스",
+        "overResourceHint": "현재값이 최댓값을 넘을 수 있게 합니다. 일시적인 보정 등을 최댓값을 돌아갈 값으로 삼아 관리할 수 있습니다",
         "changeEffect": "증감 시 이펙트",
         "changeSound": "증감 시 효과음",
         "changeSoundSet": "효과음 타입",

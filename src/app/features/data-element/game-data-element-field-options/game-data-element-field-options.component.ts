@@ -225,6 +225,25 @@ export class GameDataElementFieldOptionsComponent {
     if (this.canShowPieceGauge()) this.toggleFlag(DataElementAttribute.GAUGE_INVERTED);
   }
 
+  /** Whether the resource's current value may go over its maximum. */
+  isOverResource(): boolean {
+    return this.hasFlag(DataElementAttribute.OVER_RESOURCE);
+  }
+
+  /**
+   * Lets the resource's current value go over its maximum, or holds it there again, bringing a value
+   * already over it back to the maximum.
+   */
+  toggleOverResource(): void {
+    if (!this.canShowPieceGauge()) return;
+    this.toggleFlag(DataElementAttribute.OVER_RESOURCE);
+    if (this.isOverResource()) return;
+    const element = this.element();
+    const current = Number(element.currentValue);
+    const most = Number(element.value);
+    if (Number.isFinite(current) && Number.isFinite(most) && current > most) element.currentValue = most;
+  }
+
   /** Whether the resource is moved with a slider as well as typed. */
   hasResourceSlider(): boolean {
     const element = this.element();

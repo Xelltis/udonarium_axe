@@ -5583,6 +5583,8 @@
       "pieceGauge": "コマにバーを表示",
       "resourceSlider": "スライダー表示",
       "gaugeInverted": "マイナスリソース",
+      "overResource": "オーバーリソース",
+      "overResourceHint": "現在値が最大値を超えられるようにします。一時的な補正などを、最大値を戻り先にして管理できます",
       "changeEffect": "増減でエフェクト",
       "changeSound": "増減で効果音",
       "changeSoundSet": "効果音のタイプ",

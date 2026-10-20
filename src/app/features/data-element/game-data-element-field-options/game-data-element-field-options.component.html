@@ -41,6 +41,15 @@
         />
       </label>
     }
+    @if (canShowPieceGauge()) {
+      <label
+        class="col-span-full grid-cols-[auto_auto] justify-start"
+        [title]="'feature.dataElement.field.overResourceHint' | transloco"
+      >
+        <span>{{ 'feature.dataElement.field.overResource' | transloco }}</span>
+        <input type="checkbox" name="data-over-resource" [checked]="isOverResource()" (change)="toggleOverResource()" />
+      </label>
+    }
     @if (fieldType() === 'number') {
       <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
         <span>{{ 'feature.dataElement.field.min' | transloco }}</span>
