@@ -86,6 +86,16 @@ describe('GameObject', () => {
     });
   });
 
+  describe('readSyncData()', () => {
+    it('hands over the sync data as it stands, with no copy, where toContext copies it', () => {
+      const obj = DataElement.create('hp', '10', {});
+
+      expect(obj.readSyncData()).toBe(obj.readSyncData());
+      expect(obj.toContext().syncData).not.toBe(obj.readSyncData());
+      expect(obj.toContext().syncData).toEqual(obj.readSyncData());
+    });
+  });
+
   describe('toContext()', () => {
     it('returns a context', () => {
       const obj = DataElement.create('test', '', {});

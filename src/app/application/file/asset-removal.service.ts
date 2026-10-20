@@ -75,7 +75,7 @@ export class AssetRemovalService {
     if (identifiers.length === 0) return 0;
     return this.objectStore
       .getObjects()
-      .filter((object) => this.counts(object) && mentionsAnyOf(object.toContext().syncData, identifiers)).length;
+      .filter((object) => this.counts(object) && mentionsAnyOf(object.readSyncData(), identifiers)).length;
   }
 
   /**
