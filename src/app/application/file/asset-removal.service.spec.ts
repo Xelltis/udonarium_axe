@@ -187,13 +187,16 @@ describe('AssetRemovalService', () => {
       expect(show).not.toHaveBeenCalled();
     });
 
-    it('asks nothing of anyone but the GM, nor about nothing removable', async () => {
+    it('asks nothing of anyone but the GM, nor about nothing removable, which it says may not be removed', async () => {
+      const t = TestBed.inject(TRANSLATE_FN);
       isGameMaster = false;
       expect(await service.removeAfterAsking('image', [pictureId])).toBe(0);
+      expect(show).not.toHaveBeenCalled();
       isGameMaster = true;
       expect(await service.removeAfterAsking('image', ['none_icon'])).toBe(0);
 
       expect(ask).not.toHaveBeenCalled();
+      expect(show.mock.calls).toEqual([[t('feature.file.removal.notRemovable')]]);
     });
   });
 

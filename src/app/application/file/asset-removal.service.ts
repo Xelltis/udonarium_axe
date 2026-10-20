@@ -115,12 +115,16 @@ export class AssetRemovalService {
 
   /**
    * Asks the GM first, saying how many things use them and how to bring them back, then removes them
-   * and says how many went. Gives back how many were removed.
+   * and says how many went. Gives back how many were removed. Chosen ones none of which may be
+   * removed are said to be so.
    */
   async removeAfterAsking(kind: AssetRemovalKind, identifiers: readonly string[]): Promise<number> {
     if (!this.rolePermission.canEditShared) return 0;
     const targets = this.removable(kind, identifiers);
-    if (targets.length === 0) return 0;
+    if (targets.length === 0) {
+      if (identifiers.length > 0) this.snackbar.show(this.t('feature.file.removal.notRemovable'));
+      return 0;
+    }
     const words = WORDS[kind];
     const uses = this.countUses(targets);
     const message = [
