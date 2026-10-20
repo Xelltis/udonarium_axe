@@ -8,6 +8,8 @@ import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { AssetHttpStore, AssetRemovalResult } from '@axe/core/storage/asset-http-store';
 import { ASSET_RETRY_DELAY_MS, ASSET_RETRY_LIMIT } from '@axe/core/storage/asset-retries';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { AssetRemoval } from '@axe/domain/media/asset-removal';
 import { AudioTag } from '@axe/domain/media/audio-tag';
@@ -216,6 +218,21 @@ describe('AssetRemovalService', () => {
       service.remove('image', [otherId]);
       await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 2 ** (ASSET_RETRY_LIMIT + 1));
       expect(remove).toHaveBeenCalledTimes(1);
+    });
+
+    it('puts the bytes up again when the room put them back while the store was taking them out', async () => {
+      let land!: (result: AssetRemovalResult) => void;
+      remove.mockReturnValue(new Promise((resolve) => (land = resolve)));
+      const putUp = vi.spyOn(ImageStorage.instance, 'putUpAgain').mockImplementation(() => {});
+      const putUpSound = vi.spyOn(AudioStorage.instance, 'putUpAgain').mockImplementation(() => {});
+      service.remove('image', [pictureId]);
+
+      AssetRemoval.restore(pictureId);
+      land('removed');
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(putUp.mock.calls).toEqual([[pictureId]]);
+      expect(putUpSound).not.toHaveBeenCalled();
     });
 
     it('takes out of the store again, as the GM, what the room keeps removed, whoever removed it', async () => {

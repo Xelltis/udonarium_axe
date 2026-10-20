@@ -348,6 +348,15 @@ export class ImageStorage {
     if (this.delete(identifier)) fileResourceUpdated$.emit();
   }
 
+  /**
+   * Puts one held here up to the room's store again, as when a removal put back meanwhile had the
+   * store take it out all the same.
+   */
+  putUpAgain(identifier: string): void {
+    const image = this.imageHash[identifier];
+    if (image) this.uploadToAssetStore(image);
+  }
+
   /** Lets a picture the room put back be taken again. */
   unmarkRemoved(identifier: string): void {
     this.removed.delete(identifier);

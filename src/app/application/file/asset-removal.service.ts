@@ -6,6 +6,8 @@ import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AssetRetries } from '@axe/core/storage/asset-retries';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -147,6 +149,17 @@ export class AssetRemovalService {
     );
   }
 
+  /**
+   * Puts the bytes up again when the room put them back while the store was taking them out, as the
+   * GM adding the file again finds them still there and sends nothing.
+   */
+  private putUpIfPutBack(identifier: string): void {
+    const record = AssetRemoval.get(identifier);
+    if (!record || record.isRemoved) return;
+    if (record.kind === 'audio') AudioStorage.instance.putUpAgain(identifier);
+    else ImageStorage.instance.putUpAgain(identifier);
+  }
+
   private stopPlaying(identifiers: readonly string[]): void {
     const jukebox = this.objectStore.get<Jukebox>('Jukebox');
     if (jukebox && identifiers.includes(jukebox.audioIdentifier)) jukebox.stop();
@@ -173,6 +186,7 @@ export class AssetRemovalService {
     void AssetHttpStore.instance.remove(identifier).then((result) => {
       if (result !== 'failed') {
         this.storeRetries.forget(identifier);
+        if (result === 'removed') this.putUpIfPutBack(identifier);
         return;
       }
       this.storeRetries.schedule(identifier, () => this.takeOutOfStore(identifier, roomKey));
