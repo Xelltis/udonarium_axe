@@ -93,10 +93,13 @@ export function uniquePng(): Buffer {
   ]);
 }
 
-/** A second of 8-bit noise at 8000 samples a second, as a WAV file no other test uploads. */
-export function uniqueWav(): Buffer {
+/**
+ * 8-bit noise at 8000 samples a second, as a WAV file no other test uploads: a second of it, or as
+ * many samples (and so bytes) as asked for.
+ */
+export function uniqueWav(samples = 8000): Buffer {
   const rate = 8000;
-  const data = randomBytes(rate);
+  const data = randomBytes(samples);
   const fmt = Buffer.alloc(24);
   fmt.write('fmt ', 0);
   fmt.writeUInt32LE(16, 4);

@@ -165,6 +165,12 @@ async function startRoomServer(index: number): Promise<{ server: RoomServer; sto
       // The operator's dashboard, which moderation.spec.ts calls with a session it signs itself.
       '--var',
       'ADMIN_DISCORD_IDS:100000000000000001',
+      // The contact shown to those the operator turns away, and a limit on each room's store well past
+      // what any other test puts in one room, which moderation.spec.ts fills.
+      '--var',
+      'ADMIN_CONTACT_URL:mailto:admin@example.com',
+      '--var',
+      'ROOM_STORAGE_LIMIT_MB:1',
     ],
     {
       cwd: BACKEND_DIR,
