@@ -3,6 +3,9 @@ import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-d
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { DEFAULT_SYSTEM_NOTICES, NOTICE_OFF } from '@axe/domain/chat/system-notices';
 import { DataElement, DataElementAttribute, DataElementRole, DataElementType } from '@axe/domain/data/data-element';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
@@ -180,6 +183,81 @@ describe('RoomSettingsPanelComponent', () => {
     expect(box('room-settings-turn-signal').disabled).toBe(true);
     Config.instance.turnSignalEnabled = true;
     Config.instance.turnTickEnabled = false;
+  });
+
+  describe('where the system’s notices go', () => {
+    let battle: ChatTab;
+
+    const choice = (kind: string): HTMLSelectElement =>
+      fixture.nativeElement.querySelector(`[data-testid="room-settings-notice-${kind}"]`);
+    const optionsOf = (select: HTMLSelectElement) => [...select.options].map((option) => option.textContent!.trim());
+    const pick = (select: HTMLSelectElement, label: string) => {
+      select.selectedIndex = optionsOf(select).indexOf(label);
+      select.dispatchEvent(new Event('change'));
+    };
+
+    beforeEach(async () => {
+      ChatTabList.instance.addChatTab('メイン');
+      battle = ChatTabList.instance.addChatTab('戦闘');
+      component.tab.set('notice');
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    afterEach(() => {
+      Config.instance.systemNotices = DEFAULT_SYSTEM_NOTICES;
+    });
+
+    it('offers each kind where it always went, every tab of the room, and nowhere', () => {
+      const round = choice('round');
+      const card = choice('card');
+
+      expect(optionsOf(round)[0]).toBe('既定（一番左のタブ）');
+      expect(optionsOf(card)[0]).toBe('既定（システムタブ）');
+      expect(optionsOf(round)).toContain('戦闘');
+      expect(optionsOf(round).at(-1)).toBe('送らない');
+      expect(round.selectedIndex).toBe(0);
+    });
+
+    it('sends a kind to the tab the master picks, nowhere, or back where it always went', async () => {
+      pick(choice('round'), '戦闘');
+      expect(Config.instance.systemNotices).toEqual({ round: battle.identifier });
+
+      pick(choice('bgm'), '送らない');
+      pick(choice('round'), '既定（一番左のタブ）');
+
+      expect(Config.instance.systemNotices).toEqual({ bgm: NOTICE_OFF });
+    });
+
+    it('shows a kind sent to a tab since deleted as where it always went', async () => {
+      Config.instance.systemNotices = { round: 'a-tab-since-deleted' };
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(choice('round').selectedIndex).toBe(0);
+    });
+
+    it('lets only the master change them', async () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      fixture.detectChanges();
+      await fixture.whenStable();
+      component.setNoticeRoute('round', battle.identifier);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(Config.instance.systemNotices).toEqual(DEFAULT_SYSTEM_NOTICES);
+      expect(choice('round').disabled).toBe(true);
+    });
+
+    it('is reached from the round section of the battle tab', async () => {
+      component.tab.set('battle');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      (fixture.nativeElement.querySelector('[data-testid="room-settings-open-notices"]') as HTMLButtonElement).click();
+
+      expect(component.tab()).toBe('notice');
+    });
   });
 
   describe('how the round is taken', () => {
