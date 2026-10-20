@@ -76,8 +76,11 @@ export class JukeboxComponent {
   /** Whether this player may turn shuffle and repeat, which only the game master may. */
   readonly canChangeModes = this.playback.canChangeModes;
 
-  /** Whether this player may remove a sound from the room, which only the game master may too. */
-  readonly canRemove = this.playback.canChangeModes;
+  /** Whether this player may remove a sound from the room, which only the game master may, as with pictures. */
+  readonly canRemove = computed(() => {
+    this.objectChange.trackMyCursor();
+    return this.rolePermission.canEditShared;
+  });
 
   /**
    * The room-wide volume every player's sound is multiplied by, from the room volume slider.
