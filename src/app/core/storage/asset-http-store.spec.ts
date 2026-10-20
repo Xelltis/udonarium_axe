@@ -124,6 +124,34 @@ describe('AssetHttpStore', () => {
       expect(await store.upload(id, new Blob([bytes]))).toBe('refused');
     });
 
+    it('tells a full room store apart from bytes too large, and tells the app once until bytes are kept', async () => {
+      const full = vi.fn();
+      store.onRoomStorageFull = full;
+      const roomFull = () => new Response(JSON.stringify({ error: 'room-storage-full' }), { status: 413 });
+      const missing = () => new Response(null, { status: 404 });
+      respond(
+        missing(),
+        roomFull(),
+        missing(),
+        roomFull(),
+        missing(),
+        new Response('{}', { status: 201 }),
+        missing(),
+        roomFull(),
+        missing(),
+        new Response(JSON.stringify({ error: 'too-large' }), { status: 413 })
+      );
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('full');
+      expect(await store.upload(id, new Blob([bytes]))).toBe('full');
+      expect(full).toHaveBeenCalledTimes(1);
+      expect(await store.upload(id, new Blob([bytes]))).toBe('stored');
+      expect(await store.upload(id, new Blob([bytes]))).toBe('full');
+      expect(await store.upload(id, new Blob([bytes]))).toBe('refused');
+
+      expect(full).toHaveBeenCalledTimes(2);
+    });
+
     it('tells bytes the operator barred apart from a refusal, and tells the app of them once', async () => {
       const blocked = vi.fn();
       store.onUploadBlocked = blocked;

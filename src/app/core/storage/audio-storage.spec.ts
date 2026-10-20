@@ -528,6 +528,16 @@ describe('AudioStorage', () => {
       expect(upload).toHaveBeenCalledTimes(2);
     });
 
+    it('names one the room’s store is too full to keep to peers, who pass it on as before', async () => {
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      upload.mockResolvedValue('full');
+      storage.add(AudioFile.create(contextOf(trackId)));
+
+      await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
+      expect(storage.isHeldBack(trackId)).toBe(false);
+      expect(storage.hasUploadsPending).toBe(false);
+    });
+
     it('forgets holding one back once it is deleted', async () => {
       upload.mockResolvedValue('blocked');
       storage.add(AudioFile.create(contextOf(trackId)));

@@ -104,6 +104,7 @@ export class NetworkEventHandlerService {
       AudioStorage.instance.receivedUploadTurn = () => 0;
       AssetHttpStore.instance.onUploadsPaused = () => {};
       AssetHttpStore.instance.onUploadBlocked = () => {};
+      AssetHttpStore.instance.onRoomStorageFull = () => {};
     });
     ImageStorage.instance.receivedUploadTurn = () => this.turnToPutUpReceived();
     AudioStorage.instance.receivedUploadTurn = () => this.turnToPutUpReceived();
@@ -115,6 +116,7 @@ export class NetworkEventHandlerService {
       this.tellUploadsPaused(paused);
     };
     AssetHttpStore.instance.onUploadBlocked = () => this.tellUploadBlocked();
+    AssetHttpStore.instance.onRoomStorageFull = () => this.tellRoomStorageFull();
     networkMessage$.subscribe((message) => {
       if (message.eventName !== AuthorityEvent.ROLE_REJECTED || message.sendFrom !== Network.authorityPeerId) return;
       this.tellRoleRejected(message.data as { peerId?: unknown; reason?: unknown } | null);
@@ -446,6 +448,16 @@ export class NetworkEventHandlerService {
   private tellUploadBlocked(): void {
     if (!this.overlayMode.active()) {
       this.snackbar.show(this.t('feature.lobby.uploads.blocked'), { ms: UPLOAD_NOTICE_MS });
+    }
+  }
+
+  /**
+   * Tells the reader that the room's store is full, so what they add is kept by nobody: those in the
+   * room now get it from this seat, and nobody who comes in later.
+   */
+  private tellRoomStorageFull(): void {
+    if (!this.overlayMode.active()) {
+      this.snackbar.show(this.t('feature.lobby.uploads.roomFull'), { ms: UPLOAD_NOTICE_MS });
     }
   }
 

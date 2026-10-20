@@ -3500,7 +3500,8 @@
       "uploads": {
         "paused": "The room server's operator has stopped putting up pictures and sounds for now. What you add now reaches the other players only once that is over.",
         "resumed": "Pictures and sounds can be put up again. What was held back now reaches the other players too.",
-        "blocked": "There is a picture or sound the room server's operator has barred. It does not reach the other players."
+        "blocked": "There is a picture or sound the room server's operator has barred. It does not reach the other players.",
+        "roomFull": "The room's storage is full, so the pictures and sounds you add are not kept in the room. Those here now get them, but nobody who joins later will."
       }
     },
     "chat": {

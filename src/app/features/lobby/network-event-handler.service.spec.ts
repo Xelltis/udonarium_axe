@@ -471,6 +471,17 @@ describe('NetworkEventHandlerService', () => {
       expect(sounds).toHaveBeenCalledTimes(1);
     });
 
+    it('tells the reader the room’s store is full, and that later comers will not get what they add', () => {
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+
+      AssetHttpStore.instance.onRoomStorageFull();
+
+      expect(shown.mock.calls.map(([text]) => text)).toEqual([
+        TestBed.inject(TRANSLATE_FN)('feature.lobby.uploads.roomFull'),
+      ]);
+      expect(shown.mock.calls[0][0]).toContain('あとから入った人には届きません');
+    });
+
     it('shows none of it on a screen made for streaming', () => {
       vi.spyOn(TestBed.inject(OverlayModeService), 'active').mockReturnValue(true);
       const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
@@ -478,6 +489,7 @@ describe('NetworkEventHandlerService', () => {
       AssetHttpStore.instance.onUploadsPaused(true);
       AssetHttpStore.instance.onUploadsPaused(false);
       AssetHttpStore.instance.onUploadBlocked('a'.repeat(64));
+      AssetHttpStore.instance.onRoomStorageFull();
 
       expect(shown).not.toHaveBeenCalled();
     });
@@ -488,6 +500,7 @@ describe('NetworkEventHandlerService', () => {
       TestBed.resetTestingModule();
       AssetHttpStore.instance.onUploadsPaused(true);
       AssetHttpStore.instance.onUploadBlocked('a'.repeat(64));
+      AssetHttpStore.instance.onRoomStorageFull();
 
       expect(shown).not.toHaveBeenCalled();
     });

@@ -14,9 +14,11 @@ import { sha256Hex } from '@axe/core/util/crypto-util';
 /**
  * What became of an upload. `failed`, as on a line gone quiet, may pass on a later try. `paused`
  * means the room server's operator has stopped every upload for a while, and `blocked` that the
- * operator barred these bytes from every room; neither is to travel between peers instead.
+ * operator barred these bytes from every room; neither is to travel between peers instead. `full`
+ * means the room holds as much as the server lets one room hold, so the bytes stay out of the store
+ * and travel between peers as with any refused.
  */
-export type AssetUploadResult = 'stored' | 'exists' | 'refused' | 'failed' | 'paused' | 'blocked';
+export type AssetUploadResult = 'stored' | 'exists' | 'refused' | 'failed' | 'paused' | 'blocked' | 'full';
 
 /**
  * What became of asking the room server to take bytes out of the room: nothing more to do,
@@ -183,10 +185,17 @@ export class AssetHttpStore {
   onUploadsPaused: (paused: boolean) => void = () => {};
   /** Told, by the app, of bytes the operator barred from every room, the first time the server says so. */
   onUploadBlocked: (identifier: string) => void = () => {};
+  /**
+   * Told, by the app, when the room's store turns bytes away for being full, once until bytes are kept
+   * again.
+   */
+  onRoomStorageFull: () => void = () => {};
   /** Whether the last word on uploads was the operator's stop. */
   private uploadsPaused = false;
   /** When, in epoch milliseconds, the server last said uploads are stopped. */
   private lastPausedAt = 0;
+  /** Whether the room's store being full was told of since bytes were last kept. */
+  private fullTold = false;
   /**
    * Until when, in epoch milliseconds, an upload sends no bytes for the operator's stop: a while after
    * the server last said so, after which the next upload tries whether it is over.
@@ -213,6 +222,7 @@ export class AssetHttpStore {
     this.baseUrl = trimmed ? trimmed.replace(/\/+$/, '') : null;
     this.uploadsPaused = false;
     this.lastPausedAt = 0;
+    this.fullTold = false;
     this.stopHeldUntil = 0;
     this.blockedTold.clear();
   }
@@ -302,14 +312,19 @@ export class AssetHttpStore {
   /**
    * Tells the app when uploads meet the operator's stop and when they go up again after it, and of
    * bytes barred, each once. Only bytes kept anew show the stop is over: bytes already there were
-   * never sent. So a stop met again after a long quiet is told of again, as a new stop may be.
+   * never sent. So a stop met again after a long quiet is told of again, as a new stop may be. A full
+   * room store is told of once until bytes are kept again.
    */
   private tell(identifier: string, result: AssetUploadResult): void {
+    if (result === 'stored') this.fullTold = false;
     if (result === 'paused') {
       const told = this.uploadsPaused && Date.now() - this.lastPausedAt < PAUSE_TOLD_FOR_MS;
       this.lastPausedAt = Date.now();
       this.uploadsPaused = true;
       if (!told) this.onUploadsPaused(true);
+    } else if (result === 'full' && !this.fullTold) {
+      this.fullTold = true;
+      this.onRoomStorageFull();
     } else if (result === 'stored' && this.uploadsPaused) {
       this.uploadsPaused = false;
       this.onUploadsPaused(false);
@@ -377,6 +392,7 @@ export class AssetHttpStore {
     if (res.status === 451) return 'blocked';
     if (res.status === 503) return (await errorCodeOf(res)) === 'paused' ? 'paused' : 'failed';
     if (res.status === 403 && (await errorCodeOf(res)) === 'not-a-player') return 'failed';
+    if (res.status === 413 && (await errorCodeOf(res)) === 'room-storage-full') return 'full';
     return REFUSED_STATUSES.has(res.status) ? 'refused' : 'failed';
   }
 
