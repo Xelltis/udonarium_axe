@@ -20,11 +20,15 @@ describe('MapEditorTexturePickerComponent', () => {
   let fixture: ComponentFixture<MapEditorTexturePickerComponent>;
   let picker: Picker;
   let state: MapEditorState;
-  let imageStorage: { addAsync: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn> };
+  let imageStorage: {
+    addAsync: ReturnType<typeof vi.fn>;
+    get: ReturnType<typeof vi.fn>;
+    isRemoved: ReturnType<typeof vi.fn>;
+  };
   let modal: { open: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
-    imageStorage = { addAsync: vi.fn(), get: vi.fn() };
+    imageStorage = { addAsync: vi.fn(), get: vi.fn(), isRemoved: vi.fn(() => false) };
     modal = { open: vi.fn().mockResolvedValue(null) };
     TestBed.configureTestingModule({
       imports: [MapEditorTexturePickerComponent],
@@ -79,7 +83,7 @@ describe('MapEditorTexturePickerComponent', () => {
 
     await picker.onTextureFileSelected(upload());
 
-    expect(imageStorage.addAsync).toHaveBeenCalledWith(blob);
+    expect(imageStorage.addAsync).toHaveBeenCalledWith(blob, { putBack: true });
     expect(ImageTag.get('cropped-1').tag).toBe('テクスチャ');
     expect(state.textureId()).toBe('image:cropped-1');
     expect(state.fillMode()).toBe('texture');

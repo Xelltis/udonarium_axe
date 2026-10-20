@@ -227,6 +227,21 @@ describe('FileArchiver', () => {
       expect(dropped[0]).toMatchObject({ fileName: 'a.png', dropPoint: { x: 10, y: 20 } });
     });
 
+    it('places nothing for a picture the room removed and this seat could not put back', async () => {
+      const dropped: ImageDroppedEvent[] = [];
+      const off = imageDropped$.subscribe((event) => dropped.push(event));
+      ImageStorage.instance.markRemoved('image-a.png');
+
+      try {
+        await FileArchiver.instance.load([imageFile('a.png'), imageFile('b.png')], { x: 10, y: 20 });
+      } finally {
+        off();
+        ImageStorage.instance.unmarkRemoved('image-a.png');
+      }
+
+      expect(dropped.map((event) => event.fileName)).toEqual(['b.png']);
+    });
+
     it('offsets several images dropped together so they do not stack', async () => {
       const dropped: ImageDroppedEvent[] = [];
       const off = imageDropped$.subscribe((event) => dropped.push(event));
@@ -425,6 +440,16 @@ describe('FileArchiver', () => {
       const result = await FileArchiver.instance.loadImages([imageFile('a.png'), imageFile('b.png')]);
 
       expect(result.images.map((image) => image.identifier)).toEqual(['image-a.png', 'image-b.png']);
+      expect(result.oversized).toEqual([]);
+    });
+
+    it('hands back no picture the room removed that this seat could not put back, nor names it too large', async () => {
+      ImageStorage.instance.markRemoved('image-a.png');
+
+      const result = await FileArchiver.instance.loadImages([imageFile('a.png'), imageFile('b.png')]);
+      ImageStorage.instance.unmarkRemoved('image-a.png');
+
+      expect(result.images.map((image) => image.identifier)).toEqual(['image-b.png']);
       expect(result.oversized).toEqual([]);
     });
 

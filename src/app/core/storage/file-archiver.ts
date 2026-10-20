@@ -231,8 +231,8 @@ export class FileArchiver {
     for (const file of files instanceof FileList ? toArrayOfFileList(files) : files) {
       if (!file.type.startsWith('image/')) continue;
       const image = await this.storeImage(file);
-      if (image) images.push(image);
-      else oversized.push(file.name);
+      if (!image) oversized.push(file.name);
+      else if (!ImageStorage.instance.isRemoved(image.identifier)) images.push(image);
     }
     if (images.length) emitFileLoaded();
     return { images, oversized };
@@ -257,6 +257,7 @@ export class FileArchiver {
       });
       return false;
     }
+    if (ImageStorage.instance.isRemoved(image.identifier)) return false;
     if (dropPoint) emitImageDropped({ identifier: image.identifier, fileName: file.name, dropPoint });
     return dropPoint != null;
   }
