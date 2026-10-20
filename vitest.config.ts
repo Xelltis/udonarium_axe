@@ -95,6 +95,9 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     pool: 'threads',
+    // A component compiled with its templateUrl is cached by its .ts alone, so with the module cache
+    // on, a change to the template only ran the specs against the template as it was before.
+    fsModuleCache: false,
     include: ['src/**/*.spec.ts'],
     setupFiles: ['src/app/testing/test-setup.ts'],
     coverage: {
