@@ -696,11 +696,12 @@ describe('AssetHttpStore', () => {
       expect(authorizationOf(0)).toBe('Bearer asset-1');
     });
 
-    it('waits and asks again when the server asks for fewer requests', async () => {
-      respond(new Response(null, { status: 429 }), new Response(null, { status: 204 }));
+    it('asks once, leaving the wait when the server asks for fewer requests to the caller', async () => {
+      respond(new Response(null, { status: 429 }));
 
-      expect(await store.remove(id)).toBe('removed');
-      expect(store.delay).toHaveBeenCalledTimes(1);
+      expect(await store.remove(id)).toBe('failed');
+      expect(store.delay).not.toHaveBeenCalled();
+      expect(callsOf()).toEqual([['DELETE', urlOf(id)]]);
     });
 
     it.each([400, 403])('gives up for good on %i, as for a seat that is not the GM', async (status) => {

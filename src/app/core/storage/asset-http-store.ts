@@ -414,15 +414,14 @@ export class AssetHttpStore {
    * `removed` once there is nothing more to do: they are gone now, were never there, or the server is
    * one older than the way to take them out, which answers 404 too. `refused` when the seat may not,
    * `failed` when the server could not be asked just then, as when it asks for fewer requests or
-   * cannot be reached, or there is no room.
+   * cannot be reached, or there is no room. It asks once: waiting to ask again is the caller's, who
+   * knows whether they are still to go by then.
    */
   async remove(identifier: string): Promise<AssetRemovalResult> {
     if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return 'refused';
     try {
-      const res = await this.withBackoff(() =>
-        this.authorized((access) =>
-          this.request(this.urlOf(access, identifier), { method: 'DELETE', headers: this.headersOf(access) })
-        )
+      const res = await this.authorized((access) =>
+        this.request(this.urlOf(access, identifier), { method: 'DELETE', headers: this.headersOf(access) })
       );
       if (!res) return 'failed';
       if (res.ok || res.status === 404) return 'removed';
