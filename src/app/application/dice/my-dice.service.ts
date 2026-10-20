@@ -59,7 +59,8 @@ export class MyDiceService {
    * go. It is checked to be a picture and not too large, resampled down, kept in this browser and
    * only then shared through the room's images, so one this browser cannot keep is shared with no
    * one. A guest, who may not add to the room's images, is turned away, and so is a picture the room
-   * removed unless this seat may put it back. Says what was wrong with it, or null when it was taken.
+   * removed unless this seat, as the GM, puts it back. Says what was wrong with it, or null when it
+   * was taken; the trouble said is the only word of it.
    */
   async setPicture(file: Blob): Promise<DicePictureTrouble | null> {
     if (!this.permission.canEditTabletop) return 'notAllowed';
@@ -72,7 +73,7 @@ export class MyDiceService {
       return 'unstored';
     }
     const before = this.look().picture;
-    ImageStorage.instance.add(image, { putBack: true });
+    ImageStorage.instance.add(image, { putBack: this.permission.canEditShared });
     if (ImageStorage.instance.isRemoved(image.identifier)) {
       image.destroy();
       if (before !== image.identifier) void this.pictures.remove(image.identifier);
