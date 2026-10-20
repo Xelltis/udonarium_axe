@@ -205,6 +205,30 @@ describe('AssetHttpStore', () => {
       expect(callsOf().map(([method]) => method)).toEqual(['HEAD', 'PUT', 'HEAD', 'HEAD', 'PUT']);
     });
 
+    it('tells of the stop anew when it is met again after a long quiet, as one that ended unseen may have', async () => {
+      const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+      const paused = vi.fn();
+      store.onUploadsPaused = paused;
+      const stopped = () => new Response(JSON.stringify({ error: 'paused' }), { status: 503 });
+      respond(
+        new Response(null, { status: 404 }),
+        stopped(),
+        new Response(null, { status: 404 }),
+        stopped(),
+        new Response(null, { status: 404 }),
+        stopped()
+      );
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      now.mockReturnValue(1_000_000 + ASSET_PAUSE_RETRY_MS);
+      expect(await store.upload(id, new Blob([bytes]), '', { probe: true })).toBe('paused');
+      expect(paused.mock.calls).toEqual([[true]]);
+      now.mockReturnValue(1_000_000 + ASSET_PAUSE_RETRY_MS * 5);
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+
+      expect(paused.mock.calls).toEqual([[true], [true]]);
+    });
+
     it('fails for now on any other 503, and forgets a stop when the address is set again', async () => {
       const paused = vi.fn();
       store.onUploadsPaused = paused;

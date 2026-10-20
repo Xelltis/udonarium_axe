@@ -47,6 +47,11 @@ const UPLOAD_CONCURRENCY = 2;
 const SMALL_UPLOAD_BYTES = 2 * 1024 * 1024;
 const DOWNLOAD_CONCURRENCY = 4;
 const REQUEST_TIMEOUT_MS = 60_000;
+/**
+ * How long a word that uploads are stopped stays told: a stop the server answers again only after a
+ * longer quiet, as when the stop told of ended with nothing that showed it, is told of anew.
+ */
+const PAUSE_TOLD_FOR_MS = 3 * ASSET_PAUSE_RETRY_MS;
 /** How long to wait before each retry of an upload the server turned away as too frequent. */
 const RATE_LIMIT_BACKOFF_MS = [10_000, 20_000, 40_000];
 
@@ -180,6 +185,8 @@ export class AssetHttpStore {
   onUploadBlocked: (identifier: string) => void = () => {};
   /** Whether the last word on uploads was the operator's stop. */
   private uploadsPaused = false;
+  /** When, in epoch milliseconds, the server last said uploads are stopped. */
+  private lastPausedAt = 0;
   /**
    * Until when, in epoch milliseconds, an upload sends no bytes for the operator's stop: a while after
    * the server last said so, after which the next upload tries whether it is over.
@@ -205,6 +212,7 @@ export class AssetHttpStore {
     const trimmed = url?.trim() ?? '';
     this.baseUrl = trimmed ? trimmed.replace(/\/+$/, '') : null;
     this.uploadsPaused = false;
+    this.lastPausedAt = 0;
     this.stopHeldUntil = 0;
     this.blockedTold.clear();
   }
@@ -294,12 +302,14 @@ export class AssetHttpStore {
   /**
    * Tells the app when uploads meet the operator's stop and when they go up again after it, and of
    * bytes barred, each once. Only bytes kept anew show the stop is over: bytes already there were
-   * never sent.
+   * never sent. So a stop met again after a long quiet is told of again, as a new stop may be.
    */
   private tell(identifier: string, result: AssetUploadResult): void {
-    if (result === 'paused' && !this.uploadsPaused) {
+    if (result === 'paused') {
+      const told = this.uploadsPaused && Date.now() - this.lastPausedAt < PAUSE_TOLD_FOR_MS;
+      this.lastPausedAt = Date.now();
       this.uploadsPaused = true;
-      this.onUploadsPaused(true);
+      if (!told) this.onUploadsPaused(true);
     } else if (result === 'stored' && this.uploadsPaused) {
       this.uploadsPaused = false;
       this.onUploadsPaused(false);
