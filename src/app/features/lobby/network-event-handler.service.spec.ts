@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -831,6 +832,7 @@ describe('NetworkEventHandlerService', () => {
       const sounds = vi.spyOn(AudioSharingSystem.instance, 'fetchListed').mockImplementation(() => {});
       const upPictures = vi.spyOn(ImageStorage.instance, 'forgetUploaded');
       const upSounds = vi.spyOn(AudioStorage.instance, 'forgetUploaded');
+      const takeOut = vi.spyOn(TestBed.inject(AssetRemovalService), 'takeOut').mockImplementation(() => {});
 
       stubChange.networkOpen$.emit({ peerId: 'p' });
 
@@ -839,6 +841,7 @@ describe('NetworkEventHandlerService', () => {
       expect(forgotPictures).toHaveBeenCalled();
       expect(upPictures).toHaveBeenCalledWith([picture.id]);
       expect(upSounds).toHaveBeenCalledWith([sound.id]);
+      expect(takeOut).toHaveBeenCalledWith([picture.id, sound.id]);
     });
 
     it('fetches nothing from the room while waiting outside one, or when the server cannot say', async () => {

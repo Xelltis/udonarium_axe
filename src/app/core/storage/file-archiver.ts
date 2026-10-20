@@ -266,7 +266,7 @@ export class FileArchiver {
       Logger.warn(`[FileArchiver] ファイルサイズ制限超過: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
       return null;
     }
-    return ImageStorage.instance.addAsync(file);
+    return ImageStorage.instance.addAsync(file, { putBack: true });
   }
 
   private async handleAudio(file: File, tooLarge: FileTooLarge[]) {
@@ -276,7 +276,7 @@ export class FileArchiver {
       tooLarge.push({ name: file.name, kind: 'audio', limitBytes: MAX_LOADED_AUDIO_BYTES });
       return;
     }
-    await AudioStorage.instance.addAsync(file);
+    await AudioStorage.instance.addAsync(file, { putBack: true });
   }
 
   private async handleText(file: File, dropPoint?: { x: number; y: number }): Promise<void> {

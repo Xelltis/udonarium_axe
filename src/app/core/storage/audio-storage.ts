@@ -53,8 +53,20 @@ export class AudioStorage {
   /** What the room's GM removed: held here no more, and taken from no peer or store until put back. */
   private readonly removed = new Set<string>();
 
-  /** Told, by the app, when this seat adds in full a sound the room had removed, which puts it back. */
-  onRestored: (identifier: string) => void = () => {};
+  /**
+   * Asked, by the app, whether this seat may put back for the room a sound the room removed, which
+   * it does when it may. Only one chosen to be added is asked about.
+   */
+  putBack: (identifier: string) => boolean = () => true;
+
+  /** Told, by the app, when a sound chosen to be added was one the room removed, and could not be put back. */
+  onRefused: (identifier: string) => void = () => {};
+
+  /**
+   * Told, by the app, when bytes the room has removed since reached the store all the same, as for an
+   * upload already under way, so that they can be taken out again.
+   */
+  onUploadedWhileRemoved: (identifier: string) => void = () => {};
 
   /** Every audio this seat knows of, including placeholders whose bytes have not arrived. */
   get audios(): AudioFile[] {
@@ -75,10 +87,12 @@ export class AudioStorage {
    *
    * Adding audio already held merges into the existing entry and returns that one.
    */
-  async addAsync(arg: Blob): Promise<AudioFile> {
+  async addAsync(arg: Blob, options: { putBack?: boolean } = {}): Promise<AudioFile> {
     const audio: AudioFile = await AudioFile.createAsync(arg);
 
-    return this._add(audio, true);
+    const kept = this._add(audio, true, options.putBack === true);
+    if (this.removed.has(audio.identifier)) audio.destroy();
+    return kept;
   }
 
   /**
@@ -107,11 +121,12 @@ export class AudioStorage {
     return this._add(audio, isLocal);
   }
 
-  /** One added here in full that the room had removed is put back, and the app told. */
-  private _add(audio: AudioFile, isLocal: boolean = false): AudioFile {
-    if (isLocal && AudioState.COMPLETE <= audio.state && this.removed.delete(audio.identifier)) {
-      this.onRestored(audio.identifier);
-    }
+  /**
+   * One the room removed is not taken in, but when it was chosen to be added here in full and this
+   * seat may put it back, which puts it back for the room.
+   */
+  private _add(audio: AudioFile, isLocal: boolean = false, putBack: boolean = false): AudioFile {
+    if (this.removed.has(audio.identifier) && !this.takeBack(audio, isLocal && putBack)) return audio;
     if (isLocal) this.uploadToAssetStore(audio, true);
     if (AudioState.COMPLETE <= audio.state) this.catalogSchedule.whenQuiet(100);
     if (this.update(audio)) return this.hash[audio.identifier];
@@ -185,6 +200,17 @@ export class AudioStorage {
    * Puts one up to the room's asset store, or keeps it for when the room is in reach. One that went
    * up to a room the seat has left meanwhile goes up to the room it is in now as well.
    */
+  /** Whether one the room removed comes in: chosen to be added in full, by a seat that may put it back. */
+  private takeBack(audio: AudioFile, chosen: boolean): boolean {
+    if (!chosen || audio.state < AudioState.COMPLETE) return false;
+    if (!this.putBack(audio.identifier)) {
+      this.onRefused(audio.identifier);
+      return false;
+    }
+    this.removed.delete(audio.identifier);
+    return true;
+  }
+
   private uploadToAssetStore(audio: AudioFile, first = false): void {
     const store = AssetHttpStore.instance;
     const blob = audio.blob;
@@ -201,6 +227,10 @@ export class AudioStorage {
     void store
       .upload(identifier, blob, audio.name, { first })
       .then((result) => {
+        if (this.removed.has(identifier)) {
+          if (result === 'stored' || result === 'exists') this.onUploadedWhileRemoved(identifier);
+          return;
+        }
         // Turned away for the room being out of reach, as while the link is down, it goes up once
         // the seat is back rather than spend its tries meanwhile.
         if (result === 'failed' && !store.isEnabled && store.isConfigured) {
@@ -301,7 +331,7 @@ export class AudioStorage {
    */
   markRemoved(identifier: string): void {
     this.removed.add(identifier);
-    this.uploadRetries.forget(identifier);
+    this.uploadRetries.cancel(identifier);
     if (this.delete(identifier)) fileResourceUpdated$.emit();
   }
 

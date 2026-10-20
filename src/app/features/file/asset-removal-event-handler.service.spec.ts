@@ -1,5 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import { AudioFile } from '@axe/core/storage/audio-file';
+import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -78,26 +81,50 @@ describe('AssetRemovalEventHandlerService', () => {
     expect(AudioStorage.instance.isRemoved(trackId)).toBe(false);
   });
 
-  it('puts back for the room what this seat adds in full again', async () => {
+  describe('what this seat chooses to add again', () => {
+    /** Adds it as one chosen to be added, as a file picked or dropped is. */
+    const choose = (file: ImageFile) =>
+      (
+        ImageStorage.instance as unknown as { _add(file: ImageFile, isLocal: boolean, putBack: boolean): ImageFile }
+      )._add(file, true, true);
+
+    it('puts back for the room what the GM adds again', async () => {
+      start();
+      const putBack = vi.spyOn(TestBed.inject(AssetRemovalService), 'putBack');
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditShared', 'get').mockReturnValue(true);
+      AssetRemoval.remove(pictureId, 'image');
+      await settle();
+
+      choose(picture());
+      await settle();
+
+      expect(putBack.mock.calls).toEqual([[pictureId]]);
+      expect(AssetRemoval.get(pictureId)?.isRemoved).toBe(false);
+      expect(ImageStorage.instance.get(pictureId)).not.toBeNull();
+    });
+
+    it('keeps it removed, and says only the GM may, for anyone else', async () => {
+      start();
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditShared', 'get').mockReturnValue(false);
+      const show = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+      AssetRemoval.remove(pictureId, 'image');
+      await settle();
+
+      choose(picture());
+      await settle();
+
+      expect(AssetRemoval.get(pictureId)?.isRemoved).toBe(true);
+      expect(ImageStorage.instance.get(pictureId)).toBeNull();
+      expect(show.mock.calls).toEqual([[TestBed.inject(TRANSLATE_FN)('feature.file.removal.imageRefused')]]);
+    });
+  });
+
+  it('has the GM take out of the store bytes that reached it after their removal', () => {
     start();
-    AssetRemoval.remove(pictureId, 'image');
-    AssetRemoval.remove(trackId, 'audio');
-    await settle();
+    const takeOut = vi.spyOn(TestBed.inject(AssetRemovalService), 'takeOut').mockImplementation(() => {});
 
-    ImageStorage.instance.add(picture());
-    AudioStorage.instance.add(
-      AudioFile.create({
-        identifier: trackId,
-        name: 'theme.ogg',
-        type: 'audio/ogg',
-        blob: new Blob([new Uint8Array([0x4f, 0x67, 0x67, 0x53])], { type: 'audio/ogg' }),
-        url: 'blob:track',
-      })
-    );
-    await settle();
+    AudioStorage.instance.onUploadedWhileRemoved(trackId);
 
-    expect(AssetRemoval.get(pictureId)?.isRemoved).toBe(false);
-    expect(AssetRemoval.get(trackId)?.isRemoved).toBe(false);
-    expect(ImageStorage.instance.get(pictureId)).not.toBeNull();
+    expect(takeOut.mock.calls).toEqual([[[trackId]]]);
   });
 });

@@ -1,5 +1,6 @@
 import { DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
@@ -49,6 +50,7 @@ const UPLOAD_NOTICE_MS = 15_000;
 @Injectable({ providedIn: 'root' })
 export class NetworkEventHandlerService {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly assetRemoval = inject(AssetRemovalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly reach = inject(NetworkReachService);
@@ -383,7 +385,8 @@ export class NetworkEventHandlerService {
    * Fetches what the room server's room holds that this seat lacks: the pictures and sounds left in
    * a room everybody had gone from, which no member's catalog names any more. Each room starts with
    * a clean slate of what the store was found to lack. A list the server could not give just then is
-   * asked for again a few times, while the seat is still in the room.
+   * asked for again a few times, while the seat is still in the room. What the list holds that the
+   * room removed is taken out of the store again, when this seat is the GM.
    */
   private fetchRoomAssets(): void {
     this.roomAssetListRetries.clear();
@@ -405,6 +408,7 @@ export class NetworkEventHandlerService {
       const sounds = assets.filter((asset) => asset.type.startsWith('audio/'));
       ImageStorage.instance.forgetUploaded(pictures.map((asset) => asset.id));
       AudioStorage.instance.forgetUploaded(sounds.map((asset) => asset.id));
+      this.assetRemoval.takeOut(assets.map((asset) => asset.id));
       ImageSharingSystem.instance.fetchListed(pictures);
       AudioSharingSystem.instance.fetchListed(sounds);
     });

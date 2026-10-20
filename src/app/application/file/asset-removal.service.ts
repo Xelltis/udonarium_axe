@@ -13,6 +13,8 @@ import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { AssetRemoval, AssetRemovalKind } from '@axe/domain/media/asset-removal';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
+import { CutIn } from '@axe/domain/media/cut-in';
+import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { mentionsIdentifier } from '@axe/domain/media/image-reference';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
@@ -47,6 +49,11 @@ export class AssetRemovalService {
   private readonly snackbar = inject(SnackbarService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly storeRetries = new AssetRetries();
+  /**
+   * What this seat removed, with the room it removed each in. Only these are taken out of the store
+   * again on its own, since a record of a removal is synced data anyone in the room could have written.
+   */
+  private readonly removedHere = new Map<string, string | null>();
 
   /**
    * Which of these may be removed: those a person added, named by the hash of what they hold, and
@@ -77,7 +84,8 @@ export class AssetRemovalService {
 
   /**
    * Removes them from the room, and gives back how many were. Nothing is removed for anyone but the
-   * GM. Sounds the room is playing are stopped first, so that nothing it plays names one gone.
+   * GM. What the room is playing of the sounds, as music, a background sound or the cut-in shown, is
+   * stopped first, so that nothing it plays names one gone.
    */
   remove(kind: AssetRemovalKind, identifiers: readonly string[]): number {
     if (!this.rolePermission.canEditShared) return 0;
@@ -87,8 +95,33 @@ export class AssetRemovalService {
       if (kind === 'audio') this.stopPlaying(targets);
       for (const identifier of targets) AssetRemoval.remove(identifier, kind);
     });
-    for (const identifier of targets) this.takeOutOfStore(identifier);
+    for (const identifier of targets) {
+      this.removedHere.set(identifier, Network.roomKey);
+      this.takeOutOfStore(identifier, Network.roomKey);
+    }
     return targets.length;
+  }
+
+  /**
+   * Puts back for the room one it removed, as the GM alone may, and says whether it was. A removal
+   * the GM made is not undone by anyone else adding the same file.
+   */
+  putBack(identifier: string): boolean {
+    if (!this.rolePermission.canEditShared) return false;
+    AssetRemoval.restore(identifier);
+    return true;
+  }
+
+  /**
+   * Takes out of the room's store, as the GM, those of these that this seat removed in the room it is
+   * in and the room still keeps removed: found there after all, as when an upload under way when they
+   * were removed reached it later. A record someone else wrote takes nothing out of the store.
+   */
+  takeOut(identifiers: readonly string[]): void {
+    if (!this.rolePermission.canEditShared) return;
+    for (const identifier of identifiers) {
+      if (this.removedHere.get(identifier) === Network.roomKey) this.takeOutOfStore(identifier, Network.roomKey);
+    }
   }
 
   /**
@@ -135,20 +168,28 @@ export class AssetRemovalService {
       const sound = BackgroundSound.of(identifier);
       if (sound?.isOn) sound.stop();
     }
+    const launcher = this.objectStore.get<CutInLauncher>('CutInLauncher');
+    const shown = launcher?.launchIsStart ? this.objectStore.get(launcher.launchCutInIdentifier) : null;
+    if (launcher && shown instanceof CutIn && identifiers.includes(shown.audioIdentifier)) launcher.stopCutIn(shown);
   }
 
   /**
-   * Asks the room server to take it out of the room's store, again a few times when it could not
-   * be asked just then. Left there, it is still fetched by nobody, each seat following the removal.
+   * Asks the room server to take it out of the store of the room it was removed in, again a few times
+   * when it could not be asked just then, while the seat is still in that room and the room still keeps
+   * it removed. Left there, it is still fetched by nobody, each seat following the removal.
    */
-  private takeOutOfStore(identifier: string): void {
+  private takeOutOfStore(identifier: string, roomKey: string | null): void {
     if (Network.transport !== 'server' || !AssetHttpStore.instance.isEnabled) return;
+    if (Network.roomKey !== roomKey || !AssetRemoval.get(identifier)?.isRemoved) {
+      this.storeRetries.forget(identifier);
+      return;
+    }
     void AssetHttpStore.instance.remove(identifier).then((result) => {
       if (result !== 'failed') {
         this.storeRetries.forget(identifier);
         return;
       }
-      this.storeRetries.schedule(identifier, () => this.takeOutOfStore(identifier));
+      this.storeRetries.schedule(identifier, () => this.takeOutOfStore(identifier, roomKey));
     });
   }
 }

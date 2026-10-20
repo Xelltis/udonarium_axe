@@ -165,6 +165,7 @@ describe('FileArchiver', () => {
       drop(['Files'], [new File([new Uint8Array([1])], 'a.png', { type: 'image/png' })]);
 
       await vi.waitFor(() => expect(addAsync).toHaveBeenCalled());
+      expect(addAsync.mock.calls[0][1]).toEqual({ putBack: true });
     });
   });
 

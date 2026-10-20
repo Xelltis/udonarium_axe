@@ -49,8 +49,20 @@ export class ImageStorage {
   /** What the room's GM removed: held here no more, and taken from no peer or store until put back. */
   private readonly removed = new Set<string>();
 
-  /** Told, by the app, when this seat adds in full a picture the room had removed, which puts it back. */
-  onRestored: (identifier: string) => void = () => {};
+  /**
+   * Asked, by the app, whether this seat may put back for the room a picture the room removed, which
+   * it does when it may. Only one chosen to be added is asked about.
+   */
+  putBack: (identifier: string) => boolean = () => true;
+
+  /** Told, by the app, when a picture chosen to be added was one the room removed, and could not be put back. */
+  onRefused: (identifier: string) => void = () => {};
+
+  /**
+   * Told, by the app, when bytes the room has removed since reached the store all the same, as for an
+   * upload already under way, so that they can be taken out again.
+   */
+  onUploadedWhileRemoved: (identifier: string) => void = () => {};
 
   /** Every image this seat knows of, including placeholders whose data has not arrived. */
   get images(): ImageFile[] {
@@ -75,10 +87,12 @@ export class ImageStorage {
    *
    * Adding an image already held merges into the existing entry and returns that one.
    */
-  async addAsync(arg: Blob): Promise<ImageFile> {
+  async addAsync(arg: Blob, options: { putBack?: boolean } = {}): Promise<ImageFile> {
     const image: ImageFile = await ImageFile.createAsync(arg);
 
-    return this._add(image, true);
+    const kept = this._add(image, true, options.putBack === true);
+    if (this.removed.has(image.identifier)) image.destroy();
+    return kept;
   }
 
   /**
@@ -107,11 +121,12 @@ export class ImageStorage {
     return this._add(image, isLocal);
   }
 
-  /** One added here in full that the room had removed is put back, and the app told. */
-  private _add(image: ImageFile, isLocal: boolean = false): ImageFile {
-    if (isLocal && ImageState.COMPLETE <= image.state && this.removed.delete(image.identifier)) {
-      this.onRestored(image.identifier);
-    }
+  /**
+   * One the room removed is not taken in, but when it was chosen to be added here in full and this
+   * seat may put it back, which puts it back for the room.
+   */
+  private _add(image: ImageFile, isLocal: boolean = false, putBack: boolean = false): ImageFile {
+    if (this.removed.has(image.identifier) && !this.takeBack(image, isLocal && putBack)) return image;
     if (isLocal) this.uploadToAssetStore(image, true);
     if (ImageState.COMPLETE <= image.state) this.catalogSchedule.whenQuiet(100);
     if (this.update(image)) return this.imageHash[image.identifier];
@@ -185,6 +200,17 @@ export class ImageStorage {
    * Puts one up to the room's asset store, or keeps it for when the room is in reach. One that went
    * up to a room the seat has left meanwhile goes up to the room it is in now as well.
    */
+  /** Whether one the room removed comes in: chosen to be added in full, by a seat that may put it back. */
+  private takeBack(image: ImageFile, chosen: boolean): boolean {
+    if (!chosen || image.state < ImageState.COMPLETE) return false;
+    if (!this.putBack(image.identifier)) {
+      this.onRefused(image.identifier);
+      return false;
+    }
+    this.removed.delete(image.identifier);
+    return true;
+  }
+
   private uploadToAssetStore(image: ImageFile, first = false): void {
     const store = AssetHttpStore.instance;
     const blob = image.blob;
@@ -201,6 +227,10 @@ export class ImageStorage {
     void store
       .upload(identifier, blob, image.name, { first })
       .then((result) => {
+        if (this.removed.has(identifier)) {
+          if (result === 'stored' || result === 'exists') this.onUploadedWhileRemoved(identifier);
+          return;
+        }
         // Turned away for the room being out of reach, as while the link is down, it goes up once
         // the seat is back rather than spend its tries meanwhile.
         if (result === 'failed' && !store.isEnabled && store.isConfigured) {
@@ -301,7 +331,7 @@ export class ImageStorage {
    */
   markRemoved(identifier: string): void {
     this.removed.add(identifier);
-    this.uploadRetries.forget(identifier);
+    this.uploadRetries.cancel(identifier);
     if (this.delete(identifier)) fileResourceUpdated$.emit();
   }
 

@@ -67,6 +67,14 @@ export class AssetRetries {
     this.tries.delete(identifier);
   }
 
+  /** Drops the try still to come of one transfer, and how often it was tried. */
+  cancel(identifier: string): void {
+    const timer = this.timers.get(identifier);
+    if (timer) clearTimeout(timer);
+    this.timers.delete(identifier);
+    this.tries.delete(identifier);
+  }
+
   /** Drops every try still to come, and how often each was tried. */
   clear(): void {
     for (const timer of this.timers.values()) clearTimeout(timer);

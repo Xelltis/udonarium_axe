@@ -75,8 +75,17 @@ describe('AudioStorage', () => {
 
     afterEach(() => {
       storage.unmarkRemoved(removedId);
-      storage.onRestored = () => {};
+      storage.putBack = () => true;
+      storage.onRefused = () => {};
     });
+
+    /** Adds it as one chosen to be added, as a file picked or dropped is. */
+    const choose = (file: AudioFile) =>
+      (storage as unknown as { _add(file: AudioFile, isLocal: boolean, putBack: boolean): AudioFile })._add(
+        file,
+        true,
+        true
+      );
 
     it('is let go of, keeps its mark, and the files are said to have changed', () => {
       storage.add(AudioFile.create(fullContext()));
@@ -92,22 +101,43 @@ describe('AudioStorage', () => {
       expect(changed).toHaveBeenCalledTimes(1);
     });
 
-    it('is put back, and the app told, only when this seat adds it in full', () => {
-      const restored = vi.fn();
-      storage.onRestored = restored;
+    it('is kept out when it comes again unchosen: from a peer, as a placeholder or added here by itself', () => {
+      const putBack = vi.fn(() => true);
+      storage.putBack = putBack;
       storage.markRemoved(removedId);
 
       storage.add(AudioFile.createEmpty(removedId));
-      storage.delete(removedId);
       storage.add(fullContext());
-      storage.delete(removedId);
-      expect(storage.isRemoved(removedId)).toBe(true);
-      expect(restored).not.toHaveBeenCalled();
-
       storage.add(AudioFile.create(fullContext()));
 
+      expect(storage.get(removedId)).toBeNull();
+      expect(storage.isRemoved(removedId)).toBe(true);
+      expect(putBack).not.toHaveBeenCalled();
+    });
+
+    it('is put back when chosen to be added in full by a seat that may', () => {
+      const putBack = vi.fn(() => true);
+      storage.putBack = putBack;
+      storage.markRemoved(removedId);
+
+      choose(AudioFile.create(fullContext()));
+
+      expect(storage.get(removedId)).not.toBeNull();
       expect(storage.isRemoved(removedId)).toBe(false);
-      expect(restored.mock.calls).toEqual([[removedId]]);
+      expect(putBack.mock.calls).toEqual([[removedId]]);
+    });
+
+    it('is kept out, and the app told, when chosen by a seat that may not put it back', () => {
+      const refused = vi.fn();
+      storage.putBack = () => false;
+      storage.onRefused = refused;
+      storage.markRemoved(removedId);
+
+      choose(AudioFile.create(fullContext()));
+
+      expect(storage.get(removedId)).toBeNull();
+      expect(storage.isRemoved(removedId)).toBe(true);
+      expect(refused.mock.calls).toEqual([[removedId]]);
     });
   });
 
@@ -215,6 +245,40 @@ describe('AudioStorage', () => {
       (storage as unknown as { barred: Set<string> }).barred.clear();
       (storage as unknown as { stopPausedRetry(): void }).stopPausedRetry();
       vi.useRealTimers();
+    });
+
+    describe('one the room removed while it was going up', () => {
+      afterEach(() => {
+        storage.unmarkRemoved(trackId);
+        storage.onUploadedWhileRemoved = () => {};
+      });
+
+      it('has the app take out bytes that reached the store all the same, and keeps nothing to try again', async () => {
+        const uploaded = vi.fn();
+        storage.onUploadedWhileRemoved = uploaded;
+        vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('gm');
+        storage.add(AudioFile.create(contextOf(trackId)));
+
+        storage.markRemoved(trackId);
+        finishUpload('stored');
+        await vi.waitFor(() => expect(uploaded).toHaveBeenCalledTimes(1));
+
+        expect(uploaded.mock.calls).toEqual([[trackId]]);
+        expect(storage.hasUploadsPending).toBe(false);
+      });
+
+      it('stops a try still to come, which would keep it counted as still to go up', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+        vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+        upload.mockResolvedValue('failed');
+        storage.add(AudioFile.create(contextOf(trackId)));
+        await vi.advanceTimersByTimeAsync(0);
+        expect(storage.hasUploadsPending).toBe(true);
+
+        storage.markRemoved(trackId);
+
+        expect(storage.hasUploadsPending).toBe(false);
+      });
     });
 
     it('holds what the operator’s stop turned away from peers, tries one now and then, and the rest once one goes up', async () => {

@@ -12,6 +12,8 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { AssetRemoval } from '@axe/domain/media/asset-removal';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
+import { CutIn } from '@axe/domain/media/cut-in';
+import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -88,6 +90,35 @@ describe('AssetRemovalService', () => {
     expect(rain.isOn).toBe(false);
     expect(wind.isOn).toBe(true);
     expect(AssetRemoval.get(trackId)?.kind).toBe('audio');
+  });
+
+  it('stops the cut-in shown when it plays a sound being removed, and leaves one with another sound', () => {
+    const launcher = new CutInLauncher('CutInLauncher');
+    launcher.initialize();
+    const cutIn = new CutIn('cut-in-1');
+    cutIn.initialize();
+    cutIn.audioIdentifier = trackId;
+    launcher.launchCutInIdentifier = cutIn.identifier;
+    launcher.launchIsStart = true;
+    const stopCutIn = vi.spyOn(launcher, 'stopCutIn').mockImplementation(() => {});
+
+    service.remove('audio', [otherId]);
+    expect(stopCutIn).not.toHaveBeenCalled();
+    service.remove('audio', [trackId]);
+
+    expect(stopCutIn.mock.calls).toEqual([[cutIn]]);
+  });
+
+  it('puts back for the room, as the GM alone may', () => {
+    AssetRemoval.remove(pictureId, 'image');
+
+    isGameMaster = false;
+    expect(service.putBack(pictureId)).toBe(false);
+    expect(AssetRemoval.get(pictureId)?.isRemoved).toBe(true);
+
+    isGameMaster = true;
+    expect(service.putBack(pictureId)).toBe(true);
+    expect(AssetRemoval.get(pictureId)?.isRemoved).toBe(false);
   });
 
   it('counts what uses any of them, leaving out tags, removals and chat', () => {
@@ -184,6 +215,48 @@ describe('AssetRemovalService', () => {
       remove.mockClear().mockResolvedValue('refused');
       service.remove('image', [otherId]);
       await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 2 ** (ASSET_RETRY_LIMIT + 1));
+      expect(remove).toHaveBeenCalledTimes(1);
+    });
+
+    it('takes out of the store again, as the GM, only what this seat removed and the room keeps removed', async () => {
+      remove.mockResolvedValue('removed');
+      service.remove('image', [pictureId, otherId]);
+      AssetRemoval.restore(otherId);
+      AssetRemoval.remove(trackId, 'audio');
+      await vi.advanceTimersByTimeAsync(0);
+      remove.mockClear();
+
+      isGameMaster = false;
+      service.takeOut([pictureId, otherId, trackId]);
+      isGameMaster = true;
+      service.takeOut([pictureId, otherId, trackId]);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(remove.mock.calls).toEqual([[pictureId]]);
+    });
+
+    it('takes nothing out of the store for a record of a removal someone else wrote', async () => {
+      remove.mockResolvedValue('removed');
+      AssetRemoval.remove(pictureId, 'image');
+
+      service.takeOut([pictureId]);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(remove).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['the seat has gone into another room', () => vi.spyOn(Network, 'roomKey', 'get').mockReturnValue('room-b')],
+      ['the room has put it back', () => AssetRemoval.restore(pictureId)],
+    ])('asks the store no more once %s', async (_label, meanwhile) => {
+      vi.spyOn(Network, 'roomKey', 'get').mockReturnValue('room-a');
+      remove.mockResolvedValue('failed');
+      service.remove('image', [pictureId]);
+      await vi.advanceTimersByTimeAsync(0);
+
+      meanwhile();
+      await vi.advanceTimersByTimeAsync(ASSET_RETRY_DELAY_MS * 2 ** (ASSET_RETRY_LIMIT + 1));
+
       expect(remove).toHaveBeenCalledTimes(1);
     });
 
