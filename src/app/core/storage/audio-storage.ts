@@ -196,10 +196,6 @@ export class AudioStorage {
     if (audio && (role === 'gm' || role === 'pl')) this.uploadToAssetStore(audio);
   }
 
-  /**
-   * Puts one up to the room's asset store, or keeps it for when the room is in reach. One that went
-   * up to a room the seat has left meanwhile goes up to the room it is in now as well.
-   */
   /** Whether one the room removed comes in: chosen to be added in full, by a seat that may put it back. */
   private takeBack(audio: AudioFile, chosen: boolean): boolean {
     if (!chosen || audio.state < AudioState.COMPLETE) return false;
@@ -211,6 +207,10 @@ export class AudioStorage {
     return true;
   }
 
+  /**
+   * Puts one up to the room's asset store, or keeps it for when the room is in reach. One that went
+   * up to a room the seat has left meanwhile goes up to the room it is in now as well.
+   */
   private uploadToAssetStore(audio: AudioFile, first = false, probe = false): void {
     const store = AssetHttpStore.instance;
     const blob = audio.blob;
