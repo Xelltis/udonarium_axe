@@ -161,13 +161,29 @@ describe('AssetHttpStore', () => {
       );
 
       expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
-      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      expect(await store.upload(id, new Blob([bytes]), '', { probe: true })).toBe('paused');
       expect(paused.mock.calls).toEqual([[true]]);
       // Bytes found there already were never sent, so they do not show the stop is over.
       expect(await store.upload(id, new Blob([bytes]))).toBe('exists');
       expect(paused.mock.calls).toEqual([[true]]);
-      expect(await store.upload(id, new Blob([bytes]))).toBe('stored');
+      expect(await store.upload(id, new Blob([bytes]), '', { probe: true })).toBe('stored');
       expect(paused.mock.calls).toEqual([[true], [false]]);
+    });
+
+    it('sends no bytes while the operator’s stop is known, but for a try whether it is over', async () => {
+      respond(
+        new Response(null, { status: 404 }),
+        new Response(JSON.stringify({ error: 'paused' }), { status: 503 }),
+        new Response(null, { status: 404 }),
+        new Response(null, { status: 404 }),
+        new Response('{}', { status: 201 })
+      );
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      expect(await store.upload(id, new Blob([bytes]), '', { probe: true })).toBe('stored');
+
+      expect(callsOf().map(([method]) => method)).toEqual(['HEAD', 'PUT', 'HEAD', 'HEAD', 'PUT']);
     });
 
     it('fails for now on any other 503, and forgets a stop when the address is set again', async () => {
@@ -457,8 +473,8 @@ describe('AssetHttpStore', () => {
       expect(
         await uploadWith(ticketOf(), new Response(null, { status: 200 }), new Response('{}', { status: 400 }))
       ).toBe('refused');
-      expect(await uploadWith(new Response(JSON.stringify({ error: 'paused' }), { status: 503 }))).toBe('paused');
       expect(await uploadWith(new Response(JSON.stringify({ error: 'blocked' }), { status: 451 }))).toBe('blocked');
+      expect(await uploadWith(new Response(JSON.stringify({ error: 'paused' }), { status: 503 }))).toBe('paused');
     });
 
     it('asks again after a wait when the server wants fewer uploads', async () => {

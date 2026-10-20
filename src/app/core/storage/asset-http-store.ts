@@ -224,12 +224,15 @@ export class AssetHttpStore {
    *
    * Uploads wait their turn; one asked for `first`, such as a picture just added here, goes ahead
    * of those already waiting. Small ones wait in a lane of their own, apart from the big ones.
+   *
+   * While the operator's stop is known, an upload sends no bytes and is answered `paused` at once,
+   * but for a `probe`, which tries whether the stop is over.
    */
   async upload(
     identifier: string,
     blob: Blob,
     name = '',
-    options: { first?: boolean } = {}
+    options: { first?: boolean; probe?: boolean } = {}
   ): Promise<AssetUploadResult> {
     if (!this.baseUrl || !AssetHttpStore.isAssetId(identifier)) return 'refused';
     const lane = blob.size <= SMALL_UPLOAD_BYTES ? this.smallUploads : this.uploads;
@@ -247,6 +250,7 @@ export class AssetHttpStore {
           // Only a store that lacks the bytes is sent them; one that asked for fewer requests, or failed,
           // is asked again later rather than sent the whole of them now.
           if (head.status !== 404) return 'failed';
+          if (this.uploadsPaused && !options.probe) return 'paused';
           // A room server whose requests carry only so much takes bigger bytes straight to its store.
           const policy = this.access?.()?.upload;
           if (policy && policy.maxPutBytes < blob.size) {

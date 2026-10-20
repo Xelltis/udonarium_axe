@@ -296,6 +296,31 @@ describe('ImageStorage', () => {
       });
     });
 
+    it('asks the store to try whether the stop is over, and tries the next later when one goes up no more', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      const gone = 'c'.repeat(64);
+      upload.mockResolvedValue('paused');
+      storage.add(ImageFile.create(contextOf(gone)));
+      storage.add(ImageFile.create(contextOf(pictureId)));
+      await vi.advanceTimersByTimeAsync(0);
+      storage.delete(gone);
+      storage.delete(pictureId);
+      storage.add(ImageFile.create({ ...contextOf(pictureId), blob: new Blob([new Uint8Array(64)]) }));
+      upload.mockClear();
+      (storage as unknown as { uploading: Set<string> }).uploading.clear();
+      (storage as unknown as { pausedUploads: Set<string> }).pausedUploads.add(gone).add(pictureId);
+
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+      expect(upload).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+
+      expect(upload.mock.calls.map(([identifier, , , options]) => [identifier, options])).toEqual([
+        [pictureId, { first: false, probe: true }],
+      ]);
+      storage.delete(pictureId);
+    });
+
     it('holds what the operator’s stop turned away from peers, tries one now and then, and the rest once one goes up', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');

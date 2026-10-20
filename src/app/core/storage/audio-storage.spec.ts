@@ -281,6 +281,31 @@ describe('AudioStorage', () => {
       });
     });
 
+    it('asks the store to try whether the stop is over, and tries the next later when one goes up no more', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      const gone = 'c'.repeat(64);
+      upload.mockResolvedValue('paused');
+      storage.add(AudioFile.create(contextOf(gone)));
+      storage.add(AudioFile.create(contextOf(trackId)));
+      await vi.advanceTimersByTimeAsync(0);
+      storage.delete(gone);
+      storage.delete(trackId);
+      storage.add(AudioFile.create({ ...contextOf(trackId), blob: new Blob([new Uint8Array(64)]) }));
+      upload.mockClear();
+      (storage as unknown as { uploading: Set<string> }).uploading.clear();
+      (storage as unknown as { pausedUploads: Set<string> }).pausedUploads.add(gone).add(trackId);
+
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+      expect(upload).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+
+      expect(upload.mock.calls.map(([identifier, , , options]) => [identifier, options])).toEqual([
+        [trackId, { first: false, probe: true }],
+      ]);
+      storage.delete(trackId);
+    });
+
     it('holds what the operator’s stop turned away from peers, tries one now and then, and the rest once one goes up', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
       vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');

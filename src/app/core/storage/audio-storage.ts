@@ -211,7 +211,7 @@ export class AudioStorage {
     return true;
   }
 
-  private uploadToAssetStore(audio: AudioFile, first = false): void {
+  private uploadToAssetStore(audio: AudioFile, first = false, probe = false): void {
     const store = AssetHttpStore.instance;
     const blob = audio.blob;
     if (audio.state !== AudioState.COMPLETE || !blob) return;
@@ -225,7 +225,7 @@ export class AudioStorage {
     let wentUpElsewhere = false;
     this.uploading.add(identifier);
     void store
-      .upload(identifier, blob, audio.name, { first })
+      .upload(identifier, blob, audio.name, { first, probe })
       .then((result) => {
         if (this.removed.has(identifier)) {
           if (result === 'stored' || result === 'exists') this.onUploadedWhileRemoved(identifier);
@@ -276,7 +276,8 @@ export class AudioStorage {
   /**
    * Tries one the operator's stop held again a while later, in the room it was held in, to see
    * whether the stop is over. The smallest is tried, since the bytes may all be sent before the
-   * server's answer that the stop goes on.
+   * server's answer that the stop goes on. One that does not go up after all, as when it is held no
+   * more, leaves the rest to the next try, as the answer would have.
    */
   private retryPausedLater(roomKey: string | null): void {
     if (this.pausedRetry) return;
@@ -285,7 +286,11 @@ export class AudioStorage {
       const next = this.smallestPaused();
       if (next === undefined) return;
       this.pausedUploads.delete(next);
-      this.retryUpload(next, roomKey);
+      this.retryUpload(next, roomKey, true);
+      const role = Network.serverRole;
+      if (!this.uploading.has(next) && Network.roomKey === roomKey && (role === 'gm' || role === 'pl')) {
+        this.retryPausedLater(roomKey);
+      }
     }, ASSET_PAUSE_RETRY_MS);
   }
 
@@ -346,11 +351,11 @@ export class AudioStorage {
   }
 
   /** Tries a failed upload again, while the seat is still a GM or a PL in the room it failed for. */
-  private retryUpload(identifier: string, roomKey: string | null): void {
+  private retryUpload(identifier: string, roomKey: string | null, probe = false): void {
     const role = Network.serverRole;
     if (Network.roomKey !== roomKey || (role !== 'gm' && role !== 'pl')) return;
     const audio = this.hash[identifier];
-    if (audio) this.uploadToAssetStore(audio);
+    if (audio) this.uploadToAssetStore(audio, false, probe);
   }
 
   private update(audio: AudioFile | AudioFileContext): boolean {
