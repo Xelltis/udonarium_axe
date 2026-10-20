@@ -75,7 +75,7 @@ describe('AudioStorage', () => {
 
     afterEach(() => {
       storage.unmarkRemoved(removedId);
-      storage.putBack = () => true;
+      storage.putBack = () => false;
       storage.onRefused = () => {};
     });
 
@@ -113,6 +113,16 @@ describe('AudioStorage', () => {
       expect(storage.get(removedId)).toBeNull();
       expect(storage.isRemoved(removedId)).toBe(true);
       expect(putBack).not.toHaveBeenCalled();
+    });
+
+    it('is handed back as nothing when added and kept out, and as stored when put back', async () => {
+      vi.spyOn(AudioFile, 'createAsync').mockImplementation(async () => AudioFile.create(fullContext()));
+      storage.markRemoved(removedId);
+
+      expect(await storage.addAsync(new Blob([new Uint8Array([1])]))).toBeNull();
+      storage.putBack = () => true;
+      expect((await storage.addAsync(new Blob([new Uint8Array([1])]), { putBack: true }))?.identifier).toBe(removedId);
+      expect(storage.get(removedId)).not.toBeNull();
     });
 
     it('is put back when chosen to be added in full by a seat that may', () => {

@@ -1338,7 +1338,7 @@ export class WhiteBoardEditorComponent {
     const stuck: MarkRef[] = [];
     for (const file of files) {
       const image = await this.imageStorage.addAsync(file, { putBack: true });
-      if (this.imageStorage.isRemoved(image.identifier)) continue;
+      if (!image) continue;
       const made = stickerAt(
         { x: this.sceneWidth / 2, y: this.sceneHeight / 2 },
         image.identifier,

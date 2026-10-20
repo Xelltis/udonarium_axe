@@ -48,7 +48,7 @@ export class AssetRemovalEventHandlerService {
     }
     destroyRef.onDestroy(() => {
       for (const storage of [ImageStorage.instance, AudioStorage.instance]) {
-        storage.putBack = () => true;
+        storage.putBack = () => false;
         storage.onRefused = () => {};
         storage.onUploadedWhileRemoved = () => {};
       }

@@ -51,9 +51,10 @@ export class ImageStorage {
 
   /**
    * Asked, by the app, whether this seat may put back for the room a picture the room removed, which
-   * it does when it may. Only one chosen to be added is asked about.
+   * it does when it may. Only one chosen to be added is asked about, and none is put back until the
+   * app says.
    */
-  putBack: (identifier: string) => boolean = () => true;
+  putBack: (identifier: string) => boolean = () => false;
 
   /** Told, by the app, when a picture chosen to be added was one the room removed, and could not be put back. */
   onRefused: (identifier: string) => void = () => {};
@@ -86,13 +87,17 @@ export class ImageStorage {
    * shortly after.
    *
    * Adding an image already held merges into the existing entry and returns that one.
+   *
+   * Null for one the room removed that is not taken in: added without being chosen, or chosen by a
+   * seat that may not put it back.
    */
-  async addAsync(arg: Blob, options: { putBack?: boolean } = {}): Promise<ImageFile> {
+  async addAsync(arg: Blob, options: { putBack?: boolean } = {}): Promise<ImageFile | null> {
     const image: ImageFile = await ImageFile.createAsync(arg);
 
     const kept = this._add(image, true, options.putBack === true);
-    if (this.removed.has(image.identifier)) image.destroy();
-    return kept;
+    if (!this.removed.has(image.identifier)) return kept;
+    image.destroy();
+    return null;
   }
 
   /**

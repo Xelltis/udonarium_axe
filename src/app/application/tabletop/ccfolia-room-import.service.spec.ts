@@ -44,14 +44,14 @@ describe('CcfoliaRoomImportService', () => {
 
   beforeEach(() => {
     let counter = 0;
-    addAsync = vi.fn().mockImplementation(() => Promise.resolve({ identifier: `image-${++counter}` }));
     removed = new Set();
+    addAsync = vi.fn().mockImplementation(() => {
+      const identifier = `image-${++counter}`;
+      return Promise.resolve(removed.has(identifier) ? null : { identifier });
+    });
 
     TestBed.configureTestingModule({
-      providers: [
-        ...TEST_PROVIDERS,
-        { provide: ImageStorage, useValue: { addAsync, isRemoved: (id: string) => removed.has(id) } },
-      ],
+      providers: [...TEST_PROVIDERS, { provide: ImageStorage, useValue: { addAsync } }],
     });
     service = TestBed.inject(CcfoliaRoomImportService);
   });

@@ -73,8 +73,7 @@ describe('MapEditorStampPickerComponent', () => {
   });
 
   it('may put back a picture the room removed, and uses none it could not', async () => {
-    imageStorage.addAsync.mockResolvedValue({ identifier: 'removed-stamp' });
-    imageStorage.isRemoved.mockReturnValue(true);
+    imageStorage.addAsync.mockResolvedValue(null);
     const input = { files: [new File([new Uint8Array([1])], 'x.png', { type: 'image/png' })], value: 'x' };
 
     await picker.onStampFileSelected({ target: input } as unknown as Event);

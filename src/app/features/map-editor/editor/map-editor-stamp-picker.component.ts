@@ -81,7 +81,7 @@ export class MapEditorStampPickerComponent {
     input.value = '';
     if (!file || !file.type.startsWith('image/')) return;
     const imageFile = await this.imageStorage.addAsync(file, { putBack: true });
-    if (this.imageStorage.isRemoved(imageFile.identifier)) return;
+    if (!imageFile) return;
     const tag = ImageTag.get(imageFile.identifier) ?? ImageTag.create(imageFile.identifier);
     tag.tag = MAP_STAMP_TAG;
     this.objectChange.notifyCollectionChanged('image-tag');

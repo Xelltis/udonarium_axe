@@ -167,7 +167,7 @@ export class CharacterImportService {
       if (!response.ok) return '';
       const blob = await response.blob();
       const imageFile = await this.imageStorage.addAsync(blob, { putBack: true });
-      return this.imageStorage.isRemoved(imageFile.identifier) ? '' : imageFile.identifier;
+      return imageFile?.identifier ?? '';
     } catch {
       return '';
     }

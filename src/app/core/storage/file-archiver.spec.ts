@@ -230,13 +230,12 @@ describe('FileArchiver', () => {
     it('places nothing for a picture the room removed and this seat could not put back', async () => {
       const dropped: ImageDroppedEvent[] = [];
       const off = imageDropped$.subscribe((event) => dropped.push(event));
-      ImageStorage.instance.markRemoved('image-a.png');
+      vi.mocked(ImageStorage.instance.addAsync).mockImplementationOnce(() => Promise.resolve(null));
 
       try {
         await FileArchiver.instance.load([imageFile('a.png'), imageFile('b.png')], { x: 10, y: 20 });
       } finally {
         off();
-        ImageStorage.instance.unmarkRemoved('image-a.png');
       }
 
       expect(dropped.map((event) => event.fileName)).toEqual(['b.png']);
@@ -444,10 +443,9 @@ describe('FileArchiver', () => {
     });
 
     it('hands back no picture the room removed that this seat could not put back, nor names it too large', async () => {
-      ImageStorage.instance.markRemoved('image-a.png');
+      addAsync.mockImplementationOnce(() => Promise.resolve(null));
 
       const result = await FileArchiver.instance.loadImages([imageFile('a.png'), imageFile('b.png')]);
-      ImageStorage.instance.unmarkRemoved('image-a.png');
 
       expect(result.images.map((image) => image.identifier)).toEqual(['image-b.png']);
       expect(result.oversized).toEqual([]);

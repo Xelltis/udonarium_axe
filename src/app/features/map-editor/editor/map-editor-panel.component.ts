@@ -1845,7 +1845,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
         drawGrid: false,
         resolveImageUrl: (id) => this.imageStorage.get(id)?.url ?? null,
       });
-      await this.imageStorage.addAsync(blob);
+      if (!(await this.imageStorage.addAsync(blob))) throw new Error('the room removed the exported picture');
       this.notice.show(this.t('feature.mapEditor.actions.savedImage'));
     } catch {
       this.errorNotice.show(this.t('feature.mapEditor.actions.exportError'));
@@ -1912,6 +1912,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
         resolveImageUrl: (id) => this.imageStorage.get(id)?.url ?? null,
       });
       const file = await this.imageStorage.addAsync(blob);
+      if (!file) throw new Error('the room removed the exported picture');
       const table = this.tabletopService.currentTable;
       const scene = this.state.current;
       table.imageIdentifier = file.identifier;

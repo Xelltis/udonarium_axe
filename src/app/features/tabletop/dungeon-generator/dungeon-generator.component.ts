@@ -458,8 +458,8 @@ export class DungeonGeneratorComponent {
         resolveImageUrl: (id) => this.imageStorage.get(id)?.url ?? null,
       });
       const file = await this.imageStorage.addAsync(blob);
-      this.floorImage.set(file.identifier);
-      return file.identifier;
+      this.floorImage.set(file?.identifier ?? '');
+      return file?.identifier ?? '';
     } catch {
       this.floorImage.set('');
       return '';

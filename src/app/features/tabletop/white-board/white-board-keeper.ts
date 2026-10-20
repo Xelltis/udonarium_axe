@@ -80,6 +80,11 @@ export class BoardKeeper {
     }
 
     const file = await this.images.addAsync(blob);
+    if (!file) {
+      board.update();
+      this.host.redraw();
+      return;
+    }
     const element = board.imageDataElement?.getFirstElementByName('imageIdentifier');
     const worn = element?.value;
     if (element) element.value = file.identifier;
