@@ -123,6 +123,14 @@ describe('AssetRemovalService', () => {
     expect(AssetRemoval.get(pictureId)?.isRemoved).toBe(false);
   });
 
+  it('counts no background sound that is off, which only keeps the sound it last played', () => {
+    BackgroundSound.start(trackId)!.stop();
+
+    expect(service.countUses([trackId])).toBe(0);
+    BackgroundSound.start(trackId);
+    expect(service.countUses([trackId])).toBe(1);
+  });
+
   it('counts what uses any of them, leaving out tags, removals and chat', () => {
     const table = new GameTable('table-1');
     table.initialize();

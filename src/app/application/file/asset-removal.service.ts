@@ -66,7 +66,8 @@ export class AssetRemovalService {
 
   /**
    * How many things in the room use any of these: pieces, tables, cut-ins, the room's music and the
-   * like. The tags and removals of pictures and sounds do not count, nor does what was said in chat.
+   * like. The tags and removals of pictures and sounds do not count, nor does what was said in chat,
+   * nor a background sound that is off, which keeps the sound it last played.
    */
   countUses(identifiers: readonly string[]): number {
     if (identifiers.length === 0) return 0;
@@ -141,6 +142,7 @@ export class AssetRemovalService {
 
   private counts(object: GameObject): boolean {
     return !(
+      (object instanceof BackgroundSound && !object.isOn) ||
       object instanceof ImageTag ||
       object instanceof AudioTag ||
       object instanceof AssetRemoval ||
