@@ -17,13 +17,14 @@ import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
 import { PeerContext } from '@axe/core/network/peer-context';
-import { isBanned } from '@axe/core/network/server/server-room-api';
+import { isBanned, ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { InviteLinkParams, parseInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { dropInvitationFromAddress } from '@axe/features/lobby/leave-room';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
+import { OperatorContactComponent } from '@axe/features/lobby/operator-contact/operator-contact.component';
 import {
   PasswordCheckComponent,
   type PasswordCheckOptions,
@@ -38,7 +39,7 @@ type InviteJoinState = 'idle' | 'joining' | 'offline' | 'notFound' | 'failed' | 
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-invite-join',
   templateUrl: './invite-join.component.html',
-  imports: [TranslocoModule],
+  imports: [OperatorContactComponent, TranslocoModule],
 })
 export class InviteJoinComponent {
   private readonly t = inject(TRANSLATE_FN);
@@ -55,8 +56,12 @@ export class InviteJoinComponent {
 
   private readonly state = signal<InviteJoinState>('idle');
   private readonly roomName = signal('');
+  /** The operator's contact looking the room up was refused with; null for none. */
+  private readonly refusalContact = signal<string | null>(null);
 
   protected readonly isJoining = computed(() => this.state() === 'joining');
+  /** The operator's contact to show beside the word that the operator blocked this connection. */
+  protected readonly bannedContact = computed(() => (this.state() === 'banned' ? this.refusalContact() : null));
   /** Whether this browser is set to play offline, where no room can be joined until it goes online. */
   protected readonly isOffline = computed(() => this.state() === 'offline');
   /**
@@ -143,6 +148,7 @@ export class InviteJoinComponent {
     try {
       await this.join(params);
     } catch (reason) {
+      this.refusalContact.set(reason instanceof ServerRoomApiError ? reason.contact : null);
       this.state.set(isBanned(reason) ? 'banned' : 'failed');
     }
   }

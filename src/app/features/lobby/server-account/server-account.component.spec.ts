@@ -9,11 +9,13 @@ describe('ServerAccountComponent', () => {
   const account = signal<Account | null>(null);
   const providers = signal<boolean | null>(true);
   const error = signal<string | null>(null);
+  const errorContact = signal<string | null>(null);
   const auth = {
     account,
     isLoggingIn: signal(false),
     offersLogin: computed(() => providers()),
     error,
+    errorContact,
     startLogin: vi.fn(async () => undefined),
     logout: vi.fn(async () => undefined),
     deleteAccount: vi.fn(async () => undefined),
@@ -30,6 +32,7 @@ describe('ServerAccountComponent', () => {
     account.set(null);
     providers.set(true);
     error.set(null);
+    errorContact.set(null);
     vi.clearAllMocks();
     TestBed.configureTestingModule({
       imports: [ServerAccountComponent],
@@ -111,6 +114,14 @@ describe('ServerAccountComponent', () => {
     const element = render().nativeElement as HTMLElement;
 
     expect(find(element, 'server-account-error')!.textContent).toContain(words);
+  });
+
+  it('links the operator’s contact under a login turned away for a ban, where it came with one', () => {
+    error.set('banned');
+    errorContact.set('mailto:admin@example.com');
+    const element = render().nativeElement as HTMLElement;
+
+    expect(find(element, 'operator-contact-link')!.getAttribute('href')).toBe('mailto:admin@example.com');
   });
 
   it('says the server keeps no rooms when it offers no login', () => {

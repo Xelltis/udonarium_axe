@@ -257,6 +257,17 @@ describe('AssetHttpStore', () => {
       expect(paused.mock.calls).toEqual([[true], [true]]);
     });
 
+    it('keeps the contact the operator’s stop came with until the address is set again', async () => {
+      const stopped = JSON.stringify({ error: 'paused', contact: 'https://example.com/contact' });
+      respond(new Response(null, { status: 404 }), new Response(stopped, { status: 503 }));
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      expect(store.operatorContact).toBe('https://example.com/contact');
+
+      store.configure(BASE);
+      expect(store.operatorContact).toBeNull();
+    });
+
     it('fails for now on any other 503, and forgets a stop when the address is set again', async () => {
       const paused = vi.fn();
       store.onUploadsPaused = paused;

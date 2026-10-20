@@ -69,6 +69,9 @@
       <span class="text-ui-danger basis-full text-[0.75rem]" role="alert" data-testid="server-account-error">{{
         errorKey() | transloco
       }}</span>
+      @if (errorContact(); as contact) {
+        <operator-contact class="basis-full" [contact]="contact" />
+      }
     }
   </div>
 }

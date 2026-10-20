@@ -64,6 +64,14 @@ describe('InviteJoinComponent', () => {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
   }
 
+  function contactLink(): string | null {
+    return (
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('[data-testid="operator-contact-link"]')
+        ?.getAttribute('href') ?? null
+    );
+  }
+
   async function eventually(assert: () => void): Promise<void> {
     await vi.waitFor(() => {
       fixture.detectChanges();
@@ -454,6 +462,13 @@ describe('InviteJoinComponent', () => {
 
       await eventually(() => expect(bannerText()).toContain('運営者が、この回線を止めています'));
       expect(joinServerRoom).not.toHaveBeenCalled();
+    });
+
+    it('links the operator’s contact beside the word of the block, where the server gave one', async () => {
+      findServerRoom.mockRejectedValue(new ServerRoomApiError(403, 'banned', 'https://example.com/contact'));
+      await setup(link(''));
+
+      await eventually(() => expect(contactLink()).toBe('https://example.com/contact'));
     });
 
     it('says the room is gone when the server does not list it', async () => {

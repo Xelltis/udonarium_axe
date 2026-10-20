@@ -13,6 +13,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { carriesWithheldInto } from '@axe/domain/peer/withheld-table';
 import { LeaveRoomService } from '@axe/features/lobby/leave-room';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
+import { OperatorContactComponent } from '@axe/features/lobby/operator-contact/operator-contact.component';
 import { WithheldEntryService } from '@axe/features/lobby/withheld-entry';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -28,7 +29,7 @@ const CREATE_ERROR_KEYS: Readonly<Record<string, string>> = {
   selector: 'room-setting',
   templateUrl: './room-setting.component.html',
   host: { class: 'block' },
-  imports: [FormsModule, TranslocoModule],
+  imports: [FormsModule, OperatorContactComponent, TranslocoModule],
 })
 export class RoomSettingComponent {
   private readonly objectChange = inject(ObjectChangeService);
@@ -44,6 +45,8 @@ export class RoomSettingComponent {
   readonly roomNameTooLong = computed(() => this.roomName().length > 255);
   /** Why the room server would not create the room, shown in the dialog; empty until it refuses. */
   readonly createError = signal('');
+  /** The operator's contact a refusal for a ban or a stop came with; null for none. */
+  readonly createContact = signal<string | null>(null);
   readonly isCreating = signal(false);
   /**
    * Whether a SkyWay room cannot be made yet, the connection it would be opened through not being
@@ -135,6 +138,7 @@ export class RoomSettingComponent {
     if (this.isCreating() || Network.peerContext.isRoom) return;
     this.isCreating.set(true);
     this.createError.set('');
+    this.createContact.set(null);
     try {
       const { roomKey, roomId } = await Network.createRoom(this.roomName(), this.password());
       // Come into a room meanwhile, the seat stays there, the new room keeping for another time.
@@ -156,6 +160,7 @@ export class RoomSettingComponent {
       const reason = e instanceof ServerRoomApiError ? e.code : String(e);
       const key = CREATE_ERROR_KEYS[reason];
       this.createError.set(key ? this.t(key) : this.t('feature.lobby.roomSetting.createFailed', { reason }));
+      this.createContact.set(e instanceof ServerRoomApiError ? e.contact : null);
     } finally {
       this.isCreating.set(false);
     }

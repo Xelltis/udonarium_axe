@@ -414,6 +414,19 @@ describe('LobbyComponent', () => {
       await component.reload();
 
       expect(component.help()).toBe('部屋のサーバーの運営者が、この回線を止めています');
+      expect(component.helpContact()).toBeNull();
+    });
+
+    it('keeps the operator’s contact the ban came with, and lets it go on the next look', async () => {
+      const listed = vi.spyOn(Network, 'listAllRooms');
+      listed.mockRejectedValueOnce(new ServerRoomApiError(403, 'banned', 'https://example.com/contact'));
+      await component.reload();
+      expect(component.helpContact()).toBe('https://example.com/contact');
+
+      listed.mockResolvedValueOnce([]);
+      await component.reload();
+
+      expect(component.helpContact()).toBeNull();
     });
   });
 

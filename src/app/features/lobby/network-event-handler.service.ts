@@ -38,6 +38,11 @@ const ROLE_REJECTED_KEYS: Readonly<Record<string, string>> = {
   'last-game-master': 'feature.lobby.roleRejected.lastGameMaster',
 };
 
+/** Opens the operator's contact apart from the app, giving the page it opens no hold on this one. */
+function openApart(contact: string): void {
+  window.open(contact, '_blank', 'noopener,noreferrer');
+}
+
 /** How long after somebody leaves the room's list of pictures and sounds is read again. */
 const ROOM_ASSET_RELIST_MS = 30_000;
 /** How long the word that the seat is about to be let out stays: until it would be. */
@@ -178,6 +183,7 @@ export class NetworkEventHandlerService {
       const roomServerMessage = Network.transport === 'server' ? this.roomServerErrorMessage(errorType) : null;
       if (roomServerMessage) {
         this.chatMessageService.sendSystemMessage(roomServerMessage);
+        if (errorType === 'banned') void this.tellOperatorContact();
         Network.openStandby(this.standbyUserId());
         return;
       }
@@ -440,8 +446,26 @@ export class NetworkEventHandlerService {
    */
   private tellUploadsPaused(paused: boolean): void {
     if (this.overlayMode.active()) return;
-    if (paused) this.snackbar.show(this.t('feature.lobby.uploads.paused'), { ms: UPLOAD_NOTICE_MS });
-    else this.snackbar.show(this.t('feature.lobby.uploads.resumed'));
+    if (!paused) {
+      this.snackbar.show(this.t('feature.lobby.uploads.resumed'));
+      return;
+    }
+    const contact = AssetHttpStore.instance.operatorContact;
+    const action = contact
+      ? { label: this.t('feature.lobby.operatorContact.open'), run: () => openApart(contact) }
+      : undefined;
+    this.snackbar.show(this.t('feature.lobby.uploads.paused'), { ms: UPLOAD_NOTICE_MS, action });
+  }
+
+  /**
+   * Writes under the word of a ban the contact the room server's operator gives, for the reader to ask
+   * of it, where the operator gives one. The seat's link has closed, so the server is asked for it.
+   */
+  private async tellOperatorContact(): Promise<void> {
+    const contact = await Network.instance.operatorContact();
+    if (contact) {
+      this.chatMessageService.sendSystemMessage(encodeI18nMessage('feature.lobby.operatorContact.chat', { contact }));
+    }
   }
 
   /** Tells the reader that the operator barred a picture or sound this seat holds, so it reaches nobody else. */

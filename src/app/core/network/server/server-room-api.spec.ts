@@ -2,6 +2,7 @@ import http from '@axe/core/network/server/contract/http.json';
 import {
   createRoom,
   deleteRoom,
+  fetchOperatorContact,
   findRoom,
   listRooms,
   ServerRoomApiError,
@@ -74,5 +75,30 @@ describe('the room server’s HTTP API, held to the server’s contract', () => 
 
     expect(failure).toBeInstanceOf(ServerRoomApiError);
     expect((failure as ServerRoomApiError).code).toBe(http.error.error);
+    expect((failure as ServerRoomApiError).contact).toBeNull();
+  });
+
+  it('keeps the operator’s contact a ban or a stop came with, and nothing that is not one', async () => {
+    answer = json(403, { error: 'banned', contact: 'mailto:admin@example.com' });
+    const banned = (await listRooms('https://rooms.example').catch((error) => error)) as ServerRoomApiError;
+    answer = json(503, { error: 'paused', contact: 'javascript:alert(1)' });
+    const paused = (await createRoom('https://rooms.example', http.createRoomRequest).catch(
+      (error) => error
+    )) as ServerRoomApiError;
+
+    expect([banned.code, banned.contact]).toEqual(['banned', 'mailto:admin@example.com']);
+    expect([paused.code, paused.contact]).toEqual(['paused', null]);
+  });
+
+  it('asks the server for the operator’s contact, and has none where it gives none or is older than that', async () => {
+    answer = json(200, { contact: 'https://example.com/contact' });
+    expect(await fetchOperatorContact('https://rooms.example')).toBe('https://example.com/contact');
+    expect(sent.at(-1)).toMatchObject({ url: 'https://rooms.example/v1/contact', method: 'GET' });
+
+    answer = json(200, { contact: null });
+    expect(await fetchOperatorContact('https://rooms.example')).toBeNull();
+    answer = json(404, { error: 'not-found' });
+    expect(await fetchOperatorContact('https://rooms.example')).toBeNull();
+    expect(await fetchOperatorContact('')).toBeNull();
   });
 });

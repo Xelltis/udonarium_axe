@@ -266,6 +266,21 @@ describe('RoomSettingComponent', () => {
 
       await vi.waitFor(() => expect(component.createError()).toContain(words));
       expect(component.createError()).not.toContain(code);
+      expect(component.createContact()).toBeNull();
+    });
+
+    it('links the operator’s contact under the word, where the refusal came with one', async () => {
+      vi.spyOn(Network, 'createRoom').mockRejectedValue(
+        new ServerRoomApiError(503, 'paused', 'https://example.com/contact')
+      );
+      vi.spyOn(Network, 'open').mockImplementation(() => {});
+
+      component.createRoom();
+      await vi.waitFor(() => expect(component.createContact()).toBe('https://example.com/contact'));
+      fixture.detectChanges();
+
+      const link = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="operator-contact-link"]');
+      expect(link?.getAttribute('href')).toBe('https://example.com/contact');
     });
   });
 });

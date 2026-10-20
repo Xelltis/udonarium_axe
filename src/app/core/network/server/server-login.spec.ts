@@ -144,6 +144,19 @@ describe('ServerLogin', () => {
     expect(requests).toEqual([]);
   });
 
+  it('gives the operator’s contact a login turned away for a ban came back with, and nothing that is not one', async () => {
+    const contact = encodeURIComponent('https://example.com/contact');
+
+    await expect(login().finishLogin(`login_error=banned&login_contact=${contact}`)).rejects.toMatchObject({
+      code: 'banned',
+      contact: 'https://example.com/contact',
+    });
+    await expect(login().finishLogin('login_error=paused&login_contact=javascript%3Aalert(1)')).rejects.toMatchObject({
+      code: 'paused',
+      contact: null,
+    });
+  });
+
   it('ends an attempt that came back without a code, so its verifier answers no later login', async () => {
     env.session.setItem(LOGIN_VERIFIER_STORAGE_KEY, 'v'.repeat(43));
 

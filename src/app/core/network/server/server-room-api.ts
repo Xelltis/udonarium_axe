@@ -1,5 +1,6 @@
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
+import { readOperatorContact } from '@axe/core/network/server/operator-contact';
 import {
   CreateRoomRequest,
   CreateRoomResponse,
@@ -8,11 +9,15 @@ import {
   RoomSummary,
 } from '@axe/core/network/server/server-protocol';
 
-/** A refusal from the room server's HTTP API: the status, and the code its `{"error": …}` body gave. */
+/**
+ * A refusal from the room server's HTTP API: the status, the code its `{"error": …}` body gave, and
+ * the operator's contact a ban or a stop came with, if any.
+ */
 export class ServerRoomApiError extends Error {
   constructor(
     readonly status: number,
-    readonly code: string
+    readonly code: string,
+    readonly contact: string | null = null
   ) {
     super(`room server answered ${status} ${code}`);
     this.name = 'ServerRoomApiError';
@@ -38,8 +43,27 @@ export function apiUrl(baseUrl: string, path: string): string {
 
 /** Throws the refusal a response that is not ok carries. */
 export async function refusal(response: Response): Promise<never> {
-  const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
-  throw new ServerRoomApiError(response.status, typeof body?.error === 'string' ? body.error : 'unknown');
+  const body = (await response.json().catch(() => null)) as { error?: unknown; contact?: unknown } | null;
+  throw new ServerRoomApiError(
+    response.status,
+    typeof body?.error === 'string' ? body.error : 'unknown',
+    readOperatorContact(body?.contact)
+  );
+}
+
+/**
+ * The contact the room server's operator gives those turned away, or null where none is given, the
+ * server is older than the way, or cannot be reached. A seat that was banned may still ask.
+ */
+export async function fetchOperatorContact(baseUrl: string): Promise<string | null> {
+  try {
+    const response = await fetch(apiUrl(baseUrl, '/v1/contact'));
+    if (!response.ok) return null;
+    const body = (await response.json().catch(() => null)) as { contact?: unknown } | null;
+    return readOperatorContact(body?.contact);
+  } catch {
+    return null;
+  }
 }
 
 /**

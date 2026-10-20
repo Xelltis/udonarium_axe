@@ -1,5 +1,6 @@
 import { Logger } from '@axe/core/logging/logger';
 import type { AssetAccess } from '@axe/core/network/connection';
+import { readOperatorContact } from '@axe/core/network/server/operator-contact';
 import {
   ASSET_NAME_HEADER,
   MAX_ASSET_NAME_LENGTH,
@@ -66,12 +67,17 @@ const REFUSED_STATUSES = new Set([400, 403, 413, 415]);
 
 /** The error a room server's answer names, or null when it names none. */
 async function errorCodeOf(res: Response): Promise<string | null> {
+  return (await errorBodyOf(res)).code;
+}
+
+/** The code of a refusal's `{"error": …}` body, and the operator's contact it came with, if any. */
+async function errorBodyOf(res: Response): Promise<{ code: string | null; contact: string | null }> {
   try {
     const body: unknown = await res.json();
-    const error = typeof body === 'object' && body !== null ? (body as { error?: unknown }).error : null;
-    return typeof error === 'string' ? error : null;
+    const held = typeof body === 'object' && body !== null ? (body as { error?: unknown; contact?: unknown }) : {};
+    return { code: typeof held.error === 'string' ? held.error : null, contact: readOperatorContact(held.contact) };
   } catch {
-    return null;
+    return { code: null, contact: null };
   }
 }
 
@@ -196,6 +202,7 @@ export class AssetHttpStore {
   private lastPausedAt = 0;
   /** Whether the room's store being full was told of since bytes were last kept. */
   private fullTold = false;
+  private _operatorContact: string | null = null;
   /**
    * Until when, in epoch milliseconds, an upload sends no bytes for the operator's stop: a while after
    * the server last said so, after which the next upload tries whether it is over.
@@ -205,6 +212,11 @@ export class AssetHttpStore {
   private readonly blockedTold = new Set<string>();
 
   private constructor() {}
+
+  /** The contact the operator's stop on uploads last came with, for the reader to ask of it; null for none. */
+  get operatorContact(): string | null {
+    return this._operatorContact;
+  }
 
   /** Whether an address is configured, in a room or not. */
   get isConfigured(): boolean {
@@ -223,6 +235,7 @@ export class AssetHttpStore {
     this.uploadsPaused = false;
     this.lastPausedAt = 0;
     this.fullTold = false;
+    this._operatorContact = null;
     this.stopHeldUntil = 0;
     this.blockedTold.clear();
   }
@@ -390,7 +403,12 @@ export class AssetHttpStore {
     if (res.status === 201) return 'stored';
     if (res.ok) return 'exists';
     if (res.status === 451) return 'blocked';
-    if (res.status === 503) return (await errorCodeOf(res)) === 'paused' ? 'paused' : 'failed';
+    if (res.status === 503) {
+      const { code, contact } = await errorBodyOf(res);
+      if (code !== 'paused') return 'failed';
+      this._operatorContact = contact ?? this._operatorContact;
+      return 'paused';
+    }
     if (res.status === 403 && (await errorCodeOf(res)) === 'not-a-player') return 'failed';
     if (res.status === 413 && (await errorCodeOf(res)) === 'room-storage-full') return 'full';
     return REFUSED_STATUSES.has(res.status) ? 'refused' : 'failed';

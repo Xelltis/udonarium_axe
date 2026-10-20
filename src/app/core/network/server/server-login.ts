@@ -1,3 +1,4 @@
+import { readOperatorContact } from '@axe/core/network/server/operator-contact';
 import { Account, TokenRequest, TokenResponse } from '@axe/core/network/server/server-protocol';
 import { apiUrl, refusal, ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { sha256Base64Url } from '@axe/core/util/crypto-util';
@@ -27,7 +28,11 @@ export interface StoredLogin {
 
 /** A login that did not come back with a code: the reason from its fragment, or a missing verifier. */
 export class ServerLoginError extends Error {
-  constructor(readonly code: string) {
+  constructor(
+    readonly code: string,
+    /** The operator's contact a login turned away for a ban or a stop came back with, if any. */
+    readonly contact: string | null = null
+  ) {
     super(`login failed: ${code}`);
     this.name = 'ServerLoginError';
   }
@@ -182,7 +187,7 @@ export class ServerLogin {
     this.env.session.removeItem(LOGIN_VERIFIER_STORAGE_KEY);
     this.env.session.removeItem(LOGIN_ATTEMPT_STORAGE_KEY);
     const error = params.get('login_error');
-    if (error) throw new ServerLoginError(error);
+    if (error) throw new ServerLoginError(error, readOperatorContact(params.get('login_contact')));
     const code = params.get('login_code');
     if (!code) throw new ServerLoginError('no-code');
     if (!verifier) throw new ServerLoginError('no-verifier');

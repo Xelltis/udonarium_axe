@@ -458,6 +458,19 @@ describe('NetworkEventHandlerService', () => {
       expect(shown.mock.calls[0][0]).toContain('運営者');
     });
 
+    it('offers the operator’s contact with the word of the stop, where the stop came with one', () => {
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+      vi.spyOn(AssetHttpStore.instance, 'operatorContact', 'get').mockReturnValue('https://example.com/contact');
+      const opened = vi.spyOn(window, 'open').mockReturnValue(null);
+
+      AssetHttpStore.instance.onUploadsPaused(true);
+
+      const action = shown.mock.calls[0][1]?.action;
+      expect(action?.label).toBe(TestBed.inject(TRANSLATE_FN)('feature.lobby.operatorContact.open'));
+      action!.run();
+      expect(opened).toHaveBeenCalledWith('https://example.com/contact', '_blank', 'noopener,noreferrer');
+    });
+
     it('puts up what both stores held once uploads go again, whichever found it out', () => {
       vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
       const pictures = vi.spyOn(ImageStorage.instance, 'resumePaused').mockImplementation(() => {});
@@ -557,6 +570,31 @@ describe('NetworkEventHandlerService', () => {
       expect(sent().map((text, i) => text.includes(`feature.lobby.errors.${reasons[i][1]}`))).toEqual(
         reasons.map(() => true)
       );
+    });
+
+    it('writes the operator’s contact under the word of a ban, where the server gives one', async () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+      vi.spyOn(Network.instance, 'operatorContact').mockResolvedValue('mailto:admin@example.com');
+
+      stubChange.networkError$.emit({ errorType: 'banned', errorMessage: '' });
+
+      await vi.waitFor(() => expect(sent()).toHaveLength(2));
+      expect(sent()[0]).toContain('feature.lobby.errors.roomServerBanned');
+      expect(sent()[1]).toContain('feature.lobby.operatorContact.chat');
+      expect(sent()[1]).toContain('mailto:admin@example.com');
+    });
+
+    it('writes nothing more under a ban where the server gives no contact', async () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+      const asked = vi.spyOn(Network.instance, 'operatorContact').mockResolvedValue(null);
+
+      stubChange.networkError$.emit({ errorType: 'banned', errorMessage: '' });
+
+      await vi.waitFor(() => expect(asked).toHaveBeenCalled());
+      await Promise.resolve();
+      expect(sent()).toHaveLength(1);
     });
 
     it('leaves those codes to the usual handling through SkyWay', () => {

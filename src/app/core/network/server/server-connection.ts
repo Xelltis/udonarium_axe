@@ -43,6 +43,7 @@ import {
 import {
   createRoom,
   deleteRoom,
+  fetchOperatorContact,
   findRoom,
   isBanned,
   listRooms,
@@ -527,6 +528,11 @@ export class ServerConnection implements Connection {
   /** Deletes a room on the server as whoever is logged in, which only a GM of the room may. */
   deleteRoom(roomKey: string): Promise<void> {
     return this.asLoggedIn((accessToken) => deleteRoom(this.baseUrl, roomKey, accessToken));
+  }
+
+  /** The contact the operator gives those the server turned away, or null where none is given. */
+  operatorContact(): Promise<string | null> {
+    return fetchOperatorContact(this.baseUrl);
   }
 
   /**

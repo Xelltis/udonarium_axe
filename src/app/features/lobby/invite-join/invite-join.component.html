@@ -8,6 +8,9 @@
       {{ isJoining() ? 'meeting_room' : 'error_outline' }}
     </i>
     <span class="truncate text-[0.82rem]">{{ message() }}</span>
+    @if (bannedContact(); as contact) {
+      <operator-contact class="shrink-0" [contact]="contact" />
+    }
     @if (!isJoining()) {
       @if (!isOffline()) {
         <button

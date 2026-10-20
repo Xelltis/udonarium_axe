@@ -3497,6 +3497,11 @@
         "message": "The table on screen holds things a room server handed over only in their withheld shape (cards whose face you cannot see, others' dice faces, blacked-out notes, the contents of secret rolls and so on). Going into a room now spreads the table there in that shape. Saves taken on this screen after going in, as the GM too, ask before they are loaded; saves others in the room take hold the withheld shapes without asking.",
         "ok": "Go in anyway"
       },
+      "operatorContact": {
+        "label": "Contact:",
+        "open": "Contact",
+        "chat": "The room server operator's contact: {{contact}}"
+      },
       "uploads": {
         "paused": "The room server's operator has stopped putting up pictures and sounds for now. What you add now reaches the other players only once that is over.",
         "resumed": "Pictures and sounds can be put up again. What was held back now reaches the other players too.",

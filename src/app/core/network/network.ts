@@ -466,6 +466,14 @@ export class Network {
     return this.connection.deleteRoom(roomKey);
   }
 
+  /**
+   * The contact a room server's operator gives those it turned away, for a seat told of a ban or a
+   * stop with no contact of its own. Null where none is given, and on SkyWay.
+   */
+  operatorContact(): Promise<string | null> {
+    return this.connection?.operatorContact?.() ?? Promise.resolve(null);
+  }
+
   private initializeConnection(): Connection {
     const connection = new this.connectionClass();
     connection.configure(this.config);
