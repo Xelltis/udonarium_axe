@@ -1,3 +1,4 @@
+import { fileResourceUpdated$ } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { localDispatch, NetworkMessage, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
@@ -71,14 +72,13 @@ export class AudioSharingSystem {
             const otherCatalog: CatalogItem[] = msg.data as CatalogItem[];
             const request: CatalogItem[] = [];
             for (const item of this.preferredFirst(otherCatalog)) {
-              if (AudioStorage.instance.isRemoved(item.identifier)) continue;
+              if (AudioStorage.instance.isRemoved(item.identifier) || this.httpBarred.has(item.identifier)) continue;
               let audio = AudioStorage.instance.get(item.identifier);
               if (audio === null) {
                 audio = AudioFile.createEmpty(item.identifier, item.name);
                 AudioStorage.instance.add(audio);
               }
               if (audio.state < AudioState.COMPLETE && !this.receiveTaskMap.has(item.identifier)) {
-                if (this.httpBarred.has(item.identifier)) continue;
                 if (this.fetchOverHttp(item.identifier, msg.sendFrom)) continue;
                 request.push({ identifier: item.identifier, state: audio.state });
               }
@@ -172,7 +172,7 @@ export class AudioSharingSystem {
       ...assets.filter((asset) => !preferred.includes(asset.id)),
     ];
     for (const { id, name } of ordered) {
-      if (AudioStorage.instance.isRemoved(id)) continue;
+      if (AudioStorage.instance.isRemoved(id) || this.httpBarred.has(id)) continue;
       let audio = AudioStorage.instance.get(id);
       if (audio === null) {
         audio = AudioFile.createEmpty(id, name);
@@ -247,7 +247,7 @@ export class AudioSharingSystem {
           return;
         }
         if (fetched === 'blocked') {
-          this.httpBarred.add(identifier);
+          this.letGoOfBarred(identifier);
           return;
         }
         if (fetched === 'missing') this.httpMissed.add(identifier);
@@ -263,6 +263,13 @@ export class AudioSharingSystem {
       })
       .finally(() => this.httpFetching.delete(identifier));
     return true;
+  }
+
+  /** Asks nobody for one the operator barred, and drops the empty entry kept for it while it was to come. */
+  private letGoOfBarred(identifier: string): void {
+    this.httpBarred.add(identifier);
+    const audio = AudioStorage.instance.get(identifier);
+    if (audio && !audio.isReady && AudioStorage.instance.delete(identifier)) fileResourceUpdated$.emit();
   }
 
   /** The audio to ask for next: a preferred one if it is wanted, otherwise any of them. */

@@ -238,6 +238,17 @@ describe('ImageSharingSystem', () => {
       });
     });
 
+    it('keeps no empty entry for an image the operator took down', async () => {
+      download.mockResolvedValue('blocked');
+
+      receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }], 'peer-a');
+      await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }], 'peer-b');
+
+      expect(ImageStorage.instance.get(pictureId)).toBeNull();
+    });
+
     it('asks no peer, then or for a later catalogue, for an image the operator took down', async () => {
       download.mockResolvedValue('blocked');
       receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }], 'peer-a');

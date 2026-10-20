@@ -350,6 +350,14 @@ describe('AudioSharingSystem', () => {
       });
     });
 
+    it('keeps no empty entry for a sound the operator took down', async () => {
+      download.mockResolvedValue('blocked');
+      const dropped = vi.spyOn(AudioStorage.instance, 'delete');
+
+      emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-b' });
+      await vi.waitFor(() => expect(dropped).toHaveBeenCalledWith(trackId));
+    });
+
     it('asks no peer, then or for a later catalogue, for a sound the operator took down', async () => {
       download.mockResolvedValue('blocked');
       emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-b' });

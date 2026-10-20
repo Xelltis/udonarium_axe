@@ -1,4 +1,4 @@
-import { xmlLoaded$ } from '@axe/core/event/domain-events';
+import { fileResourceUpdated$, xmlLoaded$ } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { localDispatch, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
@@ -65,14 +65,13 @@ export class ImageSharingSystem {
             const otherCatalog: CatalogItem[] = msg.data as CatalogItem[];
             const request: CatalogItem[] = [];
             for (const item of otherCatalog) {
-              if (ImageStorage.instance.isRemoved(item.identifier)) continue;
+              if (ImageStorage.instance.isRemoved(item.identifier) || this.httpBarred.has(item.identifier)) continue;
               let image = ImageStorage.instance.get(item.identifier);
               if (image === null) {
                 image = ImageFile.createEmpty(item.identifier);
                 ImageStorage.instance.add(image);
               }
               if (image.state < ImageState.COMPLETE && !this.receiveTaskMap.has(item.identifier)) {
-                if (this.httpBarred.has(item.identifier)) continue;
                 if (this.fetchOverHttp(item.identifier, msg.sendFrom)) continue;
                 request.push({ identifier: item.identifier, state: image.state });
               }
@@ -189,7 +188,7 @@ export class ImageSharingSystem {
    */
   fetchListed(assets: readonly { id: string; name: string }[]): void {
     for (const { id, name } of assets) {
-      if (ImageStorage.instance.isRemoved(id)) continue;
+      if (ImageStorage.instance.isRemoved(id) || this.httpBarred.has(id)) continue;
       let image = ImageStorage.instance.get(id);
       if (image === null) {
         image = ImageFile.createEmpty(id, name);
@@ -243,7 +242,7 @@ export class ImageSharingSystem {
           return;
         }
         if (received === 'blocked') {
-          this.httpBarred.add(identifier);
+          this.letGoOfBarred(identifier);
           return;
         }
         if (received === 'missing') this.httpMissed.add(identifier);
@@ -259,6 +258,14 @@ export class ImageSharingSystem {
       })
       .finally(() => this.httpFetching.delete(identifier));
     return true;
+  }
+
+  /** Asks nobody for one the operator barred, and drops the empty entry kept for it while it was to come. */
+  private letGoOfBarred(identifier: string): void {
+    this.httpBarred.add(identifier);
+    const image = ImageStorage.instance.get(identifier);
+    if (image && image.state < ImageState.COMPLETE && ImageStorage.instance.delete(identifier))
+      fileResourceUpdated$.emit();
   }
 
   private async receiveOverHttp(identifier: string): Promise<true | AssetDownloadMiss> {
