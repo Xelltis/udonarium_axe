@@ -13,10 +13,7 @@ export function replaceIdentifierInText(text: string, from: string, to: string):
   let out = '';
   let index = 0;
   for (let at = text.indexOf(from); at >= 0; at = text.indexOf(from, index)) {
-    const before = at > 0 ? text[at - 1] : '';
-    const after = text[at + from.length] ?? '';
-    const alone = !IDENTIFIER_CHARACTER.test(before) && !IDENTIFIER_CHARACTER.test(after);
-    out += text.slice(index, at) + (alone ? to : from);
+    out += text.slice(index, at) + (standsAlone(text, at, from.length) ? to : from);
     index = at + from.length;
   }
   return out + text.slice(index);
@@ -70,9 +67,14 @@ export function mentionsAnyOf(value: unknown, identifiers: readonly string[]): b
 function mentionsInText(text: string, identifier: string): boolean {
   if (identifier.length === 0) return false;
   for (let at = text.indexOf(identifier); at >= 0; at = text.indexOf(identifier, at + 1)) {
-    const before = at > 0 ? text[at - 1] : '';
-    const after = text[at + identifier.length] ?? '';
-    if (!IDENTIFIER_CHARACTER.test(before) && !IDENTIFIER_CHARACTER.test(after)) return true;
+    if (standsAlone(text, at, identifier.length)) return true;
   }
   return false;
+}
+
+/** Whether the mention at `at` stands on its own, with no letter, digit or underscore right before or after it. */
+function standsAlone(text: string, at: number, length: number): boolean {
+  const before = at > 0 ? text[at - 1] : '';
+  const after = text[at + length] ?? '';
+  return !IDENTIFIER_CHARACTER.test(before) && !IDENTIFIER_CHARACTER.test(after);
 }
