@@ -138,6 +138,11 @@ export class RotableDirective {
     );
   }
 
+  /**
+   * Moves the element to where a change elsewhere put its piece, a moment later and together with
+   * the rest. A change this seat made itself is left alone while the piece is held, also when the
+   * piece was picked up between the change and the move, as just after it was made.
+   */
   private handleObjectChange(event: ObjectChangeEvent): void {
     const tabletopObject = this.tabletopObject;
     if (!tabletopObject) return;
@@ -145,6 +150,7 @@ export class RotableDirective {
     if (event.isSendFromSelf && this.input.isGrabbing) return;
     if (!this.shouldTransition(tabletopObject)) return;
     this.batchService.add(() => {
+      if (event.isSendFromSelf && this.input?.isGrabbing) return;
       if (this.input?.isGrabbing) {
         this.cancel();
       } else {

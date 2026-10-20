@@ -297,12 +297,18 @@ export class MovableDirective implements MovableInteractionContext {
     );
   }
 
+  /**
+   * Moves the element to where a change elsewhere put its piece, a moment later and together with
+   * the rest. A change this seat made itself is left alone while the piece is held, also when the
+   * piece was picked up between the change and the move, as just after it was made.
+   */
   private handleObjectChange(event: ObjectChangeEvent): void {
     if (!this.tabletopObject) return;
     if (!this.input) return;
     if (event.isSendFromSelf && this.input.isGrabbing) return;
     if (!this.shouldTransition(this.tabletopObject)) return;
     this.batchService.add(() => {
+      if (event.isSendFromSelf && this.input?.isGrabbing) return;
       if (this.input!.isGrabbing) {
         this.cancel();
       } else {

@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { BatchService } from '@axe/application/ui/batch.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
@@ -70,6 +71,55 @@ describe('RotableDirective', () => {
       } as unknown as MouseEvent;
 
       expect(() => writableDirective.onInputStart(event)).not.toThrow();
+    });
+  });
+
+  describe('a change to its piece while it is being turned', () => {
+    let directive: RotableDirective;
+    let queued: (() => void)[];
+    let cancelled: ReturnType<typeof vi.fn>;
+    let held: { isGrabbing: boolean };
+
+    beforeEach(async () => {
+      TestBed.configureTestingModule({
+        imports: [TestHostComponent],
+        providers: [...TEST_PROVIDERS],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(TestHostComponent);
+      fixture.detectChanges();
+      directive = fixture.debugElement.children[0].injector.get(RotableDirective);
+      const writable = directive as unknown as Record<string, unknown>;
+      writable['tabletopObject'] = { identifier: 'piece', rotate: 0 };
+      vi.spyOn(directive as unknown as { shouldTransition(): boolean }, 'shouldTransition').mockReturnValue(true);
+      vi.spyOn(directive as unknown as { setRotate(): void }, 'setRotate').mockImplementation(() => {});
+      cancelled = vi.spyOn(directive, 'cancel').mockImplementation(() => {}) as unknown as ReturnType<typeof vi.fn>;
+      queued = [];
+      vi.spyOn(TestBed.inject(BatchService), 'add').mockImplementation((task) => {
+        queued.push(task);
+      });
+      held = { isGrabbing: false };
+      writable['input'] = Object.assign(held, { cancel: () => undefined, destroy: () => undefined });
+    });
+
+    const changed = (isSendFromSelf: boolean) =>
+      directive['handleObjectChange']({ identifier: 'piece', aliasName: 'character', isSendFromSelf } as never);
+
+    it('keeps hold of a piece taken up just after this seat changed it', () => {
+      changed(true);
+      held.isGrabbing = true;
+
+      for (const task of queued) task();
+
+      expect(cancelled).not.toHaveBeenCalled();
+    });
+
+    it('lets go of it for a change made elsewhere', () => {
+      changed(false);
+      held.isGrabbing = true;
+
+      for (const task of queued) task();
+
+      expect(cancelled).toHaveBeenCalledOnce();
     });
   });
 
