@@ -3,8 +3,10 @@ import { FormsModule } from '@angular/forms';
 import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { ImageUploadPreferenceService } from '@axe/application/file/image-upload-preference.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ReportService } from '@axe/application/moderation/report.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { emitSelectFile } from '@axe/core/event/domain-events';
@@ -13,6 +15,7 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
 import { canBrowseImage, ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
+import { ReportDialogComponent } from '@axe/features/moderation/report-dialog/report-dialog.component';
 import { ImageEditQueue } from '@axe/ui/components/image-editor/image-edit-queue.service';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -36,6 +39,11 @@ export class FileStorageComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly editQueue = inject(ImageEditQueue);
   private readonly assetRemoval = inject(AssetRemovalService);
+  private readonly reports = inject(ReportService);
+  private readonly modalService = inject(ModalService);
+
+  /** Whether this seat may report a picture to the room server's operator, as anyone in its room may. */
+  protected readonly canReport = this.reports.canReport;
   protected readonly uploadPreference = inject(ImageUploadPreferenceService);
 
   /** The label shown for a tag in the tag filter, with the all and untagged entries translated. */
@@ -201,6 +209,22 @@ export class FileStorageComponent {
    * Removes every picture ticked in the current list from the whole room, once the master has said
    * so, and unticks them.
    */
+  /** Whether a picture is one that may be reported: one a person added, named by its hash. */
+  protected isReportable(identifier: string): boolean {
+    return this.reports.isReportable(identifier);
+  }
+
+  /** Asks the reader why they report a picture to the room server's operator, and sends it. */
+  protected report(image: ImageFile, event: Event): void {
+    event.stopPropagation();
+    if (!this.canReport()) return;
+    void this.modalService.open(ReportDialogComponent, {
+      target: 'asset',
+      assetId: image.identifier,
+      name: image.name,
+    });
+  }
+
   async removeChecked(): Promise<void> {
     if (!this.canRemove()) return;
     const checked = this.images()

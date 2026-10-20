@@ -808,6 +808,56 @@ describe('AssetHttpStore', () => {
     });
   });
 
+  describe('report', () => {
+    const reportsUrl = `${BASE}/v1/rooms/${ROOM}/reports`;
+    const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
+    const request = { target: 'asset', assetId: 'a'.repeat(64), reason: '作者に断らずに置いています' } as const;
+
+    it('tells the room server’s operator with the room’s token, and gives the id it was taken under', async () => {
+      respond(json(201, { id: 'report-1' }));
+
+      expect(await store.report(request)).toEqual({ id: 'report-1' });
+      expect(callsOf()).toEqual([['POST', reportsUrl]]);
+      expect(authorizationOf(0)).toBe('Bearer asset-1');
+      expect(JSON.parse(String((fetchSpy.mock.calls[0][1] as RequestInit).body))).toEqual(request);
+    });
+
+    it('asks again with a fresh token when the one held was turned down', async () => {
+      const refresh = vi.fn(async () => ({ roomKey: ROOM, token: 'asset-2' }));
+      store.useAccess(() => access, refresh);
+      respond(json(401, { error: 'unauthorized' }), json(201, { id: 'report-2' }));
+
+      expect(await store.report(request)).toEqual({ id: 'report-2' });
+      expect(authorizationOf(1)).toBe('Bearer asset-2');
+    });
+
+    it('tells an older server that takes no reports apart from a room it cannot find, and why else not', async () => {
+      respond(
+        new Response('404 Not Found', { status: 404 }),
+        json(404, { error: 'room-not-found' }),
+        json(429, { error: 'rate-limited' }),
+        json(400, { error: 'invalid-request' }),
+        json(201, { nothing: true }),
+        new Response(null, { status: 500 })
+      );
+
+      expect(await store.report(request)).toBe('unsupported');
+      expect(await store.report(request)).toBe('failed');
+      expect(await store.report(request)).toBe('rate-limited');
+      expect(await store.report(request)).toBe('refused');
+      expect(await store.report(request)).toBe('failed');
+      expect(await store.report(request)).toBe('failed');
+    });
+
+    it('sends nothing outside a room or with no server', async () => {
+      access = null;
+      expect(await store.report(request)).toBe('failed');
+      store.configure(null);
+      expect(await store.report(request)).toBe('failed');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('listRoomAssets', () => {
     const listed = { id: 'a'.repeat(64), type: 'image/png', size: 8, name: 'dragon.png' };
 

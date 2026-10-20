@@ -6,6 +6,9 @@ import { PersonalVolumeService } from '@axe/application/media/personal-volume.se
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { ModalService } from '@axe/application/ui/modal.service';
+import { Network } from '@axe/core/network/network';
+import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -22,6 +25,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BackgroundSoundPlaybackService } from '@axe/features/media/background-sound-playback.service';
 import { JukeboxComponent } from '@axe/features/media/jukebox/jukebox.component';
 import { JukeboxPlaybackService } from '@axe/features/media/jukebox-playback.service';
+import { ReportDialogComponent } from '@axe/features/moderation/report-dialog/report-dialog.component';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -279,6 +283,42 @@ describe('JukeboxComponent', () => {
       expect(component.getTagOf(AudioStorage.instance.get('other')!)).toBe('BGM');
       expect(ObjectStore.instance.getObjects(Playlist)).toHaveLength(playlists);
       expect(component.jukebox.isSeekLocked).toBe(true);
+    });
+  });
+
+  describe('reporting a sound to the room server’s operator', () => {
+    const trackId = 'e'.repeat(64);
+    const reportButtons = () =>
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('[data-testid="jukebox-report"]');
+
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+      AudioStorage.instance.add(makeReadyAudio(trackId, 'theme.ogg'));
+    });
+
+    it('offers it on the row of a sound to any seat in a room on a room server, and opens the report for it', async () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true } as never);
+      vi.spyOn(AssetHttpStore.instance, 'isEnabled', 'get').mockReturnValue(true);
+      const opened = vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue(null);
+      await fixture.whenStable();
+
+      expect(reportButtons()).toHaveLength(1);
+      reportButtons()[0].click();
+
+      expect(opened).toHaveBeenCalledWith(ReportDialogComponent, {
+        target: 'asset',
+        assetId: trackId,
+        name: 'theme.ogg',
+      });
+    });
+
+    it('offers none among peers', async () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('skyway');
+      await fixture.whenStable();
+
+      expect(reportButtons()).toHaveLength(0);
     });
   });
 

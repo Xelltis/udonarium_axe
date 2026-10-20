@@ -233,6 +233,14 @@
           }
         </div>
       }
+      @if (canReport()) {
+        <div class="space-y-1 pt-1">
+          <button class="flex items-center gap-1 text-xs" data-testid="peer-menu-report-room" (click)="reportRoom()">
+            <span class="material-icons text-[1.1em]!">flag</span
+            >{{ 'feature.moderation.report.roomButton' | transloco }}
+          </button>
+        </div>
+      }
       @if (canRequestFullSync) {
         <button (click)="requestFullSync()">{{ 'feature.lobby.peerMenu.fullSync' | transloco }}</button>
         <p class="px-1 text-xs text-(--ui-text-muted)">{{ 'feature.lobby.peerMenu.fullSyncHint' | transloco }}</p>

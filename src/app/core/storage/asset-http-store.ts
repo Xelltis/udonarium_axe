@@ -4,8 +4,10 @@ import { readOperatorContact } from '@axe/core/network/server/operator-contact';
 import {
   ASSET_NAME_HEADER,
   MAX_ASSET_NAME_LENGTH,
+  readReportResponse,
   readRoomAssetList,
   readUploadTicket,
+  ReportRequest,
   RoomAsset,
 } from '@axe/core/network/server/server-protocol';
 import { ASSET_PAUSE_RETRY_MS } from '@axe/core/storage/asset-retries';
@@ -26,6 +28,13 @@ export type AssetUploadResult = 'stored' | 'exists' | 'refused' | 'failed' | 'pa
  * `refused` for good, or `failed` for now, which may pass on a later try.
  */
 export type AssetRemovalResult = 'removed' | 'refused' | 'failed';
+
+/**
+ * What became of a report to the room server's operator: taken, with the id to quote when asking about
+ * it, or not: `unsupported` by a server older than reports, `rate-limited` for too many from this
+ * reporter, `refused` as not a report the server takes, and `failed` when it could not be sent just then.
+ */
+export type ReportResult = { id: string } | 'unsupported' | 'rate-limited' | 'refused' | 'failed';
 
 /**
  * Why a download brought no bytes: the store lacks them, or sent bytes that are not them, which
@@ -485,6 +494,29 @@ export class AssetHttpStore {
       return res.status === 400 || res.status === 403 ? 'refused' : 'failed';
     } catch (reason) {
       Logger.warn('[AssetHttpStore] 削除に失敗しました', identifier, reason);
+      return 'failed';
+    }
+  }
+
+  /**
+   * Reports something in the room to the room server's operator, as a seat of the room of any role may,
+   * with the room's asset token. Asked once.
+   */
+  async report(request: ReportRequest): Promise<ReportResult> {
+    if (!this.baseUrl) return 'failed';
+    try {
+      const res = await this.authorized((access) =>
+        this.post(`${this.baseUrl}/v1/rooms/${encodeURIComponent(access.roomKey)}/reports`, access, request)
+      );
+      if (!res) return 'failed';
+      if (res.ok) return readReportResponse(await res.json().catch(() => null)) ?? 'failed';
+      if (res.status === 404 || res.status === 405) {
+        return (await errorCodeOf(res)) === 'room-not-found' ? 'failed' : 'unsupported';
+      }
+      if (res.status === 429) return 'rate-limited';
+      return res.status === 400 || res.status === 403 ? 'refused' : 'failed';
+    } catch (reason) {
+      Logger.warn('[AssetHttpStore] 通報を送れませんでした', reason);
       return 'failed';
     }
   }

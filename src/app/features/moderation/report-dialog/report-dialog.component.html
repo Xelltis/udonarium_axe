@@ -1,0 +1,53 @@
+@if (takenId(); as id) {
+  <div class="flex flex-col gap-3 text-[0.85rem]" data-testid="report-taken">
+    <p class="m-0">{{ 'feature.moderation.report.taken' | transloco: { id } }}</p>
+    <div class="flex justify-end">
+      <button type="button" class="rounded-ui-sm px-[1.1em] py-[0.4em] text-[0.8rem]" (click)="close()">
+        {{ 'feature.moderation.report.close' | transloco }}
+      </button>
+    </div>
+  </div>
+} @else {
+  <form class="flex flex-col gap-2.5 text-[0.85rem]" (ngSubmit)="send()">
+    <p class="m-0">
+      {{
+        (subject.target === 'room' ? 'feature.moderation.report.leadRoom' : 'feature.moderation.report.leadAsset')
+          | transloco: { name: subject.name }
+      }}
+    </p>
+    <label class="text-ui-muted text-[0.75rem] font-semibold" for="report-reason">{{
+      'feature.moderation.report.reason' | transloco
+    }}</label>
+    <textarea
+      #reasonInput
+      id="report-reason"
+      name="reason"
+      class="box-border min-h-24 w-full resize-y px-2.5 py-1.5 text-[0.85rem]"
+      [maxlength]="maxLength"
+      [ngModel]="reason()"
+      (ngModelChange)="reason.set($event)"
+      [placeholder]="'feature.moderation.report.reasonPlaceholder' | transloco: { max: maxLength }"
+      data-testid="report-reason"
+    ></textarea>
+    <p class="text-ui-dim m-0 text-right text-[0.7rem]">{{ reason().length }} / {{ maxLength }}</p>
+    <p class="text-ui-dim m-0 text-[0.75rem] leading-normal">{{ 'feature.moderation.report.note' | transloco }}</p>
+    @if (trouble(); as trouble) {
+      <p class="text-ui-danger m-0 text-[0.75rem]" role="alert" data-testid="report-trouble">
+        {{ 'feature.moderation.report.trouble_' + trouble | transloco }}
+      </p>
+    }
+    <div class="flex justify-end gap-2">
+      <button type="button" class="rounded-ui-sm px-[0.9em] py-[0.4em] text-[0.8rem]" (click)="close()">
+        {{ 'feature.moderation.report.cancel' | transloco }}
+      </button>
+      <button
+        type="submit"
+        class="rounded-ui-sm border-ui-accent bg-ui-accent hover:border-ui-accent-hover hover:bg-ui-accent-hover border border-solid px-[1.1em] py-[0.4em] text-[0.8rem] text-white disabled:cursor-not-allowed disabled:opacity-50"
+        [disabled]="!canSend()"
+        data-testid="report-send"
+      >
+        {{ 'feature.moderation.report.send' | transloco }}
+      </button>
+    </div>
+  </form>
+}

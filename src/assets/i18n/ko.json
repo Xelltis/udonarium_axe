@@ -3271,6 +3271,27 @@
       "matColor": "매트 색",
       "matHint": "채팅 틀에서 주사위가 구르는 면입니다. 이미지를 고르면 색 위에 깝니다. 매트는 이 화면에만 보이며 다른 사람의 화면은 바뀌지 않습니다."
     },
+    "moderation": {
+      "report": {
+        "title": "운영자에게 신고",
+        "leadAsset": "\"{{name}}\"을(를) 방 서버 운영자에게 신고합니다.",
+        "leadRoom": "이 방 \"{{name}}\"을(를) 방 서버 운영자에게 신고합니다.",
+        "reason": "이유",
+        "reasonPlaceholder": "무엇이 문제인지 적어 주세요 ({{max}}자까지)",
+        "note": "신고에는 회선과 계정 정보도 함께 전송됩니다. 운영자가 장난 신고를 가려내기 위해서입니다.",
+        "send": "보내기",
+        "cancel": "취소",
+        "close": "닫기",
+        "taken": "신고를 접수했습니다. 접수 번호: {{id}}",
+        "trouble_unsupported": "이 방 서버는 신고를 받지 않습니다.",
+        "trouble_rateLimited": "신고가 너무 많습니다. 잠시 후에 보내 주세요.",
+        "trouble_refused": "이 신고는 접수되지 않았습니다. 이유를 다시 적어 주세요.",
+        "trouble_failed": "신고를 보내지 못했습니다. 연결을 확인하고 다시 보내 주세요.",
+        "imageButton": "이 이미지를 운영자에게 신고",
+        "audioButton": "이 음성을 운영자에게 신고",
+        "roomButton": "이 방을 운영자에게 신고"
+      }
+    },
     "lobby": {
       "peerMenu": {
         "changeIcon": "아이콘 변경",

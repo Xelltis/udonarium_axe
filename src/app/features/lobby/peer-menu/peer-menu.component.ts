@@ -15,6 +15,7 @@ import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { leavingLoss, leavingLossText } from '@axe/application/lobby/leaving-loss';
 import { roomDeletionMessageKey, RoomDeletionService } from '@axe/application/lobby/room-deletion.service';
+import { ReportService } from '@axe/application/moderation/report.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -44,6 +45,7 @@ import { IdleSeatService } from '@axe/features/lobby/idle-seat.service';
 import { dropInvitationFromAddress } from '@axe/features/lobby/leave-room';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { ReConnectComponent } from '@axe/features/lobby/re-connect/re-connect.component';
+import { ReportDialogComponent } from '@axe/features/moderation/report-dialog/report-dialog.component';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -146,6 +148,8 @@ export class PeerMenuComponent {
    * the config, which may load after the panel opens at startup.
    */
   protected readonly isServerTransport = signal(Network.transport === 'server');
+  /** Whether this seat may report the room to the room server's operator, as anyone in it may. */
+  protected readonly canReport = inject(ReportService).canReport;
   protected readonly roleShortLabelKey = roleShortLabelKey;
   protected readonly roleBadgeClass = roleBadgeClass;
 
@@ -221,6 +225,12 @@ export class PeerMenuComponent {
    * Deletes the room on the room server, once the reader has confirmed. The server then closes it
    * for everybody, which takes the reader back to waiting; only a refusal or a failure is said here.
    */
+  /** Asks the reader why they report this room to the room server's operator, and sends it. */
+  protected reportRoom(): void {
+    if (!this.canReport()) return;
+    void this.modalService.open(ReportDialogComponent, { target: 'room', name: Network.peerContext.roomName });
+  }
+
   async deleteRoom(): Promise<void> {
     const roomKey = Network.roomKey;
     if (!roomKey || this.isDeletingRoom()) return;

@@ -6,6 +6,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { PersonalVolumeKind } from '@axe/application/media/personal-volumes';
 import { RoomVolumeService } from '@axe/application/media/room-volume.service';
+import { ReportService } from '@axe/application/moderation/report.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -14,6 +15,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { buildReorderContextMenu } from '@axe/application/ui/reorder-context-menu';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -35,6 +37,7 @@ import {
   JukeboxPlaybackService,
   PlaylistView,
 } from '@axe/features/media/jukebox-playback.service';
+import { ReportDialogComponent } from '@axe/features/moderation/report-dialog/report-dialog.component';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { UiVolumeRowComponent } from '@axe/ui/components/volume-row/volume-row.component';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -77,6 +80,9 @@ export class JukeboxComponent {
   readonly canChangeModes = this.playback.canChangeModes;
 
   /** Whether this player may remove a sound from the room, which only the game master may, as with pictures. */
+  /** Whether this seat may report a sound to the room server's operator, as anyone in its room may. */
+  readonly canReport = inject(ReportService).canReport;
+
   readonly canRemove = computed(() => {
     this.objectChange.trackMyCursor();
     return this.rolePermission.canEditShared;
@@ -505,6 +511,21 @@ export class JukeboxComponent {
    * Removes a sound from the whole room, once the game master has said so, and stops it here if it
    * was being tried.
    */
+  /** Whether a sound is one that may be reported: one a person added, named by its hash. */
+  isReportable(audio: AudioFile): boolean {
+    return AssetHttpStore.isAssetId(audio.identifier);
+  }
+
+  /** Asks the reader why they report a sound to the room server's operator, and sends it. */
+  reportAudio(audio: AudioFile): void {
+    if (!this.canReport()) return;
+    void this.modalService.open(ReportDialogComponent, {
+      target: 'asset',
+      assetId: audio.identifier,
+      name: audio.name,
+    });
+  }
+
   async removeAudio(audio: AudioFile): Promise<void> {
     if (!this.canRemove()) return;
     if ((await this.assetRemoval.removeAfterAsking('audio', [audio.identifier])) < 1) return;

@@ -3271,6 +3271,27 @@
       "matColor": "Mat colour",
       "matHint": "What the dice roll on in a chat frame. A picture is laid over the colour. Only this screen sees the mat; nobody else’s changes."
     },
+    "moderation": {
+      "report": {
+        "title": "Report to the operator",
+        "leadAsset": "Report \"{{name}}\" to the room server's operator.",
+        "leadRoom": "Report this room, \"{{name}}\", to the room server's operator.",
+        "reason": "Reason",
+        "reasonPlaceholder": "Say what is wrong (up to {{max}} characters)",
+        "note": "Your connection and account details are sent with the report, so the operator can tell false reports apart.",
+        "send": "Send",
+        "cancel": "Cancel",
+        "close": "Close",
+        "taken": "Your report was received. Reference: {{id}}",
+        "trouble_unsupported": "This room server does not take reports.",
+        "trouble_rateLimited": "Too many reports. Please wait a while before sending another.",
+        "trouble_refused": "This report could not be taken. Please rewrite the reason.",
+        "trouble_failed": "The report could not be sent. Check your connection and try again.",
+        "imageButton": "Report this image to the operator",
+        "audioButton": "Report this sound to the operator",
+        "roomButton": "Report this room to the operator"
+      }
+    },
     "lobby": {
       "peerMenu": {
         "changeIcon": "Change icon",

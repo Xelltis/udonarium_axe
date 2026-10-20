@@ -176,6 +176,17 @@
             <i class="material-icons">visibility_off</i>
           </div>
         }
+        @if (canReport() && isReportable(file.identifier)) {
+          <button
+            type="button"
+            class="bg-ui-panel/80 text-ui-muted hover:text-ui-danger absolute right-1 bottom-6 flex size-6 cursor-pointer items-center justify-center rounded-full border-0 p-0 opacity-60 transition-[opacity,color] hover:opacity-100 [&_.material-icons]:text-[14px]!"
+            [title]="'feature.moderation.report.imageButton' | transloco"
+            (click)="report(file, $event)"
+            data-testid="file-storage-report"
+          >
+            <i class="material-icons">flag</i>
+          </button>
+        }
         <span class="block max-w-full truncate text-center text-[11px] leading-[1.3]">{{ file.name }}</span>
       </div>
     }
