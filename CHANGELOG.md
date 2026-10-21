@@ -1,3 +1,84 @@
+## [1.69.0](https://github.com/Xelltis/udonarium_axe/compare/v1.68.0...v1.69.0) (2026-10-21)
+
+### ✨ Features
+
+* **character:** let a resource set to go over its maximum do so ([d61239c](https://github.com/Xelltis/udonarium_axe/commit/d61239c0d5355e45cf52713b311bcee0e93caa8e))
+* **chat:** let a room choose where each kind of system notice goes ([1003b0c](https://github.com/Xelltis/udonarium_axe/commit/1003b0c220780beed8d5f0ad52045ffae2eef538))
+* **chat:** send each system notice where the room routes its kind ([67f75af](https://github.com/Xelltis/udonarium_axe/commit/67f75af1b211e29065b2402b7b86d9c8c27d31dc))
+* **data-element:** add the over-resource option to a resource's settings ([23c91bf](https://github.com/Xelltis/udonarium_axe/commit/23c91bf52d5c8d622541792ace1e2fb3b4f581d4))
+* **file:** add buttons for the GM to remove pictures and sounds ([1769679](https://github.com/Xelltis/udonarium_axe/commit/17696797ee9416d561c3c8dcc05fef739759e1e2))
+* **file:** let the GM remove a picture or sound from the whole room ([6ec09f7](https://github.com/Xelltis/udonarium_axe/commit/6ec09f7d95e4a4f4a1c9cac05d9551f2ff50c29c))
+* **lobby:** name the operator's ban when it closes a seat or turns a link away ([1165a4d](https://github.com/Xelltis/udonarium_axe/commit/1165a4d6e2ad6cf971950e0a6fb68ea4ce7dd7ba))
+* **lobby:** show the room server operator's contact under a ban or a stop ([a2eff26](https://github.com/Xelltis/udonarium_axe/commit/a2eff26d93acea4e04b3be7361e15e9fe7302c71))
+* **lobby:** tell when the room server's operator stops or blocks ([647727b](https://github.com/Xelltis/udonarium_axe/commit/647727b602dc4c36a6471217126ae966beddba54))
+* **moderation:** let anyone in a room report a picture, a sound or the room ([49d1221](https://github.com/Xelltis/udonarium_axe/commit/49d1221f86aceae7c4fdf332fcbe5c0ae12e55d4))
+* **network:** stop at the operator's ban rather than reconnecting ([a4614e2](https://github.com/Xelltis/udonarium_axe/commit/a4614e2bb15ebec0ffd82f2baa622696bdefa760))
+* **room-settings:** add a notices tab to choose where system notices go ([97d0629](https://github.com/Xelltis/udonarium_axe/commit/97d06292cd58ab6c2fc1e9b652191d395e73923f))
+* **storage:** ask nobody for a picture or sound the operator took down ([52172ca](https://github.com/Xelltis/udonarium_axe/commit/52172ca5bd235175b4f7b9384f23b97e07539ff3))
+* **storage:** ask the room server to take a picture or sound out of the room ([f387dbe](https://github.com/Xelltis/udonarium_axe/commit/f387dbe8a89f6c23385dc5dbd294ca697a57ce04))
+* **storage:** hold back uploads the operator stopped or barred ([708925c](https://github.com/Xelltis/udonarium_axe/commit/708925cb2cd83d2de3a405fce0af3e320810411b))
+* **storage:** keep a picture or sound the room removed from coming back ([955c97d](https://github.com/Xelltis/udonarium_axe/commit/955c97d23a6cc562443284aca997b3d862bf7e34))
+* **storage:** tell the reader when the room's store is full ([22ccf06](https://github.com/Xelltis/udonarium_axe/commit/22ccf06f478d963112be4dfcf16fa4c8f7723aeb))
+
+### 🐛 Bug Fixes
+
+* **dice:** leave a dice picture the room removed unread ([433ae05](https://github.com/Xelltis/udonarium_axe/commit/433ae05d81dfa12b91374a1af2b13f4d4d85ac8e))
+* **dice:** let the GM put back a removed picture by choosing it for the dice ([df6a617](https://github.com/Xelltis/udonarium_axe/commit/df6a617c155ee19483c6cb2f0136f4c471890dd6))
+* **dice:** tell a player once that their dice picture was removed ([b19f595](https://github.com/Xelltis/udonarium_axe/commit/b19f595b9ed7ccd56f503d18c2049b02427f6756))
+* **file:** ask the room's store once more a while after a removal ([21f0181](https://github.com/Xelltis/udonarium_axe/commit/21f0181baf178552930deb18e2fa9230b83b6cf2))
+* **file:** ask the store afresh once its tries to take bytes out ran out ([1535b7a](https://github.com/Xelltis/udonarium_axe/commit/1535b7a36e12cbe78cc8a11813d14004cc9b3a3b))
+* **file:** count no background sound that is off as using a sound ([b4fa7e1](https://github.com/Xelltis/udonarium_axe/commit/b4fa7e148c95290c452d09acaedd8ea482be7db1))
+* **file:** hand back nothing for a removed picture or sound kept out ([5aaf8af](https://github.com/Xelltis/udonarium_axe/commit/5aaf8af6c776ccd0bff1e800a4659f97500dcad5))
+* **file:** keep a removal the GM made from being undone or left behind ([ff018ab](https://github.com/Xelltis/udonarium_axe/commit/ff018ab12be7ce8512a7db12cc98b36f952ad85a))
+* **file:** let the GM put back a picture made again in the map tools ([df11f5a](https://github.com/Xelltis/udonarium_axe/commit/df11f5ad179a589329bcfa15ac8a84cbb4f7d528))
+* **file:** let the room and character imports put a removed picture back ([2797aca](https://github.com/Xelltis/udonarium_axe/commit/2797aca813e9f55438ef491404d8b9e39be98fde))
+* **file:** put the bytes up again when a removal put back loses them ([e51e36d](https://github.com/Xelltis/udonarium_axe/commit/e51e36d563005c6ab00900221162aac01ac60ba3))
+* **file:** say when nothing chosen may be removed ([7734e5e](https://github.com/Xelltis/udonarium_axe/commit/7734e5e5e1eacb652061fed3c4e0cc4f5481d9c7))
+* **file:** take out of the store whatever the room keeps removed, as the GM ([f4af7bb](https://github.com/Xelltis/udonarium_axe/commit/f4af7bbad4d12fbaaa1984c745870a481fe0f3ec))
+* **file:** use no picture the room removed that could not be put back ([8bd0908](https://github.com/Xelltis/udonarium_axe/commit/8bd0908cf51dd4d116ac64e4cc200c534067c3bb))
+* **lobby:** name no adder in the English notice of a barred upload ([3e5939c](https://github.com/Xelltis/udonarium_axe/commit/3e5939c6a01406cec07dfac0d0e4df442eb932f5))
+* **lobby:** say the room's GM or the server's operator deleted the room ([dc59ab7](https://github.com/Xelltis/udonarium_axe/commit/dc59ab7c3a386002258ccb60b4b651c0fa7c467c))
+* **lobby:** write the operator's mail address without its scheme in the chat ([59bb1d1](https://github.com/Xelltis/udonarium_axe/commit/59bb1d1685f7608b27a3c4b95bfa01ea7d029b03))
+* **storage:** ask once per try to take an asset out of the room's store ([1c75f22](https://github.com/Xelltis/udonarium_axe/commit/1c75f22e6a8cffbed0cb937d6dc2e5142bcb8f2d))
+* **storage:** check the store after a put back only in the room it was put back in ([85e8819](https://github.com/Xelltis/udonarium_axe/commit/85e8819bb5adf80f25e2fc92f957a1f83af389ae))
+* **storage:** check the store again a while after putting a removal back ([e2ec919](https://github.com/Xelltis/udonarium_axe/commit/e2ec9197d142d7469f1d310c2f9731a3227c8b91))
+* **storage:** hold bytes back for the stop only a while after the server said so ([9a1618d](https://github.com/Xelltis/udonarium_axe/commit/9a1618d9d04ee4e2de1d6f64bacec0c599846497))
+* **storage:** hold nothing back for the operator's stop as a guest ([4b6ac6b](https://github.com/Xelltis/udonarium_axe/commit/4b6ac6b4bcbbe2276215fdb02978bcc2dd629e72))
+* **storage:** keep held uploads moving after any answer, in both stores ([6dcfbf7](https://github.com/Xelltis/udonarium_axe/commit/6dcfbf711af54ff9b8258f0aa14ee1cc5dac8f1e))
+* **storage:** keep no empty entry for a picture or sound the operator barred ([1685a15](https://github.com/Xelltis/udonarium_axe/commit/1685a15f3723bae0c679b1d3bd7060aa93f30043))
+* **storage:** keep the operator's bar and held uploads through tries that say nothing ([8ebdff5](https://github.com/Xelltis/udonarium_axe/commit/8ebdff59b889460bad72989743248a97008a129a))
+* **storage:** keep the operator's bar when the room lists the bytes still ([421c7b5](https://github.com/Xelltis/udonarium_axe/commit/421c7b51ee8daef4e94f9756775e8170e5fd265f))
+* **storage:** put a picture or sound up again once the upload under way ends ([e2beb2b](https://github.com/Xelltis/udonarium_axe/commit/e2beb2bbdceadacd80f88b57206864817eb40e9c))
+* **storage:** send no bytes while uploads are stopped, and keep trying the rest ([70ff65b](https://github.com/Xelltis/udonarium_axe/commit/70ff65b7889a95ba20cddd825ab867f2640f0af8))
+* **storage:** tell of the operator's stop again when met after a long quiet ([c5dfacc](https://github.com/Xelltis/udonarium_axe/commit/c5dfaccfecc07245603a38be81376317ba341965))
+* **storage:** try the smallest held upload to see whether the stop is over ([dbcbcec](https://github.com/Xelltis/udonarium_axe/commit/dbcbceca6b4f2fd14f68d46a00e0b6b1b30a38cb))
+* **tabletop:** keep hold of a piece picked up just after it was made ([0a92a2a](https://github.com/Xelltis/udonarium_axe/commit/0a92a2ad21fb00d98ce38ddfbfdf2db03818b62b))
+* **white-board:** let the GM's drawing put back the board's removed picture ([1a134b8](https://github.com/Xelltis/udonarium_axe/commit/1a134b811feb74cc86c6975378cf006c8ad8d83d))
+
+### ⚡ Performance
+
+* **file:** count what uses the assets to remove without copying the room ([35c744d](https://github.com/Xelltis/udonarium_axe/commit/35c744d6d7ecafca750b49e0e1aa2521b248a43a))
+* **file:** follow each record of a removal by itself as it changes ([3b07cef](https://github.com/Xelltis/udonarium_axe/commit/3b07cefb02d92efc8e7f2f47ac04ca36f7546907))
+* **file:** follow removals through the alias index ([e4b2808](https://github.com/Xelltis/udonarium_axe/commit/e4b28089e5c492c232932ec2a9133f461f1c381d))
+* **file:** read the room's sync data without copying it to count uses ([d46b628](https://github.com/Xelltis/udonarium_axe/commit/d46b62812f1d3fd4c150534a317e2bcb892f6a09))
+
+### 📝 Documentation
+
+* **lobby:** say the notice of a barred upload is of one this seat holds ([e7a97bf](https://github.com/Xelltis/udonarium_axe/commit/e7a97bf397053dabc9e934569a28aab049f8c91d))
+* **storage:** put the upload's doc back on its own method ([6467818](https://github.com/Xelltis/udonarium_axe/commit/6467818ec38af3dda4fff82947cdd758e70d5ad7))
+* **website:** add the v1.69.0 release notes ([b51a61f](https://github.com/Xelltis/udonarium_axe/commit/b51a61fb3176b3e8f4bdd3005400ca4e7e67b3c0))
+* **website:** explain removing pictures and sounds from a room ([2aeedf8](https://github.com/Xelltis/udonarium_axe/commit/2aeedf86fd9c033f3285065948be47b8ac7a8cb6))
+* **website:** explain reports, a full room store and the operator's contact ([b152146](https://github.com/Xelltis/udonarium_axe/commit/b15214611b37ae779b8be63d940ec28e1ad30c21))
+* **website:** explain where system notices go and the over-resource option ([8935c6d](https://github.com/Xelltis/udonarium_axe/commit/8935c6d4fc7780346778911ab66129b9a86667a9))
+* **website:** say only the GM can bring back a removed picture or sound ([02e6afa](https://github.com/Xelltis/udonarium_axe/commit/02e6afaf5be91ae4ba78db5f5092e78eb4f43cb8))
+* **website:** say what players see when the server's operator steps in ([c51ceb5](https://github.com/Xelltis/udonarium_axe/commit/c51ceb5320f603ca1e93bce21f502d4e226c866d))
+
+### ♻️ Refactor
+
+* **domain:** share the test of a mention standing on its own ([9027f66](https://github.com/Xelltis/udonarium_axe/commit/9027f6663d89e5fb9d92dd6d75dc678aed16f42f))
+* **media:** give the jukebox's remove button its own check of the GM ([9e1e4ce](https://github.com/Xelltis/udonarium_axe/commit/9e1e4ce1db24777b6da0c604f3977d9785ba2bcd))
+* **network:** share the test of a request turned away for a ban ([81af3b7](https://github.com/Xelltis/udonarium_axe/commit/81af3b711b8ecef7c6c95386e4c8a64dd29fa378))
+
 ## [1.68.0](https://github.com/Xelltis/udonarium_axe/compare/v1.67.0...v1.68.0) (2026-10-19)
 
 ### ✨ Features
