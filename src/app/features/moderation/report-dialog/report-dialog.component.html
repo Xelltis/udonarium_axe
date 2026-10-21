@@ -30,7 +30,7 @@
       data-testid="report-reason"
     ></textarea>
     <p class="text-ui-dim m-0 text-right text-[0.7rem]">{{ reason().length }} / {{ maxLength }}</p>
-    <p class="text-ui-dim m-0 text-[0.75rem] leading-normal">{{ 'feature.moderation.report.note' | transloco }}</p>
+    <p class="text-ui-dim m-0 text-xs/normal">{{ 'feature.moderation.report.note' | transloco }}</p>
     @if (trouble(); as trouble) {
       <p class="text-ui-danger m-0 text-[0.75rem]" role="alert" data-testid="report-trouble">
         {{ 'feature.moderation.report.trouble_' + trouble | transloco }}
