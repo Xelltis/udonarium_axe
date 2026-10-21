@@ -249,6 +249,7 @@ export const ERROR_CODES = [
   'too-many-messages',
   'replaced',
   'unauthorized',
+  'banned',
   'room-deleted',
   'idle',
 ] as const;
@@ -439,6 +440,30 @@ export interface RoomAssetListResponse {
   assets: RoomAsset[];
 }
 
+/** What a report to the room server's operator is about: a picture or sound in the room, or the room. */
+export const REPORT_TARGETS = ['asset', 'room'] as const;
+export type ReportTarget = (typeof REPORT_TARGETS)[number];
+
+/** The longest reason a report may give, in characters. */
+export const MAX_REPORT_REASON_LENGTH = 500;
+
+/**
+ * The body of POST /v1/rooms/:roomKey/reports: a seat of the room, of any role, tells the room
+ * server's operator of something in it, with the room's asset token.
+ */
+export interface ReportRequest {
+  target: ReportTarget;
+  /** The SHA-256 of the picture or sound, for a report of one. */
+  assetId?: string;
+  /** Why, in the reporter's words: 1 to MAX_REPORT_REASON_LENGTH characters. */
+  reason: string;
+}
+
+/** The answer to a report: its id, to quote when asking about it. */
+export interface ReportResponse {
+  id: string;
+}
+
 /**
  * Where to send bytes straight to the store: the bytes alone, with this method and these headers and
  * never the asset token, before `expiresAt` in Unix milliseconds.
@@ -607,6 +632,11 @@ export function readUploadTicket(value: unknown): UploadTicketResponse | null {
     typeof upload['expiresAt'] === 'number'
     ? (value as unknown as UploadTicketResponse)
     : null;
+}
+
+/** The answer to a report the server took, or null when it is not one. */
+export function readReportResponse(value: unknown): ReportResponse | null {
+  return isRecord(value) && typeof value['id'] === 'string' && value['id'].length > 0 ? { id: value['id'] } : null;
 }
 
 /** The room's asset list the server answered with, or null when it is not one. */

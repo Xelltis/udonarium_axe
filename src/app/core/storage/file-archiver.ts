@@ -231,8 +231,8 @@ export class FileArchiver {
     for (const file of files instanceof FileList ? toArrayOfFileList(files) : files) {
       if (!file.type.startsWith('image/')) continue;
       const image = await this.storeImage(file);
-      if (image) images.push(image);
-      else oversized.push(file.name);
+      if (image === 'oversized') oversized.push(file.name);
+      else if (image) images.push(image);
     }
     if (images.length) emitFileLoaded();
     return { images, oversized };
@@ -248,7 +248,7 @@ export class FileArchiver {
     // With no guard there is nothing to stop it.
     if (!(this.reloadCheck?.isLoadOk() ?? true)) return false;
     const image = await this.storeImage(file);
-    if (!image) {
+    if (image === 'oversized') {
       tooLarge.push({
         name: file.name,
         kind: 'image',
@@ -257,16 +257,18 @@ export class FileArchiver {
       });
       return false;
     }
+    if (!image) return false;
     if (dropPoint) emitImageDropped({ identifier: image.identifier, fileName: file.name, dropPoint });
     return dropPoint != null;
   }
 
-  private async storeImage(file: File): Promise<ImageFile | null> {
+  /** The picture as stored, `oversized` for one too large to take in, or null for one the room removed and keeps out. */
+  private async storeImage(file: File): Promise<ImageFile | 'oversized' | null> {
     if (file.size > MAX_LOADED_IMAGE_BYTES) {
       Logger.warn(`[FileArchiver] ファイルサイズ制限超過: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
-      return null;
+      return 'oversized';
     }
-    return ImageStorage.instance.addAsync(file);
+    return ImageStorage.instance.addAsync(file, { putBack: true });
   }
 
   private async handleAudio(file: File, tooLarge: FileTooLarge[]) {
@@ -276,7 +278,7 @@ export class FileArchiver {
       tooLarge.push({ name: file.name, kind: 'audio', limitBytes: MAX_LOADED_AUDIO_BYTES });
       return;
     }
-    await AudioStorage.instance.addAsync(file);
+    await AudioStorage.instance.addAsync(file, { putBack: true });
   }
 
   private async handleText(file: File, dropPoint?: { x: number; y: number }): Promise<void> {
@@ -386,9 +388,9 @@ export class FileArchiver {
     if (!(this.reloadCheck?.isLoadOk() ?? true)) return;
     const original = await FileReaderUtil.calcSHA256Async(file);
     const image = await this.storeImage(file);
-    if (!image) {
+    if (image === 'oversized') {
       tooLarge.push({ name: file.name, kind: 'image', limitBytes: MAX_LOADED_IMAGE_BYTES });
-    } else if (image.identifier !== original) {
+    } else if (image && image.identifier !== original) {
       renamed.set(original, image.identifier);
     }
     emitFileLoaded();

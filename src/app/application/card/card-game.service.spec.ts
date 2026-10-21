@@ -13,7 +13,7 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CardGameService', () => {
   let service: CardGameService;
-  let sendSystemMessage: ReturnType<typeof vi.fn>;
+  let sendSystemNotice: ReturnType<typeof vi.fn>;
   const created: { destroy(): void }[] = [];
 
   function trumpCard(code: string): Card {
@@ -52,8 +52,8 @@ describe('CardGameService', () => {
     linked = [];
     vi.spyOn(Network, 'peerIds', 'get').mockImplementation(() => [...linked]);
     service = TestBed.inject(CardGameService);
-    sendSystemMessage = vi
-      .spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage')
+    sendSystemNotice = vi
+      .spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice')
       .mockReturnValue(null as unknown as ChatMessage) as unknown as ReturnType<typeof vi.fn>;
   });
 
@@ -77,7 +77,7 @@ describe('CardGameService', () => {
       expect(result).toEqual({ dealt: 5, participants: 2 });
       expect(service.handCardsOf('me').length + service.handCardsOf(other.userId).length).toBe(5);
       expect(stack.cards).toHaveLength(1);
-      expect(sendSystemMessage).toHaveBeenCalledOnce();
+      expect(sendSystemNotice).toHaveBeenCalledOnce();
     });
 
     it('gives no two cards in a hand the same place', () => {
@@ -130,7 +130,7 @@ describe('CardGameService', () => {
 
       expect(card.location.name).toBe(handLocationOf('me'));
       expect(service.handCardsOf('other')).toHaveLength(0);
-      expect(sendSystemMessage).toHaveBeenCalledOnce();
+      expect(sendSystemNotice).toHaveBeenCalledOnce();
     });
 
     it('moves nothing for a guest, who holds no cards', () => {
@@ -141,7 +141,7 @@ describe('CardGameService', () => {
       expect(service.drawFromHand(card, 'あいて')).toBe(false);
 
       expect(card.location.name).toBe(handLocationOf('other'));
-      expect(sendSystemMessage).not.toHaveBeenCalled();
+      expect(sendSystemNotice).not.toHaveBeenCalled();
     });
   });
 
@@ -156,8 +156,9 @@ describe('CardGameService', () => {
       expect(card.location.name).toBe(handLocationOf('other'));
       expect(card.isFront).toBe(false);
       expect(service.handCardsOf('me')).toHaveLength(0);
-      expect(sendSystemMessage).toHaveBeenCalledOnce();
-      expect(String(sendSystemMessage.mock.calls[0][0])).not.toContain('カード');
+      expect(sendSystemNotice).toHaveBeenCalledOnce();
+      expect(sendSystemNotice.mock.calls[0][0]).toBe('card');
+      expect(String(sendSystemNotice.mock.calls[0][1])).not.toContain('カード');
     });
 
     it('gives nothing that has already left your hand', () => {
@@ -168,7 +169,7 @@ describe('CardGameService', () => {
       expect(service.giveFromHand(card, 'other')).toBe(false);
 
       expect(card.location.name).toBe(handLocationOf('third'));
-      expect(sendSystemMessage).not.toHaveBeenCalled();
+      expect(sendSystemNotice).not.toHaveBeenCalled();
     });
 
     it('gives nothing to somebody who has left, or who only watches', () => {
@@ -187,7 +188,7 @@ describe('CardGameService', () => {
       card.toHand('me');
 
       expect(service.giveFromHand(card, 'me')).toBe(false);
-      expect(sendSystemMessage).not.toHaveBeenCalled();
+      expect(sendSystemNotice).not.toHaveBeenCalled();
     });
   });
 
@@ -260,7 +261,7 @@ describe('CardGameService', () => {
       expect(service.handCardsOf('back')).toEqual(cards);
       expect(cards.every((card) => !card.isFront)).toBe(true);
       expect(service.absentHands()).toEqual([]);
-      expect(sendSystemMessage).toHaveBeenCalledOnce();
+      expect(sendSystemNotice).toHaveBeenCalledOnce();
     });
 
     it('lets nobody but the game master hand one over', () => {
@@ -282,7 +283,7 @@ describe('CardGameService', () => {
       expect(service.handOverAbsentHand('gone', 'back')).toBe(0);
 
       expect(service.handCardsOf('gone')).toHaveLength(1);
-      expect(sendSystemMessage).not.toHaveBeenCalled();
+      expect(sendSystemNotice).not.toHaveBeenCalled();
     });
   });
 
@@ -308,7 +309,7 @@ describe('CardGameService', () => {
       card.toHand('me');
 
       expect(service.discardPairs(service.handCardsOf('me'))).toEqual([]);
-      expect(sendSystemMessage).not.toHaveBeenCalled();
+      expect(sendSystemNotice).not.toHaveBeenCalled();
     });
   });
 });

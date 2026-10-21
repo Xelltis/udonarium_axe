@@ -180,8 +180,8 @@ describe('JukeboxPlaybackService', () => {
 
     beforeEach(() => {
       logged = [];
-      vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessage').mockImplementation((text: string) => {
-        logged.push(decodeI18nMessage(text, TestBed.inject(TRANSLATE_FN)));
+      vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockImplementation((kind, text: string) => {
+        if (kind === 'bgm') logged.push(decodeI18nMessage(text, TestBed.inject(TRANSLATE_FN)));
         return {} as ChatMessage;
       });
     });

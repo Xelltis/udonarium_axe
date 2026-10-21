@@ -3,6 +3,7 @@ import { VolumeType } from '@axe/core/storage/audio-player';
 import { ObjectContext } from '@axe/core/sync/game-object';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
 import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
+import { DEFAULT_SYSTEM_NOTICES, withNoticeRoute } from '@axe/domain/chat/system-notices';
 import { DEFAULT_DJ_SETTINGS } from '@axe/domain/media/dj-settings';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { DEFAULT_ROOM_VOLUMES } from '@axe/domain/media/room-volumes';
@@ -330,6 +331,33 @@ describe('Config', () => {
       Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['seal:ok'], false);
 
       expect(attributesOf(Config.instance.toContext())['_stampRules']).toBe('{"line":{"deny":["seal:ok"]}}');
+    });
+  });
+
+  describe('where the room sends the system’s notices', () => {
+    function attributesOf(context: ObjectContext): Record<string, unknown> {
+      return context.syncData['attributes'] as Record<string, unknown>;
+    }
+
+    afterEach(() => {
+      Config.instance.systemNotices = DEFAULT_SYSTEM_NOTICES;
+    });
+
+    it('sends every kind where it always went in a room saved before there was a choice', () => {
+      Config.instance.systemNotices = withNoticeRoute(DEFAULT_SYSTEM_NOTICES, 'round', 'BattleTab');
+      const older = Config.instance.toContext();
+      delete attributesOf(older)['_systemNotices'];
+      older.majorVersion += 1;
+
+      Config.instance.apply(older);
+
+      expect(Config.instance.systemNotices).toEqual(DEFAULT_SYSTEM_NOTICES);
+    });
+
+    it('passes the routes on with the rest of the config', () => {
+      Config.instance.systemNotices = withNoticeRoute(DEFAULT_SYSTEM_NOTICES, 'bgm', 'off');
+
+      expect(attributesOf(Config.instance.toContext())['_systemNotices']).toBe('{"bgm":"off"}');
     });
   });
 

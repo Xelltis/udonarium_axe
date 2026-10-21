@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { LOGIN_CALLBACK_PATH, ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { Network } from '@axe/core/network/network';
-import { LOGIN_CHANNEL, LOGIN_STORAGE_KEY, ServerLogin } from '@axe/core/network/server/server-login';
+import { LOGIN_CHANNEL, LOGIN_STORAGE_KEY, ServerLogin, ServerLoginError } from '@axe/core/network/server/server-login';
 import { Account } from '@axe/core/network/server/server-protocol';
 
 const ACCOUNT: Account = { userId: 'acct_1234', name: 'Kai', avatarUrl: null };
@@ -92,6 +92,15 @@ describe('ServerAuthService', () => {
 
     await vi.waitFor(() => expect(service.error()).toBe('denied'));
     expect(service.isLoggedIn()).toBe(false);
+  });
+
+  it('keeps the operator’s contact a login turned away for a ban came back with', async () => {
+    login.finishLogin.mockRejectedValueOnce(new ServerLoginError('banned', 'https://example.com/contact'));
+    history.replaceState(null, '', `${location.pathname}#login_error=banned`);
+    configure();
+
+    await vi.waitFor(() => expect(service.error()).toBe('banned'));
+    expect(service.errorContact()).toBe('https://example.com/contact');
   });
 
   it('opens the login in a popup that comes back to the landing page', async () => {

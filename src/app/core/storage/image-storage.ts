@@ -1,7 +1,14 @@
+import { fileResourceUpdated$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { networkSend } from '@axe/core/network/network-messaging';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
-import { ASSET_LAST_TRY_DELAY_MS, AssetRetries, receivedUploadTurnMs } from '@axe/core/storage/asset-retries';
+import {
+  ASSET_LAST_TRY_DELAY_MS,
+  ASSET_PAUSE_RETRY_MS,
+  ASSET_PUT_BACK_CHECK_MS,
+  AssetRetries,
+  receivedUploadTurnMs,
+} from '@axe/core/storage/asset-retries';
 import { CatalogSendSchedule } from '@axe/core/storage/catalog-send-schedule';
 import { ImageContext, ImageFile, ImageState } from '@axe/core/storage/image-file';
 
@@ -21,6 +28,8 @@ export class ImageStorage {
   private imageHash: { [identifier: string]: ImageFile } = {};
   /** Images added on this seat that are queued for the asset server or going up to it. */
   private readonly uploading = new Set<string>();
+  /** What is to go up again once the upload under way ends, asked for while it was going up. */
+  private readonly upAgain = new Set<string>();
   /**
    * Those added here while a room server's room could not be reached, as while the link was down,
    * which go up once the seat is back.
@@ -32,6 +41,32 @@ export class ImageStorage {
   private readonly lastTries = new Map<string, ReturnType<typeof setTimeout> | null>();
   /** Uploads that failed for now, tried again a few times while the seat stays in the room. */
   private readonly uploadRetries = new AssetRetries();
+  /**
+   * What the room server's operator stopped from going up for a while, kept here and named to
+   * nobody until it is there. One is tried again now and then; the rest follow once one goes up.
+   */
+  private readonly pausedUploads = new Set<string>();
+  private pausedRetry: ReturnType<typeof setTimeout> | null = null;
+  /** What the operator barred from every room, kept here and named to nobody. */
+  private readonly barred = new Set<string>();
+  /** What the room's GM removed: held here no more, and taken from no peer or store until put back. */
+  private readonly removed = new Set<string>();
+
+  /**
+   * Asked, by the app, whether this seat may put back for the room a picture the room removed, which
+   * it does when it may. Only one chosen to be added is asked about, and none is put back until the
+   * app says.
+   */
+  putBack: (identifier: string) => boolean = () => false;
+
+  /** Told, by the app, when a picture chosen to be added was one the room removed, and could not be put back. */
+  onRefused: (identifier: string) => void = () => {};
+
+  /**
+   * Told, by the app, when bytes the room has removed since reached the store all the same, as for an
+   * upload already under way, so that they can be taken out again.
+   */
+  onUploadedWhileRemoved: (identifier: string) => void = () => {};
 
   /** Every image this seat knows of, including placeholders whose data has not arrived. */
   get images(): ImageFile[] {
@@ -55,11 +90,17 @@ export class ImageStorage {
    * shortly after.
    *
    * Adding an image already held merges into the existing entry and returns that one.
+   *
+   * Null for one the room removed that is not taken in: added without being chosen, or chosen by a
+   * seat that may not put it back.
    */
-  async addAsync(arg: Blob): Promise<ImageFile> {
+  async addAsync(arg: Blob, options: { putBack?: boolean } = {}): Promise<ImageFile | null> {
     const image: ImageFile = await ImageFile.createAsync(arg);
 
-    return this._add(image, true);
+    const kept = this._add(image, true, options.putBack === true);
+    if (!this.removed.has(image.identifier)) return kept;
+    image.destroy();
+    return null;
   }
 
   /**
@@ -71,9 +112,10 @@ export class ImageStorage {
    * context merged into an entry already held.
    *
    * An entry made on this seat, rather than a context from a peer, also goes up to the asset server
-   * when one is configured.
+   * when one is configured. One the room removed is not taken in, unless `putBack` says it was chosen
+   * here in full and this seat may put it back.
    */
-  add(arg: string | ImageFile | ImageContext): ImageFile {
+  add(arg: string | ImageFile | ImageContext, options: { putBack?: boolean } = {}): ImageFile {
     let image: ImageFile;
     let isLocal = false;
     if (typeof arg === 'string') {
@@ -85,10 +127,15 @@ export class ImageStorage {
       if (this.update(arg)) return this.imageHash[arg.identifier];
       image = ImageFile.create(arg);
     }
-    return this._add(image, isLocal);
+    return this._add(image, isLocal, options.putBack === true);
   }
 
-  private _add(image: ImageFile, isLocal: boolean = false): ImageFile {
+  /**
+   * One the room removed is not taken in, but when it was chosen to be added here in full and this
+   * seat may put it back, which puts it back for the room.
+   */
+  private _add(image: ImageFile, isLocal: boolean = false, putBack: boolean = false): ImageFile {
+    if (this.removed.has(image.identifier) && !this.takeBack(image, isLocal && putBack)) return image;
     if (isLocal) this.uploadToAssetStore(image, true);
     if (ImageState.COMPLETE <= image.state) this.catalogSchedule.whenQuiet(100);
     if (this.update(image)) return this.imageHash[image.identifier];
@@ -106,6 +153,8 @@ export class ImageStorage {
     this.missedUploads.clear();
     this.gaveUp.clear();
     this.clearLastTries();
+    this.pausedUploads.clear();
+    this.stopPausedRetry();
     for (const image of this.images) this.uploadToAssetStore(image);
   }
 
@@ -157,10 +206,30 @@ export class ImageStorage {
   }
 
   /**
+   * Whether one the room removed comes in: chosen to be added in full, by a seat that may put it back.
+   * One put back is asked about in the room's store again a while later, while the seat is still in
+   * that room, as another seat's request to take it out may still have been under way.
+   */
+  private takeBack(image: ImageFile, chosen: boolean): boolean {
+    if (!chosen || image.state < ImageState.COMPLETE) return false;
+    if (!this.putBack(image.identifier)) {
+      this.onRefused(image.identifier);
+      return false;
+    }
+    this.removed.delete(image.identifier);
+    const { identifier } = image;
+    const roomKey = Network.roomKey;
+    setTimeout(() => {
+      if (Network.roomKey === roomKey) this.putUpAgain(identifier);
+    }, ASSET_PUT_BACK_CHECK_MS);
+    return true;
+  }
+
+  /**
    * Puts one up to the room's asset store, or keeps it for when the room is in reach. One that went
    * up to a room the seat has left meanwhile goes up to the room it is in now as well.
    */
-  private uploadToAssetStore(image: ImageFile, first = false): void {
+  private uploadToAssetStore(image: ImageFile, first = false, probe = false): void {
     const store = AssetHttpStore.instance;
     const blob = image.blob;
     if (image.state !== ImageState.COMPLETE || !blob) return;
@@ -174,8 +243,12 @@ export class ImageStorage {
     let wentUpElsewhere = false;
     this.uploading.add(identifier);
     void store
-      .upload(identifier, blob, image.name, { first })
+      .upload(identifier, blob, image.name, { first, probe })
       .then((result) => {
+        if (this.removed.has(identifier)) {
+          if (result === 'stored' || result === 'exists') this.onUploadedWhileRemoved(identifier);
+          return;
+        }
         // Turned away for the room being out of reach, as while the link is down, it goes up once
         // the seat is back rather than spend its tries meanwhile.
         if (result === 'failed' && !store.isEnabled && store.isConfigured) {
@@ -184,6 +257,19 @@ export class ImageStorage {
           return;
         }
         const roomKey = Network.roomKey;
+        // Stopped by the operator for a while, it waits here for the stop to be over; barred by the
+        // operator, it stays here. Neither is named to peers, who would pass it on regardless.
+        if (result === 'paused' || result === 'blocked') {
+          this.uploadRetries.forget(identifier);
+          this.gaveUp.delete(identifier);
+          if (result === 'blocked') {
+            this.barred.add(identifier);
+          } else {
+            this.pausedUploads.add(identifier);
+          }
+          return;
+        }
+        if (result === 'stored' || result === 'exists') this.barred.delete(identifier);
         if (result === 'failed') {
           if (!this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey))) {
             this.giveUp(identifier, roomKey);
@@ -192,21 +278,123 @@ export class ImageStorage {
           this.uploadRetries.forget(identifier);
           this.gaveUp.delete(identifier);
         }
+        // One kept anew shows the stop is over; anything else leaves the rest to be tried later.
+        if (result === 'stored') this.resumePaused();
         wentUpElsewhere = (result === 'stored' || result === 'exists') && roomKey !== requestedIn;
       })
       .finally(() => {
         this.uploading.delete(identifier);
+        if (this.upAgain.delete(identifier)) this.putUpAgain(identifier);
+        if (this.pausedUploads.size > 0) this.retryPausedLater(Network.roomKey);
         this.catalogSchedule.whenQuiet(100);
         if (wentUpElsewhere) this.putUpHeld(identifier);
       });
   }
 
+  /**
+   * Tries one the operator's stop held again a while later, in the room it was held in, to see
+   * whether the stop is over. The smallest is tried, since the bytes may all be sent before the
+   * server's answer that the stop goes on. One that does not go up after all, as when it is held no
+   * more, leaves the rest to the next try, as the answer would have; while the seat may not put
+   * anything up, as a guest or while it is getting back in, the try waits with all still held.
+   */
+  private retryPausedLater(roomKey: string | null): void {
+    if (this.pausedRetry) return;
+    this.pausedRetry = setTimeout(() => {
+      this.pausedRetry = null;
+      const next = this.smallestPaused();
+      const role = Network.serverRole;
+      if (next === undefined || Network.roomKey !== roomKey) return;
+      if (role !== 'gm' && role !== 'pl') {
+        this.retryPausedLater(roomKey);
+        return;
+      }
+      this.pausedUploads.delete(next);
+      this.retryUpload(next, roomKey, true);
+      if (!this.uploading.has(next)) this.retryPausedLater(roomKey);
+    }, ASSET_PAUSE_RETRY_MS);
+  }
+
+  private smallestPaused(): string | undefined {
+    let smallest: string | undefined;
+    let leastBytes = Infinity;
+    for (const identifier of this.pausedUploads) {
+      const bytes = this.imageHash[identifier]?.blob?.size ?? 0;
+      if (bytes < leastBytes) {
+        smallest = identifier;
+        leastBytes = bytes;
+      }
+    }
+    return smallest;
+  }
+
+  /**
+   * Puts up everything the operator's stop held, now that one has gone up here or, as the app tells,
+   * anywhere: the stop is over for every upload.
+   */
+  resumePaused(): void {
+    this.stopPausedRetry();
+    for (const identifier of [...this.pausedUploads]) {
+      this.pausedUploads.delete(identifier);
+      const image = this.imageHash[identifier];
+      if (image) this.uploadToAssetStore(image);
+    }
+  }
+
+  private stopPausedRetry(): void {
+    if (this.pausedRetry) clearTimeout(this.pausedRetry);
+    this.pausedRetry = null;
+  }
+
+  /**
+   * Whether this seat holds one back from peers for the operator: stopped from going up for a while,
+   * or barred. One asked for is not sent either. A guest, who puts nothing up, holds nothing back for
+   * the stop, as it names to peers what it was to put up.
+   */
+  isHeldBack(identifier: string): boolean {
+    return (Network.serverRole !== 'guest' && this.pausedUploads.has(identifier)) || this.barred.has(identifier);
+  }
+
+  /**
+   * Lets go of a picture the room's GM removed and keeps it from coming back: it is taken from no peer
+   * or store, and named to nobody, until `unmarkRemoved`.
+   */
+  markRemoved(identifier: string): void {
+    this.removed.add(identifier);
+    this.uploadRetries.cancel(identifier);
+    if (this.delete(identifier)) fileResourceUpdated$.emit();
+  }
+
+  /**
+   * Puts one held here up to the room's store again, as when a removal put back meanwhile had the
+   * store take it out all the same. One going up just then goes up again once that ends, as the store
+   * may have taken it out after it was found there.
+   */
+  putUpAgain(identifier: string): void {
+    if (this.uploading.has(identifier)) {
+      this.upAgain.add(identifier);
+      return;
+    }
+    const image = this.imageHash[identifier];
+    if (image) this.uploadToAssetStore(image);
+  }
+
+  /** Lets a picture the room put back be taken again. */
+  unmarkRemoved(identifier: string): void {
+    this.removed.delete(identifier);
+  }
+
+  /** Whether the room's GM removed it, so that it is to be taken from nobody. */
+  isRemoved(identifier: string): boolean {
+    return this.removed.has(identifier);
+  }
+
   /** Tries a failed upload again, while the seat is still a GM or a PL in the room it failed for. */
-  private retryUpload(identifier: string, roomKey: string | null): void {
+  private retryUpload(identifier: string, roomKey: string | null, probe = false): void {
     const role = Network.serverRole;
     if (Network.roomKey !== roomKey || (role !== 'gm' && role !== 'pl')) return;
     const image = this.imageHash[identifier];
-    if (image) this.uploadToAssetStore(image);
+    if (image) this.uploadToAssetStore(image, false, probe);
   }
 
   private update(image: ImageFile | ImageContext): boolean {
@@ -224,7 +412,8 @@ export class ImageStorage {
    */
   /**
    * Counts as up what the room's store was found to hold, though this seat could not put it there,
-   * as when another seat has since.
+   * as when another seat has since. One the operator barred stays held back, as a room the takedown
+   * missed may list it still.
    */
   forgetUploaded(identifiers: readonly string[]): void {
     for (const identifier of identifiers) this.forgetUpload(identifier);
@@ -234,6 +423,7 @@ export class ImageStorage {
   private forgetUpload(identifier: string): void {
     this.gaveUp.delete(identifier);
     this.missedUploads.delete(identifier);
+    this.pausedUploads.delete(identifier);
     const lastTry = this.lastTries.get(identifier);
     if (lastTry) {
       clearTimeout(lastTry);
@@ -265,6 +455,7 @@ export class ImageStorage {
 
   delete(identifier: string): boolean {
     this.forgetUpload(identifier);
+    this.barred.delete(identifier);
     const deleteImage: ImageFile = this.imageHash[identifier];
     if (deleteImage) {
       deleteImage.destroy();
@@ -291,26 +482,36 @@ export class ImageStorage {
 
   /**
    * Whether any picture this seat is to put up has yet to reach the room's asset store: going up,
-   * waiting to be tried again or for the room to be in reach, or left after failing as often as it
-   * may be tried. A guest puts nothing up, so
+   * waiting to be tried again, for the room to be in reach or for the operator's stop to be over, or
+   * left after failing as often as it may be tried. A guest puts nothing up, so
    * only one going up counts for it.
    */
   get hasUploadsPending(): boolean {
     if (this.uploading.size > 0) return true;
     if (Network.serverRole === 'guest') return false;
-    return this.uploadRetries.hasWaiting || this.missedUploads.size > 0 || this.gaveUp.size > 0;
+    return (
+      this.uploadRetries.hasWaiting ||
+      this.missedUploads.size > 0 ||
+      this.gaveUp.size > 0 ||
+      this.pausedUploads.size > 0
+    );
   }
 
   /**
    * Whether this seat is still to put something up to the asset store: queued or going up, waiting
-   * to be tried again, or waiting for the room to be in reach. Until it is there, peers are not
+   * to be tried again, or waiting for the room to be in reach or the operator's stop to be over.
+   * Until it is there, peers are not
    * told of it, so that they fetch it from the store once it is rather than each from this seat.
    * A guest puts nothing up, so what it was to try again or put up once back is named to peers.
    */
   private isOnItsWayUp(identifier: string): boolean {
     if (this.uploading.has(identifier)) return true;
     if (Network.serverRole === 'guest') return false;
-    return this.uploadRetries.isWaiting(identifier) || this.missedUploads.has(identifier);
+    return (
+      this.uploadRetries.isWaiting(identifier) ||
+      this.missedUploads.has(identifier) ||
+      this.pausedUploads.has(identifier)
+    );
   }
 
   /**
@@ -321,7 +522,11 @@ export class ImageStorage {
   getCatalog(): CatalogItem[] {
     const catalog: CatalogItem[] = [];
     for (const image of this.images) {
-      if (ImageState.COMPLETE <= image.state && !this.isOnItsWayUp(image.identifier)) {
+      if (
+        ImageState.COMPLETE <= image.state &&
+        !this.isOnItsWayUp(image.identifier) &&
+        !this.barred.has(image.identifier)
+      ) {
         catalog.push({ identifier: image.identifier, state: image.state });
       }
     }

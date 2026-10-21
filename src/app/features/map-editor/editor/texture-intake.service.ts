@@ -24,7 +24,8 @@ export class TextureIntakeService {
       .catch(() => null);
     URL.revokeObjectURL(objectUrl);
     if (!blob) return null;
-    const imageFile = await this.imageStorage.addAsync(blob);
+    const imageFile = await this.imageStorage.addAsync(blob, { putBack: true });
+    if (!imageFile) return null;
     ImageTag.create(imageFile.identifier).tag = TEXTURE_IMAGE_TAG;
     this.objectChange.notifyCollectionChanged('image-tag');
     return imageFile;

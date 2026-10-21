@@ -80,6 +80,9 @@
   }
   @if (createError()) {
     <p class="text-ui-danger mt-2 text-[0.75rem]" data-testid="room-setting-error">{{ createError() }}</p>
+    @if (createContact(); as contact) {
+      <operator-contact [contact]="contact" />
+    }
   }
   <p class="text-ui-muted mt-3 text-[0.75rem] leading-[1.6]">
     {{ (onRoomServer ? 'feature.lobby.roomSetting.noticeServer' : 'feature.lobby.roomSetting.notice') | transloco }}

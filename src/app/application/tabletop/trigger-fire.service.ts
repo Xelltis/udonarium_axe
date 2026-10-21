@@ -223,10 +223,12 @@ export class TriggerFireService {
     const held = this.resourceOf(piece, trigger.element);
     if (held) {
       const current = Number(held.currentValue);
+      const start = Number.isFinite(current) ? current : 0;
       const most = Number(held.value);
-      const next = (Number.isFinite(current) ? current : 0) - taken;
-      // Given back rather than taken, a resource stops at the full it was written with.
-      held.currentValue = taken < 0 && Number.isFinite(most) ? Math.min(most, next) : next;
+      const next = start - taken;
+      // Given back rather than taken, a resource stops at the full it was written with, and one already
+      // past it is not brought down.
+      held.currentValue = taken < 0 && Number.isFinite(most) ? Math.max(start, Math.min(most, next)) : next;
     }
     this.leave(trigger, piece);
     trigger.spend(piece.identifier, round);
@@ -434,8 +436,7 @@ export class TriggerFireService {
    * that moved, the very player who was not to notice would be the one who could read it.
    */
   private tell(trigger: TableTrigger, text: string): void {
-    if (trigger.silent) this.chat.sendSecretSystemMessageToMainTab(text);
-    else this.chat.sendSystemMessageToMainTab(text);
+    this.chat.sendSystemNotice('trigger', text, { secret: trigger.silent });
   }
 
   private resourceOf(piece: GameCharacter, name: string): DataElement | null {

@@ -18,10 +18,14 @@ describe('MapEditorStampPickerComponent', () => {
   let fixture: ComponentFixture<MapEditorStampPickerComponent>;
   let picker: Picker;
   let state: MapEditorState;
-  let imageStorage: { addAsync: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn> };
+  let imageStorage: {
+    addAsync: ReturnType<typeof vi.fn>;
+    get: ReturnType<typeof vi.fn>;
+    isRemoved: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
-    imageStorage = { addAsync: vi.fn(), get: vi.fn() };
+    imageStorage = { addAsync: vi.fn(), get: vi.fn(), isRemoved: vi.fn(() => false) };
     TestBed.configureTestingModule({
       imports: [MapEditorStampPickerComponent],
       providers: [...TEST_PROVIDERS, MapEditorState],
@@ -66,6 +70,17 @@ describe('MapEditorStampPickerComponent', () => {
     expect(created.tag).toBe('マップスタンプ');
     expect(state.stampId()).toBe('media:uploaded-stamp');
     expect(input.value).toBe('');
+  });
+
+  it('may put back a picture the room removed, and uses none it could not', async () => {
+    imageStorage.addAsync.mockResolvedValue(null);
+    const input = { files: [new File([new Uint8Array([1])], 'x.png', { type: 'image/png' })], value: 'x' };
+
+    await picker.onStampFileSelected({ target: input } as unknown as Event);
+
+    expect(imageStorage.addAsync.mock.calls[0][1]).toEqual({ putBack: true });
+    expect(ImageTag.get('removed-stamp')).toBeFalsy();
+    expect(state.stampId()).not.toBe('media:removed-stamp');
   });
 
   it('takes nothing that is not an image', async () => {

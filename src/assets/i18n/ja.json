@@ -664,7 +664,8 @@
         "ownVolumeHeading": "自分の音量",
         "ownVolumeNote": "自分にだけ効き、このブラウザに保存されます",
         "roomVolumeHeading": "部屋の音量",
-        "roomVolumeNote": "部屋の全員に効き、GM だけが変えられます"
+        "roomVolumeNote": "部屋の全員に効き、GM だけが変えられます",
+        "remove": "部屋から削除"
       },
       "miniJukebox": {
         "stopped": "— 停止中 —",
@@ -1270,7 +1271,8 @@
         "trouble_notPicture": "画像として読めませんでした。",
         "trouble_tooLarge": "8MB を超える画像は使えません。",
         "trouble_unstored": "このブラウザに画像を保存できませんでした。",
-        "trouble_notAllowed": "見学中はダイスに画像を貼れません。"
+        "trouble_notAllowed": "見学中はダイスに画像を貼れません。",
+        "trouble_removed": "GMが部屋から削除した画像です。"
       }
     },
     "effect": {
@@ -1956,7 +1958,9 @@
         "pasteNothing": "クリップボードに画像がありません",
         "pasteWithKeys": "ブラウザが貼り付けを許しませんでした。一覧を選んで Ctrl+V で貼ってください",
         "editImage": "編集",
-        "editImageHint": "チェックした画像 1 枚を編集して置き換えます。使っているコマなども新しい画像になります"
+        "editImageHint": "チェックした画像 1 枚を編集して置き換えます。使っているコマなども新しい画像になります",
+        "remove": "削除",
+        "removeHint": "チェックした画像を部屋から削除します。ほかの参加者からも消えます"
       },
       "tooLarge": {
         "one": "「{{name}}」は大きすぎるため読み込めませんでした（{{limits}}）",
@@ -1964,6 +1968,20 @@
         "audioLimit": "音源は{{mb}}MBまで",
         "imageLimit": "画像は{{mb}}MBまで",
         "separator": "、"
+      },
+      "removal": {
+        "imageTitle": "画像を削除",
+        "imageConfirm": "{{count}}件の画像を部屋から削除します。ほかの参加者の画面からも消えます。",
+        "imageRemoved": "{{count}}件の画像を削除しました",
+        "audioTitle": "音声を削除",
+        "audioConfirm": "{{count}}件の音声を部屋から削除します。ほかの参加者からも消え、鳴っていれば止まります。",
+        "audioRemoved": "{{count}}件の音声を削除しました",
+        "uses": "部屋の中の{{uses}}か所で使われています。",
+        "restore": "取り消しはできません。GMが同じファイルをもう一度足すと、使っていたところに戻ります。",
+        "ok": "削除する",
+        "imageRefused": "GMが部屋から削除した画像です。足し直せるのはGMだけです",
+        "audioRefused": "GMが部屋から削除した音声です。足し直せるのはGMだけです",
+        "notRemovable": "同梱のもの、URLで指すもの、システム予約の画像は削除できません"
       }
     },
     "character": {
@@ -3097,6 +3115,29 @@
       "squeezes": "大きなコマを、通れない隙間に押し込めるようにする（1 マスぶん余計に消費）",
       "jumpCells": "跳躍の距離（マス。0 で移動力いっぱい）",
       "tab_stamp": "スタンプ",
+      "tab_notice": "通知",
+      "sectionNotices": "システム通知の送り先",
+      "notices": {
+        "hint": "システムがチャットに書く知らせを、種類ごとにどのタブへ送るか選べます。選んだタブを消すと、既定の送り先に戻ります。",
+        "default_main": "既定（一番左のタブ）",
+        "default_system": "既定（システムタブ）",
+        "off": "送らない",
+        "openFromRound": "通知の送り先を選ぶ",
+        "kind_round": "ラウンド・手番の進行",
+        "kindHint_round": "ラウンドの開始と終了、手番、バフの期限切れと一括解除",
+        "kind_diceReveal": "盤上のダイスの公開",
+        "kindHint_diceReveal": "伏せたダイスを開けたときの出目",
+        "kind_trigger": "トリガー",
+        "kindHint_trigger": "マスに仕掛けたトリガーが作動したとき。隠したトリガーはシークレットのまま",
+        "kind_movement": "移動・交戦エリア・騎乗",
+        "kindHint_movement": "交戦エリアへの出入り、割り込み、戦闘配置、乗り降り",
+        "kind_card": "カード",
+        "kindHint_card": "配る、引く、渡す、ペアを捨てる",
+        "kind_bgm": "BGMの再生設定",
+        "kindHint_bgm": "シャッフルとリピートの切り替え",
+        "kind_room": "接続・部屋の管理",
+        "kindHint_room": "再接続、役割の変更の却下、全体同期、部屋データの取り込み"
+      },
       "stampUse_line": "スタンプの発言",
       "stampUse_reaction": "リアクション",
       "stampUseOn_line": "スタンプを発言として送れるようにする",
@@ -3230,6 +3271,27 @@
       "matColor": "マットの色",
       "matHint": "チャットの枠でダイスが転がる面です。画像を選ぶと色の上に敷きます。マットはこの画面にだけ見え、ほかの人の画面は変わりません。"
     },
+    "moderation": {
+      "report": {
+        "title": "運営者に通報",
+        "leadAsset": "「{{name}}」を、部屋のサーバーの運営者に通報します。",
+        "leadRoom": "この部屋「{{name}}」を、部屋のサーバーの運営者に通報します。",
+        "reason": "理由",
+        "reasonPlaceholder": "何が問題かを書いてください（{{max}}字まで）",
+        "note": "通報には、あなたの回線やアカウントの情報も一緒に送られます。運営者が、いたずらの通報を見分けるためです。",
+        "send": "送る",
+        "cancel": "やめる",
+        "close": "閉じる",
+        "taken": "通報を受け付けました。受付番号：{{id}}",
+        "trouble_unsupported": "この部屋のサーバーは通報を受け付けていません。",
+        "trouble_rateLimited": "通報が多すぎます。時間をおいてから送ってください。",
+        "trouble_refused": "この通報は受け付けられませんでした。理由を書き直してください。",
+        "trouble_failed": "通報を送れませんでした。つながりを確かめて、もう一度送ってください。",
+        "imageButton": "この画像を運営者に通報",
+        "audioButton": "この音声を運営者に通報",
+        "roomButton": "この部屋を運営者に通報"
+      }
+    },
     "lobby": {
       "peerMenu": {
         "changeIcon": "アイコンを変更する",
@@ -3294,7 +3356,8 @@
         "hintListFailed": "ルーム一覧の取得に失敗しました。「一覧を更新」で再検索できます。",
         "hintNoBackend": "接続先（config.json の backend.url）が設定されていません",
         "createRoomAfterLogin": "ログインして部屋を作る",
-        "deleteRoom": "部屋を削除"
+        "deleteRoom": "部屋を削除",
+        "hintBanned": "部屋のサーバーの運営者が、この回線を止めています"
       },
       "roomSetting": {
         "title": " ルーム作成",
@@ -3316,7 +3379,9 @@
         "alreadyInRoomServer": "部屋に入っているあいだは、新しい部屋を作れません。",
         "defaultRoomName": "ふつうの部屋",
         "createFailed": "部屋を作れませんでした（{{reason}}）",
-        "loginRequired": "部屋を作るにはログインが要ります"
+        "loginRequired": "部屋を作るにはログインが要ります",
+        "paused": "部屋のサーバーの運営者が、部屋を作ることを一時的に止めています。しばらくしてから試してください",
+        "banned": "部屋のサーバーの運営者が、このアカウントか回線を止めているため、部屋を作れません"
       },
       "passwordCheck": {
         "title": "パスワード",
@@ -3356,7 +3421,8 @@
         "roomServerNoBackend": "接続先（config.json の backend.url）が設定されていません",
         "roomServerRefused": "部屋のサーバーに接続を断られました（{{code}}）",
         "roomServerUnauthorized": "ログインの期限が切れたか、別のアカウントでログインし直しました。部屋に入り直してください",
-        "roomServerDeleted": "部屋のGMが部屋を削除しました"
+        "roomServerDeleted": "部屋のGMか、部屋のサーバーの運営者が部屋を削除しました",
+        "roomServerBanned": "部屋のサーバーの運営者が、このアカウントか回線を止めているため、部屋に入れません"
       },
       "deleteRoom": {
         "confirmTitle": "部屋を削除",
@@ -3399,6 +3465,7 @@
         "joining": "「{{roomName}}」に参加しています…",
         "notFound": "「{{roomName}}」が見つかりませんでした",
         "failed": "「{{roomName}}」に参加できませんでした",
+        "banned": "「{{roomName}}」に入れません。部屋のサーバーの運営者が、この回線を止めています",
         "offline": "オフラインのため「{{roomName}}」に入れません。入るときは、接続パネルでオンラインに切り替えてください",
         "openLobby": "ロビーを開く",
         "dismiss": "閉じる"
@@ -3421,7 +3488,9 @@
           "providerFailed": "Discordとのやりとりに失敗しました。しばらくしてからもう一度試してください",
           "rateLimited": "ログインの試行が続いたため、しばらく受け付けられません",
           "network": "ログインのサーバーにつながりません",
-          "retry": "ログインをやり直してください"
+          "retry": "ログインをやり直してください",
+          "banned": "部屋のサーバーの運営者が、このアカウントか回線を止めています",
+          "paused": "部屋のサーバーの運営者が、新しいログインを一時的に止めています。しばらくしてから試してください"
         }
       },
       "idle": {
@@ -3448,6 +3517,17 @@
         "title": "伏せた形の物がある卓です",
         "message": "いま画面にある卓には、部屋のサーバーで伏せた形のまま受け取った物（表の見えないカード、ほかの人のダイスの目、伏せ字のメモ、シークレットダイスの中身など）が入っています。このまま部屋に入ると、卓がその形のまま部屋に広がります。入ったあとにこの画面で取った保存は、GMとして取ったものでも、読み込むときに確認が出ます。部屋のほかの人が取った保存には、確認が出ないまま伏せた形が入ります。",
         "ok": "このまま入る"
+      },
+      "operatorContact": {
+        "label": "問い合わせ先：",
+        "open": "問い合わせ先",
+        "chat": "部屋のサーバーの運営者への問い合わせ先：{{contact}}"
+      },
+      "uploads": {
+        "paused": "部屋のサーバーの運営者が、画像や音声を上げることを一時的に止めています。いま足した画像や音声は、再開されるまでほかの参加者には届きません",
+        "resumed": "画像や音声を上げられるようになりました。止まっていたものも、ほかの参加者に届きます",
+        "blocked": "部屋のサーバーの運営者が置けないようにしている画像か音声があります。ほかの参加者には届きません",
+        "roomFull": "部屋の置き場所がいっぱいで、足した画像や音声は部屋に保存されません。いまいる人には届きますが、あとから入った人には届きません"
       }
     },
     "chat": {
@@ -5553,6 +5633,8 @@
       "pieceGauge": "コマにバーを表示",
       "resourceSlider": "スライダー表示",
       "gaugeInverted": "マイナスリソース",
+      "overResource": "オーバーリソース",
+      "overResourceHint": "現在値が最大値を超えられるようにします。一時的な補正などを、最大値を戻り先にして管理できます",
       "changeEffect": "増減でエフェクト",
       "changeSound": "増減で効果音",
       "changeSoundSet": "効果音のタイプ",

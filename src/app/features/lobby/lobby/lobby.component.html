@@ -124,6 +124,9 @@
     </table>
   } @else {
     <p class="text-ui-muted text-[0.8rem] leading-[1.6]">{{ help() }}</p>
+    @if (helpContact(); as contact) {
+      <operator-contact [contact]="contact" />
+    }
   }
 } @else {
   <p class="text-ui-muted text-[0.8rem] leading-[1.7]" data-testid="lobby-already-in-room">

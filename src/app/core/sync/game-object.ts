@@ -211,6 +211,14 @@ export class GameObject {
     };
   }
 
+  /**
+   * The sync data as it stands, to read without the copy `toContext` makes, as when looking through
+   * the whole room. Nothing is to be changed through it.
+   */
+  readSyncData(): Readonly<ObjectContext['syncData']> {
+    return this.context.syncData;
+  }
+
   /** The object, and for nodes their children, as the XML used by saved rooms and by clone. */
   toXml(): string {
     return ObjectSerializer.instance.toXml(this);

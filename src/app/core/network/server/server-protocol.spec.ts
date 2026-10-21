@@ -19,13 +19,18 @@ import {
   helloMessage,
   inviteRequest,
   isRollRejectReason,
+  MAX_REPORT_REASON_LENGTH,
   PROTOCOL_VERSION,
   readAssetUploadPolicy,
+  readReportResponse,
   readRoom,
   readRoomAssetList,
   readRoomList,
   readServerMessage,
   readUploadTicket,
+  REPORT_TARGETS,
+  ReportRequest,
+  ReportTarget,
   RETRYABLE_ERROR_CODES,
   ROLE_REJECT_REASONS,
   ROLL_REJECT_REASONS,
@@ -73,6 +78,22 @@ describe('the room server protocol, held to the server’s fixtures', () => {
     expect(readRoomAssetList({ assets: [{ ...http.roomAssetList.assets[0], size: '1' }] })).toBeNull();
     expect(readRoomAssetList({ rooms: [] })).toBeNull();
     expect(readRoomAssetList(null)).toBeNull();
+  });
+
+  it('sends a report in the shape the server takes, and reads the id it answers with', () => {
+    const sent: ReportRequest = {
+      target: http.reportRequest.target as ReportTarget,
+      assetId: http.reportRequest.assetId,
+      reason: http.reportRequest.reason,
+    };
+
+    expect(sent).toEqual(http.reportRequest);
+    expect(REPORT_TARGETS).toContain(sent.target);
+    expect(sent.reason.length).toBeLessThanOrEqual(MAX_REPORT_REASON_LENGTH);
+    expect(readReportResponse(http.reportResponse)).toEqual(http.reportResponse);
+    expect(readReportResponse({ id: 3 })).toBeNull();
+    expect(readReportResponse({ id: '' })).toBeNull();
+    expect(readReportResponse(null)).toBeNull();
   });
 
   it('reads how a server with a limit on its requests takes big pictures and sounds, and the ticket for one', () => {

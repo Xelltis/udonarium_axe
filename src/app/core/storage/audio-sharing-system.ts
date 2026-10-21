@@ -1,3 +1,4 @@
+import { fileResourceUpdated$ } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { localDispatch, NetworkMessage, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
@@ -34,6 +35,8 @@ export class AudioSharingSystem {
   private httpFetching: Map<string, string | null> = new Map();
   /** Audio the asset server did not have, which is asked of peers from then on. */
   private httpMissed: Set<string> = new Set();
+  /** Audio the room server's operator took down, asked of nobody: neither the store nor a peer. */
+  private httpBarred: Set<string> = new Set();
   /** Sounds the room's list named that the asset server could not send just then. */
   private httpRetries = new AssetRetries();
 
@@ -69,6 +72,7 @@ export class AudioSharingSystem {
             const otherCatalog: CatalogItem[] = msg.data as CatalogItem[];
             const request: CatalogItem[] = [];
             for (const item of this.preferredFirst(otherCatalog)) {
+              if (AudioStorage.instance.isRemoved(item.identifier) || this.httpBarred.has(item.identifier)) continue;
               let audio = AudioStorage.instance.get(item.identifier);
               if (audio === null) {
                 audio = AudioFile.createEmpty(item.identifier, item.name);
@@ -95,7 +99,8 @@ export class AudioSharingSystem {
             const data = msg.data as { identifiers: CatalogItem[]; receiver: string; candidatePeers: string[] };
             const randomRequest: CatalogItem[] = data.identifiers.filter((item) => {
               const audio = AudioStorage.instance.get(item.identifier);
-              return audio && item.state < audio.state;
+              // What this seat holds back for the room server's operator is not sent when asked for either.
+              return audio && item.state < audio.state && !AudioStorage.instance.isHeldBack(item.identifier);
             });
             if (!this.isLimitSendTask() && 0 < randomRequest.length && !this.existsSendTask(data.receiver)) {
               const idx = Math.floor(Math.random() * randomRequest.length);
@@ -116,6 +121,7 @@ export class AudioSharingSystem {
           case 'UPDATE_AUDIO_RESOURE': {
             const updateAudios: AudioFileContext[] = msg.data as AudioFileContext[];
             for (const context of updateAudios) {
+              if (AudioStorage.instance.isRemoved(context.identifier)) continue;
               if (context.blob) context.blob = new Blob([context.blob], { type: context.type });
               AudioStorage.instance.add(context);
               if (this.httpMissed.has(context.identifier)) AudioStorage.instance.uploadReceived(context.identifier);
@@ -125,7 +131,7 @@ export class AudioSharingSystem {
           case 'START_AUDIO_TRANSMISSION': {
             const identifier: string = (msg.data as { fileIdentifier: string }).fileIdentifier;
             const audio = AudioStorage.instance.get(identifier);
-            if (this.receiveTaskMap.has(identifier) || audio?.isReady) {
+            if (this.receiveTaskMap.has(identifier) || audio?.isReady || AudioStorage.instance.isRemoved(identifier)) {
               Logger.warn('[AudioSync] タスクキャンセル', identifier);
               networkSend(`CANCEL_TASK_${identifier}`, null, msg.sendFrom);
             } else {
@@ -166,6 +172,7 @@ export class AudioSharingSystem {
       ...assets.filter((asset) => !preferred.includes(asset.id)),
     ];
     for (const { id, name } of ordered) {
+      if (AudioStorage.instance.isRemoved(id) || this.httpBarred.has(id)) continue;
       let audio = AudioStorage.instance.get(id);
       if (audio === null) {
         audio = AudioFile.createEmpty(id, name);
@@ -193,6 +200,7 @@ export class AudioSharingSystem {
    */
   forgetMisses(): void {
     this.httpMissed.clear();
+    this.httpBarred.clear();
     this.httpRetries.clear();
   }
 
@@ -209,7 +217,8 @@ export class AudioSharingSystem {
    * Audio the server could not send is asked of the peer whose catalogue named it, the way it would
    * have been without the server. With no such peer, audio the server lacks, or sends bytes for that
    * do not match, is left, and audio it could not send just then is tried again later. Only the
-   * server's lacking it keeps it from being fetched from there again.
+   * server's lacking it keeps it from being fetched from there again. Audio the operator took down
+   * is asked of nobody.
    *
    * What the room is playing goes ahead of the pictures and sounds waiting their turn, and moves to
    * the front should it be waiting already.
@@ -217,6 +226,7 @@ export class AudioSharingSystem {
   private fetchOverHttp(identifier: string, catalogPeer: string | null): boolean {
     const store = AssetHttpStore.instance;
     if (!store.isEnabled || !AssetHttpStore.isAssetId(identifier) || this.httpMissed.has(identifier)) return false;
+    if (this.httpBarred.has(identifier)) return false;
     const first = this.preferredIdentifiers().includes(identifier);
     if (this.httpFetching.has(identifier)) {
       if (this.httpFetching.get(identifier) === null) this.httpFetching.set(identifier, catalogPeer);
@@ -236,6 +246,10 @@ export class AudioSharingSystem {
           AudioStorage.instance.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
           return;
         }
+        if (fetched === 'blocked') {
+          this.letGoOfBarred(identifier);
+          return;
+        }
         if (fetched === 'missing') this.httpMissed.add(identifier);
         const audio = AudioStorage.instance.get(identifier);
         if (!audio || AudioState.COMPLETE <= audio.state) return;
@@ -249,6 +263,13 @@ export class AudioSharingSystem {
       })
       .finally(() => this.httpFetching.delete(identifier));
     return true;
+  }
+
+  /** Asks nobody for one the operator barred, and drops the empty entry kept for it while it was to come. */
+  private letGoOfBarred(identifier: string): void {
+    this.httpBarred.add(identifier);
+    const audio = AudioStorage.instance.get(identifier);
+    if (audio && !audio.isReady && AudioStorage.instance.delete(identifier)) fileResourceUpdated$.emit();
   }
 
   /** The audio to ask for next: a preferred one if it is wanted, otherwise any of them. */
@@ -306,7 +327,7 @@ export class AudioSharingSystem {
     };
     task.onfinish = (task, data) => {
       this.stopReceiveTask(task.identifier);
-      if (data) {
+      if (data && !AudioStorage.instance.isRemoved(data.identifier)) {
         if (data.blob) data.blob = new Blob([data.blob], { type: data.type });
         AudioStorage.instance.add(data);
         localDispatch('UPDATE_AUDIO_RESOURE', [data]);

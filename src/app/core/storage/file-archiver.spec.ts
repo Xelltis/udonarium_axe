@@ -165,6 +165,7 @@ describe('FileArchiver', () => {
       drop(['Files'], [new File([new Uint8Array([1])], 'a.png', { type: 'image/png' })]);
 
       await vi.waitFor(() => expect(addAsync).toHaveBeenCalled());
+      expect(addAsync.mock.calls[0][1]).toEqual({ putBack: true });
     });
   });
 
@@ -224,6 +225,20 @@ describe('FileArchiver', () => {
 
       expect(dropped).toHaveLength(1);
       expect(dropped[0]).toMatchObject({ fileName: 'a.png', dropPoint: { x: 10, y: 20 } });
+    });
+
+    it('places nothing for a picture the room removed and this seat could not put back', async () => {
+      const dropped: ImageDroppedEvent[] = [];
+      const off = imageDropped$.subscribe((event) => dropped.push(event));
+      vi.mocked(ImageStorage.instance.addAsync).mockImplementationOnce(() => Promise.resolve(null));
+
+      try {
+        await FileArchiver.instance.load([imageFile('a.png'), imageFile('b.png')], { x: 10, y: 20 });
+      } finally {
+        off();
+      }
+
+      expect(dropped.map((event) => event.fileName)).toEqual(['b.png']);
     });
 
     it('offsets several images dropped together so they do not stack', async () => {
@@ -424,6 +439,15 @@ describe('FileArchiver', () => {
       const result = await FileArchiver.instance.loadImages([imageFile('a.png'), imageFile('b.png')]);
 
       expect(result.images.map((image) => image.identifier)).toEqual(['image-a.png', 'image-b.png']);
+      expect(result.oversized).toEqual([]);
+    });
+
+    it('hands back no picture the room removed that this seat could not put back, nor names it too large', async () => {
+      addAsync.mockImplementationOnce(() => Promise.resolve(null));
+
+      const result = await FileArchiver.instance.loadImages([imageFile('a.png'), imageFile('b.png')]);
+
+      expect(result.images.map((image) => image.identifier)).toEqual(['image-b.png']);
       expect(result.oversized).toEqual([]);
     });
 

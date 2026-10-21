@@ -1,7 +1,10 @@
+import { fileResourceUpdated$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { AssetHttpStore, AssetUploadResult } from '@axe/core/storage/asset-http-store';
 import {
   ASSET_LAST_TRY_DELAY_MS,
+  ASSET_PAUSE_RETRY_MS,
+  ASSET_PUT_BACK_CHECK_MS,
   ASSET_RETRY_DELAY_MS,
   AssetRetries,
   RECEIVED_UPLOAD_TURN_MS,
@@ -58,6 +61,94 @@ describe('AudioStorage', () => {
 
     it('reports failure removing audio that is not there', () => {
       expect(storage.delete('nonexistent')).toBe(false);
+    });
+  });
+
+  describe('a sound the room removed', () => {
+    const removedId = 'e'.repeat(64);
+    const fullContext = (): AudioFileContext => ({
+      identifier: removedId,
+      name: 'theme.ogg',
+      type: 'audio/ogg',
+      blob: new Blob([new Uint8Array([0x4f, 0x67, 0x67, 0x53])], { type: 'audio/ogg' }),
+      url: 'blob:track',
+    });
+
+    afterEach(() => {
+      storage.unmarkRemoved(removedId);
+      storage.putBack = () => false;
+      storage.onRefused = () => {};
+    });
+
+    /** Adds it as one chosen to be added, as a file picked or dropped is. */
+    const choose = (file: AudioFile) =>
+      (storage as unknown as { _add(file: AudioFile, isLocal: boolean, putBack: boolean): AudioFile })._add(
+        file,
+        true,
+        true
+      );
+
+    it('is let go of, keeps its mark, and the files are said to have changed', () => {
+      storage.add(AudioFile.create(fullContext()));
+      const changed = vi.fn();
+      const off = fileResourceUpdated$.subscribe(changed);
+
+      storage.markRemoved(removedId);
+      off();
+
+      expect(storage.get(removedId)).toBeNull();
+      expect(storage.isRemoved(removedId)).toBe(true);
+      expect(storage.getCatalog().map((item) => item.identifier)).not.toContain(removedId);
+      expect(changed).toHaveBeenCalledTimes(1);
+    });
+
+    it('is kept out when it comes again unchosen: from a peer, as a placeholder or added here by itself', () => {
+      const putBack = vi.fn(() => true);
+      storage.putBack = putBack;
+      storage.markRemoved(removedId);
+
+      storage.add(AudioFile.createEmpty(removedId));
+      storage.add(fullContext());
+      storage.add(AudioFile.create(fullContext()));
+
+      expect(storage.get(removedId)).toBeNull();
+      expect(storage.isRemoved(removedId)).toBe(true);
+      expect(putBack).not.toHaveBeenCalled();
+    });
+
+    it('is handed back as nothing when added and kept out, and as stored when put back', async () => {
+      vi.spyOn(AudioFile, 'createAsync').mockImplementation(async () => AudioFile.create(fullContext()));
+      storage.markRemoved(removedId);
+
+      expect(await storage.addAsync(new Blob([new Uint8Array([1])]))).toBeNull();
+      storage.putBack = () => true;
+      expect((await storage.addAsync(new Blob([new Uint8Array([1])]), { putBack: true }))?.identifier).toBe(removedId);
+      expect(storage.get(removedId)).not.toBeNull();
+    });
+
+    it('is put back when chosen to be added in full by a seat that may', () => {
+      const putBack = vi.fn(() => true);
+      storage.putBack = putBack;
+      storage.markRemoved(removedId);
+
+      choose(AudioFile.create(fullContext()));
+
+      expect(storage.get(removedId)).not.toBeNull();
+      expect(storage.isRemoved(removedId)).toBe(false);
+      expect(putBack.mock.calls).toEqual([[removedId]]);
+    });
+
+    it('is kept out, and the app told, when chosen by a seat that may not put it back', () => {
+      const refused = vi.fn();
+      storage.putBack = () => false;
+      storage.onRefused = refused;
+      storage.markRemoved(removedId);
+
+      choose(AudioFile.create(fullContext()));
+
+      expect(storage.get(removedId)).toBeNull();
+      expect(storage.isRemoved(removedId)).toBe(true);
+      expect(refused.mock.calls).toEqual([[removedId]]);
     });
   });
 
@@ -159,9 +250,302 @@ describe('AudioStorage', () => {
       (storage as unknown as { uploadRetries: AssetRetries }).uploadRetries.clear();
       (storage as unknown as { missedUploads: Set<string> }).missedUploads.clear();
       (storage as unknown as { uploading: Set<string> }).uploading.clear();
+      (storage as unknown as { upAgain: Set<string> }).upAgain.clear();
       (storage as unknown as { gaveUp: Set<string> }).gaveUp.clear();
       (storage as unknown as { clearLastTries(): void }).clearLastTries();
+      (storage as unknown as { pausedUploads: Set<string> }).pausedUploads.clear();
+      (storage as unknown as { barred: Set<string> }).barred.clear();
+      (storage as unknown as { stopPausedRetry(): void }).stopPausedRetry();
       vi.useRealTimers();
+    });
+
+    describe('one the room removed while it was going up', () => {
+      afterEach(() => {
+        storage.putBack = () => false;
+        storage.unmarkRemoved(trackId);
+        storage.onUploadedWhileRemoved = () => {};
+      });
+
+      it('asks the store again a while after it is put back, past a removal another seat had under way', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+        vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('gm');
+        upload.mockResolvedValue('exists');
+        storage.putBack = () => true;
+        storage.markRemoved(trackId);
+
+        (storage as unknown as { _add(file: AudioFile, isLocal: boolean, putBack: boolean): AudioFile })._add(
+          AudioFile.create(contextOf(trackId)),
+          true,
+          true
+        );
+        await vi.advanceTimersByTimeAsync(0);
+        expect(upload).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(ASSET_PUT_BACK_CHECK_MS);
+
+        expect(upload).toHaveBeenCalledTimes(2);
+      });
+
+      it('asks nothing again of the store once the seat is in another room', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+        vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('gm');
+        const room = vi.spyOn(Network.instance, 'roomKey', 'get').mockReturnValue('room-a');
+        upload.mockResolvedValue('exists');
+        storage.putBack = () => true;
+        storage.markRemoved(trackId);
+
+        (storage as unknown as { _add(file: AudioFile, isLocal: boolean, putBack: boolean): AudioFile })._add(
+          AudioFile.create(contextOf(trackId)),
+          true,
+          true
+        );
+        await vi.advanceTimersByTimeAsync(0);
+        room.mockReturnValue('room-b');
+        await vi.advanceTimersByTimeAsync(ASSET_PUT_BACK_CHECK_MS);
+
+        expect(upload).toHaveBeenCalledTimes(1);
+      });
+
+      it('has the app take out bytes that reached the store all the same, and keeps nothing to try again', async () => {
+        const uploaded = vi.fn();
+        storage.onUploadedWhileRemoved = uploaded;
+        vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('gm');
+        storage.add(AudioFile.create(contextOf(trackId)));
+
+        storage.markRemoved(trackId);
+        finishUpload('stored');
+        await vi.waitFor(() => expect(uploaded).toHaveBeenCalledTimes(1));
+
+        expect(uploaded.mock.calls).toEqual([[trackId]]);
+        expect(storage.hasUploadsPending).toBe(false);
+      });
+
+      it('stops a try still to come, which would keep it counted as still to go up', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+        vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+        upload.mockResolvedValue('failed');
+        storage.add(AudioFile.create(contextOf(trackId)));
+        await vi.advanceTimersByTimeAsync(0);
+        expect(storage.hasUploadsPending).toBe(true);
+
+        storage.markRemoved(trackId);
+
+        expect(storage.hasUploadsPending).toBe(false);
+      });
+    });
+
+    it('holds nothing back for the stop as a guest, who names to peers what it was to put up', async () => {
+      const role = vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      upload.mockResolvedValue('paused');
+      storage.add(AudioFile.create(contextOf(trackId)));
+      await vi.waitFor(() => expect(storage.isHeldBack(trackId)).toBe(true));
+
+      role.mockReturnValue('guest');
+
+      expect(storage.isHeldBack(trackId)).toBe(false);
+    });
+
+    it('keeps barred one a later try could not put up just then, which says nothing of the bar', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      upload.mockResolvedValueOnce('blocked').mockResolvedValue('failed');
+      storage.add(AudioFile.create(contextOf(trackId)));
+      await vi.advanceTimersByTimeAsync(0);
+
+      storage.uploadAllToAssetStore();
+      await vi.advanceTimersByTimeAsync(600_000);
+
+      expect(storage.isHeldBack(trackId)).toBe(true);
+      expect(catalogued(trackId)).toBe(false);
+    });
+
+    it('waits with all still held while the seat may not put anything up, and tries once it may again', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      const role = vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      upload.mockResolvedValue('paused');
+      storage.add(AudioFile.create(contextOf(trackId)));
+      await vi.advanceTimersByTimeAsync(0);
+      upload.mockClear();
+
+      role.mockReturnValue('guest');
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+      expect(upload).not.toHaveBeenCalled();
+      role.mockReturnValue('pl');
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+
+      expect(upload.mock.calls.map(([identifier]) => identifier)).toEqual([trackId]);
+    });
+
+    it('tries the rest later when the one tried whether the stop is over is barred instead', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      const larger = 'c'.repeat(64);
+      upload.mockResolvedValue('paused');
+      storage.add(AudioFile.create(contextOf(trackId)));
+      storage.add(AudioFile.create({ ...contextOf(larger), blob: new Blob([new Uint8Array(64)]) }));
+      await vi.advanceTimersByTimeAsync(0);
+      upload.mockClear().mockResolvedValueOnce('blocked');
+
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+
+      expect(upload.mock.calls.map(([identifier]) => identifier)).toEqual([trackId, larger]);
+      storage.delete(larger);
+    });
+
+    it('asks the store to try whether the stop is over, and tries the next later when one goes up no more', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      const gone = 'c'.repeat(64);
+      upload.mockResolvedValue('paused');
+      storage.add(AudioFile.create(contextOf(gone)));
+      storage.add(AudioFile.create(contextOf(trackId)));
+      await vi.advanceTimersByTimeAsync(0);
+      storage.delete(gone);
+      storage.delete(trackId);
+      storage.add(AudioFile.create({ ...contextOf(trackId), blob: new Blob([new Uint8Array(64)]) }));
+      upload.mockClear();
+      (storage as unknown as { uploading: Set<string> }).uploading.clear();
+      (storage as unknown as { pausedUploads: Set<string> }).pausedUploads.add(gone).add(trackId);
+
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+      expect(upload).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+
+      expect(upload.mock.calls.map(([identifier, , , options]) => [identifier, options])).toEqual([
+        [trackId, { first: false, probe: true }],
+      ]);
+      storage.delete(trackId);
+    });
+
+    it('holds what the operator’s stop turned away from peers, tries one now and then, and the rest once one goes up', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      const ids = [trackId, 'c'.repeat(64), 'd'.repeat(64)];
+      upload.mockResolvedValue('paused');
+      for (const identifier of ids) storage.add(AudioFile.create(contextOf(identifier)));
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(ids.filter(catalogued)).toEqual([]);
+      expect(ids.every((identifier) => storage.isHeldBack(identifier))).toBe(true);
+      expect(storage.hasUploadsPending).toBe(true);
+
+      // Still stopped a minute later: the one tried is held again.
+      upload.mockClear();
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+      expect(upload).toHaveBeenCalledTimes(1);
+      expect(ids.filter(catalogued)).toEqual([]);
+
+      // One found there already does not show the stop is over, so the rest wait for the next try.
+      upload.mockClear().mockResolvedValueOnce('exists').mockResolvedValue('stored');
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+      expect(upload).toHaveBeenCalledTimes(1);
+      expect(ids.filter(catalogued)).toHaveLength(1);
+
+      // One kept anew shows it is over: the last goes up at once after it.
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+      expect(upload).toHaveBeenCalledTimes(3);
+      expect(ids.filter(catalogued)).toEqual(ids);
+      expect(storage.hasUploadsPending).toBe(false);
+      for (const identifier of ids.slice(1)) storage.delete(identifier);
+    });
+
+    it('tries the smallest of what the stop held, since its bytes may all be sent before the answer', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      const larger = 'c'.repeat(64);
+      upload.mockResolvedValue('paused');
+      storage.add(
+        AudioFile.create({ ...contextOf(larger), blob: new Blob([new Uint8Array(1024)], { type: 'audio/ogg' }) })
+      );
+      storage.add(AudioFile.create(contextOf(trackId)));
+      await vi.advanceTimersByTimeAsync(0);
+
+      upload.mockClear();
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+
+      expect(upload.mock.calls.map(([identifier]) => identifier)).toEqual([trackId]);
+      storage.delete(larger);
+    });
+
+    it('puts up what the stop held on entering a room, rather than waiting for the next try', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      upload.mockResolvedValue('paused');
+      storage.add(AudioFile.create(contextOf(trackId)));
+      await vi.advanceTimersByTimeAsync(0);
+
+      upload.mockClear().mockResolvedValue('stored');
+      storage.uploadAllToAssetStore();
+      await vi.advanceTimersByTimeAsync(ASSET_PAUSE_RETRY_MS);
+
+      expect(upload).toHaveBeenCalledTimes(1);
+      expect(catalogued(trackId)).toBe(true);
+    });
+
+    it('keeps what the operator barred to this seat: named to no peer, tried no more, and not still to go up', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      upload.mockResolvedValue('blocked');
+      storage.add(AudioFile.create(contextOf(trackId)));
+      await vi.advanceTimersByTimeAsync(ASSET_LAST_TRY_DELAY_MS * 2);
+
+      expect(upload).toHaveBeenCalledTimes(1);
+      expect(catalogued(trackId)).toBe(false);
+      expect(storage.isHeldBack(trackId)).toBe(true);
+      expect(storage.hasUploadsPending).toBe(false);
+
+      // Let back in by the operator, it goes up on entering a room and is named again.
+      upload.mockResolvedValue('stored');
+      storage.uploadAllToAssetStore();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(catalogued(trackId)).toBe(true);
+      expect(storage.isHeldBack(trackId)).toBe(false);
+    });
+
+    it('keeps holding back one the operator barred though the room is found to list it still', async () => {
+      upload.mockResolvedValue('blocked');
+      storage.add(AudioFile.create(contextOf(trackId)));
+      await vi.waitFor(() => expect(storage.isHeldBack(trackId)).toBe(true));
+
+      storage.forgetUploaded([trackId]);
+
+      expect(storage.isHeldBack(trackId)).toBe(true);
+      expect(catalogued(trackId)).toBe(false);
+    });
+
+    it('puts one up again once the upload under way ends, when asked to while it was going up', async () => {
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('gm');
+      storage.add(AudioFile.create(contextOf(trackId)));
+      expect(upload).toHaveBeenCalledTimes(1);
+
+      storage.putUpAgain(trackId);
+      expect(upload).toHaveBeenCalledTimes(1);
+      upload.mockResolvedValue('stored');
+      finishUpload('exists');
+
+      await vi.waitFor(() => expect(upload).toHaveBeenCalledTimes(2));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(upload).toHaveBeenCalledTimes(2);
+    });
+
+    it('names one the room’s store is too full to keep to peers, who pass it on as before', async () => {
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      upload.mockResolvedValue('full');
+      storage.add(AudioFile.create(contextOf(trackId)));
+
+      await vi.waitFor(() => expect(catalogued(trackId)).toBe(true));
+      expect(storage.isHeldBack(trackId)).toBe(false);
+      expect(storage.hasUploadsPending).toBe(false);
+    });
+
+    it('forgets holding one back once it is deleted', async () => {
+      upload.mockResolvedValue('blocked');
+      storage.add(AudioFile.create(contextOf(trackId)));
+      await vi.waitFor(() => expect(storage.isHeldBack(trackId)).toBe(true));
+
+      storage.delete(trackId);
+
+      expect(storage.isHeldBack(trackId)).toBe(false);
     });
 
     it.each([

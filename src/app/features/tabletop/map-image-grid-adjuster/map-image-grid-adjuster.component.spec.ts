@@ -223,7 +223,7 @@ describe('MapImageGridAdjusterComponent', () => {
     expect(args[2]).toBeCloseTo(expectY, 5);
     expect(args[3]).toBeCloseTo(expectW, 5);
     expect(args[4]).toBeCloseTo(expectH, 5);
-    expect(imageStorage.addAsync).toHaveBeenCalledWith(fakeBlob);
+    expect(imageStorage.addAsync).toHaveBeenCalledWith(fakeBlob, { putBack: true });
     expect(modalService.resolve).toHaveBeenCalledWith({
       imageIdentifier: 'new-id',
       width: component.cols(),

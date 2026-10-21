@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
+import { OperatorContactComponent } from '@axe/features/lobby/operator-contact/operator-contact.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** The translation key for each reason a login can fail with; anything else asks to try again. */
@@ -7,6 +8,8 @@ const LOGIN_ERROR_KEYS: Readonly<Record<string, string>> = {
   denied: 'feature.lobby.account.errors.denied',
   'provider-failed': 'feature.lobby.account.errors.providerFailed',
   'rate-limited': 'feature.lobby.account.errors.rateLimited',
+  banned: 'feature.lobby.account.errors.banned',
+  paused: 'feature.lobby.account.errors.paused',
   network: 'feature.lobby.account.errors.network',
 };
 
@@ -19,7 +22,7 @@ const LOGIN_ERROR_KEYS: Readonly<Record<string, string>> = {
   selector: 'server-account',
   templateUrl: './server-account.component.html',
   host: { class: 'block' },
-  imports: [TranslocoModule],
+  imports: [OperatorContactComponent, TranslocoModule],
 })
 export class ServerAccountComponent {
   private readonly auth = inject(ServerAuthService);
@@ -31,6 +34,9 @@ export class ServerAccountComponent {
   protected readonly isConfirmingDelete = signal(false);
   protected readonly isDeleting = signal(false);
   protected readonly deleteFailed = signal(false);
+
+  /** The operator's contact a login turned away for a ban or a stop came back with. */
+  protected readonly errorContact = this.auth.errorContact;
 
   protected readonly errorKey = computed(() => {
     const error = this.auth.error();

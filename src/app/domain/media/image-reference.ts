@@ -13,10 +13,7 @@ export function replaceIdentifierInText(text: string, from: string, to: string):
   let out = '';
   let index = 0;
   for (let at = text.indexOf(from); at >= 0; at = text.indexOf(from, index)) {
-    const before = at > 0 ? text[at - 1] : '';
-    const after = text[at + from.length] ?? '';
-    const alone = !IDENTIFIER_CHARACTER.test(before) && !IDENTIFIER_CHARACTER.test(after);
-    out += text.slice(index, at) + (alone ? to : from);
+    out += text.slice(index, at) + (standsAlone(text, at, from.length) ? to : from);
     index = at + from.length;
   }
   return out + text.slice(index);
@@ -52,4 +49,32 @@ export function replaceIdentifierIn<T>(value: T, from: string, to: string): { va
     return { value: (changed ? record : value) as T, changed };
   }
   return { value, changed: false };
+}
+
+/**
+ * Whether synced data mentions any of the identifiers on its own anywhere, down through its lists and
+ * records. It stops at the first mention and copies nothing, so a whole room can be asked about many.
+ */
+export function mentionsAnyOf(value: unknown, identifiers: readonly string[]): boolean {
+  if (typeof value === 'string') return identifiers.some((identifier) => mentionsInText(value, identifier));
+  if (Array.isArray(value)) return value.some((item) => mentionsAnyOf(item, identifiers));
+  if (value !== null && typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).some((item) => mentionsAnyOf(item, identifiers));
+  }
+  return false;
+}
+
+function mentionsInText(text: string, identifier: string): boolean {
+  if (identifier.length === 0) return false;
+  for (let at = text.indexOf(identifier); at >= 0; at = text.indexOf(identifier, at + 1)) {
+    if (standsAlone(text, at, identifier.length)) return true;
+  }
+  return false;
+}
+
+/** Whether the mention at `at` stands on its own, with no letter, digit or underscore right before or after it. */
+function standsAlone(text: string, at: number, length: number): boolean {
+  const before = at > 0 ? text[at - 1] : '';
+  const after = text[at + length] ?? '';
+  return !IDENTIFIER_CHARACTER.test(before) && !IDENTIFIER_CHARACTER.test(after);
 }

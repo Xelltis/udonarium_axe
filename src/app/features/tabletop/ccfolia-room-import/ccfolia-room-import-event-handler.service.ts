@@ -24,7 +24,7 @@ export class CcfoliaRoomImportEventHandlerService {
 
   private async importRoom(event: CcfoliaRoomDroppedEvent): Promise<void> {
     if (!this.rolePermission.canEditTabletop) {
-      this.chatMessageService.sendSystemMessage(encodeI18nMessage(`${PREFIX}errors.denied`));
+      this.chatMessageService.sendSystemNotice('room', encodeI18nMessage(`${PREFIX}errors.denied`));
       return;
     }
 
@@ -39,12 +39,12 @@ export class CcfoliaRoomImportEventHandlerService {
     }
     const result = await roomImport.importAsync(event.entries);
     if (!result.summary) {
-      this.chatMessageService.sendSystemMessage(encodeI18nMessage(`${PREFIX}errors.${result.error}`));
+      this.chatMessageService.sendSystemNotice('room', encodeI18nMessage(`${PREFIX}errors.${result.error}`));
       return;
     }
 
     for (const message of buildRoomImportMessages(result.summary)) {
-      this.chatMessageService.sendSystemMessage(encodeI18nMessage(message.key, message.params));
+      this.chatMessageService.sendSystemNotice('room', encodeI18nMessage(message.key, message.params));
     }
     SoundEffect.play(PresetSound.piecePut);
   }

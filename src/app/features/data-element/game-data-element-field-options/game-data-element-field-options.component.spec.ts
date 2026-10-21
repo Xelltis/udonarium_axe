@@ -222,6 +222,51 @@ describe('GameDataElementFieldOptionsComponent', () => {
     expect(element.getAttribute(DataElementAttribute.IMAGE_POPUP_ORIGINAL)).toBe('');
   });
 
+  describe('a resource set to go over its maximum', () => {
+    function bonus(): DataElement {
+      return DataElement.create('命中V', 1, {
+        type: DataElementType.NUMBER_RESOURCE,
+        currentValue: 1,
+        [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.RESOURCE,
+      });
+    }
+
+    it('is set with a box in the resource’s options, and starts out held at its maximum', () => {
+      const element = bonus();
+      const host = show(element);
+      const box = () => host.querySelector('input[name="data-over-resource"]') as HTMLInputElement;
+      expect(box().checked).toBe(false);
+
+      box().click();
+      fixture.detectChanges();
+
+      expect(element.getAttribute(DataElementAttribute.OVER_RESOURCE)).toBe('true');
+      expect(box().checked).toBe(true);
+    });
+
+    it('brings a value over the maximum back to it when held there again', () => {
+      const element = bonus();
+      show(element);
+      component.toggleOverResource();
+      element.currentValue = 3;
+
+      component.toggleOverResource();
+
+      expect(component.isOverResource()).toBe(false);
+      expect(Number(element.currentValue)).toBe(1);
+    });
+
+    it('is not offered for anything that is not a resource', () => {
+      const note = DataElement.create('メモ', 'テキスト');
+      const host = show(note);
+
+      component.toggleOverResource();
+
+      expect(host.querySelector('input[name="data-over-resource"]')).toBeNull();
+      expect(note.getAttribute(DataElementAttribute.OVER_RESOURCE)).toBe('');
+    });
+  });
+
   describe('what a resource does when it moves', () => {
     function resourceField(): DataElement {
       return DataElement.create('HP', 200, {

@@ -54,9 +54,7 @@ describe('TurnOrderService', () => {
 
     service = TestBed.inject(TurnOrderService);
     orderedSpy = vi.spyOn(service, 'orderedCharacters').mockReturnValue(chars);
-    sendSpy = vi
-      .spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageToMainTab')
-      .mockReturnValue(undefined as never);
+    sendSpy = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(undefined as never);
   });
 
   describe('a seat that is only watching', () => {
@@ -195,6 +193,7 @@ describe('TurnOrderService', () => {
     expect(turnState.phase).toBe('roundStart');
     expect(turnState.currentIdentifier).toBe('');
     expect(sendSpy).toHaveBeenCalledTimes(1);
+    expect(sendSpy.mock.calls[0][0]).toBe('round');
   });
 
   it('next walks round start, each character, round end, then the next round', () => {
@@ -298,7 +297,7 @@ describe('TurnOrderService', () => {
       expect(buffsOf(buffed[0]).map((buff: DataElement) => buff.name)).toEqual(['加速']);
       expect(buffsOf(buffed[0])[0].value).toBe(2);
       expect(buffsOf(buffed[1])).toHaveLength(0);
-      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[0]));
+      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[1]));
       expect(announced.some((text: string) => text.includes('feature.turnOrder.buffExpired'))).toBe(true);
     });
 
@@ -409,7 +408,7 @@ describe('TurnOrderService', () => {
 
       advanceToRoundEnd();
 
-      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[0]));
+      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[1]));
       expect(announced.some((text: string) => text.includes('feature.turnOrder.buffExpired'))).toBe(false);
       expect(buffsOf(buffed[0])[0].value).toBe(4);
     });
@@ -482,7 +481,7 @@ describe('TurnOrderService', () => {
       service.next(); // chars[0] is up
       service.next(); // chars[1] is up
 
-      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[0]));
+      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[1]));
       expect(announced).toEqual(['feature.turnOrder.announce', 'feature.turnOrder.announceUnseen']);
       seen.mockRestore();
     });
@@ -498,7 +497,7 @@ describe('TurnOrderService', () => {
       expect(turnState.round).toBe(2);
       expect(turnState.phase).toBe('roundStart');
       expect(turnState.currentIdentifier).toBe('');
-      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[0]));
+      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[1]));
       expect(announced).toContain('feature.turnOrder.roundEnd');
       expect(announced).toContain('feature.turnOrder.roundStart');
     });
@@ -519,7 +518,7 @@ describe('TurnOrderService', () => {
 
       expect(turnState.round).toBe(1);
       expect(turnState.phase).toBe('roundStart');
-      expect(sendSpy.mock.calls.map((call: unknown[]) => String(call[0]))).not.toContain('feature.turnOrder.roundEnd');
+      expect(sendSpy.mock.calls.map((call: unknown[]) => String(call[1]))).not.toContain('feature.turnOrder.roundEnd');
     });
   });
 
@@ -691,7 +690,7 @@ describe('TurnOrderService', () => {
     let bystander: GameCharacter;
 
     function saidTo(): string[] {
-      return sendSpy.mock.calls.map((call: unknown[]) => call[0] as string);
+      return sendSpy.mock.calls.map((call: unknown[]) => call[1] as string);
     }
 
     function pressUntil(reached: () => boolean, limit = 30): void {

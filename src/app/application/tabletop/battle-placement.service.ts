@@ -70,7 +70,8 @@ export class BattlePlacementService {
         .filter((row) => situationNames.includes(row.name))
         .map((row) => `${row.name}：${row.note}`),
     ].filter((note): note is string => !!note);
-    this.chat.sendSystemMessage(
+    this.chat.sendSystemNotice(
+      'movement',
       this.t('feature.zone.placement.announce', {
         metres: metres.toFixed(1),
         notes: notes.length > 0 ? notes.join(' / ') : this.t('feature.zone.placement.noNote'),

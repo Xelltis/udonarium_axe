@@ -343,7 +343,10 @@ export class EngagementZoneService {
       for (const piece of this.withPartners([attacker, target])) this.putInZone(piece, zone.identifier);
     });
     this.settle([zone!.identifier]);
-    this.chat.sendSystemMessage(this.t('feature.zone.chat.declared', { attacker: attacker.name, target: target.name }));
+    this.chat.sendSystemNotice(
+      'movement',
+      this.t('feature.zone.chat.declared', { attacker: attacker.name, target: target.name })
+    );
     return zone;
   }
 
@@ -386,7 +389,7 @@ export class EngagementZoneService {
       }
     });
     this.settle([crowded.id]);
-    this.chat.sendSystemMessage(this.t('feature.zone.chat.pulledIn', { name: piece.name }));
+    this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.pulledIn', { name: piece.name }));
   }
 
   /** Puts every zone still forming in force, as a turn ends. */
@@ -429,7 +432,7 @@ export class EngagementZoneService {
       for (const one of this.withPartners([piece])) this.putInZone(one, zoneId);
     });
     this.settle([zoneId]);
-    this.chat.sendSystemMessage(this.t('feature.zone.chat.joined', { name: piece.name }));
+    this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.joined', { name: piece.name }));
   }
 
   /** Takes a piece out of its zone, leaving its token standing where it is. */
@@ -437,7 +440,7 @@ export class EngagementZoneService {
     if (piece.engagementZone.length < 1) return;
     this.putInZone(piece, '');
     this.settle([]);
-    this.chat.sendSystemMessage(this.t('feature.zone.chat.left', { name: piece.name }));
+    this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.left', { name: piece.name }));
   }
 
   /** Takes a piece out of the fight altogether, or puts it back in. */
@@ -448,7 +451,8 @@ export class EngagementZoneService {
       if (off) this.putInZone(piece, '');
     });
     this.settle([]);
-    this.chat.sendSystemMessage(
+    this.chat.sendSystemNotice(
+      'movement',
       this.t(off ? 'feature.zone.chat.offField' : 'feature.zone.chat.onField', { name: piece.name })
     );
   }
@@ -472,7 +476,7 @@ export class EngagementZoneService {
       }
     });
     this.settle([]);
-    if (down && wasIn) this.chat.sendSystemMessage(this.t('feature.zone.chat.down', { name: piece.name }));
+    if (down && wasIn) this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.down', { name: piece.name }));
   }
 
   /** Says that a piece is held fast where it stands, or that it may move again. */
@@ -491,7 +495,10 @@ export class EngagementZoneService {
       this.standAt(captive, holder);
     });
     this.settle([]);
-    this.chat.sendSystemMessage(this.t('feature.zone.chat.grabbed', { holder: holder.name, captive: captive.name }));
+    this.chat.sendSystemNotice(
+      'movement',
+      this.t('feature.zone.chat.grabbed', { holder: holder.name, captive: captive.name })
+    );
   }
 
   /** Lets go of a piece held on to, which stays where it is. */
@@ -500,7 +507,8 @@ export class EngagementZoneService {
     if (captive.grabbedBy === '') return;
     captive.grabbedBy = '';
     this.settle([]);
-    this.chat.sendSystemMessage(
+    this.chat.sendSystemNotice(
+      'movement',
       this.t('feature.zone.chat.released', { captive: captive.name, holder: holder?.name ?? '' })
     );
   }
@@ -760,7 +768,7 @@ export class EngagementZoneService {
   prepareLeave(piece: GameCharacter): void {
     const turn = this.turnState();
     piece.zoneLeaveRound = turn && turn.phase !== 'idle' ? `${turn.round}` : '0';
-    this.chat.sendSystemMessage(this.t('feature.zone.chat.prepareLeave', { name: piece.name }));
+    this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.prepareLeave', { name: piece.name }));
   }
 
   /** Takes back a piece's word that it will leave its zone. */
@@ -1053,7 +1061,7 @@ export class EngagementZoneService {
           piece.zoneLeaveRound = '';
         });
         this.settle([]);
-        this.chat.sendSystemMessage(this.t('feature.zone.chat.left', { name: piece.name }));
+        this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.left', { name: piece.name }));
       }
       return;
     }
@@ -1093,7 +1101,7 @@ export class EngagementZoneService {
       }
     });
     this.settle([stopped.id]);
-    this.chat.sendSystemMessage(this.t('feature.zone.chat.held', { name: piece.name }));
+    this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.held', { name: piece.name }));
   }
 
   private leaveInput(

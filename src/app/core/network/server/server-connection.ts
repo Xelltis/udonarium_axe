@@ -43,7 +43,9 @@ import {
 import {
   createRoom,
   deleteRoom,
+  fetchOperatorContact,
   findRoom,
+  isBanned,
   listRooms,
   roomInfoOf,
   roomSocketUrl,
@@ -134,6 +136,8 @@ const HELD_BROADCAST_EVENT_NAMES: ReadonlySet<string> = new Set([DELETION, COMIN
 const UNAUTHORIZED = 'unauthorized';
 /** The refusal for a seat whose page was left alone, which comes back only when its reader asks. */
 const IDLE = 'idle';
+/** The refusal for a seat whose sender or account the room server's operator banned. */
+const BANNED = 'banned';
 
 const SOCKET_OPEN = 1;
 const SOCKET_KEY = 'room-server';
@@ -358,8 +362,8 @@ export class ServerConnection implements Connection {
     let credentials: ServerCredentials | null | undefined;
     try {
       credentials = await this.credentialSource?.credentials();
-    } catch {
-      if (!this.stopped) this.fail(SERVER_UNREACHABLE, 'the login could not be refreshed');
+    } catch (reason) {
+      if (!this.stopped) this.fail(isBanned(reason) ? BANNED : SERVER_UNREACHABLE, 'the login could not be refreshed');
       return;
     }
     const peer = await PeerContext.createRoom(credentials?.userId ?? this.guestUserId(userId), roomId, roomName, '');
@@ -526,6 +530,11 @@ export class ServerConnection implements Connection {
     return this.asLoggedIn((accessToken) => deleteRoom(this.baseUrl, roomKey, accessToken));
   }
 
+  /** The contact the operator gives those the server turned away, or null where none is given. */
+  operatorContact(): Promise<string | null> {
+    return fetchOperatorContact(this.baseUrl);
+  }
+
   /**
    * Makes a request as whoever is logged in, and once more with a fresh access token should the
    * server turn the one held down while it still looked good here, as after its signing key changed.
@@ -605,8 +614,10 @@ export class ServerConnection implements Connection {
       let credentials;
       try {
         credentials = await this.credentialSource?.credentials();
-      } catch {
-        if (socket === this.socket) socket.close(4001, 'the login could not be refreshed');
+      } catch (reason) {
+        if (socket !== this.socket) return;
+        if (isBanned(reason)) this.fail(BANNED, 'the login could not be refreshed for a ban');
+        else socket.close(4001, 'the login could not be refreshed');
         return;
       }
       if (socket !== this.socket) return;
@@ -1001,10 +1012,14 @@ export class ServerConnection implements Connection {
     let replaced: string | null;
     try {
       replaced = await this.credentialSource.replaceRejected(rejected);
-    } catch {
+    } catch (reason) {
+      if (this.stopped) return;
+      if (isBanned(reason)) {
+        this.fail(BANNED, 'the login could not be refreshed for a ban');
+        return;
+      }
       // The login could not be refreshed just now, with the server out of reach: that says nothing
       // of the login, so the seat gets back in as after a dropped link, which asks again.
-      if (this.stopped) return;
       this.retriedUnauthorized = false;
       if (!this.everWelcomed) {
         this.fail(SERVER_UNREACHABLE, 'the login could not be refreshed');

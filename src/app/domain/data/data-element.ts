@@ -82,6 +82,7 @@ export const DataElementAttribute = {
   PIECE_GAUGE: 'cs-piece-gauge',
   GAUGE_INVERTED: 'cs-gauge-inverted',
   RESOURCE_SLIDER: 'cs-resource-slider',
+  OVER_RESOURCE: 'cs-over-resource',
   CHANGE_EFFECT: 'cs-change-effect',
   CHANGE_SOUND: 'cs-change-sound',
   CHANGE_SOUND_SET: 'cs-change-sound-set',

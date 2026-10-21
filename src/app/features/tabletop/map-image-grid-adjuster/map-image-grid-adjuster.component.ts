@@ -644,7 +644,8 @@ export class MapImageGridAdjusterComponent implements OnDestroy {
       const cropW = Math.min(f.fw / sx, imgW - cropX);
       const cropH = Math.min(f.fh / sy, imgH - cropY);
       const blob = await this.cropFn(this.loadedImage, cropX, cropY, cropW, cropH);
-      const image = await this.imageStorage.addAsync(blob);
+      const image = await this.imageStorage.addAsync(blob, { putBack: true });
+      if (!image) throw new Error('the room removed the cropped picture');
       const result: MapImageGridAdjusterResult = {
         imageIdentifier: image.identifier,
         width: this.cols(),

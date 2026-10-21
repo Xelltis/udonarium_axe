@@ -40,6 +40,37 @@ describe('ImageSharingSystem', () => {
     });
   });
 
+  describe('a peer asking for pictures', () => {
+    it('sends none this seat holds back for the room server’s operator, and passes the request on', () => {
+      ImageSharingSystem.instance.initialize();
+      const held = ImageFile.create({
+        identifier: 'e'.repeat(64),
+        name: '',
+        type: 'image/png',
+        blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+        url: 'blob:held',
+        thumbnail: { type: 'image/png', blob: new Blob([new Uint8Array([1])], { type: 'image/png' }), url: 'blob:t' },
+      });
+      vi.spyOn(ImageStorage.instance, 'get').mockReturnValue(held);
+      vi.spyOn(ImageStorage.instance, 'isHeldBack').mockReturnValue(true);
+      vi.spyOn(Network, 'peerId', 'get').mockReturnValue('self-peer');
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+
+      localDispatch(
+        'REQUEST_FILE_RESOURE',
+        {
+          identifiers: [{ identifier: held.identifier, state: ImageState.NULL }],
+          receiver: 'asker',
+          candidatePeers: ['other'],
+        },
+        'asker'
+      );
+
+      const sent = send.mock.calls.map(([context, to]) => [(context as { eventName: string }).eventName, to]);
+      expect(sent).toEqual([['REQUEST_FILE_RESOURE', 'other']]);
+    });
+  });
+
   describe('makeSendUpdateImages', () => {
     it('leaves an image with no bytes out of what it sends', () => {
       const imageLike = {
@@ -164,6 +195,71 @@ describe('ImageSharingSystem', () => {
       localDispatch('UPDATE_FILE_RESOURE', { updateImages: [sent(pictureId), sent('d'.repeat(64))] }, 'peer-a');
 
       expect(upload.mock.calls).toEqual([[pictureId]]);
+    });
+
+    describe('a picture the room removed', () => {
+      beforeEach(() => ImageStorage.instance.markRemoved(pictureId));
+      afterEach(() => ImageStorage.instance.unmarkRemoved(pictureId));
+
+      it('is taken from neither the server nor the peer whose catalogue names it', async () => {
+        receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }], 'peer-a');
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(ImageStorage.instance.get(pictureId)).toBeNull();
+        expect(download).not.toHaveBeenCalled();
+        expect(requestsSent()).toEqual([]);
+      });
+
+      it('is taken neither from the room’s list nor as sent, and its sending is called off', () => {
+        ImageSharingSystem.instance.fetchListed([{ id: pictureId, name: 'map.png' }]);
+        localDispatch(
+          'UPDATE_FILE_RESOURE',
+          {
+            updateImages: [
+              {
+                identifier: pictureId,
+                name: '',
+                type: 'image/png',
+                blob: new Uint8Array([1, 2, 3]) as unknown as Blob,
+                url: '',
+                thumbnail: { type: 'image/png', blob: null, url: '' },
+              },
+            ],
+          },
+          'peer-a'
+        );
+        localDispatch('START_FILE_TRANSMISSION', { taskIdentifier: pictureId }, 'peer-a');
+
+        expect(ImageStorage.instance.get(pictureId)).toBeNull();
+        expect(download).not.toHaveBeenCalled();
+        expect(send.mock.calls.map(([context]) => (context as { eventName: string }).eventName)).toContain(
+          `CANCEL_TASK_${pictureId}`
+        );
+      });
+    });
+
+    it('keeps no empty entry for an image the operator took down', async () => {
+      download.mockResolvedValue('blocked');
+
+      receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }], 'peer-a');
+      await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }], 'peer-b');
+
+      expect(ImageStorage.instance.get(pictureId)).toBeNull();
+    });
+
+    it('asks no peer, then or for a later catalogue, for an image the operator took down', async () => {
+      download.mockResolvedValue('blocked');
+      receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }], 'peer-a');
+      await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }], 'peer-b');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(download).toHaveBeenCalledTimes(1);
+      expect(requestsSent()).toEqual([]);
     });
 
     it('goes straight to peers for an image the server once lacked', async () => {

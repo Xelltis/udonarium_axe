@@ -1,10 +1,15 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ModalService } from '@axe/application/ui/modal.service';
+import { Network } from '@axe/core/network/network';
+import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { FileStorageComponent } from '@axe/features/file/file-storage/file-storage.component';
+import { ReportDialogComponent } from '@axe/features/moderation/report-dialog/report-dialog.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { ImageEditQueue } from '@axe/ui/components/image-editor/image-edit-queue.service';
@@ -95,6 +100,111 @@ describe('FileStorageComponent', () => {
       component.newTagName.set('システム予約');
       component.changeTag();
       // finishes without error
+    });
+  });
+
+  describe('removing pictures from the room', () => {
+    const pictureId = 'a'.repeat(64);
+    const otherId = 'b'.repeat(64);
+
+    function playing(role: PeerRole): void {
+      PeerCursor.createMyCursor().role = role;
+    }
+
+    const removeButton = () =>
+      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="file-storage-remove"]');
+
+    afterEach(() => {
+      PeerCursor.myCursor = null!;
+    });
+
+    it.each([
+      [PeerRole.GameMaster, true],
+      [PeerRole.Player, false],
+    ])('is offered to a seat of role %s: %s', async (role, offered) => {
+      playing(role);
+      await fixture.whenStable();
+
+      expect(removeButton() !== null).toBe(offered);
+    });
+
+    it('asks to remove what the master ticked in the list, and unticks them once removed', async () => {
+      playing(PeerRole.GameMaster);
+      const removeAfterAsking = vi
+        .spyOn(TestBed.inject(AssetRemovalService), 'removeAfterAsking')
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(1);
+      TestBed.inject(ImageStorage).add(pictureId);
+      TestBed.inject(ImageStorage).add(otherId);
+      component.imgBlockClick(pictureId);
+
+      await component.removeChecked();
+      expect(component['checkedFiles']().has(pictureId)).toBe(true);
+      await component.removeChecked();
+
+      expect(removeAfterAsking.mock.calls).toEqual([
+        ['image', [pictureId]],
+        ['image', [pictureId]],
+      ]);
+      expect(component['checkedFiles']().size).toBe(0);
+    });
+
+    it('asks nothing for a player', async () => {
+      playing(PeerRole.Player);
+      const removeAfterAsking = vi.spyOn(TestBed.inject(AssetRemovalService), 'removeAfterAsking');
+      TestBed.inject(ImageStorage).add(pictureId);
+      component.imgBlockClick(pictureId);
+
+      await component.removeChecked();
+
+      expect(removeAfterAsking).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('reporting a picture to the room server’s operator', () => {
+    const pictureId = 'a'.repeat(64);
+
+    const reportButtons = () =>
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('[data-testid="file-storage-report"]');
+
+    function inRoomServerRoom(): void {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true } as never);
+      vi.spyOn(AssetHttpStore.instance, 'isEnabled', 'get').mockReturnValue(true);
+    }
+
+    beforeEach(() => {
+      const images = TestBed.inject(ImageStorage);
+      for (const image of [...images.images]) images.delete(image.identifier);
+    });
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('offers it for a picture a person added, and opens the report for that picture without ticking it', async () => {
+      inRoomServerRoom();
+      const opened = vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue(null);
+      TestBed.inject(ImageStorage).add(pictureId);
+      TestBed.inject(ImageStorage).add('none_icon');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(reportButtons()).toHaveLength(1);
+      reportButtons()[0].click();
+
+      expect(opened).toHaveBeenCalledWith(
+        ReportDialogComponent,
+        expect.objectContaining({ target: 'asset', assetId: pictureId })
+      );
+      expect(component['checkedFiles']().size).toBe(0);
+    });
+
+    it('offers none among peers, where there is no operator to tell', async () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('skyway');
+      TestBed.inject(ImageStorage).add(pictureId);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(reportButtons()).toHaveLength(0);
     });
   });
 

@@ -69,7 +69,8 @@ async function registerImages(
   const registered = new Map<string, string>();
   for (const [oldId, data] of Object.entries(bytes)) {
     const blob = new Blob([data.slice()], { type: 'image/webp' });
-    const imageFile = await imageStorage.addAsync(blob);
+    const imageFile = await imageStorage.addAsync(blob, { putBack: true });
+    if (!imageFile) continue;
     registered.set(oldId, imageFile.identifier);
     if (asTexture && !ImageTag.get(imageFile.identifier)) {
       const tag = ImageTag.create(imageFile.identifier);

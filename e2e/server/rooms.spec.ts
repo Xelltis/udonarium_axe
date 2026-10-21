@@ -123,7 +123,7 @@ test.describe('deleting a room', () => {
     for (const seat of [gm, pl]) {
       await expect
         .poll(() => chatTabText(seat.page, 'システム'), { timeout: 15_000 })
-        .toContain('部屋のGMが部屋を削除しました');
+        .toContain('部屋のGMか、部屋のサーバーの運営者が部屋を削除しました');
     }
     await reloadLobby(pl.page);
     await expect(pl.page.locator('lobby tr', { hasText: room })).toHaveCount(0);

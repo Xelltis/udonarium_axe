@@ -4,6 +4,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
+import { BatchService } from '@axe/application/ui/batch.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -82,6 +83,56 @@ describe('MovableDirective', () => {
       fixture.detectChanges();
       const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
       expect(directive['shouldTransition']({} as unknown as TabletopObject)).toBe(false);
+    });
+  });
+
+  describe('a change to its piece while it is picked up', () => {
+    let directive: MovableDirective;
+    let queued: (() => void)[];
+    let cancelled: ReturnType<typeof vi.fn>;
+
+    beforeEach(async () => {
+      TestBed.configureTestingModule({
+        imports: [TestHostComponent],
+        providers: [...TEST_PROVIDERS],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(TestHostComponent);
+      fixture.detectChanges();
+      directive = fixture.debugElement.children[0].injector.get(MovableDirective);
+      (directive as unknown as { tabletopObject: TabletopObject }).tabletopObject = new GameCharacter('piece');
+      vi.spyOn(directive as unknown as { shouldTransition(): boolean }, 'shouldTransition').mockReturnValue(true);
+      vi.spyOn(directive as unknown as { setPosition(): void }, 'setPosition').mockImplementation(() => {});
+      cancelled = vi.spyOn(directive, 'cancel').mockImplementation(() => {}) as unknown as ReturnType<typeof vi.fn>;
+      queued = [];
+      vi.spyOn(TestBed.inject(BatchService), 'add').mockImplementation((task) => {
+        queued.push(task);
+      });
+      directive.input = {
+        isGrabbing: false,
+        cancel: () => undefined,
+        destroy: () => undefined,
+      } as unknown as MovableDirective['input'];
+    });
+
+    const changed = (isSendFromSelf: boolean) =>
+      directive['handleObjectChange']({ identifier: 'piece', aliasName: 'character', isSendFromSelf } as never);
+
+    it('keeps hold of a piece picked up just after this seat changed it, as just after it was made', () => {
+      changed(true);
+      (directive.input as unknown as { isGrabbing: boolean }).isGrabbing = true;
+
+      for (const task of queued) task();
+
+      expect(cancelled).not.toHaveBeenCalled();
+    });
+
+    it('lets go of it for a change made elsewhere', () => {
+      changed(false);
+      (directive.input as unknown as { isGrabbing: boolean }).isGrabbing = true;
+
+      for (const task of queued) task();
+
+      expect(cancelled).toHaveBeenCalledOnce();
     });
   });
 

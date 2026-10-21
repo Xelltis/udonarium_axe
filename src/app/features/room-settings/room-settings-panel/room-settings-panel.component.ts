@@ -22,6 +22,15 @@ import {
 } from '@axe/domain/character/controller-resource-pick';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { type ResourceCatalogEntry, resourceCatalogOf } from '@axe/domain/character/resource-catalog';
+import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import {
+  DEFAULT_NOTICE_PLACE,
+  NOTICE_OFF,
+  noticeRouteOf,
+  SYSTEM_NOTICE_KINDS,
+  SystemNoticeKind,
+  withNoticeRoute,
+} from '@axe/domain/chat/system-notices';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { asDiceStage, DICE_STAGES, DiceStage } from '@axe/domain/dice/dice-3d/dice-stage';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
@@ -184,6 +193,9 @@ export class RoomSettingsPanelComponent {
   }
   readonly diagonalMoves = DIAGONAL_MOVES;
   readonly breakOutModes = BREAK_OUT_MODES;
+  readonly noticeKinds = SYSTEM_NOTICE_KINDS;
+  readonly defaultNoticePlace = DEFAULT_NOTICE_PLACE;
+  readonly noticeOff = NOTICE_OFF;
 
   readonly isReadOnly = computed(() => {
     this.objectChange.trackMyCursor();
@@ -662,6 +674,40 @@ export class RoomSettingsPanelComponent {
   }
   set turnTick(enabled: boolean) {
     if (!this.isSharedReadOnly()) this.config.turnTickEnabled = enabled;
+  }
+
+  /** The room's chat tabs a notice may be sent to, the system tab among them, by identifier and name. */
+  readonly noticeTabs = computed(() => {
+    this.objectChange.collectionOf('chat-tab')();
+    this.objectChange.versionOf('ChatTabList')();
+    const tabs = this.objectStore.get<ChatTabList>('ChatTabList')?.chatTabs ?? [];
+    return tabs.map((tab) => {
+      this.objectChange.versionOf(tab.identifier)();
+      return { identifier: tab.identifier, name: tab.name };
+    });
+  });
+
+  /**
+   * Where each kind of system notice goes, as its choice shows it: empty where it always went, off,
+   * or a tab still in the room. A tab since gone shows as where the kind always went, which is where
+   * the notice then goes.
+   */
+  readonly noticeRoutes = computed(() => {
+    this.objectChange.versionOf('Config')();
+    const tabs = new Set(this.noticeTabs().map((tab) => tab.identifier));
+    const routes = this.config.systemNotices;
+    return Object.fromEntries(
+      SYSTEM_NOTICE_KINDS.map((kind) => {
+        const route = noticeRouteOf(routes, kind);
+        return [kind, route === NOTICE_OFF || tabs.has(route) ? route : ''];
+      })
+    ) as Record<SystemNoticeKind, string>;
+  });
+
+  /** Sends a kind of system notice to a tab, nowhere, or where it always went; only the master changes it. */
+  setNoticeRoute(kind: SystemNoticeKind, route: string): void {
+    if (this.isSharedReadOnly()) return;
+    this.config.systemNotices = withNoticeRoute(this.config.systemNotices, kind, route);
   }
 
   get speechBubbles(): boolean {

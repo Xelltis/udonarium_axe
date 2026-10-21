@@ -106,6 +106,8 @@ export interface Connection {
   /** Asks the room server for a fresh asset token, for one it turned down, and gives the access then. */
   refreshAssetAccess?(): Promise<AssetAccess | null>;
   deleteRoom?(roomKey: string): Promise<void>;
+  /** The contact a room server's operator gives those it turned away, or null where none is given. */
+  operatorContact?(): Promise<string | null>;
   /** Takes a seat let out of its room for the page left alone back in, when its reader asks. */
   comeBackFromIdle?(): void;
   /** Gives a room server connection the login to say hello with. */

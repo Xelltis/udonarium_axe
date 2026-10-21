@@ -385,7 +385,7 @@ export class TurnOrderService {
     turnState.currentSide = side;
     turnState.phase = 'acting';
     turnState.currentIdentifier = '';
-    this.chat.sendSystemMessageToMainTab(this.t('feature.turnOrder.sidePhaseStart', { name: this.sideName(side) }));
+    this.chat.sendSystemNotice('round', this.t('feature.turnOrder.sidePhaseStart', { name: this.sideName(side) }));
     if (this.factionPhaseMode !== 'initiative') return;
     const first = this.firstUnacted(this.membersOfSide(side));
     if (first) this.takeTurn(first.identifier);
@@ -453,7 +453,7 @@ export class TurnOrderService {
       if (step.round < startedAt) break;
     }
     this.turnState.history = stringifyTurnHistory(steps);
-    this.chat.sendSystemMessageToMainTab(this.t('feature.turnOrder.retreatRoundAnnounce', { n: this.turnState.round }));
+    this.chat.sendSystemNotice('round', this.t('feature.turnOrder.retreatRoundAnnounce', { n: this.turnState.round }));
   }
 
   /**
@@ -471,7 +471,7 @@ export class TurnOrderService {
 
     this.applyStep(last);
     this.turnState.history = stringifyTurnHistory(steps);
-    this.chat.sendSystemMessageToMainTab(this.t('feature.turnOrder.undoAnnounce'));
+    this.chat.sendSystemNotice('round', this.t('feature.turnOrder.undoAnnounce'));
   }
 
   /**
@@ -483,7 +483,7 @@ export class TurnOrderService {
     if (!this.canTakeTurns) return;
     this.step(() => {
       this.toIdle();
-      this.chat.sendSystemMessageToMainTab(this.t('feature.turnOrder.resetAnnounce'));
+      this.chat.sendSystemNotice('round', this.t('feature.turnOrder.resetAnnounce'));
     });
   }
 
@@ -555,7 +555,7 @@ export class TurnOrderService {
     turnState.currentIdentifier = '';
     turnState.currentSide = '';
     turnState.actedIdentifiers = [];
-    this.chat.sendSystemMessageToMainTab(this.t('feature.turnOrder.roundStart', { n: turnState.round }));
+    this.chat.sendSystemNotice('round', this.t('feature.turnOrder.roundStart', { n: turnState.round }));
   }
 
   /** Hands the turn over, and lets whatever waits on its opening run out. */
@@ -627,7 +627,7 @@ export class TurnOrderService {
 
     const detail = formatExpiredBuffs(entries);
     if (detail !== '') {
-      this.chat.sendSystemMessageToMainTab(this.t('feature.turnOrder.buffExpired', { detail }));
+      this.chat.sendSystemNotice('round', this.t('feature.turnOrder.buffExpired', { detail }));
     }
   }
 
@@ -637,7 +637,7 @@ export class TurnOrderService {
     turnState.phase = 'roundEnd';
     turnState.currentIdentifier = '';
     turnState.currentSide = '';
-    this.chat.sendSystemMessageToMainTab(this.t('feature.turnOrder.roundEnd', { n: turnState.round }));
+    this.chat.sendSystemNotice('round', this.t('feature.turnOrder.roundEnd', { n: turnState.round }));
   }
 
   private toIdle(): void {
@@ -656,7 +656,8 @@ export class TurnOrderService {
   private announceCharacter(identifier: string): void {
     const character = this.objectStore.get<GameCharacter>(identifier);
     if (!character) return;
-    this.chat.sendSystemMessageToMainTab(
+    this.chat.sendSystemNotice(
+      'round',
       this.vision.isSeenByParty(character)
         ? this.t('feature.turnOrder.announce', { name: character.name })
         : this.t('feature.turnOrder.announceUnseen')

@@ -102,5 +102,13 @@
   },
   "error": {
     "error": "room-not-found"
+  },
+  "reportRequest": {
+    "target": "asset",
+    "assetId": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+    "reason": "他人の描いた絵を、作者に断らずに置いています"
+  },
+  "reportResponse": {
+    "id": "3f2b8c1e-4a5d-4e6f-9a7b-1c2d3e4f5a6b"
   }
 }

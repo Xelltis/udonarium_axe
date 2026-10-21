@@ -1,5 +1,6 @@
 import type { AssetAccess } from '@axe/core/network/connection';
 import { AssetDownload, AssetHttpStore } from '@axe/core/storage/asset-http-store';
+import { ASSET_PAUSE_RETRY_MS } from '@axe/core/storage/asset-retries';
 import { sha256Hex } from '@axe/core/util/crypto-util';
 import type { MockInstance } from 'vitest';
 
@@ -33,6 +34,8 @@ describe('AssetHttpStore', () => {
     store.useAccess(null);
     store.delay = originalDelay;
     store.sendBytes = originalSendBytes;
+    store.onUploadsPaused = () => {};
+    store.onUploadBlocked = () => {};
     vi.restoreAllMocks();
   });
 
@@ -116,9 +119,172 @@ describe('AssetHttpStore', () => {
       }
     );
 
-    it.each([400, 403, 413, 415, 451])('gives up for good on %i', async (status) => {
+    it.each([400, 403, 413, 415])('gives up for good on %i', async (status) => {
       respond(new Response(null, { status: 404 }), new Response('{}', { status }));
       expect(await store.upload(id, new Blob([bytes]))).toBe('refused');
+    });
+
+    it('tells a full room store apart from bytes too large, and tells the app once until bytes are kept', async () => {
+      const full = vi.fn();
+      store.onRoomStorageFull = full;
+      const roomFull = () => new Response(JSON.stringify({ error: 'room-storage-full' }), { status: 413 });
+      const missing = () => new Response(null, { status: 404 });
+      respond(
+        missing(),
+        roomFull(),
+        missing(),
+        roomFull(),
+        missing(),
+        new Response('{}', { status: 201 }),
+        missing(),
+        roomFull(),
+        missing(),
+        new Response(JSON.stringify({ error: 'too-large' }), { status: 413 })
+      );
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('full');
+      expect(await store.upload(id, new Blob([bytes]))).toBe('full');
+      expect(full).toHaveBeenCalledTimes(1);
+      expect(await store.upload(id, new Blob([bytes]))).toBe('stored');
+      expect(await store.upload(id, new Blob([bytes]))).toBe('full');
+      expect(await store.upload(id, new Blob([bytes]))).toBe('refused');
+
+      expect(full).toHaveBeenCalledTimes(2);
+    });
+
+    it('tells bytes the operator barred apart from a refusal, and tells the app of them once', async () => {
+      const blocked = vi.fn();
+      store.onUploadBlocked = blocked;
+      const barred = () => new Response(JSON.stringify({ error: 'blocked' }), { status: 451 });
+      respond(new Response(null, { status: 404 }), barred(), new Response(null, { status: 404 }), barred());
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('blocked');
+      expect(await store.upload(id, new Blob([bytes]))).toBe('blocked');
+
+      expect(blocked.mock.calls).toEqual([[id]]);
+    });
+
+    it('sends no bytes the operator barred, which asking whether the room has them already tells', async () => {
+      const blocked = vi.fn();
+      store.onUploadBlocked = blocked;
+      respond(new Response(JSON.stringify({ error: 'blocked' }), { status: 451 }));
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('blocked');
+
+      expect(callsOf()).toEqual([['HEAD', urlOf(id)]]);
+      expect(blocked.mock.calls).toEqual([[id]]);
+    });
+
+    it('tells the app when uploads first meet the operator’s stop, and when bytes go up again after it', async () => {
+      const paused = vi.fn();
+      store.onUploadsPaused = paused;
+      const stopped = () => new Response(JSON.stringify({ error: 'paused' }), { status: 503 });
+      respond(
+        new Response(null, { status: 404 }),
+        stopped(),
+        new Response(null, { status: 404 }),
+        stopped(),
+        new Response(null, { status: 200 }),
+        new Response(null, { status: 404 }),
+        new Response('{}', { status: 201 })
+      );
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      expect(await store.upload(id, new Blob([bytes]), '', { probe: true })).toBe('paused');
+      expect(paused.mock.calls).toEqual([[true]]);
+      // Bytes found there already were never sent, so they do not show the stop is over.
+      expect(await store.upload(id, new Blob([bytes]))).toBe('exists');
+      expect(paused.mock.calls).toEqual([[true]]);
+      expect(await store.upload(id, new Blob([bytes]), '', { probe: true })).toBe('stored');
+      expect(paused.mock.calls).toEqual([[true], [false]]);
+    });
+
+    it('sends no bytes while the operator’s stop is known, but for a try whether it is over', async () => {
+      respond(
+        new Response(null, { status: 404 }),
+        new Response(JSON.stringify({ error: 'paused' }), { status: 503 }),
+        new Response(null, { status: 404 }),
+        new Response(null, { status: 404 }),
+        new Response('{}', { status: 201 })
+      );
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      expect(await store.upload(id, new Blob([bytes]), '', { probe: true })).toBe('stored');
+
+      expect(callsOf().map(([method]) => method)).toEqual(['HEAD', 'PUT', 'HEAD', 'HEAD', 'PUT']);
+    });
+
+    it('tries whether the stop is over with the next upload, a while after the server last said so', async () => {
+      const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+      respond(
+        new Response(null, { status: 404 }),
+        new Response(JSON.stringify({ error: 'paused' }), { status: 503 }),
+        new Response(null, { status: 404 }),
+        new Response(null, { status: 404 }),
+        new Response('{}', { status: 201 })
+      );
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      now.mockReturnValue(1_000_000 + ASSET_PAUSE_RETRY_MS);
+      expect(await store.upload(id, new Blob([bytes]))).toBe('stored');
+
+      expect(callsOf().map(([method]) => method)).toEqual(['HEAD', 'PUT', 'HEAD', 'HEAD', 'PUT']);
+    });
+
+    it('tells of the stop anew when it is met again after a long quiet, as one that ended unseen may have', async () => {
+      const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+      const paused = vi.fn();
+      store.onUploadsPaused = paused;
+      const stopped = () => new Response(JSON.stringify({ error: 'paused' }), { status: 503 });
+      respond(
+        new Response(null, { status: 404 }),
+        stopped(),
+        new Response(null, { status: 404 }),
+        stopped(),
+        new Response(null, { status: 404 }),
+        stopped()
+      );
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      now.mockReturnValue(1_000_000 + ASSET_PAUSE_RETRY_MS);
+      expect(await store.upload(id, new Blob([bytes]), '', { probe: true })).toBe('paused');
+      expect(paused.mock.calls).toEqual([[true]]);
+      now.mockReturnValue(1_000_000 + ASSET_PAUSE_RETRY_MS * 5);
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+
+      expect(paused.mock.calls).toEqual([[true], [true]]);
+    });
+
+    it('keeps the contact the operator’s stop came with until the address is set again', async () => {
+      const stopped = JSON.stringify({ error: 'paused', contact: 'https://example.com/contact' });
+      respond(new Response(null, { status: 404 }), new Response(stopped, { status: 503 }));
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      expect(store.operatorContact).toBe('https://example.com/contact');
+
+      store.configure(BASE);
+      expect(store.operatorContact).toBeNull();
+    });
+
+    it('fails for now on any other 503, and forgets a stop when the address is set again', async () => {
+      const paused = vi.fn();
+      store.onUploadsPaused = paused;
+      respond(
+        new Response(null, { status: 404 }),
+        new Response(JSON.stringify({ error: 'login-unavailable' }), { status: 503 }),
+        new Response(null, { status: 404 }),
+        new Response(JSON.stringify({ error: 'paused' }), { status: 503 })
+      );
+
+      expect(await store.upload(id, new Blob([bytes]))).toBe('failed');
+      expect(await store.upload(id, new Blob([bytes]))).toBe('paused');
+      store.configure(BASE);
+      respond(new Response(null, { status: 404 }), new Response('{}', { status: 201 }));
+      expect(await store.upload(id, new Blob([bytes]))).toBe('stored');
+
+      expect(paused.mock.calls).toEqual([[true]]);
     });
 
     it('fails for now when the room server does not count the seat among the players yet', async () => {
@@ -389,6 +555,8 @@ describe('AssetHttpStore', () => {
       expect(
         await uploadWith(ticketOf(), new Response(null, { status: 200 }), new Response('{}', { status: 400 }))
       ).toBe('refused');
+      expect(await uploadWith(new Response(JSON.stringify({ error: 'blocked' }), { status: 451 }))).toBe('blocked');
+      expect(await uploadWith(new Response(JSON.stringify({ error: 'paused' }), { status: 503 }))).toBe('paused');
     });
 
     it('asks again after a wait when the server wants fewer uploads', async () => {
@@ -481,6 +649,11 @@ describe('AssetHttpStore', () => {
     it('throws away bytes whose hash is not the name, as bytes the server lacks', async () => {
       respond(new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
       expect(await store.download(id)).toBe('missing');
+    });
+
+    it('tells an asset the operator took down from one the server lacks', async () => {
+      respond(new Response(JSON.stringify({ error: 'blocked' }), { status: 451 }));
+      expect(await store.download(id)).toBe('blocked');
     });
 
     it('tells an asset the server lacks from one it could not send just then', async () => {
@@ -589,6 +762,99 @@ describe('AssetHttpStore', () => {
 
       expect((await store.download(id)) as AssetDownload).toMatchObject({ blob: expect.any(Blob) });
       expect(authorizationOf(1)).toBe('Bearer asset-2');
+    });
+  });
+
+  describe('remove', () => {
+    it('asks the room’s store, with the room’s token, to take the bytes out, and is done when they are not there', async () => {
+      respond(new Response(null, { status: 204 }), new Response('{"error":"not-found"}', { status: 404 }));
+
+      expect(await store.remove(id)).toBe('removed');
+      expect(await store.remove(id)).toBe('removed');
+      expect(callsOf()).toEqual([
+        ['DELETE', urlOf(id)],
+        ['DELETE', urlOf(id)],
+      ]);
+      expect(authorizationOf(0)).toBe('Bearer asset-1');
+    });
+
+    it('asks once, leaving the wait when the server asks for fewer requests to the caller', async () => {
+      respond(new Response(null, { status: 429 }));
+
+      expect(await store.remove(id)).toBe('failed');
+      expect(store.delay).not.toHaveBeenCalled();
+      expect(callsOf()).toEqual([['DELETE', urlOf(id)]]);
+    });
+
+    it.each([400, 403])('gives up for good on %i, as for a seat that is not the GM', async (status) => {
+      respond(new Response('{"error":"not-game-master"}', { status }));
+      expect(await store.remove(id)).toBe('refused');
+    });
+
+    it('fails for now when the server errs or cannot be reached, or the seat is outside a room', async () => {
+      respond(new Response(null, { status: 500 }));
+      expect(await store.remove(id)).toBe('failed');
+      fetchSpy.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      expect(await store.remove(id)).toBe('failed');
+      access = null;
+      expect(await store.remove(id)).toBe('failed');
+    });
+
+    it('asks about nothing that is not named by its hash, or with no server', async () => {
+      expect(await store.remove('none_icon')).toBe('refused');
+      store.configure(null);
+      expect(await store.remove(id)).toBe('refused');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('report', () => {
+    const reportsUrl = `${BASE}/v1/rooms/${ROOM}/reports`;
+    const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
+    const request = { target: 'asset', assetId: 'a'.repeat(64), reason: '作者に断らずに置いています' } as const;
+
+    it('tells the room server’s operator with the room’s token, and gives the id it was taken under', async () => {
+      respond(json(201, { id: 'report-1' }));
+
+      expect(await store.report(request)).toEqual({ id: 'report-1' });
+      expect(callsOf()).toEqual([['POST', reportsUrl]]);
+      expect(authorizationOf(0)).toBe('Bearer asset-1');
+      expect(JSON.parse(String((fetchSpy.mock.calls[0][1] as RequestInit).body))).toEqual(request);
+    });
+
+    it('asks again with a fresh token when the one held was turned down', async () => {
+      const refresh = vi.fn(async () => ({ roomKey: ROOM, token: 'asset-2' }));
+      store.useAccess(() => access, refresh);
+      respond(json(401, { error: 'unauthorized' }), json(201, { id: 'report-2' }));
+
+      expect(await store.report(request)).toEqual({ id: 'report-2' });
+      expect(authorizationOf(1)).toBe('Bearer asset-2');
+    });
+
+    it('tells an older server that takes no reports apart from a room it cannot find, and why else not', async () => {
+      respond(
+        new Response('404 Not Found', { status: 404 }),
+        json(404, { error: 'room-not-found' }),
+        json(429, { error: 'rate-limited' }),
+        json(400, { error: 'invalid-request' }),
+        json(201, { nothing: true }),
+        new Response(null, { status: 500 })
+      );
+
+      expect(await store.report(request)).toBe('unsupported');
+      expect(await store.report(request)).toBe('failed');
+      expect(await store.report(request)).toBe('rate-limited');
+      expect(await store.report(request)).toBe('refused');
+      expect(await store.report(request)).toBe('failed');
+      expect(await store.report(request)).toBe('failed');
+    });
+
+    it('sends nothing outside a room or with no server', async () => {
+      access = null;
+      expect(await store.report(request)).toBe('failed');
+      store.configure(null);
+      expect(await store.report(request)).toBe('failed');
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
   });
 

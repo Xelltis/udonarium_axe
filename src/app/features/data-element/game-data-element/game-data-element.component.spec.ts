@@ -953,6 +953,25 @@ describe('GameDataElementComponent', () => {
       expect(component.currentValue).toBe(100);
     });
 
+    it('sets no cap to type, step or clamp against for a resource set to go over its maximum, and slides up to it', () => {
+      const element = DataElement.create('命中V', 1, {
+        currentValue: 1,
+        fieldType: DataElementFieldType.RESOURCE,
+        type: DataElementType.NUMBER_RESOURCE,
+        [DataElementAttribute.OVER_RESOURCE]: 'true',
+      });
+      fixture.componentRef.setInput('isEdit', true);
+      fixture.componentRef.setInput('gameDataElement', element);
+      fixture.detectChanges();
+
+      expect(component.currentValueMaxAttr()).toBe('');
+      expect(component.canStepCurrentValue(1)).toBe(true);
+      component.currentValue = 3;
+      component.commitCurrentValueBounds();
+      expect(component.currentValue).toBe(3);
+      expect(component.resourceSliderSpan()).toEqual({ min: 0, max: 1 });
+    });
+
     it('keeps the original maximum apart from the current one', () => {
       const element = DataElement.create('HP', 200, {
         currentValue: 50,

@@ -405,7 +405,7 @@ export class DiceSymbolComponent {
       name.length > 0
         ? this.translateFn('feature.dice.log.reveal', { name, face })
         : this.translateFn('feature.dice.log.revealNoName', { face });
-    this.chat.sendSystemMessageToMainTab(message);
+    this.chat.sendSystemNotice('diceReveal', message);
   }
 
   private clearRollTimers(): void {

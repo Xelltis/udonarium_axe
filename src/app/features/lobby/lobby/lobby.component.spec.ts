@@ -407,6 +407,27 @@ describe('LobbyComponent', () => {
 
       expect(component.help()).toContain('backend.url');
     });
+
+    it('says the room server’s operator blocked this connection, rather than that the list failed', async () => {
+      vi.spyOn(Network, 'listAllRooms').mockRejectedValue(new ServerRoomApiError(403, 'banned'));
+
+      await component.reload();
+
+      expect(component.help()).toBe('部屋のサーバーの運営者が、この回線を止めています');
+      expect(component.helpContact()).toBeNull();
+    });
+
+    it('keeps the operator’s contact the ban came with, and lets it go on the next look', async () => {
+      const listed = vi.spyOn(Network, 'listAllRooms');
+      listed.mockRejectedValueOnce(new ServerRoomApiError(403, 'banned', 'https://example.com/contact'));
+      await component.reload();
+      expect(component.helpContact()).toBe('https://example.com/contact');
+
+      listed.mockResolvedValueOnce([]);
+      await component.reload();
+
+      expect(component.helpContact()).toBeNull();
+    });
   });
 
   describe('deleting a room from the list', () => {

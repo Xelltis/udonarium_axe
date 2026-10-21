@@ -40,10 +40,15 @@ function roomData(entities: Record<string, unknown> = {}): Record<string, unknow
 describe('CcfoliaRoomImportService', () => {
   let service: CcfoliaRoomImportService;
   let addAsync: ReturnType<typeof vi.fn>;
+  let removed: Set<string>;
 
   beforeEach(() => {
     let counter = 0;
-    addAsync = vi.fn().mockImplementation(() => Promise.resolve({ identifier: `image-${++counter}` }));
+    removed = new Set();
+    addAsync = vi.fn().mockImplementation(() => {
+      const identifier = `image-${++counter}`;
+      return Promise.resolve(removed.has(identifier) ? null : { identifier });
+    });
 
     TestBed.configureTestingModule({
       providers: [...TEST_PROVIDERS, { provide: ImageStorage, useValue: { addAsync } }],
@@ -83,6 +88,24 @@ describe('CcfoliaRoomImportService', () => {
 
     const table = tables()[tables().length - 1];
     expect(table.imageIdentifier).toBe('image-2');
+    expect(table.backgroundImageIdentifier).toBe('image-1');
+  });
+
+  it('may put back a picture the room removed, and leaves the board without one it could not', async () => {
+    const data = roomData();
+    (data['entities'] as Record<string, unknown>)['room'] = {
+      backgroundUrl: 'bg.jpeg',
+      foregroundUrl: 'icon.png',
+      fieldWidth: 20,
+      fieldHeight: 10,
+    };
+    removed.add('image-2');
+
+    await service.importAsync(entriesOf(data, ['bg.jpeg', 'icon.png']));
+
+    const table = tables()[tables().length - 1];
+    expect(addAsync.mock.calls.map(([, options]) => options)).toEqual([{ putBack: true }, { putBack: true }]);
+    expect(table.imageIdentifier).not.toBe('image-2');
     expect(table.backgroundImageIdentifier).toBe('image-1');
   });
 

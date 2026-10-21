@@ -92,8 +92,18 @@
       }
     },
     {
+      "code": "banned",
+      "when": "部屋のサーバーを運営する人が、送信元かアカウントを BAN している。hello のときと、BAN したときに部屋に入っていた席が受け取る。BAN が解けるまで、つなぎ直しても入れない",
+      "retry": false,
+      "message": {
+        "type": "error",
+        "code": "banned",
+        "protocolVersion": 3
+      }
+    },
+    {
       "code": "room-deleted",
-      "when": "GM が部屋を削除した。部屋にいた全員が受け取る。部屋はもう無いので、つなぎ直しても room-not-found になる",
+      "when": "GM か部屋のサーバーを運営する人が、部屋を削除した。部屋にいた全員が受け取る。部屋はもう無いので、つなぎ直しても room-not-found になる",
       "retry": false,
       "message": {
         "type": "error",

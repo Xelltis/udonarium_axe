@@ -28,6 +28,7 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { allowsOverResource } from '@axe/domain/character/over-resource';
 import { ResourceSliderRange, resourceSliderRange, showsResourceSlider } from '@axe/domain/character/resource-slider';
 import {
   DataElement,
@@ -283,9 +284,21 @@ export class GameDataElementComponent {
 
   /**
    * The highest a resource's current value may be typed as: its maximum while that is a number, or
-   * empty for no limit.
+   * empty for no limit, as for a resource set to go over its maximum.
    */
   currentValueMaxAttr(): string {
+    return this.goesOverMaximum() ? '' : this.maximumText();
+  }
+
+  /** Whether this resource's current value may go over its maximum. */
+  private goesOverMaximum(): boolean {
+    const element = this.gameDataElement();
+    this.objectChange.versionOf(element.identifier)();
+    return allowsOverResource(element);
+  }
+
+  /** The resource's maximum as text while it is a number, or empty. */
+  private maximumText(): string {
     const value = this._value();
     if (typeof value === 'number') return String(value);
     if (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))) return value;
@@ -1045,9 +1058,12 @@ export class GameDataElementComponent {
     return showsResourceSlider(element);
   }
 
-  /** The span the slider runs over, the same the current value may be typed within; null with nothing to slide over. */
+  /**
+   * The span the slider runs over, from the lowest the current value may be typed as up to the
+   * maximum, even for a resource set to go over it; null with nothing to slide over.
+   */
   resourceSliderSpan(): ResourceSliderRange | null {
-    return resourceSliderRange(this.currentValueMinAttr(), this.currentValueMaxAttr());
+    return resourceSliderRange(this.currentValueMinAttr(), this.maximumText());
   }
 
   /** Shows where the slider is being dragged to in the box beside it, before anything is written. */

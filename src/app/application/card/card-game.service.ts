@@ -95,7 +95,7 @@ export class CardGameService {
   dealAll(cardStack: CardStack, keepJokerCount = 1): DealResult {
     const seats = this.participants();
     if (seats.length < 1) {
-      this.chatMessageService.sendSystemMessage(this.t('feature.cardStack.message.noSeats'));
+      this.chatMessageService.sendSystemNotice('card', this.t('feature.cardStack.message.noSeats'));
       return { dealt: 0, participants: 0 };
     }
 
@@ -115,7 +115,8 @@ export class CardGameService {
     });
 
     SoundEffect.play(PresetSound.cardDraw);
-    this.chatMessageService.sendSystemMessage(
+    this.chatMessageService.sendSystemNotice(
+      'card',
       this.t('feature.cardStack.message.dealt', { count: cards.length, players: seats.length })
     );
     return { dealt: cards.length, participants: seats.length };
@@ -131,7 +132,8 @@ export class CardGameService {
 
     card.toHand(myUserId);
     SoundEffect.play(PresetSound.cardDraw);
-    this.chatMessageService.sendSystemMessage(
+    this.chatMessageService.sendSystemNotice(
+      'card',
       this.t('feature.card.message.drewFromHand', { from: fromName, to: PeerCursor.myCursor?.name ?? '' })
     );
     return true;
@@ -154,7 +156,8 @@ export class CardGameService {
 
     card.toHand(receiver.userId);
     SoundEffect.play(PresetSound.cardPut);
-    this.chatMessageService.sendSystemMessage(
+    this.chatMessageService.sendSystemNotice(
+      'card',
       this.t('feature.card.message.gaveFromHand', { from: PeerCursor.myCursor?.name ?? '', to: receiver.name })
     );
     return true;
@@ -207,7 +210,8 @@ export class CardGameService {
     cards.forEach((card, index) => card.toHand(receiver.userId, baseOrder + index));
 
     SoundEffect.play(PresetSound.cardDraw);
-    this.chatMessageService.sendSystemMessage(
+    this.chatMessageService.sendSystemNotice(
+      'card',
       this.t('feature.card.message.handedOver', {
         name: PeerCursor.myCursor?.name ?? '',
         from: absent.name,
@@ -238,7 +242,8 @@ export class CardGameService {
     }
 
     SoundEffect.play(PresetSound.cardPut);
-    this.chatMessageService.sendSystemMessage(
+    this.chatMessageService.sendSystemNotice(
+      'card',
       this.t('feature.card.message.discardedPairs', {
         name: PeerCursor.myCursor?.name ?? '',
         ranks: pairs.map((pair) => this.rankLabel(pair[0])).join('・'),

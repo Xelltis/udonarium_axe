@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -54,6 +55,7 @@ class StubObjectChange {
 describe('NetworkEventHandlerService', () => {
   let chatStub: {
     sendSystemMessage: ReturnType<typeof vi.fn>;
+    sendSystemNotice: ReturnType<typeof vi.fn>;
     calibrateTimeOffset: ReturnType<typeof vi.fn>;
   };
   let stubChange: StubObjectChange;
@@ -63,6 +65,7 @@ describe('NetworkEventHandlerService', () => {
     account = signal<Account | null>(null);
     chatStub = {
       sendSystemMessage: vi.fn(),
+      sendSystemNotice: vi.fn(),
       calibrateTimeOffset: vi.fn(),
     };
     stubChange = new StubObjectChange();
@@ -393,20 +396,21 @@ describe('NetworkEventHandlerService', () => {
   it('says a peer is reconnecting', () => {
     stubChange.peerReconnect$.emit({ peerId: 'abcdef123', state: 'retrying' });
 
-    expect(chatStub.sendSystemMessage).toHaveBeenCalledTimes(1);
-    expect(chatStub.sendSystemMessage.mock.calls[0][0]).toContain('feature.lobby.peerReconnect.retrying');
+    expect(chatStub.sendSystemNotice).toHaveBeenCalledTimes(1);
+    expect(chatStub.sendSystemNotice.mock.calls[0][0]).toBe('room');
+    expect(chatStub.sendSystemNotice.mock.calls[0][1]).toContain('feature.lobby.peerReconnect.retrying');
   });
 
   it('says it has come back', () => {
     stubChange.peerReconnect$.emit({ peerId: 'abcdef123', state: 'recovered' });
 
-    expect(chatStub.sendSystemMessage.mock.calls[0][0]).toContain('feature.lobby.peerReconnect.recovered');
+    expect(chatStub.sendSystemNotice.mock.calls[0][1]).toContain('feature.lobby.peerReconnect.recovered');
   });
 
   it('says it has failed', () => {
     stubChange.peerReconnect$.emit({ peerId: 'abcdef123', state: 'failed' });
 
-    expect(chatStub.sendSystemMessage.mock.calls[0][0]).toContain('feature.lobby.peerReconnect.failed');
+    expect(chatStub.sendSystemNotice.mock.calls[0][1]).toContain('feature.lobby.peerReconnect.failed');
   });
 
   it('tells the reader alone, naming the room server, when the link to it drops and comes back', () => {
@@ -421,7 +425,7 @@ describe('NetworkEventHandlerService', () => {
       '部屋のサーバーとの接続が切れました。再接続しています…',
       '部屋のサーバーとの接続を復旧しました。',
     ]);
-    expect(chatStub.sendSystemMessage).not.toHaveBeenCalled();
+    expect(chatStub.sendSystemNotice).not.toHaveBeenCalled();
   });
 
   it('shows nothing of the link to the room server on a screen made for streaming', () => {
@@ -434,13 +438,91 @@ describe('NetworkEventHandlerService', () => {
     stubChange.peerReconnect$.emit({ peerId: 'my-seat', state: 'recovered' });
 
     expect(shown).not.toHaveBeenCalled();
-    expect(chatStub.sendSystemMessage).not.toHaveBeenCalled();
+    expect(chatStub.sendSystemNotice).not.toHaveBeenCalled();
+  });
+
+  describe('uploads the room server’s operator held back', () => {
+    it('tells the reader they were stopped, that they go up again, and of one barred', () => {
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+      const t = TestBed.inject(TRANSLATE_FN);
+
+      AssetHttpStore.instance.onUploadsPaused(true);
+      AssetHttpStore.instance.onUploadsPaused(false);
+      AssetHttpStore.instance.onUploadBlocked('a'.repeat(64));
+
+      expect(shown.mock.calls.map(([text]) => text)).toEqual([
+        t('feature.lobby.uploads.paused'),
+        t('feature.lobby.uploads.resumed'),
+        t('feature.lobby.uploads.blocked'),
+      ]);
+      expect(shown.mock.calls[0][0]).toContain('運営者');
+    });
+
+    it('offers the operator’s contact with the word of the stop, where the stop came with one', () => {
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+      vi.spyOn(AssetHttpStore.instance, 'operatorContact', 'get').mockReturnValue('https://example.com/contact');
+      const opened = vi.spyOn(window, 'open').mockReturnValue(null);
+
+      AssetHttpStore.instance.onUploadsPaused(true);
+
+      const action = shown.mock.calls[0][1]?.action;
+      expect(action?.label).toBe(TestBed.inject(TRANSLATE_FN)('feature.lobby.operatorContact.open'));
+      action!.run();
+      expect(opened).toHaveBeenCalledWith('https://example.com/contact', '_blank', 'noopener,noreferrer');
+    });
+
+    it('puts up what both stores held once uploads go again, whichever found it out', () => {
+      vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+      const pictures = vi.spyOn(ImageStorage.instance, 'resumePaused').mockImplementation(() => {});
+      const sounds = vi.spyOn(AudioStorage.instance, 'resumePaused').mockImplementation(() => {});
+
+      AssetHttpStore.instance.onUploadsPaused(true);
+      expect(pictures).not.toHaveBeenCalled();
+      AssetHttpStore.instance.onUploadsPaused(false);
+
+      expect(pictures).toHaveBeenCalledTimes(1);
+      expect(sounds).toHaveBeenCalledTimes(1);
+    });
+
+    it('tells the reader the room’s store is full, and that later comers will not get what they add', () => {
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+
+      AssetHttpStore.instance.onRoomStorageFull();
+
+      expect(shown.mock.calls.map(([text]) => text)).toEqual([
+        TestBed.inject(TRANSLATE_FN)('feature.lobby.uploads.roomFull'),
+      ]);
+      expect(shown.mock.calls[0][0]).toContain('あとから入った人には届きません');
+    });
+
+    it('shows none of it on a screen made for streaming', () => {
+      vi.spyOn(TestBed.inject(OverlayModeService), 'active').mockReturnValue(true);
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+
+      AssetHttpStore.instance.onUploadsPaused(true);
+      AssetHttpStore.instance.onUploadsPaused(false);
+      AssetHttpStore.instance.onUploadBlocked('a'.repeat(64));
+      AssetHttpStore.instance.onRoomStorageFull();
+
+      expect(shown).not.toHaveBeenCalled();
+    });
+
+    it('stops listening once it is gone', () => {
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+
+      TestBed.resetTestingModule();
+      AssetHttpStore.instance.onUploadsPaused(true);
+      AssetHttpStore.instance.onUploadBlocked('a'.repeat(64));
+      AssetHttpStore.instance.onRoomStorageFull();
+
+      expect(shown).not.toHaveBeenCalled();
+    });
   });
 
   it('falls back to the head of the identifier for a peer whose name it does not know', () => {
     stubChange.peerReconnect$.emit({ peerId: 'abcdef123', state: 'retrying' });
 
-    expect(chatStub.sendSystemMessage.mock.calls[0][0]).toContain('abcdef');
+    expect(chatStub.sendSystemNotice.mock.calls[0][1]).toContain('abcdef');
   });
 
   it('configures the network and stands by as the settings load', () => {
@@ -478,6 +560,7 @@ describe('NetworkEventHandlerService', () => {
         ['server-unreachable', 'roomServerUnreachable'],
         ['no-backend', 'roomServerNoBackend'],
         ['unauthorized', 'roomServerUnauthorized'],
+        ['banned', 'roomServerBanned'],
         ['room-deleted', 'roomServerDeleted'],
         ['bad-message', 'roomServerRefused'],
       ];
@@ -487,6 +570,32 @@ describe('NetworkEventHandlerService', () => {
       expect(sent().map((text, i) => text.includes(`feature.lobby.errors.${reasons[i][1]}`))).toEqual(
         reasons.map(() => true)
       );
+    });
+
+    it('writes the operator’s contact under the word of a ban, where the server gives one', async () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+      vi.spyOn(Network.instance, 'operatorContact').mockResolvedValue('mailto:admin@example.com');
+
+      stubChange.networkError$.emit({ errorType: 'banned', errorMessage: '' });
+
+      await vi.waitFor(() => expect(sent()).toHaveLength(2));
+      expect(sent()[0]).toContain('feature.lobby.errors.roomServerBanned');
+      expect(sent()[1]).toContain('feature.lobby.operatorContact.chat');
+      expect(sent()[1]).toContain('admin@example.com');
+      expect(sent()[1]).not.toContain('mailto:');
+    });
+
+    it('writes nothing more under a ban where the server gives no contact', async () => {
+      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+      const asked = vi.spyOn(Network.instance, 'operatorContact').mockResolvedValue(null);
+
+      stubChange.networkError$.emit({ errorType: 'banned', errorMessage: '' });
+
+      await vi.waitFor(() => expect(asked).toHaveBeenCalled());
+      await Promise.resolve();
+      expect(sent()).toHaveLength(1);
     });
 
     it('leaves those codes to the usual handling through SkyWay', () => {
@@ -660,7 +769,7 @@ describe('NetworkEventHandlerService', () => {
   });
 
   describe('roles on a room server', () => {
-    const sent = () => chatStub.sendSystemMessage.mock.calls.map(([text]) => text as string);
+    const sent = () => chatStub.sendSystemNotice.mock.calls.map(([, text]) => text as string);
 
     beforeEach(() => {
       vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
@@ -791,6 +900,7 @@ describe('NetworkEventHandlerService', () => {
       const sounds = vi.spyOn(AudioSharingSystem.instance, 'fetchListed').mockImplementation(() => {});
       const upPictures = vi.spyOn(ImageStorage.instance, 'forgetUploaded');
       const upSounds = vi.spyOn(AudioStorage.instance, 'forgetUploaded');
+      const takeOut = vi.spyOn(TestBed.inject(AssetRemovalService), 'takeOut').mockImplementation(() => {});
 
       stubChange.networkOpen$.emit({ peerId: 'p' });
 
@@ -799,6 +909,7 @@ describe('NetworkEventHandlerService', () => {
       expect(forgotPictures).toHaveBeenCalled();
       expect(upPictures).toHaveBeenCalledWith([picture.id]);
       expect(upSounds).toHaveBeenCalledWith([sound.id]);
+      expect(takeOut).toHaveBeenCalledWith([picture.id, sound.id]);
     });
 
     it('fetches nothing from the room while waiting outside one, or when the server cannot say', async () => {

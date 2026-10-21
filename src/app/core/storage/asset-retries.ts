@@ -4,6 +4,16 @@ export const ASSET_RETRY_DELAY_MS = 10_000;
 export const ASSET_RETRY_LIMIT = 3;
 /** How long after its tries ran out an upload is given one last try, once in each room. */
 export const ASSET_LAST_TRY_DELAY_MS = 120_000;
+/**
+ * How long an upload the room server's operator stopped waits before one is tried again, to see
+ * whether the stop is over.
+ */
+export const ASSET_PAUSE_RETRY_MS = 60_000;
+/**
+ * How long after a removal is put back the seat asks the room's store once more whether it holds the
+ * bytes, as another seat's request to take them out may have reached the store meanwhile.
+ */
+export const ASSET_PUT_BACK_CHECK_MS = 10_000;
 
 /** The least a GM or PL waits for each that comes before it to put up what a guest named. */
 export const RECEIVED_UPLOAD_TURN_MS = 5_000;
@@ -59,6 +69,14 @@ export class AssetRetries {
 
   /** Forgets how often a transfer that has now come through was tried. */
   forget(identifier: string): void {
+    this.tries.delete(identifier);
+  }
+
+  /** Drops the try still to come of one transfer, and how often it was tried. */
+  cancel(identifier: string): void {
+    const timer = this.timers.get(identifier);
+    if (timer) clearTimeout(timer);
+    this.timers.delete(identifier);
     this.tries.delete(identifier);
   }
 

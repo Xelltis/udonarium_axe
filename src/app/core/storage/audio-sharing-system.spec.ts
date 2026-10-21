@@ -318,6 +318,59 @@ describe('AudioSharingSystem', () => {
       });
     });
 
+    describe('a sound the room removed', () => {
+      beforeEach(() => AudioStorage.instance.markRemoved(trackId));
+      afterEach(() => AudioStorage.instance.unmarkRemoved(trackId));
+
+      it('is taken from neither the server nor the peer whose catalogue names it', async () => {
+        emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-b' });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(AudioStorageMock.add).not.toHaveBeenCalled();
+        expect(download).not.toHaveBeenCalled();
+        expect(requestsSent()).toEqual([]);
+      });
+
+      it('is taken neither from the room’s list nor as sent', () => {
+        AudioSharingSystem.instance.fetchListed([{ id: trackId, name: 'theme.ogg' }]);
+        emit('UPDATE_AUDIO_RESOURE', [{ identifier: trackId, name: '', type: 'audio/ogg', blob: null, url: '' }], {
+          sendFrom: 'peer-b',
+        });
+
+        expect(AudioStorageMock.add).not.toHaveBeenCalled();
+        expect(download).not.toHaveBeenCalled();
+      });
+
+      it('calls off its sending', () => {
+        emit('START_AUDIO_TRANSMISSION', { fileIdentifier: trackId }, { sendFrom: 'peer-b' });
+
+        expect(
+          vi.mocked(Network.instance.send).mock.calls.map(([context]) => (context as { eventName: string }).eventName)
+        ).toContain(`CANCEL_TASK_${trackId}`);
+      });
+    });
+
+    it('keeps no empty entry for a sound the operator took down', async () => {
+      download.mockResolvedValue('blocked');
+      const dropped = vi.spyOn(AudioStorage.instance, 'delete');
+
+      emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-b' });
+      await vi.waitFor(() => expect(dropped).toHaveBeenCalledWith(trackId));
+    });
+
+    it('asks no peer, then or for a later catalogue, for a sound the operator took down', async () => {
+      download.mockResolvedValue('blocked');
+      emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-b' });
+      await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: trackId, state: AudioState.COMPLETE }], { sendFrom: 'peer-c' });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(download).toHaveBeenCalledTimes(1);
+      expect(requestsSent()).toEqual([]);
+    });
+
     it('puts a sound the server lacked up once a peer has sent it, and no other', async () => {
       const upload = vi.spyOn(AudioStorage.instance, 'uploadReceived').mockImplementation(() => {});
       download.mockResolvedValue('missing');
@@ -494,6 +547,21 @@ describe('AudioSharingSystem', () => {
           'peer-r'
         )
       );
+    });
+
+    it('sends none this seat holds back for the room server’s operator, and relays the request', () => {
+      const audio = makeAudioFile({ identifier: 'held-audio', blob: new Blob(['x']) });
+      AudioStorageMock.get.mockReturnValue(audio);
+      vi.spyOn(AudioStorage.instance, 'isHeldBack').mockReturnValue(true);
+
+      emit('REQUEST_AUDIO_RESOURE', {
+        identifiers: [{ identifier: 'held-audio', state: AudioState.NULL }],
+        receiver: 'peer-r',
+        candidatePeers: ['peer-b'],
+      });
+
+      expect(BufferSharingTaskMock.createSendTask).not.toHaveBeenCalled();
+      expect(sendSpy).toHaveBeenCalledWith(expect.objectContaining({ eventName: 'REQUEST_AUDIO_RESOURE' }), 'peer-b');
     });
 
     it('relays rather than sending again', () => {

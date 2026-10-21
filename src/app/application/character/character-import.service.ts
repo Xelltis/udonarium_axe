@@ -166,8 +166,8 @@ export class CharacterImportService {
       const response = await fetch(url);
       if (!response.ok) return '';
       const blob = await response.blob();
-      const imageFile = await this.imageStorage.addAsync(blob);
-      return imageFile.identifier;
+      const imageFile = await this.imageStorage.addAsync(blob, { putBack: true });
+      return imageFile?.identifier ?? '';
     } catch {
       return '';
     }

@@ -664,7 +664,8 @@
         "ownVolumeHeading": "Your volume",
         "ownVolumeNote": "Only you hear it; saved in this browser",
         "roomVolumeHeading": "Room volume",
-        "roomVolumeNote": "Applies to everyone in the room; only the GM can change it"
+        "roomVolumeNote": "Applies to everyone in the room; only the GM can change it",
+        "remove": "Delete from the room"
       },
       "miniJukebox": {
         "stopped": "— Stopped —",
@@ -1270,7 +1271,8 @@
         "trouble_notPicture": "That could not be read as a picture.",
         "trouble_tooLarge": "Pictures over 8 MB cannot be used.",
         "trouble_unstored": "The picture could not be kept in this browser.",
-        "trouble_notAllowed": "Guests cannot put a picture on their dice."
+        "trouble_notAllowed": "Guests cannot put a picture on their dice.",
+        "trouble_removed": "The GM deleted this picture from the room."
       }
     },
     "effect": {
@@ -1956,7 +1958,9 @@
         "pasteNothing": "There is no picture on the clipboard",
         "pasteWithKeys": "The browser did not hand the clipboard over. Click this list and press Ctrl+V",
         "editImage": "Edit",
-        "editImageHint": "Edits the one ticked picture and puts the result in its place, wherever it is used"
+        "editImageHint": "Edits the one ticked picture and puts the result in its place, wherever it is used",
+        "remove": "Delete",
+        "removeHint": "Delete the checked images from the room, for the other players too"
       },
       "tooLarge": {
         "one": "“{{name}}” was not loaded because it is too large ({{limits}})",
@@ -1964,6 +1968,20 @@
         "audioLimit": "sounds up to {{mb}} MB",
         "imageLimit": "images up to {{mb}} MB",
         "separator": ", "
+      },
+      "removal": {
+        "imageTitle": "Delete images",
+        "imageConfirm": "Delete {{count}} image(s) from the room. They disappear for the other players too.",
+        "imageRemoved": "Deleted {{count}} image(s)",
+        "audioTitle": "Delete sounds",
+        "audioConfirm": "Delete {{count}} sound(s) from the room. They disappear for the other players too, and stop if playing.",
+        "audioRemoved": "Deleted {{count}} sound(s)",
+        "uses": "They are used in {{uses}} place(s) in the room.",
+        "restore": "This cannot be undone. If the GM adds the same file again, it comes back wherever it was used.",
+        "ok": "Delete",
+        "imageRefused": "The GM deleted this image from the room. Only the GM can add it again.",
+        "audioRefused": "The GM deleted this sound from the room. Only the GM can add it again.",
+        "notRemovable": "Bundled files, files linked by URL and system-reserved images cannot be deleted."
       }
     },
     "character": {
@@ -3097,6 +3115,29 @@
       "squeezes": "Let an oversized piece squeeze through a gap too small for it, at a step apiece",
       "jumpCells": "How far one leap carries, in cells (0 carries as far as the move has left)",
       "tab_stamp": "Stamps",
+      "tab_notice": "Notices",
+      "sectionNotices": "Where system notices go",
+      "notices": {
+        "hint": "Choose which tab each kind of notice the system writes into the chat goes to. If the chosen tab is deleted, it goes to the default again.",
+        "default_main": "Default (leftmost tab)",
+        "default_system": "Default (system tab)",
+        "off": "Do not send",
+        "openFromRound": "Choose where notices go",
+        "kind_round": "Round and turn progress",
+        "kindHint_round": "Rounds starting and ending, turns, buffs running out or swept off",
+        "kind_diceReveal": "Dice revealed on the table",
+        "kindHint_diceReveal": "The face of a hidden die when it is opened",
+        "kind_trigger": "Triggers",
+        "kindHint_trigger": "A trigger set on a cell going off. A hidden trigger stays secret",
+        "kind_movement": "Movement, engagement zones and riding",
+        "kindHint_movement": "Entering and leaving engagement zones, interrupts, battle placement, mounting and dismounting",
+        "kind_card": "Cards",
+        "kindHint_card": "Dealing, drawing, handing over and discarding pairs",
+        "kind_bgm": "BGM playback settings",
+        "kindHint_bgm": "Turning shuffle and repeat on and off",
+        "kind_room": "Connection and room upkeep",
+        "kindHint_room": "Reconnecting, a role change refused, a full sync, a room imported"
+      },
       "stampUse_line": "Stamps as lines",
       "stampUse_reaction": "Reactions",
       "stampUseOn_line": "Let stamps be sent as lines",
@@ -3230,6 +3271,27 @@
       "matColor": "Mat colour",
       "matHint": "What the dice roll on in a chat frame. A picture is laid over the colour. Only this screen sees the mat; nobody else’s changes."
     },
+    "moderation": {
+      "report": {
+        "title": "Report to the operator",
+        "leadAsset": "Report \"{{name}}\" to the room server's operator.",
+        "leadRoom": "Report this room, \"{{name}}\", to the room server's operator.",
+        "reason": "Reason",
+        "reasonPlaceholder": "Say what is wrong (up to {{max}} characters)",
+        "note": "Your connection and account details are sent with the report, so the operator can tell false reports apart.",
+        "send": "Send",
+        "cancel": "Cancel",
+        "close": "Close",
+        "taken": "Your report was received. Reference: {{id}}",
+        "trouble_unsupported": "This room server does not take reports.",
+        "trouble_rateLimited": "Too many reports. Please wait a while before sending another.",
+        "trouble_refused": "This report could not be taken. Please rewrite the reason.",
+        "trouble_failed": "The report could not be sent. Check your connection and try again.",
+        "imageButton": "Report this image to the operator",
+        "audioButton": "Report this sound to the operator",
+        "roomButton": "Report this room to the operator"
+      }
+    },
     "lobby": {
       "peerMenu": {
         "changeIcon": "Change icon",
@@ -3294,7 +3356,8 @@
         "hintListFailed": "Failed to fetch room list. Press \"Refresh list\" to retry.",
         "hintNoBackend": "No server is configured (backend.url in config.json)",
         "createRoomAfterLogin": "Log in to create a room",
-        "deleteRoom": "Delete room"
+        "deleteRoom": "Delete room",
+        "hintBanned": "The room server's operator has blocked this connection."
       },
       "roomSetting": {
         "title": " Create room",
@@ -3316,7 +3379,9 @@
         "alreadyInRoomServer": "You cannot create a room while you are in one.",
         "defaultRoomName": "My room",
         "createFailed": "The room could not be created ({{reason}})",
-        "loginRequired": "Creating a room needs a login."
+        "loginRequired": "Creating a room needs a login.",
+        "paused": "The room server's operator has stopped making rooms for now. Please try again later.",
+        "banned": "The room server's operator has blocked this account or connection, so it cannot make rooms."
       },
       "passwordCheck": {
         "title": "Password",
@@ -3356,7 +3421,8 @@
         "roomServerNoBackend": "No server is configured (backend.url in config.json)",
         "roomServerRefused": "The room server refused the connection ({{code}})",
         "roomServerUnauthorized": "Your login expired, or you logged in as someone else. Please join the room again.",
-        "roomServerDeleted": "The room's GM deleted the room"
+        "roomServerDeleted": "The room's GM or the room server's operator deleted the room",
+        "roomServerBanned": "The room server's operator has blocked this account or connection, so you cannot be in the room."
       },
       "deleteRoom": {
         "confirmTitle": "Delete room",
@@ -3399,6 +3465,7 @@
         "joining": "Joining \"{{roomName}}\"…",
         "notFound": "\"{{roomName}}\" was not found",
         "failed": "Could not join \"{{roomName}}\"",
+        "banned": "Cannot join \"{{roomName}}\". The room server's operator has blocked this connection.",
         "offline": "You are offline, so you cannot join \"{{roomName}}\". To join, switch to online in the connection panel",
         "openLobby": "Open lobby",
         "dismiss": "Dismiss"
@@ -3421,7 +3488,9 @@
           "providerFailed": "Talking to Discord failed. Please try again later.",
           "rateLimited": "Too many login attempts. Please wait a while.",
           "network": "The login server cannot be reached.",
-          "retry": "Please log in again."
+          "retry": "Please log in again.",
+          "banned": "The room server's operator has blocked this account or connection.",
+          "paused": "The room server's operator has stopped new logins for now. Please try again later."
         }
       },
       "idle": {
@@ -3448,6 +3517,17 @@
         "title": "This table holds withheld parts",
         "message": "The table on screen holds things a room server handed over only in their withheld shape (cards whose face you cannot see, others' dice faces, blacked-out notes, the contents of secret rolls and so on). Going into a room now spreads the table there in that shape. Saves taken on this screen after going in, as the GM too, ask before they are loaded; saves others in the room take hold the withheld shapes without asking.",
         "ok": "Go in anyway"
+      },
+      "operatorContact": {
+        "label": "Contact:",
+        "open": "Contact",
+        "chat": "The room server operator's contact: {{contact}}"
+      },
+      "uploads": {
+        "paused": "The room server's operator has stopped putting up pictures and sounds for now. What you add now reaches the other players only once that is over.",
+        "resumed": "Pictures and sounds can be put up again. What was held back now reaches the other players too.",
+        "blocked": "There is a picture or sound the room server's operator has barred. It does not reach the other players.",
+        "roomFull": "The room's storage is full, so the pictures and sounds you add are not kept in the room. Those here now get them, but nobody who joins later will."
       }
     },
     "chat": {
@@ -5553,6 +5633,8 @@
       "pieceGauge": "Show a bar on the piece",
       "resourceSlider": "Slider",
       "gaugeInverted": "Negative resource",
+      "overResource": "Over-resource",
+      "overResourceHint": "Lets the current value go over the maximum, so a temporary bonus can be tracked with the maximum as the value it returns to",
       "changeEffect": "Effect on change",
       "changeSound": "Sound on change",
       "changeSoundSet": "Sound type",

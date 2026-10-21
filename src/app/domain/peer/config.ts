@@ -10,6 +10,7 @@ import {
   writeControllerResourcePick,
 } from '@axe/domain/character/controller-resource-pick';
 import { readStampRules, StampRules, writeStampRules } from '@axe/domain/chat/stamp-rules';
+import { readSystemNotices, SystemNoticeRoutes, writeSystemNotices } from '@axe/domain/chat/system-notices';
 import { asDiceStage, DiceStage } from '@axe/domain/dice/dice-3d/dice-stage';
 import { type DjPads, readDjPads, writeDjPads } from '@axe/domain/media/dj-pads';
 import { type DjSettings, readDjSettings, writeDjSettings } from '@axe/domain/media/dj-settings';
@@ -52,6 +53,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_showSpeakerAvatar') private _showSpeakerAvatar: string = '';
   @SyncVar('_controllerResources') private _controllerResources: string = '';
   @SyncVar('_stampRules') private _stampRules: string = '';
+  @SyncVar('_systemNotices') private _systemNotices: string = '';
   @SyncVar('_speechBubbles') private _speechBubbles: string = '';
   @SyncVar('_turnSignal') private _turnSignal: string = '';
   @SyncVar('_turnTick') private _turnTick: string = '';
@@ -166,6 +168,19 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set stampRules(rules: StampRules) {
     this._stampRules = writeStampRules(rules);
+  }
+
+  /**
+   * Where the room sends each kind of notice the system writes into its chat, with every kind going
+   * where it always went until the room chooses otherwise.
+   *
+   * @see SystemNoticeRoutes
+   */
+  get systemNotices(): SystemNoticeRoutes {
+    return readSystemNotices(this._systemNotices);
+  }
+  set systemNotices(routes: SystemNoticeRoutes) {
+    this._systemNotices = writeSystemNotices(routes);
   }
 
   /** The room's master volume, shared by every peer; a change applied to the config updates the jukebox at once. */

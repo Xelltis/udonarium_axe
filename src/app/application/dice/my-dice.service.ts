@@ -15,7 +15,7 @@ export const DICE_PICTURE_MAX_SIDE = 512;
 export const DICE_PICTURE_MAX_BYTES = 8 * 1024 * 1024;
 
 /** Why a picture offered for the dice was not taken. */
-export type DicePictureTrouble = 'notPicture' | 'tooLarge' | 'unstored' | 'notAllowed';
+export type DicePictureTrouble = 'notPicture' | 'tooLarge' | 'unstored' | 'notAllowed' | 'removed';
 
 /** Makes a picture ready to put on the dice: resampled down and written out small. */
 export const DICE_PICTURE_PREPARER = new InjectionToken<(picture: Blob) => Promise<Blob>>('DICE_PICTURE_PREPARER', {
@@ -58,8 +58,9 @@ export class MyDiceService {
    * Puts a picture on this seat's dice in place of any before it, whose copy in this browser is let
    * go. It is checked to be a picture and not too large, resampled down, kept in this browser and
    * only then shared through the room's images, so one this browser cannot keep is shared with no
-   * one. A guest, who may not add to the room's images, is turned away. Says what was wrong with it,
-   * or null when it was taken.
+   * one. A guest, who may not add to the room's images, is turned away, and so is a picture the room
+   * removed unless this seat, as the GM, puts it back. Says what was wrong with it, or null when it
+   * was taken; the trouble said is the only word of it.
    */
   async setPicture(file: Blob): Promise<DicePictureTrouble | null> {
     if (!this.permission.canEditTabletop) return 'notAllowed';
@@ -71,8 +72,13 @@ export class MyDiceService {
       image.destroy();
       return 'unstored';
     }
-    ImageStorage.instance.add(image);
     const before = this.look().picture;
+    ImageStorage.instance.add(image, { putBack: this.permission.canEditShared });
+    if (ImageStorage.instance.isRemoved(image.identifier)) {
+      image.destroy();
+      if (before !== image.identifier) void this.pictures.remove(image.identifier);
+      return 'removed';
+    }
     this.set({ ...this.look(), picture: image.identifier });
     if (before && before !== image.identifier) void this.pictures.remove(before);
     return null;
@@ -94,11 +100,14 @@ export class MyDiceService {
   /**
    * Puts this seat's dice picture back among the room's images where it is missing, as on a fresh
    * visit, from the bytes this browser kept, so it comes back under the same identifier. A seat
-   * sitting as a guest, who may not add to the room's images, leaves them alone.
+   * sitting as a guest, who may not add to the room's images, leaves them alone, as does every seat
+   * for a picture the room removed, which would not be taken in.
    */
   ensureShared(): Promise<void> {
     const picture = this.look().picture;
-    if (!picture || !this.permission.canEditTabletop) return Promise.resolve();
+    if (!picture || !this.permission.canEditTabletop || ImageStorage.instance.isRemoved(picture)) {
+      return Promise.resolve();
+    }
     const held = ImageStorage.instance.get(picture);
     if (held && ImageState.COMPLETE <= held.state) return Promise.resolve();
     this.restoring ??= this.restore(picture).finally(() => (this.restoring = null));
