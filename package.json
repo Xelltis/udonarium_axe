@@ -53,7 +53,7 @@
     "@angular/cli": "22.2.3",
     "@angular/compiler-cli": "^22.2.3",
     "@angular/language-service": "^22.2.3",
-    "@commitlint/cli": "^21.2.3",
+    "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.0.2",
     "@eslint/js": "^10.0.0",
     "@playwright/test": "^1.64.1",
