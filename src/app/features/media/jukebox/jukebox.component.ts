@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AssetOwnershipService } from '@axe/application/file/asset-ownership.service';
 import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -21,7 +22,6 @@ import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { ASSET_OWNER_ALIAS } from '@axe/domain/media/asset-owner';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { Playlist } from '@axe/domain/media/playlist';
@@ -70,6 +70,7 @@ export class JukeboxComponent {
   private readonly personalVolumes = inject(PersonalVolumeService);
   private readonly roomVolumes = inject(RoomVolumeService);
   private readonly assetRemoval = inject(AssetRemovalService);
+  private readonly ownership = inject(AssetOwnershipService);
 
   /** Whether this player may move the room volume, which only the game master may, as with the room's other settings. */
   readonly canChangeRoomVolume = this.roomVolumes.canChange;
@@ -91,7 +92,7 @@ export class JukeboxComponent {
 
   /** Whether this seat may remove a sound: the game master any, a player one they added. */
   mayRemove(audio: AudioFile): boolean {
-    this.objectChange.collectionOf(ASSET_OWNER_ALIAS)();
+    this.ownership.track();
     return this.canRemove() || this.assetRemoval.mayRemove(audio.identifier);
   }
 

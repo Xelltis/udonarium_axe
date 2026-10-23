@@ -26,11 +26,14 @@ export class ImageTag extends ObjectNode {
     return words.every((word) => this.tag.includes(word));
   }
 
-  /** `canSeeSecret` says whether what the master is keeping back may be among the answers. */
-  static searchImages(searchWords: string[], canSeeSecret = false): ImageFile[] {
+  /**
+   * `canSeeSecret` says whether what the master is keeping back may be among the answers, and
+   * `hidesTag` which tags are kept from whoever is asking, as {@link canBrowseImage} has it.
+   */
+  static searchImages(searchWords: string[], canSeeSecret = false, hidesTag: TagHidden = SHOWS_EVERY_TAG): ImageFile[] {
     return ObjectStore.instance
       .getObjects<ImageTag>(ImageTag)
-      .filter((tag) => tag.containsWords(searchWords) && canBrowseImage(tag, canSeeSecret))
+      .filter((tag) => tag.containsWords(searchWords) && canBrowseImage(tag, canSeeSecret, true, hidesTag))
       .map((tag) => ImageStorage.instance.get(tag.imageIdentifier))
       .filter((image): image is ImageFile => image !== null);
   }
@@ -74,17 +77,31 @@ export class ImageTag extends ObjectNode {
 /**
  * Whether a picture belongs in a list of pictures to pick from.
  *
- * Two kinds are held back. What the tool brought with it is not the room's to reuse or to
+ * Three kinds are held back. What the tool brought with it is not the room's to reuse or to
  * throw away. What the game master has kept is not the players' to come across: it stays
  * out of their lists, and out of the master's own while the master has folded them away.
+ * And what is filed under a tag someone keeps to themselves stays out of the lists of whoever
+ * `hidesTag` says it is kept from.
  *
  * Nothing here hides a picture already standing on the table. A picture kept back is kept
  * back from the choosing, not from the board — put a face on a piece and everyone sees the
  * piece, whatever this says.
  */
-export function canBrowseImage(tag: ImageTag | null, canSeeSecret: boolean, showSecret = true): boolean {
+export function canBrowseImage(
+  tag: ImageTag | null,
+  canSeeSecret: boolean,
+  showSecret = true,
+  hidesTag: TagHidden = SHOWS_EVERY_TAG
+): boolean {
   if (!tag) return true;
   if (tag.tag === SYSTEM_RESERVED_TAG) return false;
+  if (hidesTag(tag.tag)) return false;
   if (tag.isSecret) return canSeeSecret && showSecret;
   return true;
 }
+
+/** Whether a tag's pictures are kept from whoever is looking. */
+export type TagHidden = (tag: string) => boolean;
+
+/** Keeps no tag from anyone. */
+const SHOWS_EVERY_TAG: TagHidden = () => false;

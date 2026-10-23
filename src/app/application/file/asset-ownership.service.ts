@@ -1,9 +1,10 @@
 import { inject, Injectable } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Network } from '@axe/core/network/network';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { loadOrCreateOwnerKey } from '@axe/core/storage/owner-key-storage';
-import { AssetOwner } from '@axe/domain/media/asset-owner';
+import { ASSET_OWNER_ALIAS, AssetOwner } from '@axe/domain/media/asset-owner';
 import { AssetRemovalKind } from '@axe/domain/media/asset-removal';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
@@ -18,6 +19,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 @Injectable({ providedIn: 'root' })
 export class AssetOwnershipService {
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly objectChange = inject(ObjectChangeService);
   private browserKey: string | null = null;
 
   /** The key this seat holds things by; empty while it has none. */
@@ -30,6 +32,12 @@ export class AssetOwnershipService {
   /** Whether this seat added the asset, as the room knows it. An asset the room knows no adder of is nobody's. */
   isMine(assetIdentifier: string): boolean {
     return AssetOwner.get(assetIdentifier)?.isHeldBy(this.myOwnerKey()) ?? false;
+  }
+
+  /** Reads who the room says added what, so that what asks follows the records as they come and change. */
+  track(): void {
+    this.objectChange.collectionOf(ASSET_OWNER_ALIAS)();
+    for (const record of AssetOwner.all()) this.objectChange.versionOf(record.identifier)();
   }
 
   /**

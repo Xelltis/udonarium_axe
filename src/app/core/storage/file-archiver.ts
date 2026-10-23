@@ -292,6 +292,7 @@ export class FileArchiver {
       name === 'imagetag.xml' ||
       name === 'audiotag.xml' ||
       name === 'assetowner.xml' ||
+      name === 'imagelock.xml' ||
       name === 'summary.xml' ||
       name === 'ailment.xml'
     ) {

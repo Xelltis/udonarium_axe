@@ -15,12 +15,36 @@
             (change)="resetBtn()"
           />
           <span
-            class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text peer-checked:bg-ui-accent-bg peer-checked:text-ui-accent peer-checked:border-ui-accent inline-flex items-center rounded-full border border-solid bg-transparent px-2.5 py-0.75 text-[12px] font-medium whitespace-nowrap transition-[background,color,border-color] select-none"
-            >{{ displayTagName(tag) }}</span
+            class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text peer-checked:bg-ui-accent-bg peer-checked:text-ui-accent peer-checked:border-ui-accent inline-flex items-center gap-0.5 rounded-full border border-solid bg-transparent px-2.5 py-0.75 text-[12px] font-medium whitespace-nowrap transition-[background,color,border-color] select-none"
+          >
+            @if (lockedTags().has(tag)) {
+              <i
+                class="material-icons text-[13px]!"
+                data-testid="file-storage-tag-locked"
+                [title]="'feature.file.fileStorage.lockedTag' | transloco"
+                >lock</i
+              >
+            }
+            {{ displayTagName(tag) }}</span
           >
         </label>
       }
     </div>
+    @if (canLockSelected()) {
+      <button
+        type="button"
+        class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex shrink-0 cursor-pointer items-center gap-1 border border-solid px-2 py-0.75 text-[12px] whitespace-nowrap transition-[background,color,border-color] [&_.material-icons]:text-[14px]!"
+        data-testid="file-storage-lock-tag"
+        [title]="'feature.file.fileStorage.lockTagHint' | transloco"
+        (click)="toggleSelectedLock()"
+      >
+        <i class="material-icons">{{ lockedTags().has(selectTag()) ? 'lock_open' : 'lock' }}</i>
+        {{
+          (lockedTags().has(selectTag()) ? 'feature.file.fileStorage.unlockTag' : 'feature.file.fileStorage.lockTag')
+            | transloco
+        }}
+      </button>
+    }
     @if (canKeepSecret) {
       <label class="inline-flex shrink-0 cursor-pointer items-center gap-1 py-0.75">
         <input

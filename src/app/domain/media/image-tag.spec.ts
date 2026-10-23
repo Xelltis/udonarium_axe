@@ -124,4 +124,12 @@ describe('canBrowseImage()', () => {
     // Folding them away is the master's own view; it lets nothing else through.
     expect(canBrowseImage(tag({ tag: 'コマ' }), true, false)).toBe(true);
   });
+
+  it('keeps one filed under a tag kept from whoever is looking, and only that tag', () => {
+    const keptFromMe = (name: string) => name === 'ボス';
+
+    expect(canBrowseImage(tag({ tag: 'ボス' }), true, true, keptFromMe)).toBe(false);
+    expect(canBrowseImage(tag({ tag: 'コマ' }), false, true, keptFromMe)).toBe(true);
+    expect(canBrowseImage(null, false, true, keptFromMe)).toBe(true);
+  });
 });

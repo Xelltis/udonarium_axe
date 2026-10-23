@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { PartyService } from '@axe/application/party/party.service';
@@ -78,6 +79,7 @@ export class TabletopActionService {
   private readonly modalService = inject(ModalService);
   private readonly tabletopService = inject(TabletopService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly tagLock = inject(ImageTagLockService);
   private readonly partyService = inject(PartyService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
@@ -617,11 +619,17 @@ export class TabletopActionService {
    * default name. Answers null when no image qualifies.
    */
   createDeckFromTag(position: PointerCoordinate, tag: string, useImageName: boolean): CardStack | null {
-    // A picture the master is keeping back is not dealt onto the table by anyone else.
+    // A picture the master is keeping back is not dealt onto the table by anyone else, nor one
+    // under a tag someone keeps to themselves by anyone but them and the master.
     const images = this.imageStorage.images.filter(
       (image) =>
         (ImageTag.get(image.identifier)?.tag ?? '') === tag &&
-        canBrowseImage(ImageTag.get(image.identifier) ?? null, this.rolePermission.canSeeHidden)
+        canBrowseImage(
+          ImageTag.get(image.identifier) ?? null,
+          this.rolePermission.canSeeHidden,
+          true,
+          this.tagLock.hides
+        )
     );
     const sources = toDeckCardSources(images, this.t('feature.tabletop.action.defaultCardName'));
     if (sources.length < 1) return null;

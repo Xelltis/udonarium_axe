@@ -15,6 +15,7 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -238,6 +239,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
   private readonly dungeonBuild = inject(DungeonBuildService);
   private readonly textureIntake = inject(TextureIntakeService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly tagLock = inject(ImageTagLockService);
   private readonly tabletopService = inject(TabletopService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
@@ -551,9 +553,10 @@ export class MapEditorPanelComponent implements AfterViewInit {
   protected readonly faceTextures = computed<ImageFile[]>(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf('image-tag')();
+    this.tagLock.track();
     // What the tool is built with is shown by its own swatches here, and it is in the library
     // as well, so it is left out of this list rather than offered twice over.
-    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden).filter(
+    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden, this.tagLock.hides).filter(
       (file) => !isBuiltinMaterial(file.identifier)
     );
   });

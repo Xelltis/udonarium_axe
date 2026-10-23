@@ -42,6 +42,7 @@ import { AssetOwnerList } from '@axe/domain/media/asset-owner-list';
 import { AudioTagList } from '@axe/domain/media/audio-tag-list';
 import { carriedImagesOf } from '@axe/domain/media/carried-images';
 import { ImageTagList } from '@axe/domain/media/image-tag-list';
+import { ImageTagLockList } from '@axe/domain/media/image-tag-lock-list';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { Room } from '@axe/domain/peer/room';
@@ -149,18 +150,22 @@ export class SaveDataService {
       if (file) files.push(file);
     }
     files.push(new File([this.convertToXml(AudioTagList.create(audios))], 'audiotag.xml', { type: 'text/plain' }));
-    files.push(this.assetOwnerFile([...images, ...audios]));
     return files;
   }
 
   /**
-   * Who added the given pictures and sounds, as `assetowner.xml`, so that whoever added one may still
-   * remove it once the room is read back in. A single piece saved on its own leaves this out, as it
-   * may be carried into another room, which has adders of its own.
+   * Who added the given pictures and sounds as `assetowner.xml`, and the tags kept to someone as
+   * `imagelock.xml`, so that both hold once the room is read back in. Only a whole room carries them:
+   * a piece saved on its own, or a replay's pictures, may be carried into another room, which has
+   * adders and locks of its own and would have them written over.
    */
-  private assetOwnerFile(assets: readonly { identifier: string }[], pretty = false): File {
-    const xml = this.convertToXml(AssetOwnerList.create(assets.map((asset) => asset.identifier)), pretty);
-    return new File([xml], 'assetowner.xml', { type: 'text/plain' });
+  private roomRightsFiles(assets: readonly { identifier: string }[], pretty: boolean): File[] {
+    const owners = this.convertToXml(AssetOwnerList.create(assets.map((asset) => asset.identifier)), pretty);
+    const locks = this.convertToXml(ImageTagLockList.create(), pretty);
+    return [
+      new File([owners], 'assetowner.xml', { type: 'text/plain' }),
+      new File([locks], 'imagelock.xml', { type: 'text/plain' }),
+    ];
   }
 
   private _saveRoomAsync(fileName: string = '', updateCallback?: UpdateCallback): Promise<void> {
@@ -214,7 +219,7 @@ export class SaveDataService {
     const audios: AudioFile[] = this.audioStorage.audios.filter((a) => !a.isHidden);
     const audioTagXml = this.convertToXml(AudioTagList.create(audios), pretty);
     files.push(new File([audioTagXml], 'audiotag.xml', { type: 'text/plain' }));
-    files.push(this.assetOwnerFile([...images, ...audios], pretty));
+    files.push(...this.roomRightsFiles([...images, ...audios], pretty));
 
     return files;
   }

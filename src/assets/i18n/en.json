@@ -1963,7 +1963,12 @@
         "editImage": "Edit",
         "editImageHint": "Edits the one ticked picture and puts the result in its place, wherever it is used",
         "remove": "Delete",
-        "removeHint": "Delete the checked images from the room, for the other players too. Anyone but the GM can delete only images they added"
+        "removeHint": "Delete the checked images from the room, for the other players too. Anyone but the GM can delete only images they added",
+        "lockedTag": "A tag kept to one person: only they and the GM see it",
+        "lockTag": "Keep to myself",
+        "unlockTag": "Stop keeping to myself",
+        "lockTagHint": "Show this tag's images only to you and the GM. They no longer appear in anyone else's image lists or pickers. Images already on the table are still seen by everyone",
+        "tagKeptByOther": "Someone else keeps that tag to themselves. Choose another name"
       },
       "tooLarge": {
         "one": "“{{name}}” was not loaded because it is too large ({{limits}})",

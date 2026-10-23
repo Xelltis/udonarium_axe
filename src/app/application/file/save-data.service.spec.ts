@@ -345,17 +345,21 @@ describe('SaveDataService', () => {
       for (const record of AssetOwner.all()) ObjectStore.instance.remove(record);
     });
 
-    it('goes into a saved room as assetowner.xml, and stays out of a piece saved on its own', async () => {
+    it('goes into a saved room with its locked tags, and stays out of a piece saved on its own and a replay', async () => {
       const service = TestBed.inject(SaveDataService);
       const privateApi = service as unknown as SaveDataServicePrivateApi;
       const saved = vi.spyOn(privateApi, 'saveAsync').mockResolvedValue(undefined);
 
       await privateApi._saveRoomAsync('room');
       await privateApi._saveGameObjectAsync(GameCharacter.create('一人', 1, ''), 'one');
+      const replay = service.buildAssetFiles({ images: new Set(), audios: new Set() }).map((file) => file.name);
 
       const names = (call: number) => (saved.mock.calls[call][0] as File[]).map((file) => file.name);
-      expect(names(0)).toContain('assetowner.xml');
+      expect(names(0)).toEqual(expect.arrayContaining(['assetowner.xml', 'imagelock.xml']));
       expect(names(1)).not.toContain('assetowner.xml');
+      expect(names(1)).not.toContain('imagelock.xml');
+      expect(replay).not.toContain('assetowner.xml');
+      expect(replay).not.toContain('imagelock.xml');
     });
   });
 

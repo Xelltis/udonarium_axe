@@ -12,6 +12,7 @@ import { Card, CardState } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ImageTag } from '@axe/domain/media/image-tag';
+import { ImageTagLock } from '@axe/domain/media/image-tag-lock';
 import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -498,6 +499,16 @@ describe('TabletopActionService', () => {
       expect(stack!.cards).toHaveLength(2);
       expect(stack!.cards.map((card) => card.name).sort()).toEqual(['ドラゴン', '魔道士']);
       expect(stack!.name).toBe('デッキA');
+    });
+
+    it('deals no card of a tag someone else keeps to themselves', () => {
+      taggedImage('test://deck/boss.png', 'ボス.png', '秘密のデッキ');
+      ImageTagLock.lock('秘密のデッキ', 'owner_someone-else');
+      created.push(ImageTagLock.get('秘密のデッキ')!);
+      PeerCursor.createMyCursor().role = PeerRole.Player;
+
+      expect(service.createDeckFromTag(position, '秘密のデッキ', true)).toBeNull();
+      PeerCursor.myCursor = null!;
     });
 
     it('names the cards by default when the image names are not wanted', () => {
