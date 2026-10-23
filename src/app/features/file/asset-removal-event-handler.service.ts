@@ -20,7 +20,7 @@ const ALIAS = 'asset-removal';
  * A picture or sound the GM chooses to add again, one the room had removed, puts it back for the
  * room: the same file is the same identifier, so whatever showed it shows it again. Anyone else is
  * told that only the GM may. Bytes that reach the room's store after their removal all the same are
- * taken out again by the GM.
+ * taken out again by a seat that may remove them.
  *
  * A picture or sound made on this seat tells the room who added it, the one besides the GM who may
  * remove it.

@@ -404,7 +404,7 @@ export class NetworkEventHandlerService {
    * a room everybody had gone from, which no member's catalog names any more. Each room starts with
    * a clean slate of what the store was found to lack. A list the server could not give just then is
    * asked for again a few times, while the seat is still in the room. What the list holds that the
-   * room removed is taken out of the store again, when this seat is the GM.
+   * room removed is taken out of the store again, when this seat may remove it.
    */
   private fetchRoomAssets(): void {
     this.roomAssetListRetries.clear();
