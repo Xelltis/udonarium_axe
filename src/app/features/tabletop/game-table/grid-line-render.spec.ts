@@ -46,6 +46,15 @@ describe('GridLineRender', () => {
       expect(widths).toEqual([2.5]);
     });
 
+    it('stops the heavier edges at the last whole cell of a table of part of a cell', () => {
+      const { canvas, context } = createCanvasMock();
+
+      new GridLineRender(canvas).render(5.5, 3, 50, GridType.SQUARE, '#000', '#000', false, 0, 0, 2);
+
+      expect(context.moveTo).toHaveBeenCalledWith(250, 0);
+      expect(context.moveTo).not.toHaveBeenCalledWith(275, 0);
+    });
+
     it('closes the squares the edge of the table cuts off along that edge', () => {
       const { canvas, context } = createCanvasMock();
 

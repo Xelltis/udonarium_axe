@@ -200,8 +200,8 @@ export class GridLineRender {
   ): void {
     if (width < 1 || height < 1) return;
     const size = span * gridSize;
-    const right = width * gridSize;
-    const bottom = height * gridSize;
+    const right = Math.floor(width) * gridSize;
+    const bottom = Math.floor(height) * gridSize;
     context.save();
     context.lineWidth = Math.max(2, gridSize / 20);
     context.beginPath();

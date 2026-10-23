@@ -1,6 +1,13 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCenterOf, cellGridOf, cellIndexAt, cellIndexOf, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
+import {
+  cellCenterOf,
+  cellCount,
+  cellGridOf,
+  cellIndexAt,
+  cellIndexOf,
+  cellPolygonOf,
+} from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { blockedByTerrain } from '@axe/domain/tabletop/move/blocked-cells';
 import { landingHeightsOn } from '@axe/domain/tabletop/move/landing-height';
@@ -136,6 +143,16 @@ describe('a square the table’s edge cuts off', () => {
 
     expect(at).toEqual({ x: 400, y: 300 });
     expect(pieceCellOf(grid, piece, 50, at)).toBe(corner);
+    piece.destroy();
+  });
+
+  it('keeps a piece wider than what is left of it on the table, and has no room for one', () => {
+    const piece = pieceAt(2, 0, 0);
+    const strip = cellIndexOf(grid, 0, 3);
+
+    expect(pieceCornerOn(grid, piece, 50, strip)).toEqual({ x: 0, y: 250 });
+    expect(pieceFitsOn(grid, piece, 50, new CellBits(cellCount(grid)))?.(strip)).toBe(false);
+    expect(pieceFitsOn(grid, piece, 50, new CellBits(cellCount(grid)))?.(cellIndexOf(grid, 0, 2))).toBe(true);
     piece.destroy();
   });
 

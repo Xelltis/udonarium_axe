@@ -74,7 +74,12 @@ export function pieceWidthPx(character: GameCharacter, cellPx: number): number {
   return Math.max(1, Number(character.size) || 1) * cellPx;
 }
 
-/** Where a piece's corner goes for it to stand on a given cell. */
+/**
+ * Where a piece's corner goes for it to stand on a given cell.
+ *
+ * On a square the table's edge cuts off, a piece wider than what is left of the square is kept on
+ * the table rather than hung over its edge.
+ */
 export function pieceCornerOn(
   grid: CellGrid,
   character: GameCharacter,
@@ -83,7 +88,14 @@ export function pieceCornerOn(
 ): { x: number; y: number } {
   const centre = cellCenterOf(grid, cell);
   const shift = shiftOn(grid, character, gridSize);
-  return { x: centre.x - shift, y: centre.y - shift };
+  const corner = { x: centre.x - shift, y: centre.y - shift };
+  const clip = grid.clip;
+  if (!clip) return corner;
+  const width = pieceWidthPx(character, cellPxOf(grid));
+  return {
+    x: Math.max(0, Math.min(corner.x, clip.width - width)),
+    y: Math.max(0, Math.min(corner.y, clip.height - width)),
+  };
 }
 
 /**
