@@ -1,12 +1,13 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, cellGridOf, cellIndexAt, cellIndexOf, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { blockedByTerrain } from '@axe/domain/tabletop/move/blocked-cells';
 import { landingHeightsOn } from '@axe/domain/tabletop/move/landing-height';
 import { MoveBlockMap } from '@axe/domain/tabletop/move/move-block-map';
 import { moveCostCells } from '@axe/domain/tabletop/move/move-cost-cells';
 import {
+  cellHolding,
   forEachCellCovered,
   isSquareGrid,
   moveGridOf,
@@ -17,6 +18,7 @@ import {
   squaresClosedBy,
   squareSpanOf,
   squaresWithAny,
+  tableCellsOf,
 } from '@axe/domain/tabletop/move/move-grid';
 import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
 import { pieceFitsOn } from '@axe/domain/tabletop/move/piece-footprint';
@@ -85,11 +87,62 @@ describe('the grid a piece moves over', () => {
     expect(isSquareGrid(moveGridOf(table(1)))).toBe(false);
   });
 
-  it('is whole squares only, leaving a strip narrower than a square off the far edges', () => {
+  it('counts a strip narrower than a square along the far edges as squares cut off by the edge', () => {
     const grid = moveGridOf(table(2));
 
     expect(isSquareGrid(grid)).toBe(true);
-    expect([grid.cols, grid.rows, grid.sizePx]).toEqual([4, 3, 100]);
+    expect([grid.cols, grid.rows, grid.sizePx]).toEqual([5, 4, 100]);
+    expect(grid.clip).toEqual({ width: 450, height: 350 });
+  });
+
+  it('cuts nothing off a table its squares divide', () => {
+    expect(moveGridOf({ ...table(2), width: 8, height: 6 }).clip).toBeUndefined();
+  });
+});
+
+describe('a square the table’s edge cuts off', () => {
+  const grid = moveGridOf(table(2)) as SquareGrid;
+  const corner = cellIndexOf(grid, 4, 3);
+
+  it('has its middle and its outline where it is on the table', () => {
+    expect(cellCenterOf(grid, corner)).toEqual({ x: 425, y: 325 });
+    expect(cellPolygonOf(grid, corner)).toEqual([
+      { x: 400, y: 300 },
+      { x: 450, y: 300 },
+      { x: 450, y: 350 },
+      { x: 400, y: 350 },
+    ]);
+    expect(cellCenterOf(grid, cellIndexOf(grid, 1, 3))).toEqual({ x: 150, y: 325 });
+  });
+
+  it('holds the points on the table and none past its edge', () => {
+    expect(cellIndexAt(grid, 440, 10)).toBe(cellIndexOf(grid, 4, 0));
+    expect(cellIndexAt(grid, 460, 10)).toBe(-1);
+    expect(cellIndexAt(grid, 10, 360)).toBe(-1);
+  });
+
+  it('is made of the cells of it that are on the table', () => {
+    expect(tableCellsOf(grid, corner)).toEqual([{ col: 8, row: 6 }]);
+    expect(cellHolding(grid, 8, 6)).toBe(corner);
+    expect(cellHolding(grid, 9, 6)).toBe(-1);
+  });
+
+  it('puts a piece on what of it is on the table, and finds the piece there again', () => {
+    const piece = pieceAt(1, 0, 0);
+
+    const at = pieceCornerOn(grid, piece, 50, corner);
+
+    expect(at).toEqual({ x: 400, y: 300 });
+    expect(pieceCellOf(grid, piece, 50, at)).toBe(corner);
+    piece.destroy();
+  });
+
+  it('is closed by a wall across the part of it on the table, and left open by nothing', () => {
+    const strip = cellIndexOf(grid, 0, 3);
+
+    expect(squaresClosedBy(grid, cellsAt(grid)).get(strip)).toBe(false);
+    expect(squaresClosedBy(grid, cellsAt(grid, [0, 6], [1, 6])).get(strip)).toBe(true);
+    expect(squaresClosedBy(grid, cellsAt(grid, [0, 5])).get(cellIndexOf(grid, 0, 2))).toBe(false);
   });
 });
 

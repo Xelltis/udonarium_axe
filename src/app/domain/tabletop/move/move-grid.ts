@@ -48,8 +48,8 @@ export function squareSpanOf(table: Pick<SquaredTable, 'gridType' | 'squareSpan'
 
 /**
  * The grid a piece on the table moves over: the table's own cells, or its squares when it counts
- * several cells as one. A square exists only where all of its cells do, so a strip along the far
- * edges narrower than a square is left out.
+ * several cells as one. Along a far edge the table's size does not divide, the squares are cut off
+ * where the table ends, and each still counts as a square.
  */
 export function moveGridOf(table: SquaredTable): CellGrid {
   const fine = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
@@ -57,15 +57,22 @@ export function moveGridOf(table: SquaredTable): CellGrid {
   return span > 1 ? squareGridOver(fine, span) : fine;
 }
 
-/** The squares `span` cells across over a grid of cells. */
+/**
+ * The squares `span` cells across over a grid of cells, those along the far edges cut off where
+ * the cells end.
+ */
 export function squareGridOver(fine: CellGrid, span: number): SquareGrid {
+  const cols = Math.ceil(fine.cols / span);
+  const rows = Math.ceil(fine.rows / span);
+  const whole = cols * span === fine.cols && rows * span === fine.rows;
   return {
-    cols: Math.floor(fine.cols / span),
-    rows: Math.floor(fine.rows / span),
+    cols,
+    rows,
     sizePx: fine.sizePx * span,
     type: fine.type,
     span,
     fine,
+    ...(whole ? {} : { clip: { width: fine.cols * fine.sizePx, height: fine.rows * fine.sizePx } }),
   };
 }
 
@@ -105,26 +112,35 @@ export function squarePxOf(table: Pick<SquaredTable, 'gridSize' | 'gridType' | '
   return squareSpanOf(table) * Number(table.gridSize);
 }
 
-/** The square holding a cell of the table, or -1 for a cell in the strip the squares leave over. */
+/** The square holding a cell of the table. */
 export function squareOfCell(grid: SquareGrid, cell: number): number {
   const col = cell % grid.fine.cols;
   const row = Math.floor(cell / grid.fine.cols);
   return cellIndexOf(grid, Math.floor(col / grid.span), Math.floor(row / grid.span));
 }
 
-/** The cell of a grid holding the table's cell at a column and row, or -1 off the grid. */
+/** The cell of a grid holding the table's cell at a column and row, or -1 off the table. */
 export function cellHolding(grid: CellGrid, col: number, row: number): number {
+  const fine = fineGridOf(grid);
+  if (col < 0 || row < 0 || col >= fine.cols || row >= fine.rows) return -1;
   const span = spanOf(grid);
   return cellIndexOf(grid, Math.floor(col / span), Math.floor(row / span));
 }
 
-/** The table's cells, by column and row, that a cell of a grid is made of: itself, or a square's. */
+/**
+ * The table's cells, by column and row, that a cell of a grid is made of: itself, or those of a
+ * square that are on the table.
+ */
 export function tableCellsOf(grid: CellGrid, index: number): { col: number; row: number }[] {
   const { col, row } = cellColRow(grid, index);
   const span = spanOf(grid);
+  const fine = fineGridOf(grid);
   const cells: { col: number; row: number }[] = [];
   for (let down = 0; down < span; down++) {
-    for (let across = 0; across < span; across++) cells.push({ col: col * span + across, row: row * span + down });
+    for (let across = 0; across < span; across++) {
+      const at = { col: col * span + across, row: row * span + down };
+      if (at.col < fine.cols && at.row < fine.rows) cells.push(at);
+    }
   }
   return cells;
 }
@@ -174,7 +190,8 @@ export function squaresWithAny(grid: SquareGrid, cells: CellBits): CellBits {
  * This is how walls drawn on a table's cells close its squares. A wall one cell thick closes the
  * squares it runs through, even along their edge, so nothing slips past it; a doorway a cell wide
  * breaks the line and leaves the square open; and a pillar or a heap of rubble in a corner does
- * not close the square around it.
+ * not close the square around it. On a square the table's edge cuts off, a line is the part of it
+ * on the table, so a wall across a strip one cell deep closes it.
  */
 export function squaresClosedBy(grid: SquareGrid, cells: CellBits): CellBits {
   const squares = new CellBits(cellCount(grid));
@@ -188,11 +205,14 @@ export function squaresClosedBy(grid: SquareGrid, cells: CellBits): CellBits {
       const left = col * span;
       const top = row * span;
       const line = (cellAt: (step: number) => [number, number]) => {
+        let onTable = false;
         for (let step = 0; step < span; step++) {
           const [c, r] = cellAt(step);
+          if (c >= fine.cols || r >= fine.rows) continue;
           if (!marked(c, r)) return false;
+          onTable = true;
         }
-        return true;
+        return onTable;
       };
       let closed = line((step) => [left + step, top + step]) || line((step) => [left + span - 1 - step, top + step]);
       for (let across = 0; across < span && !closed; across++) {

@@ -88,7 +88,8 @@ function sameElements<T>(a: readonly T[], b: readonly T[]): boolean {
 
 /** What tells one board from another, for anything rasterised over the cells of one. */
 function gridKeyOf(grid: CellGrid): string {
-  return `${grid.cols}:${grid.rows}:${grid.sizePx}:${grid.type}:${spanOf(grid)}`;
+  const clip = grid.clip ? `:${grid.clip.width}x${grid.clip.height}` : '';
+  return `${grid.cols}:${grid.rows}:${grid.sizePx}:${grid.type}:${spanOf(grid)}${clip}`;
 }
 
 export interface MoveRangeView {

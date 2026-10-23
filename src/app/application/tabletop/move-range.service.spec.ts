@@ -242,6 +242,30 @@ describe('MoveRangeService', () => {
     });
   });
 
+  describe('on a table whose size the squares do not divide', () => {
+    beforeEach(() => {
+      table.width = 20;
+      table.height = 15;
+      table.squareSpan = 4;
+    });
+
+    it('reaches from the strip along the edge, which counts as squares', () => {
+      service.show(pieceAt(5, 13, 1));
+
+      const view = service.range()!;
+      expect([view.grid.cols, view.grid.rows]).toEqual([5, 4]);
+      expect(view.cells.get(cellIndexOf(view.grid, 0, 2))).toBe(true);
+      expect(view.cells.get(cellIndexOf(view.grid, 2, 3))).toBe(true);
+      expect(view.cells.get(cellIndexOf(view.grid, 1, 3))).toBe(false);
+    });
+
+    it('reaches into the strip from the squares above it', () => {
+      service.show(pieceAt(5, 9, 1));
+
+      expect(service.range()!.cells.get(cellIndexOf(service.range()!.grid, 1, 3))).toBe(true);
+    });
+  });
+
   describe('a piece up on the blocks', () => {
     /** A block of the given height, walls and all, which is what a room is built out of. */
     function blockOver(col: number, row: number, cells: number, height: number): Terrain {
