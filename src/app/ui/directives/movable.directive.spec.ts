@@ -79,6 +79,7 @@ describe('MovableDirective', () => {
       table.gridSize = 50;
       table.gridSnapStyle = GridSnapStyle.GRID;
       table.initialize();
+      onTestFinished(() => table.destroy());
       fixture.detectChanges();
       const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
       directive.posX = 60;
@@ -87,7 +88,6 @@ describe('MovableDirective', () => {
       directive.snapToGrid();
 
       expect([directive.posX, directive.posY]).toEqual([50, 100]);
-      table.destroy();
     });
 
     it('does not transition without a tabletop object', () => {
