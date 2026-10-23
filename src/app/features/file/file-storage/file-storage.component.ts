@@ -14,6 +14,7 @@ import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
+import { ASSET_OWNER_ALIAS } from '@axe/domain/media/asset-owner';
 import { canBrowseImage, ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { ReportDialogComponent } from '@axe/features/moderation/report-dialog/report-dialog.component';
 import { ImageEditQueue } from '@axe/ui/components/image-editor/image-edit-queue.service';
@@ -71,12 +72,15 @@ export class FileStorageComponent {
   });
 
   /**
-   * Whether this seat may remove pictures from the room, which only the master may. It follows this
-   * seat's cursor, as `canEdit` does.
+   * Whether this seat may remove pictures from the room here: the master always, and a player while
+   * any picture listed is one they added. It follows this seat's cursor, as `canEdit` does, and who
+   * the room says added what.
    */
   protected readonly canRemove = computed(() => {
     this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditShared;
+    this.objectChange.collectionOf(ASSET_OWNER_ALIAS)();
+    if (this.rolePermission.canEditShared) return true;
+    return this.images().some((image) => this.assetRemoval.mayRemove(image.context.identifier));
   });
 
   /** The master's own view of what is being kept. Everyone else never sees them at all. */

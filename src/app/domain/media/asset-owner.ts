@@ -3,6 +3,9 @@ import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { AssetRemovalKind } from '@axe/domain/media/asset-removal';
 
+/** The kind the records go by, as the object store names it. */
+export const ASSET_OWNER_ALIAS = 'asset-owner';
+
 /**
  * The room's word on who added a picture or a sound, by the key that seat holds things by: the one
  * who may remove it besides the GM.
@@ -12,7 +15,7 @@ import { AssetRemovalKind } from '@axe/domain/media/asset-removal';
  * it is a kind of its own rather than a mark on the picture's or sound's tag, which an older version
  * would wipe: such a version sends a tag it changes whole, and passes over a kind it does not know.
  */
-@SyncObject('asset-owner')
+@SyncObject(ASSET_OWNER_ALIAS)
 export class AssetOwner extends ObjectNode {
   @SyncVar() assetIdentifier: string = '';
   @SyncVar() kind: string = '';

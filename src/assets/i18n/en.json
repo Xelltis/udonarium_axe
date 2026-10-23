@@ -1963,7 +1963,7 @@
         "editImage": "Edit",
         "editImageHint": "Edits the one ticked picture and puts the result in its place, wherever it is used",
         "remove": "Delete",
-        "removeHint": "Delete the checked images from the room, for the other players too"
+        "removeHint": "Delete the checked images from the room, for the other players too. Anyone but the GM can delete only images they added"
       },
       "tooLarge": {
         "one": "“{{name}}” was not loaded because it is too large ({{limits}})",
@@ -1982,9 +1982,11 @@
         "uses": "They are used in {{uses}} place(s) in the room.",
         "restore": "This cannot be undone. If the GM adds the same file again, it comes back wherever it was used.",
         "ok": "Delete",
-        "imageRefused": "The GM deleted this image from the room. Only the GM can add it again.",
-        "audioRefused": "The GM deleted this sound from the room. Only the GM can add it again.",
-        "notRemovable": "Bundled files, files linked by URL and system-reserved images cannot be deleted."
+        "imageRefused": "This image was deleted from the room. Only the GM can add it again.",
+        "audioRefused": "This sound was deleted from the room. Only the GM can add it again.",
+        "notRemovable": "Bundled files, files linked by URL and system-reserved images cannot be deleted.",
+        "notYours": "You cannot delete what someone else added. Only the person who added it, or the GM, can.",
+        "othersKept": "{{count}} added by someone else will be kept."
       }
     },
     "character": {

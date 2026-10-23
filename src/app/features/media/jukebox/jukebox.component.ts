@@ -21,6 +21,7 @@ import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { ASSET_OWNER_ALIAS } from '@axe/domain/media/asset-owner';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { Playlist } from '@axe/domain/media/playlist';
@@ -79,14 +80,20 @@ export class JukeboxComponent {
   /** Whether this player may turn shuffle and repeat, which only the game master may. */
   readonly canChangeModes = this.playback.canChangeModes;
 
-  /** Whether this player may remove a sound from the room, which only the game master may, as with pictures. */
   /** Whether this seat may report a sound to the room server's operator, as anyone in its room may. */
   readonly canReport = inject(ReportService).canReport;
 
+  /** Whether this seat may remove any sound from the room, as the game master may. */
   readonly canRemove = computed(() => {
     this.objectChange.trackMyCursor();
     return this.rolePermission.canEditShared;
   });
+
+  /** Whether this seat may remove a sound: the game master any, a player one they added. */
+  mayRemove(audio: AudioFile): boolean {
+    this.objectChange.collectionOf(ASSET_OWNER_ALIAS)();
+    return this.canRemove() || this.assetRemoval.mayRemove(audio.identifier);
+  }
 
   /**
    * The room-wide volume every player's sound is multiplied by, from the room volume slider.
@@ -527,7 +534,7 @@ export class JukeboxComponent {
   }
 
   async removeAudio(audio: AudioFile): Promise<void> {
-    if (!this.canRemove()) return;
+    if (!this.mayRemove(audio)) return;
     if ((await this.assetRemoval.removeAfterAsking('audio', [audio.identifier])) < 1) return;
     if (this.auditionPlayer.audio === audio) this.stop();
   }
