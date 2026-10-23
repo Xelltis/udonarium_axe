@@ -80,6 +80,12 @@ export function pieceCellOf(
 /** How far, in px, a piece may be off a place and still count as standing on it. */
 export const ON_PLACE_PX = 0.5;
 
+/** Whether a piece's corner stands at a place, to within {@link ON_PLACE_PX}. */
+export function standsAt(character: GameCharacter, corner: { x: number; y: number }): boolean {
+  const { x, y } = character.location;
+  return Math.abs(x - corner.x) <= ON_PLACE_PX && Math.abs(y - corner.y) <= ON_PLACE_PX;
+}
+
 /** How wide a piece stands, in px, on cells `cellPx` across. */
 export function pieceWidthPx(character: GameCharacter, cellPx: number): number {
   const size = Number(character.size);
@@ -139,7 +145,9 @@ export function pieceCornerInSquare(
 /**
  * The places on the cells of a square a piece could stand, by where its corner goes, along the top
  * row first; none on a grid of the table's own cells, or for a piece wider than what of the square
- * is on the table.
+ * is on the table. A piece a whole number of cells across lines its edges up with the cells, and
+ * one of part of a cell has its middle where they meet, or in the middle of the square where no such
+ * point keeps it inside.
  */
 export function pieceCornersInSquare(
   grid: CellGrid,
@@ -153,9 +161,9 @@ export function pieceCornersInSquare(
   const whole = Number(character.size) % 1 === 0;
   const along = (start: number, end: number) => {
     const places: number[] = [];
-    const first = whole ? start : start + cellPx - width / 2;
+    const first = whole ? start : start + Math.ceil(width / 2 / cellPx) * cellPx - width / 2;
     for (let at = first; at + width <= end + ON_PLACE_PX; at += cellPx) places.push(at);
-    return places.length > 0 ? places : [start];
+    return places.length > 0 ? places : [start + (end - start - width) / 2];
   };
   const places: { x: number; y: number }[] = [];
   for (const y of along(topLeft.y, bottomRight.y)) {

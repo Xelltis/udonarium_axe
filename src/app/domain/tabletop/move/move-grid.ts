@@ -212,8 +212,8 @@ export function squaresWithAny(grid: SquareGrid, cells: CellBits): CellBits {
  * breaks the line and leaves the square open; and a pillar or a heap of rubble in a corner does
  * not close the square around it. A square the table's edge cuts off is the part of it on the
  * table, a row of it as wide as that part and a column as deep, with diagonals only where that part
- * is as wide as it is deep: a wall across a strip one cell deep closes it, and rubble in a corner of
- * a strip does not.
+ * is as wide as it is deep. Any cell of a strip one cell deep runs right across it, as a wall across
+ * a corridor does, so closes it; rubble in a corner of a deeper strip does not.
  */
 export function squaresClosedBy(grid: SquareGrid, cells: CellBits): CellBits {
   const squares = new CellBits(cellCount(grid));

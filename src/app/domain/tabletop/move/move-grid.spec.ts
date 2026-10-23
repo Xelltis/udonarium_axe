@@ -368,6 +368,13 @@ describe('where a piece is put down among the cells of a square', () => {
     for (const piece of [one, two, half]) piece.destroy();
   });
 
+  it('keeps a piece of part of a cell with no point where cells meet to stand on in the middle of the square', () => {
+    const wide = pieceAt(2.5, 0, 0);
+
+    expect(pieceCornersInSquare(threes, wide, cellIndexOf(threes, 0, 0))).toEqual([{ x: 12.5, y: 12.5 }]);
+    wide.destroy();
+  });
+
   it('puts a piece of part of a cell with its middle where cells meet', () => {
     const half = pieceAt(0.5, 0, 0);
 
