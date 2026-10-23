@@ -86,7 +86,7 @@ import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { GridSnapStyle, keepsPiecesOnCells } from '@axe/domain/tabletop/game-table';
+import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import {
   buildHexHoleInCircleClipPath,
   buildHexRingClipPath,
@@ -95,7 +95,7 @@ import {
 } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
-import { pieceCornerOnCellOfSquare, pieceCornerOnSquare } from '@axe/domain/tabletop/move/piece-on-grid';
+import { pieceCornerOnSquare } from '@axe/domain/tabletop/move/piece-on-grid';
 import {
   DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS,
   multiAngleNameMotionMode,
@@ -412,12 +412,7 @@ export class GameCharacterComponent {
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_TALL_OBJECT_PX),
       snapStyle: (char) => (char.size % 1 !== 0 ? GridSnapStyle.VERTEX : undefined),
-      snapToSquare: (char, at) => {
-        const table = this.tabletopService.currentTable;
-        return keepsPiecesOnCells(table)
-          ? pieceCornerOnCellOfSquare(table, char, at)
-          : pieceCornerOnSquare(table, char, at);
-      },
+      snapToSquare: (char, at) => pieceCornerOnSquare(this.tabletopService.currentTable, char, at),
     });
 
     this.destroyRef.onDestroy(() => {

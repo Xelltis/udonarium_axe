@@ -1,7 +1,8 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { cellCenterOf, CellGrid, cellIndexAt, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, CellGrid, cellIndexAt, cellIndexOf, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
 import {
   cellPxOf,
+  fineGridOf,
   fitsOnCell,
   isSquareGrid,
   moveGridOf,
@@ -108,8 +109,7 @@ export function pieceCornerOn(
 ): { x: number; y: number } {
   const centre = cellCenterOf(grid, cell);
   if (isSquareGrid(grid) && grid.keepsToCells) {
-    const nearMiddle = cellPxOf(grid) / 4;
-    const kept = cornerOnCellsOf(grid, character, cell, { x: centre.x - nearMiddle, y: centre.y - nearMiddle });
+    const [kept] = pieceCornersNearest(grid, character, cell, nearMiddleOf(grid, centre));
     if (kept) return kept;
   }
   const shift = shiftOn(grid, character, gridSize);
@@ -117,10 +117,22 @@ export function pieceCornerOn(
   const clip = grid.clip;
   if (!clip) return corner;
   const width = pieceWidthPx(character, cellPxOf(grid));
+  const [topLeft, , bottomRight] = cellPolygonOf(grid, cell);
+  const cutAcross = bottomRight.x - topLeft.x < grid.sizePx;
+  const cutDown = bottomRight.y - topLeft.y < grid.sizePx;
   return {
-    x: Math.max(0, Math.min(corner.x, clip.width - width)),
-    y: Math.max(0, Math.min(corner.y, clip.height - width)),
+    x: cutAcross ? Math.max(0, Math.min(corner.x, clip.width - width)) : corner.x,
+    y: cutDown ? Math.max(0, Math.min(corner.y, clip.height - width)) : corner.y,
   };
+}
+
+/**
+ * The point a piece put on a square with no cell chosen aims its middle at: the middle of the
+ * square, nudged up and to the left so that of several cells as near the first is taken.
+ */
+export function nearMiddleOf(grid: CellGrid, centre: { x: number; y: number }): { x: number; y: number } {
+  const nudge = cellPxOf(grid) / 4;
+  return { x: centre.x - nudge, y: centre.y - nudge };
 }
 
 /**
@@ -139,7 +151,8 @@ export function pieceCornerInSquare(
   square: number,
   at: { x: number; y: number }
 ): { x: number; y: number } {
-  return cornerOnCellsOf(grid, character, square, at) ?? pieceCornerOn(grid, character, gridSize, square);
+  const [nearest] = pieceCornersNearest(grid, character, square, at);
+  return nearest ?? pieceCornerOn(grid, character, gridSize, square);
 }
 
 /**
@@ -173,46 +186,43 @@ export function pieceCornersInSquare(
 }
 
 /**
- * Where a piece's corner goes to stand on the cells of a square with its middle nearest a point,
- * the first of the places {@link pieceCornersInSquare} lists where several are as near; nothing
- * on a grid of the table's own cells, or for a piece wider than what of the square is on the table.
+ * The places {@link pieceCornersInSquare} lists, nearest first by how far the piece's middle would
+ * be from a point, those as near kept in the order listed.
  */
-function cornerOnCellsOf(
+export function pieceCornersNearest(
   grid: CellGrid,
   character: GameCharacter,
   square: number,
   at: { x: number; y: number }
-): { x: number; y: number } | null {
-  const places = pieceCornersInSquare(grid, character, square);
-  if (places.length < 1) return null;
+): { x: number; y: number }[] {
   const half = pieceWidthPx(character, cellPxOf(grid)) / 2;
   const away = (place: { x: number; y: number }) => (place.x + half - at.x) ** 2 + (place.y + half - at.y) ** 2;
-  return places.reduce((best, place) => (away(place) < away(best) ? place : best));
+  return pieceCornersInSquare(grid, character, square).sort((a, b) => away(a) - away(b));
 }
 
-/**
- * Where a piece's corner goes to stand on the cells of the square under a place it is dropped at,
- * on a table that counts several cells as one square and keeps its pieces to their cells; nothing
- * on a table that counts each cell, or off its squares. A piece wider than the square stands in
- * its middle, as {@link pieceCornerInSquare} has it.
- */
-export function pieceCornerOnCellOfSquare(
-  table: SquaredTable,
-  character: GameCharacter,
-  at: { x: number; y: number }
-): { x: number; y: number } | null {
-  if (squareSpanOf(table) < 2) return null;
-  const grid = moveGridOf(table);
-  const square = pieceCellOf(grid, character, table.gridSize, at);
-  if (square < 0) return null;
-  const half = pieceWidthPx(character, table.gridSize) / 2;
-  return pieceCornerInSquare(grid, character, table.gridSize, square, { x: at.x + half, y: at.y + half });
+/** The table's cells a piece covers with its corner at a place, `width` across. */
+export function cellsCoveredAt(grid: CellGrid, corner: { x: number; y: number }, width: number): number[] {
+  const fine = fineGridOf(grid);
+  const cellPx = fine.sizePx;
+  const fromCol = Math.floor((corner.x + ON_PLACE_PX) / cellPx);
+  const toCol = Math.ceil((corner.x + width - ON_PLACE_PX) / cellPx);
+  const fromRow = Math.floor((corner.y + ON_PLACE_PX) / cellPx);
+  const toRow = Math.ceil((corner.y + width - ON_PLACE_PX) / cellPx);
+  const cells: number[] = [];
+  for (let row = fromRow; row < toRow; row++) {
+    for (let col = fromCol; col < toCol; col++) cells.push(cellIndexOf(fine, col, row));
+  }
+  return cells;
 }
 
 /**
  * Where a piece's corner goes to stand on the square under a place it is dropped at, on a table
  * that counts several cells as one square; nothing on a table that counts each cell, which is
  * left to snap the way it always has.
+ *
+ * On a table keeping its pieces to the cells, the square is the one under the piece's middle and
+ * the piece goes on its cells nearest where it was let go; one wider than the square stands in
+ * its middle.
  */
 export function pieceCornerOnSquare(
   table: SquaredTable,
@@ -221,6 +231,13 @@ export function pieceCornerOnSquare(
 ): { x: number; y: number } | null {
   if (squareSpanOf(table) < 2) return null;
   const grid = moveGridOf(table);
+  if (isSquareGrid(grid) && grid.keepsToCells) {
+    const half = pieceWidthPx(character, table.gridSize) / 2;
+    const middle = { x: at.x + half, y: at.y + half };
+    const under = cellIndexAt(grid, middle.x, middle.y);
+    const square = under < 0 ? pieceCellOf(grid, character, table.gridSize, at) : under;
+    return square < 0 ? null : pieceCornerInSquare(grid, character, table.gridSize, square, middle);
+  }
   const square = pieceCellOf(grid, character, table.gridSize, at);
   return square < 0 ? null : pieceCornerOn(grid, character, table.gridSize, square);
 }

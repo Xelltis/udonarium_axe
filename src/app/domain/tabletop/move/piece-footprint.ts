@@ -2,7 +2,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCenterOf, CellGrid, cellIndexAt, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
 import { fitsOnCell, isSquareGrid, SquareGrid } from '@axe/domain/tabletop/move/move-grid';
-import { pieceWidthPx, sizeShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
+import { sizeShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
 
 /**
  * Whether a piece standing on a cell would fit there, with every cell it covers clear.
@@ -32,10 +32,7 @@ export function pieceFitsOn(
   const size = Math.max(1, Math.round(across ?? piece.size));
   if (isSquareGrid(grid)) {
     const squares = Math.ceil(size / grid.span);
-    if (squares < 2) {
-      const widthPx = across === undefined ? pieceWidthPx(piece, grid.fine.sizePx) : across * grid.fine.sizePx;
-      return fitsWhatIsOnTheTable(grid, widthPx);
-    }
+    if (squares < 2) return fitsWhatIsOnTheTable(grid, size * grid.fine.sizePx);
     return footprintFitsOn(grid, squares, grid.sizePx, blocked);
   }
   return footprintFitsOn(grid, size, gridSize, blocked);

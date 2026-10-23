@@ -95,10 +95,14 @@ export function isSquareGrid(grid: CellGrid): grid is SquareGrid {
   return 'span' in grid && 'fine' in grid && (grid as SquareGrid).span > 1;
 }
 
+/** How much wider than a cell, in px, a piece may be counted and still fit, for sizes no binary fraction holds. */
+const FIT_SLACK_PX = 1e-6;
+
 /** Whether a piece `widthPx` across fits on what is on the table of a cell of a grid. */
 export function fitsOnCell(grid: CellGrid, cell: number, widthPx: number): boolean {
   const [topLeft, , bottomRight] = cellPolygonOf(grid, cell);
-  return widthPx <= bottomRight.x - topLeft.x && widthPx <= bottomRight.y - topLeft.y;
+  const room = Math.min(bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+  return widthPx <= room + FIT_SLACK_PX;
 }
 
 /** How many of the table's cells one cell of a grid is across. */

@@ -16,6 +16,7 @@ import { MoveBlockMap } from '@axe/domain/tabletop/move/move-block-map';
 import { moveCostCells } from '@axe/domain/tabletop/move/move-cost-cells';
 import {
   cellHolding,
+  fitsOnCell,
   forEachCellCovered,
   isSquareGrid,
   moveGridOf,
@@ -35,7 +36,6 @@ import {
   pieceCellOf,
   pieceCornerInSquare,
   pieceCornerOn,
-  pieceCornerOnCellOfSquare,
   pieceCornerOnSquare,
   pieceCornersInSquare,
   sizeShiftOf,
@@ -146,6 +146,27 @@ describe('a square the table’s edge cuts off', () => {
     expect(at).toEqual({ x: 400, y: 300 });
     expect(pieceCellOf(grid, piece, 50, at)).toBe(corner);
     piece.destroy();
+  });
+
+  it('counts a piece a little over a square across as the whole cells it is counted in', () => {
+    const piece = pieceAt(2.4, 0, 0);
+
+    expect(pieceFitsOn(grid, piece, 50, new CellBits(cellCount(grid)))?.(cellIndexOf(grid, 0, 0))).toBe(true);
+    piece.destroy();
+  });
+
+  it('keeps a wide piece on the table only across the edge that cuts the square off', () => {
+    const cutAcross = moveGridOf({ ...table(2), width: 9, height: 8 });
+    const piece = pieceAt(3, 0, 0);
+
+    expect(pieceCornerOn(cutAcross, piece, 50, cellIndexOf(cutAcross, 0, 3))).toEqual({ x: 25, y: 325 });
+    piece.destroy();
+  });
+
+  it('holds a piece as wide as the square on a cell of no binary width', () => {
+    const odd = squareGridOver(cellGridOf(15, 15, 33.3, GridType.SQUARE), 2);
+
+    expect(fitsOnCell(odd, cellIndexOf(odd, 6, 6), 2 * 33.3)).toBe(true);
   });
 
   it('asks nothing of a piece every square holds, cut off or not', () => {
@@ -333,20 +354,22 @@ describe('where a piece is put down among the cells of a square', () => {
     piece.destroy();
   });
 
+  /** A table eight cells across and down counting squares of two cells, keeping its pieces to the cells. */
+  const keptTwos = { ...table(2), width: 8, height: 8, gridSnap: true, gridSnapStyle: GridSnapStyle.GRID };
+
   it('puts a piece of part of a cell dropped by hand with its middle where cells meet inside the square', () => {
     const half = pieceAt(0.5, 0, 0);
-    const kept = { ...table(2), width: 8, height: 8, gridSnap: true, gridSnapStyle: GridSnapStyle.GRID };
 
-    expect(pieceCornerOnCellOfSquare(kept, half, { x: 0, y: 0 })).toEqual({ x: 37.5, y: 37.5 });
+    expect(pieceCornerOnSquare(keptTwos, half, { x: 0, y: 0 })).toEqual({ x: 37.5, y: 37.5 });
+    expect(pieceCornerOnSquare(keptTwos, half, { x: 80, y: 10 })).toEqual({ x: 37.5, y: 37.5 });
     half.destroy();
   });
 
   it('keeps a piece dropped by hand to the cells of the square under its middle', () => {
     const piece = pieceAt(2, 0, 0);
-    const twosTable = { ...table(2), width: 8, height: 8 };
 
-    expect(pieceCornerOnCellOfSquare(twosTable, piece, { x: 50, y: 50 })).toEqual({ x: 100, y: 100 });
-    expect(pieceCornerOnCellOfSquare(table(1), piece, { x: 50, y: 50 })).toBeNull();
+    expect(pieceCornerOnSquare(keptTwos, piece, { x: 50, y: 50 })).toEqual({ x: 100, y: 100 });
+    expect(pieceCornerOnSquare({ ...keptTwos, squareSpan: 1 }, piece, { x: 50, y: 50 })).toBeNull();
     piece.destroy();
   });
 
