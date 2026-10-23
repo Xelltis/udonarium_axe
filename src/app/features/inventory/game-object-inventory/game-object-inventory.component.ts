@@ -195,18 +195,18 @@ export class GameObjectInventoryComponent {
     // Folded as the list first arrives rather than as the panel is made: what there is to fold
     // is not known until the room has been read, and a panel folded before then folds nothing.
     // Each tab files its own folders, so each is folded the first time it is looked at. Not while
-    // a search is running, which leaves out every folder with nothing in it that matches. A tab
-    // already holding pieces in no folder has been read, so a folder turning up there afterwards,
-    // from this reader or another, is a new one and is left open.
+    // a search is running, which leaves out every folder with nothing in it that matches. Nor is a
+    // tab with no folders yet counted as done: a room arriving piece by piece may bring its loose
+    // pieces before its filed ones, so the first folders to turn up are folded whoever made them.
     effect(() => {
       if (!this.viewPreference.foldsOnOpen()) return;
       if (!this.foldersApply() || this.hasQuery()) return;
       const tab = this.selectTab();
       if (this.foldedOnOpen.has(tab)) return;
       const tree = this.folderTree();
-      if (tree.roots.length < 1 && tree.loose.length < 1) return;
+      if (tree.roots.length < 1) return;
       this.foldedOnOpen.add(tab);
-      if (tree.roots.length > 0) untracked(() => this.foldEveryFolder());
+      untracked(() => this.foldEveryFolder());
     });
     effect(() => {
       const selection = this.selectionSignalService.selectedObject();
