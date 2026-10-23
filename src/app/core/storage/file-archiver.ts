@@ -291,6 +291,7 @@ export class FileArchiver {
       name === 'config.xml' ||
       name === 'imagetag.xml' ||
       name === 'audiotag.xml' ||
+      name === 'assetowner.xml' ||
       name === 'summary.xml' ||
       name === 'ailment.xml'
     ) {

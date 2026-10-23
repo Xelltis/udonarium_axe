@@ -64,6 +64,32 @@ describe('AudioStorage', () => {
     });
   });
 
+  describe('telling the app a sound was added here', () => {
+    const madeHere = 'f'.repeat(64);
+    const whole = (): AudioFileContext => ({
+      identifier: madeHere,
+      name: 'made-here.ogg',
+      type: 'audio/ogg',
+      blob: new Blob([new Uint8Array([0x4f, 0x67, 0x67, 0x53])], { type: 'audio/ogg' }),
+      url: 'blob:made-here',
+    });
+
+    afterEach(() => {
+      storage.onAddedLocally = () => {};
+    });
+
+    it('tells it of one made here whole, and of none from a peer', () => {
+      const added = vi.fn();
+      storage.onAddedLocally = added;
+
+      storage.add(whole());
+      expect(added).not.toHaveBeenCalled();
+
+      storage.add(AudioFile.create(whole()));
+      expect(added.mock.calls).toEqual([[madeHere]]);
+    });
+  });
+
   describe('a sound the room removed', () => {
     const removedId = 'e'.repeat(64);
     const fullContext = (): AudioFileContext => ({

@@ -155,6 +155,34 @@ describe('ImageStorage', () => {
     });
   });
 
+  describe('telling the app a picture was added here', () => {
+    const madeHere = 'f'.repeat(64);
+    const whole = (): ImageContext => ({
+      identifier: madeHere,
+      name: '',
+      type: 'image/png',
+      blob: new Blob([new Uint8Array([4, 5, 6])], { type: 'image/png' }),
+      url: 'blob:whole',
+      thumbnail: { type: 'image/png', blob: null, url: '' },
+    });
+
+    afterEach(() => {
+      storage.onAddedLocally = () => {};
+    });
+
+    it('tells it of one made here whole, and of none from a peer or still to come', () => {
+      const added = vi.fn();
+      storage.onAddedLocally = added;
+
+      storage.add(whole());
+      storage.add(ImageFile.createEmpty('g'.repeat(64)));
+      expect(added).not.toHaveBeenCalled();
+
+      storage.add(ImageFile.create(whole()));
+      expect(added.mock.calls).toEqual([[madeHere]]);
+    });
+  });
+
   describe('images', () => {
     it('lists what has been added', () => {
       storage.add('https://example.com/a.png');

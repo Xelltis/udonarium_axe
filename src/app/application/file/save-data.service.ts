@@ -38,6 +38,7 @@ import { ChatLogStyle, isPlainChatLogStyle } from '@axe/domain/chat/chat-log-sty
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
+import { AssetOwnerList } from '@axe/domain/media/asset-owner-list';
 import { AudioTagList } from '@axe/domain/media/audio-tag-list';
 import { carriedImagesOf } from '@axe/domain/media/carried-images';
 import { ImageTagList } from '@axe/domain/media/image-tag-list';
@@ -148,7 +149,18 @@ export class SaveDataService {
       if (file) files.push(file);
     }
     files.push(new File([this.convertToXml(AudioTagList.create(audios))], 'audiotag.xml', { type: 'text/plain' }));
+    files.push(this.assetOwnerFile([...images, ...audios]));
     return files;
+  }
+
+  /**
+   * Who added the given pictures and sounds, as `assetowner.xml`, so that whoever added one may still
+   * remove it once the room is read back in. A single piece saved on its own leaves this out, as it
+   * may be carried into another room, which has adders of its own.
+   */
+  private assetOwnerFile(assets: readonly { identifier: string }[], pretty = false): File {
+    const xml = this.convertToXml(AssetOwnerList.create(assets.map((asset) => asset.identifier)), pretty);
+    return new File([xml], 'assetowner.xml', { type: 'text/plain' });
   }
 
   private _saveRoomAsync(fileName: string = '', updateCallback?: UpdateCallback): Promise<void> {
@@ -202,6 +214,7 @@ export class SaveDataService {
     const audios: AudioFile[] = this.audioStorage.audios.filter((a) => !a.isHidden);
     const audioTagXml = this.convertToXml(AudioTagList.create(audios), pretty);
     files.push(new File([audioTagXml], 'audiotag.xml', { type: 'text/plain' }));
+    files.push(this.assetOwnerFile([...images, ...audios], pretty));
 
     return files;
   }

@@ -72,6 +72,9 @@ export class AudioStorage {
    */
   onUploadedWhileRemoved: (identifier: string) => void = () => {};
 
+  /** Told, by the app, when a sound made on this seat is taken in whole, so that the room learns who added it. */
+  onAddedLocally: (identifier: string) => void = () => {};
+
   /** Every audio this seat knows of, including placeholders whose bytes have not arrived. */
   get audios(): AudioFile[] {
     return Object.values(this.hash);
@@ -136,6 +139,7 @@ export class AudioStorage {
   private _add(audio: AudioFile, isLocal: boolean = false, putBack: boolean = false): AudioFile {
     if (this.removed.has(audio.identifier) && !this.takeBack(audio, isLocal && putBack)) return audio;
     if (isLocal) this.uploadToAssetStore(audio, true);
+    if (isLocal && AudioState.COMPLETE <= audio.state) this.onAddedLocally(audio.identifier);
     if (AudioState.COMPLETE <= audio.state) this.catalogSchedule.whenQuiet(100);
     if (this.update(audio)) return this.hash[audio.identifier];
     this.hash[audio.identifier] = audio;

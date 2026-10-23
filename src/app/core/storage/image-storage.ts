@@ -68,6 +68,9 @@ export class ImageStorage {
    */
   onUploadedWhileRemoved: (identifier: string) => void = () => {};
 
+  /** Told, by the app, when a picture made on this seat is taken in whole, so that the room learns who added it. */
+  onAddedLocally: (identifier: string) => void = () => {};
+
   /** Every image this seat knows of, including placeholders whose data has not arrived. */
   get images(): ImageFile[] {
     return Object.values(this.imageHash);
@@ -137,6 +140,7 @@ export class ImageStorage {
   private _add(image: ImageFile, isLocal: boolean = false, putBack: boolean = false): ImageFile {
     if (this.removed.has(image.identifier) && !this.takeBack(image, isLocal && putBack)) return image;
     if (isLocal) this.uploadToAssetStore(image, true);
+    if (isLocal && ImageState.COMPLETE <= image.state) this.onAddedLocally(image.identifier);
     if (ImageState.COMPLETE <= image.state) this.catalogSchedule.whenQuiet(100);
     if (this.update(image)) return this.imageHash[image.identifier];
     this.imageHash[image.identifier] = image;
