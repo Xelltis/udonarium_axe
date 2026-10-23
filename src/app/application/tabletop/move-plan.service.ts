@@ -22,11 +22,17 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCenterOf, CellGrid, cellIndexAt, cellIndexOf, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
-import { keepsPiecesOnCells } from '@axe/domain/tabletop/game-table';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 import { cheapestPath } from '@axe/domain/tabletop/move/cheapest-path';
-import { fineGridOf, spanOf } from '@axe/domain/tabletop/move/move-grid';
+import { landingHeightAt } from '@axe/domain/tabletop/move/landing-height';
+import { fineGridOf, isSquareGrid } from '@axe/domain/tabletop/move/move-grid';
 import { cellsFrom, stepsFor } from '@axe/domain/tabletop/move/move-steps';
-import { pieceCellOf, pieceCornerInSquare, pieceWidthPx } from '@axe/domain/tabletop/move/piece-on-grid';
+import {
+  pieceCellOf,
+  pieceCornerInSquare,
+  pieceCornersInSquare,
+  pieceWidthPx,
+} from '@axe/domain/tabletop/move/piece-on-grid';
 import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
 import { walkedPath } from '@axe/domain/tabletop/move/walked-path';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
@@ -117,7 +123,7 @@ export class MovePlanService {
   private zoneStart: ZoneMoveStart | null = null;
   private terms: ReachTerms | null = null;
   /** Which of the table's own cells the piece may stand on, worked out once a move asks. */
-  private standable: ((cell: number) => boolean) | null = null;
+  private standable: ((cell: number, fromPx?: number | null) => boolean) | null = null;
   private walking = false;
   /** How the move stood before each corner was set, so the last one can be taken back up. */
   private legs: MovePlan[] = [];
@@ -305,12 +311,13 @@ export class MovePlanService {
     if (!plan || !terms || this.walking) return;
     const cell = cellIndexAt(plan.grid, x, y);
     if (cell < 0 || cell === plan.from || !plan.reach.get(cell)) {
-      const landing = cell === plan.from ? this.landingAt(plan, cell, x, y) : null;
+      const before = plan.settled.length > 1 ? plan.settled[plan.settled.length - 2] : null;
+      const landing = cell === plan.from ? this.landingAt(plan, cell, before, x, y) : this.keptLanding(plan);
       if (plan.ahead.length > 0 || !sameLanding(plan.landing, landing)) this.held.set({ ...plan, ahead: [], landing });
       return;
     }
-    const landing = this.landingAt(plan, cell, x, y);
     if (plan.ahead[plan.ahead.length - 1] === cell) {
+      const landing = this.landingAt(plan, cell, plan.ahead[plan.ahead.length - 2], x, y);
       if (!sameLanding(plan.landing, landing)) this.held.set({ ...plan, landing });
       return;
     }
@@ -326,43 +333,75 @@ export class MovePlanService {
         cornersCut: plan.cornersCut,
       }
     );
-    this.held.set({ ...plan, ahead: ahead ?? [], landing: ahead ? landing : null });
+    const landing = ahead ? this.landingAt(plan, cell, ahead[ahead.length - 2], x, y) : null;
+    this.held.set({ ...plan, ahead: ahead ?? [], landing });
   }
 
   /**
    * Where in a square the piece would be put down for the pointer at a place, on a table whose
-   * pieces keep to the cells of its squares; nothing on any other, nor where the piece could not
-   * stand on those cells, and it goes to the middle of the square as it would on another table.
+   * pieces keep to the cells of its squares: on the cells under the pointer, or the nearest it could
+   * stand on, stepping in from the square `before` it, or from where it stands where that is null.
+   * Nothing on any other table, nor where it could stand on no cell of the square.
    *
    * The pointer on the piece itself is where it stands, so a tap on it walks it nowhere.
    */
-  private landingAt(plan: MovePlan, cell: number, x: number, y: number): MoveLanding | null {
+  private landingAt(plan: MovePlan, cell: number, before: number | null, x: number, y: number): MoveLanding | null {
     const table = this.tableSelecter.viewTable;
     const character = this.objectStore.get<GameCharacter>(plan.characterIdentifier);
-    if (!table || !(character instanceof GameCharacter) || spanOf(plan.grid) < 2 || !keepsPiecesOnCells(table)) {
-      return null;
-    }
+    const grid = plan.grid;
+    if (!table || !(character instanceof GameCharacter) || !isSquareGrid(grid) || !grid.keepsToCells) return null;
     const width = pieceWidthPx(character, table.gridSize);
     const here = character.location;
     const onItself = x >= here.x && x < here.x + width && y >= here.y && y < here.y + width;
-    if (onItself && pieceCellOf(plan.grid, character, table.gridSize) === cell) {
+    if (onItself && pieceCellOf(grid, character, table.gridSize) === cell) {
       return { cell, x: here.x, y: here.y, width };
     }
-    const corner = pieceCornerInSquare(plan.grid, character, table.gridSize, cell, { x, y });
-    return this.canStandAt(character, table.gridSize, corner, width) ? { cell, ...corner, width } : null;
+    const wanted = pieceCornerInSquare(grid, character, table.gridSize, cell, { x, y });
+    const away = (corner: CellPoint) => (corner.x - wanted.x) ** 2 + (corner.y - wanted.y) ** 2;
+    const places = pieceCornersInSquare(grid, character, cell).sort((a, b) => away(a) - away(b));
+    const standing = places.find((corner) => this.canStandAt(plan, table, character, before, corner, width));
+    return standing ? { cell, ...standing, width } : null;
   }
 
-  /** Whether every one of the table's cells a piece would cover with its corner at a place is one it may stand on. */
-  private canStandAt(character: GameCharacter, cellPx: number, corner: CellPoint, width: number): boolean {
+  /**
+   * The landing kept with the pointer off anywhere the piece could go: the one chosen on the square
+   * the settled way ends on, which is still where the move ends; none while nothing is settled, so
+   * a tap there calls the move off rather than shifting the piece.
+   */
+  private keptLanding(plan: MovePlan): MoveLanding | null {
+    if (plan.settled.length < 2) return null;
+    return plan.landing?.cell === plan.from ? plan.landing : null;
+  }
+
+  /**
+   * Whether every one of the table's cells a piece would cover with its corner at a place is one it
+   * may stand on: a step from the ground in the middle of the square `before` it, or from where it
+   * stands where that is null, or at any height for a piece jumping.
+   */
+  private canStandAt(
+    plan: MovePlan,
+    table: GameTable,
+    character: GameCharacter,
+    before: number | null,
+    corner: CellPoint,
+    width: number
+  ): boolean {
     this.standable ??= this.moveRange.cellsToStandOn(character) ?? (() => false);
-    const fine = fineGridOf(this.held()!.grid);
+    const cellPx = table.gridSize;
+    const middle = before === null ? null : cellCenterOf(plan.grid, before);
+    const fromPx = plan.jumping
+      ? null
+      : middle
+        ? landingHeightAt(table.terrains, cellPx, middle.x, middle.y, table.gridType)
+        : undefined;
+    const fine = fineGridOf(plan.grid);
     const fromCol = Math.floor((corner.x + ON_PLACE_PX) / cellPx);
     const toCol = Math.ceil((corner.x + width - ON_PLACE_PX) / cellPx);
     const fromRow = Math.floor((corner.y + ON_PLACE_PX) / cellPx);
     const toRow = Math.ceil((corner.y + width - ON_PLACE_PX) / cellPx);
     for (let row = fromRow; row < toRow; row++) {
       for (let col = fromCol; col < toCol; col++) {
-        if (!this.standable(cellIndexOf(fine, col, row))) return false;
+        if (!this.standable(cellIndexOf(fine, col, row), fromPx)) return false;
       }
     }
     return true;
@@ -550,7 +589,9 @@ export class MovePlanService {
     this.close();
     this.zones.carryBound(character);
     this.ride.dropLeftBehind(character);
-    if (start) this.zones.afterMove(character, start);
+    // A shift within the square a piece stands on goes nowhere the move counts, so it neither
+    // leaves a zone nor enters one.
+    if (start && !inPlace) this.zones.afterMove(character, start);
     if (stopped) {
       this.interrupts.settle(character, stopped.outcome, stopped.point);
     } else {

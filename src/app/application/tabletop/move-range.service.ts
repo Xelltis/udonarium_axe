@@ -233,19 +233,21 @@ export class MoveRangeService {
 
   /**
    * Which of the table's own cells a piece could stand on, as the ground and the pieces on it have
-   * it: not ground too high or too sheer for it to step onto from where it stands, nor ground
+   * it: not ground too sheer to be stood on, nor too high or too low to step onto, nor ground
    * painted shut, nor ground somebody holds that it may not stop on. Nothing where no table is in
    * view.
    *
-   * Worked out once for the whole board, so one asking about many cells pays for it once.
+   * A step is measured from the ground the piece stands on, or from `fromPx` where the answer
+   * gives one, and not at all where it gives null, as for a piece jumping. Worked out for the whole
+   * board as it is first needed, so one asking about many cells pays for it once.
    */
-  cellsToStandOn(character: GameCharacter): ((cell: number) => boolean) | null {
+  cellsToStandOn(character: GameCharacter): ((cell: number, fromPx?: number | null) => boolean) | null {
     const table = this.tableSelecter.viewTable;
     if (!table || table.gridSize <= 0) return null;
     const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
     const total = cellCount(grid);
     const walled = blockedByTerrain(grid, table.terrains);
-    const sheer = blockedByTerrain(grid, table.terrains, terrainBlocksJump);
+    let sheer: CellBits | null = null;
     let heights: Float64Array | null = null;
     const start = pieceCellOf(grid, character, table.gridSize);
     const painted = moveBlockMapOn(table)?.read(grid) ?? null;
@@ -261,13 +263,16 @@ export class MoveRangeService {
       rules.sizeSlipsPast,
       this.alliance()
     );
-    return (cell: number): boolean => {
+    return (cell: number, fromPx?: number | null): boolean => {
       if (cell < 0 || cell >= total) return false;
       if (walled.get(cell)) {
+        sheer ??= blockedByTerrain(grid, table.terrains, terrainBlocksJump);
         if (sheer.get(cell)) return false;
-        heights ??= landingHeightsOn(grid, table.terrains);
-        const standingPx = start >= 0 && start < heights.length ? heights[start] : 0;
-        if (!isWalkableStep(heights[cell], standingPx, table.gridSize)) return false;
+        if (fromPx !== null) {
+          heights ??= landingHeightsOn(grid, table.terrains);
+          const standingPx = fromPx ?? (start >= 0 && start < heights.length ? heights[start] : 0);
+          if (!isWalkableStep(heights[cell], standingPx, table.gridSize)) return false;
+        }
       }
       if (painted?.get(cell)) return false;
       return !passage.blocked.get(cell) && !passage.noStop.get(cell);
