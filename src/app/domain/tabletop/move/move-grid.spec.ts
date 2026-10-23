@@ -165,6 +165,14 @@ describe('a square the table’s edge cuts off', () => {
     piece.destroy();
   });
 
+  it('is not closed by rubble in a corner of a strip narrower than it is deep', () => {
+    const threesCut = moveGridOf({ ...table(3), width: 8, height: 9 }) as SquareGrid;
+    const strip = cellIndexOf(threesCut, 2, 0);
+
+    expect(squaresClosedBy(threesCut, cellsAt(threesCut, [7, 1], [6, 2])).get(strip)).toBe(false);
+    expect(squaresClosedBy(threesCut, cellsAt(threesCut, [6, 1], [7, 1])).get(strip)).toBe(true);
+  });
+
   it('is closed by a wall across the part of it on the table, and left open by nothing', () => {
     const strip = cellIndexOf(grid, 0, 3);
 

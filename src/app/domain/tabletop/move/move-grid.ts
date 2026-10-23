@@ -210,8 +210,10 @@ export function squaresWithAny(grid: SquareGrid, cells: CellBits): CellBits {
  * This is how walls drawn on a table's cells close its squares. A wall one cell thick closes the
  * squares it runs through, even along their edge, so nothing slips past it; a doorway a cell wide
  * breaks the line and leaves the square open; and a pillar or a heap of rubble in a corner does
- * not close the square around it. On a square the table's edge cuts off, a line is the part of it
- * on the table, so a wall across a strip one cell deep closes it.
+ * not close the square around it. A square the table's edge cuts off is the part of it on the
+ * table, a row of it as wide as that part and a column as deep, with diagonals only where that part
+ * is as wide as it is deep: a wall across a strip one cell deep closes it, and rubble in a corner of
+ * a strip does not.
  */
 export function squaresClosedBy(grid: SquareGrid, cells: CellBits): CellBits {
   const squares = new CellBits(cellCount(grid));
@@ -224,20 +226,22 @@ export function squaresClosedBy(grid: SquareGrid, cells: CellBits): CellBits {
     for (let col = 0; col < grid.cols; col++) {
       const left = col * span;
       const top = row * span;
-      const line = (cellAt: (step: number) => [number, number]) => {
-        let onTable = false;
-        for (let step = 0; step < span; step++) {
+      const wide = Math.min(span, fine.cols - left);
+      const deep = Math.min(span, fine.rows - top);
+      const line = (length: number, cellAt: (step: number) => [number, number]) => {
+        for (let step = 0; step < length; step++) {
           const [c, r] = cellAt(step);
-          if (c >= fine.cols || r >= fine.rows) continue;
           if (!marked(c, r)) return false;
-          onTable = true;
         }
-        return onTable;
+        return length > 0;
       };
-      let closed = line((step) => [left + step, top + step]) || line((step) => [left + span - 1 - step, top + step]);
-      for (let across = 0; across < span && !closed; across++) {
-        closed = line((step) => [left + step, top + across]) || line((step) => [left + across, top + step]);
-      }
+      let closed =
+        wide === deep &&
+        (line(wide, (step) => [left + step, top + step]) || line(wide, (step) => [left + wide - 1 - step, top + step]));
+      for (let across = 0; across < deep && !closed; across++)
+        closed = line(wide, (step) => [left + step, top + across]);
+      for (let across = 0; across < wide && !closed; across++)
+        closed = line(deep, (step) => [left + across, top + step]);
       if (closed) squares.set(row * grid.cols + col);
     }
   }
