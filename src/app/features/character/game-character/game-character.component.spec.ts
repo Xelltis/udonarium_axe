@@ -34,7 +34,7 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -688,6 +688,44 @@ describe('GameCharacterComponent', () => {
       movableOf().ondragstart.emit({} as PointerEvent);
 
       expect(moveRange.range()).toBeNull();
+    });
+  });
+
+  describe('where it is snapped to on a table counting squares of several cells', () => {
+    let table: GameTable;
+
+    beforeEach(() => {
+      table = new GameTable();
+      table.width = 12;
+      table.height = 12;
+      table.gridSize = 50;
+      table.squareSpan = 2;
+      table.initialize();
+    });
+
+    afterEach(() => {
+      table.destroy();
+    });
+
+    function letGoAt(x: number, y: number): { x: number; y: number } {
+      fixture.componentRef.setInput('gameCharacter', GameCharacter.create('コマ', 1, ''));
+      fixture.detectChanges();
+      const movable = fixture.debugElement.query(By.directive(MovableDirective)).injector.get(MovableDirective);
+      movable.posX = x;
+      movable.posY = y;
+      movable.snapToGrid();
+      return { x: movable.posX, y: movable.posY };
+    }
+
+    it('goes to the middle of the square under the cell snap', () => {
+      expect(letGoAt(60, 10)).toEqual({ x: 25, y: 25 });
+    });
+
+    it('stays on the cell of the square it is let go over under the grid snap', () => {
+      table.gridSnapStyle = GridSnapStyle.GRID;
+
+      expect(letGoAt(60, 10)).toEqual({ x: 50, y: 0 });
+      expect(letGoAt(10, 60)).toEqual({ x: 0, y: 50 });
     });
   });
 

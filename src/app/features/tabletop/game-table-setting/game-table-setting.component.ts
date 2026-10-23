@@ -521,17 +521,19 @@ export class GameTableSettingComponent {
 
   /**
    * The snap dropdown's value, combining whether snapping is on with the points it snaps to: off,
-   * center, vertex, both or all.
+   * center, vertex, both, all or grid.
    */
   get tableSnapMode(): string {
     if (!this.tableGridSnap) return 'off';
-    switch (this.tableGridSnapStyle) {
+    switch (Number(this.tableGridSnapStyle)) {
       case GridSnapStyle.VERTEX:
         return 'vertex';
       case GridSnapStyle.BOTH:
         return 'both';
       case GridSnapStyle.ALL:
         return 'all';
+      case GridSnapStyle.GRID:
+        return 'grid';
       default:
         return 'center';
     }
@@ -549,7 +551,9 @@ export class GameTableSettingComponent {
             ? GridSnapStyle.BOTH
             : mode === 'all'
               ? GridSnapStyle.ALL
-              : GridSnapStyle.CENTER;
+              : mode === 'grid'
+                ? GridSnapStyle.GRID
+                : GridSnapStyle.CENTER;
     }
   }
 

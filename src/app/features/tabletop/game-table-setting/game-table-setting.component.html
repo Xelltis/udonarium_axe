@@ -673,7 +673,13 @@
             <option value="vertex">{{ 'feature.tabletop.tableSetting.snapVertex' | transloco }}</option>
             <option value="both">{{ 'feature.tabletop.tableSetting.snapBoth' | transloco }}</option>
             <option value="all">{{ 'feature.tabletop.tableSetting.snapAll' | transloco }}</option>
+            <option value="grid">{{ 'feature.tabletop.tableSetting.snapGrid' | transloco }}</option>
           </select>
+          @if (tableSnapMode === 'grid') {
+            <span class="text-ui-dim col-start-2 text-[11px]" data-testid="table-snap-grid-hint">{{
+              'feature.tabletop.tableSetting.snapGridHint' | transloco
+            }}</span>
+          }
         </div>
       </div>
 

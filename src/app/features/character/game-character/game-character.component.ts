@@ -86,7 +86,7 @@ import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
+import { GridSnapStyle, keepsPiecesOnCells } from '@axe/domain/tabletop/game-table';
 import {
   buildHexHoleInCircleClipPath,
   buildHexRingClipPath,
@@ -412,7 +412,10 @@ export class GameCharacterComponent {
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_TALL_OBJECT_PX),
       snapStyle: (char) => (char.size % 1 !== 0 ? GridSnapStyle.VERTEX : undefined),
-      snapToSquare: (char, at) => pieceCornerOnSquare(this.tabletopService.currentTable, char, at),
+      snapToSquare: (char, at) => {
+        const table = this.tabletopService.currentTable;
+        return keepsPiecesOnCells(table) ? null : pieceCornerOnSquare(table, char, at);
+      },
     });
 
     this.destroyRef.onDestroy(() => {

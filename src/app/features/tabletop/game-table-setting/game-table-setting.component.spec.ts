@@ -216,6 +216,48 @@ describe('GameTableSettingComponent', () => {
     });
   });
 
+  describe('snapping to the grid', () => {
+    let table: GameTable;
+
+    beforeEach(async () => {
+      table = new GameTable();
+      table.initialize();
+      component.selectGameTable(table.identifier);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    afterEach(() => {
+      table.destroy();
+    });
+
+    const hint = (): HTMLElement | null => fixture.nativeElement.querySelector('[data-testid="table-snap-grid-hint"]');
+
+    it('writes the choice to the table as a snap that is on', async () => {
+      table.gridSnap = false;
+      const select: HTMLSelectElement = fixture.nativeElement.querySelector('select[name="tableSnapMode"]');
+      select.value = 'grid';
+      select.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      expect(table.gridSnap).toBe(true);
+      expect(table.gridSnapStyle).toBe(GridSnapStyle.GRID);
+      expect(component.tableSnapMode).toBe('grid');
+    });
+
+    it('shows what the table holds, and says what it does', async () => {
+      expect(hint()).toBeNull();
+
+      table.gridSnapStyle = GridSnapStyle.GRID;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const select: HTMLSelectElement = fixture.nativeElement.querySelector('select[name="tableSnapMode"]');
+      expect(select.value).toBe('grid');
+      expect(hint()).not.toBeNull();
+    });
+  });
+
   describe('choosing a table from the list', () => {
     let table: GameTable;
 

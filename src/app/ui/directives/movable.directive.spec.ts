@@ -9,6 +9,7 @@ import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.ser
 import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { GameTable, GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -71,6 +72,22 @@ describe('MovableDirective', () => {
       fixture.detectChanges();
       const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
       expect(() => directive['setPosition']({} as unknown as TabletopObject)).not.toThrow();
+    });
+
+    it('snaps to the cell under the grid snap on a table that has no squares to lay pieces out in', () => {
+      const table = new GameTable();
+      table.gridSize = 50;
+      table.gridSnapStyle = GridSnapStyle.GRID;
+      table.initialize();
+      fixture.detectChanges();
+      const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
+      directive.posX = 60;
+      directive.posY = 90;
+
+      directive.snapToGrid();
+
+      expect([directive.posX, directive.posY]).toEqual([50, 100]);
+      table.destroy();
     });
 
     it('does not transition without a tabletop object', () => {
