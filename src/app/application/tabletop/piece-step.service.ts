@@ -4,8 +4,8 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { cellCenterOf, CellGrid, cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { hopHeightAt, hopLiftFor, landingHeightAt } from '@axe/domain/tabletop/move/landing-height';
-import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
-import { pieceCornerOn } from '@axe/domain/tabletop/move/piece-on-grid';
+import { isSquareGrid, moveGridOf } from '@axe/domain/tabletop/move/move-grid';
+import { pieceCornerOn, pieceWidthPx } from '@axe/domain/tabletop/move/piece-on-grid';
 
 /** How long the piece rests on each cell of the way it walks, once the way is settled. */
 export const MOVE_STEP_MS = 90;
@@ -33,6 +33,10 @@ interface Arrival {
 export class PieceStepService {
   private readonly triggerFire = inject(TriggerFireService);
 
+  /**
+   * Steps onto a cell of a grid. On a grid of squares keeping its pieces to their cells, the piece
+   * stands on cells beside the middle of the square, and the ground is read under its own middle.
+   */
   async step(
     character: GameCharacter,
     table: GameTable,
@@ -41,8 +45,12 @@ export class PieceStepService {
     ending: boolean,
     standingZ: number = character.posZ
   ): Promise<number> {
-    const centre = cellCenterOf(grid, cell);
     const corner = pieceCornerOn(grid, character, table.gridSize, cell);
+    if (isSquareGrid(grid) && grid.keepsToCells) {
+      const at = { ...corner, width: pieceWidthPx(character, table.gridSize) };
+      return this.stepOnto(character, table, grid, cell, at, ending, standingZ);
+    }
+    const centre = cellCenterOf(grid, cell);
     return this.arrive(character, table, { centre, corner, grid, cell, ending, standingZ });
   }
 

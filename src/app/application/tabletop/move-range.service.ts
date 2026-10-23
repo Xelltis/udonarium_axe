@@ -24,16 +24,21 @@ import {
   fightsByCell,
   leavesFight,
 } from '@axe/domain/tabletop/move/engagement';
-import { isLevelWith, isWalkableStep, landingHeightsOn } from '@axe/domain/tabletop/move/landing-height';
+import {
+  isLevelWith,
+  isWalkableStep,
+  landingHeightAt,
+  landingHeightsOn,
+} from '@axe/domain/tabletop/move/landing-height';
 import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { exactMoveCellsOf } from '@axe/domain/tabletop/move/move-cells';
 import { moveCostCells } from '@axe/domain/tabletop/move/move-cost-cells';
-import { moveGridOf, spanOf, squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
+import { isSquareGrid, moveGridOf, spanOf, squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
 import { cellsByKind, moveKindNamed } from '@axe/domain/tabletop/move/move-kind';
 import { moveModeTermsOf } from '@axe/domain/tabletop/move/move-mode';
 import { STEPS_PER_CELL, stepsFor } from '@axe/domain/tabletop/move/move-steps';
 import { pieceFitsOn } from '@axe/domain/tabletop/move/piece-footprint';
-import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
+import { pieceCellOf, pieceWidthPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { passageCells, PiecePassageMode } from '@axe/domain/tabletop/move/piece-passage';
 import { PieceRelation } from '@axe/domain/tabletop/move/piece-relation';
 import { reachableCells, ReachOptions } from '@axe/domain/tabletop/move/reachable-cells';
@@ -229,6 +234,25 @@ export class MoveRangeService {
     const terms = squareSpanOf(table) > 1 ? null : this.termsOf(character);
     if (terms) return cell < terms.cells.count && terms.cells.get(cell);
     return this.cellsToStandOn(character)?.(cell) ?? false;
+  }
+
+  /**
+   * How high the ground a piece sets out from stands: that of its square, or on a grid keeping its
+   * pieces to the cells, that under the piece's own middle, which is not the square's.
+   */
+  private standingHeightOf(
+    character: GameCharacter,
+    table: GameTable,
+    grid: CellGrid,
+    start: number,
+    heights: Float64Array
+  ): number {
+    if (isSquareGrid(grid) && grid.keepsToCells && start === pieceCellOf(grid, character, table.gridSize)) {
+      const half = pieceWidthPx(character, table.gridSize) / 2;
+      const { x, y } = character.location;
+      return landingHeightAt(table.terrains, table.gridSize, x + half, y + half, table.gridType);
+    }
+    return start < heights.length ? heights[start] : 0;
   }
 
   /**
@@ -579,7 +603,7 @@ export class MoveRangeService {
     // the blocks it is already standing on, and anything within a cell of them, up or down.
     // A wall is only a wall to somebody it rises over.
     const heights = reuse ? this.heightsFor(grid) : landingHeightsOn(grid, table.terrains);
-    const standingPx = start < heights.length ? heights[start] : 0;
+    const standingPx = this.standingHeightOf(character, table, grid, start, heights);
     for (let cell = 0; cell < heights.length; cell++) {
       if (!blocked.get(cell)) continue;
       // A face too sheer to be stood on is the one thing a step does not answer.

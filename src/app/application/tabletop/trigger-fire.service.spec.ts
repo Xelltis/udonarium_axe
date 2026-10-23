@@ -15,7 +15,7 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
-import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
 import { pieceCornerOn } from '@axe/domain/tabletop/move/piece-on-grid';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
@@ -84,6 +84,17 @@ describe('TriggerFireService', () => {
 
       expect(firings).toHaveLength(1);
       expect(hpOf(hero)).toBe(7);
+    });
+
+    it('lands a piece carried off on the very cell named, on a table keeping pieces to the cells', () => {
+      table.squareSpan = 2;
+      table.gridSnapStyle = GridSnapStyle.GRID;
+      const hero = heroWith(10);
+      hero.location = { name: 'table', x: 2 * GRID, y: 3 * GRID };
+
+      service.carryTo(hero, 3, 3, table);
+
+      expect([hero.location.x, hero.location.y]).toEqual([3 * GRID, 3 * GRID]);
     });
 
     it('lands a piece carried off by ground on the square holding the cell it names', () => {

@@ -4,7 +4,8 @@ import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.servi
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
-import { GameTable } from '@axe/domain/tabletop/game-table';
+import { GameTable, GridSnapStyle } from '@axe/domain/tabletop/game-table';
+import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { vi } from 'vitest';
@@ -42,6 +43,19 @@ describe('PieceStepService', () => {
     terrain.location = { name: 'table', x: col * GRID, y: row * GRID };
     table.appendChild(terrain);
   }
+
+  it('reads the ground under the cell a piece is kept to, not the middle of its square', async () => {
+    table.squareSpan = 2;
+    table.gridSnapStyle = GridSnapStyle.GRID;
+    const squares = moveGridOf(table);
+    blockOver(3, 1, 1);
+    const piece = pieceAt(0, 0);
+
+    const landed = await service.step(piece, table, squares, cellIndexOf(squares, 1, 0), true);
+
+    expect(landed).toBe(0);
+    expect([piece.location.x, piece.location.y]).toEqual([100, 0]);
+  });
 
   it('puts the piece on the cell it steps to', async () => {
     const piece = pieceAt(5, 5);

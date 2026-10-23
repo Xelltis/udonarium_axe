@@ -759,8 +759,10 @@ describe('MovePlanService', () => {
       expect(piece.location).toMatchObject({ x: 100, y: 50 });
     });
 
-    it('leaves the zones as they are for a shift within the square, as for no move', async () => {
-      const afterMove = vi.spyOn(TestBed.inject(EngagementZoneService), 'afterMove');
+    it('leaves the zones as they are for a shift within the square, and offers nothing, as for no move', async () => {
+      const zones = TestBed.inject(EngagementZoneService);
+      const afterMove = vi.spyOn(zones, 'afterMove');
+      const offerFight = vi.spyOn(zones, 'offerFight');
       const piece = pieceAt(0, 0, 2);
       service.begin(piece);
       service.lookAt(60, 60);
@@ -769,6 +771,45 @@ describe('MovePlanService', () => {
 
       expect(piece.location).toMatchObject({ x: 50, y: 50 });
       expect(afterMove).not.toHaveBeenCalled();
+      expect(offerFight).not.toHaveBeenCalled();
+    });
+
+    it('lands a piece that flies on ground it could not step onto, at the cell it was asked to', async () => {
+      groundAt(2, 0, 2, 2);
+      const piece = pieceAt(0, 0, 2);
+      piece.moveMode = 'fly';
+      service.begin(piece);
+      service.lookAt(175, 75);
+
+      await service.run();
+
+      expect(piece.location).toMatchObject({ x: 150, y: 50 });
+    });
+
+    it('offers no way onto a square with no cell the piece could stand on', async () => {
+      table.squareSpan = 3;
+      wallOver(4, 0, 1);
+      wallOver(4, 2, 1);
+      const piece = pieceAt(0, 0, 2);
+      piece.size = 2;
+      service.begin(piece);
+      service.lookAt(225, 75);
+
+      expect(service.plan()!.ahead).toEqual([]);
+      expect(await service.run()).toBe(false);
+    });
+
+    it('keeps the cell chosen as a leg was settled when the pointer passes over another square on its way out', async () => {
+      const piece = pieceAt(0, 0, 3);
+      service.begin(piece);
+      service.lookAt(160, 60);
+      service.settle();
+      service.lookAt(260, 60);
+      service.lookAt(560, 560);
+
+      await service.run();
+
+      expect(piece.location).toMatchObject({ x: 150, y: 50 });
     });
 
     it('puts a piece it has no cell chosen for on the cells nearest the middle of the square', async () => {
