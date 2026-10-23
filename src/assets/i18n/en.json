@@ -383,6 +383,7 @@
         "notFound": "What this slot points at is gone",
         "noTab": "There is no chat tab to speak into",
         "empty": "This slot is empty",
+        "noDice": "None of the dice held are on the table",
         "offTable": "The piece is not on the table",
         "notAllowed": "Your current role may not use this entry",
         "unavailable": "This entry cannot be used just now"
@@ -465,6 +466,7 @@
         "effect": "Effect",
         "range": "Lay out or clear a range",
         "diceDeploy": "Lay out or put away dice",
+        "diceRoll": "Re-roll held dice",
         "panel": "Open a panel",
         "menu": "Menu entry",
         "focus": "Look at the piece",
@@ -498,6 +500,7 @@
         "effect": "Chosen from the effects the table holds. It goes off from the piece you are working.",
         "range": "Choose the shape of the range. Its name, its size, its colours and how it paints, and whether it docks to the piece are set below. Press it again to clear the range this slot laid.",
         "diceDeploy": "Lays out the dice the character is holding. Press it again while they are on the table to put them away.",
+        "diceRoll": "Rolls again, as one throw, the character's dice that are laid out on the table. Dice put away on the sheet are not rolled. A die with an owner shows its result to its owner alone.",
         "panel": "Opens one of that character's panels. Press it again to close it.",
         "menu": "Pick an entry of the floating menu or a toolbar. Pressing the slot does what pressing that entry does. An entry your current role may not use does nothing.",
         "focus": "Moves the camera to that character's piece.",
