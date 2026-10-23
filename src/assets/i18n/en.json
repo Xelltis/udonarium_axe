@@ -2575,7 +2575,7 @@
         "snapBoth": "Cell + vertex",
         "snapAll": "Cell + vertex + edge",
         "snapGrid": "Grid",
-        "snapGridHint": "Snaps to each cell, as Cell does. With one square for moves and ranges at 2×2 or more, pieces stay on the cell they are put down on instead of going to the middle of the square. Moves and ranges are still counted in squares.",
+        "snapGridHint": "Snaps to each cell, as Cell does. With one square for moves and ranges at 2×2 or more, pieces stay on the cell they are put down on instead of going to the middle of the square, and Strict movement can aim at any cell of the square too. Moves and ranges are still counted in squares.",
         "sectionDisplay": "Display mode",
         "cellDistance": "One cell stands for",
         "sectionDarkness": "Darkness (vision & lighting)",

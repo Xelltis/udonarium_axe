@@ -9,7 +9,7 @@ import {
   viewChildren,
 } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { MovePlan, MovePlanService } from '@axe/application/tabletop/move-plan.service';
+import { MoveLanding, MovePlan, MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -42,6 +42,10 @@ export const MOVE_WAY_SETTLED = 'rgba(255, 200, 60, 0.95)';
 const MOVE_WAY_WIDTH_PX = 5;
 const MOVE_WAY_HEAD_PX = 16;
 const MOVE_WAYPOINT_RADIUS_PX = 7;
+/** The outline of the cells a piece will be put down on, in the last square of its way. */
+export const MOVE_LANDING_STROKE = 'rgba(255, 255, 255, 0.95)';
+/** How far inside the cells a piece will be put down on their outline is drawn. */
+const MOVE_LANDING_INSET_PX = 3;
 /** Somebody else's move, drawn cooler and thinner so it is not mistaken for one's own. */
 export const MOVE_WAY_OTHERS = 'rgba(150, 205, 255, 0.9)';
 const MOVE_WAY_OTHERS_WIDTH_PX = 4;
@@ -431,6 +435,31 @@ export class TableMoveRangeOverlayComponent {
     for (const waypoint of plan.waypoints) {
       if (onLayer(waypoint)) this.paintWaypoint(context, plan.grid, waypoint);
     }
+    const landing = plan.landing;
+    const last = whole[whole.length - 1];
+    if (landing && landing.cell === last && onLayer(last)) {
+      const shifted = landing.x !== plan.origin.x || landing.y !== plan.origin.y;
+      if (whole.length > 1 || shifted) this.paintLanding(context, landing);
+    }
+  }
+
+  /** The outline of the cells of the last square a piece will be put down on. */
+  private paintLanding(context: CanvasRenderingContext2D, landing: MoveLanding): void {
+    const left = landing.x + MOVE_LANDING_INSET_PX;
+    const top = landing.y + MOVE_LANDING_INSET_PX;
+    const side = Math.max(1, landing.width - MOVE_LANDING_INSET_PX * 2);
+    const outline = new Path2D();
+    outline.moveTo(left, top);
+    outline.lineTo(left + side, top);
+    outline.lineTo(left + side, top + side);
+    outline.lineTo(left, top + side);
+    outline.closePath();
+    context.lineWidth = 5;
+    context.strokeStyle = MOVE_WAY_SHADOW;
+    context.stroke(outline);
+    context.lineWidth = 3;
+    context.strokeStyle = MOVE_LANDING_STROKE;
+    context.stroke(outline);
   }
 
   /** One way drawn on its own: a shadow under it, the line, and a head to say which end is which. */

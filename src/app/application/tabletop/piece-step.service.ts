@@ -46,6 +46,24 @@ export class PieceStepService {
     return this.arrive(character, table, { centre, corner, grid, cell, ending, standingZ });
   }
 
+  /**
+   * Steps onto a cell of a grid, standing with its corner at a place in it rather than in the
+   * middle of it: a cell of a square of several cells, on a table whose pieces keep to them.
+   */
+  async stepOnto(
+    character: GameCharacter,
+    table: GameTable,
+    grid: CellGrid,
+    cell: number,
+    corner: CellPoint,
+    ending: boolean,
+    standingZ: number = character.posZ
+  ): Promise<number> {
+    const half = (Math.max(1, character.size) * table.gridSize) / 2;
+    const centre = { x: corner.x + half, y: corner.y + half };
+    return this.arrive(character, table, { centre, corner, grid, cell, ending, standingZ });
+  }
+
   async stepToPoint(
     character: GameCharacter,
     table: GameTable,

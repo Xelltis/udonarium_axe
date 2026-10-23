@@ -1,5 +1,5 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { cellCenterOf, CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, CellGrid, cellIndexAt, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { cellPxOf, moveGridOf, spanOf, SquaredTable, squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
 
 /**
@@ -79,6 +79,38 @@ export function pieceCornerOn(
   const centre = cellCenterOf(grid, cell);
   const shift = shiftOn(grid, character, gridSize);
   return { x: centre.x - shift, y: centre.y - shift };
+}
+
+/**
+ * Where a piece's corner goes to stand on the cells of a square nearest a point, the piece kept
+ * inside the square, or inside what of it is on the table; on a grid of the table's own cells, or
+ * for a piece wider than that, the middle of the cell as {@link pieceCornerOn} has it.
+ *
+ * The point is where the middle of the piece is wanted. A piece a whole number of cells across
+ * lines its edges up with the cells, and one of part of a cell has its middle where they meet, as
+ * the snap of a table puts them.
+ */
+export function pieceCornerInSquare(
+  grid: CellGrid,
+  character: GameCharacter,
+  gridSize: number,
+  square: number,
+  at: { x: number; y: number }
+): { x: number; y: number } {
+  const cellPx = cellPxOf(grid);
+  const size = Math.max(1, Number(character.size) || 1);
+  const width = size * cellPx;
+  const [topLeft, , bottomRight] = cellPolygonOf(grid, square);
+  const fits = width <= bottomRight.x - topLeft.x && width <= bottomRight.y - topLeft.y;
+  if (spanOf(grid) <= 1 || !fits) return pieceCornerOn(grid, character, gridSize, square);
+  const along = (wanted: number, start: number, end: number) => {
+    const corner =
+      size % 1 === 0
+        ? Math.round((wanted - width / 2) / cellPx) * cellPx
+        : Math.round(wanted / cellPx) * cellPx - width / 2;
+    return Math.min(end - width, Math.max(start, corner));
+  };
+  return { x: along(at.x, topLeft.x, bottomRight.x), y: along(at.y, topLeft.y, bottomRight.y) };
 }
 
 /**

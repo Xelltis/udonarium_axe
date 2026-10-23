@@ -11,7 +11,7 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
-import { GameTable } from '@axe/domain/tabletop/game-table';
+import { GameTable, GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { stepsFor } from '@axe/domain/tabletop/move/move-steps';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -643,6 +643,78 @@ describe('MovePlanService', () => {
     service.setUnstoppable(true);
     service.cancel();
     expect(piece.unstoppableMove).toBe('');
+  });
+
+  describe('on a table whose pieces keep to the cells of its squares', () => {
+    beforeEach(() => {
+      table.squareSpan = 2;
+      table.gridSnapStyle = GridSnapStyle.GRID;
+    });
+
+    it('puts the piece down on the cell of the last square the pointer is over', async () => {
+      const piece = pieceAt(0, 0, 2);
+      service.begin(piece);
+      service.lookAt(160, 60);
+
+      await service.run();
+
+      expect(piece.location).toMatchObject({ x: 150, y: 50 });
+    });
+
+    it('puts it in the middle of the square under any other snap', async () => {
+      table.gridSnapStyle = GridSnapStyle.CENTER;
+      const piece = pieceAt(0, 0, 2);
+      service.begin(piece);
+      service.lookAt(160, 60);
+
+      await service.run();
+
+      expect(piece.location).toMatchObject({ x: 125, y: 25 });
+    });
+
+    it('puts it down on the cell the pointer is over once the last leg is settled', async () => {
+      const piece = pieceAt(0, 0, 2);
+      service.begin(piece);
+      service.lookAt(160, 60);
+      service.settle();
+      service.lookAt(110, 10);
+
+      await service.run();
+
+      expect(piece.location).toMatchObject({ x: 100, y: 0 });
+    });
+
+    it('shifts the piece onto another cell of the square it stands on, springing nothing', async () => {
+      const sprung = vi.spyOn(TestBed.inject(TriggerFireService), 'stepped').mockReturnValue([]);
+      const piece = pieceAt(0, 0, 2);
+      service.begin(piece);
+      service.lookAt(60, 60);
+
+      expect(service.movesWithinSquare()).toBe(true);
+      expect(await service.run()).toBe(true);
+      expect(piece.location).toMatchObject({ x: 50, y: 50 });
+      expect(sprung).not.toHaveBeenCalled();
+    });
+
+    it('has nowhere to go with the pointer on the cell the piece stands on', async () => {
+      const piece = pieceAt(0, 0, 2);
+      service.begin(piece);
+      service.lookAt(10, 10);
+
+      expect(service.movesWithinSquare()).toBe(false);
+      expect(await service.run()).toBe(false);
+    });
+
+    it('forgets the cell it would have landed on once the way no longer ends in that square', async () => {
+      const piece = pieceAt(0, 0, 2);
+      service.begin(piece);
+      service.lookAt(160, 60);
+      service.lookAt(560, 560);
+
+      expect(service.movesWithinSquare()).toBe(false);
+      expect(await service.run()).toBe(false);
+      expect(piece.location).toMatchObject({ x: 0, y: 0 });
+    });
   });
 
   it('puts the piece back where it began when the move is called off', () => {

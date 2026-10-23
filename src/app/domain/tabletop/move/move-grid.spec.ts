@@ -25,6 +25,7 @@ import { pieceFitsOn } from '@axe/domain/tabletop/move/piece-footprint';
 import {
   moveShiftOf,
   pieceCellOf,
+  pieceCornerInSquare,
   pieceCornerOn,
   pieceCornerOnSquare,
   sizeShiftOf,
@@ -265,6 +266,45 @@ describe('where a dragged piece is snapped to', () => {
 
     expect(pieceCornerOnSquare(table(1), piece, { x: 160, y: 30 })).toBeNull();
     expect(pieceCornerOnSquare(table(2, GridType.HEX_VERTICAL), piece, { x: 160, y: 30 })).toBeNull();
+    piece.destroy();
+  });
+});
+
+describe('where a piece is put down among the cells of a square', () => {
+  /** Squares of three cells, for the cells in the middle of a square as well as along its edges. */
+  const threes = squareGridOver(cellGridOf(9, 9, 50, GridType.SQUARE), 3) as SquareGrid;
+
+  it('goes on the cell under the point it is wanted at', () => {
+    const piece = pieceAt(1, 0, 0);
+
+    expect(pieceCornerInSquare(threes, piece, 50, cellIndexOf(threes, 1, 0), { x: 230, y: 120 })).toEqual({
+      x: 200,
+      y: 100,
+    });
+    piece.destroy();
+  });
+
+  it('keeps a piece two cells across inside the square', () => {
+    const piece = pieceAt(2, 0, 0);
+
+    expect(pieceCornerInSquare(threes, piece, 50, cellIndexOf(threes, 0, 0), { x: 140, y: 140 })).toEqual({
+      x: 50,
+      y: 50,
+    });
+    expect(pieceCornerInSquare(threes, piece, 50, cellIndexOf(threes, 1, 0), { x: 160, y: 10 })).toEqual({
+      x: 150,
+      y: 0,
+    });
+    piece.destroy();
+  });
+
+  it('puts a piece wider than a square in the middle of it, as a square always has', () => {
+    const piece = pieceAt(4, 0, 0);
+    const square = cellIndexOf(threes, 1, 1);
+
+    expect(pieceCornerInSquare(threes, piece, 50, square, { x: 160, y: 160 })).toEqual(
+      pieceCornerOn(threes, piece, 50, square)
+    );
     piece.destroy();
   });
 });
