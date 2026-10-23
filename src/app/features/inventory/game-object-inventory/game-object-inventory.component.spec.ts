@@ -423,6 +423,39 @@ describe('GameObjectInventoryComponent', () => {
         expect(panel.isFolderCollapsed('第1話')).toBe(false);
       });
 
+      it('folds the shared folders when the panel opens on the table and is moved over to them', () => {
+        const goblin = putOnTable('ゴブリン');
+        goblin.folderName = '第1話';
+        const villager = putInShared('村長');
+        villager.folderName = '村';
+        TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
+        const panel = opened();
+        TestBed.tick();
+
+        panel.selectTab.set('common');
+        TestBed.tick();
+
+        expect(panel.isFolderCollapsed('村')).toBe(true);
+      });
+
+      it('folds the shared folders after the reader has been through their own', () => {
+        const mine = putInShared('相棒');
+        mine.setLocation(Network.peerId);
+        mine.folderName = '手持ち';
+        const villager = putInShared('村長');
+        villager.folderName = '村';
+        TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
+        const panel = opened();
+        panel.selectTab.set(Network.peerId);
+        TestBed.tick();
+
+        panel.selectTab.set('common');
+        TestBed.tick();
+
+        expect(panel.isFolderCollapsed('村')).toBe(true);
+        expect(panel.isFolderCollapsed('手持ち')).toBe(true);
+      });
+
       it('leaves a folder the reader opens afterwards open', () => {
         const goblin = putInShared('ゴブリン');
         goblin.folderName = '第1話';

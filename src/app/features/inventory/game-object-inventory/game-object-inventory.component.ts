@@ -192,12 +192,15 @@ export class GameObjectInventoryComponent {
   constructor() {
     // Folded as the list first arrives rather than as the panel is made: what there is to fold
     // is not known until the room has been read, and a panel folded before then folds nothing.
+    // Each tab files its own folders, so each is folded the first time it is looked at.
     effect(() => {
-      if (this.foldedOnOpen) return;
       if (!this.viewPreference.foldsOnOpen()) return;
+      if (!this.foldersApply()) return;
+      const tab = this.selectTab();
+      if (this.foldedOnOpen.has(tab)) return;
       const tree = this.folderTree();
       if (tree.roots.length < 1) return;
-      this.foldedOnOpen = true;
+      this.foldedOnOpen.add(tab);
       untracked(() => this.foldEveryFolder());
     });
     effect(() => {
@@ -827,17 +830,18 @@ export class GameObjectInventoryComponent {
     });
   }
 
-  /** Whether this panel has already folded itself up for a reader who asked it to. */
-  private foldedOnOpen = false;
+  /** The tabs this panel has already folded up for a reader who asked it to. */
+  private readonly foldedOnOpen = new Set<string>();
 
   /**
-   * Folds up every folder, leaving the unfiled group open.
+   * Folds up every folder on the tab in view, leaving the unfiled group open and what is folded
+   * on the other tabs as it is.
    *
    * What a panel does for itself as it opens. The pieces in no folder are the ones a reader
    * folding the folders away was trying to get a look at, so they stay where they were.
    */
   private foldEveryFolder(): void {
-    this.collapsedFolders.set(new Set(collectFolderPaths(this.folderTree())));
+    this.collapsedFolders.update((current) => new Set([...current, ...collectFolderPaths(this.folderTree())]));
   }
 
   /** Folds up every folder, and the unfiled group with them; ignored while a search is running. */
