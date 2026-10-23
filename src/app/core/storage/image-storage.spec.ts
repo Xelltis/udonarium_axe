@@ -295,6 +295,7 @@ describe('ImageStorage', () => {
       (storage as unknown as { uploading: Set<string> }).uploading.clear();
       (storage as unknown as { upAgain: Set<string> }).upAgain.clear();
       (storage as unknown as { gaveUp: Set<string> }).gaveUp.clear();
+      (storage as unknown as { addedUnnamed: Set<string> }).addedUnnamed.clear();
       (storage as unknown as { clearLastTries(): void }).clearLastTries();
       (storage as unknown as { pausedUploads: Set<string> }).pausedUploads.clear();
       (storage as unknown as { barred: Set<string> }).barred.clear();
@@ -373,6 +374,53 @@ describe('ImageStorage', () => {
         storage.markRemoved(pictureId);
 
         expect(storage.hasUploadsPending).toBe(false);
+      });
+    });
+
+    describe('telling the app a picture made here was added', () => {
+      const added = vi.fn();
+
+      beforeEach(() => {
+        added.mockReset();
+        storage.onAddedLocally = added;
+        vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      });
+
+      afterEach(() => {
+        storage.onAddedLocally = () => {};
+      });
+
+      it('waits until it is in the store, as one on its way up is named to nobody', async () => {
+        storage.add(ImageFile.create(contextOf(pictureId)));
+        await Promise.resolve();
+        expect(added).not.toHaveBeenCalled();
+
+        finishUpload('stored');
+
+        await vi.waitFor(() => expect(added.mock.calls).toEqual([[pictureId]]));
+      });
+
+      it('says nothing of one the operator holds back or bars', async () => {
+        upload.mockResolvedValueOnce('paused').mockResolvedValueOnce('blocked');
+        const barredId = 'b'.repeat(64);
+        storage.add(ImageFile.create(contextOf(pictureId)));
+        storage.add(ImageFile.create(contextOf(barredId)));
+
+        await vi.waitFor(() => expect(storage.isHeldBack(barredId)).toBe(true));
+        expect(storage.isHeldBack(pictureId)).toBe(true);
+        expect(added).not.toHaveBeenCalled();
+      });
+
+      it('tells it once the seat gives up putting it there, and names it to peers', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+        upload.mockResolvedValue('failed');
+        storage.add(ImageFile.create(contextOf(pictureId)));
+        await vi.advanceTimersByTimeAsync(0);
+        expect(added).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(120_000);
+
+        expect(added.mock.calls).toEqual([[pictureId]]);
       });
     });
 

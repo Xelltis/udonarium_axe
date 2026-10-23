@@ -37,6 +37,8 @@ export class ImageStorage {
   private readonly missedUploads = new Set<string>();
   /** What failed to go up as often as it may be tried, left for the seat's next chance. */
   private readonly gaveUp = new Set<string>();
+  /** What was made on this seat and is on its way up, whose adder the room is told of once it may be named. */
+  private readonly addedUnnamed = new Set<string>();
   /** What has been given its one last try in the room the seat is in, and the timers for those to come. */
   private readonly lastTries = new Map<string, ReturnType<typeof setTimeout> | null>();
   /** Uploads that failed for now, tried again a few times while the seat stays in the room. */
@@ -68,7 +70,10 @@ export class ImageStorage {
    */
   onUploadedWhileRemoved: (identifier: string) => void = () => {};
 
-  /** Told, by the app, when a picture made on this seat is taken in whole, so that the room learns who added it. */
+  /**
+   * Told, by the app, when a picture made on this seat is taken in whole and may be named to peers, so
+   * that the room learns who added it.
+   */
   onAddedLocally: (identifier: string) => void = () => {};
 
   /** Every image this seat knows of, including placeholders whose data has not arrived. */
@@ -140,7 +145,7 @@ export class ImageStorage {
   private _add(image: ImageFile, isLocal: boolean = false, putBack: boolean = false): ImageFile {
     if (this.removed.has(image.identifier) && !this.takeBack(image, isLocal && putBack)) return image;
     if (isLocal) this.uploadToAssetStore(image, true);
-    if (isLocal && ImageState.COMPLETE <= image.state) this.onAddedLocally(image.identifier);
+    if (isLocal && ImageState.COMPLETE <= image.state) this.addedHere(image.identifier);
     if (ImageState.COMPLETE <= image.state) this.catalogSchedule.whenQuiet(100);
     if (this.update(image)) return this.imageHash[image.identifier];
     this.imageHash[image.identifier] = image;
@@ -277,8 +282,10 @@ export class ImageStorage {
         if (result === 'failed') {
           if (!this.uploadRetries.schedule(identifier, () => this.retryUpload(identifier, roomKey))) {
             this.giveUp(identifier, roomKey);
+            this.tellAdded(identifier);
           }
         } else {
+          this.tellAdded(identifier);
           this.uploadRetries.forget(identifier);
           this.gaveUp.delete(identifier);
         }
@@ -499,6 +506,21 @@ export class ImageStorage {
       this.gaveUp.size > 0 ||
       this.pausedUploads.size > 0
     );
+  }
+
+  /**
+   * Tells the room this seat added it, once it may be named to peers: between peers at once, and on a
+   * room server once it is in the room's store, or the seat gave up putting it there, as a picture on
+   * its way up is named to nobody.
+   */
+  private addedHere(identifier: string): void {
+    if (this.isOnItsWayUp(identifier)) this.addedUnnamed.add(identifier);
+    else this.onAddedLocally(identifier);
+  }
+
+  /** Tells the room who added one made on this seat that was waiting to be named, now that it may be. */
+  private tellAdded(identifier: string): void {
+    if (this.addedUnnamed.delete(identifier)) this.onAddedLocally(identifier);
   }
 
   /**
