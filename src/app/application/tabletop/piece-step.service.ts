@@ -5,7 +5,12 @@ import { cellCenterOf, CellGrid, cellIndexAt, CellPoint } from '@axe/domain/tabl
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { hopHeightAt, hopLiftFor, isWalkableStep, landingHeightAt } from '@axe/domain/tabletop/move/landing-height';
 import { isSquareGrid, moveGridOf } from '@axe/domain/tabletop/move/move-grid';
-import { pieceCornerOn, pieceCornersInSquare, pieceWidthPx } from '@axe/domain/tabletop/move/piece-on-grid';
+import {
+  cellsCoveredAt,
+  pieceCornerOn,
+  pieceCornersNearest,
+  pieceWidthPx,
+} from '@axe/domain/tabletop/move/piece-on-grid';
 
 /** How long the piece rests on each cell of the way it walks, once the way is settled. */
 export const MOVE_STEP_MS = 90;
@@ -35,8 +40,11 @@ export class PieceStepService {
 
   /**
    * Steps onto a cell of a grid. On a grid of squares keeping its pieces to their cells, the piece
-   * stands on the cells nearest the middle of the square that it can step onto from the height it
-   * is at, and the ground is read under its own middle.
+   * stands on the cells nearest the middle of the square it may stand on, and the ground is read
+   * under its own middle.
+   *
+   * Which of the table's cells it may stand on is `standsOn`'s to say, given the height the piece
+   * is at, where the move knows; otherwise it is any cell it can step onto from that height.
    */
   async step(
     character: GameCharacter,
@@ -44,26 +52,26 @@ export class PieceStepService {
     grid: CellGrid,
     cell: number,
     ending: boolean,
-    standingZ: number = character.posZ
+    standingZ: number = character.posZ,
+    standsOn?: (tableCell: number, standingPx: number) => boolean
   ): Promise<number> {
     const corner = pieceCornerOn(grid, character, table.gridSize, cell);
     if (isSquareGrid(grid) && grid.keepsToCells) {
       const width = pieceWidthPx(character, table.gridSize);
       const half = width / 2;
-      const away = (place: CellPoint) => (place.x - corner.x) ** 2 + (place.y - corner.y) ** 2;
-      const steppable = pieceCornersInSquare(grid, character, cell)
-        .sort((a, b) => away(a) - away(b))
-        .find((place) => {
-          const ground = landingHeightAt(
-            table.terrains,
-            table.gridSize,
-            place.x + half,
-            place.y + half,
-            table.gridType
-          );
-          return isWalkableStep(ground, standingZ, table.gridSize);
-        });
-      return this.stepOnto(character, table, grid, cell, { ...(steppable ?? corner), width }, ending, standingZ);
+      const steps = (tableCell: number) => {
+        if (standsOn) return standsOn(tableCell, standingZ);
+        const { x, y } = cellCenterOf(grid.fine, tableCell);
+        return isWalkableStep(
+          landingHeightAt(table.terrains, table.gridSize, x, y, table.gridType),
+          standingZ,
+          table.gridSize
+        );
+      };
+      const place = pieceCornersNearest(grid, character, cell, { x: corner.x + half, y: corner.y + half }).find(
+        (spot) => cellsCoveredAt(grid, spot, width).every(steps)
+      );
+      return this.stepOnto(character, table, grid, cell, { ...(place ?? corner), width }, ending, standingZ);
     }
     const centre = cellCenterOf(grid, cell);
     return this.arrive(character, table, { centre, corner, grid, cell, ending, standingZ });

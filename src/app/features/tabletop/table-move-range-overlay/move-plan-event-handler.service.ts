@@ -73,6 +73,8 @@ export class MovePlanEventHandlerService {
     if (!this.armed || !this.onTable(event)) return;
     event.preventDefault();
     event.stopPropagation();
+    // A square the reach shows but the piece could not end on is no way, and no way out either.
+    if (this.movePlan.pointsAtNowhere()) return;
     if (event.shiftKey) {
       this.movePlan.settle();
       return;

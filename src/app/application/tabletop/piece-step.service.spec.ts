@@ -70,6 +70,18 @@ describe('PieceStepService', () => {
     expect([piece.location.x, piece.location.y]).toEqual([150, 0]);
   });
 
+  it('keeps off the cells the move says the piece may not stand on', async () => {
+    table.squareSpan = 2;
+    table.gridSnapStyle = GridSnapStyle.GRID;
+    const squares = moveGridOf(table);
+    const piece = pieceAt(0, 0);
+    const held = cellIndexOf(grid, 2, 0);
+
+    await service.step(piece, table, squares, cellIndexOf(squares, 1, 0), true, 0, (cell) => cell !== held);
+
+    expect([piece.location.x, piece.location.y]).toEqual([150, 0]);
+  });
+
   it('puts the piece on the cell it steps to', async () => {
     const piece = pieceAt(5, 5);
 

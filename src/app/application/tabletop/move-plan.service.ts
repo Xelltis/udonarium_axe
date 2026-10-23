@@ -21,7 +21,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCenterOf, CellGrid, cellIndexAt, cellIndexOf, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, CellGrid, cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { cheapestPath } from '@axe/domain/tabletop/move/cheapest-path';
 import { landingHeightAt } from '@axe/domain/tabletop/move/landing-height';
@@ -29,10 +29,10 @@ import { fineGridOf, isSquareGrid } from '@axe/domain/tabletop/move/move-grid';
 import { moveModeTermsOf } from '@axe/domain/tabletop/move/move-mode';
 import { cellsFrom, stepsFor } from '@axe/domain/tabletop/move/move-steps';
 import {
-  ON_PLACE_PX,
+  cellsCoveredAt,
   pieceCellOf,
   pieceCornerOn,
-  pieceCornersInSquare,
+  pieceCornersNearest,
   pieceWidthPx,
   standsAt,
 } from '@axe/domain/tabletop/move/piece-on-grid';
@@ -150,6 +150,8 @@ export class MovePlanService {
   private standable: ((cell: number, fromPx?: number | null) => boolean) | null = null;
   /** The square last found to have no cell the piece could end on, with the leg it was asked for. */
   private nowhere: NowhereTry | null = null;
+  /** The height last worked out for stepping into a square from the square before it. */
+  private stepFrom: { readonly before: number; readonly px: number } | null = null;
   private walking = false;
   /** How the move stood before each corner was set, so the last one can be taken back up. */
   private legs: MovePlan[] = [];
@@ -247,6 +249,7 @@ export class MovePlanService {
     this.legs = [];
     this.standable = null;
     this.nowhere = null;
+    this.stepFrom = null;
     this.zoneStart = this.zones.startOfMove(character, kind);
     character.toTopmost();
     SoundEffect.play(PresetSound.piecePick);
@@ -406,14 +409,10 @@ export class MovePlanService {
     if (onItself && pieceCellOf(grid, character, table.gridSize) === cell) {
       return { landing: { cell, x: here.x, y: here.y, width }, nowhere: false };
     }
-    const places = pieceCornersInSquare(grid, character, cell);
+    const places = pieceCornersNearest(grid, character, cell, { x, y });
     if (places.length < 1) return none;
-    const half = width / 2;
-    const away = (corner: CellPoint) => (corner.x + half - x) ** 2 + (corner.y + half - y) ** 2;
     const fromPx = this.stepFromPx(plan, table, character, before);
-    const standing = places
-      .sort((a, b) => away(a) - away(b))
-      .find((corner) => this.canStandAt(plan, character, fromPx, corner, width));
+    const standing = places.find((corner) => this.canStandAt(plan, character, fromPx, corner, width));
     return standing ? { landing: { cell, ...standing, width }, nowhere: false } : { landing: null, nowhere: true };
   }
 
@@ -428,11 +427,19 @@ export class MovePlanService {
     character: GameCharacter,
     before: number | null
   ): number | null | undefined {
-    if (plan.jumping || moveModeTermsOf(character.moveMode).clears) return null;
+    if (this.leaps(plan, character)) return null;
     if (before === null || before === pieceCellOf(plan.grid, character, table.gridSize)) return undefined;
+    if (this.stepFrom?.before === before) return this.stepFrom.px;
     const corner = pieceCornerOn(plan.grid, character, table.gridSize, before);
     const half = pieceWidthPx(character, table.gridSize) / 2;
-    return landingHeightAt(table.terrains, table.gridSize, corner.x + half, corner.y + half, table.gridType);
+    const px = landingHeightAt(table.terrains, table.gridSize, corner.x + half, corner.y + half, table.gridType);
+    this.stepFrom = { before, px };
+    return px;
+  }
+
+  /** Whether the piece steps onto ground at any height: one jumping, or one going over what is in its way. */
+  private leaps(plan: MovePlan, character: GameCharacter): boolean {
+    return plan.jumping || moveModeTermsOf(character.moveMode).clears;
   }
 
   /**
@@ -456,19 +463,8 @@ export class MovePlanService {
     corner: CellPoint,
     width: number
   ): boolean {
-    this.standable ??= this.moveRange.cellsToStandOn(character) ?? (() => false);
-    const fine = fineGridOf(plan.grid);
-    const cellPx = fine.sizePx;
-    const fromCol = Math.floor((corner.x + ON_PLACE_PX) / cellPx);
-    const toCol = Math.ceil((corner.x + width - ON_PLACE_PX) / cellPx);
-    const fromRow = Math.floor((corner.y + ON_PLACE_PX) / cellPx);
-    const toRow = Math.ceil((corner.y + width - ON_PLACE_PX) / cellPx);
-    for (let row = fromRow; row < toRow; row++) {
-      for (let col = fromCol; col < toCol; col++) {
-        if (!this.standable(cellIndexOf(fine, col, row), fromPx)) return false;
-      }
-    }
-    return true;
+    const standable = (this.standable ??= this.moveRange.cellsToStandOn(character) ?? (() => false));
+    return cellsCoveredAt(plan.grid, corner, width).every((cell) => standable(cell, fromPx));
   }
 
   /**
@@ -497,6 +493,11 @@ export class MovePlanService {
     const before = way.length > 1 ? way[way.length - 2] : null;
     const fromPx = this.stepFromPx(plan, table, character, before);
     return this.canStandAt(plan, character, fromPx, landing, landing.width) ? landing : null;
+  }
+
+  /** Whether the pointer rests on a square with no cell the piece could end the move on. */
+  pointsAtNowhere(): boolean {
+    return this.nowhere !== null;
   }
 
   /**
@@ -662,13 +663,21 @@ export class MovePlanService {
       if (inPlace && landing && this.rolePermission.canEditTabletop) {
         standingZ = await this.pieceStep.stepOnto(character, table, plan.grid, -1, landing, true, standingZ);
       }
+      const leaping = this.leaps(plan, character);
+      const standable = this.standable ?? this.moveRange.cellsToStandOn(character);
+      const standsOn = standable
+        ? (tableCell: number, px: number) => standable(tableCell, leaping ? null : px)
+        : undefined;
       for (const [index, cell] of steps.entries()) {
         if (!this.rolePermission.canEditTabletop) break;
         const ending = index === steps.length - 1;
-        standingZ =
-          ending && landing
-            ? await this.pieceStep.stepOnto(character, table, plan.grid, cell, landing, ending, standingZ)
-            : await this.pieceStep.step(character, table, plan.grid, cell, ending, standingZ);
+        // The cell chosen is asked once more from the height the walk has actually come to, which
+        // the step before it may have reached by a cell other than the one it was reckoned from.
+        const lands =
+          ending && landing && this.canStandAt(plan, character, leaping ? null : standingZ, landing, landing.width);
+        standingZ = lands
+          ? await this.pieceStep.stepOnto(character, table, plan.grid, cell, landing, ending, standingZ)
+          : await this.pieceStep.step(character, table, plan.grid, cell, ending, standingZ, standsOn);
       }
     } finally {
       this.walking = false;
@@ -712,9 +721,10 @@ export class MovePlanService {
   private close(): void {
     this.held.set(null);
     this.terms = null;
+    this.terms = null;
     this.standable = null;
     this.nowhere = null;
-    this.legs = [];
+    this.stepFrom = null;
     this.zoneStart = null;
   }
 }

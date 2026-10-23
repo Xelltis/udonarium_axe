@@ -76,6 +76,14 @@ export class MovePlannerService {
     return this.cells.wholeWay().length > 1 || this.cells.movesWithinSquare();
   }
 
+  /**
+   * Whether the pointer rests on a square shown in reach that has no cell the piece could end the
+   * move on, where a press neither walks the piece nor calls the move off.
+   */
+  pointsAtNowhere(): boolean {
+    return !this.free.isPlanning() && this.cells.pointsAtNowhere();
+  }
+
   /** Walks the piece along the way and closes the move. */
   run(): Promise<boolean> {
     return this.free.isPlanning() ? this.free.run() : this.cells.run();

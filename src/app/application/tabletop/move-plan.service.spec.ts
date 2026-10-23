@@ -863,6 +863,18 @@ describe('MovePlanService', () => {
       expect(piece.location).toMatchObject({ x: 100, y: 0 });
     });
 
+    it('puts the piece beside somebody who walked onto the cell chosen while the move was worked out', async () => {
+      table.piecesShareCells = false;
+      const piece = pieceAt(0, 0, 2);
+      service.begin(piece);
+      service.lookAt(110, 10);
+      pieceAt(2, 0, 0);
+
+      await service.run();
+
+      expect(piece.location).toMatchObject({ x: 150, y: 0 });
+    });
+
     it('forgets the cell chosen once the move is turned over to jumping or back', () => {
       const piece = pieceAt(0, 0, 2);
       service.begin(piece);
