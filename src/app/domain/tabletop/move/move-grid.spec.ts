@@ -333,6 +333,14 @@ describe('where a piece is put down among the cells of a square', () => {
     piece.destroy();
   });
 
+  it('puts a piece of part of a cell dropped by hand with its middle where cells meet inside the square', () => {
+    const half = pieceAt(0.5, 0, 0);
+    const kept = { ...table(2), width: 8, height: 8, gridSnap: true, gridSnapStyle: GridSnapStyle.GRID };
+
+    expect(pieceCornerOnCellOfSquare(kept, half, { x: 0, y: 0 })).toEqual({ x: 37.5, y: 37.5 });
+    half.destroy();
+  });
+
   it('keeps a piece dropped by hand to the cells of the square under its middle', () => {
     const piece = pieceAt(2, 0, 0);
     const twosTable = { ...table(2), width: 8, height: 8 };

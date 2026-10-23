@@ -77,6 +77,9 @@ export function pieceCellOf(
   return cellIndexAt(grid, at.x + shift, at.y + shift);
 }
 
+/** How far, in px, a piece may be off a place and still count as standing on it. */
+export const ON_PLACE_PX = 0.5;
+
 /** How wide a piece stands, in px, on cells `cellPx` across. */
 export function pieceWidthPx(character: GameCharacter, cellPx: number): number {
   const size = Number(character.size);
@@ -151,7 +154,7 @@ export function pieceCornersInSquare(
   const along = (start: number, end: number) => {
     const places: number[] = [];
     const first = whole ? start : start + cellPx - width / 2;
-    for (let at = first; at + width <= end + ON_EDGE_PX; at += cellPx) places.push(at);
+    for (let at = first; at + width <= end + ON_PLACE_PX; at += cellPx) places.push(at);
     return places.length > 0 ? places : [start];
   };
   const places: { x: number; y: number }[] = [];
@@ -161,13 +164,10 @@ export function pieceCornersInSquare(
   return places;
 }
 
-/** How far, in px, a piece may stand over an edge and still count as inside it. */
-const ON_EDGE_PX = 0.5;
-
 /**
- * Where a piece's corner goes to stand on the cells of a square nearest a point, kept inside what
- * of the square is on the table; nothing on a grid of the table's own cells, or for a piece wider
- * than that.
+ * Where a piece's corner goes to stand on the cells of a square with its middle nearest a point,
+ * the first of the places {@link pieceCornersInSquare} lists where several are as near; nothing
+ * on a grid of the table's own cells, or for a piece wider than what of the square is on the table.
  */
 function cornerOnCellsOf(
   grid: CellGrid,
@@ -175,18 +175,11 @@ function cornerOnCellsOf(
   square: number,
   at: { x: number; y: number }
 ): { x: number; y: number } | null {
-  const cellPx = cellPxOf(grid);
-  const width = pieceWidthPx(character, cellPx);
-  if (spanOf(grid) <= 1 || !fitsOnCell(grid, square, width)) return null;
-  const whole = Number(character.size) % 1 === 0;
-  const [topLeft, , bottomRight] = cellPolygonOf(grid, square);
-  const along = (wanted: number, start: number, end: number) => {
-    const corner = whole
-      ? Math.round((wanted - width / 2) / cellPx) * cellPx
-      : Math.round(wanted / cellPx) * cellPx - width / 2;
-    return Math.min(end - width, Math.max(start, corner));
-  };
-  return { x: along(at.x, topLeft.x, bottomRight.x), y: along(at.y, topLeft.y, bottomRight.y) };
+  const places = pieceCornersInSquare(grid, character, square);
+  if (places.length < 1) return null;
+  const half = pieceWidthPx(character, cellPxOf(grid)) / 2;
+  const away = (place: { x: number; y: number }) => (place.x + half - at.x) ** 2 + (place.y + half - at.y) ** 2;
+  return places.reduce((best, place) => (away(place) < away(best) ? place : best));
 }
 
 /**
