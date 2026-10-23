@@ -57,6 +57,19 @@ describe('PieceStepService', () => {
     expect([piece.location.x, piece.location.y]).toEqual([100, 0]);
   });
 
+  it('steps onto the cell nearest the middle of a square that it can step onto, not a pillar', async () => {
+    table.squareSpan = 2;
+    table.gridSnapStyle = GridSnapStyle.GRID;
+    const squares = moveGridOf(table);
+    blockOver(2, 0, 2);
+    const piece = pieceAt(0, 0);
+
+    const landed = await service.step(piece, table, squares, cellIndexOf(squares, 1, 0), true);
+
+    expect(landed).toBe(0);
+    expect([piece.location.x, piece.location.y]).toEqual([150, 0]);
+  });
+
   it('puts the piece on the cell it steps to', async () => {
     const piece = pieceAt(5, 5);
 

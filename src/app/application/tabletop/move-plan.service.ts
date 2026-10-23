@@ -31,10 +31,10 @@ import { cellsFrom, stepsFor } from '@axe/domain/tabletop/move/move-steps';
 import {
   ON_PLACE_PX,
   pieceCellOf,
-  pieceCornerInSquare,
   pieceCornerOn,
   pieceCornersInSquare,
   pieceWidthPx,
+  standsAt,
 } from '@axe/domain/tabletop/move/piece-on-grid';
 import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
 import { walkedPath } from '@axe/domain/tabletop/move/walked-path';
@@ -51,6 +51,25 @@ export interface MoveLanding {
   readonly y: number;
   /** How wide the piece stands, in px. */
   readonly width: number;
+}
+
+/** A square found to have no cell a piece could end on, with the leg of the move it was asked for. */
+interface NowhereTry {
+  readonly from: number;
+  readonly settled: number;
+  readonly jumping: boolean;
+  readonly square: number;
+}
+
+/** Whether a square was already found to have nowhere for the piece, for the same leg. */
+function sameTry(held: NowhereTry | null, tried: NowhereTry): boolean {
+  return (
+    !!held &&
+    held.from === tried.from &&
+    held.settled === tried.settled &&
+    held.jumping === tried.jumping &&
+    held.square === tried.square
+  );
 }
 
 /** Whether two landings put a piece in the same place, nothing being the same as nothing. */
@@ -129,6 +148,8 @@ export class MovePlanService {
   private terms: ReachTerms | null = null;
   /** Which of the table's own cells the piece may stand on, worked out once a move asks. */
   private standable: ((cell: number, fromPx?: number | null) => boolean) | null = null;
+  /** The square last found to have no cell the piece could end on, with the leg it was asked for. */
+  private nowhere: NowhereTry | null = null;
   private walking = false;
   /** How the move stood before each corner was set, so the last one can be taken back up. */
   private legs: MovePlan[] = [];
@@ -225,6 +246,7 @@ export class MovePlanService {
     this.terms = terms;
     this.legs = [];
     this.standable = null;
+    this.nowhere = null;
     this.zoneStart = this.zones.startOfMove(character, kind);
     character.toTopmost();
     SoundEffect.play(PresetSound.piecePick);
@@ -318,10 +340,11 @@ export class MovePlanService {
     const terms = this.terms;
     if (!plan || !terms || this.walking) return;
     const cell = cellIndexAt(plan.grid, x, y);
+    if (this.nowhere?.square !== cell) this.nowhere = null;
     if (cell < 0 || cell === plan.from || !plan.reach.get(cell)) {
       const settled = plan.settled.length > 1;
       const before = settled ? plan.settled[plan.settled.length - 2] : null;
-      const landing = cell === plan.from ? this.landingAt(plan, cell, before, x, y) : this.keptLanding(plan);
+      const landing = cell === plan.from ? this.landingAt(plan, cell, before, x, y).landing : this.keptLanding(plan);
       const settledLanding = settled && landing ? landing : plan.settledLanding;
       if (plan.ahead.length > 0 || !sameLanding(plan.landing, landing)) {
         this.held.set({ ...plan, ahead: [], landing, settledLanding });
@@ -329,10 +352,12 @@ export class MovePlanService {
       return;
     }
     if (plan.ahead[plan.ahead.length - 1] === cell) {
-      const landing = this.landingAt(plan, cell, plan.ahead[plan.ahead.length - 2], x, y);
+      const { landing } = this.landingAt(plan, cell, plan.ahead[plan.ahead.length - 2], x, y);
       if (!sameLanding(plan.landing, landing)) this.held.set({ ...plan, landing });
       return;
     }
+    const tried = { from: plan.from, settled: plan.settled.length, jumping: plan.jumping, square: cell };
+    if (sameTry(this.nowhere, tried)) return;
     const stops = this.stopsFor(plan);
     const ahead = cheapestPath(
       plan.grid,
@@ -345,10 +370,12 @@ export class MovePlanService {
         cornersCut: plan.cornersCut,
       }
     );
-    const landing = ahead ? this.landingAt(plan, cell, ahead[ahead.length - 2], x, y) : null;
-    // On a table keeping pieces to the cells, a square with no cell the piece could stand on is no
-    // square to end the move on, though the way may pass through it.
-    const nowhere = !landing && isSquareGrid(plan.grid) && plan.grid.keepsToCells;
+    const { landing, nowhere } = ahead
+      ? this.landingAt(plan, cell, ahead[ahead.length - 2], x, y)
+      : { landing: null, nowhere: false };
+    // A square with no cell the piece could stand on is no square to end the move on, though the
+    // way may pass through it; the pointer moving about over it asks nothing again.
+    this.nowhere = nowhere ? tried : null;
     this.held.set({ ...plan, ahead: nowhere ? [] : (ahead ?? []), landing });
   }
 
@@ -356,33 +383,44 @@ export class MovePlanService {
    * Where in a square the piece would be put down for the pointer at a place, on a table whose
    * pieces keep to the cells of its squares: on the cells under the pointer, or the nearest it could
    * stand on, stepping in from the square `before` it, or from where it stands where that is null.
-   * Nothing on any other table, nor where it could stand on no cell of the square.
+   * No landing on any other table, nor for a piece wider than the square, which goes to its middle
+   * as on another table; and none, with nowhere to stand, where no cell of the square will take it.
    *
    * The pointer on the piece itself is where it stands, so a tap on it walks it nowhere.
    */
-  private landingAt(plan: MovePlan, cell: number, before: number | null, x: number, y: number): MoveLanding | null {
+  private landingAt(
+    plan: MovePlan,
+    cell: number,
+    before: number | null,
+    x: number,
+    y: number
+  ): { landing: MoveLanding | null; nowhere: boolean } {
     const table = this.tableSelecter.viewTable;
     const character = this.objectStore.get<GameCharacter>(plan.characterIdentifier);
     const grid = plan.grid;
-    if (!table || !(character instanceof GameCharacter) || !isSquareGrid(grid) || !grid.keepsToCells) return null;
+    const none = { landing: null, nowhere: false };
+    if (!table || !(character instanceof GameCharacter) || !isSquareGrid(grid) || !grid.keepsToCells) return none;
     const width = pieceWidthPx(character, table.gridSize);
     const here = character.location;
     const onItself = x >= here.x && x < here.x + width && y >= here.y && y < here.y + width;
     if (onItself && pieceCellOf(grid, character, table.gridSize) === cell) {
-      return { cell, x: here.x, y: here.y, width };
+      return { landing: { cell, x: here.x, y: here.y, width }, nowhere: false };
     }
-    const wanted = pieceCornerInSquare(grid, character, table.gridSize, cell, { x, y });
-    const away = (corner: CellPoint) => (corner.x - wanted.x) ** 2 + (corner.y - wanted.y) ** 2;
-    const places = pieceCornersInSquare(grid, character, cell).sort((a, b) => away(a) - away(b));
+    const places = pieceCornersInSquare(grid, character, cell);
+    if (places.length < 1) return none;
+    const half = width / 2;
+    const away = (corner: CellPoint) => (corner.x + half - x) ** 2 + (corner.y + half - y) ** 2;
     const fromPx = this.stepFromPx(plan, table, character, before);
-    const standing = places.find((corner) => this.canStandAt(plan, character, fromPx, corner, width));
-    return standing ? { cell, ...standing, width } : null;
+    const standing = places
+      .sort((a, b) => away(a) - away(b))
+      .find((corner) => this.canStandAt(plan, character, fromPx, corner, width));
+    return standing ? { landing: { cell, ...standing, width }, nowhere: false } : { landing: null, nowhere: true };
   }
 
   /**
    * How high the ground a piece steps into a square from stands: where it would stand on the square
-   * `before`, or where it stands now where that is null; nothing for a piece jumping, or one that
-   * goes over what is in its way, which steps onto ground at any height.
+   * `before`, or where it stands now where that is null or the square it stands on; nothing for a
+   * piece jumping, or one that goes over what is in its way, which steps onto ground at any height.
    */
   private stepFromPx(
     plan: MovePlan,
@@ -391,7 +429,7 @@ export class MovePlanService {
     before: number | null
   ): number | null | undefined {
     if (plan.jumping || moveModeTermsOf(character.moveMode).clears) return null;
-    if (before === null) return undefined;
+    if (before === null || before === pieceCellOf(plan.grid, character, table.gridSize)) return undefined;
     const corner = pieceCornerOn(plan.grid, character, table.gridSize, before);
     const half = pieceWidthPx(character, table.gridSize) / 2;
     return landingHeightAt(table.terrains, table.gridSize, corner.x + half, corner.y + half, table.gridType);
@@ -433,10 +471,32 @@ export class MovePlanService {
     return true;
   }
 
-  /** Where the piece is put down at the end of a way, where that is somewhere other than the middle of its last square. */
+  /**
+   * Where the piece is put down at the end of a way, where that is somewhere other than the middle
+   * of its last square: the cell the pointer chose there, or the one chosen as the settled way was.
+   */
   private landingFor(plan: MovePlan, way: readonly number[]): MoveLanding | null {
-    const landing = plan.landing;
-    return landing && landing.cell === way[way.length - 1] ? landing : null;
+    const last = way[way.length - 1];
+    if (plan.landing?.cell === last) return plan.landing;
+    return plan.settled.length > 1 && plan.settledLanding?.cell === last ? plan.settledLanding : null;
+  }
+
+  /**
+   * Where the piece is put down at the end of a way, as {@link landingFor} has it, where it could
+   * still stand there on the board as it is now.
+   */
+  private stillStanding(
+    plan: MovePlan,
+    table: GameTable,
+    character: GameCharacter,
+    way: readonly number[]
+  ): MoveLanding | null {
+    const landing = this.landingFor(plan, way);
+    if (!landing) return null;
+    this.standable = null;
+    const before = way.length > 1 ? way[way.length - 2] : null;
+    const fromPx = this.stepFromPx(plan, table, character, before);
+    return this.canStandAt(plan, character, fromPx, landing, landing.width) ? landing : null;
   }
 
   /**
@@ -449,8 +509,10 @@ export class MovePlanService {
     const landing = this.landingFor(plan, plan.settled);
     const character = this.objectStore.get<GameCharacter>(plan.characterIdentifier);
     if (!landing || !(character instanceof GameCharacter)) return false;
-    const { x, y } = character.location;
-    return Math.abs(x - landing.x) > ON_PLACE_PX || Math.abs(y - landing.y) > ON_PLACE_PX;
+    // A move that sets out from elsewhere than the square the piece stands on, as one leaving its
+    // engagement zone does from the middle of the zone, has no square to shift within.
+    if (plan.from !== pieceCellOf(plan.grid, character, fineGridOf(plan.grid).sizePx)) return false;
+    return !standsAt(character, landing);
   }
 
   /**
@@ -496,7 +558,7 @@ export class MovePlanService {
           })
         : new CellBits(plan.reach.count);
     SoundEffect.play(PresetSound.piecePick);
-    this.held.set({ ...plan, jumping, reach, ahead: [] });
+    this.held.set({ ...plan, jumping, reach, ahead: [], landing: null });
   }
 
   /**
@@ -581,6 +643,10 @@ export class MovePlanService {
       this.close();
       return false;
     }
+    // Asked again of the board as it stands now: somebody may have walked onto the cell chosen, or
+    // the ground under it been changed, while the move was being worked out.
+    const chosen = this.stillStanding(plan, table, character, way);
+    if (inPlace && !chosen) return false;
 
     this.walking = true;
     let stopped: { outcome: InterruptOutcome; point: CellPoint } | null = null;
@@ -590,7 +656,7 @@ export class MovePlanService {
       const outcome = await this.interrupts.negotiate(character, points, plan.kind);
       const end = outcome ? indexAtLength(points, outcome.along) : way.length - 1;
       if (outcome) stopped = { outcome, point: points[end] };
-      const landing = outcome ? null : this.landingFor(plan, way);
+      const landing = outcome ? null : chosen;
       const steps = way.slice(1, end + 1);
       let standingZ = character.posZ;
       if (inPlace && landing && this.rolePermission.canEditTabletop) {
@@ -647,6 +713,7 @@ export class MovePlanService {
     this.held.set(null);
     this.terms = null;
     this.standable = null;
+    this.nowhere = null;
     this.legs = [];
     this.zoneStart = null;
   }

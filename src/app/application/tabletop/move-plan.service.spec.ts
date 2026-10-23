@@ -812,6 +812,78 @@ describe('MovePlanService', () => {
       expect(piece.location).toMatchObject({ x: 150, y: 50 });
     });
 
+    it('walks a piece wider than a square as on any other table, to the middle of the square', async () => {
+      const piece = pieceAt(0, 0, 3);
+      piece.size = 3;
+      service.begin(piece);
+      service.lookAt(260, 60);
+
+      expect(service.plan()!.ahead.length).toBeGreaterThan(1);
+      await service.run();
+
+      expect(piece.location).toMatchObject({ x: 225, y: 25 });
+    });
+
+    it('measures the first step from where the piece stands, not the cell beside the middle of its square', () => {
+      groundAt(1, 1, 1, 2);
+      groundAt(2, 0, 2, 2);
+      const piece = pieceAt(1, 1, 2);
+      service.begin(piece);
+      service.lookAt(110, 10);
+
+      expect(service.plan()!.ahead).toEqual([cell(0, 0), cell(1, 0)]);
+      expect(service.plan()!.landing).toMatchObject({ x: 100, y: 0 });
+    });
+
+    it('lands on the cell chosen as a leg was settled after pointing at a square with nowhere to stand', async () => {
+      table.squareSpan = 3;
+      wallOver(4, 0, 1);
+      wallOver(4, 2, 1);
+      const piece = pieceAt(0, 0, 3);
+      piece.size = 2;
+      service.begin(piece);
+      service.lookAt(130, 230);
+      service.settle();
+      service.lookAt(225, 75);
+      expect(service.plan()!.ahead).toEqual([]);
+
+      await service.run();
+
+      expect(piece.location).toMatchObject({ x: 50, y: 200 });
+    });
+
+    it('lands in the square rather than on a cell somebody built on while the move was worked out', async () => {
+      const piece = pieceAt(0, 0, 2);
+      service.begin(piece);
+      service.lookAt(160, 60);
+      wallOver(3, 1, 1);
+
+      await service.run();
+
+      expect(piece.location).toMatchObject({ x: 100, y: 0 });
+    });
+
+    it('forgets the cell chosen once the move is turned over to jumping or back', () => {
+      const piece = pieceAt(0, 0, 2);
+      service.begin(piece);
+      service.lookAt(60, 60);
+      expect(service.plan()!.landing).not.toBeNull();
+
+      service.toggleJump();
+
+      expect(service.plan()!.landing).toBeNull();
+    });
+
+    it('has no square to shift within for a move setting out from elsewhere than where the piece stands', () => {
+      const piece = pieceAt(0, 0, 2);
+      service.begin(piece);
+      const elsewhere = { ...service.plan()!, from: cell(1, 0), settled: [cell(1, 0)] };
+      (service as unknown as { held: { set(plan: unknown): void } }).held.set(elsewhere);
+      service.lookAt(160, 60);
+
+      expect(service.movesWithinSquare()).toBe(false);
+    });
+
     it('puts a piece it has no cell chosen for on the cells nearest the middle of the square', async () => {
       const piece = pieceAt(0, 0, 2);
       service.begin(piece);
@@ -819,6 +891,7 @@ describe('MovePlanService', () => {
       service.settle();
       service.lookAt(560, 560);
       service.plan()!.landing = null;
+      service.plan()!.settledLanding = null;
 
       await service.run();
 

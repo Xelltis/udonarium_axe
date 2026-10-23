@@ -14,7 +14,7 @@ import { cellCount, CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { cheapestPath } from '@axe/domain/tabletop/move/cheapest-path';
 import { cellHolding, isSquareGrid, moveGridOf, tableCellsOf } from '@axe/domain/tabletop/move/move-grid';
-import { ON_PLACE_PX, pieceCellOf, pieceCornerInSquare, pieceCornerOn } from '@axe/domain/tabletop/move/piece-on-grid';
+import { pieceCellOf, pieceCornerInSquare, pieceCornerOn, standsAt } from '@axe/domain/tabletop/move/piece-on-grid';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableTrigger, triggersOn } from '@axe/domain/tabletop/table-trigger';
@@ -41,12 +41,6 @@ export interface TriggerFiring {
  * times. It is the seat doing the moving, since that is the one that knows a walk happened
  * at all, and what it changes is synced from there like any other change to a piece.
  */
-/** Whether a piece's corner stands at a place. */
-function standsAt(piece: GameCharacter, corner: { x: number; y: number }): boolean {
-  const { x, y } = piece.location;
-  return Math.abs(x - corner.x) <= ON_PLACE_PX && Math.abs(y - corner.y) <= ON_PLACE_PX;
-}
-
 @Injectable({ providedIn: 'root' })
 export class TriggerFireService {
   private readonly tableSelecter = inject(TableSelecter);
