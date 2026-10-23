@@ -497,6 +497,20 @@ describe('GameObjectInventoryComponent', () => {
         expect(panel.isFolderCollapsed('村')).toBe(false);
       });
 
+      it('leaves the first folder made on a tab that had none open, with what was filed into it', () => {
+        const villager = putInShared('村長');
+        TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
+        const panel = opened();
+        panel.selectTab.set('common');
+        TestBed.tick();
+
+        panel.createFolderFor(villager);
+        TestBed.tick();
+
+        expect(villager.folderName).not.toBe('');
+        expect(panel.isFolderCollapsed(villager.folderName)).toBe(false);
+      });
+
       it('leaves a folder the reader opens afterwards open', () => {
         const goblin = putInShared('ゴブリン');
         goblin.folderName = '第1話';

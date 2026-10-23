@@ -852,6 +852,15 @@ export class GameObjectInventoryComponent {
   private readonly foldedOnOpen = new Set<string>();
 
   /**
+   * Counts the tab in view as folded up already, once the reader files something on it: a tab that
+   * had no folders when it was first looked at would otherwise fold up the first one made there,
+   * and the pieces just filed into it with it.
+   */
+  private leaveFoldedAsFiled(): void {
+    this.foldedOnOpen.add(this.selectTab());
+  }
+
+  /**
    * Folds up every folder on the tab in view, leaving the unfiled group open.
    *
    * What a panel does for itself as it opens. The pieces in no folder are the ones a reader
@@ -1003,6 +1012,7 @@ export class GameObjectInventoryComponent {
 
   private createFolderOf(identifiers: readonly string[], parentPath = ''): void {
     if (!this.rolePermission.canEditTabletop) return;
+    this.leaveFoldedAsFiled();
     const path = this.unusedFolderPath(parentPath);
     this.declareFolder(path);
     if (identifiers.length > 0) this.setFolderOf(identifiers, path);
@@ -1136,6 +1146,7 @@ export class GameObjectInventoryComponent {
 
   private setFolderOf(identifiers: Iterable<string>, folderPath: string): void {
     if (!this.rolePermission.canEditTabletop) return;
+    this.leaveFoldedAsFiled();
     const normalized = normalizeFolderPath(folderPath);
     for (const identifier of identifiers) {
       const character = this.objectStore.get<GameCharacter>(identifier);
