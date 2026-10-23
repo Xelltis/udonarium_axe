@@ -705,6 +705,39 @@ describe('MovePlanService', () => {
       expect(await service.run()).toBe(false);
     });
 
+    it('has nowhere to go once the pointer leaves the square it stands on for one out of reach', async () => {
+      const piece = pieceAt(0, 0, 2);
+      service.begin(piece);
+      service.lookAt(60, 60);
+      service.lookAt(560, 560);
+
+      expect(service.movesWithinSquare()).toBe(false);
+      expect(await service.run()).toBe(false);
+      expect(service.plan()!.landing).toBeNull();
+    });
+
+    it('puts it in the middle of the square rather than on a cell it could not stand on', async () => {
+      wallOver(3, 1, 1);
+      const piece = pieceAt(0, 0, 2);
+      service.begin(piece);
+      service.lookAt(175, 75);
+
+      await service.run();
+
+      expect(piece.location).toMatchObject({ x: 125, y: 25 });
+    });
+
+    it('takes a tap anywhere on a piece two cells across for a tap on the piece itself', async () => {
+      table.squareSpan = 3;
+      const piece = pieceAt(0, 0, 2);
+      piece.size = 2;
+      service.begin(piece);
+      service.lookAt(80, 80);
+
+      expect(service.movesWithinSquare()).toBe(false);
+      expect(await service.run()).toBe(false);
+    });
+
     it('forgets the cell it would have landed on once the way no longer ends in that square', async () => {
       const piece = pieceAt(0, 0, 2);
       service.begin(piece);

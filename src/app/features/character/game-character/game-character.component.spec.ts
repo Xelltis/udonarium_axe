@@ -707,8 +707,8 @@ describe('GameCharacterComponent', () => {
       table.destroy();
     });
 
-    function letGoAt(x: number, y: number): { x: number; y: number } {
-      fixture.componentRef.setInput('gameCharacter', GameCharacter.create('コマ', 1, ''));
+    function letGoAt(x: number, y: number, size = 1): { x: number; y: number } {
+      fixture.componentRef.setInput('gameCharacter', GameCharacter.create('コマ', size, ''));
       fixture.detectChanges();
       const movable = fixture.debugElement.query(By.directive(MovableDirective)).injector.get(MovableDirective);
       movable.posX = x;
@@ -726,6 +726,12 @@ describe('GameCharacterComponent', () => {
 
       expect(letGoAt(60, 10)).toEqual({ x: 50, y: 0 });
       expect(letGoAt(10, 60)).toEqual({ x: 0, y: 50 });
+    });
+
+    it('keeps a piece two cells across inside the one square under its middle under the grid snap', () => {
+      table.gridSnapStyle = GridSnapStyle.GRID;
+
+      expect(letGoAt(50, 50, 2)).toEqual({ x: 100, y: 100 });
     });
   });
 

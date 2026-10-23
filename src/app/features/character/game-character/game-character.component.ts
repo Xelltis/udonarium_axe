@@ -95,7 +95,7 @@ import {
 } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
-import { pieceCornerOnSquare } from '@axe/domain/tabletop/move/piece-on-grid';
+import { pieceCornerOnCellOfSquare, pieceCornerOnSquare } from '@axe/domain/tabletop/move/piece-on-grid';
 import {
   DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS,
   multiAngleNameMotionMode,
@@ -414,7 +414,9 @@ export class GameCharacterComponent {
       snapStyle: (char) => (char.size % 1 !== 0 ? GridSnapStyle.VERTEX : undefined),
       snapToSquare: (char, at) => {
         const table = this.tabletopService.currentTable;
-        return keepsPiecesOnCells(table) ? null : pieceCornerOnSquare(table, char, at);
+        return keepsPiecesOnCells(table)
+          ? pieceCornerOnCellOfSquare(table, char, at)
+          : pieceCornerOnSquare(table, char, at);
       },
     });
 

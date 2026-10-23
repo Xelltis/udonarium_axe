@@ -228,16 +228,27 @@ export class MoveRangeService {
     // numbers its squares instead, so it is answered from the table's cells below.
     const terms = squareSpanOf(table) > 1 ? null : this.termsOf(character);
     if (terms) return cell < terms.cells.count && terms.cells.get(cell);
+    return this.cellsToStandOn(character)?.(cell) ?? false;
+  }
+
+  /**
+   * Which of the table's own cells a piece could stand on, as the ground and the pieces on it have
+   * it: not ground too high or too sheer for it to step onto from where it stands, nor ground
+   * painted shut, nor ground somebody holds that it may not stop on. Nothing where no table is in
+   * view.
+   *
+   * Worked out once for the whole board, so one asking about many cells pays for it once.
+   */
+  cellsToStandOn(character: GameCharacter): ((cell: number) => boolean) | null {
+    const table = this.tableSelecter.viewTable;
+    if (!table || table.gridSize <= 0) return null;
     const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
-    if (cell >= cellCount(grid)) return false;
-    if (blockedByTerrain(grid, table.terrains).get(cell)) {
-      if (blockedByTerrain(grid, table.terrains, terrainBlocksJump).get(cell)) return false;
-      const heights = landingHeightsOn(grid, table.terrains);
-      const start = pieceCellOf(grid, character, table.gridSize);
-      const standingPx = start >= 0 && start < heights.length ? heights[start] : 0;
-      if (!isWalkableStep(heights[cell], standingPx, table.gridSize)) return false;
-    }
-    if (moveBlockMapOn(table)?.read(grid)?.get(cell)) return false;
+    const total = cellCount(grid);
+    const walled = blockedByTerrain(grid, table.terrains);
+    const sheer = blockedByTerrain(grid, table.terrains, terrainBlocksJump);
+    let heights: Float64Array | null = null;
+    const start = pieceCellOf(grid, character, table.gridSize);
+    const painted = moveBlockMapOn(table)?.read(grid) ?? null;
     const rules = this.rulesOf(table);
     const standing = this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
@@ -250,7 +261,17 @@ export class MoveRangeService {
       rules.sizeSlipsPast,
       this.alliance()
     );
-    return !passage.blocked.get(cell) && !passage.noStop.get(cell);
+    return (cell: number): boolean => {
+      if (cell < 0 || cell >= total) return false;
+      if (walled.get(cell)) {
+        if (sheer.get(cell)) return false;
+        heights ??= landingHeightsOn(grid, table.terrains);
+        const standingPx = start >= 0 && start < heights.length ? heights[start] : 0;
+        if (!isWalkableStep(heights[cell], standingPx, table.gridSize)) return false;
+      }
+      if (painted?.get(cell)) return false;
+      return !passage.blocked.get(cell) && !passage.noStop.get(cell);
+    };
   }
 
   /**

@@ -438,8 +438,7 @@ export class TableMoveRangeOverlayComponent {
     const landing = plan.landing;
     const last = whole[whole.length - 1];
     if (landing && landing.cell === last && onLayer(last)) {
-      const shifted = landing.x !== plan.origin.x || landing.y !== plan.origin.y;
-      if (whole.length > 1 || shifted) this.paintLanding(context, landing);
+      if (whole.length > 1 || this.movePlan.movesWithinSquare()) this.paintLanding(context, landing);
     }
   }
 

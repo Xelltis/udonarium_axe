@@ -48,19 +48,20 @@ export class PieceStepService {
 
   /**
    * Steps onto a cell of a grid, standing with its corner at a place in it rather than in the
-   * middle of it: a cell of a square of several cells, on a table whose pieces keep to them.
+   * middle of it: a cell of a square of several cells, on a table whose pieces keep to them. `at`
+   * is where the corner goes and how wide the piece stands there.
    */
   async stepOnto(
     character: GameCharacter,
     table: GameTable,
     grid: CellGrid,
     cell: number,
-    corner: CellPoint,
+    at: { readonly x: number; readonly y: number; readonly width: number },
     ending: boolean,
     standingZ: number = character.posZ
   ): Promise<number> {
-    const half = (Math.max(1, character.size) * table.gridSize) / 2;
-    const centre = { x: corner.x + half, y: corner.y + half };
+    const corner = { x: at.x, y: at.y };
+    const centre = { x: at.x + at.width / 2, y: at.y + at.width / 2 };
     return this.arrive(character, table, { centre, corner, grid, cell, ending, standingZ });
   }
 

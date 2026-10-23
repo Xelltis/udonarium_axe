@@ -27,6 +27,7 @@ import {
   pieceCellOf,
   pieceCornerInSquare,
   pieceCornerOn,
+  pieceCornerOnCellOfSquare,
   pieceCornerOnSquare,
   sizeShiftOf,
 } from '@axe/domain/tabletop/move/piece-on-grid';
@@ -295,6 +296,15 @@ describe('where a piece is put down among the cells of a square', () => {
       x: 150,
       y: 0,
     });
+    piece.destroy();
+  });
+
+  it('keeps a piece dropped by hand to the cells of the square under its middle', () => {
+    const piece = pieceAt(2, 0, 0);
+    const twosTable = { ...table(2), width: 8, height: 8 };
+
+    expect(pieceCornerOnCellOfSquare(twosTable, piece, { x: 50, y: 50 })).toEqual({ x: 100, y: 100 });
+    expect(pieceCornerOnCellOfSquare(table(1), piece, { x: 50, y: 50 })).toBeNull();
     piece.destroy();
   });
 

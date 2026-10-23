@@ -21,12 +21,12 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCenterOf, CellGrid, cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, CellGrid, cellIndexAt, cellIndexOf, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { keepsPiecesOnCells } from '@axe/domain/tabletop/game-table';
 import { cheapestPath } from '@axe/domain/tabletop/move/cheapest-path';
-import { spanOf } from '@axe/domain/tabletop/move/move-grid';
+import { fineGridOf, spanOf } from '@axe/domain/tabletop/move/move-grid';
 import { cellsFrom, stepsFor } from '@axe/domain/tabletop/move/move-steps';
-import { pieceCornerInSquare } from '@axe/domain/tabletop/move/piece-on-grid';
+import { pieceCellOf, pieceCornerInSquare, pieceWidthPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
 import { walkedPath } from '@axe/domain/tabletop/move/walked-path';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
@@ -116,6 +116,8 @@ export class MovePlanService {
   /** Where the piece stood among the engagement zones as the move began. */
   private zoneStart: ZoneMoveStart | null = null;
   private terms: ReachTerms | null = null;
+  /** Which of the table's own cells the piece may stand on, worked out once a move asks. */
+  private standable: ((cell: number) => boolean) | null = null;
   private walking = false;
   /** How the move stood before each corner was set, so the last one can be taken back up. */
   private legs: MovePlan[] = [];
@@ -211,6 +213,7 @@ export class MovePlanService {
     if (!terms) return false;
     this.terms = terms;
     this.legs = [];
+    this.standable = null;
     this.zoneStart = this.zones.startOfMove(character, kind);
     character.toTopmost();
     SoundEffect.play(PresetSound.piecePick);
@@ -301,13 +304,9 @@ export class MovePlanService {
     const terms = this.terms;
     if (!plan || !terms || this.walking) return;
     const cell = cellIndexAt(plan.grid, x, y);
-    if (cell < 0 || cell === plan.from) {
-      const landing = cell < 0 ? plan.landing : this.landingAt(plan, cell, x, y);
+    if (cell < 0 || cell === plan.from || !plan.reach.get(cell)) {
+      const landing = cell === plan.from ? this.landingAt(plan, cell, x, y) : null;
       if (plan.ahead.length > 0 || !sameLanding(plan.landing, landing)) this.held.set({ ...plan, ahead: [], landing });
-      return;
-    }
-    if (!plan.reach.get(cell)) {
-      if (plan.ahead.length > 0) this.held.set({ ...plan, ahead: [] });
       return;
     }
     const landing = this.landingAt(plan, cell, x, y);
@@ -327,12 +326,15 @@ export class MovePlanService {
         cornersCut: plan.cornersCut,
       }
     );
-    this.held.set({ ...plan, ahead: ahead ?? [], landing });
+    this.held.set({ ...plan, ahead: ahead ?? [], landing: ahead ? landing : null });
   }
 
   /**
    * Where in a square the piece would be put down for the pointer at a place, on a table whose
-   * pieces keep to the cells of its squares; nothing on any other.
+   * pieces keep to the cells of its squares; nothing on any other, nor where the piece could not
+   * stand on those cells, and it goes to the middle of the square as it would on another table.
+   *
+   * The pointer on the piece itself is where it stands, so a tap on it walks it nowhere.
    */
   private landingAt(plan: MovePlan, cell: number, x: number, y: number): MoveLanding | null {
     const table = this.tableSelecter.viewTable;
@@ -340,8 +342,30 @@ export class MovePlanService {
     if (!table || !(character instanceof GameCharacter) || spanOf(plan.grid) < 2 || !keepsPiecesOnCells(table)) {
       return null;
     }
+    const width = pieceWidthPx(character, table.gridSize);
+    const here = character.location;
+    const onItself = x >= here.x && x < here.x + width && y >= here.y && y < here.y + width;
+    if (onItself && pieceCellOf(plan.grid, character, table.gridSize) === cell) {
+      return { cell, x: here.x, y: here.y, width };
+    }
     const corner = pieceCornerInSquare(plan.grid, character, table.gridSize, cell, { x, y });
-    return { cell, ...corner, width: Math.max(1, Number(character.size) || 1) * table.gridSize };
+    return this.canStandAt(character, table.gridSize, corner, width) ? { cell, ...corner, width } : null;
+  }
+
+  /** Whether every one of the table's cells a piece would cover with its corner at a place is one it may stand on. */
+  private canStandAt(character: GameCharacter, cellPx: number, corner: CellPoint, width: number): boolean {
+    this.standable ??= this.moveRange.cellsToStandOn(character) ?? (() => false);
+    const fine = fineGridOf(this.held()!.grid);
+    const fromCol = Math.floor((corner.x + ON_PLACE_PX) / cellPx);
+    const toCol = Math.ceil((corner.x + width - ON_PLACE_PX) / cellPx);
+    const fromRow = Math.floor((corner.y + ON_PLACE_PX) / cellPx);
+    const toRow = Math.ceil((corner.y + width - ON_PLACE_PX) / cellPx);
+    for (let row = fromRow; row < toRow; row++) {
+      for (let col = fromCol; col < toCol; col++) {
+        if (!this.standable(cellIndexOf(fine, col, row))) return false;
+      }
+    }
+    return true;
   }
 
   /** Where the piece is put down at the end of a way, where that is somewhere other than the middle of its last square. */
@@ -554,6 +578,7 @@ export class MovePlanService {
   private close(): void {
     this.held.set(null);
     this.terms = null;
+    this.standable = null;
     this.legs = [];
     this.zoneStart = null;
   }

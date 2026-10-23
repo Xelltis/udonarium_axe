@@ -69,6 +69,11 @@ export function pieceCellOf(
   return cellIndexAt(grid, at.x + shift, at.y + shift);
 }
 
+/** How wide a piece stands, in px, on cells `cellPx` across; one of part of a cell takes a whole one. */
+export function pieceWidthPx(character: GameCharacter, cellPx: number): number {
+  return Math.max(1, Number(character.size) || 1) * cellPx;
+}
+
 /** Where a piece's corner goes for it to stand on a given cell. */
 export function pieceCornerOn(
   grid: CellGrid,
@@ -99,7 +104,7 @@ export function pieceCornerInSquare(
 ): { x: number; y: number } {
   const cellPx = cellPxOf(grid);
   const size = Math.max(1, Number(character.size) || 1);
-  const width = size * cellPx;
+  const width = pieceWidthPx(character, cellPx);
   const [topLeft, , bottomRight] = cellPolygonOf(grid, square);
   const fits = width <= bottomRight.x - topLeft.x && width <= bottomRight.y - topLeft.y;
   if (spanOf(grid) <= 1 || !fits) return pieceCornerOn(grid, character, gridSize, square);
@@ -111,6 +116,25 @@ export function pieceCornerInSquare(
     return Math.min(end - width, Math.max(start, corner));
   };
   return { x: along(at.x, topLeft.x, bottomRight.x), y: along(at.y, topLeft.y, bottomRight.y) };
+}
+
+/**
+ * Where a piece's corner goes to stand on the cells of the square under a place it is dropped at,
+ * on a table that counts several cells as one square and keeps its pieces to their cells; nothing
+ * on a table that counts each cell, or off its squares. A piece wider than the square stands in
+ * its middle, as {@link pieceCornerInSquare} has it.
+ */
+export function pieceCornerOnCellOfSquare(
+  table: SquaredTable,
+  character: GameCharacter,
+  at: { x: number; y: number }
+): { x: number; y: number } | null {
+  if (squareSpanOf(table) < 2) return null;
+  const grid = moveGridOf(table);
+  const square = pieceCellOf(grid, character, table.gridSize, at);
+  if (square < 0) return null;
+  const half = pieceWidthPx(character, table.gridSize) / 2;
+  return pieceCornerInSquare(grid, character, table.gridSize, square, { x: at.x + half, y: at.y + half });
 }
 
 /**
