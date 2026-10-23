@@ -1,14 +1,8 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import {
-  cellCenterOf,
-  CellGrid,
-  cellIndexAt,
-  cellPolygonOf,
-  forEachCellInBox,
-} from '@axe/domain/tabletop/fog/cell-grid';
-import { isSquareGrid } from '@axe/domain/tabletop/move/move-grid';
-import { sizeShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
+import { cellCenterOf, CellGrid, cellIndexAt, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import { fitsOnCell, isSquareGrid, SquareGrid } from '@axe/domain/tabletop/move/move-grid';
+import { pieceWidthPx, sizeShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
 
 /**
  * Whether a piece standing on a cell would fit there, with every cell it covers clear.
@@ -38,7 +32,10 @@ export function pieceFitsOn(
   const size = Math.max(1, Math.round(across ?? piece.size));
   if (isSquareGrid(grid)) {
     const squares = Math.ceil(size / grid.span);
-    if (squares < 2 && grid.clip) return fitsWhatIsOnTheTable(grid, size * grid.fine.sizePx);
+    if (squares < 2) {
+      const widthPx = across === undefined ? pieceWidthPx(piece, grid.fine.sizePx) : across * grid.fine.sizePx;
+      return fitsWhatIsOnTheTable(grid, widthPx);
+    }
     return footprintFitsOn(grid, squares, grid.sizePx, blocked);
   }
   return footprintFitsOn(grid, size, gridSize, blocked);
@@ -46,13 +43,15 @@ export function pieceFitsOn(
 
 /**
  * Whether a piece `widthPx` across fits on what is on the table of a square: the whole of a square,
- * and as much of one as the table's edge leaves.
+ * and as much of one as the table's edge leaves. Nothing where every square holds it, which is
+ * every square the edge cuts nothing off.
  */
-function fitsWhatIsOnTheTable(grid: CellGrid, widthPx: number): (cell: number) => boolean {
-  return (cell: number): boolean => {
-    const [topLeft, , bottomRight] = cellPolygonOf(grid, cell);
-    return widthPx <= bottomRight.x - topLeft.x && widthPx <= bottomRight.y - topLeft.y;
-  };
+function fitsWhatIsOnTheTable(grid: SquareGrid, widthPx: number): ((cell: number) => boolean) | null {
+  const clip = grid.clip;
+  if (!clip) return null;
+  const narrowest = Math.min(clip.width - (grid.cols - 1) * grid.sizePx, clip.height - (grid.rows - 1) * grid.sizePx);
+  if (widthPx <= narrowest) return null;
+  return (cell: number): boolean => fitsOnCell(grid, cell, widthPx);
 }
 
 /** Whether a footprint `span` cells across, each `gridSize` across, fits on a cell of the grid. */

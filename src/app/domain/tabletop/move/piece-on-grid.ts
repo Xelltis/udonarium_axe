@@ -1,6 +1,14 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { cellCenterOf, CellGrid, cellIndexAt, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
-import { cellPxOf, moveGridOf, spanOf, SquaredTable, squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
+import {
+  cellPxOf,
+  fitsOnCell,
+  isSquareGrid,
+  moveGridOf,
+  spanOf,
+  SquaredTable,
+  squareSpanOf,
+} from '@axe/domain/tabletop/move/move-grid';
 
 /**
  * How far a piece's corner sits from the middle of the cell it stands on.
@@ -69,16 +77,19 @@ export function pieceCellOf(
   return cellIndexAt(grid, at.x + shift, at.y + shift);
 }
 
-/** How wide a piece stands, in px, on cells `cellPx` across; one of part of a cell takes a whole one. */
+/** How wide a piece stands, in px, on cells `cellPx` across. */
 export function pieceWidthPx(character: GameCharacter, cellPx: number): number {
-  return Math.max(1, Number(character.size) || 1) * cellPx;
+  const size = Number(character.size);
+  return (size > 0 ? size : 1) * cellPx;
 }
 
 /**
  * Where a piece's corner goes for it to stand on a given cell.
  *
- * On a square the table's edge cuts off, a piece wider than what is left of the square is kept on
- * the table rather than hung over its edge.
+ * On a grid of squares that keeps its pieces to their cells, a piece the square holds is put on
+ * the cells nearest its middle, up and to the left where several are as near. On a square the
+ * table's edge cuts off, a piece wider than what is left of the square is kept on the table rather
+ * than hung over its edge.
  */
 export function pieceCornerOn(
   grid: CellGrid,
@@ -87,6 +98,11 @@ export function pieceCornerOn(
   cell: number
 ): { x: number; y: number } {
   const centre = cellCenterOf(grid, cell);
+  if (isSquareGrid(grid) && grid.keepsToCells) {
+    const nearMiddle = cellPxOf(grid) / 4;
+    const kept = cornerOnCellsOf(grid, character, cell, { x: centre.x - nearMiddle, y: centre.y - nearMiddle });
+    if (kept) return kept;
+  }
   const shift = shiftOn(grid, character, gridSize);
   const corner = { x: centre.x - shift, y: centre.y - shift };
   const clip = grid.clip;
@@ -114,17 +130,60 @@ export function pieceCornerInSquare(
   square: number,
   at: { x: number; y: number }
 ): { x: number; y: number } {
+  return cornerOnCellsOf(grid, character, square, at) ?? pieceCornerOn(grid, character, gridSize, square);
+}
+
+/**
+ * The places on the cells of a square a piece could stand, by where its corner goes, along the top
+ * row first; none on a grid of the table's own cells, or for a piece wider than what of the square
+ * is on the table.
+ */
+export function pieceCornersInSquare(
+  grid: CellGrid,
+  character: GameCharacter,
+  square: number
+): { x: number; y: number }[] {
   const cellPx = cellPxOf(grid);
-  const size = Math.max(1, Number(character.size) || 1);
   const width = pieceWidthPx(character, cellPx);
+  if (spanOf(grid) <= 1 || !fitsOnCell(grid, square, width)) return [];
   const [topLeft, , bottomRight] = cellPolygonOf(grid, square);
-  const fits = width <= bottomRight.x - topLeft.x && width <= bottomRight.y - topLeft.y;
-  if (spanOf(grid) <= 1 || !fits) return pieceCornerOn(grid, character, gridSize, square);
+  const whole = Number(character.size) % 1 === 0;
+  const along = (start: number, end: number) => {
+    const places: number[] = [];
+    const first = whole ? start : start + cellPx - width / 2;
+    for (let at = first; at + width <= end + ON_EDGE_PX; at += cellPx) places.push(at);
+    return places.length > 0 ? places : [start];
+  };
+  const places: { x: number; y: number }[] = [];
+  for (const y of along(topLeft.y, bottomRight.y)) {
+    for (const x of along(topLeft.x, bottomRight.x)) places.push({ x, y });
+  }
+  return places;
+}
+
+/** How far, in px, a piece may stand over an edge and still count as inside it. */
+const ON_EDGE_PX = 0.5;
+
+/**
+ * Where a piece's corner goes to stand on the cells of a square nearest a point, kept inside what
+ * of the square is on the table; nothing on a grid of the table's own cells, or for a piece wider
+ * than that.
+ */
+function cornerOnCellsOf(
+  grid: CellGrid,
+  character: GameCharacter,
+  square: number,
+  at: { x: number; y: number }
+): { x: number; y: number } | null {
+  const cellPx = cellPxOf(grid);
+  const width = pieceWidthPx(character, cellPx);
+  if (spanOf(grid) <= 1 || !fitsOnCell(grid, square, width)) return null;
+  const whole = Number(character.size) % 1 === 0;
+  const [topLeft, , bottomRight] = cellPolygonOf(grid, square);
   const along = (wanted: number, start: number, end: number) => {
-    const corner =
-      size % 1 === 0
-        ? Math.round((wanted - width / 2) / cellPx) * cellPx
-        : Math.round(wanted / cellPx) * cellPx - width / 2;
+    const corner = whole
+      ? Math.round((wanted - width / 2) / cellPx) * cellPx
+      : Math.round(wanted / cellPx) * cellPx - width / 2;
     return Math.min(end - width, Math.max(start, corner));
   };
   return { x: along(at.x, topLeft.x, bottomRight.x), y: along(at.y, topLeft.y, bottomRight.y) };

@@ -8,6 +8,7 @@ import {
   cellIndexOf,
   cellPolygonOf,
 } from '@axe/domain/tabletop/fog/cell-grid';
+import { GridSnapStyle } from '@axe/domain/tabletop/grid-snap-style';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { blockedByTerrain } from '@axe/domain/tabletop/move/blocked-cells';
 import { landingHeightsOn } from '@axe/domain/tabletop/move/landing-height';
@@ -36,6 +37,7 @@ import {
   pieceCornerOn,
   pieceCornerOnCellOfSquare,
   pieceCornerOnSquare,
+  pieceCornersInSquare,
   sizeShiftOf,
 } from '@axe/domain/tabletop/move/piece-on-grid';
 import { MOVE_COST_HALF_EXTRA, TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
@@ -143,6 +145,13 @@ describe('a square the table’s edge cuts off', () => {
 
     expect(at).toEqual({ x: 400, y: 300 });
     expect(pieceCellOf(grid, piece, 50, at)).toBe(corner);
+    piece.destroy();
+  });
+
+  it('asks nothing of a piece every square holds, cut off or not', () => {
+    const piece = pieceAt(1, 0, 0);
+
+    expect(pieceFitsOn(grid, piece, 50, new CellBits(cellCount(grid)))).toBeNull();
     piece.destroy();
   });
 
@@ -323,6 +332,48 @@ describe('where a piece is put down among the cells of a square', () => {
     expect(pieceCornerOnCellOfSquare(twosTable, piece, { x: 50, y: 50 })).toEqual({ x: 100, y: 100 });
     expect(pieceCornerOnCellOfSquare(table(1), piece, { x: 50, y: 50 })).toBeNull();
     piece.destroy();
+  });
+
+  it('lists the places a piece could stand in a square, along the top row first', () => {
+    const one = pieceAt(1, 0, 0);
+    const two = pieceAt(2, 0, 0);
+    const half = pieceAt(0.5, 0, 0);
+    const square = cellIndexOf(threes, 1, 0);
+
+    expect(pieceCornersInSquare(threes, one, square)).toHaveLength(9);
+    expect(pieceCornersInSquare(threes, one, square)[1]).toEqual({ x: 200, y: 0 });
+    expect(pieceCornersInSquare(threes, two, square)).toEqual([
+      { x: 150, y: 0 },
+      { x: 200, y: 0 },
+      { x: 150, y: 50 },
+      { x: 200, y: 50 },
+    ]);
+    expect(pieceCornersInSquare(threes, half, square)[0]).toEqual({ x: 187.5, y: 37.5 });
+    for (const piece of [one, two, half]) piece.destroy();
+  });
+
+  it('puts a piece of part of a cell with its middle where cells meet', () => {
+    const half = pieceAt(0.5, 0, 0);
+
+    expect(pieceCornerInSquare(threes, half, 50, cellIndexOf(threes, 0, 0), { x: 60, y: 90 })).toEqual({
+      x: 37.5,
+      y: 87.5,
+    });
+    half.destroy();
+  });
+
+  it('puts a piece the square holds on the cells nearest its middle, on a table keeping to the cells', () => {
+    const kept = (span: number) =>
+      moveGridOf({ ...table(span), width: 12, height: 12, gridSnap: true, gridSnapStyle: GridSnapStyle.GRID });
+    const one = pieceAt(1, 0, 0);
+    const two = pieceAt(2, 0, 0);
+
+    expect(pieceCornerOn(kept(2), one, 50, cellIndexOf(kept(2), 1, 1))).toEqual({ x: 100, y: 100 });
+    expect(pieceCornerOn(kept(3), one, 50, cellIndexOf(kept(3), 1, 1))).toEqual({ x: 200, y: 200 });
+    expect(pieceCornerOn(kept(4), two, 50, cellIndexOf(kept(4), 0, 0))).toEqual({ x: 50, y: 50 });
+    expect(pieceCornerOn(moveGridOf({ ...table(2), width: 12, height: 12 }), one, 50, 7)).toEqual({ x: 125, y: 125 });
+    one.destroy();
+    two.destroy();
   });
 
   it('puts a piece wider than a square in the middle of it, as a square always has', () => {

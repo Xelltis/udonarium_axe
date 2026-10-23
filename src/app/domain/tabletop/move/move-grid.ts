@@ -7,8 +7,10 @@ import {
   cellGridOf,
   cellIndexAt,
   cellIndexOf,
+  cellPolygonOf,
   forEachCellInBox,
 } from '@axe/domain/tabletop/fog/cell-grid';
+import { GridSnapStyle, keepsPiecesOnCells } from '@axe/domain/tabletop/grid-snap-style';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 
 /** The most cells across a square of a table may be made of. */
@@ -23,6 +25,11 @@ export interface SquareGrid extends CellGrid {
   readonly span: number;
   /** The table's own cells, which hold the map: terrain, paint, heights and pieces. */
   readonly fine: CellGrid;
+  /**
+   * Whether a piece put on a square keeps to its cells rather than going to its middle, as a table
+   * snapping to the grid has it.
+   */
+  readonly keepsToCells?: boolean;
 }
 
 /** What a table says about its cells and its squares. */
@@ -32,6 +39,9 @@ export interface SquaredTable {
   gridSize: number;
   gridType: GridType;
   squareSpan: number;
+  /** Whether pieces snap to the grid at all, and to which points; read for {@link keepsPiecesOnCells}. */
+  gridSnap?: boolean;
+  gridSnapStyle?: GridSnapStyle | number;
 }
 
 /**
@@ -54,7 +64,11 @@ export function squareSpanOf(table: Pick<SquaredTable, 'gridType' | 'squareSpan'
 export function moveGridOf(table: SquaredTable): CellGrid {
   const fine = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
   const span = squareSpanOf(table);
-  return span > 1 ? squareGridOver(fine, span) : fine;
+  if (span < 2) return fine;
+  const squares = squareGridOver(fine, span);
+  if (!keepsPiecesOnCells(table)) return squares;
+  const kept: SquareGrid = { ...squares, keepsToCells: true };
+  return kept;
 }
 
 /**
@@ -79,6 +93,12 @@ export function squareGridOver(fine: CellGrid, span: number): SquareGrid {
 /** Whether a grid is made of squares of several cells rather than of the table's own cells. */
 export function isSquareGrid(grid: CellGrid): grid is SquareGrid {
   return 'span' in grid && 'fine' in grid && (grid as SquareGrid).span > 1;
+}
+
+/** Whether a piece `widthPx` across fits on what is on the table of a cell of a grid. */
+export function fitsOnCell(grid: CellGrid, cell: number, widthPx: number): boolean {
+  const [topLeft, , bottomRight] = cellPolygonOf(grid, cell);
+  return widthPx <= bottomRight.x - topLeft.x && widthPx <= bottomRight.y - topLeft.y;
 }
 
 /** How many of the table's cells one cell of a grid is across. */
