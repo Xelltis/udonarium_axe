@@ -453,7 +453,48 @@ describe('GameObjectInventoryComponent', () => {
         TestBed.tick();
 
         expect(panel.isFolderCollapsed('村')).toBe(true);
+        panel.selectTab.set(Network.peerId);
+        TestBed.tick();
         expect(panel.isFolderCollapsed('手持ち')).toBe(true);
+      });
+
+      it('waits for a search to be cleared before folding a tab first looked at during it', () => {
+        const goblin = putInShared('ゴブリン');
+        goblin.folderName = '第1話';
+        const villager = putInShared('村長');
+        villager.folderName = '村';
+        TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
+        const panel = opened();
+        panel.searchQuery.set('村長');
+        panel.selectTab.set('common');
+        TestBed.tick();
+
+        panel.clearSearch();
+        TestBed.tick();
+
+        expect(panel.isFolderCollapsed('第1話')).toBe(true);
+        expect(panel.isFolderCollapsed('村')).toBe(true);
+      });
+
+      it('leaves a folder opened on one tab open when another tab with one of that name is first looked at', () => {
+        const shared = putInShared('村長');
+        shared.folderName = '村';
+        const mine = putInShared('相棒');
+        mine.setLocation(Network.peerId);
+        mine.folderName = '村';
+        TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
+        const panel = opened();
+        panel.selectTab.set('common');
+        TestBed.tick();
+        panel.toggleFolder('村');
+
+        panel.selectTab.set(Network.peerId);
+        TestBed.tick();
+        expect(panel.isFolderCollapsed('村')).toBe(true);
+        panel.selectTab.set('common');
+        TestBed.tick();
+
+        expect(panel.isFolderCollapsed('村')).toBe(false);
       });
 
       it('leaves a folder the reader opens afterwards open', () => {
