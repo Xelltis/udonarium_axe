@@ -707,6 +707,7 @@
         "selectFromList": "왼쪽 목록에서 선택해 주세요",
         "save": "저장",
         "delete": "삭제",
+        "deleteConfirm": "컷인 \"{{name}}\"을(를) 삭제합니다. 방에 있는 모두의 목록에서 사라지며 되돌릴 수 없습니다. 계속하시겠습니까?",
         "defaultName": "이름 없는 컷인",
         "panelTitleWith": "컷인 : {{name}}",
         "selectImageTitle": "이미지 선택",
@@ -1235,7 +1236,8 @@
         "emptyEntry": "(항목 없음)",
         "palettePlaceholder": "주사위 표를 한 줄씩 입력...",
         "save": "저장",
-        "delete": "삭제"
+        "delete": "삭제",
+        "deleteConfirm": "주사위 표 \"{{name}}\"을(를) 삭제합니다. 방에 있는 모두의 목록에서 사라지며 되돌릴 수 없습니다. 계속하시겠습니까?"
       },
       "message": {
         "rolled": "{{who}}이(가) {{name}}을(를) 굴렸습니다 → {{face}}",

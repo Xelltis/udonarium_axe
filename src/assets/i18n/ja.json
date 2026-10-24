@@ -707,6 +707,7 @@
         "selectFromList": "左のリストから選択してください",
         "save": "保存",
         "delete": "削除",
+        "deleteConfirm": "カットイン「{{name}}」を削除します。部屋の全員の一覧から消え、元には戻せません。よろしいですか？",
         "defaultName": "未設定のカットイン",
         "panelTitleWith": "カットイン : {{name}}",
         "selectImageTitle": "画像を選択",
@@ -1235,7 +1236,8 @@
         "emptyEntry": "（エントリなし）",
         "palettePlaceholder": "ダイス表を1行ずつ入力...",
         "save": "保存",
-        "delete": "削除"
+        "delete": "削除",
+        "deleteConfirm": "ダイス表「{{name}}」を削除します。部屋の全員の一覧から消え、元には戻せません。よろしいですか？"
       },
       "message": {
         "rolled": "{{who}} が {{name}} を振りました → {{face}}",

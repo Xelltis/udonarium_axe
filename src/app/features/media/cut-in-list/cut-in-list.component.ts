@@ -5,6 +5,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -32,6 +33,7 @@ export class CutInListComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly confirm = inject(ConfirmService);
 
   selectedCutIn: CutIn | null = null;
 
@@ -145,14 +147,18 @@ export class CutInListComponent {
   }
 
   /**
-   * Destroys the picked cut-in for everyone and clears the pick; does nothing for a reader who may
-   * not edit cut-ins.
+   * Destroys the picked cut-in for everyone and clears the pick, once the reader has said they mean
+   * it; does nothing for a reader who may not edit cut-ins.
+   *
+   * Nothing is destroyed when another cut-in was picked while the question was open.
    */
-  delete() {
+  async delete(): Promise<void> {
     if (!this.canEditCutIns) return;
-    if (!this.isEmpty && this.selectedCutIn) {
-      this.selectedCutIn.destroy();
-      this.selectedCutIn = null;
-    }
+    const cutIn = this.selectedCutIn;
+    if (this.isEmpty || !cutIn) return;
+    if (!(await this.confirm.ask(this.t('feature.media.cutIn.deleteConfirm', { name: cutIn.name })))) return;
+    if (this.selectedCutIn !== cutIn || !this.canEditCutIns) return;
+    cutIn.destroy();
+    this.selectedCutIn = null;
   }
 }

@@ -707,6 +707,7 @@
         "selectFromList": "Select a cut-in from the list",
         "save": "Save",
         "delete": "Delete",
+        "deleteConfirm": "Delete the cut-in \"{{name}}\"? It disappears from everyone's list and cannot be brought back.",
         "defaultName": "Untitled cut-in",
         "panelTitleWith": "Cut-in : {{name}}",
         "selectImageTitle": "Select image",
@@ -1235,7 +1236,8 @@
         "emptyEntry": "(no entries)",
         "palettePlaceholder": "Enter the dice table, one entry per line...",
         "save": "Save",
-        "delete": "Delete"
+        "delete": "Delete",
+        "deleteConfirm": "Delete the dice table \"{{name}}\"? It disappears from everyone's list and cannot be brought back."
       },
       "message": {
         "rolled": "{{who}} rolled {{name}} → {{face}}",

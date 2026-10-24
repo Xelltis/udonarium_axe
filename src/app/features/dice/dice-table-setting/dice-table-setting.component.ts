@@ -5,6 +5,7 @@ import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -30,6 +31,7 @@ export class DiceTableSettingComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly confirm = inject(ConfirmService);
 
   readonly tableName = computed<string>(() => this.readSyncVar((t) => t.name));
   readonly tableDice = computed<string>(() => this.readSyncVar((t) => t.dice));
@@ -232,14 +234,18 @@ export class DiceTableSettingComponent {
   }
 
   /**
-   * Removes the picked table from the room for every peer; does nothing for a seat that may not
-   * change tables.
+   * Removes the picked table from the room for every peer, once the seat has said they mean it;
+   * does nothing for a seat that may not change tables.
+   *
+   * Nothing is removed when another table was picked while the question was open.
    */
-  delete() {
+  async delete(): Promise<void> {
     if (!this.canEditTables) return;
-    if (!this.isEmpty && this.selectedTable) {
-      this.selectedTable.destroy();
-    }
+    const table = this.selectedTable;
+    if (this.isEmpty || !table) return;
+    if (!(await this.confirm.ask(this.t('feature.dice.tableSetting.deleteConfirm', { name: table.name })))) return;
+    if (this.selectedTable !== table || !this.canEditTables) return;
+    table.destroy();
   }
 
   /**
