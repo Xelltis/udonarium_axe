@@ -236,6 +236,27 @@ describe('GameTableMaskComponent', () => {
       expect(mask.scratchedGrids).toBe('');
     });
 
+    function bandButtons(): string[] {
+      fixture.detectChanges();
+      return [...(fixture.nativeElement as HTMLElement).querySelectorAll('button i.material-icons')].map(
+        (icon) => icon.textContent?.trim() ?? ''
+      );
+    }
+
+    it('shows the scratcher the buttons to finish or call it off with no connection open, as offline', () => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user', isOpen: false } as IPeerContext);
+      mask.scratchingGrids = '0:0';
+
+      expect(bandButtons()).toEqual(['done', 'clear']);
+    });
+
+    it("shows nobody else's scratching once its scratcher is gone", () => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user', isOpen: false } as IPeerContext);
+      mask.owner = 'someone-else';
+
+      expect(bandButtons()).toEqual([]);
+    });
+
     it('scratches a cell from a press on the mask itself', () => {
       const event = new PointerEvent('pointerdown', { button: 0, buttons: 1 });
       Object.defineProperty(event, 'offsetX', { value: 10 });
