@@ -56,7 +56,7 @@
         'feature.vote.targetCount' | transloco: { count: selectedNum() }
       }}</span>
       <button
-        class="bg-ui-accent rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border-none px-3.5 py-1 text-[13px] text-white transition-(--ui-transition) hover:not-disabled:opacity-85 disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+        class="bg-ui-accent-solid rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border-none px-3.5 py-1 text-[13px] text-white transition-(--ui-transition) hover:not-disabled:opacity-85 disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
         type="button"
         (click)="send()"
         [disabled]="selectedNum() === 0"

@@ -3,7 +3,7 @@
     @for (tab of ['全て', 'BGM', 'SE']; track tab) {
       <button
         class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm cursor-pointer border border-solid px-3 py-0.75 text-[12px] transition-[background,color,border-color]"
-        [class.bg-ui-accent!]="selectTag() === tab"
+        [class.bg-ui-accent-solid!]="selectTag() === tab"
         [class.text-white!]="selectTag() === tab"
         [class.border-ui-accent!]="selectTag() === tab"
         type="button"
@@ -56,7 +56,7 @@
               </button>
             }
             <button
-              class="bg-ui-accent border-ui-accent rounded-ui-sm inline-flex cursor-pointer items-center justify-center gap-0.75 border border-solid px-2 py-1 text-[12px] whitespace-nowrap text-white transition-[background,color,border-color] hover:opacity-85 [&_.material-icons]:text-[15px]!"
+              class="bg-ui-accent-solid border-ui-accent rounded-ui-sm inline-flex cursor-pointer items-center justify-center gap-0.75 border border-solid px-2 py-1 text-[12px] whitespace-nowrap text-white transition-[background,color,border-color] hover:opacity-85 [&_.material-icons]:text-[15px]!"
               type="button"
               (click)="selectBgm(audio)"
             >

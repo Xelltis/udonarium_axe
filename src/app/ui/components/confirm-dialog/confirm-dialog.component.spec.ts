@@ -101,7 +101,7 @@ describe('ConfirmDialogComponent', () => {
     await setup({ message: '確認', danger: false });
 
     const buttons = fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>;
-    const okBtn = Array.from(buttons).find((b) => b.classList.contains('bg-ui-accent'));
+    const okBtn = Array.from(buttons).find((b) => b.classList.contains('bg-ui-accent-solid'));
     expect(okBtn).toBeTruthy();
   });
 });

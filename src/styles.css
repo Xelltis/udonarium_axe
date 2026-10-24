@@ -101,6 +101,9 @@
   /* Ratios color-mix uses often (only those reused in three or more places are registered)
      A one-off ratio is handled in the component's own style/CSS */
   --color-ui-accent-soft: color-mix(in srgb, var(--ui-accent) 20%, transparent);
+  /* A button filled with the accent and lettered in white: the accent darkened on a dark theme, where it is
+     light enough to read as text on the panels and too light to carry white text. */
+  --color-ui-accent-solid: color-mix(in srgb, var(--ui-accent) 72%, black);
   --color-ui-accent-bold: color-mix(in srgb, var(--ui-accent) 72%, var(--ui-elevated));
   --color-ui-danger-soft: color-mix(in srgb, var(--ui-danger) 20%, transparent);
   --color-ui-danger-ring: color-mix(in srgb, var(--ui-danger) 40%, transparent);
@@ -749,6 +752,7 @@ chat-message[data-chat-search-current] > div > div {
   --ui-text: #4c4564;
   --ui-text-muted: #6e6486;
   --ui-text-dim: #7f7494;
+  --color-ui-accent-solid: var(--color-ui-accent);
 
   --ui-accent: #1e66f5;
   --ui-accent-hover: #0a4dd9;

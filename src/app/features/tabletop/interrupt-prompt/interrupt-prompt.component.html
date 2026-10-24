@@ -19,7 +19,7 @@
           <button
             type="button"
             class="border-ui-border-panel cursor-pointer rounded-full border border-solid px-3 py-1 text-[0.86em]"
-            [class]="isChosen(piece.id) ? 'bg-ui-accent text-white' : 'text-ui-muted bg-transparent'"
+            [class]="isChosen(piece.id) ? 'bg-ui-accent-solid text-white' : 'text-ui-muted bg-transparent'"
             [attr.aria-pressed]="isChosen(piece.id)"
             data-testid="interrupt-piece"
             (click)="toggle(piece.id)"
@@ -38,7 +38,7 @@
             <button
               type="button"
               class="border-ui-border-panel cursor-pointer rounded-full border border-solid px-3 py-1 text-[0.86em]"
-              [class]="choice()!.zone === zone.id ? 'bg-ui-accent text-white' : 'text-ui-muted bg-transparent'"
+              [class]="choice()!.zone === zone.id ? 'bg-ui-accent-solid text-white' : 'text-ui-muted bg-transparent'"
               [attr.aria-pressed]="choice()!.zone === zone.id"
               data-testid="interrupt-zone"
               (click)="chooseZone(zone.id)"
@@ -64,7 +64,7 @@
         }
         <button
           type="button"
-          class="bg-ui-accent cursor-pointer rounded-full border-none px-3 py-1 text-[0.86em] text-white disabled:cursor-default disabled:opacity-50"
+          class="bg-ui-accent-solid cursor-pointer rounded-full border-none px-3 py-1 text-[0.86em] text-white disabled:cursor-default disabled:opacity-50"
           [disabled]="choice()?.along === null || (choice()?.pieces?.length ?? 0) < 1"
           data-testid="interrupt-step"
           (click)="answer()"

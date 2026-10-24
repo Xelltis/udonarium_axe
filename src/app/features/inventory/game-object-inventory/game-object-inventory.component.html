@@ -141,7 +141,7 @@
           <div class="flex flex-wrap items-center gap-1">
             @for (loc of multiMoveLocations; track loc.name) {
               <button
-                class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent rounded-ui-sm h-6.5 cursor-pointer border border-solid px-2 text-[11px] transition-[background,color] hover:text-white disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-inherit"
+                class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-solid rounded-ui-sm h-6.5 cursor-pointer border border-solid px-2 text-[11px] transition-[background,color] hover:text-white disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-inherit"
                 type="button"
                 [disabled]="picked < 1"
                 (click)="moveToAndClose(loc.name)"
@@ -227,7 +227,7 @@
           </button>
           <button
             type="button"
-            class="rounded-ui-sm bg-ui-accent flex max-w-40 flex-1 cursor-pointer items-center justify-center gap-0.5 border-none px-2 py-1 text-[12px] font-semibold text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[15px]!"
+            class="rounded-ui-sm bg-ui-accent-solid flex max-w-40 flex-1 cursor-pointer items-center justify-center gap-0.5 border-none px-2 py-1 text-[12px] font-semibold text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[15px]!"
             (click)="turnNext()"
           >
             {{ 'feature.turnOrder.next' | transloco }}<i class="material-icons">chevron_right</i>
@@ -362,7 +362,7 @@
             </button>
             <button
               type="button"
-              class="bg-ui-accent shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border-none text-white transition-opacity hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[18px]!"
+              class="bg-ui-accent-solid shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border-none text-white transition-opacity hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[18px]!"
               [title]="'feature.turnOrder.next' | transloco"
               (click)="turnNext()"
             >

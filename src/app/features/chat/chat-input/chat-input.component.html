@@ -123,10 +123,10 @@
                 data-testid="chat-send-to-ticker"
                 class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 shrink-0 cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 text-[11px] whitespace-nowrap transition-colors hover:shadow-none @max-[320px]:h-6 @max-[320px]:w-6.5 @max-[320px]:p-0 @max-[320px]:text-[0px]"
                 [class.border-ui-accent]="sendsToTicker()"
-                [class.bg-ui-accent]="sendsToTicker()"
+                [class.bg-ui-accent-solid]="sendsToTicker()"
                 [class.text-white]="sendsToTicker()"
                 [class.hover:text-white]="sendsToTicker()"
-                [class.hover:bg-ui-accent]="sendsToTicker()"
+                [class.hover:bg-ui-accent-solid]="sendsToTicker()"
                 [class.hover:brightness-110]="sendsToTicker()"
                 type="button"
                 [attr.aria-pressed]="sendsToTicker()"
@@ -244,7 +244,7 @@
         }
         <button
           type="submit"
-          class="border-ui-accent bg-ui-accent hover:border-ui-accent hover:bg-ui-accent m-0 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid p-0 text-[12px] font-semibold text-white transition-[background,border-color,filter] hover:text-white hover:shadow-none hover:brightness-110 [&_i]:text-[18px] [&_i]:leading-none"
+          class="border-ui-accent bg-ui-accent-solid hover:border-ui-accent hover:bg-ui-accent-solid m-0 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid p-0 text-[12px] font-semibold text-white transition-[background,border-color,filter] hover:text-white hover:shadow-none hover:brightness-110 [&_i]:text-[18px] [&_i]:leading-none"
           (click)="sendChat(null)"
           [attr.aria-label]="'feature.chat.input.send' | transloco"
         >

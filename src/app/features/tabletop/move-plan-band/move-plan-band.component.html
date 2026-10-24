@@ -20,7 +20,7 @@
           <button
             type="button"
             class="inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-full border-none px-3.5 text-[0.86em] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[16px]!"
-            [class.bg-ui-accent]="isJumping() === mode.jumping"
+            [class.bg-ui-accent-solid]="isJumping() === mode.jumping"
             [class.text-white]="isJumping() === mode.jumping"
             [class.bg-transparent]="isJumping() !== mode.jumping"
             [class.text-ui-muted]="isJumping() !== mode.jumping"
@@ -48,7 +48,7 @@
             class="inline-flex min-h-9 cursor-pointer items-center rounded-full border-none px-3 text-[0.86em] whitespace-nowrap transition-[background,color] disabled:cursor-default"
             [class]="
               band.chosen === kind.name
-                ? 'bg-ui-accent text-white'
+                ? 'bg-ui-accent-solid text-white'
                 : kind.mayChoose
                   ? 'text-ui-muted bg-transparent'
                   : 'text-ui-dim bg-transparent'
@@ -73,7 +73,7 @@
       <button
         type="button"
         class="border-ui-border-panel pointer-events-auto inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-1 rounded-full border border-solid px-3 text-[0.86em] whitespace-nowrap transition-[background,color] disabled:cursor-default disabled:opacity-60 [&_.material-icons]:text-[16px]!"
-        [class]="band.on ? 'bg-ui-accent text-white' : 'text-ui-muted bg-transparent'"
+        [class]="band.on ? 'bg-ui-accent-solid text-white' : 'text-ui-muted bg-transparent'"
         [attr.aria-pressed]="band.on"
         [disabled]="!band.mayChange"
         [attr.title]="'feature.tabletop.movePlan.unstoppableHint' | transloco"

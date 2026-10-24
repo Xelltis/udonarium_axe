@@ -75,7 +75,7 @@
     @if (newMessageCount() > 0 || !isNearBottom()) {
       <button
         type="button"
-        class="bg-ui-accent shadow-ui-md absolute -top-9 left-1/2 z-10 m-0 inline-flex max-w-[calc(100%-1rem)] -translate-x-1/2 cursor-pointer items-center gap-1.5 rounded-full border-none px-3 py-1.25 text-[12px] font-medium whitespace-nowrap text-white transition-[opacity,box-shadow] hover:border-transparent hover:text-white hover:opacity-90 hover:shadow-[0_0_0_2px_var(--ui-accent-glow)] [&_.material-icons]:text-[14px]!"
+        class="bg-ui-accent-solid shadow-ui-md absolute -top-9 left-1/2 z-10 m-0 inline-flex max-w-[calc(100%-1rem)] -translate-x-1/2 cursor-pointer items-center gap-1.5 rounded-full border-none px-3 py-1.25 text-[12px] font-medium whitespace-nowrap text-white transition-[opacity,box-shadow] hover:border-transparent hover:text-white hover:opacity-90 hover:shadow-[0_0_0_2px_var(--ui-accent-glow)] [&_.material-icons]:text-[14px]!"
         (click)="onClickScrollToBottom()"
       >
         @if (newMessageCount() > 0) {

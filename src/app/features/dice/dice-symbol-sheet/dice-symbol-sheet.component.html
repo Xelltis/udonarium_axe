@@ -107,7 +107,7 @@
             </div>
             <div class="flex w-full items-center justify-center gap-1">
               <button
-                class="bg-ui-accent border-ui-accent rounded-ui-sm inline-flex min-w-0 flex-1 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid px-1.5 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap text-white transition-[background] hover:brightness-110 [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
+                class="bg-ui-accent-solid border-ui-accent rounded-ui-sm inline-flex min-w-0 flex-1 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid px-1.5 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap text-white transition-[background] hover:brightness-110 [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
                 type="button"
                 (click)="openFaceImageModal(face.faceName); $event.stopPropagation()"
                 [title]="'feature.dice.symbolSheet.setImage' | transloco"
@@ -141,7 +141,7 @@
         {{ 'feature.dice.symbolSheet.copyDice' | transloco }}
       </button>
       <button
-        class="bg-ui-accent border-ui-accent rounded-ui-sm inline-flex min-w-0 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid px-1.5 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap text-white transition-[background] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
+        class="bg-ui-accent-solid border-ui-accent rounded-ui-sm inline-flex min-w-0 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid px-1.5 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap text-white transition-[background] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
         type="button"
         [disabled]="isSaving()"
         (click)="saveToXML()"
