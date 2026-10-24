@@ -251,7 +251,12 @@ export class DiceTableSettingComponent {
     if (!this.canEditTables) return;
     const table = this.selectedTable;
     if (this.isEmpty || !table) return;
-    if (!(await this.confirm.ask(this.t('feature.dice.tableSetting.deleteConfirm', { name: table.name })))) return;
+    const sure = await this.confirm.ask({
+      message: this.t('feature.dice.tableSetting.deleteConfirm', { name: table.name }),
+      okLabel: this.t('common.button.delete'),
+      danger: true,
+    });
+    if (!sure) return;
     if (this.selectedTable !== table || !this.canEditTables) return;
     table.destroy();
   }

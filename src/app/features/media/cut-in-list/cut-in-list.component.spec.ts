@@ -120,7 +120,9 @@ describe('CutInListComponent', () => {
 
       await component.delete();
 
-      expect(ask).toHaveBeenCalledWith(expect.stringContaining('決めゼリフ'));
+      expect(ask).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining('決めゼリフ'), okLabel: '削除', danger: true })
+      );
       expect(component.getCutIns()).toContain(made);
       expect(component.selectedCutIn).toBe(made);
     });

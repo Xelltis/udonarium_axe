@@ -136,7 +136,9 @@ describe('DiceTableSettingComponent', () => {
 
       await component.delete();
 
-      expect(ask).toHaveBeenCalledWith(expect.stringContaining('遭遇表'));
+      expect(ask).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining('遭遇表'), okLabel: '削除', danger: true })
+      );
       expect(component.getDiceTables()).toContain(made);
     });
 

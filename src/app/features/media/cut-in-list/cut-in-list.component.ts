@@ -157,7 +157,12 @@ export class CutInListComponent {
     if (!this.canEditCutIns) return;
     const cutIn = this.selectedCutIn;
     if (this.isEmpty || !cutIn) return;
-    if (!(await this.confirm.ask(this.t('feature.media.cutIn.deleteConfirm', { name: cutIn.name })))) return;
+    const sure = await this.confirm.ask({
+      message: this.t('feature.media.cutIn.deleteConfirm', { name: cutIn.name }),
+      okLabel: this.t('common.button.delete'),
+      danger: true,
+    });
+    if (!sure) return;
     if (this.selectedCutIn !== cutIn || !this.canEditCutIns) return;
     cutIn.destroy();
     this.selectedCutIn = null;
