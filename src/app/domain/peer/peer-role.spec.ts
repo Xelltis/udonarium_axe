@@ -10,6 +10,7 @@ import {
   roleBadgeClass,
   roleLabelKey,
   roleShortLabelKey,
+  roleTagClass,
 } from '@axe/domain/peer/peer-role';
 
 describe('canRoleEditShared()', () => {
@@ -60,8 +61,15 @@ describe('peer-role', () => {
       expect(roleLabelKey(role)).toMatch(/^feature\.role\./);
       expect(roleShortLabelKey(role)).toMatch(/^feature\.role\./);
       expect(roleBadgeClass(role).length).toBeGreaterThan(0);
+      expect(roleTagClass(role).length).toBeGreaterThan(0);
     }
     expect(roleLabelKey(PeerRole.GameMaster)).toBe('feature.role.gm');
     expect(roleShortLabelKey(PeerRole.Player)).toBe('feature.role.playerShort');
+  });
+
+  it("colours a panel's badge from the theme, so it reads on a light theme as on a dark one", () => {
+    expect(roleBadgeClass(PeerRole.GameMaster)).toContain('text-ui-warning');
+    expect(roleBadgeClass(PeerRole.Player)).toContain('text-ui-accent');
+    expect(roleBadgeClass(PeerRole.Guest)).toContain('text-ui-muted');
   });
 });

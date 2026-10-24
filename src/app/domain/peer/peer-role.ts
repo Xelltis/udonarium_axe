@@ -64,8 +64,28 @@ export function roleShortLabelKey(role: PeerRole): string {
   }
 }
 
-/** The Tailwind classes that colour a role's badge: amber for the game master, grey for guests, blue for players. */
+/**
+ * The Tailwind classes that colour a role's badge on a panel: the theme's warning colour for the game
+ * master, its muted text for guests and its accent for players, so the badge reads on a light theme
+ * as on a dark one.
+ */
 export function roleBadgeClass(role: PeerRole): string {
+  switch (role) {
+    case PeerRole.GameMaster:
+      return 'bg-ui-warning/15 text-ui-warning border border-ui-warning/40';
+    case PeerRole.Guest:
+      return 'bg-ui-muted/15 text-ui-muted border border-ui-muted/40';
+    default:
+      return 'bg-ui-accent/15 text-ui-accent border border-ui-accent/40';
+  }
+}
+
+/**
+ * The Tailwind classes that colour a role's badge on a cursor's name tag, which stands on the accent
+ * colour in every theme and so keeps light colours: amber for the game master, grey for guests,
+ * blue for players.
+ */
+export function roleTagClass(role: PeerRole): string {
   switch (role) {
     case PeerRole.GameMaster:
       return 'bg-amber-500/20 text-amber-300 border border-amber-500/40';
