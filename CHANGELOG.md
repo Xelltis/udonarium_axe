@@ -1,3 +1,41 @@
+## [1.70.0](https://github.com/Xelltis/udonarium_axe/compare/v1.69.0...v1.70.0) (2026-10-24)
+
+### ✨ Features
+
+* **file:** let a player remove the pictures and sounds they added ([c53a5c2](https://github.com/Xelltis/udonarium_axe/commit/c53a5c2013ba6c285864ec5e14abb38f1cf0cfa9))
+* **file:** let a tag of pictures be kept to the one who locks it ([c1fd84b](https://github.com/Xelltis/udonarium_axe/commit/c1fd84bcb6831adcb4672391d850af2ed7098627))
+* **file:** remember who added each picture and sound ([f3643cc](https://github.com/Xelltis/udonarium_axe/commit/f3643cc730b5ee3e95f1a1bd0114e1f7bd6d9895))
+* **hotbar:** add a slot that re-rolls a character's dice out on the table ([a607b8a](https://github.com/Xelltis/udonarium_axe/commit/a607b8a1d4a27fcca1a6e08ffa37397cbe13db10))
+* **tabletop:** add a grid snap that keeps pieces on the cells of a square ([45c82d2](https://github.com/Xelltis/udonarium_axe/commit/45c82d2f472577c04746d2755d37f94cf0d2b34e))
+* **tabletop:** let a strict move land on any cell of a square under the grid snap ([6e8d49e](https://github.com/Xelltis/udonarium_axe/commit/6e8d49e8ebc4143fea53fd2a216f9cae9a3160c6))
+
+### 🐛 Bug Fixes
+
+* **file:** tell the room who added a picture or sound only once it may be named ([273a277](https://github.com/Xelltis/udonarium_axe/commit/273a277481791f67c83bafbc28dc18d60cc47e62))
+* **inventory:** fold every tab's folders when it is first opened ([27230fb](https://github.com/Xelltis/udonarium_axe/commit/27230fbe7b9ecaceb545ec19a3cb328479103c53))
+* **inventory:** fold the folders of a room that arrives loose pieces first ([d7e907f](https://github.com/Xelltis/udonarium_axe/commit/d7e907f44e1dae80c69058356c1bb262b1da6975))
+* **inventory:** keep what is folded tab by tab, and fold no tab mid-search ([f7aeb95](https://github.com/Xelltis/udonarium_axe/commit/f7aeb95c8b70ba48c6dc991154266789bab3180d))
+* **inventory:** leave a folder that turns up on a tab already read open ([d9d1991](https://github.com/Xelltis/udonarium_axe/commit/d9d1991d0834a2f6d320d812dfd3f5384f9fc653))
+* **inventory:** leave the first folder made on a tab that had none open ([dac8b83](https://github.com/Xelltis/udonarium_axe/commit/dac8b83aa555e1ba40166010d63af5dfd2bf304b))
+* **tabletop:** choose a piece's place in a square one way, wherever it is asked ([b6a94b8](https://github.com/Xelltis/udonarium_axe/commit/b6a94b8a26ee9ed9271918ca8c107adda5806a50))
+* **tabletop:** choose where a strict move lands as the way steps in ([0752e53](https://github.com/Xelltis/udonarium_axe/commit/0752e53ea9c426e92cb1584bc17bd8c298008c04))
+* **tabletop:** close a cut-off square only by a line right across what is left ([5bb0d48](https://github.com/Xelltis/udonarium_axe/commit/5bb0d4812d1bbae08979bcb10831120045e65e89))
+* **tabletop:** count the cells a square span leaves at the edges as squares ([c72bb18](https://github.com/Xelltis/udonarium_axe/commit/c72bb18610c8e96af0aa8ee2933cd3c47f94a449))
+* **tabletop:** keep grid snap landings to cells a piece can stand on ([4f226a7](https://github.com/Xelltis/udonarium_axe/commit/4f226a7d6b03e3a8d74b8ae5be7dfcd2dd034ba5))
+* **tabletop:** keep pieces of part of a cell inside the square they are put on ([c932c2b](https://github.com/Xelltis/udonarium_axe/commit/c932c2b7a1207fc239406a7679aac33be69e37c1))
+* **tabletop:** keep pieces of part of a cell wider than two cells inside their square ([82bb5cf](https://github.com/Xelltis/udonarium_axe/commit/82bb5cf6c24d08d53ff9a546f646903e0e7bed09))
+* **tabletop:** keep wide pieces off edge squares too narrow to hold them ([dc044be](https://github.com/Xelltis/udonarium_axe/commit/dc044be0f5d58918226389294975cecc075dbec2))
+* **tabletop:** land walks, strict moves and warps where grid-snapped pieces stand ([2c472d6](https://github.com/Xelltis/udonarium_axe/commit/2c472d62041a4f06feb08681b0192d246ab06c0e))
+* **tabletop:** let wide pieces walk under the grid snap, and land moves on cells still free ([660042c](https://github.com/Xelltis/udonarium_axe/commit/660042c64269b6325c69de184589a85ec3ae6179))
+* **tabletop:** put pieces on the cells wherever a grid-snapping table places them ([d921f04](https://github.com/Xelltis/udonarium_axe/commit/d921f04a8998a693340592dfd365e04d4da906e2))
+* **tabletop:** walk grid-snapped pieces only onto cells the move lets them stand on ([95ad3b1](https://github.com/Xelltis/udonarium_axe/commit/95ad3b1015a87a9de7051cf6e21d600fadb0b60f))
+
+### 📝 Documentation
+
+* **file:** say that a player who added an asset takes it out of the store too ([3705eb6](https://github.com/Xelltis/udonarium_axe/commit/3705eb66456aa08bcb7a612e31983d9edb103350))
+* **manual:** describe removing one's own pictures and sounds and keeping a tag private ([bd82c4d](https://github.com/Xelltis/udonarium_axe/commit/bd82c4dbb020b7907481a8177936f29dd8c55698))
+* **website:** add the v1.70.0 release notes ([8c94e63](https://github.com/Xelltis/udonarium_axe/commit/8c94e63bed7502d39799cab28975f91e50425e10))
+
 ## [1.69.0](https://github.com/Xelltis/udonarium_axe/compare/v1.68.0...v1.69.0) (2026-10-21)
 
 ### ✨ Features
