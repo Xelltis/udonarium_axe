@@ -31,6 +31,7 @@
         @if (isTagLocked() || !isEdit()) {
           <div
             class="min-w-0 truncate text-[0.88em] leading-[1.4] text-[color-mix(in_srgb,var(--ui-text)_68%,var(--ui-text-muted))]"
+            [appTextTooltip]="name"
           >
             {{ name }}
           </div>
@@ -630,6 +631,7 @@
                                 class="text-ui-text hover:bg-ui-hover min-w-0 flex-1 cursor-pointer truncate rounded-xs border-none bg-transparent px-1.5 py-1 text-left text-[0.85em]"
                                 type="button"
                                 (click)="insertTemplate(template)"
+                                [appTextTooltip]="template.name"
                               >
                                 {{ template.name }}
                               </button>
@@ -685,9 +687,11 @@
               @if (icon) {
                 <i class="material-icons text-ui-accent shrink-0 text-[15px]!">{{ icon }}</i>
               }
-              <span class="text-ui-text min-w-0 truncate text-[0.9em] leading-[1.4] font-bold tracking-normal">{{
-                name
-              }}</span>
+              <span
+                class="text-ui-text min-w-0 truncate text-[0.9em] leading-[1.4] font-bold tracking-normal"
+                [appTextTooltip]="name"
+                >{{ name }}</span
+              >
             </div>
           }
         </div>

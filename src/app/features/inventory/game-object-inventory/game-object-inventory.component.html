@@ -854,7 +854,7 @@
         class="text-ui-text flex items-center gap-1 truncate text-[13px] font-semibold"
         [class.text-ui-accent!]="selectedIdentifier() === gameObject.identifier"
       >
-        <span class="truncate">{{ gameObject.name }}</span>
+        <span class="truncate" [appTextTooltip]="gameObject.name">{{ gameObject.name }}</span>
         @if (!canView(gameObject)) {
           <i class="material-icons text-ui-dim shrink-0 text-[13px]!">lock</i>
         }

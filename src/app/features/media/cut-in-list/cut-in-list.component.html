@@ -27,7 +27,7 @@
           [attr.aria-selected]="selectedCutIn?.identifier === cutIn.identifier"
         >
           <i class="material-icons shrink-0 text-[15px]! opacity-70">slideshow</i>
-          <span class="truncate text-[13px]">{{ cutIn.name }}</span>
+          <span class="truncate text-[13px]" [appTextTooltip]="cutIn.name">{{ cutIn.name }}</span>
         </li>
       }
     </ul>

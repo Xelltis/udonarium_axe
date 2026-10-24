@@ -10,6 +10,7 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Alarm } from '@axe/domain/alarm/alarm';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -17,7 +18,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-alarm-menu',
   templateUrl: './alarm-menu.component.html',
-  imports: [FormsModule, SafePipe, TranslocoModule],
+  imports: [TextTooltipDirective, FormsModule, SafePipe, TranslocoModule],
 })
 export class AlarmMenuComponent {
   private readonly modalService = inject(ModalService);

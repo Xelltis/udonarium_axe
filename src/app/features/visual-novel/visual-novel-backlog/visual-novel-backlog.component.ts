@@ -43,6 +43,7 @@ import { VisualNovelEmoteSelectionService } from '@axe/features/visual-novel/vis
 import { readableMessageName, readableMessageText } from '@axe/features/visual-novel/visual-novel-message';
 import { VisualNovelPlaybackService } from '@axe/features/visual-novel/visual-novel-playback.service';
 import { RubyTextComponent } from '@axe/ui/components/ruby-text/ruby-text.component';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { RubyPart, splitRubyNotation } from '@axe/ui/text-decoration/decorate-chat-text';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -66,7 +67,7 @@ export interface VnBacklogEntry {
   selector: 'visual-novel-backlog',
   templateUrl: './visual-novel-backlog.component.html',
   host: { class: 'contents' },
-  imports: [DatePipe, FormsModule, RubyTextComponent, SafePipe, TranslocoModule],
+  imports: [TextTooltipDirective, DatePipe, FormsModule, RubyTextComponent, SafePipe, TranslocoModule],
 })
 export class VisualNovelBacklogComponent {
   private readonly objectChange = inject(ObjectChangeService);

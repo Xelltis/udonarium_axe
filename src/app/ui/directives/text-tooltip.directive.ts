@@ -10,7 +10,8 @@ export class TextTooltipDirective {
   private readonly viewport = inject(ViewportService);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly appTextTooltip = input<string>('');
+  /** The whole text, shown while it is cut short; nothing is shown for an empty or missing one. */
+  readonly appTextTooltip = input<string | null | undefined>('');
 
   private tooltipEl: HTMLElement | null = null;
   private tapGesture: TapGestureHandle | null = null;
@@ -53,10 +54,11 @@ export class TextTooltipDirective {
     const host = this.el.nativeElement as HTMLElement;
     if (host.scrollWidth <= host.clientWidth && text === host.textContent?.trim()) return;
     this.hide();
-    const div = document.createElement('div');
+    const doc = host.ownerDocument;
+    const div = doc.createElement('div');
     div.className = 'app-text-tooltip';
     div.textContent = text;
-    document.body.appendChild(div);
+    doc.body.appendChild(div);
     this.tooltipEl = div;
     this.move(e);
   }
@@ -66,8 +68,9 @@ export class TextTooltipDirective {
     const x = e.clientX + 14;
     const y = e.clientY + 18;
     const rect = this.tooltipEl.getBoundingClientRect();
-    this.tooltipEl.style.left = `${Math.min(x, window.innerWidth - rect.width - 8)}px`;
-    this.tooltipEl.style.top = `${Math.min(y, window.innerHeight - rect.height - 8)}px`;
+    const view = this.tooltipEl.ownerDocument.defaultView ?? window;
+    this.tooltipEl.style.left = `${Math.min(x, view.innerWidth - rect.width - 8)}px`;
+    this.tooltipEl.style.top = `${Math.min(y, view.innerHeight - rect.height - 8)}px`;
   }
 
   private hide() {

@@ -26,7 +26,7 @@
           [attr.aria-selected]="selectedTab()?.identifier === chatTab.identifier"
         >
           <i class="material-icons shrink-0 text-[15px]! opacity-70">chat_bubble_outline</i>
-          <span class="truncate text-[13px]">{{ chatTab.name }}</span>
+          <span class="truncate text-[13px]" [appTextTooltip]="chatTab.name">{{ chatTab.name }}</span>
         </li>
       }
     </ul>

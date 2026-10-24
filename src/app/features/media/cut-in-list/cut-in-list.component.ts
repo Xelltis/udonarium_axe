@@ -17,13 +17,14 @@ import {
 } from '@axe/domain/tabletop/cut-in-multi-direction';
 import { CutInSceneEditorComponent } from '@axe/features/media/cut-in-editor/cut-in-scene-editor.component';
 import { CutInEditorComponent } from '@axe/features/media/cut-in-list/cut-in-editor.component';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-cut-in-list',
   templateUrl: './cut-in-list.component.html',
-  imports: [FormsModule, CutInEditorComponent, CutInSceneEditorComponent, TranslocoModule],
+  imports: [TextTooltipDirective, FormsModule, CutInEditorComponent, CutInSceneEditorComponent, TranslocoModule],
 })
 export class CutInListComponent {
   private readonly modalService = inject(ModalService);

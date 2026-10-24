@@ -30,7 +30,7 @@
           [attr.aria-selected]="selectedTable?.identifier === gameTable.identifier"
         >
           <i class="material-icons shrink-0 text-[15px]! opacity-70">table_view</i>
-          <span class="truncate text-[13px]">{{ gameTable.name }}</span>
+          <span class="truncate text-[13px]" [appTextTooltip]="gameTable.name">{{ gameTable.name }}</span>
         </li>
       }
     </ul>

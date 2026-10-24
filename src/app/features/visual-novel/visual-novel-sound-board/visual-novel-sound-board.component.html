@@ -22,7 +22,7 @@
       (click)="playBgm(audio.identifier)"
     >
       <i class="material-icons">{{ audio.identifier === playingBgmIdentifier() ? 'graphic_eq' : 'music_note' }}</i>
-      <span class="truncate">{{ audio.name }}</span>
+      <span class="truncate" [appTextTooltip]="audio.name">{{ audio.name }}</span>
     </button>
   } @empty {
     <div class="text-ui-dim p-2 text-center text-[11px]">

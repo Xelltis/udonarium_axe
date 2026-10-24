@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /**
@@ -12,7 +13,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   selector: 'ui-volume-row',
   templateUrl: './volume-row.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoModule],
+  imports: [TextTooltipDirective, TranslocoModule],
   host: { class: 'block' },
 })
 export class UiVolumeRowComponent {

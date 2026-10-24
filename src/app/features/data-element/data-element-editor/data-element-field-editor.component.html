@@ -170,7 +170,7 @@
             (click)="moveInto(target)"
           >
             <i class="material-icons text-ui-muted text-[22px]!">folder</i>
-            <span class="min-w-0 flex-1 truncate">{{ pathOf(target) }}</span>
+            <span class="min-w-0 flex-1 truncate" [appTextTooltip]="pathOf(target)">{{ pathOf(target) }}</span>
           </button>
         </li>
       }

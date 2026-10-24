@@ -28,7 +28,7 @@
           [attr.aria-selected]="selectedTable?.identifier === diceTable.identifier"
         >
           <i class="material-icons shrink-0 text-[15px]! opacity-70">casino</i>
-          <span class="truncate text-[13px]">{{ diceTable.name }}</span>
+          <span class="truncate text-[13px]" [appTextTooltip]="diceTable.name">{{ diceTable.name }}</span>
         </li>
       }
     </ul>

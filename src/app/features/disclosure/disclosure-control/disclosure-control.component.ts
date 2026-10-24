@@ -15,6 +15,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole, roleBadgeClass, roleShortLabelKey } from '@axe/domain/peer/peer-role';
 import { ownerRuledByServer } from '@axe/domain/tabletop/withheld';
 import { noCandidatesKey } from '@axe/features/disclosure/disclosure-context-menu';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 interface DisclosableObject extends Disclosable {
@@ -39,7 +40,7 @@ interface AudienceCandidate {
   selector: 'disclosure-control',
   templateUrl: './disclosure-control.component.html',
   host: { class: 'block' },
-  imports: [FormsModule, TranslocoModule],
+  imports: [TextTooltipDirective, FormsModule, TranslocoModule],
 })
 export class DisclosureControlComponent {
   private readonly disclosureService = inject(DisclosureService);

@@ -84,7 +84,9 @@
     } @else {
       @for (row of tabRows(); track row.identifier) {
         <label class="flex cursor-pointer items-center justify-between gap-2 py-1 pl-2">
-          <span class="text-ui-muted min-w-0 flex-1 truncate text-[12px]">{{ row.name }}</span>
+          <span class="text-ui-muted min-w-0 flex-1 truncate text-[12px]" [appTextTooltip]="row.name">{{
+            row.name
+          }}</span>
           <input
             type="checkbox"
             [attr.name]="'portraitDisplayFlag-' + row.identifier"
@@ -228,7 +230,9 @@
     } @else {
       @for (row of tabRows(); track row.identifier) {
         <label class="flex cursor-pointer items-center justify-between gap-2 py-1 pl-2">
-          <span class="text-ui-muted min-w-0 flex-1 truncate text-[12px]">{{ row.name }}</span>
+          <span class="text-ui-muted min-w-0 flex-1 truncate text-[12px]" [appTextTooltip]="row.name">{{
+            row.name
+          }}</span>
           <input
             type="checkbox"
             [attr.name]="'chatSimpleDispFlag-' + row.identifier"

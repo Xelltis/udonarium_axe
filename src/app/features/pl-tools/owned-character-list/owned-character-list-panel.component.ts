@@ -22,6 +22,7 @@ import {
   selectClaimableCharacters,
   selectOwnedCharacters,
 } from '@axe/features/pl-tools/owned-character-list/owned-characters';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -30,7 +31,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   selector: 'owned-character-list-panel',
   templateUrl: './owned-character-list-panel.component.html',
   host: { class: 'block h-full' },
-  imports: [FormsModule, SafePipe, TranslocoModule],
+  imports: [TextTooltipDirective, FormsModule, SafePipe, TranslocoModule],
 })
 export class OwnedCharacterListPanelComponent {
   private readonly objectStore = inject(ObjectStore);

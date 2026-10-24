@@ -242,7 +242,9 @@
           [title]="'feature.media.jukebox.bgsHeading' | transloco"
           >waves</i
         >
-        <span class="text-ui-muted min-w-0 flex-1 truncate text-[11px]">{{ backgroundNames() }}</span>
+        <span class="text-ui-muted min-w-0 flex-1 truncate text-[11px]" [appTextTooltip]="backgroundNames()">{{
+          backgroundNames()
+        }}</span>
         <button
           type="button"
           class="text-ui-muted m-0 inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:bg-(--ui-danger-bg) hover:text-(--ui-danger) disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[16px]!"
@@ -280,6 +282,7 @@
           <span
             class="text-ui-text min-w-0 flex-1 truncate text-[12px] font-semibold"
             data-testid="mini-jukebox-playlist-name"
+            [appTextTooltip]="activePlaylist()?.label"
             >{{ activePlaylist()?.label }}</span
           >
           @if (hasManyPlaylists()) {
@@ -305,7 +308,7 @@
             <i class="material-icons shrink-0 text-[14px]!">{{
               audio.identifier === lastAudioIdentifier() && isPlaying() ? 'volume_up' : 'music_note'
             }}</i>
-            <span class="flex-1 truncate">{{ audio.name }}</span>
+            <span class="flex-1 truncate" [appTextTooltip]="audio.name">{{ audio.name }}</span>
             @if (playback.tempos().get(audio.identifier); as bpm) {
               <span class="text-ui-dim shrink-0 text-[10px] [font-variant-numeric:tabular-nums]" title="BPM">{{
                 bpm

@@ -12,6 +12,7 @@ import { Jukebox } from '@axe/domain/media/jukebox';
 import { presetSoundLabelKey } from '@axe/domain/media/preset-sound-labels';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 export interface AttachedSound {
@@ -23,7 +24,7 @@ export interface AttachedSound {
   selector: 'visual-novel-sound-board',
   templateUrl: './visual-novel-sound-board.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, TranslocoModule],
+  imports: [TextTooltipDirective, FormsModule, TranslocoModule],
   host: { class: 'contents' },
 })
 export class VisualNovelSoundBoardComponent {

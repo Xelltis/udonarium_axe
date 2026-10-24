@@ -91,6 +91,7 @@ import { GameDataElementFieldOptionsComponent } from '@axe/features/data-element
 import { GameDataElementRangeShapeComponent } from '@axe/features/data-element/game-data-element-range-shape/game-data-element-range-shape.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -104,6 +105,7 @@ export const STEP_COMMIT_MS = 450;
   templateUrl: './game-data-element.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TextTooltipDirective,
     FormsModule,
     LinkifyPipe,
     SafePipe,

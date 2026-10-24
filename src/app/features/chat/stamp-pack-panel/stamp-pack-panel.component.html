@@ -107,7 +107,7 @@
             <i class="material-icons">close</i>
           </button>
         } @else {
-          <span class="w-full truncate text-center text-[11px]">{{ stamp.name }}</span>
+          <span class="w-full truncate text-center text-[11px]" [appTextTooltip]="stamp.name">{{ stamp.name }}</span>
         }
       </div>
     } @empty {

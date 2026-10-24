@@ -36,7 +36,7 @@
             (click)="setChoice(choice.value)"
           >
             <span class="size-4 shrink-0" [innerHTML]="choice.glyph | safe: 'html'"></span>
-            <span class="truncate">{{ choice.name }}</span>
+            <span class="truncate" [appTextTooltip]="choice.name">{{ choice.name }}</span>
           </button>
         }
       </div>

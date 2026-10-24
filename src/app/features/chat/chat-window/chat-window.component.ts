@@ -50,6 +50,7 @@ import { ChatTabComponent } from '@axe/features/chat/chat-tab/chat-tab.component
 import { ChatTabSettingComponent } from '@axe/features/chat/chat-tab-setting/chat-tab-setting.component';
 import { ChatTabStripComponent } from '@axe/features/chat/chat-tab-strip/chat-tab-strip.component';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -68,6 +69,7 @@ const AT_BOTTOM_THRESHOLD_PX = 8;
   selector: 'chat-window',
   templateUrl: './chat-window.component.html',
   imports: [
+    TextTooltipDirective,
     ChatTabComponent,
     FormsModule,
     NgTemplateOutlet,

@@ -49,7 +49,7 @@
           />
           <span class="text-ui-dim">{{ group.layers.length }}</span>
         } @else {
-          <span class="flex-1 truncate">{{ groupLabel(group) }}</span>
+          <span class="flex-1 truncate" [appTextTooltip]="groupLabel(group)">{{ groupLabel(group) }}</span>
         }
       </div>
 
@@ -159,7 +159,7 @@
     </div>
     @for (object of standing(); track object.identifier) {
       <div class="flex items-center justify-between gap-2 px-1 py-0.5">
-        <span class="truncate">{{ nameOf(object) }}</span>
+        <span class="truncate" [appTextTooltip]="nameOf(object)">{{ nameOf(object) }}</span>
         <button
           class="text-ui-accent shrink-0 cursor-pointer border-0 bg-transparent p-0"
           type="button"

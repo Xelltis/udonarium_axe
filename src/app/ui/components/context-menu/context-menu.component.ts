@@ -20,6 +20,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 const SUBMENU_OVERLAP_PX = 4;
@@ -39,7 +40,7 @@ function screenDeltaToMenuDelta(x: number, y: number, rotationDegrees: number): 
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'context-menu',
   templateUrl: './context-menu.component.html',
-  imports: [NgClass, FormsModule, NgTemplateOutlet, TranslocoModule],
+  imports: [TextTooltipDirective, NgClass, FormsModule, NgTemplateOutlet, TranslocoModule],
   host: { class: 'block', '(contextmenu)': 'onContextMenu($event)' },
 })
 export class ContextMenuComponent {

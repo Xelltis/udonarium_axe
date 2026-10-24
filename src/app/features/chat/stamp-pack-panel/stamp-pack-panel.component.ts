@@ -9,6 +9,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { StampPack } from '@axe/domain/chat/stamp-pack';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /**
@@ -22,7 +23,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   selector: 'stamp-pack-panel',
   templateUrl: './stamp-pack-panel.component.html',
   host: { class: 'text-ui-text flex h-full flex-col gap-2 p-3 text-[13px]' },
-  imports: [StampComponent, TranslocoModule],
+  imports: [TextTooltipDirective, StampComponent, TranslocoModule],
 })
 export class StampPackPanelComponent {
   private readonly packService = inject(StampPackService);

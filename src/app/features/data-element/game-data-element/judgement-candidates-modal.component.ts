@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { type SkillJudgementCandidate } from '@axe/domain/data/skill-table-judgement';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 export interface JudgeCandidatesState {
@@ -11,7 +12,7 @@ export interface JudgeCandidatesState {
   selector: 'judgement-candidates-modal',
   templateUrl: './judgement-candidates-modal.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoModule],
+  imports: [TextTooltipDirective, TranslocoModule],
 })
 export class JudgementCandidatesModalComponent {
   readonly state = input<JudgeCandidatesState | null>(null);

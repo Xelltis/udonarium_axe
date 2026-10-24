@@ -227,7 +227,9 @@
                       class="size-2.5 shrink-0 rounded-full"
                       [style.background]="entry.color || 'var(--ui-dim)'"
                     ></span>
-                    <span class="text-ui-text grow truncate text-[12px]">{{ entry.name }}</span>
+                    <span class="text-ui-text grow truncate text-[12px]" [appTextTooltip]="entry.name">{{
+                      entry.name
+                    }}</span>
                     <button
                       type="button"
                       class="text-ui-dim hover:text-ui-accent flex cursor-pointer items-center border-0 bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-30"

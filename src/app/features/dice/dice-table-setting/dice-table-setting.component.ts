@@ -13,6 +13,7 @@ import { DiceTablePalette } from '@axe/domain/chat/chat-palette';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { DiceTable } from '@axe/domain/dice/dice-table';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 
@@ -21,7 +22,14 @@ import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
   selector: 'dice-table-setting',
   templateUrl: './dice-table-setting.component.html',
   host: { class: 'block h-full' },
-  imports: [FormsModule, NgSelectComponent, NgOptionComponent, NgSelectWindowDirective, TranslocoModule],
+  imports: [
+    TextTooltipDirective,
+    FormsModule,
+    NgSelectComponent,
+    NgOptionComponent,
+    NgSelectWindowDirective,
+    TranslocoModule,
+  ],
 })
 export class DiceTableSettingComponent {
   private readonly modalService = inject(ModalService);

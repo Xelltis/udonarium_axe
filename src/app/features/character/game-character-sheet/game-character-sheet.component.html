@@ -60,7 +60,10 @@
             <i class="material-icons text-[32px]!">person</i>
           }
         </button>
-        <div class="text-ui-text min-w-0 flex-1 truncate text-[1.15rem] leading-tight font-bold">
+        <div
+          class="text-ui-text min-w-0 flex-1 truncate text-[1.15rem] leading-tight font-bold"
+          [appTextTooltip]="characterName()"
+        >
           {{ characterName() }}
         </div>
         <button

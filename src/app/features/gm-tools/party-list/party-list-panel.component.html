@@ -122,7 +122,9 @@
           }
         </div>
 
-        <span class="min-w-0 flex-1 truncate text-[12px]">{{ displayName(character) }}</span>
+        <span class="min-w-0 flex-1 truncate text-[12px]" [appTextTooltip]="displayName(character)">{{
+          displayName(character)
+        }}</span>
 
         <select
           class="rounded-ui-sm border-ui-border-panel bg-ui-elevated text-ui-text box-border max-w-36 shrink-0 border border-solid px-1 py-0.5 font-[inherit] text-[11px] outline-none"

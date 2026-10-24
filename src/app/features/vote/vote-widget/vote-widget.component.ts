@@ -8,6 +8,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { Vote } from '@axe/domain/vote/vote';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -16,7 +17,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-vote-widget',
   templateUrl: './vote-widget.component.html',
-  imports: [DraggableDirective, WidgetPlaceDirective, SafePipe, TranslocoModule],
+  imports: [TextTooltipDirective, DraggableDirective, WidgetPlaceDirective, SafePipe, TranslocoModule],
 })
 export class VoteWidgetComponent {
   private readonly chatMessageService = inject(ChatMessageService);

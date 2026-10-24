@@ -98,6 +98,7 @@ import {
 } from '@axe/features/inventory/inventory-filter-panel/inventory-filter-panel.component';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { AutoFocusDirective } from '@axe/ui/directives/auto-focus.directive';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -121,7 +122,15 @@ const VIEW_ICONS: Record<InventoryViewMode, string> = {
   templateUrl: './game-object-inventory.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgClass, NgTemplateOutlet, FormsModule, AutoFocusDirective, SafePipe, TranslocoModule],
+  imports: [
+    TextTooltipDirective,
+    NgClass,
+    NgTemplateOutlet,
+    FormsModule,
+    AutoFocusDirective,
+    SafePipe,
+    TranslocoModule,
+  ],
   // A window apiece, so a second inventory can be narrowed and read its own way. What the room
   // decided - the order, the display items - still comes from the one place it is written down.
   providers: [InventoryFilterService, InventoryViewPreferenceService],

@@ -9,7 +9,7 @@
           (click)="toggleChooser()"
         >
           <i class="material-icons text-[15px]">video_library</i>
-          <span class="truncate">{{ openedLabel() }}</span>
+          <span class="truncate" [appTextTooltip]="openedLabel()">{{ openedLabel() }}</span>
           <i class="material-icons text-[15px]">expand_more</i>
         </button>
         @if (isChooserOpen()) {

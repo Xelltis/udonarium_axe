@@ -121,7 +121,7 @@
               }
             </div>
             <div class="min-w-0 flex-1">
-              <div class="text-ui-text truncate text-[13px] font-semibold">
+              <div class="text-ui-text truncate text-[13px] font-semibold" [appTextTooltip]="findPeerName(target)">
                 {{ findPeerName(target) }}
               </div>
               <div class="text-ui-muted mt-0.5 truncate text-[11px]">

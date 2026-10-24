@@ -60,7 +60,9 @@
           "
           [style.border-color]="isHardToRead(editing(), theme) ? '#c93c3c' : 'var(--ui-bubble-caret-border)'"
         >
-          <div class="truncate text-[10px] font-medium opacity-90">{{ speakerName }}</div>
+          <div class="truncate text-[10px] font-medium opacity-90" [appTextTooltip]="speakerName">
+            {{ speakerName }}
+          </div>
           <div class="truncate text-[11px] leading-snug">
             {{ 'feature.chat.colorSetting.sample' | transloco }}
           </div>

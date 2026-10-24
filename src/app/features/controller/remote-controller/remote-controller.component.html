@@ -459,6 +459,7 @@
           <span
             class="text-ui-text flex-1 truncate text-[13px] font-semibold"
             [class.text-ui-accent!]="$any(gameObject).targeted"
+            [appTextTooltip]="gameObject.name"
             >{{ gameObject.name }}</span
           >
           <button

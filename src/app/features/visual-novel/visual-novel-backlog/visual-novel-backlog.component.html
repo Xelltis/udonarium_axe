@@ -69,7 +69,9 @@
         <span class="flex min-w-0 grow flex-col">
           <span class="flex items-baseline gap-1.5">
             @if (entry.name.length > 0) {
-              <span class="text-ui-accent truncate text-[11px] font-semibold">{{ entry.name }}</span>
+              <span class="text-ui-accent truncate text-[11px] font-semibold" [appTextTooltip]="entry.name">{{
+                entry.name
+              }}</span>
             }
             <span class="text-ui-dim shrink-0 text-[10px]">{{ entry.message.timestamp | date: 'H:mm' }}</span>
             @if (entry.suffix.length > 0) {

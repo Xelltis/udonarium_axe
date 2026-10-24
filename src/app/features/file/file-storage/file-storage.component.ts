@@ -20,6 +20,7 @@ import * as MimeType from '@axe/core/storage/mime-type';
 import { canBrowseImage, ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { ReportDialogComponent } from '@axe/features/moderation/report-dialog/report-dialog.component';
 import { ImageEditQueue } from '@axe/ui/components/image-editor/image-edit-queue.service';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -30,7 +31,7 @@ const ALL_TAG = '__all__';
   templateUrl: './file-storage.component.html',
   host: { class: 'block outline-none', tabindex: '-1', '(paste)': 'onPaste($event)' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, SafePipe, TranslocoModule],
+  imports: [TextTooltipDirective, FormsModule, SafePipe, TranslocoModule],
 })
 export class FileStorageComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;

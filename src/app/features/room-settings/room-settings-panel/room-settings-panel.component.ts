@@ -94,6 +94,7 @@ import { StampRulesEditorComponent } from '@axe/features/room-settings/stamp-rul
 import { SkinPickerComponent } from '@axe/features/skin/skin-picker/skin-picker.component';
 import { DisplayCalibrationComponent } from '@axe/ui/components/display-calibration/display-calibration.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 
@@ -112,6 +113,7 @@ type PiecePassageSide = 'samePartyPassage' | 'otherPartyPassage' | 'noPartyPassa
   templateUrl: './room-settings-panel.component.html',
   host: { class: 'block' },
   imports: [
+    TextTooltipDirective,
     NgTemplateOutlet,
     FormsModule,
     NgSelectComponent,

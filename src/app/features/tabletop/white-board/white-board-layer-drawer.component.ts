@@ -3,6 +3,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { MapLayer } from '@axe/features/map-editor/model/scene';
 import { LayerGroup } from '@axe/features/tabletop/white-board/white-board-scene';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 export type LayerDrawerAction =
@@ -26,7 +27,7 @@ export type LayerDrawerAction =
   selector: 'white-board-layer-drawer',
   templateUrl: './white-board-layer-drawer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoModule],
+  imports: [TextTooltipDirective, TranslocoModule],
   host: { class: 'contents' },
 })
 export class WhiteBoardLayerDrawerComponent {

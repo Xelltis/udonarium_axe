@@ -19,7 +19,7 @@
     </span>
   }
   <div class="min-w-0 shrink-0" [class]="labelClass()">
-    <div class="text-ui-muted truncate text-[11px]">{{ label() }}</div>
+    <div class="text-ui-muted truncate text-[11px]" [appTextTooltip]="label()">{{ label() }}</div>
     @if (hint()) {
       <div class="text-ui-dim text-[10px] leading-tight wrap-break-word">{{ hint() }}</div>
     }

@@ -41,7 +41,7 @@
           (click)="choose(command)"
         >
           <i class="material-icons text-ui-dim shrink-0">{{ command.icon }}</i>
-          <span class="min-w-0 grow truncate">{{ labelOf(command) }}</span>
+          <span class="min-w-0 grow truncate" [appTextTooltip]="labelOf(command)">{{ labelOf(command) }}</span>
         </button>
       </li>
     } @empty {

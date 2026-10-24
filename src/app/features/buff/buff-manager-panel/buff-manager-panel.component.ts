@@ -34,6 +34,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { STATUS_AILMENT_PANEL } from '@axe/domain/ui/room-panel';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -48,7 +49,7 @@ const CHART_LABEL_WIDTH_PX = 176;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-buff-manager-panel',
   templateUrl: './buff-manager-panel.component.html',
-  imports: [FormsModule, SafePipe, TranslocoModule],
+  imports: [TextTooltipDirective, FormsModule, SafePipe, TranslocoModule],
 })
 export class BuffManagerPanelComponent {
   private readonly objectStore = inject(ObjectStore);
