@@ -84,15 +84,20 @@
         <ul class="m-0 list-none p-1.5" [ngClass]="guide.shown() ? '' : fabColumns">
           @for (node of fabNodes(); track node.id) {
             <li
-              class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 [&_i]:text-[22px]"
+              class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 focus-visible:after:opacity-100 [&_i]:text-[22px]"
+              role="button"
+              [attr.tabindex]="fabOpen() || guide.shown() ? 0 : -1"
               [class.text-ui-accent]="fabSubmenu() === node.id || (!isGroup(node) && $any(node).lit)"
               [class.after:hidden]="(isGroup(node) && fabSubmenu() !== null) || guide.shown()"
               [ngClass]="guide.shown() ? fabGuideRow : ''"
               [attr.data-label]="fabNodeLabel(node)"
+              [attr.aria-label]="fabNodeLabel(node)"
               [attr.data-testid]="node.testId"
               [attr.data-fab-submenu-toggle]="isGroup(node) ? '' : null"
               [attr.aria-expanded]="isGroup(node) ? fabSubmenu() === node.id : null"
-              (click)="chooseFab(node, $event)"
+              (click)="clickFab(node, $event)"
+              (keydown.enter)="pressFabFromKey(node, $event)"
+              (keydown.space)="pressFabFromKey(node, $event)"
               (contextmenu)="isGroup(node) || onFabEntryContextMenu($event, $any(node))"
             >
               <i class="material-icons" [class.vibration-amine]="node.id === 'saveLoad' && isSaving()">{{
