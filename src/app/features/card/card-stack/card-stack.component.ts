@@ -26,7 +26,6 @@ import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
-import { Network } from '@axe/core/index';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { imageFileEqual } from '@axe/core/storage/image-file';
@@ -441,7 +440,7 @@ export class CardStackComponent {
 
   private drawCardToHand(): Card | null {
     const card = this.drawCard();
-    if (card) card.toHand(Network.peerContext.userId);
+    if (card) card.toHand(PeerCursor.myUserId);
     return card;
   }
 

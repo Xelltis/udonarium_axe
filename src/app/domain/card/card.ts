@@ -1,10 +1,11 @@
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
-import { getAuthorityPeerId, getPeerContext } from '@axe/core/network/peer-context-source';
+import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { Attributes } from '@axe/core/sync/attributes';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { handLocationOf, isHandLocation, isHandOf } from '@axe/domain/card/hand-location';
 import { DataElement, DataElementType } from '@axe/domain/data/data-element';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { isTableWithheld } from '@axe/domain/peer/withheld-table';
 import { OwnedTabletopObject } from '@axe/domain/tabletop/owned-tabletop-object';
 import { moveToTopmost } from '@axe/domain/tabletop/tabletop-object-util';
@@ -112,7 +113,7 @@ export class Card extends OwnedTabletopObject {
   }
   /** Whether the card is in this user's hand; false before a room has been joined. */
   get isInMyHand(): boolean {
-    return isHandOf(this.location.name, getPeerContext().userId);
+    return isHandOf(this.location.name, PeerCursor.myUserId);
   }
   /** Whether the card is in any player's hand rather than on the table. */
   get isInAnyHand(): boolean {
