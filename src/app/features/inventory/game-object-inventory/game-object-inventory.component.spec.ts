@@ -423,6 +423,109 @@ describe('GameObjectInventoryComponent', () => {
         expect(panel.isFolderCollapsed('第1話')).toBe(false);
       });
 
+      it('folds the shared folders when the panel opens on the table and is moved over to them', () => {
+        const goblin = putOnTable('ゴブリン');
+        goblin.folderName = '第1話';
+        const villager = putInShared('村長');
+        villager.folderName = '村';
+        TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
+        const panel = opened();
+        TestBed.tick();
+
+        panel.selectTab.set('common');
+        TestBed.tick();
+
+        expect(panel.isFolderCollapsed('村')).toBe(true);
+      });
+
+      it('folds the shared folders after the reader has been through their own', () => {
+        const mine = putInShared('相棒');
+        mine.setLocation(Network.peerId);
+        mine.folderName = '手持ち';
+        const villager = putInShared('村長');
+        villager.folderName = '村';
+        TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
+        const panel = opened();
+        panel.selectTab.set(Network.peerId);
+        TestBed.tick();
+
+        panel.selectTab.set('common');
+        TestBed.tick();
+
+        expect(panel.isFolderCollapsed('村')).toBe(true);
+        panel.selectTab.set(Network.peerId);
+        TestBed.tick();
+        expect(panel.isFolderCollapsed('手持ち')).toBe(true);
+      });
+
+      it('waits for a search to be cleared before folding a tab first looked at during it', () => {
+        const goblin = putInShared('ゴブリン');
+        goblin.folderName = '第1話';
+        const villager = putInShared('村長');
+        villager.folderName = '村';
+        TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
+        const panel = opened();
+        panel.searchQuery.set('村長');
+        panel.selectTab.set('common');
+        TestBed.tick();
+
+        panel.clearSearch();
+        TestBed.tick();
+
+        expect(panel.isFolderCollapsed('第1話')).toBe(true);
+        expect(panel.isFolderCollapsed('村')).toBe(true);
+      });
+
+      it('leaves a folder opened on one tab open when another tab with one of that name is first looked at', () => {
+        const shared = putInShared('村長');
+        shared.folderName = '村';
+        const mine = putInShared('相棒');
+        mine.setLocation(Network.peerId);
+        mine.folderName = '村';
+        TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
+        const panel = opened();
+        panel.selectTab.set('common');
+        TestBed.tick();
+        panel.toggleFolder('村');
+
+        panel.selectTab.set(Network.peerId);
+        TestBed.tick();
+        expect(panel.isFolderCollapsed('村')).toBe(true);
+        panel.selectTab.set('common');
+        TestBed.tick();
+
+        expect(panel.isFolderCollapsed('村')).toBe(false);
+      });
+
+      it('leaves the first folder made on a tab that had none open, with what was filed into it', () => {
+        const villager = putInShared('村長');
+        TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
+        const panel = opened();
+        panel.selectTab.set('common');
+        TestBed.tick();
+
+        panel.createFolderFor(villager);
+        TestBed.tick();
+
+        expect(villager.folderName).not.toBe('');
+        expect(panel.isFolderCollapsed(villager.folderName)).toBe(false);
+      });
+
+      it('folds the folders of a room arriving with its loose pieces before its filed ones', () => {
+        putInShared('村長');
+        TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
+        const panel = opened();
+        panel.selectTab.set('common');
+        TestBed.tick();
+
+        const goblin = putInShared('ゴブリン');
+        goblin.folderName = '第1話';
+        TestBed.inject(GameObjectInventoryService).notifyInventoryUpdate();
+        TestBed.tick();
+
+        expect(panel.isFolderCollapsed('第1話')).toBe(true);
+      });
+
       it('leaves a folder the reader opens afterwards open', () => {
         const goblin = putInShared('ゴブリン');
         goblin.folderName = '第1話';

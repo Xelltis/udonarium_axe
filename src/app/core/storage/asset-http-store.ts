@@ -475,7 +475,7 @@ export class AssetHttpStore {
   }
 
   /**
-   * Takes bytes out of the room's store, as only the room's GM may.
+   * Takes bytes out of the room's store, as only the room's GM and the player who added them may.
    *
    * `removed` once there is nothing more to do: they are gone now, were never there, or the server is
    * one older than the way to take them out, which answers 404 too. `refused` when the seat may not,

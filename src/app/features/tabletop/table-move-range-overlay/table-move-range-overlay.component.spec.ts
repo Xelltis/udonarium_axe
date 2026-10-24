@@ -1,5 +1,6 @@
 import { WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService, MoveRangeView } from '@axe/application/tabletop/move-range.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -7,10 +8,11 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
-import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import {
+  MOVE_LANDING_STROKE,
   MOVE_RANGE_FILL,
   MOVE_RANGE_OTHERS_FILL,
   MOVE_WAY_OTHERS,
@@ -134,6 +136,45 @@ describe('TableMoveRangeOverlayComponent', () => {
     fixture.detectChanges();
 
     expect(stroked).toContain(MOVE_WAY_OTHERS);
+  });
+
+  describe('where a piece will be put down in the last square of its way', () => {
+    function planOnSquaresOfTwo(): MovePlanService {
+      const table = tableOf();
+      table.squareSpan = 2;
+      table.gridSnapStyle = GridSnapStyle.GRID;
+      const plan = TestBed.inject(MovePlanService);
+      plan.begin(pieceAt(0, 0, 2));
+      return plan;
+    }
+
+    afterEach(() => {
+      TestBed.inject(MovePlanService).cancel();
+    });
+
+    it('outlines the cells, on a table whose pieces keep to the cells of its squares', () => {
+      planOnSquaresOfTwo().lookAt(160, 60);
+
+      fixture.detectChanges();
+
+      expect(stroked).toContain(MOVE_LANDING_STROKE);
+    });
+
+    it('outlines the cells of its own square it would be shifted onto', () => {
+      planOnSquaresOfTwo().lookAt(60, 60);
+
+      fixture.detectChanges();
+
+      expect(stroked).toContain(MOVE_LANDING_STROKE);
+    });
+
+    it('outlines nothing with the pointer on the cells the piece stands on', () => {
+      planOnSquaresOfTwo().lookAt(10, 10);
+
+      fixture.detectChanges();
+
+      expect(stroked).not.toContain(MOVE_LANDING_STROKE);
+    });
   });
 
   it('draws the reach of the piece somebody else has picked, before any of it is walked', () => {

@@ -14,6 +14,7 @@ describe('MovePlanEventHandlerService', () => {
     openings: opened.asReadonly(),
     lookAt: vi.fn(),
     hasWay: vi.fn<() => boolean>(() => true),
+    pointsAtNowhere: vi.fn<() => boolean>(() => false),
     settle: vi.fn(),
     run: vi.fn(),
     cancel: vi.fn(),
@@ -50,6 +51,7 @@ describe('MovePlanEventHandlerService', () => {
     opened.set(0);
     for (const spy of [movePlan.lookAt, movePlan.settle, movePlan.run, movePlan.cancel]) spy.mockClear();
     movePlan.hasWay.mockReturnValue(true);
+    movePlan.pointsAtNowhere.mockReturnValue(false);
     TestBed.configureTestingModule({
       providers: [
         { provide: MovePlannerService, useValue: movePlan },
@@ -123,6 +125,18 @@ describe('MovePlanEventHandlerService', () => {
     clickTheTable();
 
     expect(movePlan.cancel).toHaveBeenCalled();
+    expect(movePlan.run).not.toHaveBeenCalled();
+  });
+
+  it('neither walks nor puts the move away on a tap on a square with nowhere to stand', () => {
+    openAMove();
+    pressTheTable();
+    movePlan.hasWay.mockReturnValue(false);
+    movePlan.pointsAtNowhere.mockReturnValue(true);
+
+    clickTheTable();
+
+    expect(movePlan.cancel).not.toHaveBeenCalled();
     expect(movePlan.run).not.toHaveBeenCalled();
   });
 

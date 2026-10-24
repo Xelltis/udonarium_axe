@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -32,6 +33,7 @@ export class MapEditorStampPickerComponent {
   private readonly imageStorage = inject(ImageStorage);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly tagLock = inject(ImageTagLockService);
 
   private readonly stampFileInput = viewChild<ElementRef<HTMLInputElement>>('stampFileInput');
 
@@ -41,7 +43,8 @@ export class MapEditorStampPickerComponent {
   protected readonly stampImages = computed<ImageFile[]>(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf('image-tag')();
-    return ImageTag.searchImages([MAP_STAMP_TAG], this.rolePermission.canSeeHidden);
+    this.tagLock.track();
+    return ImageTag.searchImages([MAP_STAMP_TAG], this.rolePermission.canSeeHidden, this.tagLock.hides);
   });
 
   protected stampDataUri(def: StampDef, color: string | null): string {

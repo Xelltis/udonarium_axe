@@ -1,7 +1,7 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCenterOf, CellGrid, cellIndexAt, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
-import { isSquareGrid } from '@axe/domain/tabletop/move/move-grid';
+import { fitsOnCell, isSquareGrid, SquareGrid } from '@axe/domain/tabletop/move/move-grid';
 import { sizeShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
 
 /**
@@ -19,7 +19,8 @@ import { sizeShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
  * itself through a gap too small for it is answered by.
  *
  * On a grid of squares the footprint is counted in squares: as many as it takes to hold the piece,
- * whose size is kept in the table's cells.
+ * whose size is kept in the table's cells. A piece one square holds is asked only, where the table's
+ * edge cuts squares off, whether what is left of a square is wide enough for it.
  */
 export function pieceFitsOn(
   grid: CellGrid,
@@ -29,8 +30,25 @@ export function pieceFitsOn(
   across?: number
 ): ((cell: number) => boolean) | null {
   const size = Math.max(1, Math.round(across ?? piece.size));
-  if (isSquareGrid(grid)) return footprintFitsOn(grid, Math.ceil(size / grid.span), grid.sizePx, blocked);
+  if (isSquareGrid(grid)) {
+    const squares = Math.ceil(size / grid.span);
+    if (squares < 2) return fitsWhatIsOnTheTable(grid, size * grid.fine.sizePx);
+    return footprintFitsOn(grid, squares, grid.sizePx, blocked);
+  }
   return footprintFitsOn(grid, size, gridSize, blocked);
+}
+
+/**
+ * Whether a piece `widthPx` across fits on what is on the table of a square: the whole of a square,
+ * and as much of one as the table's edge leaves. Nothing where every square holds it, which is
+ * every square the edge cuts nothing off.
+ */
+function fitsWhatIsOnTheTable(grid: SquareGrid, widthPx: number): ((cell: number) => boolean) | null {
+  const clip = grid.clip;
+  if (!clip) return null;
+  const narrowest = Math.min(clip.width - (grid.cols - 1) * grid.sizePx, clip.height - (grid.rows - 1) * grid.sizePx);
+  if (widthPx <= narrowest) return null;
+  return (cell: number): boolean => fitsOnCell(grid, cell, widthPx);
 }
 
 /** Whether a footprint `span` cells across, each `gridSize` across, fits on a cell of the grid. */

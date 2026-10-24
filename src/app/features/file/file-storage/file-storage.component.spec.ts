@@ -1,11 +1,17 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { AssetOwnershipService } from '@axe/application/file/asset-ownership.service';
 import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
+import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { AssetOwner } from '@axe/domain/media/asset-owner';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
+import { ImageTagLock } from '@axe/domain/media/image-tag-lock';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { FileStorageComponent } from '@axe/features/file/file-storage/file-storage.component';
@@ -116,12 +122,18 @@ describe('FileStorageComponent', () => {
 
     afterEach(() => {
       PeerCursor.myCursor = null!;
+      for (const record of AssetOwner.all()) ObjectStore.instance.remove(record);
     });
+
+    /** Names this seat as the one who added the picture, as one made here is. */
+    function addedHere(identifier: string): void {
+      AssetOwner.claim(identifier, 'image', TestBed.inject(AssetOwnershipService).myOwnerKey());
+    }
 
     it.each([
       [PeerRole.GameMaster, true],
       [PeerRole.Player, false],
-    ])('is offered to a seat of role %s: %s', async (role, offered) => {
+    ])('is offered to a seat of role %s, with no picture of its own listed: %s', async (role, offered) => {
       playing(role);
       await fixture.whenStable();
 
@@ -149,7 +161,35 @@ describe('FileStorageComponent', () => {
       expect(component['checkedFiles']().size).toBe(0);
     });
 
-    it('asks nothing for a player', async () => {
+    it('is offered to a player while a picture they added is listed', async () => {
+      playing(PeerRole.Player);
+      TestBed.inject(ImageStorage).add(pictureId);
+      AssetOwner.claim(otherId, 'image', 'owner_someone-else');
+      TestBed.inject(ImageStorage).add(otherId);
+      await fixture.whenStable();
+      expect(removeButton()).toBeNull();
+
+      addedHere(pictureId);
+      await fixture.whenStable();
+
+      expect(removeButton()).not.toBeNull();
+    });
+
+    it('asks to remove what a player ticked, leaving it to the asking to keep what they did not add', async () => {
+      playing(PeerRole.Player);
+      const removeAfterAsking = vi.spyOn(TestBed.inject(AssetRemovalService), 'removeAfterAsking').mockResolvedValue(1);
+      TestBed.inject(ImageStorage).add(pictureId);
+      TestBed.inject(ImageStorage).add(otherId);
+      addedHere(pictureId);
+      component.imgBlockClick(pictureId);
+      component.imgBlockClick(otherId);
+
+      await component.removeChecked();
+
+      expect(removeAfterAsking.mock.calls).toEqual([['image', [pictureId, otherId]]]);
+    });
+
+    it('asks nothing for a player who added none of those listed', async () => {
       playing(PeerRole.Player);
       const removeAfterAsking = vi.spyOn(TestBed.inject(AssetRemovalService), 'removeAfterAsking');
       TestBed.inject(ImageStorage).add(pictureId);
@@ -468,6 +508,78 @@ describe('FileStorageComponent', () => {
       fixture.detectChanges();
 
       expect(shown()).toEqual({ upload: false, paste: false, editFirst: false, changeTag: false, tick: false });
+    });
+  });
+
+  describe('tags kept to one person', () => {
+    function playing(role: PeerRole): void {
+      PeerCursor.createMyCursor().role = role;
+    }
+
+    const lockButton = () =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[data-testid="file-storage-lock-tag"]');
+
+    beforeEach(() => {
+      ImageTag.create(TestBed.inject(ImageStorage).add('the-boss').identifier).tag = 'ボス';
+      ImageTag.create(TestBed.inject(ImageStorage).add('a-goblin').identifier).tag = '雑魚';
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor = null!;
+      for (const record of ImageTagLock.all()) ObjectStore.instance.remove(record);
+      vi.restoreAllMocks();
+    });
+
+    it('lists neither a tag someone else keeps nor its pictures for a player, and both for the master', async () => {
+      ImageTagLock.lock('ボス', 'owner_someone-else');
+      playing(PeerRole.Player);
+      await fixture.whenStable();
+
+      expect(component.tagList()).not.toContain('ボス');
+      expect(component.getAllImage().map((image) => image.identifier)).not.toContain('the-boss');
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      await fixture.whenStable();
+      expect(component.tagList()).toContain('ボス');
+      expect(component.getAllImage().map((image) => image.identifier)).toContain('the-boss');
+      fixture.detectChanges();
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector('[data-testid="file-storage-tag-locked"]')
+      ).not.toBeNull();
+    });
+
+    it('keeps the tag picked to this seat from its button, and frees it again', async () => {
+      playing(PeerRole.Player);
+      component.selectTag.set('雑魚');
+      await fixture.whenStable();
+
+      lockButton()!.click();
+      await fixture.whenStable();
+      expect(TestBed.inject(ImageTagLockService).isMine('雑魚')).toBe(true);
+
+      lockButton()!.click();
+      expect(TestBed.inject(ImageTagLockService).isLocked('雑魚')).toBe(false);
+    });
+
+    it('offers no lock for all the pictures together or the untagged ones', async () => {
+      playing(PeerRole.Player);
+      component.selectTag.set('');
+      await fixture.whenStable();
+      expect(lockButton()).toBeNull();
+    });
+
+    it('files no picture under a tag someone else keeps, and says so', () => {
+      ImageTagLock.lock('ボス', 'owner_someone-else');
+      playing(PeerRole.Player);
+      const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+      component.selectTag.set('雑魚');
+      component.imgBlockClick('a-goblin');
+      component.newTagName.set('ボス');
+
+      component.changeTag();
+
+      expect(ImageTag.get('a-goblin').tag).toBe('雑魚');
+      expect(show).toHaveBeenCalledOnce();
     });
   });
 

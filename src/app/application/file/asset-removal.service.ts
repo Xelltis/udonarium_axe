@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { AssetOwnershipService } from '@axe/application/file/asset-ownership.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -12,6 +13,7 @@ import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
+import { AssetOwner } from '@axe/domain/media/asset-owner';
 import { AssetRemoval, AssetRemovalKind } from '@axe/domain/media/asset-removal';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
@@ -36,7 +38,8 @@ const WORDS: Readonly<Record<AssetRemovalKind, { title: string; confirm: string;
 };
 
 /**
- * Removes pictures and sounds from the whole room, as only its GM may.
+ * Removes pictures and sounds from the whole room, as its GM may any of them and a player those they
+ * added themselves.
  *
  * What it removes is written into the room as an `AssetRemoval`, which every seat follows by letting
  * go of it and taking it from nobody, and, on a room server, taken out of the room's store as well.
@@ -46,6 +49,7 @@ const WORDS: Readonly<Record<AssetRemovalKind, { title: string; confirm: string;
 @Injectable({ providedIn: 'root' })
 export class AssetRemovalService {
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly ownership = inject(AssetOwnershipService);
   private readonly objectStore = inject(ObjectStore);
   private readonly confirm = inject(ConfirmService);
   private readonly snackbar = inject(SnackbarService);
@@ -53,10 +57,22 @@ export class AssetRemovalService {
   private readonly storeRetries = new AssetRetries();
 
   /**
-   * Which of these may be removed: those a person added, named by the hash of what they hold, and
-   * not a picture the tool brought with it.
+   * Which of these this seat may remove: those a person added, named by the hash of what they hold,
+   * and not a picture the tool brought with it; and of those, for anyone but the GM, the ones this seat
+   * added itself.
    */
   removable(kind: AssetRemovalKind, identifiers: readonly string[]): string[] {
+    return this.removableByAnyone(kind, identifiers).filter((identifier) => this.mayRemove(identifier));
+  }
+
+  /** Whether this seat may remove the asset: the GM any, a player one they added, and one watching none. */
+  mayRemove(identifier: string): boolean {
+    if (this.rolePermission.canEditShared) return true;
+    return this.rolePermission.canEditTabletop && this.ownership.isMine(identifier);
+  }
+
+  /** Which of these anyone at all may remove, the GM if nobody else: whatever the room did not bring itself. */
+  private removableByAnyone(kind: AssetRemovalKind, identifiers: readonly string[]): string[] {
     return [...new Set(identifiers)].filter(
       (identifier) =>
         AssetHttpStore.isAssetId(identifier) &&
@@ -66,7 +82,7 @@ export class AssetRemovalService {
 
   /**
    * How many things in the room use any of these: pieces, tables, cut-ins, the room's music and the
-   * like. The tags and removals of pictures and sounds do not count, nor does what was said in chat,
+   * like. The tags, removals and adders of pictures and sounds do not count, nor does what was said in chat,
    * nor a background sound that is off, which keeps the sound it last played.
    */
   countUses(identifiers: readonly string[]): number {
@@ -77,13 +93,12 @@ export class AssetRemovalService {
   }
 
   /**
-   * Removes them from the room, and gives back how many were. Nothing is removed for anyone but the
-   * GM. What the room is playing of the sounds, as music, a background sound or the cut-in shown, is
-   * stopped first, so that nothing it plays names one gone. The room's store is asked once more a while
-   * later, for bytes a player's upload under way put there after them.
+   * Removes them from the room, those this seat may, and gives back how many were. What the room is
+   * playing of the sounds, as music, a background sound or the cut-in shown, is stopped first, so that
+   * nothing it plays names one gone. The room's store is asked once more a while later, for bytes a
+   * player's upload under way put there after them.
    */
   remove(kind: AssetRemovalKind, identifiers: readonly string[]): number {
-    if (!this.rolePermission.canEditShared) return 0;
     const targets = this.removable(kind, identifiers);
     if (targets.length === 0) return 0;
     GameObject.batch(() => {
@@ -109,31 +124,38 @@ export class AssetRemovalService {
   }
 
   /**
-   * Takes out of the room's store, as the GM, those of these the room keeps removed: found there after
-   * all, as when an upload under way when they were removed reached it later, or a seat of an older
-   * version put them up again. The room server lets only a GM write a removal, so a record is a GM's.
+   * Takes out of the room's store those of these the room keeps removed and this seat may remove: found
+   * there after all, as when an upload under way when they were removed reached it later, or a seat of
+   * an older version put them up again.
    */
   takeOut(identifiers: readonly string[]): void {
-    if (!this.rolePermission.canEditShared) return;
-    for (const identifier of identifiers) this.takeOutOfStore(identifier, Network.roomKey);
+    for (const identifier of identifiers) {
+      if (this.mayRemove(identifier)) this.takeOutOfStore(identifier, Network.roomKey);
+    }
   }
 
   /**
-   * Asks the GM first, saying how many things use them and how to bring them back, then removes them
-   * and says how many went. Gives back how many were removed. Chosen ones none of which may be
-   * removed are said to be so.
+   * Asks first, saying how many things use them, how many chosen are someone else's to remove and how
+   * to bring them back, then removes them and says how many went. Gives back how many were removed.
+   * Chosen ones none of which this seat may remove are said to be so.
    */
   async removeAfterAsking(kind: AssetRemovalKind, identifiers: readonly string[]): Promise<number> {
-    if (!this.rolePermission.canEditShared) return 0;
-    const targets = this.removable(kind, identifiers);
+    if (!this.rolePermission.canEditTabletop) return 0;
+    const anyones = this.removableByAnyone(kind, identifiers);
+    const targets = anyones.filter((identifier) => this.mayRemove(identifier));
     if (targets.length === 0) {
-      if (identifiers.length > 0) this.snackbar.show(this.t('feature.file.removal.notRemovable'));
+      if (identifiers.length > 0) {
+        const why = anyones.length > 0 ? 'feature.file.removal.notYours' : 'feature.file.removal.notRemovable';
+        this.snackbar.show(this.t(why));
+      }
       return 0;
     }
     const words = WORDS[kind];
     const uses = this.countUses(targets);
+    const kept = anyones.length - targets.length;
     const message = [
       this.t(words.confirm, { count: targets.length }),
+      ...(kept > 0 ? [this.t('feature.file.removal.othersKept', { count: kept })] : []),
       ...(uses > 0 ? [this.t('feature.file.removal.uses', { uses })] : []),
       this.t('feature.file.removal.restore'),
     ].join('\n');
@@ -155,6 +177,7 @@ export class AssetRemovalService {
       object instanceof ImageTag ||
       object instanceof AudioTag ||
       object instanceof AssetRemoval ||
+      object instanceof AssetOwner ||
       object instanceof ChatMessage ||
       object instanceof ChatReaction
     );

@@ -13,8 +13,8 @@ import { Config } from '@axe/domain/peer/config';
 import { cellCount, CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { cheapestPath } from '@axe/domain/tabletop/move/cheapest-path';
-import { cellHolding, moveGridOf, tableCellsOf } from '@axe/domain/tabletop/move/move-grid';
-import { pieceCellOf, pieceCornerOn } from '@axe/domain/tabletop/move/piece-on-grid';
+import { cellHolding, isSquareGrid, moveGridOf, tableCellsOf } from '@axe/domain/tabletop/move/move-grid';
+import { pieceCellOf, pieceCornerInSquare, pieceCornerOn, standsAt } from '@axe/domain/tabletop/move/piece-on-grid';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableTrigger, triggersOn } from '@axe/domain/tabletop/table-trigger';
@@ -295,17 +295,28 @@ export class TriggerFireService {
    * Sets a piece down on a cell of a table, and turns the room's view to that table where it is not
    * the one being looked at, since a piece stands on every table at once and what changes is which
    * one the room is looking at.
+   *
+   * On a table counting squares of several cells the piece goes on the square holding the cell, and
+   * where the table keeps its pieces to the cells, on the cell itself as near as the square allows.
    */
   carryTo(piece: GameCharacter, col: number, row: number, table: GameTable | null): void {
     if (!table || table.gridSize <= 0 || table.width <= 0 || table.height <= 0) return;
     const grid = moveGridOf(table);
-    const to = cellHolding(grid, Math.round(col), Math.round(row));
+    const at = { col: Math.round(col), row: Math.round(row) };
+    const to = cellHolding(grid, at.col, at.row);
     // Ground pointing off the board carries nobody: a piece set down outside it would be a
     // piece nothing on the table could reach.
     if (to < 0) return;
     const floors = table.identifier !== this.tableSelecter.viewTableIdentifier;
-    if (!floors && pieceCellOf(grid, piece, table.gridSize) === to) return;
-    const corner = pieceCornerOn(grid, piece, table.gridSize, to);
+    const keeps = isSquareGrid(grid) && grid.keepsToCells;
+    const corner = keeps
+      ? pieceCornerInSquare(grid, piece, table.gridSize, to, {
+          x: (at.col + 0.5) * table.gridSize,
+          y: (at.row + 0.5) * table.gridSize,
+        })
+      : pieceCornerOn(grid, piece, table.gridSize, to);
+    const there = keeps ? standsAt(piece, corner) : pieceCellOf(grid, piece, table.gridSize) === to;
+    if (!floors && there) return;
     piece.location = { name: piece.location.name, x: corner.x, y: corner.y };
     piece.update();
     // Turned to last, so that the room arrives to find the piece already standing where it fell.

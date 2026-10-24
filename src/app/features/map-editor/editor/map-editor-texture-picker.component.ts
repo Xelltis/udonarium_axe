@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, viewChild } from '@angular/core';
+import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -29,6 +30,7 @@ export class MapEditorTexturePickerComponent {
   private readonly textureIntake = inject(TextureIntakeService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly tagLock = inject(ImageTagLockService);
 
   private readonly textureFileInput = viewChild<ElementRef<HTMLInputElement>>('textureFileInput');
 
@@ -39,9 +41,10 @@ export class MapEditorTexturePickerComponent {
   protected readonly imageTextures = computed<ImageFile[]>(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf('image-tag')();
+    this.tagLock.track();
     // What the tool is built with is shown by its own swatches here, and it is in the library
     // as well, so it is left out of this list rather than offered twice over.
-    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden).filter(
+    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden, this.tagLock.hides).filter(
       (file) => !isBuiltinMaterial(file.identifier)
     );
   });

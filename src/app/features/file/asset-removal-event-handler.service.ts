@@ -1,4 +1,5 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
+import { AssetOwnershipService } from '@axe/application/file/asset-ownership.service';
 import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -19,12 +20,16 @@ const ALIAS = 'asset-removal';
  * A picture or sound the GM chooses to add again, one the room had removed, puts it back for the
  * room: the same file is the same identifier, so whatever showed it shows it again. Anyone else is
  * told that only the GM may. Bytes that reach the room's store after their removal all the same are
- * taken out again by the GM.
+ * taken out again by a seat that may remove them.
+ *
+ * A picture or sound made on this seat tells the room who added it, the one besides the GM who may
+ * remove it.
  */
 @Injectable({ providedIn: 'root' })
 export class AssetRemovalEventHandlerService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly assetRemoval = inject(AssetRemovalService);
+  private readonly ownership = inject(AssetOwnershipService);
   private readonly snackbar = inject(SnackbarService);
   private readonly t = inject(TRANSLATE_FN);
   /** The asset each record keeps removed here now, by the record's identifier. */
@@ -38,19 +43,21 @@ export class AssetRemovalEventHandlerService {
     this.objectChange.objectAdded$.subscribe(follow, destroyRef);
     this.objectChange.objectRemoved$.subscribe(follow, destroyRef);
     this.objectChange.onObjectChangedForSingleAlias(ALIAS, follow, destroyRef);
-    for (const [storage, refused] of [
-      [ImageStorage.instance, 'feature.file.removal.imageRefused'],
-      [AudioStorage.instance, 'feature.file.removal.audioRefused'],
+    for (const [storage, refused, kind] of [
+      [ImageStorage.instance, 'feature.file.removal.imageRefused', 'image'],
+      [AudioStorage.instance, 'feature.file.removal.audioRefused', 'audio'],
     ] as const) {
       storage.putBack = (identifier) => this.assetRemoval.putBack(identifier);
       storage.onRefused = () => this.snackbar.show(this.t(refused));
       storage.onUploadedWhileRemoved = (identifier) => this.assetRemoval.takeOut([identifier]);
+      storage.onAddedLocally = (identifier) => this.ownership.claim(identifier, kind);
     }
     destroyRef.onDestroy(() => {
       for (const storage of [ImageStorage.instance, AudioStorage.instance]) {
         storage.putBack = () => false;
         storage.onRefused = () => {};
         storage.onUploadedWhileRemoved = () => {};
+        storage.onAddedLocally = () => {};
       }
     });
     for (const record of AssetRemoval.all()) this.follow(record.identifier);

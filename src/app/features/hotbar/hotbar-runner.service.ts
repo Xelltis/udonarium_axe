@@ -1,6 +1,7 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
+import { DiceRollService } from '@axe/application/dice/dice-roll.service';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectFieldService } from '@axe/application/effect/effect-field.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
@@ -45,6 +46,7 @@ export const HOTBAR_FAILURES = [
   'noTab',
   'offTable',
   'empty',
+  'noDice',
   'notAllowed',
   'unavailable',
 ] as const;
@@ -71,6 +73,7 @@ export class HotbarRunnerService {
   private readonly rangeShapeInvoke = inject(RangeShapeInvokeService);
   private readonly tabletopAction = inject(TabletopActionService);
   private readonly characterDice = inject(CharacterDiceService);
+  private readonly diceRoll = inject(DiceRollService);
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly panelService = inject(PanelService);
   private readonly tableFocus = inject(TableFocusService);
@@ -108,6 +111,8 @@ export class HotbarRunnerService {
         return this.runRange(slot, character!, cell);
       case 'diceDeploy':
         return this.runDice(character!);
+      case 'diceRoll':
+        return this.rollDice(character!);
       case 'panel':
         return this.runPanel(slot, character!);
       case 'menu':
@@ -289,6 +294,18 @@ export class HotbarRunnerService {
   private runDice(character: GameCharacter): HotbarRunResult {
     if (this.characterDice.putAway(character) > 0) return OK;
     return this.characterDice.deploy(character).length > 0 ? OK : failed('empty');
+  }
+
+  /**
+   * Throws again, as one throw, the dice of the character that are out on the table; those kept on
+   * its sheet show no face to throw. What a die shows only to its owner is thrown for them alone,
+   * and one the reader may not read stays as it is, as when the dice are thrown by hand.
+   */
+  private rollDice(character: GameCharacter): HotbarRunResult {
+    const onTable = this.characterDice.laidOut(character).filter((die) => die.isVisibleOnTable);
+    if (onTable.length < 1) return failed('noDice');
+    this.diceRoll.roll(onTable);
+    return OK;
   }
 
   /** A slot that opens a panel closes it again, so the one key does both. */

@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AssetOwnershipService } from '@axe/application/file/asset-ownership.service';
 import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
+import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { ImageUploadPreferenceService } from '@axe/application/file/image-upload-preference.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ReportService } from '@axe/application/moderation/report.service';
@@ -8,6 +10,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { emitSelectFile } from '@axe/core/event/domain-events';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
@@ -39,6 +42,9 @@ export class FileStorageComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly editQueue = inject(ImageEditQueue);
   private readonly assetRemoval = inject(AssetRemovalService);
+  private readonly tagLock = inject(ImageTagLockService);
+  private readonly snackbar = inject(SnackbarService);
+  private readonly ownership = inject(AssetOwnershipService);
   private readonly reports = inject(ReportService);
   private readonly modalService = inject(ModalService);
 
@@ -71,19 +77,23 @@ export class FileStorageComponent {
   });
 
   /**
-   * Whether this seat may remove pictures from the room, which only the master may. It follows this
-   * seat's cursor, as `canEdit` does.
+   * Whether this seat may remove pictures from the room here: the master always, and a player while
+   * any picture listed is one they added. It follows this seat's cursor, as `canEdit` does, and who
+   * the room says added what.
    */
   protected readonly canRemove = computed(() => {
     this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditShared;
+    this.ownership.track();
+    if (this.rolePermission.canEditShared) return true;
+    return this.images().some((image) => this.assetRemoval.mayRemove(image.context.identifier));
   });
 
   /** The master's own view of what is being kept. Everyone else never sees them at all. */
   readonly showSecret = signal(true);
 
   private mayShow(imageFile: ImageFile): boolean {
-    return canBrowseImage(ImageTag.get(imageFile.context.identifier) ?? null, this.canKeepSecret, this.showSecret());
+    const tag = ImageTag.get(imageFile.context.identifier) ?? null;
+    return canBrowseImage(tag, this.canKeepSecret, this.showSecret(), this.tagLock.hides);
   }
 
   /**
@@ -97,6 +107,7 @@ export class FileStorageComponent {
   readonly images = computed(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf('image-tag')();
+    this.tagLock.track();
     const imageFileList: ImageFile[] = [];
     if (this.selectTag() == ALL_TAG) return this.getAllImage();
     for (const imageFile of this.fileStorageService.images) {
@@ -132,16 +143,23 @@ export class FileStorageComponent {
     return imageTag ? imageTag : ImageTag.create(this.selectedFile.identifier);
   }
 
+  /**
+   * The tags offered above the pictures: untagged first, then all, then each tag a person filed
+   * pictures under, but those someone else keeps from this seat.
+   */
   readonly tagList = computed<string[]>(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf('image-tag')();
+    this.objectChange.trackMyCursor();
+    this.tagLock.track();
     const tags: string[] = [];
     for (const imageFile of this.fileStorageService.images) {
       const identifier = imageFile.context.identifier;
       const imageTag = ImageTag.get(identifier);
       if (imageTag) {
         this.objectChange.versionOf(imageTag.identifier)();
-        if (imageTag.tag && imageTag.tag != SYSTEM_RESERVED_TAG) tags.push(imageTag.tag);
+        const tag = imageTag.tag;
+        if (tag && tag != SYSTEM_RESERVED_TAG && !this.tagLock.hides(tag)) tags.push(tag);
       }
     }
 
@@ -152,6 +170,25 @@ export class FileStorageComponent {
   });
 
   fileStorageService = this.imageStorage;
+
+  /** The tags listed that someone keeps to themselves, which only their holder and the master see listed. */
+  protected readonly lockedTags = computed<ReadonlySet<string>>(() => {
+    this.tagLock.track();
+    return new Set(this.tagList().filter((tag) => this.tagLock.isLocked(tag)));
+  });
+
+  /** Whether this seat may lock or unlock the tag picked above the pictures. */
+  protected readonly canLockSelected = computed(() => {
+    this.objectChange.trackMyCursor();
+    this.tagLock.track();
+    const tag = this.selectTag();
+    return tag !== ALL_TAG && this.tagLock.mayToggle(tag);
+  });
+
+  /** Keeps the tag picked above the pictures to this seat and the master, or lets everyone see it again. */
+  toggleSelectedLock(): void {
+    if (this.canLockSelected()) this.tagLock.toggle(this.selectTag());
+  }
 
   /** Keeps the tag name typed into the new-tag field. */
   onInputNewTag(event: Event): void {
@@ -170,6 +207,10 @@ export class FileStorageComponent {
     if (candidate === ALL_TAG) return;
     if (candidate === SYSTEM_RESERVED_TAG) return;
     if (candidate === this.t('feature.file.fileStorage.all')) return;
+    if (!this.tagLock.mayFileUnder(candidate)) {
+      this.snackbar.show(this.t('feature.file.fileStorage.tagKeptByOther'));
+      return;
+    }
 
     const changeableImages = this.images();
 

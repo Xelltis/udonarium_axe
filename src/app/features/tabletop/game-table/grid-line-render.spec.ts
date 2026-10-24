@@ -33,7 +33,7 @@ describe('GridLineRender', () => {
   });
 
   describe('a table counting squares of several cells', () => {
-    it('draws the edges of whole squares over the cells, heavier', () => {
+    it('draws the edges of the squares over the cells, heavier', () => {
       const { canvas, context } = createCanvasMock();
       const widths: number[] = [];
       vi.mocked(context.stroke).mockImplementation(() => widths.push(context.lineWidth));
@@ -44,6 +44,25 @@ describe('GridLineRender', () => {
       expect(context.lineTo).toHaveBeenCalledWith(200, 200);
       expect(context.moveTo).not.toHaveBeenCalledWith(300, 0);
       expect(widths).toEqual([2.5]);
+    });
+
+    it('stops the heavier edges at the last whole cell of a table of part of a cell', () => {
+      const { canvas, context } = createCanvasMock();
+
+      new GridLineRender(canvas).render(5.5, 3, 50, GridType.SQUARE, '#000', '#000', false, 0, 0, 2);
+
+      expect(context.moveTo).toHaveBeenCalledWith(250, 0);
+      expect(context.moveTo).not.toHaveBeenCalledWith(275, 0);
+    });
+
+    it('closes the squares the edge of the table cuts off along that edge', () => {
+      const { canvas, context } = createCanvasMock();
+
+      new GridLineRender(canvas).render(5, 3, 50, GridType.SQUARE, '#000', '#000', false, 0, 0, 2);
+
+      expect(context.moveTo).toHaveBeenCalledWith(250, 0);
+      expect(context.lineTo).toHaveBeenCalledWith(250, 150);
+      expect(context.lineTo).toHaveBeenCalledWith(250, 100);
     });
 
     it('draws no squares where each cell is a square', () => {

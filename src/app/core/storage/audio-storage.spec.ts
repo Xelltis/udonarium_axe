@@ -64,6 +64,32 @@ describe('AudioStorage', () => {
     });
   });
 
+  describe('telling the app a sound was added here', () => {
+    const madeHere = 'f'.repeat(64);
+    const whole = (): AudioFileContext => ({
+      identifier: madeHere,
+      name: 'made-here.ogg',
+      type: 'audio/ogg',
+      blob: new Blob([new Uint8Array([0x4f, 0x67, 0x67, 0x53])], { type: 'audio/ogg' }),
+      url: 'blob:made-here',
+    });
+
+    afterEach(() => {
+      storage.onAddedLocally = () => {};
+    });
+
+    it('tells it of one made here whole, and of none from a peer', () => {
+      const added = vi.fn();
+      storage.onAddedLocally = added;
+
+      storage.add(whole());
+      expect(added).not.toHaveBeenCalled();
+
+      storage.add(AudioFile.create(whole()));
+      expect(added.mock.calls).toEqual([[madeHere]]);
+    });
+  });
+
   describe('a sound the room removed', () => {
     const removedId = 'e'.repeat(64);
     const fullContext = (): AudioFileContext => ({
@@ -252,6 +278,7 @@ describe('AudioStorage', () => {
       (storage as unknown as { uploading: Set<string> }).uploading.clear();
       (storage as unknown as { upAgain: Set<string> }).upAgain.clear();
       (storage as unknown as { gaveUp: Set<string> }).gaveUp.clear();
+      (storage as unknown as { addedUnnamed: Set<string> }).addedUnnamed.clear();
       (storage as unknown as { clearLastTries(): void }).clearLastTries();
       (storage as unknown as { pausedUploads: Set<string> }).pausedUploads.clear();
       (storage as unknown as { barred: Set<string> }).barred.clear();
@@ -330,6 +357,53 @@ describe('AudioStorage', () => {
         storage.markRemoved(trackId);
 
         expect(storage.hasUploadsPending).toBe(false);
+      });
+    });
+
+    describe('telling the app a sound made here was added', () => {
+      const added = vi.fn();
+
+      beforeEach(() => {
+        added.mockReset();
+        storage.onAddedLocally = added;
+        vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('pl');
+      });
+
+      afterEach(() => {
+        storage.onAddedLocally = () => {};
+      });
+
+      it('waits until it is in the store, as one on its way up is named to nobody', async () => {
+        storage.add(AudioFile.create(contextOf(trackId)));
+        await Promise.resolve();
+        expect(added).not.toHaveBeenCalled();
+
+        finishUpload('stored');
+
+        await vi.waitFor(() => expect(added.mock.calls).toEqual([[trackId]]));
+      });
+
+      it('says nothing of one the operator holds back or bars', async () => {
+        upload.mockResolvedValueOnce('paused').mockResolvedValueOnce('blocked');
+        const barredId = 'b'.repeat(64);
+        storage.add(AudioFile.create(contextOf(trackId)));
+        storage.add(AudioFile.create(contextOf(barredId)));
+
+        await vi.waitFor(() => expect(storage.isHeldBack(barredId)).toBe(true));
+        expect(storage.isHeldBack(trackId)).toBe(true);
+        expect(added).not.toHaveBeenCalled();
+      });
+
+      it('tells it once the seat gives up putting it there, and names it to peers', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+        upload.mockResolvedValue('failed');
+        storage.add(AudioFile.create(contextOf(trackId)));
+        await vi.advanceTimersByTimeAsync(0);
+        expect(added).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(120_000);
+
+        expect(added.mock.calls).toEqual([[trackId]]);
       });
     });
 

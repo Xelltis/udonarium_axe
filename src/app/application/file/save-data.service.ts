@@ -38,9 +38,11 @@ import { ChatLogStyle, isPlainChatLogStyle } from '@axe/domain/chat/chat-log-sty
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
+import { AssetOwnerList } from '@axe/domain/media/asset-owner-list';
 import { AudioTagList } from '@axe/domain/media/audio-tag-list';
 import { carriedImagesOf } from '@axe/domain/media/carried-images';
 import { ImageTagList } from '@axe/domain/media/image-tag-list';
+import { ImageTagLockList } from '@axe/domain/media/image-tag-lock-list';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { Room } from '@axe/domain/peer/room';
@@ -151,6 +153,21 @@ export class SaveDataService {
     return files;
   }
 
+  /**
+   * Who added the given pictures and sounds as `assetowner.xml`, and the tags kept to someone as
+   * `imagelock.xml`, so that both hold once the room is read back in. Only a whole room carries them:
+   * a piece saved on its own, or a replay's pictures, may be carried into another room, which has
+   * adders and locks of its own and would have them written over.
+   */
+  private roomRightsFiles(assets: readonly { identifier: string }[], pretty: boolean): File[] {
+    const owners = this.convertToXml(AssetOwnerList.create(assets.map((asset) => asset.identifier)), pretty);
+    const locks = this.convertToXml(ImageTagLockList.create(), pretty);
+    return [
+      new File([owners], 'assetowner.xml', { type: 'text/plain' }),
+      new File([locks], 'imagelock.xml', { type: 'text/plain' }),
+    ];
+  }
+
   private _saveRoomAsync(fileName: string = '', updateCallback?: UpdateCallback): Promise<void> {
     return this.saveAsync(this.buildRoomFiles(), this.appendTimestamp(fileName), updateCallback);
   }
@@ -202,6 +219,7 @@ export class SaveDataService {
     const audios: AudioFile[] = this.audioStorage.audios.filter((a) => !a.isHidden);
     const audioTagXml = this.convertToXml(AudioTagList.create(audios), pretty);
     files.push(new File([audioTagXml], 'audiotag.xml', { type: 'text/plain' }));
+    files.push(...this.roomRightsFiles([...images, ...audios], pretty));
 
     return files;
   }

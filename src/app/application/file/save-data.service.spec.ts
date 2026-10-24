@@ -12,9 +12,12 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
 import { ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { exportChatLog } from '@axe/domain/chat/chat-log-export';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { AssetOwner } from '@axe/domain/media/asset-owner';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
@@ -334,6 +337,29 @@ describe('SaveDataService', () => {
       await service.createRoomArchiveAsync();
 
       expect(viaArchiver).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('who added the pictures and sounds', () => {
+    afterEach(() => {
+      for (const record of AssetOwner.all()) ObjectStore.instance.remove(record);
+    });
+
+    it('goes into a saved room with its locked tags, and stays out of a piece saved on its own and a replay', async () => {
+      const service = TestBed.inject(SaveDataService);
+      const privateApi = service as unknown as SaveDataServicePrivateApi;
+      const saved = vi.spyOn(privateApi, 'saveAsync').mockResolvedValue(undefined);
+
+      await privateApi._saveRoomAsync('room');
+      await privateApi._saveGameObjectAsync(GameCharacter.create('一人', 1, ''), 'one');
+      const replay = service.buildAssetFiles({ images: new Set(), audios: new Set() }).map((file) => file.name);
+
+      const names = (call: number) => (saved.mock.calls[call][0] as File[]).map((file) => file.name);
+      expect(names(0)).toEqual(expect.arrayContaining(['assetowner.xml', 'imagelock.xml']));
+      expect(names(1)).not.toContain('assetowner.xml');
+      expect(names(1)).not.toContain('imagelock.xml');
+      expect(replay).not.toContain('assetowner.xml');
+      expect(replay).not.toContain('imagelock.xml');
     });
   });
 

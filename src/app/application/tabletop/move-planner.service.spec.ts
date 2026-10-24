@@ -6,7 +6,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { Config } from '@axe/domain/peer/config';
-import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const GRID = 50;
@@ -36,6 +36,18 @@ describe('MovePlannerService', () => {
     DataElement.findElementByReference(piece.rootDataElement!, '移動')!.value = walk;
     return piece;
   }
+
+  it('has a way to walk where the piece only shifts within its square, on a table keeping to the cells of squares', () => {
+    table.squareSpan = 2;
+    table.gridSnapStyle = GridSnapStyle.GRID;
+    planner.begin(pieceAt(0, 0, 2));
+
+    planner.lookAt(10, 10);
+    expect(planner.hasWay()).toBe(false);
+
+    planner.lookAt(60, 60);
+    expect(planner.hasWay()).toBe(true);
+  });
 
   it('counts a move in cells on a table with a grid, whatever the room asks for tables without one', () => {
     Config.instance.pathMove = true;

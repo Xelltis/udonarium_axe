@@ -1,7 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { AssetOwnershipService } from '@axe/application/file/asset-ownership.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
+import { ImageTagLock } from '@axe/domain/media/image-tag-lock';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -221,6 +224,36 @@ describe('FileSelecterComponent', () => {
 
         expect(component.tagList).toContain('仕掛け');
       });
+    });
+  });
+
+  describe('a tag kept to one person', () => {
+    beforeEach(() => {
+      ImageTag.create(TestBed.inject(ImageStorage).add('the-boss').identifier).tag = 'ボス';
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor = null!;
+      for (const record of ImageTagLock.all()) ObjectStore.instance.remove(record);
+    });
+
+    it('offers neither the tag nor its pictures to a player it is kept from, and both to the master', () => {
+      ImageTagLock.lock('ボス', 'owner_someone-else');
+      PeerCursor.createMyCursor().role = PeerRole.Player;
+
+      expect(component.tagList).not.toContain('ボス');
+      expect(component.getAllImage().map((image) => image.identifier)).not.toContain('the-boss');
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      expect(component.tagList).toContain('ボス');
+      expect(component.getAllImage().map((image) => image.identifier)).toContain('the-boss');
+    });
+
+    it('offers them to the one who keeps it', () => {
+      ImageTagLock.lock('ボス', TestBed.inject(AssetOwnershipService).myOwnerKey());
+      PeerCursor.createMyCursor().role = PeerRole.Player;
+
+      expect(component.getAllImage().map((image) => image.identifier)).toContain('the-boss');
     });
   });
 });

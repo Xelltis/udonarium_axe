@@ -383,6 +383,7 @@
         "notFound": "What this slot points at is gone",
         "noTab": "There is no chat tab to speak into",
         "empty": "This slot is empty",
+        "noDice": "None of the dice held are on the table",
         "offTable": "The piece is not on the table",
         "notAllowed": "Your current role may not use this entry",
         "unavailable": "This entry cannot be used just now"
@@ -465,6 +466,7 @@
         "effect": "Effect",
         "range": "Lay out or clear a range",
         "diceDeploy": "Lay out or put away dice",
+        "diceRoll": "Re-roll held dice",
         "panel": "Open a panel",
         "menu": "Menu entry",
         "focus": "Look at the piece",
@@ -498,6 +500,7 @@
         "effect": "Chosen from the effects the table holds. It goes off from the piece you are working.",
         "range": "Choose the shape of the range. Its name, its size, its colours and how it paints, and whether it docks to the piece are set below. Press it again to clear the range this slot laid.",
         "diceDeploy": "Lays out the dice the character is holding. Press it again while they are on the table to put them away.",
+        "diceRoll": "Rolls again, as one throw, the character's dice that are laid out on the table. Dice put away on the sheet are not rolled. A die with an owner shows its result to its owner alone.",
         "panel": "Opens one of that character's panels. Press it again to close it.",
         "menu": "Pick an entry of the floating menu or a toolbar. Pressing the slot does what pressing that entry does. An entry your current role may not use does nothing.",
         "focus": "Moves the camera to that character's piece.",
@@ -1960,7 +1963,12 @@
         "editImage": "Edit",
         "editImageHint": "Edits the one ticked picture and puts the result in its place, wherever it is used",
         "remove": "Delete",
-        "removeHint": "Delete the checked images from the room, for the other players too"
+        "removeHint": "Delete the checked images from the room, for the other players too. Anyone but the GM can delete only images they added",
+        "lockedTag": "A tag kept to one person: only they and the GM see it",
+        "lockTag": "Keep to myself",
+        "unlockTag": "Stop keeping to myself",
+        "lockTagHint": "Show this tag's images only to you and the GM. They no longer appear in anyone else's image lists or pickers. Images already on the table are still seen by everyone",
+        "tagKeptByOther": "Someone else keeps that tag to themselves. Choose another name"
       },
       "tooLarge": {
         "one": "“{{name}}” was not loaded because it is too large ({{limits}})",
@@ -1979,9 +1987,11 @@
         "uses": "They are used in {{uses}} place(s) in the room.",
         "restore": "This cannot be undone. If the GM adds the same file again, it comes back wherever it was used.",
         "ok": "Delete",
-        "imageRefused": "The GM deleted this image from the room. Only the GM can add it again.",
-        "audioRefused": "The GM deleted this sound from the room. Only the GM can add it again.",
-        "notRemovable": "Bundled files, files linked by URL and system-reserved images cannot be deleted."
+        "imageRefused": "This image was deleted from the room. Only the GM can add it again.",
+        "audioRefused": "This sound was deleted from the room. Only the GM can add it again.",
+        "notRemovable": "Bundled files, files linked by URL and system-reserved images cannot be deleted.",
+        "notYours": "You cannot delete what someone else added. Only the person who added it, or the GM, can.",
+        "othersKept": "{{count}} added by someone else will be kept."
       }
     },
     "character": {
@@ -2574,6 +2584,8 @@
         "snapVertex": "Vertex",
         "snapBoth": "Cell + vertex",
         "snapAll": "Cell + vertex + edge",
+        "snapGrid": "Grid",
+        "snapGridHint": "Snaps to each cell, as Cell does. With one square for moves and ranges at 2×2 or more, pieces stay on the cell they are put down on instead of going to the middle of the square, and Strict movement can aim at any cell of the square too. Moves and ranges are still counted in squares.",
         "sectionDisplay": "Display mode",
         "cellDistance": "One cell stands for",
         "sectionDarkness": "Darkness (vision & lighting)",
@@ -2594,7 +2606,7 @@
         "cellSize": "Cell size (px)",
         "squareSpan": "One square for moves and ranges",
         "squareSpanOption": "{{span}}×{{span}} cells",
-        "squareSpanHint": "At 2×2 or more, moves, paths, ranges and zones of control count this many cells as one square, and pieces stop in the middle of a square. Square grids only.",
+        "squareSpanHint": "At 2×2 or more, moves, paths, ranges and zones of control count this many cells as one square, and pieces stop in the middle of a square, or with the Grid snap, on any cell inside it. Square grids only.",
         "cellSizeHint": "Changing it moves what is on the table so that it stays on the same cells.",
         "showWall": "Show",
         "imageNorthWall": "North wall",

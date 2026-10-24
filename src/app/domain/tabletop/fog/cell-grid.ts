@@ -13,6 +13,12 @@ import { cellCentre, MapGrid } from '@axe/domain/tabletop/map-grid';
 export interface CellGrid extends MapGrid {
   cols: number;
   rows: number;
+  /**
+   * Where the cells are cut off, in table px, on a grid of squares whose last column or row is only
+   * partly on the table: squares of several cells along an edge the table's size does not divide.
+   * Nothing on a grid whose cells are all whole.
+   */
+  readonly clip?: { readonly width: number; readonly height: number };
 }
 
 export interface CellPoint {
@@ -34,12 +40,19 @@ export function cellCount(grid: CellGrid): number {
 }
 
 /**
- * Whether two grids number their cells the same way: the same columns, rows and cell shape.
+ * Whether two grids number their cells the same way: the same columns, rows and cell shape, cut
+ * off at the same place.
  *
  * The cell size is not compared, since a cell's index does not depend on it.
  */
 export function sameCellGrid(a: CellGrid, b: CellGrid): boolean {
-  return a.cols === b.cols && a.rows === b.rows && a.type === b.type;
+  return (
+    a.cols === b.cols &&
+    a.rows === b.rows &&
+    a.type === b.type &&
+    a.clip?.width === b.clip?.width &&
+    a.clip?.height === b.clip?.height
+  );
 }
 
 /** The index of a cell by column and row, or -1 when the cell lies off the grid. */
@@ -53,10 +66,41 @@ export function cellColRow(grid: CellGrid, index: number): { col: number; row: n
   return { col: index % grid.cols, row: Math.floor(index / grid.cols) };
 }
 
-/** The centre of a cell in table pixels, on square and hex grids alike. */
+/**
+ * The centre of a cell in table pixels, on square and hex grids alike; the centre of what is on the
+ * table of a square cut off by the table's edge.
+ */
 export function cellCenterOf(grid: CellGrid, index: number): CellPoint {
   const { col, row } = cellColRow(grid, index);
+  if (grid.clip && !isHexGrid(grid.type)) return clippedCentre(col, row, grid.sizePx, grid.clip);
   return cellCentre({ x: col, y: row }, grid);
+}
+
+/** The box a square covers on the table, cut off where the table ends. */
+function clippedBox(
+  col: number,
+  row: number,
+  size: number,
+  clip: { readonly width: number; readonly height: number }
+): { left: number; top: number; right: number; bottom: number } {
+  const left = col * size;
+  const top = row * size;
+  return {
+    left,
+    top,
+    right: Math.max(left, Math.min(left + size, clip.width)),
+    bottom: Math.max(top, Math.min(top + size, clip.height)),
+  };
+}
+
+function clippedCentre(
+  col: number,
+  row: number,
+  size: number,
+  clip: { readonly width: number; readonly height: number }
+): CellPoint {
+  const box = clippedBox(col, row, size, clip);
+  return { x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2 };
 }
 
 /**
@@ -66,14 +110,28 @@ export function cellCenterOf(grid: CellGrid, index: number): CellPoint {
 export function cellIndexAt(grid: CellGrid, x: number, y: number): number {
   if (grid.sizePx <= 0) return -1;
   if (!isHexGrid(grid.type)) {
+    if (grid.clip && (x >= grid.clip.width || y >= grid.clip.height)) return -1;
     return cellIndexOf(grid, Math.floor(x / grid.sizePx), Math.floor(y / grid.sizePx));
   }
   const { col, row } = pixelToHexCell(x, y, grid.sizePx, isFlatTopGrid(grid.type));
   return cellIndexOf(grid, col, row);
 }
 
-/** The outline of a cell in table pixels: four corners on squares, six on hexes. */
+/**
+ * The outline of a cell in table pixels: four corners on squares, six on hexes, and a square cut off
+ * by the table's edge cut off with it.
+ */
 export function cellPolygonOf(grid: CellGrid, index: number): CellPoint[] {
+  if (grid.clip && !isHexGrid(grid.type)) {
+    const { col, row } = cellColRow(grid, index);
+    const box = clippedBox(col, row, grid.sizePx, grid.clip);
+    return [
+      { x: box.left, y: box.top },
+      { x: box.right, y: box.top },
+      { x: box.right, y: box.bottom },
+      { x: box.left, y: box.bottom },
+    ];
+  }
   const centre = cellCenterOf(grid, index);
   if (!isHexGrid(grid.type)) {
     const half = grid.sizePx / 2;
@@ -96,7 +154,10 @@ export function cellPolygonOf(grid: CellGrid, index: number): CellPoint[] {
  */
 export function gridExtentPx(grid: CellGrid): { minX: number; minY: number; maxX: number; maxY: number } {
   if (!isHexGrid(grid.type)) {
-    return { minX: 0, minY: 0, maxX: grid.cols * grid.sizePx, maxY: grid.rows * grid.sizePx };
+    const maxX = grid.cols * grid.sizePx;
+    const maxY = grid.rows * grid.sizePx;
+    if (!grid.clip) return { minX: 0, minY: 0, maxX, maxY };
+    return { minX: 0, minY: 0, maxX: Math.min(maxX, grid.clip.width), maxY: Math.min(maxY, grid.clip.height) };
   }
   const { colSpacing, rowSpacing, circumradius } = hexLayoutOf(grid.sizePx, isFlatTopGrid(grid.type));
   return {
@@ -114,6 +175,8 @@ export function gridExtentPx(grid: CellGrid): { minX: number; minY: number; maxX
 function cellCentreFinder(grid: CellGrid): (col: number, row: number) => CellPoint {
   if (!isHexGrid(grid.type)) {
     const size = grid.sizePx;
+    const clip = grid.clip;
+    if (clip) return (col, row) => clippedCentre(col, row, size, clip);
     return (col, row) => ({ x: (col + 0.5) * size, y: (row + 0.5) * size });
   }
   const { colSpacing, rowSpacing, isFlatTop } = hexLayoutOf(grid.sizePx, isFlatTopGrid(grid.type));

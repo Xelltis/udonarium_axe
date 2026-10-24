@@ -107,6 +107,8 @@ const ROW_BUFF_BADGE_LIMIT = 6;
 /** The panel's own frame around the content it was asked to fit: its bar and its border. */
 const PANEL_FIT_MARGIN_PX = 34;
 const NO_BUFF_BADGES = { shown: [] as BuffBadge[], more: 0 };
+/** What a tab has folded up before anything on it has been. */
+const NO_FOLDERS: ReadonlySet<string> = new Set();
 
 const VIEW_ICONS: Record<InventoryViewMode, string> = {
   rich: 'view_agenda',
@@ -192,12 +194,18 @@ export class GameObjectInventoryComponent {
   constructor() {
     // Folded as the list first arrives rather than as the panel is made: what there is to fold
     // is not known until the room has been read, and a panel folded before then folds nothing.
+    // Each tab files its own folders, so each is folded the first time it is looked at. Not while
+    // a search is running, which leaves out every folder with nothing in it that matches. Nor is a
+    // tab with no folders yet counted as done: a room arriving piece by piece may bring its loose
+    // pieces before its filed ones, so the first folders to turn up are folded whoever made them.
     effect(() => {
-      if (this.foldedOnOpen) return;
       if (!this.viewPreference.foldsOnOpen()) return;
+      if (!this.foldersApply() || this.hasQuery()) return;
+      const tab = this.selectTab();
+      if (this.foldedOnOpen.has(tab)) return;
       const tree = this.folderTree();
       if (tree.roots.length < 1) return;
-      this.foldedOnOpen = true;
+      this.foldedOnOpen.add(tab);
       untracked(() => this.foldEveryFolder());
     });
     effect(() => {
@@ -758,7 +766,22 @@ export class GameObjectInventoryComponent {
     );
   });
 
-  readonly collapsedFolders = signal<ReadonlySet<string>>(new Set());
+  /**
+   * What is folded up, tab by tab: a tab files folders of its own, and one may share a name with a
+   * folder on another without being that folder.
+   */
+  private readonly collapsedByTab = signal<ReadonlyMap<string, ReadonlySet<string>>>(new Map());
+
+  /** The folders folded up on the tab in view. */
+  readonly collapsedFolders = computed<ReadonlySet<string>>(
+    () => this.collapsedByTab().get(this.selectTab()) ?? NO_FOLDERS
+  );
+
+  /** Changes what is folded up on the tab in view, leaving the other tabs as they are. */
+  private updateCollapsed(change: (current: ReadonlySet<string>) => ReadonlySet<string>): void {
+    const tab = this.selectTab();
+    this.collapsedByTab.update((byTab) => new Map(byTab).set(tab, change(byTab.get(tab) ?? NO_FOLDERS)));
+  }
 
   /**
    * Whether the tab on view keeps its folders for the room rather than for this device.
@@ -820,24 +843,33 @@ export class GameObjectInventoryComponent {
   /** Folds or unfolds a folder in this panel; ignored while a search is running. */
   toggleFolder(path: string): void {
     if (this.hasQuery()) return;
-    this.collapsedFolders.update((current) => {
+    this.updateCollapsed((current) => {
       const next = new Set(current);
       if (!next.delete(path)) next.add(path);
       return next;
     });
   }
 
-  /** Whether this panel has already folded itself up for a reader who asked it to. */
-  private foldedOnOpen = false;
+  /** The tabs this panel has already folded up for a reader who asked it to. */
+  private readonly foldedOnOpen = new Set<string>();
 
   /**
-   * Folds up every folder, leaving the unfiled group open.
+   * Counts the tab in view as folded up already, once the reader files something on it: a tab that
+   * had no folders when it was first looked at would otherwise fold up the first one made there,
+   * and the pieces just filed into it with it.
+   */
+  private leaveFoldedAsFiled(): void {
+    this.foldedOnOpen.add(this.selectTab());
+  }
+
+  /**
+   * Folds up every folder on the tab in view, leaving the unfiled group open.
    *
    * What a panel does for itself as it opens. The pieces in no folder are the ones a reader
    * folding the folders away was trying to get a look at, so they stay where they were.
    */
   private foldEveryFolder(): void {
-    this.collapsedFolders.set(new Set(collectFolderPaths(this.folderTree())));
+    this.updateCollapsed((current) => new Set([...current, ...collectFolderPaths(this.folderTree())]));
   }
 
   /** Folds up every folder, and the unfiled group with them; ignored while a search is running. */
@@ -848,12 +880,12 @@ export class GameObjectInventoryComponent {
     const tree = this.folderTree();
     const paths = collectFolderPaths(tree);
     if (tree.loose.length > 0) paths.push('');
-    this.collapsedFolders.set(new Set(paths));
+    this.updateCollapsed(() => new Set(paths));
   }
 
-  /** Unfolds every folder in this panel. */
+  /** Unfolds every folder on the tab in view. */
   expandAllFolders(): void {
-    this.collapsedFolders.set(new Set());
+    this.updateCollapsed(() => NO_FOLDERS);
   }
 
   readonly knownFolderPaths = computed<string[]>(() => {
@@ -961,7 +993,7 @@ export class GameObjectInventoryComponent {
    */
   startFolderRename(folderPath: string): void {
     if (!this.rolePermission.canEditTabletop || folderPath.length < 1) return;
-    this.collapsedFolders.update((current) => {
+    this.updateCollapsed((current) => {
       const next = new Set(current);
       next.delete(folderPath);
       return next;
@@ -982,10 +1014,11 @@ export class GameObjectInventoryComponent {
 
   private createFolderOf(identifiers: readonly string[], parentPath = ''): void {
     if (!this.rolePermission.canEditTabletop) return;
+    this.leaveFoldedAsFiled();
     const path = this.unusedFolderPath(parentPath);
     this.declareFolder(path);
     if (identifiers.length > 0) this.setFolderOf(identifiers, path);
-    this.collapsedFolders.update((current) => {
+    this.updateCollapsed((current) => {
       const next = new Set(current);
       for (const ancestor of ancestorFolderPaths(path)) next.delete(ancestor);
       return next;
@@ -1036,7 +1069,7 @@ export class GameObjectInventoryComponent {
     this.setDeclaredFolderPaths([
       ...new Set(this.declaredFolderPaths().map((entry) => rewriteFolderPath(entry, folderPath, renamed))),
     ]);
-    this.collapsedFolders.update(
+    this.updateCollapsed(
       (current) => new Set([...current].map((entry) => rewriteFolderPath(entry, folderPath, renamed)))
     );
     this.inventoryService.notifyInventoryUpdate();
@@ -1115,6 +1148,7 @@ export class GameObjectInventoryComponent {
 
   private setFolderOf(identifiers: Iterable<string>, folderPath: string): void {
     if (!this.rolePermission.canEditTabletop) return;
+    this.leaveFoldedAsFiled();
     const normalized = normalizeFolderPath(folderPath);
     for (const identifier of identifiers) {
       const character = this.objectStore.get<GameCharacter>(identifier);

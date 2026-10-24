@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { AssetOwnershipService } from '@axe/application/file/asset-ownership.service';
 import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -14,6 +15,7 @@ import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { LoopPlayer } from '@axe/core/storage/loop-player';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { AssetOwner } from '@axe/domain/media/asset-owner';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
@@ -332,14 +334,29 @@ describe('JukeboxComponent', () => {
       AudioStorage.instance.add(makeReadyAudio(trackId, 'theme.ogg'));
     });
 
+    afterEach(() => {
+      for (const record of AssetOwner.all()) ObjectStore.instance.remove(record);
+    });
+
     it.each([
       [PeerRole.GameMaster, 1],
       [PeerRole.Player, 0],
-    ])('is offered on each row to a seat of role %s: %i', async (role, offered) => {
-      PeerCursor.myCursor.role = role;
+    ])(
+      'is offered on each row to a seat of role %s, of a sound nobody is known to have added: %i',
+      async (role, offered) => {
+        PeerCursor.myCursor.role = role;
+        await fixture.whenStable();
+
+        expect(removeButtons()).toBe(offered);
+      }
+    );
+
+    it('is offered to a player on the row of a sound they added', async () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      AssetOwner.claim(trackId, 'audio', TestBed.inject(AssetOwnershipService).myOwnerKey());
       await fixture.whenStable();
 
-      expect(removeButtons()).toBe(offered);
+      expect(removeButtons()).toBe(1);
     });
 
     it('asks to remove the sound, as the game master, and stops trying it here once removed', async () => {

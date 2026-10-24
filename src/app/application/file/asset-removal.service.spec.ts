@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { AssetOwnershipService } from '@axe/application/file/asset-ownership.service';
 import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -10,7 +11,9 @@ import { AssetHttpStore, AssetRemovalResult } from '@axe/core/storage/asset-http
 import { ASSET_LAST_TRY_DELAY_MS, ASSET_RETRY_DELAY_MS, ASSET_RETRY_LIMIT } from '@axe/core/storage/asset-retries';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { AssetOwner } from '@axe/domain/media/asset-owner';
 import { AssetRemoval } from '@axe/domain/media/asset-removal';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
@@ -18,6 +21,7 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import type { MockInstance } from 'vitest';
@@ -27,12 +31,15 @@ describe('AssetRemovalService', () => {
   const otherId = 'c'.repeat(64);
   const trackId = 'b'.repeat(64);
   let isGameMaster: boolean;
+  /** Whether the seat plays rather than only watches. */
+  let isPlaying: boolean;
   let service: AssetRemovalService;
   let ask: ReturnType<typeof vi.fn<(option: ConfirmDialogOption) => Promise<boolean>>>;
   let show: ReturnType<typeof vi.fn<(message: string) => void>>;
 
   beforeEach(() => {
     isGameMaster = true;
+    isPlaying = true;
     ask = vi.fn(async () => true);
     show = vi.fn();
     TestBed.configureTestingModule({
@@ -46,6 +53,9 @@ describe('AssetRemovalService', () => {
             get canEditShared() {
               return isGameMaster;
             },
+            get canEditTabletop() {
+              return isPlaying;
+            },
           },
         },
       ],
@@ -56,7 +66,14 @@ describe('AssetRemovalService', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    for (const record of AssetOwner.all()) ObjectStore.instance.remove(record);
   });
+
+  /** Names this seat as the one who added each, as a picture made here does. */
+  function addedHere(...identifiers: string[]): void {
+    const key = TestBed.inject(AssetOwnershipService).myOwnerKey();
+    for (const identifier of identifiers) AssetOwner.claim(identifier, 'image', key);
+  }
 
   it('removes only what a person added, named by its hash, and no picture the tool brought with it', () => {
     ImageTag.create(otherId).tag = SYSTEM_RESERVED_TAG;
@@ -65,8 +82,9 @@ describe('AssetRemovalService', () => {
     expect(service.removable('audio', [trackId, 'https://example.com/a.mp3'])).toEqual([trackId]);
   });
 
-  it('records each for the room as the GM, and nothing for anyone else', () => {
+  it('records each for the room as the GM, and nothing for a player who did not add it', () => {
     isGameMaster = false;
+    AssetOwner.claim(pictureId, 'image', 'owner_someone-else');
     expect(service.remove('image', [pictureId])).toBe(0);
     expect(AssetRemoval.all()).toEqual([]);
 
@@ -111,6 +129,25 @@ describe('AssetRemovalService', () => {
     expect(stopCutIn.mock.calls).toEqual([[cutIn]]);
   });
 
+  it('lets a player remove what they added, and nothing anyone else added or nobody is known to have', () => {
+    isGameMaster = false;
+    addedHere(pictureId);
+    AssetOwner.claim(otherId, 'image', 'owner_someone-else');
+
+    expect(service.remove('image', [pictureId, otherId, 'd'.repeat(64)])).toBe(1);
+
+    expect(AssetRemoval.get(pictureId)?.isRemoved).toBe(true);
+    expect(AssetRemoval.get(otherId)).toBeNull();
+  });
+
+  it('lets a seat that only watches remove nothing, even what it is named as adding', () => {
+    isGameMaster = false;
+    isPlaying = false;
+    addedHere(pictureId);
+
+    expect(service.remove('image', [pictureId])).toBe(0);
+  });
+
   it('puts back for the room, as the GM alone may', () => {
     AssetRemoval.remove(pictureId, 'image');
 
@@ -131,7 +168,7 @@ describe('AssetRemovalService', () => {
     expect(service.countUses([trackId])).toBe(1);
   });
 
-  it('counts what uses any of them, leaving out tags, removals and chat', () => {
+  it('counts what uses any of them, leaving out tags, removals, adders and chat', () => {
     const table = new GameTable('table-1');
     table.initialize();
     table.imageIdentifier = pictureId;
@@ -141,6 +178,7 @@ describe('AssetRemovalService', () => {
     ImageTag.create(pictureId);
     new AudioTag(`audiotag_${trackId}`).initialize();
     AssetRemoval.remove(pictureId, 'image');
+    AssetOwner.claim(pictureId, 'image', 'owner_alice');
     const said = new ChatMessage('said');
     said.initialize();
     said.imageIdentifier = pictureId;
@@ -187,16 +225,35 @@ describe('AssetRemovalService', () => {
       expect(show).not.toHaveBeenCalled();
     });
 
-    it('asks nothing of anyone but the GM, nor about nothing removable, which it says may not be removed', async () => {
+    it('asks nothing of a player about what they did not add, nor about nothing removable, saying which', async () => {
       const t = TestBed.inject(TRANSLATE_FN);
       isGameMaster = false;
       expect(await service.removeAfterAsking('image', [pictureId])).toBe(0);
-      expect(show).not.toHaveBeenCalled();
       isGameMaster = true;
       expect(await service.removeAfterAsking('image', ['none_icon'])).toBe(0);
 
       expect(ask).not.toHaveBeenCalled();
-      expect(show.mock.calls).toEqual([[t('feature.file.removal.notRemovable')]]);
+      expect(show.mock.calls).toEqual([[t('feature.file.removal.notYours')], [t('feature.file.removal.notRemovable')]]);
+    });
+
+    it('asks a player about what they added, saying how many chosen are left as someone else’s', async () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      isGameMaster = false;
+      addedHere(pictureId);
+
+      expect(await service.removeAfterAsking('image', [pictureId, otherId])).toBe(1);
+
+      expect(ask.mock.calls[0][0].message).toContain(t('feature.file.removal.othersKept', { count: 1 }));
+      expect(AssetRemoval.get(otherId)).toBeNull();
+    });
+
+    it('asks nothing, and says nothing, of a seat that only watches', async () => {
+      isGameMaster = false;
+      isPlaying = false;
+
+      expect(await service.removeAfterAsking('image', [pictureId])).toBe(0);
+      expect(ask).not.toHaveBeenCalled();
+      expect(show).not.toHaveBeenCalled();
     });
   });
 
@@ -283,6 +340,20 @@ describe('AssetRemovalService', () => {
       service.takeOut([pictureId, otherId, trackId]);
       isGameMaster = true;
       service.takeOut([pictureId, otherId, trackId]);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(remove.mock.calls).toEqual([[pictureId]]);
+    });
+
+    it('takes out of the store again, as a player, what the room keeps removed of what they added', async () => {
+      remove.mockResolvedValue('removed');
+      AssetRemoval.remove(pictureId, 'image');
+      AssetRemoval.remove(otherId, 'image');
+      isGameMaster = false;
+      vi.spyOn(PeerCursor, 'myUserId', 'get').mockReturnValue('acct_me');
+      addedHere(pictureId);
+
+      service.takeOut([pictureId, otherId]);
       await vi.advanceTimersByTimeAsync(0);
 
       expect(remove.mock.calls).toEqual([[pictureId]]);

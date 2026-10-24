@@ -187,7 +187,10 @@ export class GridLineRender {
     }
   }
 
-  /** Draws the edges of the squares `span` cells across, heavier than the cells, over whole squares only. */
+  /**
+   * Draws the edges of the squares `span` cells across, heavier than the cells, the squares the
+   * table's edge cuts off included.
+   */
   private strokeSquares(
     context: CanvasRenderingContext2D,
     width: number,
@@ -195,21 +198,25 @@ export class GridLineRender {
     gridSize: number,
     span: number
   ): void {
-    const cols = Math.floor(width / span);
-    const rows = Math.floor(height / span);
-    if (cols < 1 || rows < 1) return;
+    if (width < 1 || height < 1) return;
     const size = span * gridSize;
+    const right = Math.floor(width) * gridSize;
+    const bottom = Math.floor(height) * gridSize;
     context.save();
     context.lineWidth = Math.max(2, gridSize / 20);
     context.beginPath();
-    for (let col = 0; col <= cols; col++) {
-      context.moveTo(col * size, 0);
-      context.lineTo(col * size, rows * size);
+    for (let x = 0; x < right; x += size) {
+      context.moveTo(x, 0);
+      context.lineTo(x, bottom);
     }
-    for (let row = 0; row <= rows; row++) {
-      context.moveTo(0, row * size);
-      context.lineTo(cols * size, row * size);
+    context.moveTo(right, 0);
+    context.lineTo(right, bottom);
+    for (let y = 0; y < bottom; y += size) {
+      context.moveTo(0, y);
+      context.lineTo(right, y);
     }
+    context.moveTo(0, bottom);
+    context.lineTo(right, bottom);
     context.stroke();
     context.restore();
   }

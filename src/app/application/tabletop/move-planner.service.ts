@@ -67,9 +67,21 @@ export class MovePlannerService {
     else this.cells.settle();
   }
 
-  /** Whether there is a way to walk at all, rather than only the spot the piece stands on. */
+  /**
+   * Whether there is a way to walk at all, rather than only the spot the piece stands on; a shift
+   * onto other cells of the square it stands on counts as one.
+   */
   hasWay(): boolean {
-    return (this.free.isPlanning() ? this.free.wholeWay() : this.cells.wholeWay()).length > 1;
+    if (this.free.isPlanning()) return this.free.wholeWay().length > 1;
+    return this.cells.wholeWay().length > 1 || this.cells.movesWithinSquare();
+  }
+
+  /**
+   * Whether the pointer rests on a square shown in reach that has no cell the piece could end the
+   * move on, where a press neither walks the piece nor calls the move off.
+   */
+  pointsAtNowhere(): boolean {
+    return !this.free.isPlanning() && this.cells.pointsAtNowhere();
   }
 
   /** Walks the piece along the way and closes the move. */

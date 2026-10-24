@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AssetOwnershipService } from '@axe/application/file/asset-ownership.service';
 import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -69,6 +70,7 @@ export class JukeboxComponent {
   private readonly personalVolumes = inject(PersonalVolumeService);
   private readonly roomVolumes = inject(RoomVolumeService);
   private readonly assetRemoval = inject(AssetRemovalService);
+  private readonly ownership = inject(AssetOwnershipService);
 
   /** Whether this player may move the room volume, which only the game master may, as with the room's other settings. */
   readonly canChangeRoomVolume = this.roomVolumes.canChange;
@@ -79,14 +81,20 @@ export class JukeboxComponent {
   /** Whether this player may turn shuffle and repeat, which only the game master may. */
   readonly canChangeModes = this.playback.canChangeModes;
 
-  /** Whether this player may remove a sound from the room, which only the game master may, as with pictures. */
   /** Whether this seat may report a sound to the room server's operator, as anyone in its room may. */
   readonly canReport = inject(ReportService).canReport;
 
+  /** Whether this seat may remove any sound from the room, as the game master may. */
   readonly canRemove = computed(() => {
     this.objectChange.trackMyCursor();
     return this.rolePermission.canEditShared;
   });
+
+  /** Whether this seat may remove a sound: the game master any, a player one they added. */
+  mayRemove(audio: AudioFile): boolean {
+    this.ownership.track();
+    return this.canRemove() || this.assetRemoval.mayRemove(audio.identifier);
+  }
 
   /**
    * The room-wide volume every player's sound is multiplied by, from the room volume slider.
@@ -527,7 +535,7 @@ export class JukeboxComponent {
   }
 
   async removeAudio(audio: AudioFile): Promise<void> {
-    if (!this.canRemove()) return;
+    if (!this.mayRemove(audio)) return;
     if ((await this.assetRemoval.removeAfterAsking('audio', [audio.identifier])) < 1) return;
     if (this.auditionPlayer.audio === audio) this.stop();
   }
