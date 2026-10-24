@@ -18,6 +18,8 @@
       <div class="absolute top-0 right-0">
         <button
           class="text-ui-text hover:text-ui-text rounded-none border-none bg-transparent outline-none hover:bg-transparent"
+          [attr.aria-label]="closeTitle"
+          [title]="closeTitle"
           (click)="resolve()"
         >
           <i class="material-icons text-[14px]!">close</i>

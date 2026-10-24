@@ -3311,6 +3311,8 @@
         "id": "ID：",
         "roomName": "ルーム名：",
         "password": "パスワード：",
+        "showPassword": "パスワードを表示",
+        "hidePassword": "パスワードを隠す",
         "reconnect": "再接続",
         "fullSync": "部屋のデータを同期し直す",
         "fullSyncHint": "コマやチャットが他の人と食い違っているときに押してください。接続はつないだままです。",
@@ -4084,9 +4086,13 @@
       "cutInPlay": "全員に流す",
       "cutInsEmpty": "カットインがありません",
       "portraitPattern": "立ち絵パターン",
+      "portraitPrevious": "前の立ち絵",
+      "portraitNext": "次の立ち絵",
       "flip": "立ち絵を反転",
       "seAttach": "次の発言と同時に再生",
       "seAttached": "次の発言と同時に再生されます",
+      "seDetach": "同時に再生しない",
+      "controls": "発言の設定",
       "edit": {
         "title": "編集",
         "save": "保存",
@@ -4392,6 +4398,8 @@
         "visible": "表示",
         "locked": "ロック",
         "opacity": "不透明度",
+        "raise": "上へ",
+        "lower": "下へ",
         "delete": "削除",
         "deleteConfirm": "このレイヤーを削除しますか？",
         "kinds": {
@@ -4588,7 +4596,13 @@
         "boardStop": "卓に戻す",
         "boardConfirm": "記録の盤面を映します。今の卓は預かって、抜けるときに戻します。この間の操作は同卓者に届きません。よろしいですか？",
         "timeline": "できごとの多さ。掴むと動かせます",
-        "chapter": "章"
+        "chapter": "章",
+        "toStart": "最初へ",
+        "previous": "ひとつ戻る",
+        "play": "自動で進める",
+        "pause": "止める",
+        "next": "ひとつ進む",
+        "toEnd": "最後へ"
       },
       "editor": {
         "begin": "編集",
@@ -5821,6 +5835,10 @@
     "panel": {
       "menuTitle": "メニュー",
       "rotate90": "時計回りに90度回転",
+      "minimize": "最小化",
+      "restore": "元の大きさに戻す",
+      "fullScreen": "全画面",
+      "close": "閉じる",
       "transparency": "透過率",
       "ghost": "透明モード",
       "tabClose": "このパネルを閉じる"

@@ -169,6 +169,40 @@ describe('UIPanelComponent', () => {
     });
   });
 
+  describe("the names on the bar's own buttons", () => {
+    function button(icon: string): HTMLButtonElement {
+      const found = [...fixture.nativeElement.querySelectorAll('.material-icons')].find(
+        (element) => element.textContent === icon
+      );
+      return found?.closest('button') as HTMLButtonElement;
+    }
+
+    it('names the fold, full-screen and close buttons', () => {
+      fixture.detectChanges();
+
+      expect(button('remove').title).toBe('最小化');
+      expect(button('fullscreen').title).toBe('全画面');
+      expect(button('close').title).toBe('閉じる');
+      expect(button('close').getAttribute('aria-label')).toBe('閉じる');
+    });
+
+    it('calls the full-screen button a way back once the panel is full screen', () => {
+      fixture.detectChanges();
+      component.isFullScreen.set(true);
+      fixture.detectChanges();
+
+      expect(button('fullscreen').title).toBe('元の大きさに戻す');
+    });
+
+    it('names the button that lets a panel shrunk to its content back out', () => {
+      fixture.detectChanges();
+      component.panelService.shrinkRequest$.emit(true);
+      fixture.detectChanges();
+
+      expect(button('open_in_full').title).toBe('元の大きさに戻す');
+    });
+  });
+
   describe('growing to what the content asks for', () => {
     it('takes the size it is asked for and gives the old one back', () => {
       fixture.detectChanges();

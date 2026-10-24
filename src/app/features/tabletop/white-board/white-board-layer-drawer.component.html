@@ -64,6 +64,7 @@
           <button
             class="cursor-pointer border-0 bg-transparent p-0 leading-none"
             type="button"
+            [title]="'feature.whiteBoard.editor.visible' | transloco"
             (click)="emit({ kind: 'toggleLayer', layer }); $event.stopPropagation()"
           >
             <i class="material-icons text-[15px]!">{{ layer.visible ? 'visibility' : 'visibility_off' }}</i>

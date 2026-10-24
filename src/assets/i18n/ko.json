@@ -3311,6 +3311,8 @@
         "id": "ID:",
         "roomName": "룸 이름:",
         "password": "비밀번호:",
+        "showPassword": "비밀번호 표시",
+        "hidePassword": "비밀번호 숨기기",
         "reconnect": "재접속",
         "fullSync": "방 데이터 다시 동기화",
         "fullSyncHint": "말이나 채팅이 다른 사람과 어긋날 때 눌러 주세요. 접속은 유지됩니다.",
@@ -4084,9 +4086,13 @@
       "cutInPlay": "모두에게 재생",
       "cutInsEmpty": "컷인이 없습니다",
       "portraitPattern": "입화 패턴",
+      "portraitPrevious": "이전 입화",
+      "portraitNext": "다음 입화",
       "flip": "입화 좌우 반전",
       "seAttach": "다음 발언과 동시에 재생",
       "seAttached": "다음 발언과 동시에 재생됩니다",
+      "seDetach": "함께 재생하지 않기",
+      "controls": "발언 설정",
       "edit": {
         "title": "편집",
         "save": "저장",
@@ -4392,6 +4398,8 @@
         "visible": "표시",
         "locked": "잠금",
         "opacity": "불투명도",
+        "raise": "위로",
+        "lower": "아래로",
         "delete": "삭제",
         "deleteConfirm": "이 레이어를 삭제할까요?",
         "kinds": {
@@ -4588,7 +4596,13 @@
         "boardStop": "탁상으로 되돌리기",
         "boardConfirm": "기록의 판을 비춥니다. 지금 탁상은 맡아 두었다가 빠져나올 때 되돌립니다. 그동안의 조작은 같은 탁상의 사람들에게 전해지지 않습니다. 괜찮습니까?",
         "timeline": "사건이 얼마나 많았는지. 잡으면 움직일 수 있습니다",
-        "chapter": "장"
+        "chapter": "장",
+        "toStart": "처음으로",
+        "previous": "이전",
+        "play": "자동 재생",
+        "pause": "일시 정지",
+        "next": "다음",
+        "toEnd": "끝으로"
       },
       "editor": {
         "begin": "편집",
@@ -5823,6 +5837,10 @@
     "panel": {
       "menuTitle": "메뉴",
       "rotate90": "시계 방향으로 90도 회전",
+      "minimize": "최소화",
+      "restore": "원래 크기로",
+      "fullScreen": "전체 화면",
+      "close": "닫기",
       "transparency": "투명도",
       "ghost": "투명 모드",
       "tabClose": "이 패널 닫기"

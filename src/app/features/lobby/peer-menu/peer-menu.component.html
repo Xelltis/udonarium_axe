@@ -120,7 +120,14 @@
               isPasswordVisible() ? networkService.peerContext.password : '●●●●●●●●'
             }}</span>
           }
-          <button class="p-0.5 text-(--ui-text-muted)" (click)="togglePasswordVisibility()">
+          <button
+            class="p-0.5 text-(--ui-text-muted)"
+            [title]="
+              (isPasswordVisible() ? 'feature.lobby.peerMenu.hidePassword' : 'feature.lobby.peerMenu.showPassword')
+                | transloco
+            "
+            (click)="togglePasswordVisibility()"
+          >
             <span class="material-icons align-text-bottom text-[1em]!">{{
               isPasswordVisible() ? 'visibility' : 'visibility_off'
             }}</span>

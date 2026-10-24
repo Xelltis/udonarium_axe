@@ -549,6 +549,26 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     return this.t('ui.panel.rotate90');
   }
 
+  /** The translated label for the button that folds the panel down to its title bar. */
+  get minimizeTitle(): string {
+    return this.t('ui.panel.minimize');
+  }
+
+  /** The translated label for the button that opens a folded panel back out. */
+  get restoreTitle(): string {
+    return this.t('ui.panel.restore');
+  }
+
+  /** The translated label for the full-screen button, which says it brings the panel back once full screen. */
+  get fullScreenTitle(): string {
+    return this.t(this.isFullScreen() ? 'ui.panel.restore' : 'ui.panel.fullScreen');
+  }
+
+  /** The translated label for the button that closes the panel. */
+  get closeTitle(): string {
+    return this.t('ui.panel.close');
+  }
+
   /** Whether the panel is turned a quarter either way, so its width runs up the screen. */
   get isSideways(): boolean {
     return this.rotationDegrees() === 90 || this.rotationDegrees() === 270;

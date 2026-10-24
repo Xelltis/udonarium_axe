@@ -3311,6 +3311,8 @@
         "id": "ID:",
         "roomName": "Room:",
         "password": "Password:",
+        "showPassword": "Show password",
+        "hidePassword": "Hide password",
         "reconnect": "Reconnect",
         "fullSync": "Re-sync room data",
         "fullSyncHint": "Use this when objects or chat differ from what others see. The connection stays up.",
@@ -4084,9 +4086,13 @@
       "cutInPlay": "Play for everybody",
       "cutInsEmpty": "No cut-ins",
       "portraitPattern": "Portrait pattern",
+      "portraitPrevious": "Previous portrait",
+      "portraitNext": "Next portrait",
       "flip": "Flip portrait",
       "seAttach": "Play with next message",
       "seAttached": "Plays with the next message",
+      "seDetach": "Don't play with the next message",
+      "controls": "Message options",
       "edit": {
         "title": "Edit",
         "save": "Save",
@@ -4392,6 +4398,8 @@
         "visible": "Visible",
         "locked": "Locked",
         "opacity": "Opacity",
+        "raise": "Move up",
+        "lower": "Move down",
         "delete": "Delete",
         "deleteConfirm": "Delete this layer?",
         "kinds": {
@@ -4588,7 +4596,13 @@
         "boardStop": "Give it back",
         "boardConfirm": "This shows the recorded board. Your table is held aside and restored when you leave, and nothing you do meanwhile reaches the other players. Continue?",
         "timeline": "How busy each moment was. Drag to move through it",
-        "chapter": "Chapter"
+        "chapter": "Chapter",
+        "toStart": "To the start",
+        "previous": "Previous",
+        "play": "Play",
+        "pause": "Pause",
+        "next": "Next",
+        "toEnd": "To the end"
       },
       "editor": {
         "begin": "Edit",
@@ -5821,6 +5835,10 @@
     "panel": {
       "menuTitle": "Menu",
       "rotate90": "Rotate 90° clockwise",
+      "minimize": "Minimize",
+      "restore": "Restore",
+      "fullScreen": "Full screen",
+      "close": "Close",
       "transparency": "Transparency",
       "ghost": "Ghost mode",
       "tabClose": "Close this panel"
