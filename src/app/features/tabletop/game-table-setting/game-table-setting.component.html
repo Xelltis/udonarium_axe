@@ -736,8 +736,8 @@
               {{ 'feature.tabletop.tableSetting.lightSnapToGrid' | transloco }}
             </label>
 
-            <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+            <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.tabletop.tableSetting.darknessLevel' | transloco
               }}</label>
               <input
@@ -751,7 +751,7 @@
               />
               <span class="text-ui-muted text-right text-[11px]">{{ tableDarknessLevelPercent }}%</span>
 
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.tabletop.tableSetting.globalIllumination' | transloco
               }}</label>
               <input
@@ -765,7 +765,7 @@
               />
               <span class="text-ui-muted text-right text-[11px]">{{ tableGlobalIlluminationPercent }}%</span>
 
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.tabletop.tableSetting.ambientColor' | transloco
               }}</label>
               <input
@@ -816,10 +816,8 @@
           </label>
 
           @if (tableFogEnabled) {
-            <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.tabletop.tableSetting.fogMode' | transloco
-              }}</label>
+            <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+              <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.fogMode' | transloco }}</label>
               <select
                 class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 [(ngModel)]="tableFogMode"
@@ -831,7 +829,7 @@
                 }
               </select>
 
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.tabletop.tableSetting.fogColor' | transloco
               }}</label>
               <input
@@ -864,10 +862,8 @@
             'feature.tabletop.tableSetting.sectionWeather' | transloco
           }}</span>
         </div>
-        <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
-          <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-            'feature.tabletop.tableSetting.weatherKind' | transloco
-          }}</label>
+        <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+          <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.weatherKind' | transloco }}</label>
           <select
             class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
             [(ngModel)]="tableWeatherKind"
@@ -881,9 +877,7 @@
           </select>
 
           @if (tableWeatherKind) {
-            <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-              'feature.ambience.densityLabel' | transloco
-            }}</label>
+            <label class="text-ui-muted text-[11px]">{{ 'feature.ambience.densityLabel' | transloco }}</label>
             <input
               type="range"
               min="0"
@@ -895,9 +889,7 @@
             />
             <span class="text-ui-muted text-right text-[11px]">{{ tableWeatherDensityPercent }}%</span>
 
-            <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-              'feature.ambience.colorLabel' | transloco
-            }}</label>
+            <label class="text-ui-muted text-[11px]">{{ 'feature.ambience.colorLabel' | transloco }}</label>
             <input
               type="color"
               class="rounded-ui-sm border-ui-border-panel h-6.5 w-12 cursor-pointer border border-solid bg-transparent px-0.5 py-px disabled:cursor-not-allowed disabled:opacity-50"
