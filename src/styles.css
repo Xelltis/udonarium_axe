@@ -671,7 +671,7 @@ chat-message[data-chat-search-current] > div > div {
   /* Text */
   --ui-text: #e6edf3;
   --ui-text-muted: #8b949e;
-  --ui-text-dim: #484f58;
+  --ui-text-dim: #677079;
 
   /* Accent (electric blue) */
   --ui-accent: #58a6ff;
@@ -734,7 +734,7 @@ chat-message[data-chat-search-current] > div > div {
   --ui-panel-glow: rgba(135, 87, 239, 0.1);
   --ui-titlebar-bg: #c4b6d3;
   --ui-titlebar-text: #4c4564;
-  --ui-titlebar-muted: #6e6486;
+  --ui-titlebar-muted: #564f6e;
   --ui-titlebar-border: rgba(91, 64, 116, 0.32);
   --ui-hover: rgba(91, 64, 116, 0.08);
   --ui-selected: rgba(234, 118, 203, 0.18);
@@ -748,7 +748,7 @@ chat-message[data-chat-search-current] > div > div {
 
   --ui-text: #4c4564;
   --ui-text-muted: #6e6486;
-  --ui-text-dim: #9d92ad;
+  --ui-text-dim: #7f7494;
 
   --ui-accent: #1e66f5;
   --ui-accent-hover: #0a4dd9;
