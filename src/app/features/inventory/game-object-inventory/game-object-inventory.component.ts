@@ -128,6 +128,15 @@ const VIEW_ICONS: Record<InventoryViewMode, string> = {
 })
 export class GameObjectInventoryComponent {
   /**
+   * A resource field's value read as a number for the gauge's custom properties, 0 for anything that
+   * is not a number. A value is anything a peer sends, so it never reaches a style string as it is.
+   */
+  asNumber(value: number | string): number {
+    const parsed = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  /**
    * Whether a data element is a calculated field, whose shown value is worked out rather than
    * typed.
    */

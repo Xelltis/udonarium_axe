@@ -69,16 +69,12 @@ export class MarkDown extends GameObject {
    * HTML-escapes the text and turns each `[ ]` or `[x]` into a checkbox input.
    *
    * Each checkbox gets the id `<baseId>_mark_<8-digit index>` so a click can be traced back to its box.
-   * Run this before {@link markDownTable}, which does no escaping of its own.
+   * The base is escaped too, as an identifier may be any text a peer sends. Run this before
+   * {@link markDownTable}, which does no escaping of its own.
    */
   markDownCheckBox(text: string, baseId: string) {
-    const escaped = text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-    const withCheckboxes = escaped
+    const id = escapeMarkup(baseId);
+    const withCheckboxes = escapeMarkup(text)
       .replace(/[[［][xXｘＸ][\]］]/g, '<input type="checkbox" checked="checked" class="markdown_checkbox" />')
       .replace(/[[［][\]］]/g, '<input type="checkbox" class="markdown_checkbox" />');
 
@@ -87,7 +83,7 @@ export class MarkDown extends GameObject {
       .map((part, i) => {
         if (i === 0) return part;
         const num = String(i - 1).padStart(8, '0');
-        return `<input id="${baseId}_mark_${num}" ${part}`;
+        return `<input id="${id}_mark_${num}" ${part}`;
       })
       .join('');
   }
@@ -131,4 +127,14 @@ export class MarkDown extends GameObject {
       .join('');
     return `<div class="markdown_table_row">${cells}</div>`;
   }
+}
+
+/** Escapes what could start markup or close the attribute it is written in. */
+function escapeMarkup(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }

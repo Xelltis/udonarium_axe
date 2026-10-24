@@ -39,11 +39,39 @@ function idOf(kind: string, colors: ShapeColors): string {
   return `${kind}${(hash >>> 0).toString(36)}`;
 }
 
+/** The colours a preset is made with until it is given its own, for a colour that will not do. */
+const FALLBACK_COLORS: ShapeColors = { core: '#ffd27f', edge: '#ff5a33' };
+
+/** A colour by hex, name or the rgb and hsl functions, none of which can hold a quote or a bracket. */
+const PAINTABLE_COLOR = /^(?:#[0-9a-f]{3,8}|[a-z]+|(?:rgba?|hsla?)\([\d\s.,%/+-]*\))$/i;
+
+/**
+ * The colour as a drawing may be written with it, or the fallback for anything else. A preset's
+ * colours are written by anyone at the table and come with saved rooms and preset files, and are
+ * put into the drawing's attributes, out of which a colour of any other form could break.
+ */
+export function paintableColor(value: unknown, fallback: string): string {
+  return typeof value === 'string' && PAINTABLE_COLOR.test(value.trim()) ? value.trim() : fallback;
+}
+
+function isShapeColors(value: unknown): value is ShapeColors {
+  return typeof value === 'object' && value !== null && 'core' in value && 'edge' in value;
+}
+
+function paintable(colors: ShapeColors): ShapeColors {
+  return {
+    core: paintableColor(colors.core, FALLBACK_COLORS.core),
+    edge: paintableColor(colors.edge, FALLBACK_COLORS.edge),
+  };
+}
+
 const REMEMBERED_LIMIT = 256;
 const drawings = new Map<string, string>();
 
+/** A drawing kept by what it was asked with, whose colours are first made {@link paintableColor | paintable}. */
 function remembered<A extends unknown[]>(name: string, build: (...args: A) => string): (...args: A) => string {
-  return (...args: A): string => {
+  return (...given: A): string => {
+    const args = given.map((arg) => (isShapeColors(arg) ? paintable(arg) : arg)) as A;
     const key = name + JSON.stringify(args);
     const kept = drawings.get(key);
     if (kept !== undefined) return kept;

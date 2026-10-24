@@ -1373,6 +1373,20 @@ describe('GameObjectInventoryComponent', () => {
         expect(badges()).toHaveLength(6);
         expect(fixture.nativeElement.textContent).toContain('+2');
       });
+
+      it('draws a resource gauge from its numbers alone, whatever its value says', () => {
+        const goblin = putOnTable('ゴブリン');
+        DataElement.findElementByReference(goblin.rootDataElement!, 'HP')!.value = '10;color:red';
+        TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+        fixture.detectChanges();
+
+        const gauge = fixture.nativeElement.querySelector(
+          'input[type="range"][name="data-current-value"]'
+        ) as HTMLInputElement;
+        expect(gauge).toBeTruthy();
+        expect(gauge.style.getPropertyValue('--max')).toBe('0');
+        expect(gauge.style.color).toBe('');
+      });
     });
 
     describe('the ways of reading it', () => {

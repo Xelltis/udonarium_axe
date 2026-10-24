@@ -51,6 +51,17 @@ describe('MarkDown', () => {
       expect(result).not.toContain('<script>');
       expect(result).toContain('&lt;script&gt;');
     });
+
+    it('keeps an identifier with quotes and brackets inside the id, which still reads back as written', () => {
+      const identifier = `a"b'c<d>e&f`;
+      const host = document.createElement('div');
+      host.innerHTML = markDown.markDownCheckBox('[]item', identifier);
+
+      const inputs = host.querySelectorAll('input');
+      expect(inputs.length).toBe(1);
+      expect(inputs[0].getAttributeNames().sort()).toEqual(['class', 'id', 'type']);
+      expect(inputs[0].id).toBe(`${identifier}_mark_00000000`);
+    });
   });
 
   describe('markDownTable()', () => {
