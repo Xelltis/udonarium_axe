@@ -11,6 +11,7 @@ import {
   prepare,
   rightClickTable,
   settle,
+  settleLazy,
   snap,
 } from './fixtures';
 
@@ -28,8 +29,7 @@ async function lookOutOf(page: Page, piece: ReturnType<Page['locator']>) {
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 7000 });
   await (await menuEntry(page, menu, 'このコマの視点で見る')).dispatchEvent('click');
-  await settle(page, 400);
-  await expect(page.locator('first-person-view [data-quad="wall"]').first()).toBeAttached({ timeout: 10000 });
+  await settleLazy(page, page.locator('first-person-view [data-quad="wall"]'));
   await settle(page, 400);
 }
 
