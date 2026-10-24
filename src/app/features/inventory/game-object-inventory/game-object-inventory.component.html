@@ -739,7 +739,9 @@
             [max]="dataElm.value"
             name="data-current-value"
             [(ngModel)]="dataElm.currentValue"
-            [style]="'--min:0;--max:' + dataElm.value + ';--val:' + dataElm.currentValue + ';' | safe: 'style'"
+            [style.--min]="0"
+            [style.--max]="asNumber(dataElm.value)"
+            [style.--val]="asNumber(dataElm.currentValue)"
           />
         }
         @case ('check') {
