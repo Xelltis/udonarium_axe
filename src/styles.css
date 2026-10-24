@@ -1255,6 +1255,16 @@ button.radial-menu-sector {
     color 120ms ease;
 }
 
+/* Keyboard focus on a button, or on a control acting as one. Many turn the browser's own outline off with
+   outline-none, which is right for a pointer and left a keyboard user no sign of where they were. Standing
+   outside any layer it is not turned off with them, and :where keeps it below the focus rules a component
+   writes for its own buttons, as the rotating menu's below. Drawn inside, so a box that clips does not
+   hide it. */
+:where(button, [role='button'], summary, a[href]):focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: -2px;
+}
+
 button.radial-menu-sector:hover:not(:disabled),
 button.radial-menu-sector:focus-visible:not(:disabled),
 button.radial-menu-sector.radial-menu-sector-active:not(:disabled) {
