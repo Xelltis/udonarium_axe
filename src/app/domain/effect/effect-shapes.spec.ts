@@ -7,7 +7,9 @@ import {
   crackSvg,
   crescentSvg,
   impactStarSvg,
+  kindGlyphSvg,
   magicCircleSvg,
+  paintableColor,
   ringSvg,
   ShapeColors,
   snowflakeSvg,
@@ -117,6 +119,50 @@ describe('the shapes of the effects', () => {
 
     expect(Math.min(...points)).toBe(0);
     expect(Math.max(...points)).toBe(300);
+  });
+
+  describe('the colours a drawing is given', () => {
+    it('keeps a colour written by hex, by name or by the rgb and hsl functions', () => {
+      for (const color of [
+        '#fff',
+        '#ffd27f',
+        '#ffd27f80',
+        'red',
+        'transparent',
+        'rgb(1, 2, 3)',
+        'hsla(10 20% 30% / 0.5)',
+      ]) {
+        expect(paintableColor(color, '#000')).toBe(color);
+      }
+    });
+
+    it('puts anything else back to the fallback', () => {
+      for (const color of ['#fff" data-x="1', '<b>bold</b>', "red'", 'url(x)', '', 12]) {
+        expect(paintableColor(color, '#000')).toBe('#000');
+      }
+    });
+
+    it('writes no other markup into any drawing, whatever colours it is asked with', () => {
+      const odd: ShapeColors = { core: '#fff" data-x="1', edge: '<b>bold</b>' };
+      const drawings = [
+        crescentSvg(odd),
+        ringSvg(odd),
+        magicCircleSvg(odd),
+        snowflakeSvg(odd),
+        spikeSvg(odd),
+        impactStarSvg(odd),
+        kindGlyphSvg('slash', odd),
+        kindGlyphSvg('burst', odd),
+      ];
+
+      for (const markup of drawings) {
+        const host = document.createElement('div');
+        host.innerHTML = markup;
+        expect(markup).not.toContain('data-x');
+        expect(host.querySelector('b')).toBeNull();
+        expect(markup.includes('#ffd27f') || markup.includes('#ff5a33')).toBe(true);
+      }
+    });
   });
 
   describe('remembering', () => {
