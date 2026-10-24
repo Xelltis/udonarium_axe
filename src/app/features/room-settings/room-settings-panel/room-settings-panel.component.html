@@ -185,10 +185,8 @@
               {{ 'feature.roomSettings.notices.openFromRound' | transloco }}
             </button>
           </div>
-          <div class="grid grid-cols-[7rem_1fr] items-center gap-x-3 gap-y-2.5">
-            <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-              'feature.roomSettings.turnOrderMode' | transloco
-            }}</label>
+          <div class="grid grid-cols-[8rem_1fr] items-center gap-x-3 gap-y-2.5">
+            <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.turnOrderMode' | transloco }}</label>
             <select
               class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
               [(ngModel)]="turnOrderMode"
@@ -200,9 +198,7 @@
             </select>
 
             @if (takesRoundBySides) {
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.roomSettings.factionPhaseMode' | transloco
-              }}</label>
+              <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.factionPhaseMode' | transloco }}</label>
               <select
                 class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 [(ngModel)]="factionPhaseMode"
@@ -397,11 +393,9 @@
               {{ 'feature.roomSettings.piecesShareCells' | transloco }}
             </label>
 
-            <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+            <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
               @for (side of piecePassageSides; track side) {
-                <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                  'feature.roomSettings.' + side | transloco
-                }}</label>
+                <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.' + side | transloco }}</label>
                 <select
                   class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
                   [ngModel]="piecePassage(side)"
@@ -417,7 +411,7 @@
               }
 
               @if (showsPiecePassageCost) {
-                <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                <label class="text-ui-muted text-[11px]">{{
                   'feature.roomSettings.piecePassageCost' | transloco
                 }}</label>
                 <input
@@ -519,8 +513,8 @@
               {{ 'feature.roomSettings.pathMoveHint' | transloco }}
             </p>
 
-            <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+            <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.roomSettings.moveRangeElementNames' | transloco
               }}</label>
               <input
@@ -530,9 +524,7 @@
                 name="moveRangeElementNames"
               />
 
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.roomSettings.cellDistanceUnit' | transloco
-              }}</label>
+              <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.cellDistanceUnit' | transloco }}</label>
               <select
                 class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 [(ngModel)]="cellDistanceUnit"
@@ -543,9 +535,7 @@
                 }
               </select>
 
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.roomSettings.cellDistance' | transloco
-              }}</label>
+              <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.cellDistance' | transloco }}</label>
               <input
                 type="number"
                 min="0"
@@ -555,9 +545,7 @@
                 name="cellDistance"
               />
 
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.roomSettings.moveKinds' | transloco
-              }}</label>
+              <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.moveKinds' | transloco }}</label>
               <input
                 type="text"
                 class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -587,10 +575,8 @@
               (answersFor('zoc') ? 'feature.roomSettings.ruledByRoom' : 'feature.roomSettings.ruledByTable') | transloco
             }}
           </p>
-          <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
-            <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-              'feature.roomSettings.zocMode' | transloco
-            }}</label>
+          <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+            <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.zocMode' | transloco }}</label>
             <select
               class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
               [(ngModel)]="zocMode"
@@ -602,9 +588,7 @@
             </select>
 
             @if (showsZocOptions) {
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.roomSettings.hostilityBy' | transloco
-              }}</label>
+              <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.hostilityBy' | transloco }}</label>
               <select
                 class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 [(ngModel)]="hostilityBy"
@@ -615,9 +599,7 @@
                 }
               </select>
 
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.roomSettings.zocRange' | transloco
-              }}</label>
+              <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.zocRange' | transloco }}</label>
               <input
                 type="number"
                 min="0"
@@ -628,9 +610,7 @@
                 name="zocRange"
               />
 
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.roomSettings.zocAlways' | transloco
-              }}</label>
+              <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.zocAlways' | transloco }}</label>
               <label class="text-ui-text col-span-2 flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
                 <input
                   type="checkbox"
@@ -643,9 +623,7 @@
             }
 
             @if (showsZocOptions) {
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.roomSettings.zocEngages' | transloco
-              }}</label>
+              <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.zocEngages' | transloco }}</label>
               <label class="text-ui-text col-span-2 flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
                 <input
                   type="checkbox"
@@ -658,9 +636,7 @@
               </label>
 
               @if (zocEngages) {
-                <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                  'feature.roomSettings.breakOutMode' | transloco
-                }}</label>
+                <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.breakOutMode' | transloco }}</label>
                 <select
                   class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
                   [(ngModel)]="breakOutMode"
@@ -673,9 +649,7 @@
                 </select>
 
                 @if (breakOutMode === 'cost') {
-                  <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                    'feature.roomSettings.breakOutCost' | transloco
-                  }}</label>
+                  <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.breakOutCost' | transloco }}</label>
                   <input
                     type="number"
                     min="0"
@@ -688,7 +662,7 @@
                 }
 
                 @if (breakOutMode === 'weighed') {
-                  <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                  <label class="text-ui-muted text-[11px]">{{
                     'feature.roomSettings.engagementCountsSize' | transloco
                   }}</label>
                   <label
@@ -707,9 +681,7 @@
             }
 
             @if (showsZocExtraCost) {
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.roomSettings.zocExtraCost' | transloco
-              }}</label>
+              <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.zocExtraCost' | transloco }}</label>
               <input
                 type="number"
                 min="0"
@@ -750,10 +722,8 @@
             {{ 'feature.zone.settings.enabledHint' | transloco }}
           </p>
           @if (zoneEnabled) {
-            <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.zone.settings.sizes' | transloco
-              }}</label>
+            <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+              <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.sizes' | transloco }}</label>
               <input
                 type="text"
                 class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -761,9 +731,7 @@
                 [(ngModel)]="zoneSizes"
                 name="zoneSizes"
               />
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.zone.settings.countField' | transloco
-              }}</label>
+              <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.countField' | transloco }}</label>
               <input
                 type="text"
                 class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -771,9 +739,7 @@
                 [(ngModel)]="zoneCountField"
                 name="zoneCountField"
               />
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.zone.settings.samePoint' | transloco
-              }}</label>
+              <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.samePoint' | transloco }}</label>
               <input
                 type="number"
                 min="0"
@@ -782,9 +748,7 @@
                 [(ngModel)]="zoneSamePointM"
                 name="zoneSamePointM"
               />
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.zone.settings.outnumber' | transloco
-              }}</label>
+              <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.outnumber' | transloco }}</label>
               <input
                 type="number"
                 min="1"
@@ -793,9 +757,7 @@
                 [(ngModel)]="zoneOutnumber"
                 name="zoneOutnumber"
               />
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.zone.settings.leaveKind' | transloco
-              }}</label>
+              <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.leaveKind' | transloco }}</label>
               <select
                 class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 [(ngModel)]="zoneLeaveKind"
@@ -828,10 +790,8 @@
               {{ 'feature.zone.settings.interrupt' | transloco }}
             </label>
             @if (interruptEnabled) {
-              <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
-                <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                  'feature.zone.settings.interruptKind' | transloco
-                }}</label>
+              <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+                <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.interruptKind' | transloco }}</label>
                 <select
                   class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
                   [(ngModel)]="interruptKind"
@@ -847,10 +807,8 @@
             <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
               {{ 'feature.zone.settings.interruptHint' | transloco }}
             </p>
-            <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.zone.settings.blockRadius' | transloco
-              }}</label>
+            <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+              <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.blockRadius' | transloco }}</label>
               <input
                 type="number"
                 min="0"
@@ -859,9 +817,7 @@
                 [(ngModel)]="zoneBlockRadiusM"
                 name="zoneBlockRadiusM"
               />
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.zone.settings.clearName' | transloco
-              }}</label>
+              <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.clearName' | transloco }}</label>
               <input
                 type="text"
                 class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -872,8 +828,8 @@
             <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
               {{ 'feature.zone.settings.fireHint' | transloco }}
             </p>
-            <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+            <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.zone.settings.placementDistances' | transloco
               }}</label>
               <input
@@ -882,7 +838,7 @@
                 [(ngModel)]="placementDistances"
                 name="placementDistances"
               />
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.zone.settings.distanceModifiers' | transloco
               }}</label>
               <input
@@ -913,8 +869,8 @@
               'feature.ride.settings.section' | transloco
             }}</span>
           </div>
-          <div class="grid grid-cols-[7rem_1fr] items-center gap-x-3 gap-y-2.5">
-            <label class="text-ui-muted text-[11px] whitespace-nowrap" for="ride-skill-field">{{
+          <div class="grid grid-cols-[8rem_1fr] items-center gap-x-3 gap-y-2.5">
+            <label class="text-ui-muted text-[11px]" for="ride-skill-field">{{
               'feature.ride.settings.skillField' | transloco
             }}</label>
             <input
@@ -925,7 +881,7 @@
               [(ngModel)]="rideSkillField"
               name="rideSkillField"
             />
-            <label class="text-ui-muted text-[11px] whitespace-nowrap" for="ride-require-field">{{
+            <label class="text-ui-muted text-[11px]" for="ride-require-field">{{
               'feature.ride.settings.requireField' | transloco
             }}</label>
             <input
@@ -935,7 +891,7 @@
               [(ngModel)]="rideRequireField"
               name="rideRequireField"
             />
-            <label class="text-ui-muted text-[11px] whitespace-nowrap" for="ride-fall-min">{{
+            <label class="text-ui-muted text-[11px]" for="ride-fall-min">{{
               'feature.ride.settings.fallMin' | transloco
             }}</label>
             <input
@@ -947,7 +903,7 @@
               [(ngModel)]="fallMinM"
               name="fallMinM"
             />
-            <label class="text-ui-muted text-[11px] whitespace-nowrap" for="ride-fall-damage">{{
+            <label class="text-ui-muted text-[11px]" for="ride-fall-damage">{{
               'feature.ride.settings.fallDamage' | transloco
             }}</label>
             <input
@@ -958,7 +914,7 @@
               [(ngModel)]="fallDamage"
               name="fallDamage"
             />
-            <label class="text-ui-muted text-[11px] whitespace-nowrap" for="ride-two-up-buff">{{
+            <label class="text-ui-muted text-[11px]" for="ride-two-up-buff">{{
               'feature.ride.settings.twoUpBuff' | transloco
             }}</label>
             <input
