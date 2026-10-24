@@ -1,3 +1,15 @@
+## [1.70.1](https://github.com/Xelltis/udonarium_axe/compare/v1.70.0...v1.70.1) (2026-10-24)
+
+### 🐛 Bug Fixes
+
+* **data:** escape the identifier written into a markdown check box's id ([419bb5b](https://github.com/Xelltis/udonarium_axe/commit/419bb5b7d7264819df02de0a96a1b21662300354))
+* **effect:** write only colours of a known form into effect drawings ([b472f97](https://github.com/Xelltis/udonarium_axe/commit/b472f97e91c7b64ec1e05d6317f2682ed5740dcd))
+* **inventory:** draw a resource gauge from its numbers alone ([44162a7](https://github.com/Xelltis/udonarium_axe/commit/44162a7f0d928858c55762e2a87c21639fd1d20a))
+
+### 📝 Documentation
+
+* **website:** add the v1.70.1 release notes ([31de73e](https://github.com/Xelltis/udonarium_axe/commit/31de73ee3a2d2b2f88fc307c02548b1dc0d4d1ea))
+
 ## [1.70.0](https://github.com/Xelltis/udonarium_axe/compare/v1.69.0...v1.70.0) (2026-10-24)
 
 ### ✨ Features
