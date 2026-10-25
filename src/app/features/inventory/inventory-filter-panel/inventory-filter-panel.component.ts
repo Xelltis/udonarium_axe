@@ -176,12 +176,14 @@ export class InventoryFilterPanelComponent {
 
   /**
    * The names offered for the display items, from the sheets of the characters on the table. Worked
-   * out only while a list is open, and again as pieces come and go or their sheets change.
+   * out only while a list is open, and again as pieces come and go, step on or off the table, or
+   * their sheets change.
    */
   readonly displayCandidates = computed<string[]>(() => {
     if (this.candidatesOpenFor() === null) return [];
     this.objectChange.collectionOf('character')();
     this.objectChange.collectionOf('data')();
+    this.inventoryService.inventoryVersion();
     const details = this.inventoryService.tableInventory.tabletopObjects
       .filter((object): object is GameCharacter => object instanceof GameCharacter)
       .map((character) => character.detailDataElement ?? null);

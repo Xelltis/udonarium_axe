@@ -248,6 +248,18 @@ describe('InventoryFilterPanelComponent', () => {
       expect(component.dataTag).toBe('HP');
     });
 
+    it('follow a piece onto the table while the list is open', async () => {
+      const shared = GameCharacter.create('戦士', 1, '');
+      shared.setLocation('common');
+      fixture.detectChanges();
+      toggles()[0].click();
+      expect(component.displayCandidates()).toEqual([]);
+
+      shared.setLocation('table');
+
+      await vi.waitFor(() => expect(component.displayCandidates()).toContain('敏捷度'));
+    });
+
     it('say so when there is nobody on the table', () => {
       fixture.detectChanges();
       toggles()[0].click();
