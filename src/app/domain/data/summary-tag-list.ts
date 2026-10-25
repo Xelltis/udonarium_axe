@@ -77,7 +77,8 @@ export function appendSummaryTag(raw: string, name: string): string {
 
 /**
  * Takes every item ending in the given name out of a display-item line, along with the space that
- * set it apart. The rest stays as it was written, its order, line breaks and quotes included.
+ * set it apart. The rest stays as it was written, its order, line breaks and quotes included; where
+ * the items on either side were written up against it, a space keeps them apart.
  */
 export function removeSummaryTag(raw: string, name: string): string {
   let text = raw ?? '';
@@ -87,7 +88,10 @@ export function removeSummaryTag(raw: string, name: string): string {
     const spaceAfter = /^\s*/.exec(text.slice(end))?.[0].length ?? 0;
     if (end + spaceAfter < text.length) end += spaceAfter;
     else start -= /\s*$/.exec(text.slice(0, start))?.[0].length ?? 0;
-    text = text.slice(0, start) + text.slice(end);
+    const before = text.slice(0, start);
+    const after = text.slice(end);
+    const touching = before.length > 0 && after.length > 0 && !/\s$/.test(before) && !/^\s/.test(after);
+    text = before + (touching ? ' ' : '') + after;
   }
   return text;
 }

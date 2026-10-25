@@ -95,6 +95,11 @@ describe('the display items written as one line', () => {
       expect(removeSummaryTag('HP "リソース/正気度" MP', '正気度')).toBe('HP MP');
     });
 
+    it('keeps apart the items written up against the one taken out', () => {
+      expect(removeSummaryTag('HP"MP"SAN', 'MP')).toBe('HP SAN');
+      expect(removeSummaryTag('"MP"HP', 'MP')).toBe('HP');
+    });
+
     it('takes every item ending in the name', () => {
       expect(removeSummaryTag('HP / リソース/HP MP', 'HP')).toBe('/ MP');
     });
