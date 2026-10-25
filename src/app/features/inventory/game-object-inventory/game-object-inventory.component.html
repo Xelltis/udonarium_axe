@@ -718,7 +718,7 @@
     <span class="border-ui-border-panel col-span-full my-px block h-0 border-t border-solid"></span>
   }
   @if (dataElm && dataElm.name !== newLineString) {
-    <span class="flex min-w-0 flex-col gap-0.5">
+    <span class="@container flex min-w-0 flex-col gap-0.5">
       @switch (dataElm.attributes['type']) {
         @case ('numberResource') {
           <span class="flex min-w-0 items-center gap-0.75">
@@ -731,6 +731,15 @@
               name="data-current-value"
               [(ngModel)]="dataElm.currentValue"
             />
+            @let max = resourceMax(dataElm);
+            @if (max !== null) {
+              <!-- Left out of a cell too narrow for it, which then reads as it did before it was added. -->
+              <span
+                class="text-ui-muted shrink-0 text-[11px] tabular-nums @max-[6rem]:hidden"
+                data-testid="inventory-resource-max"
+                >/ {{ max }}</span
+              >
+            }
           </span>
           <!--
             A press on the gauge of a row not yet picked picks the row and leaves the value alone,

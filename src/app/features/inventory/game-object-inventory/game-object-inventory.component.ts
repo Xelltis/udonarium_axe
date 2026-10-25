@@ -152,6 +152,17 @@ export class GameObjectInventoryComponent {
   }
 
   /**
+   * The maximum a resource gauge counts up to, written beside its value; null where none is set, as
+   * an empty field is not a maximum of nought, or where it is not a number.
+   */
+  resourceMax(dataElm: DataElement): number | null {
+    const raw = dataElm.value;
+    if (typeof raw === 'string' && raw.trim().length < 1) return null;
+    const parsed = typeof raw === 'number' ? raw : Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  /**
    * Whether a data element is a calculated field, whose shown value is worked out rather than
    * typed.
    */

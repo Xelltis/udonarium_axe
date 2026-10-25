@@ -1391,6 +1391,27 @@ describe('GameObjectInventoryComponent', () => {
         expect(gauge.style.color).toBe('');
       });
 
+      it('writes the maximum beside the value of a resource', () => {
+        const goblin = putOnTable('ゴブリン');
+        const hp = DataElement.findElementByReference(goblin.rootDataElement!, 'HP')!;
+        hp.value = 30;
+        hp.currentValue = 25;
+        TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+        fixture.detectChanges();
+
+        const max = fixture.nativeElement.querySelector('[data-testid="inventory-resource-max"]') as HTMLElement;
+        expect(max.textContent?.trim()).toBe('/ 30');
+      });
+
+      it('writes no maximum for a resource whose maximum is left empty, rather than a maximum of nought', () => {
+        const goblin = putOnTable('ゴブリン');
+        DataElement.findElementByReference(goblin.rootDataElement!, 'HP')!.value = '';
+        TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.querySelector('[data-testid="inventory-resource-max"]')).toBeNull();
+      });
+
       it("lets a press on a row not yet picked pick it, not set its gauge, and the picked row's gauge be set", () => {
         const goblin = putOnTable('ゴブリン');
         TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
