@@ -1579,6 +1579,17 @@ describe('GameObjectInventoryComponent', () => {
         expect(gauge.style.color).toBe('');
       });
 
+      it('shows the display items of a piece on the personal tab too', () => {
+        const mine = putOnTable('相棒');
+        mine.setLocation(Network.peerId);
+        TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+        component.selectTab.set(PERSONAL_INVENTORY_TAB);
+        fixture.detectChanges();
+
+        expect(component.getInventoryTags(mine).map((element) => element?.name)).toEqual(['HP']);
+        expect(fixture.nativeElement.querySelector('input[type="range"][name="data-current-value"]')).toBeTruthy();
+      });
+
       it('writes the maximum beside the value of a resource', () => {
         const goblin = putOnTable('ゴブリン');
         const hp = DataElement.findElementByReference(goblin.rootDataElement!, 'HP')!;

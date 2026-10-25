@@ -311,6 +311,11 @@ export class GameObjectInventoryComponent {
     return tab === PERSONAL_INVENTORY_TAB ? Network.peerId : tab;
   }
 
+  /** The tab a piece standing at a location is listed on: the personal tab for this connection's peer id. */
+  private tabOfLocation(location: string): string {
+    return location === Network.peerId ? PERSONAL_INVENTORY_TAB : location;
+  }
+
   readonly selectTab = signal('table');
   readonly selectedIdentifier = signal('');
   readonly multiMoveTargets = signal(new Set<string>());
@@ -1302,7 +1307,9 @@ export class GameObjectInventoryComponent {
    * has no such item.
    */
   getInventoryTags(gameObject: GameCharacter): (DataElement | null)[] {
-    return this.getInventory(gameObject.location.name).dataElementMap.get(gameObject.identifier) ?? [];
+    return (
+      this.getInventory(this.tabOfLocation(gameObject.location.name)).dataElementMap.get(gameObject.identifier) ?? []
+    );
   }
 
   /**
