@@ -13,7 +13,14 @@
         class="bg-ui-panel border-ui-border-panel flex shrink-0 items-center gap-1 border-b border-solid px-2 pt-1.5"
         [class.bg-transparent!]="isGhost()"
       >
-        <form name="game-object-inventory" class="flex min-w-0 flex-1 gap-0.5">
+        <!--
+          Scrolls sideways rather than running under the buttons in a narrow window. The pixel of
+          padding below keeps the picked tab's foot, which covers the line under the strip, in view.
+        -->
+        <form
+          name="game-object-inventory"
+          class="-mb-px flex min-w-0 flex-1 [scrollbar-width:none] gap-0.5 overflow-x-auto overflow-y-hidden pb-px"
+        >
           @for (inventoryType of inventoryTypes(); track inventoryType) {
             <label
               class="text-ui-muted hover:bg-ui-hover hover:text-ui-text relative inline-flex cursor-pointer items-center gap-1 rounded-t-md border border-b-0 border-solid border-transparent px-2.5 py-1.25 text-[12px] whitespace-nowrap transition-[background,color] select-none [&_input[type=radio]]:hidden"
