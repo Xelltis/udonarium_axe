@@ -154,11 +154,7 @@ export class SaveDataService {
     files.push(new File([this.convertToXml(ImageTagList.create(images))], 'imagetag.xml', { type: 'text/plain' }));
 
     const audios = this.audioStorage.audios.filter((audio) => !audio.isHidden && wanted.audios.has(audio.identifier));
-    const taken = new Set(files.map((file) => file.name.toLowerCase()));
-    for (const audio of audios) {
-      const file = createAudioArchiveFile(audio, taken);
-      if (file) files.push(file);
-    }
+    files.push(...audioArchiveFiles(audios, files));
     files.push(new File([this.convertToXml(AudioTagList.create(audios))], 'audiotag.xml', { type: 'text/plain' }));
     return files;
   }
@@ -241,13 +237,7 @@ export class SaveDataService {
     files.push(new File([imageLinkXml], 'imagelink.xml', { type: 'text/plain' }));
 
     const audios: AudioFile[] = this.audioStorage.audios.filter((a) => !a.isHidden);
-    if (everything) {
-      const taken = new Set(files.map((file) => file.name.toLowerCase()));
-      for (const audio of audios) {
-        const file = createAudioArchiveFile(audio, taken);
-        if (file) files.push(file);
-      }
-    }
+    if (everything) files.push(...audioArchiveFiles(audios, files));
     const audioTagXml = this.convertToXml(AudioTagList.create(audios), pretty);
     files.push(new File([audioTagXml], 'audiotag.xml', { type: 'text/plain' }));
     files.push(...this.roomRightsFiles([...images, ...audios], pretty));
@@ -255,13 +245,11 @@ export class SaveDataService {
     return files;
   }
 
-  /** The pictures named, with every other picture this browser holds in full and the room has not removed. */
+  /** The pictures named, with every other picture this browser holds in full. */
   private withEveryHeld(named: readonly ImageFile[]): ImageFile[] {
     const kept = new Map(named.map((image) => [image.identifier, image]));
     for (const image of this.imageStorage.images) {
-      if (kept.has(image.identifier) || image.state !== ImageState.COMPLETE) continue;
-      if (this.imageStorage.isRemoved(image.identifier)) continue;
-      kept.set(image.identifier, image);
+      if (!kept.has(image.identifier) && image.state === ImageState.COMPLETE) kept.set(image.identifier, image);
     }
     return [...kept.values()];
   }
@@ -623,6 +611,17 @@ const AUDIO_EXTENSION_OF_TYPE: Readonly<Record<string, string>> = {
  * back as a sound, numbered where the name is `taken` already. Null when its bytes are not held
  * here or its kind has no such extension.
  */
+/** Archive files for the sounds held here as files, named apart from each other and from the files alongside. */
+function audioArchiveFiles(audios: readonly AudioFile[], alongside: readonly File[]): File[] {
+  const taken = new Set(alongside.map((file) => file.name.toLowerCase()));
+  const files: File[] = [];
+  for (const audio of audios) {
+    const file = createAudioArchiveFile(audio, taken);
+    if (file) files.push(file);
+  }
+  return files;
+}
+
 function createAudioArchiveFile(audio: AudioFile, taken: Set<string>): File | null {
   const blob = audio.blob;
   if (!blob) return null;
