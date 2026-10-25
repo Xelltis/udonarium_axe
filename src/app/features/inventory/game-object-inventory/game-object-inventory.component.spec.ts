@@ -1914,16 +1914,21 @@ describe('GameObjectInventoryComponent', () => {
         } as PeerCursor;
       }
 
-      async function pressReachesPanel(type: (typeof presses)[number]): Promise<boolean> {
+      async function rowShown(): Promise<HTMLElement> {
         fixture.detectChanges();
         await fixture.whenStable();
-        const row = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="inventory-item"]');
+        const row = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-testid="inventory-item"]');
         expect(row).not.toBeNull();
+        return row!;
+      }
+
+      /** Whether a press on the row gets through to the panel, which brings the panel forward. */
+      function pressReachesPanel(row: HTMLElement, type: (typeof presses)[number]): boolean {
         const panel = fixture.nativeElement as HTMLElement;
         let reached = false;
         const listener = () => (reached = true);
         panel.addEventListener(type, listener);
-        row!.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
+        row.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
         panel.removeEventListener(type, listener);
         return reached;
       }
@@ -1932,28 +1937,34 @@ describe('GameObjectInventoryComponent', () => {
         PeerCursor.myCursor = originalCursor;
       });
 
-      it('keeps the panel still when a player presses a row they can file into a folder', async () => {
+      it('brings the panel forward but keeps it still when a player presses a row they can file into a folder', async () => {
         beSeat(PeerRole.Player);
         putInShared('ゴブリン');
         component.selectTab.set('common');
+        const row = await rowShown();
 
-        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(false);
+        for (const type of presses) expect(pressReachesPanel(row, type), type).toBe(true);
+        expect(row.classList).toContain('panel-no-drag');
       });
 
-      it('keeps the panel still when the game master presses a row they can hand over', async () => {
+      it('brings the panel forward but keeps it still when the game master presses a row they can hand over', async () => {
         beSeat(PeerRole.GameMaster);
         putOnTable('ゴブリン');
         component.selectTab.set('table');
+        const row = await rowShown();
 
-        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(false);
+        for (const type of presses) expect(pressReachesPanel(row, type), type).toBe(true);
+        expect(row.classList).toContain('panel-no-drag');
       });
 
-      it('keeps the panel still when a player presses a row on a tab without folders, as it can go to another tab', async () => {
+      it('brings the panel forward but keeps it still when a player presses a row on a tab without folders', async () => {
         beSeat(PeerRole.Player);
         putOnTable('ゴブリン');
         component.selectTab.set('table');
+        const row = await rowShown();
 
-        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(false);
+        for (const type of presses) expect(pressReachesPanel(row, type), type).toBe(true);
+        expect(row.classList).toContain('panel-no-drag');
       });
 
       it('shows a grabbing hand over a row that can be carried', async () => {
@@ -1982,8 +1993,10 @@ describe('GameObjectInventoryComponent', () => {
         beSeat(PeerRole.Guest);
         putInShared('ゴブリン');
         component.selectTab.set('common');
+        const row = await rowShown();
 
-        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(true);
+        for (const type of presses) expect(pressReachesPanel(row, type), type).toBe(true);
+        expect(row.classList).not.toContain('panel-no-drag');
       });
     });
 

@@ -662,6 +662,7 @@
                 [class.opacity-50]="isHiddenRowDimmed(row.object)"
                 [class.italic]="isHiddenRowDimmed(row.object)"
                 [class.opacity-40]="drag.isDragging(row.object)"
+                [class.panel-no-drag]="drag.canDrag(row.object)"
                 [class.cursor-grab!]="drag.canDrag(row.object) && !drag.isDragging(row.object)"
                 [class.cursor-grabbing!]="drag.isDragging(row.object)"
                 (contextmenu)="onContextMenu($event, row.object)"
@@ -672,8 +673,6 @@
                 (pointerup)="drag.up($event)"
                 (pointercancel)="drag.cancel()"
                 (lostpointercapture)="drag.cancel()"
-                (mousedown)="onObjectDragBlock($event, row.object)"
-                (touchstart)="onObjectDragBlock($event, row.object)"
               >
                 @if (isMultiMove()) {
                   <td class="border-ui-border-panel w-0 border-b border-solid px-1 py-0.5">
@@ -899,6 +898,7 @@
     [class.border-dashed!]="isHiddenRowDimmed(gameObject)"
     [class.border-ui-border-panel!]="isHiddenRowDimmed(gameObject) && selectedIdentifier() !== gameObject.identifier"
     [class.opacity-40]="drag.isDragging(gameObject)"
+    [class.panel-no-drag]="drag.canDrag(gameObject)"
     [class.cursor-grab!]="drag.canDrag(gameObject) && !drag.isDragging(gameObject)"
     [class.cursor-grabbing!]="drag.isDragging(gameObject)"
     (contextmenu)="onContextMenu($event, gameObject)"
@@ -909,8 +909,6 @@
     (pointerup)="drag.up($event)"
     (pointercancel)="drag.cancel()"
     (lostpointercapture)="drag.cancel()"
-    (mousedown)="onObjectDragBlock($event, gameObject)"
-    (touchstart)="onObjectDragBlock($event, gameObject)"
   >
     @if (selectTab() === 'table') {
       @if (currentTurnId() !== gameObject.identifier && actedIds().has(gameObject.identifier)) {
