@@ -1390,6 +1390,22 @@ describe('GameObjectInventoryComponent', () => {
         expect(gauge.style.getPropertyValue('--max')).toBe('0');
         expect(gauge.style.color).toBe('');
       });
+
+      it("lets a press on a row not yet picked pick it, not set its gauge, and the picked row's gauge be set", () => {
+        const goblin = putOnTable('ゴブリン');
+        TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+        fixture.detectChanges();
+        const gauge = () =>
+          fixture.nativeElement.querySelector('input[type="range"][name="data-current-value"]') as HTMLInputElement;
+
+        expect(gauge().classList).toContain('pointer-events-none');
+
+        component.selectGameObject(goblin);
+        TestBed.tick();
+        fixture.detectChanges();
+
+        expect(gauge().classList).not.toContain('pointer-events-none');
+      });
     });
 
     describe('the ways of reading it', () => {
