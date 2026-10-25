@@ -44,6 +44,7 @@ describe('EngagementZoneService', () => {
     Config.instance.zoneCountField = null;
     Config.instance.moveKinds = null;
     Config.instance.zoneLeaveKind = null;
+    Config.instance.zoneStealthUnseen = null;
     Config.instance.zoneOutnumber = null;
     Config.instance.zoneClearName = null;
     Config.instance.interruptEnabled = false;
@@ -401,6 +402,17 @@ describe('EngagementZoneService', () => {
       walker.location = { name: 'table', x: 11 * GRID, y: 10 * GRID };
       service.afterMove(walker, start);
       expect(walker.engagementZone).toBe('');
+    });
+
+    it('lets a piece in stealth walk through a zone unheld only where the room counts stealth as unseen', async () => {
+      fight();
+      const walker = pieceAt(16, 10);
+      walker.stealth = '1';
+      expect(service.reachTermsFor(walker, grid(), '')?.stops).not.toBeNull();
+
+      Config.instance.zoneStealthUnseen = true;
+
+      await vi.waitFor(() => expect(service.reachTermsFor(walker, grid(), '')?.stops).toBeNull());
     });
 
     it('lets a piece nobody can see, or one making a move nobody may stop, walk through a zone unheld', () => {

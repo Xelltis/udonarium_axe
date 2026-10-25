@@ -110,6 +110,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_interruptKind') private _interruptKind: string = '';
   @SyncVar('_zoneBlockRadius') private _zoneBlockRadius: number = -1;
   @SyncVar('_zoneClearName') private _zoneClearName: string = '';
+  @SyncVar('_zoneStealthUnseen') private _zoneStealthUnseen: string = '';
   @SyncVar('_placementDistances') private _placementDistances: string = '';
   @SyncVar('_distanceModifiers') private _distanceModifiers: string = '';
 
@@ -398,6 +399,7 @@ export class Config extends ObjectNode implements InnerXml {
       leaveKind: readRuleText(this._zoneLeaveKind),
       blockRadiusM: readRuleNumber(this._zoneBlockRadius),
       clearName: readRuleText(this._zoneClearName),
+      stealthUnseen: readRuleFlag(this._zoneStealthUnseen),
     };
   }
 
@@ -487,6 +489,11 @@ export class Config extends ObjectNode implements InnerXml {
   /** The sheet field or buff by which a shooter fires past what stands in the way, or null for none. */
   set zoneClearName(answer: string | null) {
     this._zoneClearName = writeRuleText(answer);
+  }
+
+  /** Whether a piece in stealth counts as one nobody can see, or null for the default, which it does not. */
+  set zoneStealthUnseen(answer: boolean | null) {
+    this._zoneStealthUnseen = writeRuleFlag(answer);
   }
 
   /** The kind of move a piece may leave an overflowing zone by at once, or null for any kind. */

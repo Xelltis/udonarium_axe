@@ -965,6 +965,18 @@ export class RoomSettingsPanelComponent {
     if (this.isEditable) this.config.zoneEnabled = value ? true : null;
   }
 
+  /**
+   * Whether a piece in stealth counts as one nobody can see under the zone rules; setting it writes
+   * the room's config, for whoever may edit the table.
+   */
+  get zoneStealthUnseen(): boolean {
+    this.objectChange.versionOf('Config')();
+    return this.config.zoneRuleAnswers.stealthUnseen === true;
+  }
+  set zoneStealthUnseen(value: boolean) {
+    if (this.isEditable) this.config.zoneStealthUnseen = value ? true : null;
+  }
+
   /** The size table as the room wrote it, empty where it uses the default. */
   get zoneSizes(): string {
     this.objectChange.versionOf('Config')();

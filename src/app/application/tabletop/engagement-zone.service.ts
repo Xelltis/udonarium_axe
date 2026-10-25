@@ -279,6 +279,7 @@ export class EngagementZoneService {
         piece?.zoneLeaveRound ?? '',
         piece?.unstoppableMove ?? '',
         piece?.unseen ?? '',
+        piece?.stealth ?? '',
       ].join(':');
     });
     return `${zones.join('|')}#${pieces.join('|')}`;
@@ -756,7 +757,15 @@ export class EngagementZoneService {
 
   /** Whether nobody may stop a piece's move: nobody can see it, or it is making a move nobody may stop. */
   private isUnstoppable(piece: GameCharacter): boolean {
-    return piece.unseen === '1' || piece.unstoppableMove === '1';
+    return this.isUnseen(piece) || piece.unstoppableMove === '1';
+  }
+
+  /**
+   * Whether nobody can see a piece, as the rules read it: marked so by hand, or in stealth where the
+   * room counts stealth as that.
+   */
+  private isUnseen(piece: GameCharacter): boolean {
+    return piece.unseen === '1' || (piece.stealth === '1' && this.rules().stealthUnseen);
   }
 
   /** The kinds of move the room plays, the plain kind alone where it names none. */
@@ -916,7 +925,12 @@ export class EngagementZoneService {
       holding,
       standing,
       unseen: new Set(
-        pieces.filter((piece) => this.objectStore.get<GameCharacter>(piece.id)?.unseen === '1').map((piece) => piece.id)
+        pieces
+          .filter((piece) => {
+            const character = this.objectStore.get<GameCharacter>(piece.id);
+            return character instanceof GameCharacter && this.isUnseen(character);
+          })
+          .map((piece) => piece.id)
       ),
       ratio,
       samePointPx: world.rules.samePointM * world.pxPerMetre,

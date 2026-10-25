@@ -216,6 +216,8 @@
         "leaveKindHint": "A piece leaves a zone holding more than its limit at once by this kind of move.",
         "interrupt": "Let moves be stepped into",
         "interruptHint": "Before a planned move is walked, the side of every enemy that can reach the way is asked whether to step in. A piece that steps in stops the move at that point, and a new engagement zone forms there with both. While turns are kept, it is forming until the turn ends. A move into an engagement zone, or one out of a zone the piece stands in, is also put to the side in the zone, which chooses whether to stop it; a piece it stops moves to the centre and joins. A zone nobody can answer for, and every zone while this is off, always stops it.",
+        "stealthUnseen": "Count a piece in stealth as unseen",
+        "stealthUnseenHint": "When on, a piece in stealth is treated like one marked unseen by hand: its moves cannot be stopped, and one it stops makes a zone there and then.",
         "interruptKind": "Kind used to step in",
         "interruptKindFirst": "The first kind",
         "blockRadius": "Line of fire block radius (m)",

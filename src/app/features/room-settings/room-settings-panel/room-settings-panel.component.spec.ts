@@ -586,12 +586,24 @@ describe('RoomSettingsPanelComponent', () => {
         leaveKind: null,
         blockRadiusM: null,
         clearName: null,
+        stealthUnseen: null,
       });
 
       component.zoneSizes = '';
       component.zoneEnabled = false;
       expect(Config.instance.zoneRuleAnswers.sizes).toBeNull();
       expect(Config.instance.zoneRuleAnswers.enabled).toBeNull();
+    });
+
+    it('writes whether a piece in stealth counts as unseen, and forgets it when unticked', () => {
+      component.zoneEnabled = true;
+
+      component.zoneStealthUnseen = true;
+      expect(Config.instance.zoneRuleAnswers.stealthUnseen).toBe(true);
+      expect(component.zoneStealthUnseen).toBe(true);
+
+      component.zoneStealthUnseen = false;
+      expect(Config.instance.zoneRuleAnswers.stealthUnseen).toBeNull();
     });
 
     it('writes the outnumbering factor and the kind that leaves an overflowing zone, out of the kinds written', async () => {

@@ -46,6 +46,11 @@ describe('zone-rules', () => {
     });
   });
 
+  it('counts a piece in stealth as seen until the room says otherwise', () => {
+    expect(resolveZoneRules(null).stealthUnseen).toBe(false);
+    expect(resolveZoneRules({ stealthUnseen: true }).stealthUnseen).toBe(true);
+  });
+
   it('blocks a line of fire half a metre out by default, and fires past nothing', () => {
     expect(resolveZoneRules(null).blockRadiusM).toBe(0.5);
     expect(resolveZoneRules({ blockRadiusM: 2, clearName: ' 精密 ' })).toMatchObject({

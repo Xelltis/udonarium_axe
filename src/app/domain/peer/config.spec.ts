@@ -34,6 +34,7 @@ describe('Config', () => {
         leaveKind: null,
         blockRadiusM: null,
         clearName: null,
+        stealthUnseen: null,
       });
       expect(Config.instance.moveKinds).toBeNull();
     });
@@ -57,6 +58,7 @@ describe('Config', () => {
         leaveKind: '全力',
         blockRadiusM: null,
         clearName: null,
+        stealthUnseen: null,
       });
       expect(config.moveKinds).toBe('全力:3:,通常:1:');
 
@@ -77,7 +79,21 @@ describe('Config', () => {
         leaveKind: null,
         blockRadiusM: null,
         clearName: null,
+        stealthUnseen: null,
       });
+    });
+  });
+
+  describe('counting a piece in stealth as unseen', () => {
+    it('is unanswered for a room saved before it could be asked, and reads back what it writes', () => {
+      const config = Config.instance;
+      expect(config.zoneRuleAnswers.stealthUnseen).toBeNull();
+
+      config.zoneStealthUnseen = true;
+      expect(config.zoneRuleAnswers.stealthUnseen).toBe(true);
+
+      config.zoneStealthUnseen = null;
+      expect(config.zoneRuleAnswers.stealthUnseen).toBeNull();
     });
   });
 
