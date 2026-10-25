@@ -253,11 +253,12 @@ export class PeerCursor extends GameObject {
 
   /**
    * The local user's id: the one on their own cursor, or before that exists, outside a room, the one
-   * the peer context holds; empty before either has one.
+   * the peer context holds; empty before either has one, the peer context of a line not yet open
+   * included, which holds none at all.
    */
   static get myUserId(): string {
     const fromCursor = PeerCursor.myCursor?.userId ?? '';
-    return fromCursor.length > 0 ? fromCursor : getPeerContext().userId;
+    return fromCursor.length > 0 ? fromCursor : (getPeerContext().userId ?? '');
   }
 
   /** The local user's role; a player until their own cursor exists. */
