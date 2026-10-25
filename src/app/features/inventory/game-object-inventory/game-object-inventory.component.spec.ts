@@ -19,7 +19,10 @@ import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { GameObjectInventoryComponent } from '@axe/features/inventory/game-object-inventory/game-object-inventory.component';
+import {
+  GameObjectInventoryComponent,
+  PERSONAL_INVENTORY_TAB,
+} from '@axe/features/inventory/game-object-inventory/game-object-inventory.component';
 import { InventoryObjectDrag } from '@axe/features/inventory/game-object-inventory/inventory-object-drag';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { installPanelLayer } from '@axe/testing/panel-layer';
@@ -446,14 +449,14 @@ describe('GameObjectInventoryComponent', () => {
         villager.folderName = '村';
         TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
         const panel = opened();
-        panel.selectTab.set(Network.peerId);
+        panel.selectTab.set(PERSONAL_INVENTORY_TAB);
         TestBed.tick();
 
         panel.selectTab.set('common');
         TestBed.tick();
 
         expect(panel.isFolderCollapsed('村')).toBe(true);
-        panel.selectTab.set(Network.peerId);
+        panel.selectTab.set(PERSONAL_INVENTORY_TAB);
         TestBed.tick();
         expect(panel.isFolderCollapsed('手持ち')).toBe(true);
       });
@@ -488,7 +491,7 @@ describe('GameObjectInventoryComponent', () => {
         TestBed.tick();
         panel.toggleFolder('村');
 
-        panel.selectTab.set(Network.peerId);
+        panel.selectTab.set(PERSONAL_INVENTORY_TAB);
         TestBed.tick();
         expect(panel.isFolderCollapsed('村')).toBe(true);
         panel.selectTab.set('common');
@@ -807,7 +810,7 @@ describe('GameObjectInventoryComponent', () => {
       mine.setLocation(Network.peerId);
       mine.folderName = '第1話';
 
-      component.selectTab.set(Network.peerId);
+      component.selectTab.set(PERSONAL_INVENTORY_TAB);
       component.renameFolder('第1話', '序章');
 
       expect(mine.folderName).toBe('序章');
@@ -822,7 +825,7 @@ describe('GameObjectInventoryComponent', () => {
       mine.folderName = '第1話';
       vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
 
-      component.selectTab.set(Network.peerId);
+      component.selectTab.set(PERSONAL_INVENTORY_TAB);
       await component.deleteFolder('第1話');
 
       expect(mine.folderName).toBe('');
@@ -1695,6 +1698,56 @@ describe('GameObjectInventoryComponent', () => {
       row.dispatchEvent(new MouseEvent('dblclick'));
 
       expect(focusOn).toHaveBeenCalledWith(piece);
+    });
+  });
+  describe('the personal tab, after a reconnection gives this seat another peer id', () => {
+    let peerId: string;
+    const made: GameCharacter[] = [];
+
+    beforeEach(() => {
+      peerId = 'peer-before';
+      vi.spyOn(Network, 'peerId', 'get').mockImplementation(() => peerId);
+      fixture.detectChanges();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      for (const character of made.splice(0)) character.destroy();
+    });
+
+    function standAt(name: string, location: string): GameCharacter {
+      const character = GameCharacter.create(name, 1, '');
+      character.setLocation(location);
+      made.push(character);
+      return character;
+    }
+
+    it('is still called personal, and is not a second shared tab', () => {
+      peerId = 'peer-after';
+
+      expect(component.inventoryTypes().map((tab) => component.getTabTitle(tab))).toEqual([
+        'テーブル',
+        '共有',
+        '個人',
+        '墓場',
+      ]);
+    });
+
+    it('lists what stands at the peer id of now', () => {
+      standAt('前の接続', 'peer-before');
+      const now = standAt('今の接続', 'peer-after');
+      peerId = 'peer-after';
+
+      component.selectTab.set(PERSONAL_INVENTORY_TAB);
+
+      expect(component.getInventory(PERSONAL_INVENTORY_TAB).tabletopObjects).toEqual([now]);
+    });
+
+    it('leaves the personal inventory out of where the picked pieces can go while it is the tab on view', () => {
+      peerId = 'peer-after';
+      component.selectTab.set(PERSONAL_INVENTORY_TAB);
+
+      expect(component.multiMoveLocations.map((loc) => loc.name)).toEqual(['table', 'common', 'graveyard']);
     });
   });
 });

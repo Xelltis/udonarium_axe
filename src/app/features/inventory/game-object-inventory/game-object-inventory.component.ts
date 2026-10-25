@@ -111,6 +111,12 @@ const NO_BUFF_BADGES = { shown: [] as BuffBadge[], more: 0 };
 /** What a tab has folded up before anything on it has been. */
 const NO_FOLDERS: ReadonlySet<string> = new Set();
 
+/**
+ * The tab of this seat's own inventory. Its pieces stand at this connection's peer id, which a
+ * reconnection changes, so the tab is named for what it is and the id is read whenever it is used.
+ */
+export const PERSONAL_INVENTORY_TAB = 'personal';
+
 const VIEW_ICONS: Record<InventoryViewMode, string> = {
   rich: 'view_agenda',
   table: 'table_rows',
@@ -236,16 +242,14 @@ export class GameObjectInventoryComponent {
     effect(() => {
       this.panelService.headerControls.set(this.viewControls());
     });
-    this.objectChange.networkOpen$.subscribe(() => {
-      this.inventoryTypes.set(['table', 'common', Network.peerId, 'graveyard']);
-      if (!this.inventoryTypes().includes(this.selectTab())) {
-        this.selectTab.set(Network.peerId);
-      }
-    }, this.destroyRef);
-    this.inventoryTypes.set(['table', 'common', Network.peerId, 'graveyard']);
   }
 
-  readonly inventoryTypes = signal<string[]>(['table', 'common', 'graveyard']);
+  readonly inventoryTypes = signal<string[]>(['table', 'common', PERSONAL_INVENTORY_TAB, 'graveyard']);
+
+  /** Where the pieces of a tab stand: this connection's peer id for the personal tab, the tab's own name otherwise. */
+  private locationOfTab(tab: string): string {
+    return tab === PERSONAL_INVENTORY_TAB ? Network.peerId : tab;
+  }
 
   readonly selectTab = signal('table');
   readonly selectedIdentifier = signal('');
@@ -668,7 +672,7 @@ export class GameObjectInventoryComponent {
       { name: Network.peerId, labelKey: 'feature.inventory.tabs.personal' },
       { name: 'graveyard', labelKey: 'feature.inventory.tabs.graveyard' },
     ];
-    return all.filter((loc) => loc.name !== this.selectTab());
+    return all.filter((loc) => loc.name !== this.locationOfTab(this.selectTab()));
   }
 
   /** The display item name that stands for a line break in a row. */
@@ -677,14 +681,14 @@ export class GameObjectInventoryComponent {
   }
 
   /**
-   * The translated title of an inventory tab; any name that is not the table, this peer or the
-   * graveyard is the common tab.
+   * The translated title of an inventory tab; any name that is not the table, this seat's own or
+   * the graveyard is the common tab.
    */
   getTabTitle(inventoryType: string) {
     switch (inventoryType) {
       case 'table':
         return this.t('feature.inventory.tabs.table');
-      case Network.peerId:
+      case PERSONAL_INVENTORY_TAB:
         return this.t('feature.inventory.tabs.personal');
       case 'graveyard':
         return this.t('feature.inventory.tabs.graveyard');
@@ -694,14 +698,14 @@ export class GameObjectInventoryComponent {
   }
 
   /**
-   * The inventory behind a tab; any name that is not the table, this peer or the graveyard gives
-   * the common one.
+   * The inventory behind a tab; any name that is not the table, this seat's own or the graveyard
+   * gives the common one.
    */
   getInventory(inventoryType: string) {
     switch (inventoryType) {
       case 'table':
         return this.inventoryService.tableInventory;
-      case Network.peerId:
+      case PERSONAL_INVENTORY_TAB:
         return this.inventoryService.privateInventory;
       case 'graveyard':
         return this.inventoryService.graveyardInventory;
@@ -806,7 +810,9 @@ export class GameObjectInventoryComponent {
    * Anything that is not the table, the graveyard or this peer's own list reads the shared one,
    * so the test has to be the same as the one that picks the inventory, not a single name.
    */
-  private readonly isSharedTab = computed<boolean>(() => this.foldersApply() && this.selectTab() !== Network.peerId);
+  private readonly isSharedTab = computed<boolean>(
+    () => this.foldersApply() && this.selectTab() !== PERSONAL_INVENTORY_TAB
+  );
 
   readonly declaredFolderPaths = computed<string[]>(() => {
     if (!this.foldersApply()) return [];
@@ -1372,7 +1378,7 @@ export class GameObjectInventoryComponent {
 
     const position = this.pointerDeviceService.pointers[0];
     const actions = buildInventoryMultiMoveContextMenu(
-      this.selectTab(),
+      this.locationOfTab(this.selectTab()),
       {
         multiMove: (loc) => this.multiMove(loc),
         toggleMultiMove: () => this.toggleMultiMove(),
