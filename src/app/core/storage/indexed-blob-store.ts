@@ -32,6 +32,12 @@ export class IndexedBlobStore {
     return blobFromStored(found);
   }
 
+  /** Whether anything is stored under a key, answered without reading it; false where storage is unavailable. */
+  async has(key: string): Promise<boolean> {
+    const count = await this.request<number>('readonly', (store) => store.count(key));
+    return (count ?? 0) > 0;
+  }
+
   /** Stores or replaces the picture under a key, resolving false when it could not be written. */
   async put(key: string, blob: Blob): Promise<boolean> {
     const stored = await storedBytesOf(blob);
@@ -87,21 +93,34 @@ export class IndexedBlobStore {
     return db;
   }
 
+  /**
+   * Runs one request in a transaction of its own and answers its result once the transaction is
+   * done, or null where it failed. A write the browser takes and then cannot keep, as when it runs
+   * out of room, fails only as the transaction ends, so the answer waits for that.
+   */
   private async request<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest): Promise<T | null> {
     const db = await this.open();
     if (!db) return null;
     return new Promise<T | null>((resolve) => {
+      let settled = false;
+      const fail = (error: unknown) => {
+        if (settled) return;
+        settled = true;
+        Logger.warn(`${this.purpose} storage failed`, error);
+        resolve(null);
+      };
       try {
         const transaction = db.transaction(STORE_NAME, mode);
         const request = run(transaction.objectStore(STORE_NAME));
-        request.onsuccess = () => resolve(request.result as T);
-        request.onerror = () => {
-          Logger.warn(`${this.purpose} storage failed`, request.error);
-          resolve(null);
+        request.onerror = () => fail(request.error);
+        transaction.onabort = () => fail(transaction.error);
+        transaction.oncomplete = () => {
+          if (settled) return;
+          settled = true;
+          resolve(request.result as T);
         };
       } catch (error) {
-        Logger.warn(`${this.purpose} storage failed`, error);
-        resolve(null);
+        fail(error);
       }
     });
   }
