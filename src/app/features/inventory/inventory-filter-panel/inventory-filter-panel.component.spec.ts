@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { SortOrder } from '@axe/domain/data/data-summary-setting';
 import { InventoryFilterService } from '@axe/features/inventory/inventory-filter.service';
 import { InventoryFilterPanelComponent } from '@axe/features/inventory/inventory-filter-panel/inventory-filter-panel.component';
@@ -164,6 +165,99 @@ describe('InventoryFilterPanelComponent', () => {
 
     expect(component.viewPreference.roundInPlay()).toBe(true);
     localStorage.removeItem('ui-inventory-round-in-play');
+  });
+
+  describe('the names offered for the display items', () => {
+    const toggles = (): HTMLButtonElement[] => [
+      ...fixture.nativeElement.querySelectorAll('[data-testid="inventory-display-candidates-toggle"]'),
+    ];
+    const chips = (): HTMLButtonElement[] => [
+      ...fixture.nativeElement.querySelectorAll('[data-testid="inventory-display-candidate"]'),
+    ];
+    const chip = (name: string) => chips().find((button) => button.textContent?.trim().endsWith(name))!;
+
+    function putOnTable(name: string): GameCharacter {
+      const character = GameCharacter.create(name, 1, '');
+      character.setLocation('table');
+      return character;
+    }
+
+    beforeEach(() => {
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(true);
+    });
+
+    it('stay put away until asked for', () => {
+      putOnTable('戦士');
+      fixture.detectChanges();
+
+      expect(toggles()).toHaveLength(2);
+      expect(chips()).toHaveLength(0);
+    });
+
+    it("are the fields on the table's sheets, the ones already shown marked", () => {
+      putOnTable('戦士');
+      component.dataTag = 'HP';
+      fixture.detectChanges();
+
+      toggles()[0].click();
+      fixture.detectChanges();
+
+      const names = chips().map((button) => button.textContent?.trim());
+      expect(names).toContain('敏捷度');
+      expect(names).not.toContain('リソース');
+      expect(names).not.toContain('基本');
+      expect(chip('HP').getAttribute('aria-pressed')).toBe('true');
+      expect(chip('敏捷度').getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('add a name to the end of the box, after what is written there', () => {
+      putOnTable('戦士');
+      component.dataTag = 'HP / MP';
+      fixture.detectChanges();
+      toggles()[0].click();
+      fixture.detectChanges();
+
+      chip('敏捷度').click();
+
+      expect(component.dataTag).toBe('HP / MP 敏捷度');
+    });
+
+    it('take a name already shown out of the box, leaving the rest as written', () => {
+      putOnTable('戦士');
+      component.dataTag = 'HP / "リソース/MP" 敏捷度';
+      fixture.detectChanges();
+      toggles()[0].click();
+      fixture.detectChanges();
+
+      chip('MP').click();
+
+      expect(component.dataTag).toBe('HP / 敏捷度');
+    });
+
+    it("work on the table's box apart from the full view's", () => {
+      putOnTable('戦士');
+      component.dataTag = 'HP';
+      component.tableDataTag = '';
+      fixture.detectChanges();
+      toggles()[1].click();
+      fixture.detectChanges();
+
+      chip('MP').click();
+
+      expect(component.tableDataTag).toBe('MP');
+      expect(component.dataTag).toBe('HP');
+    });
+
+    it('say so when there is nobody on the table', () => {
+      fixture.detectChanges();
+      toggles()[0].click();
+      fixture.detectChanges();
+
+      expect(chips()).toHaveLength(0);
+      expect(fixture.nativeElement.querySelector('[data-testid="inventory-display-candidates"]').textContent).toContain(
+        '卓にキャラクターがいません'
+      );
+    });
   });
 
   it('offers the hidden filter only to somebody who may see hidden pieces', () => {

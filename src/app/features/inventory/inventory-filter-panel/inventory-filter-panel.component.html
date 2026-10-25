@@ -175,27 +175,61 @@
       </div>
 
       <div class="flex flex-col gap-0.75">
-        <label class="text-ui-muted text-[10px] font-semibold tracking-wider uppercase">{{
-          'feature.inventory.panel.displayItemsRich' | transloco
-        }}</label>
+        <div class="flex items-center gap-1">
+          <label class="text-ui-muted text-[10px] font-semibold tracking-wider uppercase">{{
+            'feature.inventory.panel.displayItemsRich' | transloco
+          }}</label>
+          <button
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm ml-auto inline-flex cursor-pointer items-center gap-0.5 border-none bg-transparent px-1 py-0 text-[10px] [&_.material-icons]:text-[13px]!"
+            [class.text-ui-accent!]="candidatesOpenFor() === 'rich'"
+            type="button"
+            data-testid="inventory-display-candidates-toggle"
+            [attr.aria-expanded]="candidatesOpenFor() === 'rich'"
+            [title]="'feature.inventory.panel.displayCandidatesTitle' | transloco"
+            (click)="toggleCandidates('rich')"
+          >
+            <i class="material-icons" aria-hidden="true">playlist_add</i
+            >{{ 'feature.inventory.panel.displayCandidates' | transloco }}
+          </button>
+        </div>
         <input
           class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent box-border w-full min-w-0 border border-solid px-1.75 py-1 outline-none"
           name="data-tag"
           [(ngModel)]="dataTag"
           [placeholder]="'feature.inventory.panel.dataTagPlaceholder' | transloco"
         />
+        @if (candidatesOpenFor() === 'rich') {
+          <ng-container *ngTemplateOutlet="candidateList; context: { $implicit: 'rich' }"></ng-container>
+        }
       </div>
 
       <div class="flex flex-col gap-0.75">
-        <label class="text-ui-muted text-[10px] font-semibold tracking-wider uppercase">{{
-          'feature.inventory.panel.displayItemsTable' | transloco
-        }}</label>
+        <div class="flex items-center gap-1">
+          <label class="text-ui-muted text-[10px] font-semibold tracking-wider uppercase">{{
+            'feature.inventory.panel.displayItemsTable' | transloco
+          }}</label>
+          <button
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm ml-auto inline-flex cursor-pointer items-center gap-0.5 border-none bg-transparent px-1 py-0 text-[10px] [&_.material-icons]:text-[13px]!"
+            [class.text-ui-accent!]="candidatesOpenFor() === 'table'"
+            type="button"
+            data-testid="inventory-display-candidates-toggle"
+            [attr.aria-expanded]="candidatesOpenFor() === 'table'"
+            [title]="'feature.inventory.panel.displayCandidatesTitle' | transloco"
+            (click)="toggleCandidates('table')"
+          >
+            <i class="material-icons" aria-hidden="true">playlist_add</i
+            >{{ 'feature.inventory.panel.displayCandidates' | transloco }}
+          </button>
+        </div>
         <input
           class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent box-border w-full min-w-0 border border-solid px-1.75 py-1 outline-none"
           name="table-data-tag"
           [(ngModel)]="tableDataTag"
           [placeholder]="'feature.inventory.panel.dataTagPlaceholder' | transloco"
         />
+        @if (candidatesOpenFor() === 'table') {
+          <ng-container *ngTemplateOutlet="candidateList; context: { $implicit: 'table' }"></ng-container>
+        }
         <p class="text-ui-dim m-0 text-[10px]">{{ 'feature.inventory.panel.displayItemsHint' | transloco }}</p>
       </div>
 
@@ -209,3 +243,28 @@
     </div>
   }
 </div>
+
+<ng-template #candidateList let-box>
+  @let listed = listedNames(box);
+  <div class="flex max-h-32 flex-wrap gap-1 overflow-y-auto" data-testid="inventory-display-candidates">
+    @for (name of displayCandidates(); track name) {
+      <button
+        class="border-ui-border-panel text-ui-text hover:border-ui-accent inline-flex max-w-full cursor-pointer items-center gap-0.5 rounded-full border border-solid bg-transparent px-1.5 py-px text-[11px] [&_.material-icons]:text-[12px]!"
+        [class.bg-ui-accent-bg!]="listed.has(name)"
+        [class.border-ui-accent!]="listed.has(name)"
+        [class.text-ui-accent!]="listed.has(name)"
+        type="button"
+        data-testid="inventory-display-candidate"
+        [attr.aria-pressed]="listed.has(name)"
+        (click)="toggleCandidate(box, name)"
+      >
+        @if (listed.has(name)) {
+          <i class="material-icons" aria-hidden="true">check</i>
+        }
+        <span class="truncate">{{ name }}</span>
+      </button>
+    } @empty {
+      <p class="text-ui-dim m-0 text-[10px]">{{ 'feature.inventory.panel.displayCandidatesEmpty' | transloco }}</p>
+    }
+  </div>
+</ng-template>
