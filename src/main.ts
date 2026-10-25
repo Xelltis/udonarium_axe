@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { bootstrapApplication, BrowserModule } from '@angular/platform-browser';
 import { AppComponent } from '@axe/app.component';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { StartRoomService } from '@axe/application/file/start-room.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { transLocoConfig } from '@axe/application/i18n/transloco.config';
 import { TranslocoHttpLoader } from '@axe/application/i18n/transloco-http-loader';
@@ -61,6 +62,12 @@ function bootstrap(): Promise<void> {
         provide: APP_INITIALIZER,
         useFactory: (service: AppInitializationService) => () => service.initialize(),
         deps: [AppInitializationService],
+        multi: true,
+      },
+      {
+        provide: APP_INITIALIZER,
+        useFactory: (service: StartRoomService) => () => service.prepare(),
+        deps: [StartRoomService],
         multi: true,
       },
     ],

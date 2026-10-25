@@ -4510,6 +4510,18 @@
         "restoreConfirm": "{{savedAt}} のスナップショットを読み込みます。現在の卓データは上書きされます。よろしいですか？",
         "removeConfirm": "{{savedAt}} のスナップショットを削除しますか？",
         "clearConfirm": "保存済みのスナップショットをすべて削除しますか？"
+      },
+      "startRoom": {
+        "kept": "次からこのブラウザでは、この部屋で始まります。",
+        "keepFailed": "開始時の部屋を保存できませんでした。",
+        "unsupported": "このブラウザでは開始時の部屋を保存できません。",
+        "replaceTitle": "開始時の部屋を置き換えますか？",
+        "replaceMessage": "いま保存してある開始時の部屋を、この部屋で置き換えます。",
+        "replaceOk": "置き換える",
+        "forgetTitle": "開始時の部屋を元に戻しますか？",
+        "forgetMessage": "保存してある開始時の部屋を消します。次からはサンプルの卓とコマで始まります。",
+        "forgetOk": "元に戻す",
+        "forgotten": "次からはサンプルの部屋で始まります。"
       }
     },
     "mobile": {
@@ -5485,6 +5497,8 @@
       "save": "保存",
       "saveLoad": "セーブ&ロード",
       "importCharacter": "キャラ取り込み",
+      "startRoomKeep": "この部屋を開始時の部屋にする",
+      "startRoomForget": "開始時の部屋を元に戻す",
       "roomSnapshot": "自動保存 / 復元",
       "createObject": "コマを作る",
       "replay": "リプレイ",

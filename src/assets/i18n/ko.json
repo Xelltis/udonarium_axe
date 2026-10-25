@@ -4510,6 +4510,18 @@
         "restoreConfirm": "{{savedAt}}의 스냅숏을 불러옵니다. 현재 탁상 데이터는 덮어써집니다. 괜찮습니까?",
         "removeConfirm": "{{savedAt}}의 스냅숏을 삭제할까요?",
         "clearConfirm": "저장된 스냅숏을 모두 삭제할까요?"
+      },
+      "startRoom": {
+        "kept": "이제부터 이 브라우저에서는 이 방으로 시작합니다.",
+        "keepFailed": "시작 방을 저장하지 못했습니다.",
+        "unsupported": "이 브라우저에서는 시작 방을 저장할 수 없습니다.",
+        "replaceTitle": "시작 방을 바꿀까요?",
+        "replaceMessage": "지금 저장된 시작 방을 이 방으로 바꿉니다.",
+        "replaceOk": "바꾸기",
+        "forgetTitle": "시작 방을 원래대로 되돌릴까요?",
+        "forgetMessage": "저장된 시작 방을 지웁니다. 다음부터는 샘플 탁자와 말로 시작합니다.",
+        "forgetOk": "되돌리기",
+        "forgotten": "다음부터는 샘플 방으로 시작합니다."
       }
     },
     "mobile": {
@@ -5769,6 +5781,8 @@
       "save": "저장",
       "saveLoad": "저장 & 불러오기",
       "importCharacter": "캐릭터 가져오기",
+      "startRoomKeep": "이 방을 시작 방으로 하기",
+      "startRoomForget": "시작 방을 원래대로 되돌리기",
       "roomSnapshot": "자동 저장 / 복원",
       "createObject": "말 만들기",
       "replay": "리플레이",

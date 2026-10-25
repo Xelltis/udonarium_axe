@@ -4510,6 +4510,18 @@
         "restoreConfirm": "Load the snapshot from {{savedAt}}? The current room data will be overwritten.",
         "removeConfirm": "Delete the snapshot from {{savedAt}}?",
         "clearConfirm": "Delete all stored snapshots?"
+      },
+      "startRoom": {
+        "kept": "This browser will start on this room from now on.",
+        "keepFailed": "The room to start on could not be kept.",
+        "unsupported": "This browser cannot keep a room to start on.",
+        "replaceTitle": "Replace the room to start on?",
+        "replaceMessage": "The room this browser starts on now will be replaced with this one.",
+        "replaceOk": "Replace",
+        "forgetTitle": "Start on the sample room again?",
+        "forgetMessage": "The room kept to start on will be removed, and the next start sets out the sample table and pieces.",
+        "forgetOk": "Remove it",
+        "forgotten": "The next start sets out the sample room."
       }
     },
     "mobile": {
@@ -5485,6 +5497,8 @@
       "save": "Save",
       "saveLoad": "Save & load",
       "importCharacter": "Import Character",
+      "startRoomKeep": "Start on this room",
+      "startRoomForget": "Start on the sample room again",
       "roomSnapshot": "Auto save / restore",
       "createObject": "Create a piece",
       "replay": "Replay",

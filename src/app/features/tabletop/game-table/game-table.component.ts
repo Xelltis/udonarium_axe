@@ -16,6 +16,7 @@ import {
 import { CardTargetService } from '@axe/application/card/card-target.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
+import { StartRoomService } from '@axe/application/file/start-room.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
@@ -295,6 +296,7 @@ export class GameTableComponent {
   private readonly ambienceService = inject(TableAmbienceService);
   private readonly terrainBatch = inject(TerrainBatchService);
   private readonly tabletopActionService = inject(TabletopActionService);
+  private readonly startRoom = inject(StartRoomService);
   protected readonly visionService = inject(VisionService);
   private readonly modalService = inject(ModalService);
   private readonly panelService = inject(PanelService);
@@ -439,9 +441,17 @@ export class GameTableComponent {
       untracked(() => this.redrawTableGrid());
     });
     this.tabletopActionService.makeDefaultTable();
-    this.tabletopActionService.makeDefaultTabletopObjects();
+    // A browser that keeps a room to start on sets it out in place of the sample pieces, and the
+    // sample comes back only where that room cannot be read.
+    const startsOnOwnRoom = this.startRoom.hasPending;
+    if (!startsOnOwnRoom) this.tabletopActionService.makeDefaultTabletopObjects();
 
     afterNextRender(() => {
+      if (startsOnOwnRoom) {
+        void this.startRoom.loadPending().then((loaded) => {
+          if (!loaded) this.tabletopActionService.makeDefaultTabletopObjects();
+        });
+      }
       this._initialized = true;
       this.gestureService.initialize(
         this.rootElementRef().nativeElement,

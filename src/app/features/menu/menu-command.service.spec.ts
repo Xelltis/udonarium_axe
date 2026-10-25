@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { StartRoomService } from '@axe/application/file/start-room.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -310,6 +311,24 @@ describe('MenuCommandService', () => {
 
       expect(commands.isAvailable(commandOf('useMobileLayout'))).toBe(false);
       expect(commands.isAvailable(commandOf('chat'))).toBe(true);
+    });
+  });
+
+  describe('the room this browser starts on', () => {
+    it('keeps the room as it stands, and starts on the sample again only once one is kept', async () => {
+      const startRoom = TestBed.inject(StartRoomService);
+      const keep = vi.spyOn(startRoom, 'keepCurrent').mockResolvedValue(true);
+      const forget = vi.spyOn(startRoom, 'forget').mockResolvedValue(true);
+      const isKept = vi.spyOn(startRoom, 'isKept').mockReturnValue(false);
+
+      expect(commands.run(commandOf('startRoomKeep'))).toBe('done');
+      expect(keep).toHaveBeenCalled();
+      expect(commands.disabledOf(commandOf('startRoomForget'))).toBe(true);
+
+      isKept.mockReturnValue(true);
+      expect(commands.disabledOf(commandOf('startRoomForget'))).toBe(false);
+      commands.run(commandOf('startRoomForget'));
+      expect(forget).toHaveBeenCalled();
     });
   });
 });

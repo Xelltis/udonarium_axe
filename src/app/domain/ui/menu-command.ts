@@ -57,6 +57,8 @@ export const MENU_ACTS = [
   'save',
   'zipLoad',
   'importCharacter',
+  'startRoomKeep',
+  'startRoomForget',
   'useMobileLayout',
   'turnNext',
   'turnPrev',
@@ -261,6 +263,10 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   act('importCharacter', 'person_add', 'app.fab.importCharacter', {
     audience: 'playing',
     testId: 'save-load-import-character',
+  }),
+  act('startRoomKeep', 'home', 'app.fab.startRoomKeep', { testId: 'save-load-start-room-keep' }),
+  act('startRoomForget', 'settings_backup_restore', 'app.fab.startRoomForget', {
+    testId: 'save-load-start-room-forget',
   }),
   act('useMobileLayout', 'smartphone', 'feature.mobile.useMobile', { testId: 'seat-use-mobile' }),
   act('turnNext', 'chevron_right', 'feature.turnOrder.next', { audience: 'gameMaster' }),
