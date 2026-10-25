@@ -16,6 +16,7 @@ describe('GameTableComponent in a browser that keeps a room to start on', () => 
     }).compileComponents();
     sample = vi.spyOn(TestBed.inject(TabletopActionService), 'makeDefaultTabletopObjects');
     vi.spyOn(StartRoomStore.instance, 'isAvailable').mockReturnValue(true);
+    vi.spyOn(StartRoomStore.instance, 'has').mockResolvedValue(true);
     vi.spyOn(StartRoomStore.instance, 'get').mockResolvedValue(new Blob(['room']));
     const startRoom = TestBed.inject(StartRoomService);
     await startRoom.prepare('');

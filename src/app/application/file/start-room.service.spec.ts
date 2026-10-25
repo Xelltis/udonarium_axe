@@ -22,6 +22,7 @@ describe('StartRoomService', () => {
     kept = null;
     vi.spyOn(store, 'isAvailable').mockReturnValue(true);
     vi.spyOn(store, 'get').mockImplementation(async () => kept);
+    vi.spyOn(store, 'has').mockImplementation(async () => kept !== null);
     vi.spyOn(store, 'put').mockImplementation(async (_key, blob) => {
       kept = blob;
       return true;
@@ -69,12 +70,13 @@ describe('StartRoomService', () => {
       expect(service.hasPending).toBe(false);
 
       expect(service.isKept()).toBe(true);
+      expect(store.get).not.toHaveBeenCalled();
     });
 
     it('starts on the sample where the browser is slow to answer, and learns it keeps a room once it does', async () => {
       vi.useFakeTimers();
-      let answer!: (blob: Blob | null) => void;
-      vi.spyOn(store, 'get').mockReturnValue(new Promise((resolve) => (answer = resolve)));
+      let answer!: (kept: boolean) => void;
+      vi.spyOn(store, 'has').mockReturnValue(new Promise((resolve) => (answer = resolve)));
 
       const preparing = service.prepare('');
       await vi.advanceTimersByTimeAsync(2000);
@@ -82,7 +84,7 @@ describe('StartRoomService', () => {
       expect(service.hasPending).toBe(false);
       expect(service.isKept()).toBe(false);
 
-      answer(new Blob(['room']));
+      answer(true);
       await vi.advanceTimersByTimeAsync(0);
       expect(service.isKept()).toBe(true);
       expect(service.hasPending).toBe(false);
@@ -109,23 +111,23 @@ describe('StartRoomService', () => {
       expect(service.hasPending).toBe(false);
     });
 
-    it('leaves a room the page has gone into as it is', async () => {
+    it('leaves a table already shared with others as it is', async () => {
       kept = new Blob(['room']);
       await service.prepare('');
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ roomName: '卓' } as never);
+      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([{}] as never);
 
       expect(await service.loadPending()).toBe(true);
 
       expect(load).not.toHaveBeenCalled();
     });
 
-    it('stops setting it out once the page goes into a room, and leaves that room without the sample', async () => {
+    it('stops setting it out once others share the table, and leaves it without the sample', async () => {
       kept = new Blob(['room']);
       await service.prepare('');
-      const where = vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ roomName: '' } as never);
+      const others = vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([]);
       load.mockImplementation(async (_files: unknown, _drop: unknown, options: { stillWanted: () => boolean }) => {
         expect(options.stillWanted()).toBe(true);
-        where.mockReturnValue({ roomName: '卓' } as never);
+        others.mockReturnValue([{}] as never);
         expect(options.stillWanted()).toBe(false);
         return { dataRead: false };
       });
@@ -133,6 +135,37 @@ describe('StartRoomService', () => {
       expect(await service.loadPending()).toBe(true);
 
       expect(shown).not.toHaveBeenCalled();
+    });
+
+    it("goes on setting it out into a room of this seat's own that nobody else is in yet", async () => {
+      kept = new Blob(['room']);
+      await service.prepare('');
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ roomName: '卓' } as never);
+      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([]);
+
+      expect(await service.loadPending()).toBe(true);
+
+      expect(load).toHaveBeenCalledTimes(1);
+    });
+
+    it('holds back whatever waits to load a room until the start room is set out', async () => {
+      kept = new Blob(['room']);
+      await service.prepare('');
+      let settled = false;
+      void service.whenSettled().then(() => (settled = true));
+      await Promise.resolve();
+      expect(settled).toBe(false);
+
+      await service.loadPending();
+      await Promise.resolve();
+
+      expect(settled).toBe(true);
+    });
+
+    it('holds nothing back where no start room is being set out', async () => {
+      await service.prepare('');
+
+      await expect(service.whenSettled()).resolves.toBeUndefined();
     });
 
     it('says so and answers false where the data of the room kept cannot be read, which leaves the table to the sample', async () => {
@@ -172,6 +205,28 @@ describe('StartRoomService', () => {
 
       expect(ask).toHaveBeenCalledTimes(1);
       expect(await kept?.text()).toBe('older');
+    });
+
+    it('asks before it replaces one another tab kept meanwhile', async () => {
+      await service.prepare('');
+      kept = new Blob(['kept in another tab']);
+      ask.mockResolvedValue(false);
+
+      expect(await service.keepCurrent()).toBe(false);
+
+      expect(ask).toHaveBeenCalledTimes(1);
+      expect(service.isKept()).toBe(true);
+    });
+
+    it('keeps no table holding what a room server withheld, which would ask about it at every start', async () => {
+      vi.spyOn(TestBed.inject(SaveDataService), 'isRoomWithheld').mockReturnValue(true);
+
+      expect(await service.keepCurrent()).toBe(false);
+
+      expect(kept).toBeNull();
+      expect(shown).toHaveBeenCalledWith(
+        '部屋のサーバーで伏せた形のまま受け取った物がある卓は、開始時の部屋にできません。'
+      );
     });
 
     it('keeps nothing while a replay board stands in place of the table', async () => {

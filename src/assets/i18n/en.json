@@ -4523,7 +4523,8 @@
         "forgetOk": "Remove it",
         "forgotten": "The next start sets out the sample room.",
         "loadFailed": "The room to start on could not be read, so the sample room was set out instead.",
-        "forgetFailed": "The room to start on could not be removed."
+        "forgetFailed": "The room to start on could not be removed.",
+        "withheld": "A table holding things a room server withheld from you cannot be the room you start on."
       }
     },
     "mobile": {

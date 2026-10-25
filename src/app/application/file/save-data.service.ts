@@ -189,10 +189,16 @@ export class SaveDataService {
    */
   private roomToSave(): Room {
     const room = new Room();
-    if (isTableWithheld() || (getAuthorityPeerId() !== null && !PeerCursor.isMyselfGameMaster)) {
-      room.withheld = 'true';
-    }
+    if (this.isRoomWithheld()) room.withheld = 'true';
     return room;
+  }
+
+  /**
+   * Whether the room would be saved marked as withheld: the table held here has some of it only in
+   * the shape a room server withholds from this seat, as for anyone but the GM on a room server.
+   */
+  isRoomWithheld(): boolean {
+    return isTableWithheld() || (getAuthorityPeerId() !== null && !PeerCursor.isMyselfGameMaster);
   }
 
   private buildRoomXmlParts(pretty: boolean): { roomXml: string; chatXml: string; files: File[] } {
