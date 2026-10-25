@@ -76,8 +76,8 @@
       <input
         class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
         type="checkbox"
-        [checked]="foldsOnOpen()"
-        (change)="setFoldsOnOpen(!foldsOnOpen())"
+        [checked]="viewPreference.foldsOnOpen()"
+        (change)="viewPreference.setFoldsOnOpen(!viewPreference.foldsOnOpen())"
       />
       {{ 'feature.inventory.panel.foldsOnOpen' | transloco }}
     </label>
@@ -88,8 +88,8 @@
         class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
         type="checkbox"
         data-testid="inventory-search-bar-toggle"
-        [checked]="searchBar()"
-        (change)="setSearchBar(!searchBar())"
+        [checked]="viewPreference.searchBar()"
+        (change)="viewPreference.setSearchBar(!viewPreference.searchBar())"
       />
       {{ 'feature.inventory.panel.searchBar' | transloco }}
     </label>
@@ -99,8 +99,8 @@
         class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
         type="checkbox"
         data-testid="inventory-compact-toggle"
-        [checked]="compact()"
-        (change)="setCompact(!compact())"
+        [checked]="viewPreference.compact()"
+        (change)="viewPreference.setCompact(!viewPreference.compact())"
       />
       {{ 'feature.inventory.panel.compact' | transloco }}
     </label>
@@ -111,8 +111,8 @@
         class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
         type="checkbox"
         data-testid="inventory-round-in-play-toggle"
-        [checked]="roundInPlay()"
-        (change)="setRoundInPlay(!roundInPlay())"
+        [checked]="viewPreference.roundInPlay()"
+        (change)="viewPreference.setRoundInPlay(!viewPreference.roundInPlay())"
       />
       {{ 'feature.inventory.panel.roundInPlay' | transloco }}
     </label>

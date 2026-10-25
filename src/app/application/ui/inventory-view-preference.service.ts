@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, WritableSignal } from '@angular/core';
 import {
   formatHiddenChromeParts,
   type InventoryChromePart,
@@ -67,8 +67,7 @@ export class InventoryViewPreferenceService {
 
   /** Says whether an inventory opens folded up, and writes it down for the next one. */
   setFoldsOnOpen(folds: boolean): void {
-    this.foldsOnOpen.set(folds);
-    write(FOLDED_STORAGE_KEY, folds ? '1' : '');
+    setStoredFlag(this.foldsOnOpen, FOLDED_STORAGE_KEY, folds);
   }
 
   /**
@@ -79,8 +78,7 @@ export class InventoryViewPreferenceService {
 
   /** Puts the search box above the list or takes it away, and writes it down for the next window. */
   setSearchBar(shown: boolean): void {
-    this.searchBar.set(shown);
-    write(SEARCH_BAR_STORAGE_KEY, shown ? '1' : '');
+    setStoredFlag(this.searchBar, SEARCH_BAR_STORAGE_KEY, shown);
   }
 
   /**
@@ -91,8 +89,7 @@ export class InventoryViewPreferenceService {
 
   /** Says whether the round's strip waits for a round to begin, and writes it down for the next window. */
   setRoundInPlay(waits: boolean): void {
-    this.roundInPlay.set(waits);
-    write(ROUND_IN_PLAY_STORAGE_KEY, waits ? '1' : '');
+    setStoredFlag(this.roundInPlay, ROUND_IN_PLAY_STORAGE_KEY, waits);
   }
 
   /**
@@ -103,9 +100,14 @@ export class InventoryViewPreferenceService {
 
   /** Says whether the rows of the rich view fold down, and writes it down for the next window. */
   setCompact(compact: boolean): void {
-    this.compact.set(compact);
-    write(COMPACT_STORAGE_KEY, compact ? '1' : '');
+    setStoredFlag(this.compact, COMPACT_STORAGE_KEY, compact);
   }
+}
+
+/** Sets a yes-or-no and writes it down in this browser: '1' for yes, nothing for no. */
+function setStoredFlag(flag: WritableSignal<boolean>, key: string, on: boolean): void {
+  flag.set(on);
+  write(key, on ? '1' : '');
 }
 
 function write(key: string, value: string): void {

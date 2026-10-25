@@ -225,46 +225,6 @@ export class InventoryFilterPanelComponent {
     return this.viewPreference.shows(part);
   }
 
-  /** Whether an inventory opens with its folders folded up, as this reader asked for. */
-  foldsOnOpen(): boolean {
-    return this.viewPreference.foldsOnOpen();
-  }
-
-  /** Says so, for the next inventory opened on this device. This one is already open. */
-  setFoldsOnOpen(folds: boolean): void {
-    this.viewPreference.setFoldsOnOpen(folds);
-  }
-
-  /** Whether the inventory shows a search box above its list. */
-  searchBar(): boolean {
-    return this.viewPreference.searchBar();
-  }
-
-  /** Puts the search box above the inventory's list or takes it away. */
-  setSearchBar(shown: boolean): void {
-    this.viewPreference.setSearchBar(shown);
-  }
-
-  /** Whether the rows of the inventory's rich view fold down until one is picked. */
-  compact(): boolean {
-    return this.viewPreference.compact();
-  }
-
-  /** Says whether the rows of the inventory's rich view fold down until one is picked. */
-  setCompact(compact: boolean): void {
-    this.viewPreference.setCompact(compact);
-  }
-
-  /** Whether the inventory's round strip waits for a round to begin. */
-  roundInPlay(): boolean {
-    return this.viewPreference.roundInPlay();
-  }
-
-  /** Says whether the inventory's round strip waits for a round to begin. */
-  setRoundInPlay(waits: boolean): void {
-    this.viewPreference.setRoundInPlay(waits);
-  }
-
   /** Shows or puts away one of the strips above the list. The choice is kept in this browser. */
   setShown(part: InventoryChromePart, shown: boolean): void {
     this.viewPreference.setShown(part, shown);
