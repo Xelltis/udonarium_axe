@@ -466,6 +466,21 @@ describe('ResourceEditProcessor', () => {
         expect(systemText()).toContain('└ [k10@13+(2+3)+5h+1] KeyNo.10+10');
       });
 
+      it('rolls a command it cannot read whole without the arithmetic after its last letters, and adds that on', async () => {
+        mockDiceRollAsync.mockImplementation(async (command: string) => {
+          if (command === 'k3@9+5$+1#0')
+            return { id: 'DiceBot', result: 'DiceBot : KeyNo.3c[9]m[+1]+5 ＞ 2D:[2,2]=5 ＞ 1+5 ＞ 6', isSecret: false };
+          if (command === 'C(0-2)') return { id: 'DiceBot', result: 'DiceBot : c(0-2) ＞ -2', isSecret: false };
+          return { id: 'DiceBot', result: '', isSecret: false };
+        });
+
+        await send('t:HP-([k3@9]+5$+1#0-2)Z');
+
+        expect(mockDiceRollAsync).toHaveBeenCalledWith('k3@9+5$+1#0', expect.anything());
+        expect(character.status.getValue('HP', 'now')).toBe(196);
+        expect(systemText()).toContain('└ [k3@9+5$+1#0] KeyNo.3c[9]m[+1]+5 ＞ 2D:[2,2]=5 ＞ 1+5 ＞ 6 -2 ＞ 4');
+      });
+
       it('rolls a system command written without brackets the same way', async () => {
         mockDiceRollAsync.mockResolvedValue({
           id: 'DiceBot',

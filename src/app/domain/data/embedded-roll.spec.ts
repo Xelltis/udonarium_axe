@@ -3,6 +3,7 @@ import {
   isDicelessArithmetic,
   isPlainArithmetic,
   replaceEmbeddedRolls,
+  trailingArithmeticSplits,
   unwrapEmbeddedRolls,
   unwrapParentheses,
 } from '@axe/domain/data/embedded-roll';
@@ -86,6 +87,21 @@ describe('embedded-roll', () => {
       expect(isDicelessArithmetic('2d6/2C')).toBe(false);
       expect(isDicelessArithmetic('k3@9')).toBe(false);
       expect(isDicelessArithmetic('')).toBe(false);
+    });
+  });
+
+  describe('trailingArithmeticSplits', () => {
+    it('splits the arithmetic after a command off, the shortest first', () => {
+      expect(trailingArithmeticSplits('k3@9+5$+1#0-0')).toEqual([{ head: 'k3@9+5$+1#0', tail: '-0' }]);
+      expect(trailingArithmeticSplits('k3@9+5$+1-(2+1)')).toEqual([
+        { head: 'k3@9+5$+1', tail: '-(2+1)' },
+        { head: 'k3@9+5$', tail: '+1-(2+1)' },
+      ]);
+    });
+
+    it('splits nothing off arithmetic, or off a command with none after it', () => {
+      expect(trailingArithmeticSplits('2d6+3')).toEqual([]);
+      expect(trailingArithmeticSplits('k3@9')).toEqual([]);
     });
   });
 

@@ -87,6 +87,29 @@ export function isDicelessArithmetic(expression: string): boolean {
   return isPlainArithmetic(expression) && !/\d\s*[dD]/.test(expression) && /\d/.test(expression);
 }
 
+/** One term of plain arithmetic at the very end of a command: `+3`, `-0` or `-(2+1)`. */
+const TRAILING_TERM = /(\s*[+-]\s*(?:\d+|\((?:[\d\s+*/-]|\([\d\s+*/-]*\))*\)))\s*$/;
+
+/**
+ * The ways plain arithmetic can be split off the end of a command, the shortest first: `+3`, then
+ * `+5+3`, while what stays before it is something more than arithmetic. A system command may take
+ * nothing after the letters it reads last, such as a modifier to the dice, so arithmetic written
+ * after them can be worked out apart and added on; the shortest split that leaves a command the
+ * system reads is the one meant.
+ */
+export function trailingArithmeticSplits(command: string): { head: string; tail: string }[] {
+  const splits: { head: string; tail: string }[] = [];
+  let rest = command;
+  let tail = '';
+  for (let match = TRAILING_TERM.exec(rest); match; match = TRAILING_TERM.exec(rest)) {
+    tail = match[1].replace(/\s+/g, '') + tail;
+    rest = rest.slice(0, match.index).trim();
+    if (rest === '' || isPlainArithmetic(rest)) break;
+    splits.push({ head: rest, tail });
+  }
+  return splits;
+}
+
 /** The expression without one pair of parentheses round the whole of it, where it has them. */
 export function unwrapParentheses(expression: string): string {
   const trimmed = expression.trim();
