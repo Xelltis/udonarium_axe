@@ -51,6 +51,7 @@ describe('vision scene assembly', () => {
       ['handing it to somebody', (character) => (character.owner = 'p2')],
       ['showing its sight', (character) => (character.showVisionRange = true)],
       ['letting it cast a shadow or not', (character) => (character.castsShadow = !character.castsShadow)],
+      ['putting it into stealth', (character) => (character.stealth = '1')],
     ])('changes for %s', (_, change) => {
       const character = standing('c', 100, 100);
       const before = characterSceneKey(character);

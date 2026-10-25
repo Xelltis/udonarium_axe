@@ -245,8 +245,8 @@ export function collectVisionSources(characters: readonly GameCharacter[], gridS
 /**
  * Everything about a piece that the scene is made from, as one string.
  *
- * Where it stands and how high, whether it shines, casts a shadow or looks, whose it is and
- * which party it is in. A change to a piece that leaves this as it was, such as its name or a
+ * Where it stands and how high, whether it shines, casts a shadow or looks, whose it is,
+ * which party it is in and whether it is in stealth, which decides who sees it at all. A change to a piece that leaves this as it was, such as its name or a
  * note on it, leaves the lights, the shadows and the sight on the table as they were.
  */
 export function characterSceneKey(character: GameCharacter): string {
@@ -269,6 +269,7 @@ export function characterSceneKey(character: GameCharacter): string {
     character.isNpc,
     character.partyIdentifier,
     character.showVisionRange,
+    character.stealth,
   ]);
 }
 

@@ -631,6 +631,20 @@ describe('MoveRangeService and the ground an enemy holds', () => {
     expect(reached(5, 5)).toBe(true);
   });
 
+  it('lets a piece that goes into stealth stop holding ground in the reach the picked piece shows', () => {
+    table.zocMode = 'block';
+    table.moveRangeAlways = true;
+    const monster = monsterAt(6, 5);
+    const hero = pieceAt(2, 5, 5);
+    TestBed.inject(SelectionSignalService).selectObject(hero.identifier, 'character');
+    expect(reached(5, 5)).toBe(false);
+
+    monster.stealth = '1';
+    TestBed.inject(ObjectChangeService).notifyChanged(monster.identifier);
+
+    expect(reached(5, 5)).toBe(true);
+  });
+
   it('lets a piece off the table hold no ground', () => {
     table.zocMode = 'block';
     monsterAt(6, 5).location = { name: 'graveyard', x: 0, y: 0 };
