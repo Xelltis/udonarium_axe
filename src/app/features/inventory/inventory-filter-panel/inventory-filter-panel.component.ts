@@ -193,6 +193,16 @@ export class InventoryFilterPanelComponent {
     this.viewPreference.setSearchBar(shown);
   }
 
+  /** Whether the inventory's round strip waits for a round to begin. */
+  roundInPlay(): boolean {
+    return this.viewPreference.roundInPlay();
+  }
+
+  /** Says whether the inventory's round strip waits for a round to begin. */
+  setRoundInPlay(waits: boolean): void {
+    this.viewPreference.setRoundInPlay(waits);
+  }
+
   /** Shows or puts away one of the strips above the list. The choice is kept in this browser. */
   setShown(part: InventoryChromePart, shown: boolean): void {
     this.viewPreference.setShown(part, shown);

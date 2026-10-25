@@ -10,6 +10,7 @@ const STORAGE_KEY = 'ui-inventory-view';
 const PARTS_STORAGE_KEY = 'ui-inventory-parts';
 const FOLDED_STORAGE_KEY = 'ui-inventory-folded';
 const SEARCH_BAR_STORAGE_KEY = 'ui-inventory-search-bar';
+const ROUND_IN_PLAY_STORAGE_KEY = 'ui-inventory-round-in-play';
 
 /**
  * How this reader wants an inventory drawn.
@@ -79,6 +80,18 @@ export class InventoryViewPreferenceService {
   setSearchBar(shown: boolean): void {
     this.searchBar.set(shown);
     write(SEARCH_BAR_STORAGE_KEY, shown ? '1' : '');
+  }
+
+  /**
+   * Whether the round's strip waits for a round to begin, leaving a button beside the tabs to begin
+   * one. Off until the reader asks for it, so the strip stands where it always has.
+   */
+  readonly roundInPlay = signal<boolean>(storedFlag(ROUND_IN_PLAY_STORAGE_KEY));
+
+  /** Says whether the round's strip waits for a round to begin, and writes it down for the next window. */
+  setRoundInPlay(waits: boolean): void {
+    this.roundInPlay.set(waits);
+    write(ROUND_IN_PLAY_STORAGE_KEY, waits ? '1' : '');
   }
 }
 

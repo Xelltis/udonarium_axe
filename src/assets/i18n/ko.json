@@ -1823,7 +1823,10 @@
         "displayItemsTable": "표시 항목(간략)",
         "foldsOnOpen": "열었을 때 폴더를 접어 둔다",
         "foldsOnOpenHint": "다음에 여는 인벤토리부터 적용됩니다. 폴더에 넣지 않은 말은 그대로 표시됩니다",
-        "searchBar": "목록 위에 검색창 표시"
+        "searchBar": "목록 위에 검색창 표시",
+        "roundInPlay": "라운드 조작은 전투 중에만 표시",
+        "roundInPlayHint": "시작 전에는 탭 오른쪽의 ▶로 시작합니다. 탭을 숨겼을 때는 평소처럼 표시합니다.",
+        "beginRound": "라운드 시작"
       }
     },
     "keyboard": {

@@ -44,6 +44,18 @@
         </form>
 
         <div class="flex shrink-0 gap-1 pb-1">
+          @if (selectTab() === 'table' && shows('round') && canEdit() && roundWaitsForPlay()) {
+            <button
+              class="border-ui-border-panel text-ui-muted hover:bg-ui-accent-bg hover:text-ui-accent hover:border-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-[background,color,border-color] [&_.material-icons]:text-base!"
+              type="button"
+              data-testid="inventory-begin-round"
+              [attr.aria-label]="'feature.inventory.panel.beginRound' | transloco"
+              [title]="'feature.inventory.panel.beginRound' | transloco"
+              (click)="turnNext()"
+            >
+              <i class="material-icons" aria-hidden="true">play_arrow</i>
+            </button>
+          }
           @if (foldersApply() && canEdit()) {
             <button
               class="border-ui-border-panel text-ui-muted hover:bg-ui-accent-bg hover:text-ui-accent hover:border-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-[background,color,border-color] [&_.material-icons]:text-base!"
@@ -238,7 +250,7 @@
       </div>
     }
 
-    @if (selectTab() === 'table' && shows('round') && (canEdit() || turnRound() > 0)) {
+    @if (selectTab() === 'table' && shows('round') && (canEdit() || turnRound() > 0) && !roundWaitsForPlay()) {
       <div
         class="bg-ui-panel border-ui-border-panel flex shrink-0 items-center gap-1.5 border-b border-solid px-2.5 py-1.5"
         [class.bg-transparent!]="isGhost()"

@@ -5,6 +5,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
@@ -1339,6 +1340,53 @@ describe('GameObjectInventoryComponent', () => {
           .headerControls()
           .find((control) => control.icon === 'tune');
         expect(settings).toBeTruthy();
+      });
+
+      describe('the round strip waiting for a round to begin', () => {
+        const roundButtons = () =>
+          [...fixture.nativeElement.querySelectorAll('button')].filter((button: HTMLElement) =>
+            ['前へ', '次へ'].some((label) => button.textContent?.includes(label))
+          );
+        const begin = () => fixture.nativeElement.querySelector('[data-testid="inventory-begin-round"]');
+
+        afterEach(() => {
+          localStorage.removeItem('ui-inventory-round-in-play');
+          vi.restoreAllMocks();
+        });
+
+        it('stands as it always has until the reader asks it to wait', () => {
+          fixture.detectChanges();
+
+          expect(roundButtons()).toHaveLength(2);
+          expect(begin()).toBeNull();
+        });
+
+        it('gives way to a button beside the tabs before a round, which begins one', () => {
+          const next = vi.spyOn(TestBed.inject(TurnOrderService), 'next').mockImplementation(() => {});
+          viewPreference().setRoundInPlay(true);
+          fixture.detectChanges();
+
+          expect(roundButtons()).toHaveLength(0);
+          (begin() as HTMLButtonElement).click();
+          expect(next).toHaveBeenCalled();
+        });
+
+        it('comes back once a round has begun', () => {
+          vi.spyOn(TestBed.inject(TurnOrderService), 'round', 'get').mockReturnValue(2);
+          viewPreference().setRoundInPlay(true);
+          fixture.detectChanges();
+
+          expect(roundButtons()).toHaveLength(2);
+          expect(begin()).toBeNull();
+        });
+
+        it('stands as it always has while the tabs are put away, as there would be nowhere for the button', () => {
+          viewPreference().setRoundInPlay(true);
+          viewPreference().setShown('tabs', false);
+          fixture.detectChanges();
+
+          expect(roundButtons()).toHaveLength(2);
+        });
       });
 
       describe('the search box above the list', () => {

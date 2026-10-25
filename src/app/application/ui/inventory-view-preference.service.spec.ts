@@ -73,6 +73,21 @@ describe('InventoryViewPreferenceService', () => {
     });
   });
 
+  describe('the round strip waiting for a round to begin', () => {
+    afterEach(() => localStorage.removeItem('ui-inventory-round-in-play'));
+
+    it('does not wait until the reader asks it to', () => {
+      expect(service().roundInPlay()).toBe(false);
+    });
+
+    it('is remembered once asked for', () => {
+      service().setRoundInPlay(true);
+
+      expect(service().roundInPlay()).toBe(true);
+      expect(localStorage.getItem('ui-inventory-round-in-play')).toBe('1');
+    });
+  });
+
   it('holds for the session where the browser refuses to write', () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('refused');

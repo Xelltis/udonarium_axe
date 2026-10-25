@@ -1823,7 +1823,10 @@
         "displayItemsTable": "Display items (table)",
         "foldsOnOpen": "Open with the folders folded up",
         "foldsOnOpenHint": "Takes effect on the next inventory opened. Pieces in no folder are shown as before",
-        "searchBar": "Show a search box above the list"
+        "searchBar": "Show a search box above the list",
+        "roundInPlay": "Show the round controls only once a round has begun",
+        "roundInPlayHint": "Before then, ▶ beside the tabs begins it. With the tabs put away they show as usual.",
+        "beginRound": "Begin the round"
       }
     },
     "keyboard": {

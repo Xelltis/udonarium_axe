@@ -288,6 +288,15 @@ export class GameObjectInventoryComponent {
 
   /** Whether a search box stands above the list, which the reader turns on in the display settings. */
   readonly showsSearchBar = this.viewPreference.searchBar;
+
+  /**
+   * Whether the round's strip is put away until a round begins, leaving the button beside the tabs
+   * to begin one. With the tabs put away there would be nowhere for that button, so the strip
+   * stands as it always has.
+   */
+  readonly roundWaitsForPlay = computed(
+    () => this.viewPreference.roundInPlay() && this.shows('tabs') && this.turnRound() === 0
+  );
   protected readonly viewLabelKeys = INVENTORY_VIEW_LABEL_KEYS;
 
   /**

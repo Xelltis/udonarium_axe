@@ -142,6 +142,19 @@ describe('InventoryFilterPanelComponent', () => {
     localStorage.removeItem('ui-inventory-search-bar');
   });
 
+  it('has the round strip wait for a round to begin when ticked', () => {
+    fixture.detectChanges();
+    const box = fixture.nativeElement.querySelector(
+      '[data-testid="inventory-round-in-play-toggle"]'
+    ) as HTMLInputElement;
+    expect(box.checked).toBe(false);
+
+    box.click();
+
+    expect(component.viewPreference.roundInPlay()).toBe(true);
+    localStorage.removeItem('ui-inventory-round-in-play');
+  });
+
   it('offers the hidden filter only to somebody who may see hidden pieces', () => {
     vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
     fixture.detectChanges();
