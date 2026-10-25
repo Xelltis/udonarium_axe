@@ -600,6 +600,17 @@ describe('VisionService', () => {
 
       expect(service.isSeenByParty(lurkerInStealth('gm'))).toBe(false);
     });
+
+    it('is seen by the party when it stands in a party a player is in, though nobody owns it', () => {
+      makeMyCursor('gm', PeerRole.GameMaster);
+      addPeer('p1', PeerRole.Player);
+      const hero = GameCharacter.create('Hero', 1, '');
+      hero.owner = 'p1';
+      hero.partyIdentifier = 'party-a';
+
+      expect(service.isSeenByParty(lurkerInStealth('', 'party-a'))).toBe(true);
+      expect(service.isSeenByParty(lurkerInStealth('', 'party-b'))).toBe(false);
+    });
   });
 
   describe('a bank of fog rolled across the board', () => {

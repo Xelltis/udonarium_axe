@@ -1094,6 +1094,19 @@ export class VisionService {
   }
 
   /**
+   * Whether the players see a piece in stealth: a player owns it, or it stands in a party a player's
+   * own piece is in.
+   */
+  private isPlayersSide(character: GameCharacter): boolean {
+    if (this.isPlayersOwn(character)) return true;
+    const party = character.partyIdentifier;
+    if (!party) return false;
+    return this.objectStore
+      .getObjects<GameCharacter>(GameCharacter)
+      .some((piece) => piece.partyIdentifier === party && this.isPlayersOwn(piece));
+  }
+
+  /**
    * Whether this reader sees a piece in stealth: the game master does, and so do its owner and its
    * party. A game master looking at the table as a player sees it as that player would.
    */
@@ -1120,11 +1133,13 @@ export class VisionService {
    * For what one seat says to everyone, such as whose turn it is: the game master who says it sees
    * the whole board, so their own view cannot answer. The party sees what its eyes reach now, the
    * ground it has cleared on a table that keeps it, and the pieces it has met on one that follows
-   * them. A piece in stealth that no player owns is not seen, the game master's own included; one a
-   * player owns is the players' own.
+   * them. A piece in stealth is seen only where a player owns it or it stands in a player's party;
+   * the game master's own is not.
    */
   isSeenByParty(character: GameCharacter): boolean {
-    if (character.stealth === '1' && character.location.name === 'table' && !this.isPlayersOwn(character)) return false;
+    if (character.stealth === '1' && character.location.name === 'table' && !this.isPlayersSide(character)) {
+      return false;
+    }
     const scene = this.scene();
     if (!scene || !(scene.darknessEnabled || scene.fogEnabled)) return true;
     if (character.location.name !== 'table' || surfaceOf(character) !== 'floor') return true;
