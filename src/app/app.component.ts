@@ -73,7 +73,6 @@ import { AssetRemovalEventHandlerService } from '@axe/features/file/asset-remova
 import { FilesTooLargeEventHandlerService } from '@axe/features/file/files-too-large/files-too-large-event-handler.service';
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
-import { NpcDragGhostComponent } from '@axe/features/gm-tools/npc-bar/npc-drag-ghost.component';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
 import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
 import { ShortcutSheetComponent } from '@axe/features/keyboard/shortcut-sheet.component';
@@ -126,6 +125,7 @@ import { ContextMenuComponent } from '@axe/ui/components/context-menu/context-me
 import { UiFabSubmenuComponent } from '@axe/ui/components/fab-submenu/fab-submenu.component';
 import { UiFabSubmenuButtonComponent } from '@axe/ui/components/fab-submenu/fab-submenu-button.component';
 import { ModalComponent } from '@axe/ui/components/modal/modal.component';
+import { PieceDragGhostComponent } from '@axe/ui/components/piece-drag-ghost/piece-drag-ghost.component';
 import { SnackbarComponent } from '@axe/ui/components/snackbar/snackbar.component';
 import { UIPanelComponent } from '@axe/ui/components/ui-panel/ui-panel.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -164,7 +164,7 @@ const FAB_MARGIN_PX = 12;
     PlToolbarComponent,
     HandRailComponent,
     HandDragGhostComponent,
-    NpcDragGhostComponent,
+    PieceDragGhostComponent,
     ConnectionQualityComponent,
     RenderStatsComponent,
     DigitalClockComponent,

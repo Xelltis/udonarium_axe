@@ -1,23 +1,25 @@
-import { Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
+import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 
 @Injectable({ providedIn: 'root' })
 export class NpcDragService {
-  readonly character = signal<GameCharacter | null>(null);
-  readonly x = signal(0);
-  readonly y = signal(0);
+  private readonly ghost = inject(PieceDragGhostService);
 
-  /** Starts carrying a character from a list toward the NPC bar, from where the pointer is. */
+  readonly character = signal<GameCharacter | null>(null);
+
+  /**
+   * Starts carrying a character from a list toward the NPC bar, from where the pointer is, drawing
+   * it beside the pointer.
+   */
   begin(character: GameCharacter, x = 0, y = 0): void {
     this.character.set(character);
-    this.x.set(x);
-    this.y.set(y);
+    this.ghost.show(character, x, y);
   }
 
   /** Follows the pointer while a character is being carried. */
   move(x: number, y: number): void {
-    this.x.set(x);
-    this.y.set(y);
+    this.ghost.move(x, y);
   }
 
   /**
@@ -33,5 +35,6 @@ export class NpcDragService {
       character.update();
     }
     this.character.set(null);
+    this.ghost.hide();
   }
 }

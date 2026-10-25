@@ -1,3 +1,5 @@
+import { TestBed } from '@angular/core/testing';
+import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { NpcDragService } from '@axe/features/gm-tools/npc-bar/npc-drag.service';
 
@@ -8,22 +10,33 @@ function makeCharacter(name: string, isNpc = false): GameCharacter {
 }
 
 describe('NpcDragService', () => {
-  beforeEach(() => {});
+  let service: NpcDragService;
 
-  it('holds the character and the point through a drag', () => {
-    const service = new NpcDragService();
+  beforeEach(() => {
+    service = TestBed.inject(NpcDragService);
+  });
+
+  it('holds the character through a drag', () => {
     const npc = makeCharacter('A');
     service.begin(npc, 10, 20);
-    expect(service.character()).toBe(npc);
-    expect(service.x()).toBe(10);
-    expect(service.y()).toBe(20);
     service.move(30, 40);
-    expect(service.x()).toBe(30);
-    expect(service.y()).toBe(40);
+    expect(service.character()).toBe(npc);
+  });
+
+  it('draws the character beside the pointer while it is carried', () => {
+    const ghost = TestBed.inject(PieceDragGhostService);
+    const npc = makeCharacter('A');
+
+    service.begin(npc, 10, 20);
+    service.move(30, 40);
+    expect(ghost.character()).toBe(npc);
+    expect([ghost.x(), ghost.y()]).toEqual([30, 40]);
+
+    service.end(false);
+    expect(ghost.character()).toBeNull();
   });
 
   it('registers the character on a drop and lets go', () => {
-    const service = new NpcDragService();
     const npc = makeCharacter('B', false);
     service.begin(npc);
     service.end(true);
@@ -32,7 +45,6 @@ describe('NpcDragService', () => {
   });
 
   it('registers nothing on a cancel and lets go all the same', () => {
-    const service = new NpcDragService();
     const npc = makeCharacter('C', false);
     service.begin(npc);
     service.end(false);
