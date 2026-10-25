@@ -3801,6 +3801,10 @@ body.touch-input .group-hover\:flex {
   display: flex;
 }
 
+body.touch-input .group-hover\:visible {
+  visibility: visible;
+}
+
 body.touch-input .group-hover\:opacity-50,
 body.touch-input .group-hover\:opacity-86,
 body.touch-input .group-hover\:opacity-90,
