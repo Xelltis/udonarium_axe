@@ -193,6 +193,16 @@ export class InventoryFilterPanelComponent {
     this.viewPreference.setSearchBar(shown);
   }
 
+  /** Whether the rows of the inventory's rich view fold down until one is picked. */
+  compact(): boolean {
+    return this.viewPreference.compact();
+  }
+
+  /** Says whether the rows of the inventory's rich view fold down until one is picked. */
+  setCompact(compact: boolean): void {
+    this.viewPreference.setCompact(compact);
+  }
+
   /** Whether the inventory's round strip waits for a round to begin. */
   roundInPlay(): boolean {
     return this.viewPreference.roundInPlay();

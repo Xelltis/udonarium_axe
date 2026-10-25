@@ -849,8 +849,10 @@
 </ng-template>
 
 <ng-template #itemRow let-gameObject>
+  @let folded = isFoldedRow(gameObject);
   <div
     data-testid="inventory-item"
+    [attr.data-folded]="folded ? '' : null"
     class="hover:bg-ui-hover group relative flex cursor-pointer items-center gap-2 rounded-[5px] border border-solid border-transparent px-2 py-1.25 transition-[background,border-color] select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
     [class.bg-ui-accent-bg!]="selectedIdentifier() === gameObject.identifier"
     [class.border-ui-accent!]="selectedIdentifier() === gameObject.identifier"
@@ -896,6 +898,7 @@
 
     <div
       class="bg-ui-input border-ui-border-panel flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-solid"
+      [class.size-7!]="folded"
     >
       @if (gameObject.imageFile.url) {
         <img
@@ -943,7 +946,34 @@
           }
         }
       </div>
-      @if (gameObject.rootDataElement && canView(gameObject)) {
+      @if (gameObject.rootDataElement && canView(gameObject) && folded) {
+        @let meters = resourceMetersOf($any(gameObject));
+        @if (meters.length > 0) {
+          <div class="flex w-full flex-wrap gap-x-2 gap-y-0.5">
+            @for (meter of meters; track meter.identifier) {
+              <span
+                class="flex grow basis-22 items-center gap-1"
+                data-testid="inventory-resource-meter"
+                [title]="meter.name + ' ' + meter.current + (meter.max !== null ? ' / ' + meter.max : '')"
+              >
+                <span class="text-ui-muted truncate text-[10px]">{{ meter.name }}</span>
+                @if (meter.percent !== null) {
+                  <span class="bg-ui-input h-1 min-w-4 flex-1 overflow-hidden rounded-full" aria-hidden="true">
+                    <span
+                      class="block h-full rounded-full"
+                      [style.width.%]="meter.percent"
+                      [style.background]="meter.color"
+                    ></span>
+                  </span>
+                }
+                <span class="text-ui-text shrink-0 text-[10px] tabular-nums">{{
+                  meter.max !== null ? meter.current + '/' + meter.max : meter.current
+                }}</span>
+              </span>
+            }
+          </div>
+        }
+      } @else if (gameObject.rootDataElement && canView(gameObject)) {
         <div class="grid w-full grid-cols-2 items-start gap-x-2 gap-y-0.75">
           @for (dataElm of getInventoryTags($any(gameObject)); track dataElm?.identifier ?? $index) {
             <ng-container

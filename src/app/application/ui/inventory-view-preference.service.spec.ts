@@ -88,6 +88,21 @@ describe('InventoryViewPreferenceService', () => {
     });
   });
 
+  describe('the folded rows of the rich view', () => {
+    afterEach(() => localStorage.removeItem('ui-inventory-compact'));
+
+    it('does not fold until the reader asks', () => {
+      expect(service().compact()).toBe(false);
+    });
+
+    it('is remembered once asked for', () => {
+      service().setCompact(true);
+
+      expect(service().compact()).toBe(true);
+      expect(localStorage.getItem('ui-inventory-compact')).toBe('1');
+    });
+  });
+
   it('holds for the session where the browser refuses to write', () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('refused');

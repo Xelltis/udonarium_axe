@@ -117,6 +117,17 @@ const NO_FOLDERS: ReadonlySet<string> = new Set();
  */
 export const PERSONAL_INVENTORY_TAB = 'personal';
 
+/** A number resource read for the thin gauge of a folded row. */
+export interface ResourceMeter {
+  readonly identifier: string;
+  readonly name: string;
+  readonly current: string;
+  readonly max: number | null;
+  /** How full the gauge is, 0 to 100; null where there is no maximum to measure the value against. */
+  readonly percent: number | null;
+  readonly color: string;
+}
+
 const VIEW_ICONS: Record<InventoryViewMode, string> = {
   rich: 'view_agenda',
   table: 'table_rows',
@@ -160,6 +171,32 @@ export class GameObjectInventoryComponent {
     if (typeof raw === 'string' && raw.trim().length < 1) return null;
     const parsed = typeof raw === 'number' ? raw : Number(raw);
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  /**
+   * The number resources among a piece's display items, read for the thin gauges of a folded row.
+   * One with no maximum, or a maximum of nought, shows its value without a gauge, as there is
+   * nothing to measure it against.
+   */
+  resourceMetersOf(gameObject: GameCharacter): ResourceMeter[] {
+    return this.getInventoryTags(gameObject)
+      .filter((element): element is DataElement => !!element?.isNumberResource)
+      .map((element) => {
+        const max = this.resourceMax(element);
+        const current = Number(element.currentValue);
+        const percent =
+          max !== null && max > 0 && Number.isFinite(current)
+            ? Math.min(100, Math.max(0, (current / max) * 100))
+            : null;
+        return {
+          identifier: element.identifier,
+          name: element.name,
+          current: String(element.currentValue ?? ''),
+          max,
+          percent,
+          color: element.nowValueColor || 'var(--ui-accent)',
+        };
+      });
   }
 
   /**
@@ -288,6 +325,14 @@ export class GameObjectInventoryComponent {
 
   /** Whether a search box stands above the list, which the reader turns on in the display settings. */
   readonly showsSearchBar = this.viewPreference.searchBar;
+
+  /**
+   * Whether a row of the rich view is folded down to its name and thin gauges. Only the picked row
+   * opens out, so a value is changed on the row the reader meant.
+   */
+  isFoldedRow(gameObject: TabletopObject): boolean {
+    return this.viewPreference.compact() && this.selectedIdentifier() !== gameObject.identifier;
+  }
 
   /**
    * Whether the round's strip is put away until a round begins, leaving the button beside the tabs

@@ -11,6 +11,7 @@ const PARTS_STORAGE_KEY = 'ui-inventory-parts';
 const FOLDED_STORAGE_KEY = 'ui-inventory-folded';
 const SEARCH_BAR_STORAGE_KEY = 'ui-inventory-search-bar';
 const ROUND_IN_PLAY_STORAGE_KEY = 'ui-inventory-round-in-play';
+const COMPACT_STORAGE_KEY = 'ui-inventory-compact';
 
 /**
  * How this reader wants an inventory drawn.
@@ -92,6 +93,18 @@ export class InventoryViewPreferenceService {
   setRoundInPlay(waits: boolean): void {
     this.roundInPlay.set(waits);
     write(ROUND_IN_PLAY_STORAGE_KEY, waits ? '1' : '');
+  }
+
+  /**
+   * Whether the rows of the rich view fold down to a name and thin gauges until one is picked. Off
+   * until the reader asks for it, so every row opens out as it always has.
+   */
+  readonly compact = signal<boolean>(storedFlag(COMPACT_STORAGE_KEY));
+
+  /** Says whether the rows of the rich view fold down, and writes it down for the next window. */
+  setCompact(compact: boolean): void {
+    this.compact.set(compact);
+    write(COMPACT_STORAGE_KEY, compact ? '1' : '');
   }
 }
 

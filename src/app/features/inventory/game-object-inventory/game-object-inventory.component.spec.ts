@@ -1508,6 +1508,89 @@ describe('GameObjectInventoryComponent', () => {
 
         expect(gauge().classList).not.toContain('pointer-events-none');
       });
+
+      describe('folded down until picked', () => {
+        const row = () => fixture.nativeElement.querySelector('[data-testid="inventory-item"]') as HTMLElement;
+        const meters = (): HTMLElement[] => [
+          ...fixture.nativeElement.querySelectorAll('[data-testid="inventory-resource-meter"]'),
+        ];
+        const gauge = () => fixture.nativeElement.querySelector('input[type="range"][name="data-current-value"]');
+        const fold = () => fixture.debugElement.injector.get(InventoryViewPreferenceService).setCompact(true);
+
+        function goblinWithHp(value: number | string, current: number): GameCharacter {
+          const goblin = putOnTable('ゴブリン');
+          const hp = DataElement.findElementByReference(goblin.rootDataElement!, 'HP')!;
+          hp.value = value;
+          hp.currentValue = current;
+          return goblin;
+        }
+
+        afterEach(() => localStorage.removeItem('ui-inventory-compact'));
+
+        it('opens every row out as it always has until the reader asks', () => {
+          goblinWithHp(30, 25);
+          TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+          fixture.detectChanges();
+
+          expect(row().hasAttribute('data-folded')).toBe(false);
+          expect(gauge()).toBeTruthy();
+          expect(meters()).toHaveLength(0);
+        });
+
+        it('folds a row not picked down to a thin gauge for each number resource, which cannot be set', () => {
+          goblinWithHp(30, 15);
+          TestBed.inject(GameObjectInventoryService).dataTag = 'HP MP';
+          fold();
+          fixture.detectChanges();
+
+          expect(row().hasAttribute('data-folded')).toBe(true);
+          expect(gauge()).toBeNull();
+          expect(meters()).toHaveLength(2);
+          expect(meters()[0].textContent).toContain('HP');
+          expect(meters()[0].textContent).toContain('15/30');
+          expect((meters()[0].querySelector('[aria-hidden] > span') as HTMLElement).style.width).toBe('50%');
+        });
+
+        it('opens the picked row out to its gauges', () => {
+          const goblin = goblinWithHp(30, 25);
+          TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+          fold();
+          fixture.detectChanges();
+
+          component.selectGameObject(goblin);
+          TestBed.tick();
+          fixture.detectChanges();
+
+          expect(row().hasAttribute('data-folded')).toBe(false);
+          expect(gauge()).toBeTruthy();
+          expect(meters()).toHaveLength(0);
+        });
+
+        it('shows the value alone for a resource whose maximum is left empty, rather than an empty gauge', () => {
+          goblinWithHp('', 25);
+          TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+          fold();
+          fixture.detectChanges();
+
+          expect(meters()).toHaveLength(1);
+          expect(meters()[0].textContent?.trim()).toBe('HP25');
+          expect(meters()[0].querySelector('[aria-hidden]')).toBeNull();
+        });
+
+        it('leaves only the name for a piece showing no number resource', () => {
+          goblinWithHp(30, 25);
+          TestBed.inject(GameObjectInventoryService).dataTag = '敏捷度';
+          fixture.detectChanges();
+          expect(row().querySelector('input[name="data-value"]')).toBeTruthy();
+
+          fold();
+          fixture.detectChanges();
+
+          expect(row().hasAttribute('data-folded')).toBe(true);
+          expect(meters()).toHaveLength(0);
+          expect(row().querySelector('input[name="data-value"]')).toBeNull();
+        });
+      });
     });
 
     describe('the ways of reading it', () => {

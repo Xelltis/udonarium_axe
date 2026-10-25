@@ -98,6 +98,18 @@
       <input
         class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
         type="checkbox"
+        data-testid="inventory-compact-toggle"
+        [checked]="compact()"
+        (change)="setCompact(!compact())"
+      />
+      {{ 'feature.inventory.panel.compact' | transloco }}
+    </label>
+    <p class="text-ui-dim m-0 text-[10px]">{{ 'feature.inventory.panel.compactHint' | transloco }}</p>
+
+    <label class="text-ui-text mt-1 flex cursor-pointer items-center gap-1">
+      <input
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        type="checkbox"
         data-testid="inventory-round-in-play-toggle"
         [checked]="roundInPlay()"
         (change)="setRoundInPlay(!roundInPlay())"

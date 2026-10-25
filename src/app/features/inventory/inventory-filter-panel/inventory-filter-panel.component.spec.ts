@@ -142,6 +142,17 @@ describe('InventoryFilterPanelComponent', () => {
     localStorage.removeItem('ui-inventory-search-bar');
   });
 
+  it('folds the rows of the rich view when ticked', () => {
+    fixture.detectChanges();
+    const box = fixture.nativeElement.querySelector('[data-testid="inventory-compact-toggle"]') as HTMLInputElement;
+    expect(box.checked).toBe(false);
+
+    box.click();
+
+    expect(component.viewPreference.compact()).toBe(true);
+    localStorage.removeItem('ui-inventory-compact');
+  });
+
   it('has the round strip wait for a round to begin when ticked', () => {
     fixture.detectChanges();
     const box = fixture.nativeElement.querySelector(
