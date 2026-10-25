@@ -1685,6 +1685,21 @@ describe('GameObjectInventoryComponent', () => {
           expect((meters()[0].querySelector('[aria-hidden] > span') as HTMLElement).style.width).toBe('50%');
         });
 
+        it('follows a resource changed after the row was drawn', async () => {
+          const goblin = goblinWithHp(30, 15);
+          TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+          fold();
+          fixture.detectChanges();
+          expect(meters()[0].textContent).toContain('15/30');
+
+          DataElement.findElementByReference(goblin.rootDataElement!, 'HP')!.currentValue = 9;
+
+          await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(meters()[0].textContent).toContain('9/30');
+          });
+        });
+
         it('opens the picked row out to its gauges', () => {
           const goblin = goblinWithHp(30, 25);
           TestBed.inject(GameObjectInventoryService).dataTag = 'HP';

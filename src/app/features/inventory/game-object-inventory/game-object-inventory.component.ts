@@ -112,6 +112,7 @@ const PANEL_FIT_MARGIN_PX = 34;
 const NO_BUFF_BADGES = { shown: [] as BuffBadge[], more: 0 };
 /** What a tab has folded up before anything on it has been. */
 const NO_FOLDERS: ReadonlySet<string> = new Set();
+const NO_METERS: ReadonlyMap<string, readonly ResourceMeter[]> = new Map();
 
 /**
  * The tab of this seat's own inventory. Its pieces stand at this connection's peer id, which a
@@ -341,6 +342,21 @@ export class GameObjectInventoryComponent {
 
   /** Whether a search box stands above the list, which the reader turns on in the display settings. */
   readonly showsSearchBar = this.viewPreference.searchBar;
+
+  /**
+   * The thin gauges of every folded row, by piece, worked out again only as the pieces or their
+   * sheets change rather than on every pass over the list.
+   */
+  readonly foldedMeters = computed<ReadonlyMap<string, readonly ResourceMeter[]>>(() => {
+    if (!this.viewPreference.compact()) return NO_METERS;
+    this.inventoryService.inventoryVersion();
+    this.objectChange.collectionOf('data')();
+    const meters = new Map<string, readonly ResourceMeter[]>();
+    for (const row of this.filteredRows()) {
+      if (row.object instanceof GameCharacter) meters.set(row.identifier, this.resourceMetersOf(row.object));
+    }
+    return meters;
+  });
 
   /**
    * Whether a row of the rich view is folded down to its name and thin gauges. Only the picked row
