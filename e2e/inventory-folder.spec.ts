@@ -204,6 +204,22 @@ test.describe('dragging pieces in the inventory', () => {
     await expect(heading).toContainText(/第1話\s*2/);
   });
 
+  test('draws the carried piece and its name beside the pointer while it travels', async ({ page }) => {
+    const row = items(page).first();
+    const name = (await row.locator('span.truncate').first().innerText()).trim();
+    const box = (await row.boundingBox())!;
+    const ghost = page.locator('[data-testid="piece-drag-ghost"]');
+    await page.mouse.move(box.x + ROW_EDGE.x, box.y + ROW_EDGE.y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 120, box.y + 80, { steps: 8 });
+
+    await expect(ghost).toBeVisible();
+    await expect(ghost).toContainText(name);
+
+    await page.mouse.up();
+    await expect(ghost).toHaveCount(0);
+  });
+
   test('moves a piece let go over another tab to the place it shows', async ({ page }) => {
     const tabs = page.locator('game-object-inventory form[name="game-object-inventory"] > label');
 

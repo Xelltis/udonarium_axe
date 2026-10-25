@@ -63,6 +63,9 @@ describe('InventoryObjectDrag', () => {
       handOverBegin: vi.fn(),
       handOverMove: vi.fn(),
       handOverEnd: vi.fn(),
+      ghostBegin: vi.fn(),
+      ghostMove: vi.fn(),
+      ghostEnd: vi.fn(),
       fileInto: vi.fn(),
       moveTo: vi.fn(),
     } as unknown as ObjectDragHost & { [key: string]: unknown };
@@ -212,6 +215,39 @@ describe('InventoryObjectDrag', () => {
     drag.move(pressOn(gauge, 80, 80));
 
     expect(drag.isDragging(character)).toBe(false);
+  });
+
+  it('draws what is carried beside the pointer, with how many go along, until it is let go', () => {
+    const village = GameCharacter.create('村長', 1, '');
+    host['travellingWith'] = () => new Set([character.identifier, village.identifier]);
+    drag.down(pointerAt(0, 0), character);
+    drag.move(pointerAt(40, 40));
+    expect(host['ghostBegin']).toHaveBeenCalledWith(character, 2, 40, 40);
+
+    drag.move(pointerAt(50, 60));
+    expect(host['ghostMove']).toHaveBeenCalledWith(50, 60);
+
+    drag.up(pointerAt(50, 60));
+    expect(host['ghostEnd']).toHaveBeenCalled();
+  });
+
+  it('draws it for a seat with no bar to hand over to as well', () => {
+    host['canHandOver'] = () => false;
+    drag.down(pointerAt(0, 0), character);
+    drag.move(pointerAt(40, 40));
+
+    expect(host['ghostBegin']).toHaveBeenCalledWith(character, 1, 40, 40);
+    expect(host['handOverBegin']).not.toHaveBeenCalled();
+  });
+
+  it('calls the hand-over off and stops drawing when the row is taken from under the pointer', () => {
+    drag.down(pointerAt(0, 0), character);
+    drag.move(pointerAt(40, 40));
+
+    drag.cancel();
+
+    expect(host['handOverEnd']).toHaveBeenCalledWith(false);
+    expect(host['ghostEnd']).toHaveBeenCalled();
   });
 
   it('swallows the click that ends a drag, once', () => {

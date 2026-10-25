@@ -22,6 +22,10 @@ export interface ObjectDragHost {
   handOverBegin(character: GameCharacter, x: number, y: number): void;
   handOverMove(x: number, y: number): void;
   handOverEnd(accepted: boolean): void;
+  /** Draws the piece beside the pointer, with how many travel along with it. */
+  ghostBegin(character: GameCharacter, count: number, x: number, y: number): void;
+  ghostMove(x: number, y: number): void;
+  ghostEnd(): void;
   fileInto(identifiers: ReadonlySet<string>, folderPath: string): void;
   moveTo(identifiers: ReadonlySet<string>, tab: string): void;
 }
@@ -155,16 +159,25 @@ export class InventoryObjectDrag {
       pending.dragging = true;
       this.draggingIdentifiers.set(this.host.travellingWith(pending.character));
       if (pending.withNpcBar) this.host.handOverBegin(pending.character, event.clientX, event.clientY);
-    } else if (pending.withNpcBar) {
-      this.host.handOverMove(event.clientX, event.clientY);
+      this.host.ghostBegin(pending.character, this.draggingIdentifiers().size, event.clientX, event.clientY);
+    } else {
+      if (pending.withNpcBar) this.host.handOverMove(event.clientX, event.clientY);
+      this.host.ghostMove(event.clientX, event.clientY);
     }
     const under = this.elementUnder(event);
     this.dropTab.set(pending.withTabs ? this.tabOf(under) : null);
     this.dropFolderPath.set(pending.withFolders && this.dropTab() === null ? this.folderPathOf(under) : null);
   }
 
-  /** A row can be taken out from under the pointer, and then no release ever arrives. */
+  /**
+   * A row can be taken out from under the pointer, and then no release ever arrives. A drag under
+   * way is called off: nothing is handed over and nothing is drawn beside the pointer any more.
+   */
   cancel(): void {
+    if (this.pending?.dragging) {
+      if (this.pending.withNpcBar) this.host.handOverEnd(false);
+      this.host.ghostEnd();
+    }
     this.pending = null;
     this.draggingIdentifiers.set(new Set());
     this.dropFolderPath.set(null);
@@ -191,6 +204,7 @@ export class InventoryObjectDrag {
     (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
     if (!pending.dragging) return;
     this.suppressClick = true;
+    this.host.ghostEnd();
 
     if (tab !== null && pending.withTabs) {
       if (pending.withNpcBar) this.host.handOverEnd(false);

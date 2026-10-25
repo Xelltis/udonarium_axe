@@ -25,4 +25,23 @@ describe('PieceDragGhostComponent', () => {
     expect(ghost?.style.left).toBe('112px');
     expect(ghost?.style.top).toBe('212px');
   });
+
+  it('names the piece, and counts nothing when it goes alone', () => {
+    TestBed.inject(PieceDragGhostService).show(GameCharacter.create('ゴブリン', 1, ''), 0, 0);
+
+    const fixture = render();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="piece-drag-ghost-name"]')?.textContent).toBe('ゴブリン');
+    expect(fixture.nativeElement.querySelector('[data-testid="piece-drag-ghost-count"]')).toBeNull();
+  });
+
+  it('counts the pieces when more than one goes', () => {
+    TestBed.inject(PieceDragGhostService).show(GameCharacter.create('ゴブリン', 1, ''), 0, 0, 3);
+
+    const fixture = render();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="piece-drag-ghost-count"]')?.textContent?.trim()).toBe(
+      '3'
+    );
+  });
 });

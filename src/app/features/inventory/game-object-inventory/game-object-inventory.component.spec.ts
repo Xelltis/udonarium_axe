@@ -1909,6 +1909,28 @@ describe('GameObjectInventoryComponent', () => {
         for (const type of presses) expect(await pressReachesPanel(type), type).toBe(false);
       });
 
+      it('shows a grabbing hand over a row that can be carried', async () => {
+        beSeat(PeerRole.Player);
+        putOnTable('ゴブリン');
+        component.selectTab.set('table');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const row = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="inventory-item"]');
+        expect(row?.classList).toContain('cursor-grab!');
+      });
+
+      it('shows no grabbing hand to a guest, who may not carry a row anywhere', async () => {
+        beSeat(PeerRole.Guest);
+        putInShared('ゴブリン');
+        component.selectTab.set('common');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const row = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="inventory-item"]');
+        expect(row?.classList).not.toContain('cursor-grab!');
+      });
+
       it('lets a guest move the panel by a row they may not file', async () => {
         beSeat(PeerRole.Guest);
         putInShared('ゴブリン');

@@ -35,6 +35,7 @@ import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
 import { PanelHeaderControl, PanelService } from '@axe/application/ui/panel.service';
+import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
@@ -237,6 +238,7 @@ export class GameObjectInventoryComponent {
   private readonly disclosureService = inject(DisclosureService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly npcDrag = inject(NpcDragService);
+  private readonly pieceGhost = inject(PieceDragGhostService);
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   private readonly t = inject(TRANSLATE_FN);
@@ -256,6 +258,9 @@ export class GameObjectInventoryComponent {
     handOverBegin: (character, x, y) => this.npcDrag.begin(character, x, y),
     handOverMove: (x, y) => this.npcDrag.move(x, y),
     handOverEnd: (accepted) => this.npcDrag.end(accepted),
+    ghostBegin: (character, count, x, y) => this.pieceGhost.show(character, x, y, count),
+    ghostMove: (x, y) => this.pieceGhost.move(x, y),
+    ghostEnd: () => this.pieceGhost.hide(),
     fileInto: (identifiers, folderPath) => {
       const target = normalizeFolderPath(folderPath);
       const moving = [...identifiers].filter(
