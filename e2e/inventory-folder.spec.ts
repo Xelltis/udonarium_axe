@@ -2,6 +2,9 @@ import { expect, Page, test } from '@playwright/test';
 
 import { createCharacter, openPanel, revealMenuEntry, waitAppReady } from './helpers';
 
+/** A row's middle is one of its fields, whose right-click is left to the browser, so menus are opened from its edge. */
+const ROW_EDGE = { x: 6, y: 6 };
+
 function items(page: Page) {
   return page.locator('game-object-inventory [data-testid="inventory-item"]');
 }
@@ -20,7 +23,7 @@ async function makeEmptyFolder(page: Page, folderName: string) {
 }
 
 async function putFirstInFolder(page: Page, folderName: string) {
-  await items(page).first().click({ button: 'right' });
+  await items(page).first().click({ button: 'right', position: ROW_EDGE });
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   await menu.getByText('フォルダ', { exact: true }).hover();
@@ -41,7 +44,7 @@ test.describe('searching the inventory, and its folders', () => {
     await expect(page.locator('game-object-inventory input[name="tab"]')).toHaveCount(4, { timeout: 5000 });
     await expect(items(page).first()).toBeVisible({ timeout: 5000 });
 
-    await items(page).first().click({ button: 'right' });
+    await items(page).first().click({ button: 'right', position: ROW_EDGE });
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await (await revealMenuEntry(page, menu, '共有イベントリに移動')).click();
@@ -64,7 +67,7 @@ test.describe('searching the inventory, and its folders', () => {
   test("leaves folders out of a piece's menu on the table tab", async ({ page }) => {
     await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(0).click();
 
-    await items(page).first().click({ button: 'right' });
+    await items(page).first().click({ button: 'right', position: ROW_EDGE });
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await expect(menu.getByText('フォルダ', { exact: true })).toHaveCount(0);

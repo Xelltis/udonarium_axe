@@ -920,38 +920,65 @@
     </div>
 
     <div class="flex min-w-0 flex-1 flex-col gap-0.75">
-      <div
-        class="text-ui-text flex items-center gap-1 truncate text-[13px] font-semibold"
-        [class.text-ui-accent!]="selectedIdentifier() === gameObject.identifier"
-      >
-        <span class="truncate" [appTextTooltip]="gameObject.name">{{ gameObject.name }}</span>
-        @if (!canView(gameObject)) {
-          <i class="material-icons text-ui-dim shrink-0 text-[13px]!">lock</i>
-        }
-        @if (canView(gameObject)) {
-          @let buffs = buffBadgesOf(gameObject);
-          @for (badge of buffs.shown; track badge.identifier) {
-            <span
-              data-testid="inventory-buff-badge"
-              class="ring-ui-border-panel inline-flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] leading-none font-normal text-white ring-1"
-              [style.background]="badge.color"
-              [title]="
-                badge.name +
-                (badge.effect ? ' / ' + badge.effect : '') +
-                (badge.expires ? ' (' + badge.rounds + ')' : '')
-              "
-            >
-              @if (badge.iconUrl) {
-                <img class="size-full object-contain" [src]="badge.iconUrl | safe: 'resourceUrl'" alt="" />
-              } @else {
-                {{ badge.icon }}
-              }
-            </span>
+      <!--
+        The row's buttons stand over the end of the name line, which keeps their room clear, so a
+        pointer coming to rest on the row shows them without the fields below moving over.
+      -->
+      <div class="relative">
+        <div
+          class="text-ui-text flex items-center gap-1 truncate pr-13 text-[13px] font-semibold"
+          [class.text-ui-accent!]="selectedIdentifier() === gameObject.identifier"
+        >
+          <span class="truncate" [appTextTooltip]="gameObject.name">{{ gameObject.name }}</span>
+          @if (!canView(gameObject)) {
+            <i class="material-icons text-ui-dim shrink-0 text-[13px]!">lock</i>
           }
-          @if (buffs.more > 0) {
-            <span class="text-ui-muted shrink-0 text-[10px] font-normal">+{{ buffs.more }}</span>
+          @if (canView(gameObject)) {
+            @let buffs = buffBadgesOf(gameObject);
+            @for (badge of buffs.shown; track badge.identifier) {
+              <span
+                data-testid="inventory-buff-badge"
+                class="ring-ui-border-panel inline-flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] leading-none font-normal text-white ring-1"
+                [style.background]="badge.color"
+                [title]="
+                  badge.name +
+                  (badge.effect ? ' / ' + badge.effect : '') +
+                  (badge.expires ? ' (' + badge.rounds + ')' : '')
+                "
+              >
+                @if (badge.iconUrl) {
+                  <img class="size-full object-contain" [src]="badge.iconUrl | safe: 'resourceUrl'" alt="" />
+                } @else {
+                  {{ badge.icon }}
+                }
+              </span>
+            }
+            @if (buffs.more > 0) {
+              <span class="text-ui-muted shrink-0 text-[10px] font-normal">+{{ buffs.more }}</span>
+            }
           }
-        }
+        </div>
+        <span
+          class="invisible absolute top-1/2 right-0 flex -translate-y-1/2 gap-1 group-hover:visible"
+          [class.visible!]="selectedIdentifier() === gameObject.identifier"
+        >
+          <button
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent inline-flex size-6 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background,color] [&_.material-icons]:text-base!"
+            type="button"
+            [title]="'feature.turnOrder.setCurrent' | transloco"
+            (click)="setTurnOrder($event, gameObject)"
+          >
+            <i class="material-icons">flag</i>
+          </button>
+          <button
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex size-6 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background] [&_.material-icons]:text-base!"
+            type="button"
+            [title]="'feature.inventory.panel.menu' | transloco"
+            (click)="onContextMenu($event, gameObject)"
+          >
+            <i class="material-icons">more_vert</i>
+          </button>
+        </span>
       </div>
       @if (gameObject.rootDataElement && canView(gameObject) && folded) {
         @let meters = resourceMetersOf($any(gameObject));
@@ -990,26 +1017,6 @@
         </div>
       }
     </div>
-
-    <button
-      class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent hidden size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background,color] group-hover:inline-flex [&_.material-icons]:text-base!"
-      [class.inline-flex!]="selectedIdentifier() === gameObject.identifier"
-      type="button"
-      [title]="'feature.turnOrder.setCurrent' | transloco"
-      (click)="setTurnOrder($event, gameObject)"
-    >
-      <i class="material-icons">flag</i>
-    </button>
-
-    <button
-      class="text-ui-muted hover:bg-ui-hover hover:text-ui-text hidden size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background] group-hover:inline-flex [&_.material-icons]:text-base!"
-      [class.inline-flex!]="selectedIdentifier() === gameObject.identifier"
-      type="button"
-      [title]="'feature.inventory.panel.menu' | transloco"
-      (click)="onContextMenu($event, gameObject)"
-    >
-      <i class="material-icons">more_vert</i>
-    </button>
   </div>
 </ng-template>
 
