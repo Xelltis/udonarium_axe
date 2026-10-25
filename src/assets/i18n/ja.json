@@ -2054,7 +2054,8 @@
         "handlingGroup": "表示と扱い",
         "disclosureGroup": "公開とオーナー",
         "putAwayGroup": "しまう",
-        "conditionGroup": "コマの状態"
+        "conditionGroup": "コマの状態",
+        "stealth": "ステルス（GMと持ち主・仲間にだけ見える）"
       },
       "panel": {
         "sheet": "キャラクターシート",

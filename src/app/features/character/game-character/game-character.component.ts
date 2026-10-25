@@ -13,6 +13,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { StealthService } from '@axe/application/character/stealth.service';
 import { SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
 import { EffectAutoPlayService } from '@axe/application/effect/effect-auto-play.service';
@@ -322,6 +323,7 @@ export class GameCharacterComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly engagementZones = inject(EngagementZoneService);
   private readonly ride = inject(RideService);
+  private readonly stealth = inject(StealthService);
   private readonly snackbar = inject(SnackbarService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly visionService = inject(VisionService);
@@ -1597,12 +1599,14 @@ export class GameCharacterComponent {
     return buildConditionContextMenu(
       zoneModel,
       rideModel,
+      this.stealth.mayToggle(char) ? { on: char.stealth === '1' } : null,
       this.rolePermission.canEditTabletop,
       {
         setUnseen: (unseen) => zones.setUnseen(char, unseen),
         setDown: (down) => this.ride.setDown(char, down),
         setProne: (prone) => this.ride.setProne(char, prone),
         setHeld: (held) => zones.setHeld(char, held),
+        setStealth: (stealth) => this.stealth.set(char, stealth),
       },
       this.translateFn
     );

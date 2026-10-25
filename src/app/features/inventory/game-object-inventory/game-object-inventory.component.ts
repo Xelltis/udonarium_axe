@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
+import { StealthService } from '@axe/application/character/stealth.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
@@ -239,6 +240,7 @@ export class GameObjectInventoryComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly npcDrag = inject(NpcDragService);
   private readonly pieceGhost = inject(PieceDragGhostService);
+  private readonly stealth = inject(StealthService);
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   private readonly t = inject(TRANSLATE_FN);
@@ -1339,9 +1341,15 @@ export class GameObjectInventoryComponent {
         deleteGameObject: (o) => this.deleteGameObject(o),
         setFolder: (o, folderPath) => this.setFolder(o, folderPath),
         createFolder: (o) => this.createFolderFor(o),
+        setStealth: (o, on) => {
+          if (o instanceof GameCharacter) this.stealth.set(o, on);
+        },
       },
       this.t,
-      this.foldersApply() ? this.knownFolderPaths() : null
+      this.foldersApply() ? this.knownFolderPaths() : null,
+      gameObject instanceof GameCharacter && this.stealth.mayToggle(gameObject)
+        ? { on: gameObject.stealth === '1' }
+        : null
     );
 
     this.contextMenuService.open(position, actions, gameObject.name);

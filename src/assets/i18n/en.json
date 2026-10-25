@@ -2054,7 +2054,8 @@
         "handlingGroup": "Display and handling",
         "disclosureGroup": "Visibility and owner",
         "putAwayGroup": "Put away",
-        "conditionGroup": "State of the piece"
+        "conditionGroup": "State of the piece",
+        "stealth": "Stealth (only the GM, the owner and their party see it)"
       },
       "panel": {
         "sheet": "Character sheet",

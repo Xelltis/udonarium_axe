@@ -2054,7 +2054,8 @@
         "handlingGroup": "표시와 취급",
         "disclosureGroup": "공개와 소유자",
         "putAwayGroup": "치우기",
-        "conditionGroup": "말의 상태"
+        "conditionGroup": "말의 상태",
+        "stealth": "스텔스 (GM과 소유자·같은 파티에게만 보임)"
       },
       "panel": {
         "sheet": "캐릭터 시트",

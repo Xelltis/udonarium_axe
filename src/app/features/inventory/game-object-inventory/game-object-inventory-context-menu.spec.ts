@@ -37,11 +37,40 @@ const defaultCallbacks = () => ({
   deleteGameObject: vi.fn(),
   setFolder: vi.fn(),
   createFolder: vi.fn(),
+  setStealth: vi.fn(),
 });
 
 const folderCallbacks = () => ({ setFolder: vi.fn(), createFolder: vi.fn() });
 
 describe('buildInventoryObjectContextMenu()', () => {
+  it('offers stealth for a piece on the table to a seat that may toggle it, and turns it over', () => {
+    const callbacks = defaultCallbacks();
+    const piece = makeCharacterAt('table');
+    const actions = buildInventoryObjectContextMenu(piece, makeService(), callbacks, t, null, { on: false });
+    const entry = actions.find((action) => action.name.includes('ステルス'));
+
+    expect(entry?.name.startsWith('☐ ')).toBe(true);
+    entry!.action!();
+    expect(callbacks.setStealth).toHaveBeenCalledWith(piece, true);
+  });
+
+  it('leaves stealth out for a seat that may not toggle it, and for a piece off the table', () => {
+    const offTable = buildInventoryObjectContextMenu(
+      makeCharacterAt('common'),
+      makeService(),
+      defaultCallbacks(),
+      t,
+      null,
+      {
+        on: false,
+      }
+    );
+    const notAllowed = buildInventoryObjectContextMenu(makeCharacterAt('table'), makeService(), defaultCallbacks(), t);
+
+    expect(names(offTable).some((name) => name.includes('ステルス'))).toBe(false);
+    expect(names(notAllowed).some((name) => name.includes('ステルス'))).toBe(false);
+  });
+
   it('offers to show a piece standing on the table where it stands, for a screen that cannot double-click', () => {
     const character = makeCharacterAt('table');
     const callbacks = defaultCallbacks();

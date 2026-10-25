@@ -15,6 +15,7 @@ interface InventoryContextMenuCallbacks {
   deleteGameObject: (gameObject: TabletopObject) => void;
   setFolder: (gameObject: TabletopObject, folderPath: string) => void;
   createFolder: (gameObject: TabletopObject) => void;
+  setStealth: (gameObject: TabletopObject, stealth: boolean) => void;
 }
 
 export interface InventoryFolderAssignCallbacks {
@@ -119,7 +120,8 @@ export function buildInventoryFolderContextMenu(
  * The context menu of a piece's row in the inventory.
  *
  * It opens the sheet, finds the piece on the table when it is there, and outside the graveyard
- * opens the chat palette and remote controller and hides or shows the row in the inventory. It
+ * opens the chat palette and remote controller and hides or shows the row in the inventory; a piece
+ * on the table is put into stealth or taken out of it, by a seat that may. It
  * then offers the folder submenu, a move to each other location, delete for a piece in the
  * graveyard, and copy.
  */
@@ -129,7 +131,9 @@ export function buildInventoryObjectContextMenu(
   callbacks: InventoryContextMenuCallbacks,
   t: TranslateFn,
   /** Null where folders do not apply, which leaves the submenu out rather than offering an empty one. */
-  folderPaths: readonly string[] | null = null
+  folderPaths: readonly string[] | null = null,
+  /** Whether the piece is in stealth, for a seat that may toggle it; null for any other seat. */
+  stealth: { readonly on: boolean } | null = null
 ): ContextMenuAction[] {
   const actions: ContextMenuAction[] = [];
 
@@ -174,6 +178,12 @@ export function buildInventoryObjectContextMenu(
             },
           }
     );
+    if (stealth && gameObject.location.name === 'table') {
+      actions.push({
+        name: (stealth.on ? '☑ ' : '☐ ') + t('feature.character.contextMenu.stealth'),
+        action: () => callbacks.setStealth(gameObject, !stealth.on),
+      });
+    }
   }
 
   if (folderPaths) {
