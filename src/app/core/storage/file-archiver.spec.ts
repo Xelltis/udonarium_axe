@@ -192,10 +192,26 @@ describe('FileArchiver', () => {
         type: 'application/zip',
       });
       const broken = new File([new Uint8Array([0, 1, 2, 3])], 'broken.zip', { type: 'application/zip' });
+      try {
+        expect(await FileArchiver.instance.load([saved])).toEqual({ dataRead: true });
+        expect(await FileArchiver.instance.load([broken])).toEqual({ dataRead: false });
+      } finally {
+        off();
+      }
+    });
 
-      expect(await FileArchiver.instance.load([saved])).toEqual({ dataRead: true });
-      expect(await FileArchiver.instance.load([broken])).toEqual({ dataRead: false });
-      off();
+    it('counts the data read once it is handed on, though taking it in then fails partway', async () => {
+      const off = xmlLoaded$.subscribe(() => {
+        throw new Error('a piece that will not go in');
+      });
+      const saved = new File([zipSync({ 'data.xml': strToU8('<room></room>') }).slice()], 'room.zip', {
+        type: 'application/zip',
+      });
+      try {
+        expect(await FileArchiver.instance.load([saved])).toEqual({ dataRead: true });
+      } finally {
+        off();
+      }
     });
 
     it('leaves the rest of an archive once it is no longer wanted', async () => {
@@ -207,11 +223,14 @@ describe('FileArchiver', () => {
         { type: 'application/zip' }
       );
 
-      const result = await FileArchiver.instance.load([saved], undefined, { stillWanted: () => false });
-      off();
+      try {
+        const result = await FileArchiver.instance.load([saved], undefined, { stillWanted: () => false });
 
-      expect(result).toEqual({ dataRead: false });
-      expect(read).toEqual([]);
+        expect(result).toEqual({ dataRead: false });
+        expect(read).toEqual([]);
+      } finally {
+        off();
+      }
     });
   });
 

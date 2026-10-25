@@ -48,7 +48,10 @@ const INTERNAL_DRAG_TYPE = 'application/x-axe-internal-drag';
 
 /** What a load found out as it went. */
 export interface LoadResult {
-  /** Whether the `data.xml` of a save was read and handed on, which is the room or object it holds. */
+  /**
+   * Whether the `data.xml` of a save was read and handed on, which is the room or object it holds;
+   * true even where taking it in then failed partway, as the table is no longer as it was.
+   */
   readonly dataRead: boolean;
 }
 
@@ -327,8 +330,8 @@ export class FileArchiver {
       try {
         const xmlElement: Element | null = xml2element(await FileReaderUtil.readAsTextAsync(file));
         if (xmlElement) {
-          emitXmlLoaded({ xmlElement, dropPoint });
           if (name === 'data.xml') run.dataRead = true;
+          emitXmlLoaded({ xmlElement, dropPoint });
         }
       } catch (reason) {
         Logger.warn('[FileArchiver] XML読み込みエラー', reason);
