@@ -240,6 +240,33 @@ describe('InventoryObjectDrag', () => {
     expect(host['handOverBegin']).not.toHaveBeenCalled();
   });
 
+  it('draws nothing beside the pointer, and hands nothing over, for a row in a window of its own', () => {
+    const row = document.implementation.createHTMLDocument('').createElement('div');
+    row.setPointerCapture = vi.fn();
+    row.releasePointerCapture = vi.fn();
+    const pressOn = (x: number, y: number) =>
+      ({
+        button: 0,
+        buttons: 1,
+        clientX: x,
+        clientY: y,
+        pointerId: 1,
+        target: row,
+        currentTarget: row,
+      }) as unknown as PointerEvent;
+
+    drag.down(pressOn(0, 0), character);
+    drag.move(pressOn(40, 40));
+    drag.move(pressOn(50, 50));
+    drag.up(pressOn(50, 50));
+
+    expect(drag.takeSuppressedClick()).toBe(true);
+    expect(host['ghostBegin']).not.toHaveBeenCalled();
+    expect(host['ghostMove']).not.toHaveBeenCalled();
+    expect(host['ghostEnd']).not.toHaveBeenCalled();
+    expect(host['handOverBegin']).not.toHaveBeenCalled();
+  });
+
   it('calls the hand-over off and stops drawing when the row is taken from under the pointer', () => {
     drag.down(pointerAt(0, 0), character);
     drag.move(pointerAt(40, 40));

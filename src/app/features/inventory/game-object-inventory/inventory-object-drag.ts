@@ -41,6 +41,12 @@ interface Pending {
   withNpcBar: boolean;
   withFolders: boolean;
   withTabs: boolean;
+  /**
+   * Whether the row is drawn in the main window, the only one the picture beside the pointer is
+   * drawn in. The game master's bar stands there too, so a row in a window of its own hands nothing
+   * over.
+   */
+  withGhost: boolean;
 }
 
 /** How far the pointer travels before a press counts as a drag rather than a click. */
@@ -118,6 +124,7 @@ export class InventoryObjectDrag {
     if (field && event.pointerType === 'touch') return;
 
     const row = event.currentTarget as HTMLElement;
+    const inMainWindow = (row.ownerDocument ?? document) === document;
     this.pending = {
       character: gameObject,
       row,
@@ -125,9 +132,10 @@ export class InventoryObjectDrag {
       startX: event.clientX,
       startY: event.clientY,
       dragging: false,
-      withNpcBar: this.host.canHandOver(),
+      withNpcBar: this.host.canHandOver() && inMainWindow,
       withFolders: this.host.canFile(),
       withTabs: this.host.canMove(),
+      withGhost: inMainWindow,
     };
     if (!field) row.setPointerCapture?.(event.pointerId);
   }
@@ -159,10 +167,12 @@ export class InventoryObjectDrag {
       pending.dragging = true;
       this.draggingIdentifiers.set(this.host.travellingWith(pending.character));
       if (pending.withNpcBar) this.host.handOverBegin(pending.character, event.clientX, event.clientY);
-      this.host.ghostBegin(pending.character, this.draggingIdentifiers().size, event.clientX, event.clientY);
+      if (pending.withGhost) {
+        this.host.ghostBegin(pending.character, this.draggingIdentifiers().size, event.clientX, event.clientY);
+      }
     } else {
       if (pending.withNpcBar) this.host.handOverMove(event.clientX, event.clientY);
-      this.host.ghostMove(event.clientX, event.clientY);
+      if (pending.withGhost) this.host.ghostMove(event.clientX, event.clientY);
     }
     const under = this.elementUnder(event);
     this.dropTab.set(pending.withTabs ? this.tabOf(under) : null);
@@ -176,7 +186,7 @@ export class InventoryObjectDrag {
   cancel(): void {
     if (this.pending?.dragging) {
       if (this.pending.withNpcBar) this.host.handOverEnd(false);
-      this.host.ghostEnd();
+      if (this.pending.withGhost) this.host.ghostEnd();
     }
     this.pending = null;
     this.draggingIdentifiers.set(new Set());
@@ -204,7 +214,7 @@ export class InventoryObjectDrag {
     (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
     if (!pending.dragging) return;
     this.suppressClick = true;
-    this.host.ghostEnd();
+    if (pending.withGhost) this.host.ghostEnd();
 
     if (tab !== null && pending.withTabs) {
       if (pending.withNpcBar) this.host.handOverEnd(false);
