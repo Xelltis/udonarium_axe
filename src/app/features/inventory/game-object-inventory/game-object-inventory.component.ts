@@ -1493,11 +1493,14 @@ export class GameObjectInventoryComponent {
    */
   multiMove(location: string) {
     if (!this.rolePermission.canEditTabletop) return;
-    for (const gameObjectIdentifier of this.multiMoveTargets()) {
-      const gameObject = this.objectStore.get(gameObjectIdentifier);
-      if (gameObject instanceof GameCharacter) {
-        gameObject.setLocation(location);
-      }
+    this.moveCharacters(this.multiMoveTargets(), location);
+  }
+
+  /** Moves the characters among the identifiers to a location for every peer, passing over anything else. */
+  private moveCharacters(identifiers: Iterable<string>, location: string): void {
+    for (const identifier of identifiers) {
+      const gameObject = this.objectStore.get(identifier);
+      if (gameObject instanceof GameCharacter) gameObject.setLocation(location);
     }
   }
 
@@ -1508,11 +1511,7 @@ export class GameObjectInventoryComponent {
    */
   moveToTab(identifiers: ReadonlySet<string>, tab: string): void {
     if (!this.rolePermission.canEditTabletop) return;
-    const location = this.locationOfTab(tab);
-    for (const identifier of identifiers) {
-      const gameObject = this.objectStore.get(identifier);
-      if (gameObject instanceof GameCharacter) gameObject.setLocation(location);
-    }
+    this.moveCharacters(identifiers, this.locationOfTab(tab));
     this.multiMoveTargets.update((targets) => new Set([...targets].filter((target) => !identifiers.has(target))));
     SoundEffect.play(PresetSound.piecePut);
   }

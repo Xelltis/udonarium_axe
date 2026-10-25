@@ -947,6 +947,22 @@ describe('GameObjectInventoryComponent', () => {
       return label;
     }
 
+    it('moves every ticked character to the place chosen from the menu', () => {
+      const goblin = putInShared('ゴブリン');
+      const village = putInShared('村長');
+      const keeper = putInShared('番人');
+      component.selectTab.set('common');
+      component.multiMoveTargets.set(new Set([goblin.identifier, village.identifier]));
+
+      component.multiMove('graveyard');
+
+      expect([goblin.location.name, village.location.name, keeper.location.name]).toEqual([
+        'graveyard',
+        'graveyard',
+        'common',
+      ]);
+    });
+
     it('moves a character let go over another tab to the place it shows', () => {
       const goblin = putInShared('ゴブリン');
       component.selectTab.set('common');
