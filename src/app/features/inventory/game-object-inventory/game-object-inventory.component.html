@@ -732,7 +732,7 @@
                 (pointermove)="drag.move($event)"
                 (pointerup)="drag.up($event)"
                 (pointercancel)="drag.cancel()"
-                (lostpointercapture)="drag.cancel()"
+                (lostpointercapture)="drag.lostCapture($event)"
               >
                 @if (isMultiMove()) {
                   <td class="border-ui-border-panel w-0 border-b border-solid px-1 py-0.5">
@@ -974,7 +974,7 @@
     (pointermove)="drag.move($event)"
     (pointerup)="drag.up($event)"
     (pointercancel)="drag.cancel()"
-    (lostpointercapture)="drag.cancel()"
+    (lostpointercapture)="drag.lostCapture($event)"
   >
     @if (selectTab() === 'table') {
       @if (currentTurnId() !== gameObject.identifier && actedIds().has(gameObject.identifier)) {

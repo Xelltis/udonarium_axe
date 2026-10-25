@@ -178,6 +178,16 @@ export class InventoryObjectDrag {
   }
 
   /**
+   * Calls the drag off when the row lets go of the pointer, and not when a field inside it does: a
+   * press begun in a field may have been held by the field until the row took the pointer over, and
+   * the field's letting go reaches the row on its way up.
+   */
+  lostCapture(event: PointerEvent): void {
+    if (event.target !== event.currentTarget) return;
+    this.cancel();
+  }
+
+  /**
    * A row can be taken out from under the pointer, and then no release ever arrives. A drag under
    * way is called off: nothing is handed over and nothing is drawn beside the pointer any more.
    */

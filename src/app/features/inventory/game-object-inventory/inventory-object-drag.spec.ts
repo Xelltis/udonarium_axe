@@ -188,6 +188,18 @@ describe('InventoryObjectDrag', () => {
     expect(field.blur).toHaveBeenCalled();
   });
 
+  it('keeps a drag going when the field it began in gives up the pointer to the row, and calls it off when the row does', () => {
+    const { row, field, pressOn } = fieldOnRow();
+    drag.down(pressOn(field, 10, 10), character);
+    drag.move(pressOn(field, 45, 40));
+
+    drag.lostCapture({ target: field, currentTarget: row } as unknown as PointerEvent);
+    expect(drag.isDragging(character)).toBe(true);
+
+    drag.lostCapture({ target: row, currentTarget: row } as unknown as PointerEvent);
+    expect(drag.isDragging(character)).toBe(false);
+  });
+
   it('forgets a press in a field let go of outside the row, rather than dragging on a bare move', () => {
     const { field, pressOn } = fieldOnRow();
     drag.down(pressOn(field, 10, 10), character);
