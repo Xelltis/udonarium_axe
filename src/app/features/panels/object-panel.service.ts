@@ -186,11 +186,11 @@ export class ObjectPanelService {
   private popOutControl(size: ObjectPanelSize, detach: DetachRequest): PanelOption['controls'] {
     if (detach.taken) return [];
     const windows = this.injector.get(PanelWindowService);
-    if (!windows.isSupported) return [];
     return [
       {
         icon: 'open_in_new',
         label: this.t('common.panel.popOut'),
+        shown: () => windows.isSupported,
         press: (owner) => {
           if (owner.windowed()) return;
           const frame = owner.standingFrame;

@@ -44,6 +44,17 @@ describe('RoomPanelService', () => {
     expect(option().windowed).toBe(false);
   });
 
+  it('shows the button only while this browser lets a panel out, as that can change once a mouse is seen', () => {
+    const supported = vi.spyOn(TestBed.inject(PanelWindowService), 'isSupported', 'get').mockReturnValue(false);
+    service.open('cutInList');
+    const control = option().controls![0];
+    expect(control.shown?.()).toBe(false);
+
+    supported.mockReturnValue(true);
+
+    expect(control.shown?.()).toBe(true);
+  });
+
   it('does nothing when the button travelled to a window with the panel it was made for', () => {
     service.open('cutInList');
     const windows = vi.spyOn(TestBed.inject(PanelWindowService), 'popOut');

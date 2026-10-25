@@ -99,11 +99,11 @@ export class RoomPanelService {
     setup?: (instance: T) => void
   ): PanelOption['controls'] {
     const windows = this.injector.get(PanelWindowService);
-    if (!windows.isSupported) return [];
     return [
       {
         icon: 'open_in_new',
         label: this.t('common.panel.popOut'),
+        shown: () => windows.isSupported,
         press: (owner) => {
           if (owner.windowed()) return;
           const frame = owner.standingFrame;

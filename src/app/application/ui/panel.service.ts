@@ -43,6 +43,8 @@ export interface PanelFrameControl {
   icon: string;
   label: string;
   press: (panel: PanelService) => void;
+  /** Whether it is drawn just now; always, where this is left out. Read as a signal, so it can come and go. */
+  shown?: () => boolean;
 }
 
 export interface PanelOption {
