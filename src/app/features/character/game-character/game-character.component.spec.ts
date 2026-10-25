@@ -155,6 +155,21 @@ describe('GameCharacterComponent', () => {
     expect((fixture.nativeElement as HTMLElement).style.zIndex).toBe('4');
   });
 
+  it('marks a piece in stealth for those who still see it, and drops the mark as it comes out', async () => {
+    const lurker = GameCharacter.create('潜む者', 1, '');
+    lurker.stealth = '1';
+    fixture.componentRef.setInput('gameCharacter', lurker);
+    fixture.detectChanges();
+    const mark = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="stealth-mark"]');
+    expect(mark()).not.toBeNull();
+
+    lurker.stealth = '';
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    expect(mark()).toBeNull();
+  });
+
   it('says by its name how many ride a mount', async () => {
     const horse = GameCharacter.create('馬', 2, '');
     horse.mountable = '1';

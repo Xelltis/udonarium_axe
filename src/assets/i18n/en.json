@@ -2172,7 +2172,10 @@
       "moveMode_climb": "Climbing",
       "moveMode_swim": "Swimming",
       "moveMode_crawl": "Crawling",
-      "moveMode_fly": "Flying"
+      "moveMode_fly": "Flying",
+      "stealth": {
+        "mark": "In stealth (only the GM, its owner and their party can see it)"
+      }
     },
     "light": {
       "contextMenu": {

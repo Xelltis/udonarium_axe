@@ -2172,7 +2172,10 @@
       "moveMode_climb": "오르기",
       "moveMode_swim": "헤엄치기",
       "moveMode_crawl": "기어가기",
-      "moveMode_fly": "날기"
+      "moveMode_fly": "날기",
+      "stealth": {
+        "mark": "스텔스 중 (GM과 소유자·같은 파티에게만 보입니다)"
+      }
     },
     "light": {
       "contextMenu": {

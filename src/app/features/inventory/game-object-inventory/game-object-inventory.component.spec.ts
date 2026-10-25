@@ -1056,6 +1056,8 @@ describe('GameObjectInventoryComponent', () => {
         await new Promise((resolve) => setTimeout(resolve));
 
         expect(names()).toContain('潜む者');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-testid="inventory-stealth-mark"]')).not.toBeNull();
       });
     });
 

@@ -439,6 +439,17 @@ export class GameCharacterComponent {
   readonly rootElementRef = viewChild<ElementRef<HTMLElement>>('root');
   private readonly movableRef = viewChild(MovableDirective);
 
+  /**
+   * Whether the piece is in stealth. Only the game master, its owner and its party are drawn it at
+   * all, and they are shown it faded with a mark, so they know the rest of the table is not.
+   */
+  readonly inStealth = computed(() => {
+    const char = this.gameCharacter();
+    if (!char) return false;
+    this.objectChange.versionOf(char.identifier)();
+    return char.stealth === '1';
+  });
+
   readonly isHiddenByVision = computed(() => {
     const char = this.gameCharacter();
     if (!char) return false;

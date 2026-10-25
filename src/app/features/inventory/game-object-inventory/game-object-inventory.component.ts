@@ -1270,6 +1270,11 @@ export class GameObjectInventoryComponent {
     return texts;
   }
 
+  /** Whether the piece is a character in stealth, which only some of the table can see. */
+  isInStealth(gameObject: TabletopObject): boolean {
+    return gameObject instanceof GameCharacter && gameObject.stealth === '1';
+  }
+
   /** Whether the piece is a character hidden from the inventory. */
   isInventoryHiddenObject(gameObject: TabletopObject): boolean {
     return gameObject instanceof GameCharacter && gameObject.hideInventory;

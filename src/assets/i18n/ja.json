@@ -2172,7 +2172,10 @@
       "moveMode_climb": "登る",
       "moveMode_swim": "泳ぐ",
       "moveMode_crawl": "這う",
-      "moveMode_fly": "飛ぶ"
+      "moveMode_fly": "飛ぶ",
+      "stealth": {
+        "mark": "ステルス中（GMと持ち主・仲間にだけ見えます）"
+      }
     },
     "light": {
       "contextMenu": {

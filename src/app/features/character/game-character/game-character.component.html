@@ -29,6 +29,19 @@
         ></div>
       </div>
     }
+    @if (inStealth()) {
+      <!-- Drawn only for the few who see a piece in stealth, to tell them the others do not. -->
+      <div
+        data-testid="stealth-mark"
+        class="border-ui-accent/70 pointer-events-none absolute inset-[-6%] rounded-full border-2 border-dashed [-webkit-transform-style:preserve-3d] transform-3d"
+      >
+        <i
+          class="material-icons bg-ui-panel text-ui-accent shadow-ui-sm absolute -top-1.5 -right-1.5 rounded-full p-0.5 text-[13px]! leading-none"
+          aria-hidden="true"
+          >visibility_off</i
+        >
+      </div>
+    }
     @if (hitFlash() === 'damage') {
       <div
         data-testid="hit-flash"
@@ -192,6 +205,7 @@
           @if (isPoster() && 0 < imageFile().url.length) {
             <img
               class="image chrome-smooth-image-trick pointer-events-none absolute inset-0 m-auto block size-full object-contain"
+              [class.opacity-50]="inStealth()"
               [ngStyle]="{
                 width: imageView.supersamplePercent(),
                 height: imageView.supersamplePercent(),
@@ -498,6 +512,7 @@
                   <img
                     appSeeThrough
                     class="image chrome-smooth-image-trick pointer-events-auto inset-x-0 bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                    [class.opacity-50]="inStealth()"
                     [appBillboard]="imageView.komaFacing()"
                     [ngStyle]="{
                       height: komaImageHeightSignal() * imageView.supersample() + 'px',
@@ -534,6 +549,7 @@
                   <img
                     appSeeThrough
                     class="image chrome-smooth-image-trick pointer-events-auto inset-x-0 bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                    [class.opacity-50]="inStealth()"
                     [appBillboard]="imageView.pieceFacing()"
                     [ngStyle]="{
                       width: imageView.supersamplePercent(),
@@ -568,6 +584,7 @@
                   <img
                     appSeeThrough
                     class="image chrome-smooth-image-trick pointer-events-auto inset-x-0 bottom-0 m-auto block object-contain align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                    [class.opacity-50]="inStealth()"
                     [appBillboard]="imageView.pieceFacing()"
                     [ngStyle]="{
                       width: imageView.supersamplePercent(),

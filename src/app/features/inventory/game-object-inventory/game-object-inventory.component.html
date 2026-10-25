@@ -724,6 +724,14 @@
                     @if (!canView(row.object)) {
                       <i class="material-icons text-ui-dim shrink-0 text-[12px]!">lock</i>
                     }
+                    @if (isInStealth(row.object)) {
+                      <i
+                        class="material-icons text-ui-accent shrink-0 text-[12px]!"
+                        data-testid="inventory-stealth-mark"
+                        [title]="'feature.character.stealth.mark' | transloco"
+                        >visibility_off</i
+                      >
+                    }
                   </span>
                 </td>
 
@@ -957,6 +965,14 @@
           <span class="truncate" [appTextTooltip]="gameObject.name">{{ gameObject.name }}</span>
           @if (!canView(gameObject)) {
             <i class="material-icons text-ui-dim shrink-0 text-[13px]!">lock</i>
+          }
+          @if (isInStealth(gameObject)) {
+            <i
+              class="material-icons text-ui-accent shrink-0 text-[13px]!"
+              data-testid="inventory-stealth-mark"
+              [title]="'feature.character.stealth.mark' | transloco"
+              >visibility_off</i
+            >
           }
           @if (canView(gameObject)) {
             @let buffs = buffBadgesOf(gameObject);
