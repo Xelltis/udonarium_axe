@@ -56,6 +56,7 @@ import {
   rewriteFolderPath,
 } from '@axe/domain/character/character-folder';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { gaugeRatio } from '@axe/domain/character/piece-gauge';
 import { StatusAilment } from '@axe/domain/character/status-ailment';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { createCalcPass, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
@@ -188,10 +189,7 @@ export class GameObjectInventoryComponent {
       .map((element) => {
         const max = this.resourceMax(element);
         const current = Number(element.currentValue);
-        const percent =
-          max !== null && max > 0 && Number.isFinite(current)
-            ? Math.min(100, Math.max(0, (current / max) * 100))
-            : null;
+        const percent = max !== null && max > 0 && Number.isFinite(current) ? gaugeRatio(current, max) * 100 : null;
         return {
           identifier: element.identifier,
           name: element.name,
