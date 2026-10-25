@@ -757,6 +757,34 @@ describe('TurnOrderService', () => {
       expect(service.currentIdentifier).toBe(id(b));
     });
 
+    it('lets nobody wait whose turn was stepped into, and gives a piece no second turn in the round', () => {
+      service.hold(id(c));
+      service.interrupt(id(c));
+      expect(service.mayHold(id(a))).toBe(false);
+      service.hold(id(a));
+      expect(service.isHeld(id(a))).toBe(false);
+
+      service.next();
+      expect(service.currentIdentifier).toBe(id(a));
+      service.next();
+      expect(service.currentIdentifier).toBe(id(b));
+
+      expect(service.mayInterrupt(id(a))).toBe(false);
+      expect(service.mayInterrupt(id(c))).toBe(false);
+      service.next();
+      expect(turnState.phase).toBe('roundEnd');
+    });
+
+    it('takes a waiting piece out of waiting once its turn ends in passing', () => {
+      service.hold(id(b));
+
+      service.closeTurnsInPassing([id(b)]);
+
+      expect(service.isActed(id(b))).toBe(true);
+      expect(service.isHeld(id(b))).toBe(false);
+      expect(service.mayInterrupt(id(b))).toBe(false);
+    });
+
     it('reads a turn sent by a peer that has never heard of waiting as holding nobody back', () => {
       (turnState as unknown as { holding: string | undefined }).holding = undefined;
 

@@ -190,8 +190,11 @@ export class TurnOrderService {
     return this.turnState.actedIdentifiers.includes(identifier);
   }
 
+  private holdingRead: { raw: unknown; holding: TurnHolding } = { raw: '', holding: readTurnHolding('') };
   private get holding(): TurnHolding {
-    return readTurnHolding(this.turnState.holding);
+    const raw = this.turnState.holding;
+    if (raw !== this.holdingRead.raw) this.holdingRead = { raw, holding: readTurnHolding(raw) };
+    return this.holdingRead.holding;
   }
   private set holding(holding: TurnHolding) {
     this.turnState.holding = writeTurnHolding(holding);
@@ -209,12 +212,14 @@ export class TurnOrderService {
 
   /**
    * Whether the piece may wait to step in later: a round is under way, the round reaches it, and it
-   * has neither had its turn nor begun to wait already.
+   * has neither had its turn, begun to wait already, nor had its turn stepped into, which it takes
+   * up again in its own time.
    */
   mayHold(identifier: string): boolean {
     if (!this.canTakeTurns || !this.isUnderWay()) return false;
     if (this.isActed(identifier) || this.isHeld(identifier)) return false;
-    return this.orderedCharacters().some((piece) => piece.identifier === identifier);
+    if (this.holding.interrupted.includes(identifier)) return false;
+    return this.isInOrder(identifier);
   }
 
   /**
@@ -243,9 +248,17 @@ export class TurnOrderService {
     });
   }
 
-  /** Whether the piece may step in now, which a waiting piece may while the round is under way. */
+  /**
+   * Whether the piece may step in now, which a piece still waiting may while the round is under way
+   * and still reaches it.
+   */
   mayInterrupt(identifier: string): boolean {
-    return this.canTakeTurns && this.isUnderWay() && this.isHeld(identifier);
+    if (!this.canTakeTurns || !this.isUnderWay()) return false;
+    return this.isHeld(identifier) && !this.isActed(identifier) && this.isInOrder(identifier);
+  }
+
+  private isInOrder(identifier: string): boolean {
+    return this.orderedCharacters().some((piece) => piece.identifier === identifier);
   }
 
   /**
@@ -421,6 +434,7 @@ export class TurnOrderService {
       const identifier = stack.pop()!;
       if (!order.has(identifier) || this.isActed(identifier)) continue;
       this.holding = { ...holding, interrupted: stack };
+      this.release(identifier);
       this.enterActing(identifier, 'resumeAnnounce');
       return true;
     }
@@ -509,6 +523,7 @@ export class TurnOrderService {
 
   private closeTurnOf(identifier: string): void {
     this.springGround(identifier, 'turnEnd');
+    this.release(identifier);
     this.markActed(identifier);
     this.expireBuffs('turnEnd', this.actorOf(identifier));
   }
