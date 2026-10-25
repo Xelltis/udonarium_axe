@@ -9,6 +9,12 @@ import { encodeAttributeValue } from '@axe/core/util/xml-util';
 /** The element each link is written as. */
 const ENTRY = 'entry';
 
+/**
+ * The name a picture added by somebody goes by, its bytes' hash. A link never stands for one of
+ * those, or a save could make a picture somebody added show as a file the app carries.
+ */
+const CONTENT_HASH = /^[0-9a-f]{64}$/i;
+
 /** A file the app itself carries, which is the only kind of link written down or taken in again. */
 const BUNDLED_PATH = /^(?:\.\/)?assets\/(?!.*\.\.)[\w\-./[\]]+$/;
 
@@ -43,13 +49,16 @@ export class ImageLinkList extends ObjectNode implements InnerXml {
     return parts.join('');
   }
 
-  /** Takes each saved link in under its identifier. An entry naming no picture, or no file the app carries, is passed over. */
+  /**
+   * Takes each saved link in under its identifier. An entry naming no picture, a picture somebody
+   * added, or no file the app carries, is passed over.
+   */
   override parseInnerXml(element: Element): void {
     for (const entry of Array.from(element.children)) {
       if (entry.tagName !== ENTRY) continue;
       const identifier = entry.getAttribute('image') ?? '';
       const url = entry.getAttribute('url') ?? '';
-      if (!identifier || !BUNDLED_PATH.test(url)) continue;
+      if (!identifier || CONTENT_HASH.test(identifier) || !BUNDLED_PATH.test(url)) continue;
       const context = ImageFile.createEmpty(identifier).toContext();
       context.url = url;
       ImageStorage.instance.add(context);

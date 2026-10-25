@@ -3,6 +3,9 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ImageLinkList } from '@axe/domain/media/image-link-list';
 
+/** A face of the dice the app carries, named after its file as the dice name it. */
+const DICE_FACE = './assets/images/dice/6_dice/6_dice[1].png';
+
 /** A picture held only as a link, as the sample pieces' pictures are. */
 function linked(identifier: string, url: string): ImageFile {
   const context = ImageFile.createEmpty(identifier).toContext();
@@ -12,7 +15,8 @@ function linked(identifier: string, url: string): ImageFile {
 
 describe('ImageLinkList', () => {
   afterEach(() => {
-    for (const identifier of ['sample-goblin', 'sample-knight', 'elsewhere', 'odd']) {
+    const hash = 'c'.repeat(64);
+    for (const identifier of ['sample-goblin', 'sample-knight', 'elsewhere', 'odd', DICE_FACE, hash]) {
       ImageStorage.instance.delete(identifier);
     }
   });
@@ -41,14 +45,22 @@ describe('ImageLinkList', () => {
   });
 
   it('takes in the faces of the dice the app carries, which are named with brackets', () => {
-    const face = './assets/images/dice/6_dice/6_dice[1].png';
-    const xml = ObjectSerializer.instance.toXml(ImageLinkList.create([linked(face, face)]));
-    ImageStorage.instance.delete(face);
+    const xml = ObjectSerializer.instance.toXml(ImageLinkList.create([linked(DICE_FACE, DICE_FACE)]));
+    ImageStorage.instance.delete(DICE_FACE);
 
     ObjectSerializer.instance.parseXml(xml);
 
-    expect(ImageStorage.instance.get(face)?.url).toBe(face);
-    ImageStorage.instance.delete(face);
+    expect(ImageStorage.instance.get(DICE_FACE)?.url).toBe(DICE_FACE);
+  });
+
+  it('takes no link in for a picture somebody added, named by its bytes', () => {
+    const hash = 'c'.repeat(64);
+
+    ObjectSerializer.instance.parseXml(
+      `<image-link-list><entry image="${hash}" url="./assets/images/piece_goblin.webp"/></image-link-list>`
+    );
+
+    expect(ImageStorage.instance.get(hash)).toBeNull();
   });
 
   it('takes in nothing but a file the app carries', () => {
