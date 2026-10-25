@@ -33,6 +33,11 @@
               [class.after:h-px]="selectTab() === inventoryType"
               [class.after:bg-ui-elevated]="selectTab() === inventoryType"
               [class.after:content-['']]="selectTab() === inventoryType"
+              [attr.data-inventory-tab]="inventoryType"
+              [class.bg-ui-accent-bg!]="drag.isDropTab(inventoryType)"
+              [class.text-ui-accent!]="drag.isDropTab(inventoryType)"
+              [class.border-ui-accent!]="drag.isDropTab(inventoryType)"
+              [class.border-dashed!]="drag.isDropTab(inventoryType)"
             >
               <input
                 name="tab"
@@ -656,9 +661,17 @@
                 [class.bg-ui-accent-bg!]="selectedIdentifier() === row.object.identifier"
                 [class.opacity-50]="isHiddenRowDimmed(row.object)"
                 [class.italic]="isHiddenRowDimmed(row.object)"
+                [class.opacity-40]="drag.isDragging(row.object)"
                 (contextmenu)="onContextMenu($event, row.object)"
                 (click)="selectGameObject(row.object)"
                 (dblclick)="focusToObject($event, row.object)"
+                (pointerdown)="drag.down($event, row.object)"
+                (pointermove)="drag.move($event)"
+                (pointerup)="drag.up($event)"
+                (pointercancel)="drag.cancel()"
+                (lostpointercapture)="drag.cancel()"
+                (mousedown)="onObjectDragBlock($event, row.object)"
+                (touchstart)="onObjectDragBlock($event, row.object)"
               >
                 @if (isMultiMove()) {
                   <td class="border-ui-border-panel w-0 border-b border-solid px-1 py-0.5">

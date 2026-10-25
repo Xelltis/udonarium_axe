@@ -244,16 +244,15 @@ export class GameObjectInventoryComponent {
 
   protected readonly drag = new InventoryObjectDrag({
     canFile: () => this.foldersApply() && this.rolePermission.canEditTabletop,
+    canMove: () => this.rolePermission.canEditTabletop,
     canHandOver: () => PeerCursor.isMyselfGameMaster,
+    currentTab: () => this.selectTab(),
     travellingWith: (character) => {
       const selected = this.multiMoveTargets();
       if (this.isMultiMove() && selected.has(character.identifier)) return new Set(selected);
       return new Set([character.identifier]);
     },
-    ownsPoint: (x, y) => {
-      const element = document.elementFromPoint(x, y);
-      return !!element && this.hostElement.nativeElement.contains(element);
-    },
+    ownsElement: (element) => this.hostElement.nativeElement.contains(element),
     handOverBegin: (character, x, y) => this.npcDrag.begin(character, x, y),
     handOverMove: (x, y) => this.npcDrag.move(x, y),
     handOverEnd: (accepted) => this.npcDrag.end(accepted),
@@ -266,6 +265,7 @@ export class GameObjectInventoryComponent {
       this.setFolderOf(moving, folderPath);
       SoundEffect.play(PresetSound.piecePut);
     },
+    moveTo: (identifiers, tab) => this.moveToTab(identifiers, tab),
   });
 
   constructor() {
@@ -1475,6 +1475,22 @@ export class GameObjectInventoryComponent {
         gameObject.setLocation(location);
       }
     }
+  }
+
+  /**
+   * Moves characters to the place a tab shows, as letting them go over the tab does, and drops them
+   * from the ticked selection, which only ever holds pieces on view. Does nothing for a seat that
+   * may not edit the table.
+   */
+  moveToTab(identifiers: ReadonlySet<string>, tab: string): void {
+    if (!this.rolePermission.canEditTabletop) return;
+    const location = this.locationOfTab(tab);
+    for (const identifier of identifiers) {
+      const gameObject = this.objectStore.get(identifier);
+      if (gameObject instanceof GameCharacter) gameObject.setLocation(location);
+    }
+    this.multiMoveTargets.update((targets) => new Set([...targets].filter((target) => !identifiers.has(target))));
+    SoundEffect.play(PresetSound.piecePut);
   }
 
   /**

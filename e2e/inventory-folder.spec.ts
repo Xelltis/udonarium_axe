@@ -203,4 +203,27 @@ test.describe('dragging pieces in the inventory', () => {
 
     await expect(heading).toContainText(/第1話\s*2/);
   });
+
+  test('moves a piece let go over another tab to the place it shows', async ({ page }) => {
+    const tabs = page.locator('game-object-inventory form[name="game-object-inventory"] > label');
+
+    await dragRow(page, items(page).first(), await middleOf(tabs.nth(2)));
+
+    await expect(tabs.nth(1)).toContainText(/共有\s*1/);
+    await expect(tabs.nth(2)).toContainText(/個人\s*1/);
+    await expect(items(page)).toHaveCount(1);
+  });
+
+  test('moves a piece from the table view too', async ({ page }) => {
+    const tabs = page.locator('game-object-inventory form[name="game-object-inventory"] > label');
+    const panel = page.locator('ui-panel').filter({ hasText: 'インベントリ' });
+    await panel.locator('button[title="リッチ表示"]').dispatchEvent('click');
+    const rows = page.locator('game-object-inventory [data-testid="inventory-table-row"]');
+    await expect(rows).toHaveCount(2, { timeout: 5000 });
+
+    await dragRow(page, rows.first(), await middleOf(tabs.nth(3)));
+
+    await expect(tabs.nth(3)).toContainText(/墓場\s*1/);
+    await expect(rows).toHaveCount(1);
+  });
 });

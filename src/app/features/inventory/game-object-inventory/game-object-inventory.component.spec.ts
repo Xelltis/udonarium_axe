@@ -940,6 +940,47 @@ describe('GameObjectInventoryComponent', () => {
       expect(goblin.folderName).toBe('');
     });
 
+    function tab(inventoryType: string): HTMLElement {
+      const label = document.createElement('label');
+      label.setAttribute('data-inventory-tab', inventoryType);
+      fixture.nativeElement.append(label);
+      return label;
+    }
+
+    it('moves a character let go over another tab to the place it shows', () => {
+      const goblin = putInShared('ゴブリン');
+      component.selectTab.set('common');
+
+      dragOnto(goblin, tab('graveyard'));
+
+      expect(goblin.location.name).toBe('graveyard');
+    });
+
+    it("moves a character let go over the personal tab to this seat's own place", () => {
+      const goblin = putInShared('ゴブリン');
+      component.selectTab.set('common');
+
+      dragOnto(goblin, tab(PERSONAL_INVENTORY_TAB));
+
+      expect(goblin.location.name).toBe(Network.peerId);
+    });
+
+    it('moves the ticked selection along and lets it go from the selection', () => {
+      const goblin = putInShared('ゴブリン');
+      const village = putInShared('村長');
+      const keeper = putInShared('番人');
+      component.selectTab.set('common');
+      component.isMultiMove.set(true);
+      component.multiMoveTargets.set(new Set([goblin.identifier, village.identifier, keeper.identifier]));
+
+      dragOnto(goblin, tab('table'));
+
+      expect(goblin.location.name).toBe('table');
+      expect(village.location.name).toBe('table');
+      expect(keeper.location.name).toBe('table');
+      expect(component.multiMoveTargets().size).toBe(0);
+    });
+
     it('leaves a character dropped nowhere where it was', () => {
       const goblin = putInShared('ゴブリン');
       goblin.folderName = '第1話';
@@ -1860,12 +1901,12 @@ describe('GameObjectInventoryComponent', () => {
         for (const type of presses) expect(await pressReachesPanel(type), type).toBe(false);
       });
 
-      it('lets a player move the panel by a row on a tab without folders', async () => {
+      it('keeps the panel still when a player presses a row on a tab without folders, as it can go to another tab', async () => {
         beSeat(PeerRole.Player);
         putOnTable('ゴブリン');
         component.selectTab.set('table');
 
-        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(true);
+        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(false);
       });
 
       it('lets a guest move the panel by a row they may not file', async () => {
