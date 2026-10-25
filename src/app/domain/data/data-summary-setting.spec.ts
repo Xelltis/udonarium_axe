@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
-import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
+import { DataSummarySetting, readSortKeys, SortOrder, writeSortKeys } from '@axe/domain/data/data-summary-setting';
 
 describe('DataSummarySetting', () => {
   beforeEach(() => {
@@ -109,6 +109,68 @@ describe('DataSummarySetting', () => {
 
       expect(restored.sortTag).toBe('HP');
       expect(restored.folderPaths).toEqual([]);
+    });
+  });
+
+  describe('steps of the order after the second', () => {
+    it('has none until the room adds one', () => {
+      expect(DataSummarySetting.instance.sortMore).toBe('');
+      expect(DataSummarySetting.instance.extraSortKeys).toEqual([]);
+    });
+
+    it('lists every step, the first two and then the rest', () => {
+      const setting = DataSummarySetting.instance;
+      setting.sortTag = 'HP';
+      setting.extraSortKeys = [
+        { tag: 'DEX', order: SortOrder.DESC },
+        { tag: 'MP', order: SortOrder.ASC },
+      ];
+
+      expect(setting.sortKeys).toEqual([
+        { tag: 'HP', order: SortOrder.DESC },
+        { tag: 'name', order: SortOrder.ASC },
+        { tag: 'DEX', order: SortOrder.DESC },
+        { tag: 'MP', order: SortOrder.ASC },
+      ]);
+    });
+
+    it('keeps them in saved data and reads them back', () => {
+      DataSummarySetting.instance.extraSortKeys = [{ tag: '"所持金" 合計', order: SortOrder.DESC }];
+
+      const xml = ObjectSerializer.instance.toXml(DataSummarySetting.instance);
+      const restored = ObjectSerializer.instance.parseXml(xml) as DataSummarySetting;
+
+      expect(restored.extraSortKeys).toEqual([{ tag: '"所持金" 合計', order: SortOrder.DESC }]);
+    });
+
+    it('has none when older saved data says nothing about them', () => {
+      const restored = ObjectSerializer.instance.parseXml(
+        '<summary-setting sortTag="HP"></summary-setting>'
+      ) as DataSummarySetting;
+
+      expect(restored.extraSortKeys).toEqual([]);
+    });
+
+    it('writes nothing for no steps, so a room that never added one saves as it did', () => {
+      expect(writeSortKeys([])).toBe('');
+    });
+
+    it('reads text that is not a list of steps as none', () => {
+      expect(readSortKeys('{"tag":"HP"')).toEqual([]);
+      expect(readSortKeys('{"tag":"HP"}')).toEqual([]);
+      expect(readSortKeys(undefined)).toEqual([]);
+    });
+
+    it('passes over an entry without a name and runs one without a known direction ascending', () => {
+      expect(readSortKeys('[{"order":"DESC"},{"tag":"HP","order":"sideways"},1,null]')).toEqual([
+        { tag: 'HP', order: SortOrder.ASC },
+      ]);
+    });
+
+    it('keeps a step whose name is still to be written, so the row stays on screen', () => {
+      expect(readSortKeys(writeSortKeys([{ tag: '', order: SortOrder.ASC }]))).toEqual([
+        { tag: '', order: SortOrder.ASC },
+      ]);
     });
   });
 

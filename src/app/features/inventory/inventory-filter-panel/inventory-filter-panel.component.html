@@ -173,6 +173,50 @@
           </datalist>
         </div>
       </div>
+      @for (key of extraSortKeys; track $index) {
+        <div class="flex min-w-0 flex-col gap-0.75" data-testid="inventory-extra-sort">
+          <label class="text-ui-muted text-[10px] font-semibold tracking-wider uppercase">{{
+            'feature.inventory.panel.sortOrderN' | transloco: { n: $index + 3 }
+          }}</label>
+          <div class="flex items-center gap-1">
+            <input
+              class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent box-border min-w-0 flex-1 border border-solid px-1.75 py-1 outline-none"
+              [name]="'sort-tag-' + ($index + 3)"
+              list="inventory-sort-candidates"
+              [ngModel]="key.tag"
+              (ngModelChange)="setSortKey($index, { tag: $event })"
+              [placeholder]="'feature.inventory.panel.tagPlaceholder' | transloco"
+            />
+            <select
+              class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm cursor-pointer border border-solid px-1.5 py-1 outline-none"
+              [name]="'sort-order-' + ($index + 3)"
+              [ngModel]="key.order"
+              (ngModelChange)="setSortKey($index, { order: $event })"
+            >
+              <option value="ASC">{{ 'feature.inventory.panel.asc' | transloco }}</option>
+              <option value="DESC">{{ 'feature.inventory.panel.desc' | transloco }}</option>
+            </select>
+            <button
+              class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 [&_.material-icons]:text-base!"
+              type="button"
+              data-testid="inventory-remove-sort"
+              [attr.aria-label]="'feature.inventory.panel.removeSortKey' | transloco"
+              [title]="'feature.inventory.panel.removeSortKey' | transloco"
+              (click)="removeSortKey($index)"
+            >
+              <i class="material-icons" aria-hidden="true">close</i>
+            </button>
+          </div>
+        </div>
+      }
+      <button
+        class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex cursor-pointer items-center gap-0.5 self-start border-none bg-transparent px-1 py-0 text-[10px] [&_.material-icons]:text-[13px]!"
+        type="button"
+        data-testid="inventory-add-sort"
+        (click)="addSortKey()"
+      >
+        <i class="material-icons" aria-hidden="true">add</i>{{ 'feature.inventory.panel.addSortKey' | transloco }}
+      </button>
 
       <div class="flex flex-col gap-0.75">
         <div class="flex items-center gap-1">

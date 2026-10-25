@@ -130,6 +130,46 @@ describe('InventoryFilterPanelComponent', () => {
     }
   });
 
+  it('adds steps of the order after the second, rewrites them and takes them out again', async () => {
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(true);
+    const inventory = TestBed.inject(GameObjectInventoryService);
+    inventory.extraSortKeys = [];
+    fixture.detectChanges();
+    const rows = () =>
+      [...fixture.nativeElement.querySelectorAll('[data-testid="inventory-extra-sort"]')] as HTMLElement[];
+    expect(rows()).toHaveLength(0);
+
+    const add = fixture.nativeElement.querySelector('[data-testid="inventory-add-sort"]') as HTMLButtonElement;
+    add.click();
+    add.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(rows().map((row) => row.querySelector('label')?.textContent?.trim())).toEqual(['並び順 第3', '並び順 第4']);
+    const input = rows()[1].querySelector('input') as HTMLInputElement;
+    expect(input.getAttribute('list')).toBe('inventory-sort-candidates');
+    input.value = 'MP';
+    input.dispatchEvent(new Event('input'));
+    const select = rows()[1].querySelector('select') as HTMLSelectElement;
+    select.value = 'DESC';
+    select.dispatchEvent(new Event('change'));
+
+    expect(inventory.extraSortKeys).toEqual([
+      { tag: '', order: SortOrder.ASC },
+      { tag: 'MP', order: SortOrder.DESC },
+    ]);
+
+    (rows()[0].querySelector('[data-testid="inventory-remove-sort"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(inventory.extraSortKeys).toEqual([{ tag: 'MP', order: SortOrder.DESC }]);
+    expect(rows()).toHaveLength(1);
+    expect(rows()[0].querySelector('label')?.textContent?.trim()).toBe('並び順 第3');
+    expect((rows()[0].querySelector('input') as HTMLInputElement).value).toBe('MP');
+    inventory.extraSortKeys = [];
+  });
+
   it('puts a search box above the list when ticked, and takes it away again', () => {
     fixture.detectChanges();
     const box = fixture.nativeElement.querySelector('[data-testid="inventory-search-bar-toggle"]') as HTMLInputElement;

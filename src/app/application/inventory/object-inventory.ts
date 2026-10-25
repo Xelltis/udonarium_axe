@@ -1,4 +1,4 @@
-import { sortObjectsByTags } from '@axe/application/inventory/game-object-inventory-helpers';
+import { sortObjectsByKeys } from '@axe/application/inventory/game-object-inventory-helpers';
 import { displayItemNames } from '@axe/application/inventory/summary-items';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -81,13 +81,7 @@ export class ObjectInventory {
   get tabletopObjects(): TabletopObject[] {
     this.pieces();
     if (this.needsSort) {
-      this._tabletopObjects = sortObjectsByTags(
-        this._tabletopObjects,
-        this.sortTag,
-        this.sortOrder,
-        this.sortTag2nd,
-        this.sortOrder2nd
-      );
+      this._tabletopObjects = sortObjectsByKeys(this._tabletopObjects, this.summarySetting.sortKeys);
       this.needsSort = false;
     }
     return this._tabletopObjects;

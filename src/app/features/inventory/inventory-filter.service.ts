@@ -1,7 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { splitSearchTerms } from '@axe/core/util/text-search';
-import { SortOrder } from '@axe/domain/data/data-summary-setting';
+import { type SortKey, SortOrder } from '@axe/domain/data/data-summary-setting';
 import type {
   InventoryHiddenDisplay,
   InventoryHiddenFilter,
@@ -74,6 +74,14 @@ export class InventoryFilterService {
   }
   set sortOrder2nd(value: SortOrder) {
     this.inventoryService.sortOrder2nd = value;
+  }
+
+  /** The steps of the order after the second, shared with the room. */
+  get extraSortKeys(): readonly SortKey[] {
+    return this.inventoryService.extraSortKeys;
+  }
+  set extraSortKeys(keys: readonly SortKey[]) {
+    this.inventoryService.extraSortKeys = keys;
   }
 
   /**

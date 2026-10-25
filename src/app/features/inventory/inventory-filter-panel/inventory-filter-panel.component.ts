@@ -8,6 +8,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { type SortKey, SortOrder } from '@axe/domain/data/data-summary-setting';
 import { appendSummaryTag, removeSummaryTag, splitSummaryTags, tagLeafNames } from '@axe/domain/data/summary-tag-list';
 import { displayItemCandidates } from '@axe/domain/inventory/display-item-candidates';
 import {
@@ -140,6 +141,26 @@ export class InventoryFilterPanelComponent {
   }
   set sortOrder2nd(value: string) {
     this.filter.sortOrder2nd = value as typeof this.filter.sortOrder2nd;
+  }
+
+  /** The steps of the order after the second, each a row of its own below the first two. */
+  get extraSortKeys(): readonly SortKey[] {
+    return this.filter.extraSortKeys;
+  }
+
+  /** Adds a step to the end of the order, ascending and with its name still to be written. */
+  addSortKey(): void {
+    this.filter.extraSortKeys = [...this.filter.extraSortKeys, { tag: '', order: SortOrder.ASC }];
+  }
+
+  /** Rewrites the name or the direction of a step after the second, found by its place among them. */
+  setSortKey(index: number, change: Partial<SortKey>): void {
+    this.filter.extraSortKeys = this.filter.extraSortKeys.map((key, i) => (i === index ? { ...key, ...change } : key));
+  }
+
+  /** Takes a step after the second out of the order, and the ones below it move up. */
+  removeSortKey(index: number): void {
+    this.filter.extraSortKeys = this.filter.extraSortKeys.filter((_, i) => i !== index);
   }
 
   /**
