@@ -1803,6 +1803,9 @@
         "delete": "삭제",
         "hideInInventory": "인벤토리에서 숨기기",
         "showInInventory": "인벤토리에 표시",
+        "resourceSliders": "슬라이더",
+        "resourceSlidersShowAll": "리소스 슬라이더 모두 표시",
+        "resourceSlidersHideAll": "리소스 슬라이더 모두 숨기기",
         "cancel": "취소",
         "menu": "메뉴",
         "emptyMessage": "{{name}} 인벤토리는 비어 있습니다",
@@ -2060,7 +2063,10 @@
         "disclosureGroup": "공개와 소유자",
         "putAwayGroup": "치우기",
         "conditionGroup": "말의 상태",
-        "stealth": "스텔스 (GM과 소유자·같은 파티에게만 보임)"
+        "stealth": "스텔스 (GM과 소유자·같은 파티에게만 보임)",
+        "resourceSliders": "리소스 슬라이더",
+        "resourceSlidersShowAll": "모두 표시",
+        "resourceSlidersHideAll": "모두 숨기기"
       },
       "panel": {
         "sheet": "캐릭터 시트",
@@ -3120,6 +3126,9 @@
       "sectionScreenAndWindows": "화면과 창",
       "sectionView3d": "3D 표시",
       "imageBillboard": "말 이미지를 항상 카메라 쪽으로",
+      "sectionSheet": "캐릭터 시트",
+      "resourceSliderByDefault": "수치 리소스에 슬라이더를 기본으로 표시",
+      "resourceSliderByDefaultHint": "항목마다 표시 여부를 고른 리소스는 그 선택을 따릅니다. 말 메뉴의 「표시와 취급」에서 그 말의 리소스를 한꺼번에 바꿀 수 있습니다.",
       "tickerHint": "채팅 입력란의 \"티커\" 버튼을 켜고 보낸 발언을 화면 네 변으로 흘려보냅니다.",
       "sectionMeasure": "화면 실측",
       "measureHint": "ID-1 규격 카드를 자로 삼아 이 화면의 실제 크기를 측정합니다. 측정값은 이 화면의 이번 세션에만 남습니다.",

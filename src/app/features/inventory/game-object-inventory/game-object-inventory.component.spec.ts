@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -13,6 +14,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { resourceElementsOf } from '@axe/domain/character/resource-catalog';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
@@ -946,6 +948,34 @@ describe('GameObjectInventoryComponent', () => {
       fixture.nativeElement.append(label);
       return label;
     }
+
+    it('gives every resource of the ticked characters a slider from the bar, and takes them all away', () => {
+      const goblin = putInShared('ゴブリン');
+      const village = putInShared('村長');
+      const sliders = TestBed.inject(ResourceSliderService);
+      const buttons = () =>
+        [
+          ...fixture.nativeElement.querySelectorAll('[data-testid="inventory-multi-resource-sliders"]'),
+        ] as HTMLButtonElement[];
+      component.selectTab.set('common');
+      component.isMultiMove.set(true);
+      component.multiMoveTargets.set(new Set([goblin.identifier]));
+      fixture.detectChanges();
+      expect(buttons().map((button) => button.textContent?.trim())).toEqual(['すべて出す', 'すべて隠す']);
+
+      buttons()[0].click();
+
+      expect(resourceElementsOf(goblin).every((element) => sliders.shows(element))).toBe(true);
+      expect(resourceElementsOf(village).some((element) => sliders.shows(element))).toBe(false);
+      expect(component.isMultiMove()).toBe(false);
+
+      component.isMultiMove.set(true);
+      component.multiMoveTargets.set(new Set([goblin.identifier]));
+      fixture.detectChanges();
+      buttons()[1].click();
+
+      expect(resourceElementsOf(goblin).some((element) => sliders.shows(element))).toBe(false);
+    });
 
     it('moves every ticked character to the place chosen from the menu', () => {
       const goblin = putInShared('ゴブリン');

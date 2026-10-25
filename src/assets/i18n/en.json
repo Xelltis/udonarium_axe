@@ -1803,6 +1803,9 @@
         "delete": "Delete",
         "hideInInventory": "Hide in inventory",
         "showInInventory": "Show in inventory",
+        "resourceSliders": "Sliders",
+        "resourceSlidersShowAll": "Show every resource slider",
+        "resourceSlidersHideAll": "Hide every resource slider",
         "cancel": "Cancel",
         "menu": "Menu",
         "emptyMessage": "{{name}} inventory is empty",
@@ -2060,7 +2063,10 @@
         "disclosureGroup": "Visibility and owner",
         "putAwayGroup": "Put away",
         "conditionGroup": "State of the piece",
-        "stealth": "Stealth (only the GM, the owner and their party see it)"
+        "stealth": "Stealth (only the GM, the owner and their party see it)",
+        "resourceSliders": "Resource sliders",
+        "resourceSlidersShowAll": "Show them all",
+        "resourceSlidersHideAll": "Hide them all"
       },
       "panel": {
         "sheet": "Character sheet",
@@ -3120,6 +3126,9 @@
       "sectionScreenAndWindows": "The screen and its windows",
       "sectionView3d": "Seen along the table",
       "imageBillboard": "Keep piece images facing the reader",
+      "sectionSheet": "Character sheets",
+      "resourceSliderByDefault": "Give number resources a slider by default",
+      "resourceSliderByDefaultHint": "A resource set to show or not show its own slider keeps to that. A piece's menu can switch every resource of the piece at once, under Display and handling.",
       "tickerHint": "Runs a line sent with the ticker button in the chat input around the four edges of the screen.",
       "sectionMeasure": "Measuring this screen",
       "measureHint": "Measures this screen against an ID-1 card. What is measured stays on this screen for this session alone.",

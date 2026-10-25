@@ -865,6 +865,29 @@ describe('RoomSettingsPanelComponent', () => {
       expect(Config.instance.pieceImageInCell).toBeNull();
     });
 
+    it('gives every number resource a slider for the whole room, from the shared part', async () => {
+      const root = await openUi('shared');
+      const box = root.querySelector('[data-testid="resource-slider-default"]') as HTMLInputElement;
+      expect(box).toBeTruthy();
+      expect(box.checked).toBe(false);
+
+      box.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.resourceSliderByDefault).toBe(true);
+      expect(Config.instance.resourceSliderByDefault).toBe(true);
+      Config.instance.resourceSliderByDefault = false;
+    });
+
+    it('leaves the sliders of the room to the master', () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+
+      component.resourceSliderByDefault = true;
+
+      expect(Config.instance.resourceSliderByDefault).toBe(false);
+    });
+
     it('keeps what the room shows everyone under its own part', async () => {
       const root = await openUi('shared');
       const shared = root.querySelector('[data-testid="room-settings-shared"]');

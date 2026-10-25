@@ -330,6 +330,36 @@ describe('buildGameCharacterContextMenu()', () => {
     expect(altitude!.subActions?.length).toBe(3);
   });
 
+  it('switches every resource slider of the piece at once from the display and handling group', () => {
+    const onSetResourceSliders = vi.fn();
+    const menu = buildGameCharacterContextMenu(
+      makeChar() as unknown as GameCharacter,
+      50,
+      makeService(),
+      { ...callbacks(), onSetResourceSliders },
+      t
+    );
+    const sliders = groupOf(menu, '表示と扱い').find((m) => m.name === 'リソースのスライダー')!;
+    expect(names(sliders.subActions!)).toEqual(['すべて出す', 'すべて隠す']);
+
+    sliders.subActions![0].action!();
+    sliders.subActions![1].action!();
+
+    expect(onSetResourceSliders.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it('offers no slider switch where it is left out', () => {
+    const menu = buildGameCharacterContextMenu(
+      makeChar() as unknown as GameCharacter,
+      50,
+      makeService(),
+      callbacks(),
+      t
+    );
+
+    expect(names(groupOf(menu, '表示と扱い'))).not.toContain('リソースのスライダー');
+  });
+
   it('opens the sheet, the palette, the remote and the buffs', () => {
     const cb = callbacks();
     const menu = buildGameCharacterContextMenu(makeChar() as unknown as GameCharacter, 50, makeService(), cb, t);

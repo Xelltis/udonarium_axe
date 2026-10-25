@@ -247,6 +247,37 @@
             </div>
           }
 
+          @if (selectTab() !== 'graveyard') {
+            <span class="bg-ui-border-panel h-4 w-px shrink-0"></span>
+            <span class="text-ui-muted shrink-0 text-[10px] font-semibold tracking-wider uppercase">{{
+              'feature.inventory.panel.resourceSliders' | transloco
+            }}</span>
+            <div class="flex items-center gap-1">
+              @for (shown of [true, false]; track shown) {
+                <button
+                  class="bg-ui-input border-ui-border-panel text-ui-text hover:bg-ui-hover hover:border-ui-accent hover:text-ui-accent rounded-ui-sm h-6.5 cursor-pointer border border-solid px-2 text-[11px] transition-[background,color,border-color] disabled:cursor-default disabled:opacity-40"
+                  type="button"
+                  data-testid="inventory-multi-resource-sliders"
+                  [disabled]="picked < 1"
+                  [title]="
+                    (shown
+                      ? 'feature.inventory.panel.resourceSlidersShowAll'
+                      : 'feature.inventory.panel.resourceSlidersHideAll'
+                    ) | transloco
+                  "
+                  (click)="multiSetResourceSliders(shown)"
+                >
+                  {{
+                    (shown
+                      ? 'feature.character.contextMenu.resourceSlidersShowAll'
+                      : 'feature.character.contextMenu.resourceSlidersHideAll'
+                    ) | transloco
+                  }}
+                </button>
+              }
+            </div>
+          }
+
           @if (selectTab() === 'graveyard') {
             <span class="bg-ui-border-panel h-4 w-px shrink-0"></span>
             <button

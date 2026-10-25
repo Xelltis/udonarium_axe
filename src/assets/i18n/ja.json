@@ -1803,6 +1803,9 @@
         "delete": "削除",
         "hideInInventory": "インベントリで非表示",
         "showInInventory": "インベントリで表示",
+        "resourceSliders": "スライダー",
+        "resourceSlidersShowAll": "リソースのスライダーをすべて出す",
+        "resourceSlidersHideAll": "リソースのスライダーをすべて隠す",
         "cancel": "キャンセル",
         "menu": "メニュー",
         "emptyMessage": "{{name}}インベントリは空です",
@@ -2060,7 +2063,10 @@
         "disclosureGroup": "公開とオーナー",
         "putAwayGroup": "しまう",
         "conditionGroup": "コマの状態",
-        "stealth": "ステルス（GMと持ち主・仲間にだけ見える）"
+        "stealth": "ステルス（GMと持ち主・仲間にだけ見える）",
+        "resourceSliders": "リソースのスライダー",
+        "resourceSlidersShowAll": "すべて出す",
+        "resourceSlidersHideAll": "すべて隠す"
       },
       "panel": {
         "sheet": "キャラクターシート",
@@ -3120,6 +3126,9 @@
       "sectionScreenAndWindows": "画面とウィンドウ",
       "sectionView3d": "3D表示",
       "imageBillboard": "コマ画像を常にカメラに向ける",
+      "sectionSheet": "キャラクターシート",
+      "resourceSliderByDefault": "数値リソースにスライダーを既定で出す",
+      "resourceSliderByDefaultHint": "項目ごとに出す・出さないを選んだリソースは、その選択に従います。コマのメニューの「表示と扱い」から、そのコマのリソースをまとめて切り替えられます。",
       "tickerHint": "チャット入力欄の「ティッカー」ボタンを入れて送った発言を、画面の四辺へ流します。",
       "sectionMeasure": "画面の実測",
       "measureHint": "ID-1 規格のカードを物差しに、この画面の実寸を測ります。測った値はこの画面のこのセッションにだけ残ります。",

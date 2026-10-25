@@ -11,6 +11,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -29,7 +30,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { allowsOverResource } from '@axe/domain/character/over-resource';
-import { ResourceSliderRange, resourceSliderRange, showsResourceSlider } from '@axe/domain/character/resource-slider';
+import { ResourceSliderRange, resourceSliderRange } from '@axe/domain/character/resource-slider';
 import {
   DataElement,
   DataElementAttribute,
@@ -144,6 +145,7 @@ export class GameDataElementComponent {
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly effectCast = inject(EffectCastService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly resourceSliders = inject(ResourceSliderService);
   private readonly edit = inject(DataElementEditService);
   private readonly bottomSheet = inject(BottomSheetService);
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -1055,9 +1057,7 @@ export class GameDataElementComponent {
 
   /** Whether this resource is moved with a slider as well as typed, here and in the popup over its piece. */
   hasResourceSlider(): boolean {
-    const element = this.gameDataElement();
-    this.objectChange.versionOf(element.identifier)();
-    return showsResourceSlider(element);
+    return this.resourceSliders.shows(this.gameDataElement());
   }
 
   /**

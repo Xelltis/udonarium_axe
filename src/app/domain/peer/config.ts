@@ -57,6 +57,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_speechBubbles') private _speechBubbles: string = '';
   @SyncVar('_turnSignal') private _turnSignal: string = '';
   @SyncVar('_turnTick') private _turnTick: string = '';
+  @SyncVar('_resourceSliderDefault') private _resourceSliderDefault: string = '';
 
   // How the round is taken, which is the room's own decision rather than a table's.
   @SyncVar('_turnOrderMode') private _turnOrderMode: string = '';
@@ -317,6 +318,18 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set isSpeakerAvatarVisible(visible: boolean) {
     this._showSpeakerAvatar = visible ? '1' : '';
+  }
+
+  /**
+   * Whether a number resource that says nothing of its own slider shows one.
+   *
+   * Off unless the room turns it on. A resource that says yes or no of its own keeps to it.
+   */
+  get resourceSliderByDefault(): boolean {
+    return this._resourceSliderDefault === '1';
+  }
+  set resourceSliderByDefault(shown: boolean) {
+    this._resourceSliderDefault = shown ? '1' : '';
   }
 
   /** How the round decides whose turn it is: by initiative, or side by side; anything unknown reads as the default. */

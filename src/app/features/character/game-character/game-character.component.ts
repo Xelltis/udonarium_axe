@@ -13,6 +13,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { StealthService } from '@axe/application/character/stealth.service';
 import { SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
@@ -324,6 +325,7 @@ export class GameCharacterComponent {
   private readonly engagementZones = inject(EngagementZoneService);
   private readonly ride = inject(RideService);
   private readonly stealth = inject(StealthService);
+  private readonly resourceSliders = inject(ResourceSliderService);
   private readonly snackbar = inject(SnackbarService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly visionService = inject(VisionService);
@@ -1809,6 +1811,9 @@ export class GameCharacterComponent {
         onInvokeRangeShape: (value) => this.rangeShapeInvoke.spawnForCharacter(char, value),
         onInvokeEffect: (name) => this.invokeEffect(char, name),
         onDeployDice: () => this.characterDice.deploy(char),
+        onSetResourceSliders: this.resourceSliders.maySetAll(char)
+          ? (shown) => this.resourceSliders.setAll(char, shown)
+          : undefined,
         onPlanMove: this.mayPlanMove(char) ? () => void this.movePlan.begin(char) : undefined,
         onToggleTarget: () => this.toggleTarget(),
         onClearTargets: this.anythingTargeted() ? () => this.clearEveryTarget() : undefined,

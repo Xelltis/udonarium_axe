@@ -14,6 +14,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { StealthService } from '@axe/application/character/stealth.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -232,6 +233,7 @@ export class GameObjectInventoryComponent {
   private readonly turnOrderService = inject(TurnOrderService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly resourceSliders = inject(ResourceSliderService);
   private readonly vision = inject(VisionService);
   private readonly ailmentService = inject(StatusAilmentService);
   private readonly viewPreference = inject(InventoryViewPreferenceService);
@@ -1553,6 +1555,20 @@ export class GameObjectInventoryComponent {
       }
     }
     this.inventoryService.notifyInventoryUpdate();
+    this.toggleMultiMove();
+    SoundEffect.play(PresetSound.sweep);
+  }
+
+  /**
+   * Gives every resource of the picked pieces a slider, or takes every one away, whatever the room's
+   * default, and leaves multi-select.
+   */
+  multiSetResourceSliders(shown: boolean) {
+    if (!this.rolePermission.canEditTabletop) return;
+    for (const gameObjectIdentifier of this.multiMoveTargets()) {
+      const gameObject = this.objectStore.get<GameCharacter>(gameObjectIdentifier);
+      if (gameObject instanceof GameCharacter) this.resourceSliders.setAll(gameObject, shown);
+    }
     this.toggleMultiMove();
     SoundEffect.play(PresetSound.sweep);
   }

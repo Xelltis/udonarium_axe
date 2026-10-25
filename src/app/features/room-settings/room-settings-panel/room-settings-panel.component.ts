@@ -1,6 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { RoomSnapshotService } from '@axe/application/file/room-snapshot.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -139,6 +140,7 @@ export class RoomSettingsPanelComponent {
   private readonly roomSnapshot = inject(RoomSnapshotService);
   private readonly roomPanels = inject(RoomPanelService);
   private readonly browserDataWipe = inject(BrowserDataWipeService);
+  private readonly resourceSliders = inject(ResourceSliderService);
 
   readonly tabs = ROOM_SETTINGS_TABS;
   readonly uiTabs = ROOM_SETTINGS_UI_TABS;
@@ -254,6 +256,14 @@ export class RoomSettingsPanelComponent {
     if (this.isSharedReadOnly() || !table) return;
     table.imageBillboard = value;
     triggerUpdateGameObject(table.toContext());
+  }
+
+  /** Whether a number resource that says nothing of its own slider shows one, for the whole room. */
+  get resourceSliderByDefault(): boolean {
+    return this.resourceSliders.roomDefault();
+  }
+  set resourceSliderByDefault(shown: boolean) {
+    if (!this.isSharedReadOnly()) this.resourceSliders.setRoomDefault(shown);
   }
 
   /**
