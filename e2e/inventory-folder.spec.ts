@@ -214,6 +214,32 @@ test.describe('dragging pieces in the inventory', () => {
     await expect(items(page)).toHaveCount(1);
   });
 
+  test('picks a piece up from one of its fields once the pointer leaves the field', async ({ page }) => {
+    const tabs = page.locator('game-object-inventory form[name="game-object-inventory"] > label');
+    const field = items(page).first().locator('input[name="data-value"]').first();
+    const start = await middleOf(field);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    const to = await middleOf(tabs.nth(2));
+    await page.mouse.move(to.x, to.y, { steps: 12 });
+    await page.mouse.up();
+
+    await expect(tabs.nth(2)).toContainText(/個人\s*1/);
+  });
+
+  test('leaves a press that stays in a field to the field', async ({ page }) => {
+    const tabs = page.locator('game-object-inventory form[name="game-object-inventory"] > label');
+    const field = items(page).first().locator('input[name="data-value"]').first();
+    const start = await middleOf(field);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x + 12, start.y, { steps: 4 });
+    await page.mouse.up();
+
+    await expect(field).toBeFocused();
+    await expect(tabs.nth(1)).toContainText(/共有\s*2/);
+  });
+
   test('moves a piece from the table view too', async ({ page }) => {
     const tabs = page.locator('game-object-inventory form[name="game-object-inventory"] > label');
     const panel = page.locator('ui-panel').filter({ hasText: 'インベントリ' });

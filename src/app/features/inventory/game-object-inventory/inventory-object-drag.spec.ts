@@ -17,6 +17,31 @@ function pointerAt(x: number, y: number): PointerEvent {
   return { button: 0, clientX: x, clientY: y, pointerId: 1, target, currentTarget: target } as unknown as PointerEvent;
 }
 
+/** A row holding a text field 50 wide and 20 tall from the corner, and a gauge. */
+function fieldOnRow() {
+  const row = document.createElement('div');
+  row.setPointerCapture = vi.fn();
+  row.releasePointerCapture = vi.fn();
+  const field = document.createElement('input');
+  field.getBoundingClientRect = () => ({ left: 0, right: 50, top: 0, bottom: 20 }) as DOMRect;
+  vi.spyOn(field, 'blur');
+  const gauge = document.createElement('input');
+  gauge.type = 'range';
+  row.append(field, gauge);
+  const pressOn = (target: Element, x: number, y: number, extra: Partial<PointerEvent> = {}) =>
+    ({
+      button: 0,
+      buttons: 1,
+      clientX: x,
+      clientY: y,
+      pointerId: 1,
+      target,
+      currentTarget: row,
+      ...extra,
+    }) as unknown as PointerEvent;
+  return { row, field, gauge, pressOn };
+}
+
 describe('InventoryObjectDrag', () => {
   let host: ObjectDragHost & { [key: string]: unknown };
   let drag: InventoryObjectDrag;
@@ -145,6 +170,48 @@ describe('InventoryObjectDrag', () => {
 
     expect(host['fileInto']).not.toHaveBeenCalled();
     expect(host['handOverEnd']).toHaveBeenCalledWith(false);
+  });
+
+  it('picks a row up from one of its fields once the pointer leaves the field, not before', () => {
+    const { row, field, pressOn } = fieldOnRow();
+    drag.down(pressOn(field, 10, 10), character);
+    expect(row.setPointerCapture).not.toHaveBeenCalled();
+
+    drag.move(pressOn(field, 45, 10));
+    expect(drag.isDragging(character)).toBe(false);
+
+    drag.move(pressOn(field, 45, 40));
+    expect(drag.isDragging(character)).toBe(true);
+    expect(row.setPointerCapture).toHaveBeenCalled();
+    expect(field.blur).toHaveBeenCalled();
+  });
+
+  it('forgets a press in a field let go of outside the row, rather than dragging on a bare move', () => {
+    const { field, pressOn } = fieldOnRow();
+    drag.down(pressOn(field, 10, 10), character);
+
+    drag.move(pressOn(field, 45, 40, { buttons: 0 }));
+    drag.move(pressOn(field, 80, 80));
+
+    expect(drag.isDragging(character)).toBe(false);
+  });
+
+  it('leaves a field under a finger to scroll the list', () => {
+    const { field, pressOn } = fieldOnRow();
+    drag.down(pressOn(field, 10, 10, { pointerType: 'touch' }), character);
+
+    drag.move(pressOn(field, 45, 40, { pointerType: 'touch' }));
+
+    expect(drag.isDragging(character)).toBe(false);
+  });
+
+  it('leaves a gauge, a choice or a button to do what it does', () => {
+    const { gauge, pressOn } = fieldOnRow();
+    drag.down(pressOn(gauge, 10, 10), character);
+
+    drag.move(pressOn(gauge, 80, 80));
+
+    expect(drag.isDragging(character)).toBe(false);
   });
 
   it('swallows the click that ends a drag, once', () => {

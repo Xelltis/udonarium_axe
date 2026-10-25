@@ -28,6 +28,9 @@ export interface ObjectDragHost {
 
 interface Pending {
   character: GameCharacter;
+  row: HTMLElement;
+  /** The field the press landed in, which keeps the pointer until the pointer leaves it. */
+  field: HTMLElement | null;
   startX: number;
   startY: number;
   dragging: boolean;
@@ -38,6 +41,15 @@ interface Pending {
 
 /** How far the pointer travels before a press counts as a drag rather than a click. */
 const DRAG_SLACK_PX = 6;
+
+/**
+ * What a press is meant for itself: a button, a choice, and a gauge, whose drag is how its value is
+ * set. A press on any of these never picks the row up.
+ */
+const UNGRABBABLE_SELECTOR = 'button, select, input[type="range"], input[type="checkbox"], input[type="radio"]';
+
+/** A field typed into, in which pressing and moving selects text until the pointer leaves it. */
+const FIELD_SELECTOR = 'input, textarea';
 
 export class InventoryObjectDrag {
   private pending: Pending | null = null;
@@ -89,15 +101,23 @@ export class InventoryObjectDrag {
   /**
    * Arms a drag when a character's row is pressed with the primary button, capturing the pointer.
    *
-   * Presses on the row's buttons and inputs are left alone, and so is any press with nowhere to
-   * drop: no folders to file into, no tab to move to and no game master's bar to hand over to.
+   * A press in one of the row's fields arms one too, but leaves the pointer to the field, where
+   * moving selects text as ever; a finger's press there is left to scroll the list. Presses on the
+   * row's buttons, choices and gauges are left alone, and so is any press with nowhere to drop: no
+   * folders to file into, no tab to move to and no game master's bar to hand over to.
    */
   down(event: PointerEvent, gameObject: GameObject): void {
     if (event.button !== 0 || !this.canDrag(gameObject)) return;
-    if ((event.target as HTMLElement).closest('button, input')) return;
+    const target = event.target as HTMLElement;
+    if (target.closest(UNGRABBABLE_SELECTOR)) return;
+    const field = target.closest<HTMLElement>(FIELD_SELECTOR);
+    if (field && event.pointerType === 'touch') return;
 
+    const row = event.currentTarget as HTMLElement;
     this.pending = {
       character: gameObject,
+      row,
+      field,
       startX: event.clientX,
       startY: event.clientY,
       dragging: false,
@@ -105,21 +125,33 @@ export class InventoryObjectDrag {
       withFolders: this.host.canFile(),
       withTabs: this.host.canMove(),
     };
-    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+    if (!field) row.setPointerCapture?.(event.pointerId);
   }
 
   /**
    * Follows the pointer during an armed press.
    *
    * Past a few pixels the press becomes a drag of the piece and whatever travels with it, starting
-   * a hand-over to the game master's bar where allowed. From then on it tracks the folder or the
-   * tab under the pointer.
+   * a hand-over to the game master's bar where allowed; a press in a field waits for the pointer to
+   * leave the field, then takes the pointer and lets go of the field. That press is not captured,
+   * so its release can land outside the row unseen; a move with the button up drops it. From then
+   * on it tracks the folder or the tab under the pointer.
    */
   move(event: PointerEvent): void {
     const pending = this.pending;
     if (!pending) return;
+    if (pending.field && !pending.dragging && (event.buttons & 1) === 0) {
+      this.cancel();
+      return;
+    }
     if (!pending.dragging) {
       if (Math.hypot(event.clientX - pending.startX, event.clientY - pending.startY) < DRAG_SLACK_PX) return;
+      if (pending.field) {
+        if (isOver(pending.field, event)) return;
+        pending.row.setPointerCapture?.(event.pointerId);
+        pending.field.blur();
+        pending.field.ownerDocument.getSelection()?.removeAllRanges();
+      }
       pending.dragging = true;
       this.draggingIdentifiers.set(this.host.travellingWith(pending.character));
       if (pending.withNpcBar) this.host.handOverBegin(pending.character, event.clientX, event.clientY);
@@ -196,4 +228,11 @@ export class InventoryObjectDrag {
     const tab = inventoryTabFromElement(element);
     return tab !== null && tab !== this.host.currentTab() ? tab : null;
   }
+}
+
+function isOver(element: Element, event: PointerEvent): boolean {
+  const box = element.getBoundingClientRect();
+  return (
+    event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom
+  );
 }
