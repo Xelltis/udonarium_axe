@@ -1,5 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { StartRoomService } from '@axe/application/file/start-room.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Logger } from '@axe/core/logging/logger';
@@ -19,6 +20,7 @@ export class RoomSnapshotService {
   private readonly fileArchiver = inject(FileArchiver);
   private readonly objectStore = inject(ObjectStore);
   private readonly snackbar = inject(SnackbarService);
+  private readonly startRoom = inject(StartRoomService);
   private readonly t = inject(TRANSLATE_FN);
 
   private readonly _snapshots = signal<readonly RoomSnapshotMeta[]>([]);
@@ -123,9 +125,10 @@ export class RoomSnapshotService {
    * Loads a snapshot back into the room, as a room file dropped on the table would be.
    *
    * Answers false where snapshots are unsupported, while a restore is already running, for an id
-   * the store does not hold, or when loading fails, which is logged. While a replay's board is shown
-   * in place of the table it restores nothing and says why, as the board and what went onto it are
-   * thrown away when the table comes back.
+   * the store does not hold, or when the snapshot's room cannot be read, which is logged. A room to
+   * start on still being set out at launch is let finish first, so the snapshot lands on it. While
+   * a replay's board is shown in place of the table it restores nothing and says why, as the board
+   * and what went onto it are thrown away when the table comes back.
    */
   async restore(id: number): Promise<boolean> {
     if (!this.isSupported || this._isRestoring()) return false;
@@ -138,11 +141,12 @@ export class RoomSnapshotService {
       const record = await this.store.get(id);
       if (!record) return false;
 
+      await this.startRoom.whenSettled();
       const reloadCheck = this.objectStore.get<ReloadCheck>('ReloadCheck');
       reloadCheck?.reloadCheckStart(this.currentRoomName() !== '');
 
-      await this.fileArchiver.load([new File([record.blob], 'room-snapshot.zip', { type: 'application/zip' })]);
-      return true;
+      const file = new File([record.blob], 'room-snapshot.zip', { type: 'application/zip' });
+      return (await this.fileArchiver.load([file])).dataRead;
     } catch (reason) {
       Logger.warn('[RoomSnapshot] スナップショットの復元に失敗しました', reason);
       return false;

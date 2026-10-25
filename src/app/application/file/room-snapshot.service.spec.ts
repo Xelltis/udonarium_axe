@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { RoomSnapshotService } from '@axe/application/file/room-snapshot.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { StartRoomService } from '@axe/application/file/start-room.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
@@ -65,7 +66,7 @@ describe('RoomSnapshotService', () => {
 
   beforeEach(() => {
     store = new FakeRoomSnapshotStore();
-    load = vi.fn().mockResolvedValue(undefined);
+    load = vi.fn().mockResolvedValue({ dataRead: true });
 
     TestBed.configureTestingModule({
       providers: [
@@ -143,6 +144,30 @@ describe('RoomSnapshotService', () => {
     expect(load).toHaveBeenCalledOnce();
     const files = load.mock.calls[0][0] as File[];
     expect(files[0].name).toBe('room-snapshot.zip');
+  });
+
+  it('reports failure restoring a snapshot whose room cannot be read', async () => {
+    const meta = await service.capture();
+    load.mockResolvedValue({ dataRead: false });
+
+    await expect(service.restore(meta!.id)).resolves.toBe(false);
+  });
+
+  it('lets a room to start on still being set out at launch finish before the snapshot goes in', async () => {
+    const meta = await service.capture();
+    let finish!: () => void;
+    vi.spyOn(TestBed.inject(StartRoomService), 'whenSettled').mockReturnValue(
+      new Promise<void>((resolve) => (finish = resolve))
+    );
+
+    const restoring = service.restore(meta!.id);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(load).not.toHaveBeenCalled();
+
+    finish();
+    await expect(restoring).resolves.toBe(true);
+    expect(load).toHaveBeenCalledOnce();
   });
 
   it('restores nothing while a replay’s board is shown in place of the table, and says so', async () => {
