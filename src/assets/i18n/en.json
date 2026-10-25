@@ -1786,6 +1786,7 @@
         "filterSettings": "Filtering and display settings",
         "sortOrder1": "Sort 1st",
         "sortOrder2": "Sort 2nd",
+        "sortByName": "Name",
         "tagPlaceholder": "Tag name",
         "asc": "Ascending",
         "desc": "Descending",

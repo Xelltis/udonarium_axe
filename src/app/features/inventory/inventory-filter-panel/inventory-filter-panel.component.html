@@ -95,6 +95,7 @@
             <input
               class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent box-border min-w-0 flex-1 border border-solid px-1.75 py-1 outline-none"
               name="sort-tag"
+              list="inventory-sort-candidates"
               [(ngModel)]="sortTag"
               [placeholder]="'feature.inventory.panel.tagPlaceholder' | transloco"
             />
@@ -116,6 +117,7 @@
             <input
               class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent box-border min-w-0 flex-1 border border-solid px-1.75 py-1 outline-none"
               name="sort-tag-2nd"
+              list="inventory-sort-candidates"
               [(ngModel)]="sortTag2nd"
               [placeholder]="'feature.inventory.panel.tagPlaceholder' | transloco"
             />
@@ -128,6 +130,12 @@
               <option value="DESC">{{ 'feature.inventory.panel.desc' | transloco }}</option>
             </select>
           </div>
+          <datalist id="inventory-sort-candidates">
+            <option value="name">{{ 'feature.inventory.panel.sortByName' | transloco }}</option>
+            @for (name of sortCandidates; track name) {
+              <option [value]="name"></option>
+            }
+          </datalist>
         </div>
       </div>
 

@@ -113,6 +113,22 @@ describe('InventoryFilterPanelComponent', () => {
     expect(component.shows('tabs')).toBe(true);
   });
 
+  it("offers the display items' names and the piece's name to the order boxes, which still take anything typed", () => {
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(true);
+    component.dataTag = 'HP MP';
+    component.tableDataTag = 'HP 毒';
+    fixture.detectChanges();
+
+    const list = fixture.nativeElement.querySelector('datalist#inventory-sort-candidates') as HTMLDataListElement;
+    const options = [...list.querySelectorAll('option')];
+    expect(options.map((option) => option.value)).toEqual(['name', 'HP', 'MP', '毒']);
+    expect(options[0].textContent?.trim()).toBe('名前');
+    for (const box of ['sort-tag', 'sort-tag-2nd']) {
+      const input = fixture.nativeElement.querySelector(`input[name="${box}"]`) as HTMLInputElement;
+      expect(input.getAttribute('list')).toBe('inventory-sort-candidates');
+    }
+  });
+
   it('offers the hidden filter only to somebody who may see hidden pieces', () => {
     vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
     fixture.detectChanges();

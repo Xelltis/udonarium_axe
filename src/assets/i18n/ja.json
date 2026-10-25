@@ -1786,6 +1786,7 @@
         "filterSettings": "絞り込みと表示設定",
         "sortOrder1": "並び順 第1",
         "sortOrder2": "並び順 第2",
+        "sortByName": "名前",
         "tagPlaceholder": "タグ名",
         "asc": "昇順",
         "desc": "降順",

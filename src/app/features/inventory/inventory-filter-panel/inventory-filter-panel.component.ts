@@ -5,6 +5,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { splitSummaryTags, tagLeafNames } from '@axe/domain/data/summary-tag-list';
 import {
   INVENTORY_CHROME_LABEL_KEYS,
   INVENTORY_CHROME_PARTS,
@@ -150,6 +151,16 @@ export class InventoryFilterPanelComponent {
   }
   set tableDataTag(value: string) {
     this.filter.tableDataTag = value;
+  }
+
+  /**
+   * The data names offered to the order boxes, taken from the display items of both views. The
+   * boxes still take whatever is typed; `name`, which orders by the piece's name, is offered apart
+   * with its label.
+   */
+  get sortCandidates(): string[] {
+    const names = tagLeafNames([...splitSummaryTags(this.dataTag), ...splitSummaryTags(this.tableDataTag)]);
+    return names.filter((name) => name !== 'name');
   }
 
   readonly chromeParts = INVENTORY_CHROME_PARTS.map((part) => ({

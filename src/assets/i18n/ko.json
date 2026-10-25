@@ -1786,6 +1786,7 @@
         "filterSettings": "필터와 표시 설정",
         "sortOrder1": "정렬 1순위",
         "sortOrder2": "정렬 2순위",
+        "sortByName": "이름",
         "tagPlaceholder": "태그 이름",
         "asc": "오름차순",
         "desc": "내림차순",
