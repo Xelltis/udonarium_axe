@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -9,6 +10,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { VisionType } from '@axe/domain/tabletop/vision-types';
 import { GameObjectListPanelComponent } from '@axe/features/gm-object-list/game-object-list-panel.component';
 import { ObjectRow } from '@axe/features/gm-object-list/game-object-list-row';
+import { NpcDragService } from '@axe/features/gm-tools/npc-bar/npc-drag.service';
 import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -124,6 +126,39 @@ describe('GameObjectListPanelComponent', () => {
     } as unknown as ObjectRow);
 
     expect(focusOn).toHaveBeenCalledWith(goblin);
+  });
+
+  it('draws a row carried toward the NPC bar beside the pointer, and stops once it is let go', () => {
+    const goblin = makeCharacter('ゴブリン');
+    const row = { object: goblin, typeKey: 'character' } as unknown as ObjectRow;
+    const rows = component as unknown as {
+      onRowPointerDown: (event: PointerEvent, row: ObjectRow) => void;
+      onRowPointerMove: (event: PointerEvent) => void;
+      onRowPointerUp: (event: PointerEvent) => void;
+    };
+    const element = document.createElement('div');
+    const at = (x: number, y: number) =>
+      ({
+        button: 0,
+        clientX: x,
+        clientY: y,
+        pointerId: 1,
+        target: element,
+        currentTarget: element,
+      }) as unknown as PointerEvent;
+    const ghost = TestBed.inject(PieceDragGhostService);
+
+    rows.onRowPointerDown(at(0, 0), row);
+    rows.onRowPointerMove(at(40, 40));
+    expect(ghost.character()).toBe(goblin);
+    expect(TestBed.inject(NpcDragService).character()).toBe(goblin);
+
+    rows.onRowPointerMove(at(60, 50));
+    expect([ghost.x(), ghost.y()]).toEqual([60, 50]);
+
+    rows.onRowPointerUp(at(60, 50));
+    expect(ghost.character()).toBeNull();
+    expect(TestBed.inject(NpcDragService).character()).toBeNull();
   });
 
   describe('setting the sight of the ticked pieces', () => {

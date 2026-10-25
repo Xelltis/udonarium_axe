@@ -19,8 +19,7 @@ export interface ObjectDragHost {
   travellingWith(character: GameCharacter): ReadonlySet<string>;
   /** Whether an element belongs to this panel rather than another one showing the same room. */
   ownsElement(element: Element): boolean;
-  handOverBegin(character: GameCharacter, x: number, y: number): void;
-  handOverMove(x: number, y: number): void;
+  handOverBegin(character: GameCharacter): void;
   handOverEnd(accepted: boolean): void;
   /** Draws the piece beside the pointer, with how many travel along with it. */
   ghostBegin(character: GameCharacter, count: number, x: number, y: number): void;
@@ -166,13 +165,12 @@ export class InventoryObjectDrag {
       }
       pending.dragging = true;
       this.draggingIdentifiers.set(this.host.travellingWith(pending.character));
-      if (pending.withNpcBar) this.host.handOverBegin(pending.character, event.clientX, event.clientY);
+      if (pending.withNpcBar) this.host.handOverBegin(pending.character);
       if (pending.withGhost) {
         this.host.ghostBegin(pending.character, this.draggingIdentifiers().size, event.clientX, event.clientY);
       }
-    } else {
-      if (pending.withNpcBar) this.host.handOverMove(event.clientX, event.clientY);
-      if (pending.withGhost) this.host.ghostMove(event.clientX, event.clientY);
+    } else if (pending.withGhost) {
+      this.host.ghostMove(event.clientX, event.clientY);
     }
     const under = this.elementUnder(event);
     this.dropTab.set(pending.withTabs ? this.tabOf(under) : null);

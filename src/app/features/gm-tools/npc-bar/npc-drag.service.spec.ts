@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { NpcDragService } from '@axe/features/gm-tools/npc-bar/npc-drag.service';
 
@@ -18,22 +17,8 @@ describe('NpcDragService', () => {
 
   it('holds the character through a drag', () => {
     const npc = makeCharacter('A');
-    service.begin(npc, 10, 20);
-    service.move(30, 40);
+    service.begin(npc);
     expect(service.character()).toBe(npc);
-  });
-
-  it('draws the character beside the pointer while it is carried', () => {
-    const ghost = TestBed.inject(PieceDragGhostService);
-    const npc = makeCharacter('A');
-
-    service.begin(npc, 10, 20);
-    service.move(30, 40);
-    expect(ghost.character()).toBe(npc);
-    expect([ghost.x(), ghost.y()]).toEqual([30, 40]);
-
-    service.end(false);
-    expect(ghost.character()).toBeNull();
   });
 
   it('registers the character on a drop and lets go', () => {

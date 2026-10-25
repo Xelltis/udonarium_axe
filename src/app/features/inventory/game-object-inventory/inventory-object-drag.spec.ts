@@ -61,7 +61,6 @@ describe('InventoryObjectDrag', () => {
       travellingWith: (who: GameCharacter) => new Set([who.identifier]),
       ownsElement: () => true,
       handOverBegin: vi.fn(),
-      handOverMove: vi.fn(),
       handOverEnd: vi.fn(),
       ghostBegin: vi.fn(),
       ghostMove: vi.fn(),
@@ -104,7 +103,7 @@ describe('InventoryObjectDrag', () => {
 
     drag.move(pointerAt(40, 40));
     expect(drag.isDragging(character)).toBe(true);
-    expect(host['handOverBegin']).toHaveBeenCalledWith(character, 40, 40);
+    expect(host['handOverBegin']).toHaveBeenCalledWith(character);
   });
 
   it('files what was dragged into the folder under the pointer, and hands over nothing', () => {

@@ -257,8 +257,7 @@ export class GameObjectInventoryComponent {
       return new Set([character.identifier]);
     },
     ownsElement: (element) => this.hostElement.nativeElement.contains(element),
-    handOverBegin: (character, x, y) => this.npcDrag.begin(character, x, y),
-    handOverMove: (x, y) => this.npcDrag.move(x, y),
+    handOverBegin: (character) => this.npcDrag.begin(character),
     handOverEnd: (accepted) => this.npcDrag.end(accepted),
     ghostBegin: (character, count, x, y) => this.pieceGhost.show(character, x, y, count),
     ghostMove: (x, y) => this.pieceGhost.move(x, y),
