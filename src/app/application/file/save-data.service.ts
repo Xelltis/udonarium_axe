@@ -41,6 +41,7 @@ import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { AssetOwnerList } from '@axe/domain/media/asset-owner-list';
 import { AudioTagList } from '@axe/domain/media/audio-tag-list';
 import { carriedImagesOf } from '@axe/domain/media/carried-images';
+import { ImageLinkList } from '@axe/domain/media/image-link-list';
 import { ImageTagList } from '@axe/domain/media/image-tag-list';
 import { ImageTagLockList } from '@axe/domain/media/image-tag-lock-list';
 import { Config } from '@axe/domain/peer/config';
@@ -215,6 +216,8 @@ export class SaveDataService {
 
     const imageTagXml = this.convertToXml(ImageTagList.create(images), pretty);
     files.push(new File([imageTagXml], 'imagetag.xml', { type: 'text/plain' }));
+    const imageLinkXml = this.convertToXml(ImageLinkList.create(images), pretty);
+    files.push(new File([imageLinkXml], 'imagelink.xml', { type: 'text/plain' }));
 
     const audios: AudioFile[] = this.audioStorage.audios.filter((a) => !a.isHidden);
     const audioTagXml = this.convertToXml(AudioTagList.create(audios), pretty);
@@ -256,6 +259,8 @@ export class SaveDataService {
 
     const imageTagXml = this.convertToXml(ImageTagList.create(images));
     files.push(new File([imageTagXml], 'imagetag.xml', { type: 'text/plain' }));
+    const imageLinkXml = this.convertToXml(ImageLinkList.create(images));
+    files.push(new File([imageLinkXml], 'imagelink.xml', { type: 'text/plain' }));
 
     return this.saveAsync(files, this.appendTimestamp(fileName), updateCallback);
   }

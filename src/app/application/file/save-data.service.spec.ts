@@ -68,6 +68,26 @@ describe('SaveDataService', () => {
     expect(files.some((file: File) => file.name.startsWith('image-null-blob.'))).toBe(false);
   });
 
+  it('writes down the pictures the room holds only as a link to a file the app carries', async () => {
+    const privateApi = TestBed.inject(SaveDataService) as unknown as SaveDataServicePrivateApi;
+    const context = ImageFile.createEmpty('linked-goblin').toContext();
+    context.url = './assets/images/piece_goblin.webp';
+    const linked = ImageStorage.instance.add(context);
+    vi.spyOn(privateApi, 'searchImageFiles').mockReturnValue([linked]);
+    const saveAsyncSpy = vi.spyOn(privateApi, 'saveAsync').mockResolvedValue(undefined);
+
+    try {
+      await privateApi._saveRoomAsync('room');
+
+      const files = saveAsyncSpy.mock.calls[0][0] as File[];
+      const links = await files.find((file) => file.name === 'imagelink.xml')!.text();
+      expect(links).toContain('image="linked-goblin" url="./assets/images/piece_goblin.webp"');
+    } finally {
+      ImageStorage.instance.delete('linked-goblin');
+      vi.restoreAllMocks();
+    }
+  });
+
   describe('a room saved on a room server', () => {
     afterEach(() => vi.restoreAllMocks());
 

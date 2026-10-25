@@ -32,6 +32,8 @@ test.describe('the room this browser starts on', () => {
 
     await waitAppReady(page);
     await expect(await graveyardTab(page)).toContainText(/墓場\s*1/, { timeout: 15_000 });
+    // The sample pieces' pictures are files the app carries rather than ones the save does.
+    await expect(page.locator('game-character img[src*="piece_"]').first()).toBeAttached();
 
     const again = await openSaveLoad(page);
     await again.getByTestId('save-load-start-room-forget').click();

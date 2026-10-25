@@ -290,6 +290,7 @@ export class FileArchiver {
     if (
       name === 'config.xml' ||
       name === 'imagetag.xml' ||
+      name === 'imagelink.xml' ||
       name === 'audiotag.xml' ||
       name === 'assetowner.xml' ||
       name === 'imagelock.xml' ||
