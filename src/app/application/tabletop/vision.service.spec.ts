@@ -589,9 +589,16 @@ describe('VisionService', () => {
 
     it('is not seen by the party when no player owns it, and is when one does', () => {
       makeMyCursor('gm', PeerRole.GameMaster);
+      addPeer('p1', PeerRole.Player);
 
       expect(service.isSeenByParty(lurkerInStealth())).toBe(false);
       expect(service.isSeenByParty(lurkerInStealth('p1'))).toBe(true);
+    });
+
+    it('is not seen by the party when the game master is its owner', () => {
+      makeMyCursor('gm', PeerRole.GameMaster);
+
+      expect(service.isSeenByParty(lurkerInStealth('gm'))).toBe(false);
     });
   });
 
