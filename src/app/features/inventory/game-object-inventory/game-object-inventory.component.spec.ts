@@ -1025,6 +1025,40 @@ describe('GameObjectInventoryComponent', () => {
       expect(goblin.folderName).toBe('');
     });
 
+    describe('a piece in stealth', () => {
+      const originalCursor = PeerCursor.myCursor;
+      const names = () => component.filteredRows().map((row) => row.object.name);
+
+      afterEach(() => {
+        PeerCursor.myCursor = originalCursor;
+      });
+
+      it('drops off the table tab of a player who may not see it as it goes into stealth', async () => {
+        PeerCursor.myCursor = { role: PeerRole.Player, identifier: 'pl-cursor', userId: 'p1' } as PeerCursor;
+        const lurker = putOnTable('潜む者');
+        putOnTable('村長');
+        expect(names()).toContain('潜む者');
+
+        lurker.stealth = '1';
+
+        await vi.waitFor(() => expect(names()).toEqual(['村長']));
+      });
+
+      it('stays on the table tab of the game master', async () => {
+        PeerCursor.myCursor = {
+          role: PeerRole.GameMaster,
+          identifier: 'gm-cursor',
+          isGameMaster: true,
+        } as PeerCursor;
+        const lurker = putOnTable('潜む者');
+
+        lurker.stealth = '1';
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(names()).toContain('潜む者');
+      });
+    });
+
     describe('the pieces the inventory hides', () => {
       const originalCursor = PeerCursor.myCursor;
 

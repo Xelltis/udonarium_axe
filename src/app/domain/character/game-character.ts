@@ -77,6 +77,11 @@ export class GameCharacter extends OwnedTabletopObject {
    * there and then; empty otherwise.
    */
   @SyncVar() unseen: string = '';
+  /**
+   * `1` while the piece keeps out of sight of the table: only the game master, its owner and its
+   * party see it; empty otherwise.
+   */
+  @SyncVar() stealth: string = '';
   /** `1` while the piece is down and cannot act, which keeps it out of every zone; empty otherwise. */
   @SyncVar() downed: string = '';
   /** `1` while the piece is held fast where it stands and cannot move; empty otherwise. */
