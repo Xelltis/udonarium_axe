@@ -12,6 +12,7 @@ import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import {
   findEmbeddedRolls,
+  isDicelessArithmetic,
   isPlainArithmetic,
   replaceEmbeddedRolls,
   unwrapEmbeddedRolls,
@@ -264,11 +265,12 @@ export class ResourceEditProcessor {
   /**
    * Works out an edit's amount.
    *
-   * Plain arithmetic is rolled as it stands, its bracketed commands first. An amount with more than
-   * that in it - a letter a system command takes after its total, outside the brackets - is rolled
-   * whole as one command, which the system can read where the arithmetic around it cannot. A roll
-   * that ends in an outright failure with no total leaves the whole amount at nought: whatever was
-   * to be added to it does not come into it.
+   * Plain arithmetic, a division's rounding included, is rolled as it stands, its bracketed commands
+   * first; a bracketed command with no dice in it is worked out as a calculation, which the system
+   * will not take as a roll. An amount with more than that in it - a letter a system command takes
+   * after its total, outside the brackets - is rolled whole as one command, which the system can
+   * read where the arithmetic around it cannot. A roll that ends in an outright failure with no
+   * total leaves the whole amount at nought: whatever was to be added to it does not come into it.
    */
   private async rollResourceEdit(edit: ResourceEdit, gameSystem: GameSystemClass): Promise<AmountOutcome> {
     if (!isPlainArithmetic(edit.amount)) return this.rollWholeAmount(edit, gameSystem);
@@ -314,7 +316,10 @@ export class ResourceEditProcessor {
 
     const answers: number[] = [];
     for (const site of sites) {
-      const rolled = await this.rollOnce(site.command, gameSystem);
+      const rolled = await this.rollOnce(
+        isDicelessArithmetic(site.command) ? `C(${site.command})` : site.command,
+        gameSystem
+      );
       if (rolled == null) return 'unreadable';
       if (rolled.answer == null) return rolled.fumble ? this.leaveAtNought(edit, site.command, rolled) : 'unreadable';
       answers.push(rolled.answer);

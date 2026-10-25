@@ -60,16 +60,31 @@ export function unwrapEmbeddedRolls(expression: string): string {
 }
 
 /**
- * Whether an amount is plain arithmetic once its bracketed commands are answered: numbers, dice
- * and the operators between them. Anything else - a letter a system command takes after its total,
- * a reference left unfilled - leaves arithmetic that cannot be worked out on its own.
+ * A division's rounding, written after its divisor as bcdice reads it: `C` or `U` rounds up, `R`
+ * rounds half away from nought and `F` rounds down.
+ */
+const DIVISION_ROUNDING = /(\/\s*(?:\d+|\([^()]*\)))\s*[CRFU]/gi;
+
+/**
+ * Whether an amount is plain arithmetic once its bracketed commands are answered: numbers, dice,
+ * the operators between them and the rounding of a division. Anything else - a letter a system
+ * command takes after its total, a reference left unfilled - leaves arithmetic that cannot be
+ * worked out on its own.
  */
 export function isPlainArithmetic(expression: string): boolean {
   const answered = replaceEmbeddedRolls(
     expression,
     findEmbeddedRolls(expression).map(() => 0)
   );
-  return /^[\d\s+\-*/().dD]*$/.test(answered);
+  return /^[\d\s+\-*/().dD]*$/.test(answered.replace(DIVISION_ROUNDING, '$1'));
+}
+
+/**
+ * Whether a bracketed command is arithmetic with no dice in it, which bcdice answers only as a
+ * calculation, `C(...)`, and not as a roll on its own.
+ */
+export function isDicelessArithmetic(expression: string): boolean {
+  return isPlainArithmetic(expression) && !/\d\s*[dD]/.test(expression) && /\d/.test(expression);
 }
 
 /** The expression without one pair of parentheses round the whole of it, where it has them. */

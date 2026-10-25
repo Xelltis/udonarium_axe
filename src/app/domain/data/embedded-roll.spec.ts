@@ -1,5 +1,6 @@
 import {
   findEmbeddedRolls,
+  isDicelessArithmetic,
   isPlainArithmetic,
   replaceEmbeddedRolls,
   unwrapEmbeddedRolls,
@@ -66,6 +67,25 @@ describe('embedded-roll', () => {
 
     it('does not take a reference left unfilled', () => {
       expect(isPlainArithmetic('t{敏捷度}')).toBe(false);
+    });
+  });
+
+  describe('the rounding of a division', () => {
+    it('counts as arithmetic, inside parentheses as well', () => {
+      expect(isPlainArithmetic('12/2C+1')).toBe(true);
+      expect(isPlainArithmetic('[k3]+12/(1+3)R')).toBe(true);
+      expect(isPlainArithmetic('12/2F-2d6/2U')).toBe(true);
+      expect(isPlainArithmetic('k3@9')).toBe(false);
+    });
+  });
+
+  describe('isDicelessArithmetic', () => {
+    it('is arithmetic with no dice in it', () => {
+      expect(isDicelessArithmetic('12/2C')).toBe(true);
+      expect(isDicelessArithmetic('(3+4)*2')).toBe(true);
+      expect(isDicelessArithmetic('2d6/2C')).toBe(false);
+      expect(isDicelessArithmetic('k3@9')).toBe(false);
+      expect(isDicelessArithmetic('')).toBe(false);
     });
   });
 

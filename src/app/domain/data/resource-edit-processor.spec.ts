@@ -379,6 +379,44 @@ describe('ResourceEditProcessor', () => {
       expect(systemText()).toContain('└ [k10] KeyNo.10c[10] ＞ 2D:[3,2]=5 ＞ 2');
     });
 
+    it('works a bracketed calculation with no dice in it out as one, rounding and all', async () => {
+      mockDiceRollAsync.mockImplementation(async (command: string) =>
+        command === 'C(13/2C)'
+          ? { id: 'DiceBot', result: 'DiceBot : c(13/2C) ＞ 7', isSecret: false }
+          : { id: 'DiceBot', result: 'DiceBot : (-7+1+(1D1-1)) ＞ -7+1+(1[1]-1) ＞ -6', isSecret: false }
+      );
+
+      await processor.resourceEditProcess(
+        null,
+        [{ resourceCommand: 't:HP-[13/2C]+1', object: character }],
+        [],
+        speak('t:HP-[13/2C]+1'),
+        false
+      );
+
+      expect(mockDiceRollAsync).toHaveBeenNthCalledWith(1, 'C(13/2C)', expect.anything());
+      expect(mockDiceRollAsync).toHaveBeenNthCalledWith(2, '-7+1+(1d1-1)', expect.anything());
+      expect(character.status.getValue('HP', 'now')).toBe(194);
+    });
+
+    it('takes a rounding written outside the brackets as part of the arithmetic', async () => {
+      mockDiceRollAsync.mockResolvedValue({
+        id: 'DiceBot',
+        result: 'DiceBot : (13/2R+1+(1D1-1)) ＞ 13/2R+1+(1[1]-1) ＞ 8',
+        isSecret: false,
+      });
+
+      await processor.resourceEditProcess(
+        null,
+        [{ resourceCommand: 't:HP+13/2R+1', object: character }],
+        [],
+        speak('t:HP+13/2R+1'),
+        false
+      );
+
+      expect(mockDiceRollAsync).toHaveBeenCalledWith('13/2R+1+(1d1-1)', expect.anything());
+    });
+
     it('says so when the bracketed command is one the dice bot cannot answer', async () => {
       mockDiceRollAsync.mockResolvedValue({ id: 'DiceBot', result: '', isSecret: false });
 
