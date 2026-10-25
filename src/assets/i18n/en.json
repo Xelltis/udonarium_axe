@@ -1822,7 +1822,8 @@
         "displayItemsRich": "Display items (full)",
         "displayItemsTable": "Display items (table)",
         "foldsOnOpen": "Open with the folders folded up",
-        "foldsOnOpenHint": "Takes effect on the next inventory opened. Pieces in no folder are shown as before"
+        "foldsOnOpenHint": "Takes effect on the next inventory opened. Pieces in no folder are shown as before",
+        "searchBar": "Show a search box above the list"
       }
     },
     "keyboard": {

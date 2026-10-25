@@ -1822,7 +1822,8 @@
         "displayItemsRich": "표시 항목(리치)",
         "displayItemsTable": "표시 항목(간략)",
         "foldsOnOpen": "열었을 때 폴더를 접어 둔다",
-        "foldsOnOpenHint": "다음에 여는 인벤토리부터 적용됩니다. 폴더에 넣지 않은 말은 그대로 표시됩니다"
+        "foldsOnOpenHint": "다음에 여는 인벤토리부터 적용됩니다. 폴더에 넣지 않은 말은 그대로 표시됩니다",
+        "searchBar": "목록 위에 검색창 표시"
       }
     },
     "keyboard": {

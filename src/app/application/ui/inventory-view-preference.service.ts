@@ -9,6 +9,7 @@ import { type InventoryViewMode, isInventoryViewMode } from '@axe/domain/invento
 const STORAGE_KEY = 'ui-inventory-view';
 const PARTS_STORAGE_KEY = 'ui-inventory-parts';
 const FOLDED_STORAGE_KEY = 'ui-inventory-folded';
+const SEARCH_BAR_STORAGE_KEY = 'ui-inventory-search-bar';
 
 /**
  * How this reader wants an inventory drawn.
@@ -66,6 +67,18 @@ export class InventoryViewPreferenceService {
   setFoldsOnOpen(folds: boolean): void {
     this.foldsOnOpen.set(folds);
     write(FOLDED_STORAGE_KEY, folds ? '1' : '');
+  }
+
+  /**
+   * Whether a search box stands above the list itself, beside the one in the display settings.
+   * Off until the reader asks for it, so an inventory reads as it always has.
+   */
+  readonly searchBar = signal<boolean>(storedFlag(SEARCH_BAR_STORAGE_KEY));
+
+  /** Puts the search box above the list or takes it away, and writes it down for the next window. */
+  setSearchBar(shown: boolean): void {
+    this.searchBar.set(shown);
+    write(SEARCH_BAR_STORAGE_KEY, shown ? '1' : '');
   }
 }
 

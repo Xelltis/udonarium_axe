@@ -82,6 +82,17 @@
       {{ 'feature.inventory.panel.foldsOnOpen' | transloco }}
     </label>
     <p class="text-ui-dim m-0 text-[10px]">{{ 'feature.inventory.panel.foldsOnOpenHint' | transloco }}</p>
+
+    <label class="text-ui-text mt-1 flex cursor-pointer items-center gap-1">
+      <input
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        type="checkbox"
+        data-testid="inventory-search-bar-toggle"
+        [checked]="searchBar()"
+        (change)="setSearchBar(!searchBar())"
+      />
+      {{ 'feature.inventory.panel.searchBar' | transloco }}
+    </label>
   </div>
 
   @if (canEdit()) {

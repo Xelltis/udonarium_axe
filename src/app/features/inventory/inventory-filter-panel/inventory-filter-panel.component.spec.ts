@@ -129,6 +129,19 @@ describe('InventoryFilterPanelComponent', () => {
     }
   });
 
+  it('puts a search box above the list when ticked, and takes it away again', () => {
+    fixture.detectChanges();
+    const box = fixture.nativeElement.querySelector('[data-testid="inventory-search-bar-toggle"]') as HTMLInputElement;
+    expect(box.checked).toBe(false);
+
+    box.click();
+    expect(component.viewPreference.searchBar()).toBe(true);
+
+    box.click();
+    expect(component.viewPreference.searchBar()).toBe(false);
+    localStorage.removeItem('ui-inventory-search-bar');
+  });
+
   it('offers the hidden filter only to somebody who may see hidden pieces', () => {
     vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
     fixture.detectChanges();

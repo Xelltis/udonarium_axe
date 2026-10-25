@@ -1822,7 +1822,8 @@
         "displayItemsRich": "表示項目（リッチ）",
         "displayItemsTable": "表示項目（簡略）",
         "foldsOnOpen": "開いたときフォルダを畳んでおく",
-        "foldsOnOpenHint": "次に開くインベントリから効きます。フォルダに入れていないコマはそのまま出ます"
+        "foldsOnOpenHint": "次に開くインベントリから効きます。フォルダに入れていないコマはそのまま出ます",
+        "searchBar": "一覧の上に検索欄を出す"
       }
     },
     "keyboard": {

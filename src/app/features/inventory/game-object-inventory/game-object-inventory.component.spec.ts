@@ -1340,6 +1340,39 @@ describe('GameObjectInventoryComponent', () => {
           .find((control) => control.icon === 'tune');
         expect(settings).toBeTruthy();
       });
+
+      describe('the search box above the list', () => {
+        const searchBar = () => fixture.nativeElement.querySelector('[data-testid="inventory-search-bar"]');
+
+        afterEach(() => {
+          localStorage.removeItem('ui-inventory-search-bar');
+          component.clearSearch();
+        });
+
+        it('is not there until the reader asks for it', () => {
+          putOnTable('ゴブリン');
+          fixture.detectChanges();
+
+          expect(searchBar()).toBeNull();
+        });
+
+        it('narrows the list as the one in the settings does, once asked for', async () => {
+          putOnTable('ゴブリン');
+          putOnTable('村長');
+          viewPreference().setSearchBar(true);
+          fixture.detectChanges();
+
+          const input = searchBar().querySelector('input') as HTMLInputElement;
+          input.value = '村長';
+          input.dispatchEvent(new Event('input'));
+          fixture.detectChanges();
+          await fixture.whenStable();
+
+          expect(component.searchQuery()).toBe('村長');
+          expect(component.filteredRows().map((row) => row.object.name)).toEqual(['村長']);
+          expect(searchBar().textContent).toContain('1 / 2');
+        });
+      });
     });
 
     describe('what is on a piece', () => {

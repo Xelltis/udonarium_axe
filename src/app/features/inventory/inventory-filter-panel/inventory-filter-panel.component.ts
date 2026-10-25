@@ -183,6 +183,16 @@ export class InventoryFilterPanelComponent {
     this.viewPreference.setFoldsOnOpen(folds);
   }
 
+  /** Whether the inventory shows a search box above its list. */
+  searchBar(): boolean {
+    return this.viewPreference.searchBar();
+  }
+
+  /** Puts the search box above the inventory's list or takes it away. */
+  setSearchBar(shown: boolean): void {
+    this.viewPreference.setSearchBar(shown);
+  }
+
   /** Shows or puts away one of the strips above the list. The choice is kept in this browser. */
   setShown(part: InventoryChromePart, shown: boolean): void {
     this.viewPreference.setShown(part, shown);

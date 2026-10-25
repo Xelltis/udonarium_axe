@@ -50,6 +50,29 @@ describe('InventoryViewPreferenceService', () => {
     expect(localStorage.getItem('ui-inventory-folded')).toBe('');
   });
 
+  describe('the search box above the list', () => {
+    afterEach(() => localStorage.removeItem('ui-inventory-search-bar'));
+
+    it('is off until the reader asks for it, as for somebody who has used the inventory all along', () => {
+      expect(service().searchBar()).toBe(false);
+    });
+
+    it('is remembered once asked for, and once put away again', () => {
+      service().setSearchBar(true);
+      expect(service().searchBar()).toBe(true);
+      expect(localStorage.getItem('ui-inventory-search-bar')).toBe('1');
+
+      service().setSearchBar(false);
+      expect(service().searchBar()).toBe(false);
+    });
+
+    it('reads anything else written there as off', () => {
+      localStorage.setItem('ui-inventory-search-bar', 'yes');
+
+      expect(service().searchBar()).toBe(false);
+    });
+  });
+
   it('holds for the session where the browser refuses to write', () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('refused');

@@ -79,6 +79,39 @@
       </div>
     }
 
+    @if (showsSearchBar()) {
+      <div
+        class="bg-ui-panel border-ui-border-panel flex shrink-0 items-center gap-1.5 border-b border-solid px-2.5 py-1"
+        [class.bg-transparent!]="isGhost()"
+        data-testid="inventory-search-bar"
+      >
+        <i class="material-icons text-ui-muted text-[15px]!" aria-hidden="true">search</i>
+        <input
+          class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent box-border min-w-0 flex-1 border border-solid px-1.75 py-0.5 text-[12px] outline-none"
+          type="search"
+          name="inventory-search-bar"
+          [attr.aria-label]="'feature.inventory.panel.searchPlaceholder' | transloco"
+          [placeholder]="'feature.inventory.panel.searchPlaceholder' | transloco"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+        />
+        @if (hasQuery()) {
+          <span class="text-ui-dim shrink-0 text-[11px] whitespace-nowrap tabular-nums"
+            >{{ filteredRows().length }} / {{ visibleRows().length }}</span
+          >
+          <button
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 [&_.material-icons]:text-base!"
+            type="button"
+            [attr.aria-label]="'feature.inventory.panel.clearSearch' | transloco"
+            [title]="'feature.inventory.panel.clearSearch' | transloco"
+            (click)="clearSearch()"
+          >
+            <i class="material-icons" aria-hidden="true">close</i>
+          </button>
+        }
+      </div>
+    }
+
     @if (shows('filter')) {
       <div
         class="bg-ui-panel border-ui-border-panel flex shrink-0 items-center gap-1.5 border-b border-solid px-2.5 py-1"
@@ -93,7 +126,7 @@
           <i class="material-icons text-[15px]!">filter_alt</i>
           <span class="truncate">{{ filterSummary() }}</span>
         </button>
-        @if (hasQuery() || isHiddenFiltered()) {
+        @if ((hasQuery() && !showsSearchBar()) || isHiddenFiltered()) {
           <span class="text-ui-dim shrink-0 text-[11px] whitespace-nowrap"
             >{{ filteredRows().length }} / {{ visibleRows().length }}</span
           >

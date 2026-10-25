@@ -285,6 +285,9 @@ export class GameObjectInventoryComponent {
   }
 
   readonly viewMode = this.viewPreference.mode;
+
+  /** Whether a search box stands above the list, which the reader turns on in the display settings. */
+  readonly showsSearchBar = this.viewPreference.searchBar;
   protected readonly viewLabelKeys = INVENTORY_VIEW_LABEL_KEYS;
 
   /**
