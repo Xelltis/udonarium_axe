@@ -13,7 +13,7 @@ const UNLISTED_TYPES: ReadonlySet<string> = new Set([
  * The item names offered for a room's display items, taken from the fields of the given sheets.
  *
  * Fields the inventory draws nothing for are left out, and so are names the display-item line
- * cannot hold. The names most sheets carry come first, so the items a party shares lead and one
+ * cannot hold or read back as themselves: one with a quote or a backslash in it. The names most sheets carry come first, so the items a party shares lead and one
  * monster's oddity trails; names carried as often stay in the order they were first met.
  */
 export function displayItemCandidates(details: readonly (DataElement | null)[]): string[] {
@@ -23,7 +23,7 @@ export function displayItemCandidates(details: readonly (DataElement | null)[]):
     for (const element of collectDataElements(detail)) {
       if (element.fieldRole !== DataElementRole.FIELD || UNLISTED_TYPES.has(element.type)) continue;
       const name = element.name.trim();
-      if (name.length < 1 || name === SUMMARY_NEW_LINE || name.includes('"')) continue;
+      if (name.length < 1 || name === SUMMARY_NEW_LINE || /["\\]/.test(name)) continue;
       names.add(name);
     }
     for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1);

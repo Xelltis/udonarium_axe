@@ -49,6 +49,7 @@ describe('the names offered for the display items', () => {
       立ち絵: DataElementType.IMAGE,
       '/': '',
       '"渾名"': '',
+      '能力\\補正': '',
       HP: DataElementType.NUMBER_RESOURCE,
     });
 
