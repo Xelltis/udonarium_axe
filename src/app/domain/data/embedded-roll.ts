@@ -84,7 +84,7 @@ export function isPlainArithmetic(expression: string): boolean {
  * calculation, `C(...)`, and not as a roll on its own.
  */
 export function isDicelessArithmetic(expression: string): boolean {
-  return isPlainArithmetic(expression) && !/\d\s*[dD]/.test(expression) && /\d/.test(expression);
+  return isPlainArithmetic(expression) && !/[dD]/.test(expression) && /\d/.test(expression);
 }
 
 /** One term of plain arithmetic at the very end of a command: `+3`, `-0` or `-(2+1)`. */

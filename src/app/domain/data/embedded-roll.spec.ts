@@ -88,6 +88,11 @@ describe('embedded-roll', () => {
       expect(isDicelessArithmetic('k3@9')).toBe(false);
       expect(isDicelessArithmetic('')).toBe(false);
     });
+
+    it('counts dice written with no count before them, which the dice bot rolls as they stand', () => {
+      expect(isDicelessArithmetic('D66')).toBe(false);
+      expect(isDicelessArithmetic('d6+2')).toBe(false);
+    });
   });
 
   describe('trailingArithmeticSplits', () => {
