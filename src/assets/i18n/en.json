@@ -4521,7 +4521,9 @@
         "forgetTitle": "Start on the sample room again?",
         "forgetMessage": "The room kept to start on will be removed, and the next start sets out the sample table and pieces.",
         "forgetOk": "Remove it",
-        "forgotten": "The next start sets out the sample room."
+        "forgotten": "The next start sets out the sample room.",
+        "loadFailed": "The room to start on could not be read, so the sample room was set out instead.",
+        "forgetFailed": "The room to start on could not be removed."
       }
     },
     "mobile": {

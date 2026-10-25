@@ -9,7 +9,6 @@ import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { StartRoomStore } from '@axe/core/storage/start-room-store';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { parseInviteLink } from '@axe/domain/peer/invite-link';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 
 /** How long the start waits on the browser for the room to start on, at most. */
@@ -46,41 +45,53 @@ export class StartRoomService {
   /**
    * Reads the room to start on before the table is first set out, if this browser keeps one.
    *
-   * A page opened on an invitation is going into somebody's room, so it is left the sample as
-   * before. A browser that is slow to answer, or has nowhere to keep it, starts as if it kept none.
+   * A page opened with anything after its `#`, such as an invitation or the way back from a login,
+   * is going somewhere of its own and is left the sample as before. A browser too slow to answer
+   * starts on the sample too, and is told whether it keeps a room once the answer comes.
    */
   async prepare(hash: string = window.location.hash): Promise<void> {
     if (!this.store.isAvailable()) return;
-    try {
-      const blob = await Promise.race([
-        this.store.get(StartRoomStore.KEY),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), PREPARE_TIMEOUT_MS)),
-      ]);
-      this._isKept.set(blob !== null);
-      if (blob && parseInviteLink(hash) === null) this.pending = blob;
-    } catch (reason) {
+    const read = this.store.get(StartRoomStore.KEY).catch((reason: unknown) => {
       Logger.warn('[StartRoom] could not read the start room', reason);
+      return null;
+    });
+    const timedOut = Symbol('timed out');
+    const blob = await Promise.race([
+      read,
+      new Promise<typeof timedOut>((resolve) => setTimeout(() => resolve(timedOut), PREPARE_TIMEOUT_MS)),
+    ]);
+    if (blob === timedOut) {
+      void read.then((late) => this._isKept.set(late !== null));
+      return;
     }
+    this._isKept.set(blob !== null);
+    if (blob && (hash === '' || hash === '#')) this.pending = blob;
   }
 
   /**
-   * Sets out the room read at launch, as a room file dropped on the table would be. Once the page is
-   * in a room, that room is left as it is. Answers false only where there was a room to set out and
-   * it could not be read, which leaves the table to the sample.
+   * Sets out the room read at launch, as a room file dropped on the table would be.
+   *
+   * A room the page goes into meanwhile is left as it is, and so is what remains of the start room
+   * once it has. Answers false only where there was a room to set out and its data could not be
+   * read, which says so and leaves the table to the sample.
    */
   async loadPending(): Promise<boolean> {
     const blob = this.pending;
     this.pending = null;
     if (!blob) return false;
-    if ((Network.peerContext?.roomName ?? '') !== '') return true;
+    const outsideRoom = () => (Network.peerContext?.roomName ?? '') === '';
+    if (!outsideRoom()) return true;
+    let dataRead = false;
     try {
       this.objectStore.get<ReloadCheck>('ReloadCheck')?.reloadCheckStart(false);
-      await this.fileArchiver.load([new File([blob], 'start-room.zip', { type: 'application/zip' })]);
-      return true;
+      const file = new File([blob], 'start-room.zip', { type: 'application/zip' });
+      dataRead = (await this.fileArchiver.load([file], undefined, { stillWanted: outsideRoom })).dataRead;
     } catch (reason) {
       Logger.warn('[StartRoom] could not set out the start room', reason);
-      return false;
     }
+    if (dataRead || !outsideRoom()) return true;
+    this.snackbar.show(this.t('feature.roomArchive.startRoom.loadFailed'));
+    return false;
   }
 
   /**
@@ -132,7 +143,10 @@ export class StartRoomService {
       okLabel: this.t('feature.roomArchive.startRoom.forgetOk'),
     });
     if (!agreed) return false;
-    await this.store.remove(StartRoomStore.KEY);
+    if (!(await this.store.remove(StartRoomStore.KEY))) {
+      this.snackbar.show(this.t('feature.roomArchive.startRoom.forgetFailed'));
+      return false;
+    }
     this._isKept.set(false);
     this.snackbar.show(this.t('feature.roomArchive.startRoom.forgotten'));
     return true;

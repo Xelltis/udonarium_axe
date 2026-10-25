@@ -15,6 +15,7 @@ describe('StartRoomService', () => {
   let kept: Blob | null;
   let load: ReturnType<typeof vi.spyOn>;
   let ask: ReturnType<typeof vi.spyOn>;
+  let shown: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
@@ -27,16 +28,18 @@ describe('StartRoomService', () => {
     });
     vi.spyOn(store, 'remove').mockImplementation(async () => {
       kept = null;
+      return true;
     });
-    load = vi.spyOn(TestBed.inject(FileArchiver), 'load').mockResolvedValue(undefined as never);
+    load = vi.spyOn(TestBed.inject(FileArchiver), 'load').mockResolvedValue({ dataRead: true });
     ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
-    vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => undefined as never);
+    shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => undefined as never);
     vi.spyOn(TestBed.inject(SaveDataService), 'createWholeRoomArchiveAsync').mockResolvedValue(new Blob(['room']));
     service = TestBed.inject(StartRoomService);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
     setNetworkIsolated(false);
   });
 
@@ -57,13 +60,32 @@ describe('StartRoomService', () => {
       expect(service.isKept()).toBe(false);
     });
 
-    it('leaves a page opened on an invitation to the room it is going into', async () => {
+    it('leaves a page opened with anything after its #, an invitation or the way back from a login, to where it is going', async () => {
       kept = new Blob(['room']);
 
       await service.prepare('#join?r=room-id&n=room-name');
-
       expect(service.hasPending).toBe(false);
+      await service.prepare('#code=abc&state=xyz');
+      expect(service.hasPending).toBe(false);
+
       expect(service.isKept()).toBe(true);
+    });
+
+    it('starts on the sample where the browser is slow to answer, and learns it keeps a room once it does', async () => {
+      vi.useFakeTimers();
+      let answer!: (blob: Blob | null) => void;
+      vi.spyOn(store, 'get').mockReturnValue(new Promise((resolve) => (answer = resolve)));
+
+      const preparing = service.prepare('');
+      await vi.advanceTimersByTimeAsync(2000);
+      await preparing;
+      expect(service.hasPending).toBe(false);
+      expect(service.isKept()).toBe(false);
+
+      answer(new Blob(['room']));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(service.isKept()).toBe(true);
+      expect(service.hasPending).toBe(false);
     });
 
     it('starts as if none were kept where the browser has nowhere to keep one', async () => {
@@ -97,7 +119,33 @@ describe('StartRoomService', () => {
       expect(load).not.toHaveBeenCalled();
     });
 
-    it('answers false where the room kept cannot be read, which leaves the table to the sample', async () => {
+    it('stops setting it out once the page goes into a room, and leaves that room without the sample', async () => {
+      kept = new Blob(['room']);
+      await service.prepare('');
+      const where = vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ roomName: '' } as never);
+      load.mockImplementation(async (_files: unknown, _drop: unknown, options: { stillWanted: () => boolean }) => {
+        expect(options.stillWanted()).toBe(true);
+        where.mockReturnValue({ roomName: '卓' } as never);
+        expect(options.stillWanted()).toBe(false);
+        return { dataRead: false };
+      });
+
+      expect(await service.loadPending()).toBe(true);
+
+      expect(shown).not.toHaveBeenCalled();
+    });
+
+    it('says so and answers false where the data of the room kept cannot be read, which leaves the table to the sample', async () => {
+      kept = new Blob(['room']);
+      await service.prepare('');
+      load.mockResolvedValue({ dataRead: false });
+
+      expect(await service.loadPending()).toBe(false);
+
+      expect(shown).toHaveBeenCalledWith('開始時の部屋を読み込めなかったので、サンプルの部屋で始めました。');
+    });
+
+    it('answers false where reading it throws', async () => {
       kept = new Blob(['room']);
       await service.prepare('');
       load.mockRejectedValue(new Error('broken zip'));
@@ -144,6 +192,17 @@ describe('StartRoomService', () => {
 
       expect(kept).toBeNull();
       expect(service.isKept()).toBe(false);
+    });
+
+    it('says so, and still counts it kept, where the browser will not delete it', async () => {
+      kept = new Blob(['room']);
+      await service.prepare('');
+      vi.spyOn(store, 'remove').mockResolvedValue(false);
+
+      expect(await service.forget()).toBe(false);
+
+      expect(service.isKept()).toBe(true);
+      expect(shown).toHaveBeenCalledWith('開始時の部屋を消せませんでした。');
     });
 
     it('keeps it on a no', async () => {

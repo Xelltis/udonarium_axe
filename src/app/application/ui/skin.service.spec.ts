@@ -239,7 +239,7 @@ describe('SkinService', () => {
 
   it('takes a picture back out of the stack', async () => {
     vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
-    vi.spyOn(SkinImageStore.instance, 'remove').mockResolvedValue();
+    vi.spyOn(SkinImageStore.instance, 'remove').mockResolvedValue(true);
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:paper');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
     const { skins } = setup();
@@ -355,7 +355,7 @@ describe('SkinService', () => {
   it('wears a skin read out of a zip, pictures and all', async () => {
     vi.spyOn(SkinImageStore.instance, 'get').mockResolvedValue(null);
     vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
-    vi.spyOn(SkinImageStore.instance, 'remove').mockResolvedValue();
+    vi.spyOn(SkinImageStore.instance, 'remove').mockResolvedValue(true);
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:skin');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
     const { skins } = setup();
@@ -408,7 +408,7 @@ describe('SkinService', () => {
   });
 
   it('keeps a removed picture until the way back has been passed up', async () => {
-    const removed = vi.spyOn(SkinImageStore.instance, 'remove').mockResolvedValue();
+    const removed = vi.spyOn(SkinImageStore.instance, 'remove').mockResolvedValue(true);
     vi.spyOn(SkinImageStore.instance, 'put').mockResolvedValue(true);
     vi.spyOn(SkinImageStore.instance, 'get').mockResolvedValue(picture());
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:paper');

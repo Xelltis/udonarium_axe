@@ -39,9 +39,10 @@ export class IndexedBlobStore {
     return done !== null;
   }
 
-  /** Deletes the picture stored under a key, if there is one. */
-  async remove(key: string): Promise<void> {
-    await this.request<undefined>('readwrite', (store) => store.delete(key));
+  /** Deletes the picture stored under a key, if there is one, resolving false when the deletion could not be made. */
+  async remove(key: string): Promise<boolean> {
+    const done = await this.request<undefined>('readwrite', (store) => store.delete(key));
+    return done !== null;
   }
 
   /** Drops every picture whose key is not among those to keep. */

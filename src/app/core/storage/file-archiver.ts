@@ -46,6 +46,20 @@ const DROP_STACK_OFFSET = 20;
 const XML_MIME_TYPE = 'text/xml';
 const INTERNAL_DRAG_TYPE = 'application/x-axe-internal-drag';
 
+/** What a load found out as it went. */
+export interface LoadResult {
+  /** Whether the `data.xml` of a save was read and handed on, which is the room or object it holds. */
+  readonly dataRead: boolean;
+}
+
+/** What one load carries along from file to file. */
+interface LoadRun {
+  readonly tooLarge: FileTooLarge[];
+  /** Asked before each file inside a zip; once it answers false, the rest of the load is left. */
+  readonly stillWanted: () => boolean;
+  dataRead: boolean;
+}
+
 /** What {@link FileArchiver.loadImages} took in and what it had to leave out. */
 export interface ImageLoadResult {
   /** The entry the image store keeps for each image taken, in the order the files came. */
@@ -182,18 +196,27 @@ export class FileArchiver {
    * dropped, so it can be made smaller and added after all. Given a drop point, each image is
    * announced for placing on the table, the next one offset a little from the last. Images inside
    * a zip are not placed, and a zip exported as a CCFOLIA room is handed on whole instead.
+   *
+   * A zip that cannot be read is logged rather than thrown, so whether a save's data was read at all
+   * is answered in the result. Given `stillWanted`, it is asked before each file inside a zip, and the
+   * rest is left once it answers false.
    */
-  async load(files: File[] | FileList, dropPoint?: { x: number; y: number }): Promise<void> {
-    const tooLarge: FileTooLarge[] = [];
-    await this.loadFiles(files, dropPoint, true, tooLarge);
-    if (tooLarge.length > 0) emitFilesTooLarge({ files: tooLarge });
+  async load(
+    files: File[] | FileList,
+    dropPoint?: { x: number; y: number },
+    options: { stillWanted?: () => boolean } = {}
+  ): Promise<LoadResult> {
+    const run: LoadRun = { tooLarge: [], stillWanted: options.stillWanted ?? (() => true), dataRead: false };
+    await this.loadFiles(files, dropPoint, true, run);
+    if (run.tooLarge.length > 0) emitFilesTooLarge({ files: run.tooLarge });
+    return { dataRead: run.dataRead };
   }
 
   private async loadFiles(
     files: File[] | FileList,
     dropPoint: { x: number; y: number } | undefined,
     placesDroppedImages: boolean,
-    tooLarge: FileTooLarge[]
+    run: LoadRun
   ): Promise<void> {
     if (!files) return;
     const loadFiles: File[] = files instanceof FileList ? toArrayOfFileList(files) : files;
@@ -201,11 +224,11 @@ export class FileArchiver {
     let droppedImageCount = 0;
     for (const file of loadFiles) {
       const imageDropPoint = placesDroppedImages ? this.offsetDropPoint(dropPoint, droppedImageCount) : undefined;
-      const isImageDropped = await this.handleImage(file, imageDropPoint, tooLarge, placesDroppedImages);
+      const isImageDropped = await this.handleImage(file, imageDropPoint, run.tooLarge, placesDroppedImages);
       if (isImageDropped) droppedImageCount++;
-      await this.handleAudio(file, tooLarge);
-      await this.handleText(file, dropPoint);
-      await this.handleZip(file, dropPoint, tooLarge);
+      await this.handleAudio(file, run.tooLarge);
+      await this.handleText(file, dropPoint, run);
+      await this.handleZip(file, dropPoint, run);
       emitFileLoaded();
     }
   }
@@ -281,7 +304,7 @@ export class FileArchiver {
     await AudioStorage.instance.addAsync(file, { putBack: true });
   }
 
-  private async handleText(file: File, dropPoint?: { x: number; y: number }): Promise<void> {
+  private async handleText(file: File, dropPoint: { x: number; y: number } | undefined, run: LoadRun): Promise<void> {
     if (!isXmlCandidateFile(file)) return;
 
     let isLoadOk = true;
@@ -303,14 +326,17 @@ export class FileArchiver {
     if (isLoadOk) {
       try {
         const xmlElement: Element | null = xml2element(await FileReaderUtil.readAsTextAsync(file));
-        if (xmlElement) emitXmlLoaded({ xmlElement, dropPoint });
+        if (xmlElement) {
+          emitXmlLoaded({ xmlElement, dropPoint });
+          if (name === 'data.xml') run.dataRead = true;
+        }
       } catch (reason) {
         Logger.warn('[FileArchiver] XML読み込みエラー', reason);
       }
     }
   }
 
-  private async handleZip(file: File, dropPoint: { x: number; y: number } | undefined, tooLarge: FileTooLarge[]) {
+  private async handleZip(file: File, dropPoint: { x: number; y: number } | undefined, run: LoadRun) {
     if (!file.type.includes('application/') && file.type.length > 0) return;
     let entries: ZipEntry[];
     try {
@@ -336,13 +362,14 @@ export class FileArchiver {
     const renamed = new Map<string, string>();
     const rest: File[] = [];
     for (const entry of entries) {
+      if (!run.stillWanted()) return;
       try {
         const type = entry.type || (await imageTypeOf(entry.blob));
         const name = baseNameOf(entry.name);
         const saved = type.startsWith('image/') && SAVED_IMAGE_NAME.test(name);
         const file = new File([entry.blob], name, { type });
         if (type.startsWith('image/') && !saved) {
-          await this.loadArchivedImage(file, renamed, tooLarge);
+          await this.loadArchivedImage(file, renamed, run.tooLarge);
         } else {
           rest.push(file);
         }
@@ -355,9 +382,10 @@ export class FileArchiver {
         Logger.warn('[FileArchiver] 読み込みの途中で盤面と卓が入れ替わったので、残りを読みません');
         return;
       }
+      if (!run.stillWanted()) return;
       try {
         const file = renamed.size > 0 && isXmlCandidateFile(entry) ? await withImagesRenamed(entry, renamed) : entry;
-        await this.loadFiles([file], dropPoint, false, tooLarge);
+        await this.loadFiles([file], dropPoint, false, run);
       } catch (reason) {
         Logger.warn('[FileArchiver] ZIP展開エラー', reason);
       }

@@ -19,6 +19,6 @@ describe('where the picture for this seat’s dice is kept', () => {
 
     expect(await store.get('a'.repeat(64))).toBeNull();
     expect(await store.put('a'.repeat(64), new Blob(['a']))).toBe(false);
-    await expect(store.remove('a'.repeat(64))).resolves.toBeUndefined();
+    expect(await store.remove('a'.repeat(64))).toBe(false);
   });
 });

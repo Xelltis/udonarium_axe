@@ -19,6 +19,6 @@ describe('where the room this browser starts on is kept', () => {
 
     expect(await store.get(StartRoomStore.KEY)).toBeNull();
     expect(await store.put(StartRoomStore.KEY, new Blob(['zip']))).toBe(false);
-    await expect(store.remove(StartRoomStore.KEY)).resolves.toBeUndefined();
+    expect(await store.remove(StartRoomStore.KEY)).toBe(false);
   });
 });

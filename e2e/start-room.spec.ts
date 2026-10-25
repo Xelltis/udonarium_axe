@@ -98,4 +98,36 @@ test.describe('the room this browser starts on', () => {
     await expect(await openPictures(page)).toHaveCount(picturesBefore + 1, { timeout: 15_000 });
     await expect(await openSounds(page)).toHaveCount(soundsBefore + 1, { timeout: 15_000 });
   });
+
+  test('starts on the sample, and says so, where the room kept cannot be read', async ({ page }) => {
+    await waitAppReady(page);
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          const request = indexedDB.open('axe-start-room', 1);
+          request.onupgradeneeded = () => request.result.createObjectStore('images');
+          request.onsuccess = () => {
+            const db = request.result;
+            const tx = db.transaction('images', 'readwrite');
+            tx.objectStore('images').put(
+              { type: 'application/zip', bytes: new Uint8Array([0, 1, 2, 3]).buffer },
+              'room'
+            );
+            tx.oncomplete = () => {
+              db.close();
+              resolve();
+            };
+            tx.onerror = () => reject(tx.error);
+          };
+          request.onerror = () => reject(request.error);
+        })
+    );
+
+    await waitAppReady(page);
+
+    await expect(page.getByText('開始時の部屋を読み込めなかったので、サンプルの部屋で始めました。')).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.locator('game-character img[src*="piece_"]').first()).toBeAttached();
+  });
 });
