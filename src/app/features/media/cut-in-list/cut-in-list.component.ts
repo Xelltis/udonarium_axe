@@ -100,8 +100,12 @@ export class CutInListComponent {
     return this.getCutIns().length <= 0;
   }
 
-  /** Every cut-in in the room, for the list. */
+  /**
+   * Every cut-in in the room, for the list. The room's cut-ins coming and going are followed, so the
+   * list is drawn again when one goes after a question asked elsewhere has been answered.
+   */
   getCutIns(): CutIn[] {
+    this.objectChange.collectionOf(CutIn.aliasName)();
     return this.objectStore.getObjects(CutIn);
   }
 
