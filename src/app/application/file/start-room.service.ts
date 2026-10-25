@@ -84,8 +84,9 @@ export class StartRoomService {
   }
 
   /**
-   * Keeps the room as it stands as the one this browser starts on, pictures and all, asking first
-   * before it replaces one kept already. Answers whether it was kept.
+   * Keeps the room as it stands as the one this browser starts on, with every picture and sound
+   * this browser holds, asking first before it replaces one kept already. Answers whether it was
+   * kept.
    */
   async keepCurrent(): Promise<boolean> {
     if (!this.store.isAvailable()) {
@@ -107,7 +108,7 @@ export class StartRoomService {
       return false;
     }
     try {
-      const blob = await this.saveDataService.createRoomArchiveAsync();
+      const blob = await this.saveDataService.createWholeRoomArchiveAsync();
       if (!(await this.store.put(StartRoomStore.KEY, blob))) throw new Error('the start room could not be written');
       this._isKept.set(true);
       this.snackbar.show(this.t('feature.roomArchive.startRoom.kept'));

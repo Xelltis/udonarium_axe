@@ -88,6 +88,42 @@ describe('SaveDataService', () => {
     }
   });
 
+  describe('the archive a browser starts on', () => {
+    const held = 'b'.repeat(64);
+
+    beforeEach(() => {
+      ImageStorage.instance.add({
+        identifier: held,
+        name: 'portrait.webp',
+        type: 'image/webp',
+        blob: new Blob(['picture'], { type: 'image/webp' }),
+        url: 'blob:portrait',
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+      vi.spyOn(TestBed.inject(AudioStorage), 'audios', 'get').mockReturnValue([
+        { identifier: 'sound', name: 'theme.mp3', blob: new Blob(['sound'], { type: 'audio/mpeg' }), isHidden: false },
+      ] as never);
+    });
+
+    afterEach(() => {
+      ImageStorage.instance.delete(held);
+      vi.restoreAllMocks();
+    });
+
+    it('carries every picture and sound held here, named by the room or not, which a save leaves out', () => {
+      const privateApi = TestBed.inject(SaveDataService) as unknown as {
+        buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
+      };
+
+      const whole = privateApi.buildRoomFiles(false, true).map((file) => file.name);
+      const saved = privateApi.buildRoomFiles(false).map((file) => file.name);
+
+      expect(whole).toEqual(expect.arrayContaining([`${held}.webp`, 'theme.mp3']));
+      expect(saved).not.toContain(`${held}.webp`);
+      expect(saved).not.toContain('theme.mp3');
+    });
+  });
+
   describe('a room saved on a room server', () => {
     afterEach(() => vi.restoreAllMocks());
 

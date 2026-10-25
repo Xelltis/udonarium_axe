@@ -4,6 +4,32 @@ import { openPanel, openSaveLoad, revealMenuEntry, waitAppReady } from './helper
 
 const ROW_EDGE = { x: 6, y: 6 };
 
+/** A 1x1 transparent PNG. */
+const TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+  'base64'
+);
+
+/** The smallest MP3 header, which is told by its type and never decoded. */
+const TINY_MP3 = Buffer.from(
+  'SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'base64'
+);
+
+/** Opens the image panel and hands back the pictures it lists. */
+async function openPictures(page: Page): Promise<Locator> {
+  await openPanel(page, '画像');
+  await expect(page.locator('file-storage')).toBeVisible({ timeout: 10000 });
+  return page.locator('file-storage img');
+}
+
+/** Opens the jukebox and hands back the sounds it lists. */
+async function openSounds(page: Page): Promise<Locator> {
+  await openPanel(page, 'ジュークボックス');
+  await expect(page.locator('app-jukebox')).toBeVisible({ timeout: 10000 });
+  return page.locator('app-jukebox .text-ui-text.truncate');
+}
+
 /** Opens the inventory and hands back its graveyard tab, which says how many pieces lie there. */
 async function graveyardTab(page: Page): Promise<Locator> {
   await openPanel(page, 'インベントリ');
@@ -42,5 +68,34 @@ test.describe('the room this browser starts on', () => {
 
     await waitAppReady(page);
     await expect(await graveyardTab(page)).toContainText(/墓場\s*0/);
+  });
+
+  test('keeps the pictures and sounds added to the room, used anywhere or not', async ({ page }) => {
+    test.setTimeout(120_000);
+    await waitAppReady(page);
+    const pictures = await openPictures(page);
+    const picturesBefore = await pictures.count();
+    await page.locator('file-storage input[type="file"][accept="image/*"]').setInputFiles({
+      name: 'tiny.png',
+      mimeType: 'image/png',
+      buffer: TINY_PNG,
+    });
+    await expect(pictures).toHaveCount(picturesBefore + 1, { timeout: 10_000 });
+    const sounds = await openSounds(page);
+    const soundsBefore = await sounds.count();
+    await page.locator('app-jukebox input[type="file"][accept="audio/*"]').setInputFiles({
+      name: 'tiny.mp3',
+      mimeType: 'audio/mpeg',
+      buffer: TINY_MP3,
+    });
+    await expect(sounds).toHaveCount(soundsBefore + 1, { timeout: 15_000 });
+
+    const menu = await openSaveLoad(page);
+    await menu.getByTestId('save-load-start-room-keep').click();
+    await expect(page.getByText('次からこのブラウザでは、この部屋で始まります。')).toBeVisible({ timeout: 30_000 });
+
+    await waitAppReady(page);
+    await expect(await openPictures(page)).toHaveCount(picturesBefore + 1, { timeout: 15_000 });
+    await expect(await openSounds(page)).toHaveCount(soundsBefore + 1, { timeout: 15_000 });
   });
 });

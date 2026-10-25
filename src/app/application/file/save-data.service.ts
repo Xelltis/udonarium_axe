@@ -125,6 +125,15 @@ export class SaveDataService {
   }
 
   /**
+   * Builds the archive a browser starts on: the room as `createRoomArchiveAsync` writes it, with
+   * every picture and sound this browser holds the bytes of, whether or not anything in the room
+   * names it, so that the room comes back as it stood, image panel and jukebox included.
+   */
+  createWholeRoomArchiveAsync(): Promise<Blob> {
+    return SaveDataService.queue.add(() => this.fileArchiver.createZipBlobAsync(this.buildRoomFiles(false, true)));
+  }
+
+  /**
    * Archive files for the wanted pictures and audio: each loaded picture and each sound held here
    * as a file, with the picture and audio tag lists.
    *
@@ -202,13 +211,19 @@ export class SaveDataService {
     return { roomXml, chatXml, files };
   }
 
-  private buildRoomFiles(pretty = true): File[] {
+  /**
+   * The files of a room save: the room's XML, the pictures it names and their tags and links, and
+   * the list of sounds. With `everything`, every picture and sound this browser holds the bytes of
+   * goes in as well, named by the room or not.
+   */
+  private buildRoomFiles(pretty = true, everything = false): File[] {
     const { roomXml, chatXml, files } = this.buildRoomXmlParts(pretty);
 
-    const images: ImageFile[] = this.withCarried(
+    const named: ImageFile[] = this.withCarried(
       [...this.searchImageFiles(roomXml), ...this.searchImageFiles(chatXml)],
       ObjectStore.instance.getObjects(WhiteBoard)
     );
+    const images = everything ? this.withEveryHeld(named) : named;
     for (const image of images) {
       const file = this.createImageArchiveFile(image);
       if (file) files.push(file);
@@ -216,15 +231,33 @@ export class SaveDataService {
 
     const imageTagXml = this.convertToXml(ImageTagList.create(images), pretty);
     files.push(new File([imageTagXml], 'imagetag.xml', { type: 'text/plain' }));
-    const imageLinkXml = this.convertToXml(ImageLinkList.create(images), pretty);
+    const imageLinkXml = this.convertToXml(ImageLinkList.create(named), pretty);
     files.push(new File([imageLinkXml], 'imagelink.xml', { type: 'text/plain' }));
 
     const audios: AudioFile[] = this.audioStorage.audios.filter((a) => !a.isHidden);
+    if (everything) {
+      const taken = new Set(files.map((file) => file.name.toLowerCase()));
+      for (const audio of audios) {
+        const file = createAudioArchiveFile(audio, taken);
+        if (file) files.push(file);
+      }
+    }
     const audioTagXml = this.convertToXml(AudioTagList.create(audios), pretty);
     files.push(new File([audioTagXml], 'audiotag.xml', { type: 'text/plain' }));
     files.push(...this.roomRightsFiles([...images, ...audios], pretty));
 
     return files;
+  }
+
+  /** The pictures named, with every other picture this browser holds in full and the room has not removed. */
+  private withEveryHeld(named: readonly ImageFile[]): ImageFile[] {
+    const kept = new Map(named.map((image) => [image.identifier, image]));
+    for (const image of this.imageStorage.images) {
+      if (kept.has(image.identifier) || image.state !== ImageState.COMPLETE) continue;
+      if (this.imageStorage.isRemoved(image.identifier)) continue;
+      kept.set(image.identifier, image);
+    }
+    return [...kept.values()];
   }
 
   /**
