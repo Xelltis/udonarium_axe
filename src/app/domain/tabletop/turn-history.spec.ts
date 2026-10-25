@@ -8,7 +8,7 @@ import {
 } from '@axe/domain/tabletop/turn-history';
 
 function step(round: number, currentSide = ''): TurnStep {
-  return { round, phase: 'acting', currentIdentifier: 'a', currentSide, acted: [], buffs: [] };
+  return { round, phase: 'acting', currentIdentifier: 'a', currentSide, acted: [], holding: '', buffs: [] };
 }
 
 describe('parseTurnHistory()', () => {
@@ -30,6 +30,12 @@ describe('parseTurnHistory()', () => {
     const written = '[{"round":1,"phase":"acting","currentIdentifier":"a","acted":[],"buffs":[]}]';
 
     expect(parseTurnHistory(written)[0].currentSide).toBe('');
+  });
+
+  it('reads a step written before pieces could wait as holding nobody back', () => {
+    const written = '[{"round":1,"phase":"acting","currentIdentifier":"a","currentSide":"","acted":[],"buffs":[]}]';
+
+    expect(parseTurnHistory(written)[0].holding).toBe('');
   });
 });
 

@@ -323,6 +323,17 @@
           <button
             type="button"
             class="rounded-ui-sm text-ui-muted border-ui-border-panel hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+            data-testid="turn-hold"
+            [disabled]="!mayHoldCurrent()"
+            [attr.aria-label]="'feature.turnOrder.holdCurrent' | transloco"
+            [title]="'feature.turnOrder.holdCurrent' | transloco"
+            (click)="turnHold()"
+          >
+            <i class="material-icons" aria-hidden="true">pause</i>
+          </button>
+          <button
+            type="button"
+            class="rounded-ui-sm text-ui-muted border-ui-border-panel hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
             [disabled]="!canUndoTurn()"
             [title]="'feature.turnOrder.retreatRound' | transloco"
             (click)="turnRetreatRound()"
@@ -464,6 +475,17 @@
             >
               <i class="material-icons">keyboard_arrow_down</i>
             </button>
+            <button
+              type="button"
+              class="bg-ui-panel/80 text-ui-text border-ui-border-panel hover:border-ui-accent hover:text-ui-accent shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid backdrop-blur-sm transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[18px]!"
+              data-testid="turn-hold"
+              [disabled]="!mayHoldCurrent()"
+              [attr.aria-label]="'feature.turnOrder.holdCurrent' | transloco"
+              [title]="'feature.turnOrder.holdCurrent' | transloco"
+              (click)="turnHold()"
+            >
+              <i class="material-icons" aria-hidden="true">pause</i>
+            </button>
           </div>
           <div class="flex items-center gap-1.5">
             <button
@@ -591,6 +613,13 @@
             class="material-icons bg-ui-panel text-ui-dim absolute right-0 bottom-0 rounded-full text-[14px]!"
             [title]="'feature.turnOrder.acted' | transloco"
             >check</i
+          >
+        } @else if (heldIds().has(character.identifier)) {
+          <i
+            class="material-icons bg-ui-panel text-ui-accent absolute right-0 bottom-0 rounded-full text-[14px]!"
+            data-testid="turn-held"
+            [title]="'feature.turnOrder.held' | transloco"
+            >pause</i
           >
         }
       </button>
@@ -723,6 +752,12 @@
                         class="material-icons text-ui-dim block text-[14px]!"
                         [title]="'feature.turnOrder.acted' | transloco"
                         >check</i
+                      >
+                    } @else if (heldIds().has(row.object.identifier)) {
+                      <i
+                        class="material-icons text-ui-accent block text-[14px]!"
+                        [title]="'feature.turnOrder.held' | transloco"
+                        >pause</i
                       >
                     } @else {
                       <i
@@ -948,6 +983,13 @@
           [title]="'feature.turnOrder.acted' | transloco"
           >check</i
         >
+      } @else if (heldIds().has(gameObject.identifier)) {
+        <i
+          class="material-icons text-ui-accent w-3.5 shrink-0 text-[16px]!"
+          data-testid="inventory-turn-held"
+          [title]="'feature.turnOrder.held' | transloco"
+          >pause</i
+        >
       } @else {
         <i
           class="material-icons text-ui-accent w-3.5 shrink-0 text-[16px]!"
@@ -1032,13 +1074,15 @@
           class="invisible absolute top-1/2 right-0 flex -translate-y-1/2 gap-1 group-hover:visible"
           [class.visible!]="selectedIdentifier() === gameObject.identifier"
         >
+          @let held = heldIds().has(gameObject.identifier);
           <button
             class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent inline-flex size-6 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background,color] [&_.material-icons]:text-base!"
             type="button"
-            [title]="'feature.turnOrder.setCurrent' | transloco"
+            [attr.aria-label]="(held ? 'feature.turnOrder.interrupt' : 'feature.turnOrder.setCurrent') | transloco"
+            [title]="(held ? 'feature.turnOrder.interrupt' : 'feature.turnOrder.setCurrent') | transloco"
             (click)="setTurnOrder($event, gameObject)"
           >
-            <i class="material-icons">flag</i>
+            <i class="material-icons" aria-hidden="true">{{ held ? 'play_arrow' : 'flag' }}</i>
           </button>
           <button
             class="text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex size-6 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background] [&_.material-icons]:text-base!"

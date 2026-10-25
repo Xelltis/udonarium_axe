@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
@@ -23,6 +24,7 @@ import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { TurnState } from '@axe/domain/tabletop/turn-state';
 import {
   GameObjectInventoryComponent,
   PERSONAL_INVENTORY_TAB,
@@ -106,6 +108,66 @@ describe('GameObjectInventoryComponent', () => {
       expect(icons).toContain('fast_rewind');
       expect(icons).toContain('restart_alt');
       expect(icons).toContain('chevron_right');
+    });
+  });
+
+  describe('waiting to step in', () => {
+    let pieces: GameCharacter[];
+    let turnOrder: TurnOrderService;
+
+    beforeEach(() => {
+      PeerCursor.myCursor = { role: PeerRole.GameMaster, identifier: 'seat-cursor' } as PeerCursor;
+      vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(undefined as never);
+      const turnState = TestBed.inject(TurnState);
+      Object.assign(turnState, {
+        round: 0,
+        phase: 'idle',
+        currentIdentifier: '',
+        currentSide: '',
+        actedIdentifiers: [],
+        history: '[]',
+        holding: '',
+      });
+      pieces = ['先手', '中手', '後手'].map((name) => {
+        const piece = GameCharacter.create(name, 1, '');
+        piece.setLocation('table');
+        return piece;
+      });
+      turnOrder = TestBed.inject(TurnOrderService);
+      turnOrder.next();
+      turnOrder.next();
+    });
+
+    afterEach(() => {
+      turnOrder.reset();
+      TestBed.inject(TurnState).history = '[]';
+      vi.restoreAllMocks();
+    });
+
+    it('holds the piece whose turn it is from the round strip, and marks it on its row', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const hold = fixture.nativeElement.querySelector('[data-testid="turn-hold"]') as HTMLButtonElement;
+      expect(turnOrder.currentIdentifier).toBe(pieces[0].identifier);
+      expect(hold.disabled).toBe(false);
+
+      hold.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(turnOrder.isHeld(pieces[0].identifier)).toBe(true);
+      expect(turnOrder.currentIdentifier).toBe(pieces[1].identifier);
+      expect(fixture.nativeElement.querySelectorAll('[data-testid="inventory-turn-held"]')).toHaveLength(1);
+    });
+
+    it('steps a waiting piece in from the button on its row, and goes back to the turn it stepped into', () => {
+      turnOrder.hold(pieces[0].identifier);
+
+      component.setTurnOrder(new Event('click'), pieces[0]);
+      expect(turnOrder.currentIdentifier).toBe(pieces[0].identifier);
+
+      turnOrder.next();
+      expect(turnOrder.currentIdentifier).toBe(pieces[1].identifier);
     });
   });
 

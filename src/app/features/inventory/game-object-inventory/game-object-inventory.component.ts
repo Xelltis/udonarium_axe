@@ -334,10 +334,18 @@ export class GameObjectInventoryComponent {
     this.filter.clearSearch();
   }
 
-  /** Gives the turn to a piece from the button on its row, without the press selecting the row. */
+  /**
+   * Gives the turn to a piece from the button on its row, without the press selecting the row. A
+   * piece waiting to step in steps in.
+   */
   setTurnOrder(event: Event, gameObject: GameObject): void {
     event.stopPropagation();
-    this.turnOrderService.setCurrent(gameObject.identifier);
+    this.giveTurnTo(gameObject.identifier);
+  }
+
+  private giveTurnTo(identifier: string): void {
+    if (this.turnOrderService.mayInterrupt(identifier)) this.turnOrderService.interrupt(identifier);
+    else this.turnOrderService.setCurrent(identifier);
   }
 
   readonly viewMode = this.viewPreference.mode;
@@ -653,15 +661,35 @@ export class GameObjectInventoryComponent {
     return this.turnOrderService.currentSide;
   });
 
-  /** Gives the turn to the piece pressed in the turn order. */
+  /** Gives the turn to the piece pressed in the turn order, or steps it in where it is waiting to. */
   selectTurn(character: GameCharacter): void {
-    this.turnOrderService.setCurrent(character.identifier);
+    this.giveTurnTo(character.identifier);
   }
 
   readonly actedIds = computed<ReadonlySet<string>>(() => {
     this.objectChange.versionOf('TurnState')();
     return new Set(this.turnOrderService.actedIdentifiers);
   });
+
+  /** The pieces waiting to step in this round. */
+  readonly heldIds = computed<ReadonlySet<string>>(() => {
+    this.objectChange.versionOf('TurnState')();
+    return new Set(this.turnOrderService.heldIdentifiers);
+  });
+
+  /** Whether the piece whose turn it is may wait to step in later, which the round strip offers. */
+  readonly mayHoldCurrent = computed<boolean>(() => {
+    this.objectChange.versionOf('TurnState')();
+    this.objectChange.trackMyCursor();
+    this.inventoryService.inventoryVersion();
+    const current = this.turnOrderService.currentIdentifier;
+    return current !== '' && this.turnOrderService.mayHold(current);
+  });
+
+  /** Has the piece whose turn it is wait to step in later, handing the turn on. */
+  turnHold(): void {
+    this.turnOrderService.hold(this.turnOrderService.currentIdentifier);
+  }
 
   readonly canUndoTurn = computed<boolean>(() => {
     this.objectChange.versionOf('TurnState')();
@@ -1368,12 +1396,18 @@ export class GameObjectInventoryComponent {
         setStealth: (o, on) => {
           if (o instanceof GameCharacter) this.stealth.set(o, on);
         },
+        holdTurn: (o) => this.turnOrderService.hold(o.identifier),
+        interruptTurn: (o) => this.turnOrderService.interrupt(o.identifier),
       },
       this.t,
       this.foldersApply() ? this.knownFolderPaths() : null,
       gameObject instanceof GameCharacter && this.stealth.mayToggle(gameObject)
         ? { on: gameObject.stealth === '1' }
-        : null
+        : null,
+      {
+        mayHold: this.turnOrderService.mayHold(gameObject.identifier),
+        mayInterrupt: this.turnOrderService.mayInterrupt(gameObject.identifier),
+      }
     );
 
     this.contextMenuService.open(position, actions, gameObject.name);
