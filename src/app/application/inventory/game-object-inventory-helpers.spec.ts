@@ -94,6 +94,16 @@ describe('game-object-inventory-helpers', () => {
       expect(result.map((x) => x.identifier)).toEqual(['b', 'a']);
     });
 
+    it('reads the next step where neither piece carries a step', () => {
+      const a = createObject('a', 10, 5);
+      const b = createObject('b', 10, 8);
+      const result = sortObjectsByKeys([a, b] as never[], [
+        { tag: '幸運', order: SortOrder.ASC },
+        { tag: 'DEX', order: SortOrder.DESC },
+      ]);
+      expect(result.map((x) => x.identifier)).toEqual(['b', 'a']);
+    });
+
     it('leaves two pieces level where neither carries a later step', () => {
       const a = createObject('a', 10, 5);
       const b = createObject('b', 10, 5);

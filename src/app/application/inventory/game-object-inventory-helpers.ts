@@ -20,10 +20,9 @@ export function toSortableValue(dataElement: DataElement): number | string {
  * Sorts pieces in place by the data element each step of the order names, in turn, and returns the
  * same array.
  *
- * A later step is read only where the earlier ones leave two pieces level. A piece that carries no
- * element under a step's name goes after the ones that do, and where neither carries one the two
- * stay as they were. A step with no name is passed over, and an empty first step leaves the whole
- * order as it was.
+ * A later step is read only where the earlier ones leave two pieces level, which they also do where
+ * neither carries an element under a step's name. A piece that carries none goes after the one that
+ * does. A step with no name is passed over, and an empty first step leaves the whole order as it was.
  */
 export function sortObjectsByKeys(objects: TabletopObject[], keys: readonly SortKey[]): TabletopObject[] {
   const steps = keys
@@ -35,7 +34,7 @@ export function sortObjectsByKeys(objects: TabletopObject[], keys: readonly Sort
     for (const { tag, direction } of steps) {
       const aElm = a.rootDataElement ? DataElement.findElementByReference(a.rootDataElement, tag) : null;
       const bElm = b.rootDataElement ? DataElement.findElementByReference(b.rootDataElement, tag) : null;
-      if (!aElm && !bElm) return 0;
+      if (!aElm && !bElm) continue;
       if (!bElm) return -1;
       if (!aElm) return 1;
 
