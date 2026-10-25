@@ -40,6 +40,17 @@ describe('ImageLinkList', () => {
     expect(ImageStorage.instance.get('sample-knight')?.url).toBe('assets/images/piece_knight.webp');
   });
 
+  it('takes in the faces of the dice the app carries, which are named with brackets', () => {
+    const face = './assets/images/dice/6_dice/6_dice[1].png';
+    const xml = ObjectSerializer.instance.toXml(ImageLinkList.create([linked(face, face)]));
+    ImageStorage.instance.delete(face);
+
+    ObjectSerializer.instance.parseXml(xml);
+
+    expect(ImageStorage.instance.get(face)?.url).toBe(face);
+    ImageStorage.instance.delete(face);
+  });
+
   it('takes in nothing but a file the app carries', () => {
     ObjectSerializer.instance.parseXml(
       '<image-link-list>' +

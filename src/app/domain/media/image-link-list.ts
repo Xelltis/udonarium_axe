@@ -10,7 +10,7 @@ import { encodeAttributeValue } from '@axe/core/util/xml-util';
 const ENTRY = 'entry';
 
 /** A file the app itself carries, which is the only kind of link written down or taken in again. */
-const BUNDLED_PATH = /^(?:\.\/)?assets\/(?!.*\.\.)[\w\-./]+$/;
+const BUNDLED_PATH = /^(?:\.\/)?assets\/(?!.*\.\.)[\w\-./[\]]+$/;
 
 /**
  * A holder for writing the pictures of a saved room that are held only as a link to a file the app
