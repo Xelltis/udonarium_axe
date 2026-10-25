@@ -1,4 +1,4 @@
-import { afterNextRender, DestroyRef, Directive, ElementRef, inject, input } from '@angular/core';
+import { DestroyRef, Directive, ElementRef, inject, input } from '@angular/core';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { observeTap, TapGestureHandle, TapPoint } from '@axe/core/input/tap-gesture';
 
@@ -17,27 +17,39 @@ export class TextTooltipDirective {
   private tapGesture: TapGestureHandle | null = null;
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
 
-  private onMouseEnter = (e: MouseEvent) => this.show(e);
-  private onMouseLeave = () => this.hide();
+  private onMouseEnter = (e: MouseEvent) => {
+    this.show(e);
+    const el = this.el.nativeElement as HTMLElement;
+    el.addEventListener('mousemove', this.onMouseMove);
+    el.addEventListener('mouseleave', this.onMouseLeave);
+  };
+  private onMouseLeave = () => {
+    this.stopFollowing();
+    this.hide();
+  };
   private onMouseMove = (e: MouseEvent) => this.move(e);
 
+  /**
+   * Waits for a pointer to come over the text, and follows it only while it is there: a list draws
+   * one of these on every row, so a row the pointer is not over listens for as little as it can.
+   */
   constructor() {
-    afterNextRender(() => {
-      const el = this.el.nativeElement;
-      el.addEventListener('mouseenter', this.onMouseEnter);
-      el.addEventListener('mouseleave', this.onMouseLeave);
-      el.addEventListener('mousemove', this.onMouseMove);
-      this.tapGesture = observeTap(el, (point) => this.showAtPoint(point));
-    });
+    const el = this.el.nativeElement as HTMLElement;
+    el.addEventListener('mouseenter', this.onMouseEnter);
+    this.tapGesture = observeTap(el, (point) => this.showAtPoint(point));
     this.destroyRef.onDestroy(() => {
-      const el = this.el.nativeElement;
       el.removeEventListener('mouseenter', this.onMouseEnter);
-      el.removeEventListener('mouseleave', this.onMouseLeave);
-      el.removeEventListener('mousemove', this.onMouseMove);
+      this.stopFollowing();
       this.tapGesture?.destroy();
       this.tapGesture = null;
       this.hide();
     });
+  }
+
+  private stopFollowing() {
+    const el = this.el.nativeElement as HTMLElement;
+    el.removeEventListener('mousemove', this.onMouseMove);
+    el.removeEventListener('mouseleave', this.onMouseLeave);
   }
 
   private showAtPoint(point: TapPoint) {

@@ -62,6 +62,19 @@ describe('TextTooltipDirective', () => {
     expect(tooltipsIn(document)).toHaveLength(0);
   });
 
+  it('follows the pointer while it is over the name, and not once it has left', () => {
+    cutShort(label());
+    hover(label());
+    const tooltip = tooltipsIn(document)[0] as HTMLElement;
+
+    label().dispatchEvent(new MouseEvent('mousemove', { clientX: 60, clientY: 40 }));
+    expect(tooltip.style.top).toBe('58px');
+
+    label().dispatchEvent(new MouseEvent('mouseleave'));
+    label().dispatchEvent(new MouseEvent('mousemove', { clientX: 90, clientY: 90 }));
+    expect(tooltipsIn(document)).toHaveLength(0);
+  });
+
   it('opens in the window the name is shown in, for a panel taken out to a window of its own', () => {
     const other = document.implementation.createHTMLDocument('panel window');
     const span = label();
