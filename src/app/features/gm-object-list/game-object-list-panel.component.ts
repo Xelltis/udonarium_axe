@@ -269,6 +269,15 @@ export class GameObjectListPanelComponent {
     this.npcDrag.end(!!target?.closest('.npc-bar-dropzone'));
   }
 
+  /** Puts away a carry the browser called off, as a touch taken for a scroll, with nothing let go anywhere. */
+  protected onRowPointerCancel(): void {
+    const pending = this.dragPending;
+    this.dragPending = null;
+    if (!pending?.dragging) return;
+    this.pieceGhost.hide();
+    this.npcDrag.end(false);
+  }
+
   protected openRowMenu(event: MouseEvent, row: ObjectRow): void {
     event.preventDefault();
     event.stopPropagation();

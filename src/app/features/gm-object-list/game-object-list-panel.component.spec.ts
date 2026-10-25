@@ -161,6 +161,33 @@ describe('GameObjectListPanelComponent', () => {
     expect(TestBed.inject(NpcDragService).character()).toBeNull();
   });
 
+  it('puts away what a cancelled carry drew, so nothing is left over the panels', () => {
+    const goblin = makeCharacter('ゴブリン');
+    const row = { object: goblin, typeKey: 'character' } as unknown as ObjectRow;
+    const rows = component as unknown as {
+      onRowPointerDown: (event: PointerEvent, row: ObjectRow) => void;
+      onRowPointerMove: (event: PointerEvent) => void;
+      onRowPointerCancel: () => void;
+    };
+    const element = document.createElement('div');
+    const at = (x: number, y: number) =>
+      ({
+        button: 0,
+        clientX: x,
+        clientY: y,
+        pointerId: 1,
+        target: element,
+        currentTarget: element,
+      }) as unknown as PointerEvent;
+    rows.onRowPointerDown(at(0, 0), row);
+    rows.onRowPointerMove(at(40, 40));
+
+    rows.onRowPointerCancel();
+
+    expect(TestBed.inject(PieceDragGhostService).character()).toBeNull();
+    expect(TestBed.inject(NpcDragService).character()).toBeNull();
+  });
+
   describe('setting the sight of the ticked pieces', () => {
     it('opens the sight settings alone, with no lamp in them', () => {
       makeCharacter('ゴブリン');
