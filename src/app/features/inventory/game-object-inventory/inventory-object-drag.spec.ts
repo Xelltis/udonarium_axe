@@ -1,4 +1,5 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { FOLDER_DROPZONE_SELECTOR } from '@axe/features/inventory/game-object-inventory/inventory-folder-drag';
 import {
   InventoryObjectDrag,
   ObjectDragHost,
@@ -37,7 +38,7 @@ describe('InventoryObjectDrag', () => {
       () =>
         ({
           closest: (selector: string) =>
-            selector === '[data-folder-dropzone]' && dropPath !== null ? { getAttribute: () => dropPath } : null,
+            selector === FOLDER_DROPZONE_SELECTOR && dropPath !== null ? { getAttribute: () => dropPath } : null,
         }) as unknown as Element
     );
   });

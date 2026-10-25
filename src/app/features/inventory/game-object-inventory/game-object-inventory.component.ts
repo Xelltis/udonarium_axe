@@ -258,7 +258,12 @@ export class GameObjectInventoryComponent {
     handOverMove: (x, y) => this.npcDrag.move(x, y),
     handOverEnd: (accepted) => this.npcDrag.end(accepted),
     fileInto: (identifiers, folderPath) => {
-      this.setFolderOf(identifiers, folderPath);
+      const target = normalizeFolderPath(folderPath);
+      const moving = [...identifiers].filter(
+        (identifier) => (this.objectStore.get<GameCharacter>(identifier)?.folderName ?? '') !== target
+      );
+      if (moving.length < 1) return;
+      this.setFolderOf(moving, folderPath);
       SoundEffect.play(PresetSound.piecePut);
     },
   });

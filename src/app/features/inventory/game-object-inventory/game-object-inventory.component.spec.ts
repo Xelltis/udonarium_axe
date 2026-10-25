@@ -16,6 +16,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
+import { SoundEffect } from '@axe/domain/media/sound-effect';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -898,6 +899,35 @@ describe('GameObjectInventoryComponent', () => {
       dragOnto(goblin, folderHeading('第1話/洞窟'));
 
       expect(goblin.folderName).toBe('第1話/洞窟');
+    });
+
+    it('moves a character dropped anywhere in an open folder into it', () => {
+      const goblin = putInShared('ゴブリン');
+      component.selectTab.set('common');
+      const folder = document.createElement('div');
+      folder.setAttribute('data-folder-area', '');
+      folder.setAttribute('data-folder-path', '第1話');
+      const row = document.createElement('div');
+      folder.append(row);
+      fixture.nativeElement.append(folder);
+
+      dragOnto(goblin, row);
+
+      expect(goblin.folderName).toBe('第1話');
+    });
+
+    it('leaves a character dropped back in its own folder alone, without a sound', () => {
+      const goblin = putInShared('ゴブリン');
+      goblin.folderName = '第1話';
+      component.selectTab.set('common');
+      const update = vi.spyOn(TestBed.inject(GameObjectInventoryService), 'notifyInventoryUpdate');
+      const sound = vi.spyOn(SoundEffect, 'play');
+
+      dragOnto(goblin, folderHeading('第1話'));
+
+      expect(goblin.folderName).toBe('第1話');
+      expect(update).not.toHaveBeenCalled();
+      expect(sound).not.toHaveBeenCalled();
     });
 
     it('takes a character dragged onto the unfiled heading out of its folder', () => {

@@ -347,19 +347,27 @@
             <ng-container *ngTemplateOutlet="folderNode; context: { $implicit: node }"></ng-container>
           }
           @if (folderTree().loose.length > 0) {
-            <ng-container
-              *ngTemplateOutlet="
-                folderHeading;
-                context: { $implicit: { path: '', name: '', totalCount: folderTree().loose.length } }
-              "
-            ></ng-container>
-            @if (!isFolderCollapsed('')) {
-              <div class="border-ui-border-panel ml-2.5 flex flex-col gap-0.5 border-l border-solid pl-1.5">
-                @for (row of folderTree().loose; track row.identifier) {
-                  <ng-container *ngTemplateOutlet="itemRow; context: { $implicit: row.object }"></ng-container>
-                }
-              </div>
-            }
+            <div
+              class="mt-1 flex flex-col gap-0.5 rounded-[5px] first:mt-0"
+              data-folder-area
+              data-folder-path=""
+              [class.outline]="drag.isDropFolder('')"
+              [class.outline-ui-accent]="drag.isDropFolder('')"
+            >
+              <ng-container
+                *ngTemplateOutlet="
+                  folderHeading;
+                  context: { $implicit: { path: '', name: '', totalCount: folderTree().loose.length } }
+                "
+              ></ng-container>
+              @if (!isFolderCollapsed('')) {
+                <div class="border-ui-border-panel ml-2.5 flex flex-col gap-0.5 border-l border-solid pl-1.5">
+                  @for (row of folderTree().loose; track row.identifier) {
+                    <ng-container *ngTemplateOutlet="itemRow; context: { $implicit: row.object }"></ng-container>
+                  }
+                </div>
+              }
+            </div>
           }
         } @else if (sideBands(); as bands) {
           @for (band of bands; track band.side) {
@@ -1075,15 +1083,23 @@
 </ng-template>
 
 <ng-template #folderNode let-node>
-  <ng-container *ngTemplateOutlet="folderHeading; context: { $implicit: node }"></ng-container>
-  @if (!isFolderCollapsed(node.path)) {
-    <div class="border-ui-border-panel ml-2.5 flex flex-col gap-0.5 border-l border-solid pl-1.5">
-      @for (child of node.children; track child.path) {
-        <ng-container *ngTemplateOutlet="folderNode; context: { $implicit: child }"></ng-container>
-      }
-      @for (row of node.items; track row.identifier) {
-        <ng-container *ngTemplateOutlet="itemRow; context: { $implicit: row.object }"></ng-container>
-      }
-    </div>
-  }
+  <div
+    class="mt-1 flex flex-col gap-0.5 rounded-[5px] first:mt-0"
+    data-folder-area
+    [attr.data-folder-path]="node.path"
+    [class.outline]="drag.isDropFolder(node.path)"
+    [class.outline-ui-accent]="drag.isDropFolder(node.path)"
+  >
+    <ng-container *ngTemplateOutlet="folderHeading; context: { $implicit: node }"></ng-container>
+    @if (!isFolderCollapsed(node.path)) {
+      <div class="border-ui-border-panel ml-2.5 flex flex-col gap-0.5 border-l border-solid pl-1.5">
+        @for (child of node.children; track child.path) {
+          <ng-container *ngTemplateOutlet="folderNode; context: { $implicit: child }"></ng-container>
+        }
+        @for (row of node.items; track row.identifier) {
+          <ng-container *ngTemplateOutlet="itemRow; context: { $implicit: row.object }"></ng-container>
+        }
+      </div>
+    }
+  </div>
 </ng-template>

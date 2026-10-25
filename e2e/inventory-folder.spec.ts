@@ -1,4 +1,4 @@
-import { expect, Page, test } from '@playwright/test';
+import { expect, Locator, Page, test } from '@playwright/test';
 
 import { createCharacter, openPanel, revealMenuEntry, waitAppReady } from './helpers';
 
@@ -154,5 +154,53 @@ test.describe('searching the inventory, and its folders', () => {
     await menu.getByText('このフォルダを削除').click();
 
     await expect(heading).toHaveCount(0);
+  });
+});
+
+test.describe('dragging pieces in the inventory', () => {
+  async function moveFirstToShared(page: Page) {
+    await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(0).click();
+    await items(page).first().click({ button: 'right', position: ROW_EDGE });
+    const menu = page.locator('context-menu');
+    await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
+    await (await revealMenuEntry(page, menu, '共有イベントリに移動')).click();
+  }
+
+  /** Presses a row at its edge and carries it, a step at a time, to a point. */
+  async function dragRow(page: Page, row: Locator, to: { x: number; y: number }) {
+    const box = (await row.boundingBox())!;
+    await page.mouse.move(box.x + ROW_EDGE.x, box.y + ROW_EDGE.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 12 });
+    await page.mouse.up();
+  }
+
+  async function middleOf(locator: Locator) {
+    const box = (await locator.boundingBox())!;
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  }
+
+  test.beforeEach(async ({ page }) => {
+    await waitAppReady(page);
+    await createCharacter(page);
+    await openPanel(page, 'インベントリ');
+    await expect(items(page).first()).toBeVisible({ timeout: 5000 });
+    await moveFirstToShared(page);
+    await moveFirstToShared(page);
+    await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(1).click();
+    await expect(items(page)).toHaveCount(2, { timeout: 5000 });
+  });
+
+  test('files a piece let go anywhere over an open folder, not only over its heading', async ({ page }) => {
+    await putFirstInFolder(page, '第1話');
+    const heading = page.locator('game-object-inventory [data-folder-dropzone][data-folder-path="第1話"]');
+    await expect(heading).toContainText(/第1話\s*1/);
+    // The folder comes first, so its piece is the first row and the unfiled one the second.
+    const filed = items(page).nth(0);
+    const loose = items(page).nth(1);
+
+    await dragRow(page, loose, await middleOf(filed));
+
+    await expect(heading).toContainText(/第1話\s*2/);
   });
 });
