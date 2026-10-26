@@ -56,6 +56,7 @@ import { GridType } from '@axe/domain/tabletop/game-table';
 import { MapEditorFunctionPaintComponent } from '@axe/features/map-editor/editor/map-editor-function-paint.component';
 import { GestureKind, MapEditorGesture } from '@axe/features/map-editor/editor/map-editor-gesture';
 import { MapEditorLayerDrawerComponent } from '@axe/features/map-editor/editor/map-editor-layer-drawer.component';
+import { MapEditorSelectedItemComponent } from '@axe/features/map-editor/editor/map-editor-selected-item.component';
 import { mapEditorKeyDown, mapEditorKeyUp } from '@axe/features/map-editor/editor/map-editor-shortcut';
 import { MapEditorStampPickerComponent } from '@axe/features/map-editor/editor/map-editor-stamp-picker.component';
 import {
@@ -151,6 +152,7 @@ interface ToolDef {
     MapEditorStampPickerComponent,
     MapEditorTexturePickerComponent,
     MapEditorFunctionPaintComponent,
+    MapEditorSelectedItemComponent,
   ],
 })
 export class MapEditorPanelComponent {
