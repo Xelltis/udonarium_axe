@@ -28,6 +28,7 @@ import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { GameObjectInventoryComponent } from '@axe/features/inventory/game-object-inventory/game-object-inventory.component';
 import { PERSONAL_INVENTORY_TAB } from '@axe/features/inventory/game-object-inventory/inventory-list';
 import { InventoryObjectDrag } from '@axe/features/inventory/game-object-inventory/inventory-object-drag';
+import { InventoryRoundService } from '@axe/features/inventory/inventory-round.service';
 import { InventoryViewPreferenceService } from '@axe/features/inventory/inventory-view-preference.service';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { installPanelLayer } from '@axe/testing/panel-layer';
@@ -209,8 +210,8 @@ describe('GameObjectInventoryComponent', () => {
     it('shows no sides while the round is taken one piece at a time', () => {
       putOnTable('だれか');
 
-      expect(component.turnSides()).toEqual([]);
-      expect(component.currentTurnSide()).toBe('');
+      expect(TestBed.inject(InventoryRoundService).sides()).toEqual([]);
+      expect(TestBed.inject(InventoryRoundService).currentSide()).toBe('');
     });
 
     it('names on the round only the pieces this reader can see, and no side made only of the unseen', () => {
@@ -227,8 +228,16 @@ describe('GameObjectInventoryComponent', () => {
         (character) => character.name !== '闇の魔物'
       );
 
-      expect(component.turnSides().map((group) => group.name)).toEqual(['味方']);
-      expect(component.turnOrderList().map((piece) => piece.name)).toEqual(['勇者']);
+      expect(
+        TestBed.inject(InventoryRoundService)
+          .sides()
+          .map((group) => group.name)
+      ).toEqual(['味方']);
+      expect(
+        TestBed.inject(InventoryRoundService)
+          .order()
+          .map((piece) => piece.name)
+      ).toEqual(['勇者']);
     });
 
     it('gathers the pieces under the party each is on', () => {
@@ -239,7 +248,7 @@ describe('GameObjectInventoryComponent', () => {
       putOnTable('通りすがり');
       Config.instance.turnOrderMode = 'faction';
 
-      const sides = component.turnSides();
+      const sides = TestBed.inject(InventoryRoundService).sides();
 
       expect(sides.map((group) => group.name)).toEqual(['味方', '無所属']);
       expect(sides[0].members.map((piece) => piece.name)).toEqual(['勇者']);
@@ -328,7 +337,7 @@ describe('GameObjectInventoryComponent', () => {
       putOnTable('勇者', heroes.identifier);
       Config.instance.turnOrderMode = 'faction';
 
-      expect(component.turnSides()[0].color).toBe('#7dd3fc');
+      expect(TestBed.inject(InventoryRoundService).sides()[0].color).toBe('#7dd3fc');
     });
   });
 
@@ -1565,6 +1574,7 @@ describe('GameObjectInventoryComponent', () => {
 
         afterEach(() => {
           localStorage.removeItem('ui-inventory-round-in-play');
+          TestBed.inject(TurnState).round = 0;
           vi.restoreAllMocks();
         });
 
@@ -1585,8 +1595,9 @@ describe('GameObjectInventoryComponent', () => {
           expect(next).toHaveBeenCalled();
         });
 
-        it('comes back once a round has begun', () => {
-          vi.spyOn(TestBed.inject(TurnOrderService), 'round', 'get').mockReturnValue(2);
+        it('comes back once a round has begun', async () => {
+          TestBed.inject(TurnState).round = 2;
+          await Promise.resolve();
           viewPreference().setRoundInPlay(true);
           fixture.detectChanges();
 

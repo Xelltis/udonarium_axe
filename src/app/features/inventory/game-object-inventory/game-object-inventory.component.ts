@@ -88,6 +88,9 @@ import {
   INVENTORY_FILTER_PANEL,
   InventoryFilterPanelComponent,
 } from '@axe/features/inventory/inventory-filter-panel/inventory-filter-panel.component';
+import { InventoryRoundService } from '@axe/features/inventory/inventory-round.service';
+import { InventoryRoundStripComponent } from '@axe/features/inventory/inventory-round-strip/inventory-round-strip.component';
+import { InventoryRoundViewComponent } from '@axe/features/inventory/inventory-round-view/inventory-round-view.component';
 import { InventoryViewPreferenceService } from '@axe/features/inventory/inventory-view-preference.service';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { AutoFocusDirective } from '@axe/ui/directives/auto-focus.directive';
@@ -133,6 +136,8 @@ const VIEW_ICONS: Record<InventoryViewMode, string> = {
     AutoFocusDirective,
     SafePipe,
     TranslocoModule,
+    InventoryRoundStripComponent,
+    InventoryRoundViewComponent,
   ],
   // A window apiece, so a second inventory can be narrowed and read its own way. What the room
   // decided - the order, the display items - still comes from the one place it is written down.
@@ -210,6 +215,7 @@ export class GameObjectInventoryComponent {
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly tableFocus = inject(TableFocusService);
   private readonly turnOrderService = inject(TurnOrderService);
+  protected readonly turns = inject(InventoryRoundService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly resourceSliders = inject(ResourceSliderService);
@@ -322,12 +328,7 @@ export class GameObjectInventoryComponent {
    */
   setTurnOrder(event: Event, gameObject: GameObject): void {
     event.stopPropagation();
-    this.giveTurnTo(gameObject.identifier);
-  }
-
-  private giveTurnTo(identifier: string): void {
-    if (this.turnOrderService.mayInterrupt(identifier)) this.turnOrderService.interrupt(identifier);
-    else this.turnOrderService.setCurrent(identifier);
+    this.turns.giveTurnTo(gameObject.identifier);
   }
 
   readonly viewMode = this.viewPreference.mode;
@@ -364,7 +365,7 @@ export class GameObjectInventoryComponent {
    * stands as it always has.
    */
   readonly roundWaitsForPlay = computed(
-    () => this.viewPreference.roundInPlay() && this.shows('tabs') && this.turnRound() === 0
+    () => this.viewPreference.roundInPlay() && this.shows('tabs') && this.turns.progress().round === 0
   );
   protected readonly viewLabelKeys = INVENTORY_VIEW_LABEL_KEYS;
 
@@ -556,59 +557,6 @@ export class GameObjectInventoryComponent {
     if (wanted !== 'round') this.viewPreference.set(wanted);
   }
 
-  /** The round in order, leaving out the pieces this reader cannot see on the table. */
-  readonly turnOrderList = computed<GameCharacter[]>(() => {
-    this.inventoryService.inventoryVersion();
-    this.objectChange.trackMyCursor();
-    return this.turnOrderService
-      .orderedCharacters(this.rolePermission.canSeeHidden())
-      .filter((character) => this.vision.mayBeListed(character));
-  });
-
-  /** The pieces this reader can see that take their turn in another's, under the one whose turn it is. */
-  readonly turnCompanions = computed<ReadonlyMap<string, GameCharacter[]>>(() => {
-    this.inventoryService.inventoryVersion();
-    this.objectChange.trackMyCursor();
-    const companions = new Map<string, GameCharacter[]>();
-    for (const [carrier, pieces] of this.turnOrderService.companionsByCarrier()) {
-      const listed = pieces.filter((piece) => this.vision.mayBeListed(piece));
-      if (listed.length > 0) companions.set(carrier, listed);
-    }
-    return companions;
-  });
-
-  readonly currentTurnId = computed<string>(() => {
-    this.objectChange.versionOf('TurnState')();
-    return this.turnOrderService.currentIdentifier;
-  });
-
-  readonly turnRound = computed<number>(() => {
-    this.objectChange.versionOf('TurnState')();
-    return this.turnOrderService.round;
-  });
-
-  /** The pieces gathered under their sides, empty unless the round is taken side by side. */
-  readonly turnSides = computed<{ side: string; name: string; color: string; members: GameCharacter[] }[]>(() => {
-    this.inventoryService.inventoryVersion();
-    this.objectChange.versionOf('Config')();
-    this.objectChange.collectionOf('party')();
-    this.objectChange.trackMyCursor();
-    // The same grouping the round itself walks. Banding a game master's strip by what only they
-    // can see would offer a side the round cannot reach: handing it the turn would write a side
-    // nothing can resolve afterwards, and the next press would give the turn to somebody else's piece.
-    // Only the pieces this reader can see are named, and a side with none of them is not shown:
-    // its name alone would say something stands in the dark.
-    return this.turnOrderService
-      .orderedSides()
-      .map((group) => ({
-        side: group.side,
-        name: this.turnOrderService.sideName(group.side),
-        color: this.turnOrderService.sideColor(group.side),
-        members: group.members.filter((member) => this.vision.mayBeListed(member)),
-      }))
-      .filter((group) => group.members.length > 0);
-  });
-
   /**
    * The listed rows gathered under their sides, or nothing where they should not be.
    *
@@ -619,7 +567,7 @@ export class GameObjectInventoryComponent {
   readonly sideBands = computed<SideBand<InventoryRow>[] | null>(() => {
     if (this.selectTab() !== 'table') return null;
     if (this.folders.showTree() || this.hasQuery()) return null;
-    const sides = this.turnSides();
+    const sides = this.turns.sides();
     if (sides.length < 1) return null;
     return bandRowsBySide(this.filteredRows(), sides, (row) => row.identifier);
   });
@@ -628,93 +576,10 @@ export class GameObjectInventoryComponent {
   readonly tableSideBands = computed<SideBand<InventoryTableRow>[] | null>(() => {
     if (this.selectTab() !== 'table') return null;
     if (this.hasQuery()) return null;
-    const sides = this.turnSides();
+    const sides = this.turns.sides();
     if (sides.length < 1) return null;
     return bandRowsBySide(this.inventoryTable().rows, sides, (row) => row.object.identifier);
   });
-
-  readonly currentTurnSide = computed<string>(() => {
-    this.objectChange.versionOf('TurnState')();
-    this.objectChange.versionOf('Config')();
-    this.objectChange.collectionOf('party')();
-    // Which side is up is worked out against the sides that exist, and those come and go with
-    // the pieces on the table; without this the strip highlights a band that has left it.
-    this.inventoryService.inventoryVersion();
-    return this.turnOrderService.currentSide;
-  });
-
-  /** Gives the turn to the piece pressed in the turn order, or steps it in where it is waiting to. */
-  selectTurn(character: GameCharacter): void {
-    this.giveTurnTo(character.identifier);
-  }
-
-  readonly actedIds = computed<ReadonlySet<string>>(() => {
-    this.objectChange.versionOf('TurnState')();
-    return new Set(this.turnOrderService.actedIdentifiers);
-  });
-
-  /** The pieces waiting to step in this round. */
-  readonly heldIds = computed<ReadonlySet<string>>(() => {
-    this.objectChange.versionOf('TurnState')();
-    return new Set(this.turnOrderService.heldIdentifiers);
-  });
-
-  /** Whether the piece whose turn it is may wait to step in later, which the round strip offers. */
-  readonly mayHoldCurrent = computed<boolean>(() => {
-    this.objectChange.versionOf('TurnState')();
-    this.objectChange.trackMyCursor();
-    this.inventoryService.inventoryVersion();
-    const current = this.turnOrderService.currentIdentifier;
-    return current !== '' && this.turnOrderService.mayHold(current);
-  });
-
-  /** Has the piece whose turn it is wait to step in later, handing the turn on. */
-  turnHold(): void {
-    this.turnOrderService.hold(this.turnOrderService.currentIdentifier);
-  }
-
-  readonly canUndoTurn = computed<boolean>(() => {
-    this.objectChange.versionOf('TurnState')();
-    return this.turnOrderService.canUndo;
-  });
-
-  /** Moves the turn on to the next piece, starting or finishing the round when it is time. */
-  turnNext(): void {
-    this.turnOrderService.next();
-  }
-
-  /**
-   * Moves on to the next round; while pieces are still waiting they are named and a second press is
-   * needed.
-   */
-  turnAdvanceRound(): void {
-    void this.turnOrderService.advanceRound();
-  }
-
-  /** Takes the round back to where the one before it left off, buffs and all. */
-  turnRetreatRound(): void {
-    this.turnOrderService.retreatRound();
-  }
-
-  /** Takes the turn order back one step, buffs and all. */
-  turnPrev(): void {
-    this.turnOrderService.prev();
-  }
-
-  /** Stops the turn order and announces the reset in chat. */
-  turnReset(): void {
-    this.turnOrderService.reset();
-  }
-
-  readonly buffDecay = computed<boolean>(() => {
-    this.objectChange.versionOf('TurnState')();
-    return this.turnOrderService.buffDecay;
-  });
-
-  /** Switches whether buffs run down as turns and rounds pass. */
-  toggleBuffDecay(): void {
-    this.turnOrderService.setBuffDecay(!this.turnOrderService.buffDecay);
-  }
 
   /**
    * The display item the inventory is sorted by, which is the room's setting and so shared with
