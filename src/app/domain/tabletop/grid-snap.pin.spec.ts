@@ -1,8 +1,8 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { calcHexSnapPosition, calcHexVertexSnapPosition } from '@axe/domain/tabletop/grid-snap';
 import { hexCellCenter, hexCircumradius, hexSpacing } from '@axe/domain/tabletop/hex-geometry';
 import { seededRandom } from '@axe/testing/fingerprint';
 import { legacyCalcHexSnapPosition, legacyCalcHexVertexSnapPosition } from '@axe/testing/legacy-hex-lookup';
-import { calcHexSnapPosition, calcHexVertexSnapPosition } from '@axe/ui/directives/movable-helpers';
 import { describe, expect, it } from 'vitest';
 
 const GRID_TYPES: readonly GridType[] = [GridType.HEX_VERTICAL, GridType.HEX_HORIZONTAL, GridType.SQUARE];
