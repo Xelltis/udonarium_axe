@@ -43,26 +43,26 @@ const FORBID_FOR_UI = {
 };
 
 /* Imports between features are allowed only along the edges that exist now. A new edge is added here
-   on purpose (the aim is not to add more). */
+   on purpose (the aim is not to add more). A lazy import() is an edge as much as a static one. */
 const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
   alarm: [],
   buff: [],
   'button-guide': [],
   card: [],
   'ccfolia-room-import': [],
-  character: ['card', 'data-element', 'disclosure'],
-  chat: ['data-element'],
+  character: ['card', 'data-element', 'disclosure', 'light-settings'],
+  chat: ['alarm', 'data-element', 'vote'],
   coin: [],
-  controller: [],
-  'data-element': [],
+  controller: ['character', 'chat'],
+  'data-element': ['range-shape-editor'],
   dice: [],
   disclosure: [],
   'dungeon-generator': [],
   effect: [],
   file: ['moderation'],
   'first-person': ['effect', 'tabletop'],
-  'gm-object-list': ['disclosure', 'light-settings'],
-  'gm-tools': ['menu'],
+  'gm-object-list': ['character', 'disclosure', 'light-settings'],
+  'gm-tools': ['chat', 'menu'],
   hotbar: ['menu'],
   inventory: ['tabletop'],
   keyboard: [],
@@ -83,7 +83,18 @@ const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
   'sound-settings': [],
   'status-ailment': [],
   'streaming-overlay': [],
-  tabletop: ['card', 'character', 'coin', 'dice', 'disclosure', 'effect', 'lobby', 'replay'],
+  tabletop: [
+    'card',
+    'character',
+    'coin',
+    'dice',
+    'disclosure',
+    'effect',
+    'light-settings',
+    'lobby',
+    'range-shape-editor',
+    'replay',
+  ],
   'visual-novel': ['character', 'chat'],
   vote: [],
   widgets: [],
@@ -127,24 +138,55 @@ function assertNoCycle(dependencies: Record<string, readonly string[]>): void {
 }
 assertNoCycle(FEATURE_DEPENDENCIES);
 
-const FEATURE_RULES = Object.entries(FEATURE_DEPENDENCIES).map(([feature, allowed]) => ({
-  files: [`src/app/features/${feature}/**/*.ts`],
-  ignores: [`src/app/features/${feature}/**/*.spec.ts`],
-  rules: {
-    'no-restricted-imports': [
-      'error',
-      {
-        patterns: [
-          NO_RELATIVE_IMPORT,
+const NO_SINGLETON_INSTANCE = {
+  selector: `MemberExpression[object.name=/^(${PROCESS_SINGLETONS.join('|')})$/][property.name='instance']`,
+  message:
+    'Angularが作るクラスでは`.instance`を読まず`inject()`で受け取る（composition/class-provider.tsで橋渡し済み）',
+};
+const ANGULAR_CLASS_FILES = '*.{service,component,directive,pipe}.ts';
+
+/* no-restricted-imports does not look at import(), so a lazy import outside the ledger is caught by
+   its source instead (`\x2F` is a slash, which an esquery regex may not hold). panels opens every
+   feature's panel lazily by design, and is left out of this. A later block overrides the same rule,
+   so the Angular-built classes of a feature get both selectors in one block. */
+const FEATURE_RULES = Object.entries(FEATURE_DEPENDENCIES).flatMap(([feature, allowed]) => {
+  const reachable = [feature, 'panels', ...allowed].join('|');
+  const lazyImports =
+    feature === 'panels'
+      ? []
+      : [
           {
-            regex: `^@axe/features/(?!(?:${[feature, 'panels', ...allowed].join('|')})/)`,
-            message: `features/${feature}は他のfeatureを直接importしない（panelsかFEATURE_DEPENDENCIESに挙げたfeatureのみ）`,
+            selector: `ImportExpression[source.value=/^@axe\\x2Ffeatures\\x2F(?!(?:${reachable})\\x2F)/]`,
+            message: `features/${feature}は他のfeatureを遅延importでも直接importしない（panelsかFEATURE_DEPENDENCIESに挙げたfeatureのみ）`,
+          },
+        ];
+  return [
+    {
+      files: [`src/app/features/${feature}/**/*.ts`],
+      ignores: [`src/app/features/${feature}/**/*.spec.ts`],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              NO_RELATIVE_IMPORT,
+              {
+                regex: `^@axe/features/(?!(?:${reachable})/)`,
+                message: `features/${feature}は他のfeatureを直接importしない（panelsかFEATURE_DEPENDENCIESに挙げたfeatureのみ）`,
+              },
+            ],
           },
         ],
+        'no-restricted-syntax': ['error', ...lazyImports],
       },
-    ],
-  },
-}));
+    },
+    {
+      files: [`src/app/features/${feature}/**/${ANGULAR_CLASS_FILES}`],
+      ignores: [`src/app/features/${feature}/**/*.spec.ts`],
+      rules: { 'no-restricted-syntax': ['error', ...lazyImports, NO_SINGLETON_INSTANCE] },
+    },
+  ];
+});
 
 export default defineConfig([
   {
@@ -214,21 +256,12 @@ export default defineConfig([
       'no-restricted-imports': ['error', { patterns: [NO_RELATIVE_IMPORT, FORBID_FOR_UI] }],
     },
   },
-  ...FEATURE_RULES,
   {
-    files: ['src/app/{application,ui,features}/**/*.{service,component,directive,pipe}.ts'],
+    files: [`src/app/{application,ui}/**/${ANGULAR_CLASS_FILES}`],
     ignores: ['src/app/**/*.spec.ts'],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: `MemberExpression[object.name=/^(${PROCESS_SINGLETONS.join('|')})$/][property.name='instance']`,
-          message:
-            'Angularが作るクラスでは`.instance`を読まず`inject()`で受け取る（composition/class-provider.tsで橋渡し済み）',
-        },
-      ],
-    },
+    rules: { 'no-restricted-syntax': ['error', NO_SINGLETON_INSTANCE] },
   },
+  ...FEATURE_RULES,
   /* composition root: may depend on every layer (features included).
    *  Spelling it out declares that this is left outside the layer constraints on purpose. */
   {
