@@ -49,7 +49,7 @@ export interface ContextMenuOpenOptions {
 
 type ContextMenuComponentClass = { new (...args: unknown[]): unknown };
 
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class ContextMenuService {
   private readonly overlays = inject(OverlayLayers);
   /** The four-way menu is only ever wanted on a table seen from above, so it is fetched the first time. */

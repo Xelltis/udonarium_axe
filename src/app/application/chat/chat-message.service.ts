@@ -46,7 +46,7 @@ import GameSystemClass from 'bcdice/lib/game_system';
 
 const HOURS = 60 * 60 * 1000;
 
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class ChatMessageService {
   private readonly objectStore = inject(ObjectStore);
   private readonly rolePermission = inject(RolePermissionService);

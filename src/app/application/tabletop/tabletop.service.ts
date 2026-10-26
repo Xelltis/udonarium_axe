@@ -43,7 +43,7 @@ const TABLE_CHILD_ALIASES = [
 type ObjectIdentifier = string;
 type LocationName = string;
 
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class TabletopService {
   private readonly coordinateService = inject(CoordinateService);
   private readonly objectStore = inject(ObjectStore);

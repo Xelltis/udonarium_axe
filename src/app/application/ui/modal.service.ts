@@ -27,7 +27,7 @@ class ModalContext {
   }
 }
 
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class ModalService {
   private modalContext: ModalContext | null = null;
   private count = 0;

@@ -4,7 +4,7 @@ import { environment } from '@env/environment';
 
 export { LogLevel } from '@axe/core/logging/logger';
 
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class LoggerService {
   constructor() {
     const level = environment.production ? LogLevel.WARN : LogLevel.DEBUG;
