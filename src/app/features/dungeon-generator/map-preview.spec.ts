@@ -3,7 +3,7 @@ import { planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
 import { planField } from '@axe/domain/tabletop/field/field-generator';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { MapBlocks } from '@axe/domain/tabletop/map-blocks';
-import { buildMapPreview, previewColors, TORCH_FILL } from '@axe/features/tabletop/dungeon-generator/map-preview';
+import { buildMapPreview, previewColors, TORCH_FILL } from '@axe/features/dungeon-generator/map-preview';
 
 const colors = previewColors('wall_ashlar', 'stone_paving_big', 'lava');
 

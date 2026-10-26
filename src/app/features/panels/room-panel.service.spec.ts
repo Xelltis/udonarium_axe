@@ -3,10 +3,10 @@ import { TestBed } from '@angular/core/testing';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
 import { DiceTableSettingComponent } from '@axe/features/dice/dice-table-setting/dice-table-setting.component';
+import { DungeonGeneratorComponent } from '@axe/features/dungeon-generator/dungeon-generator.component';
 import { MapEditorPanelComponent } from '@axe/features/map-editor/editor/map-editor-panel.component';
 import { PanelWindowRequest, PanelWindowService } from '@axe/features/panels/panel-window.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
-import { DungeonGeneratorComponent } from '@axe/features/tabletop/dungeon-generator/dungeon-generator.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('RoomPanelService', () => {

@@ -6,7 +6,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { LOAD_FAILURE_NOTICE } from '@axe/application/ui/overlay-components';
 import { CcfoliaRoomDroppedEvent } from '@axe/core/event/domain-events';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
-import { buildRoomImportMessages } from '@axe/features/tabletop/ccfolia-room-import/ccfolia-room-import-message';
+import { buildRoomImportMessages } from '@axe/features/ccfolia-room-import/ccfolia-room-import-message';
 
 const PREFIX = 'feature.tabletop.ccfoliaImport.';
 
@@ -30,7 +30,7 @@ export class CcfoliaRoomImportEventHandlerService {
     }
 
     // The import is fetched with the first room dropped, being seldom wanted.
-    const roomImport = await import('@axe/features/tabletop/ccfolia-room-import/ccfolia-room-import.service').then(
+    const roomImport = await import('@axe/features/ccfolia-room-import/ccfolia-room-import.service').then(
       (m) => this.injector.get(m.CcfoliaRoomImportService),
       () => null
     );

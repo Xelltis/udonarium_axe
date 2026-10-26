@@ -3,8 +3,8 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { emitCcfoliaRoomDropped } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { CcfoliaRoomImportService } from '@axe/features/tabletop/ccfolia-room-import/ccfolia-room-import.service';
-import { CcfoliaRoomImportEventHandlerService } from '@axe/features/tabletop/ccfolia-room-import/ccfolia-room-import-event-handler.service';
+import { CcfoliaRoomImportService } from '@axe/features/ccfolia-room-import/ccfolia-room-import.service';
+import { CcfoliaRoomImportEventHandlerService } from '@axe/features/ccfolia-room-import/ccfolia-room-import-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const SUMMARY = {

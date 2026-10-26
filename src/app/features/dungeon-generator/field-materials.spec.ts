@@ -1,7 +1,7 @@
 import { FIELD_ATMOSPHERES } from '@axe/domain/tabletop/field/field-atmosphere';
 import { planField } from '@axe/domain/tabletop/field/field-generator';
 import { MapBlock, MapBlocks, MapMaterial } from '@axe/domain/tabletop/map-blocks';
-import { withFieldMaterials } from '@axe/features/tabletop/dungeon-generator/field-materials';
+import { withFieldMaterials } from '@axe/features/dungeon-generator/field-materials';
 
 function block(sideId: string, topId: string): MapBlock {
   return {

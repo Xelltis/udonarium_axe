@@ -44,8 +44,8 @@ import { DEFAULT_MENU_LAYOUTS } from '@axe/domain/ui/builtin-menu-layouts';
 import { MENU_COMMANDS } from '@axe/domain/ui/menu-command';
 import { isMenuGroup } from '@axe/domain/ui/menu-layout';
 import { VIEW_MODES } from '@axe/domain/ui/view-mode';
+import { MAP_KINDS } from '@axe/features/dungeon-generator/dungeon-generator.component';
 import { FIRST_PERSON_FACING_NAMES, FIRST_PERSON_PAD_LABELS } from '@axe/features/first-person/first-person-hud';
-import { MAP_KINDS } from '@axe/features/tabletop/dungeon-generator/dungeon-generator.component';
 const HOTBAR_FAILURES = ['noCharacter', 'notFound', 'noTab', 'offTable', 'empty', 'notAllowed', 'unavailable'] as const;
 
 /**

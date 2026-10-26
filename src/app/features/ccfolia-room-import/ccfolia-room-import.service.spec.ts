@@ -6,7 +6,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { Terrain } from '@axe/domain/tabletop/terrain';
-import { CcfoliaRoomImportService } from '@axe/features/tabletop/ccfolia-room-import/ccfolia-room-import.service';
+import { CcfoliaRoomImportService } from '@axe/features/ccfolia-room-import/ccfolia-room-import.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function entriesOf(data: unknown, images: string[] = []): ArchiveEntries {

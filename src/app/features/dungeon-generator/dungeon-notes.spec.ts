@@ -1,6 +1,6 @@
 import { planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
 import { DungeonRoomRole } from '@axe/domain/tabletop/dungeon/dungeon-layout';
-import { describeDungeon } from '@axe/features/tabletop/dungeon-generator/dungeon-notes';
+import { describeDungeon } from '@axe/features/dungeon-generator/dungeon-notes';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
 const ja = createSyncTranslate('ja');

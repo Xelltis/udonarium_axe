@@ -259,7 +259,7 @@ export class RoomPanelService {
       case 'dungeonGenerator':
         return {
           load: () =>
-            import('@axe/features/tabletop/dungeon-generator/dungeon-generator.component').then(
+            import('@axe/features/dungeon-generator/dungeon-generator.component').then(
               (m) => m.DungeonGeneratorComponent
             ),
           option: { width: 460, height: 660, minWidth: 400, minHeight: 520 },
