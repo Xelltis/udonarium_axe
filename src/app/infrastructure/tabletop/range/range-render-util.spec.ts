@@ -1,5 +1,9 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
-import { ClipAreaCorn, ClipAreaSquare, RangeRenderSetting } from '@axe/features/tabletop/range/range-render-types';
+import {
+  ClipAreaCorn,
+  ClipAreaSquare,
+  RangeRenderSetting,
+} from '@axe/infrastructure/tabletop/range/range-render-types';
 import {
   calcGridOffsets,
   chkInCircle,
@@ -10,7 +14,7 @@ import {
   generateCalcGridPositionFunc,
   isHexGrid,
   makeBrush,
-} from '@axe/features/tabletop/range/range-render-util';
+} from '@axe/infrastructure/tabletop/range/range-render-util';
 
 function makeDefaultSetting(overrides: Partial<RangeRenderSetting> = {}): RangeRenderSetting {
   return {

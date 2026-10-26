@@ -7,14 +7,14 @@ import {
 } from '@axe/domain/tabletop/cell-pattern';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { hexCellCenter, hexCircumradius, hexSpacing, pixelToHexCell } from '@axe/domain/tabletop/hex-geometry';
-import { RangeRenderSetting } from '@axe/features/tabletop/range/range-render-types';
+import { RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
 import {
   calcGridOffsets,
   fillGridCells,
   fillHexCellsWhere,
   isHexGrid,
   makeBrush,
-} from '@axe/features/tabletop/range/range-render-util';
+} from '@axe/infrastructure/tabletop/range/range-render-util';
 
 export interface CustomRenderInput {
   cellPattern: string;

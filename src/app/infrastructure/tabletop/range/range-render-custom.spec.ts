@@ -4,8 +4,8 @@ import {
   makeCustomHitTest,
   patternCellToWorld,
   worldCellToPattern,
-} from '@axe/features/tabletop/range/range-render-custom';
-import { RangeRenderSetting } from '@axe/features/tabletop/range/range-render-types';
+} from '@axe/infrastructure/tabletop/range/range-render-custom';
+import { RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
 
 function makeSetting(overrides: Partial<RangeRenderSetting> = {}): RangeRenderSetting {
   return {

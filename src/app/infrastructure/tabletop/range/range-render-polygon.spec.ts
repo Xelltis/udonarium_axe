@@ -1,6 +1,6 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
-import { renderDiamond, renderSquare, renderTriangle } from '@axe/features/tabletop/range/range-render-polygon';
-import { RangeRenderSetting } from '@axe/features/tabletop/range/range-render-types';
+import { renderDiamond, renderSquare, renderTriangle } from '@axe/infrastructure/tabletop/range/range-render-polygon';
+import { RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
 
 function createCanvasMock() {
   const canvas = document.createElement('canvas');

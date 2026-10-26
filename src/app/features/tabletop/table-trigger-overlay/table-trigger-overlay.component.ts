@@ -6,7 +6,7 @@ import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCenterOf, CellGrid, cellGridOf, cellIndexOf, gridExtentPx } from '@axe/domain/tabletop/fog/cell-grid';
 import { triggerEffectLine } from '@axe/domain/tabletop/table-trigger';
 import { moveRangePolygons } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
-import { overlayScale } from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
+import { overlayScale } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
 import { translateZCss, Z_OFFSET_MASK_PX } from '@axe/ui/tabletop/z-offset';
 
 /** One piece of ground to draw, and how it is to be drawn. */

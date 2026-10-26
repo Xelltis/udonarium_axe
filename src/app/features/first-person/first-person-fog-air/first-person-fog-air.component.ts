@@ -11,8 +11,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { FogAirLayer } from '@axe/features/tabletop/fog-of-war/fog-air-layers';
-import { fogAirDriftStyle, paintFogAirSheet } from '@axe/features/tabletop/fog-of-war/fog-air-sheet';
+import { FogAirLayer } from '@axe/infrastructure/tabletop/fog/fog-air-layers';
+import { fogAirDriftStyle, paintFogAirSheet } from '@axe/infrastructure/tabletop/fog/fog-air-sheet';
 
 /**
  * One sheet of the fog that hangs over ground nobody has walked to, painted as the table paints

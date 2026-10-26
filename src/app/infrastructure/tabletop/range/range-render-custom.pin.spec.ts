@@ -1,6 +1,6 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
-import { renderCustom } from '@axe/features/tabletop/range/range-render-custom';
-import { RangeRenderSetting } from '@axe/features/tabletop/range/range-render-types';
+import { renderCustom } from '@axe/infrastructure/tabletop/range/range-render-custom';
+import { RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
 import { fingerprint } from '@axe/testing/fingerprint';
 import { describe, expect, it } from 'vitest';
 

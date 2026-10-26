@@ -140,12 +140,12 @@ import {
   waterSkyAt,
   withBillboardCut,
 } from '@axe/features/first-person/first-person-style';
-import { FogAirLayer, fogAirLayers } from '@axe/features/tabletop/fog-of-war/fog-air-layers';
-import { FOG_AIR_SHEET_MARGIN } from '@axe/features/tabletop/fog-of-war/fog-air-sheet';
-import { rangeQuadrantCells } from '@axe/features/tabletop/range/range-paint';
-import { lotusTileUrl } from '@axe/features/tabletop/table-water-layer/lotus-texture';
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
 import { paintMinimap } from '@axe/infrastructure/first-person/minimap-painter';
+import { FogAirLayer, fogAirLayers } from '@axe/infrastructure/tabletop/fog/fog-air-layers';
+import { FOG_AIR_SHEET_MARGIN } from '@axe/infrastructure/tabletop/fog/fog-air-sheet';
+import { rangeQuadrantCells } from '@axe/infrastructure/tabletop/range/range-paint';
+import { lotusTileUrl } from '@axe/infrastructure/tabletop/water/lotus-texture';
 import { MAX_MULTI_ANGLE_RESOURCE_GAUGES } from '@axe/ui/tabletop/multi-angle-orbit-decoration';
 import { TranslocoModule } from '@jsverse/transloco';
 

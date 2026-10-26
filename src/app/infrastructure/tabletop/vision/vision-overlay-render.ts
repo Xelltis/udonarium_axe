@@ -1,7 +1,7 @@
 import { CellGrid, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { OverlayPlan, OverlayShape, OverlayVision, ShadowShape } from '@axe/domain/tabletop/vision-scene';
-import { fogPattern } from '@axe/features/tabletop/table-vision-overlay/fog-texture';
+import { fogPattern } from '@axe/infrastructure/tabletop/fog/fog-texture';
 
 const TWO_PI = Math.PI * 2;
 

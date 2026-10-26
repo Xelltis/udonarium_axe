@@ -5,7 +5,7 @@ import { CellGrid, cellGridOf, cellIndexOf, gridExtentPx } from '@axe/domain/tab
 import { MOST_MOVE_COST_EXTRA } from '@axe/domain/tabletop/table-move-cost';
 import { TableMoveCostService } from '@axe/features/tabletop/table-move-cost-overlay/table-move-cost.service';
 import { moveRangePolygons } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
-import { overlayScale } from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
+import { overlayScale } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
 import { translateZCss, Z_OFFSET_MASK_PX } from '@axe/ui/tabletop/z-offset';
 
 /** One stretch of ground priced apart from the rest, and what it is priced at. */

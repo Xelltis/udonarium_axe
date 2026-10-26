@@ -34,8 +34,8 @@ import {
   scumTileUrl,
   streakTileUrl,
 } from '@axe/features/tabletop/table-water-layer/caustic-texture';
-import { lotusTileUrl } from '@axe/features/tabletop/table-water-layer/lotus-texture';
 import { WaterPhaseDirective } from '@axe/features/tabletop/table-water-layer/water-phase.directive';
+import { lotusTileUrl } from '@axe/infrastructure/tabletop/water/lotus-texture';
 import { Z_OFFSET_AMBIENCE_PX } from '@axe/ui/tabletop/z-offset';
 
 /** How far over its floor the floor of the water is drawn, so it lies on the ground rather than in it. */

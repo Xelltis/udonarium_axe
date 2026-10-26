@@ -1,10 +1,10 @@
-export * from '@axe/features/tabletop/range/range-render-types';
+export * from '@axe/infrastructure/tabletop/range/range-render-types';
 
 import {
   CustomRenderBoundingBox,
   CustomRenderInput,
   renderCustom,
-} from '@axe/features/tabletop/range/range-render-custom';
+} from '@axe/infrastructure/tabletop/range/range-render-custom';
 import {
   renderDiamond,
   renderHexagon,
@@ -12,8 +12,8 @@ import {
   renderPentagon,
   renderSquare,
   renderTriangle,
-} from '@axe/features/tabletop/range/range-render-polygon';
-import { renderCircle, renderCorn } from '@axe/features/tabletop/range/range-render-radial';
+} from '@axe/infrastructure/tabletop/range/range-render-polygon';
+import { renderCircle, renderCorn } from '@axe/infrastructure/tabletop/range/range-render-radial';
 import type {
   ClipAreaCorn,
   ClipAreaHexagon,
@@ -22,7 +22,7 @@ import type {
   ClipAreaSquare,
   ClipAreaTriangle,
   RangeRenderSetting,
-} from '@axe/features/tabletop/range/range-render-types';
+} from '@axe/infrastructure/tabletop/range/range-render-types';
 
 export class RangeRender {
   constructor(

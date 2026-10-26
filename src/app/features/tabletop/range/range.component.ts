@@ -47,7 +47,7 @@ import {
   RangeClip,
   rangeClipPathCss,
   rangeQuadrantCells,
-} from '@axe/features/tabletop/range/range-paint';
+} from '@axe/infrastructure/tabletop/range/range-paint';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';

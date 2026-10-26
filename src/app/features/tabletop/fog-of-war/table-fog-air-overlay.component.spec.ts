@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameTable } from '@axe/domain/tabletop/game-table';
-import { FOG_AIR_LAYER_COUNT } from '@axe/features/tabletop/fog-of-war/fog-air-layers';
 import { TableFogAirOverlayComponent } from '@axe/features/tabletop/fog-of-war/table-fog-air-overlay.component';
+import { FOG_AIR_LAYER_COUNT } from '@axe/infrastructure/tabletop/fog/fog-air-layers';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 

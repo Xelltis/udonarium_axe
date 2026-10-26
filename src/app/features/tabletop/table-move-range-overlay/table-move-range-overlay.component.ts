@@ -21,7 +21,7 @@ import { cellCenterOf, cellCount, CellGrid, gridExtentPx, sameCellGrid } from '@
 import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { cellPathsFor, wayRunsOn } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
-import { overlayScale } from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
+import { overlayScale } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
 import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
 
 export const MOVE_RANGE_FILL = 'rgba(90, 170, 255, 0.28)';

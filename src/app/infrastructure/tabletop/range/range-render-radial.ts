@@ -1,10 +1,10 @@
-import { ClipAreaCorn, RangeRenderSetting } from '@axe/features/tabletop/range/range-render-types';
+import { ClipAreaCorn, RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
 import {
   calcGridOffsets,
   chkOuterProduct,
   fillGridCells,
   makeBrush,
-} from '@axe/features/tabletop/range/range-render-util';
+} from '@axe/infrastructure/tabletop/range/range-render-util';
 
 /**
  * Draws a circle range of radius `range` cells onto the grid and outline canvases.

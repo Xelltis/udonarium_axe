@@ -1,4 +1,4 @@
-import { FOG_AIR_LAYER_COUNT, FOG_AIR_TOP_CELLS, fogAirLayers } from '@axe/features/tabletop/fog-of-war/fog-air-layers';
+import { FOG_AIR_LAYER_COUNT, FOG_AIR_TOP_CELLS, fogAirLayers } from '@axe/infrastructure/tabletop/fog/fog-air-layers';
 import { describe, expect, it } from 'vitest';
 
 describe('fogAirLayers', () => {

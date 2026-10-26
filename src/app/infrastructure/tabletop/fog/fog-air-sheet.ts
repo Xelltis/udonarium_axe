@@ -1,7 +1,7 @@
 import { OverlayVision } from '@axe/domain/tabletop/vision-scene';
-import { FogAirLayer } from '@axe/features/tabletop/fog-of-war/fog-air-layers';
-import { fogPattern } from '@axe/features/tabletop/table-vision-overlay/fog-texture';
-import { fillUnwalkedCells } from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
+import { FogAirLayer } from '@axe/infrastructure/tabletop/fog/fog-air-layers';
+import { fogPattern } from '@axe/infrastructure/tabletop/fog/fog-texture';
+import { fillUnwalkedCells } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
 
 /** How wide a sheet is drawn, in pixels of its own, before it is let up to the size of the board. */
 const SHEET_TARGET_PX = 512;

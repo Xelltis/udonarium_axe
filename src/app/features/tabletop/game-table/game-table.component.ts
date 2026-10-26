@@ -121,11 +121,6 @@ import { TableMoveRangeOverlayComponent } from '@axe/features/tabletop/table-mov
 import { TableTargetOverlayComponent } from '@axe/features/tabletop/table-target-overlay/table-target-overlay.component';
 import { TableTriggerOverlayComponent } from '@axe/features/tabletop/table-trigger-overlay/table-trigger-overlay.component';
 import { TableVisionOverlayComponent } from '@axe/features/tabletop/table-vision-overlay/table-vision-overlay.component';
-import {
-  LIGHT_MIN_OVERLAY_SCALE,
-  LIGHT_OVERLAY_PIXEL_BUDGET,
-  overlayScale,
-} from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
 import { TableWaterFloorComponent } from '@axe/features/tabletop/table-water-layer/table-water-floor.component';
 import { TableWaterLayerComponent } from '@axe/features/tabletop/table-water-layer/table-water-layer.component';
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
@@ -141,6 +136,11 @@ import {
   wallSilhouetteStyle,
 } from '@axe/features/tabletop/wall-projection';
 import { WhiteBoardComponent } from '@axe/features/tabletop/white-board/white-board.component';
+import {
+  LIGHT_MIN_OVERLAY_SCALE,
+  LIGHT_OVERLAY_PIXEL_BUDGET,
+  overlayScale,
+} from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
 import { BackdropDirective } from '@axe/ui/directives/backdrop.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';

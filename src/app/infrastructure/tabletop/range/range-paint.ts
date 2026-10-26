@@ -9,8 +9,8 @@ import {
   ClipAreaTriangle,
   RangeRender,
   RangeRenderSetting,
-} from '@axe/features/tabletop/range/range-render';
-import { clipAreaToPolygonCss, clipCircleCss } from '@axe/features/tabletop/range/range-render-util';
+} from '@axe/infrastructure/tabletop/range/range-render';
+import { clipAreaToPolygonCss, clipCircleCss } from '@axe/infrastructure/tabletop/range/range-render-util';
 
 type ClipArea = ClipAreaLine | ClipAreaSquare | ClipAreaTriangle | ClipAreaPentagon | ClipAreaHexagon | ClipAreaCorn;
 

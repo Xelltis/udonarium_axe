@@ -5,13 +5,13 @@ import {
   ClipAreaSquare,
   ClipAreaTriangle,
   RangeRenderSetting,
-} from '@axe/features/tabletop/range/range-render-types';
+} from '@axe/infrastructure/tabletop/range/range-render-types';
 import {
   calcGridOffsets,
   chkOuterProduct,
   fillGridCells,
   makeBrush,
-} from '@axe/features/tabletop/range/range-render-util';
+} from '@axe/infrastructure/tabletop/range/range-render-util';
 
 type Point = { x: number; y: number };
 

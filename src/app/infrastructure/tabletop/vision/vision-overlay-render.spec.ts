@@ -15,7 +15,7 @@ import {
   OVERLAY_PIXEL_BUDGET,
   overlayScale,
   overlayScratch,
-} from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
+} from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 
 interface Op {

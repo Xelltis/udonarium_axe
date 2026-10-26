@@ -4,7 +4,7 @@ import {
   rangeClipPathCss,
   rangeQuadrantCells,
   rangeRenderSettingOf,
-} from '@axe/features/tabletop/range/range-paint';
+} from '@axe/infrastructure/tabletop/range/range-paint';
 
 describe('range-paint', () => {
   const made: RangeArea[] = [];

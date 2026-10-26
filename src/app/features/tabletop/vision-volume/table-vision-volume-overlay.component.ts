@@ -13,8 +13,8 @@ import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { EYE_HEIGHT_CELLS, eyeHeightPx } from '@axe/domain/tabletop/vision-scene';
 import { visionLobesOf } from '@axe/domain/tabletop/vision-shape';
 import { VisionType } from '@axe/domain/tabletop/vision-types';
-import { fillCells, overlayScale } from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
 import { visionVolumeShape, VolumeRib, VolumeRing } from '@axe/features/tabletop/vision-volume/vision-volume-geometry';
+import { fillCells, overlayScale } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
 import { translateZCss, Z_OFFSET_VISION_VOLUME_PX } from '@axe/ui/tabletop/z-offset';
 
 /** Bright on purpose: the shape is a measuring aid, not scenery. */

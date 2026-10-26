@@ -17,7 +17,7 @@ import {
   GridPosition,
   RangeRenderSetting,
   StrokeGridFunc,
-} from '@axe/features/tabletop/range/range-render-types';
+} from '@axe/infrastructure/tabletop/range/range-render-types';
 
 type ClipArea = ClipAreaLine | ClipAreaSquare | ClipAreaTriangle | ClipAreaPentagon | ClipAreaHexagon | ClipAreaCorn;
 
