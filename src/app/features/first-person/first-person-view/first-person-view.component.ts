@@ -29,6 +29,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
@@ -144,7 +145,6 @@ import { FOG_AIR_SHEET_MARGIN } from '@axe/features/tabletop/fog-of-war/fog-air-
 import { rangeQuadrantCells } from '@axe/features/tabletop/range/range-paint';
 import { lotusTileUrl } from '@axe/features/tabletop/table-water-layer/lotus-texture';
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
-import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { paintMinimap } from '@axe/infrastructure/first-person/minimap-painter';
 import { MAX_MULTI_ANGLE_RESOURCE_GAUGES } from '@axe/ui/tabletop/multi-angle-orbit-decoration';
 import { TranslocoModule } from '@jsverse/transloco';

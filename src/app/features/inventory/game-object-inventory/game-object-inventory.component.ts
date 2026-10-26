@@ -30,6 +30,7 @@ import { tableItemNames } from '@axe/application/inventory/summary-items';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { NpcDragService } from '@axe/application/tabletop/npc-drag.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -72,7 +73,6 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { OwnedTabletopObject } from '@axe/domain/tabletop/owned-tabletop-object';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { isWithheldHere } from '@axe/domain/tabletop/withheld';
-import { NpcDragService } from '@axe/features/gm-tools/npc-bar/npc-drag.service';
 import {
   buildInventoryFolderAssignMenu,
   buildInventoryFolderContextMenu,

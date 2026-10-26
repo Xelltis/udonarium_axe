@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { VisualNovelModeService, VN_MODE_EVENT } from '@axe/application/ui/visual-novel-mode.service';
 import { localDispatch, networkMessage$, receiveEvents } from '@axe/core/network/network-messaging';
-import { VisualNovelModeService, VN_MODE_EVENT } from '@axe/features/visual-novel/visual-novel-mode.service';
 
 describe('VisualNovelModeService', () => {
   let service: VisualNovelModeService;

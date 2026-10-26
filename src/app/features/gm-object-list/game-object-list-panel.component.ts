@@ -4,6 +4,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { NpcDragService } from '@axe/application/tabletop/npc-drag.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuAction, ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -24,7 +25,6 @@ import {
   OBJECT_LIST_TYPES,
   ObjectRow,
 } from '@axe/features/gm-object-list/game-object-list-row';
-import { NpcDragService } from '@axe/features/gm-tools/npc-bar/npc-drag.service';
 import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';

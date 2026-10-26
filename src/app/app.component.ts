@@ -8,6 +8,7 @@ import {
   ViewContainerRef,
 } from '@angular/core';
 import { Title } from '@angular/platform-browser';
+import { HandRailService } from '@axe/application/card/hand-rail.service';
 import { SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { DiceThrowService } from '@axe/application/dice/dice-throw.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
@@ -29,6 +30,7 @@ import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -39,7 +41,6 @@ import { ButtonGuideEventHandlerService } from '@axe/features/button-guide/butto
 import { CardEventHandlerService } from '@axe/features/card/card-event-handler.service';
 import { HandDragGhostComponent } from '@axe/features/card/hand-rail/hand-drag-ghost.component';
 import { HandRailComponent } from '@axe/features/card/hand-rail/hand-rail.component';
-import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
 import { ChatSettingsEventHandlerService } from '@axe/features/chat/chat-settings-event-handler.service';
 import { ChatSoundEventHandlerService } from '@axe/features/chat/chat-sound-event-handler.service';
 import { ChatTickerComponent } from '@axe/features/chat/chat-ticker/chat-ticker.component';
@@ -81,7 +82,6 @@ import { InterruptPromptComponent } from '@axe/features/tabletop/interrupt-promp
 import { MovePlanBandComponent } from '@axe/features/tabletop/move-plan-band/move-plan-band.component';
 import { MovePlanEventHandlerService } from '@axe/features/tabletop/table-move-range-overlay/move-plan-event-handler.service';
 import { VisualNovelEventHandlerService } from '@axe/features/visual-novel/visual-novel-event-handler.service';
-import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { VisualNovelOverlayComponent } from '@axe/features/visual-novel/visual-novel-overlay/visual-novel-overlay.component';
 import { VoteEventHandlerService } from '@axe/features/vote/vote-event-handler.service';
 import { VoteWidgetComponent } from '@axe/features/vote/vote-widget/vote-widget.component';

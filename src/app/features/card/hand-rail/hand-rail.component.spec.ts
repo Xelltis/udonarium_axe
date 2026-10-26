@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HandRailService } from '@axe/application/card/hand-rail.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -12,7 +13,6 @@ import { handLocationOf } from '@axe/domain/card/hand-location';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { HandRailComponent } from '@axe/features/card/hand-rail/hand-rail.component';
-import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 

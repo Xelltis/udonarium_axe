@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { ActiveCharacterService } from '@axe/features/pl-tools/active-character.service';
+import { ActiveCharacterService } from '@axe/application/character/active-character.service';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 describe('ActiveCharacterService', () => {

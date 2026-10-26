@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ActiveCharacterService } from '@axe/application/character/active-character.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { HotbarStoreService } from '@axe/application/hotbar/hotbar-store.service';
@@ -18,7 +19,6 @@ import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { HotbarService } from '@axe/features/hotbar/hotbar.service';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
 import { HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
-import { ActiveCharacterService } from '@axe/features/pl-tools/active-character.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { Z_CONTEXT_MENU_PINNED, Z_HOTBAR } from '@axe/ui/z-layers';
 

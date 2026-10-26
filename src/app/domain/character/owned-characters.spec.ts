@@ -5,7 +5,7 @@ import {
   selectClaimableCharacters,
   selectControllableCharacters,
   selectOwnedCharacters,
-} from '@axe/features/pl-tools/owned-character-list/owned-characters';
+} from '@axe/domain/character/owned-characters';
 import { afterEach, describe, expect, it } from 'vitest';
 
 function makeCharacter(owner: string, locationName: string): GameCharacter {

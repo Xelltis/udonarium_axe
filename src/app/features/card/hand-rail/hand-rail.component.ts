@@ -11,6 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { CardGameService, CardSeat } from '@axe/application/card/card-game.service';
+import { HandRailService } from '@axe/application/card/hand-rail.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import type { PointerCoordinate } from '@axe/application/input/pointer-device.service';
@@ -44,7 +45,6 @@ import {
   handFanWidthPx,
   layoutHandFan,
 } from '@axe/features/card/hand-rail/hand-fan';
-import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
 import { CardFacePreviewComponent } from '@axe/ui/components/card-face-preview/card-face-preview.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { TranslocoModule } from '@jsverse/transloco';

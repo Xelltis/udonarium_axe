@@ -8,6 +8,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { ActiveCharacterService } from '@axe/application/character/active-character.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { HotbarStoreService } from '@axe/application/hotbar/hotbar-store.service';
@@ -18,6 +19,7 @@ import { HotbarPreferenceService } from '@axe/application/ui/hotbar-preference.s
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
+import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { WidgetLayoutService } from '@axe/application/ui/widget-layout.service';
 import { WIDGET_HOTBAR } from '@axe/application/ui/widget-place';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
@@ -26,6 +28,7 @@ import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { selectControllableCharacters } from '@axe/domain/character/owned-characters';
 import { Hotbar } from '@axe/domain/hotbar/hotbar';
 import { draftOfSlot, emptyHotbarSlotDraft, HotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { findByReference } from '@axe/domain/hotbar/hotbar-reference';
@@ -46,9 +49,6 @@ import { HotbarSlotDrag } from '@axe/features/hotbar/hotbar-drag';
 import { HotbarFailure, HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
 import { hotbarKeyDown, isApplePlatform, isTypingTarget, pressEmptiesSlot } from '@axe/features/hotbar/hotbar-shortcut';
 import { MenuCommandService } from '@axe/features/menu/menu-command.service';
-import { ActiveCharacterService } from '@axe/features/pl-tools/active-character.service';
-import { selectControllableCharacters } from '@axe/features/pl-tools/owned-character-list/owned-characters';
-import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
 import { spotBeside } from '@axe/ui/panel-spot';

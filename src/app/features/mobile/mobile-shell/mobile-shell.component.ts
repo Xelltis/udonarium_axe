@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { HandRailService } from '@axe/application/card/hand-rail.service';
+import { ActiveCharacterService } from '@axe/application/character/active-character.service';
 import { RoomFilesService } from '@axe/application/file/room-files.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -14,13 +16,14 @@ import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
+import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { isOwnedByUser } from '@axe/domain/character/owned-characters';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { isAudienceOffered } from '@axe/domain/ui/menu-command';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
 import { nextViewMode, viewModeIcon, viewModeLabelKey } from '@axe/domain/ui/view-mode';
-import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
 import { MobileChatPaneComponent } from '@axe/features/mobile/mobile-chat-pane/mobile-chat-pane.component';
 import {
   gameMasterMobileMenuItems,
@@ -30,9 +33,6 @@ import {
 } from '@axe/features/mobile/mobile-shell/mobile-menu-items';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
-import { ActiveCharacterService } from '@axe/features/pl-tools/active-character.service';
-import { isOwnedByUser } from '@axe/features/pl-tools/owned-character-list/owned-characters';
-import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({

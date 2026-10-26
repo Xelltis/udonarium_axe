@@ -1,7 +1,4 @@
-import {
-  ChatPaletteHandle,
-  ChatPaletteRegistryService,
-} from '@axe/features/chat/chat-palette/chat-palette-registry.service';
+import { ChatPaletteHandle, ChatPaletteRegistryService } from '@axe/application/chat/chat-palette-registry.service';
 
 function handle(): ChatPaletteHandle {
   return { setCharacterById: vi.fn() };

@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
+import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import {
   BUTTON_GUIDE_KEEP_ATTRIBUTE,
   ButtonGuideEventHandlerService,
 } from '@axe/features/button-guide/button-guide-event-handler.service';
-import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ButtonGuideEventHandlerService', () => {

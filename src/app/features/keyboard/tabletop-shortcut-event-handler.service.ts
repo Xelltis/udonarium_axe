@@ -8,6 +8,7 @@ import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
+import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -17,7 +18,6 @@ import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { DisclosureMode, switchedDisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { tabletopKeyDown, TabletopShortcutCommand } from '@axe/features/keyboard/tabletop-shortcut';
-import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 
 type DisclosablePiece = GameCharacter | Card | DiceSymbol | TextNote;
 

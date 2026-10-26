@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { NpcDragService } from '@axe/application/tabletop/npc-drag.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { NpcDragService } from '@axe/features/gm-tools/npc-bar/npc-drag.service';
 
 function makeCharacter(name: string, isNpc = false): GameCharacter {
   const character = GameCharacter.create(name, 1, '');

@@ -12,6 +12,7 @@ import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BUFF_COLORS } from '@axe/domain/character/buff-appearance';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { selectControllableCharacters } from '@axe/domain/character/owned-characters';
 import { PaletteCommandGroup, paletteCommandGroups } from '@axe/domain/chat/palette-rows';
 import { kindGlyphSvg } from '@axe/domain/effect/effect-shapes';
 import { Hotbar } from '@axe/domain/hotbar/hotbar';
@@ -45,7 +46,6 @@ import { isMenuCommandOffered, MENU_COMMANDS } from '@axe/domain/ui/menu-command
 import { CHARACTER_PANELS, DEFAULT_CHARACTER_PANEL, panelLabelKey } from '@axe/domain/ui/room-panel';
 import { findSlotActor } from '@axe/features/hotbar/hotbar-actor';
 import { HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
-import { selectControllableCharacters } from '@axe/features/pl-tools/owned-character-list/owned-characters';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';

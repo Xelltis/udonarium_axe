@@ -1,4 +1,5 @@
 import { computed, inject, Injectable } from '@angular/core';
+import { HandRailService } from '@axe/application/card/hand-rail.service';
 import { RoomFilesService } from '@axe/application/file/room-files.service';
 import { StartRoomService } from '@axe/application/file/start-room.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
@@ -21,6 +22,7 @@ import { RenderLiteService, RenderLiteSetting } from '@axe/application/ui/render
 import { Theme, ThemeService } from '@axe/application/ui/theme.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode } from '@axe/domain/character/buff-view-mode';
@@ -38,9 +40,7 @@ import {
 } from '@axe/domain/ui/menu-command';
 import { isMenuGroup, MenuLayout, MenuNode } from '@axe/domain/ui/menu-layout';
 import { nextViewMode, viewModeIcon, viewModeLabelKey } from '@axe/domain/ui/view-mode';
-import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
-import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 
 const THEME_ICONS: Readonly<Record<Theme, string>> = {
   auto: 'brightness_auto',
