@@ -30,7 +30,6 @@ import { downloadBlob } from '@axe/core/util/download-blob';
 import { PERF_MAP_EDITOR_DRAW, perfCounters } from '@axe/core/util/perf-counters';
 import { curveAnchorAt, fitImageSize, imageCorners, imageHandleAt } from '@axe/domain/map-editor/editor-hit-test';
 import { cellCenter, pointToCell } from '@axe/domain/map-editor/grid-cells';
-import { imageStampIdentifier, isImageStampId } from '@axe/domain/map-editor/image-stamp';
 import {
   cellKey,
   ImageItem,
@@ -46,15 +45,13 @@ import { guessLineWidth, useTextMeasurer } from '@axe/domain/map-editor/scene-ge
 import { removeText, updateText } from '@axe/domain/map-editor/scene-ops';
 import { deserializeScene } from '@axe/domain/map-editor/serialize';
 import { generateShapePoints, regularPolygonPoints, starPoints } from '@axe/domain/map-editor/shape-points';
-import { StampDef } from '@axe/domain/map-editor/stamp-types';
-import { getStampById, STAMPS } from '@axe/domain/map-editor/stamps';
+import { STAMPS } from '@axe/domain/map-editor/stamps';
 import { planFunctionPaint, sceneSpeaksFor } from '@axe/domain/map-editor/table-apply';
 import { sceneFromTable } from '@axe/domain/map-editor/table-import';
-import { imageTextureIdentifier, isImageTextureId, normalizeTextureId } from '@axe/domain/map-editor/textures';
-import { isTextureId, TEXTURE_ASSET_URLS } from '@axe/domain/media/texture-catalog';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { MapEditorFunctionPaintComponent } from '@axe/features/map-editor/editor/map-editor-function-paint.component';
 import { GestureKind, MapEditorGesture } from '@axe/features/map-editor/editor/map-editor-gesture';
+import { MapEditorImageCache } from '@axe/features/map-editor/editor/map-editor-image-cache';
 import { MapEditorLayerDrawerComponent } from '@axe/features/map-editor/editor/map-editor-layer-drawer.component';
 import { MapEditorSelectedItemComponent } from '@axe/features/map-editor/editor/map-editor-selected-item.component';
 import { mapEditorKeyDown, mapEditorKeyUp } from '@axe/features/map-editor/editor/map-editor-shortcut';
@@ -67,18 +64,16 @@ import {
 } from '@axe/features/map-editor/editor/map-editor-state';
 import { MapEditorTexturePickerComponent } from '@axe/features/map-editor/editor/map-editor-texture-picker.component';
 import { exportSceneToBlob } from '@axe/infrastructure/map-editor/export-image';
-import { getRasterImage, loadRasterImage } from '@axe/infrastructure/map-editor/raster-image';
+import { loadRasterImage } from '@axe/infrastructure/map-editor/raster-image';
 import {
   type EditorOverlay,
   type OverlayImage,
   type OverlayStamp,
   renderOverlay,
 } from '@axe/infrastructure/map-editor/render-overlay';
-import { RenderHelpers, renderScene } from '@axe/infrastructure/map-editor/render-scene';
+import { renderScene } from '@axe/infrastructure/map-editor/render-scene';
 import { isZipArchive } from '@axe/infrastructure/map-editor/scene-archive';
 import { packSceneWithImages, unpackSceneWithImages } from '@axe/infrastructure/map-editor/scene-archive-images';
-import { getStampImage, loadStampImage } from '@axe/infrastructure/map-editor/stamp-image';
-import { createImageTexturePattern } from '@axe/infrastructure/map-editor/texture-pattern';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -244,9 +239,10 @@ export class MapEditorPanelComponent {
   private readonly shortcutToTool = new Map<string, EditorTool>(this.tools.map((d) => [d.key, d.tool]));
   private readonly toolKeys = new Set(this.shortcutToTool.keys());
 
-  private readonly renderTick = signal(0);
-  private readonly pendingStamps = new Set<string>();
-  private readonly pendingImages = new Set<string>();
+  private readonly images = new MapEditorImageCache(
+    (identifier) => this.imageStorage.get(identifier)?.url,
+    (url) => this.loadImageFn(url)
+  );
 
   /** The gesture under way, holding values only between press and release. */
   private readonly gesture = new MapEditorGesture();
@@ -298,7 +294,7 @@ export class MapEditorPanelComponent {
 
   protected readonly layerThumbnails = computed<Map<string, string>>(() => {
     this.state.sceneTick();
-    this.renderTick();
+    this.images.tick();
     const map = new Map<string, string>();
     for (const layer of this.state.layersTopFirst()) {
       const url = this.renderLayerThumb(layer);
@@ -335,7 +331,7 @@ export class MapEditorPanelComponent {
     queueMicrotask(() => (this.panelService.title = this.t('feature.mapEditor.title')));
     effect(() => {
       this.state.sceneTick();
-      this.renderTick();
+      this.images.tick();
       this.draftTick();
       this.draw();
     });
@@ -390,92 +386,6 @@ export class MapEditorPanelComponent {
     );
   }
 
-  private buildHelpers(ctx: CanvasRenderingContext2D): RenderHelpers {
-    const defById = new Map(STAMPS.map((d) => [d.id, d]));
-    return {
-      texturePattern: (fill, cellPx) => {
-        if (isImageTextureId(fill.textureId)) {
-          const url = this.imageStorage.get(imageTextureIdentifier(fill.textureId))?.url;
-          if (!url) return null;
-          const image = getRasterImage(url);
-          if (!image) {
-            this.schedulePendingImage(url);
-            return null;
-          }
-          return createImageTexturePattern(ctx, image, cellPx, fill.scale, fill.rotation);
-        }
-        const id = normalizeTextureId(fill.textureId);
-        if (!isTextureId(id)) return null;
-        const url = TEXTURE_ASSET_URLS[id];
-        const image = getRasterImage(url);
-        if (!image) {
-          this.schedulePendingImage(url);
-          return null;
-        }
-        return createImageTexturePattern(ctx, image, cellPx, fill.scale, fill.rotation);
-      },
-      stampImage: (item) => {
-        if (isImageStampId(item.stampId)) {
-          const url = this.imageStorage.get(imageStampIdentifier(item.stampId))?.url;
-          if (!url) return null;
-          const image = getRasterImage(url);
-          if (!image) this.schedulePendingImage(url);
-          return image;
-        }
-        const def = defById.get(item.stampId);
-        if (!def) return null;
-        const image = getStampImage(def, item.size, item.color);
-        if (!image) this.schedulePending(def, item.size, item.color);
-        return image;
-      },
-      rasterImage: (item) => {
-        const url = this.imageStorage.get(item.imageIdentifier)?.url;
-        if (!url) return null;
-        const image = getRasterImage(url);
-        if (!image) this.schedulePendingImage(url);
-        return image;
-      },
-    };
-  }
-
-  private schedulePending(def: StampDef, size: number, color: string | null): void {
-    const key = def.id + '|' + size + '|' + (color ?? '');
-    if (this.pendingStamps.has(key)) return;
-    this.pendingStamps.add(key);
-    loadStampImage(def, size, color)
-      .then(() => {
-        this.pendingStamps.delete(key);
-        this.renderTick.update((v) => v + 1);
-      })
-      .catch(() => this.pendingStamps.delete(key));
-  }
-
-  private previewStampImage(stampId: string, size: number): HTMLImageElement | null {
-    if (isImageStampId(stampId)) {
-      const url = this.imageStorage.get(imageStampIdentifier(stampId))?.url;
-      if (!url) return null;
-      const image = getRasterImage(url);
-      if (!image) this.schedulePendingImage(url);
-      return image;
-    }
-    const def = getStampById(stampId);
-    if (!def) return null;
-    const image = getStampImage(def, size, this.state.stampColor());
-    if (!image) this.schedulePending(def, size, this.state.stampColor());
-    return image;
-  }
-
-  private schedulePendingImage(url: string): void {
-    if (this.pendingImages.has(url)) return;
-    this.pendingImages.add(url);
-    this.loadImageFn(url)
-      .then(() => {
-        this.pendingImages.delete(url);
-        this.renderTick.update((v) => v + 1);
-      })
-      .catch(() => this.pendingImages.delete(url));
-  }
-
   private draw(): void {
     const canvas = this.board()?.nativeElement;
     if (!canvas) return;
@@ -487,7 +397,7 @@ export class MapEditorPanelComponent {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     perfCounters.bump(PERF_MAP_EDITOR_DRAW);
-    const helpers = this.buildHelpers(ctx);
+    const helpers = this.images.helpersFor(ctx);
     renderScene(ctx, scene, helpers, { hideTextId: this.editingText()?.itemId ?? undefined, drawFunctionLayers: true });
     this.drawOverlay(ctx);
   }
@@ -540,7 +450,7 @@ export class MapEditorPanelComponent {
     const stampId = this.state.stampId();
     if (!stampId) return null;
     const size = this.state.stampSize();
-    const image = this.previewStampImage(stampId, size);
+    const image = this.images.stamp(stampId, size, this.state.stampColor());
     if (!image) return null;
     return {
       image,
@@ -556,13 +466,8 @@ export class MapEditorPanelComponent {
     if (this.state.tool() !== 'image' || !this.gesture.lastMove) return null;
     const pendingId = this.state.pendingImageId();
     if (!pendingId) return null;
-    const url = this.imageStorage.get(pendingId)?.url;
-    if (!url) return null;
-    const image = getRasterImage(url);
-    if (!image) {
-      this.schedulePendingImage(url);
-      return null;
-    }
+    const image = this.images.image(pendingId);
+    if (!image) return null;
     const size = fitImageSize(
       image.naturalWidth || image.width,
       image.naturalHeight || image.height,
@@ -1381,7 +1286,7 @@ export class MapEditorPanelComponent {
     if (!ctx) return '';
     const single: MapScene = { ...scene, gridVisible: false, background: 'transparent', layers: [layer] };
     ctx.scale(scale, scale);
-    renderScene(ctx, single, this.buildHelpers(ctx), { drawGrid: false, drawFunctionLayers: true });
+    renderScene(ctx, single, this.images.helpersFor(ctx), { drawGrid: false, drawFunctionLayers: true });
     try {
       return canvas.toDataURL();
     } catch {
