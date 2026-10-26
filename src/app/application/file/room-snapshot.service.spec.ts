@@ -146,11 +146,13 @@ describe('RoomSnapshotService', () => {
     expect(files[0].name).toBe('room-snapshot.zip');
   });
 
-  it('reports failure restoring a snapshot whose room cannot be read', async () => {
+  it('reports failure restoring a snapshot whose room cannot be read, and says so', async () => {
     const meta = await service.capture();
+    const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
     load.mockResolvedValue({ dataRead: false, images: [], audios: [] });
 
     await expect(service.restore(meta!.id)).resolves.toBe(false);
+    expect(shown).toHaveBeenCalledWith('このスナップショットの部屋は読み込めませんでした。');
   });
 
   it('lets a room to start on still being set out at launch finish before the snapshot goes in', async () => {
