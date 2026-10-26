@@ -1,3 +1,13 @@
+## [1.71.1](https://github.com/Xelltis/udonarium_axe/compare/v1.71.0...v1.71.1) (2026-10-26)
+
+### 🐛 Bug Fixes
+
+* **deps:** bump the angular group to 22.2.4 ([a103b5e](https://github.com/Xelltis/udonarium_axe/commit/a103b5e952eb335a55cf80f64fc1948c8ab4c82c))
+
+### 📝 Documentation
+
+* **website:** add the v1.71.1 release notes ([939ffdc](https://github.com/Xelltis/udonarium_axe/commit/939ffdc673b22797db7fb7d24c3394b26d1152ad))
+
 ## [1.71.0](https://github.com/Xelltis/udonarium_axe/compare/v1.70.1...v1.71.0) (2026-10-26)
 
 ### ✨ Features
