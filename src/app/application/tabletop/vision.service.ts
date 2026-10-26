@@ -43,6 +43,7 @@ import { computeVisibleCellsFor, VisibleCellsOptions } from '@axe/domain/tableto
 import { visibleCellsLightKey, VisibleCellsMemo, visionSourceKey } from '@axe/domain/tabletop/fog/visible-cells-memo';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { SegmentIndexes } from '@axe/domain/tabletop/los/segment-index';
+import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -580,8 +581,8 @@ export class VisionService {
     for (const character of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
       if (!character.isVisibleOnTable || surfaceOf(character) !== 'floor') continue;
       this.objectChange.versionOf(character.identifier)();
-      const half = (scene.gridSize * (character.size || 1)) / 2;
-      const cell = cellIndexAt(cells.grid, character.location.x + half, character.location.y + half);
+      const centre = pieceCentreOf(character, scene.gridSize);
+      const cell = cellIndexAt(cells.grid, centre.x, centre.y);
       if (cell >= 0 && cells.shared.get(cell)) found.add(character.identifier);
     }
     return found;
@@ -1063,9 +1064,7 @@ export class VisionService {
     const viewer = this.viewer();
     if (viewer.isGameMaster) return true;
     if (viewerShares(viewer, character.owner, character.partyIdentifier)) return true;
-    const half = (scene.gridSize * (character.size || 1)) / 2;
-    const x = character.location.x + half;
-    const y = character.location.y + half;
+    const { x, y } = pieceCentreOf(character, scene.gridSize);
     // Under fog the piece answers to the same cells the fog is drawn from. Asking the sight
     // lines again would answer for eyes the reader may not have: somebody with no piece of
     // their own has none, and a table with the dark switched off has nothing to stop a look,
@@ -1146,8 +1145,8 @@ export class VisionService {
     if (this.foundPieces().has(character.identifier)) return true;
     const cells = this.visionCells();
     if (!cells) return true;
-    const half = (scene.gridSize * (character.size || 1)) / 2;
-    const cell = cellIndexAt(cells.grid, character.location.x + half, character.location.y + half);
+    const centre = pieceCentreOf(character, scene.gridSize);
+    const cell = cellIndexAt(cells.grid, centre.x, centre.y);
     if (cell < 0 || cells.shared.get(cell)) return true;
     const table = this.currentTable();
     if (!table?.fogEnabled || !fogRules(table.fogMode).remembersGround) return false;

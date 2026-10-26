@@ -45,6 +45,7 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { blockedByTerrain } from '@axe/domain/tabletop/move/blocked-cells';
 import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { moveNeighbourToward } from '@axe/domain/tabletop/move/move-neighbours';
+import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -461,8 +462,7 @@ export class FirstPersonService {
 
   private standingPoint(piece: GameCharacter, table: GameTable, grid: CellGrid): CellPoint | null {
     if (table.gridType === GridType.NONE) {
-      const half = (Math.max(1, piece.size) * table.gridSize) / 2;
-      return { x: piece.location.x + half, y: piece.location.y + half };
+      return pieceCentreOf(piece, table.gridSize);
     }
     const cell = pieceCellOf(grid, piece, table.gridSize);
     return cell >= 0 ? cellCenterOf(grid, cell) : null;
@@ -497,8 +497,7 @@ export class FirstPersonService {
     for (const other of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
       if (other.identifier === piece.identifier || !other.isVisibleOnTable || surfaceOf(other) !== 'floor') continue;
       if (!this.vision.isTokenVisible(other)) continue;
-      const half = (Math.max(1, other.size) * table.gridSize) / 2;
-      others.push({ x: other.location.x + half, y: other.location.y + half });
+      others.push(pieceCentreOf(other, table.gridSize));
     }
     return others;
   }

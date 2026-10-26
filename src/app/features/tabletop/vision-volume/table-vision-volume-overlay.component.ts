@@ -9,6 +9,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { effectiveSightRadiusPx } from '@axe/domain/tabletop/fog/sight-radius';
+import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { EYE_HEIGHT_CELLS, eyeHeightPx } from '@axe/domain/tabletop/vision-scene';
 import { visionLobesOf } from '@axe/domain/tabletop/vision-shape';
@@ -88,7 +89,7 @@ export class TableVisionVolumeOverlayComponent {
           : 0,
       });
       if (radiusPx < 1) continue;
-      const centre = (gridSize * (character.size || 1)) / 2;
+      const centre = pieceCentreOffsetPx(character, gridSize);
       const shape = visionVolumeShape({
         x: character.location.x + centre,
         y: character.location.y + centre,

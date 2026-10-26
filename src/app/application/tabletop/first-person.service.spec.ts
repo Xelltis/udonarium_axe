@@ -187,6 +187,23 @@ describe('FirstPersonService', () => {
       expect(service().showing()).toBe(true);
     });
 
+    it('looks out of a piece of no size from where it is drawn on a table without cells, its corner', () => {
+      table.gridType = GridType.NONE;
+      touch(table.identifier);
+      const whole = pieceAt(5, 5);
+      service().enterSeat(whole.identifier);
+      const fromWhole = service().pose()!;
+      const point = pieceAt(5, 5);
+      point.size = 0;
+      touch(point.identifier);
+
+      service().enterSeat(point.identifier);
+      const fromPoint = service().pose()!;
+
+      expect(fromWhole.x - fromPoint.x).toBeCloseTo(25);
+      expect(fromWhole.y - fromPoint.y).toBeCloseTo(25);
+    });
+
     it('says whether the piece the table names can still be shown', () => {
       expect(service().sharedUsable()).toBe(false);
 

@@ -2,6 +2,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ambienceLightLevelOf, ambienceSnuffsLight } from '@axe/domain/effect/ambience/ambience-brightness';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { perimeterSegments, rectangleSegments, TallSegment } from '@axe/domain/tabletop/los/segments';
+import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { type SurfaceDims, surfaceInwardDirection, surfacePointTo3D } from '@axe/domain/tabletop/surface-space';
 import { lightSourcesOn } from '@axe/domain/tabletop/table-lights';
 import { surfaceOf, TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -169,7 +170,7 @@ export function collectLights(
     if (!source.lightEnabled) continue;
     const followed = source.followingCharacterIdentifier ? characterOf(source.followingCharacterIdentifier) : null;
     const anchor = followed && followed.isVisibleOnTable ? followed : source;
-    const center = followed && followed.isVisibleOnTable ? (gridSize * (followed.size || 1)) / 2 : half;
+    const center = followed && followed.isVisibleOnTable ? pieceCentreOffsetPx(followed, gridSize) : half;
     const p = placeLight(anchor, center, center, gridSize, dims);
     lights.push(
       toSceneLight(source.lightSpec, p.pos.x, p.pos.y, p.pos.z, gridSize, source.identifier, p.dir, p.surface)
@@ -178,7 +179,7 @@ export function collectLights(
 
   for (const character of characters) {
     if (!character.isVisibleOnTable || !character.lightEnabled) continue;
-    const center = (gridSize * (character.size || 1)) / 2;
+    const center = pieceCentreOffsetPx(character, gridSize);
     const p = placeLight(character, center, center, gridSize, dims);
     lights.push(
       toSceneLight(character.lightSpec, p.pos.x, p.pos.y, p.pos.z, gridSize, character.identifier, p.dir, p.surface)
@@ -223,7 +224,7 @@ export function collectVisionSources(characters: readonly GameCharacter[], gridS
   for (const character of characters) {
     if (!character.isVisibleOnTable) continue;
     if (surfaceOf(character) !== 'floor') continue;
-    const center = (gridSize * (character.size || 1)) / 2;
+    const center = pieceCentreOffsetPx(character, gridSize);
     const spec = character.visionSpec;
     sources.push({
       x: character.location.x + center,

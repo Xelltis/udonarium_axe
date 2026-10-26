@@ -249,4 +249,14 @@ describe('vision scene assembly', () => {
       expect.objectContaining({ x: 125, y: 125, rangePx: 200, owner: 'p1', sourceId: seer.identifier })
     );
   });
+
+  it('looks out from and lights from where a piece of no size is drawn, its corner', () => {
+    const point = standing('Point', 100, 100);
+    point.size = 0;
+    point.lightEnabled = true;
+    point.lightDimRadius = 4;
+
+    expect(collectVisionSources([point], 50)[0]).toEqual(expect.objectContaining({ x: 100, y: 100 }));
+    expect(collectLights(makeTable(), [point], 50, () => null)[0]).toEqual(expect.objectContaining({ x: 100, y: 100 }));
+  });
 });
