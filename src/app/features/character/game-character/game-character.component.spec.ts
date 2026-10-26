@@ -40,6 +40,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { SlopeSide } from '@axe/domain/tabletop/terrain-slope';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
+import { GameCharacterMenuService } from '@axe/features/character/game-character/game-character-menu.service';
 import { PieceFigureHeightsService } from '@axe/features/character/game-character/piece-figure-heights.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
@@ -101,7 +102,9 @@ describe('GameCharacterComponent', () => {
       const openLazy = vi
         .spyOn(fixture.debugElement.injector.get(PanelService), 'openLazy')
         .mockImplementation(() => {});
-      (component as unknown as Record<Opener, (piece: GameCharacter) => void>)[opener](character);
+      (TestBed.inject(GameCharacterMenuService) as unknown as Record<Opener, (piece: GameCharacter) => void>)[opener](
+        character
+      );
       const [factory, option, setup] = openLazy.mock.calls[0] as [
         () => Promise<unknown>,
         PanelOption,
