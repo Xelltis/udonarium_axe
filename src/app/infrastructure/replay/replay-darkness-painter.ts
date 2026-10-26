@@ -1,3 +1,4 @@
+import { clamp01 } from '@axe/core/util/clamp';
 import type { OverlayPlan, OverlayShape } from '@axe/domain/tabletop/vision-scene';
 
 /**
@@ -248,9 +249,4 @@ function clipToPolygon(target: DarknessCanvas, shape: OverlayShape, place: Darkn
   }
   target.closePath();
   target.clip();
-}
-
-function clamp01(value: number): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.min(1, Math.max(0, value));
 }

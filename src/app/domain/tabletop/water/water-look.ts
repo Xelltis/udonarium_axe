@@ -1,3 +1,4 @@
+import { clamp01 } from '@axe/core/util/clamp';
 import { ambiencePalette } from '@axe/domain/effect/ambience/ambience-kind';
 import { withAlpha } from '@axe/domain/effect/particles/shared';
 
@@ -177,11 +178,6 @@ function rgbOf(color: string): [number, number, number] | null {
 
 function hex2(value: number): string {
   return Math.min(Math.max(value, 0), 255).toString(16).padStart(2, '0');
-}
-
-function clamp01(value: number): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.min(Math.max(value, 0), 1);
 }
 
 function round(value: number): number {

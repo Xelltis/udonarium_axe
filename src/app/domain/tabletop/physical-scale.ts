@@ -1,3 +1,5 @@
+import { clamp } from '@axe/core/util/clamp';
+
 /**
  * Turning a screen into a real tabletop.
  *
@@ -27,10 +29,6 @@ const MAX_CELL_MM = 200;
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 20;
 const MM_PER_INCH = 25.4;
-
-function clamp(value: number, low: number, high: number): number {
-  return value < low ? low : value > high ? high : value;
-}
 
 /** How wide a run of cards laid edge to edge measures. */
 export function cardRunWidthMm(cards: number): number {

@@ -1,9 +1,12 @@
+import { clamp01 } from '@axe/core/util/clamp';
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
 import { type ShapeColors } from '@axe/domain/effect/effect-shapes';
 import { type ViewRotation } from '@axe/domain/effect/effect-view';
+
+export { clamp01 };
 
 export { seededRandom };
 
@@ -213,12 +216,6 @@ export function takeRandoms(random: () => number, count: number): number[] {
  */
 export function normalize(value: number): number {
   return Number.isFinite(value) ? value : 0;
-}
-
-/** Holds a value between 0 and 1, reading anything that is not a finite number as 0. */
-export function clamp01(value: number): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.min(Math.max(value, 0), 1);
 }
 
 /**

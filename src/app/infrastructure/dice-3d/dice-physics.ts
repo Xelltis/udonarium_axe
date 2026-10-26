@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { upFace } from '@axe/domain/dice/dice-3d/die-symmetry';
 import { dieRadiusOf, DieShape, polyhedronOf } from '@axe/domain/dice/dice-3d/polyhedra';
@@ -324,10 +325,6 @@ function launch(bodies: Body[], shapes: readonly DieShape[], tray: Tray, edge: T
       rollAxis.z * roll + twist.z * spin
     );
   });
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }
 
 /** A rotation drawn evenly from all of them. */

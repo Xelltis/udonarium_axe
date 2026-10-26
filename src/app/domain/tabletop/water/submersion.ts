@@ -1,3 +1,5 @@
+import { clamp01 } from '@axe/core/util/clamp';
+
 /** How a piece stands in water. */
 export interface Submersion {
   /** How much of its picture, up from its feet, is under the surface, from just over 0 to 1. */
@@ -165,11 +167,6 @@ function hueOf(color: string): number | null {
   else if (max === g) hue = (b - r) / chroma + 2;
   else hue = (r - g) / chroma + 4;
   return (hue * 60 + 360) % 360;
-}
-
-function clamp01(value: number): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.min(Math.max(value, 0), 1);
 }
 
 function percent(share: number): number {

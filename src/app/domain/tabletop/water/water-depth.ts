@@ -1,3 +1,4 @@
+import { clamp01 } from '@axe/core/util/clamp';
 import type { CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { sampleOverSheet, type WaterLightMask } from '@axe/domain/tabletop/water/water-light-mask';
 
@@ -63,11 +64,6 @@ export function waterDepthShadeOf(
   const byCell = new Map(sheet.cells.map((index, at) => [index, shades[at]]));
   const mean = shades.reduce((sum, shade) => sum + shade, 0) / shades.length;
   return sampleOverSheet(grid, sheet, (index) => byCell.get(index) ?? mean, mean);
-}
-
-function clamp01(value: number): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.min(Math.max(value, 0), 1);
 }
 
 function round(value: number): number {
