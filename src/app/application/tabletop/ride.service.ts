@@ -159,7 +159,7 @@ export class RideService {
   moverFor(piece: GameCharacter): GameCharacter | null {
     const mount = this.mountOf(piece);
     if (mount) return seatOf(piece.rideSeat) === 'rider' ? mount : null;
-    if (piece.mountable === '1' && !this.riderOf(piece) && !this.rolePermission.isGameMaster) return null;
+    if (piece.mountable === '1' && !this.riderOf(piece) && !this.rolePermission.isGameMaster()) return null;
     return piece;
   }
 
@@ -326,7 +326,7 @@ export class RideService {
    * may take there; or says why it may take none. Nothing for a piece on no mount, or one riding.
    */
   offerRide(piece: GameCharacter): void {
-    if (!this.rolePermission.canEditTabletop || this.mountOf(piece)) return;
+    if (!this.rolePermission.canEditTabletop() || this.mountOf(piece)) return;
     const offers = this.offersFor(piece);
     if (offers.length < 1) return;
     const refusal = this.changeRefusal(piece);

@@ -67,10 +67,7 @@ export class ChatColorSettingComponent {
   private readonly rolePermission = inject(RolePermissionService);
 
   /** Whether this seat may change a piece's colours, which a guest may not; its own it always may. */
-  private readonly mayEditPiece = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
-  });
+  private readonly mayEditPiece = computed(() => this.rolePermission.canEditTabletop());
 
   readonly themes: readonly ChatTheme[] = ['light', 'dark'];
   readonly slots = [0, 1, 2] as const;

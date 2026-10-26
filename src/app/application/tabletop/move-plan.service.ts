@@ -202,7 +202,8 @@ export class MovePlanService {
     // A seat made a guest while it worked a move out drops it, moving nothing.
     effect(() => {
       this.objectChange.trackMyCursor();
-      if (!this.rolePermission.canEditTabletop && untracked(this.held) && !this.walking) untracked(() => this.close());
+      if (!this.rolePermission.canEditTabletop() && untracked(this.held) && !this.walking)
+        untracked(() => this.close());
     });
   }
 
@@ -631,7 +632,7 @@ export class MovePlanService {
    */
   async run(): Promise<boolean> {
     const plan = this.held();
-    if (!plan || this.walking || !this.rolePermission.canEditTabletop) return false;
+    if (!plan || this.walking || !this.rolePermission.canEditTabletop()) return false;
     const way = this.wholeWay();
     const inPlace = way.length < 2;
     if (inPlace && !this.movesWithinSquare()) return false;
@@ -660,7 +661,7 @@ export class MovePlanService {
       const landing = outcome ? null : chosen;
       const steps = way.slice(1, end + 1);
       let standingZ = character.posZ;
-      if (inPlace && landing && this.rolePermission.canEditTabletop) {
+      if (inPlace && landing && this.rolePermission.canEditTabletop()) {
         standingZ = await this.pieceStep.stepOnto(character, table, plan.grid, -1, landing, true, standingZ);
       }
       const leaping = this.leaps(plan, character);
@@ -669,7 +670,7 @@ export class MovePlanService {
         ? (tableCell: number, px: number) => standable(tableCell, leaping ? null : px)
         : undefined;
       for (const [index, cell] of steps.entries()) {
-        if (!this.rolePermission.canEditTabletop) break;
+        if (!this.rolePermission.canEditTabletop()) break;
         const ending = index === steps.length - 1;
         // The cell chosen is asked once more from the height the walk has actually come to, which
         // the step before it may have reached by a cell other than the one it was reckoned from.
@@ -682,7 +683,7 @@ export class MovePlanService {
     } finally {
       this.walking = false;
     }
-    if (!this.rolePermission.canEditTabletop) {
+    if (!this.rolePermission.canEditTabletop()) {
       this.close();
       return false;
     }

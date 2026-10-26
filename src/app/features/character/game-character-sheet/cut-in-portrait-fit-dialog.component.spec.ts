@@ -46,7 +46,7 @@ describe('CutInPortraitFitDialogComponent', () => {
     TestBed.overrideProvider(ModalService, { useValue: modalService });
     TestBed.overrideProvider(RolePermissionService, {
       useValue: {
-        get canEditTabletop() {
+        canEditTabletop() {
           return canEdit;
         },
       },

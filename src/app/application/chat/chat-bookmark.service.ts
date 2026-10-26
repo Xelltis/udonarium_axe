@@ -87,7 +87,7 @@ export class ChatBookmarkService {
 
   /** Whether this reader may put on, name and take off marks of the kind: anyone their own, the table the room's. */
   canEdit(kind: ChatBookmarkKind): boolean {
-    return kind === 'personal' || this.rolePermission.canEditTabletop;
+    return kind === 'personal' || this.rolePermission.canEditTabletop();
   }
 
   /**

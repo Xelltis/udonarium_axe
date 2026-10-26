@@ -81,7 +81,7 @@ export class HandDrawPanelComponent {
    */
   readonly absentHands = computed<AbsentHand[]>(() => {
     this.objectChange.trackMyCursor();
-    if (!this.rolePermission.canEditShared) return [];
+    if (!this.rolePermission.canEditShared()) return [];
     this.objectChange.collectionOf(Card.aliasName)();
     this.objectChange.collectionOf(PeerCursor.aliasName)();
     for (const card of this.objectStore.getObjects<Card>(Card)) this.objectChange.versionOf(card.identifier)();

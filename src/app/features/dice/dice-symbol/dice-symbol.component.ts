@@ -137,7 +137,7 @@ export class DiceSymbolComponent {
     this.objectChange.versionOf(diceSymbol.identifier)();
     this.objectChange.networkVersion();
     this.objectChange.trackMyCursor();
-    return (diceSymbol.hideName || !diceSymbol.isVisible) && !this.rolePermission.canSeeHidden;
+    return (diceSymbol.hideName || !diceSymbol.isVisible) && !this.rolePermission.canSeeHidden();
   });
   readonly size = computed(() => {
     this.objectChange.versionOf(this.diceSymbol().identifier)();
@@ -213,7 +213,7 @@ export class DiceSymbolComponent {
    * told, so it asks directly.
    */
   private readsFace(): boolean {
-    return this.diceSymbol().isVisible || this.rolePermission.canSeeHidden;
+    return this.diceSymbol().isVisible || this.rolePermission.canSeeHidden();
   }
 
   /** Whether the die is marked as spent, which only dims it: it rolls and moves as it always did. */
@@ -432,7 +432,7 @@ export class DiceSymbolComponent {
    */
   onDoubleClick() {
     this.doubleTap.cancel();
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (!this.doubleTap.isInPlace()) return;
     if (this.readsFace()) this.diceRoll();
   }
@@ -463,7 +463,7 @@ export class DiceSymbolComponent {
         })),
         onStoreToOwner: (ownerIdentifier) => this.storeToOwner(ownerIdentifier),
         onRevealed: (face) => this.onDiceRevealed(face),
-        canRevealHidden: this.rolePermission.canSeeHidden,
+        canRevealHidden: this.rolePermission.canSeeHidden(),
       },
       this.translateFn
     );

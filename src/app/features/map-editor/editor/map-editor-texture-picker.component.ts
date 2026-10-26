@@ -44,7 +44,7 @@ export class MapEditorTexturePickerComponent {
     this.tagLock.track();
     // What the tool is built with is shown by its own swatches here, and it is in the library
     // as well, so it is left out of this list rather than offered twice over.
-    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden, this.tagLock.hides).filter(
+    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden(), this.tagLock.hides).filter(
       (file) => !isBuiltinMaterial(file.identifier)
     );
   });

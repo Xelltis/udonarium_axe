@@ -70,8 +70,8 @@ export class AssetRemovalService {
 
   /** Whether this seat may remove the asset: the GM any, a player one they added, and one watching none. */
   mayRemove(identifier: string): boolean {
-    if (this.rolePermission.canEditShared) return true;
-    return this.rolePermission.canEditTabletop && this.ownership.isMine(identifier);
+    if (this.rolePermission.canEditShared()) return true;
+    return this.rolePermission.canEditTabletop() && this.ownership.isMine(identifier);
   }
 
   /** Which of these anyone at all may remove, the GM if nobody else: whatever the room did not bring itself. */
@@ -121,7 +121,7 @@ export class AssetRemovalService {
    * the GM made is not undone by anyone else adding the same file.
    */
   putBack(identifier: string): boolean {
-    if (!this.rolePermission.canEditShared) return false;
+    if (!this.rolePermission.canEditShared()) return false;
     AssetRemoval.restore(identifier);
     return true;
   }
@@ -143,7 +143,7 @@ export class AssetRemovalService {
    * Chosen ones none of which this seat may remove are said to be so.
    */
   async removeAfterAsking(kind: AssetRemovalKind, identifiers: readonly string[]): Promise<number> {
-    if (!this.rolePermission.canEditTabletop) return 0;
+    if (!this.rolePermission.canEditTabletop()) return 0;
     const anyones = this.removableByAnyone(kind, identifiers);
     const targets = anyones.filter((identifier) => this.mayRemove(identifier));
     if (targets.length === 0) {

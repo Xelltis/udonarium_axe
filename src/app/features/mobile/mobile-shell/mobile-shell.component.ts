@@ -72,10 +72,7 @@ export class MobileShellComponent {
 
   protected readonly isMenuOpen = signal(false);
 
-  protected readonly isGameMaster = computed(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.isMyselfGameMaster;
-  });
+  protected readonly isGameMaster = computed(() => this.rolePermission.isGameMaster());
 
   protected readonly paneTop = computed(() => {
     const ratio = this.layout.tableRatio() * 100;
@@ -123,10 +120,7 @@ export class MobileShellComponent {
     return sharedMobileMenuItems().filter((item) => isAudienceOffered(item.audience ?? 'anyone', role));
   });
   /** Whether this seat is offered its characters, which a guest, owning none it may play, is not. */
-  protected readonly offersCharacters = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
-  });
+  protected readonly offersCharacters = computed(() => this.rolePermission.canEditTabletop());
   protected readonly gameMasterItems: MobileMenuItem[] = gameMasterMobileMenuItems();
   protected readonly showGameMasterItems = computed(() => this.isGameMaster());
 
@@ -178,7 +172,7 @@ export class MobileShellComponent {
   protected loadRoomFiles(event: Event): void {
     const input = event.target as HTMLInputElement;
     this.isMenuOpen.set(false);
-    if (!this.rolePermission.canEditTabletop) {
+    if (!this.rolePermission.canEditTabletop()) {
       input.value = '';
       return;
     }

@@ -524,7 +524,7 @@ export class GameCharacterComponent {
   );
 
   private ridingLabelOf(piece: GameCharacter): RidingLabel {
-    const showsName = this.overlay.names() && (!piece.hideName || this.rolePermission.canSeeHidden);
+    const showsName = this.overlay.names() && (!piece.hideName || this.rolePermission.canSeeHidden());
     const detail = this.overlay.resourceBars() ? (piece.detailDataElement ?? null) : null;
     const readable = this.disclosureService.canView(piece);
     const gauges =
@@ -632,7 +632,7 @@ export class GameCharacterComponent {
     if (!this.overlay.names()) return true;
     this.objectChange.versionOf(char.identifier)();
     this.objectChange.trackMyCursor();
-    return char.hideName && !this.rolePermission.canSeeHidden;
+    return char.hideName && !this.rolePermission.canSeeHidden();
   });
   /** Buffs go unshown for a piece set to hide them, and for every piece while this seat has them switched off. */
   readonly hideBuff = computed(() => {
@@ -1564,7 +1564,7 @@ export class GameCharacterComponent {
     const zones = this.engagementZones;
     return buildZoneContextMenu(
       model,
-      this.rolePermission.canEditTabletop,
+      this.rolePermission.canEditTabletop(),
       {
         declare: (foeId) => {
           const foe = this.objectStore.get<GameCharacter>(foeId);
@@ -1594,8 +1594,8 @@ export class GameCharacterComponent {
     const zones = this.engagementZones;
     return buildZoneManageContextMenu(
       model,
-      this.rolePermission.canEditTabletop,
-      this.rolePermission.isGameMaster,
+      this.rolePermission.canEditTabletop(),
+      this.rolePermission.isGameMaster(),
       {
         placeSides: () => this.showBattlePlacement(char),
         setSquare: (zoneId, square) => zones.setSquare(zoneId, square),
@@ -1616,7 +1616,7 @@ export class GameCharacterComponent {
       zoneModel,
       rideModel,
       this.stealth.mayToggle(char) ? { on: char.stealth === '1' } : null,
-      this.rolePermission.canEditTabletop,
+      this.rolePermission.canEditTabletop(),
       {
         setUnseen: (unseen) => zones.setUnseen(char, unseen),
         setDown: (down) => this.ride.setDown(char, down),
@@ -1641,7 +1641,7 @@ export class GameCharacterComponent {
     const ride = this.ride;
     return buildRideContextMenu(
       model,
-      this.rolePermission.canEditTabletop,
+      this.rolePermission.canEditTabletop(),
       {
         getOn: (mountId, seat) => {
           const mount = this.objectStore.get<GameCharacter>(mountId);

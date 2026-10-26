@@ -51,7 +51,7 @@ describe('AudioAnalysisService', () => {
         {
           provide: RolePermissionService,
           useValue: {
-            get canEditTabletop() {
+            canEditTabletop() {
               return canEditTabletop;
             },
           },

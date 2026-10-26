@@ -248,8 +248,8 @@ export class GameObjectInventoryComponent {
   private readonly confirm = inject(ConfirmService);
 
   protected readonly drag = new InventoryObjectDrag({
-    canFile: () => this.foldersApply() && this.rolePermission.canEditTabletop,
-    canMove: () => this.rolePermission.canEditTabletop,
+    canFile: () => this.foldersApply() && this.rolePermission.canEditTabletop(),
+    canMove: () => this.rolePermission.canEditTabletop(),
     canHandOver: () => PeerCursor.isMyselfGameMaster,
     currentTab: () => this.selectTab(),
     travellingWith: (character) => {
@@ -577,7 +577,7 @@ export class GameObjectInventoryComponent {
     this.inventoryService.inventoryVersion();
     this.objectChange.trackMyCursor();
     return this.turnOrderService
-      .orderedCharacters(this.rolePermission.canSeeHidden)
+      .orderedCharacters(this.rolePermission.canSeeHidden())
       .filter((character) => this.vision.mayBeListed(character));
   });
 
@@ -850,7 +850,7 @@ export class GameObjectInventoryComponent {
         const listed = (this.inventoryService.tableInventory.tabletopObjects as GameCharacter[]).filter((character) =>
           this.vision.mayBeListed(character)
         );
-        const showHidden = this.isMultiMove() || this.isEdit() || this.rolePermission.canSeeHidden;
+        const showHidden = this.isMultiMove() || this.isEdit() || this.rolePermission.canSeeHidden();
         return showHidden ? listed : listed.filter((character) => !character.hideInventory);
       }
 
@@ -878,10 +878,7 @@ export class GameObjectInventoryComponent {
   readonly hiddenFilter = this.filter.hiddenFilter;
   readonly hiddenDisplay = this.filter.hiddenDisplay;
 
-  readonly canSeeHidden = computed<boolean>(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canSeeHidden;
-  });
+  readonly canSeeHidden = computed<boolean>(() => this.rolePermission.canSeeHidden());
 
   readonly activeHiddenFilter = computed<InventoryHiddenFilter>(() =>
     this.canSeeHidden() ? this.hiddenFilter() : 'all'
@@ -976,10 +973,7 @@ export class GameObjectInventoryComponent {
 
   readonly showTree = computed<boolean>(() => this.foldersApply() && this.hasFolders());
 
-  readonly canEdit = computed<boolean>(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
-  });
+  readonly canEdit = computed<boolean>(() => this.rolePermission.canEditTabletop());
 
   /** A folder at the depth limit has no room for another level beneath it. */
   canNestInside(folderPath: string): boolean {
@@ -1144,7 +1138,7 @@ export class GameObjectInventoryComponent {
    * that may not edit the table.
    */
   startFolderRename(folderPath: string): void {
-    if (!this.rolePermission.canEditTabletop || folderPath.length < 1) return;
+    if (!this.rolePermission.canEditTabletop() || folderPath.length < 1) return;
     this.updateCollapsed((current) => {
       const next = new Set(current);
       next.delete(folderPath);
@@ -1165,7 +1159,7 @@ export class GameObjectInventoryComponent {
   }
 
   private createFolderOf(identifiers: readonly string[], parentPath = ''): void {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     this.leaveFoldedAsFiled();
     const path = this.unusedFolderPath(parentPath);
     this.declareFolder(path);
@@ -1205,7 +1199,7 @@ export class GameObjectInventoryComponent {
 
   /** False where the name cannot be taken, so the caller can leave the editor open on it. */
   renameFolder(folderPath: string, name: string): boolean {
-    if (!this.rolePermission.canEditTabletop) return false;
+    if (!this.rolePermission.canEditTabletop()) return false;
     const segments = folderSegments(folderPath);
     const renamed = normalizeFolderPath([...segments.slice(0, -1), name].join(FOLDER_SEPARATOR));
     if (renamed.length < 1) return false;
@@ -1244,7 +1238,7 @@ export class GameObjectInventoryComponent {
    * there are any. Does nothing for a seat that may not edit the table.
    */
   async deleteFolder(folderPath: string): Promise<void> {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     const characters = this.charactersUnder(folderPath);
     if (characters.length > 0) {
       const asked = await this.confirm.ask({
@@ -1299,7 +1293,7 @@ export class GameObjectInventoryComponent {
   }
 
   private setFolderOf(identifiers: Iterable<string>, folderPath: string): void {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     this.leaveFoldedAsFiled();
     const normalized = normalizeFolderPath(folderPath);
     for (const identifier of identifiers) {
@@ -1420,7 +1414,7 @@ export class GameObjectInventoryComponent {
    */
   toggleEdit() {
     // What this opens can show what the game master has hidden, so it stays theirs to open.
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (this.isEdit()) {
       this.panelService.closeSingle(INVENTORY_FILTER_PANEL);
       this.isEdit.set(false);
@@ -1465,7 +1459,7 @@ export class GameObjectInventoryComponent {
    * confirms; does nothing for a seat that may not edit the table.
    */
   async cleanInventory(): Promise<void> {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     const rows = this.filteredRows();
     const message = this.hasQuery()
       ? this.t('feature.inventory.panel.confirmCleanFiltered', { count: rows.length })
@@ -1542,7 +1536,7 @@ export class GameObjectInventoryComponent {
    * edit the table.
    */
   multiMove(location: string) {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     this.moveCharacters(this.multiMoveTargets(), location);
   }
 
@@ -1560,7 +1554,7 @@ export class GameObjectInventoryComponent {
    * may not edit the table.
    */
   moveToTab(identifiers: ReadonlySet<string>, tab: string): void {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     this.moveCharacters(identifiers, this.locationOfTab(tab));
     this.multiMoveTargets.update((targets) => new Set([...targets].filter((target) => !identifiers.has(target))));
     SoundEffect.play(PresetSound.piecePut);
@@ -1579,7 +1573,7 @@ export class GameObjectInventoryComponent {
    * Hides every picked character from the inventory or shows them again, then leaves multi-select.
    */
   multiSetHideInventory(hide: boolean) {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     for (const gameObjectIdentifier of this.multiMoveTargets()) {
       const gameObject = this.objectStore.get<GameCharacter>(gameObjectIdentifier);
       if (gameObject instanceof GameCharacter) {
@@ -1596,7 +1590,7 @@ export class GameObjectInventoryComponent {
    * default, and leaves multi-select.
    */
   multiSetResourceSliders(shown: boolean) {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     for (const gameObjectIdentifier of this.multiMoveTargets()) {
       const gameObject = this.objectStore.get<GameCharacter>(gameObjectIdentifier);
       if (gameObject instanceof GameCharacter) this.resourceSliders.setAll(gameObject, shown);
@@ -1623,7 +1617,7 @@ export class GameObjectInventoryComponent {
    * graveyard, a refusal, or a seat that may not edit the table.
    */
   async multiDelete(): Promise<boolean> {
-    if (!this.rolePermission.canEditTabletop) return false;
+    if (!this.rolePermission.canEditTabletop()) return false;
     const inGraveyard: Set<GameCharacter> = new Set();
     for (const gameObjectIdentifier of this.multiMoveTargets()) {
       const gameObject = this.objectStore.get<GameCharacter>(gameObjectIdentifier);
@@ -1646,7 +1640,7 @@ export class GameObjectInventoryComponent {
   }
 
   private cloneGameObject(gameObject: TabletopObject) {
-    if (!this.rolePermission.canEditTabletop || isWithheldHere(gameObject)) return;
+    if (!this.rolePermission.canEditTabletop() || isWithheldHere(gameObject)) return;
     gameObject.clone();
   }
 
@@ -1701,7 +1695,7 @@ export class GameObjectInventoryComponent {
   }
 
   private deleteGameObject(gameObject: GameObject) {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     gameObject.destroy();
   }
 }

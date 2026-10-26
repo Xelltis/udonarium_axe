@@ -106,7 +106,7 @@ export class CutInBgmComponent {
    * for a user who cannot edit the tabletop.
    */
   handleFileSelect(event: Event) {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     const files = (event.target as HTMLInputElement).files;
     if (files && files.length) this.fileArchiver.load(files);
   }

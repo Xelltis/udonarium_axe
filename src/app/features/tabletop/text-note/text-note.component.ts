@@ -133,7 +133,7 @@ export class TextNoteComponent {
     // A seat made a guest while it wrote leaves the note as the room has it, the draft unwritten.
     effect(() => {
       this.objectChange.trackMyCursor();
-      if (this.rolePermission.canEditTabletop || !untracked(this.isEditing)) return;
+      if (this.rolePermission.canEditTabletop() || !untracked(this.isEditing)) return;
       untracked(() => {
         if (this.textUpdateTimer) clearTimeout(this.textUpdateTimer);
         this.textUpdateTimer = null;
@@ -176,7 +176,7 @@ export class TextNoteComponent {
    * it hides and write back whatever was typed over it.
    */
   enterEdit() {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (!this.canView()) return;
     if (this.textNote().isLock) return;
     if (this.isEditing()) return;
@@ -418,7 +418,7 @@ export class TextNoteComponent {
   onMouseDown(e: MouseEvent) {
     if (this.isSelected) return;
     e.preventDefault();
-    if (this.rolePermission.canEditTabletop) this.textNote().toTopmost();
+    if (this.rolePermission.canEditTabletop()) this.textNote().toTopmost();
 
     if (e.button === 2) return;
     this.addMouseEventListeners();

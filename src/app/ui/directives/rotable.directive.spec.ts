@@ -138,7 +138,7 @@ describe('RotableDirective', () => {
       pointer = { x: 10, y: 0, z: 0 };
       vi.spyOn(TestBed.inject(CoordinateService), 'convertLocalToLocal').mockImplementation(() => ({ ...pointer }));
       vi.spyOn(TestBed.inject(PointerDeviceService), 'isDragging', 'get').mockReturnValue(true);
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(true);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
       const writable = directive as unknown as Record<string, unknown>;
       writable['grabbingElement'] = element;
       writable['input'] = {

@@ -97,7 +97,7 @@ export class OverviewPanelComponent {
 
   /** Whether this seat may edit the table, which moving a resource with its slider needs. */
   protected get canEdit(): boolean {
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   /** Where a resource's slider is being dragged to, by element, shown in its box before anything is written. */

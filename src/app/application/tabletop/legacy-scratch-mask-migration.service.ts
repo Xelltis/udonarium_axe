@@ -78,7 +78,7 @@ export class LegacyScratchMaskMigrationService {
   }
 
   private canConvert(): boolean {
-    return !isNetworkIsolated() && this.rolePermission.canEditTabletop;
+    return !isNetworkIsolated() && this.rolePermission.canEditTabletop();
   }
 
   /** Whether this seat may convert now, scheduling a pass when it may again after it could not. */

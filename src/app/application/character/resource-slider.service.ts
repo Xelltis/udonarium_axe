@@ -40,7 +40,7 @@ export class ResourceSliderService {
 
   /** Whether this seat may give every resource of the piece a slider or take them all away. */
   maySetAll(character: GameCharacter): boolean {
-    return this.rolePermission.canEditTabletop && resourceElementsOf(character).length > 0;
+    return this.rolePermission.canEditTabletop() && resourceElementsOf(character).length > 0;
   }
 
   /**
@@ -48,7 +48,7 @@ export class ResourceSliderService {
    * default, for a seat that may.
    */
   setAll(character: GameCharacter, shown: boolean): void {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     for (const element of resourceElementsOf(character)) {
       element.setAttribute(DataElementAttribute.RESOURCE_SLIDER, shown ? 'true' : 'false');
       this.objectChange.notifyChanged(element.identifier);

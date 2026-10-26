@@ -40,10 +40,7 @@ export class StatusAilmentPanelComponent {
 
   readonly newName = signal('');
 
-  readonly canEdit = computed<boolean>(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
-  });
+  readonly canEdit = computed<boolean>(() => this.rolePermission.canEditTabletop());
 
   /** The CSS colour of a state's swatch, transparent for a state left at the default colour. */
   swatchOf(color: string): string {

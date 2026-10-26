@@ -41,7 +41,7 @@ export class InterruptPromptComponent {
   protected readonly mayRule = computed(() => {
     this.offer();
     this.waiting();
-    return this.rolePermission.isGameMaster;
+    return this.rolePermission.isGameMaster();
   });
 
   /** The ends of the slider for the point along the way, over the stretches the chosen pieces reach. */

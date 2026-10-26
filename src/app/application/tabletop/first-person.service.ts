@@ -1,4 +1,5 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
@@ -74,6 +75,7 @@ type Action = () => Promise<boolean>;
 @Injectable({ providedIn: 'root' })
 export class FirstPersonService {
   private readonly objectStore = inject(ObjectStore);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly preference = inject(FirstPersonPreferenceService);
@@ -106,10 +108,7 @@ export class FirstPersonService {
     { equal: () => false }
   );
 
-  readonly isGameMaster = computed(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.isMyselfGameMaster;
-  });
+  readonly isGameMaster = computed(() => this.rolePermission.isGameMaster());
 
   readonly gmPresent = computed(() => {
     this.objectChange.collectionOf('PeerCursor')();

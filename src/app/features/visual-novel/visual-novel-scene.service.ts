@@ -1,6 +1,7 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -15,6 +16,7 @@ const STAGE_IDENTIFIER = 'VnStage';
 @Injectable({ providedIn: 'root' })
 export class VisualNovelSceneService {
   private readonly objectStore = inject(ObjectStore);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly imageService = inject(ImageService);
   private readonly modalService = inject(ModalService);
@@ -44,10 +46,7 @@ export class VisualNovelSceneService {
     return this.stage?.transitionTrigger ?? 0;
   });
 
-  readonly canDirect = computed(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.isMyselfGameMaster;
-  });
+  readonly canDirect = computed(() => this.rolePermission.isGameMaster());
 
   /**
    * Opens the image picker and sets the chosen picture as the novel stage's background for everyone.

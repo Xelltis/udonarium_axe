@@ -27,7 +27,7 @@ describe('ContextMenuService', () => {
     }
 
     beforeEach(() => {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
     });
 
     afterEach(() => vi.restoreAllMocks());

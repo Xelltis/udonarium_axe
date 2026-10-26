@@ -104,7 +104,7 @@ describe('AssetRemovalEventHandlerService', () => {
     it('puts back for the room what the GM adds again', async () => {
       start();
       const putBack = vi.spyOn(TestBed.inject(AssetRemovalService), 'putBack');
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditShared', 'get').mockReturnValue(true);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditShared').mockReturnValue(true);
       AssetRemoval.remove(pictureId, 'image');
       await settle();
 
@@ -118,7 +118,7 @@ describe('AssetRemovalEventHandlerService', () => {
 
     it('keeps it removed, and says only the GM may, for anyone else', async () => {
       start();
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditShared', 'get').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditShared').mockReturnValue(false);
       const show = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
       AssetRemoval.remove(pictureId, 'image');
       await settle();

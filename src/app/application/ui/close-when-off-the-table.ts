@@ -1,6 +1,5 @@
 import { effect, inject, untracked } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 
 /**
@@ -9,11 +8,9 @@ import { PanelService } from '@axe/application/ui/panel.service';
  * room no longer takes from it. Called from the panel's constructor.
  */
 export function closeWhenOffTheTable(): void {
-  const objectChange = inject(ObjectChangeService);
   const rolePermission = inject(RolePermissionService);
   const panelService = inject(PanelService);
   effect(() => {
-    objectChange.trackMyCursor();
-    if (!rolePermission.canEditTabletop) untracked(() => panelService.close());
+    if (!rolePermission.canEditTabletop()) untracked(() => panelService.close());
   });
 }

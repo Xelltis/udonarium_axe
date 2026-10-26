@@ -178,7 +178,7 @@ describe('ChatMessageComponent', () => {
     });
 
     it('shows a reader kept from the roll what stands in for it when replied to', () => {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
       answering('replyTo', secretRoll());
 
       expect(component.replyPreview()?.text).toBe(TestBed.inject(TRANSLATE_FN)('feature.chat.message.secretDice'));
@@ -186,7 +186,7 @@ describe('ChatMessageComponent', () => {
     });
 
     it('shows a reader kept from the roll what stands in for it when quoted', () => {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
       answering('quoteOf', secretRoll());
 
       expect(component.quotePreview()?.text).toBe(TestBed.inject(TRANSLATE_FN)('feature.chat.message.secretDice'));
@@ -194,7 +194,7 @@ describe('ChatMessageComponent', () => {
     });
 
     it('shows the roll to a reader who may see what is hidden', () => {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(true);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(true);
       answering('replyTo', secretRoll());
 
       expect(component.replyPreview()?.text).toBe('DiceBot : (1d100) → 3');
@@ -202,7 +202,7 @@ describe('ChatMessageComponent', () => {
   });
 
   it('keeps a secret line sent with a stamp covered, stamp and all, from all but whoever may see it', () => {
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
     const message = new ChatMessage();
     message.initialize();
     message.from = 'someone-else';
@@ -232,7 +232,7 @@ describe('ChatMessageComponent', () => {
     // The reveal changes only the tag. Nothing else drawn while the line is hidden depends on
     // that message, so without a version to watch the cover would stay on until something
     // else draws.
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
 
     const message = new ChatMessage();
     message.initialize();
@@ -713,7 +713,7 @@ describe('ChatMessageComponent', () => {
       message.name = '勇者';
       message.text = '世界を救うのだ';
       fixture.componentRef.setInput('chatMessage', message);
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
       fixture.detectChanges();
 
       const before = ObjectStore.instance.getObjects(TextNote).length;
@@ -1902,7 +1902,7 @@ describe('ChatMessageComponent', () => {
     });
 
     it('keeps every wording of a secret line from a reader kept from its words', async () => {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
       const message = shown('someone', 'S1d100 黒幕を疑う');
       message.tag = 'secret';
       message.edit('S1d100 犯人を疑う', '', 2000);

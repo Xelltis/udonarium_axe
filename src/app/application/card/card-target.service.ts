@@ -54,13 +54,13 @@ export class CardTargetService {
       if (!selected || source.length < 1 || selected.identifier === source) return;
 
       this._pickingIdentifier.set('');
-      if (!untracked(() => this.rolePermission.canEditTabletop)) return;
+      if (!untracked(() => this.rolePermission.canEditTabletop())) return;
       const card = this.objectStore.get<Card>(source);
       if (card instanceof Card) card.targetIdentifier = selected.identifier;
     });
     effect(() => {
       this.objectChange.trackMyCursor();
-      if (!this.rolePermission.canEditTabletop) untracked(() => this.cancelPicking());
+      if (!this.rolePermission.canEditTabletop()) untracked(() => this.cancelPicking());
     });
   }
 

@@ -55,7 +55,7 @@ export class RoomArchiveEventHandlerService {
     await this.roomSnapshot.whenCaptured();
     if (!this.isDirty) return;
     if (!this.roomSnapshot.isKeeping()) return;
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (this.roomSnapshot.isRestoring() || this.isBusy()) {
       this.retryLater();
       return;

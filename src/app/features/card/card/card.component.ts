@@ -411,7 +411,7 @@ export class CardComponent {
    */
   onDoubleClick() {
     this.doubleTap.cancel();
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (!this.doubleTap.isInPlace()) return;
     if (this.ownerIsOnline && !this.isPeeking) return;
     const turnsToFront = !(this.isVisible && !this.isPeeking);
@@ -433,7 +433,7 @@ export class CardComponent {
    */
   onInputStart(e: MouseEvent | TouchEvent) {
     this.startDoubleClickTimer(e);
-    if (this.rolePermission.canEditTabletop) this.card().toTopmost();
+    if (this.rolePermission.canEditTabletop()) this.card().toTopmost();
     this.iconHiding.touch();
   }
 

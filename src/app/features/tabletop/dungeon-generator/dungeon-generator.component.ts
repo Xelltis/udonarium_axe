@@ -164,7 +164,7 @@ export class DungeonGeneratorComponent {
   }
 
   protected get canEdit(): boolean {
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   protected readonly field = computed(() => this.kind() === 'field');

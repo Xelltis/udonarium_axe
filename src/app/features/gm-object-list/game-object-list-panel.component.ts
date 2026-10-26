@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -39,6 +40,7 @@ type DisclosableArg = Parameters<typeof buildDisclosureContextMenu>[0];
 })
 export class GameObjectListPanelComponent {
   private readonly panelService = inject(PanelService);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly contextMenuService = inject(ContextMenuService);
@@ -77,10 +79,7 @@ export class GameObjectListPanelComponent {
     return result;
   });
 
-  protected readonly isGameMaster = computed(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.isMyselfGameMaster;
-  });
+  protected readonly isGameMaster = computed(() => this.rolePermission.isGameMaster());
 
   protected readonly rows = computed<ObjectRow[]>(() => {
     this.objectChange.trackMyCursor();

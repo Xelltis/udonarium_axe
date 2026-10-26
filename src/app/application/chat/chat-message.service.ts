@@ -413,7 +413,7 @@ export class ChatMessageService {
     const look = this.myDice.look();
     const diceLook = encodeDiceLook(look);
     if (diceLook) chatMessage.diceLook = diceLook;
-    if (look.picture && this.rolePermission.canEditTabletop) {
+    if (look.picture && this.rolePermission.canEditTabletop()) {
       chatMessage.diceImageIdentifier = look.picture;
       void this.myDice.ensureShared();
     }
@@ -688,7 +688,7 @@ export class ChatMessageService {
    */
   canDiscloseMessage(message: ChatMessage): boolean {
     if (!message.isSecret || this.keptFromWriting(message)) return false;
-    return message.isSendFromSelf || this.rolePermission.canSeeHidden;
+    return message.isSendFromSelf || this.rolePermission.canSeeHidden();
   }
 
   /** Whether this reader may edit a line: one they said, where they may still write to it. */

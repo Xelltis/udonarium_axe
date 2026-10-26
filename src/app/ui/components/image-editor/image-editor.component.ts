@@ -532,7 +532,7 @@ export class ImageEditorComponent {
    */
   async add(asCopy = false): Promise<void> {
     const request = this.request();
-    if (!this.rolePermission.canEditTabletop || !request) return;
+    if (!this.rolePermission.canEditTabletop() || !request) return;
     if (this.state() !== 'ready') return;
     const edit = this.editKey();
     this.state.set('saving');

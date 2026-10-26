@@ -217,7 +217,7 @@ export class ContextMenuService {
     forGuests = false
   ) {
     this.close();
-    if (!forGuests && !this.rolePermission.canEditTabletop) return;
+    if (!forGuests && !this.rolePermission.canEditTabletop()) return;
 
     const parent = parentViewContainerRef ?? this.overlays.front();
     // Null asks for the plain menu, as the layer it opens in names it.

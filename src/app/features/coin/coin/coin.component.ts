@@ -216,7 +216,7 @@ export class CoinComponent {
    */
   onInputStart(e: MouseEvent | TouchEvent) {
     this.startDoubleClickTimer(e);
-    if (this.rolePermission.canEditTabletop) this.coin().toTopmost();
+    if (this.rolePermission.canEditTabletop()) this.coin().toTopmost();
   }
 
   /** Counts a press towards a double tap, which flips the coin when the second one lands. */
@@ -227,7 +227,7 @@ export class CoinComponent {
   /** Flips the coin on a double tap, if this player may edit the table and the pointer has not moved. */
   onDoubleClick() {
     this.doubleTap.cancel();
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (this.doubleTap.isInPlace()) this.flip();
   }
 

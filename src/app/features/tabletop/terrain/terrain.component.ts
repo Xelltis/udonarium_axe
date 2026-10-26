@@ -315,7 +315,7 @@ export class TerrainComponent {
 
   readonly showsBlankOutline = computed(() => {
     this.objectChange.trackMyCursor();
-    return this.isBlank() && this.rolePermission.canSeeHidden;
+    return this.isBlank() && this.rolePermission.canSeeHidden();
   });
 
   /**
@@ -534,10 +534,7 @@ export class TerrainComponent {
   }
 
   /** Whether this seat may open and shut a door, which a guest may not. */
-  protected readonly mayOpenDoor = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
-  });
+  protected readonly mayOpenDoor = computed(() => this.rolePermission.canEditTabletop());
 
   protected onDoorClick(): void {
     if (!this.isDoor() || !this.mayOpenDoor() || this.pointerDeviceService.isDragging) return;

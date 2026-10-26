@@ -98,15 +98,9 @@ export class InventoryFilterPanelComponent {
     labelKey: this.hiddenFilterLabelKeys[value],
   }));
 
-  readonly canSeeHidden = computed<boolean>(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canSeeHidden;
-  });
+  readonly canSeeHidden = computed<boolean>(() => this.rolePermission.canSeeHidden());
 
-  readonly canEdit = computed<boolean>(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
-  });
+  readonly canEdit = computed<boolean>(() => this.rolePermission.canEditTabletop());
 
   /**
    * The name of the data the inventory is sorted by first, in the summary setting every inventory

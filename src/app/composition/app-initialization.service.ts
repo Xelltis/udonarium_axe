@@ -74,7 +74,7 @@ export class AppInitializationService {
   initialize(): void {
     initializeNetworkMessaging();
     this.fileArchiver.initialize();
-    this.fileArchiver.mayLoadDrops = () => this.rolePermission.canEditTabletop;
+    this.fileArchiver.mayLoadDrops = () => this.rolePermission.canEditTabletop();
     ImageSharingSystem.instance.initialize();
     AudioSharingSystem.instance.initialize();
     ObjectSynchronizer.instance.initialize();

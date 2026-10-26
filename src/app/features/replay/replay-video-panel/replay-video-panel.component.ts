@@ -110,7 +110,7 @@ export class ReplayVideoPanelComponent {
   });
 
   protected get canEdit(): boolean {
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   protected toggle(): void {

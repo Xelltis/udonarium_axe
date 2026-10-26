@@ -115,7 +115,7 @@ describe('InventoryFilterPanelComponent', () => {
   });
 
   it("offers the display items' names and the piece's name to the order boxes, which still take anything typed", () => {
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(true);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
     component.dataTag = 'HP MP';
     component.tableDataTag = 'HP 毒';
     fixture.detectChanges();
@@ -131,7 +131,7 @@ describe('InventoryFilterPanelComponent', () => {
   });
 
   it('adds steps of the order after the second, rewrites them and takes them out again', async () => {
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(true);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
     const inventory = TestBed.inject(GameObjectInventoryService);
     inventory.extraSortKeys = [];
     fixture.detectChanges();
@@ -223,7 +223,7 @@ describe('InventoryFilterPanelComponent', () => {
     }
 
     beforeEach(() => {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(true);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
     });
 
     it('stay put away until asked for', () => {
@@ -313,14 +313,14 @@ describe('InventoryFilterPanelComponent', () => {
   });
 
   it('offers the hidden filter only to somebody who may see hidden pieces', () => {
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('select[name="inventory-hidden-filter"]')).toBeNull();
   });
 
   it('offers the order and the display items only to somebody who may edit the table', () => {
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('input[name="data-tag"]')).toBeNull();

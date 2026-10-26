@@ -145,10 +145,7 @@ export class GameCharacterSheetComponent {
   /** The section the reader is at, which the narrow sheet's row of sections lights up. */
   readonly activeSectionId = signal<string | null>(null);
 
-  readonly isReadOnly = computed(() => {
-    this.objectChange.trackMyCursor();
-    return !this.rolePermission.canEditTabletop;
-  });
+  readonly isReadOnly = computed(() => !this.rolePermission.canEditTabletop());
 
   /**
    * Whether the sheet is closed to a reader who may not change the table, as the panels that write
@@ -390,7 +387,7 @@ export class GameCharacterSheetComponent {
     this.objectChange.versionOf(c.identifier)();
     if (PeerCursor.myCursor) this.objectChange.versionOf(PeerCursor.myCursor.identifier)();
     const isOwnedByAnotherUser = c.hasOwner && !c.isMine;
-    return this.rolePermission.canSeeHidden || (!isOwnedByAnotherUser && c.isVisible);
+    return this.rolePermission.canSeeHidden() || (!isOwnedByAnotherUser && c.isVisible);
   }
 
   /** The text on the card's face, or an empty string for a user who may not read it. */
@@ -894,7 +891,7 @@ export class GameCharacterSheetComponent {
    * of from this user.
    */
   clone() {
-    if (!this.rolePermission.canEditTabletop || !this.tabletopObject) return;
+    if (!this.rolePermission.canEditTabletop() || !this.tabletopObject) return;
     if (isWithheldHere(this.tabletopObject)) {
       this.snackbar.show(this.translateFn('feature.inventory.sheet.copyWithheld'));
       return;

@@ -46,7 +46,7 @@ export class AssetOwnershipService {
    * that may only watch adds nothing to the room, and claims nothing.
    */
   claim(assetIdentifier: string, kind: AssetRemovalKind): void {
-    if (!this.rolePermission.canEditTabletop || !AssetHttpStore.isAssetId(assetIdentifier)) return;
+    if (!this.rolePermission.canEditTabletop() || !AssetHttpStore.isAssetId(assetIdentifier)) return;
     AssetOwner.claim(assetIdentifier, kind, this.myOwnerKey());
   }
 }

@@ -44,7 +44,7 @@ export class MapEditorStampPickerComponent {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf('image-tag')();
     this.tagLock.track();
-    return ImageTag.searchImages([MAP_STAMP_TAG], this.rolePermission.canSeeHidden, this.tagLock.hides);
+    return ImageTag.searchImages([MAP_STAMP_TAG], this.rolePermission.canSeeHidden(), this.tagLock.hides);
   });
 
   protected stampDataUri(def: StampDef, color: string | null): string {

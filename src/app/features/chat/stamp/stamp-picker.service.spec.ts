@@ -89,7 +89,7 @@ describe('StampPickerService', () => {
   });
 
   it('closes and opens the panel for the room\u2019s sets when asked to manage them', () => {
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(true);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
     const opened = vi.spyOn(TestBed.inject(PanelService), 'open').mockReturnValue(null as never);
 
     service.open(anchor, 'line', (id) => picked.push(id));

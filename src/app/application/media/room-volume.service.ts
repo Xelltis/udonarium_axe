@@ -30,14 +30,11 @@ export class RoomVolumeService {
   });
 
   /** Whether this reader may change the room's volumes, which only the game master may. */
-  readonly canChange = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditShared;
-  });
+  readonly canChange = computed(() => this.rolePermission.canEditShared());
 
   /** Sets the room's overall volume for everyone and makes it heard here at once. Anyone but the game master is refused. */
   set(volume: number): void {
-    if (!this.rolePermission.canEditShared) return;
+    if (!this.rolePermission.canEditShared()) return;
     const config = this.objectStore.get<Config>('Config');
     if (config) config.roomVolume = volume;
     this.objectStore.get<Jukebox>('Jukebox')?.setNewVolume();
@@ -48,7 +45,7 @@ export class RoomVolumeService {
    * Anyone but the game master is refused.
    */
   setKind(kind: RoomVolumeKind, volume: number): void {
-    if (!this.rolePermission.canEditShared) return;
+    if (!this.rolePermission.canEditShared()) return;
     const config = this.objectStore.get<Config>('Config');
     if (config) config.setRoomVolumeOf(kind, Math.min(MAX_ROOM_VOLUME, Math.max(0, volume)));
     this.objectStore.get<Jukebox>('Jukebox')?.setNewVolume();

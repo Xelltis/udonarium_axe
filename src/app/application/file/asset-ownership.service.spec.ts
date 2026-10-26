@@ -63,7 +63,7 @@ describe('AssetOwnershipService', () => {
   });
 
   it('claims nothing for a seat that may only watch', () => {
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
 
     service.claim(picture, 'image');
 

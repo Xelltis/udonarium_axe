@@ -232,7 +232,7 @@ export class FirstPersonPropsService {
   }
 
   private dice(table: GameTable, g: number): FirstPersonProp[] {
-    const master = this.rolePermission.canSeeHidden;
+    const master = this.rolePermission.canSeeHidden();
     return this.listed(table, 'dice-symbol', DiceSymbol)
       .filter((dice) => !this.hiddenByFog(dice, dice.size))
       .map((dice) => {

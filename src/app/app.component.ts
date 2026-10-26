@@ -48,7 +48,6 @@ import { Network } from '@axe/core/network/network';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { MENU_SURFACES, MenuCommand } from '@axe/domain/ui/menu-command';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
@@ -214,10 +213,7 @@ export class AppComponent {
 
   readonly modalLayerViewContainerRef = viewChild.required('modalLayer', { read: ViewContainerRef });
 
-  readonly isMyselfGameMaster = computed(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.isMyselfGameMaster;
-  });
+  readonly isMyselfGameMaster = computed(() => this.rolePermission.isGameMaster());
 
   fabOpen = signal(true);
 
@@ -338,10 +334,7 @@ export class AppComponent {
   }
 
   /** Whether this seat may put things on the table, which loading a room or a character does. */
-  protected readonly canEditTabletop = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
-  });
+  protected readonly canEditTabletop = computed(() => this.rolePermission.canEditTabletop());
 
   /** Asks for the files to load from the save and load menu, which closes as the picker opens. */
   protected chooseFilesToLoad(): void {
@@ -570,7 +563,7 @@ export class AppComponent {
    */
   handleFileSelect(event: Event) {
     const input = event.target as HTMLInputElement;
-    if (!this.rolePermission.canEditTabletop) {
+    if (!this.rolePermission.canEditTabletop()) {
       input.value = '';
       return;
     }

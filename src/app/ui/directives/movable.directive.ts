@@ -507,7 +507,7 @@ export class MovableDirective implements MovableInteractionContext {
    * terrain is being built rather than moved. The master is building either way.
    */
   private walksTheTable(): boolean {
-    return this.tabletopObject instanceof GameCharacter && !this.rolePermission.isGameMaster;
+    return this.tabletopObject instanceof GameCharacter && !this.rolePermission.isGameMaster();
   }
 
   /**
@@ -643,7 +643,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   /** Whether the local user's role may not edit the tabletop, which locks the piece in place. */
   isReadOnly(): boolean {
-    return !this.rolePermission.canEditTabletop;
+    return !this.rolePermission.canEditTabletop();
   }
 
   /**

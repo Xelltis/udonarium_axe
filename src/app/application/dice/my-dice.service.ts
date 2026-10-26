@@ -64,7 +64,7 @@ export class MyDiceService {
    * was taken; the trouble said is the only word of it.
    */
   async setPicture(file: Blob): Promise<DicePictureTrouble | null> {
-    if (!this.permission.canEditTabletop) return 'notAllowed';
+    if (!this.permission.canEditTabletop()) return 'notAllowed';
     if (file.size > DICE_PICTURE_MAX_BYTES) return 'tooLarge';
     if (!(await looksLikeImage(file))) return 'notPicture';
     const image = await ImageFile.createAsync(await this.prepare(file));
@@ -74,7 +74,7 @@ export class MyDiceService {
       return 'unstored';
     }
     const before = this.look().picture;
-    this.imageStorage.add(image, { putBack: this.permission.canEditShared });
+    this.imageStorage.add(image, { putBack: this.permission.canEditShared() });
     if (this.imageStorage.isRemoved(image.identifier)) {
       image.destroy();
       if (before !== image.identifier) void this.pictures.remove(image.identifier);
@@ -106,7 +106,7 @@ export class MyDiceService {
    */
   ensureShared(): Promise<void> {
     const picture = this.look().picture;
-    if (!picture || !this.permission.canEditTabletop || this.imageStorage.isRemoved(picture)) {
+    if (!picture || !this.permission.canEditTabletop() || this.imageStorage.isRemoved(picture)) {
       return Promise.resolve();
     }
     const held = this.imageStorage.get(picture);

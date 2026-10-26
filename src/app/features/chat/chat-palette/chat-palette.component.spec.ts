@@ -231,7 +231,7 @@ describe('ChatPaletteComponent', () => {
     });
 
     it('leaves the browser its own menu for a guest, who is offered nothing', () => {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
       const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
 
       const event = press('command');

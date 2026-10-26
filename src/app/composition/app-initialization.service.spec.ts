@@ -124,7 +124,7 @@ describe('AppInitializationService', () => {
     it('takes dropped files in only for a seat that may change the table', () => {
       const archiver = TestBed.inject(FileArchiver);
       let mayEdit = false;
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockImplementation(() => mayEdit);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockImplementation(() => mayEdit);
 
       expect(archiver.mayLoadDrops()).toBe(false);
 

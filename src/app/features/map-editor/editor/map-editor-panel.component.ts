@@ -51,7 +51,6 @@ import {
   WALL_TEXTURE_BASE_COLOR,
   WALL_TEXTURE_IDS,
 } from '@axe/domain/media/texture-catalog';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   encodeSwitchDefinition,
   parseSwitchDefinition,
@@ -556,7 +555,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
     this.tagLock.track();
     // What the tool is built with is shown by its own swatches here, and it is in the library
     // as well, so it is left out of this list rather than offered twice over.
-    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden, this.tagLock.hides).filter(
+    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden(), this.tagLock.hides).filter(
       (file) => !isBuiltinMaterial(file.identifier)
     );
   });
@@ -685,10 +684,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
   private pendingTextFocus = false;
   private pendingTextInitial = '';
 
-  protected readonly isGameMaster = computed(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.isMyselfGameMaster;
-  });
+  protected readonly isGameMaster = computed(() => this.rolePermission.isGameMaster());
 
   protected readonly widthPx = computed(() => {
     this.state.sceneTick();

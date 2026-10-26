@@ -38,7 +38,7 @@ export class ReplayRecordingListComponent {
   }
 
   protected get canEdit(): boolean {
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   protected startedAtLabel(meta: ReplayRecordingMeta): string {

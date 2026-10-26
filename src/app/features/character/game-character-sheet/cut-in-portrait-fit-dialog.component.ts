@@ -223,7 +223,7 @@ export class CutInPortraitFitDialogComponent {
   apply(): void {
     const character = this.character();
     const drafts = this.drafts();
-    if (character && drafts.size > 0 && this.rolePermission.canEditTabletop) {
+    if (character && drafts.size > 0 && this.rolePermission.canEditTabletop()) {
       const next = withPortraitFits(character.cutInPortraitFits, drafts, portraitPicturesOf(character));
       if (next !== character.cutInPortraitFits) character.cutInPortraitFits = next;
     }

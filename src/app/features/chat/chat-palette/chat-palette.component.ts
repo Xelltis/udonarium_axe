@@ -137,10 +137,7 @@ export class ChatPaletteComponent {
   }
 
   /** Whether this seat may rewrite the palette and its dice bot, which every role but a guest may. */
-  readonly mayEdit = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
-  });
+  readonly mayEdit = computed(() => this.rolePermission.canEditTabletop());
 
   private readonly _gameType = linkedSignal(() => this.character()?.chatPalette?.dicebot ?? '');
   private _paletteIndex: PaletteIndex[] = [];
@@ -524,7 +521,7 @@ export class ChatPaletteComponent {
    */
   onPaletteRowMenu(row: PaletteRow, event: MouseEvent): void {
     if (row.kind !== 'command') return;
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     event.preventDefault();
     event.stopPropagation();
 

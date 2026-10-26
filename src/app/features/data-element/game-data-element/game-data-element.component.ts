@@ -156,10 +156,7 @@ export class GameDataElementComponent {
   /** Whether this row is drawn on a full sheet, which gives it ± buttons and an editor of its own. */
   protected readonly inSheet = inject(IN_DATA_ELEMENT_SHEET, { optional: true }) ?? false;
 
-  readonly isReadOnly = computed(() => {
-    this.objectChange.trackMyCursor();
-    return !this.rolePermission.canEditTabletop;
-  });
+  readonly isReadOnly = computed(() => !this.rolePermission.canEditTabletop());
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly contextMenuService = inject(ContextMenuService);
 

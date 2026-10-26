@@ -24,7 +24,6 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { EffectPresetSet } from '@axe/domain/effect/effect-preset-set';
 import { kindGlyphSvg } from '@axe/domain/effect/effect-shapes';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { buildEffectLibraryContextMenu } from '@axe/features/effect/effect-library-panel/effect-library-context-menu';
 import {
   collectTags,
@@ -76,10 +75,7 @@ export class EffectLibraryPanelComponent {
 
   readonly tags = computed<string[]>(() => collectTags(this.library.presets()));
 
-  readonly isGameMaster = computed<boolean>(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.isMyselfGameMaster;
-  });
+  readonly isGameMaster = computed<boolean>(() => this.rolePermission.isGameMaster());
 
   readonly groups = computed<EffectLibraryGroup[]>(() =>
     groupPresets(
@@ -229,7 +225,7 @@ export class EffectLibraryPanelComponent {
    */
   protected fire(preset: EffectPreset): void {
     this.notice.set('');
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (this.targeting.preset()?.identifier === preset.identifier) {
       this.targeting.cancel();
       return;
@@ -256,7 +252,7 @@ export class EffectLibraryPanelComponent {
   }
 
   protected confirmTargets(): void {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     const preset = this.targeting.preset();
     const names = this.pickedNames();
     if (!preset || !this.targeting.confirm()) return;

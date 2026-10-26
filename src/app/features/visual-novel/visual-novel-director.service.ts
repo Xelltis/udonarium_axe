@@ -1,8 +1,8 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { getMyPeerId } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { VnStage } from '@axe/domain/visual-novel/vn-stage';
 import { VisualNovelEventHandlerService } from '@axe/features/visual-novel/visual-novel-event-handler.service';
 import { VisualNovelPlaybackService } from '@axe/features/visual-novel/visual-novel-playback.service';
@@ -12,6 +12,7 @@ const STAGE_IDENTIFIER = 'VnStage';
 @Injectable({ providedIn: 'root' })
 export class VisualNovelDirectorService {
   private readonly objectStore = inject(ObjectStore);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly playback = inject(VisualNovelPlaybackService);
 
@@ -46,10 +47,7 @@ export class VisualNovelDirectorService {
     return this.stage?.playheadTabIdentifier ?? '';
   });
 
-  readonly canDirect = computed(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.isMyselfGameMaster;
-  });
+  readonly canDirect = computed(() => this.rolePermission.isGameMaster());
 
   /** Whether this seat runs the screening: it started it, and is a game master still. */
   readonly isDirector = computed(

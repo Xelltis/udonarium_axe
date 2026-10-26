@@ -166,7 +166,7 @@ export class TurnOrderService {
    * writes the announcement everybody reads. A seat that is only watching moves none of it.
    */
   get canTakeTurns(): boolean {
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   /** Turns buff countdown on or off for the whole room. Does nothing for a reader who may not take turns. */

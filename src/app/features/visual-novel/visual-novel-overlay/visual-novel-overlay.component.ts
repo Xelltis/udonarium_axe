@@ -15,6 +15,7 @@ import { SystemAvatarKind, SystemAvatarService } from '@axe/application/chat/sys
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -141,6 +142,7 @@ type VisualNovelPopover = 'soundBoard' | 'slotGuide' | 'palette' | 'shortcutHelp
 })
 export class VisualNovelOverlayComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
+  private readonly rolePermission = inject(RolePermissionService);
   protected readonly keyboardInset = inject(KeyboardInsetService).inset;
   protected readonly isControlsOpen = signal(false);
 
@@ -757,10 +759,7 @@ export class VisualNovelOverlayComponent {
    * Whether this reader may change the table: play sounds and cut-ins for the room from the board,
    * as on the jukebox, and move or turn the portrait of the piece they speak as. A guest may not.
    */
-  readonly mayEditTable = computed(() => {
-    this.objectChange.trackMyCursor();
-    return canRoleEdit(PeerCursor.myRole);
-  });
+  readonly mayEditTable = computed(() => this.rolePermission.canEditTabletop());
 
   /**
    * Attaches a sound from the sound board to the next line, played when the line is sent, and

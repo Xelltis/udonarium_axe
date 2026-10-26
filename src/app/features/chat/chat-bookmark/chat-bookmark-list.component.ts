@@ -86,7 +86,7 @@ export class ChatBookmarkListComponent {
   /** The marks this reader may see, in the order their lines were said. */
   readonly allItems = computed<readonly ChatBookmarkItem[]>(() => {
     this.language.currentLang();
-    const canSeeHidden = this.rolePermission.canSeeHidden;
+    const canSeeHidden = this.rolePermission.canSeeHidden();
     return this.bookmarks.entries().map(({ message, tab, kind, name }) => {
       const hidden = isChatTextHidden(message, canSeeHidden);
       const words = hidden

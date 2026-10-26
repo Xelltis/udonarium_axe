@@ -607,7 +607,7 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
     }
 
     function asMaster(): void {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'isGameMaster', 'get').mockReturnValue(true);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'isGameMaster').mockReturnValue(true);
     }
 
     it('leaves a character on the ground beside it rather than up on top', () => {

@@ -9,6 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -48,6 +49,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class GmToolbarComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
+  private readonly rolePermission = inject(RolePermissionService);
   protected readonly npcBar = inject(NpcBarService);
   protected readonly drag = inject(NpcDragService);
   private readonly panelService = inject(PanelService);
@@ -85,10 +87,7 @@ export class GmToolbarComponent {
     this.folds.toggle('gm');
   }
 
-  readonly isGameMaster = computed(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.isMyselfGameMaster;
-  });
+  readonly isGameMaster = computed(() => this.rolePermission.isGameMaster());
 
   private readonly widgets = inject(WidgetVisibilityService);
 

@@ -24,7 +24,7 @@ export class CcfoliaRoomImportEventHandlerService {
   }
 
   private async importRoom(event: CcfoliaRoomDroppedEvent): Promise<void> {
-    if (!this.rolePermission.canEditTabletop) {
+    if (!this.rolePermission.canEditTabletop()) {
       this.chatMessageService.sendSystemNotice('room', encodeI18nMessage(`${PREFIX}errors.denied`));
       return;
     }

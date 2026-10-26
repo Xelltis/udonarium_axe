@@ -86,10 +86,7 @@ export class JukeboxComponent {
   readonly canReport = inject(ReportService).canReport;
 
   /** Whether this seat may remove any sound from the room, as the game master may. */
-  readonly canRemove = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditShared;
-  });
+  readonly canRemove = computed(() => this.rolePermission.canEditShared());
 
   /** Whether this seat may remove a sound: the game master any, a player one they added. */
   mayRemove(audio: AudioFile): boolean {
@@ -575,7 +572,7 @@ export class JukeboxComponent {
    */
   handleFileSelect(event: Event) {
     const input = event.target as HTMLInputElement;
-    if (!this.rolePermission.canEditTabletop) {
+    if (!this.rolePermission.canEditTabletop()) {
       input.value = '';
       return;
     }

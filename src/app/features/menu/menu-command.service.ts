@@ -586,10 +586,7 @@ export class MenuCommandService {
   }
 
   /** Whether this seat may put things on the table, which loading a room or a character does. */
-  private readonly canEditTabletop = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
-  });
+  private readonly canEditTabletop = computed(() => this.rolePermission.canEditTabletop());
 
   private readonly darknessEnabled = computed(() => {
     const table = this.tabletop.currentTable;

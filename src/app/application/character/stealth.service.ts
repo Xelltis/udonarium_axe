@@ -15,8 +15,8 @@ export class StealthService {
 
   /** Whether this seat may put the piece into stealth or take it out of it. */
   mayToggle(character: GameCharacter): boolean {
-    if (this.rolePermission.isGameMaster) return true;
-    if (!this.rolePermission.canEditTabletop) return false;
+    if (this.rolePermission.isGameMaster()) return true;
+    if (!this.rolePermission.canEditTabletop()) return false;
     return character.owner !== '' && character.owner === PeerCursor.myUserId;
   }
 

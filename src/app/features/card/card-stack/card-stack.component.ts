@@ -357,7 +357,7 @@ export class CardStackComponent {
    */
   onDoubleClick() {
     this.doubleTap.cancel();
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (!this.doubleTap.isInPlace()) return;
     if (this.drawCard() != null) {
       SoundEffect.play(PresetSound.cardDraw);
@@ -376,7 +376,7 @@ export class CardStackComponent {
    */
   onInputStart(e: MouseEvent | TouchEvent) {
     this.startDoubleClickTimer(e);
-    if (this.rolePermission.canEditTabletop) this.cardStack().toTopmost();
+    if (this.rolePermission.canEditTabletop()) this.cardStack().toTopmost();
     this.iconHiding.touch();
 
     this.selectionSignalService.selectObject(this.cardStack().identifier, 'GameCharacter');

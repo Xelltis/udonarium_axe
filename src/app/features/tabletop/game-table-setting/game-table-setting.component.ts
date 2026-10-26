@@ -84,10 +84,7 @@ export class GameTableSettingComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly t = inject(TRANSLATE_FN);
 
-  readonly isReadOnly = computed(() => {
-    this.objectChange.trackMyCursor();
-    return !this.rolePermission.canEditTabletop;
-  });
+  readonly isReadOnly = computed(() => !this.rolePermission.canEditTabletop());
   private readonly saveDataService = inject(SaveDataService);
   private readonly imageService = inject(ImageService);
   private readonly panelService = inject(PanelService);
@@ -738,7 +735,7 @@ export class GameTableSettingComponent {
    * nothing for a reader who may not edit the table.
    */
   createGameTable() {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     const gameTable = new GameTable();
     gameTable.name = this.t('feature.tabletop.tableSetting.defaultName');
     gameTable.imageIdentifier = ImageFile.Empty.identifier;
@@ -772,7 +769,7 @@ export class GameTableSettingComponent {
    * for a reader who may not edit the table.
    */
   delete() {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (!this.isEmpty && this.selectedTable) {
       this.selectedTableXml = this.selectedTable.toXml();
       this.selectedTable.destroy();
@@ -784,7 +781,7 @@ export class GameTableSettingComponent {
    * not edit the table or when nothing is kept.
    */
   restore() {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (this.selectedTable && this.selectedTableXml) {
       const restoreTable = this.objectSerializer.parseXml(this.selectedTableXml)!;
       this.selectGameTable(restoreTable.identifier);

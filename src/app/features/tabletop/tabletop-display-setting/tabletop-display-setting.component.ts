@@ -96,10 +96,7 @@ export class TabletopDisplaySettingComponent {
    * These few settings reach every screen, and the chips beside them say so. A player may set
    * the rules of play, but not what everyone sees.
    */
-  protected readonly isEditable = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditShared;
-  });
+  protected readonly isEditable = computed(() => this.rolePermission.canEditShared());
 
   /** What this seat asked for: the table's own recommendation, or a view of its own. */
   readonly seatViewMode = this.tabletop.seatViewMode;

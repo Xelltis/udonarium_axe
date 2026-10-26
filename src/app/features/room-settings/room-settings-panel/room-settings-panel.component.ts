@@ -201,16 +201,10 @@ export class RoomSettingsPanelComponent {
   readonly defaultNoticePlace = DEFAULT_NOTICE_PLACE;
   readonly noticeOff = NOTICE_OFF;
 
-  readonly isReadOnly = computed(() => {
-    this.objectChange.trackMyCursor();
-    return !this.rolePermission.canEditTabletop;
-  });
+  readonly isReadOnly = computed(() => !this.rolePermission.canEditTabletop());
 
   /** The settings one screen changes for every screen, which only the master may. */
-  readonly isSharedReadOnly = computed(() => {
-    this.objectChange.trackMyCursor();
-    return !this.rolePermission.canEditShared;
-  });
+  readonly isSharedReadOnly = computed(() => !this.rolePermission.canEditShared());
 
   constructor() {
     queueMicrotask(() => (this.panelService.title = this.t('feature.roomSettings.title')));

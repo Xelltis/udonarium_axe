@@ -31,7 +31,7 @@ describe('CcfoliaRoomImportEventHandlerService', () => {
     TestBed.overrideProvider(CcfoliaRoomImportService, { useValue: { importAsync } });
     TestBed.overrideProvider(RolePermissionService, {
       useValue: {
-        get canEditTabletop() {
+        canEditTabletop() {
           return canEditTabletop;
         },
       },

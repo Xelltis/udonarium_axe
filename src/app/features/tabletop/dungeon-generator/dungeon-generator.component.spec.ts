@@ -197,7 +197,7 @@ describe('DungeonGeneratorComponent', () => {
   });
 
   it('builds nothing for someone who may not edit the tabletop', async () => {
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
 
     await component.generate();
 

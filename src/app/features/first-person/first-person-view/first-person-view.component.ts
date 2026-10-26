@@ -695,7 +695,7 @@ export class FirstPersonViewComponent {
     this.uiSignal.targetChange();
     this.objectChange.trackMyCursor();
     this.objectChange.collectionOf('data')();
-    const master = this.rolePermission.canSeeHidden;
+    const master = this.rolePermission.canSeeHidden();
     const picks = this.effectTargeting.picks();
     const eye = eyeFrameOf(camera);
     const pitch = camera.pitch ?? 0;
@@ -1011,7 +1011,7 @@ export class FirstPersonViewComponent {
     if (!piece) return '';
     this.objectChange.versionOf(piece.identifier)();
     this.objectChange.trackMyCursor();
-    return piece.hideName && !this.rolePermission.canSeeHidden ? '' : piece.name;
+    return piece.hideName && !this.rolePermission.canSeeHidden() ? '' : piece.name;
   });
 
   protected readonly facing = computed(() => facingNameOf(this.firstPerson.pose()?.yaw ?? 0));

@@ -33,7 +33,7 @@ describe('RoomArchiveEventHandlerService', () => {
         {
           provide: RolePermissionService,
           useValue: {
-            get canEditTabletop() {
+            canEditTabletop() {
               return canEditTabletop;
             },
           },

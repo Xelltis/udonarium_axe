@@ -125,7 +125,7 @@ export class ChatMessageComponent {
   private readonly viewport = inject(ViewportService);
 
   protected get canRevealSecret(): boolean {
-    return this.rolePermission.canSeeHidden;
+    return this.rolePermission.canSeeHidden();
   }
 
   protected readonly chatMessageInput = input<ChatMessage>(null!, { alias: 'chatMessage' });
@@ -858,7 +858,7 @@ export class ChatMessageComponent {
     if (this.readOnly()) return false;
     // The band runs round everybody's table, which a guest is there to watch, not to change.
     this.objectChange.trackMyCursor();
-    if (!this.rolePermission.canEditTabletop) return false;
+    if (!this.rolePermission.canEditTabletop()) return false;
 
     // Only where the band is actually drawn, which is a table looked straight down on.
     if (!this.tabletopService.mode2d()) return false;
@@ -988,7 +988,7 @@ export class ChatMessageComponent {
    * A guest is at the table to watch, not to put notes on it.
    */
   get canShareAsMemo(): boolean {
-    return this.canInteract && this.rolePermission.canEditTabletop;
+    return this.canInteract && this.rolePermission.canEditTabletop();
   }
 
   /**

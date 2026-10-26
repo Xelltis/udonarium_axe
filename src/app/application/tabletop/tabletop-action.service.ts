@@ -452,7 +452,7 @@ export class TabletopActionService {
    * should say so rather than going quiet.
    */
   getGatherPartyMenu(position: PointerCoordinate): ContextMenuAction[] {
-    if (!this.rolePermission.isGameMaster) return [];
+    if (!this.rolePermission.isGameMaster()) return [];
     const parties = this.partyService.parties();
     if (parties.length === 0) return [];
     return [
@@ -630,7 +630,7 @@ export class TabletopActionService {
         (ImageTag.get(image.identifier)?.tag ?? '') === tag &&
         canBrowseImage(
           ImageTag.get(image.identifier) ?? null,
-          this.rolePermission.canSeeHidden,
+          this.rolePermission.canSeeHidden(),
           true,
           this.tagLock.hides
         )

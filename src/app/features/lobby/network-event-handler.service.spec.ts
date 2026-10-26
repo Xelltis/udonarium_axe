@@ -50,6 +50,8 @@ class StubObjectChange {
   onObjectChangedForAlias(): () => void {
     return () => {};
   }
+  /** Asked by whatever reads this seat's role; the stub has nothing to follow. */
+  trackMyCursor(): void {}
 }
 
 describe('NetworkEventHandlerService', () => {

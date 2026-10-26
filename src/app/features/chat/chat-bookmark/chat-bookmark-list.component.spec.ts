@@ -72,7 +72,7 @@ describe('ChatBookmarkListComponent', () => {
   });
 
   it('keeps the words of a secret roll from a reader who may not see them', () => {
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
     marked('1D100 → 3', 1000, { tag: 'system secret', from: 'System-BCDice', originFrom: 'someone' } as never);
     fixture.detectChanges();
 

@@ -292,7 +292,7 @@ export class ReplayEntryListComponent {
   }
 
   protected get canEdit(): boolean {
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   protected actorLabel(userId: string): string {

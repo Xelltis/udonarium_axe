@@ -102,7 +102,7 @@ describe('CardStackComponent', () => {
   it('brings the stack to the top on a press, for a seat that may change the table alone', () => {
     const cardStack = CardStack.create('山札');
     fixture.componentRef.setInput('cardStack', cardStack);
-    const canEdit = vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+    const canEdit = vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
     const topmost = vi.spyOn(cardStack, 'toTopmost');
 
     component.onInputStart(new MouseEvent('mousedown'));

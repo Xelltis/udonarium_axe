@@ -1,9 +1,7 @@
 import { computed, inject, Injectable } from '@angular/core';
-import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { TableTriggerService } from '@axe/application/tabletop/table-trigger.service';
 import { ObjectNode } from '@axe/core/sync/object-node';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BoardSwitch, resetSwitch, switchOf, switchWasPressed } from '@axe/domain/tabletop/board-switch/board-switch';
 import { SwitchDefinition } from '@axe/domain/tabletop/board-switch/switch-definition';
 import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
@@ -18,14 +16,11 @@ import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
  */
 @Injectable({ providedIn: 'root' })
 export class BoardSwitchService {
-  private readonly objectChange = inject(ObjectChangeService);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly triggers = inject(TableTriggerService);
 
   /** Whether this seat writes and reads switches, which only the master does. */
-  readonly canEdit = computed(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.myRole === PeerRole.GameMaster;
-  });
+  readonly canEdit = computed(() => this.rolePermission.isGameMaster());
 
   /** The switch on something, making one first where it has none. Only the master makes one. */
   ensure(host: ObjectNode): BoardSwitch | null {
