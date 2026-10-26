@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { DiceTable } from '@axe/domain/dice/dice-table';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -110,6 +111,61 @@ describe('DiceTableSettingComponent', () => {
 
       expect(add?.disabled).toBe(false);
       expect(names).toContain('delete');
+    });
+  });
+
+  describe('throwing a table away', () => {
+    beforeEach(() => {
+      PeerCursor.myCursor = { role: PeerRole.Player, identifier: 'seat-cursor' } as PeerCursor;
+    });
+
+    afterEach(() => {
+      for (const table of component.getDiceTables()) table.destroy();
+      vi.restoreAllMocks();
+    });
+
+    function answer(yes: boolean) {
+      return vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(yes);
+    }
+
+    it('asks first, naming the table, and keeps it on a no', async () => {
+      component.createDiceTable();
+      const made = component.selectedTable!;
+      made.name = '遭遇表';
+      const ask = answer(false);
+
+      await component.delete();
+
+      expect(ask).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining('遭遇表'), okLabel: '削除', danger: true })
+      );
+      expect(component.getDiceTables()).toContain(made);
+    });
+
+    it('throws it away for everyone on a yes', async () => {
+      component.createDiceTable();
+      const made = component.selectedTable!;
+      answer(true);
+
+      await component.delete();
+
+      expect(component.getDiceTables()).not.toContain(made);
+    });
+
+    it('keeps both when another table was picked while the question was open', async () => {
+      component.createDiceTable();
+      const first = component.selectedTable!;
+      component.createDiceTable();
+      const second = component.selectedTable!;
+      component.selectedTable = first;
+      vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockImplementation(async () => {
+        component.selectedTable = second;
+        return true;
+      });
+
+      await component.delete();
+
+      expect(component.getDiceTables()).toEqual(expect.arrayContaining([first, second]));
     });
   });
 

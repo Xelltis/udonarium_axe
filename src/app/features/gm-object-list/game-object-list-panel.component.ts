@@ -7,6 +7,7 @@ import { TableFocusService } from '@axe/application/tabletop/table-focus.service
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuAction, ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
+import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { buildCopyAction, buildLockToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
@@ -45,6 +46,7 @@ export class GameObjectListPanelComponent {
   private readonly tabletopService = inject(TabletopService);
   private readonly tableFocus = inject(TableFocusService);
   private readonly npcDrag = inject(NpcDragService);
+  private readonly pieceGhost = inject(PieceDragGhostService);
   protected readonly t = inject(TRANSLATE_FN);
 
   private dragPending: { row: ObjectRow; startX: number; startY: number; dragging: boolean } | null = null;
@@ -247,10 +249,11 @@ export class GameObjectListPanelComponent {
       if (Math.hypot(event.clientX - pending.startX, event.clientY - pending.startY) < 6) return;
       pending.dragging = true;
       if (pending.row.object instanceof GameCharacter) {
-        this.npcDrag.begin(pending.row.object, event.clientX, event.clientY);
+        this.npcDrag.begin(pending.row.object);
+        this.pieceGhost.show(pending.row.object, event.clientX, event.clientY);
       }
     } else {
-      this.npcDrag.move(event.clientX, event.clientY);
+      this.pieceGhost.move(event.clientX, event.clientY);
     }
   }
 
@@ -261,8 +264,18 @@ export class GameObjectListPanelComponent {
     (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
     if (!pending.dragging) return;
     this.suppressNextClick = true;
+    this.pieceGhost.hide();
     const target = document.elementFromPoint(event.clientX, event.clientY);
     this.npcDrag.end(!!target?.closest('.npc-bar-dropzone'));
+  }
+
+  /** Puts away a carry the browser called off, as a touch taken for a scroll, with nothing let go anywhere. */
+  protected onRowPointerCancel(): void {
+    const pending = this.dragPending;
+    this.dragPending = null;
+    if (!pending?.dragging) return;
+    this.pieceGhost.hide();
+    this.npcDrag.end(false);
   }
 
   protected openRowMenu(event: MouseEvent, row: ObjectRow): void {

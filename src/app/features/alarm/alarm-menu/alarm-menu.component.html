@@ -51,7 +51,7 @@
         'feature.alarm.targetCount' | transloco: { count: selectedNum() }
       }}</span>
       <button
-        class="bg-ui-accent rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border-none px-3.5 py-1 text-[13px] text-white transition-(--ui-transition) hover:not-disabled:opacity-85 disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+        class="bg-ui-accent-solid rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border-none px-3.5 py-1 text-[13px] text-white transition-(--ui-transition) hover:not-disabled:opacity-85 disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
         type="button"
         (click)="send()"
         [disabled]="selectedNum() === 0"
@@ -94,7 +94,9 @@
           }
         </div>
         <div class="min-w-0 flex-1">
-          <div class="text-ui-text truncate text-[13px] font-semibold">{{ findPeerName(peer.peerId) }}</div>
+          <div class="text-ui-text truncate text-[13px] font-semibold" [appTextTooltip]="findPeerName(peer.peerId)">
+            {{ findPeerName(peer.peerId) }}
+          </div>
           <div class="text-ui-muted mt-0.5 truncate text-[11px]">
             {{ controlName || ('feature.alarm.noControlCharacter' | transloco) }}
           </div>

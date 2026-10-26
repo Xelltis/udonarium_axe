@@ -1,8 +1,8 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
-import { Network } from '@axe/core/index';
 import { Card, CardState } from '@axe/domain/card/card';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 
 /**
@@ -105,7 +105,7 @@ export function buildCardContextMenu(
           action: () => {
             SoundEffect.play(PresetSound.cardDraw);
             card.state = CardState.BACK;
-            card.owner = Network.peerContext.userId;
+            card.owner = PeerCursor.myUserId;
           },
         }
   );
@@ -113,7 +113,7 @@ export function buildCardContextMenu(
   menuArray.push({
     name: t('feature.card.contextMenu.toHand'),
     action: () => {
-      card.toHand(Network.peerContext.userId);
+      card.toHand(PeerCursor.myUserId);
       SoundEffect.play(PresetSound.cardDraw);
     },
   });

@@ -24,7 +24,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { ResettableTimeout } from '@axe/core/util/resettable-timeout';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { PeerRole, roleBadgeClass, roleShortLabelKey } from '@axe/domain/peer/peer-role';
+import { PeerRole, roleShortLabelKey, roleTagClass } from '@axe/domain/peer/peer-role';
 import { toTransformCss } from '@axe/ui/directives/movable-helpers';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 
@@ -65,7 +65,7 @@ export class PeerCursorComponent {
   });
   readonly roleBadgeClass = computed(() => {
     this.objectChange.versionOf(this.cursor().identifier)();
-    return roleBadgeClass(this.cursor().role);
+    return roleTagClass(this.cursor().role);
   });
 
   readonly name = computed(() => {

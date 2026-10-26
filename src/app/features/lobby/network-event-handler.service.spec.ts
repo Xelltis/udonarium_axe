@@ -231,6 +231,15 @@ describe('NetworkEventHandlerService', () => {
     expect(PeerCursor.myCursor.role).toBe(PeerRole.Player);
   });
 
+  it('gives the seat a user id of its own in local mode, where no connection hands it one', () => {
+    vi.spyOn(Network, 'configure').mockImplementation(() => {});
+    PeerCursor.createMyCursor();
+
+    stubChange.loadConfig$.emit({ config: { backend: { url: '' }, localMode: true } });
+
+    expect(PeerCursor.myCursor.userId).not.toBe('');
+  });
+
   it('opens the standby connection outside local mode', () => {
     const openStandbySpy = vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
 

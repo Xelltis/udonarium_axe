@@ -1,0 +1,32 @@
+@if (ghost.character(); as piece) {
+  <div
+    class="pointer-events-none fixed z-10000 flex items-center gap-1.5"
+    data-testid="piece-drag-ghost"
+    [style.left.px]="ghost.x() + 12"
+    [style.top.px]="ghost.y() + 12"
+  >
+    <div class="relative shrink-0">
+      <div
+        class="border-ui-accent bg-ui-panel shadow-ui-md flex size-11 items-center justify-center overflow-hidden rounded-md border-2 border-solid p-0.5 opacity-90"
+      >
+        @if (imageUrl()) {
+          <img class="size-full rounded-sm object-contain" [src]="imageUrl() | safe: 'resourceUrl'" alt="" />
+        } @else {
+          <i class="material-icons text-ui-muted text-[22px]!">person</i>
+        }
+      </div>
+      @if (ghost.count() > 1) {
+        <span
+          class="bg-ui-accent-solid shadow-ui-sm absolute -top-1.5 -right-1.5 inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[10px] leading-none font-bold text-white"
+          data-testid="piece-drag-ghost-count"
+          >{{ ghost.count() }}</span
+        >
+      }
+    </div>
+    <span
+      class="bg-ui-panel border-ui-border-panel text-ui-text shadow-ui-sm rounded-ui-sm max-w-40 truncate border border-solid px-1.5 py-0.5 text-[11px] font-semibold"
+      data-testid="piece-drag-ghost-name"
+      >{{ piece.name }}</span
+    >
+  </div>
+}

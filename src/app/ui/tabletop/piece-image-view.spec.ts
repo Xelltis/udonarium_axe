@@ -12,6 +12,7 @@ describe('pieceImageView', () => {
   const poster = signal(false);
   const sizePx = signal(100);
   const specified = signal<number | null>(null);
+  const specifiedWidth = signal<number | null>(null);
   const billboard = signal(true);
   const billboardFacing = signal<BillboardFacing>(() => 'rotateX(50deg)');
   /** The camera has not been turned, which is the turn the register hands a facing before any frame. */
@@ -25,6 +26,7 @@ describe('pieceImageView', () => {
       isPoster: poster,
       sizePx,
       specifiedHeightPx: specified,
+      specifiedWidthPx: specifiedWidth,
       billboardEnabled: billboard,
       billboardFacing,
       squarePoster,
@@ -37,6 +39,7 @@ describe('pieceImageView', () => {
     poster.set(false);
     sizePx.set(100);
     specified.set(null);
+    specifiedWidth.set(null);
     billboard.set(true);
     fitInCell.set(false);
   });
@@ -69,6 +72,16 @@ describe('pieceImageView', () => {
     specified.set(80);
     expect(image.supersample()).toBe(supersampleFactor(200, 80));
     expect(image.boxHeightPx()).toBe(80);
+  });
+
+  it('oversamples a picture given a width apart from its height no more than either side allows', () => {
+    const image = view();
+    image.onImageLoad(loaded(400, 400));
+    specified.set(100);
+    specifiedWidth.set(200);
+
+    expect(image.supersample()).toBe(supersampleFactor(400, 200));
+    expect(image.boxHeightPx()).toBe(100);
   });
 
   it('forgets the picture size when the picture changes, and ignores an empty read', () => {

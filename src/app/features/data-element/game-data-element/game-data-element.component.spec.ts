@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -1357,7 +1358,39 @@ describe('GameDataElementComponent', () => {
       expect(field.getAttribute(DataElementAttribute.RESOURCE_SLIDER)).toBe('true');
 
       option.click();
-      expect(field.getAttribute(DataElementAttribute.RESOURCE_SLIDER)).toBe('');
+      expect(field.getAttribute(DataElementAttribute.RESOURCE_SLIDER)).toBe('false');
+    });
+
+    describe('where the room gives every resource one', () => {
+      beforeEach(() => TestBed.inject(ResourceSliderService).setRoomDefault(true));
+      afterEach(() => TestBed.inject(ResourceSliderService).setRoomDefault(false));
+
+      it('is drawn for a resource that says nothing of its own', () => {
+        show(resourceField());
+
+        expect(slider()).not.toBeNull();
+      });
+
+      it('is not drawn for a resource set to have none', () => {
+        show(resourceField({ [DataElementAttribute.RESOURCE_SLIDER]: 'false' }));
+
+        expect(slider()).toBeNull();
+      });
+
+      it('is taken off a resource from the field options, and stays off', () => {
+        const field = resourceField();
+        show(field, { isEdit: true });
+        component.toggleFieldOptions();
+        fixture.detectChanges();
+        const option = fixture.nativeElement.querySelector('input[name="data-resource-slider"]') as HTMLInputElement;
+        expect(option.checked).toBe(true);
+
+        option.click();
+        fixture.detectChanges();
+
+        expect(field.getAttribute(DataElementAttribute.RESOURCE_SLIDER)).toBe('false');
+        expect(slider()).toBeNull();
+      });
     });
   });
 });

@@ -43,7 +43,7 @@
               {{ ailment.icon }}
             }
           </span>
-          <span class="min-w-0 flex-1 truncate font-semibold">{{ ailment.name }}</span>
+          <span class="min-w-0 flex-1 truncate font-semibold" [appTextTooltip]="ailment.name">{{ ailment.name }}</span>
           @if (canEdit()) {
             <button
               class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 disabled:cursor-default disabled:opacity-30 [&_.material-icons]:text-[14px]!"

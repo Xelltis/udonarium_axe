@@ -27,6 +27,16 @@ describe('ModalComponent', () => {
     });
   });
 
+  describe('the close button', () => {
+    it('is named, as it shows only a cross', () => {
+      fixture.detectChanges();
+
+      const close = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+      expect(close.title).toBe('閉じる');
+      expect(close.getAttribute('aria-label')).toBe('閉じる');
+    });
+  });
+
   describe('the fitWidth option', () => {
     it('uses a fixed width by default', () => {
       fixture.detectChanges();

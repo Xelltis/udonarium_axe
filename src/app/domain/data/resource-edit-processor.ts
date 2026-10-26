@@ -12,8 +12,10 @@ import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import {
   findEmbeddedRolls,
+  isDicelessArithmetic,
   isPlainArithmetic,
   replaceEmbeddedRolls,
+  trailingArithmeticSplits,
   unwrapEmbeddedRolls,
   unwrapParentheses,
 } from '@axe/domain/data/embedded-roll';
@@ -264,11 +266,13 @@ export class ResourceEditProcessor {
   /**
    * Works out an edit's amount.
    *
-   * Plain arithmetic is rolled as it stands, its bracketed commands first. An amount with more than
-   * that in it - a letter a system command takes after its total, outside the brackets - is rolled
-   * whole as one command, which the system can read where the arithmetic around it cannot. A roll
-   * that ends in an outright failure with no total leaves the whole amount at nought: whatever was
-   * to be added to it does not come into it.
+   * Plain arithmetic, a division's rounding included, is rolled as it stands, its bracketed commands
+   * first; a bracketed command with no dice in it is worked out as a calculation, which the system
+   * will not take as a roll. An amount with more than that in it - a letter a system command takes
+   * after its total, outside the brackets - is rolled whole as one command, which the system can
+   * read where the arithmetic around it cannot, and where even that cannot be read, without the
+   * plain arithmetic that ends it, which is added on. A roll that ends in an outright failure with
+   * no total leaves the whole amount at nought: whatever was to be added to it does not come into it.
    */
   private async rollResourceEdit(edit: ResourceEdit, gameSystem: GameSystemClass): Promise<AmountOutcome> {
     if (!isPlainArithmetic(edit.amount)) return this.rollWholeAmount(edit, gameSystem);
@@ -288,16 +292,40 @@ export class ResourceEditProcessor {
 
   private async rollWholeAmount(edit: ResourceEdit, gameSystem: GameSystemClass): Promise<AmountOutcome> {
     const command = unwrapParentheses(unwrapEmbeddedRolls(edit.amount));
-    const rolled = await this.rollOnce(command, gameSystem);
+    const whole = await this.rollOnce(command, gameSystem);
+    const split = whole == null ? await this.rollWithTrailingArithmetic(command, gameSystem) : null;
+    const rolled = whole ?? split?.rolled;
     if (rolled == null) return 'unreadable';
-    if (rolled.answer == null) return rolled.fumble ? this.leaveAtNought(edit, command, rolled) : 'unreadable';
+    const rolledCommand = split?.head ?? command;
+    if (rolled.answer == null) return rolled.fumble ? this.leaveAtNought(edit, rolledCommand, rolled) : 'unreadable';
 
-    edit.embeddedRolls.push(`[${command}] ${rolled.result.replace(/^\S+ : /, '')}`);
+    const total = rolled.answer + (split?.added ?? 0);
+    const shown = rolled.result.replace(/^\S+ : /, '');
+    edit.embeddedRolls.push(`[${rolledCommand}] ${shown}${split ? ` ${split.tail} ＞ ${total}` : ''}`);
     edit.isDiceRoll = true;
     const sign = edit.operator === '-' ? -1 : 1;
-    edit.calcAns = sign * rolled.answer;
-    edit.diceResult = `${sign < 0 ? '-' : ''}${rolled.answer < 0 ? `(${rolled.answer})` : rolled.answer}`;
+    edit.calcAns = sign * total;
+    edit.diceResult = `${sign < 0 ? '-' : ''}${total < 0 ? `(${total})` : total}`;
     return 'worked';
+  }
+
+  /**
+   * Rolls a command the system cannot read whole by rolling it without the plain arithmetic that
+   * ends it, the shortest such ending first, and works that arithmetic out apart; null where nothing
+   * of the kind ends it or what is left still cannot be read.
+   */
+  private async rollWithTrailingArithmetic(
+    command: string,
+    gameSystem: GameSystemClass
+  ): Promise<{ head: string; tail: string; rolled: RolledOnce; added: number } | null> {
+    for (const split of trailingArithmeticSplits(command)) {
+      const rolled = await this.rollOnce(split.head, gameSystem);
+      if (rolled == null) continue;
+      const tail = await this.rollOnce(`C(0${split.tail})`, gameSystem);
+      if (tail?.answer == null) return null;
+      return { head: split.head, tail: split.tail, rolled, added: tail.answer };
+    }
+    return null;
   }
 
   private leaveAtNought(edit: ResourceEdit, command: string, rolled: RolledOnce): AmountOutcome {
@@ -314,7 +342,10 @@ export class ResourceEditProcessor {
 
     const answers: number[] = [];
     for (const site of sites) {
-      const rolled = await this.rollOnce(site.command, gameSystem);
+      const rolled = await this.rollOnce(
+        isDicelessArithmetic(site.command) ? `C(${site.command})` : site.command,
+        gameSystem
+      );
       if (rolled == null) return 'unreadable';
       if (rolled.answer == null) return rolled.fumble ? this.leaveAtNought(edit, site.command, rolled) : 'unreadable';
       answers.push(rolled.answer);

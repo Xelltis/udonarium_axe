@@ -29,7 +29,9 @@
       }
     </svg>
   }
-  <span class="text-ui-muted truncate text-[0.85em]">{{ rangeShapeSummary() }}</span>
+  <span class="text-ui-muted truncate text-[0.85em]" [appTextTooltip]="rangeShapeSummary()">{{
+    rangeShapeSummary()
+  }}</span>
   <div class="ml-auto flex shrink-0 gap-1">
     <button
       type="button"

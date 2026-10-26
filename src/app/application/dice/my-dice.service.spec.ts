@@ -149,7 +149,7 @@ describe('MyDiceService', () => {
       vi.spyOn(ImageStorage.instance, 'add').mockImplementation((made) => made as ImageFile);
       vi.spyOn(ImageStorage.instance, 'isRemoved').mockImplementation((identifier) => identifier === PICTURE);
       vi.spyOn(DiceImageStore.instance, 'put').mockResolvedValue(true);
-      const removed = vi.spyOn(DiceImageStore.instance, 'remove').mockResolvedValue();
+      const removed = vi.spyOn(DiceImageStore.instance, 'remove').mockResolvedValue(true);
       const service = TestBed.inject(MyDiceService);
 
       expect(await service.setPicture(bytes)).toBe('removed');
@@ -165,7 +165,7 @@ describe('MyDiceService', () => {
       made.mockResolvedValueOnce(imageOf('cd'.repeat(32), new Blob([PNG_HEAD])));
       vi.spyOn(ImageStorage.instance, 'add').mockImplementation((image) => image as ImageFile);
       vi.spyOn(DiceImageStore.instance, 'put').mockResolvedValue(true);
-      const removed = vi.spyOn(DiceImageStore.instance, 'remove').mockResolvedValue();
+      const removed = vi.spyOn(DiceImageStore.instance, 'remove').mockResolvedValue(true);
       const service = TestBed.inject(MyDiceService);
 
       await service.setPicture(new Blob([PNG_HEAD], { type: 'image/png' }));
@@ -212,7 +212,7 @@ describe('MyDiceService', () => {
     it('makes the dice resin while they wear a picture, and gives the material back with it', async () => {
       shared(new Blob([PNG_HEAD], { type: 'image/png' }));
       vi.spyOn(DiceImageStore.instance, 'put').mockResolvedValue(true);
-      const removed = vi.spyOn(DiceImageStore.instance, 'remove').mockResolvedValue();
+      const removed = vi.spyOn(DiceImageStore.instance, 'remove').mockResolvedValue(true);
       const service = TestBed.inject(MyDiceService);
       service.set({ ...PLAIN_DICE_LOOK, material: 'metal' });
 

@@ -5,6 +5,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -16,13 +17,14 @@ import {
 } from '@axe/domain/tabletop/cut-in-multi-direction';
 import { CutInSceneEditorComponent } from '@axe/features/media/cut-in-editor/cut-in-scene-editor.component';
 import { CutInEditorComponent } from '@axe/features/media/cut-in-list/cut-in-editor.component';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-cut-in-list',
   templateUrl: './cut-in-list.component.html',
-  imports: [FormsModule, CutInEditorComponent, CutInSceneEditorComponent, TranslocoModule],
+  imports: [TextTooltipDirective, FormsModule, CutInEditorComponent, CutInSceneEditorComponent, TranslocoModule],
 })
 export class CutInListComponent {
   private readonly modalService = inject(ModalService);
@@ -32,6 +34,7 @@ export class CutInListComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly confirm = inject(ConfirmService);
 
   selectedCutIn: CutIn | null = null;
 
@@ -97,8 +100,12 @@ export class CutInListComponent {
     return this.getCutIns().length <= 0;
   }
 
-  /** Every cut-in in the room, for the list. */
+  /**
+   * Every cut-in in the room, for the list. The room's cut-ins coming and going are followed, so the
+   * list is drawn again when one goes after a question asked elsewhere has been answered.
+   */
   getCutIns(): CutIn[] {
+    this.objectChange.collectionOf(CutIn.aliasName)();
     return this.objectStore.getObjects(CutIn);
   }
 
@@ -145,14 +152,23 @@ export class CutInListComponent {
   }
 
   /**
-   * Destroys the picked cut-in for everyone and clears the pick; does nothing for a reader who may
-   * not edit cut-ins.
+   * Destroys the picked cut-in for everyone and clears the pick, once the reader has said they mean
+   * it; does nothing for a reader who may not edit cut-ins.
+   *
+   * Nothing is destroyed when another cut-in was picked while the question was open.
    */
-  delete() {
+  async delete(): Promise<void> {
     if (!this.canEditCutIns) return;
-    if (!this.isEmpty && this.selectedCutIn) {
-      this.selectedCutIn.destroy();
-      this.selectedCutIn = null;
-    }
+    const cutIn = this.selectedCutIn;
+    if (this.isEmpty || !cutIn) return;
+    const sure = await this.confirm.ask({
+      message: this.t('feature.media.cutIn.deleteConfirm', { name: cutIn.name }),
+      okLabel: this.t('common.button.delete'),
+      danger: true,
+    });
+    if (!sure) return;
+    if (this.selectedCutIn !== cutIn || !this.canEditCutIns) return;
+    cutIn.destroy();
+    this.selectedCutIn = null;
   }
 }

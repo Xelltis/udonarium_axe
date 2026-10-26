@@ -24,6 +24,7 @@ import { ReplayEntryListComponent } from '@axe/features/replay/replay-workspace/
 import { ReplayRecordingListComponent } from '@axe/features/replay/replay-workspace/replay-recording-list.component';
 import { ReplayStageComponent } from '@axe/features/replay/replay-workspace/replay-stage.component';
 import { formatSnapshotSavedAt } from '@axe/features/room-archive/snapshot-format';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -32,6 +33,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   host: { '(keydown)': 'onKeydown($event)', tabindex: '0' },
   templateUrl: './replay-workspace.component.html',
   imports: [
+    TextTooltipDirective,
     TranslocoModule,
     ReplayRecordingListComponent,
     ReplayStageComponent,

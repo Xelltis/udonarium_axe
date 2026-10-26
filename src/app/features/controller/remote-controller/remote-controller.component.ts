@@ -60,6 +60,7 @@ import {
   getTabTitleKey,
   getTargetCharacters,
 } from '@axe/features/controller/remote-controller/remote-controller-helpers';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 import GameSystemClass from 'bcdice/lib/game_system';
@@ -79,7 +80,15 @@ const SLOT_LABEL_KEYS: Record<ResourceSlot, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'remote-controller',
   templateUrl: './remote-controller.component.html',
-  imports: [FormsModule, ControllerInputComponent, NgClass, NgTemplateOutlet, SafePipe, TranslocoModule],
+  imports: [
+    TextTooltipDirective,
+    FormsModule,
+    ControllerInputComponent,
+    NgClass,
+    NgTemplateOutlet,
+    SafePipe,
+    TranslocoModule,
+  ],
 })
 export class RemoteControllerComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;

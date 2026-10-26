@@ -8,6 +8,7 @@ import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Party, PARTY_COLORS } from '@axe/domain/party/party';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -16,7 +17,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   selector: 'party-list-panel',
   templateUrl: './party-list-panel.component.html',
   host: { class: 'block h-full' },
-  imports: [FormsModule, SafePipe, TranslocoModule],
+  imports: [TextTooltipDirective, FormsModule, SafePipe, TranslocoModule],
 })
 export class PartyListPanelComponent {
   private readonly partyService = inject(PartyService);

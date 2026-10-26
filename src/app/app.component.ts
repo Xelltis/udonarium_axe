@@ -73,7 +73,6 @@ import { AssetRemovalEventHandlerService } from '@axe/features/file/asset-remova
 import { FilesTooLargeEventHandlerService } from '@axe/features/file/files-too-large/files-too-large-event-handler.service';
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
-import { NpcDragGhostComponent } from '@axe/features/gm-tools/npc-bar/npc-drag-ghost.component';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
 import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
 import { ShortcutSheetComponent } from '@axe/features/keyboard/shortcut-sheet.component';
@@ -126,6 +125,7 @@ import { ContextMenuComponent } from '@axe/ui/components/context-menu/context-me
 import { UiFabSubmenuComponent } from '@axe/ui/components/fab-submenu/fab-submenu.component';
 import { UiFabSubmenuButtonComponent } from '@axe/ui/components/fab-submenu/fab-submenu-button.component';
 import { ModalComponent } from '@axe/ui/components/modal/modal.component';
+import { PieceDragGhostComponent } from '@axe/ui/components/piece-drag-ghost/piece-drag-ghost.component';
 import { SnackbarComponent } from '@axe/ui/components/snackbar/snackbar.component';
 import { UIPanelComponent } from '@axe/ui/components/ui-panel/ui-panel.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -164,7 +164,7 @@ const FAB_MARGIN_PX = 12;
     PlToolbarComponent,
     HandRailComponent,
     HandDragGhostComponent,
-    NpcDragGhostComponent,
+    PieceDragGhostComponent,
     ConnectionQualityComponent,
     RenderStatsComponent,
     DigitalClockComponent,
@@ -319,7 +319,7 @@ export class AppComponent {
   /** Where the open menu is pinned, level with the item it was opened from. */
   protected readonly fabSubmenuPlace = signal<FabSubmenuAnchor>({ top: null, bottom: 0 });
 
-  protected toggleFabSubmenu(kind: string, event: MouseEvent): void {
+  protected toggleFabSubmenu(kind: string, event: Event): void {
     this.measureFabSides();
     const opener = event.currentTarget;
     if (opener instanceof HTMLElement && opener.offsetParent instanceof HTMLElement) {
@@ -384,11 +384,34 @@ export class AppComponent {
    * With every name written out, a small menu is opened the usual way once the guide is put away,
    * so whoever went looking for it sees where it lives.
    */
-  protected chooseFab(node: MenuNodeView, event: MouseEvent): void {
+  protected chooseFab(node: MenuNodeView, event: Event): void {
     if (isMenuGroupView(node)) {
       this.guide.hide();
       this.toggleFabSubmenu(node.id, event);
     } else this.chooseFromFabSubmenu(node);
+  }
+
+  /**
+   * Presses an entry of the drawer from a click.
+   *
+   * A click with the pointer hands the focus back to the page, as it did before an entry could take
+   * it, so the table's own keys still answer once the menu has done its work.
+   */
+  protected clickFab(node: MenuNodeView, event: MouseEvent): void {
+    if (event.detail > 0 && event.currentTarget instanceof HTMLElement) event.currentTarget.blur();
+    this.chooseFab(node, event);
+  }
+
+  /**
+   * Presses an entry of the drawer from Enter or Space, as a click would.
+   *
+   * A key pressed on one of the buttons written beside it while every name is shown is left to
+   * that button.
+   */
+  protected pressFabFromKey(node: MenuNodeView, event: Event): void {
+    if (event.target !== event.currentTarget) return;
+    event.preventDefault();
+    this.chooseFab(node, event);
   }
 
   /** What a small menu holds, written beside it while every name is written out. */

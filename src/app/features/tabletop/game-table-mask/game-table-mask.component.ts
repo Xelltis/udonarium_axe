@@ -23,10 +23,10 @@ import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { sheetPanelBox, sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
-import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ImageFile, imageFileEqual } from '@axe/core/storage/image-file';
 import { isInStore } from '@axe/core/sync/object-store';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { hexCircumradius, isFlatTopGrid, isHexGrid, pixelToHexCell } from '@axe/domain/tabletop/hex-geometry';
@@ -752,7 +752,7 @@ export class GameTableMaskComponent {
           this._currentScratchingSet = null;
           this.touchScratching();
         }
-        mask.owner = getPeerContext().userId;
+        mask.owner = PeerCursor.myUserId;
         this._scratchingGridX = -1;
         this._scratchingGridY = -1;
       },

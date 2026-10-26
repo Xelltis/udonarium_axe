@@ -21,6 +21,8 @@ export interface TurnStep {
   currentIdentifier: string;
   currentSide: string;
   acted: string[];
+  /** Who was waiting and whose turn was stepped into, as `TurnState.holding` held it. */
+  holding: string;
   buffs: CharacterBuffSnapshot[];
 }
 
@@ -31,8 +33,13 @@ export function parseTurnHistory(json: string): TurnStep[] {
   try {
     const parsed: unknown = JSON.parse(json || '[]');
     if (!Array.isArray(parsed)) return [];
-    // A step written where the round had no sides carries none, and reads as none.
-    return (parsed as TurnStep[]).map((step) => ({ ...step, currentSide: step.currentSide ?? '' }));
+    // A step written where the round had no sides, or before pieces could wait, carries none, and
+    // reads as none.
+    return (parsed as TurnStep[]).map((step) => ({
+      ...step,
+      currentSide: step.currentSide ?? '',
+      holding: step.holding ?? '',
+    }));
   } catch {
     return [];
   }

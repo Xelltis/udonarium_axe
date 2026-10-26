@@ -379,6 +379,44 @@ describe('ResourceEditProcessor', () => {
       expect(systemText()).toContain('└ [k10] KeyNo.10c[10] ＞ 2D:[3,2]=5 ＞ 2');
     });
 
+    it('works a bracketed calculation with no dice in it out as one, rounding and all', async () => {
+      mockDiceRollAsync.mockImplementation(async (command: string) =>
+        command === 'C(13/2C)'
+          ? { id: 'DiceBot', result: 'DiceBot : c(13/2C) ＞ 7', isSecret: false }
+          : { id: 'DiceBot', result: 'DiceBot : (-7+1+(1D1-1)) ＞ -7+1+(1[1]-1) ＞ -6', isSecret: false }
+      );
+
+      await processor.resourceEditProcess(
+        null,
+        [{ resourceCommand: 't:HP-[13/2C]+1', object: character }],
+        [],
+        speak('t:HP-[13/2C]+1'),
+        false
+      );
+
+      expect(mockDiceRollAsync).toHaveBeenNthCalledWith(1, 'C(13/2C)', expect.anything());
+      expect(mockDiceRollAsync).toHaveBeenNthCalledWith(2, '-7+1+(1d1-1)', expect.anything());
+      expect(character.status.getValue('HP', 'now')).toBe(194);
+    });
+
+    it('takes a rounding written outside the brackets as part of the arithmetic', async () => {
+      mockDiceRollAsync.mockResolvedValue({
+        id: 'DiceBot',
+        result: 'DiceBot : (13/2R+1+(1D1-1)) ＞ 13/2R+1+(1[1]-1) ＞ 8',
+        isSecret: false,
+      });
+
+      await processor.resourceEditProcess(
+        null,
+        [{ resourceCommand: 't:HP+13/2R+1', object: character }],
+        [],
+        speak('t:HP+13/2R+1'),
+        false
+      );
+
+      expect(mockDiceRollAsync).toHaveBeenCalledWith('13/2R+1+(1d1-1)', expect.anything());
+    });
+
     it('says so when the bracketed command is one the dice bot cannot answer', async () => {
       mockDiceRollAsync.mockResolvedValue({ id: 'DiceBot', result: '', isSecret: false });
 
@@ -426,6 +464,21 @@ describe('ResourceEditProcessor', () => {
         expect(character.status.getValue('HP', 'now')).toBe(192);
         expect(systemText()).toContain('HP:200-8＞192');
         expect(systemText()).toContain('└ [k10@13+(2+3)+5h+1] KeyNo.10+10');
+      });
+
+      it('rolls a command it cannot read whole without the arithmetic after its last letters, and adds that on', async () => {
+        mockDiceRollAsync.mockImplementation(async (command: string) => {
+          if (command === 'k3@9+5$+1#0')
+            return { id: 'DiceBot', result: 'DiceBot : KeyNo.3c[9]m[+1]+5 ＞ 2D:[2,2]=5 ＞ 1+5 ＞ 6', isSecret: false };
+          if (command === 'C(0-2)') return { id: 'DiceBot', result: 'DiceBot : c(0-2) ＞ -2', isSecret: false };
+          return { id: 'DiceBot', result: '', isSecret: false };
+        });
+
+        await send('t:HP-([k3@9]+5$+1#0-2)Z');
+
+        expect(mockDiceRollAsync).toHaveBeenCalledWith('k3@9+5$+1#0', expect.anything());
+        expect(character.status.getValue('HP', 'now')).toBe(196);
+        expect(systemText()).toContain('└ [k3@9+5$+1#0] KeyNo.3c[9]m[+1]+5 ＞ 2D:[2,2]=5 ＞ 1+5 ＞ 6 -2 ＞ 4');
       });
 
       it('rolls a system command written without brackets the same way', async () => {

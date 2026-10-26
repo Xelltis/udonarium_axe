@@ -9,19 +9,27 @@ export interface ConditionMenuCallbacks {
   setDown(down: boolean): void;
   setProne(prone: boolean): void;
   setHeld(held: boolean): void;
+  setStealth(stealth: boolean): void;
+}
+
+/** Whether a piece is in stealth, for a seat that may put it in or take it out; null for any other. */
+export interface StealthMenuModel {
+  readonly on: boolean;
 }
 
 /**
  * The entries of a piece's menu saying what state it is in, gathered under one entry: fallen over,
- * and, where the room plays engagement zones, unseen, down and held fast. A piece that fell over in
- * its own turn cannot be got up again that turn, which is shown with why. Holding on to an enemy is
- * something the piece does in a fight, and is offered with the zone's entries.
+ * and, where the room plays engagement zones, unseen, down and held fast; last, stealth, for the
+ * game master and the piece's owner. A piece that fell over in its own turn cannot be got up again
+ * that turn, which is shown with why. Holding on to an enemy is something the piece does in a
+ * fight, and is offered with the zone's entries.
  *
  * Nothing for somebody who may not change the table.
  */
 export function buildConditionContextMenu(
   zone: ZoneMenuModel,
   ride: RideMenuModel,
+  stealth: StealthMenuModel | null,
   canEdit: boolean,
   callbacks: ConditionMenuCallbacks,
   t: TranslateFn
@@ -44,5 +52,11 @@ export function buildConditionContextMenu(
         { name: tick(zone.held, t('feature.zone.menu.held')), action: () => callbacks.setHeld(!zone.held) },
       ]
     : [fallen];
+  if (stealth) {
+    entries.push({
+      name: tick(stealth.on, t('feature.character.contextMenu.stealth')),
+      action: () => callbacks.setStealth(!stealth.on),
+    });
+  }
   return [{ name: t('feature.character.contextMenu.conditionGroup'), action: undefined, subActions: entries }];
 }

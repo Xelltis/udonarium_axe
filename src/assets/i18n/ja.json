@@ -216,6 +216,8 @@
         "leaveKindHint": "定員を超えたエリアからは、この移動の種類でならすぐに離れられます。",
         "interrupt": "移動の割り込みを使う",
         "interruptHint": "経路を決めて動かすとき、歩き出す前に、経路に届く敵の側へ割り込むかどうかを尋ねます。割り込むと、その地点で移動が止まり、割り込んだコマと一緒に新しい交戦エリアができます。手番を回しているあいだは、手番の終わりまで形成中です。交戦エリアに入る移動や、エリアの中から動く移動も、エリアの側が止めるかどうかを選びます。止めると、動いたコマはエリアの中心に移って加わります。答える人のいないエリアと、この設定がオフのときは、エリアがいつも止めます。",
+        "stealthUnseen": "ステルス中のコマを「姿が見えない」として扱う",
+        "stealthUnseenHint": "オンにすると、ステルス中のコマは手で「姿が見えない」を付けたコマと同じく、移動を止められず、止めたときはその場で交戦エリアを作ります。",
         "interruptKind": "割り込みに使う種類",
         "interruptKindFirst": "先頭の種類",
         "blockRadius": "射線を遮る半径(m)",
@@ -707,6 +709,7 @@
         "selectFromList": "左のリストから選択してください",
         "save": "保存",
         "delete": "削除",
+        "deleteConfirm": "カットイン「{{name}}」を削除します。部屋の全員の一覧から消え、元には戻せません。よろしいですか？",
         "defaultName": "未設定のカットイン",
         "panelTitleWith": "カットイン : {{name}}",
         "selectImageTitle": "画像を選択",
@@ -1235,7 +1238,8 @@
         "emptyEntry": "（エントリなし）",
         "palettePlaceholder": "ダイス表を1行ずつ入力...",
         "save": "保存",
-        "delete": "削除"
+        "delete": "削除",
+        "deleteConfirm": "ダイス表「{{name}}」を削除します。部屋の全員の一覧から消え、元には戻せません。よろしいですか？"
       },
       "message": {
         "rolled": "{{who}} が {{name}} を振りました → {{face}}",
@@ -1556,6 +1560,16 @@
       "advanceRoundAnnounce": "ラウンドを進めました。",
       "undoAnnounce": "手番を1つ前に戻しました。",
       "acted": "行動済み",
+      "held": "待機中",
+      "hold": "待機させる",
+      "holdCurrent": "手番のコマを待機させる（あとで割り込めます）",
+      "interrupt": "割り込む",
+      "holdAnnounce": "{{name}} は待機します。",
+      "holdAnnounceUnseen": "見えない相手が待機します。",
+      "interruptAnnounce": "{{name}} が割り込んで行動します。",
+      "interruptAnnounceUnseen": "見えない相手が割り込んで行動します。",
+      "resumeAnnounce": "{{name}} の行動に戻ります。",
+      "resumeAnnounceUnseen": "見えない相手の行動に戻ります。",
       "undo": "1つ前に戻す",
       "retreatRound": "ラウンドを戻す",
       "retreatRoundAnnounce": "ラウンド{{n}}に戻しました。",
@@ -1737,7 +1751,12 @@
         "hide": "非表示",
         "nonTalk": "発言しない",
         "pieceSetting": "コマ設定",
-        "specifyKomaHeight": "コマ高さを指定",
+        "specifyKomaSize": "コマ画像の大きさを指定",
+        "komaWidth": "幅",
+        "komaHeight": "高さ",
+        "komaKeepAspect": "縦横比を保つ",
+        "komaAspectLinked": "縦横比を保っています。押すと幅と高さを別々に変えられます",
+        "komaAspectUnlinked": "幅と高さを別々に変えています。押すと画像の縦横比に戻します",
         "altitude": "高度",
         "altitudeUnit": "マス",
         "seatHeight": "乗る高さ",
@@ -1784,6 +1803,10 @@
         "filterSettings": "絞り込みと表示設定",
         "sortOrder1": "並び順 第1",
         "sortOrder2": "並び順 第2",
+        "sortOrderN": "並び順 第{{n}}",
+        "addSortKey": "並び順を足す",
+        "removeSortKey": "この並び順を外す",
+        "sortByName": "名前",
         "tagPlaceholder": "タグ名",
         "asc": "昇順",
         "desc": "降順",
@@ -1795,6 +1818,9 @@
         "delete": "削除",
         "hideInInventory": "インベントリで非表示",
         "showInInventory": "インベントリで表示",
+        "resourceSliders": "スライダー",
+        "resourceSlidersShowAll": "リソースのスライダーをすべて出す",
+        "resourceSlidersHideAll": "リソースのスライダーをすべて隠す",
         "cancel": "キャンセル",
         "menu": "メニュー",
         "emptyMessage": "{{name}}インベントリは空です",
@@ -1809,6 +1835,9 @@
         "filterPanelTitle": "絞り込みと表示設定",
         "filterNone": "絞り込みなし",
         "displayItemsHint": "状態異常の名前を書くと、その列はチェック欄になります",
+        "displayCandidates": "候補",
+        "displayCandidatesTitle": "卓のキャラクターが持つ項目から選ぶ",
+        "displayCandidatesEmpty": "卓にキャラクターがいません",
         "inventoryVisibility": "表示",
         "viewRound": "ラウンド表示",
         "showParts": "表示する行",
@@ -1819,7 +1848,13 @@
         "displayItemsRich": "表示項目（リッチ）",
         "displayItemsTable": "表示項目（簡略）",
         "foldsOnOpen": "開いたときフォルダを畳んでおく",
-        "foldsOnOpenHint": "次に開くインベントリから効きます。フォルダに入れていないコマはそのまま出ます"
+        "foldsOnOpenHint": "次に開くインベントリから効きます。フォルダに入れていないコマはそのまま出ます",
+        "searchBar": "一覧の上に検索欄を出す",
+        "compact": "リッチ表示を詰める",
+        "compactHint": "選んでいない行は、名前と数値リソースのバーだけになります。値は行を選んでから変えます。",
+        "roundInPlay": "ラウンド操作は戦闘中だけ出す",
+        "roundInPlayHint": "始まる前はタブの右の ▶ で始めます。タブを隠しているときは、いつもどおり出します。",
+        "beginRound": "ラウンドを始める"
       }
     },
     "keyboard": {
@@ -2042,7 +2077,11 @@
         "handlingGroup": "表示と扱い",
         "disclosureGroup": "公開とオーナー",
         "putAwayGroup": "しまう",
-        "conditionGroup": "コマの状態"
+        "conditionGroup": "コマの状態",
+        "stealth": "ステルス（GMと持ち主・仲間にだけ見える）",
+        "resourceSliders": "リソースのスライダー",
+        "resourceSlidersShowAll": "すべて出す",
+        "resourceSlidersHideAll": "すべて隠す"
       },
       "panel": {
         "sheet": "キャラクターシート",
@@ -2160,7 +2199,10 @@
       "moveMode_climb": "登る",
       "moveMode_swim": "泳ぐ",
       "moveMode_crawl": "這う",
-      "moveMode_fly": "飛ぶ"
+      "moveMode_fly": "飛ぶ",
+      "stealth": {
+        "mark": "ステルス中（GMと持ち主・仲間にだけ見えます）"
+      }
     },
     "light": {
       "contextMenu": {
@@ -3099,6 +3141,9 @@
       "sectionScreenAndWindows": "画面とウィンドウ",
       "sectionView3d": "3D表示",
       "imageBillboard": "コマ画像を常にカメラに向ける",
+      "sectionSheet": "キャラクターシート",
+      "resourceSliderByDefault": "数値リソースにスライダーを既定で出す",
+      "resourceSliderByDefaultHint": "項目ごとに出す・出さないを選んだリソースは、その選択に従います。コマのメニューの「表示と扱い」から、そのコマのリソースをまとめて切り替えられます。",
       "tickerHint": "チャット入力欄の「ティッカー」ボタンを入れて送った発言を、画面の四辺へ流します。",
       "sectionMeasure": "画面の実測",
       "measureHint": "ID-1 規格のカードを物差しに、この画面の実寸を測ります。測った値はこの画面のこのセッションにだけ残ります。",
@@ -3117,7 +3162,7 @@
       "wipeBrowserData": "このブラウザのデータをすべて消す",
       "wipeBrowserDataHint": "設定や部屋の自動保存、リプレイの記録など、このブラウザに残っているデータをすべて消して、ページを読み込み直します。表示や動きがおかしいままのときに試してください。元には戻せません。",
       "wipeConfirmTitle": "このブラウザのデータをすべて消しますか？",
-      "wipeConfirmMessage": "次のデータを消して、ページを読み込み直します。元には戻せません。\n・自分の設定（表示・音量・スキン・ウィジェットの配置など）\n・部屋の自動保存とリプレイの記録\n・マイダイスとスキンの画像\n・部屋のサーバーへのログインと、読み込み直したときに同じ席へ戻るための記録\n\n読み込み直すと、いまの部屋からはいったん抜けます。招待リンクで入っていたときは、そのリンクから入り直します。SkyWayでは別の参加者として入り、前の席の手札とGMの役割は引き継がれません。部屋のサーバーでは、ログインし直すまで見学になります。ロビーから入っていたときは、部屋の外に戻ります。SkyWayやオフラインでひとりで遊んでいるときは、保存していない部屋の内容も消えます。\nほかのタブでも開いているときは、先に閉じてください。",
+      "wipeConfirmMessage": "次のデータを消して、ページを読み込み直します。元には戻せません。\n・自分の設定（表示・音量・スキン・ウィジェットの配置など）\n・部屋の自動保存とリプレイの記録\n・開始時の部屋\n・マイダイスとスキンの画像\n・部屋のサーバーへのログインと、読み込み直したときに同じ席へ戻るための記録\n\n読み込み直すと、いまの部屋からはいったん抜けます。招待リンクで入っていたときは、そのリンクから入り直します。SkyWayでは別の参加者として入り、前の席の手札とGMの役割は引き継がれません。部屋のサーバーでは、ログインし直すまで見学になります。ロビーから入っていたときは、部屋の外に戻ります。SkyWayやオフラインでひとりで遊んでいるときは、保存していない部屋の内容も消えます。\nほかのタブでも開いているときは、先に閉じてください。",
       "wipeConfirmOk": "すべて消して読み込み直す",
       "hostilityBy": "敵味方の分け方",
       "hostilityBy_npc": "NPC かどうかで分ける",
@@ -3311,6 +3356,8 @@
         "id": "ID：",
         "roomName": "ルーム名：",
         "password": "パスワード：",
+        "showPassword": "パスワードを表示",
+        "hidePassword": "パスワードを隠す",
         "reconnect": "再接続",
         "fullSync": "部屋のデータを同期し直す",
         "fullSyncHint": "コマやチャットが他の人と食い違っているときに押してください。接続はつないだままです。",
@@ -4084,9 +4131,13 @@
       "cutInPlay": "全員に流す",
       "cutInsEmpty": "カットインがありません",
       "portraitPattern": "立ち絵パターン",
+      "portraitPrevious": "前の立ち絵",
+      "portraitNext": "次の立ち絵",
       "flip": "立ち絵を反転",
       "seAttach": "次の発言と同時に再生",
       "seAttached": "次の発言と同時に再生されます",
+      "seDetach": "同時に再生しない",
+      "controls": "発言の設定",
       "edit": {
         "title": "編集",
         "save": "保存",
@@ -4392,6 +4443,8 @@
         "visible": "表示",
         "locked": "ロック",
         "opacity": "不透明度",
+        "raise": "上へ",
+        "lower": "下へ",
         "delete": "削除",
         "deleteConfirm": "このレイヤーを削除しますか？",
         "kinds": {
@@ -4462,7 +4515,25 @@
         "restoreConfirm": "{{savedAt}} のスナップショットを読み込みます。現在の卓データは上書きされます。よろしいですか？",
         "removeConfirm": "{{savedAt}} のスナップショットを削除しますか？",
         "clearConfirm": "保存済みのスナップショットをすべて削除しますか？"
-      }
+      },
+      "startRoom": {
+        "kept": "次からこのブラウザでは、この部屋で始まります。",
+        "keepFailed": "開始時の部屋を保存できませんでした。",
+        "unsupported": "このブラウザでは開始時の部屋を保存できません。",
+        "replaceTitle": "開始時の部屋を置き換えますか？",
+        "replaceMessage": "いま保存してある開始時の部屋を、この部屋で置き換えます。",
+        "replaceOk": "置き換える",
+        "forgetTitle": "開始時の部屋を元に戻しますか？",
+        "forgetMessage": "保存してある開始時の部屋を消します。次からはサンプルの卓とコマで始まります。",
+        "forgetOk": "元に戻す",
+        "forgotten": "次からはサンプルの部屋で始まります。",
+        "loadFailed": "開始時の部屋を読み込めなかったので、サンプルの部屋で始めました。",
+        "forgetFailed": "開始時の部屋を消せませんでした。",
+        "withheld": "部屋のサーバーで伏せた形のまま受け取った物がある卓は、開始時の部屋にできません。",
+        "backAfterJoin": "部屋に入れなかったので、開始時の部屋を読み込み直しました。保存していない変更は戻っていません。",
+        "whileJoining": "部屋に入る途中は、開始時の部屋にできません。"
+      },
+      "restoreUnreadable": "このスナップショットの部屋は読み込めませんでした。"
     },
     "mobile": {
       "menu": "メニュー",
@@ -4588,7 +4659,13 @@
         "boardStop": "卓に戻す",
         "boardConfirm": "記録の盤面を映します。今の卓は預かって、抜けるときに戻します。この間の操作は同卓者に届きません。よろしいですか？",
         "timeline": "できごとの多さ。掴むと動かせます",
-        "chapter": "章"
+        "chapter": "章",
+        "toStart": "最初へ",
+        "previous": "ひとつ戻る",
+        "play": "自動で進める",
+        "pause": "止める",
+        "next": "ひとつ進む",
+        "toEnd": "最後へ"
       },
       "editor": {
         "begin": "編集",
@@ -5431,6 +5508,8 @@
       "save": "保存",
       "saveLoad": "セーブ&ロード",
       "importCharacter": "キャラ取り込み",
+      "startRoomKeep": "この部屋を開始時の部屋にする",
+      "startRoomForget": "開始時の部屋を元に戻す",
       "roomSnapshot": "自動保存 / 復元",
       "createObject": "コマを作る",
       "replay": "リプレイ",
@@ -5821,6 +5900,10 @@
     "panel": {
       "menuTitle": "メニュー",
       "rotate90": "時計回りに90度回転",
+      "minimize": "最小化",
+      "restore": "元の大きさに戻す",
+      "fullScreen": "全画面",
+      "close": "閉じる",
       "transparency": "透過率",
       "ghost": "透明モード",
       "tabClose": "このパネルを閉じる"

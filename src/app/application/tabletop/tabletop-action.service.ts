@@ -28,7 +28,6 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
-import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GameObject } from '@axe/core/sync/game-object';
 import { Card } from '@axe/domain/card/card';
@@ -252,7 +251,7 @@ export class TabletopActionService {
     count: number,
     ownership: { ownerCharacterIdentifier?: string; hiddenToOthers?: boolean } = {}
   ): DiceSymbol[] {
-    const owner = ownership.hiddenToOthers === true ? getPeerContext().userId : '';
+    const owner = ownership.hiddenToOthers === true ? PeerCursor.myUserId : '';
     return getDicePlacements(position, count, this.tabletopService.gridSize()).map((placement) => {
       const dice = this.createDiceSymbol(position, item.diceName, item.type, item.imagePathPrefix, placement);
       if (ownership.ownerCharacterIdentifier) dice.ownerCharacterIdentifier = ownership.ownerCharacterIdentifier;

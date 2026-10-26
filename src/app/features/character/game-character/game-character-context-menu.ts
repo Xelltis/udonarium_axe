@@ -39,6 +39,11 @@ export interface GameCharacterContextMenuCallbacks {
   onInvokeRangeShape?: (value: RangeShapeFieldValue) => void;
   onInvokeEffect?: (name: string) => void;
   onDeployDice?: () => void;
+  /**
+   * Gives every resource of the piece a slider, or takes them all away. Left out for a seat that may
+   * not, or a piece with no resource.
+   */
+  onSetResourceSliders?: (shown: boolean) => void;
   /** Opens a move to be worked out. Left out for a piece with no reach to work one out in. */
   onPlanMove?: () => void;
   /** Aims at the piece, or stops aiming at it. The keys do the same on a board with a keyboard. */
@@ -402,6 +407,21 @@ export function buildGameCharacterContextMenuModel(
             SoundEffect.play(PresetSound.sweep);
           },
         },
+    ...(callbacks.onSetResourceSliders
+      ? [
+          {
+            name: t('feature.character.contextMenu.resourceSliders'),
+            action: undefined,
+            subActions: [true, false].map((shown) => ({
+              name: t(`feature.character.contextMenu.resourceSliders${shown ? 'ShowAll' : 'HideAll'}`),
+              action: () => {
+                callbacks.onSetResourceSliders?.(shown);
+                SoundEffect.play(PresetSound.sweep);
+              },
+            })),
+          },
+        ]
+      : []),
   ];
   const displayActions: ContextMenuAction[] = [
     altitudeAction,

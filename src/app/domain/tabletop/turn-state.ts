@@ -35,6 +35,45 @@ export class TurnState extends GameObject {
    * just begun from one it is only being told of on joining.
    */
   @SyncVar() turnStart: string = '';
+  /** The pieces waiting to step in this round and the turns stepped into, as {@link writeTurnHolding} writes them. */
+  @SyncVar() holding: string = '';
+}
+
+/** The pieces waiting to step in this round, and the turns stepped into to be taken up again. */
+export interface TurnHolding {
+  /** The pieces waiting to step in, in the order they began to wait. */
+  readonly held: readonly string[];
+  /** Of those, the ones whose turn had begun before they waited, which does not begin a second time. */
+  readonly begun: readonly string[];
+  /** The turns stepped into, the latest last, each taken up again once the one that stepped in is done. */
+  readonly interrupted: readonly string[];
+}
+
+export const NO_HOLDING: TurnHolding = { held: [], begun: [], interrupted: [] };
+
+/**
+ * Reads what the round holds back, as it was sent or saved.
+ *
+ * Text that cannot be read, or none at all, as from a version that knew nothing of waiting, holds
+ * nobody back; a list that is not one of names reads as empty.
+ */
+export function readTurnHolding(raw: unknown): TurnHolding {
+  if (typeof raw !== 'string' || raw === '') return NO_HOLDING;
+  try {
+    const parsed = JSON.parse(raw) as Partial<Record<keyof TurnHolding, unknown>> | null;
+    if (!parsed || typeof parsed !== 'object') return NO_HOLDING;
+    const names = (value: unknown): string[] =>
+      Array.isArray(value) ? value.filter((name): name is string => typeof name === 'string' && name !== '') : [];
+    return { held: names(parsed.held), begun: names(parsed.begun), interrupted: names(parsed.interrupted) };
+  } catch {
+    return NO_HOLDING;
+  }
+}
+
+/** Writes what the round holds back as the text `readTurnHolding` reads. Empty while it holds nothing. */
+export function writeTurnHolding(holding: TurnHolding): string {
+  if (holding.held.length + holding.begun.length + holding.interrupted.length < 1) return '';
+  return JSON.stringify({ held: holding.held, begun: holding.begun, interrupted: holding.interrupted });
 }
 
 /** The mark of a piece's turn beginning at a time, in ms since the epoch. */

@@ -9,6 +9,42 @@ export enum SortOrder {
   DESC = 'DESC',
 }
 
+/** One step of the inventory's order: the data it reads and which way it runs. */
+export interface SortKey {
+  readonly tag: string;
+  readonly order: SortOrder;
+}
+
+/**
+ * Reads the steps of the order kept after the second, as they were sent or saved.
+ *
+ * Text that is not such a list gives none, so a room from a version that knew only two steps sorts
+ * as it did. An entry without a name is passed over, and one without a direction it knows runs
+ * ascending. A step with an empty name is kept: it is a row the room added and has yet to fill.
+ */
+export function readSortKeys(raw: unknown): SortKey[] {
+  if (typeof raw !== 'string' || raw === '') return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const keys: SortKey[] = [];
+    for (const entry of parsed) {
+      if (!entry || typeof entry !== 'object') continue;
+      const { tag, order } = entry as Record<string, unknown>;
+      if (typeof tag !== 'string') continue;
+      keys.push({ tag, order: order === SortOrder.DESC ? SortOrder.DESC : SortOrder.ASC });
+    }
+    return keys;
+  } catch {
+    return [];
+  }
+}
+
+/** Writes steps of the order down as the text `readSortKeys` reads back. Empty when there are none. */
+export function writeSortKeys(keys: readonly SortKey[]): string {
+  return keys.length > 0 ? JSON.stringify(keys.map(({ tag, order }) => ({ tag, order }))) : '';
+}
+
 @SyncObject('summary-setting')
 export class DataSummarySetting extends GameObject implements InnerXml {
   private static _instance: DataSummarySetting;
@@ -52,10 +88,39 @@ export class DataSummarySetting extends GameObject implements InnerXml {
   @SyncVar() sortTag2nd: string = 'name';
   @SyncVar() sortOrder2nd: SortOrder = SortOrder.ASC;
 
+  /**
+   * The steps of the order after the second, written by `writeSortKeys`. The first two keep the
+   * attributes they always had, so a version that knows only those still reads them.
+   */
+  @SyncVar() sortMore: string = '';
+
   @SyncVar() dataTag: string = '';
   @SyncVar() tableDataTag: string = '';
 
   @SyncVar() folderPaths: string[] = [];
+
+  private _sortMore!: string;
+  private _extraSortKeys!: readonly SortKey[];
+  /** The steps of the order after the second, read from `sortMore` and cached. */
+  get extraSortKeys(): readonly SortKey[] {
+    if (this._sortMore !== this.sortMore) {
+      this._sortMore = this.sortMore;
+      this._extraSortKeys = readSortKeys(this.sortMore);
+    }
+    return this._extraSortKeys;
+  }
+  set extraSortKeys(keys: readonly SortKey[]) {
+    this.sortMore = writeSortKeys(keys);
+  }
+
+  /** Every step of the order, the first and second followed by the rest. */
+  get sortKeys(): readonly SortKey[] {
+    return [
+      { tag: this.sortTag, order: this.sortOrder },
+      { tag: this.sortTag2nd, order: this.sortOrder2nd },
+      ...this.extraSortKeys,
+    ];
+  }
 
   private _dataTag!: string;
   private _dataTags!: string[];

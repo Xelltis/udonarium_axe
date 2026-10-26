@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { RoomSnapshotService } from '@axe/application/file/room-snapshot.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { StartRoomService } from '@axe/application/file/start-room.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
@@ -11,6 +12,7 @@ import {
   RoomSnapshotStore,
   sortSnapshotsByNewest,
 } from '@axe/core/storage/room-snapshot-store';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 class FakeRoomSnapshotStore extends RoomSnapshotStore {
@@ -65,7 +67,7 @@ describe('RoomSnapshotService', () => {
 
   beforeEach(() => {
     store = new FakeRoomSnapshotStore();
-    load = vi.fn().mockResolvedValue(undefined);
+    load = vi.fn().mockResolvedValue({ dataRead: true, images: [], audios: [] });
 
     TestBed.configureTestingModule({
       providers: [
@@ -143,6 +145,45 @@ describe('RoomSnapshotService', () => {
     expect(load).toHaveBeenCalledOnce();
     const files = load.mock.calls[0][0] as File[];
     expect(files[0].name).toBe('room-snapshot.zip');
+  });
+
+  it('reports failure restoring a snapshot whose room cannot be read, and says so', async () => {
+    const meta = await service.capture();
+    const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+    load.mockResolvedValue({ dataRead: false, images: [], audios: [] });
+
+    await expect(service.restore(meta!.id)).resolves.toBe(false);
+    expect(shown).toHaveBeenCalledWith('このスナップショットの部屋は読み込めませんでした。');
+  });
+
+  it('stays quiet where the reader declined to overwrite the room with the snapshot', async () => {
+    const meta = await service.capture();
+    const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+    const objects = TestBed.inject(ObjectStore);
+    const get = objects.get.bind(objects);
+    vi.spyOn(objects, 'get').mockImplementation(((identifier: string) =>
+      identifier === 'ReloadCheck' ? { reloadCheckStart: () => {}, isLoadOk: () => false } : get(identifier)) as never);
+    load.mockResolvedValue({ dataRead: false, images: [], audios: [] });
+
+    await expect(service.restore(meta!.id)).resolves.toBe(false);
+    expect(shown).not.toHaveBeenCalled();
+  });
+
+  it('lets a room to start on still being set out at launch finish before the snapshot goes in', async () => {
+    const meta = await service.capture();
+    let finish!: () => void;
+    vi.spyOn(TestBed.inject(StartRoomService), 'whenSettled').mockReturnValue(
+      new Promise<void>((resolve) => (finish = resolve))
+    );
+
+    const restoring = service.restore(meta!.id);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(load).not.toHaveBeenCalled();
+
+    finish();
+    await expect(restoring).resolves.toBe(true);
+    expect(load).toHaveBeenCalledOnce();
   });
 
   it('restores nothing while a replay’s board is shown in place of the table, and says so', async () => {

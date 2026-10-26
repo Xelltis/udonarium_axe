@@ -12,7 +12,9 @@
             {{ 'feature.media.jukebox.nowPlayingLabel' | transloco }}
           </div>
           @if (jukebox.audio) {
-            <div class="truncate text-[13px] font-semibold text-white">{{ jukebox.audio.name }}</div>
+            <div class="truncate text-[13px] font-semibold text-white" [appTextTooltip]="jukebox.audio.name">
+              {{ jukebox.audio.name }}
+            </div>
             <div class="mt-px text-[11px] text-white/60">
               {{ playback.tagLabel(getTagOf(jukebox.audio)) }}
               @if (playback.isPaused()) {
@@ -44,7 +46,9 @@
           {{ 'feature.media.jukebox.nowPlayingLabel' | transloco }}
         </div>
         @if (jukebox.audio) {
-          <div class="text-ui-text truncate text-[13px] font-semibold">{{ jukebox.audio.name }}</div>
+          <div class="text-ui-text truncate text-[13px] font-semibold" [appTextTooltip]="jukebox.audio.name">
+            {{ jukebox.audio.name }}
+          </div>
           <div class="text-ui-muted mt-px text-[11px]">
             {{ playback.tagLabel(getTagOf(jukebox.audio)) }}
             @if (playback.isPaused()) {
@@ -247,7 +251,12 @@
     </div>
     <div class="text-ui-dim flex min-w-0 items-center justify-center gap-1 text-[10px]">
       <i class="material-icons shrink-0 text-[12px]!">queue_music</i>
-      <span class="truncate" data-testid="jukebox-active-playlist">{{ playback.activePlaylist()?.label }}</span>
+      <span
+        class="truncate"
+        data-testid="jukebox-active-playlist"
+        [appTextTooltip]="playback.activePlaylist()?.label"
+        >{{ playback.activePlaylist()?.label }}</span
+      >
     </div>
   </div>
 
@@ -430,7 +439,9 @@
           </div>
           <div class="flex min-w-0 flex-1 flex-col gap-0.5">
             <div class="flex min-w-0 items-baseline gap-1.5">
-              <div class="text-ui-text min-w-0 truncate text-[12px] font-medium">{{ audio.name }}</div>
+              <div class="text-ui-text min-w-0 truncate text-[12px] font-medium" [appTextTooltip]="audio.name">
+                {{ audio.name }}
+              </div>
               @if (playback.tempos().get(audio.identifier); as bpm) {
                 <span
                   class="text-ui-dim shrink-0 text-[10px] [font-variant-numeric:tabular-nums]"
@@ -608,7 +619,7 @@
             @if (entry.isActive) {
               <i class="material-icons" [title]="'feature.media.jukebox.activePlaylist' | transloco">volume_up</i>
             }
-            <span class="truncate">{{ entry.label }}</span>
+            <span class="truncate" [appTextTooltip]="entry.label">{{ entry.label }}</span>
             <span class="opacity-60">{{ entry.count }}</span>
           </button>
         }
@@ -687,7 +698,9 @@
           </div>
           <div class="flex min-w-0 flex-1 flex-col gap-0.5">
             <div class="flex min-w-0 items-baseline gap-1.5">
-              <div class="text-ui-text min-w-0 truncate text-[12px] font-medium">{{ audio.name }}</div>
+              <div class="text-ui-text min-w-0 truncate text-[12px] font-medium" [appTextTooltip]="audio.name">
+                {{ audio.name }}
+              </div>
               @if (playback.tempos().get(audio.identifier); as bpm) {
                 <span
                   class="text-ui-dim shrink-0 text-[10px] [font-variant-numeric:tabular-nums]"

@@ -11,6 +11,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { buildCardReceiverMenu } from '@axe/features/card/hand-rail/hand-card-context-menu';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -25,7 +26,7 @@ export interface HandDrawTarget {
   selector: 'hand-draw-panel',
   templateUrl: './hand-draw-panel.component.html',
   host: { class: 'text-ui-text block h-full overflow-y-auto p-3' },
-  imports: [SafePipe, TranslocoModule],
+  imports: [TextTooltipDirective, SafePipe, TranslocoModule],
 })
 export class HandDrawPanelComponent {
   private readonly objectStore = inject(ObjectStore);

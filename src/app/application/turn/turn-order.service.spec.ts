@@ -48,6 +48,7 @@ describe('TurnOrderService', () => {
     turnState.buffDecay = true;
     turnState.actedIdentifiers = [];
     turnState.history = '[]';
+    turnState.holding = '';
 
     chars = [new GameCharacter(), new GameCharacter(), new GameCharacter()];
     chars.forEach((c) => c.initialize());
@@ -81,6 +82,23 @@ describe('TurnOrderService', () => {
       expect(turnState.currentIdentifier).toBe(standing.current);
       expect(turnState.history).toBe(standing.history);
       expect(turnState.buffDecay).toBe(true);
+    });
+
+    it('neither holds a piece back nor steps one in', () => {
+      beSeat(PeerRole.Player);
+      service.next();
+      service.next();
+      service.hold(chars[1].identifier);
+      const standing = { current: turnState.currentIdentifier, holding: turnState.holding };
+
+      beSeat(PeerRole.Guest);
+      service.hold(chars[0].identifier);
+      service.interrupt(chars[1].identifier);
+
+      expect(service.mayHold(chars[2].identifier)).toBe(false);
+      expect(service.mayInterrupt(chars[1].identifier)).toBe(false);
+      expect(turnState.currentIdentifier).toBe(standing.current);
+      expect(turnState.holding).toBe(standing.holding);
     });
 
     it('is not asked what to do about the pieces still waiting', async () => {
@@ -607,6 +625,175 @@ describe('TurnOrderService', () => {
     expect(sendSpy).toHaveBeenCalledTimes(1);
   });
 
+  describe('waiting to step in', () => {
+    const [a, b, c] = [0, 1, 2];
+    const id = (index: number) => chars[index].identifier;
+    const said = () => sendSpy.mock.calls.map((call: unknown[]) => call[1] as string);
+
+    beforeEach(() => {
+      service.next(); // round 1 begins
+      service.next(); // A is up
+    });
+
+    it('has the piece whose turn it is wait, handing the turn on without counting it as had', () => {
+      service.hold(id(a));
+
+      expect(service.currentIdentifier).toBe(id(b));
+      expect(service.isHeld(id(a))).toBe(true);
+      expect(service.isActed(id(a))).toBe(false);
+      expect(said()).toContain('feature.turnOrder.holdAnnounce');
+    });
+
+    it('passes a waiting piece over, and gives it its turn once nobody else is waiting', () => {
+      service.hold(id(a));
+      service.next();
+      expect(service.currentIdentifier).toBe(id(c));
+
+      service.next();
+      expect(service.currentIdentifier).toBe(id(a));
+      expect(service.isHeld(id(a))).toBe(false);
+
+      service.next();
+      expect(turnState.phase).toBe('roundEnd');
+    });
+
+    it('does not open the turn of a waiting piece a second time when it comes back', () => {
+      const started = vi.fn();
+      TestBed.inject(TurnHooksService).onTurnStart(started);
+      service.hold(id(a));
+      service.next();
+      service.next();
+
+      expect(service.currentIdentifier).toBe(id(a));
+      expect(started.mock.calls.filter(([piece]) => piece === id(a))).toHaveLength(0);
+      expect(started).toHaveBeenCalledWith(id(c));
+    });
+
+    it('steps a waiting piece in at once, and goes back to the turn it stepped into', () => {
+      service.hold(id(a));
+      expect(service.mayInterrupt(id(a))).toBe(true);
+
+      service.interrupt(id(a));
+      expect(service.currentIdentifier).toBe(id(a));
+      expect(service.isHeld(id(a))).toBe(false);
+      expect(service.isActed(id(b))).toBe(false);
+      expect(said()).toContain('feature.turnOrder.interruptAnnounce');
+
+      service.next();
+      expect(service.currentIdentifier).toBe(id(b));
+      expect(service.isActed(id(a))).toBe(true);
+      expect(said()).toContain('feature.turnOrder.resumeAnnounce');
+
+      service.next();
+      expect(service.currentIdentifier).toBe(id(c));
+      service.next();
+      expect(turnState.phase).toBe('roundEnd');
+    });
+
+    it('ends the turn stepped into for whatever waits on a turn, and opens the one stepping in', () => {
+      const ended = vi.fn();
+      const started = vi.fn();
+      const hooks = TestBed.inject(TurnHooksService);
+      hooks.onTurnEnd(ended);
+      service.hold(id(c));
+      hooks.onTurnStart(started);
+
+      service.interrupt(id(c));
+
+      expect(ended).toHaveBeenCalledTimes(1);
+      expect(started).toHaveBeenCalledWith(id(c));
+    });
+
+    it('holds a piece back before its turn comes, which the round then passes over', () => {
+      service.hold(id(b));
+      expect(service.currentIdentifier).toBe(id(a));
+
+      service.next();
+      expect(service.currentIdentifier).toBe(id(c));
+      service.next();
+      expect(service.currentIdentifier).toBe(id(b));
+    });
+
+    it('lets nobody wait who has had a turn or is already waiting, nor anybody outside a round', () => {
+      service.next();
+      expect(service.mayHold(id(a))).toBe(false);
+      service.hold(id(c));
+      expect(service.mayHold(id(c))).toBe(false);
+      expect(service.mayInterrupt(id(b))).toBe(false);
+
+      service.reset();
+      expect(service.mayHold(id(b))).toBe(false);
+    });
+
+    it('names a waiting piece among those left behind when the round is pressed on', async () => {
+      service.next();
+      service.hold(id(c));
+      expect(service.unactedCharacters()).toEqual([chars[b], chars[c]]);
+
+      await service.advanceRound();
+
+      expect(askedToLeaveBehind).toHaveBeenCalledTimes(1);
+      expect(service.isHeld(id(c))).toBe(false);
+      expect(turnState.holding).toBe('');
+    });
+
+    it('puts the waiting back as it was with a step back', () => {
+      service.hold(id(a));
+
+      service.prev();
+
+      expect(service.currentIdentifier).toBe(id(a));
+      expect(service.isHeld(id(a))).toBe(false);
+    });
+
+    it('goes back to the turn stepped into after a step back over the one that stepped in', () => {
+      service.hold(id(a));
+      service.interrupt(id(a));
+      service.next();
+      service.prev();
+
+      expect(service.currentIdentifier).toBe(id(a));
+      service.next();
+      expect(service.currentIdentifier).toBe(id(b));
+    });
+
+    it('lets nobody wait whose turn was stepped into, and gives a piece no second turn in the round', () => {
+      service.hold(id(c));
+      service.interrupt(id(c));
+      expect(service.mayHold(id(a))).toBe(false);
+      service.hold(id(a));
+      expect(service.isHeld(id(a))).toBe(false);
+
+      service.next();
+      expect(service.currentIdentifier).toBe(id(a));
+      service.next();
+      expect(service.currentIdentifier).toBe(id(b));
+
+      expect(service.mayInterrupt(id(a))).toBe(false);
+      expect(service.mayInterrupt(id(c))).toBe(false);
+      service.next();
+      expect(turnState.phase).toBe('roundEnd');
+    });
+
+    it('takes a waiting piece out of waiting once its turn ends in passing', () => {
+      service.hold(id(b));
+
+      service.closeTurnsInPassing([id(b)]);
+
+      expect(service.isActed(id(b))).toBe(true);
+      expect(service.isHeld(id(b))).toBe(false);
+      expect(service.mayInterrupt(id(b))).toBe(false);
+    });
+
+    it('reads a turn sent by a peer that has never heard of waiting as holding nobody back', () => {
+      (turnState as unknown as { holding: string | undefined }).holding = undefined;
+
+      expect(service.heldIdentifiers).toEqual([]);
+      service.next();
+      expect(service.currentIdentifier).toBe(id(b));
+    });
+  });
+
   describe('pressing the round on over pieces that have not moved', () => {
     let waiting: GameCharacter[];
 
@@ -882,6 +1069,41 @@ describe('TurnOrderService', () => {
       heroes.destroy();
 
       expect(service.currentSide).toBe(monsters.identifier);
+    });
+
+    it('passes a waiting piece over within its side, and gives it its turn once every side has had its phase', () => {
+      service.next();
+      service.next();
+      service.next();
+      expect(service.currentIdentifier).toBe(hero.identifier);
+
+      service.hold(hero.identifier);
+      expect(service.currentIdentifier).toBe(squire.identifier);
+
+      pressUntil(() => service.currentIdentifier === hero.identifier);
+
+      expect(service.isActed(monster.identifier)).toBe(true);
+      expect(service.isActed(bystander.identifier)).toBe(true);
+      expect(service.currentSide).toBe(heroes.identifier);
+      service.next();
+      expect(turnState.phase).toBe('roundEnd');
+    });
+
+    it("steps in within another side's phase without opening its own, and goes back to the turn it stepped into", () => {
+      service.next();
+      service.next();
+      service.next();
+      service.hold(hero.identifier);
+      pressUntil(() => service.currentIdentifier === monster.identifier);
+
+      service.interrupt(hero.identifier);
+      expect(service.currentIdentifier).toBe(hero.identifier);
+      expect(service.currentSide).toBe(monsters.identifier);
+
+      service.next();
+      expect(service.currentIdentifier).toBe(monster.identifier);
+      expect(service.isActed(hero.identifier)).toBe(true);
+      expect(service.isActed(monster.identifier)).toBe(false);
     });
 
     it('puts the round back a step, side and all', () => {

@@ -12,6 +12,7 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
 import { ImageEditQueue } from '@axe/ui/components/image-editor/image-edit-queue.service';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -20,7 +21,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   templateUrl: './file-selecter.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, SafePipe, TranslocoModule],
+  imports: [TextTooltipDirective, FormsModule, SafePipe, TranslocoModule],
 })
 export class FileSelecterComponent {
   private readonly panelService = inject(PanelService);

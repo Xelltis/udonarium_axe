@@ -28,7 +28,7 @@
           [attr.aria-selected]="selectedTable?.identifier === diceTable.identifier"
         >
           <i class="material-icons shrink-0 text-[15px]! opacity-70">casino</i>
-          <span class="truncate text-[13px]">{{ diceTable.name }}</span>
+          <span class="truncate text-[13px]" [appTextTooltip]="diceTable.name">{{ diceTable.name }}</span>
         </li>
       }
     </ul>
@@ -44,7 +44,7 @@
         @if (canEditTables) {
           <button
             type="button"
-            class="rounded-ui-sm bg-ui-accent hover:bg-ui-accent m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border-none px-3 py-1.25 text-[13px] font-medium text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+            class="rounded-ui-sm bg-ui-accent-solid hover:bg-ui-accent-solid m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border-none px-3 py-1.25 text-[13px] font-medium text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
             (click)="createDiceTable()"
           >
             {{ 'feature.dice.tableSetting.createButton' | transloco }}
@@ -151,7 +151,7 @@
           } @else {
             <button
               type="button"
-              class="rounded-ui-sm bg-ui-accent hover:bg-ui-accent m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border-none px-3 py-1.25 text-[13px] font-medium text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+              class="rounded-ui-sm bg-ui-accent-solid hover:bg-ui-accent-solid m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border-none px-3 py-1.25 text-[13px] font-medium text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
               (click)="toggleEditMode()"
               [disabled]="!isWritable"
             >
@@ -189,7 +189,7 @@
         <div class="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
-            class="rounded-ui-sm bg-ui-accent hover:bg-ui-accent m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border-none px-3 py-1.25 text-[13px] font-medium text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+            class="rounded-ui-sm bg-ui-accent-solid hover:bg-ui-accent-solid m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border-none px-3 py-1.25 text-[13px] font-medium text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
             [disabled]="isSaving() || isEdit()"
             (click)="save()"
           >

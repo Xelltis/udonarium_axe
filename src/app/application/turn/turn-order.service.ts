@@ -29,10 +29,20 @@ import {
   SideGroup,
   sideOfPiece,
 } from '@axe/domain/tabletop/turn-side';
-import { TurnPhase, turnStartMark, TurnState } from '@axe/domain/tabletop/turn-state';
+import {
+  readTurnHolding,
+  TurnHolding,
+  TurnPhase,
+  turnStartMark,
+  TurnState,
+  writeTurnHolding,
+} from '@axe/domain/tabletop/turn-state';
 
 /** How many of the pieces still waiting are named before the rest are counted. */
 const UNACTED_NAMES_SHOWN = 8;
+
+/** What the chat is told as a piece is handed the turn, begins to wait, steps in or is gone back to. */
+type TurnAnnouncement = 'announce' | 'holdAnnounce' | 'interruptAnnounce' | 'resumeAnnounce';
 
 @Injectable({ providedIn: 'root' })
 export class TurnOrderService {
@@ -180,6 +190,101 @@ export class TurnOrderService {
     return this.turnState.actedIdentifiers.includes(identifier);
   }
 
+  private holdingRead: { raw: unknown; holding: TurnHolding } = { raw: '', holding: readTurnHolding('') };
+  private get holding(): TurnHolding {
+    const raw = this.turnState.holding;
+    if (raw !== this.holdingRead.raw) this.holdingRead = { raw, holding: readTurnHolding(raw) };
+    return this.holdingRead.holding;
+  }
+  private set holding(holding: TurnHolding) {
+    this.turnState.holding = writeTurnHolding(holding);
+  }
+
+  /** The pieces waiting to step in this round, in the order they began to wait. */
+  get heldIdentifiers(): readonly string[] {
+    return this.holding.held;
+  }
+
+  /** Whether this piece is waiting to step in. */
+  isHeld(identifier: string): boolean {
+    return this.holding.held.includes(identifier);
+  }
+
+  /**
+   * Whether the piece may wait to step in later: a round is under way, the round reaches it, and it
+   * has neither had its turn, begun to wait already, nor had its turn stepped into, which it takes
+   * up again in its own time.
+   */
+  mayHold(identifier: string): boolean {
+    if (!this.canTakeTurns || !this.isUnderWay()) return false;
+    if (this.isActed(identifier) || this.isHeld(identifier)) return false;
+    if (this.holding.interrupted.includes(identifier)) return false;
+    return this.isInOrder(identifier);
+  }
+
+  /**
+   * Has a piece wait to step in later in the round.
+   *
+   * A waiting piece is passed over by the round, and has its turn once nobody else is waiting, unless
+   * it steps in before. A piece whose turn it is passes the turn on without it counting as had, and
+   * the turn's opening does not run again when it comes back.
+   */
+  hold(identifier: string): void {
+    if (!this.mayHold(identifier)) return;
+    this.step(() => {
+      const turnState = this.turnState;
+      const isUp = turnState.phase === 'acting' && turnState.currentIdentifier === identifier;
+      const holding = this.holding;
+      this.holding = {
+        ...holding,
+        held: [...holding.held, identifier],
+        begun: isUp ? [...holding.begun, identifier] : holding.begun,
+      };
+      this.announceCharacter(identifier, 'holdAnnounce');
+      if (!isUp) return;
+      this.hooks.turnEnded();
+      if (this.turnOrderMode === 'faction') this.passOnInSide();
+      else this.handOnward(this.orderedCharacters());
+    });
+  }
+
+  /**
+   * Whether the piece may step in now, which a piece still waiting may while the round is under way
+   * and still reaches it.
+   */
+  mayInterrupt(identifier: string): boolean {
+    if (!this.canTakeTurns || !this.isUnderWay()) return false;
+    return this.isHeld(identifier) && !this.isActed(identifier) && this.isInOrder(identifier);
+  }
+
+  private isInOrder(identifier: string): boolean {
+    return this.orderedCharacters().some((piece) => piece.identifier === identifier);
+  }
+
+  /**
+   * Has a waiting piece step in at once. The turn it steps into is not counted as had, and is taken
+   * up again when the next press of the round closes the one that stepped in. Taken side by side,
+   * the phase stays the side's it was: the piece steps into it rather than opening its own.
+   */
+  interrupt(identifier: string): void {
+    if (!this.mayInterrupt(identifier)) return;
+    this.step(() => {
+      const turnState = this.turnState;
+      const current = turnState.phase === 'acting' ? turnState.currentIdentifier : '';
+      if (current.length > 0) {
+        this.hooks.turnEnded();
+        const holding = this.holding;
+        this.holding = { ...holding, interrupted: [...holding.interrupted, current] };
+      }
+      this.takeTurn(identifier, 'interruptAnnounce');
+    });
+  }
+
+  private isUnderWay(): boolean {
+    const phase = this.turnState.phase;
+    return phase === 'acting' || phase === 'roundStart';
+  }
+
   /**
    * The pieces the turn goes round, in the order the inventory lists them.
    *
@@ -267,11 +372,11 @@ export class TurnOrderService {
       if (turnState.round < 1) turnState.round = 1;
       if (this.turnOrderMode === 'faction') {
         this.closeCurrentPiece();
-        const piece = this.objectStore.get<GameCharacter>(identifier);
-        if (piece) turnState.currentSide = sideOfPiece(piece, this.sideOrder());
+        this.standOnSideOf(identifier);
         this.takeTurn(identifier);
         return;
       }
+      this.release(identifier);
       turnState.phase = 'acting';
       turnState.currentIdentifier = identifier;
       turnState.turnStart = turnStartMark(identifier, Date.now());
@@ -301,14 +406,47 @@ export class TurnOrderService {
         return;
       }
       if (turnState.phase === 'roundStart') {
-        this.handOver(this.firstUnacted(order));
+        this.handOver(this.nextInOrder(order));
         return;
       }
       // Whoever was up has now had their turn, wherever in the order they were given it.
       this.endTurnOf(turnState.currentIdentifier);
       this.hooks.turnEnded();
-      this.handOver(this.firstUnacted(order));
+      this.handOnward(order);
     });
+  }
+
+  /** Hands the turn on once whoever was up is done with it: back to a turn stepped into, else to the next. */
+  private handOnward(order: readonly GameCharacter[]): void {
+    if (this.resumeInterrupted()) return;
+    this.handOver(this.nextInOrder(order));
+  }
+
+  /**
+   * Takes up again the latest turn stepped into that is still to be had, and says whether there was
+   * one. Its opening ran when it was first handed over, so it does not run again.
+   */
+  private resumeInterrupted(): boolean {
+    const holding = this.holding;
+    const order = new Set(this.orderedCharacters().map((piece) => piece.identifier));
+    const stack = [...holding.interrupted];
+    while (stack.length > 0) {
+      const identifier = stack.pop()!;
+      if (!order.has(identifier) || this.isActed(identifier)) continue;
+      this.holding = { ...holding, interrupted: stack };
+      this.release(identifier);
+      this.enterActing(identifier, 'resumeAnnounce');
+      return true;
+    }
+    if (holding.interrupted.length > 0) this.holding = { ...holding, interrupted: [] };
+    return false;
+  }
+
+  /** Where the round is taken side by side, stands it on the side of the piece being handed the turn. */
+  private standOnSideOf(identifier: string): void {
+    if (this.turnOrderMode !== 'faction') return;
+    const piece = this.objectStore.get<GameCharacter>(identifier);
+    if (piece) this.turnState.currentSide = sideOfPiece(piece, this.sideOrder());
   }
 
   /**
@@ -326,18 +464,32 @@ export class TurnOrderService {
       return;
     }
     if (turnState.phase === 'roundStart') {
-      this.openSide(nextSide('', this.orderedSides(), (group) => this.hasUnacted(group)));
+      this.openSide(nextSide('', this.orderedSides(), (group) => this.hasWaiting(group)));
       return;
     }
 
     this.closeCurrentPiece();
+    this.passOnInSide();
+  }
+
+  /**
+   * Hands the turn on within the side once whoever was up is done with it, and only leaves the side
+   * once nobody on it is waiting to be reached. A turn stepped into is taken up first.
+   */
+  private passOnInSide(): void {
+    if (this.resumeInterrupted()) return;
     const side = this.currentSide;
-    const waiting = this.firstUnacted(this.membersOfSide(side));
+    const waiting = this.firstWaiting(this.membersOfSide(side));
     if (waiting) {
       this.takeTurn(waiting.identifier);
       return;
     }
-    this.openSide(nextSide(side, this.orderedSides(), (group) => this.hasUnacted(group)));
+    this.openSide(nextSide(side, this.orderedSides(), (group) => this.hasWaiting(group)));
+  }
+
+  /** Whether anybody on the side is still to be reached by the round, leaving out those waiting to step in. */
+  private hasWaiting(group: SideGroup<GameCharacter>): boolean {
+    return this.firstWaiting(group.members) !== null;
   }
 
   private membersOfSide(side: string): GameCharacter[] {
@@ -371,6 +523,7 @@ export class TurnOrderService {
 
   private closeTurnOf(identifier: string): void {
     this.springGround(identifier, 'turnEnd');
+    this.release(identifier);
     this.markActed(identifier);
     this.expireBuffs('turnEnd', this.actorOf(identifier));
   }
@@ -378,7 +531,14 @@ export class TurnOrderService {
   /** Opens a side's phase, or closes the round where there is no side left to open. */
   private openSide(side: string): void {
     if (side.length < 1) {
-      this.finishRound();
+      // Every side has been through its phase; whoever is still waiting has their turn now.
+      const held = this.firstHeld(this.orderedCharacters());
+      if (held) {
+        this.standOnSideOf(held.identifier);
+        this.takeTurn(held.identifier);
+      } else {
+        this.finishRound();
+      }
       return;
     }
     const turnState = this.turnState;
@@ -387,7 +547,7 @@ export class TurnOrderService {
     turnState.currentIdentifier = '';
     this.chat.sendSystemNotice('round', this.t('feature.turnOrder.sidePhaseStart', { name: this.sideName(side) }));
     if (this.factionPhaseMode !== 'initiative') return;
-    const first = this.firstUnacted(this.membersOfSide(side));
+    const first = this.firstWaiting(this.membersOfSide(side));
     if (first) this.takeTurn(first.identifier);
   }
 
@@ -487,9 +647,37 @@ export class TurnOrderService {
     });
   }
 
-  /** The first in the order who has not acted yet, or nobody once they all have. */
-  private firstUnacted(order: readonly GameCharacter[]): GameCharacter | null {
-    return order.find((character) => !this.isActed(character.identifier)) ?? null;
+  /** The first in the order who has neither acted nor begun to wait, or nobody. */
+  private firstWaiting(order: readonly GameCharacter[]): GameCharacter | null {
+    const held = this.holding.held;
+    return (
+      order.find((character) => !this.isActed(character.identifier) && !held.includes(character.identifier)) ?? null
+    );
+  }
+
+  /** The first in the order who is waiting to step in, or nobody. */
+  private firstHeld(order: readonly GameCharacter[]): GameCharacter | null {
+    const held = this.holding.held;
+    return (
+      order.find((character) => !this.isActed(character.identifier) && held.includes(character.identifier)) ?? null
+    );
+  }
+
+  /** Who the round reaches next: the first not waiting to step in, else the first who is. */
+  private nextInOrder(order: readonly GameCharacter[]): GameCharacter | null {
+    return this.firstWaiting(order) ?? this.firstHeld(order);
+  }
+
+  /** Takes a piece out of waiting, and says whether its turn had begun before it began to wait. */
+  private release(identifier: string): boolean {
+    const holding = this.holding;
+    if (!holding.held.includes(identifier)) return false;
+    this.holding = {
+      ...holding,
+      held: holding.held.filter((id) => id !== identifier),
+      begun: holding.begun.filter((id) => id !== identifier),
+    };
+    return holding.begun.includes(identifier);
   }
 
   private handOver(character: GameCharacter | null): void {
@@ -516,6 +704,7 @@ export class TurnOrderService {
       currentIdentifier: turnState.currentIdentifier,
       currentSide: turnState.currentSide,
       acted: [...turnState.actedIdentifiers],
+      holding: turnState.holding ?? '',
       buffs: [],
     };
     const buffsBefore = this.captureBuffs();
@@ -543,6 +732,7 @@ export class TurnOrderService {
     turnState.currentIdentifier = step.currentIdentifier;
     turnState.currentSide = step.currentSide;
     turnState.actedIdentifiers = [...step.acted];
+    turnState.holding = step.holding;
     for (const entry of step.buffs) {
       this.objectStore.get<GameCharacter>(entry.identifier)?.buffs.restore(entry.buffs);
     }
@@ -555,12 +745,18 @@ export class TurnOrderService {
     turnState.currentIdentifier = '';
     turnState.currentSide = '';
     turnState.actedIdentifiers = [];
+    turnState.holding = '';
     this.chat.sendSystemNotice('round', this.t('feature.turnOrder.roundStart', { n: turnState.round }));
   }
 
-  /** Hands the turn over, and lets whatever waits on its opening run out. */
-  private takeTurn(identifier: string): void {
-    this.enterActing(identifier);
+  /**
+   * Hands the turn over, and lets whatever waits on its opening run out, unless it opened already
+   * before the piece began to wait.
+   */
+  private takeTurn(identifier: string, announcement: TurnAnnouncement = 'announce'): void {
+    const begun = this.release(identifier);
+    this.enterActing(identifier, announcement);
+    if (begun) return;
     for (const id of [identifier, ...this.companionsOf(identifier).map((piece) => piece.identifier)]) {
       this.expireBuffs('turnStart', this.actorOf(id));
       this.hooks.turnStarted(id);
@@ -588,12 +784,12 @@ export class TurnOrderService {
     }
   }
 
-  private enterActing(identifier: string): void {
+  private enterActing(identifier: string, announcement: TurnAnnouncement = 'announce'): void {
     const turnState = this.turnState;
     turnState.phase = 'acting';
     turnState.currentIdentifier = identifier;
     turnState.turnStart = turnStartMark(identifier, Date.now());
-    this.announceCharacter(identifier);
+    this.announceCharacter(identifier, announcement);
   }
 
   /**
@@ -637,6 +833,7 @@ export class TurnOrderService {
     turnState.phase = 'roundEnd';
     turnState.currentIdentifier = '';
     turnState.currentSide = '';
+    turnState.holding = '';
     this.chat.sendSystemNotice('round', this.t('feature.turnOrder.roundEnd', { n: turnState.round }));
   }
 
@@ -647,20 +844,21 @@ export class TurnOrderService {
     turnState.currentIdentifier = '';
     turnState.currentSide = '';
     turnState.actedIdentifiers = [];
+    turnState.holding = '';
   }
 
   /**
    * Says in chat whose turn it is. A piece the players cannot see goes unnamed, since everyone
    * reads the line and a name would give away what is standing in the dark.
    */
-  private announceCharacter(identifier: string): void {
+  private announceCharacter(identifier: string, announcement: TurnAnnouncement = 'announce'): void {
     const character = this.objectStore.get<GameCharacter>(identifier);
     if (!character) return;
     this.chat.sendSystemNotice(
       'round',
       this.vision.isSeenByParty(character)
-        ? this.t('feature.turnOrder.announce', { name: character.name })
-        : this.t('feature.turnOrder.announceUnseen')
+        ? this.t(`feature.turnOrder.${announcement}`, { name: character.name })
+        : this.t(`feature.turnOrder.${announcement}Unseen`)
     );
   }
 }

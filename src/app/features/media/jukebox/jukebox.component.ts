@@ -41,6 +41,7 @@ import {
 import { ReportDialogComponent } from '@axe/features/moderation/report-dialog/report-dialog.component';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { UiVolumeRowComponent } from '@axe/ui/components/volume-row/volume-row.component';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -48,7 +49,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   selector: 'app-jukebox',
   templateUrl: './jukebox.component.html',
   host: { class: 'block' },
-  imports: [FormsModule, TranslocoModule, UiVolumeRowComponent],
+  imports: [TextTooltipDirective, FormsModule, TranslocoModule, UiVolumeRowComponent],
 })
 export class JukeboxComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;

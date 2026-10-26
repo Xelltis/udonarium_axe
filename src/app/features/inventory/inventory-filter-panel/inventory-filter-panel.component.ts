@@ -1,10 +1,16 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { type SortKey, SortOrder } from '@axe/domain/data/data-summary-setting';
+import { appendSummaryTag, removeSummaryTag, splitSummaryTags, tagLeafNames } from '@axe/domain/data/summary-tag-list';
+import { displayItemCandidates } from '@axe/domain/inventory/display-item-candidates';
 import {
   INVENTORY_CHROME_LABEL_KEYS,
   INVENTORY_CHROME_PARTS,
@@ -22,6 +28,9 @@ import { TranslocoModule } from '@jsverse/transloco';
 /** Only one of these, so pressing the button that opened it puts it away. */
 export const INVENTORY_FILTER_PANEL = 'inventory-filter';
 
+/** The two display-item boxes: the full view's and the table's. */
+type DisplayItemBox = 'rich' | 'table';
+
 /**
  * What the inventory is narrowed to and what it shows of each piece.
  *
@@ -34,7 +43,7 @@ export const INVENTORY_FILTER_PANEL = 'inventory-filter';
   selector: 'inventory-filter-panel',
   templateUrl: './inventory-filter-panel.component.html',
   host: { class: 'block h-full' },
-  imports: [FormsModule, TranslocoModule],
+  imports: [FormsModule, NgTemplateOutlet, TranslocoModule],
 })
 export class InventoryFilterPanelComponent {
   private readonly rolePermission = inject(RolePermissionService);
@@ -42,6 +51,7 @@ export class InventoryFilterPanelComponent {
   private readonly panelService = inject(PanelService);
   private readonly roomPanels = inject(RoomPanelService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly inventoryService = inject(GameObjectInventoryService);
 
   /**
    * The inventory being worked on, handed over by the one that opened this window.
@@ -133,6 +143,26 @@ export class InventoryFilterPanelComponent {
     this.filter.sortOrder2nd = value as typeof this.filter.sortOrder2nd;
   }
 
+  /** The steps of the order after the second, each a row of its own below the first two. */
+  get extraSortKeys(): readonly SortKey[] {
+    return this.filter.extraSortKeys;
+  }
+
+  /** Adds a step to the end of the order, ascending and with its name still to be written. */
+  addSortKey(): void {
+    this.filter.extraSortKeys = [...this.filter.extraSortKeys, { tag: '', order: SortOrder.ASC }];
+  }
+
+  /** Rewrites the name or the direction of a step after the second, found by its place among them. */
+  setSortKey(index: number, change: Partial<SortKey>): void {
+    this.filter.extraSortKeys = this.filter.extraSortKeys.map((key, i) => (i === index ? { ...key, ...change } : key));
+  }
+
+  /** Takes a step after the second out of the order, and the ones below it move up. */
+  removeSortKey(index: number): void {
+    this.filter.extraSortKeys = this.filter.extraSortKeys.filter((_, i) => i !== index);
+  }
+
   /**
    * Which data each piece shows in the full list, written as space-separated tag names with a slash
    * for a new line.
@@ -152,6 +182,60 @@ export class InventoryFilterPanelComponent {
     this.filter.tableDataTag = value;
   }
 
+  /**
+   * The data names offered to the order boxes, taken from the display items of both views. The
+   * boxes still take whatever is typed; `name`, which orders by the piece's name, is offered apart
+   * with its label.
+   */
+  get sortCandidates(): string[] {
+    const names = tagLeafNames([...splitSummaryTags(this.dataTag), ...splitSummaryTags(this.tableDataTag)]);
+    return names.filter((name) => name !== 'name');
+  }
+
+  /** The display-item box whose list of names is open, if either is. */
+  readonly candidatesOpenFor = signal<DisplayItemBox | null>(null);
+
+  /**
+   * The names offered for the display items, from the sheets of the characters on the table. Worked
+   * out only while a list is open, and again as pieces come and go, step on or off the table, or
+   * their sheets change.
+   */
+  readonly displayCandidates = computed<string[]>(() => {
+    if (this.candidatesOpenFor() === null) return [];
+    this.objectChange.collectionOf('character')();
+    this.objectChange.collectionOf('data')();
+    this.inventoryService.inventoryVersion();
+    const details = this.inventoryService.tableInventory.tabletopObjects
+      .filter((object): object is GameCharacter => object instanceof GameCharacter)
+      .map((character) => character.detailDataElement ?? null);
+    return displayItemCandidates(details);
+  });
+
+  /** Opens the list of names under a display-item box, or puts it away if it is the one open. */
+  toggleCandidates(box: DisplayItemBox): void {
+    this.candidatesOpenFor.update((open) => (open === box ? null : box));
+  }
+
+  /** The names a display-item box already shows, each item read by the name at its end. */
+  listedNames(box: DisplayItemBox): ReadonlySet<string> {
+    return new Set(tagLeafNames(splitSummaryTags(this.lineOf(box))));
+  }
+
+  /**
+   * Adds a name to the end of a display-item box, or takes it out if the box already shows it. What
+   * else is written in the box stays as it was.
+   */
+  toggleCandidate(box: DisplayItemBox, name: string): void {
+    const line = this.lineOf(box);
+    const next = this.listedNames(box).has(name) ? removeSummaryTag(line, name) : appendSummaryTag(line, name);
+    if (box === 'rich') this.dataTag = next;
+    else this.tableDataTag = next;
+  }
+
+  private lineOf(box: DisplayItemBox): string {
+    return box === 'rich' ? this.dataTag : this.tableDataTag;
+  }
+
   readonly chromeParts = INVENTORY_CHROME_PARTS.map((part) => ({
     part,
     labelKey: INVENTORY_CHROME_LABEL_KEYS[part],
@@ -160,16 +244,6 @@ export class InventoryFilterPanelComponent {
   /** Whether a strip above the list is being shown. Putting one away closes the space up. */
   shows(part: InventoryChromePart): boolean {
     return this.viewPreference.shows(part);
-  }
-
-  /** Whether an inventory opens with its folders folded up, as this reader asked for. */
-  foldsOnOpen(): boolean {
-    return this.viewPreference.foldsOnOpen();
-  }
-
-  /** Says so, for the next inventory opened on this device. This one is already open. */
-  setFoldsOnOpen(folds: boolean): void {
-    this.viewPreference.setFoldsOnOpen(folds);
   }
 
   /** Shows or puts away one of the strips above the list. The choice is kept in this browser. */

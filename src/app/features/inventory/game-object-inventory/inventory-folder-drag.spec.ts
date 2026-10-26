@@ -1,9 +1,19 @@
-import { folderPathFromElement } from '@axe/features/inventory/game-object-inventory/inventory-folder-drag';
+import {
+  folderPathFromElement,
+  inventoryTabFromElement,
+} from '@axe/features/inventory/game-object-inventory/inventory-folder-drag';
 
 function heading(path: string | null): Element {
   const element = document.createElement('div');
   element.setAttribute('data-folder-dropzone', '');
   if (path !== null) element.setAttribute('data-folder-path', path);
+  return element;
+}
+
+function area(path: string): Element {
+  const element = document.createElement('div');
+  element.setAttribute('data-folder-area', '');
+  element.setAttribute('data-folder-path', path);
   return element;
 }
 
@@ -34,5 +44,39 @@ describe('folderPathFromElement()', () => {
     outer.append(inner);
 
     expect(folderPathFromElement(inner)).toBe('第1話');
+  });
+
+  it('reads the folder off whatever lies open beneath its heading', () => {
+    const folder = area('第1話');
+    const row = document.createElement('div');
+    folder.append(heading('第1話'), row);
+
+    expect(folderPathFromElement(row)).toBe('第1話');
+  });
+
+  it('reads the nearer folder where one lies inside another', () => {
+    const outer = area('第1話');
+    const inner = area('第1話/洞窟');
+    const row = document.createElement('div');
+    outer.append(inner);
+    inner.append(row);
+
+    expect(folderPathFromElement(row)).toBe('第1話/洞窟');
+  });
+});
+
+describe('inventoryTabFromElement()', () => {
+  it('reads the tab off whatever inside it was under the pointer', () => {
+    const tab = document.createElement('label');
+    tab.setAttribute('data-inventory-tab', 'graveyard');
+    const name = document.createElement('span');
+    tab.append(name);
+
+    expect(inventoryTabFromElement(name)).toBe('graveyard');
+  });
+
+  it('finds no tab outside the tabs', () => {
+    expect(inventoryTabFromElement(document.createElement('div'))).toBeNull();
+    expect(inventoryTabFromElement(null)).toBeNull();
   });
 });

@@ -7,14 +7,18 @@ export interface ResourceSliderRange {
 }
 
 /**
- * Whether a resource is set to be moved with a slider, in its sheet and in the popup over its
- * piece, as well as typed.
+ * Whether a resource is moved with a slider, in its sheet and in the popup over its piece, as well
+ * as typed.
  *
- * Only `true` counts, so a field an older version saved, which knows nothing of the setting, has
- * no slider.
+ * A resource that says `true` or `false` of its own has its way. One that says nothing, as every
+ * field an older version saved, follows the room, which shows none unless it chose otherwise.
  */
-export function showsResourceSlider(element: DataElement): boolean {
-  return element.isNumberResource && element.getAttribute(DataElementAttribute.RESOURCE_SLIDER) === 'true';
+export function showsResourceSlider(element: DataElement, roomDefault = false): boolean {
+  if (!element.isNumberResource) return false;
+  const own = element.getAttribute(DataElementAttribute.RESOURCE_SLIDER);
+  if (own === 'true') return true;
+  if (own === 'false') return false;
+  return roomDefault;
 }
 
 /**

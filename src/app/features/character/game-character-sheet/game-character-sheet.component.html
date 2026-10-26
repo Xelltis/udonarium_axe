@@ -60,7 +60,10 @@
             <i class="material-icons text-[32px]!">person</i>
           }
         </button>
-        <div class="text-ui-text min-w-0 flex-1 truncate text-[1.15rem] leading-tight font-bold">
+        <div
+          class="text-ui-text min-w-0 flex-1 truncate text-[1.15rem] leading-tight font-bold"
+          [appTextTooltip]="characterName()"
+        >
           {{ characterName() }}
         </div>
         <button
@@ -553,7 +556,7 @@
                 }
               </span>
               <span
-                class="border-ui-accent bg-ui-accent rounded-ui-sm box-border inline-flex w-full items-center justify-center gap-0.75 border border-solid px-1.5 py-0.75 text-[11px] leading-[1.2] text-white [&_.material-icons]:text-[13px]!"
+                class="border-ui-accent bg-ui-accent-solid rounded-ui-sm box-border inline-flex w-full items-center justify-center gap-0.75 border border-solid px-1.5 py-0.75 text-[11px] leading-[1.2] text-white [&_.material-icons]:text-[13px]!"
                 ><i class="material-icons">edit</i>{{ 'feature.inventory.sheet.change' | transloco }}</span
               >
             </button>
@@ -580,7 +583,7 @@
                 }
               </span>
               <span
-                class="border-ui-accent bg-ui-accent rounded-ui-sm box-border inline-flex w-full items-center justify-center gap-0.75 border border-solid px-1.5 py-0.75 text-[11px] leading-[1.2] text-white [&_.material-icons]:text-[13px]!"
+                class="border-ui-accent bg-ui-accent-solid rounded-ui-sm box-border inline-flex w-full items-center justify-center gap-0.75 border border-solid px-1.5 py-0.75 text-[11px] leading-[1.2] text-white [&_.material-icons]:text-[13px]!"
                 ><i class="material-icons">edit</i>{{ 'feature.inventory.sheet.change' | transloco }}</span
               >
             </button>
@@ -1097,7 +1100,7 @@
                     class="rounded-ui-sm cursor-pointer border-0 px-2.5 py-0.5 text-[0.95em] transition-[background,color]"
                     [class]="
                       textNoteFormatted(note) === formatted
-                        ? 'bg-ui-accent text-white'
+                        ? 'bg-ui-accent-solid text-white'
                         : 'text-ui-muted hover:bg-ui-hover hover:text-ui-text bg-transparent'
                     "
                     [attr.aria-checked]="textNoteFormatted(note) === formatted"

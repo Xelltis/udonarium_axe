@@ -1,23 +1,19 @@
 import { Injectable, signal } from '@angular/core';
 import { GameCharacter } from '@axe/domain/character/game-character';
 
+/**
+ * A character being carried from a list toward the NPC bar, which the bar lights up for.
+ *
+ * Only the hand-over is kept here; the list the character is carried from draws it beside the
+ * pointer itself.
+ */
 @Injectable({ providedIn: 'root' })
 export class NpcDragService {
   readonly character = signal<GameCharacter | null>(null);
-  readonly x = signal(0);
-  readonly y = signal(0);
 
-  /** Starts carrying a character from a list toward the NPC bar, from where the pointer is. */
-  begin(character: GameCharacter, x = 0, y = 0): void {
+  /** Starts carrying a character from a list toward the NPC bar. */
+  begin(character: GameCharacter): void {
     this.character.set(character);
-    this.x.set(x);
-    this.y.set(y);
-  }
-
-  /** Follows the pointer while a character is being carried. */
-  move(x: number, y: number): void {
-    this.x.set(x);
-    this.y.set(y);
   }
 
   /**

@@ -24,7 +24,7 @@
             class="rounded-sm border border-solid px-1.5 py-0.5 text-[0.7rem]"
             [class]="
               mode() === m
-                ? 'border-ui-accent bg-ui-accent text-white'
+                ? 'border-ui-accent bg-ui-accent-solid text-white'
                 : 'border-(--ui-panel-border) text-(--ui-text-muted)'
             "
             (click)="setMode(m)"
@@ -39,7 +39,7 @@
           @for (peer of audienceCandidates(); track peer.userId) {
             <label class="flex cursor-pointer items-center gap-1.5">
               <input type="checkbox" [checked]="isDisclosedTo(peer.userId)" (change)="toggleUser(peer.userId)" />
-              <span class="min-w-0 flex-1 truncate">{{ peer.name }}</span>
+              <span class="min-w-0 flex-1 truncate" [appTextTooltip]="peer.name">{{ peer.name }}</span>
               <span class="shrink-0 rounded-sm px-1 text-[0.6rem] font-bold" [class]="roleBadgeClass(peer.role)">{{
                 roleShortLabelKey(peer.role) | transloco
               }}</span>

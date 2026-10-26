@@ -341,11 +341,15 @@ export class NetworkEventHandlerService {
 
   /**
    * Plays alone in this browser, where nobody is kept from the table: a seat a room made a guest
-   * before going offline plays as a player, rather than find its own table read-only.
+   * before going offline plays as a player, rather than find its own table read-only. With no
+   * connection to hand the seat a user id, it takes the one it would wait outside a room as, or a new
+   * one, so what it holds, as a mask it scratches, is told from what nobody holds.
    */
   private playAlone(): void {
     const cursor = PeerCursor.myCursor;
-    if (cursor && !canRoleEdit(cursor.role)) cursor.role = DEFAULT_PEER_ROLE;
+    if (!cursor) return;
+    if (!canRoleEdit(cursor.role)) cursor.role = DEFAULT_PEER_ROLE;
+    if (cursor.userId.length < 1) cursor.userId = this.standbyUserId() ?? PeerContext.generateUserId();
   }
 
   /**

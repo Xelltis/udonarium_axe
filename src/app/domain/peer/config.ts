@@ -57,6 +57,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_speechBubbles') private _speechBubbles: string = '';
   @SyncVar('_turnSignal') private _turnSignal: string = '';
   @SyncVar('_turnTick') private _turnTick: string = '';
+  @SyncVar('_resourceSliderDefault') private _resourceSliderDefault: string = '';
 
   // How the round is taken, which is the room's own decision rather than a table's.
   @SyncVar('_turnOrderMode') private _turnOrderMode: string = '';
@@ -110,6 +111,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_interruptKind') private _interruptKind: string = '';
   @SyncVar('_zoneBlockRadius') private _zoneBlockRadius: number = -1;
   @SyncVar('_zoneClearName') private _zoneClearName: string = '';
+  @SyncVar('_zoneStealthUnseen') private _zoneStealthUnseen: string = '';
   @SyncVar('_placementDistances') private _placementDistances: string = '';
   @SyncVar('_distanceModifiers') private _distanceModifiers: string = '';
 
@@ -318,6 +320,18 @@ export class Config extends ObjectNode implements InnerXml {
     this._showSpeakerAvatar = visible ? '1' : '';
   }
 
+  /**
+   * Whether a number resource that says nothing of its own slider shows one.
+   *
+   * Off unless the room turns it on. A resource that says yes or no of its own keeps to it.
+   */
+  get resourceSliderByDefault(): boolean {
+    return this._resourceSliderDefault === '1';
+  }
+  set resourceSliderByDefault(shown: boolean) {
+    this._resourceSliderDefault = shown ? '1' : '';
+  }
+
   /** How the round decides whose turn it is: by initiative, or side by side; anything unknown reads as the default. */
   get turnOrderMode(): TurnOrderMode {
     return asTurnOrderMode(this._turnOrderMode);
@@ -398,6 +412,7 @@ export class Config extends ObjectNode implements InnerXml {
       leaveKind: readRuleText(this._zoneLeaveKind),
       blockRadiusM: readRuleNumber(this._zoneBlockRadius),
       clearName: readRuleText(this._zoneClearName),
+      stealthUnseen: readRuleFlag(this._zoneStealthUnseen),
     };
   }
 
@@ -487,6 +502,11 @@ export class Config extends ObjectNode implements InnerXml {
   /** The sheet field or buff by which a shooter fires past what stands in the way, or null for none. */
   set zoneClearName(answer: string | null) {
     this._zoneClearName = writeRuleText(answer);
+  }
+
+  /** Whether a piece in stealth counts as one nobody can see, or null for the default, which it does not. */
+  set zoneStealthUnseen(answer: boolean | null) {
+    this._zoneStealthUnseen = writeRuleFlag(answer);
   }
 
   /** The kind of move a piece may leave an overflowing zone by at once, or null for any kind. */

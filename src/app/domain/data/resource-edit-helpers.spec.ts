@@ -28,6 +28,12 @@ describe('resource-edit-helpers', () => {
       expect(result.isErr).toBe(false);
     });
 
+    it("takes a division's rounding for part of the amount, and the letters after it for options", () => {
+      expect(parseResourceEditOption('HP+12/2C')).toEqual({ limitMinMax: false, zeroLimit: false, isErr: false });
+      expect(parseResourceEditOption('HP+12/(1+3)RL')).toEqual({ limitMinMax: true, zeroLimit: false, isErr: false });
+      expect(parseResourceEditOption('HP+12/2X').isErr).toBe(true);
+    });
+
     it('reports an error for an option letter it does not know', () => {
       expect(parseResourceEditOption('HP+10X').isErr).toBe(true);
     });
@@ -61,6 +67,29 @@ describe('resource-edit-helpers', () => {
       expect(edit.operator).toBe('+');
       expect(edit.command).toBe('10+(1d1-1)');
       expect(edit.targeted).toBe(false);
+    });
+
+    it("keeps a division's rounding in the amount, the option letters after it out", () => {
+      const edit = createDefaultResourceEdit();
+
+      const ok = convertCommandToResourceEdit(edit, ':HP+12/2CL', character, false);
+
+      expect(ok).toBe(true);
+      expect(edit.amount).toBe('12/2C');
+      expect(edit.option?.limitMinMax).toBe(true);
+    });
+
+    it('rounds a division it takes away before the minus comes in, and leaves the rest of the amount as written', () => {
+      const edit = createDefaultResourceEdit();
+
+      convertCommandToResourceEdit(edit, ':HP-13/2F+1', character, false);
+      expect(edit.command).toBe('-(13/2F)+1+(1d1-1)');
+
+      convertCommandToResourceEdit(edit, ':HP-5+3', character, false);
+      expect(edit.command).toBe('-5+3+(1d1-1)');
+
+      convertCommandToResourceEdit(edit, ':HP-[13/2C]+1', character, false);
+      expect(edit.command).toBe('-[13/2C]+1+(1d1-1)');
     });
 
     it('aims at the maximum when it is marked', () => {

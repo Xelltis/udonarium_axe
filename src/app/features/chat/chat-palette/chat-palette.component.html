@@ -190,7 +190,9 @@
             }
           </span>
           @if (result.heading) {
-            <span class="text-ui-dim max-w-[40%] shrink-0 truncate text-[0.8em]">{{ result.heading }}</span>
+            <span class="text-ui-dim max-w-[40%] shrink-0 truncate text-[0.8em]" [appTextTooltip]="result.heading">{{
+              result.heading
+            }}</span>
           }
         </div>
       } @empty {

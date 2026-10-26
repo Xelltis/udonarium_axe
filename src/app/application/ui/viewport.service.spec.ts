@@ -80,6 +80,17 @@ describe('ViewportService', () => {
     expect(service.hasFinePointer()).toBe(false);
   });
 
+  it('counts a mouse seen moving as a fine pointer, whatever the browser says of it', () => {
+    const service = setup(false);
+    expect(service.hasFinePointer()).toBe(false);
+
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerType: 'touch' }));
+    expect(service.hasFinePointer()).toBe(false);
+
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerType: 'mouse' }));
+    expect(service.hasFinePointer()).toBe(true);
+  });
+
   it('counts a phone held sideways as compact too', () => {
     setup(false);
     expect(COMPACT_VIEWPORT_QUERY).toContain('(max-height: 500px) and (pointer: coarse)');

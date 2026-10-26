@@ -77,6 +77,11 @@ export class GameCharacter extends OwnedTabletopObject {
    * there and then; empty otherwise.
    */
   @SyncVar() unseen: string = '';
+  /**
+   * `1` while the piece keeps out of sight of the table: only the game master, its owner and its
+   * party see it; empty otherwise.
+   */
+  @SyncVar() stealth: string = '';
   /** `1` while the piece is down and cannot act, which keeps it out of every zone; empty otherwise. */
   @SyncVar() downed: string = '';
   /** `1` while the piece is held fast where it stands and cannot move; empty otherwise. */
@@ -130,6 +135,11 @@ export class GameCharacter extends OwnedTabletopObject {
 
   @SyncVar() specifyKomaImageFlag: boolean = false;
   @SyncVar('komaImageHeignt') komaImageHeight: number = 100;
+  /**
+   * The width the picture is drawn at apart from its height, in pixels, while its height is set; 0,
+   * or anything but a positive number, keeps the picture's own proportions.
+   */
+  @SyncVar() komaImageWidth: number = 0;
 
   @SyncVar() chatColorCode: string[] = [...DEFAULT_CHAT_COLOR_CODES];
   /** The bubble each colour is shown on, per theme. An empty entry is worked out instead. */

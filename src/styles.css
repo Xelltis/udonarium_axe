@@ -101,6 +101,9 @@
   /* Ratios color-mix uses often (only those reused in three or more places are registered)
      A one-off ratio is handled in the component's own style/CSS */
   --color-ui-accent-soft: color-mix(in srgb, var(--ui-accent) 20%, transparent);
+  /* A button filled with the accent and lettered in white: the accent darkened on a dark theme, where it is
+     light enough to read as text on the panels and too light to carry white text. */
+  --color-ui-accent-solid: color-mix(in srgb, var(--ui-accent) 72%, black);
   --color-ui-accent-bold: color-mix(in srgb, var(--ui-accent) 72%, var(--ui-elevated));
   --color-ui-danger-soft: color-mix(in srgb, var(--ui-danger) 20%, transparent);
   --color-ui-danger-ring: color-mix(in srgb, var(--ui-danger) 40%, transparent);
@@ -671,7 +674,7 @@ chat-message[data-chat-search-current] > div > div {
   /* Text */
   --ui-text: #e6edf3;
   --ui-text-muted: #8b949e;
-  --ui-text-dim: #484f58;
+  --ui-text-dim: #677079;
 
   /* Accent (electric blue) */
   --ui-accent: #58a6ff;
@@ -734,7 +737,7 @@ chat-message[data-chat-search-current] > div > div {
   --ui-panel-glow: rgba(135, 87, 239, 0.1);
   --ui-titlebar-bg: #c4b6d3;
   --ui-titlebar-text: #4c4564;
-  --ui-titlebar-muted: #6e6486;
+  --ui-titlebar-muted: #564f6e;
   --ui-titlebar-border: rgba(91, 64, 116, 0.32);
   --ui-hover: rgba(91, 64, 116, 0.08);
   --ui-selected: rgba(234, 118, 203, 0.18);
@@ -748,7 +751,8 @@ chat-message[data-chat-search-current] > div > div {
 
   --ui-text: #4c4564;
   --ui-text-muted: #6e6486;
-  --ui-text-dim: #9d92ad;
+  --ui-text-dim: #7f7494;
+  --color-ui-accent-solid: var(--color-ui-accent);
 
   --ui-accent: #1e66f5;
   --ui-accent-hover: #0a4dd9;
@@ -1249,6 +1253,16 @@ button.radial-menu-sector {
   transition:
     background-color 120ms ease,
     color 120ms ease;
+}
+
+/* Keyboard focus on a button, or on a control acting as one. Many turn the browser's own outline off with
+   outline-none, which is right for a pointer and left a keyboard user no sign of where they were. Standing
+   outside any layer it is not turned off with them, and :where keeps it below the focus rules a component
+   writes for its own buttons, as the rotating menu's below. Drawn inside, so a box that clips does not
+   hide it. */
+:where(button, [role='button'], summary, a[href]):focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: -2px;
 }
 
 button.radial-menu-sector:hover:not(:disabled),
@@ -3785,6 +3799,10 @@ body.touch-input .hover\:block\! {
 
 body.touch-input .group-hover\:flex {
   display: flex;
+}
+
+body.touch-input .group-hover\:visible {
+  visibility: visible;
 }
 
 body.touch-input .group-hover\:opacity-50,

@@ -158,7 +158,7 @@
       {{ 'feature.visualNovel.showcase.detached' | transloco }}
       <button
         type="button"
-        class="rounded-ui bg-ui-accent cursor-pointer border-0 px-1.5 py-0.5 text-[11px] font-bold text-white transition-opacity hover:opacity-85"
+        class="rounded-ui bg-ui-accent-solid cursor-pointer border-0 px-1.5 py-0.5 text-[11px] font-bold text-white transition-opacity hover:opacity-85"
         (click)="director.rejoinFollowing()"
       >
         {{ 'feature.visualNovel.showcase.rejoin' | transloco }}
@@ -169,7 +169,7 @@
 
 @if (isSkipping()) {
   <div
-    class="vn-auto-badge bg-ui-accent pointer-events-none absolute top-5 left-20 z-40 flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold text-white shadow-lg"
+    class="vn-auto-badge bg-ui-accent-solid pointer-events-none absolute top-5 left-20 z-40 flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold text-white shadow-lg"
   >
     <i class="material-icons text-sm!">fast_forward</i>
     {{ 'feature.visualNovel.skipping' | transloco }}
@@ -178,7 +178,7 @@
 
 @if (autoPlay()) {
   <div
-    class="vn-auto-badge bg-ui-accent animate-vn-pulse pointer-events-none absolute top-5 left-20 z-40 flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold text-white shadow-lg"
+    class="vn-auto-badge bg-ui-accent-solid animate-vn-pulse pointer-events-none absolute top-5 left-20 z-40 flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold text-white shadow-lg"
   >
     <i class="material-icons text-sm!">play_arrow</i>
     AUTO
@@ -229,7 +229,7 @@
         <span
           class="rounded-ui absolute top-2 -translate-x-1/2 px-1.5 py-0.5 text-[11px]"
           [style.left.%]="slotLabelLeftInBand(slotIndex)"
-          [class]="slotIndex === speakerSlot() ? 'bg-ui-accent text-white' : 'bg-black/60 text-white/90'"
+          [class]="slotIndex === speakerSlot() ? 'bg-ui-accent-solid text-white' : 'bg-black/60 text-white/90'"
         >
           {{ slotIndex + 1 }}
         </span>
@@ -294,7 +294,7 @@
       >
         @if (speakerName().length > 0) {
           <span
-            class="rounded-ui bg-ui-accent absolute -top-3 left-4 px-2 py-0.5 text-[11px] font-bold text-white shadow-md"
+            class="rounded-ui bg-ui-accent-solid absolute -top-3 left-4 px-2 py-0.5 text-[11px] font-bold text-white shadow-md"
             >{{ speakerName() }}</span
           >
         }
@@ -549,6 +549,7 @@
                 type="button"
                 class="text-ui-dim hover:text-ui-accent flex cursor-pointer items-center border-0 bg-transparent p-0 transition-colors disabled:cursor-default disabled:opacity-40"
                 [disabled]="portrait.index <= 0"
+                [title]="'feature.visualNovel.portraitPrevious' | transloco"
                 (click)="stepSpeakerPortrait(-1)"
               >
                 <i class="material-icons text-base!">chevron_left</i>
@@ -560,6 +561,7 @@
                 type="button"
                 class="text-ui-dim hover:text-ui-accent flex cursor-pointer items-center border-0 bg-transparent p-0 transition-colors disabled:cursor-default disabled:opacity-40"
                 [disabled]="portrait.index >= portrait.count - 1"
+                [title]="'feature.visualNovel.portraitNext' | transloco"
                 (click)="stepSpeakerPortrait(1)"
               >
                 <i class="material-icons text-base!">chevron_right</i>
@@ -687,6 +689,7 @@
             <button
               type="button"
               class="text-ui-dim hover:text-ui-danger flex cursor-pointer items-center border-0 bg-transparent p-0 [&_i]:text-[12px]"
+              [title]="'feature.visualNovel.seDetach' | transloco"
               (click)="clearAttachedSe()"
             >
               <i class="material-icons">close</i>
@@ -746,6 +749,7 @@
           class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui flex size-8 cursor-pointer items-center justify-center border-0 bg-transparent transition-[color,background] [&_i]:text-[18px]"
           [class.text-ui-accent]="isControlsOpen()"
           [attr.aria-expanded]="isControlsOpen()"
+          [title]="'feature.visualNovel.controls' | transloco"
           (click)="toggleControls()"
         >
           <i class="material-icons">{{ isControlsOpen() ? 'expand_more' : 'tune' }}</i>

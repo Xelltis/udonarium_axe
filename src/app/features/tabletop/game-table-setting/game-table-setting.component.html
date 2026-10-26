@@ -30,7 +30,7 @@
           [attr.aria-selected]="selectedTable?.identifier === gameTable.identifier"
         >
           <i class="material-icons shrink-0 text-[15px]! opacity-70">table_view</i>
-          <span class="truncate text-[13px]">{{ gameTable.name }}</span>
+          <span class="truncate text-[13px]" [appTextTooltip]="gameTable.name">{{ gameTable.name }}</span>
         </li>
       }
     </ul>
@@ -48,7 +48,7 @@
         <p>{{ 'feature.tabletop.tableSetting.noTable' | transloco }}</p>
         <button
           type="button"
-          class="rounded-ui-sm bg-ui-accent hover:bg-ui-accent m-0 inline-flex cursor-pointer items-center gap-1.25 border border-solid border-transparent px-3 py-1.25 text-[12px] font-semibold text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+          class="rounded-ui-sm bg-ui-accent-solid hover:bg-ui-accent-solid m-0 inline-flex cursor-pointer items-center gap-1.25 border border-solid border-transparent px-3 py-1.25 text-[12px] font-semibold text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
           (click)="createGameTable()"
         >
           <i class="material-icons">add</i>{{ 'feature.tabletop.tableSetting.createNew' | transloco }}
@@ -72,10 +72,8 @@
             'feature.tabletop.tableSetting.sectionBasic' | transloco
           }}</span>
         </div>
-        <div class="grid grid-cols-[6.5rem_1fr] items-center gap-x-3 gap-y-2.5">
-          <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-            'feature.tabletop.tableSetting.tableName' | transloco
-          }}</label>
+        <div class="grid grid-cols-[8rem_1fr] items-center gap-x-3 gap-y-2.5">
+          <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.tableName' | transloco }}</label>
           <input
             class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
             name="table-name"
@@ -83,7 +81,7 @@
             [placeholder]="'feature.tabletop.tableSetting.tableNamePlaceholder' | transloco"
             [attr.disabled]="!isEditable ? '' : null"
           />
-          <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+          <label class="text-ui-muted self-start pt-1.5 text-[11px]">{{
             'feature.tabletop.tableSetting.cutIns' | transloco
           }}</label>
           <div class="flex flex-col gap-1">
@@ -102,7 +100,7 @@
             <span class="text-ui-dim text-[11px]">{{ 'feature.tabletop.tableSetting.cutInsHint' | transloco }}</span>
           </div>
 
-          <label class="text-ui-muted text-[11px] whitespace-nowrap" for="table-bgm">{{
+          <label class="text-ui-muted self-start pt-1.5 text-[11px]" for="table-bgm">{{
             'feature.tabletop.tableSetting.tableBgm' | transloco
           }}</label>
           <div class="flex flex-col gap-1">
@@ -134,10 +132,8 @@
             'feature.tabletop.tableSetting.sectionImages' | transloco
           }}</span>
         </div>
-        <div class="grid grid-cols-[6.5rem_1fr] items-center gap-3">
-          <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-            'feature.tabletop.tableSetting.imageTable' | transloco
-          }}</label>
+        <div class="grid grid-cols-[8rem_1fr] items-center gap-3">
+          <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.imageTable' | transloco }}</label>
           <div class="flex items-start gap-2">
             @if (tableBackgroundImage.url) {
               <img
@@ -166,9 +162,7 @@
             </button>
           </div>
 
-          <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-            'feature.tabletop.tableSetting.imageBg' | transloco
-          }}</label>
+          <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.imageBg' | transloco }}</label>
           <div class="flex">
             @if (tableDistanceviewImage.url) {
               <img
@@ -188,9 +182,7 @@
             }
           </div>
 
-          <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-            'feature.tabletop.tableSetting.bgFilter' | transloco
-          }}</label>
+          <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.bgFilter' | transloco }}</label>
           <select
             class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
             [(ngModel)]="tableDistanceviewFilter"
@@ -202,7 +194,7 @@
             <option value="black">{{ 'feature.tabletop.tableSetting.bgFilterBlack' | transloco }}</option>
           </select>
 
-          <label class="text-ui-muted col-start-1 self-start pt-1 text-[11px] whitespace-nowrap">{{
+          <label class="text-ui-muted col-start-1 self-start pt-1 text-[11px]">{{
             'feature.tabletop.tableSetting.imageWalls' | transloco
           }}</label>
           <div class="grid grid-cols-2 gap-x-3 gap-y-2">
@@ -327,8 +319,8 @@
               ></div>
             }
 
-            <div class="grid grid-cols-[6.5rem_1fr] items-center gap-x-3 gap-y-2">
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+            <div class="grid grid-cols-[8rem_1fr] items-center gap-x-3 gap-y-2">
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.tabletop.tableSetting.backgroundLayerPlacement' | transloco
               }}</label>
               <select
@@ -345,7 +337,7 @@
                 }
               </select>
 
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.tabletop.tableSetting.backgroundLayerSpeedX' | transloco
               }}</label>
               <input
@@ -360,7 +352,7 @@
                 (ngModelChange)="setBackgroundLayerSpeedX(layer, $event)"
               />
 
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.tabletop.tableSetting.backgroundLayerSpeedY' | transloco
               }}</label>
               <input
@@ -381,7 +373,7 @@
                 (ngModelChange)="setBackgroundLayerSpeedY(layer, $event)"
               />
 
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.tabletop.tableSetting.backgroundLayerOpacity' | transloco
               }}</label>
               <div class="flex items-center gap-2">
@@ -401,7 +393,7 @@
                 >
               </div>
 
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.tabletop.tableSetting.backgroundLayerScale' | transloco
               }}</label>
               <input
@@ -417,7 +409,7 @@
               />
 
               @if (backgroundLayerPlacement(layer) === 'backdrop') {
-                <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                <label class="text-ui-muted text-[11px]">{{
                   'feature.tabletop.tableSetting.backgroundLayerFollow' | transloco
                 }}</label>
                 <div class="flex items-center gap-2">
@@ -437,7 +429,7 @@
                   >
                 </div>
 
-                <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+                <label class="text-ui-muted text-[11px]">{{
                   'feature.tabletop.tableSetting.backgroundLayerHeight' | transloco
                 }}</label>
                 <div class="flex items-center gap-2">
@@ -467,10 +459,8 @@
             'feature.tabletop.tableSetting.sectionSize' | transloco
           }}</span>
         </div>
-        <div class="grid grid-cols-[6.5rem_1fr] items-center gap-x-3 gap-y-2.5">
-          <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-            'feature.tabletop.tableSetting.width' | transloco
-          }}</label>
+        <div class="grid grid-cols-[8rem_1fr] items-center gap-x-3 gap-y-2.5">
+          <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.width' | transloco }}</label>
           <div class="flex items-center gap-2">
             <input
               type="range"
@@ -492,9 +482,7 @@
             />
           </div>
 
-          <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-            'feature.tabletop.tableSetting.height' | transloco
-          }}</label>
+          <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.height' | transloco }}</label>
           <div class="flex items-center gap-2">
             <input
               type="range"
@@ -516,9 +504,7 @@
             />
           </div>
 
-          <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-            'feature.tabletop.tableSetting.wallHeight' | transloco
-          }}</label>
+          <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.wallHeight' | transloco }}</label>
           <div class="flex items-center gap-2">
             <input
               type="range"
@@ -540,7 +526,7 @@
             />
           </div>
 
-          <label class="text-ui-muted text-[11px] whitespace-nowrap" for="table-cell-size-num">{{
+          <label class="text-ui-muted text-[11px]" for="table-cell-size-num">{{
             'feature.tabletop.tableSetting.cellSize' | transloco
           }}</label>
           <div class="flex items-center gap-2">
@@ -578,10 +564,8 @@
             'feature.tabletop.tableSetting.sectionGrid' | transloco
           }}</span>
         </div>
-        <div class="grid grid-cols-[6.5rem_1fr] items-center gap-x-3 gap-y-2.5">
-          <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-            'feature.tabletop.tableSetting.gridType' | transloco
-          }}</label>
+        <div class="grid grid-cols-[8rem_1fr] items-center gap-x-3 gap-y-2.5">
+          <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.gridType' | transloco }}</label>
           <select
             class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
             [(ngModel)]="tableGridType"
@@ -595,7 +579,7 @@
           </select>
 
           @if (isSquareGridTable) {
-            <label class="text-ui-muted text-[11px] whitespace-nowrap" for="table-square-span">{{
+            <label class="text-ui-muted text-[11px]" for="table-square-span">{{
               'feature.tabletop.tableSetting.squareSpan' | transloco
             }}</label>
             <select
@@ -617,7 +601,7 @@
             }}</span>
           }
 
-          <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+          <label class="text-ui-muted text-[11px]">{{
             'feature.tabletop.tableSetting.gridColorLabel' | transloco
           }}</label>
           <div class="flex flex-wrap items-center gap-3">
@@ -659,9 +643,7 @@
             {{ 'feature.tabletop.tableSetting.gridAlwaysShow' | transloco }}
           </label>
 
-          <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-            'feature.tabletop.tableSetting.snap' | transloco
-          }}</label>
+          <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.snap' | transloco }}</label>
           <select
             class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
             [(ngModel)]="tableSnapMode"
@@ -754,8 +736,8 @@
               {{ 'feature.tabletop.tableSetting.lightSnapToGrid' | transloco }}
             </label>
 
-            <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+            <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.tabletop.tableSetting.darknessLevel' | transloco
               }}</label>
               <input
@@ -769,7 +751,7 @@
               />
               <span class="text-ui-muted text-right text-[11px]">{{ tableDarknessLevelPercent }}%</span>
 
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.tabletop.tableSetting.globalIllumination' | transloco
               }}</label>
               <input
@@ -783,7 +765,7 @@
               />
               <span class="text-ui-muted text-right text-[11px]">{{ tableGlobalIlluminationPercent }}%</span>
 
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.tabletop.tableSetting.ambientColor' | transloco
               }}</label>
               <input
@@ -834,10 +816,8 @@
           </label>
 
           @if (tableFogEnabled) {
-            <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-                'feature.tabletop.tableSetting.fogMode' | transloco
-              }}</label>
+            <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+              <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.fogMode' | transloco }}</label>
               <select
                 class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 [(ngModel)]="tableFogMode"
@@ -849,7 +829,7 @@
                 }
               </select>
 
-              <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+              <label class="text-ui-muted text-[11px]">{{
                 'feature.tabletop.tableSetting.fogColor' | transloco
               }}</label>
               <input
@@ -882,10 +862,8 @@
             'feature.tabletop.tableSetting.sectionWeather' | transloco
           }}</span>
         </div>
-        <div class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
-          <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-            'feature.tabletop.tableSetting.weatherKind' | transloco
-          }}</label>
+        <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+          <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.weatherKind' | transloco }}</label>
           <select
             class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
             [(ngModel)]="tableWeatherKind"
@@ -899,9 +877,7 @@
           </select>
 
           @if (tableWeatherKind) {
-            <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-              'feature.ambience.densityLabel' | transloco
-            }}</label>
+            <label class="text-ui-muted text-[11px]">{{ 'feature.ambience.densityLabel' | transloco }}</label>
             <input
               type="range"
               min="0"
@@ -913,9 +889,7 @@
             />
             <span class="text-ui-muted text-right text-[11px]">{{ tableWeatherDensityPercent }}%</span>
 
-            <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
-              'feature.ambience.colorLabel' | transloco
-            }}</label>
+            <label class="text-ui-muted text-[11px]">{{ 'feature.ambience.colorLabel' | transloco }}</label>
             <input
               type="color"
               class="rounded-ui-sm border-ui-border-panel h-6.5 w-12 cursor-pointer border border-solid bg-transparent px-0.5 py-px disabled:cursor-not-allowed disabled:opacity-50"
@@ -940,7 +914,7 @@
           <div class="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
-              class="rounded-ui-sm bg-ui-accent hover:bg-ui-accent m-0 inline-flex cursor-pointer items-center gap-1.25 border border-solid border-transparent px-3 py-1.25 text-[12px] font-semibold text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+              class="rounded-ui-sm bg-ui-accent-solid hover:bg-ui-accent-solid m-0 inline-flex cursor-pointer items-center gap-1.25 border border-solid border-transparent px-3 py-1.25 text-[12px] font-semibold text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
               [disabled]="isSaving()"
               (click)="save()"
             >
@@ -964,7 +938,7 @@
           <div class="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
-              class="rounded-ui-sm bg-ui-accent hover:bg-ui-accent m-0 inline-flex cursor-pointer items-center gap-1.25 border border-solid border-transparent px-3 py-1.25 text-[12px] font-semibold text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+              class="rounded-ui-sm bg-ui-accent-solid hover:bg-ui-accent-solid m-0 inline-flex cursor-pointer items-center gap-1.25 border border-solid border-transparent px-3 py-1.25 text-[12px] font-semibold text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
               (click)="restore()"
             >
               <i class="material-icons">undo</i>{{ 'feature.tabletop.tableSetting.restore' | transloco }}

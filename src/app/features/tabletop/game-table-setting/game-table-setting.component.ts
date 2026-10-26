@@ -58,6 +58,7 @@ import {
 } from '@axe/features/tabletop/map-image-grid-adjuster/map-image-grid-adjuster.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
@@ -68,6 +69,7 @@ import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
   templateUrl: './game-table-setting.component.html',
   host: { class: 'block', '[attr.inert]': "isReadOnly() ? '' : null" },
   imports: [
+    TextTooltipDirective,
     NgClass,
     FormsModule,
     NgSelectComponent,

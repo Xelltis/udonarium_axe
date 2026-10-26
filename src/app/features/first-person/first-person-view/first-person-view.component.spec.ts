@@ -956,6 +956,29 @@ describe('FirstPersonViewComponent', () => {
       expect(boxOf(fixture, tall).width).toBeCloseTo(60 * scaleOf(GRID), 1);
     });
 
+    it('stands a picture given a width apart from its height that wide, filling its box out of proportion', () => {
+      ImageStorage.instance.add('stretched-picture');
+      const wide = GameCharacter.create('幕', 1, 'stretched-picture');
+      wide.location = { name: 'table', x: 4 * GRID, y: 3 * GRID };
+      wide.specifyKomaImageFlag = true;
+      wide.komaImageHeight = 120;
+      wide.komaImageWidth = 200;
+      lookOutOf(pieceAt(4, 8));
+
+      try {
+        const fixture = mount();
+        pictureLoaded(fixture, wide, 100, 200);
+
+        expect(boxOf(fixture, wide).width).toBeCloseTo(200 * scaleOf(GRID), 1);
+        expect(boxOf(fixture, wide).height).toBeCloseTo(120 * scaleOf(GRID), 1);
+        const picture = element(fixture).querySelector(`[data-piece="${wide.identifier}"] img`)!;
+        expect(picture.classList.contains('object-fill')).toBe(true);
+        expect(picture.classList.contains('object-contain')).toBe(false);
+      } finally {
+        ImageStorage.instance.delete('stretched-picture');
+      }
+    });
+
     it('draws a piece on a hex grid while the hex under its middle is in sight', () => {
       table.gridType = GridType.HEX_VERTICAL;
       const grid = cellGridOf(table.width, table.height, GRID, GridType.HEX_VERTICAL);

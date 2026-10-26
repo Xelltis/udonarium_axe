@@ -14,6 +14,7 @@ import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { MenuCommand } from '@axe/domain/ui/menu-command';
 import { AnchoredPopover } from '@axe/ui/anchored-popover';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 const LIST_WIDTH = 320;
@@ -30,7 +31,7 @@ const LIST_MIN_HEIGHT = 220;
   selector: 'menu-command-picker',
   templateUrl: './menu-command-picker.component.html',
   host: { class: 'flex' },
-  imports: [FormsModule, TranslocoModule],
+  imports: [TextTooltipDirective, FormsModule, TranslocoModule],
 })
 export class MenuCommandPickerComponent {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);

@@ -103,15 +103,17 @@
         }
         <div class="contents" data-panel-frame-controls>
           @for (control of activePanel().panelControls(); track control.icon) {
-            <button
-              class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
-              [ngClass]="isCompact() ? 'size-10! rounded-full! [&>i]:text-[22px]!' : ''"
-              [title]="control.label"
-              [attr.data-testid]="'panel-control-' + control.icon"
-              (click)="control.press(activePanel())"
-            >
-              <i class="material-icons text-[14px]!">{{ control.icon }}</i>
-            </button>
+            @if (control.shown?.() ?? true) {
+              <button
+                class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+                [ngClass]="isCompact() ? 'size-10! rounded-full! [&>i]:text-[22px]!' : ''"
+                [title]="control.label"
+                [attr.data-testid]="'panel-control-' + control.icon"
+                (click)="control.press(activePanel())"
+              >
+                <i class="material-icons text-[14px]!">{{ control.icon }}</i>
+              </button>
+            }
           }
           <!--
             Shrunk to its content a panel is as narrow as what it holds, which leaves room for
@@ -137,6 +139,8 @@
             />
             <button
               class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+              [attr.aria-label]="minimizeTitle"
+              [title]="minimizeTitle"
               [disabled]="isFullScreen()"
               (click)="toggleMinimize()"
             >
@@ -155,6 +159,8 @@
             }
             <button
               class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+              [attr.aria-label]="fullScreenTitle"
+              [title]="fullScreenTitle"
               [disabled]="isMinimized()"
               (click)="toggleFullScreen()"
             >
@@ -163,6 +169,8 @@
           } @else if (!isCompact()) {
             <button
               class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+              [attr.aria-label]="restoreTitle"
+              [title]="restoreTitle"
               (click)="toggleMinimize()"
             >
               <i class="material-icons text-[14px]!">open_in_full</i>
@@ -171,6 +179,8 @@
           <button
             class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
             [ngClass]="isCompact() ? 'size-10! rounded-full! [&>i]:text-[22px]!' : ''"
+            [attr.aria-label]="closeTitle"
+            [title]="closeTitle"
             (click)="close()"
           >
             <i class="material-icons text-[14px]!">close</i>

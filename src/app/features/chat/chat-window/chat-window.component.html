@@ -75,7 +75,7 @@
     @if (newMessageCount() > 0 || !isNearBottom()) {
       <button
         type="button"
-        class="bg-ui-accent shadow-ui-md absolute -top-9 left-1/2 z-10 m-0 inline-flex max-w-[calc(100%-1rem)] -translate-x-1/2 cursor-pointer items-center gap-1.5 rounded-full border-none px-3 py-1.25 text-[12px] font-medium whitespace-nowrap text-white transition-[opacity,box-shadow] hover:border-transparent hover:text-white hover:opacity-90 hover:shadow-[0_0_0_2px_var(--ui-accent-glow)] [&_.material-icons]:text-[14px]!"
+        class="bg-ui-accent-solid shadow-ui-md absolute -top-9 left-1/2 z-10 m-0 inline-flex max-w-[calc(100%-1rem)] -translate-x-1/2 cursor-pointer items-center gap-1.5 rounded-full border-none px-3 py-1.25 text-[12px] font-medium whitespace-nowrap text-white transition-[opacity,box-shadow] hover:border-transparent hover:text-white hover:opacity-90 hover:shadow-[0_0_0_2px_var(--ui-accent-glow)] [&_.material-icons]:text-[14px]!"
         (click)="onClickScrollToBottom()"
       >
         @if (newMessageCount() > 0) {
@@ -219,7 +219,9 @@
     <div
       class="rounded-ui border-ui-border-panel bg-ui-elevated text-ui-muted flex min-w-0 items-center gap-1.5 border border-solid px-2 py-0.5"
     >
-      <span class="writing-speaker-name max-w-32 truncate text-[11px] leading-[1.2]">{{ speaker.name }}</span>
+      <span class="writing-speaker-name max-w-32 truncate text-[11px] leading-[1.2]" [appTextTooltip]="speaker.name">{{
+        speaker.name
+      }}</span>
       <span class="flex items-center gap-1">
         <span class="animate-writing-dot bg-ui-muted block size-1 rounded-full"></span>
         <span class="animate-writing-dot bg-ui-muted block size-1 rounded-full [animation-delay:0.15s]"></span>

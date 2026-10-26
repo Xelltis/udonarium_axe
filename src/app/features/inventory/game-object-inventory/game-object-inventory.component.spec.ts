@@ -1,10 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
@@ -12,14 +15,20 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { resourceElementsOf } from '@axe/domain/character/resource-catalog';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
+import { SoundEffect } from '@axe/domain/media/sound-effect';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { GameObjectInventoryComponent } from '@axe/features/inventory/game-object-inventory/game-object-inventory.component';
+import { TurnState } from '@axe/domain/tabletop/turn-state';
+import {
+  GameObjectInventoryComponent,
+  PERSONAL_INVENTORY_TAB,
+} from '@axe/features/inventory/game-object-inventory/game-object-inventory.component';
 import { InventoryObjectDrag } from '@axe/features/inventory/game-object-inventory/inventory-object-drag';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { installPanelLayer } from '@axe/testing/panel-layer';
@@ -99,6 +108,66 @@ describe('GameObjectInventoryComponent', () => {
       expect(icons).toContain('fast_rewind');
       expect(icons).toContain('restart_alt');
       expect(icons).toContain('chevron_right');
+    });
+  });
+
+  describe('waiting to step in', () => {
+    let pieces: GameCharacter[];
+    let turnOrder: TurnOrderService;
+
+    beforeEach(() => {
+      PeerCursor.myCursor = { role: PeerRole.GameMaster, identifier: 'seat-cursor' } as PeerCursor;
+      vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(undefined as never);
+      const turnState = TestBed.inject(TurnState);
+      Object.assign(turnState, {
+        round: 0,
+        phase: 'idle',
+        currentIdentifier: '',
+        currentSide: '',
+        actedIdentifiers: [],
+        history: '[]',
+        holding: '',
+      });
+      pieces = ['先手', '中手', '後手'].map((name) => {
+        const piece = GameCharacter.create(name, 1, '');
+        piece.setLocation('table');
+        return piece;
+      });
+      turnOrder = TestBed.inject(TurnOrderService);
+      turnOrder.next();
+      turnOrder.next();
+    });
+
+    afterEach(() => {
+      turnOrder.reset();
+      TestBed.inject(TurnState).history = '[]';
+      vi.restoreAllMocks();
+    });
+
+    it('holds the piece whose turn it is from the round strip, and marks it on its row', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const hold = fixture.nativeElement.querySelector('[data-testid="turn-hold"]') as HTMLButtonElement;
+      expect(turnOrder.currentIdentifier).toBe(pieces[0].identifier);
+      expect(hold.disabled).toBe(false);
+
+      hold.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(turnOrder.isHeld(pieces[0].identifier)).toBe(true);
+      expect(turnOrder.currentIdentifier).toBe(pieces[1].identifier);
+      expect(fixture.nativeElement.querySelectorAll('[data-testid="inventory-turn-held"]')).toHaveLength(1);
+    });
+
+    it('steps a waiting piece in from the button on its row, and goes back to the turn it stepped into', () => {
+      turnOrder.hold(pieces[0].identifier);
+
+      component.setTurnOrder(new Event('click'), pieces[0]);
+      expect(turnOrder.currentIdentifier).toBe(pieces[0].identifier);
+
+      turnOrder.next();
+      expect(turnOrder.currentIdentifier).toBe(pieces[1].identifier);
     });
   });
 
@@ -446,14 +515,14 @@ describe('GameObjectInventoryComponent', () => {
         villager.folderName = '村';
         TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
         const panel = opened();
-        panel.selectTab.set(Network.peerId);
+        panel.selectTab.set(PERSONAL_INVENTORY_TAB);
         TestBed.tick();
 
         panel.selectTab.set('common');
         TestBed.tick();
 
         expect(panel.isFolderCollapsed('村')).toBe(true);
-        panel.selectTab.set(Network.peerId);
+        panel.selectTab.set(PERSONAL_INVENTORY_TAB);
         TestBed.tick();
         expect(panel.isFolderCollapsed('手持ち')).toBe(true);
       });
@@ -488,7 +557,7 @@ describe('GameObjectInventoryComponent', () => {
         TestBed.tick();
         panel.toggleFolder('村');
 
-        panel.selectTab.set(Network.peerId);
+        panel.selectTab.set(PERSONAL_INVENTORY_TAB);
         TestBed.tick();
         expect(panel.isFolderCollapsed('村')).toBe(true);
         panel.selectTab.set('common');
@@ -807,7 +876,7 @@ describe('GameObjectInventoryComponent', () => {
       mine.setLocation(Network.peerId);
       mine.folderName = '第1話';
 
-      component.selectTab.set(Network.peerId);
+      component.selectTab.set(PERSONAL_INVENTORY_TAB);
       component.renameFolder('第1話', '序章');
 
       expect(mine.folderName).toBe('序章');
@@ -822,7 +891,7 @@ describe('GameObjectInventoryComponent', () => {
       mine.folderName = '第1話';
       vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
 
-      component.selectTab.set(Network.peerId);
+      component.selectTab.set(PERSONAL_INVENTORY_TAB);
       await component.deleteFolder('第1話');
 
       expect(mine.folderName).toBe('');
@@ -896,6 +965,35 @@ describe('GameObjectInventoryComponent', () => {
       expect(goblin.folderName).toBe('第1話/洞窟');
     });
 
+    it('moves a character dropped anywhere in an open folder into it', () => {
+      const goblin = putInShared('ゴブリン');
+      component.selectTab.set('common');
+      const folder = document.createElement('div');
+      folder.setAttribute('data-folder-area', '');
+      folder.setAttribute('data-folder-path', '第1話');
+      const row = document.createElement('div');
+      folder.append(row);
+      fixture.nativeElement.append(folder);
+
+      dragOnto(goblin, row);
+
+      expect(goblin.folderName).toBe('第1話');
+    });
+
+    it('leaves a character dropped back in its own folder alone, without a sound', () => {
+      const goblin = putInShared('ゴブリン');
+      goblin.folderName = '第1話';
+      component.selectTab.set('common');
+      const update = vi.spyOn(TestBed.inject(GameObjectInventoryService), 'notifyInventoryUpdate');
+      const sound = vi.spyOn(SoundEffect, 'play');
+
+      dragOnto(goblin, folderHeading('第1話'));
+
+      expect(goblin.folderName).toBe('第1話');
+      expect(update).not.toHaveBeenCalled();
+      expect(sound).not.toHaveBeenCalled();
+    });
+
     it('takes a character dragged onto the unfiled heading out of its folder', () => {
       const goblin = putInShared('ゴブリン');
       goblin.folderName = '第1話';
@@ -904,6 +1002,91 @@ describe('GameObjectInventoryComponent', () => {
       dragOnto(goblin, folderHeading(''));
 
       expect(goblin.folderName).toBe('');
+    });
+
+    function tab(inventoryType: string): HTMLElement {
+      const label = document.createElement('label');
+      label.setAttribute('data-inventory-tab', inventoryType);
+      fixture.nativeElement.append(label);
+      return label;
+    }
+
+    it('gives every resource of the ticked characters a slider from the bar, and takes them all away', () => {
+      const goblin = putInShared('ゴブリン');
+      const village = putInShared('村長');
+      const sliders = TestBed.inject(ResourceSliderService);
+      const buttons = () =>
+        [
+          ...fixture.nativeElement.querySelectorAll('[data-testid="inventory-multi-resource-sliders"]'),
+        ] as HTMLButtonElement[];
+      component.selectTab.set('common');
+      component.isMultiMove.set(true);
+      component.multiMoveTargets.set(new Set([goblin.identifier]));
+      fixture.detectChanges();
+      expect(buttons().map((button) => button.textContent?.trim())).toEqual(['すべて出す', 'すべて隠す']);
+
+      buttons()[0].click();
+
+      expect(resourceElementsOf(goblin).every((element) => sliders.shows(element))).toBe(true);
+      expect(resourceElementsOf(village).some((element) => sliders.shows(element))).toBe(false);
+      expect(component.isMultiMove()).toBe(false);
+
+      component.isMultiMove.set(true);
+      component.multiMoveTargets.set(new Set([goblin.identifier]));
+      fixture.detectChanges();
+      buttons()[1].click();
+
+      expect(resourceElementsOf(goblin).some((element) => sliders.shows(element))).toBe(false);
+    });
+
+    it('moves every ticked character to the place chosen from the menu', () => {
+      const goblin = putInShared('ゴブリン');
+      const village = putInShared('村長');
+      const keeper = putInShared('番人');
+      component.selectTab.set('common');
+      component.multiMoveTargets.set(new Set([goblin.identifier, village.identifier]));
+
+      component.multiMove('graveyard');
+
+      expect([goblin.location.name, village.location.name, keeper.location.name]).toEqual([
+        'graveyard',
+        'graveyard',
+        'common',
+      ]);
+    });
+
+    it('moves a character let go over another tab to the place it shows', () => {
+      const goblin = putInShared('ゴブリン');
+      component.selectTab.set('common');
+
+      dragOnto(goblin, tab('graveyard'));
+
+      expect(goblin.location.name).toBe('graveyard');
+    });
+
+    it("moves a character let go over the personal tab to this seat's own place", () => {
+      const goblin = putInShared('ゴブリン');
+      component.selectTab.set('common');
+
+      dragOnto(goblin, tab(PERSONAL_INVENTORY_TAB));
+
+      expect(goblin.location.name).toBe(Network.peerId);
+    });
+
+    it('moves the ticked selection along and lets it go from the selection', () => {
+      const goblin = putInShared('ゴブリン');
+      const village = putInShared('村長');
+      const keeper = putInShared('番人');
+      component.selectTab.set('common');
+      component.isMultiMove.set(true);
+      component.multiMoveTargets.set(new Set([goblin.identifier, village.identifier, keeper.identifier]));
+
+      dragOnto(goblin, tab('table'));
+
+      expect(goblin.location.name).toBe('table');
+      expect(village.location.name).toBe('table');
+      expect(keeper.location.name).toBe('table');
+      expect(component.multiMoveTargets().size).toBe(0);
     });
 
     it('leaves a character dropped nowhere where it was', () => {
@@ -948,6 +1131,42 @@ describe('GameObjectInventoryComponent', () => {
       dragOnto(goblin, folderHeading('第1話'));
 
       expect(goblin.folderName).toBe('');
+    });
+
+    describe('a piece in stealth', () => {
+      const originalCursor = PeerCursor.myCursor;
+      const names = () => component.filteredRows().map((row) => row.object.name);
+
+      afterEach(() => {
+        PeerCursor.myCursor = originalCursor;
+      });
+
+      it('drops off the table tab of a player who may not see it as it goes into stealth', async () => {
+        PeerCursor.myCursor = { role: PeerRole.Player, identifier: 'pl-cursor', userId: 'p1' } as PeerCursor;
+        const lurker = putOnTable('潜む者');
+        putOnTable('村長');
+        expect(names()).toContain('潜む者');
+
+        lurker.stealth = '1';
+
+        await vi.waitFor(() => expect(names()).toEqual(['村長']));
+      });
+
+      it('stays on the table tab of the game master', async () => {
+        PeerCursor.myCursor = {
+          role: PeerRole.GameMaster,
+          identifier: 'gm-cursor',
+          isGameMaster: true,
+        } as PeerCursor;
+        const lurker = putOnTable('潜む者');
+
+        lurker.stealth = '1';
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(names()).toContain('潜む者');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-testid="inventory-stealth-mark"]')).not.toBeNull();
+      });
     });
 
     describe('the pieces the inventory hides', () => {
@@ -1337,6 +1556,86 @@ describe('GameObjectInventoryComponent', () => {
           .find((control) => control.icon === 'tune');
         expect(settings).toBeTruthy();
       });
+
+      describe('the round strip waiting for a round to begin', () => {
+        const roundButtons = () =>
+          [...fixture.nativeElement.querySelectorAll('button')].filter((button: HTMLElement) =>
+            ['前へ', '次へ'].some((label) => button.textContent?.includes(label))
+          );
+        const begin = () => fixture.nativeElement.querySelector('[data-testid="inventory-begin-round"]');
+
+        afterEach(() => {
+          localStorage.removeItem('ui-inventory-round-in-play');
+          vi.restoreAllMocks();
+        });
+
+        it('stands as it always has until the reader asks it to wait', () => {
+          fixture.detectChanges();
+
+          expect(roundButtons()).toHaveLength(2);
+          expect(begin()).toBeNull();
+        });
+
+        it('gives way to a button beside the tabs before a round, which begins one', () => {
+          const next = vi.spyOn(TestBed.inject(TurnOrderService), 'next').mockImplementation(() => {});
+          viewPreference().setRoundInPlay(true);
+          fixture.detectChanges();
+
+          expect(roundButtons()).toHaveLength(0);
+          (begin() as HTMLButtonElement).click();
+          expect(next).toHaveBeenCalled();
+        });
+
+        it('comes back once a round has begun', () => {
+          vi.spyOn(TestBed.inject(TurnOrderService), 'round', 'get').mockReturnValue(2);
+          viewPreference().setRoundInPlay(true);
+          fixture.detectChanges();
+
+          expect(roundButtons()).toHaveLength(2);
+          expect(begin()).toBeNull();
+        });
+
+        it('stands as it always has while the tabs are put away, as there would be nowhere for the button', () => {
+          viewPreference().setRoundInPlay(true);
+          viewPreference().setShown('tabs', false);
+          fixture.detectChanges();
+
+          expect(roundButtons()).toHaveLength(2);
+        });
+      });
+
+      describe('the search box above the list', () => {
+        const searchBar = () => fixture.nativeElement.querySelector('[data-testid="inventory-search-bar"]');
+
+        afterEach(() => {
+          localStorage.removeItem('ui-inventory-search-bar');
+          component.clearSearch();
+        });
+
+        it('is not there until the reader asks for it', () => {
+          putOnTable('ゴブリン');
+          fixture.detectChanges();
+
+          expect(searchBar()).toBeNull();
+        });
+
+        it('narrows the list as the one in the settings does, once asked for', async () => {
+          putOnTable('ゴブリン');
+          putOnTable('村長');
+          viewPreference().setSearchBar(true);
+          fixture.detectChanges();
+
+          const input = searchBar().querySelector('input') as HTMLInputElement;
+          input.value = '村長';
+          input.dispatchEvent(new Event('input'));
+          fixture.detectChanges();
+          await fixture.whenStable();
+
+          expect(component.searchQuery()).toBe('村長');
+          expect(component.filteredRows().map((row) => row.object.name)).toEqual(['村長']);
+          expect(searchBar().textContent).toContain('1 / 2');
+        });
+      });
     });
 
     describe('what is on a piece', () => {
@@ -1386,6 +1685,152 @@ describe('GameObjectInventoryComponent', () => {
         expect(gauge).toBeTruthy();
         expect(gauge.style.getPropertyValue('--max')).toBe('0');
         expect(gauge.style.color).toBe('');
+      });
+
+      it('shows the display items of a piece on the personal tab too', () => {
+        const mine = putOnTable('相棒');
+        mine.setLocation(Network.peerId);
+        TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+        component.selectTab.set(PERSONAL_INVENTORY_TAB);
+        fixture.detectChanges();
+
+        expect(component.getInventoryTags(mine).map((element) => element?.name)).toEqual(['HP']);
+        expect(fixture.nativeElement.querySelector('input[type="range"][name="data-current-value"]')).toBeTruthy();
+      });
+
+      it('writes the maximum beside the value of a resource', () => {
+        const goblin = putOnTable('ゴブリン');
+        const hp = DataElement.findElementByReference(goblin.rootDataElement!, 'HP')!;
+        hp.value = 30;
+        hp.currentValue = 25;
+        TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+        fixture.detectChanges();
+
+        const max = fixture.nativeElement.querySelector('[data-testid="inventory-resource-max"]') as HTMLElement;
+        expect(max.textContent?.trim()).toBe('/ 30');
+      });
+
+      it('writes no maximum for a resource whose maximum is left empty, rather than a maximum of nought', () => {
+        const goblin = putOnTable('ゴブリン');
+        DataElement.findElementByReference(goblin.rootDataElement!, 'HP')!.value = '';
+        TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.querySelector('[data-testid="inventory-resource-max"]')).toBeNull();
+      });
+
+      it("lets a press on a row not yet picked pick it, not set its gauge, and the picked row's gauge be set", () => {
+        const goblin = putOnTable('ゴブリン');
+        TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+        fixture.detectChanges();
+        const gauge = () =>
+          fixture.nativeElement.querySelector('input[type="range"][name="data-current-value"]') as HTMLInputElement;
+
+        expect(gauge().classList).toContain('pointer-events-none');
+
+        component.selectGameObject(goblin);
+        TestBed.tick();
+        fixture.detectChanges();
+
+        expect(gauge().classList).not.toContain('pointer-events-none');
+      });
+
+      describe('folded down until picked', () => {
+        const row = () => fixture.nativeElement.querySelector('[data-testid="inventory-item"]') as HTMLElement;
+        const meters = (): HTMLElement[] => [
+          ...fixture.nativeElement.querySelectorAll('[data-testid="inventory-resource-meter"]'),
+        ];
+        const gauge = () => fixture.nativeElement.querySelector('input[type="range"][name="data-current-value"]');
+        const fold = () => fixture.debugElement.injector.get(InventoryViewPreferenceService).setCompact(true);
+
+        function goblinWithHp(value: number | string, current: number): GameCharacter {
+          const goblin = putOnTable('ゴブリン');
+          const hp = DataElement.findElementByReference(goblin.rootDataElement!, 'HP')!;
+          hp.value = value;
+          hp.currentValue = current;
+          return goblin;
+        }
+
+        afterEach(() => localStorage.removeItem('ui-inventory-compact'));
+
+        it('opens every row out as it always has until the reader asks', () => {
+          goblinWithHp(30, 25);
+          TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+          fixture.detectChanges();
+
+          expect(row().hasAttribute('data-folded')).toBe(false);
+          expect(gauge()).toBeTruthy();
+          expect(meters()).toHaveLength(0);
+        });
+
+        it('folds a row not picked down to a thin gauge for each number resource, which cannot be set', () => {
+          goblinWithHp(30, 15);
+          TestBed.inject(GameObjectInventoryService).dataTag = 'HP MP';
+          fold();
+          fixture.detectChanges();
+
+          expect(row().hasAttribute('data-folded')).toBe(true);
+          expect(gauge()).toBeNull();
+          expect(meters()).toHaveLength(2);
+          expect(meters()[0].textContent).toContain('HP');
+          expect(meters()[0].textContent).toContain('15/30');
+          expect((meters()[0].querySelector('[aria-hidden] > span') as HTMLElement).style.width).toBe('50%');
+        });
+
+        it('follows a resource changed after the row was drawn', async () => {
+          const goblin = goblinWithHp(30, 15);
+          TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+          fold();
+          fixture.detectChanges();
+          expect(meters()[0].textContent).toContain('15/30');
+
+          DataElement.findElementByReference(goblin.rootDataElement!, 'HP')!.currentValue = 9;
+
+          await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(meters()[0].textContent).toContain('9/30');
+          });
+        });
+
+        it('opens the picked row out to its gauges', () => {
+          const goblin = goblinWithHp(30, 25);
+          TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+          fold();
+          fixture.detectChanges();
+
+          component.selectGameObject(goblin);
+          TestBed.tick();
+          fixture.detectChanges();
+
+          expect(row().hasAttribute('data-folded')).toBe(false);
+          expect(gauge()).toBeTruthy();
+          expect(meters()).toHaveLength(0);
+        });
+
+        it('shows the value alone for a resource whose maximum is left empty, rather than an empty gauge', () => {
+          goblinWithHp('', 25);
+          TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
+          fold();
+          fixture.detectChanges();
+
+          expect(meters()).toHaveLength(1);
+          expect(meters()[0].textContent?.trim()).toBe('HP25');
+          expect(meters()[0].querySelector('[aria-hidden]')).toBeNull();
+        });
+
+        it('leaves only the name for a piece showing no number resource', () => {
+          goblinWithHp(30, 25);
+          TestBed.inject(GameObjectInventoryService).dataTag = '敏捷度';
+          fixture.detectChanges();
+          expect(row().querySelector('input[name="data-value"]')).toBeTruthy();
+
+          fold();
+          fixture.detectChanges();
+
+          expect(row().hasAttribute('data-folded')).toBe(true);
+          expect(meters()).toHaveLength(0);
+          expect(row().querySelector('input[name="data-value"]')).toBeNull();
+        });
       });
     });
 
@@ -1592,16 +2037,21 @@ describe('GameObjectInventoryComponent', () => {
         } as PeerCursor;
       }
 
-      async function pressReachesPanel(type: (typeof presses)[number]): Promise<boolean> {
+      async function rowShown(): Promise<HTMLElement> {
         fixture.detectChanges();
         await fixture.whenStable();
-        const row = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="inventory-item"]');
+        const row = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-testid="inventory-item"]');
         expect(row).not.toBeNull();
+        return row!;
+      }
+
+      /** Whether a press on the row gets through to the panel, which brings the panel forward. */
+      function pressReachesPanel(row: HTMLElement, type: (typeof presses)[number]): boolean {
         const panel = fixture.nativeElement as HTMLElement;
         let reached = false;
         const listener = () => (reached = true);
         panel.addEventListener(type, listener);
-        row!.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
+        row.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
         panel.removeEventListener(type, listener);
         return reached;
       }
@@ -1610,36 +2060,66 @@ describe('GameObjectInventoryComponent', () => {
         PeerCursor.myCursor = originalCursor;
       });
 
-      it('keeps the panel still when a player presses a row they can file into a folder', async () => {
+      it('brings the panel forward but keeps it still when a player presses a row they can file into a folder', async () => {
         beSeat(PeerRole.Player);
         putInShared('ゴブリン');
         component.selectTab.set('common');
+        const row = await rowShown();
 
-        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(false);
+        for (const type of presses) expect(pressReachesPanel(row, type), type).toBe(true);
+        expect(row.classList).toContain('panel-no-drag');
       });
 
-      it('keeps the panel still when the game master presses a row they can hand over', async () => {
+      it('brings the panel forward but keeps it still when the game master presses a row they can hand over', async () => {
         beSeat(PeerRole.GameMaster);
         putOnTable('ゴブリン');
         component.selectTab.set('table');
+        const row = await rowShown();
 
-        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(false);
+        for (const type of presses) expect(pressReachesPanel(row, type), type).toBe(true);
+        expect(row.classList).toContain('panel-no-drag');
       });
 
-      it('lets a player move the panel by a row on a tab without folders', async () => {
+      it('brings the panel forward but keeps it still when a player presses a row on a tab without folders', async () => {
         beSeat(PeerRole.Player);
         putOnTable('ゴブリン');
         component.selectTab.set('table');
+        const row = await rowShown();
 
-        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(true);
+        for (const type of presses) expect(pressReachesPanel(row, type), type).toBe(true);
+        expect(row.classList).toContain('panel-no-drag');
+      });
+
+      it('shows a grabbing hand over a row that can be carried', async () => {
+        beSeat(PeerRole.Player);
+        putOnTable('ゴブリン');
+        component.selectTab.set('table');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const row = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="inventory-item"]');
+        expect(row?.classList).toContain('cursor-grab!');
+      });
+
+      it('shows no grabbing hand to a guest, who may not carry a row anywhere', async () => {
+        beSeat(PeerRole.Guest);
+        putInShared('ゴブリン');
+        component.selectTab.set('common');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const row = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="inventory-item"]');
+        expect(row?.classList).not.toContain('cursor-grab!');
       });
 
       it('lets a guest move the panel by a row they may not file', async () => {
         beSeat(PeerRole.Guest);
         putInShared('ゴブリン');
         component.selectTab.set('common');
+        const row = await rowShown();
 
-        for (const type of presses) expect(await pressReachesPanel(type), type).toBe(true);
+        for (const type of presses) expect(pressReachesPanel(row, type), type).toBe(true);
+        expect(row.classList).not.toContain('panel-no-drag');
       });
     });
 
@@ -1695,6 +2175,56 @@ describe('GameObjectInventoryComponent', () => {
       row.dispatchEvent(new MouseEvent('dblclick'));
 
       expect(focusOn).toHaveBeenCalledWith(piece);
+    });
+  });
+  describe('the personal tab, after a reconnection gives this seat another peer id', () => {
+    let peerId: string;
+    const made: GameCharacter[] = [];
+
+    beforeEach(() => {
+      peerId = 'peer-before';
+      vi.spyOn(Network, 'peerId', 'get').mockImplementation(() => peerId);
+      fixture.detectChanges();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      for (const character of made.splice(0)) character.destroy();
+    });
+
+    function standAt(name: string, location: string): GameCharacter {
+      const character = GameCharacter.create(name, 1, '');
+      character.setLocation(location);
+      made.push(character);
+      return character;
+    }
+
+    it('is still called personal, and is not a second shared tab', () => {
+      peerId = 'peer-after';
+
+      expect(component.inventoryTypes().map((tab) => component.getTabTitle(tab))).toEqual([
+        'テーブル',
+        '共有',
+        '個人',
+        '墓場',
+      ]);
+    });
+
+    it('lists what stands at the peer id of now', () => {
+      standAt('前の接続', 'peer-before');
+      const now = standAt('今の接続', 'peer-after');
+      peerId = 'peer-after';
+
+      component.selectTab.set(PERSONAL_INVENTORY_TAB);
+
+      expect(component.getInventory(PERSONAL_INVENTORY_TAB).tabletopObjects).toEqual([now]);
+    });
+
+    it('leaves the personal inventory out of where the picked pieces can go while it is the tab on view', () => {
+      peerId = 'peer-after';
+      component.selectTab.set(PERSONAL_INVENTORY_TAB);
+
+      expect(component.multiMoveLocations.map((loc) => loc.name)).toEqual(['table', 'common', 'graveyard']);
     });
   });
 });

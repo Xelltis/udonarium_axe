@@ -157,6 +157,65 @@ describe('GameCharacterSettingsTabComponent', () => {
     expect(notifySpy).toHaveBeenCalledWith(character.identifier);
   });
 
+  describe("the picture's width and the chain linking it to the height", () => {
+    function loaded(naturalWidth: number, naturalHeight: number): Event {
+      return { target: { naturalWidth, naturalHeight } } as unknown as Event;
+    }
+
+    function typed(value: number): Event {
+      return { target: { valueAsNumber: value } } as unknown as Event;
+    }
+
+    beforeEach(() => {
+      character.specifyKomaImageFlag = true;
+      character.komaImageHeight = 300;
+      component.onKomaImageLoad(loaded(200, 400));
+    });
+
+    it("keeps the picture's proportions to begin with, showing the width they give at the height", () => {
+      expect(component.komaSize()).toEqual({ height: 300, width: 150, linked: true });
+    });
+
+    it('moves the height with a width typed while linked, and leaves the width to follow', () => {
+      component.onChkKomaWidth(typed(100));
+
+      expect(character.komaImageHeight).toBe(200);
+      expect(character.komaImageWidth).toBe(0);
+      expect(component.komaSize()).toEqual({ height: 200, width: 100, linked: true });
+    });
+
+    it('unlinks from where the proportions put the width, then sets the width and height apart', () => {
+      component.toggleKomaAspectLink();
+      expect(character.komaImageWidth).toBe(150);
+      expect(component.komaSize().linked).toBe(false);
+
+      component.onChkKomaWidth(typed(400));
+      component.chkKomaSize(250);
+
+      expect(component.komaSize()).toEqual({ height: 250, width: 400, linked: false });
+    });
+
+    it("goes back to the picture's own proportions at the height it has once linked again", () => {
+      component.toggleKomaAspectLink();
+      component.onChkKomaWidth(typed(400));
+
+      component.toggleKomaAspectLink();
+
+      expect(character.komaImageWidth).toBe(0);
+      expect(component.komaSize()).toEqual({ height: 300, width: 150, linked: true });
+    });
+  });
+
+  it('shows no width, and changes nothing for one typed, before the picture has loaded', () => {
+    character.specifyKomaImageFlag = true;
+    character.komaImageHeight = 300;
+
+    expect(component.komaSize().width).toBeNull();
+    component.onChkKomaWidth({ target: { valueAsNumber: 100 } } as unknown as Event);
+    expect(character.komaImageHeight).toBe(300);
+    expect(character.komaImageWidth).toBe(0);
+  });
+
   it('turns the old check fields into proper tables', () => {
     const section = DataElement.create('旧情報', '', { [DataElementAttribute.ROLE]: DataElementRole.SECTION });
     const group = DataElement.create('基本', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });

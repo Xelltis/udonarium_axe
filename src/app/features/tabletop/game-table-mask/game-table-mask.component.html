@@ -353,7 +353,7 @@
           </div>
         }
       </div>
-      @if (isScratching && ownerIsOnline) {
+      @if (isScratching && (gameTableMask()!.isMine || ownerIsOnline)) {
         <div
           class="pointer-events-none absolute inset-x-0 -top-2.5 left-px z-10 m-auto translate-z-[0.5px] backface-hidden transform-3d"
         >

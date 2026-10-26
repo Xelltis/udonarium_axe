@@ -19,6 +19,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { SystemAvatarMenuService } from '@axe/features/chat/system-avatar-menu.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { UiChatSoundSettingsComponent } from '@axe/ui/components/chat-sound-settings/chat-sound-settings.component';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -26,7 +27,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   selector: 'chat-message-setting',
   templateUrl: './chat-message-setting.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, SafePipe, TranslocoModule, UiChatSoundSettingsComponent],
+  imports: [TextTooltipDirective, FormsModule, SafePipe, TranslocoModule, UiChatSoundSettingsComponent],
 })
 export class ChatMessageSettingComponent {
   private readonly objectStore = inject(ObjectStore);

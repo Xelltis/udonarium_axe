@@ -34,6 +34,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { gaugeNumbersOf, selectPieceGauges } from '@axe/domain/character/piece-gauge';
+import { pieceImageWidthApart } from '@axe/domain/character/piece-image-size';
 import { DataElement } from '@axe/domain/data/data-element';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import {
@@ -233,6 +234,8 @@ interface StandingPiece {
   size: number;
   centre: CellPoint;
   stand: { widthPx: number; heightPx: number };
+  /** Whether the picture was given a width apart from its height, and so fills its box out of proportion. */
+  stretched: boolean;
   basePx: number;
 }
 
@@ -240,6 +243,8 @@ interface PieceView {
   id: string;
   label: string;
   url: string;
+  /** Whether the picture fills its box out of proportion, as a width given apart from its height has it. */
+  stretched: boolean;
   targeted: boolean;
   pick: number;
   bearing: number;
@@ -662,6 +667,7 @@ export class FirstPersonViewComponent {
       if (drawnCells <= 0) continue;
       const size = Math.max(1, drawnCells) * gridSize;
       const aspect = aspects.get(piece.imageFile.url);
+      const widthApart = piece.specifyKomaImageFlag ? pieceImageWidthApart(piece.komaImageWidth) : null;
       pieces.push({
         piece,
         size,
@@ -671,7 +677,9 @@ export class FirstPersonViewComponent {
           gridSize,
           aspect,
           specifiedHeightPx: piece.specifyKomaImageFlag ? piece.komaImageHeight : undefined,
+          specifiedWidthPx: widthApart ?? undefined,
         }),
+        stretched: widthApart !== null,
         basePx: piece.posZ + piece.altitude * gridSize,
       });
     }
@@ -701,7 +709,7 @@ export class FirstPersonViewComponent {
     const grid = this.firstPerson.grid();
     const under = this.murk() !== null;
     const views: PieceView[] = [];
-    for (const { piece, size, centre, stand, basePx: base } of this.standing()) {
+    for (const { piece, size, centre, stand, stretched, basePx: base } of this.standing()) {
       if (!this.pieceInSight(eye, piece.location, size, centre)) continue;
       const badges = this.badgesOf(piece);
       const depth = depthOf(eye, centre);
@@ -717,6 +725,7 @@ export class FirstPersonViewComponent {
         id: piece.identifier,
         label,
         url: piece.imageFile.url,
+        stretched,
         targeted: piece.targeted,
         pick,
         bearing: Math.abs((Math.atan2(lateralOf(eye, centre), depth) * 180) / Math.PI),

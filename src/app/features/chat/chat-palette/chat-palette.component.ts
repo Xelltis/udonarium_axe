@@ -44,6 +44,7 @@ import { PaletteSearchResult, searchPaletteRows } from '@axe/features/chat/chat-
 import { ChatTabStripComponent } from '@axe/features/chat/chat-tab-strip/chat-tab-strip.component';
 import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
 import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -56,7 +57,14 @@ import { TranslocoModule } from '@jsverse/transloco';
     '(keydown.control.arrowleft)': 'switchTabByKey($event, -1)',
     '(keydown.control.arrowright)': 'switchTabByKey($event, 1)',
   },
-  imports: [FormsModule, ChatInputComponent, ChatTabStripComponent, GameDataElementComponent, TranslocoModule],
+  imports: [
+    TextTooltipDirective,
+    FormsModule,
+    ChatInputComponent,
+    ChatTabStripComponent,
+    GameDataElementComponent,
+    TranslocoModule,
+  ],
   // One of these to a palette, so its input answers what was asked of it and nobody else's.
   providers: [ChatComposeService],
 })

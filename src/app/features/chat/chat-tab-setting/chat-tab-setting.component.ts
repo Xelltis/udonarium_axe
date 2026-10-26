@@ -24,6 +24,7 @@ import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { ChatLogPreviewComponent } from '@axe/features/chat/chat-log-preview/chat-log-preview.component';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** How soon after this seat deleted a tab a room server putting it back is taken as turning the deletion down. */
@@ -34,7 +35,7 @@ const TURNED_DOWN_WITHIN_MS = 30_000;
   selector: 'app-chat-tab-setting',
   templateUrl: './chat-tab-setting.component.html',
   host: { class: 'block h-full' },
-  imports: [FormsModule, TranslocoModule],
+  imports: [TextTooltipDirective, FormsModule, TranslocoModule],
 })
 export class ChatTabSettingComponent {
   private readonly modalService = inject(ModalService);

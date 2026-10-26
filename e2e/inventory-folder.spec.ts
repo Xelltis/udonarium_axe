@@ -1,6 +1,9 @@
-import { expect, Page, test } from '@playwright/test';
+import { expect, Locator, Page, test } from '@playwright/test';
 
 import { createCharacter, openPanel, revealMenuEntry, waitAppReady } from './helpers';
+
+/** A row's middle is one of its fields, whose right-click is left to the browser, so menus are opened from its edge. */
+const ROW_EDGE = { x: 6, y: 6 };
 
 function items(page: Page) {
   return page.locator('game-object-inventory [data-testid="inventory-item"]');
@@ -20,7 +23,7 @@ async function makeEmptyFolder(page: Page, folderName: string) {
 }
 
 async function putFirstInFolder(page: Page, folderName: string) {
-  await items(page).first().click({ button: 'right' });
+  await items(page).first().click({ button: 'right', position: ROW_EDGE });
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   await menu.getByText('フォルダ', { exact: true }).hover();
@@ -41,7 +44,7 @@ test.describe('searching the inventory, and its folders', () => {
     await expect(page.locator('game-object-inventory input[name="tab"]')).toHaveCount(4, { timeout: 5000 });
     await expect(items(page).first()).toBeVisible({ timeout: 5000 });
 
-    await items(page).first().click({ button: 'right' });
+    await items(page).first().click({ button: 'right', position: ROW_EDGE });
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await (await revealMenuEntry(page, menu, '共有イベントリに移動')).click();
@@ -64,7 +67,7 @@ test.describe('searching the inventory, and its folders', () => {
   test("leaves folders out of a piece's menu on the table tab", async ({ page }) => {
     await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(0).click();
 
-    await items(page).first().click({ button: 'right' });
+    await items(page).first().click({ button: 'right', position: ROW_EDGE });
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await expect(menu.getByText('フォルダ', { exact: true })).toHaveCount(0);
@@ -151,5 +154,118 @@ test.describe('searching the inventory, and its folders', () => {
     await menu.getByText('このフォルダを削除').click();
 
     await expect(heading).toHaveCount(0);
+  });
+});
+
+test.describe('dragging pieces in the inventory', () => {
+  async function moveFirstToShared(page: Page) {
+    await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(0).click();
+    await items(page).first().click({ button: 'right', position: ROW_EDGE });
+    const menu = page.locator('context-menu');
+    await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
+    await (await revealMenuEntry(page, menu, '共有イベントリに移動')).click();
+  }
+
+  /** Presses a row at its edge and carries it, a step at a time, to a point. */
+  async function dragRow(page: Page, row: Locator, to: { x: number; y: number }) {
+    const box = (await row.boundingBox())!;
+    await page.mouse.move(box.x + ROW_EDGE.x, box.y + ROW_EDGE.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 12 });
+    await page.mouse.up();
+  }
+
+  async function middleOf(locator: Locator) {
+    const box = (await locator.boundingBox())!;
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  }
+
+  test.beforeEach(async ({ page }) => {
+    await waitAppReady(page);
+    await createCharacter(page);
+    await openPanel(page, 'インベントリ');
+    await expect(items(page).first()).toBeVisible({ timeout: 5000 });
+    await moveFirstToShared(page);
+    await moveFirstToShared(page);
+    await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(1).click();
+    await expect(items(page)).toHaveCount(2, { timeout: 5000 });
+  });
+
+  test('files a piece let go anywhere over an open folder, not only over its heading', async ({ page }) => {
+    await putFirstInFolder(page, '第1話');
+    const heading = page.locator('game-object-inventory [data-folder-dropzone][data-folder-path="第1話"]');
+    await expect(heading).toContainText(/第1話\s*1/);
+    // The folder comes first, so its piece is the first row and the unfiled one the second.
+    const filed = items(page).nth(0);
+    const loose = items(page).nth(1);
+
+    await dragRow(page, loose, await middleOf(filed));
+
+    await expect(heading).toContainText(/第1話\s*2/);
+  });
+
+  test('draws the carried piece and its name beside the pointer while it travels', async ({ page }) => {
+    const row = items(page).first();
+    const name = (await row.locator('span.truncate').first().innerText()).trim();
+    const box = (await row.boundingBox())!;
+    const ghost = page.locator('[data-testid="piece-drag-ghost"]');
+    await page.mouse.move(box.x + ROW_EDGE.x, box.y + ROW_EDGE.y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 120, box.y + 80, { steps: 8 });
+
+    await expect(ghost).toBeVisible();
+    await expect(ghost).toContainText(name);
+
+    await page.mouse.up();
+    await expect(ghost).toHaveCount(0);
+  });
+
+  test('moves a piece let go over another tab to the place it shows', async ({ page }) => {
+    const tabs = page.locator('game-object-inventory form[name="game-object-inventory"] > label');
+
+    await dragRow(page, items(page).first(), await middleOf(tabs.nth(2)));
+
+    await expect(tabs.nth(1)).toContainText(/共有\s*1/);
+    await expect(tabs.nth(2)).toContainText(/個人\s*1/);
+    await expect(items(page)).toHaveCount(1);
+  });
+
+  test('picks a piece up from one of its fields once the pointer leaves the field', async ({ page }) => {
+    const tabs = page.locator('game-object-inventory form[name="game-object-inventory"] > label');
+    const field = items(page).first().locator('input[name="data-value"]').first();
+    const start = await middleOf(field);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    const to = await middleOf(tabs.nth(2));
+    await page.mouse.move(to.x, to.y, { steps: 12 });
+    await page.mouse.up();
+
+    await expect(tabs.nth(2)).toContainText(/個人\s*1/);
+  });
+
+  test('leaves a press that stays in a field to the field', async ({ page }) => {
+    const tabs = page.locator('game-object-inventory form[name="game-object-inventory"] > label');
+    const field = items(page).first().locator('input[name="data-value"]').first();
+    const start = await middleOf(field);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x + 12, start.y, { steps: 4 });
+    await page.mouse.up();
+
+    await expect(field).toBeFocused();
+    await expect(tabs.nth(1)).toContainText(/共有\s*2/);
+  });
+
+  test('moves a piece from the table view too', async ({ page }) => {
+    const tabs = page.locator('game-object-inventory form[name="game-object-inventory"] > label');
+    const panel = page.locator('ui-panel').filter({ hasText: 'インベントリ' });
+    await panel.locator('button[title="リッチ表示"]').dispatchEvent('click');
+    const rows = page.locator('game-object-inventory [data-testid="inventory-table-row"]');
+    await expect(rows).toHaveCount(2, { timeout: 5000 });
+
+    await dragRow(page, rows.first(), await middleOf(tabs.nth(3)));
+
+    await expect(tabs.nth(3)).toContainText(/墓場\s*1/);
+    await expect(rows).toHaveCount(1);
   });
 });

@@ -27,7 +27,7 @@
           [attr.aria-selected]="selectedCutIn?.identifier === cutIn.identifier"
         >
           <i class="material-icons shrink-0 text-[15px]! opacity-70">slideshow</i>
-          <span class="truncate text-[13px]">{{ cutIn.name }}</span>
+          <span class="truncate text-[13px]" [appTextTooltip]="cutIn.name">{{ cutIn.name }}</span>
         </li>
       }
     </ul>
@@ -61,7 +61,7 @@
         <p class="m-0 text-[13px]">{{ 'feature.media.cutIn.empty' | transloco }}</p>
         @if (canEditCutIns) {
           <button
-            class="bg-ui-accent rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border-none px-3 py-1.25 text-[13px] font-semibold text-white transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50 [&_.material-icons]:text-[15px]!"
+            class="bg-ui-accent-solid rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border-none px-3 py-1.25 text-[13px] font-semibold text-white transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50 [&_.material-icons]:text-[15px]!"
             type="button"
             (click)="createCutIn()"
           >
@@ -110,7 +110,7 @@
     @if (selectedCutIn) {
       <div class="border-ui-border-panel bg-ui-panel flex shrink-0 gap-2 border-t border-solid px-3.5 py-2.5">
         <button
-          class="bg-ui-accent rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border-none px-3 py-1.25 text-[13px] font-semibold text-white transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50 [&_.material-icons]:text-[15px]!"
+          class="bg-ui-accent-solid rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border-none px-3 py-1.25 text-[13px] font-semibold text-white transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50 [&_.material-icons]:text-[15px]!"
           type="button"
           (click)="save()"
           [disabled]="isSaving()"

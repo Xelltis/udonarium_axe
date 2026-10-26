@@ -23,7 +23,9 @@
             }
           </div>
 
-          <span class="min-w-0 flex-1 truncate text-[13px]">{{ displayName(character) }}</span>
+          <span class="min-w-0 flex-1 truncate text-[13px]" [appTextTooltip]="displayName(character)">{{
+            displayName(character)
+          }}</span>
 
           @if (party(character); as party) {
             <span
@@ -156,7 +158,9 @@
                   <img class="size-full object-contain" [src]="imageUrl(character) | safe: 'resourceUrl'" alt="" />
                 }
               </div>
-              <span class="min-w-0 flex-1 truncate text-[13px]">{{ displayName(character) }}</span>
+              <span class="min-w-0 flex-1 truncate text-[13px]" [appTextTooltip]="displayName(character)">{{
+                displayName(character)
+              }}</span>
               <button
                 type="button"
                 class="border-ui-accent bg-ui-accent-bg text-ui-accent hover:bg-ui-accent-glow min-h-9 shrink-0 cursor-pointer rounded-full border border-solid px-3 text-[12px] font-semibold"

@@ -25,6 +25,8 @@ export interface ZoneRules {
   readonly blockRadiusM: number;
   /** The sheet field or buff by which a shooter fires past what stands in the way, empty for none. */
   readonly clearName: string;
+  /** Whether a piece in stealth counts as one nobody can see, as a piece marked so by hand does. */
+  readonly stealthUnseen: boolean;
 }
 
 /** The sizes a room has before it writes its own: a zone grows a metre for every four bodies. */
@@ -45,6 +47,7 @@ export const DEFAULT_ZONE_RULES: ZoneRules = {
   leaveKind: '',
   blockRadiusM: DEFAULT_ZONE_BLOCK_RADIUS_M,
   clearName: '',
+  stealthUnseen: false,
 };
 
 /** What a room writes for its zones, each null where it has written nothing. */
@@ -57,6 +60,7 @@ export interface ZoneRuleAnswers {
   readonly leaveKind?: string | null;
   readonly blockRadiusM?: number | null;
   readonly clearName?: string | null;
+  readonly stealthUnseen?: boolean | null;
 }
 
 /** The rules a room plays, its own answers first and the defaults for whatever it has left unwritten. */
@@ -74,6 +78,7 @@ export function resolveZoneRules(answers: Partial<ZoneRuleAnswers> | null): Zone
     leaveKind: (answers?.leaveKind ?? DEFAULT_ZONE_RULES.leaveKind).trim(),
     blockRadiusM: blockRadiusM != null && blockRadiusM >= 0 ? blockRadiusM : DEFAULT_ZONE_RULES.blockRadiusM,
     clearName: (answers?.clearName ?? DEFAULT_ZONE_RULES.clearName).trim(),
+    stealthUnseen: answers?.stealthUnseen ?? DEFAULT_ZONE_RULES.stealthUnseen,
   };
 }
 

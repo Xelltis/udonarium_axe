@@ -22,10 +22,24 @@ describe('showsResourceSlider', () => {
     expect(showsResourceSlider(resource({ [DataElementAttribute.RESOURCE_SLIDER]: '' }))).toBe(false);
   });
 
+  it('shows one on a resource that says nothing of its own where the room gives every resource one', () => {
+    expect(showsResourceSlider(resource(), true)).toBe(true);
+    expect(showsResourceSlider(resource({ [DataElementAttribute.RESOURCE_SLIDER]: '' }), true)).toBe(true);
+  });
+
+  it('keeps a resource set to have none without one, whatever the room gives', () => {
+    expect(showsResourceSlider(resource({ [DataElementAttribute.RESOURCE_SLIDER]: 'false' }), true)).toBe(false);
+  });
+
+  it('keeps a resource set to have one with it where the room gives none', () => {
+    expect(showsResourceSlider(resource({ [DataElementAttribute.RESOURCE_SLIDER]: 'true' }), false)).toBe(true);
+  });
+
   it('shows none on a field that is not a resource, whatever it is set to', () => {
     const note = DataElement.create('memo', 'text', { [DataElementAttribute.RESOURCE_SLIDER]: 'true' });
 
     expect(showsResourceSlider(note)).toBe(false);
+    expect(showsResourceSlider(note, true)).toBe(false);
   });
 
   it('keeps the setting through a save and a load', () => {

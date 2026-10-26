@@ -155,6 +155,21 @@ describe('GameCharacterComponent', () => {
     expect((fixture.nativeElement as HTMLElement).style.zIndex).toBe('4');
   });
 
+  it('marks a piece in stealth for those who still see it, and drops the mark as it comes out', async () => {
+    const lurker = GameCharacter.create('潜む者', 1, '');
+    lurker.stealth = '1';
+    fixture.componentRef.setInput('gameCharacter', lurker);
+    fixture.detectChanges();
+    const mark = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="stealth-mark"]');
+    expect(mark()).not.toBeNull();
+
+    lurker.stealth = '';
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    expect(mark()).toBeNull();
+  });
+
   it('says by its name how many ride a mount', async () => {
     const horse = GameCharacter.create('馬', 2, '');
     horse.mountable = '1';
@@ -2229,6 +2244,32 @@ describe('GameCharacterComponent', () => {
     } finally {
       char.destroy();
       ImageStorage.instance.delete('piece-height-url');
+    }
+  });
+
+  it('draws a picture given a width apart from its height at that width, and in proportion without one', () => {
+    ImageStorage.instance.add('piece-width-url');
+    const char = GameCharacter.create('width-layout-test', 1, 'piece-width-url');
+    char.specifyKomaImageFlag = true;
+    char.komaImageHeight = 240;
+    char.komaImageWidth = 400;
+    fixture.componentRef.setInput('gameCharacter', char);
+
+    try {
+      fixture.detectChanges();
+      const stretched = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
+      expect(stretched.style.width).toBe('400px');
+      expect(stretched.style.height).toBe('240px');
+
+      char.komaImageWidth = 0;
+      TestBed.inject(ObjectChangeService).notifyChanged(char.identifier);
+      fixture.detectChanges();
+      const kept = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
+      expect(kept.style.width).toBe('auto');
+      expect(kept.style.height).toBe('240px');
+    } finally {
+      char.destroy();
+      ImageStorage.instance.delete('piece-width-url');
     }
   });
 

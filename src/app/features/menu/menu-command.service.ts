@@ -1,4 +1,5 @@
 import { computed, inject, Injectable } from '@angular/core';
+import { StartRoomService } from '@axe/application/file/start-room.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -135,6 +136,7 @@ export class MenuCommandService {
   private readonly widgets = inject(WidgetVisibilityService);
   private readonly buttonGuide = inject(ButtonGuideService);
   private readonly firstPerson = inject(FirstPersonService);
+  private readonly startRoom = inject(StartRoomService);
   private readonly contextMenu = inject(ContextMenuService);
   private readonly pointer = inject(PointerDeviceService);
 
@@ -393,6 +395,7 @@ export class MenuCommandService {
     if (action.kind !== 'act') return false;
     if (action.act === 'save') return this.host?.isSaving() ?? false;
     if (action.act === 'zipLoad' || action.act === 'importCharacter') return !this.canEditTabletop();
+    if (action.act === 'startRoomForget') return !this.startRoom.isKept();
     if (action.act === 'firstPersonView') {
       return this.firstPerson.forced() || (!this.firstPerson.showing() && this.firstPerson.seats().length < 1);
     }
@@ -554,6 +557,12 @@ export class MenuCommandService {
         return 'done';
       case 'importCharacter':
         this.roomPanels.open('characterImport');
+        return 'done';
+      case 'startRoomKeep':
+        void this.startRoom.keepCurrent();
+        return 'done';
+      case 'startRoomForget':
+        void this.startRoom.forget();
         return 'done';
       case 'useMobileLayout':
         this.mobile.useMobileLayout();

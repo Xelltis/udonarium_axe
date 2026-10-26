@@ -8,6 +8,7 @@ import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state
 import { everyFunctionRole, functionRoleLabelKey } from '@axe/features/map-editor/model/function-layer';
 import { LayerKind, MapLayer } from '@axe/features/map-editor/model/scene';
 import { moveLayer, removeLayer } from '@axe/features/map-editor/model/scene-ops';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { reorderRows, RowReorder } from '@axe/ui/dragging/row-reorder';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -25,7 +26,7 @@ const LAYER_ICONS: Record<LayerKind, string> = {
   selector: 'map-editor-layer-drawer',
   templateUrl: './map-editor-layer-drawer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, NgClass, TranslocoModule],
+  imports: [TextTooltipDirective, FormsModule, NgClass, TranslocoModule],
   host: { class: 'contents' },
 })
 export class MapEditorLayerDrawerComponent {

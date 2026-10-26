@@ -50,11 +50,58 @@ describe('ConfirmDialogComponent', () => {
     expect(okBtn).toBeTruthy();
   });
 
+  describe('from the keyboard', () => {
+    const okButton = () =>
+      Array.from(fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>).at(-1)!;
+    const cancelButton = () => fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+
+    it('puts the focus on OK, so Enter answers yes', async () => {
+      await setup({ message: '確認' });
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(okButton());
+    });
+
+    it('puts the focus on cancel when what is asked is dangerous', async () => {
+      await setup({ message: '削除確認', danger: true });
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(cancelButton());
+    });
+
+    it('cancels on Escape, keeping the key from the table behind', async () => {
+      await setup({ message: '確認' });
+      await fixture.whenStable();
+      const behind = vi.fn();
+      document.addEventListener('keydown', behind);
+
+      okButton().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+
+      document.removeEventListener('keydown', behind);
+      expect(modalService.resolve).toHaveBeenCalledWith(false);
+      expect(behind).not.toHaveBeenCalled();
+    });
+
+    it('gives the focus back to whatever held it, once answered', async () => {
+      const opener = document.createElement('button');
+      document.body.appendChild(opener);
+      opener.focus();
+      await setup({ message: '確認' });
+      await fixture.whenStable();
+      expect(document.activeElement).not.toBe(opener);
+
+      fixture.destroy();
+
+      expect(document.activeElement).toBe(opener);
+      opener.remove();
+    });
+  });
+
   it('styles the confirm button as an accent otherwise', async () => {
     await setup({ message: '確認', danger: false });
 
     const buttons = fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>;
-    const okBtn = Array.from(buttons).find((b) => b.classList.contains('bg-ui-accent'));
+    const okBtn = Array.from(buttons).find((b) => b.classList.contains('bg-ui-accent-solid'));
     expect(okBtn).toBeTruthy();
   });
 });

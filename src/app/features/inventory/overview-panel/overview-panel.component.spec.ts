@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -675,6 +676,21 @@ describe('OverviewPanelComponent', () => {
 
         expect(Number(resource.currentValue)).toBe(5);
         expect(Number(resource.value)).toBe(20);
+      });
+
+      it('draws one for a resource that says nothing of its own where the room gives every resource one', () => {
+        resource.removeAttribute(DataElementAttribute.RESOURCE_SLIDER);
+        const sliders = TestBed.inject(ResourceSliderService);
+        fixture.detectChanges();
+        expect(slider()).toBeNull();
+
+        sliders.setRoomDefault(true);
+        try {
+          fixture.detectChanges();
+          expect(slider()).not.toBeNull();
+        } finally {
+          sliders.setRoomDefault(false);
+        }
       });
 
       it('lets a seat that may not edit the table neither move the slider nor write with it', () => {

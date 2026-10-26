@@ -539,6 +539,80 @@ describe('VisionService', () => {
     expect(service.isSeenByParty(lurker)).toBe(true);
   });
 
+  describe('a piece in stealth', () => {
+    function lurkerInStealth(owner = '', party = ''): GameCharacter {
+      const lurker = GameCharacter.create('Lurker', 1, '');
+      lurker.owner = owner;
+      lurker.partyIdentifier = party;
+      lurker.location.name = 'table';
+      lurker.location.x = 100;
+      lurker.location.y = 100;
+      lurker.stealth = '1';
+      return lurker;
+    }
+
+    it('is hidden from another player on a lit table, and left off their lists', () => {
+      makeMyCursor('p1', PeerRole.Player);
+      const lurker = lurkerInStealth();
+
+      expect(service.isTokenVisible(lurker)).toBe(false);
+      expect(service.mayBeListed(lurker)).toBe(false);
+
+      lurker.stealth = '';
+      expect(service.isTokenVisible(lurker)).toBe(true);
+    });
+
+    it('is seen by the game master', () => {
+      makeMyCursor('gm', PeerRole.GameMaster);
+
+      expect(service.isTokenVisible(lurkerInStealth())).toBe(true);
+    });
+
+    it('is seen by its owner and by its party', () => {
+      makeMyCursor('p1', PeerRole.Player);
+      const hero = GameCharacter.create('Hero', 1, '');
+      hero.owner = 'p1';
+      hero.partyIdentifier = 'party-a';
+
+      expect(service.isTokenVisible(lurkerInStealth('p1'))).toBe(true);
+      expect(service.isTokenVisible(lurkerInStealth('', 'party-a'))).toBe(true);
+      expect(service.isTokenVisible(lurkerInStealth('', 'party-b'))).toBe(false);
+    });
+
+    it('is hidden from a game master looking at the table as a player', () => {
+      makeMyCursor('gm', PeerRole.GameMaster);
+      addPeer('p1', PeerRole.Player);
+      service.previewAsUserId.set('p1');
+
+      expect(service.isTokenVisible(lurkerInStealth())).toBe(false);
+    });
+
+    it('is not seen by the party when no player owns it, and is when one does', () => {
+      makeMyCursor('gm', PeerRole.GameMaster);
+      addPeer('p1', PeerRole.Player);
+
+      expect(service.isSeenByParty(lurkerInStealth())).toBe(false);
+      expect(service.isSeenByParty(lurkerInStealth('p1'))).toBe(true);
+    });
+
+    it('is not seen by the party when the game master is its owner', () => {
+      makeMyCursor('gm', PeerRole.GameMaster);
+
+      expect(service.isSeenByParty(lurkerInStealth('gm'))).toBe(false);
+    });
+
+    it('is seen by the party when it stands in a party a player is in, though nobody owns it', () => {
+      makeMyCursor('gm', PeerRole.GameMaster);
+      addPeer('p1', PeerRole.Player);
+      const hero = GameCharacter.create('Hero', 1, '');
+      hero.owner = 'p1';
+      hero.partyIdentifier = 'party-a';
+
+      expect(service.isSeenByParty(lurkerInStealth('', 'party-a'))).toBe(true);
+      expect(service.isSeenByParty(lurkerInStealth('', 'party-b'))).toBe(false);
+    });
+  });
+
   describe('a bank of fog rolled across the board', () => {
     function partyAndEnemy(fogBlocksSight: boolean | null): GameCharacter {
       makeMyCursor('p1', PeerRole.Player);
@@ -942,6 +1016,19 @@ describe('VisionService', () => {
         fogMemoryOn(table)!.writeFound(new Set([npc.identifier]));
 
         expect(service.isTokenVisible(npc)).toBe(true);
+      });
+
+      it('loses a piece it has met once the piece goes into stealth', () => {
+        const table = tableRememberingCell('easy', NPC_CELL);
+        makeMyCursor('p1', PeerRole.Player);
+        const npc = GameCharacter.create('NPC', 1, '');
+        npc.location.x = 800;
+        npc.location.y = 800;
+        fogMemoryOn(table)!.writeFound(new Set([npc.identifier]));
+
+        npc.stealth = '1';
+
+        expect(service.isTokenVisible(npc)).toBe(false);
       });
 
       it('follows nobody it has not met', () => {

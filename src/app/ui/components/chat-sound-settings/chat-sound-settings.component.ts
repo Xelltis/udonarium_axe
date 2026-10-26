@@ -7,6 +7,7 @@ import { CHAT_SOUND_TYPES, ChatSoundSetting, ChatSoundType, playChatSound } from
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /**
@@ -20,7 +21,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   selector: 'ui-chat-sound-settings',
   templateUrl: './chat-sound-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, NgTemplateOutlet, TranslocoModule],
+  imports: [TextTooltipDirective, FormsModule, NgTemplateOutlet, TranslocoModule],
   host: { class: 'block' },
 })
 export class UiChatSoundSettingsComponent {

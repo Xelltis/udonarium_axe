@@ -22,6 +22,12 @@ describe('pieceStandPx', () => {
     });
   });
 
+  it('stands a picture given a width apart from its height that wide, whatever its proportions', () => {
+    expect(
+      pieceStandPx({ sizeCells: 1, gridSize: 50, aspect: 0.5, specifiedHeightPx: 300, specifiedWidthPx: 400 })
+    ).toEqual({ widthPx: 400, heightPx: 300 });
+  });
+
   it('stands nothing for a piece of no size', () => {
     expect(pieceStandPx({ sizeCells: -1, gridSize: 50, aspect: 1 })).toEqual({ widthPx: 0, heightPx: 0 });
   });

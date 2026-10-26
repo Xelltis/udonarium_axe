@@ -183,6 +183,70 @@ describe('FileArchiver', () => {
     });
   });
 
+  describe('what a load found out', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('says whether the data of a save was read, which a broken archive never is', async () => {
+      const off = xmlLoaded$.subscribe(() => undefined);
+      const saved = new File([zipSync({ 'data.xml': strToU8('<room></room>') }).slice()], 'room.zip', {
+        type: 'application/zip',
+      });
+      const broken = new File([new Uint8Array([0, 1, 2, 3])], 'broken.zip', { type: 'application/zip' });
+      try {
+        expect(await FileArchiver.instance.load([saved])).toMatchObject({ dataRead: true });
+        expect(await FileArchiver.instance.load([broken])).toMatchObject({ dataRead: false });
+      } finally {
+        off();
+      }
+    });
+
+    it('counts the data read once it is handed on, though taking it in then fails partway', async () => {
+      const off = xmlLoaded$.subscribe(() => {
+        throw new Error('a piece that will not go in');
+      });
+      const saved = new File([zipSync({ 'data.xml': strToU8('<room></room>') }).slice()], 'room.zip', {
+        type: 'application/zip',
+      });
+      try {
+        expect(await FileArchiver.instance.load([saved])).toMatchObject({ dataRead: true });
+      } finally {
+        off();
+      }
+    });
+
+    it('names the pictures and sounds it took in', async () => {
+      vi.spyOn(ImageStorage.instance, 'addAsync').mockResolvedValue({ identifier: 'taken-picture' } as ImageFile);
+      vi.spyOn(AudioStorage.instance, 'addAsync').mockResolvedValue({ identifier: 'taken-sound' } as AudioFile);
+
+      const result = await FileArchiver.instance.load([
+        new File([new Uint8Array([137, 80, 78, 71])], 'face.png', { type: 'image/png' }),
+        new File([new Uint8Array([1, 2, 3])], 'theme.mp3', { type: 'audio/mpeg' }),
+      ]);
+
+      expect(result.images).toEqual(['taken-picture']);
+      expect(result.audios).toEqual(['taken-sound']);
+    });
+
+    it('leaves the rest of an archive once it is no longer wanted', async () => {
+      const read: string[] = [];
+      const off = xmlLoaded$.subscribe((event) => read.push(event.xmlElement.tagName));
+      const saved = new File(
+        [zipSync({ 'data.xml': strToU8('<room></room>'), 'config.xml': strToU8('<config></config>') }).slice()],
+        'room.zip',
+        { type: 'application/zip' }
+      );
+
+      try {
+        const result = await FileArchiver.instance.load([saved], undefined, { stillWanted: () => false });
+
+        expect(result).toMatchObject({ dataRead: false });
+        expect(read).toEqual([]);
+      } finally {
+        off();
+      }
+    });
+  });
+
   describe('a zip whose code could not be fetched', () => {
     afterEach(() => useFflateLoader(null));
 
@@ -628,7 +692,7 @@ describe('FileArchiver', () => {
 
     it('skips a broken archive without throwing', async () => {
       const badFile = new File([new Uint8Array([0, 1, 2, 3])], 'broken.zip', { type: 'application/zip' });
-      await expect(FileArchiver.instance.load([badFile])).resolves.toBeUndefined();
+      await expect(FileArchiver.instance.load([badFile])).resolves.toMatchObject({ dataRead: false });
     });
 
     it('takes a picture inside it by its bytes where its name does not say what it is', async () => {

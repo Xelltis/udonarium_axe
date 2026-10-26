@@ -14,13 +14,14 @@ import {
   RangeShapeFieldValue,
 } from '@axe/domain/data/range-shape-field';
 import { buildRangeShapeThumbnail } from '@axe/features/tabletop/range-shape-editor/range-shape-editor-utils';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   selector: 'game-data-element-range-shape',
   templateUrl: './game-data-element-range-shape.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoModule],
+  imports: [TextTooltipDirective, TranslocoModule],
   host: { class: 'contents' },
 })
 export class GameDataElementRangeShapeComponent {

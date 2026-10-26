@@ -2,6 +2,8 @@ import { Logger } from '@axe/core/logging/logger';
 import { blobFromStored, storedBytesOf } from '@axe/core/storage/stored-bytes';
 
 const DB_VERSION = 1;
+/** How long an open may go unanswered before it is given up on, and tried afresh on the next use. */
+const OPEN_TIMEOUT_MS = 5000;
 const STORE_NAME = 'images';
 
 /**
@@ -32,6 +34,15 @@ export class IndexedBlobStore {
     return blobFromStored(found);
   }
 
+  /**
+   * Whether anything is stored under a key, answered without reading it; null where the browser
+   * could not be asked, which is not the same as nothing being there.
+   */
+  async has(key: string): Promise<boolean | null> {
+    const count = await this.request<number>('readonly', (store) => store.count(key));
+    return count === null ? null : count > 0;
+  }
+
   /** Stores or replaces the picture under a key, resolving false when it could not be written. */
   async put(key: string, blob: Blob): Promise<boolean> {
     const stored = await storedBytesOf(blob);
@@ -39,9 +50,10 @@ export class IndexedBlobStore {
     return done !== null;
   }
 
-  /** Deletes the picture stored under a key, if there is one. */
-  async remove(key: string): Promise<void> {
-    await this.request<undefined>('readwrite', (store) => store.delete(key));
+  /** Deletes the picture stored under a key, if there is one, resolving false when the deletion could not be made. */
+  async remove(key: string): Promise<boolean> {
+    const done = await this.request<undefined>('readwrite', (store) => store.delete(key));
+    return done !== null;
   }
 
   /** Drops every picture whose key is not among those to keep. */
@@ -58,49 +70,97 @@ export class IndexedBlobStore {
     this.dbPromise = null;
   }
 
-  private async open(): Promise<IDBDatabase | null> {
-    if (!this.isAvailable()) return null;
-    this.dbPromise ??= new Promise<IDBDatabase | null>((resolve) => {
+  /**
+   * The open handle, opening the database on first use. An open refused outright, failed or left
+   * unanswered too long gives null and is tried afresh on the next use; one that answers after it
+   * was given up on is closed, and leaves the open made since alone.
+   */
+  private open(): Promise<IDBDatabase | null> {
+    if (!this.isAvailable()) return Promise.resolve(null);
+    if (this.dbPromise) return this.dbPromise;
+    let answer!: (db: IDBDatabase | null) => void;
+    const opening = new Promise<IDBDatabase | null>((resolve) => (answer = resolve));
+    this.dbPromise = opening;
+    let settled = false;
+    const settle = (db: IDBDatabase | null) => {
+      if (settled) {
+        db?.close();
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      if (!db) this.letGo(opening);
+      answer(db);
+    };
+    const timer = setTimeout(() => {
+      Logger.warn(`${this.purpose} storage did not open`);
+      settle(null);
+    }, OPEN_TIMEOUT_MS);
+    // A browser that keeps nothing for the site refuses the open outright rather than failing it.
+    try {
       const request = indexedDB.open(this.dbName, DB_VERSION);
       request.onupgradeneeded = () => {
         if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME);
       };
-      request.onsuccess = () => resolve(this.letGoWhenAsked(request.result));
+      request.onsuccess = () => settle(this.letGoWhenAsked(request.result, opening));
       request.onerror = () => {
         Logger.warn(`${this.purpose} storage is unavailable`, request.error);
-        resolve(null);
+        settle(null);
       };
-    });
-    return this.dbPromise;
+    } catch (error) {
+      Logger.warn(`${this.purpose} storage is unavailable`, error);
+      settle(null);
+    }
+    return opening;
+  }
+
+  /** Forgets an open handle, unless an open made since has taken its place. */
+  private letGo(opening: Promise<IDBDatabase | null>): void {
+    if (this.dbPromise === opening) this.dbPromise = null;
   }
 
   /**
    * Closes the handle when another tab deletes or upgrades the database, which would otherwise
-   * wait for as long as this page keeps it open; the next use opens it again.
+   * wait for as long as this page keeps it open, and lets go of one the browser closes, as when the
+   * site's data is cleared; the next use opens it again.
    */
-  private letGoWhenAsked(db: IDBDatabase): IDBDatabase {
+  private letGoWhenAsked(db: IDBDatabase, opening: Promise<IDBDatabase | null>): IDBDatabase {
     db.onversionchange = () => {
       db.close();
-      this.dbPromise = null;
+      this.letGo(opening);
     };
+    db.onclose = () => this.letGo(opening);
     return db;
   }
 
+  /**
+   * Runs one request in a transaction of its own and answers its result once the transaction is
+   * done, or null where it failed. A write the browser takes and then cannot keep, as when it runs
+   * out of room, fails only as the transaction ends, so the answer waits for that.
+   */
   private async request<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest): Promise<T | null> {
     const db = await this.open();
     if (!db) return null;
     return new Promise<T | null>((resolve) => {
+      let settled = false;
+      const fail = (error: unknown) => {
+        if (settled) return;
+        settled = true;
+        Logger.warn(`${this.purpose} storage failed`, error);
+        resolve(null);
+      };
       try {
         const transaction = db.transaction(STORE_NAME, mode);
         const request = run(transaction.objectStore(STORE_NAME));
-        request.onsuccess = () => resolve(request.result as T);
-        request.onerror = () => {
-          Logger.warn(`${this.purpose} storage failed`, request.error);
-          resolve(null);
+        request.onerror = () => fail(request.error);
+        transaction.onabort = () => fail(transaction.error);
+        transaction.oncomplete = () => {
+          if (settled) return;
+          settled = true;
+          resolve(request.result as T);
         };
       } catch (error) {
-        Logger.warn(`${this.purpose} storage failed`, error);
-        resolve(null);
+        fail(error);
       }
     });
   }

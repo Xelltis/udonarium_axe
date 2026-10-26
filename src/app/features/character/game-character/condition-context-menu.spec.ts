@@ -14,6 +14,7 @@ function callbacks(): ConditionMenuCallbacks & { [name: string]: ReturnType<type
     setDown: vi.fn(),
     setProne: vi.fn(),
     setHeld: vi.fn(),
+    setStealth: vi.fn(),
   };
 }
 
@@ -48,11 +49,11 @@ function statesOf(menu: ContextMenuAction[]): ContextMenuAction[] {
 
 describe('buildConditionContextMenu', () => {
   it('offers nothing to somebody who may not change the table', () => {
-    expect(buildConditionContextMenu(zone(), ride(), false, callbacks(), t)).toEqual([]);
+    expect(buildConditionContextMenu(zone(), ride(), null, false, callbacks(), t)).toEqual([]);
   });
 
   it('says only whether the piece has fallen over where the room does not play zones', () => {
-    const states = statesOf(buildConditionContextMenu(zone({ enabled: false }), ride(), true, callbacks(), t));
+    const states = statesOf(buildConditionContextMenu(zone({ enabled: false }), ride(), null, true, callbacks(), t));
 
     expect(states.map((entry) => entry.name)).toEqual(['☐ feature.ride.menu.prone']);
   });
@@ -60,7 +61,14 @@ describe('buildConditionContextMenu', () => {
   it('ticks each state the piece is in, fallen over among them, and turns each one over', () => {
     const handlers = callbacks();
     const states = statesOf(
-      buildConditionContextMenu(zone({ down: true }), ride({ prone: { on: true, refusal: null } }), true, handlers, t)
+      buildConditionContextMenu(
+        zone({ down: true }),
+        ride({ prone: { on: true, refusal: null } }),
+        null,
+        true,
+        handlers,
+        t
+      )
     );
 
     expect(states.map((entry) => entry.name)).toEqual([
@@ -81,6 +89,7 @@ describe('buildConditionContextMenu', () => {
       buildConditionContextMenu(
         zone({ enabled: false }),
         ride({ prone: { on: true, refusal: 'fellThisTurn' } }),
+        null,
         true,
         callbacks(),
         t
@@ -91,11 +100,33 @@ describe('buildConditionContextMenu', () => {
     expect(states[0].enabled).toBe(false);
   });
 
+  it('offers stealth last to a seat that may toggle it, whether or not the room plays zones', () => {
+    const handlers = callbacks();
+    const plain = statesOf(
+      buildConditionContextMenu(zone({ enabled: false }), ride(), { on: false }, true, handlers, t)
+    );
+    const fight = statesOf(buildConditionContextMenu(zone(), ride(), { on: true }, true, handlers, t));
+
+    expect(plain.at(-1)?.name).toBe('☐ feature.character.contextMenu.stealth');
+    expect(fight.at(-1)?.name).toBe('☑ feature.character.contextMenu.stealth');
+    plain.at(-1)!.action!();
+    fight.at(-1)!.action!();
+    expect(handlers.setStealth).toHaveBeenNthCalledWith(1, true);
+    expect(handlers.setStealth).toHaveBeenNthCalledWith(2, false);
+  });
+
+  it('leaves stealth out for a seat that may not toggle it', () => {
+    const states = statesOf(buildConditionContextMenu(zone(), ride(), null, true, callbacks(), t));
+
+    expect(states.map((entry) => entry.name)).not.toContain('☐ feature.character.contextMenu.stealth');
+  });
+
   it('leaves holding on to an enemy to the fight', () => {
     const states = statesOf(
       buildConditionContextMenu(
         zone({ grabbedBy: { id: 'boss', name: '大蛇' }, grabbable: [{ id: 'cat', name: 'ねこ' }] }),
         ride(),
+        null,
         true,
         callbacks(),
         t

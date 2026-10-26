@@ -1,7 +1,9 @@
 import {
   findEmbeddedRolls,
+  isDicelessArithmetic,
   isPlainArithmetic,
   replaceEmbeddedRolls,
+  trailingArithmeticSplits,
   unwrapEmbeddedRolls,
   unwrapParentheses,
 } from '@axe/domain/data/embedded-roll';
@@ -66,6 +68,45 @@ describe('embedded-roll', () => {
 
     it('does not take a reference left unfilled', () => {
       expect(isPlainArithmetic('t{敏捷度}')).toBe(false);
+    });
+  });
+
+  describe('the rounding of a division', () => {
+    it('counts as arithmetic, inside parentheses as well', () => {
+      expect(isPlainArithmetic('12/2C+1')).toBe(true);
+      expect(isPlainArithmetic('[k3]+12/(1+3)R')).toBe(true);
+      expect(isPlainArithmetic('12/2F-2d6/2U')).toBe(true);
+      expect(isPlainArithmetic('k3@9')).toBe(false);
+    });
+  });
+
+  describe('isDicelessArithmetic', () => {
+    it('is arithmetic with no dice in it', () => {
+      expect(isDicelessArithmetic('12/2C')).toBe(true);
+      expect(isDicelessArithmetic('(3+4)*2')).toBe(true);
+      expect(isDicelessArithmetic('2d6/2C')).toBe(false);
+      expect(isDicelessArithmetic('k3@9')).toBe(false);
+      expect(isDicelessArithmetic('')).toBe(false);
+    });
+
+    it('counts dice written with no count before them, which the dice bot rolls as they stand', () => {
+      expect(isDicelessArithmetic('D66')).toBe(false);
+      expect(isDicelessArithmetic('d6+2')).toBe(false);
+    });
+  });
+
+  describe('trailingArithmeticSplits', () => {
+    it('splits the arithmetic after a command off, the shortest first', () => {
+      expect(trailingArithmeticSplits('k3@9+5$+1#0-0')).toEqual([{ head: 'k3@9+5$+1#0', tail: '-0' }]);
+      expect(trailingArithmeticSplits('k3@9+5$+1-(2+1)')).toEqual([
+        { head: 'k3@9+5$+1', tail: '-(2+1)' },
+        { head: 'k3@9+5$', tail: '+1-(2+1)' },
+      ]);
+    });
+
+    it('splits nothing off arithmetic, or off a command with none after it', () => {
+      expect(trailingArithmeticSplits('2d6+3')).toEqual([]);
+      expect(trailingArithmeticSplits('k3@9')).toEqual([]);
     });
   });
 

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, viewChild, ViewContainerRef } from '@angular/core';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 
@@ -11,6 +12,7 @@ import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive'
 })
 export class ModalComponent {
   modalService = inject(ModalService);
+  private readonly t = inject(TRANSLATE_FN);
 
   /** The title shown in the modal's bar, set by whatever is shown inside it. */
   get title(): string {
@@ -32,6 +34,11 @@ export class ModalComponent {
   get isSideways(): boolean {
     const degrees = this.modalService.rotationDegrees();
     return degrees === 90 || degrees === 270;
+  }
+
+  /** The translated label for the close button in the modal's bar. */
+  get closeTitle(): string {
+    return this.t('ui.panel.close');
   }
 
   readonly content = viewChild.required('content', { read: ViewContainerRef });

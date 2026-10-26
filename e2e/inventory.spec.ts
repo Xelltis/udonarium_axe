@@ -2,6 +2,9 @@ import { expect, Page, test } from '@playwright/test';
 
 import { createCharacter, openPanel, revealMenuEntry, waitAppReady } from './helpers';
 
+/** A row's middle is one of its fields, whose right-click is left to the browser, so menus are opened from its edge. */
+const ROW_EDGE = { x: 6, y: 6 };
+
 async function openInventory(page: Page) {
   await waitAppReady(page);
   await openPanel(page, 'インベントリ');
@@ -72,14 +75,14 @@ test.describe('the inventory context menu', () => {
   test('shows a context menu on a right-click on an object in the inventory', async ({ page }) => {
     const objects = page.locator('game-object-inventory [data-testid="inventory-item"]');
     await expect(objects.first()).toBeVisible({ timeout: 5000 });
-    await objects.first().click({ button: 'right' });
+    await objects.first().click({ button: 'right', position: ROW_EDGE });
     await expect(page.locator('context-menu').locator('li').first()).toBeVisible({ timeout: 3000 });
   });
 
   test('offers "show details" in the inventory context menu', async ({ page }) => {
     const objects = page.locator('game-object-inventory [data-testid="inventory-item"]');
     await expect(objects.first()).toBeVisible({ timeout: 5000 });
-    await objects.first().click({ button: 'right' });
+    await objects.first().click({ button: 'right', position: ROW_EDGE });
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 3000 });
     await expect(menu.getByText('詳細を表示')).toBeVisible();
@@ -88,7 +91,7 @@ test.describe('the inventory context menu', () => {
   test('opens the sheet from "show details" in the inventory', async ({ page }) => {
     const objects = page.locator('game-object-inventory [data-testid="inventory-item"]');
     await expect(objects.first()).toBeVisible({ timeout: 5000 });
-    await objects.first().click({ button: 'right' });
+    await objects.first().click({ button: 'right', position: ROW_EDGE });
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 3000 });
     await menu.getByText('詳細を表示').click();
@@ -98,7 +101,7 @@ test.describe('the inventory context menu', () => {
   test('offers the moves in the inventory context menu', async ({ page }) => {
     const objects = page.locator('game-object-inventory [data-testid="inventory-item"]');
     await expect(objects.first()).toBeVisible({ timeout: 5000 });
-    await objects.first().click({ button: 'right' });
+    await objects.first().click({ button: 'right', position: ROW_EDGE });
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 3000 });
     // For an object on the table, "move to table" would leave it where it is, so it gets no entry. The
@@ -106,5 +109,34 @@ test.describe('the inventory context menu', () => {
     await expect(await revealMenuEntry(page, menu, '共有イベントリに移動')).toBeVisible();
     await expect(await revealMenuEntry(page, menu, '個人イベントリに移動')).toBeVisible();
     await expect(await revealMenuEntry(page, menu, '墓場に移動')).toBeVisible();
+  });
+});
+
+test.describe('the buttons on a row of the inventory', () => {
+  test.beforeEach(async ({ page }) => {
+    await waitAppReady(page);
+    await createCharacter(page);
+    await openPanel(page, 'インベントリ');
+    await expect(page.locator('game-object-inventory input[name="tab"]')).toHaveCount(4, { timeout: 5000 });
+  });
+
+  test('come into view on a pointer resting on the row without moving anything in it', async ({ page }) => {
+    const row = page.locator('game-object-inventory [data-testid="inventory-item"]').first();
+    await expect(row).toBeVisible({ timeout: 5000 });
+    const field = row.locator('input').last();
+    await page.mouse.move(0, 0);
+    await row.evaluate((el) =>
+      Promise.all((el.closest('.draggable-panel')?.getAnimations() ?? []).map((animation) => animation.finished))
+    );
+    const before = await field.boundingBox();
+
+    await row.hover({ position: ROW_EDGE });
+    await expect(row.getByTitle('メニュー')).toBeVisible();
+    expect(await field.boundingBox()).toEqual(before);
+
+    await row.click({ position: ROW_EDGE });
+    await page.mouse.move(0, 0);
+    await expect(row.getByTitle('メニュー')).toBeVisible();
+    expect(await field.boundingBox()).toEqual(before);
   });
 });

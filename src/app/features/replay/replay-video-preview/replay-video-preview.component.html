@@ -42,7 +42,7 @@
       @for (choice of styles; track choice) {
         <button
           class="cursor-pointer rounded-none border-none px-[0.7em] py-[0.2em] text-[0.7rem]"
-          [class.bg-ui-accent]="settings.style() === choice"
+          [class.bg-ui-accent-solid]="settings.style() === choice"
           [class.text-white]="settings.style() === choice"
           [attr.aria-pressed]="settings.style() === choice"
           (click)="setStyle(choice)"

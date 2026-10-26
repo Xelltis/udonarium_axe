@@ -586,12 +586,24 @@ describe('RoomSettingsPanelComponent', () => {
         leaveKind: null,
         blockRadiusM: null,
         clearName: null,
+        stealthUnseen: null,
       });
 
       component.zoneSizes = '';
       component.zoneEnabled = false;
       expect(Config.instance.zoneRuleAnswers.sizes).toBeNull();
       expect(Config.instance.zoneRuleAnswers.enabled).toBeNull();
+    });
+
+    it('writes whether a piece in stealth counts as unseen, and forgets it when unticked', () => {
+      component.zoneEnabled = true;
+
+      component.zoneStealthUnseen = true;
+      expect(Config.instance.zoneRuleAnswers.stealthUnseen).toBe(true);
+      expect(component.zoneStealthUnseen).toBe(true);
+
+      component.zoneStealthUnseen = false;
+      expect(Config.instance.zoneRuleAnswers.stealthUnseen).toBeNull();
     });
 
     it('writes the outnumbering factor and the kind that leaves an overflowing zone, out of the kinds written', async () => {
@@ -851,6 +863,29 @@ describe('RoomSettingsPanelComponent', () => {
 
       expect(component.pieceImageInCell).toBe(false);
       expect(Config.instance.pieceImageInCell).toBeNull();
+    });
+
+    it('gives every number resource a slider for the whole room, from the shared part', async () => {
+      const root = await openUi('shared');
+      const box = root.querySelector('[data-testid="resource-slider-default"]') as HTMLInputElement;
+      expect(box).toBeTruthy();
+      expect(box.checked).toBe(false);
+
+      box.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.resourceSliderByDefault).toBe(true);
+      expect(Config.instance.resourceSliderByDefault).toBe(true);
+      Config.instance.resourceSliderByDefault = false;
+    });
+
+    it('leaves the sliders of the room to the master', () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+
+      component.resourceSliderByDefault = true;
+
+      expect(Config.instance.resourceSliderByDefault).toBe(false);
     });
 
     it('keeps what the room shows everyone under its own part', async () => {

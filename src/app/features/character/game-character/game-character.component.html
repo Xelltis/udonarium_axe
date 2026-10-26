@@ -29,6 +29,19 @@
         ></div>
       </div>
     }
+    @if (inStealth()) {
+      <!-- Drawn only for the few who see a piece in stealth, to tell them the others do not. -->
+      <div
+        data-testid="stealth-mark"
+        class="border-ui-accent/70 pointer-events-none absolute inset-[-6%] rounded-full border-2 border-dashed [-webkit-transform-style:preserve-3d] transform-3d"
+      >
+        <i
+          class="material-icons bg-ui-panel text-ui-accent shadow-ui-sm absolute -top-1.5 -right-1.5 rounded-full p-0.5 text-[13px]! leading-none"
+          aria-hidden="true"
+          >visibility_off</i
+        >
+      </div>
+    }
     @if (hitFlash() === 'damage') {
       <div
         data-testid="hit-flash"
@@ -135,6 +148,7 @@
             </div>
           }
           @if (isDropShadow && 0 < imageFile().url.length && specifyKomaImageFlag() && !imageView.fitsInCell()) {
+            @let shadowWidth = komaImageWidthApart();
             <img
               class="chrome-smooth-image-trick pointer-events-none filter-[brightness(0)_opacity(0.7)_blur(1px)]"
               [ngStyle]="{
@@ -142,7 +156,7 @@
                 bottom: '0',
                 left: '50%',
                 height: komaImageHeightSignal() + 'px',
-                width: 'auto',
+                width: shadowWidth === null ? 'auto' : shadowWidth + 'px',
                 maxWidth: 'none',
                 transform:
                   'translateX(-50%) ' +
@@ -192,6 +206,7 @@
           @if (isPoster() && 0 < imageFile().url.length) {
             <img
               class="image chrome-smooth-image-trick pointer-events-none absolute inset-0 m-auto block size-full object-contain"
+              [class.opacity-50]="inStealth()"
               [ngStyle]="{
                 width: imageView.supersamplePercent(),
                 height: imageView.supersamplePercent(),
@@ -495,13 +510,15 @@
                   </div>
                 }
                 @if (!isPoster() && 0 < imageFile().url.length && specifyKomaImageFlag() && !imageView.fitsInCell()) {
+                  @let pictureWidth = komaImageWidthApart();
                   <img
                     appSeeThrough
                     class="image chrome-smooth-image-trick pointer-events-auto inset-x-0 bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                    [class.opacity-50]="inStealth()"
                     [appBillboard]="imageView.komaFacing()"
                     [ngStyle]="{
                       height: komaImageHeightSignal() * imageView.supersample() + 'px',
-                      width: 'auto',
+                      width: pictureWidth === null ? 'auto' : pictureWidth * imageView.supersample() + 'px',
                       maxWidth: 'none',
                       display: 'inline-block',
                       left: 'auto',
@@ -518,7 +535,7 @@
                       [appBillboard]="imageView.komaFacing()"
                       [ngStyle]="{
                         height: komaImageHeightSignal() * imageView.supersample() + 'px',
-                        width: 'auto',
+                        width: pictureWidth === null ? 'auto' : pictureWidth * imageView.supersample() + 'px',
                         maxWidth: 'none',
                         display: 'inline-block',
                       }"
@@ -534,6 +551,7 @@
                   <img
                     appSeeThrough
                     class="image chrome-smooth-image-trick pointer-events-auto inset-x-0 bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                    [class.opacity-50]="inStealth()"
                     [appBillboard]="imageView.pieceFacing()"
                     [ngStyle]="{
                       width: imageView.supersamplePercent(),
@@ -568,6 +586,7 @@
                   <img
                     appSeeThrough
                     class="image chrome-smooth-image-trick pointer-events-auto inset-x-0 bottom-0 m-auto block object-contain align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
+                    [class.opacity-50]="inStealth()"
                     [appBillboard]="imageView.pieceFacing()"
                     [ngStyle]="{
                       width: imageView.supersamplePercent(),
@@ -1013,7 +1032,7 @@
       }
       @if (badge.strength) {
         <span
-          class="bg-ui-accent pointer-events-none absolute top-[-0.35em] left-[-0.4em] rounded-[0.3em] px-[0.18em] text-[0.45em] leading-tight font-bold text-white shadow-[0_0.1em_0.2em_rgba(0,0,0,0.7)]"
+          class="bg-ui-accent-solid pointer-events-none absolute top-[-0.35em] left-[-0.4em] rounded-[0.3em] px-[0.18em] text-[0.45em] leading-tight font-bold text-white shadow-[0_0.1em_0.2em_rgba(0,0,0,0.7)]"
           >{{ badge.strength }}</span
         >
       }

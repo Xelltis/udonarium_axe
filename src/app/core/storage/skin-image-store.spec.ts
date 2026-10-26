@@ -17,6 +17,6 @@ describe('where a skin keeps its pictures', () => {
 
     expect(await store.get('light')).toBeNull();
     expect(await store.put('light', new Blob(['a']))).toBe(false);
-    await expect(store.remove('light')).resolves.toBeUndefined();
+    expect(await store.remove('light')).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ import { BuffPileOn } from '@axe/domain/character/buff-stack';
 import { resolveBuffTiming } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
+import { findEmbeddedRolls, replaceEmbeddedRolls } from '@axe/domain/data/embedded-roll';
 import { readNamedResourceSlot, type ResourceSlot, resourceSlotLabel } from '@axe/domain/data/resource-slot';
 
 export interface ResourceEditOption {
@@ -50,10 +51,8 @@ export function parseResourceEditOption(text: string): ResourceEditOption {
     isErr: false,
   };
 
-  const mat = toHalfWidth(text).match(/([A-CE-Z]+)$/i);
-  if (!mat) return ans;
-
-  let option = mat[1];
+  let option = splitOptionLetters(toHalfWidth(text)).options;
+  if (option === '') return ans;
   if (option.match(/L/i)) {
     option = option.replace(/L/i, '');
     ans.limitMinMax = true;
@@ -68,6 +67,49 @@ export function parseResourceEditOption(text: string): ResourceEditOption {
     ans.isErr = true;
   }
   return ans;
+}
+
+/**
+ * The letters at the end of an amount that are options rather than part of it. A division's
+ * rounding, `C`, `R`, `F` or `U` straight after its divisor, belongs to the amount, so `12/2CL`
+ * rounds up and keeps the result within its limits.
+ */
+function splitOptionLetters(text: string): { amount: string; options: string } {
+  const mat = text.match(/([A-CE-Z]+)$/i);
+  if (!mat) return { amount: text, options: '' };
+  let amount = text.slice(0, mat.index);
+  let options = mat[1];
+  if (/\/\s*(?:\d+|\([^()]*\))\s*$/.test(amount) && /^[CRFU]/i.test(options)) {
+    amount += options[0];
+    options = options.slice(1);
+  }
+  return { amount, options };
+}
+
+/**
+ * The amount with its first term in parentheses where that term divides, so the minus a taking-away
+ * puts in front of it comes after the division and its rounding: `13/2F` taken away takes 6, where
+ * `-13/2F` would round -6.5 down to -7. A division inside a bracketed command is already a whole
+ * number by then, and leaves the term as it is.
+ */
+function wrapLeadingDivision(amount: string): string {
+  let depth = 0;
+  let end = amount.length;
+  for (let index = 0; index < amount.length; index++) {
+    const char = amount[index];
+    if (char === '(' || char === '[') depth++;
+    else if (char === ')' || char === ']') depth--;
+    else if (index > 0 && depth === 0 && (char === '+' || char === '-')) {
+      end = index;
+      break;
+    }
+  }
+  const first = amount.slice(0, end);
+  const divides = replaceEmbeddedRolls(
+    first,
+    findEmbeddedRolls(first).map(() => 0)
+  ).includes('/');
+  return divides ? `(${first})${amount.slice(end)}` : amount;
 }
 
 /** A blank edit aimed at a resource's current value, to be filled in by {@link convertCommandToResourceEdit}. */
@@ -132,12 +174,12 @@ export function convertCommandToResourceEdit(
     return true;
   }
 
-  let reg3 = resourceEditResult[3].replace(/[A-CE-ZＡ-ＣＥ-Ｚ]+$/i, '');
+  const reg3 = splitOptionLetters(toHalfWidth(resourceEditResult[3])).amount;
   const commandPrefix = oneResourceEdit.operator === '-' ? '-' : '';
-  oneResourceEdit.amount = toHalfWidth(reg3);
-  oneResourceEdit.command = `${commandPrefix}${oneResourceEdit.amount}+(1d1-1)`;
+  oneResourceEdit.amount = reg3;
+  const leading = commandPrefix === '-' ? wrapLeadingDivision(oneResourceEdit.amount) : oneResourceEdit.amount;
+  oneResourceEdit.command = `${commandPrefix}${leading}+(1d1-1)`;
 
-  reg3 = reg3.replace(/[A-CE-ZＡ-ＣＥ-Ｚ]+$/i, '');
   const optionCommand = parseResourceEditOption(resourceEditResult[3]);
   if (optionCommand.isErr) {
     return false;

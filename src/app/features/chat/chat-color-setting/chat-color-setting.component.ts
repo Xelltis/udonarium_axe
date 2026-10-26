@@ -8,6 +8,7 @@ import { SkinService } from '@axe/application/ui/skin.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatSettingsEventHandlerService } from '@axe/features/chat/chat-settings-event-handler.service';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import {
   autoChatBubble,
   CHAT_WARN_RATIO,
@@ -53,7 +54,7 @@ export const CHAT_PRESET_COLORS: readonly string[] = [
   templateUrl: './chat-color-setting.component.html',
   host: { class: 'block px-3 py-[10px]' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoModule, ChatColorStylePipe, NgStyle],
+  imports: [TextTooltipDirective, TranslocoModule, ChatColorStylePipe, NgStyle],
 })
 export class ChatColorSettingComponent {
   /** The panels a bubble has to read against, which a skin may have moved. */

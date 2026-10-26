@@ -1,6 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { RoomSnapshotService } from '@axe/application/file/room-snapshot.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -94,6 +95,7 @@ import { StampRulesEditorComponent } from '@axe/features/room-settings/stamp-rul
 import { SkinPickerComponent } from '@axe/features/skin/skin-picker/skin-picker.component';
 import { DisplayCalibrationComponent } from '@axe/ui/components/display-calibration/display-calibration.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 
@@ -112,6 +114,7 @@ type PiecePassageSide = 'samePartyPassage' | 'otherPartyPassage' | 'noPartyPassa
   templateUrl: './room-settings-panel.component.html',
   host: { class: 'block' },
   imports: [
+    TextTooltipDirective,
     NgTemplateOutlet,
     FormsModule,
     NgSelectComponent,
@@ -137,6 +140,7 @@ export class RoomSettingsPanelComponent {
   private readonly roomSnapshot = inject(RoomSnapshotService);
   private readonly roomPanels = inject(RoomPanelService);
   private readonly browserDataWipe = inject(BrowserDataWipeService);
+  private readonly resourceSliders = inject(ResourceSliderService);
 
   readonly tabs = ROOM_SETTINGS_TABS;
   readonly uiTabs = ROOM_SETTINGS_UI_TABS;
@@ -252,6 +256,14 @@ export class RoomSettingsPanelComponent {
     if (this.isSharedReadOnly() || !table) return;
     table.imageBillboard = value;
     triggerUpdateGameObject(table.toContext());
+  }
+
+  /** Whether a number resource that says nothing of its own slider shows one, for the whole room. */
+  get resourceSliderByDefault(): boolean {
+    return this.resourceSliders.roomDefault();
+  }
+  set resourceSliderByDefault(shown: boolean) {
+    if (!this.isSharedReadOnly()) this.resourceSliders.setRoomDefault(shown);
   }
 
   /**
@@ -961,6 +973,18 @@ export class RoomSettingsPanelComponent {
   }
   set zoneEnabled(value: boolean) {
     if (this.isEditable) this.config.zoneEnabled = value ? true : null;
+  }
+
+  /**
+   * Whether a piece in stealth counts as one nobody can see under the zone rules; setting it writes
+   * the room's config, for whoever may edit the table.
+   */
+  get zoneStealthUnseen(): boolean {
+    this.objectChange.versionOf('Config')();
+    return this.config.zoneRuleAnswers.stealthUnseen === true;
+  }
+  set zoneStealthUnseen(value: boolean) {
+    if (this.isEditable) this.config.zoneStealthUnseen = value ? true : null;
   }
 
   /** The size table as the room wrote it, empty where it uses the default. */

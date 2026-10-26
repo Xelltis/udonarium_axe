@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-display-preference.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -94,6 +95,63 @@ describe('CutInListComponent', () => {
 
       expect(icons).toContain('add');
       expect(icons).toContain('delete');
+    });
+  });
+
+  describe('throwing a cut-in away', () => {
+    beforeEach(() => {
+      PeerCursor.myCursor = { role: PeerRole.Player, identifier: 'seat-cursor' } as PeerCursor;
+    });
+
+    afterEach(() => {
+      for (const cutIn of component.getCutIns()) cutIn.destroy();
+      vi.restoreAllMocks();
+    });
+
+    function answer(yes: boolean) {
+      return vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(yes);
+    }
+
+    it('asks first, naming the cut-in, and keeps it on a no', async () => {
+      component.createCutIn();
+      const made = component.selectedCutIn!;
+      made.name = '決めゼリフ';
+      const ask = answer(false);
+
+      await component.delete();
+
+      expect(ask).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining('決めゼリフ'), okLabel: '削除', danger: true })
+      );
+      expect(component.getCutIns()).toContain(made);
+      expect(component.selectedCutIn).toBe(made);
+    });
+
+    it('throws it away for everyone on a yes', async () => {
+      component.createCutIn();
+      const made = component.selectedCutIn!;
+      answer(true);
+
+      await component.delete();
+
+      expect(component.getCutIns()).not.toContain(made);
+      expect(component.selectedCutIn).toBeNull();
+    });
+
+    it('keeps both when another cut-in was picked while the question was open', async () => {
+      component.createCutIn();
+      const first = component.selectedCutIn!;
+      component.createCutIn();
+      const second = component.selectedCutIn!;
+      component.selectedCutIn = first;
+      vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockImplementation(async () => {
+        component.selectedCutIn = second;
+        return true;
+      });
+
+      await component.delete();
+
+      expect(component.getCutIns()).toEqual(expect.arrayContaining([first, second]));
     });
   });
 

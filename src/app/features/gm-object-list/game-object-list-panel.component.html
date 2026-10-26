@@ -76,6 +76,8 @@
             (pointerdown)="onRowPointerDown($event, row)"
             (pointermove)="onRowPointerMove($event)"
             (pointerup)="onRowPointerUp($event)"
+            (pointercancel)="onRowPointerCancel()"
+            (lostpointercapture)="onRowPointerCancel()"
             (mousedown)="onRowDragBlock($event, row)"
             (touchstart)="onRowDragBlock($event, row)"
           >

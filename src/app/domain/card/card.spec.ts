@@ -5,6 +5,7 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card, CardState } from '@axe/domain/card/card';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
 describe('Card', () => {
   let store: ObjectStore;
@@ -522,6 +523,44 @@ describe('Card', () => {
       const card = new Card();
       card.owner = 'user-A';
       expect(card.isOwnedBy('user-B')).toBe(false);
+    });
+
+    it('is false for an empty id, which a card nobody holds has as its owner', () => {
+      const card = new Card();
+      expect(card.isOwnedBy('')).toBe(false);
+    });
+  });
+
+  describe('played offline, where no connection hands this seat a user id', () => {
+    let card: Card;
+
+    beforeEach(() => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: '', isOpen: false } as IPeerContext);
+      PeerCursor.createMyCursor();
+      card = Card.create('伏せ札', 'front.png', 'back.png');
+      card.state = CardState.BACK;
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      card.destroy();
+      PeerCursor.myCursor = null!;
+    });
+
+    it('keeps a card laid face down from showing its face to this seat', () => {
+      expect(card.isMine).toBe(false);
+      expect(card.isVisible).toBe(false);
+    });
+
+    it('lets this seat look at one alone, and take one into its hand, by the id on its own cursor', () => {
+      PeerCursor.myCursor.userId = 'me';
+
+      card.owner = PeerCursor.myUserId;
+      expect(card.isPeeking).toBe(true);
+
+      card.toHand(PeerCursor.myUserId);
+      expect(card.isInMyHand).toBe(true);
+      expect(card.isVisible).toBe(true);
     });
   });
 

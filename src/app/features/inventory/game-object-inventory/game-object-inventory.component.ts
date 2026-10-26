@@ -14,7 +14,9 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
+import { StealthService } from '@axe/application/character/stealth.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
@@ -35,6 +37,7 @@ import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
 import { PanelHeaderControl, PanelService } from '@axe/application/ui/panel.service';
+import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
@@ -53,6 +56,7 @@ import {
   rewriteFolderPath,
 } from '@axe/domain/character/character-folder';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { gaugeRatio } from '@axe/domain/character/piece-gauge';
 import { StatusAilment } from '@axe/domain/character/status-ailment';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { createCalcPass, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
@@ -98,6 +102,7 @@ import {
 } from '@axe/features/inventory/inventory-filter-panel/inventory-filter-panel.component';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { AutoFocusDirective } from '@axe/ui/directives/auto-focus.directive';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -109,6 +114,24 @@ const PANEL_FIT_MARGIN_PX = 34;
 const NO_BUFF_BADGES = { shown: [] as BuffBadge[], more: 0 };
 /** What a tab has folded up before anything on it has been. */
 const NO_FOLDERS: ReadonlySet<string> = new Set();
+const NO_METERS: ReadonlyMap<string, readonly ResourceMeter[]> = new Map();
+
+/**
+ * The tab of this seat's own inventory. Its pieces stand at this connection's peer id, which a
+ * reconnection changes, so the tab is named for what it is and the id is read whenever it is used.
+ */
+export const PERSONAL_INVENTORY_TAB = 'personal';
+
+/** A number resource read for the thin gauge of a folded row. */
+export interface ResourceMeter {
+  readonly identifier: string;
+  readonly name: string;
+  readonly current: string;
+  readonly max: number | null;
+  /** How full the gauge is, 0 to 100; null where there is no maximum to measure the value against. */
+  readonly percent: number | null;
+  readonly color: string;
+}
 
 const VIEW_ICONS: Record<InventoryViewMode, string> = {
   rich: 'view_agenda',
@@ -121,7 +144,15 @@ const VIEW_ICONS: Record<InventoryViewMode, string> = {
   templateUrl: './game-object-inventory.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgClass, NgTemplateOutlet, FormsModule, AutoFocusDirective, SafePipe, TranslocoModule],
+  imports: [
+    TextTooltipDirective,
+    NgClass,
+    NgTemplateOutlet,
+    FormsModule,
+    AutoFocusDirective,
+    SafePipe,
+    TranslocoModule,
+  ],
   // A window apiece, so a second inventory can be narrowed and read its own way. What the room
   // decided - the order, the display items - still comes from the one place it is written down.
   providers: [InventoryFilterService, InventoryViewPreferenceService],
@@ -134,6 +165,40 @@ export class GameObjectInventoryComponent {
   asNumber(value: number | string): number {
     const parsed = typeof value === 'number' ? value : Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  /**
+   * The maximum a resource gauge counts up to, written beside its value; null where none is set, as
+   * an empty field is not a maximum of nought, or where it is not a number.
+   */
+  resourceMax(dataElm: DataElement): number | null {
+    const raw = dataElm.value;
+    if (typeof raw === 'string' && raw.trim().length < 1) return null;
+    const parsed = typeof raw === 'number' ? raw : Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  /**
+   * The number resources among a piece's display items, read for the thin gauges of a folded row.
+   * One with no maximum, or a maximum of nought, shows its value without a gauge, as there is
+   * nothing to measure it against.
+   */
+  resourceMetersOf(gameObject: GameCharacter): ResourceMeter[] {
+    return this.getInventoryTags(gameObject)
+      .filter((element): element is DataElement => !!element?.isNumberResource)
+      .map((element) => {
+        const max = this.resourceMax(element);
+        const current = Number(element.currentValue);
+        const percent = max !== null && max > 0 && Number.isFinite(current) ? gaugeRatio(current, max) * 100 : null;
+        return {
+          identifier: element.identifier,
+          name: element.name,
+          current: String(element.currentValue ?? ''),
+          max,
+          percent,
+          color: element.nowValueColor || 'var(--ui-accent)',
+        };
+      });
   }
 
   /**
@@ -166,6 +231,7 @@ export class GameObjectInventoryComponent {
   private readonly turnOrderService = inject(TurnOrderService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly resourceSliders = inject(ResourceSliderService);
   private readonly vision = inject(VisionService);
   private readonly ailmentService = inject(StatusAilmentService);
   private readonly viewPreference = inject(InventoryViewPreferenceService);
@@ -174,6 +240,8 @@ export class GameObjectInventoryComponent {
   private readonly disclosureService = inject(DisclosureService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly npcDrag = inject(NpcDragService);
+  private readonly pieceGhost = inject(PieceDragGhostService);
+  private readonly stealth = inject(StealthService);
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   private readonly t = inject(TRANSLATE_FN);
@@ -181,23 +249,30 @@ export class GameObjectInventoryComponent {
 
   protected readonly drag = new InventoryObjectDrag({
     canFile: () => this.foldersApply() && this.rolePermission.canEditTabletop,
+    canMove: () => this.rolePermission.canEditTabletop,
     canHandOver: () => PeerCursor.isMyselfGameMaster,
+    currentTab: () => this.selectTab(),
     travellingWith: (character) => {
       const selected = this.multiMoveTargets();
       if (this.isMultiMove() && selected.has(character.identifier)) return new Set(selected);
       return new Set([character.identifier]);
     },
-    ownsPoint: (x, y) => {
-      const element = document.elementFromPoint(x, y);
-      return !!element && this.hostElement.nativeElement.contains(element);
-    },
-    handOverBegin: (character, x, y) => this.npcDrag.begin(character, x, y),
-    handOverMove: (x, y) => this.npcDrag.move(x, y),
+    ownsElement: (element) => this.hostElement.nativeElement.contains(element),
+    handOverBegin: (character) => this.npcDrag.begin(character),
     handOverEnd: (accepted) => this.npcDrag.end(accepted),
+    ghostBegin: (character, count, x, y) => this.pieceGhost.show(character, x, y, count),
+    ghostMove: (x, y) => this.pieceGhost.move(x, y),
+    ghostEnd: () => this.pieceGhost.hide(),
     fileInto: (identifiers, folderPath) => {
-      this.setFolderOf(identifiers, folderPath);
+      const target = normalizeFolderPath(folderPath);
+      const moving = [...identifiers].filter(
+        (identifier) => (this.objectStore.get<GameCharacter>(identifier)?.folderName ?? '') !== target
+      );
+      if (moving.length < 1) return;
+      this.setFolderOf(moving, folderPath);
       SoundEffect.play(PresetSound.piecePut);
     },
+    moveTo: (identifiers, tab) => this.moveToTab(identifiers, tab),
   });
 
   constructor() {
@@ -227,16 +302,19 @@ export class GameObjectInventoryComponent {
     effect(() => {
       this.panelService.headerControls.set(this.viewControls());
     });
-    this.objectChange.networkOpen$.subscribe(() => {
-      this.inventoryTypes.set(['table', 'common', Network.peerId, 'graveyard']);
-      if (!this.inventoryTypes().includes(this.selectTab())) {
-        this.selectTab.set(Network.peerId);
-      }
-    }, this.destroyRef);
-    this.inventoryTypes.set(['table', 'common', Network.peerId, 'graveyard']);
   }
 
-  readonly inventoryTypes = signal<string[]>(['table', 'common', 'graveyard']);
+  readonly inventoryTypes = signal<string[]>(['table', 'common', PERSONAL_INVENTORY_TAB, 'graveyard']);
+
+  /** Where the pieces of a tab stand: this connection's peer id for the personal tab, the tab's own name otherwise. */
+  private locationOfTab(tab: string): string {
+    return tab === PERSONAL_INVENTORY_TAB ? Network.peerId : tab;
+  }
+
+  /** The tab a piece standing at a location is listed on: the personal tab for this connection's peer id. */
+  private tabOfLocation(location: string): string {
+    return location === Network.peerId ? PERSONAL_INVENTORY_TAB : location;
+  }
 
   readonly selectTab = signal('table');
   readonly selectedIdentifier = signal('');
@@ -254,13 +332,56 @@ export class GameObjectInventoryComponent {
     this.filter.clearSearch();
   }
 
-  /** Gives the turn to a piece from the button on its row, without the press selecting the row. */
+  /**
+   * Gives the turn to a piece from the button on its row, without the press selecting the row. A
+   * piece waiting to step in steps in.
+   */
   setTurnOrder(event: Event, gameObject: GameObject): void {
     event.stopPropagation();
-    this.turnOrderService.setCurrent(gameObject.identifier);
+    this.giveTurnTo(gameObject.identifier);
+  }
+
+  private giveTurnTo(identifier: string): void {
+    if (this.turnOrderService.mayInterrupt(identifier)) this.turnOrderService.interrupt(identifier);
+    else this.turnOrderService.setCurrent(identifier);
   }
 
   readonly viewMode = this.viewPreference.mode;
+
+  /** Whether a search box stands above the list, which the reader turns on in the display settings. */
+  readonly showsSearchBar = this.viewPreference.searchBar;
+
+  /**
+   * The thin gauges of every folded row, by piece, worked out again only as the pieces or their
+   * sheets change rather than on every pass over the list.
+   */
+  readonly foldedMeters = computed<ReadonlyMap<string, readonly ResourceMeter[]>>(() => {
+    if (!this.viewPreference.compact()) return NO_METERS;
+    this.inventoryService.inventoryVersion();
+    this.objectChange.collectionOf('data')();
+    const meters = new Map<string, readonly ResourceMeter[]>();
+    for (const row of this.filteredRows()) {
+      if (row.object instanceof GameCharacter) meters.set(row.identifier, this.resourceMetersOf(row.object));
+    }
+    return meters;
+  });
+
+  /**
+   * Whether a row of the rich view is folded down to its name and thin gauges. Only the picked row
+   * opens out, so a value is changed on the row the reader meant.
+   */
+  isFoldedRow(gameObject: TabletopObject): boolean {
+    return this.viewPreference.compact() && this.selectedIdentifier() !== gameObject.identifier;
+  }
+
+  /**
+   * Whether the round's strip is put away until a round begins, leaving the button beside the tabs
+   * to begin one. With the tabs put away there would be nowhere for that button, so the strip
+   * stands as it always has.
+   */
+  readonly roundWaitsForPlay = computed(
+    () => this.viewPreference.roundInPlay() && this.shows('tabs') && this.turnRound() === 0
+  );
   protected readonly viewLabelKeys = INVENTORY_VIEW_LABEL_KEYS;
 
   /**
@@ -538,15 +659,35 @@ export class GameObjectInventoryComponent {
     return this.turnOrderService.currentSide;
   });
 
-  /** Gives the turn to the piece pressed in the turn order. */
+  /** Gives the turn to the piece pressed in the turn order, or steps it in where it is waiting to. */
   selectTurn(character: GameCharacter): void {
-    this.turnOrderService.setCurrent(character.identifier);
+    this.giveTurnTo(character.identifier);
   }
 
   readonly actedIds = computed<ReadonlySet<string>>(() => {
     this.objectChange.versionOf('TurnState')();
     return new Set(this.turnOrderService.actedIdentifiers);
   });
+
+  /** The pieces waiting to step in this round. */
+  readonly heldIds = computed<ReadonlySet<string>>(() => {
+    this.objectChange.versionOf('TurnState')();
+    return new Set(this.turnOrderService.heldIdentifiers);
+  });
+
+  /** Whether the piece whose turn it is may wait to step in later, which the round strip offers. */
+  readonly mayHoldCurrent = computed<boolean>(() => {
+    this.objectChange.versionOf('TurnState')();
+    this.objectChange.trackMyCursor();
+    this.inventoryService.inventoryVersion();
+    const current = this.turnOrderService.currentIdentifier;
+    return current !== '' && this.turnOrderService.mayHold(current);
+  });
+
+  /** Has the piece whose turn it is wait to step in later, handing the turn on. */
+  turnHold(): void {
+    this.turnOrderService.hold(this.turnOrderService.currentIdentifier);
+  }
 
   readonly canUndoTurn = computed<boolean>(() => {
     this.objectChange.versionOf('TurnState')();
@@ -659,7 +800,7 @@ export class GameObjectInventoryComponent {
       { name: Network.peerId, labelKey: 'feature.inventory.tabs.personal' },
       { name: 'graveyard', labelKey: 'feature.inventory.tabs.graveyard' },
     ];
-    return all.filter((loc) => loc.name !== this.selectTab());
+    return all.filter((loc) => loc.name !== this.locationOfTab(this.selectTab()));
   }
 
   /** The display item name that stands for a line break in a row. */
@@ -668,14 +809,14 @@ export class GameObjectInventoryComponent {
   }
 
   /**
-   * The translated title of an inventory tab; any name that is not the table, this peer or the
-   * graveyard is the common tab.
+   * The translated title of an inventory tab; any name that is not the table, this seat's own or
+   * the graveyard is the common tab.
    */
   getTabTitle(inventoryType: string) {
     switch (inventoryType) {
       case 'table':
         return this.t('feature.inventory.tabs.table');
-      case Network.peerId:
+      case PERSONAL_INVENTORY_TAB:
         return this.t('feature.inventory.tabs.personal');
       case 'graveyard':
         return this.t('feature.inventory.tabs.graveyard');
@@ -685,14 +826,14 @@ export class GameObjectInventoryComponent {
   }
 
   /**
-   * The inventory behind a tab; any name that is not the table, this peer or the graveyard gives
-   * the common one.
+   * The inventory behind a tab; any name that is not the table, this seat's own or the graveyard
+   * gives the common one.
    */
   getInventory(inventoryType: string) {
     switch (inventoryType) {
       case 'table':
         return this.inventoryService.tableInventory;
-      case Network.peerId:
+      case PERSONAL_INVENTORY_TAB:
         return this.inventoryService.privateInventory;
       case 'graveyard':
         return this.inventoryService.graveyardInventory;
@@ -797,7 +938,9 @@ export class GameObjectInventoryComponent {
    * Anything that is not the table, the graveyard or this peer's own list reads the shared one,
    * so the test has to be the same as the one that picks the inventory, not a single name.
    */
-  private readonly isSharedTab = computed<boolean>(() => this.foldersApply() && this.selectTab() !== Network.peerId);
+  private readonly isSharedTab = computed<boolean>(
+    () => this.foldersApply() && this.selectTab() !== PERSONAL_INVENTORY_TAB
+  );
 
   readonly declaredFolderPaths = computed<string[]>(() => {
     if (!this.foldersApply()) return [];
@@ -1177,6 +1320,11 @@ export class GameObjectInventoryComponent {
     return texts;
   }
 
+  /** Whether the piece is a character in stealth, which only some of the table can see. */
+  isInStealth(gameObject: TabletopObject): boolean {
+    return gameObject instanceof GameCharacter && gameObject.stealth === '1';
+  }
+
   /** Whether the piece is a character hidden from the inventory. */
   isInventoryHiddenObject(gameObject: TabletopObject): boolean {
     return gameObject instanceof GameCharacter && gameObject.hideInventory;
@@ -1202,7 +1350,9 @@ export class GameObjectInventoryComponent {
    * has no such item.
    */
   getInventoryTags(gameObject: GameCharacter): (DataElement | null)[] {
-    return this.getInventory(gameObject.location.name).dataElementMap.get(gameObject.identifier) ?? [];
+    return (
+      this.getInventory(this.tabOfLocation(gameObject.location.name)).dataElementMap.get(gameObject.identifier) ?? []
+    );
   }
 
   /**
@@ -1241,9 +1391,21 @@ export class GameObjectInventoryComponent {
         deleteGameObject: (o) => this.deleteGameObject(o),
         setFolder: (o, folderPath) => this.setFolder(o, folderPath),
         createFolder: (o) => this.createFolderFor(o),
+        setStealth: (o, on) => {
+          if (o instanceof GameCharacter) this.stealth.set(o, on);
+        },
+        holdTurn: (o) => this.turnOrderService.hold(o.identifier),
+        interruptTurn: (o) => this.turnOrderService.interrupt(o.identifier),
       },
       this.t,
-      this.foldersApply() ? this.knownFolderPaths() : null
+      this.foldersApply() ? this.knownFolderPaths() : null,
+      gameObject instanceof GameCharacter && this.stealth.mayToggle(gameObject)
+        ? { on: gameObject.stealth === '1' }
+        : null,
+      {
+        mayHold: this.turnOrderService.mayHold(gameObject.identifier),
+        mayInterrupt: this.turnOrderService.mayInterrupt(gameObject.identifier),
+      }
     );
 
     this.contextMenuService.open(position, actions, gameObject.name);
@@ -1363,7 +1525,7 @@ export class GameObjectInventoryComponent {
 
     const position = this.pointerDeviceService.pointers[0];
     const actions = buildInventoryMultiMoveContextMenu(
-      this.selectTab(),
+      this.locationOfTab(this.selectTab()),
       {
         multiMove: (loc) => this.multiMove(loc),
         toggleMultiMove: () => this.toggleMultiMove(),
@@ -1381,12 +1543,27 @@ export class GameObjectInventoryComponent {
    */
   multiMove(location: string) {
     if (!this.rolePermission.canEditTabletop) return;
-    for (const gameObjectIdentifier of this.multiMoveTargets()) {
-      const gameObject = this.objectStore.get(gameObjectIdentifier);
-      if (gameObject instanceof GameCharacter) {
-        gameObject.setLocation(location);
-      }
+    this.moveCharacters(this.multiMoveTargets(), location);
+  }
+
+  /** Moves the characters among the identifiers to a location for every peer, passing over anything else. */
+  private moveCharacters(identifiers: Iterable<string>, location: string): void {
+    for (const identifier of identifiers) {
+      const gameObject = this.objectStore.get(identifier);
+      if (gameObject instanceof GameCharacter) gameObject.setLocation(location);
     }
+  }
+
+  /**
+   * Moves characters to the place a tab shows, as letting them go over the tab does, and drops them
+   * from the ticked selection, which only ever holds pieces on view. Does nothing for a seat that
+   * may not edit the table.
+   */
+  moveToTab(identifiers: ReadonlySet<string>, tab: string): void {
+    if (!this.rolePermission.canEditTabletop) return;
+    this.moveCharacters(identifiers, this.locationOfTab(tab));
+    this.multiMoveTargets.update((targets) => new Set([...targets].filter((target) => !identifiers.has(target))));
+    SoundEffect.play(PresetSound.piecePut);
   }
 
   /**
@@ -1410,6 +1587,20 @@ export class GameObjectInventoryComponent {
       }
     }
     this.inventoryService.notifyInventoryUpdate();
+    this.toggleMultiMove();
+    SoundEffect.play(PresetSound.sweep);
+  }
+
+  /**
+   * Gives every resource of the picked pieces a slider, or takes every one away, whatever the room's
+   * default, and leaves multi-select.
+   */
+  multiSetResourceSliders(shown: boolean) {
+    if (!this.rolePermission.canEditTabletop) return;
+    for (const gameObjectIdentifier of this.multiMoveTargets()) {
+      const gameObject = this.objectStore.get<GameCharacter>(gameObjectIdentifier);
+      if (gameObject instanceof GameCharacter) this.resourceSliders.setAll(gameObject, shown);
+    }
     this.toggleMultiMove();
     SoundEffect.play(PresetSound.sweep);
   }
@@ -1483,18 +1674,6 @@ export class GameObjectInventoryComponent {
       return;
     }
     this.tableFocus.focusOn(gameObject);
-  }
-
-  /**
-   * Stops a mouse or touch press on a row that can be dragged from reaching the panel's draggable
-   * directive, which would otherwise move the whole panel along with the row.
-   *
-   * The row's own pointer handlers still get the press, so the character can be dragged into a
-   * folder or out to the game master's bar while the panel stays put. A press on a row that cannot
-   * be dragged goes through, and moves the panel as a press anywhere else in it does.
-   */
-  onObjectDragBlock(event: Event, gameObject: GameObject): void {
-    if (this.drag.canDrag(gameObject)) event.stopPropagation();
   }
 
   /**

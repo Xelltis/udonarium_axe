@@ -70,6 +70,7 @@
       <button
         class="rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer px-1.5 py-0.5"
         [disabled]="isAtStart() || isSeeking() || isStaging()"
+        [title]="'feature.replay.player.toStart' | transloco"
         (click)="toStart()"
       >
         <i class="material-icons text-[18px]">first_page</i>
@@ -77,6 +78,7 @@
       <button
         class="rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer px-1.5 py-0.5"
         [disabled]="isAtStart() || isSeeking() || isStaging()"
+        [title]="'feature.replay.player.previous' | transloco"
         (click)="previous()"
       >
         <i class="material-icons text-[18px]">navigate_before</i>
@@ -84,6 +86,7 @@
       <button
         class="rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer px-1.5 py-0.5"
         [disabled]="isAtEnd() || isStaging()"
+        [title]="(autoPlay() ? 'feature.replay.player.pause' : 'feature.replay.player.play') | transloco"
         (click)="toggleAutoPlay()"
       >
         <i class="material-icons text-[22px]">{{ autoPlay() ? 'pause' : 'play_arrow' }}</i>
@@ -91,6 +94,7 @@
       <button
         class="rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer px-1.5 py-0.5"
         [disabled]="isAtEnd() || isSeeking() || isStaging()"
+        [title]="'feature.replay.player.next' | transloco"
         (click)="next()"
       >
         <i class="material-icons text-[18px]">navigate_next</i>
@@ -98,6 +102,7 @@
       <button
         class="rounded-ui-sm text-ui-dim hover:text-ui-accent cursor-pointer px-1.5 py-0.5"
         [disabled]="isAtEnd() || isSeeking() || isStaging()"
+        [title]="'feature.replay.player.toEnd' | transloco"
         (click)="toEnd()"
       >
         <i class="material-icons text-[18px]">last_page</i>

@@ -13,6 +13,8 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
+import { StealthService } from '@axe/application/character/stealth.service';
 import { SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
 import { EffectAutoPlayService } from '@axe/application/effect/effect-auto-play.service';
@@ -65,6 +67,7 @@ import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/charac
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { gaugeNumbersOf, isGaugeInverted, PieceGauge, selectPieceGauges } from '@axe/domain/character/piece-gauge';
+import { pieceImageWidthApart } from '@axe/domain/character/piece-image-size';
 import { isResourceElement } from '@axe/domain/character/resource-catalog';
 import {
   diffResourceSnapshots,
@@ -322,6 +325,8 @@ export class GameCharacterComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly engagementZones = inject(EngagementZoneService);
   private readonly ride = inject(RideService);
+  private readonly stealth = inject(StealthService);
+  private readonly resourceSliders = inject(ResourceSliderService);
   private readonly snackbar = inject(SnackbarService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly visionService = inject(VisionService);
@@ -438,6 +443,17 @@ export class GameCharacterComponent {
   readonly gameCharacter = input<GameCharacter | null>(null);
   readonly rootElementRef = viewChild<ElementRef<HTMLElement>>('root');
   private readonly movableRef = viewChild(MovableDirective);
+
+  /**
+   * Whether the piece is in stealth. Only the game master, its owner and its party are drawn it at
+   * all, and they are shown it faded with a mark, so they know the rest of the table is not.
+   */
+  readonly inStealth = computed(() => {
+    const char = this.gameCharacter();
+    if (!char) return false;
+    this.objectChange.versionOf(char.identifier)();
+    return char.stealth === '1';
+  });
 
   readonly isHiddenByVision = computed(() => {
     const char = this.gameCharacter();
@@ -751,6 +767,13 @@ export class GameCharacterComponent {
     this.objectChange.versionOf(char.identifier)();
     return char.specifyKomaImageFlag;
   });
+  /** The width the picture was given apart from its height, or null where it keeps its own proportions. */
+  readonly komaImageWidthApart = computed(() => {
+    const char = this.gameCharacter();
+    if (!char) return null;
+    this.objectChange.versionOf(char.identifier)();
+    return char.specifyKomaImageFlag ? pieceImageWidthApart(char.komaImageWidth) : null;
+  });
   /** Whether the piece casts a drop shadow under its picture. */
   get isDropShadow(): boolean {
     const char = this.gameCharacter();
@@ -863,6 +886,7 @@ export class GameCharacterComponent {
     specifiedHeightPx: computed(() =>
       this.specifyKomaImageFlag() && !this.fitsImageInCell() ? this.komaImageHeightSignal() : null
     ),
+    specifiedWidthPx: computed(() => (this.fitsImageInCell() ? null : this.komaImageWidthApart())),
     billboardEnabled: this.imageBillboardEnabled,
     billboardFacing: this.pieceImageFacing,
     squarePoster: true,
@@ -882,10 +906,15 @@ export class GameCharacterComponent {
 
   private readonly rollHandleGapPx = computed(() => Math.round(this.rollHandleSizePx() * ROLL_HANDLE_GAP_RATIO));
 
-  /** How wide the picture stands: as wide as the ground, unless its height was set apart from it. */
+  /**
+   * How wide the picture stands: as wide as the ground, unless its height was set apart from it, when
+   * it is as wide as that height makes it or as the width given with it.
+   */
   private readonly pictureWidthPx = computed(() => {
     const ground = this.size() * this.gridSize;
     if (!this.specifyKomaImageFlag() || this.imageView.fitsInCell()) return ground;
+    const apart = this.komaImageWidthApart();
+    if (apart !== null) return apart;
     const natural = this.imageView.naturalSize();
     return natural ? (this.komaImageHeightSignal() * natural.width) / natural.height : ground;
   });
@@ -1586,12 +1615,14 @@ export class GameCharacterComponent {
     return buildConditionContextMenu(
       zoneModel,
       rideModel,
+      this.stealth.mayToggle(char) ? { on: char.stealth === '1' } : null,
       this.rolePermission.canEditTabletop,
       {
         setUnseen: (unseen) => zones.setUnseen(char, unseen),
         setDown: (down) => this.ride.setDown(char, down),
         setProne: (prone) => this.ride.setProne(char, prone),
         setHeld: (held) => zones.setHeld(char, held),
+        setStealth: (stealth) => this.stealth.set(char, stealth),
       },
       this.translateFn
     );
@@ -1794,6 +1825,9 @@ export class GameCharacterComponent {
         onInvokeRangeShape: (value) => this.rangeShapeInvoke.spawnForCharacter(char, value),
         onInvokeEffect: (name) => this.invokeEffect(char, name),
         onDeployDice: () => this.characterDice.deploy(char),
+        onSetResourceSliders: this.resourceSliders.maySetAll(char)
+          ? (shown) => this.resourceSliders.setAll(char, shown)
+          : undefined,
         onPlanMove: this.mayPlanMove(char) ? () => void this.movePlan.begin(char) : undefined,
         onToggleTarget: () => this.toggleTarget(),
         onClearTargets: this.anythingTargeted() ? () => this.clearEveryTarget() : undefined,

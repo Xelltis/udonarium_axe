@@ -44,10 +44,16 @@ const FAB: MenuLayout = {
       'handRail',
     ]),
     group('media', 'movie', 'app.fab.media', ['images', 'jukebox', 'cutIn', 'effectLibrary']),
-    group('saveLoad', 'sd_storage', 'app.fab.saveLoad', ['save', 'zipLoad', 'importCharacter'], {
-      testId: 'fab-save-load',
-      menuTestId: 'save-load',
-    }),
+    group(
+      'saveLoad',
+      'sd_storage',
+      'app.fab.saveLoad',
+      ['save', 'zipLoad', 'importCharacter', 'startRoomKeep', 'startRoomForget'],
+      {
+        testId: 'fab-save-load',
+        menuTestId: 'save-load',
+      }
+    ),
     group(
       'widgets',
       'widgets',

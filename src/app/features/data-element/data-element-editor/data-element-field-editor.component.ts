@@ -27,6 +27,7 @@ import {
   tableCellLineage,
 } from '@axe/features/data-element/game-data-element/game-data-element-utils';
 import { GameDataElementFieldOptionsComponent } from '@axe/features/data-element/game-data-element-field-options/game-data-element-field-options.component';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** The steps a field can take among the rows beside it, in the order the editor offers them. */
@@ -50,7 +51,7 @@ let nextEditorId = 0;
   selector: 'data-element-field-editor',
   templateUrl: './data-element-field-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DataElementTypeGridComponent, GameDataElementFieldOptionsComponent, TranslocoModule],
+  imports: [TextTooltipDirective, DataElementTypeGridComponent, GameDataElementFieldOptionsComponent, TranslocoModule],
   host: { class: 'block' },
 })
 export class DataElementFieldEditorComponent {

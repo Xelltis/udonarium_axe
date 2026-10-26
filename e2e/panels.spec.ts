@@ -278,3 +278,26 @@ test.describe('saving', () => {
     expect(download.suggestedFilename()).toMatch(/\.zip$/);
   });
 });
+
+test.describe('the keyboard on a panel', () => {
+  test.beforeEach(async ({ page }) => {
+    await waitAppReady(page);
+  });
+
+  test("shows where the keyboard is among the title bar's buttons, though they turn the browser's outline off", async ({
+    page,
+  }) => {
+    await openPanel(page, 'カットイン');
+    const minimize = page
+      .locator('app-cut-in-list')
+      .locator('xpath=ancestor::*[contains(@class, "draggable-panel")]')
+      .getByRole('button', { name: '最小化' });
+    await minimize.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+
+    await expect(minimize).toBeFocused();
+    await expect(minimize).toHaveCSS('outline-style', 'solid');
+    await expect(minimize).toHaveCSS('outline-width', '2px');
+  });
+});

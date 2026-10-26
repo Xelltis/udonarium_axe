@@ -13,7 +13,14 @@
         class="bg-ui-panel border-ui-border-panel flex shrink-0 items-center gap-1 border-b border-solid px-2 pt-1.5"
         [class.bg-transparent!]="isGhost()"
       >
-        <form name="game-object-inventory" class="flex min-w-0 flex-1 gap-0.5">
+        <!--
+          Scrolls sideways rather than running under the buttons in a narrow window. The pixel of
+          padding below keeps the picked tab's foot, which covers the line under the strip, in view.
+        -->
+        <form
+          name="game-object-inventory"
+          class="-mb-px flex min-w-0 flex-1 scrollbar-none gap-0.5 overflow-x-auto overflow-y-hidden pb-px"
+        >
           @for (inventoryType of inventoryTypes(); track inventoryType) {
             <label
               class="text-ui-muted hover:bg-ui-hover hover:text-ui-text relative inline-flex cursor-pointer items-center gap-1 rounded-t-md border border-b-0 border-solid border-transparent px-2.5 py-1.25 text-[12px] whitespace-nowrap transition-[background,color] select-none [&_input[type=radio]]:hidden"
@@ -26,6 +33,11 @@
               [class.after:h-px]="selectTab() === inventoryType"
               [class.after:bg-ui-elevated]="selectTab() === inventoryType"
               [class.after:content-['']]="selectTab() === inventoryType"
+              [attr.data-inventory-tab]="inventoryType"
+              [class.bg-ui-accent-bg!]="drag.isDropTab(inventoryType)"
+              [class.text-ui-accent!]="drag.isDropTab(inventoryType)"
+              [class.border-ui-accent!]="drag.isDropTab(inventoryType)"
+              [class.border-dashed!]="drag.isDropTab(inventoryType)"
             >
               <input
                 name="tab"
@@ -44,6 +56,18 @@
         </form>
 
         <div class="flex shrink-0 gap-1 pb-1">
+          @if (selectTab() === 'table' && shows('round') && canEdit() && roundWaitsForPlay()) {
+            <button
+              class="border-ui-border-panel text-ui-muted hover:bg-ui-accent-bg hover:text-ui-accent hover:border-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-[background,color,border-color] [&_.material-icons]:text-base!"
+              type="button"
+              data-testid="inventory-begin-round"
+              [attr.aria-label]="'feature.inventory.panel.beginRound' | transloco"
+              [title]="'feature.inventory.panel.beginRound' | transloco"
+              (click)="turnNext()"
+            >
+              <i class="material-icons" aria-hidden="true">play_arrow</i>
+            </button>
+          }
           @if (foldersApply() && canEdit()) {
             <button
               class="border-ui-border-panel text-ui-muted hover:bg-ui-accent-bg hover:text-ui-accent hover:border-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-[background,color,border-color] [&_.material-icons]:text-base!"
@@ -79,6 +103,39 @@
       </div>
     }
 
+    @if (showsSearchBar()) {
+      <div
+        class="bg-ui-panel border-ui-border-panel flex shrink-0 items-center gap-1.5 border-b border-solid px-2.5 py-1"
+        [class.bg-transparent!]="isGhost()"
+        data-testid="inventory-search-bar"
+      >
+        <i class="material-icons text-ui-muted text-[15px]!" aria-hidden="true">search</i>
+        <input
+          class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent box-border min-w-0 flex-1 border border-solid px-1.75 py-0.5 text-[12px] outline-none"
+          type="search"
+          name="inventory-search-bar"
+          [attr.aria-label]="'feature.inventory.panel.searchPlaceholder' | transloco"
+          [placeholder]="'feature.inventory.panel.searchPlaceholder' | transloco"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+        />
+        @if (hasQuery()) {
+          <span class="text-ui-dim shrink-0 text-[11px] whitespace-nowrap tabular-nums"
+            >{{ filteredRows().length }} / {{ visibleRows().length }}</span
+          >
+          <button
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 [&_.material-icons]:text-base!"
+            type="button"
+            [attr.aria-label]="'feature.inventory.panel.clearSearch' | transloco"
+            [title]="'feature.inventory.panel.clearSearch' | transloco"
+            (click)="clearSearch()"
+          >
+            <i class="material-icons" aria-hidden="true">close</i>
+          </button>
+        }
+      </div>
+    }
+
     @if (shows('filter')) {
       <div
         class="bg-ui-panel border-ui-border-panel flex shrink-0 items-center gap-1.5 border-b border-solid px-2.5 py-1"
@@ -93,7 +150,7 @@
           <i class="material-icons text-[15px]!">filter_alt</i>
           <span class="truncate">{{ filterSummary() }}</span>
         </button>
-        @if (hasQuery() || isHiddenFiltered()) {
+        @if ((hasQuery() && !showsSearchBar()) || isHiddenFiltered()) {
           <span class="text-ui-dim shrink-0 text-[11px] whitespace-nowrap"
             >{{ filteredRows().length }} / {{ visibleRows().length }}</span
           >
@@ -141,7 +198,7 @@
           <div class="flex flex-wrap items-center gap-1">
             @for (loc of multiMoveLocations; track loc.name) {
               <button
-                class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent rounded-ui-sm h-6.5 cursor-pointer border border-solid px-2 text-[11px] transition-[background,color] hover:text-white disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-inherit"
+                class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-solid rounded-ui-sm h-6.5 cursor-pointer border border-solid px-2 text-[11px] transition-[background,color] hover:text-white disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-inherit"
                 type="button"
                 [disabled]="picked < 1"
                 (click)="moveToAndClose(loc.name)"
@@ -190,6 +247,37 @@
             </div>
           }
 
+          @if (selectTab() !== 'graveyard') {
+            <span class="bg-ui-border-panel h-4 w-px shrink-0"></span>
+            <span class="text-ui-muted shrink-0 text-[10px] font-semibold tracking-wider uppercase">{{
+              'feature.inventory.panel.resourceSliders' | transloco
+            }}</span>
+            <div class="flex items-center gap-1">
+              @for (shown of [true, false]; track shown) {
+                <button
+                  class="bg-ui-input border-ui-border-panel text-ui-text hover:bg-ui-hover hover:border-ui-accent hover:text-ui-accent rounded-ui-sm h-6.5 cursor-pointer border border-solid px-2 text-[11px] transition-[background,color,border-color] disabled:cursor-default disabled:opacity-40"
+                  type="button"
+                  data-testid="inventory-multi-resource-sliders"
+                  [disabled]="picked < 1"
+                  [title]="
+                    (shown
+                      ? 'feature.inventory.panel.resourceSlidersShowAll'
+                      : 'feature.inventory.panel.resourceSlidersHideAll'
+                    ) | transloco
+                  "
+                  (click)="multiSetResourceSliders(shown)"
+                >
+                  {{
+                    (shown
+                      ? 'feature.character.contextMenu.resourceSlidersShowAll'
+                      : 'feature.character.contextMenu.resourceSlidersHideAll'
+                    ) | transloco
+                  }}
+                </button>
+              }
+            </div>
+          }
+
           @if (selectTab() === 'graveyard') {
             <span class="bg-ui-border-panel h-4 w-px shrink-0"></span>
             <button
@@ -205,7 +293,7 @@
       </div>
     }
 
-    @if (selectTab() === 'table' && shows('round') && (canEdit() || turnRound() > 0)) {
+    @if (selectTab() === 'table' && shows('round') && (canEdit() || turnRound() > 0) && !roundWaitsForPlay()) {
       <div
         class="bg-ui-panel border-ui-border-panel flex shrink-0 items-center gap-1.5 border-b border-solid px-2.5 py-1.5"
         [class.bg-transparent!]="isGhost()"
@@ -227,10 +315,21 @@
           </button>
           <button
             type="button"
-            class="rounded-ui-sm bg-ui-accent flex max-w-40 flex-1 cursor-pointer items-center justify-center gap-0.5 border-none px-2 py-1 text-[12px] font-semibold text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[15px]!"
+            class="rounded-ui-sm bg-ui-accent-solid flex max-w-40 flex-1 cursor-pointer items-center justify-center gap-0.5 border-none px-2 py-1 text-[12px] font-semibold text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[15px]!"
             (click)="turnNext()"
           >
             {{ 'feature.turnOrder.next' | transloco }}<i class="material-icons">chevron_right</i>
+          </button>
+          <button
+            type="button"
+            class="rounded-ui-sm text-ui-muted border-ui-border-panel hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+            data-testid="turn-hold"
+            [disabled]="!mayHoldCurrent()"
+            [attr.aria-label]="'feature.turnOrder.holdCurrent' | transloco"
+            [title]="'feature.turnOrder.holdCurrent' | transloco"
+            (click)="turnHold()"
+          >
+            <i class="material-icons" aria-hidden="true">pause</i>
           </button>
           <button
             type="button"
@@ -295,19 +394,27 @@
             <ng-container *ngTemplateOutlet="folderNode; context: { $implicit: node }"></ng-container>
           }
           @if (folderTree().loose.length > 0) {
-            <ng-container
-              *ngTemplateOutlet="
-                folderHeading;
-                context: { $implicit: { path: '', name: '', totalCount: folderTree().loose.length } }
-              "
-            ></ng-container>
-            @if (!isFolderCollapsed('')) {
-              <div class="border-ui-border-panel ml-2.5 flex flex-col gap-0.5 border-l border-solid pl-1.5">
-                @for (row of folderTree().loose; track row.identifier) {
-                  <ng-container *ngTemplateOutlet="itemRow; context: { $implicit: row.object }"></ng-container>
-                }
-              </div>
-            }
+            <div
+              class="mt-1 flex flex-col gap-0.5 rounded-[5px] first:mt-0"
+              data-folder-area
+              data-folder-path=""
+              [class.outline]="drag.isDropFolder('')"
+              [class.outline-ui-accent]="drag.isDropFolder('')"
+            >
+              <ng-container
+                *ngTemplateOutlet="
+                  folderHeading;
+                  context: { $implicit: { path: '', name: '', totalCount: folderTree().loose.length } }
+                "
+              ></ng-container>
+              @if (!isFolderCollapsed('')) {
+                <div class="border-ui-border-panel ml-2.5 flex flex-col gap-0.5 border-l border-solid pl-1.5">
+                  @for (row of folderTree().loose; track row.identifier) {
+                    <ng-container *ngTemplateOutlet="itemRow; context: { $implicit: row.object }"></ng-container>
+                  }
+                </div>
+              }
+            </div>
           }
         } @else if (sideBands(); as bands) {
           @for (band of bands; track band.side) {
@@ -362,11 +469,22 @@
             </button>
             <button
               type="button"
-              class="bg-ui-accent shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border-none text-white transition-opacity hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[18px]!"
+              class="bg-ui-accent-solid shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border-none text-white transition-opacity hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[18px]!"
               [title]="'feature.turnOrder.next' | transloco"
               (click)="turnNext()"
             >
               <i class="material-icons">keyboard_arrow_down</i>
+            </button>
+            <button
+              type="button"
+              class="bg-ui-panel/80 text-ui-text border-ui-border-panel hover:border-ui-accent hover:text-ui-accent shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid backdrop-blur-sm transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[18px]!"
+              data-testid="turn-hold"
+              [disabled]="!mayHoldCurrent()"
+              [attr.aria-label]="'feature.turnOrder.holdCurrent' | transloco"
+              [title]="'feature.turnOrder.holdCurrent' | transloco"
+              (click)="turnHold()"
+            >
+              <i class="material-icons" aria-hidden="true">pause</i>
             </button>
           </div>
           <div class="flex items-center gap-1.5">
@@ -496,6 +614,13 @@
             [title]="'feature.turnOrder.acted' | transloco"
             >check</i
           >
+        } @else if (heldIds().has(character.identifier)) {
+          <i
+            class="material-icons bg-ui-panel text-ui-accent absolute right-0 bottom-0 rounded-full text-[14px]!"
+            data-testid="turn-held"
+            [title]="'feature.turnOrder.held' | transloco"
+            >pause</i
+          >
         }
       </button>
     </ng-template>
@@ -596,9 +721,18 @@
                 [class.bg-ui-accent-bg!]="selectedIdentifier() === row.object.identifier"
                 [class.opacity-50]="isHiddenRowDimmed(row.object)"
                 [class.italic]="isHiddenRowDimmed(row.object)"
+                [class.opacity-40]="drag.isDragging(row.object)"
+                [class.panel-no-drag]="drag.canDrag(row.object)"
+                [class.cursor-grab!]="drag.canDrag(row.object) && !drag.isDragging(row.object)"
+                [class.cursor-grabbing!]="drag.isDragging(row.object)"
                 (contextmenu)="onContextMenu($event, row.object)"
                 (click)="selectGameObject(row.object)"
                 (dblclick)="focusToObject($event, row.object)"
+                (pointerdown)="drag.down($event, row.object)"
+                (pointermove)="drag.move($event)"
+                (pointerup)="drag.up($event)"
+                (pointercancel)="drag.cancel()"
+                (lostpointercapture)="drag.lostCapture($event)"
               >
                 @if (isMultiMove()) {
                   <td class="border-ui-border-panel w-0 border-b border-solid px-1 py-0.5">
@@ -618,6 +752,12 @@
                         class="material-icons text-ui-dim block text-[14px]!"
                         [title]="'feature.turnOrder.acted' | transloco"
                         >check</i
+                      >
+                    } @else if (heldIds().has(row.object.identifier)) {
+                      <i
+                        class="material-icons text-ui-accent block text-[14px]!"
+                        [title]="'feature.turnOrder.held' | transloco"
+                        >pause</i
                       >
                     } @else {
                       <i
@@ -648,6 +788,14 @@
                     <span class="max-w-40 truncate">{{ row.object.name }}</span>
                     @if (!canView(row.object)) {
                       <i class="material-icons text-ui-dim shrink-0 text-[12px]!">lock</i>
+                    }
+                    @if (isInStealth(row.object)) {
+                      <i
+                        class="material-icons text-ui-accent shrink-0 text-[12px]!"
+                        data-testid="inventory-stealth-mark"
+                        [title]="'feature.character.stealth.mark' | transloco"
+                        >visibility_off</i
+                      >
                     }
                   </span>
                 </td>
@@ -713,12 +861,12 @@
   }
 </ng-template>
 
-<ng-template #dataElmTag let-dataElm="dataElm">
+<ng-template #dataElmTag let-dataElm="dataElm" let-owner="owner">
   @if (dataElm?.name === newLineString) {
     <span class="border-ui-border-panel col-span-full my-px block h-0 border-t border-solid"></span>
   }
   @if (dataElm && dataElm.name !== newLineString) {
-    <span class="flex min-w-0 flex-col gap-0.5">
+    <span class="@container flex min-w-0 flex-col gap-0.5">
       @switch (dataElm.attributes['type']) {
         @case ('numberResource') {
           <span class="flex min-w-0 items-center gap-0.75">
@@ -731,9 +879,24 @@
               name="data-current-value"
               [(ngModel)]="dataElm.currentValue"
             />
+            @let max = resourceMax(dataElm);
+            @if (max !== null) {
+              <!-- Left out of a cell too narrow for it, which then reads as it did before it was added. -->
+              <span
+                class="text-ui-muted shrink-0 text-[11px] tabular-nums @max-[6rem]:hidden"
+                data-testid="inventory-resource-max"
+                >/ {{ max }}</span
+              >
+            }
           </span>
+          <!--
+            A press on the gauge of a row not yet picked picks the row and leaves the value alone,
+            as a press meant to pick it would otherwise set the value wherever it landed. On the
+            picked row the gauge answers as it always has; the keyboard reaches it either way.
+          -->
           <input
             class="block h-3.5 w-full [accent-color:var(--ui-accent)]"
+            [class.pointer-events-none]="selectedIdentifier() !== owner?.identifier"
             type="range"
             min="0"
             [max]="dataElm.value"
@@ -789,8 +952,10 @@
 </ng-template>
 
 <ng-template #itemRow let-gameObject>
+  @let folded = isFoldedRow(gameObject);
   <div
     data-testid="inventory-item"
+    [attr.data-folded]="folded ? '' : null"
     class="hover:bg-ui-hover group relative flex cursor-pointer items-center gap-2 rounded-[5px] border border-solid border-transparent px-2 py-1.25 transition-[background,border-color] select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
     [class.bg-ui-accent-bg!]="selectedIdentifier() === gameObject.identifier"
     [class.border-ui-accent!]="selectedIdentifier() === gameObject.identifier"
@@ -799,6 +964,9 @@
     [class.border-dashed!]="isHiddenRowDimmed(gameObject)"
     [class.border-ui-border-panel!]="isHiddenRowDimmed(gameObject) && selectedIdentifier() !== gameObject.identifier"
     [class.opacity-40]="drag.isDragging(gameObject)"
+    [class.panel-no-drag]="drag.canDrag(gameObject)"
+    [class.cursor-grab!]="drag.canDrag(gameObject) && !drag.isDragging(gameObject)"
+    [class.cursor-grabbing!]="drag.isDragging(gameObject)"
     (contextmenu)="onContextMenu($event, gameObject)"
     (click)="selectGameObject(gameObject)"
     (dblclick)="focusToObject($event, gameObject)"
@@ -806,9 +974,7 @@
     (pointermove)="drag.move($event)"
     (pointerup)="drag.up($event)"
     (pointercancel)="drag.cancel()"
-    (lostpointercapture)="drag.cancel()"
-    (mousedown)="onObjectDragBlock($event, gameObject)"
-    (touchstart)="onObjectDragBlock($event, gameObject)"
+    (lostpointercapture)="drag.lostCapture($event)"
   >
     @if (selectTab() === 'table') {
       @if (currentTurnId() !== gameObject.identifier && actedIds().has(gameObject.identifier)) {
@@ -816,6 +982,13 @@
           class="material-icons text-ui-dim w-3.5 shrink-0 text-[16px]!"
           [title]="'feature.turnOrder.acted' | transloco"
           >check</i
+        >
+      } @else if (heldIds().has(gameObject.identifier)) {
+        <i
+          class="material-icons text-ui-accent w-3.5 shrink-0 text-[16px]!"
+          data-testid="inventory-turn-held"
+          [title]="'feature.turnOrder.held' | transloco"
+          >pause</i
         >
       } @else {
         <i
@@ -836,6 +1009,7 @@
 
     <div
       class="bg-ui-input border-ui-border-panel flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-solid"
+      [class.size-7!]="folded"
     >
       @if (gameObject.imageFile.url) {
         <img
@@ -850,67 +1024,113 @@
     </div>
 
     <div class="flex min-w-0 flex-1 flex-col gap-0.75">
-      <div
-        class="text-ui-text flex items-center gap-1 truncate text-[13px] font-semibold"
-        [class.text-ui-accent!]="selectedIdentifier() === gameObject.identifier"
-      >
-        <span class="truncate">{{ gameObject.name }}</span>
-        @if (!canView(gameObject)) {
-          <i class="material-icons text-ui-dim shrink-0 text-[13px]!">lock</i>
-        }
-        @if (canView(gameObject)) {
-          @let buffs = buffBadgesOf(gameObject);
-          @for (badge of buffs.shown; track badge.identifier) {
-            <span
-              data-testid="inventory-buff-badge"
-              class="ring-ui-border-panel inline-flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] leading-none font-normal text-white ring-1"
-              [style.background]="badge.color"
-              [title]="
-                badge.name +
-                (badge.effect ? ' / ' + badge.effect : '') +
-                (badge.expires ? ' (' + badge.rounds + ')' : '')
-              "
+      <!--
+        The row's buttons stand over the end of the name line, which keeps their room clear, so a
+        pointer coming to rest on the row shows them without the fields below moving over.
+      -->
+      <div class="relative">
+        <div
+          class="text-ui-text flex items-center gap-1 truncate pr-13 text-[13px] font-semibold"
+          [class.text-ui-accent!]="selectedIdentifier() === gameObject.identifier"
+        >
+          <span class="truncate" [appTextTooltip]="gameObject.name">{{ gameObject.name }}</span>
+          @if (!canView(gameObject)) {
+            <i class="material-icons text-ui-dim shrink-0 text-[13px]!">lock</i>
+          }
+          @if (isInStealth(gameObject)) {
+            <i
+              class="material-icons text-ui-accent shrink-0 text-[13px]!"
+              data-testid="inventory-stealth-mark"
+              [title]="'feature.character.stealth.mark' | transloco"
+              >visibility_off</i
             >
-              @if (badge.iconUrl) {
-                <img class="size-full object-contain" [src]="badge.iconUrl | safe: 'resourceUrl'" alt="" />
-              } @else {
-                {{ badge.icon }}
-              }
-            </span>
           }
-          @if (buffs.more > 0) {
-            <span class="text-ui-muted shrink-0 text-[10px] font-normal">+{{ buffs.more }}</span>
+          @if (canView(gameObject)) {
+            @let buffs = buffBadgesOf(gameObject);
+            @for (badge of buffs.shown; track badge.identifier) {
+              <span
+                data-testid="inventory-buff-badge"
+                class="ring-ui-border-panel inline-flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] leading-none font-normal text-white ring-1"
+                [style.background]="badge.color"
+                [title]="
+                  badge.name +
+                  (badge.effect ? ' / ' + badge.effect : '') +
+                  (badge.expires ? ' (' + badge.rounds + ')' : '')
+                "
+              >
+                @if (badge.iconUrl) {
+                  <img class="size-full object-contain" [src]="badge.iconUrl | safe: 'resourceUrl'" alt="" />
+                } @else {
+                  {{ badge.icon }}
+                }
+              </span>
+            }
+            @if (buffs.more > 0) {
+              <span class="text-ui-muted shrink-0 text-[10px] font-normal">+{{ buffs.more }}</span>
+            }
           }
-        }
+        </div>
+        <span
+          class="invisible absolute top-1/2 right-0 flex -translate-y-1/2 gap-1 group-hover:visible"
+          [class.visible!]="selectedIdentifier() === gameObject.identifier"
+        >
+          @let held = heldIds().has(gameObject.identifier);
+          <button
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent inline-flex size-6 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background,color] [&_.material-icons]:text-base!"
+            type="button"
+            [attr.aria-label]="(held ? 'feature.turnOrder.interrupt' : 'feature.turnOrder.setCurrent') | transloco"
+            [title]="(held ? 'feature.turnOrder.interrupt' : 'feature.turnOrder.setCurrent') | transloco"
+            (click)="setTurnOrder($event, gameObject)"
+          >
+            <i class="material-icons" aria-hidden="true">{{ held ? 'play_arrow' : 'flag' }}</i>
+          </button>
+          <button
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex size-6 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background] [&_.material-icons]:text-base!"
+            type="button"
+            [title]="'feature.inventory.panel.menu' | transloco"
+            (click)="onContextMenu($event, gameObject)"
+          >
+            <i class="material-icons">more_vert</i>
+          </button>
+        </span>
       </div>
-      @if (gameObject.rootDataElement && canView(gameObject)) {
+      @if (gameObject.rootDataElement && canView(gameObject) && folded) {
+        @let meters = foldedMeters().get(gameObject.identifier) ?? [];
+        @if (meters.length > 0) {
+          <div class="flex w-full flex-wrap gap-x-2 gap-y-0.5">
+            @for (meter of meters; track meter.identifier) {
+              <span
+                class="flex grow basis-22 items-center gap-1"
+                data-testid="inventory-resource-meter"
+                [title]="meter.name + ' ' + meter.current + (meter.max !== null ? ' / ' + meter.max : '')"
+              >
+                <span class="text-ui-muted truncate text-[10px]">{{ meter.name }}</span>
+                @if (meter.percent !== null) {
+                  <span class="bg-ui-input h-1 min-w-4 flex-1 overflow-hidden rounded-full" aria-hidden="true">
+                    <span
+                      class="block h-full rounded-full"
+                      [style.width.%]="meter.percent"
+                      [style.background]="meter.color"
+                    ></span>
+                  </span>
+                }
+                <span class="text-ui-text shrink-0 text-[10px] tabular-nums">{{
+                  meter.max !== null ? meter.current + '/' + meter.max : meter.current
+                }}</span>
+              </span>
+            }
+          </div>
+        }
+      } @else if (gameObject.rootDataElement && canView(gameObject)) {
         <div class="grid w-full grid-cols-2 items-start gap-x-2 gap-y-0.75">
           @for (dataElm of getInventoryTags($any(gameObject)); track dataElm?.identifier ?? $index) {
-            <ng-container *ngTemplateOutlet="dataElmTag; context: { dataElm: dataElm }"></ng-container>
+            <ng-container
+              *ngTemplateOutlet="dataElmTag; context: { dataElm: dataElm, owner: gameObject }"
+            ></ng-container>
           }
         </div>
       }
     </div>
-
-    <button
-      class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent hidden size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background,color] group-hover:inline-flex [&_.material-icons]:text-base!"
-      [class.inline-flex!]="selectedIdentifier() === gameObject.identifier"
-      type="button"
-      [title]="'feature.turnOrder.setCurrent' | transloco"
-      (click)="setTurnOrder($event, gameObject)"
-    >
-      <i class="material-icons">flag</i>
-    </button>
-
-    <button
-      class="text-ui-muted hover:bg-ui-hover hover:text-ui-text hidden size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background] group-hover:inline-flex [&_.material-icons]:text-base!"
-      [class.inline-flex!]="selectedIdentifier() === gameObject.identifier"
-      type="button"
-      [title]="'feature.inventory.panel.menu' | transloco"
-      (click)="onContextMenu($event, gameObject)"
-    >
-      <i class="material-icons">more_vert</i>
-    </button>
   </div>
 </ng-template>
 
@@ -969,15 +1189,23 @@
 </ng-template>
 
 <ng-template #folderNode let-node>
-  <ng-container *ngTemplateOutlet="folderHeading; context: { $implicit: node }"></ng-container>
-  @if (!isFolderCollapsed(node.path)) {
-    <div class="border-ui-border-panel ml-2.5 flex flex-col gap-0.5 border-l border-solid pl-1.5">
-      @for (child of node.children; track child.path) {
-        <ng-container *ngTemplateOutlet="folderNode; context: { $implicit: child }"></ng-container>
-      }
-      @for (row of node.items; track row.identifier) {
-        <ng-container *ngTemplateOutlet="itemRow; context: { $implicit: row.object }"></ng-container>
-      }
-    </div>
-  }
+  <div
+    class="mt-1 flex flex-col gap-0.5 rounded-[5px] first:mt-0"
+    data-folder-area
+    [attr.data-folder-path]="node.path"
+    [class.outline]="drag.isDropFolder(node.path)"
+    [class.outline-ui-accent]="drag.isDropFolder(node.path)"
+  >
+    <ng-container *ngTemplateOutlet="folderHeading; context: { $implicit: node }"></ng-container>
+    @if (!isFolderCollapsed(node.path)) {
+      <div class="border-ui-border-panel ml-2.5 flex flex-col gap-0.5 border-l border-solid pl-1.5">
+        @for (child of node.children; track child.path) {
+          <ng-container *ngTemplateOutlet="folderNode; context: { $implicit: child }"></ng-container>
+        }
+        @for (row of node.items; track row.identifier) {
+          <ng-container *ngTemplateOutlet="itemRow; context: { $implicit: row.object }"></ng-container>
+        }
+      </div>
+    }
+  </div>
 </ng-template>

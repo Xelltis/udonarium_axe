@@ -29,13 +29,14 @@ import {
 import { DjDeckComponent } from '@axe/features/media/mini-jukebox/dj-deck/dj-deck.component';
 import { readDeckOpen, writeDeckOpen } from '@axe/features/media/mini-jukebox/dj-deck-preference';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-mini-jukebox',
   templateUrl: './mini-jukebox.component.html',
-  imports: [FormsModule, DraggableDirective, TranslocoModule, DjDeckComponent],
+  imports: [TextTooltipDirective, FormsModule, DraggableDirective, TranslocoModule, DjDeckComponent],
 })
 export class MiniJukeboxComponent {
   private readonly objectStore = inject(ObjectStore);

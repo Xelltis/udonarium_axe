@@ -44,6 +44,17 @@ describe('RoomPanelService', () => {
     expect(option().windowed).toBe(false);
   });
 
+  it('shows the button only while this browser lets a panel out, as that can change once a mouse is seen', () => {
+    const supported = vi.spyOn(TestBed.inject(PanelWindowService), 'isSupported', 'get').mockReturnValue(false);
+    service.open('cutInList');
+    const control = option().controls![0];
+    expect(control.shown?.()).toBe(false);
+
+    supported.mockReturnValue(true);
+
+    expect(control.shown?.()).toBe(true);
+  });
+
   it('does nothing when the button travelled to a window with the panel it was made for', () => {
     service.open('cutInList');
     const windows = vi.spyOn(TestBed.inject(PanelWindowService), 'popOut');
@@ -98,6 +109,13 @@ describe('RoomPanelService', () => {
     service.open('inventory');
 
     expect(option().minimizeToContent).toBeFalsy();
+  });
+
+  it('opens a panel without a place of its own clear of the toolbars along the top, each next one a step lower', () => {
+    service.open('diceTableSetting');
+    service.open('statusAilment');
+
+    expect(openLazy.mock.calls.map(([, given]) => (given as PanelOption).top)).toEqual([64, 84]);
   });
 
   it('loads the dice table settings, so the menu and the chat window open the same panel', async () => {

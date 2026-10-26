@@ -15,10 +15,10 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { callShuffleCardStack } from '@axe/core/event/domain-events';
-import { Network } from '@axe/core/index';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   formatTrumpCardCode,
   parseTrumpCardCode,
@@ -49,7 +49,7 @@ export class CardStackCardListComponent {
 
   readonly cardStack = input.required<CardStack>();
 
-  private readonly owner = Network.peerContext.userId;
+  private readonly owner = PeerCursor.myUserId;
   private currentlyOwned: CardStack | null = null;
 
   readonly cards = computed<readonly Card[]>(() => {

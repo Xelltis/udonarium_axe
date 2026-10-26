@@ -41,6 +41,7 @@ import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { AssetOwnerList } from '@axe/domain/media/asset-owner-list';
 import { AudioTagList } from '@axe/domain/media/audio-tag-list';
 import { carriedImagesOf } from '@axe/domain/media/carried-images';
+import { ImageLinkList } from '@axe/domain/media/image-link-list';
 import { ImageTagList } from '@axe/domain/media/image-tag-list';
 import { ImageTagLockList } from '@axe/domain/media/image-tag-lock-list';
 import { Config } from '@axe/domain/peer/config';
@@ -124,6 +125,15 @@ export class SaveDataService {
   }
 
   /**
+   * Builds the archive a browser starts on: the room as `createRoomArchiveAsync` writes it, with
+   * every picture and sound this browser holds the bytes of, whether or not anything in the room
+   * names it, so that the room comes back as it stood, image panel and jukebox included.
+   */
+  createWholeRoomArchiveAsync(): Promise<Blob> {
+    return SaveDataService.queue.add(() => this.fileArchiver.createZipBlobAsync(this.buildRoomFiles(false, true)));
+  }
+
+  /**
    * Archive files for the wanted pictures and audio: each loaded picture and each sound held here
    * as a file, with the picture and audio tag lists.
    *
@@ -144,11 +154,7 @@ export class SaveDataService {
     files.push(new File([this.convertToXml(ImageTagList.create(images))], 'imagetag.xml', { type: 'text/plain' }));
 
     const audios = this.audioStorage.audios.filter((audio) => !audio.isHidden && wanted.audios.has(audio.identifier));
-    const taken = new Set(files.map((file) => file.name.toLowerCase()));
-    for (const audio of audios) {
-      const file = createAudioArchiveFile(audio, taken);
-      if (file) files.push(file);
-    }
+    files.push(...audioArchiveFiles(audios, files));
     files.push(new File([this.convertToXml(AudioTagList.create(audios))], 'audiotag.xml', { type: 'text/plain' }));
     return files;
   }
@@ -179,10 +185,16 @@ export class SaveDataService {
    */
   private roomToSave(): Room {
     const room = new Room();
-    if (isTableWithheld() || (getAuthorityPeerId() !== null && !PeerCursor.isMyselfGameMaster)) {
-      room.withheld = 'true';
-    }
+    if (this.isRoomWithheld()) room.withheld = 'true';
     return room;
+  }
+
+  /**
+   * Whether the room would be saved marked as withheld: the table held here has some of it only in
+   * the shape a room server withholds from this seat, as for anyone but the GM on a room server.
+   */
+  isRoomWithheld(): boolean {
+    return isTableWithheld() || (getAuthorityPeerId() !== null && !PeerCursor.isMyselfGameMaster);
   }
 
   private buildRoomXmlParts(pretty: boolean): { roomXml: string; chatXml: string; files: File[] } {
@@ -201,13 +213,19 @@ export class SaveDataService {
     return { roomXml, chatXml, files };
   }
 
-  private buildRoomFiles(pretty = true): File[] {
+  /**
+   * The files of a room save: the room's XML, the pictures it names and their tags and links, and
+   * the list of sounds. With `everything`, every picture and sound this browser holds the bytes of
+   * goes in as well, named by the room or not.
+   */
+  private buildRoomFiles(pretty = true, everything = false): File[] {
     const { roomXml, chatXml, files } = this.buildRoomXmlParts(pretty);
 
-    const images: ImageFile[] = this.withCarried(
+    const named: ImageFile[] = this.withCarried(
       [...this.searchImageFiles(roomXml), ...this.searchImageFiles(chatXml)],
       ObjectStore.instance.getObjects(WhiteBoard)
     );
+    const images = everything ? this.withEveryHeld(named) : named;
     for (const image of images) {
       const file = this.createImageArchiveFile(image);
       if (file) files.push(file);
@@ -215,13 +233,25 @@ export class SaveDataService {
 
     const imageTagXml = this.convertToXml(ImageTagList.create(images), pretty);
     files.push(new File([imageTagXml], 'imagetag.xml', { type: 'text/plain' }));
+    const imageLinkXml = this.convertToXml(ImageLinkList.create(named), pretty);
+    files.push(new File([imageLinkXml], 'imagelink.xml', { type: 'text/plain' }));
 
     const audios: AudioFile[] = this.audioStorage.audios.filter((a) => !a.isHidden);
+    if (everything) files.push(...audioArchiveFiles(audios, files));
     const audioTagXml = this.convertToXml(AudioTagList.create(audios), pretty);
     files.push(new File([audioTagXml], 'audiotag.xml', { type: 'text/plain' }));
     files.push(...this.roomRightsFiles([...images, ...audios], pretty));
 
     return files;
+  }
+
+  /** The pictures named, with every other picture this browser holds in full. */
+  private withEveryHeld(named: readonly ImageFile[]): ImageFile[] {
+    const kept = new Map(named.map((image) => [image.identifier, image]));
+    for (const image of this.imageStorage.images) {
+      if (!kept.has(image.identifier) && image.state === ImageState.COMPLETE) kept.set(image.identifier, image);
+    }
+    return [...kept.values()];
   }
 
   /**
@@ -256,6 +286,8 @@ export class SaveDataService {
 
     const imageTagXml = this.convertToXml(ImageTagList.create(images));
     files.push(new File([imageTagXml], 'imagetag.xml', { type: 'text/plain' }));
+    const imageLinkXml = this.convertToXml(ImageLinkList.create(images));
+    files.push(new File([imageLinkXml], 'imagelink.xml', { type: 'text/plain' }));
 
     return this.saveAsync(files, this.appendTimestamp(fileName), updateCallback);
   }
@@ -573,6 +605,17 @@ const AUDIO_EXTENSION_OF_TYPE: Readonly<Record<string, string>> = {
   'audio/flac': 'flac',
   'audio/x-flac': 'flac',
 };
+
+/** Archive files for the sounds held here as files, named apart from each other and from the files alongside. */
+function audioArchiveFiles(audios: readonly AudioFile[], alongside: readonly File[]): File[] {
+  const taken = new Set(alongside.map((file) => file.name.toLowerCase()));
+  const files: File[] = [];
+  for (const audio of audios) {
+    const file = createAudioArchiveFile(audio, taken);
+    if (file) files.push(file);
+  }
+  return files;
+}
 
 /**
  * A sound as a file of its own, under the name it was added with and an extension that is read

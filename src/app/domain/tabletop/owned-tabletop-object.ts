@@ -1,4 +1,4 @@
-import { getPeerContext, getPeerContexts } from '@axe/core/network/peer-context-source';
+import { getPeerContexts } from '@axe/core/network/peer-context-source';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
@@ -21,12 +21,12 @@ export abstract class OwnedTabletopObject extends TabletopObject {
 
   /** Whether the object is owned by this client's user. */
   get isMine(): boolean {
-    return this.isOwnedBy(getPeerContext().userId);
+    return this.isOwnedBy(PeerCursor.myUserId);
   }
 
-  /** Whether the object is owned by the given user id. */
+  /** Whether the object is owned by the given user id; an empty id owns nothing, as an object nobody holds has one. */
   isOwnedBy(userId: string): boolean {
-    return userId === this.owner;
+    return userId.length > 0 && userId === this.owner;
   }
 
   /** Whether the owner is connected right now, judged against the current peer contexts. */

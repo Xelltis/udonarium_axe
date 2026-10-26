@@ -91,7 +91,12 @@
             [src]="imageUrl() | safe: 'resourceUrl'"
           />
         }
-        <button class="absolute -bottom-5.25 left-2 z-3 size-10.5 rounded-full p-1" (click)="chanageImageView(true)">
+        <button
+          class="absolute -bottom-5.25 left-2 z-3 size-10.5 rounded-full p-1"
+          [title]="'feature.inventory.overview.enlarge' | transloco"
+          [attr.aria-label]="'feature.inventory.overview.enlarge' | transloco"
+          (click)="chanageImageView(true)"
+        >
           <i class="material-icons align-bottom text-[24px]!">zoom_in</i>
         </button>
         @if (card.hasOwner && card.ownerName) {

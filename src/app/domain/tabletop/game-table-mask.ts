@@ -218,10 +218,11 @@ export class GameTableMask extends TabletopObject {
 
   /**
    * The display name of the user who owns the mask, or empty when nobody does or no peer cursor
-   * carries that user.
+   * carries that user. A mask this seat holds is named from its own cursor, whose user id is not
+   * written on it while the connection has not opened.
    */
   get ownerName(): string {
-    const object = PeerCursor.findByUserId(this.owner);
+    const object = this.isMine ? PeerCursor.myCursor : PeerCursor.findByUserId(this.owner);
     return object ? object.name : '';
   }
 
@@ -259,11 +260,11 @@ export class GameTableMask extends TabletopObject {
 
   /** Whether the mask is owned by this client's user. */
   get isMine(): boolean {
-    return this.isOwnedBy(getPeerContext().userId);
+    return this.isOwnedBy(PeerCursor.myUserId);
   }
-  /** Whether the mask is owned by the given user id. */
+  /** Whether the mask is owned by the given user id; an empty id owns nothing, as a mask nobody holds has one. */
   isOwnedBy(userId: string): boolean {
-    return userId === this.owner;
+    return userId.length > 0 && userId === this.owner;
   }
 
   /**

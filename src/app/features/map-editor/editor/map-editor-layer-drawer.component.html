@@ -68,7 +68,9 @@
             (blur)="commitRename(layer, $any($event.target).value)"
           />
         } @else {
-          <span class="min-w-0 flex-1 truncate" (dblclick)="startRename(layer)">{{ layer.name }}</span>
+          <span class="min-w-0 flex-1 truncate" (dblclick)="startRename(layer)" [appTextTooltip]="layer.name">{{
+            layer.name
+          }}</span>
           @if (state.activeLayerId() === layer.id) {
             <button
               class="hover:bg-ui-hover rounded-ui-sm inline-flex size-5 items-center justify-center"
@@ -111,12 +113,14 @@
         />
         <button
           class="hover:bg-ui-hover rounded-ui-sm inline-flex size-5 items-center justify-center"
+          [title]="'feature.mapEditor.layers.raise' | transloco"
           (click)="$event.stopPropagation(); moveLayerUp(layer)"
         >
           <i class="material-icons text-[14px]!">arrow_upward</i>
         </button>
         <button
           class="hover:bg-ui-hover rounded-ui-sm inline-flex size-5 items-center justify-center"
+          [title]="'feature.mapEditor.layers.lower' | transloco"
           (click)="$event.stopPropagation(); moveLayerDown(layer)"
         >
           <i class="material-icons text-[14px]!">arrow_downward</i>

@@ -1,9 +1,12 @@
 import { TestBed } from '@angular/core/testing';
+import { Network } from '@axe/core/network/network';
+import { IPeerContext } from '@axe/core/network/peer-context';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DataElement } from '@axe/domain/data/data-element';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 
 describe('GameTableMask', () => {
@@ -77,6 +80,45 @@ describe('GameTableMask', () => {
       const mask = GameTableMask.create('test', 1, 1, 100);
       mask.owner = 'user-1';
       expect(mask.hasOwner).toBe(true);
+    });
+  });
+
+  describe('who holds it', () => {
+    let mask: GameTableMask;
+
+    beforeEach(() => {
+      mask = GameTableMask.create('test', 1, 1, 100);
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.name = 'プレイヤー';
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      mask.destroy();
+      PeerCursor.myCursor = null!;
+    });
+
+    it('is held by nobody while nobody holds it, though this seat has no user id yet', () => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: '', isOpen: false } as IPeerContext);
+
+      expect(mask.isMine).toBe(false);
+    });
+
+    it("is this seat's once it holds it by the id on its own cursor, as when playing offline", () => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: '', isOpen: false } as IPeerContext);
+      PeerCursor.myCursor.userId = 'me';
+      mask.owner = 'me';
+
+      expect(mask.isMine).toBe(true);
+      expect(mask.ownerName).toBe('プレイヤー');
+    });
+
+    it('names this seat from its own cursor while the connection has not opened to write the id on it', () => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'waiting', isOpen: false } as IPeerContext);
+      mask.owner = 'waiting';
+
+      expect(mask.isMine).toBe(true);
+      expect(mask.ownerName).toBe('プレイヤー');
     });
   });
 

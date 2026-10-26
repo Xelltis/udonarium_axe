@@ -220,6 +220,84 @@ describe('AppComponent', () => {
     });
   });
 
+  describe('the drawer from the keyboard', () => {
+    let fixture: ComponentFixture<AppComponent>;
+
+    beforeEach(async () => {
+      await TestBed.configureTestingModule({
+        imports: [AppComponent],
+        providers: [...TEST_PROVIDERS],
+      }).compileComponents();
+      PeerCursor.createMyCursor().role = PeerRole.Player;
+      fixture = TestBed.createComponent(AppComponent);
+      fixture.detectChanges();
+    });
+
+    afterEach(() => {
+      TestBed.inject(ButtonGuideService).hide();
+      vi.restoreAllMocks();
+    });
+
+    const gameResources = () =>
+      fixture.nativeElement.querySelector('[data-testid="fab-entry-gameResources"]') as HTMLElement;
+    const submenu = () => fixture.nativeElement.querySelector('[data-testid="fab-submenu-gameResources"]');
+
+    function pressKey(target: HTMLElement, key: string): void {
+      target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+      fixture.detectChanges();
+    }
+
+    it('keeps its entries out of the tab order while it is shut', () => {
+      fixture.componentInstance.fabOpen.set(false);
+      fixture.detectChanges();
+
+      expect(gameResources().getAttribute('tabindex')).toBe('-1');
+    });
+
+    it('lets Tab reach a named entry once it is open', () => {
+      fixture.componentInstance.fabOpen.set(true);
+      fixture.detectChanges();
+
+      expect(gameResources().getAttribute('tabindex')).toBe('0');
+      expect(gameResources().getAttribute('role')).toBe('button');
+      expect(gameResources().getAttribute('aria-label')).toBe('ゲームリソース');
+    });
+
+    it('opens a small menu from Enter and from Space', () => {
+      fixture.componentInstance.fabOpen.set(true);
+      fixture.detectChanges();
+
+      pressKey(gameResources(), 'Enter');
+      expect(submenu()).toBeTruthy();
+
+      pressKey(gameResources(), ' ');
+      expect(submenu()).toBeNull();
+    });
+
+    it("hands the focus back to the page after a pointer's click, so the table's keys still answer", () => {
+      fixture.componentInstance.fabOpen.set(true);
+      fixture.detectChanges();
+      gameResources().focus();
+      expect(document.activeElement).toBe(gameResources());
+
+      gameResources().dispatchEvent(new MouseEvent('click', { detail: 1, bubbles: true }));
+      fixture.detectChanges();
+
+      expect(submenu()).toBeTruthy();
+      expect(document.activeElement).toBe(document.body);
+    });
+
+    it('leaves a key pressed on a button written inside an entry to that button', () => {
+      TestBed.inject(ButtonGuideService).show();
+      fixture.detectChanges();
+      const inside = gameResources().querySelector('[data-testid="button-guide-entry"]') as HTMLElement;
+
+      pressKey(inside, 'Enter');
+
+      expect(submenu()).toBeNull();
+    });
+  });
+
   describe('the drawer while every name is written out', () => {
     let fixture: ComponentFixture<AppComponent>;
     let guide: ButtonGuideService;

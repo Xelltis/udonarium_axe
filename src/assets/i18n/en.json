@@ -216,6 +216,8 @@
         "leaveKindHint": "A piece leaves a zone holding more than its limit at once by this kind of move.",
         "interrupt": "Let moves be stepped into",
         "interruptHint": "Before a planned move is walked, the side of every enemy that can reach the way is asked whether to step in. A piece that steps in stops the move at that point, and a new engagement zone forms there with both. While turns are kept, it is forming until the turn ends. A move into an engagement zone, or one out of a zone the piece stands in, is also put to the side in the zone, which chooses whether to stop it; a piece it stops moves to the centre and joins. A zone nobody can answer for, and every zone while this is off, always stops it.",
+        "stealthUnseen": "Count a piece in stealth as unseen",
+        "stealthUnseenHint": "When on, a piece in stealth is treated like one marked unseen by hand: its moves cannot be stopped, and one it stops makes a zone there and then.",
         "interruptKind": "Kind used to step in",
         "interruptKindFirst": "The first kind",
         "blockRadius": "Line of fire block radius (m)",
@@ -707,6 +709,7 @@
         "selectFromList": "Select a cut-in from the list",
         "save": "Save",
         "delete": "Delete",
+        "deleteConfirm": "Delete the cut-in \"{{name}}\"? It disappears from everyone's list and cannot be brought back.",
         "defaultName": "Untitled cut-in",
         "panelTitleWith": "Cut-in : {{name}}",
         "selectImageTitle": "Select image",
@@ -1235,7 +1238,8 @@
         "emptyEntry": "(no entries)",
         "palettePlaceholder": "Enter the dice table, one entry per line...",
         "save": "Save",
-        "delete": "Delete"
+        "delete": "Delete",
+        "deleteConfirm": "Delete the dice table \"{{name}}\"? It disappears from everyone's list and cannot be brought back."
       },
       "message": {
         "rolled": "{{who}} rolled {{name}} → {{face}}",
@@ -1556,6 +1560,16 @@
       "advanceRoundAnnounce": "The round was moved on.",
       "undoAnnounce": "The turn was put back one step.",
       "acted": "Acted",
+      "held": "Waiting to step in",
+      "hold": "Hold",
+      "holdCurrent": "Have the piece whose turn it is wait, to step in later",
+      "interrupt": "Step in",
+      "holdAnnounce": "{{name}} holds back for now.",
+      "holdAnnounceUnseen": "Someone unseen holds back for now.",
+      "interruptAnnounce": "{{name}} steps in and acts.",
+      "interruptAnnounceUnseen": "Someone unseen steps in and acts.",
+      "resumeAnnounce": "Back to {{name}}'s turn.",
+      "resumeAnnounceUnseen": "Back to the turn of someone unseen.",
       "undo": "Step back",
       "retreatRound": "Take the round back",
       "retreatRoundAnnounce": "Back to round {{n}}.",
@@ -1737,7 +1751,12 @@
         "hide": "Hidden",
         "nonTalk": "Don't speak",
         "pieceSetting": "Piece settings",
-        "specifyKomaHeight": "Specify piece height",
+        "specifyKomaSize": "Set the piece image size",
+        "komaWidth": "Width",
+        "komaHeight": "Height",
+        "komaKeepAspect": "Keep proportions",
+        "komaAspectLinked": "Proportions are kept. Press to change the width and height apart",
+        "komaAspectUnlinked": "The width and height are set apart. Press to go back to the image's proportions",
         "altitude": "Altitude",
         "altitudeUnit": "cells",
         "seatHeight": "Rider height",
@@ -1784,6 +1803,10 @@
         "filterSettings": "Filtering and display settings",
         "sortOrder1": "Sort 1st",
         "sortOrder2": "Sort 2nd",
+        "sortOrderN": "Sort #{{n}}",
+        "addSortKey": "Add a sort",
+        "removeSortKey": "Remove this sort",
+        "sortByName": "Name",
         "tagPlaceholder": "Tag name",
         "asc": "Ascending",
         "desc": "Descending",
@@ -1795,6 +1818,9 @@
         "delete": "Delete",
         "hideInInventory": "Hide in inventory",
         "showInInventory": "Show in inventory",
+        "resourceSliders": "Sliders",
+        "resourceSlidersShowAll": "Show every resource slider",
+        "resourceSlidersHideAll": "Hide every resource slider",
         "cancel": "Cancel",
         "menu": "Menu",
         "emptyMessage": "{{name}} inventory is empty",
@@ -1809,6 +1835,9 @@
         "filterPanelTitle": "Search and display settings",
         "filterNone": "Nothing narrowed",
         "displayItemsHint": "Name a registered state and that column becomes a box to tick",
+        "displayCandidates": "Suggest",
+        "displayCandidatesTitle": "Pick from the items the characters on the table have",
+        "displayCandidatesEmpty": "No characters on the table",
         "inventoryVisibility": "Visibility",
         "viewRound": "Round",
         "showParts": "Strips to show",
@@ -1819,7 +1848,13 @@
         "displayItemsRich": "Display items (full)",
         "displayItemsTable": "Display items (table)",
         "foldsOnOpen": "Open with the folders folded up",
-        "foldsOnOpenHint": "Takes effect on the next inventory opened. Pieces in no folder are shown as before"
+        "foldsOnOpenHint": "Takes effect on the next inventory opened. Pieces in no folder are shown as before",
+        "searchBar": "Show a search box above the list",
+        "compact": "Fold up the rows of the Full view",
+        "compactHint": "Rows not picked show only the name and bars for number resources. Pick a row to change its values.",
+        "roundInPlay": "Show the round controls only once a round has begun",
+        "roundInPlayHint": "Before then, ▶ beside the tabs begins it. With the tabs put away they show as usual.",
+        "beginRound": "Begin the round"
       }
     },
     "keyboard": {
@@ -2042,7 +2077,11 @@
         "handlingGroup": "Display and handling",
         "disclosureGroup": "Visibility and owner",
         "putAwayGroup": "Put away",
-        "conditionGroup": "State of the piece"
+        "conditionGroup": "State of the piece",
+        "stealth": "Stealth (only the GM, the owner and their party see it)",
+        "resourceSliders": "Resource sliders",
+        "resourceSlidersShowAll": "Show them all",
+        "resourceSlidersHideAll": "Hide them all"
       },
       "panel": {
         "sheet": "Character sheet",
@@ -2160,7 +2199,10 @@
       "moveMode_climb": "Climbing",
       "moveMode_swim": "Swimming",
       "moveMode_crawl": "Crawling",
-      "moveMode_fly": "Flying"
+      "moveMode_fly": "Flying",
+      "stealth": {
+        "mark": "In stealth (only the GM, its owner and their party can see it)"
+      }
     },
     "light": {
       "contextMenu": {
@@ -3099,6 +3141,9 @@
       "sectionScreenAndWindows": "The screen and its windows",
       "sectionView3d": "Seen along the table",
       "imageBillboard": "Keep piece images facing the reader",
+      "sectionSheet": "Character sheets",
+      "resourceSliderByDefault": "Give number resources a slider by default",
+      "resourceSliderByDefaultHint": "A resource set to show or not show its own slider keeps to that. A piece's menu can switch every resource of the piece at once, under Display and handling.",
       "tickerHint": "Runs a line sent with the ticker button in the chat input around the four edges of the screen.",
       "sectionMeasure": "Measuring this screen",
       "measureHint": "Measures this screen against an ID-1 card. What is measured stays on this screen for this session alone.",
@@ -3117,7 +3162,7 @@
       "wipeBrowserData": "Erase all data in this browser",
       "wipeBrowserDataHint": "Erases everything kept in this browser, such as your settings, the room's automatic saves and recorded replays, then reloads the page. Try it when something keeps looking or acting wrong. This cannot be undone.",
       "wipeConfirmTitle": "Erase all data in this browser?",
-      "wipeConfirmMessage": "The following will be erased and the page reloaded. This cannot be undone.\n- Your settings (display, volumes, skins, widget layout and so on)\n- The room's automatic saves and recorded replays\n- The pictures for your dice and skins\n- Your login to the room server, and what takes you back to the same seat when the page reloads\n\nReloading takes you out of the current room for now. If you came in through an invite link, it takes you back in: through SkyWay as someone else, your hand and the GM's role staying with your old seat, and on a room server as a guest until you log in again. If you came in from the lobby, you are left outside the room. Through SkyWay or offline, if you are playing alone, anything in the room you have not saved is lost too.\nIf the app is open in other tabs, close them first.",
+      "wipeConfirmMessage": "The following will be erased and the page reloaded. This cannot be undone.\n- Your settings (display, volumes, skins, widget layout and so on)\n- The room's automatic saves and recorded replays\n- The room this browser starts on\n- The pictures for your dice and skins\n- Your login to the room server, and what takes you back to the same seat when the page reloads\n\nReloading takes you out of the current room for now. If you came in through an invite link, it takes you back in: through SkyWay as someone else, your hand and the GM's role staying with your old seat, and on a room server as a guest until you log in again. If you came in from the lobby, you are left outside the room. Through SkyWay or offline, if you are playing alone, anything in the room you have not saved is lost too.\nIf the app is open in other tabs, close them first.",
       "wipeConfirmOk": "Erase all and reload",
       "hostilityBy": "How the sides are told apart",
       "hostilityBy_npc": "By whom the master runs",
@@ -3311,6 +3356,8 @@
         "id": "ID:",
         "roomName": "Room:",
         "password": "Password:",
+        "showPassword": "Show password",
+        "hidePassword": "Hide password",
         "reconnect": "Reconnect",
         "fullSync": "Re-sync room data",
         "fullSyncHint": "Use this when objects or chat differ from what others see. The connection stays up.",
@@ -4084,9 +4131,13 @@
       "cutInPlay": "Play for everybody",
       "cutInsEmpty": "No cut-ins",
       "portraitPattern": "Portrait pattern",
+      "portraitPrevious": "Previous portrait",
+      "portraitNext": "Next portrait",
       "flip": "Flip portrait",
       "seAttach": "Play with next message",
       "seAttached": "Plays with the next message",
+      "seDetach": "Don't play with the next message",
+      "controls": "Message options",
       "edit": {
         "title": "Edit",
         "save": "Save",
@@ -4392,6 +4443,8 @@
         "visible": "Visible",
         "locked": "Locked",
         "opacity": "Opacity",
+        "raise": "Move up",
+        "lower": "Move down",
         "delete": "Delete",
         "deleteConfirm": "Delete this layer?",
         "kinds": {
@@ -4462,7 +4515,25 @@
         "restoreConfirm": "Load the snapshot from {{savedAt}}? The current room data will be overwritten.",
         "removeConfirm": "Delete the snapshot from {{savedAt}}?",
         "clearConfirm": "Delete all stored snapshots?"
-      }
+      },
+      "startRoom": {
+        "kept": "This browser will start on this room from now on.",
+        "keepFailed": "The room to start on could not be kept.",
+        "unsupported": "This browser cannot keep a room to start on.",
+        "replaceTitle": "Replace the room to start on?",
+        "replaceMessage": "The room this browser starts on now will be replaced with this one.",
+        "replaceOk": "Replace",
+        "forgetTitle": "Start on the sample room again?",
+        "forgetMessage": "The room kept to start on will be removed, and the next start sets out the sample table and pieces.",
+        "forgetOk": "Remove it",
+        "forgotten": "The next start sets out the sample room.",
+        "loadFailed": "The room to start on could not be read, so the sample room was set out instead.",
+        "forgetFailed": "The room to start on could not be removed.",
+        "withheld": "A table holding things a room server withheld from you cannot be the room you start on.",
+        "backAfterJoin": "The room could not be joined, so the room to start on was set out again. Changes not kept are not back.",
+        "whileJoining": "The room cannot be kept to start on while a room is being joined."
+      },
+      "restoreUnreadable": "The room in this snapshot could not be read."
     },
     "mobile": {
       "menu": "Menu",
@@ -4588,7 +4659,13 @@
         "boardStop": "Give it back",
         "boardConfirm": "This shows the recorded board. Your table is held aside and restored when you leave, and nothing you do meanwhile reaches the other players. Continue?",
         "timeline": "How busy each moment was. Drag to move through it",
-        "chapter": "Chapter"
+        "chapter": "Chapter",
+        "toStart": "To the start",
+        "previous": "Previous",
+        "play": "Play",
+        "pause": "Pause",
+        "next": "Next",
+        "toEnd": "To the end"
       },
       "editor": {
         "begin": "Edit",
@@ -5431,6 +5508,8 @@
       "save": "Save",
       "saveLoad": "Save & load",
       "importCharacter": "Import Character",
+      "startRoomKeep": "Start on this room",
+      "startRoomForget": "Start on the sample room again",
       "roomSnapshot": "Auto save / restore",
       "createObject": "Create a piece",
       "replay": "Replay",
@@ -5821,6 +5900,10 @@
     "panel": {
       "menuTitle": "Menu",
       "rotate90": "Rotate 90° clockwise",
+      "minimize": "Minimize",
+      "restore": "Restore",
+      "fullScreen": "Full screen",
+      "close": "Close",
       "transparency": "Transparency",
       "ghost": "Ghost mode",
       "tabClose": "Close this panel"

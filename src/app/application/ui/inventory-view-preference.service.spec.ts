@@ -50,6 +50,59 @@ describe('InventoryViewPreferenceService', () => {
     expect(localStorage.getItem('ui-inventory-folded')).toBe('');
   });
 
+  describe('the search box above the list', () => {
+    afterEach(() => localStorage.removeItem('ui-inventory-search-bar'));
+
+    it('is off until the reader asks for it, as for somebody who has used the inventory all along', () => {
+      expect(service().searchBar()).toBe(false);
+    });
+
+    it('is remembered once asked for, and once put away again', () => {
+      service().setSearchBar(true);
+      expect(service().searchBar()).toBe(true);
+      expect(localStorage.getItem('ui-inventory-search-bar')).toBe('1');
+
+      service().setSearchBar(false);
+      expect(service().searchBar()).toBe(false);
+    });
+
+    it('reads anything else written there as off', () => {
+      localStorage.setItem('ui-inventory-search-bar', 'yes');
+
+      expect(service().searchBar()).toBe(false);
+    });
+  });
+
+  describe('the round strip waiting for a round to begin', () => {
+    afterEach(() => localStorage.removeItem('ui-inventory-round-in-play'));
+
+    it('does not wait until the reader asks it to', () => {
+      expect(service().roundInPlay()).toBe(false);
+    });
+
+    it('is remembered once asked for', () => {
+      service().setRoundInPlay(true);
+
+      expect(service().roundInPlay()).toBe(true);
+      expect(localStorage.getItem('ui-inventory-round-in-play')).toBe('1');
+    });
+  });
+
+  describe('the folded rows of the rich view', () => {
+    afterEach(() => localStorage.removeItem('ui-inventory-compact'));
+
+    it('does not fold until the reader asks', () => {
+      expect(service().compact()).toBe(false);
+    });
+
+    it('is remembered once asked for', () => {
+      service().setCompact(true);
+
+      expect(service().compact()).toBe(true);
+      expect(localStorage.getItem('ui-inventory-compact')).toBe('1');
+    });
+  });
+
   it('holds for the session where the browser refuses to write', () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('refused');

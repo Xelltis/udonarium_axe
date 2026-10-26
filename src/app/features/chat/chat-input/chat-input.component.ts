@@ -58,6 +58,7 @@ import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { PortraitChoice, PortraitPickerComponent } from '@axe/ui/components/portrait-picker/portrait-picker.component';
 import { PortraitSliderComponent } from '@axe/ui/components/portrait-slider/portrait-slider.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
@@ -70,6 +71,7 @@ const COLOR_SETTING_PANEL = 'chat-color-setting';
   templateUrl: './chat-input.component.html',
   host: { class: 'block min-w-0 [container-type:inline-size]' },
   imports: [
+    TextTooltipDirective,
     NgClass,
     NgSelectComponent,
     FormsModule,
