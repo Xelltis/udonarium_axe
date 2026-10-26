@@ -50,6 +50,7 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
+import { vnEmoteLabels } from '@axe/domain/visual-novel/vn-emote-label';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import {
   buildChatBookmarkMenu,
@@ -59,7 +60,6 @@ import { isChatTextHidden, readableChatText } from '@axe/features/chat/chat-mess
 import { formatChatTickerMessage } from '@axe/features/chat/chat-ticker/chat-ticker-layout';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { SystemAvatarMenuService } from '@axe/features/chat/system-avatar-menu.service';
-import { vnEmoteLabels } from '@axe/features/visual-novel/visual-novel-emote-label';
 import { DiceRollStageComponent } from '@axe/ui/components/dice-roll-stage/dice-roll-stage.component';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
 import { ChatColorStylePipe } from '@axe/ui/pipes/chat-color-style.pipe';

@@ -13,7 +13,7 @@ import {
   encodeRangeShapeField,
   RangeShapeFieldValue,
 } from '@axe/domain/data/range-shape-field';
-import { buildRangeShapeThumbnail } from '@axe/features/tabletop/range-shape-editor/range-shape-editor-utils';
+import { buildRangeShapeThumbnail } from '@axe/domain/tabletop/range-shape-editor-utils';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 

@@ -40,6 +40,7 @@ import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { keyboardShortcutsOf, shortcutKeysText } from '@axe/domain/ui/keyboard-shortcuts';
 import { isAudienceOffered } from '@axe/domain/ui/menu-command';
 import { encodeVnEmote, VN_EMOTION_MARK_CHARS, vnEmoteOf, VnEmotionMark } from '@axe/domain/visual-novel/vn-emote';
+import { vnEmoteLabel } from '@axe/domain/visual-novel/vn-emote-label';
 import {
   isVnPortraitPosSet,
   toPortraitSlot,
@@ -66,7 +67,6 @@ import { VisualNovelBacklogComponent } from '@axe/features/visual-novel/visual-n
 import { VisualNovelDirectionPanelComponent } from '@axe/features/visual-novel/visual-novel-direction-panel/visual-novel-direction-panel.component';
 import { VisualNovelDirectorService } from '@axe/features/visual-novel/visual-novel-director.service';
 import { VisualNovelDisplayPanelComponent } from '@axe/features/visual-novel/visual-novel-display-panel/visual-novel-display-panel.component';
-import { vnEmoteLabel } from '@axe/features/visual-novel/visual-novel-emote-label';
 import { VisualNovelEmotePanelComponent } from '@axe/features/visual-novel/visual-novel-emote-panel/visual-novel-emote-panel.component';
 import { VisualNovelEmoteSelectionService } from '@axe/features/visual-novel/visual-novel-emote-selection.service';
 import { readableMessageName, readableMessageText } from '@axe/features/visual-novel/visual-novel-message';

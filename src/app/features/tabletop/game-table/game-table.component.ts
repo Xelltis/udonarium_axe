@@ -80,13 +80,13 @@ import type { DeckBuilderResult } from '@axe/features/card/deck-builder-dialog/d
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
 import { CoinComponent } from '@axe/features/coin/coin/coin.component';
 import { DiceSymbolComponent } from '@axe/features/dice/dice-symbol/dice-symbol.component';
+import { buildRevealMenu, listedThingLabel } from '@axe/features/disclosure/concealment-context-menu';
 import { EffectTargetOverlayComponent } from '@axe/features/effect/effect-target-overlay/effect-target-overlay.component';
 import { TableEffectOverlayComponent } from '@axe/features/effect/table-effect-overlay/table-effect-overlay.component';
 import { PeerCursorComponent } from '@axe/features/lobby/peer-cursor/peer-cursor.component';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { ReplayRouteOverlayComponent } from '@axe/features/replay/replay-route-overlay/replay-route-overlay.component';
 import { buildPressedGroundMenu } from '@axe/features/tabletop/board-switch/board-switch-context-menu';
-import { buildRevealMenu, listedThingLabel } from '@axe/features/tabletop/board-switch/concealment-context-menu';
 import { TableFogAirOverlayComponent } from '@axe/features/tabletop/fog-of-war/table-fog-air-overlay.component';
 import { beamTopGridGeometry, beamWallFaceGrid } from '@axe/features/tabletop/game-table/beam-top-grid';
 import { glideTransform } from '@axe/features/tabletop/game-table/game-table-camera';

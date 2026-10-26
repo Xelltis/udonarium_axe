@@ -12,7 +12,7 @@ import {
   cellsFromKeys,
   EditorCellGeometry,
   EditorGridType,
-} from '@axe/features/tabletop/range-shape-editor/range-shape-editor-utils';
+} from '@axe/domain/tabletop/range-shape-editor-utils';
 import { TranslocoModule } from '@jsverse/transloco';
 
 export interface RangeShapeEditorResult {

@@ -7,7 +7,7 @@ import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.s
 import { ReplayRecorderService } from '@axe/application/replay/replay-recorder.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import type { ReplayRecordingMeta } from '@axe/core/storage/replay-log-store';
-import { formatSnapshotByteSize, formatSnapshotSavedAt } from '@axe/features/room-archive/snapshot-format';
+import { formatSnapshotByteSize, formatSnapshotSavedAt } from '@axe/core/util/snapshot-format';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({

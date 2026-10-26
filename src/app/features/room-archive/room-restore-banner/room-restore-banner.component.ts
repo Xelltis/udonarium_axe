@@ -3,8 +3,8 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { RoomSnapshotService } from '@axe/application/file/room-snapshot.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { WIDGET_ROOM_RESTORE } from '@axe/application/ui/widget-place';
+import { formatSnapshotSavedAt } from '@axe/core/util/snapshot-format';
 import { RoomRestoreOfferService } from '@axe/features/room-archive/room-restore-banner/room-restore-offer.service';
-import { formatSnapshotSavedAt } from '@axe/features/room-archive/snapshot-format';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
 import { TranslocoModule } from '@jsverse/transloco';

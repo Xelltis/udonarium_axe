@@ -1,4 +1,4 @@
-import { formatSnapshotByteSize, formatSnapshotSavedAt } from '@axe/features/room-archive/snapshot-format';
+import { formatSnapshotByteSize, formatSnapshotSavedAt } from '@axe/core/util/snapshot-format';
 
 describe('formatSnapshotSavedAt', () => {
   it('pads the date and the time', () => {

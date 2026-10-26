@@ -26,7 +26,7 @@ import {
 } from '@axe/domain/tabletop/board-switch/switch-definition';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
-import { listedThingLabel } from '@axe/features/tabletop/board-switch/concealment-context-menu';
+import { listedThingLabel } from '@axe/features/disclosure/concealment-context-menu';
 import { TranslocoModule } from '@jsverse/transloco';
 
 interface NameChoice {

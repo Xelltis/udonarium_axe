@@ -135,8 +135,8 @@ import {
 } from '@axe/features/character/game-character/zone-context-menu';
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
+import { buildConcealMenu } from '@axe/features/disclosure/concealment-context-menu';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
-import { buildConcealMenu } from '@axe/features/tabletop/board-switch/concealment-context-menu';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
 import { BillboardDirective } from '@axe/ui/directives/billboard.directive';
 import { MovableOption } from '@axe/ui/directives/movable.directive';

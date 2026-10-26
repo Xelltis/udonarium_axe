@@ -1,5 +1,5 @@
 import { VN_EMOTE_DEFAULT } from '@axe/domain/visual-novel/vn-emote';
-import { vnEmoteLabel, vnEmoteLabels } from '@axe/features/visual-novel/visual-novel-emote-label';
+import { vnEmoteLabel, vnEmoteLabels } from '@axe/domain/visual-novel/vn-emote-label';
 
 const japanese = (key: string) =>
   ({

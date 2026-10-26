@@ -15,6 +15,7 @@ import { ReplayLibraryService } from '@axe/application/replay/replay-library.ser
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ReplayRecorderService } from '@axe/application/replay/replay-recorder.service';
 import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
+import { formatSnapshotSavedAt } from '@axe/core/util/snapshot-format';
 import { earliestReplaySeq } from '@axe/domain/replay/replay-edit';
 import { ReplayDigestPanelComponent } from '@axe/features/replay/replay-digest-panel/replay-digest-panel.component';
 import { ReplayScriptPanelComponent } from '@axe/features/replay/replay-script-panel/replay-script-panel.component';
@@ -23,7 +24,6 @@ import { ReplayVideoPreviewComponent } from '@axe/features/replay/replay-video-p
 import { ReplayEntryListComponent } from '@axe/features/replay/replay-workspace/replay-entry-list.component';
 import { ReplayRecordingListComponent } from '@axe/features/replay/replay-workspace/replay-recording-list.component';
 import { ReplayStageComponent } from '@axe/features/replay/replay-workspace/replay-stage.component';
-import { formatSnapshotSavedAt } from '@axe/features/room-archive/snapshot-format';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 

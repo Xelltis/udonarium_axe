@@ -1,4 +1,3 @@
-import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { VN_EMOTION_MARK_CHARS, VnEmote } from '@axe/domain/visual-novel/vn-emote';
 
 /**
@@ -9,7 +8,7 @@ import { VN_EMOTION_MARK_CHARS, VnEmote } from '@axe/domain/visual-novel/vn-emot
  * the words would be fixed in Japanese for everyone; kept apart, they can be read in the reader's
  * own language. A mark is a glyph and belongs to no language, so it stands as it is.
  */
-export function vnEmoteLabels(emote: VnEmote, translate: TranslateFn): string[] {
+export function vnEmoteLabels(emote: VnEmote, translate: (key: string) => string): string[] {
   const labels: string[] = [];
   if (emote.kind !== 'normal') labels.push(translate(`feature.visualNovel.kind.${emote.kind}`));
   if (emote.shape !== 'normal') labels.push(translate(`feature.visualNovel.shape.${emote.shape}`));
@@ -24,7 +23,7 @@ export function vnEmoteLabels(emote: VnEmote, translate: TranslateFn): string[] 
 }
 
 /** The same, as one line for a chip that has room for only one. */
-export function vnEmoteLabel(emote: VnEmote, translate: TranslateFn): string {
+export function vnEmoteLabel(emote: VnEmote, translate: (key: string) => string): string {
   const labels = vnEmoteLabels(emote, translate);
   return labels.length > 0 ? `〔${labels.join('・')}〕` : '';
 }

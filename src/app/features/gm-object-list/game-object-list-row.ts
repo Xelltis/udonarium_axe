@@ -1,9 +1,6 @@
 import { Disclosable, normalizeDisclosureMode } from '@axe/domain/disclosure/disclosure';
+import { buildRangeShapeThumbnail, ThumbnailCell } from '@axe/domain/tabletop/range-shape-editor-utils';
 import { surfaceOf, TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
-import {
-  buildRangeShapeThumbnail,
-  ThumbnailCell,
-} from '@axe/features/tabletop/range-shape-editor/range-shape-editor-utils';
 
 export interface ObjectListTypeConfig {
   key: string;

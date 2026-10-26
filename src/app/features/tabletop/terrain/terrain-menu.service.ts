@@ -17,10 +17,10 @@ import { switchWasPressed } from '@axe/domain/tabletop/board-switch/board-switch
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { gridSlopeSides } from '@axe/domain/tabletop/terrain-slope';
+import { buildConcealMenu } from '@axe/features/disclosure/concealment-context-menu';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { buildBoardSwitchMenu } from '@axe/features/tabletop/board-switch/board-switch-context-menu';
 import { BoardSwitchPanelService } from '@axe/features/tabletop/board-switch/board-switch-panel.service';
-import { buildConcealMenu } from '@axe/features/tabletop/board-switch/concealment-context-menu';
 import { buildTerrainContextMenuModel } from '@axe/features/tabletop/terrain/terrain-context-menu';
 
 /**

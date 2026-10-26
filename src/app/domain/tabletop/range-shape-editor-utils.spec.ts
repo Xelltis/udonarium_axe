@@ -2,7 +2,7 @@ import {
   buildEditorBoardGeometry,
   buildRangeShapeThumbnail,
   EditorGridType,
-} from '@axe/features/tabletop/range-shape-editor/range-shape-editor-utils';
+} from '@axe/domain/tabletop/range-shape-editor-utils';
 import { fingerprint } from '@axe/testing/fingerprint';
 import { describe, expect, it } from 'vitest';
 

@@ -1,8 +1,4 @@
-import {
-  buildConcealMenu,
-  buildRevealMenu,
-  listedThingLabel,
-} from '@axe/features/tabletop/board-switch/concealment-context-menu';
+import { buildConcealMenu, buildRevealMenu, listedThingLabel } from '@axe/features/disclosure/concealment-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
 const t = createSyncTranslate('ja');
