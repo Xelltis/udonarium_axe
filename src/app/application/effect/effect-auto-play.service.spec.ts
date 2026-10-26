@@ -6,6 +6,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ResourceChange } from '@axe/domain/character/resource-change';
 import { createEffectPreset, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
 import { autoEffectIdentifier } from '@axe/domain/effect/resource-effect-map';
+import { refuseLocalStorage, refuseLocalStorageOutright } from '@axe/testing/refused-storage';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('EffectAutoPlayService', () => {
@@ -39,6 +40,7 @@ describe('EffectAutoPlayService', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.delete(object, false);
     ObjectStore.instance.clearDeleteHistory();
     localStorage.clear();
@@ -80,5 +82,24 @@ describe('EffectAutoPlayService', () => {
 
     expect(localStorage.getItem('axe.effect.autoPlay')).toBe('on');
     expect(TestBed.inject(EffectAutoPlayService).enabled()).toBe(true);
+  });
+
+  it('starts off and still turns on where the browser refuses to keep the choice', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    refuseLocalStorage();
+    const refused = TestBed.inject(EffectAutoPlayService);
+
+    expect(refused.enabled()).toBe(false);
+    refused.setEnabled(true);
+    expect(refused.enabled()).toBe(true);
+  });
+
+  it('starts where the browser refuses to hand over its storage at all', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    refuseLocalStorageOutright();
+
+    expect(TestBed.inject(EffectAutoPlayService).enabled()).toBe(false);
   });
 });

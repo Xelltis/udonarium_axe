@@ -17,6 +17,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { browserLocalStorage } from '@axe/core/storage/local-preference';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { buildEffectChatToken } from '@axe/domain/effect/effect-chat-token';
@@ -139,7 +140,7 @@ export class EffectLibraryPanelComponent {
     return character instanceof GameCharacter ? character.name : '';
   }
 
-  private readonly storage = typeof localStorage === 'undefined' ? null : localStorage;
+  private readonly storage = browserLocalStorage();
   private readonly recentIdentifiers = signal<string[]>(readRecentEffects(this.storage));
 
   /** What was used last, kept at the front whatever the list is narrowed to. */

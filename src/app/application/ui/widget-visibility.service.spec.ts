@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { parseWidgetVisibility, WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
+import { refuseLocalStorage } from '@axe/testing/refused-storage';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 describe('parseWidgetVisibility', () => {
@@ -91,6 +92,8 @@ describe('WidgetVisibilityService', () => {
     service = TestBed.inject(WidgetVisibilityService);
   });
 
+  afterEach(() => vi.restoreAllMocks());
+
   it('shows only the mini player by default', () => {
     expect(service.clock()).toBe(false);
     expect(service.compass()).toBe(false);
@@ -132,5 +135,16 @@ describe('WidgetVisibilityService', () => {
     service.toggleCompass();
     expect(service.compass()).toBe(true);
     expect(service.clock()).toBe(true);
+  });
+
+  it('still shows and hides widgets where the browser refuses to keep the choice', () => {
+    TestBed.resetTestingModule();
+    refuseLocalStorage();
+    const refused = TestBed.inject(WidgetVisibilityService);
+
+    const shown = refused.clock();
+    refused.toggleClock();
+    TestBed.tick();
+    expect(refused.clock()).toBe(!shown);
   });
 });

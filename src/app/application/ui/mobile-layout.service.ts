@@ -1,6 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { readLocal } from '@axe/core/storage/local-preference';
 
 const STORAGE_KEY = 'ui-mobile-layout';
 
@@ -47,7 +48,7 @@ export function parseMobileLayoutState(raw: string | null): MobileLayoutState {
 export class MobileLayoutService {
   private readonly document = inject(DOCUMENT);
   private readonly viewport = inject(ViewportService);
-  private readonly restored = parseMobileLayoutState(localStorage.getItem(STORAGE_KEY));
+  private readonly restored = parseMobileLayoutState(readLocal(STORAGE_KEY));
 
   readonly prefersDesktop = signal(this.restored.prefersDesktop);
   readonly tableRatio = signal(this.restored.tableRatio);

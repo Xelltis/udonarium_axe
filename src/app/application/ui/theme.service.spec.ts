@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ThemeService } from '@axe/application/ui/theme.service';
+import { refuseLocalStorage } from '@axe/testing/refused-storage';
 
 describe('ThemeService', () => {
   let service: ThemeService;
@@ -9,6 +10,8 @@ describe('ThemeService', () => {
     TestBed.configureTestingModule({});
     service = TestBed.inject(ThemeService);
   });
+
+  afterEach(() => vi.restoreAllMocks());
 
   it('settles a chosen theme on itself', () => {
     service.theme.set('dark');
@@ -35,5 +38,16 @@ describe('ThemeService', () => {
 
     service.cycle();
     expect(service.theme()).toBe('auto');
+  });
+
+  it('starts on auto and still switches where the browser refuses to keep its choice', () => {
+    TestBed.resetTestingModule();
+    refuseLocalStorage();
+    const refused = TestBed.inject(ThemeService);
+
+    expect(refused.theme()).toBe('auto');
+    refused.theme.set('dark');
+    TestBed.tick();
+    expect(refused.resolved()).toBe('dark');
   });
 });

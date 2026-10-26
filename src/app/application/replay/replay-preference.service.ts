@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import type { ReplayRetention } from '@axe/core/storage/replay-log-store';
 import { ReplayDetailLevel } from '@axe/domain/replay/replay-event';
 
@@ -49,7 +50,7 @@ export function parseReplayPreference(raw: string | null): ReplayPreference {
 
 @Injectable({ providedIn: 'root' })
 export class ReplayPreferenceService {
-  private readonly restored = parseReplayPreference(localStorage.getItem(STORAGE_KEY));
+  private readonly restored = parseReplayPreference(readLocal(STORAGE_KEY));
 
   readonly detailLevel = signal<ReplayDetailLevel>(this.restored.detailLevel);
   readonly keepCount = signal<ReplayKeepCount>(this.restored.keepCount);
@@ -73,6 +74,6 @@ export class ReplayPreferenceService {
 
   private persist(): void {
     const state: ReplayPreference = { detailLevel: this.detailLevel(), keepCount: this.keepCount() };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    writeLocal(STORAGE_KEY, JSON.stringify(state));
   }
 }

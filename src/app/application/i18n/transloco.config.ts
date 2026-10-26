@@ -1,3 +1,4 @@
+import { readLocal } from '@axe/core/storage/local-preference';
 import { environment } from '@env/environment';
 import { TranslocoConfig } from '@jsverse/transloco';
 
@@ -21,7 +22,7 @@ export const transLocoConfig: Partial<TranslocoConfig> = {
  * Browsers in neither Japanese nor Korean start in English.
  */
 export function detectInitialLang(): SupportedLang {
-  const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(TRANSLOCO_LANG_STORAGE_KEY) : null;
+  const stored = readLocal(TRANSLOCO_LANG_STORAGE_KEY);
   if (isSupportedLang(stored)) return stored;
   const nav = typeof navigator !== 'undefined' ? navigator.language.toLowerCase() : '';
   if (nav.startsWith('ja')) return 'ja';

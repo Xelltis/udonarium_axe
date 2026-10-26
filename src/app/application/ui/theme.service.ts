@@ -1,5 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { computed, DestroyRef, effect, inject, Injectable, signal } from '@angular/core';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 
 export type Theme = 'auto' | 'dark' | 'light';
@@ -12,7 +13,7 @@ export class ThemeService {
   private readonly document = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly theme = signal<Theme>((localStorage.getItem(STORAGE_KEY) as Theme) ?? 'auto');
+  readonly theme = signal<Theme>((readLocal(STORAGE_KEY) as Theme) ?? 'auto');
 
   private readonly systemPrefersDark = signal(window.matchMedia('(prefers-color-scheme: dark)').matches);
 
@@ -37,7 +38,7 @@ export class ThemeService {
       const t = this.theme();
       this.resolved();
       this.dress(AttachedDocuments.all());
-      localStorage.setItem(STORAGE_KEY, t);
+      writeLocal(STORAGE_KEY, t);
     });
   }
 

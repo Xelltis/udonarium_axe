@@ -6,6 +6,7 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { EffectLibraryPanelComponent } from '@axe/features/effect/effect-library-panel/effect-library-panel.component';
+import { refuseLocalStorageOutright } from '@axe/testing/refused-storage';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('EffectLibraryPanelComponent', () => {
@@ -26,6 +27,7 @@ describe('EffectLibraryPanelComponent', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     ObjectStore.instance.remove(preset);
   });
 
@@ -44,6 +46,14 @@ describe('EffectLibraryPanelComponent', () => {
     panel.fire(preset);
     expect(fired).toHaveBeenCalledTimes(1);
     vi.restoreAllMocks();
+  });
+
+  it('opens where the browser refuses to hand over its storage at all', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ imports: [EffectLibraryPanelComponent], providers: [...TEST_PROVIDERS] });
+    refuseLocalStorageOutright();
+
+    expect(() => TestBed.createComponent(EffectLibraryPanelComponent)).not.toThrow();
   });
 
   it('lists the effects that have been added', () => {
