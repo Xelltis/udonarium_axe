@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, inject, input, viewChild, ViewContainerRef } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  Injector,
+  input,
+  viewChild,
+  ViewContainerRef,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import {
   bottomSheetLayer,
@@ -7,6 +15,7 @@ import {
   hostPanelLayer,
   Z_BOTTOM_SHEET,
 } from '@axe/application/ui/bottom-sheet.service';
+import { BOTTOM_SHEET_FRAME_COMPONENT } from '@axe/application/ui/overlay-components';
 import { BottomSheetComponent } from '@axe/ui/components/bottom-sheet/bottom-sheet.component';
 
 @Component({
@@ -24,6 +33,7 @@ class SheetContentComponent {
   selector: 'test-sheet-host',
   template: `<ng-container #layer />`,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [{ provide: BOTTOM_SHEET_FRAME_COMPONENT, useValue: BottomSheetComponent }],
 })
 class SheetHostComponent {
   readonly layer = viewChild.required('layer', { read: ViewContainerRef });
@@ -35,7 +45,6 @@ describe('a sheet rising from the bottom', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({ imports: [SheetHostComponent] });
-    BottomSheetService.frameComponentClass = BottomSheetComponent;
     fixture = TestBed.createComponent(SheetHostComponent);
     fixture.detectChanges();
     service = TestBed.inject(BottomSheetService);
@@ -43,7 +52,6 @@ describe('a sheet rising from the bottom', () => {
 
   afterEach(() => {
     service.closeAll();
-    BottomSheetService.frameComponentClass = null;
   });
 
   function open(): BottomSheetRef<string> {
@@ -123,9 +131,9 @@ describe('a sheet rising from the bottom', () => {
   });
 
   it('closes unanswered with nowhere to be drawn', async () => {
-    BottomSheetService.frameComponentClass = null;
+    const bare = { injector: TestBed.inject(Injector) } as ViewContainerRef;
 
-    const ref = service.open(SheetContentComponent, { title: 'x', layer: fixture.componentInstance.layer() });
+    const ref = service.open(SheetContentComponent, { title: 'x', layer: bare });
 
     await expect(ref.closed).resolves.toBeNull();
   });

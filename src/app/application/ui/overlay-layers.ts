@@ -1,4 +1,4 @@
-import { ViewContainerRef } from '@angular/core';
+import { Injectable, ViewContainerRef } from '@angular/core';
 
 /**
  * Where a menu, a dialogue or a tooltip is drawn, for a reader looking at more than one window.
@@ -10,27 +10,31 @@ import { ViewContainerRef } from '@angular/core';
  * simply not opened.
  *
  * The window in front is the one whose document has the focus. While nothing has left, the
- * registry is empty and every caller falls back to the layer the app started with.
+ * registry is empty and every caller falls back to the main layer the app hands over as it starts.
  */
+@Injectable({ providedIn: 'root' })
 export class OverlayLayers {
-  private static readonly windows = new Map<Document, ViewContainerRef>();
+  private readonly windows = new Map<Document, ViewContainerRef>();
+
+  /** The layer of the main window, handed over once the app's shell is drawn; null before. */
+  main: ViewContainerRef | null = null;
 
   /**
    * Registers a detached window's overlay layer, so menus and dialogs opened while it has the focus
    * appear there.
    */
-  static attach(document: Document, layer: ViewContainerRef): void {
-    OverlayLayers.windows.set(document, layer);
+  attach(document: Document, layer: ViewContainerRef): void {
+    this.windows.set(document, layer);
   }
 
   /** Forgets a detached window's layer once the window closes. */
-  static detach(document: Document): void {
-    OverlayLayers.windows.delete(document);
+  detach(document: Document): void {
+    this.windows.delete(document);
   }
 
   /** The layer of the window being worked in, or nothing while the reader is in the main one. */
-  static current(): ViewContainerRef | null {
-    for (const [document, layer] of OverlayLayers.windows) {
+  current(): ViewContainerRef | null {
+    for (const [document, layer] of this.windows) {
       if (document.hasFocus?.()) return layer;
     }
     return null;
@@ -43,12 +47,22 @@ export class OverlayLayers {
    * window has the focus: a panel opened from a panel in a window belongs in that window
    * however the focus has moved since.
    */
-  static layerFor(document: Document | null | undefined): ViewContainerRef | null {
-    return document ? (OverlayLayers.windows.get(document) ?? null) : null;
+  layerFor(document: Document | null | undefined): ViewContainerRef | null {
+    return document ? (this.windows.get(document) ?? null) : null;
   }
 
-  /** Forgets every registered window, so everything falls back to the main layer. */
-  static reset(): void {
-    OverlayLayers.windows.clear();
+  /** The layer of the window being worked in, and the main one while the reader is there. */
+  front(): ViewContainerRef {
+    return this.current() ?? this.mainLayer();
+  }
+
+  /**
+   * The main window's layer, for an opener that has been given nowhere else to go.
+   *
+   * Throws before the app has handed it over, as there is nowhere yet to draw anything.
+   */
+  mainLayer(): ViewContainerRef {
+    if (!this.main) throw new Error('[OverlayLayers] the main layer has not been handed over yet');
+    return this.main;
   }
 }

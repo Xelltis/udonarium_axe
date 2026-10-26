@@ -27,19 +27,17 @@ import { FirstPersonService } from '@axe/application/tabletop/first-person.servi
 import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { LegacyScratchMaskMigrationService } from '@axe/application/tabletop/legacy-scratch-mask-migration.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
-import { BottomSheetService } from '@axe/application/ui/bottom-sheet.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { MenuLayoutService } from '@axe/application/ui/menu-layout.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
-import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
+import { LOAD_FAILURE_NOTICE } from '@axe/application/ui/overlay-components';
+import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
-import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
-import { ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
+import type { PanelOption } from '@axe/application/ui/panel.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
@@ -58,11 +56,9 @@ import type { Vote } from '@axe/domain/vote/vote';
 import { AlarmEventHandlerService } from '@axe/features/alarm/alarm-event-handler.service';
 import { ButtonGuideEventHandlerService } from '@axe/features/button-guide/button-guide-event-handler.service';
 import { CardEventHandlerService } from '@axe/features/card/card-event-handler.service';
-import { CardStackListImageComponent } from '@axe/features/card/card-stack-list-img/card-stack-list-img.component';
 import { HandDragGhostComponent } from '@axe/features/card/hand-rail/hand-drag-ghost.component';
 import { HandRailComponent } from '@axe/features/card/hand-rail/hand-rail.component';
 import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
-import { ChatPortraitImageComponent } from '@axe/features/chat/chat-portrait-img/chat-portrait-img.component';
 import { ChatSettingsEventHandlerService } from '@axe/features/chat/chat-settings-event-handler.service';
 import { ChatSoundEventHandlerService } from '@axe/features/chat/chat-sound-event-handler.service';
 import { ChatTickerComponent } from '@axe/features/chat/chat-ticker/chat-ticker.component';
@@ -119,18 +115,12 @@ import { CompassComponent } from '@axe/features/widgets/compass/compass.componen
 import { ConnectionQualityComponent } from '@axe/features/widgets/connection-quality/connection-quality.component';
 import { DigitalClockComponent } from '@axe/features/widgets/digital-clock/digital-clock.component';
 import { RenderStatsComponent } from '@axe/features/widgets/render-stats/render-stats.component';
-import { BottomSheetComponent } from '@axe/ui/components/bottom-sheet/bottom-sheet.component';
-import { ConfirmDialogComponent } from '@axe/ui/components/confirm-dialog/confirm-dialog.component';
-import { ContextMenuComponent } from '@axe/ui/components/context-menu/context-menu.component';
 import { UiFabSubmenuComponent } from '@axe/ui/components/fab-submenu/fab-submenu.component';
 import { UiFabSubmenuButtonComponent } from '@axe/ui/components/fab-submenu/fab-submenu-button.component';
-import { ModalComponent } from '@axe/ui/components/modal/modal.component';
 import { PieceDragGhostComponent } from '@axe/ui/components/piece-drag-ghost/piece-drag-ghost.component';
 import { SnackbarComponent } from '@axe/ui/components/snackbar/snackbar.component';
-import { UIPanelComponent } from '@axe/ui/components/ui-panel/ui-panel.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { ReloadNoticeDirective } from '@axe/ui/directives/reload-notice.directive';
-import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
 import {
   FAB_COLUMN_CLASSES,
@@ -214,13 +204,13 @@ export class AppComponent {
 
   readonly isTableSplit = computed(() => this.mobile.isActive() && !this.visualNovel.active());
   private readonly t = inject(TRANSLATE_FN);
-  private readonly panelService = inject(PanelService);
   private readonly roomPanels = inject(RoomPanelService);
   private readonly saveDataService = inject(SaveDataService);
   private readonly fileArchiver = inject(FileArchiver);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly overlays = inject(OverlayLayers);
 
   readonly modalLayerViewContainerRef = viewChild.required('modalLayer', { read: ViewContainerRef });
 
@@ -527,19 +517,11 @@ export class AppComponent {
     inject(TurnOrderService);
     inject(SkinService);
 
-    const reloadNotice = inject(ReloadNoticeService);
-    PanelService.loadFailureNotice = () => reloadNotice.tellReloadNeeded();
-    this.fileArchiver.onCodeUnavailable = () => reloadNotice.tellReloadNeeded();
-    TooltipDirective.loadTooltipPanelComponent = reloadNotice.noticingFailure(() =>
-      import('@axe/features/inventory/overview-panel/overview-panel.component').then((m) => m.OverviewPanelComponent)
-    );
+    this.fileArchiver.onCodeUnavailable = inject(LOAD_FAILURE_NOTICE);
 
     afterNextRender(() => {
       this.measureFabSides();
-      PanelService.defaultParentViewContainerRef =
-        ModalService.defaultParentViewContainerRef =
-        ContextMenuService.defaultParentViewContainerRef =
-          this.modalLayerViewContainerRef();
+      this.overlays.main = this.modalLayerViewContainerRef();
       const startPanels: [RoomPanelName, PanelOption][] = [['peerMenu', { left: 80, top: 10 }]];
       if (!this.viewport.isCompact()) {
         const chatHeight = 460;
@@ -599,19 +581,3 @@ export class AppComponent {
     input.value = '';
   }
 }
-
-PanelService.UIPanelComponentClass = UIPanelComponent;
-PanelService.chatPortraitComponentClass = ChatPortraitImageComponent;
-PanelService.cardStackListComponentClass = CardStackListImageComponent;
-ContextMenuService.ContextMenuComponentClass = ContextMenuComponent;
-ContextMenuService.loadFourWayRadialMenuComponent = () =>
-  import('@axe/ui/components/four-way-radial-menu/four-way-radial-menu.component').then(
-    (m) => m.FourWayRadialMenuComponent
-  );
-ModalService.ModalComponentClass = ModalComponent;
-BottomSheetService.frameComponentClass = BottomSheetComponent;
-ConfirmService.dialogComponentClass = ConfirmDialogComponent;
-TabletopActionService.loadDiceCreateDialog = () =>
-  import('@axe/features/dice/dice-symbol-create-dialog/dice-symbol-create-dialog.component').then(
-    (m) => m.DiceSymbolCreateDialogComponent
-  );

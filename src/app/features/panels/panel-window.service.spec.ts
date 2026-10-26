@@ -38,7 +38,6 @@ describe('PanelWindowService', () => {
     vi.useRealTimers();
     TestBed.resetTestingModule();
     AttachedDocuments.reset(document);
-    OverlayLayers.reset();
   });
 
   /** A window the browser handed back, with a document of its own and nothing else in it. */
@@ -111,8 +110,8 @@ describe('PanelWindowService', () => {
       vi.spyOn(opened.document, 'hasFocus').mockReturnValue(true);
 
       expect(host).not.toBeNull();
-      expect(OverlayLayers.current()).not.toBeNull();
-      expect(OverlayLayers.layerFor(opened.document)).toBe(OverlayLayers.current());
+      expect(TestBed.inject(OverlayLayers).current()).not.toBeNull();
+      expect(TestBed.inject(OverlayLayers).layerFor(opened.document)).toBe(TestBed.inject(OverlayLayers).current());
     });
 
     it("keeps what is opened over the panel out of the window's own frame", () => {
@@ -120,8 +119,8 @@ describe('PanelWindowService', () => {
       open((layer) => (host = layer));
 
       const own = host!.createComponent(StandInPanelComponent).location.nativeElement as HTMLElement;
-      const over = OverlayLayers.layerFor(opened.document)!.createComponent(StandInPanelComponent).location
-        .nativeElement as HTMLElement;
+      const over = TestBed.inject(OverlayLayers).layerFor(opened.document)!.createComponent(StandInPanelComponent)
+        .location.nativeElement as HTMLElement;
 
       expect(own.closest('[data-panel-window-frame]')).not.toBeNull();
       expect(over.closest('[data-panel-window-frame]')).toBeNull();
@@ -190,7 +189,7 @@ describe('PanelWindowService', () => {
       vi.advanceTimersByTime(500);
 
       expect(AttachedDocuments.all()).toEqual([document]);
-      expect(OverlayLayers.current()).toBeNull();
+      expect(TestBed.inject(OverlayLayers).current()).toBeNull();
     });
   });
 

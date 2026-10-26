@@ -20,6 +20,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
+import { CARD_STACK_LIST_COMPONENT, CHAT_PORTRAIT_COMPONENT } from '@axe/application/ui/overlay-components';
 import { PanelFrame, PanelHandoff, PanelRotationDegrees, PanelService } from '@axe/application/ui/panel.service';
 import { PanelDragService, PanelDropFrame } from '@axe/application/ui/panel-drag.service';
 import { PanelDropZone, pointerOf, tearOffBox } from '@axe/application/ui/panel-drag-helpers';
@@ -614,12 +615,8 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
   protected readonly portraitDispByMouse = signal(true);
   private timerCheckWindowSize: ReturnType<typeof setInterval> | null = null;
 
-  protected get chatPortraitComponent() {
-    return PanelService.chatPortraitComponentClass;
-  }
-  protected get cardStackListComponent() {
-    return PanelService.cardStackListComponentClass;
-  }
+  protected readonly chatPortraitComponent = inject(CHAT_PORTRAIT_COMPONENT);
+  protected readonly cardStackListComponent = inject(CARD_STACK_LIST_COMPONENT);
 
   /** Whether something is being dragged anywhere, during which the panel lets the pointer through. */
   get isPointerDragging(): boolean {

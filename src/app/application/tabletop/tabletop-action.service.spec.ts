@@ -1,10 +1,11 @@
+import { Injector, runInInjectionContext, Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
+import { DICE_CREATE_DIALOG_LOADER, TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { getDiceMenuItems, TRUMP_BACK_IMAGE_PATH } from '@axe/application/tabletop/tabletop-action-helpers';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
-import { PanelService } from '@axe/application/ui/panel.service';
+import { LOAD_FAILURE_NOTICE } from '@axe/application/ui/overlay-components';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -123,45 +124,46 @@ describe('TabletopActionService', () => {
   });
 
   describe('making several dice at once', () => {
-    const loader = TabletopActionService.loadDiceCreateDialog;
-    const notice = PanelService.loadFailureNotice;
+    /** The service as the app makes it, with the dialogue's loader and the reload notice handed in. */
+    function serviceWith(loader: (() => Promise<Type<unknown>>) | null, notice: () => void = () => {}) {
+      const injector = Injector.create({
+        providers: [
+          { provide: DICE_CREATE_DIALOG_LOADER, useValue: loader },
+          { provide: LOAD_FAILURE_NOTICE, useValue: notice },
+        ],
+        parent: TestBed.inject(Injector),
+      });
+      return runInInjectionContext(injector, () => new TabletopActionService());
+    }
 
-    afterEach(() => {
-      TabletopActionService.loadDiceCreateDialog = loader;
-      PanelService.loadFailureNotice = notice;
-    });
-
-    const manyEntry = () =>
-      entryIn(service.makeDefaultContextMenuActions({ x: 0, y: 0, z: 0 }), 'ダイスを作成')?.subActions?.find(
+    const manyEntry = (made: TabletopActionService) =>
+      entryIn(made.makeDefaultContextMenuActions({ x: 0, y: 0, z: 0 }), 'ダイスを作成')?.subActions?.find(
         (entry) => entry.name === '個数を指定して作成…'
       );
 
     it('fetches the dialogue when asked for, and asks with it', async () => {
       class Dialog {}
-      TabletopActionService.loadDiceCreateDialog = () => Promise.resolve(Dialog);
+      const made = serviceWith(() => Promise.resolve(Dialog));
       const open = vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue(null);
 
-      manyEntry()!.action!();
+      manyEntry(made)!.action!();
 
       await vi.waitFor(() => expect(open).toHaveBeenCalledWith(Dialog, expect.anything()));
     });
 
     it('says the page wants reloading when the dialogue cannot be fetched, and asks nothing', async () => {
-      TabletopActionService.loadDiceCreateDialog = () => Promise.reject(new Error('chunk gone'));
       const told = vi.fn();
-      PanelService.loadFailureNotice = told;
+      const made = serviceWith(() => Promise.reject(new Error('chunk gone')), told);
       const open = vi.spyOn(TestBed.inject(ModalService), 'open');
 
-      manyEntry()!.action!();
+      manyEntry(made)!.action!();
 
       await vi.waitFor(() => expect(told).toHaveBeenCalledOnce());
       expect(open).not.toHaveBeenCalled();
     });
 
     it('is not offered when no dialogue was handed over', () => {
-      TabletopActionService.loadDiceCreateDialog = null;
-
-      expect(manyEntry()).toBeUndefined();
+      expect(manyEntry(serviceWith(null))).toBeUndefined();
     });
   });
 

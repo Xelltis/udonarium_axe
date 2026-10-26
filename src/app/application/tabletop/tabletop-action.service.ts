@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, InjectionToken, Type } from '@angular/core';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
@@ -25,7 +25,7 @@ import {
 } from '@axe/application/tabletop/tabletop-default-setup';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
-import { PanelService } from '@axe/application/ui/panel.service';
+import { LOAD_FAILURE_NOTICE } from '@axe/application/ui/overlay-components';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -64,16 +64,21 @@ const AMBIENCE_DEFAULT_SIZE = 4;
 const BOARD_DEFAULT_WIDTH = 6;
 const BOARD_DEFAULT_HEIGHT = 4;
 
+/**
+ * Fetches the dialogue for making several dice at once, handed in by the app. It is fetched the first
+ * time it is asked for, being seldom wanted; with none, the menu does not offer it.
+ */
+export const DICE_CREATE_DIALOG_LOADER = new InjectionToken<(() => Promise<Type<unknown>>) | null>(
+  'DICE_CREATE_DIALOG_LOADER',
+  { providedIn: 'root', factory: () => null }
+);
+
 @Injectable({
   providedIn: 'root',
 })
 export class TabletopActionService {
-  /**
-   * Fetches the dialogue for making several dice at once, handed over by the composition root. It
-   * is fetched the first time it is asked for, being seldom wanted.
-   */
-  static loadDiceCreateDialog: (() => Promise<{ new (...args: unknown[]): unknown }>) | null = null;
-
+  private readonly loadDiceCreateDialog = inject(DICE_CREATE_DIALOG_LOADER);
+  private readonly loadFailureNotice = inject(LOAD_FAILURE_NOTICE);
   private readonly imageStorage = inject(ImageStorage);
   private readonly modalService = inject(ModalService);
   private readonly tabletopService = inject(TabletopService);
@@ -660,7 +665,7 @@ export class TabletopActionService {
         },
       });
     });
-    if (TabletopActionService.loadDiceCreateDialog) {
+    if (this.loadDiceCreateDialog) {
       subMenus.push({
         name: this.t('feature.tabletop.action.createDiceMany'),
         action: () => void this.openDiceCreateDialog(position),
@@ -671,11 +676,11 @@ export class TabletopActionService {
 
   /** Asks which die and how many, then makes them. Nothing is made where the asking is dropped. */
   private async openDiceCreateDialog(position: PointerCoordinate): Promise<void> {
-    const load = TabletopActionService.loadDiceCreateDialog;
+    const load = this.loadDiceCreateDialog;
     if (!load) return;
     const dialogClass = await load().catch(() => null);
     if (!dialogClass) {
-      PanelService.loadFailureNotice?.();
+      this.loadFailureNotice();
       return;
     }
 

@@ -2,6 +2,7 @@ import { DestroyRef, inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { LOAD_FAILURE_NOTICE } from '@axe/application/ui/overlay-components';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { Logger } from '@axe/core/logging/logger';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
@@ -28,6 +29,7 @@ export class CutInEventHandlerService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly audioStorage = inject(AudioStorage);
   private readonly panelService = inject(PanelService);
+  private readonly loadFailureNotice = inject(LOAD_FAILURE_NOTICE);
   private readonly tabletopService = inject(TabletopService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly loadWindow = inject(CUT_IN_WINDOW_LOADER);
@@ -121,7 +123,7 @@ export class CutInEventHandlerService {
       (reason: unknown) => {
         settle();
         Logger.error('[CutIn] カットインの窓を読み込めませんでした', reason);
-        PanelService.loadFailureNotice?.();
+        this.loadFailureNotice();
       }
     );
   }

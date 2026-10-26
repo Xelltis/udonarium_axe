@@ -9,6 +9,8 @@ import {
   WritableSignal,
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { PANEL_FRAME_COMPONENT } from '@axe/application/ui/overlay-components';
+import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { PanelTransparencyService } from '@axe/application/ui/panel-transparency.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -35,6 +37,7 @@ class TabbedPanelProbeComponent {
   selector: 'panel-tabs-test-host',
   changeDetection: ChangeDetectionStrategy.Eager,
   template: '<ng-template #layer></ng-template>',
+  providers: [{ provide: PANEL_FRAME_COMPONENT, useValue: UIPanelComponent }],
 })
 class PanelTabsTestHostComponent {
   readonly layer = viewChild.required('layer', { read: ViewContainerRef });
@@ -43,7 +46,6 @@ class PanelTabsTestHostComponent {
 describe('a frame holding more than one panel', () => {
   let host: ComponentFixture<PanelTabsTestHostComponent>;
   let layer: ViewContainerRef;
-  let beforeLayer: { frame: typeof PanelService.UIPanelComponentClass; layer: ViewContainerRef };
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -54,14 +56,10 @@ describe('a frame holding more than one panel', () => {
     host = TestBed.createComponent(PanelTabsTestHostComponent);
     host.detectChanges();
     layer = host.componentInstance.layer();
-    beforeLayer = { frame: PanelService.UIPanelComponentClass, layer: PanelService.defaultParentViewContainerRef };
-    PanelService.UIPanelComponentClass = UIPanelComponent;
-    PanelService.defaultParentViewContainerRef = layer;
+    TestBed.inject(OverlayLayers).main = layer;
   });
 
   afterEach(() => {
-    PanelService.UIPanelComponentClass = beforeLayer.frame;
-    PanelService.defaultParentViewContainerRef = beforeLayer.layer;
     host.destroy();
   });
 

@@ -1,11 +1,15 @@
 import { Injector, ViewContainerRef } from '@angular/core';
 import { inject, TestBed } from '@angular/core/testing';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { MODAL_FRAME_COMPONENT } from '@axe/application/ui/overlay-components';
+
+/** Stands for the frame; the specs hand the service a layer that makes their own. */
+class FrameStub {}
 
 describe('ModalService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [ModalService],
+      providers: [ModalService, { provide: MODAL_FRAME_COMPONENT, useValue: FrameStub }],
     });
   });
 

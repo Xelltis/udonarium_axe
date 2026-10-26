@@ -3,7 +3,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { PanelService } from '@axe/application/ui/panel.service';
+import { LOAD_FAILURE_NOTICE } from '@axe/application/ui/overlay-components';
 import { CcfoliaRoomDroppedEvent } from '@axe/core/event/domain-events';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { buildRoomImportMessages } from '@axe/features/tabletop/ccfolia-room-import/ccfolia-room-import-message';
@@ -15,6 +15,7 @@ export class CcfoliaRoomImportEventHandlerService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly injector = inject(Injector);
+  private readonly loadFailureNotice = inject(LOAD_FAILURE_NOTICE);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly chatMessageService = inject(ChatMessageService);
 
@@ -34,7 +35,7 @@ export class CcfoliaRoomImportEventHandlerService {
       () => null
     );
     if (!roomImport) {
-      PanelService.loadFailureNotice?.();
+      this.loadFailureNotice();
       return;
     }
     const result = await roomImport.importAsync(event.entries);

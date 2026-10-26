@@ -1,7 +1,7 @@
 import { Component, viewChild, ViewContainerRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { StampPackPanelComponent } from '@axe/features/chat/stamp-pack-panel/stamp-pack-panel.component';
@@ -18,7 +18,6 @@ describe('StampPickerService', () => {
   let anchor: HTMLButtonElement;
   let picked: string[];
   let host: ComponentFixture<OverlayLayerHostComponent>;
-  const ownLayer = ContextMenuService.defaultParentViewContainerRef;
 
   function picker(): HTMLElement | null {
     return document.querySelector('[data-testid="stamp-picker"]');
@@ -33,7 +32,7 @@ describe('StampPickerService', () => {
     host = TestBed.createComponent(OverlayLayerHostComponent);
     host.detectChanges();
     document.body.appendChild(host.nativeElement);
-    ContextMenuService.defaultParentViewContainerRef = host.componentInstance.layer();
+    TestBed.inject(OverlayLayers).main = host.componentInstance.layer();
     service = TestBed.inject(StampPickerService);
     anchor = document.createElement('button');
     document.body.appendChild(anchor);
@@ -46,7 +45,6 @@ describe('StampPickerService', () => {
     anchor.remove();
     (host.nativeElement as HTMLElement).remove();
     host.destroy();
-    ContextMenuService.defaultParentViewContainerRef = ownLayer;
     localStorage.removeItem(RECENT_STAMPS_STORAGE_KEY);
   });
 

@@ -22,6 +22,7 @@ import { AppInitializationService } from '@axe/composition/app-initialization.se
 import { BEFORE_BOARD_MODE_PROVIDER } from '@axe/composition/before-board-mode.provider';
 import { BEFORE_RELOAD_PROVIDER } from '@axe/composition/before-reload.provider';
 import { CLASS_SINGLETON_PROVIDERS } from '@axe/composition/class-provider';
+import { OVERLAY_PROVIDERS } from '@axe/composition/overlay-providers';
 import { Logger } from '@axe/core/logging/logger';
 import { setNetworkTick } from '@axe/core/network/network-messaging';
 import { wipeBrowserDataIfRequested } from '@axe/core/storage/browser-data-wipe';
@@ -41,6 +42,7 @@ function bootstrap(): Promise<void> {
       provideHttpClient(withXhr()),
       provideTransloco({ config: transLocoConfig, loader: TranslocoHttpLoader }),
       ...CLASS_SINGLETON_PROVIDERS,
+      ...OVERLAY_PROVIDERS,
       BEFORE_BOARD_MODE_PROVIDER,
       BEFORE_RELOAD_PROVIDER,
       AppConfigService,
