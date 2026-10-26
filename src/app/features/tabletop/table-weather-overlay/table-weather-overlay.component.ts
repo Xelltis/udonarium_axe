@@ -13,10 +13,10 @@ import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { AmbienceService, type WeatherAmbience } from '@axe/application/tabletop/ambience.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
+import { withAlpha } from '@axe/core/util/hex-color';
 import { skyAmbienceFlash, skyAmbienceLayer, skyAmbienceWash } from '@axe/domain/effect/ambience/ambience-sky';
 import { CurrentCarry } from '@axe/domain/effect/ambience/current-carry';
 import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
-import { withAlpha } from '@axe/domain/effect/particles/shared';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
   type ScreenPoint,

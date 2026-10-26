@@ -1,3 +1,4 @@
+import { hexChannels } from '@axe/core/util/hex-color';
 import { CellGrid, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { OverlayPlan, OverlayShape, OverlayVision, ShadowShape } from '@axe/domain/tabletop/vision-scene';
@@ -21,14 +22,7 @@ interface ResolvedSurface extends OverlaySurface {
  * unreadable gives white at the same alpha.
  */
 export function hexToRgba(color: string, alpha: number): string {
-  let hex = color.trim();
-  if (hex.startsWith('#')) hex = hex.slice(1);
-  if (hex.length === 3) hex = hex.replace(/(.)/g, '$1$1');
-  if (hex.length < 6) return `rgba(255, 255, 255, ${alpha})`;
-  const r = parseInt(hex.slice(0, 2), 16);
-  const g = parseInt(hex.slice(2, 4), 16);
-  const b = parseInt(hex.slice(4, 6), 16);
-  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return `rgba(255, 255, 255, ${alpha})`;
+  const [r, g, b] = hexChannels(color) ?? [255, 255, 255];
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 

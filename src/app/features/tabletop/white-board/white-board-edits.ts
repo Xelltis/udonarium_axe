@@ -1,3 +1,4 @@
+import { withAlpha } from '@axe/core/util/hex-color';
 import {
   MapScene,
   newId,
@@ -15,7 +16,7 @@ import {
   MarkBox,
   MarkRef,
 } from '@axe/features/tabletop/white-board/white-board-geometry';
-import { MARK_SHADOW, NaturalSize, pictureOf, withAlpha } from '@axe/features/tabletop/white-board/white-board-marks';
+import { MARK_SHADOW, NaturalSize, pictureOf } from '@axe/features/tabletop/white-board/white-board-marks';
 
 /** Moves whatever was taken hold of, whichever sort of mark it turned out to be. */
 export function moveMark(scene: MapScene, ref: MarkRef, dx: number, dy: number): void {
