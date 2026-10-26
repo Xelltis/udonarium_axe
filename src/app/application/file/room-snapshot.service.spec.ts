@@ -12,6 +12,7 @@ import {
   RoomSnapshotStore,
   sortSnapshotsByNewest,
 } from '@axe/core/storage/room-snapshot-store';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 class FakeRoomSnapshotStore extends RoomSnapshotStore {
@@ -153,6 +154,19 @@ describe('RoomSnapshotService', () => {
 
     await expect(service.restore(meta!.id)).resolves.toBe(false);
     expect(shown).toHaveBeenCalledWith('このスナップショットの部屋は読み込めませんでした。');
+  });
+
+  it('stays quiet where the reader declined to overwrite the room with the snapshot', async () => {
+    const meta = await service.capture();
+    const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+    const objects = TestBed.inject(ObjectStore);
+    const get = objects.get.bind(objects);
+    vi.spyOn(objects, 'get').mockImplementation(((identifier: string) =>
+      identifier === 'ReloadCheck' ? { reloadCheckStart: () => {}, isLoadOk: () => false } : get(identifier)) as never);
+    load.mockResolvedValue({ dataRead: false, images: [], audios: [] });
+
+    await expect(service.restore(meta!.id)).resolves.toBe(false);
+    expect(shown).not.toHaveBeenCalled();
   });
 
   it('lets a room to start on still being set out at launch finish before the snapshot goes in', async () => {

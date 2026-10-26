@@ -125,10 +125,11 @@ export class RoomSnapshotService {
    * Loads a snapshot back into the room, as a room file dropped on the table would be.
    *
    * Answers false where snapshots are unsupported, while a restore is already running, for an id
-   * the store does not hold, or when the snapshot's room cannot be read, which is said. A room to
-   * start on still being set out at launch is let finish first, so the snapshot lands on it. While
-   * a replay's board is shown in place of the table it restores nothing and says why, as the board
-   * and what went onto it are thrown away when the table comes back.
+   * the store does not hold, when the reader declines to overwrite the room, or when the snapshot's
+   * room cannot be read, which is said. A room to start on still being set out at launch is let
+   * finish first, so the snapshot lands on it. While a replay's board is shown in place of the table
+   * it restores nothing and says why, as the board and what went onto it are thrown away when the
+   * table comes back.
    */
   async restore(id: number): Promise<boolean> {
     if (!this.isSupported || this._isRestoring()) return false;
@@ -147,7 +148,9 @@ export class RoomSnapshotService {
 
       const file = new File([record.blob], 'room-snapshot.zip', { type: 'application/zip' });
       const { dataRead } = await this.fileArchiver.load([file]);
-      if (!dataRead) this.snackbar.show(this.t('feature.roomArchive.restoreUnreadable'));
+      if (!dataRead && (reloadCheck?.isLoadOk() ?? true)) {
+        this.snackbar.show(this.t('feature.roomArchive.restoreUnreadable'));
+      }
       return dataRead;
     } catch (reason) {
       Logger.warn('[RoomSnapshot] スナップショットの復元に失敗しました', reason);
